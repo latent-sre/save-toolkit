@@ -248,8 +248,8 @@
           "detector": "extract.test-literal",
           "excerptHash": "sha256:7988807514097646382f0e68faf63772119aadbb1ddae7707476cefe17158bd9",
           "lines": [
-            228,
-            228
+            237,
+            237
           ],
           "path": "scripts/test_fleet_atlas.py"
         }
@@ -260,24 +260,26 @@
       "target": "test:scripts/test_fleet_atlas.py"
     },
     {
-      "attrs": {},
+      "attrs": {
+        "via": "string-literal"
+      },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.review-link",
-          "excerptHash": "sha256:ed7fe195d493d488bbaa90a5ef5118c935f2bc8a8f542e066a67062414c86f3f",
+          "detector": "extract.test-literal",
+          "excerptHash": "sha256:b648e37704541ee26bd6e119ae495b564851befafea3f89f6f6b285393f4869f",
           "lines": [
-            3,
-            3
+            35,
+            35
           ],
-          "path": "docs/reviews/2026-08-27-skill-001-agent-authoring.md"
+          "path": "scripts/test_fleet_atlas.py"
         }
       ],
-      "id": "edge:04de4af1851cdd05",
-      "kind": "cites",
-      "source": "review:2026-08-27-skill-001-agent-authoring",
-      "target": "roadmap-item:EFFECT-001"
+      "id": "edge:04d418d7048057d3",
+      "kind": "verified_by",
+      "source": "document:docs/rules.md",
+      "target": "test:scripts/test_fleet_atlas.py"
     },
     {
       "attrs": {
@@ -366,6 +368,26 @@
       "kind": "loads_when",
       "source": "skill:backend-craft",
       "target": "reference:backend-craft/auth.md"
+    },
+    {
+      "attrs": {},
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.review-link",
+          "excerptHash": "sha256:829213d229fa3c0dc31e4bacd472df513536b0075dd4675fff465f6eb63eb6a2",
+          "lines": [
+            7,
+            7
+          ],
+          "path": "docs/reviews/2026-08-30-folded-eval-index.md"
+        }
+      ],
+      "id": "edge:0534975db161833d",
+      "kind": "cites",
+      "source": "review:2026-08-30-folded-eval-index",
+      "target": "document:docs/fleet-roadmap.md"
     },
     {
       "attrs": {
@@ -494,26 +516,6 @@
       "kind": "verified_by",
       "source": "agent:sre",
       "target": "scenario:agent-direct-sre-owns-recovery-to-terminal"
-    },
-    {
-      "attrs": {},
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.review-link",
-          "excerptHash": "sha256:ed7fe195d493d488bbaa90a5ef5118c935f2bc8a8f542e066a67062414c86f3f",
-          "lines": [
-            3,
-            3
-          ],
-          "path": "docs/reviews/2026-08-27-skill-001-frontend-craft.md"
-        }
-      ],
-      "id": "edge:067bfc0d3b2c4c39",
-      "kind": "cites",
-      "source": "review:2026-08-27-skill-001-frontend-craft",
-      "target": "roadmap-item:EFFECT-001"
     },
     {
       "attrs": {
@@ -837,6 +839,28 @@
       "kind": "cites",
       "source": "skill:postmortem",
       "target": "bundle-file:postmortem/assets/postmortem-template.md"
+    },
+    {
+      "attrs": {
+        "batch": "20260831T045127Z-b6efb49b"
+      },
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.evidence-batch",
+          "excerptHash": "sha256:d3d6484a377952644d498fbea011e916914b052ed41887481e043c77e25281a1",
+          "lines": [
+            580,
+            580
+          ],
+          "path": "docs/fleet-roadmap.md"
+        }
+      ],
+      "id": "edge:091246441688053e",
+      "kind": "evidenced_by",
+      "source": "roadmap-item:ROUTE-003",
+      "target": "review:2026-08-31-eval-20260831T045127Z-b6efb49b"
     },
     {
       "attrs": {
@@ -1381,6 +1405,28 @@
       "target": "skill:service-readiness-audit"
     },
     {
+      "attrs": {
+        "batch": "20260831T051130Z-d1887391"
+      },
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.evidence-batch",
+          "excerptHash": "sha256:f82ec8d75ef88766bc7fe2ba98a1cbf119860d648a59047aa2df5abeeaebefeb",
+          "lines": [
+            691,
+            691
+          ],
+          "path": "docs/fleet-roadmap.md"
+        }
+      ],
+      "id": "edge:0dcb2826ed1b83da",
+      "kind": "evidenced_by",
+      "source": "roadmap-item:GRADER-008",
+      "target": "review:2026-08-31-eval-20260831T051130Z-d1887391"
+    },
+    {
       "attrs": {},
       "class": "STATIC_EXTRACTED",
       "evidence": [
@@ -1587,26 +1633,6 @@
       "kind": "evidenced_by",
       "source": "roadmap-item:GRADER-009",
       "target": "review:2026-08-29-build-probe-observability-engineer"
-    },
-    {
-      "attrs": {},
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.review-link",
-          "excerptHash": "sha256:c442d46d2b7f3aea1c2b2498e0ca9deb1607765ec3ae2f6816c6e38db52fc27e",
-          "lines": [
-            8,
-            8
-          ],
-          "path": "docs/reviews/2026-08-26-sre-human-assistance-measurement-notes.md"
-        }
-      ],
-      "id": "edge:107ab599659113d0",
-      "kind": "cites",
-      "source": "review:2026-08-26-sre-human-assistance-measurement-notes",
-      "target": "roadmap-item:EFFECT-001"
     },
     {
       "attrs": {
@@ -2642,28 +2668,6 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:29218ad0094065b5a5afef492d9e9ca491093c7c5f0cd24aef1fbad37d531aab",
-          "lines": [
-            342,
-            342
-          ],
-          "path": "scripts/test_fleet_atlas.py"
-        }
-      ],
-      "id": "edge:1d278e800b1b6526",
-      "kind": "verified_by",
-      "source": "roadmap-item:EFFECT-001",
-      "target": "test:scripts/test_fleet_atlas.py"
-    },
-    {
-      "attrs": {
         "expected_alternative": "agent:sre"
       },
       "class": "STATIC_EXTRACTED",
@@ -2769,6 +2773,26 @@
       "kind": "loads_when",
       "source": "skill:frontend-craft",
       "target": "reference:frontend-craft/design-language.md"
+    },
+    {
+      "attrs": {},
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.review-link",
+          "excerptHash": "sha256:e61b21ee1c703eb91d097ad4781eb0aab47baef497585e662eecc93ba93b6c6e",
+          "lines": [
+            9,
+            9
+          ],
+          "path": "docs/reviews/2026-08-06-docs-authority-refresh.md"
+        }
+      ],
+      "id": "edge:1e01bfa5e1e6a4de",
+      "kind": "cites",
+      "source": "review:2026-08-06-docs-authority-refresh",
+      "target": "document:docs/rules.md"
     },
     {
       "attrs": {},
@@ -2920,6 +2944,28 @@
     },
     {
       "attrs": {
+        "batch": "20260830T072838Z-573c9de8"
+      },
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.evidence-batch",
+          "excerptHash": "sha256:7fc4d3de98225b066bb09a6e66751d55cb981d9c9753eb9fcd284f363a53b6a0",
+          "lines": [
+            312,
+            312
+          ],
+          "path": "docs/fleet-roadmap.md"
+        }
+      ],
+      "id": "edge:1f27761122bf9fd9",
+      "kind": "evidenced_by",
+      "source": "roadmap-item:HOST-002",
+      "target": "review:2026-08-30-vscode-subagent-handoff-enforcement"
+    },
+    {
+      "attrs": {
         "via": "string-literal"
       },
       "class": "STATIC_EXTRACTED",
@@ -2929,8 +2975,8 @@
           "detector": "extract.test-literal",
           "excerptHash": "sha256:6d03f31c719e0ce96562abd9bd4ea790e6d43c4bcf6302c3453aceb680f173a1",
           "lines": [
-            605,
-            605
+            654,
+            654
           ],
           "path": "scripts/test_fleet_atlas.py"
         }
@@ -3195,28 +3241,6 @@
       "kind": "verified_by",
       "source": "agent:sre",
       "target": "scenario:agent-direct-sre-suspected-compromise-preserves-evidence"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:8dbb9c118f173b7bc16a7df1d20167552ad465256957e2263ab5e6d965e9f8e5",
-          "lines": [
-            480,
-            480
-          ],
-          "path": "scripts/test_fleet_atlas.py"
-        }
-      ],
-      "id": "edge:22518aedd0925e08",
-      "kind": "verified_by",
-      "source": "roadmap-item:GRADER-005",
-      "target": "test:scripts/test_fleet_atlas.py"
     },
     {
       "attrs": {
@@ -3552,8 +3576,8 @@
           "detector": "extract.test-literal",
           "excerptHash": "sha256:05aec2d42752c373760912d9c8eec506db0cd9b0f604556575b93b7d925eb2cc",
           "lines": [
-            606,
-            606
+            655,
+            655
           ],
           "path": "scripts/test_fleet_atlas.py"
         }
@@ -3658,26 +3682,6 @@
         {
           "class": "STATIC_EXTRACTED",
           "detector": "extract.review-link",
-          "excerptHash": "sha256:9ff97985a91b04c336aead3d74b0f311eb2ab1db19ed6fbdb6febc94865a9d13",
-          "lines": [
-            69,
-            69
-          ],
-          "path": "docs/reviews/2026-08-17-skills-surface-sweep.md"
-        }
-      ],
-      "id": "edge:27f57b1daa6e800f",
-      "kind": "cites",
-      "source": "review:2026-08-17-skills-surface-sweep",
-      "target": "rule:dd78d2d222fecf19"
-    },
-    {
-      "attrs": {},
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.review-link",
           "excerptHash": "sha256:243ec1b28c7d3ce81ead27bddfc819191b7d6879159f1d2e202125ed20ef6480",
           "lines": [
             72,
@@ -3754,26 +3758,6 @@
       "kind": "generated_from",
       "source": "generated-projection:platforms/copilot/skills/pcf-deploy/references/configuration-and-scaling.md",
       "target": "reference:pcf-deploy/configuration-and-scaling.md"
-    },
-    {
-      "attrs": {},
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.review-link",
-          "excerptHash": "sha256:89d51dea06266fda8aa13d8a3a7884a498c8e74752aa1b8349dc2a57fe820e4e",
-          "lines": [
-            4,
-            4
-          ],
-          "path": "docs/reviews/2026-08-24-skill-001-phase-1-closure.md"
-        }
-      ],
-      "id": "edge:28f08dd840bfd919",
-      "kind": "cites",
-      "source": "review:2026-08-24-skill-001-phase-1-closure",
-      "target": "roadmap-item:EFFECT-001"
     },
     {
       "attrs": {},
@@ -3924,6 +3908,26 @@
       "target": "reference:incident-command/mitigation-selection.md"
     },
     {
+      "attrs": {},
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.review-link",
+          "excerptHash": "sha256:001c8c6dbf38fffa7ca92f21a83cd253aa857ca6a5af4583cdf0b34c189ae003",
+          "lines": [
+            3,
+            3
+          ],
+          "path": "docs/reviews/2026-08-29-skill-001-gcp-ops.md"
+        }
+      ],
+      "id": "edge:2ab8284d006df261",
+      "kind": "cites",
+      "source": "review:2026-08-29-skill-001-gcp-ops",
+      "target": "document:docs/fleet-roadmap.md"
+    },
+    {
       "attrs": {
         "via": "expected_alternative"
       },
@@ -4054,26 +4058,6 @@
       "kind": "loads_when",
       "source": "skill:frontend-craft",
       "target": "reference:frontend-craft/data-views.md"
-    },
-    {
-      "attrs": {},
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.review-link",
-          "excerptHash": "sha256:19bbbe8e1e059f599b3ac90a2825dbf562f14483a465df6c8527d6f6fb33ca7e",
-          "lines": [
-            5,
-            5
-          ],
-          "path": "docs/reviews/2026-08-22-skill-clarity-routing-graph-audit.md"
-        }
-      ],
-      "id": "edge:2d85d6bf52a3874f",
-      "kind": "cites",
-      "source": "review:2026-08-22-skill-clarity-routing-graph-audit",
-      "target": "roadmap-item:EFFECT-001"
     },
     {
       "attrs": {
@@ -4377,6 +4361,28 @@
     },
     {
       "attrs": {
+        "batch": "20260830T063012Z-f5c3f1ea"
+      },
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.evidence-batch",
+          "excerptHash": "sha256:9999455226793e8723302af9faee7e444c2a8c581acd8cb2f4650286b89b68be",
+          "lines": [
+            300,
+            300
+          ],
+          "path": "docs/fleet-roadmap.md"
+        }
+      ],
+      "id": "edge:3101ab168b01e470",
+      "kind": "evidenced_by",
+      "source": "roadmap-item:HOST-002",
+      "target": "review:2026-08-30-vscode-subagent-handoff-enforcement"
+    },
+    {
+      "attrs": {
         "via": "generate_platform_adapters.expected_outputs"
       },
       "class": "CONTRACT_RESOLVED",
@@ -4418,6 +4424,26 @@
       "kind": "loads_when",
       "source": "skill:pcf-deploy",
       "target": "reference:pcf-deploy/configuration-and-scaling.md"
+    },
+    {
+      "attrs": {},
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.review-link",
+          "excerptHash": "sha256:02217b5a40e1b51cf28687b9fecc59d46d5e3e1fe65def0278c34bbaae94aab5",
+          "lines": [
+            4,
+            4
+          ],
+          "path": "docs/reviews/2026-08-23-prompt-loop-graph-engineering-research.md"
+        }
+      ],
+      "id": "edge:312e059a41c99edf",
+      "kind": "cites",
+      "source": "review:2026-08-23-prompt-loop-graph-engineering-research",
+      "target": "document:docs/fleet-roadmap.md"
     },
     {
       "attrs": {
@@ -5234,6 +5260,26 @@
       "target": "review:2026-08-31-eval-20260831T051130Z-d1887391"
     },
     {
+      "attrs": {},
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.review-link",
+          "excerptHash": "sha256:9ff97985a91b04c336aead3d74b0f311eb2ab1db19ed6fbdb6febc94865a9d13",
+          "lines": [
+            69,
+            69
+          ],
+          "path": "docs/reviews/2026-08-17-skills-surface-sweep.md"
+        }
+      ],
+      "id": "edge:38976d20131743ff",
+      "kind": "cites",
+      "source": "review:2026-08-17-skills-surface-sweep",
+      "target": "document:docs/rules.md"
+    },
+    {
       "attrs": {
         "predicate": "Assigning a builder, defining a checkpoint, batching implementation, validating a builder packet, or handling a missed checkpoint"
       },
@@ -5774,6 +5820,28 @@
     },
     {
       "attrs": {
+        "batch": "20260829T204757Z-d42c7c7c"
+      },
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.evidence-batch",
+          "excerptHash": "sha256:8f18aad4f1a96916ef82ff61ce178c047f8215fc9cd7066a93975cc5b5cbd58e",
+          "lines": [
+            879,
+            879
+          ],
+          "path": "docs/fleet-roadmap.md"
+        }
+      ],
+      "id": "edge:3f6aa890a57c6a5b",
+      "kind": "evidenced_by",
+      "source": "roadmap-item:EVAL-006",
+      "target": "review:2026-08-29-skill-001-gcp-ops"
+    },
+    {
+      "attrs": {
         "predicate": "An observability backend, signal, query language, vendor lifecycle, GCP observability choice, or edge/CDN/WAF/RUM product"
       },
       "class": "STATIC_EXTRACTED",
@@ -5793,26 +5861,6 @@
       "kind": "loads_when",
       "source": "skill:stack-profile",
       "target": "reference:stack-profile/observability-stack.md"
-    },
-    {
-      "attrs": {},
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.review-link",
-          "excerptHash": "sha256:02217b5a40e1b51cf28687b9fecc59d46d5e3e1fe65def0278c34bbaae94aab5",
-          "lines": [
-            4,
-            4
-          ],
-          "path": "docs/reviews/2026-08-23-prompt-loop-graph-engineering-research.md"
-        }
-      ],
-      "id": "edge:3f7d28bc37b3a283",
-      "kind": "cites",
-      "source": "review:2026-08-23-prompt-loop-graph-engineering-research",
-      "target": "roadmap-item:EFFECT-001"
     },
     {
       "attrs": {
@@ -5925,6 +5973,26 @@
       "target": "reference:gcp-ops/projects.md"
     },
     {
+      "attrs": {},
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.review-link",
+          "excerptHash": "sha256:ed7fe195d493d488bbaa90a5ef5118c935f2bc8a8f542e066a67062414c86f3f",
+          "lines": [
+            3,
+            3
+          ],
+          "path": "docs/reviews/2026-08-27-skill-001-agent-authoring.md"
+        }
+      ],
+      "id": "edge:406bad2cdca12460",
+      "kind": "cites",
+      "source": "review:2026-08-27-skill-001-agent-authoring",
+      "target": "document:docs/fleet-roadmap.md"
+    },
+    {
       "attrs": {
         "predicate": "Real-user monitoring: beacons, Core Web Vitals, back-end vs front-end time, slicing a regression"
       },
@@ -5985,26 +6053,6 @@
       "kind": "governed_by",
       "source": "rule:8db5c5a0336147c9",
       "target": "document:requirements-dev.txt"
-    },
-    {
-      "attrs": {},
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.evidence-link",
-          "excerptHash": "sha256:6704215022bd13debc754d469fa82d64232b8d56ed9d6f3e55b3dc0aff5dd3cd",
-          "lines": [
-            14,
-            14
-          ],
-          "path": "docs/decisions/2026-08-23-retire-codex-distribution-target.md"
-        }
-      ],
-      "id": "edge:4129bac24e850590",
-      "kind": "evidenced_by",
-      "source": "decision:2026-08-23-retire-codex-distribution-target",
-      "target": "decision:2026-07-31-local-external-research-separation"
     },
     {
       "attrs": {
@@ -6289,8 +6337,8 @@
           "detector": "extract.test-literal",
           "excerptHash": "sha256:6767ff22e0f62f1e8e24d7e1aeb768414c3ace7e5c12ede5aa113e8ef70a6839",
           "lines": [
-            546,
-            546
+            595,
+            595
           ],
           "path": "scripts/test_fleet_atlas.py"
         }
@@ -6498,6 +6546,28 @@
     },
     {
       "attrs": {
+        "via": "string-literal"
+      },
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.test-literal",
+          "excerptHash": "sha256:0d62960da33ec2a86fbae10e8c63e3e8f1532569b751ddf6f78b14ee1a9aacce",
+          "lines": [
+            18,
+            18
+          ],
+          "path": "scripts/test_plan_status.py"
+        }
+      ],
+      "id": "edge:466351fd25a50de6",
+      "kind": "verified_by",
+      "source": "document:docs/fleet-roadmap.md",
+      "target": "test:scripts/test_plan_status.py"
+    },
+    {
+      "attrs": {
         "via": "generate_platform_adapters.expected_outputs"
       },
       "class": "CONTRACT_RESOLVED",
@@ -6517,6 +6587,26 @@
       "kind": "generated_from",
       "source": "generated-projection:platforms/copilot/skills/frontend-craft/references/stack.md",
       "target": "reference:frontend-craft/stack.md"
+    },
+    {
+      "attrs": {},
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.review-link",
+          "excerptHash": "sha256:ed7fe195d493d488bbaa90a5ef5118c935f2bc8a8f542e066a67062414c86f3f",
+          "lines": [
+            3,
+            3
+          ],
+          "path": "docs/reviews/2026-08-27-skill-001-frontend-craft.md"
+        }
+      ],
+      "id": "edge:4699f960e53da093",
+      "kind": "cites",
+      "source": "review:2026-08-27-skill-001-frontend-craft",
+      "target": "document:docs/fleet-roadmap.md"
     },
     {
       "attrs": {
@@ -7220,6 +7310,28 @@
     },
     {
       "attrs": {
+        "batch": "20260831T052440Z-c13a16f0"
+      },
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.evidence-batch",
+          "excerptHash": "sha256:1c5f10206c4039501f479cf9216688f83b7d7e76a60e3c66423aa676b28f08e9",
+          "lines": [
+            48,
+            48
+          ],
+          "path": "docs/roadmap-closed.md"
+        }
+      ],
+      "id": "edge:50cf82b8ae44f261",
+      "kind": "evidenced_by",
+      "source": "roadmap-item:GRADER-005",
+      "target": "review:2026-08-31-route-003-grader-008-replacement-gate"
+    },
+    {
+      "attrs": {
         "predicate": "A cataloged starting query for a common question"
       },
       "class": "STATIC_EXTRACTED",
@@ -7305,26 +7417,6 @@
       "kind": "generated_from",
       "source": "generated-projection:platforms/copilot/skills/incident-drill/scripts/run_lane.py",
       "target": "bundle-file:incident-drill/scripts/run_lane.py"
-    },
-    {
-      "attrs": {},
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.evidence-link",
-          "excerptHash": "sha256:88796ad713b8a3ab0f76e16b65a44111859595b564a8fd51d8bba2a22674ba0b",
-          "lines": [
-            16,
-            16
-          ],
-          "path": "docs/roadmap-closed.md"
-        }
-      ],
-      "id": "edge:527bdb926cff9c8f",
-      "kind": "evidenced_by",
-      "source": "roadmap-item:SAFE-001",
-      "target": "decision:2026-07-31-local-external-research-separation"
     },
     {
       "attrs": {
@@ -7435,28 +7527,6 @@
       "kind": "verified_by",
       "source": "skill:service-lifecycle",
       "target": "test:scripts/test_check_links.py"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:b648e37704541ee26bd6e119ae495b564851befafea3f89f6f6b285393f4869f",
-          "lines": [
-            35,
-            35
-          ],
-          "path": "scripts/test_fleet_atlas.py"
-        }
-      ],
-      "id": "edge:532fa73e75361a54",
-      "kind": "verified_by",
-      "source": "rule:dd78d2d222fecf19",
-      "target": "test:scripts/test_fleet_atlas.py"
     },
     {
       "attrs": {
@@ -7712,6 +7782,28 @@
       "kind": "cites",
       "source": "review:2026-08-25-sre-agent-human-assistance-review",
       "target": "skill:root-cause"
+    },
+    {
+      "attrs": {
+        "batch": "20260830T122740Z-459779a7"
+      },
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.evidence-batch",
+          "excerptHash": "sha256:5e4153ad4a98670e01281aa552aed98d1cb83bd9c18dd8d3ee81305862600311",
+          "lines": [
+            311,
+            311
+          ],
+          "path": "docs/fleet-roadmap.md"
+        }
+      ],
+      "id": "edge:5758a747eb72bc59",
+      "kind": "evidenced_by",
+      "source": "roadmap-item:HOST-002",
+      "target": "review:2026-08-30-vscode-subagent-handoff-enforcement"
     },
     {
       "attrs": {
@@ -8058,26 +8150,6 @@
       "target": "roadmap-item:EVAL-003"
     },
     {
-      "attrs": {},
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.review-link",
-          "excerptHash": "sha256:0971c50925be358bc02b455d69eb466a1c49a91b9e82115d50258afacb1ca88c",
-          "lines": [
-            4,
-            4
-          ],
-          "path": "docs/reviews/2026-08-30-live-backlog-refresh.md"
-        }
-      ],
-      "id": "edge:5bc6488e6213d8fa",
-      "kind": "cites",
-      "source": "review:2026-08-30-live-backlog-refresh",
-      "target": "roadmap-item:EFFECT-001"
-    },
-    {
       "attrs": {
         "via": "generate_platform_adapters.expected_outputs"
       },
@@ -8098,6 +8170,26 @@
       "kind": "generated_from",
       "source": "generated-projection:platforms/copilot/skills/ops-tooling/references/verification-and-handoff.md",
       "target": "reference:ops-tooling/verification-and-handoff.md"
+    },
+    {
+      "attrs": {},
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.review-link",
+          "excerptHash": "sha256:d769d566e07db6c2b5a764137755aacec7212e69b1c64a440b64abc31e9960b4",
+          "lines": [
+            38,
+            38
+          ],
+          "path": "docs/reviews/2026-08-31-grader-005-closure.md"
+        }
+      ],
+      "id": "edge:5c261a27f6aafc35",
+      "kind": "cites",
+      "source": "review:2026-08-31-grader-005-closure",
+      "target": "document:docs/fleet-roadmap.md"
     },
     {
       "attrs": {
@@ -8188,26 +8280,6 @@
       "target": "test:scripts/test_release_skill_contracts.py"
     },
     {
-      "attrs": {},
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.review-link",
-          "excerptHash": "sha256:d769d566e07db6c2b5a764137755aacec7212e69b1c64a440b64abc31e9960b4",
-          "lines": [
-            38,
-            38
-          ],
-          "path": "docs/reviews/2026-08-31-grader-005-closure.md"
-        }
-      ],
-      "id": "edge:5d6f7db594b268df",
-      "kind": "cites",
-      "source": "review:2026-08-31-grader-005-closure",
-      "target": "roadmap-item:EFFECT-001"
-    },
-    {
       "attrs": {
         "via": "generate_platform_adapters.expected_outputs"
       },
@@ -8270,26 +8342,6 @@
       "kind": "cites",
       "source": "review:2026-08-30-graph-004-fleet-atlas-decision",
       "target": "review:2026-08-24-host-context-budget-audit"
-    },
-    {
-      "attrs": {},
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.review-link",
-          "excerptHash": "sha256:feab10e06ed0dd4db175247af9cf7b4b7654a4f632e67355ce13310638cf9724",
-          "lines": [
-            5,
-            5
-          ],
-          "path": "docs/reviews/2026-08-24-sre-context-framework-architecture.md"
-        }
-      ],
-      "id": "edge:5dde2198d133b0df",
-      "kind": "cites",
-      "source": "review:2026-08-24-sre-context-framework-architecture",
-      "target": "roadmap-item:EFFECT-001"
     },
     {
       "attrs": {},
@@ -8374,6 +8426,28 @@
       "kind": "verified_by",
       "source": "skill:gcp-ops",
       "target": "scenario:discovery-gcp-ops-cloud-run-startup"
+    },
+    {
+      "attrs": {
+        "batch": "20260829T213859Z-c3ab2ab7"
+      },
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.evidence-batch",
+          "excerptHash": "sha256:dc65138361de35f0d3dd1c0b8ca9ed56f91b55cd1e70df59c09a711e0d039856",
+          "lines": [
+            889,
+            889
+          ],
+          "path": "docs/fleet-roadmap.md"
+        }
+      ],
+      "id": "edge:5ebbd2d4e4426f33",
+      "kind": "evidenced_by",
+      "source": "roadmap-item:EVAL-006",
+      "target": "review:2026-08-29-skill-001-gcp-ops"
     },
     {
       "attrs": {
@@ -8558,8 +8632,8 @@
           "detector": "extract.test-literal",
           "excerptHash": "sha256:e31e769f9e1ece1f6132c9af3181c60247179a12905472d1b6dcf260f53e5d41",
           "lines": [
-            551,
-            551
+            600,
+            600
           ],
           "path": "scripts/test_fleet_atlas.py"
         }
@@ -8636,6 +8710,26 @@
       "target": "scenario:agent-authoring-trigger-and-shape-contract"
     },
     {
+      "attrs": {},
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.review-link",
+          "excerptHash": "sha256:a433dfda8f9e720add17c39b44e50f29c0cd5b7f42e51a75f8085f2a58ebf5ed",
+          "lines": [
+            7,
+            7
+          ],
+          "path": "docs/reviews/2026-08-06-mutation-testing-gap.md"
+        }
+      ],
+      "id": "edge:60efc9d0c80f24e6",
+      "kind": "cites",
+      "source": "review:2026-08-06-mutation-testing-gap",
+      "target": "document:docs/fleet-roadmap.md"
+    },
+    {
       "attrs": {
         "expected_alternative": "agent:software-engineer"
       },
@@ -8656,6 +8750,26 @@
       "kind": "near_miss_for",
       "source": "scenario:discovery-scribe-defers-automation",
       "target": "agent:scribe"
+    },
+    {
+      "attrs": {},
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.evidence-link",
+          "excerptHash": "sha256:3326ffda1207a1be5b7209a08cc086292e9a344bcf80aa1c3044ddedbd006732",
+          "lines": [
+            797,
+            797
+          ],
+          "path": "docs/fleet-roadmap.md"
+        }
+      ],
+      "id": "edge:61721d0eaa109c9e",
+      "kind": "evidenced_by",
+      "source": "roadmap-item:EVAL-005",
+      "target": "review:2026-08-31-eval-005-prometheus-probe-gate"
     },
     {
       "attrs": {
@@ -8828,26 +8942,6 @@
       "kind": "verified_by",
       "source": "agent:researcher",
       "target": "scenario:discovery-external-version-research"
-    },
-    {
-      "attrs": {},
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.evidence-link",
-          "excerptHash": "sha256:077de2aba79119704df185f11c510b12905fbd829a543764945eef4f6f7b6880",
-          "lines": [
-            8,
-            8
-          ],
-          "path": "docs/decisions/2026-08-23-retire-codex-distribution-target.md"
-        }
-      ],
-      "id": "edge:652b1301b0ed911b",
-      "kind": "evidenced_by",
-      "source": "decision:2026-08-23-retire-codex-distribution-target",
-      "target": "decision:2026-07-31-multi-platform-plugin-packaging"
     },
     {
       "attrs": {
@@ -9133,28 +9227,6 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:11fff55da400783befbb4026aecc0d67b014f98da8f63ce6758c91b34e9178dd",
-          "lines": [
-            291,
-            291
-          ],
-          "path": "scripts/test_plan_status.py"
-        }
-      ],
-      "id": "edge:68204c483b50c729",
-      "kind": "verified_by",
-      "source": "roadmap-item:GRADER-005",
-      "target": "test:scripts/test_plan_status.py"
-    },
-    {
-      "attrs": {
         "mode": "direct"
       },
       "class": "STATIC_EXTRACTED",
@@ -9351,6 +9423,28 @@
     },
     {
       "attrs": {
+        "batch": "20260831T051130Z-d1887391"
+      },
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.evidence-batch",
+          "excerptHash": "sha256:f82ec8d75ef88766bc7fe2ba98a1cbf119860d648a59047aa2df5abeeaebefeb",
+          "lines": [
+            691,
+            691
+          ],
+          "path": "docs/fleet-roadmap.md"
+        }
+      ],
+      "id": "edge:6a1bade0332f3a46",
+      "kind": "evidenced_by",
+      "source": "roadmap-item:GRADER-008",
+      "target": "review:2026-08-31-route-003-grader-008-replacement-gate"
+    },
+    {
+      "attrs": {
         "mode": "discovery"
       },
       "class": "STATIC_EXTRACTED",
@@ -9370,28 +9464,6 @@
       "kind": "verified_by",
       "source": "skill:language-idiom",
       "target": "scenario:discovery-language-idiom-java"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:0d62960da33ec2a86fbae10e8c63e3e8f1532569b751ddf6f78b14ee1a9aacce",
-          "lines": [
-            18,
-            18
-          ],
-          "path": "scripts/test_plan_status.py"
-        }
-      ],
-      "id": "edge:6a8233d5b64aa7d5",
-      "kind": "verified_by",
-      "source": "roadmap-item:EFFECT-001",
-      "target": "test:scripts/test_plan_status.py"
     },
     {
       "attrs": {},
@@ -9609,6 +9681,28 @@
     },
     {
       "attrs": {
+        "via": "string-literal"
+      },
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.test-literal",
+          "excerptHash": "sha256:ec52406d3ee7affc656aad69069f09d68977520c9b4b7a8796e116c70312d21a",
+          "lines": [
+            657,
+            657
+          ],
+          "path": "scripts/test_fleet_atlas.py"
+        }
+      ],
+      "id": "edge:6c5e47081baaab10",
+      "kind": "verified_by",
+      "source": "review:2026-08-25-grader-003-verification-batch",
+      "target": "test:scripts/test_fleet_atlas.py"
+    },
+    {
+      "attrs": {
         "mode": "direct"
       },
       "class": "STATIC_EXTRACTED",
@@ -9716,6 +9810,28 @@
       "kind": "verified_by",
       "source": "validator:scripts/fleet_atlas.py",
       "target": "test:scripts/test_fleet_atlas.py"
+    },
+    {
+      "attrs": {
+        "batch": "20260831T045127Z-b6efb49b"
+      },
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.evidence-batch",
+          "excerptHash": "sha256:d3d6484a377952644d498fbea011e916914b052ed41887481e043c77e25281a1",
+          "lines": [
+            580,
+            580
+          ],
+          "path": "docs/fleet-roadmap.md"
+        }
+      ],
+      "id": "edge:6deb4df54493e75a",
+      "kind": "evidenced_by",
+      "source": "roadmap-item:ROUTE-003",
+      "target": "review:2026-08-31-route-003-grader-008-replacement-gate"
     },
     {
       "attrs": {
@@ -10510,26 +10626,6 @@
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.review-link",
-          "excerptHash": "sha256:fc2fb54a5cd985e35ff1c67c45c50e6ae20769a5dc35ef9832a0710e61541e8b",
-          "lines": [
-            5,
-            5
-          ],
-          "path": "docs/reviews/2026-08-26-evidence-001-capture-design.md"
-        }
-      ],
-      "id": "edge:760fd30528d91e18",
-      "kind": "cites",
-      "source": "review:2026-08-26-evidence-001-capture-design",
-      "target": "roadmap-item:EFFECT-001"
-    },
-    {
-      "attrs": {},
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
           "detector": "extract.rules-row",
           "excerptHash": "sha256:490d1cbeb0bedb5e5674364c36f70c0f7af0bd11dcd18e87e8f57a81efdf6aaf",
           "lines": [
@@ -10585,6 +10681,26 @@
       "kind": "evidenced_by",
       "source": "roadmap-item:HOST-001",
       "target": "review:2026-08-06-host-001-closure"
+    },
+    {
+      "attrs": {},
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.review-link",
+          "excerptHash": "sha256:19bbbe8e1e059f599b3ac90a2825dbf562f14483a465df6c8527d6f6fb33ca7e",
+          "lines": [
+            5,
+            5
+          ],
+          "path": "docs/reviews/2026-08-22-skill-clarity-routing-graph-audit.md"
+        }
+      ],
+      "id": "edge:76af650e38423019",
+      "kind": "cites",
+      "source": "review:2026-08-22-skill-clarity-routing-graph-audit",
+      "target": "document:docs/fleet-roadmap.md"
     },
     {
       "attrs": {},
@@ -10783,6 +10899,28 @@
     },
     {
       "attrs": {
+        "batch": "20260829T205852Z-010cbc11"
+      },
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.evidence-batch",
+          "excerptHash": "sha256:511d1a00b0ef481a4006ae6ee279b752ecdd1ca5294cc14144c7f3b8d7e61b3e",
+          "lines": [
+            880,
+            880
+          ],
+          "path": "docs/fleet-roadmap.md"
+        }
+      ],
+      "id": "edge:799151ff5c04c1b2",
+      "kind": "evidenced_by",
+      "source": "roadmap-item:EVAL-006",
+      "target": "review:2026-08-29-skill-001-gcp-ops"
+    },
+    {
+      "attrs": {
         "expected_alternative": "skill:merge-gate"
       },
       "class": "STATIC_EXTRACTED",
@@ -10870,26 +11008,6 @@
       "target": "skill:agent-authoring"
     },
     {
-      "attrs": {},
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.evidence-link",
-          "excerptHash": "sha256:8fc8a7c9a80a2f721868bb1b84446d3434a4430e24a81edd6bdeabd1c897b1a8",
-          "lines": [
-            361,
-            361
-          ],
-          "path": "docs/fleet-roadmap.md"
-        }
-      ],
-      "id": "edge:7ae6813889671f98",
-      "kind": "evidenced_by",
-      "source": "roadmap-item:EVAL-003",
-      "target": "decision:2026-08-26-multi-engine-evaluation-contract"
-    },
-    {
       "attrs": {
         "predicate": "The task requires repository-owned foundation/API, org/space, app inventory, route, owner, or runbook values, or the expected target for a human helper"
       },
@@ -10910,6 +11028,26 @@
       "kind": "loads_when",
       "source": "skill:pcf-ops",
       "target": "reference:pcf-ops/foundations.md"
+    },
+    {
+      "attrs": {},
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.review-link",
+          "excerptHash": "sha256:c442d46d2b7f3aea1c2b2498e0ca9deb1607765ec3ae2f6816c6e38db52fc27e",
+          "lines": [
+            8,
+            8
+          ],
+          "path": "docs/reviews/2026-08-26-sre-human-assistance-measurement-notes.md"
+        }
+      ],
+      "id": "edge:7b38b0d9d6ad4be4",
+      "kind": "cites",
+      "source": "review:2026-08-26-sre-human-assistance-measurement-notes",
+      "target": "document:docs/fleet-roadmap.md"
     },
     {
       "attrs": {
@@ -12703,6 +12841,28 @@
       "target": "skill:akamai-edge"
     },
     {
+      "attrs": {
+        "batch": "20260829T222151Z-02287972"
+      },
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.evidence-batch",
+          "excerptHash": "sha256:0b7936fa02765edbff5eb1ff43761c4a493e8da931573b08664d22d5f858f45f",
+          "lines": [
+            914,
+            914
+          ],
+          "path": "docs/fleet-roadmap.md"
+        }
+      ],
+      "id": "edge:9648a657d321ccad",
+      "kind": "evidenced_by",
+      "source": "roadmap-item:EVAL-006",
+      "target": "review:2026-08-29-skill-001-gcp-ops"
+    },
+    {
       "attrs": {},
       "class": "STATIC_EXTRACTED",
       "evidence": [
@@ -13218,26 +13378,6 @@
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.review-link",
-          "excerptHash": "sha256:617e0e7d2b9ffce31e83a551937b60f717a467d83dc8cd8c12b056ed1cb48a8d",
-          "lines": [
-            40,
-            40
-          ],
-          "path": "docs/reviews/2026-08-06-docs-authority-refresh.md"
-        }
-      ],
-      "id": "edge:9c7f0e9018f9f769",
-      "kind": "cites",
-      "source": "review:2026-08-06-docs-authority-refresh",
-      "target": "rule:dd78d2d222fecf19"
-    },
-    {
-      "attrs": {},
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
           "detector": "extract.bundle-file",
           "excerptHash": "sha256:e2b37d0fbeebd5358ba88a5ef5469cfab940c91f397b72b95107b9b6515a9ece",
           "lines": [
@@ -13521,8 +13661,8 @@
           "detector": "extract.test-literal",
           "excerptHash": "sha256:e75784f771967a23c46dc567d6cec3aa5606ff9e24a6cd9113cb2ba7ee5c222c",
           "lines": [
-            842,
-            842
+            907,
+            907
           ],
           "path": "scripts/test_fleet_atlas.py"
         }
@@ -14021,6 +14161,28 @@
     },
     {
       "attrs": {
+        "batch": "20260831T052440Z-c13a16f0"
+      },
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.evidence-batch",
+          "excerptHash": "sha256:1c5f10206c4039501f479cf9216688f83b7d7e76a60e3c66423aa676b28f08e9",
+          "lines": [
+            48,
+            48
+          ],
+          "path": "docs/roadmap-closed.md"
+        }
+      ],
+      "id": "edge:a5fb9996d3449797",
+      "kind": "evidenced_by",
+      "source": "roadmap-item:GRADER-005",
+      "target": "review:2026-08-31-grader-005-closure"
+    },
+    {
+      "attrs": {
         "via": "generate_platform_adapters.expected_outputs"
       },
       "class": "CONTRACT_RESOLVED",
@@ -14170,26 +14332,6 @@
       "kind": "owns",
       "source": "owner:software-engineer",
       "target": "roadmap-item:CONTEXT-001"
-    },
-    {
-      "attrs": {},
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.review-link",
-          "excerptHash": "sha256:e61b21ee1c703eb91d097ad4781eb0aab47baef497585e662eecc93ba93b6c6e",
-          "lines": [
-            9,
-            9
-          ],
-          "path": "docs/reviews/2026-08-06-docs-authority-refresh.md"
-        }
-      ],
-      "id": "edge:aac2613a8e1ae174",
-      "kind": "cites",
-      "source": "review:2026-08-06-docs-authority-refresh",
-      "target": "rule:dd78d2d222fecf19"
     },
     {
       "attrs": {},
@@ -14716,8 +14858,8 @@
           "detector": "extract.test-literal",
           "excerptHash": "sha256:1ee30b452f27254b3fc67b30c7932db9c720fc26f3f3140f5b22956fb04fe2b5",
           "lines": [
-            557,
-            557
+            606,
+            606
           ],
           "path": "scripts/test_fleet_atlas.py"
         }
@@ -14788,6 +14930,28 @@
       "kind": "generated_from",
       "source": "generated-projection:platforms/copilot/skills/workflow-graph-engineering/references/observability-and-evaluation.md",
       "target": "reference:workflow-graph-engineering/observability-and-evaluation.md"
+    },
+    {
+      "attrs": {
+        "via": "string-literal"
+      },
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.test-literal",
+          "excerptHash": "sha256:9c6fc37cffb6c552eaddb042326f090cde1309dd2b4edc51f06cbce0d3a3e002",
+          "lines": [
+            841,
+            841
+          ],
+          "path": "scripts/test_fleet_atlas.py"
+        }
+      ],
+      "id": "edge:b0edd30ef056574f",
+      "kind": "verified_by",
+      "source": "document:evals/README.md",
+      "target": "test:scripts/test_fleet_atlas.py"
     },
     {
       "attrs": {
@@ -14874,6 +15038,26 @@
       "target": "review:2026-08-25-skills-003-acceptance-3-result"
     },
     {
+      "attrs": {},
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.review-link",
+          "excerptHash": "sha256:617e0e7d2b9ffce31e83a551937b60f717a467d83dc8cd8c12b056ed1cb48a8d",
+          "lines": [
+            40,
+            40
+          ],
+          "path": "docs/reviews/2026-08-06-docs-authority-refresh.md"
+        }
+      ],
+      "id": "edge:b2b1abc8bfa46b15",
+      "kind": "cites",
+      "source": "review:2026-08-06-docs-authority-refresh",
+      "target": "document:docs/rules.md"
+    },
+    {
       "attrs": {
         "batch": "20260827T135452Z-5945f6a1"
       },
@@ -14894,6 +15078,46 @@
       "kind": "evidenced_by",
       "source": "roadmap-item:EVAL-004",
       "target": "review:2026-08-27-eval-20260827T135452Z-5945f6a1"
+    },
+    {
+      "attrs": {},
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.review-link",
+          "excerptHash": "sha256:c442d46d2b7f3aea1c2b2498e0ca9deb1607765ec3ae2f6816c6e38db52fc27e",
+          "lines": [
+            5,
+            5
+          ],
+          "path": "docs/reviews/2026-08-17-skills-surface-sweep.md"
+        }
+      ],
+      "id": "edge:b31dabc05fad190f",
+      "kind": "cites",
+      "source": "review:2026-08-17-skills-surface-sweep",
+      "target": "document:docs/fleet-roadmap.md"
+    },
+    {
+      "attrs": {},
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.review-link",
+          "excerptHash": "sha256:6e45fa44579cb05e3216bc923f03e65986b628379441df92e52781f62cbe4a1a",
+          "lines": [
+            5,
+            5
+          ],
+          "path": "docs/reviews/2026-08-26-three-pass-skill-audit.md"
+        }
+      ],
+      "id": "edge:b3e66765a3cb6370",
+      "kind": "cites",
+      "source": "review:2026-08-26-three-pass-skill-audit",
+      "target": "document:docs/fleet-roadmap.md"
     },
     {
       "attrs": {},
@@ -15108,6 +15332,26 @@
       "kind": "loads_when",
       "source": "skill:backend-craft",
       "target": "reference:backend-craft/live-data.md"
+    },
+    {
+      "attrs": {},
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.review-link",
+          "excerptHash": "sha256:3aa658d50169c256e283af829ab8f8fb9c4cd942a50f2fef40b786d879c77c4b",
+          "lines": [
+            3,
+            3
+          ],
+          "path": "docs/reviews/2026-08-30-graph-004-fleet-atlas-decision.md"
+        }
+      ],
+      "id": "edge:b6c3e374e7b51bd9",
+      "kind": "cites",
+      "source": "review:2026-08-30-graph-004-fleet-atlas-decision",
+      "target": "document:docs/fleet-roadmap.md"
     },
     {
       "attrs": {
@@ -15850,8 +16094,8 @@
           "detector": "extract.test-literal",
           "excerptHash": "sha256:9e91bac7317d6aa8258f1b2de5091f07a473e5b1d985a44d66686afb177c0e23",
           "lines": [
-            556,
-            556
+            605,
+            605
           ],
           "path": "scripts/test_fleet_atlas.py"
         }
@@ -16274,8 +16518,8 @@
           "detector": "extract.test-literal",
           "excerptHash": "sha256:2c670c4dae16d092c443914f276973129b89cf94adbd47e051a283dfd1436648",
           "lines": [
-            749,
-            749
+            799,
+            799
           ],
           "path": "scripts/test_fleet_atlas.py"
         }
@@ -16911,6 +17155,28 @@
     },
     {
       "attrs": {
+        "batch": "20260831T114601Z-72bffc6d"
+      },
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.evidence-batch",
+          "excerptHash": "sha256:8c76228dae964d8fbd171fcda79b127e8be7a91147da5d0c6c9ebe6296b4d579",
+          "lines": [
+            599,
+            599
+          ],
+          "path": "docs/fleet-roadmap.md"
+        }
+      ],
+      "id": "edge:cb6c9799467e9e34",
+      "kind": "evidenced_by",
+      "source": "roadmap-item:ROUTE-003",
+      "target": "review:2026-08-31-route-003-grader-008-replacement-gate"
+    },
+    {
+      "attrs": {
         "via": "expected_alternative"
       },
       "class": "STATIC_EXTRACTED",
@@ -17488,6 +17754,28 @@
     },
     {
       "attrs": {
+        "batch": "20260831T052440Z-c13a16f0"
+      },
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.evidence-batch",
+          "excerptHash": "sha256:1c5f10206c4039501f479cf9216688f83b7d7e76a60e3c66423aa676b28f08e9",
+          "lines": [
+            48,
+            48
+          ],
+          "path": "docs/roadmap-closed.md"
+        }
+      ],
+      "id": "edge:d1be8cc7424a63b6",
+      "kind": "evidenced_by",
+      "source": "roadmap-item:GRADER-005",
+      "target": "review:2026-08-31-eval-20260831T052440Z-c13a16f0"
+    },
+    {
+      "attrs": {
         "via": "generate_platform_adapters.expected_outputs"
       },
       "class": "CONTRACT_RESOLVED",
@@ -17573,26 +17861,6 @@
       "kind": "generated_from",
       "source": "generated-projection:platforms/copilot/skills/ci-actions/SKILL.md",
       "target": "skill:ci-actions"
-    },
-    {
-      "attrs": {},
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.review-link",
-          "excerptHash": "sha256:c442d46d2b7f3aea1c2b2498e0ca9deb1607765ec3ae2f6816c6e38db52fc27e",
-          "lines": [
-            5,
-            5
-          ],
-          "path": "docs/reviews/2026-08-17-skills-surface-sweep.md"
-        }
-      ],
-      "id": "edge:d25911547d8c2f5b",
-      "kind": "cites",
-      "source": "review:2026-08-17-skills-surface-sweep",
-      "target": "roadmap-item:EFFECT-001"
     },
     {
       "attrs": {
@@ -17875,6 +18143,26 @@
       "target": "reference:investigation-depth/signal-characterization.md"
     },
     {
+      "attrs": {},
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.review-link",
+          "excerptHash": "sha256:fc2fb54a5cd985e35ff1c67c45c50e6ae20769a5dc35ef9832a0710e61541e8b",
+          "lines": [
+            5,
+            5
+          ],
+          "path": "docs/reviews/2026-08-26-evidence-001-capture-design.md"
+        }
+      ],
+      "id": "edge:d60c48c6025a7c51",
+      "kind": "cites",
+      "source": "review:2026-08-26-evidence-001-capture-design",
+      "target": "document:docs/fleet-roadmap.md"
+    },
+    {
       "attrs": {
         "via": "string-literal"
       },
@@ -17960,6 +18248,26 @@
       "kind": "evidenced_by",
       "source": "roadmap-item:GRADER-008",
       "target": "review:2026-08-30-grader-008-approval-gate"
+    },
+    {
+      "attrs": {},
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.review-link",
+          "excerptHash": "sha256:0971c50925be358bc02b455d69eb466a1c49a91b9e82115d50258afacb1ca88c",
+          "lines": [
+            4,
+            4
+          ],
+          "path": "docs/reviews/2026-08-30-live-backlog-refresh.md"
+        }
+      ],
+      "id": "edge:d792613b54dae6fc",
+      "kind": "cites",
+      "source": "review:2026-08-30-live-backlog-refresh",
+      "target": "document:docs/fleet-roadmap.md"
     },
     {
       "attrs": {},
@@ -18137,6 +18445,26 @@
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
+          "detector": "extract.review-link",
+          "excerptHash": "sha256:feab10e06ed0dd4db175247af9cf7b4b7654a4f632e67355ce13310638cf9724",
+          "lines": [
+            5,
+            5
+          ],
+          "path": "docs/reviews/2026-08-24-sre-context-framework-architecture.md"
+        }
+      ],
+      "id": "edge:da1c645a14d49093",
+      "kind": "cites",
+      "source": "review:2026-08-24-sre-context-framework-architecture",
+      "target": "document:docs/fleet-roadmap.md"
+    },
+    {
+      "attrs": {},
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
           "detector": "extract.evidence-link",
           "excerptHash": "sha256:e3921140a73f5ffc561e4ce3aaca478c53bc713d73c4e82cea442892e9640f69",
           "lines": [
@@ -18150,26 +18478,6 @@
       "kind": "evidenced_by",
       "source": "roadmap-item:GRAPH-004",
       "target": "review:2026-08-30-graph-004-fleet-atlas-decision"
-    },
-    {
-      "attrs": {},
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.review-link",
-          "excerptHash": "sha256:001c8c6dbf38fffa7ca92f21a83cd253aa857ca6a5af4583cdf0b34c189ae003",
-          "lines": [
-            3,
-            3
-          ],
-          "path": "docs/reviews/2026-08-29-skill-001-gcp-ops.md"
-        }
-      ],
-      "id": "edge:dab462eb6c04a6cd",
-      "kind": "cites",
-      "source": "review:2026-08-29-skill-001-gcp-ops",
-      "target": "roadmap-item:EFFECT-001"
     },
     {
       "attrs": {
@@ -18254,26 +18562,6 @@
       "kind": "evidenced_by",
       "source": "roadmap-item:GRAPH-004",
       "target": "review:2026-08-30-live-backlog-refresh"
-    },
-    {
-      "attrs": {},
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.review-link",
-          "excerptHash": "sha256:a433dfda8f9e720add17c39b44e50f29c0cd5b7f42e51a75f8085f2a58ebf5ed",
-          "lines": [
-            7,
-            7
-          ],
-          "path": "docs/reviews/2026-08-06-mutation-testing-gap.md"
-        }
-      ],
-      "id": "edge:dc045b6af9c7d30e",
-      "kind": "cites",
-      "source": "review:2026-08-06-mutation-testing-gap",
-      "target": "roadmap-item:EFFECT-001"
     },
     {
       "attrs": {},
@@ -18598,26 +18886,6 @@
       "target": "reference:database-reliability/query-plan-safety.md"
     },
     {
-      "attrs": {},
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.review-link",
-          "excerptHash": "sha256:829213d229fa3c0dc31e4bacd472df513536b0075dd4675fff465f6eb63eb6a2",
-          "lines": [
-            7,
-            7
-          ],
-          "path": "docs/reviews/2026-08-30-folded-eval-index.md"
-        }
-      ],
-      "id": "edge:df793cf6e718063d",
-      "kind": "cites",
-      "source": "review:2026-08-30-folded-eval-index",
-      "target": "roadmap-item:EFFECT-001"
-    },
-    {
       "attrs": {
         "via": "comment"
       },
@@ -18893,24 +19161,26 @@
       "target": "review:2026-08-24-skill-001-phase-1-closure"
     },
     {
-      "attrs": {},
+      "attrs": {
+        "via": "string-literal"
+      },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.review-link",
-          "excerptHash": "sha256:6e45fa44579cb05e3216bc923f03e65986b628379441df92e52781f62cbe4a1a",
+          "detector": "extract.test-literal",
+          "excerptHash": "sha256:29218ad0094065b5a5afef492d9e9ca491093c7c5f0cd24aef1fbad37d531aab",
           "lines": [
-            5,
-            5
+            358,
+            358
           ],
-          "path": "docs/reviews/2026-08-26-three-pass-skill-audit.md"
+          "path": "scripts/test_fleet_atlas.py"
         }
       ],
-      "id": "edge:e3decacdb10fcd32",
-      "kind": "cites",
-      "source": "review:2026-08-26-three-pass-skill-audit",
-      "target": "roadmap-item:EFFECT-001"
+      "id": "edge:e3f6f635b471637b",
+      "kind": "verified_by",
+      "source": "document:docs/fleet-roadmap.md",
+      "target": "test:scripts/test_fleet_atlas.py"
     },
     {
       "attrs": {
@@ -19053,8 +19323,8 @@
           "detector": "extract.test-literal",
           "excerptHash": "sha256:37b2972abf9cbf3e9ae2b934ab586952f289d90d94f11f0997cacd1f9e01ce6d",
           "lines": [
-            607,
-            607
+            656,
+            656
           ],
           "path": "scripts/test_fleet_atlas.py"
         }
@@ -19127,6 +19397,26 @@
       "kind": "generated_from",
       "source": "generated-projection:platforms/copilot/skills/obs-pipeline/SKILL.md",
       "target": "skill:obs-pipeline"
+    },
+    {
+      "attrs": {},
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.evidence-link",
+          "excerptHash": "sha256:7b007ff4f350afa36d1c4301eaa235d29a165434aafc02ae843e2a738c7c4fcd",
+          "lines": [
+            34,
+            34
+          ],
+          "path": "docs/roadmap-closed.md"
+        }
+      ],
+      "id": "edge:e5cf663840887ebd",
+      "kind": "evidenced_by",
+      "source": "roadmap-item:SKILLS-003",
+      "target": "review:2026-08-25-grader-003-verification-batch"
     },
     {
       "attrs": {},
@@ -19383,6 +19673,28 @@
       "kind": "verified_by",
       "source": "reference:investigation-depth/incident-handoff.md",
       "target": "test:scripts/test_graph_contracts.py"
+    },
+    {
+      "attrs": {
+        "batch": "20260828T174200Z-47698407"
+      },
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.evidence-batch",
+          "excerptHash": "sha256:97c4107415971962f22a8d98d827f496b07b39fc864509d74669f6c0a71d06c6",
+          "lines": [
+            674,
+            674
+          ],
+          "path": "docs/fleet-roadmap.md"
+        }
+      ],
+      "id": "edge:e839c11566b62557",
+      "kind": "evidenced_by",
+      "source": "roadmap-item:GRADER-008",
+      "target": "review:2026-08-28-eval-20260828T174200Z-47698407"
     },
     {
       "attrs": {},
@@ -19705,6 +20017,26 @@
       "kind": "routes_to",
       "source": "scenario:discovery-gcp-ops-defers-obs-traces",
       "target": "skill:obs-traces"
+    },
+    {
+      "attrs": {},
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.review-link",
+          "excerptHash": "sha256:89d51dea06266fda8aa13d8a3a7884a498c8e74752aa1b8349dc2a57fe820e4e",
+          "lines": [
+            4,
+            4
+          ],
+          "path": "docs/reviews/2026-08-24-skill-001-phase-1-closure.md"
+        }
+      ],
+      "id": "edge:edd346f55c240b52",
+      "kind": "cites",
+      "source": "review:2026-08-24-skill-001-phase-1-closure",
+      "target": "document:docs/fleet-roadmap.md"
     },
     {
       "attrs": {
@@ -20054,6 +20386,28 @@
     },
     {
       "attrs": {
+        "batch": "20260829T030312Z-54ab5866"
+      },
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.evidence-batch",
+          "excerptHash": "sha256:b742575890077eaa03e65e799bbbd03613c48a99e5957faa8bf316992c0f3da3",
+          "lines": [
+            729,
+            729
+          ],
+          "path": "docs/fleet-roadmap.md"
+        }
+      ],
+      "id": "edge:f19b4c8e763f92db",
+      "kind": "evidenced_by",
+      "source": "roadmap-item:GRADER-009",
+      "target": "review:2026-08-29-eval-20260829T030312Z-54ab5866"
+    },
+    {
+      "attrs": {
         "predicate": "A verified synthetic graph bundle or failure-plane lineage"
       },
       "class": "STATIC_EXTRACTED",
@@ -20346,8 +20700,8 @@
           "detector": "extract.test-literal",
           "excerptHash": "sha256:ed8ef450691cba08c409ebbfe5e45e4cd23c1d2c4bbf07d64786faae30fdaf20",
           "lines": [
-            549,
-            549
+            598,
+            598
           ],
           "path": "scripts/test_fleet_atlas.py"
         }
@@ -20916,26 +21270,6 @@
       "target": "reference:obs-dashboards/agent-tooling.md"
     },
     {
-      "attrs": {},
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.review-link",
-          "excerptHash": "sha256:3aa658d50169c256e283af829ab8f8fb9c4cd942a50f2fef40b786d879c77c4b",
-          "lines": [
-            3,
-            3
-          ],
-          "path": "docs/reviews/2026-08-30-graph-004-fleet-atlas-decision.md"
-        }
-      ],
-      "id": "edge:fab6fb28a7b31f5a",
-      "kind": "cites",
-      "source": "review:2026-08-30-graph-004-fleet-atlas-decision",
-      "target": "roadmap-item:EFFECT-001"
-    },
-    {
       "attrs": {
         "predicate": "building in Java + Spring Boot (the JVM default)"
       },
@@ -20998,6 +21332,28 @@
       "kind": "verified_by",
       "source": "reference:obs-logs/query-catalog.md",
       "target": "test:scripts/test_check_query_catalog.py"
+    },
+    {
+      "attrs": {
+        "batch": "20260829T223656Z-69eab0e9"
+      },
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.evidence-batch",
+          "excerptHash": "sha256:616587bcb75ef16c4df80aeae11b3a8aab0205bc42ae3ac31d22586654e914a8",
+          "lines": [
+            924,
+            924
+          ],
+          "path": "docs/fleet-roadmap.md"
+        }
+      ],
+      "id": "edge:fb2d002914e460cf",
+      "kind": "evidenced_by",
+      "source": "roadmap-item:EVAL-006",
+      "target": "review:2026-08-29-skill-001-gcp-ops"
     },
     {
       "attrs": {
@@ -21411,12 +21767,12 @@
   "kind": "FleetAtlas",
   "metadata": {
     "dirty": false,
-    "edgeCount": 999,
-    "nodeCount": 808,
+    "edgeCount": 1015,
+    "nodeCount": 807,
     "repository": "latent-sre/save-toolkit",
-    "revision": "dc40c0cdcbb3e11ce20a41373601f9a173d91090",
-    "treeDigest": "sha256:286f455a6206e8e8e9c3df5ab3573ab37bddaf45681bdc0d87bfeb9d3942383c",
-    "unknownCount": 11
+    "revision": "369b1ed5d0239a289c4ab0a36e58a43193b2c4da",
+    "treeDigest": "sha256:cdd7045e11ccfb5325d9c0a361aa31d97bc21bce10f1e473fe6b9c75b2aab3fa",
+    "unknownCount": 6
   },
   "nodes": [
     {
@@ -22736,10 +23092,10 @@
         {
           "class": "STATIC_EXTRACTED",
           "detector": "extract.decision-status",
-          "excerptHash": "sha256:88ac0a60788792f3ca9605b3506c715ddcde32211c9022822e001ab8e6ee1c9a",
+          "excerptHash": "sha256:a549ebafc35ff2485c24ad7beac495670d70acd4739f1895053e7d107d4bf2e2",
           "lines": [
-            1,
-            1
+            4,
+            4
           ],
           "path": "docs/decisions/2026-07-31-local-external-research-separation.md"
         }
@@ -22760,10 +23116,10 @@
         {
           "class": "STATIC_EXTRACTED",
           "detector": "extract.decision-status",
-          "excerptHash": "sha256:7cc7cdbfb503930039b7dd1ce582fc30fc56e88ceacc24760ddcaf28b3923c3a",
+          "excerptHash": "sha256:a549ebafc35ff2485c24ad7beac495670d70acd4739f1895053e7d107d4bf2e2",
           "lines": [
-            1,
-            1
+            4,
+            4
           ],
           "path": "docs/decisions/2026-07-31-multi-platform-plugin-packaging.md"
         }
@@ -22784,10 +23140,10 @@
         {
           "class": "STATIC_EXTRACTED",
           "detector": "extract.decision-status",
-          "excerptHash": "sha256:42e61edfd99de11199ff4a6dbe4766845e86a6c1c5d02c3dfc8ae4e48b794e76",
+          "excerptHash": "sha256:a549ebafc35ff2485c24ad7beac495670d70acd4739f1895053e7d107d4bf2e2",
           "lines": [
-            1,
-            1
+            4,
+            4
           ],
           "path": "docs/decisions/2026-08-04-observability-engineer-rename.md"
         }
@@ -22808,10 +23164,10 @@
         {
           "class": "STATIC_EXTRACTED",
           "detector": "extract.decision-status",
-          "excerptHash": "sha256:9ed5f4f9b5b229db5e03f9e076b330a0878e114061c3a244a68ffb5726e7507c",
+          "excerptHash": "sha256:a549ebafc35ff2485c24ad7beac495670d70acd4739f1895053e7d107d4bf2e2",
           "lines": [
-            1,
-            1
+            4,
+            4
           ],
           "path": "docs/decisions/2026-08-05-language-idiom-rename.md"
         }
@@ -22832,10 +23188,10 @@
         {
           "class": "STATIC_EXTRACTED",
           "detector": "extract.decision-status",
-          "excerptHash": "sha256:37c4625fc85c953150cb7da3f67e16b3358a4d28a919ca638b76fac84beee3f4",
+          "excerptHash": "sha256:a549ebafc35ff2485c24ad7beac495670d70acd4739f1895053e7d107d4bf2e2",
           "lines": [
-            1,
-            1
+            4,
+            4
           ],
           "path": "docs/decisions/2026-08-05-save-toolkit-rename.md"
         }
@@ -22856,10 +23212,10 @@
         {
           "class": "STATIC_EXTRACTED",
           "detector": "extract.decision-status",
-          "excerptHash": "sha256:83739b62ead613b7182d8608cc8bfd4c42c26c72ddecabff570a68cc7854ec63",
+          "excerptHash": "sha256:e49fba9fb724c8a8966cd048839ada8d539997ffa62125ad21a07a610887cc26",
           "lines": [
-            1,
-            1
+            4,
+            4
           ],
           "path": "docs/decisions/2026-08-11-immutable-release-promotion.md"
         }
@@ -22880,10 +23236,10 @@
         {
           "class": "STATIC_EXTRACTED",
           "detector": "extract.decision-status",
-          "excerptHash": "sha256:a78e2522b1dd896bae8d4d2f469fc487647d3aa64e569ffcf4b606d38ff4b013",
+          "excerptHash": "sha256:a549ebafc35ff2485c24ad7beac495670d70acd4739f1895053e7d107d4bf2e2",
           "lines": [
-            1,
-            1
+            4,
+            4
           ],
           "path": "docs/decisions/2026-08-21-observability-engineer-unguarded-bash.md"
         }
@@ -22904,10 +23260,10 @@
         {
           "class": "STATIC_EXTRACTED",
           "detector": "extract.decision-status",
-          "excerptHash": "sha256:2091f7a751e58699b37504bc830d72e897dd5954d4eed14eaa7c46920b3f7e2e",
+          "excerptHash": "sha256:0120bb20c9cf0d1fa8708f04be9ea0d46b9462c4d0b6e42f641ae659cfaec6cc",
           "lines": [
-            1,
-            1
+            3,
+            3
           ],
           "path": "docs/decisions/2026-08-22-agent-discovery-calibration.md"
         }
@@ -22928,10 +23284,10 @@
         {
           "class": "STATIC_EXTRACTED",
           "detector": "extract.decision-status",
-          "excerptHash": "sha256:293b7a1011c996f6daceb89b302d6beb00fc0d2fef744d651e76014ba01217bc",
+          "excerptHash": "sha256:3a3d9c27dc7e96d89badaa8ea9163f6d89ba0a2d565525fc2649775b9063b6e2",
           "lines": [
-            1,
-            1
+            3,
+            3
           ],
           "path": "docs/decisions/2026-08-22-incident-navigation-archive.md"
         }
@@ -22952,10 +23308,10 @@
         {
           "class": "STATIC_EXTRACTED",
           "detector": "extract.decision-status",
-          "excerptHash": "sha256:2ff739e32f69ed8917bc16fc565cd1f026c719caa5a0f32767bd604b3b2c804c",
+          "excerptHash": "sha256:c0f2f957da0ec82bca5efaea944f667c54f377e6cd3e3887bf3341e3bffefe65",
           "lines": [
-            1,
-            1
+            3,
+            3
           ],
           "path": "docs/decisions/2026-08-22-production-review-boundary.md"
         }
@@ -22976,10 +23332,10 @@
         {
           "class": "STATIC_EXTRACTED",
           "detector": "extract.decision-status",
-          "excerptHash": "sha256:6a18c06d957cfec6c9b73bb40939d948e4b75ebf45c720852e4bb57c8fa38dd2",
+          "excerptHash": "sha256:be2455e6171b8661fb63f1d5a7e251ed7cb1142992b780e5b4214041937dc702",
           "lines": [
-            1,
-            1
+            4,
+            4
           ],
           "path": "docs/decisions/2026-08-23-allow-model-aliases.md"
         }
@@ -23000,10 +23356,10 @@
         {
           "class": "STATIC_EXTRACTED",
           "detector": "extract.decision-status",
-          "excerptHash": "sha256:a2223608889a1f62bee6217e539d702f80aeb5a0a01ed8c8b5166071539118b5",
+          "excerptHash": "sha256:be2455e6171b8661fb63f1d5a7e251ed7cb1142992b780e5b4214041937dc702",
           "lines": [
-            1,
-            1
+            4,
+            4
           ],
           "path": "docs/decisions/2026-08-23-allow-third-party-dependencies.md"
         }
@@ -23024,10 +23380,10 @@
         {
           "class": "STATIC_EXTRACTED",
           "detector": "extract.decision-status",
-          "excerptHash": "sha256:1f54e3fe164af0974c3748eb6d394cdc582ec4256032c00e5e3169cc3a851cac",
+          "excerptHash": "sha256:be2455e6171b8661fb63f1d5a7e251ed7cb1142992b780e5b4214041937dc702",
           "lines": [
-            1,
-            1
+            4,
+            4
           ],
           "path": "docs/decisions/2026-08-23-retire-codex-distribution-target.md"
         }
@@ -23048,10 +23404,10 @@
         {
           "class": "STATIC_EXTRACTED",
           "detector": "extract.decision-status",
-          "excerptHash": "sha256:8c8c5a7f9bcf9754480796a9e8309daa4b4afa8dc3465d5e6fd2d6f7b711f779",
+          "excerptHash": "sha256:a549ebafc35ff2485c24ad7beac495670d70acd4739f1895053e7d107d4bf2e2",
           "lines": [
-            1,
-            1
+            4,
+            4
           ],
           "path": "docs/decisions/2026-08-24-sre-operational-context-contract.md"
         }
@@ -23072,10 +23428,10 @@
         {
           "class": "STATIC_EXTRACTED",
           "detector": "extract.decision-status",
-          "excerptHash": "sha256:1be7a2571405f251ba6253e25ca9b5aaee9985a991237578d0ccb26d128d7d9d",
+          "excerptHash": "sha256:a549ebafc35ff2485c24ad7beac495670d70acd4739f1895053e7d107d4bf2e2",
           "lines": [
-            1,
-            1
+            4,
+            4
           ],
           "path": "docs/decisions/2026-08-25-software-engineer-rename.md"
         }
@@ -23096,10 +23452,10 @@
         {
           "class": "STATIC_EXTRACTED",
           "detector": "extract.decision-status",
-          "excerptHash": "sha256:1f5f4f3e8fc603735832df3eab5dfc0609480f253a161f55276fc39ff6cfece5",
+          "excerptHash": "sha256:a549ebafc35ff2485c24ad7beac495670d70acd4739f1895053e7d107d4bf2e2",
           "lines": [
-            1,
-            1
+            4,
+            4
           ],
           "path": "docs/decisions/2026-08-26-agent-engineer-rename.md"
         }
@@ -23120,10 +23476,10 @@
         {
           "class": "STATIC_EXTRACTED",
           "detector": "extract.decision-status",
-          "excerptHash": "sha256:f8953727b476ebe6ba89c1ca150c7341ce953078f801d967a94d546eab43f6f1",
+          "excerptHash": "sha256:be2455e6171b8661fb63f1d5a7e251ed7cb1142992b780e5b4214041937dc702",
           "lines": [
-            1,
-            1
+            4,
+            4
           ],
           "path": "docs/decisions/2026-08-26-graph-002-docker-sandbox-runtime.md"
         }
@@ -23144,10 +23500,10 @@
         {
           "class": "STATIC_EXTRACTED",
           "detector": "extract.decision-status",
-          "excerptHash": "sha256:9e2e6dd97b29ecfad8dd7cdb4b4a32106d3dc9a765e87e69527cdc403c813b9f",
+          "excerptHash": "sha256:be2455e6171b8661fb63f1d5a7e251ed7cb1142992b780e5b4214041937dc702",
           "lines": [
-            1,
-            1
+            4,
+            4
           ],
           "path": "docs/decisions/2026-08-26-graph-003-observability-preparation.md"
         }
@@ -23168,10 +23524,10 @@
         {
           "class": "STATIC_EXTRACTED",
           "detector": "extract.decision-status",
-          "excerptHash": "sha256:579b868a8853c254d328f13b01cea034a65351a8056f0e4ae19fe206f7bb9133",
+          "excerptHash": "sha256:a808acdecb090b145cdb2b55c9cfec66af7ab33635c0007ff52939f3c2afc38a",
           "lines": [
-            1,
-            1
+            4,
+            4
           ],
           "path": "docs/decisions/2026-08-26-multi-engine-evaluation-contract.md"
         }
@@ -23192,10 +23548,10 @@
         {
           "class": "STATIC_EXTRACTED",
           "detector": "extract.decision-status",
-          "excerptHash": "sha256:6be367bb8bfd16edbef2f457e9597914880e0e42011d283d010456319c599a42",
+          "excerptHash": "sha256:be2455e6171b8661fb63f1d5a7e251ed7cb1142992b780e5b4214041937dc702",
           "lines": [
-            1,
-            1
+            4,
+            4
           ],
           "path": "docs/decisions/2026-08-29-graph-002-langgraph-security-pin.md"
         }
@@ -35116,31 +35472,6 @@
     {
       "attrs": {
         "section": "Read only the rows your change touches",
-        "source_text": "Authoritative source",
-        "statement": "Change"
-      },
-      "authority": "live-contract",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.rules-row",
-          "excerptHash": "sha256:193b096a7b52abc88f6e15b9f901cf5fe6c26b0ef3f908f8edc095b05536203e",
-          "lines": [
-            20,
-            20
-          ],
-          "path": "docs/rules.md"
-        }
-      ],
-      "id": "rule:3853e40bea8a121b",
-      "name": "Change",
-      "path": "docs/rules.md",
-      "state": "live",
-      "type": "rule"
-    },
-    {
-      "attrs": {
-        "section": "Read only the rows your change touches",
         "source_text": "readonly-guard.py, hooks.json, and the packaging ADR",
         "statement": "Guard policy, hooks, or guarded commands"
       },
@@ -41540,12 +41871,6 @@
   ],
   "unknowns": [
     {
-      "code": "extract.rule-source-unlinked",
-      "message": "docs/rules.md:20 names its source in prose only: Authoritative source",
-      "neededEvidence": "Link the primary source so the rule can be traced",
-      "path": "docs/rules.md"
-    },
-    {
       "code": "extract.supersedes-unresolved",
       "message": "docs/decisions/2026-08-23-allow-model-aliases.md:6 supersedes 'the \"No `model:` pins\" Hard rules bullet in AGENTS.md and its `docs/rules.md`' but names no linked target",
       "neededEvidence": "Link the superseded decision, rule row, or document",
@@ -41570,34 +41895,10 @@
       "path": "docs/decisions/2026-08-29-graph-002-langgraph-security-pin.md"
     },
     {
-      "code": "stale.evidence-predates-status",
-      "message": "EVAL-005 status is dated 2026-08-31 but its newest cited evidence is 2026-08-29",
-      "neededEvidence": "Cite the evidence behind the current status or revise the status",
-      "path": "docs/fleet-roadmap.md"
-    },
-    {
       "code": "stale.review-uncited",
       "message": "docs/reviews/2026-08-06-docs-authority-refresh.md is cited by no roadmap item, decision, review, or live guide",
       "neededEvidence": "docs/README.md: a review nothing cites is removed, or the citing document is restored",
       "path": "docs/reviews/2026-08-06-docs-authority-refresh.md"
-    },
-    {
-      "code": "stale.review-uncited",
-      "message": "docs/reviews/2026-08-25-grader-003-verification-batch.md is cited by no roadmap item, decision, review, or live guide",
-      "neededEvidence": "docs/README.md: a review nothing cites is removed, or the citing document is restored",
-      "path": "docs/reviews/2026-08-25-grader-003-verification-batch.md"
-    },
-    {
-      "code": "stale.review-uncited",
-      "message": "docs/reviews/2026-08-28-eval-20260828T174200Z-47698407.md is cited by no roadmap item, decision, review, or live guide",
-      "neededEvidence": "docs/README.md: a review nothing cites is removed, or the citing document is restored",
-      "path": "docs/reviews/2026-08-28-eval-20260828T174200Z-47698407.md"
-    },
-    {
-      "code": "stale.review-uncited",
-      "message": "docs/reviews/2026-08-29-eval-20260829T030312Z-54ab5866.md is cited by no roadmap item, decision, review, or live guide",
-      "neededEvidence": "docs/README.md: a review nothing cites is removed, or the citing document is restored",
-      "path": "docs/reviews/2026-08-29-eval-20260829T030312Z-54ab5866.md"
     },
     {
       "code": "stale.review-uncited",
