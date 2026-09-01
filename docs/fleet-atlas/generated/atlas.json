@@ -64,6 +64,26 @@
       "target": "reference:stack-profile/copilot-models.md"
     },
     {
+      "attrs": {},
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.review-link",
+          "excerptHash": "sha256:ef5c9a43ef1f7a4dcf3d74cff8a7bf83c24c9e19e57b790c57ee8f4fdacc951f",
+          "lines": [
+            108,
+            108
+          ],
+          "path": "docs/reviews/2026-08-24-sre-context-framework-architecture.md"
+        }
+      ],
+      "id": "edge:0170c1fa7286ae24",
+      "kind": "cites",
+      "source": "review:2026-08-24-sre-context-framework-architecture",
+      "target": "schema:runbook-frontmatter-v1"
+    },
+    {
       "attrs": {
         "mode": "direct"
       },
@@ -2975,8 +2995,8 @@
           "detector": "extract.test-literal",
           "excerptHash": "sha256:6d03f31c719e0ce96562abd9bd4ea790e6d43c4bcf6302c3453aceb680f173a1",
           "lines": [
-            654,
-            654
+            682,
+            682
           ],
           "path": "scripts/test_fleet_atlas.py"
         }
@@ -3197,6 +3217,26 @@
       "kind": "generated_from",
       "source": "generated-projection:platforms/copilot/skills/agent-security/references/integration-controls.md",
       "target": "reference:agent-security/integration-controls.md"
+    },
+    {
+      "attrs": {},
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.review-link",
+          "excerptHash": "sha256:5cbb149f0b29d6c5a76637a5341cb5d35bdaacbf349492fa99dc28755eeae54b",
+          "lines": [
+            377,
+            377
+          ],
+          "path": "docs/reviews/2026-08-25-sre-agent-human-assistance-review.md"
+        }
+      ],
+      "id": "edge:21ed0b66f0ec636e",
+      "kind": "cites",
+      "source": "review:2026-08-25-sre-agent-human-assistance-review",
+      "target": "scenario:agent-direct-sre-readonly-triage"
     },
     {
       "attrs": {
@@ -3576,8 +3616,8 @@
           "detector": "extract.test-literal",
           "excerptHash": "sha256:05aec2d42752c373760912d9c8eec506db0cd9b0f604556575b93b7d925eb2cc",
           "lines": [
-            655,
-            655
+            683,
+            683
           ],
           "path": "scripts/test_fleet_atlas.py"
         }
@@ -6141,6 +6181,26 @@
       "target": "document:AGENTS.md"
     },
     {
+      "attrs": {},
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.review-link",
+          "excerptHash": "sha256:310834f952c7d0f6011b97dea2f9769f4c554dae829d47165f6a62da44bffdb6",
+          "lines": [
+            498,
+            498
+          ],
+          "path": "docs/reviews/2026-08-25-sre-agent-human-assistance-review.md"
+        }
+      ],
+      "id": "edge:424ef890394b214a",
+      "kind": "cites",
+      "source": "review:2026-08-25-sre-agent-human-assistance-review",
+      "target": "scenario:agent-direct-sre-owns-recovery-to-terminal"
+    },
+    {
       "attrs": {
         "mode": "direct"
       },
@@ -6337,8 +6397,8 @@
           "detector": "extract.test-literal",
           "excerptHash": "sha256:6767ff22e0f62f1e8e24d7e1aeb768414c3ace7e5c12ede5aa113e8ef70a6839",
           "lines": [
-            595,
-            595
+            623,
+            623
           ],
           "path": "scripts/test_fleet_atlas.py"
         }
@@ -7980,6 +8040,26 @@
       "target": "skill:merge-gate"
     },
     {
+      "attrs": {},
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.review-link",
+          "excerptHash": "sha256:856d417ff732b2ddccb6dbe7dd54a2d1ec0c437a6736b52d368a8b3b11fcab70",
+          "lines": [
+            1104,
+            1104
+          ],
+          "path": "docs/reviews/2026-08-24-sre-context-framework-architecture.md"
+        }
+      ],
+      "id": "edge:59228a2bb3bfaea2",
+      "kind": "cites",
+      "source": "review:2026-08-24-sre-context-framework-architecture",
+      "target": "schema:runbook-frontmatter-v1"
+    },
+    {
       "attrs": {
         "via": "generate_platform_adapters.expected_outputs"
       },
@@ -8632,8 +8712,8 @@
           "detector": "extract.test-literal",
           "excerptHash": "sha256:e31e769f9e1ece1f6132c9af3181c60247179a12905472d1b6dcf260f53e5d41",
           "lines": [
-            600,
-            600
+            628,
+            628
           ],
           "path": "scripts/test_fleet_atlas.py"
         }
@@ -8728,6 +8808,26 @@
       "kind": "cites",
       "source": "review:2026-08-06-mutation-testing-gap",
       "target": "document:docs/fleet-roadmap.md"
+    },
+    {
+      "attrs": {},
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.review-link",
+          "excerptHash": "sha256:a819973bdb3b89c4394b46c65e67ca1008258872afec95b2b0d4a3fb43fc9c03",
+          "lines": [
+            99,
+            99
+          ],
+          "path": "docs/reviews/2026-08-25-sre-agent-human-assistance-review.md"
+        }
+      ],
+      "id": "edge:60f777f2529d868c",
+      "kind": "cites",
+      "source": "review:2026-08-25-sre-agent-human-assistance-review",
+      "target": "scenario:agent-direct-sre-owns-recovery-to-terminal"
     },
     {
       "attrs": {
@@ -9690,8 +9790,8 @@
           "detector": "extract.test-literal",
           "excerptHash": "sha256:ec52406d3ee7affc656aad69069f09d68977520c9b4b7a8796e116c70312d21a",
           "lines": [
-            657,
-            657
+            685,
+            685
           ],
           "path": "scripts/test_fleet_atlas.py"
         }
@@ -13661,8 +13761,8 @@
           "detector": "extract.test-literal",
           "excerptHash": "sha256:e75784f771967a23c46dc567d6cec3aa5606ff9e24a6cd9113cb2ba7ee5c222c",
           "lines": [
-            907,
-            907
+            935,
+            935
           ],
           "path": "scripts/test_fleet_atlas.py"
         }
@@ -14290,6 +14390,26 @@
       "target": "test:scripts/test_graph_contracts.py"
     },
     {
+      "attrs": {},
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.review-link",
+          "excerptHash": "sha256:5788061e62e1f34429c90330b44729d0d741bf90ed29ee1189a77c5cb8ae5ea1",
+          "lines": [
+            373,
+            373
+          ],
+          "path": "docs/reviews/2026-08-25-sre-agent-human-assistance-review.md"
+        }
+      ],
+      "id": "edge:a90cdb05f8fdeb3a",
+      "kind": "cites",
+      "source": "review:2026-08-25-sre-agent-human-assistance-review",
+      "target": "scenario:agent-direct-sre-owns-recovery-to-terminal"
+    },
+    {
       "attrs": {
         "batch": "20260831T052440Z-c13a16f0"
       },
@@ -14858,8 +14978,8 @@
           "detector": "extract.test-literal",
           "excerptHash": "sha256:1ee30b452f27254b3fc67b30c7932db9c720fc26f3f3140f5b22956fb04fe2b5",
           "lines": [
-            606,
-            606
+            634,
+            634
           ],
           "path": "scripts/test_fleet_atlas.py"
         }
@@ -14942,8 +15062,8 @@
           "detector": "extract.test-literal",
           "excerptHash": "sha256:9c6fc37cffb6c552eaddb042326f090cde1309dd2b4edc51f06cbce0d3a3e002",
           "lines": [
-            841,
-            841
+            869,
+            869
           ],
           "path": "scripts/test_fleet_atlas.py"
         }
@@ -16094,8 +16214,8 @@
           "detector": "extract.test-literal",
           "excerptHash": "sha256:9e91bac7317d6aa8258f1b2de5091f07a473e5b1d985a44d66686afb177c0e23",
           "lines": [
-            605,
-            605
+            633,
+            633
           ],
           "path": "scripts/test_fleet_atlas.py"
         }
@@ -16464,6 +16584,26 @@
       "target": "review:2026-08-30-route-005-approval-gate"
     },
     {
+      "attrs": {},
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.review-link",
+          "excerptHash": "sha256:66d378fc7aaa1b3ec257138a0b204765ee22b84efb0ec7ebe1c97aa0db9cbf02",
+          "lines": [
+            496,
+            496
+          ],
+          "path": "docs/reviews/2026-08-25-sre-agent-human-assistance-review.md"
+        }
+      ],
+      "id": "edge:c37bd9c3c89163b3",
+      "kind": "cites",
+      "source": "review:2026-08-25-sre-agent-human-assistance-review",
+      "target": "scenario:agent-direct-sre-readonly-triage"
+    },
+    {
       "attrs": {
         "via": "string-literal"
       },
@@ -16518,8 +16658,8 @@
           "detector": "extract.test-literal",
           "excerptHash": "sha256:2c670c4dae16d092c443914f276973129b89cf94adbd47e051a283dfd1436648",
           "lines": [
-            799,
-            799
+            827,
+            827
           ],
           "path": "scripts/test_fleet_atlas.py"
         }
@@ -16550,6 +16690,28 @@
       "kind": "verified_by",
       "source": "agent:repository-investigator",
       "target": "scenario:agent-direct-repository-investigator-refuses-external-research"
+    },
+    {
+      "attrs": {
+        "via": "comment"
+      },
+      "class": "STATIC_INFERRED",
+      "evidence": [
+        {
+          "class": "STATIC_INFERRED",
+          "detector": "extract.scenario-roadmap-comment",
+          "excerptHash": "sha256:a463fa275ef82d0cb660971f2a45eb7bdff594d650b9d61e3bcd82d0a0cdd811",
+          "lines": [
+            24,
+            24
+          ],
+          "path": "evals/scenarios/fleet-atlas-query-contract.yaml"
+        }
+      ],
+      "id": "edge:c4a397604c33f77d",
+      "kind": "cites",
+      "source": "scenario:fleet-atlas-query-contract",
+      "target": "roadmap-item:HOST-003"
     },
     {
       "attrs": {},
@@ -19323,8 +19485,8 @@
           "detector": "extract.test-literal",
           "excerptHash": "sha256:37b2972abf9cbf3e9ae2b934ab586952f289d90d94f11f0997cacd1f9e01ce6d",
           "lines": [
-            656,
-            656
+            684,
+            684
           ],
           "path": "scripts/test_fleet_atlas.py"
         }
@@ -20039,6 +20201,26 @@
       "target": "document:docs/fleet-roadmap.md"
     },
     {
+      "attrs": {},
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.review-link",
+          "excerptHash": "sha256:757ab4cb8b16effe733cf636943f199b79a11e798d565bce522df096ab248d71",
+          "lines": [
+            120,
+            120
+          ],
+          "path": "docs/reviews/2026-08-25-sre-agent-human-assistance-review.md"
+        }
+      ],
+      "id": "edge:ede369a4afed333c",
+      "kind": "cites",
+      "source": "review:2026-08-25-sre-agent-human-assistance-review",
+      "target": "scenario:agent-direct-sre-readonly-triage"
+    },
+    {
       "attrs": {
         "mode": "discovery"
       },
@@ -20700,8 +20882,8 @@
           "detector": "extract.test-literal",
           "excerptHash": "sha256:ed8ef450691cba08c409ebbfe5e45e4cd23c1d2c4bbf07d64786faae30fdaf20",
           "lines": [
-            598,
-            598
+            626,
+            626
           ],
           "path": "scripts/test_fleet_atlas.py"
         }
@@ -21767,11 +21949,11 @@
   "kind": "FleetAtlas",
   "metadata": {
     "dirty": false,
-    "edgeCount": 1015,
+    "edgeCount": 1024,
     "nodeCount": 807,
     "repository": "latent-sre/save-toolkit",
-    "revision": "369b1ed5d0239a289c4ab0a36e58a43193b2c4da",
-    "treeDigest": "sha256:cdd7045e11ccfb5325d9c0a361aa31d97bc21bce10f1e473fe6b9c75b2aab3fa",
+    "revision": "a4c86c4923dd0fdb25d4e94d1fa97ecef47a5c87",
+    "treeDigest": "sha256:5a528fef8fec1c42ec6eb9ce891d02ce9b03fedc2de44ad81c3b9cedbeeace6e",
     "unknownCount": 6
   },
   "nodes": [
