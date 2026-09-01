@@ -313,6 +313,19 @@ class RoadmapDispositionTests(unittest.TestCase):
         self.assertIn("`not_applicable` as live work, owner Save Toolkit maintainers", closed)
         self.assertIn("`SWEEP-001` and `MUTATION-001`", closed)
 
+    def test_closed_graph_003_is_not_presented_as_remaining_work(self) -> None:
+        """Post-closure evidence strengthens the record without reopening the live queue."""
+        roadmap = self._read("docs/fleet-roadmap.md")
+        closed = self._read("docs/roadmap-closed.md")
+        guidance = self._read("graph-sandbox/AGENTS.md")
+
+        self.assertNotIn("### GRAPH-003", roadmap)
+        self.assertIn("`GRAPH-003`", closed)
+        self.assertIn("PR [#197]", closed)
+        self.assertIn("does not reopen this disposition", closed)
+        self.assertNotIn("Remaining operator work is `GRAPH-003`", guidance)
+        self.assertIn("GRAPH-002 and GRAPH-003 are closed", guidance)
+
 
 if __name__ == "__main__":
     unittest.main()

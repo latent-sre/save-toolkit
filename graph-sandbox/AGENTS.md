@@ -1,4 +1,4 @@
-# GRAPH-002 project context
+# Graph-sandbox project context
 
 These instructions apply only under `graph-sandbox/`. The root `AGENTS.md`, the accepted GRAPH-002
 runtime decision, and the live roadmap remain authoritative.
@@ -17,9 +17,10 @@ runtime decision, and the live roadmap remain authoritative.
 - **Ports**: none — the offline profile publishes no host ports; service ports exist only on the internal Compose network.
 - **Module identity**: `git@github.com:latent-sre/save-toolkit.git`; implementation root `graph-sandbox/`; contract `checkout-payments-timeout-drill/v1`.
 - **Credentials**: none — the offline profile accepts no model, cloud, GitHub, PCF, SSH, or host credential mount or environment variable.
-- **Progress**: GRAPH-002 is closed. Remaining operator work is `GRAPH-003` on
-  [`docs/fleet-roadmap.md`](../docs/fleet-roadmap.md). Do not restore multi-worker plan files
-  under `.agents/`.
+- **Progress**: GRAPH-002 and GRAPH-003 are closed. The post-closure same-effect reconciliation
+  proof merged in PR #197 and is historical evidence, not remaining roadmap work. Current work is
+  listed only in [`docs/fleet-roadmap.md`](../docs/fleet-roadmap.md). Do not restore multi-worker
+  plan files under `.agents/`.
 
 ## Mission block
 
@@ -54,6 +55,6 @@ runtime decision, and the live roadmap remain authoritative.
 - `checkout-ambiguous-after-commit-001` publishes the sole supported reconciliation timeline at
   `<evidence-root>/<run-id>/{unknown,reconciled}`. Both snapshots come from one activation and one
   checkout dispatch; do not synthesize either directory or run Compose directly.
-- Evidence events follow the GRAPH-003 boundary vocabulary; unique identities stay out of metric
-  labels. Prompts, credentials, authorization headers, raw payloads, and raw exception bodies do
-  not enter normal telemetry.
+- Evidence events follow the closed GRAPH-003 boundary vocabulary; unique identities stay out of
+  metric labels. Prompts, credentials, authorization headers, raw payloads, and raw exception
+  bodies do not enter normal telemetry.
