@@ -15578,8 +15578,8 @@
           "detector": "extract.test-file-read",
           "excerptHash": "sha256:2c670c4dae16d092c443914f276973129b89cf94adbd47e051a283dfd1436648",
           "lines": [
-            883,
-            883
+            891,
+            891
           ],
           "path": "scripts/test_fleet_atlas.py"
         }
@@ -20630,8 +20630,8 @@
     "edgeCount": 964,
     "nodeCount": 809,
     "repository": "latent-sre/save-toolkit",
-    "revision": "4eab0687988f5c28e2bcebc2752739c59cd88cff",
-    "treeDigest": "sha256:27882adc521d0cb1e7d0af612a3e372368d27e77c29dcae74d3e2082d7e84347",
+    "revision": "a3767082f6bbbbc96a59466dcd95aa8ff033df89",
+    "treeDigest": "sha256:a820fbb03cad00e89379cc05ea5157382d18eb6079dfee880049465846b33682",
     "unknownCount": 7
   },
   "nodes": [
@@ -33043,6 +33043,96 @@
             86
           ],
           "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:32daec8cecb2e3e3bdf7f3fea8541da789eae99060ba75f6a7ddb22700709430",
+          "lines": [
+            136,
+            164
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:d0656757f617daf7568850f61026895d215b7e9405118e1bd9daddbfddb5e268",
+          "lines": [
+            166,
+            169
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:1f0b91e8f0cad0e995bf3fe46ab313bbc51d4de148d90c0dc4352a2a082e51f8",
+          "lines": [
+            103,
+            108
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:a5dc6425ab59bcc74e855178f7563796d8deaee1f5f0c9a2af35bc73e07acd5e",
+          "lines": [
+            171,
+            182
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:d04c270c85434a7d35b9dc7b0b960a0002b1befc006cafa0a954556769a53f8f",
+          "lines": [
+            96,
+            101
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:e02c5e07f614cd85dce9f4e8994f4f51fb983498be4a5940a9888d0bd5f8c7d4",
+          "lines": [
+            90,
+            94
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:77a14a750fc36544b2d76ab772bd4832d18808b459baf13c857c7278d0cd9057",
+          "lines": [
+            128,
+            134
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:22891af99078eb346f165c57af0d162636d987203c67e214666adf49966fa97c",
+          "lines": [
+            110,
+            126
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:f47472e79eae66c626ec384487535b804441dedf368aa8993db9f45327ccfa9e",
+          "lines": [
+            88,
+            88
+          ],
+          "path": "docs/fleet-roadmap.md"
         }
       ],
       "id": "roadmap-item:CONTEXT-001",
@@ -33123,6 +33213,76 @@
           "lines": [
             1182,
             1182
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:227d79129502c4644a71a9bd50e28620702762e646984286a3ef0b48d3a0fdc3",
+          "lines": [
+            1196,
+            1197
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:0a43195306e50434385e083760afdbe7edc6e54f14efa9ff289e8dd5e2de37ac",
+          "lines": [
+            1202,
+            1203
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:dae4a08ed743a43dd7af1190f76d10567be7652c183340747923e3fd152521e2",
+          "lines": [
+            1186,
+            1187
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:8a14dd4af9407be7f7b91350db218dc359e758f0793eb1fffb937e29e14894fe",
+          "lines": [
+            1192,
+            1194
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:35f0c964256943d6783b05aba8bfd4f9f96488f47d70dc9559d45dd29835f297",
+          "lines": [
+            1199,
+            1200
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:50deeff10a49392d71ef4c236b63774eb39442964eb67c48814584fc764a747e",
+          "lines": [
+            1189,
+            1190
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:ce4d54421dc014edc8c68cc764ad4f77be5183a4712554f0e0f1071efadd9147",
+          "lines": [
+            1184,
+            1184
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -33209,6 +33369,96 @@
             408
           ],
           "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:d3cb058cb3f9d6d197c84882d45501827cf0837a69f11edb5ffd59656f4a9b63",
+          "lines": [
+            452,
+            468
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:d58109e92be9c59410f3e1138ec0e9ff44c1965bcdfba32bbd3aa2918994d770",
+          "lines": [
+            442,
+            450
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:01eb00e47b26b93f4757aae7163260d0730e80b95578921777f2778f1573f73f",
+          "lines": [
+            476,
+            480
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:7e512211ebfa9c7361289908f89f664e8d1006718ea13e87d4e42da55b3b5108",
+          "lines": [
+            418,
+            423
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:48b23fa7d0e2689168ca2a9aff23f54b343308b3d7663c4bf77cadb222208412",
+          "lines": [
+            413,
+            416
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:729f257bdc1abcb8f57f14c902b34acff8610cf069b1748a234480e52743abbb",
+          "lines": [
+            433,
+            440
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:40f2fc984618a84041cb9ee136cfde2ed9e548aeb4d4c165f6cbddd571d18f19",
+          "lines": [
+            470,
+            474
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:ae0f788157b388276f2f1dab6ad0131790664dfe98925756c632d1fb9de6ffba",
+          "lines": [
+            425,
+            431
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:bc1f43560b106c3307f7744993fddf314250b40c1314bc70469453e80c4c6942",
+          "lines": [
+            410,
+            411
+          ],
+          "path": "docs/fleet-roadmap.md"
         }
       ],
       "id": "roadmap-item:EVAL-003",
@@ -33241,6 +33491,76 @@
           "lines": [
             872,
             872
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:05071ece32d1c177856b3b3126d44401894e69b08d6b48e7c750f10e0802343d",
+          "lines": [
+            906,
+            922
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:097ef89ca5982ac742f9e3020d4a784d0c2332aab97c2bbd605d4ba7d54f1a17",
+          "lines": [
+            894,
+            900
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:5a9c527b50d138fcdb6007ed433afb2999da99f50b27c517bbfff04434be36cd",
+          "lines": [
+            924,
+            931
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:3cdd5df2e14419204a1df24eb6379494cf61a04f960e240b873d3cbc4816e509",
+          "lines": [
+            876,
+            878
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:f005122894077bb4b99f0dd3769a7f6e7a331aac34c43eabf4d4923095a4ea06",
+          "lines": [
+            902,
+            904
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:8ece8565e94d358f6fdc6482339b9b24cb95c2da46d8e8e81e78d2cd272ea18f",
+          "lines": [
+            880,
+            892
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:48d6dbfc169161dd0f6e62d708a74f917e35c785902524881fa17f37b7cc7169",
+          "lines": [
+            874,
+            874
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -33277,6 +33597,76 @@
             831
           ],
           "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:f534cff933ef1792496b72c477b840c6d6817bfec08bc1878a1b0ccec2ab34d2",
+          "lines": [
+            856,
+            858
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:5d6bf03be0901f714e8bfcdc95e2edc33cdd7fdfdd3b645e03120eab5deff0a7",
+          "lines": [
+            860,
+            866
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:10905d3f6d38ec900fc645910b94e1b8ae68fbe468c97885d9b7668e382027f0",
+          "lines": [
+            868,
+            870
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:3bbadc9b193a22e51e50ee04cf0e11579d844ab47bcb7ba50d6956b0e32f85d9",
+          "lines": [
+            837,
+            839
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:720d011a7964256d895cfe1efdffc4a75f049caa237ef32df2ba330b7a59b41a",
+          "lines": [
+            851,
+            854
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:6b0055dfa3595ecac7f8965e065a3eb526de270377475473e2bea7dadcc44e1c",
+          "lines": [
+            841,
+            849
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:dfc842f505f19294434bfc808a82c5c8a51b008fdce349a9fda2d3953f8a9a26",
+          "lines": [
+            833,
+            835
+          ],
+          "path": "docs/fleet-roadmap.md"
         }
       ],
       "id": "roadmap-item:EVAL-005",
@@ -33310,6 +33700,66 @@
             933
           ],
           "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:e039f738d9d3aa2de4287a233282b51eeff1dd1aa9521261b48f68c46abd34e6",
+          "lines": [
+            970,
+            1014
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:be9106d88e7ffd9e2c9a3e7776e849ea86e211c5b38ce7293a5da64f379636f9",
+          "lines": [
+            1016,
+            1024
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:c39e38de4ccbeedbcfe60b400322acbb0a9dc78ef923ba3a4639e8154269cac3",
+          "lines": [
+            938,
+            940
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:8e043193d2f81703f337a6c3e39b07412dc376793ce8044cd835f7a73db94cdb",
+          "lines": [
+            966,
+            968
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:7f34de2ced6ff14b6e2e739daf257f926286036f1e3871cd163184b5271f3e22",
+          "lines": [
+            942,
+            964
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:dc0e17610af9b33f660f99740734904010d29927af2e6e5d07ecdabedf26b244",
+          "lines": [
+            935,
+            936
+          ],
+          "path": "docs/fleet-roadmap.md"
         }
       ],
       "id": "roadmap-item:EVAL-006",
@@ -33341,6 +33791,66 @@
           "lines": [
             1069,
             1069
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:251f49b19ff37affbe876c92739500ae6f2429a1a5bbb3076105fbe52c5b7c76",
+          "lines": [
+            1124,
+            1127
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:3b4bee0ecf2b11a30ab0a036be88ff049de14132bb45b00a16cca29bce8f7d94",
+          "lines": [
+            1129,
+            1133
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:503dfab5a90839a76bc3b7871626efa089f6541f8ca8ad374f495c4029172d3e",
+          "lines": [
+            1073,
+            1075
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:c46d133ff832488f403a0697d3994a4a1ce5ed294b86dd7c13730e5f43a0923c",
+          "lines": [
+            1119,
+            1122
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:43d8074141313b3e058a1685f2ed7de77daf8443ee9981f237e33b67650cdbec",
+          "lines": [
+            1077,
+            1117
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:548d59a62a3da0cf79f8a7f4836a82c001fed95169d75b624e0d31736a388e10",
+          "lines": [
+            1071,
+            1071
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -33473,6 +33983,76 @@
             699
           ],
           "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:9d1216431b2455eb973ea37f59cffc0fa91fad71c37d5d681221f5069866c1f9",
+          "lines": [
+            714,
+            716
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:8ba9b1c05cf683aae1b7dc92db6d745db3379c551e144f098249411a7d0eacad",
+          "lines": [
+            718,
+            722
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:2267132e8757e833b921e16b9b744c76bc0f186280917f91723c665b038a49f8",
+          "lines": [
+            724,
+            727
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:6bc88281f2f5fe1c5c1f96e3a51f0d783a2804c3de6599282f416ae1a9b05e79",
+          "lines": [
+            703,
+            704
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:b1c303172ee425ec5c1b528b0854ce0e61ce28b465beaad02d78b8b683644b91",
+          "lines": [
+            712,
+            712
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:f025c096a30fd1de05b42746ce23182d39ccdf882770365c9311d71144be2ba4",
+          "lines": [
+            706,
+            710
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:5b96b10660102291aa616b08e6fc919cc2662908a4ad535b1f06b0b786e1a6fe",
+          "lines": [
+            701,
+            701
+          ],
+          "path": "docs/fleet-roadmap.md"
         }
       ],
       "id": "roadmap-item:GRADER-004",
@@ -33581,6 +34161,96 @@
             729
           ],
           "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:7215d32b65ca503c9ef4c6b06822e43b295cab51073731a7936479c385104bb0",
+          "lines": [
+            751,
+            752
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:04bf1dd89328ebdd18f95cb4a15e1d58daf6be47ee44860631f272a6aabc7189",
+          "lines": [
+            754,
+            759
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:b9a253c77fec65f345ed8abbabffb8d5049b3775ac063253b331a337362ca198",
+          "lines": [
+            775,
+            777
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:6f07fa8adbcc0e1729f0fd20bb7c51fd95131513f02113b626290924b46f7e1b",
+          "lines": [
+            735,
+            737
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:2443d4c981a7bb7482f8644fa93d0cebf2ce2fe3557dc67196d4c5d09b668b47",
+          "lines": [
+            761,
+            767
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:7bb66848adcdeadf64f89f527d3cc2806900ef7c9eb57472511d3410cb63e1bf",
+          "lines": [
+            747,
+            749
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:f76c3a843d6587eacc59613832f4e174ece0f2d726ff93d96bc2be35b9bc5abf",
+          "lines": [
+            769,
+            773
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:6986e8e82e00265d834ada9a83fe1f6de529774196e19810f3d129bc370cbb15",
+          "lines": [
+            739,
+            745
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:38fde18d4ffb79ef869e87d5d5853473db238f85e69b03d62b84c8465450ea1e",
+          "lines": [
+            731,
+            733
+          ],
+          "path": "docs/fleet-roadmap.md"
         }
       ],
       "id": "roadmap-item:GRADER-008",
@@ -33614,6 +34284,86 @@
           "lines": [
             779,
             779
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:f365efa941a509e6ef5a573b1c21dafb2cb8649226b873fffd0cdaa41cb1e4d4",
+          "lines": [
+            804,
+            806
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:ea570312103f3a0227d36050d0e6a8c6ac08dfd8efd5829894b1ffb15bfe5cc8",
+          "lines": [
+            808,
+            813
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:4c7fc1dc26a6371ca044057fcb2972e3b36028d14b451a9e51905db378d8de13",
+          "lines": [
+            825,
+            829
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:f5187ab67aa8d59a91fd85e3fce8ba9445d894120a56e29dd1245f64b7c30365",
+          "lines": [
+            785,
+            788
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:52c294aa8bcce91b4fa7c541a570844a60454c7dada2bf2ebbff70bbc8be473c",
+          "lines": [
+            815,
+            823
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:456ebb3290b639b908647d159eb7e6286bac50a7ac32f31977a3c91d2c474a29",
+          "lines": [
+            799,
+            802
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:7e92a9ebb395cfdd77582ec06aacebf757bb71555e8b337a7aac5e76e7bad737",
+          "lines": [
+            790,
+            797
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:cac841540f11963e1e68706bc000cb8dd0a8dff0fdd38b7d839356cf71c34ba5",
+          "lines": [
+            781,
+            783
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -33722,6 +34472,76 @@
             184
           ],
           "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:a1331fa5c42fa17c7874102737340e7966fcb2173037349de3e346af8494b4de",
+          "lines": [
+            222,
+            228
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:ad6866999649c8fef75699622d58de83e45d60944e22942b1029aa061fcca56a",
+          "lines": [
+            230,
+            233
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:bb5f970402a103edcfe3badb796adaf49caf5bf3223bf7134b434bd6395f44ed",
+          "lines": [
+            199,
+            204
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:e03002de7c4c36333ca5e3fb789410f718523c1054be9073351760927e61511c",
+          "lines": [
+            194,
+            197
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:79bae33ca6c7d03f4d0ac0246b6483e15615029954408559c964463a234a187b",
+          "lines": [
+            217,
+            220
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:c07bfd866c96f41413c628b7156f38dc6e549af1e202fb8c21a55956b570db27",
+          "lines": [
+            206,
+            215
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:6c3310b7cefc00ea1df8bfe70ac623dee05842cafe45acf7bc0c365ef6202cd1",
+          "lines": [
+            186,
+            192
+          ],
+          "path": "docs/fleet-roadmap.md"
         }
       ],
       "id": "roadmap-item:GRAPH-004",
@@ -33754,6 +34574,76 @@
           "lines": [
             235,
             235
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:fe4fc33da3af90256e6812245315914eef8188591e3a3e54bfe85e82d972ab7c",
+          "lines": [
+            276,
+            293
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:718e8cc8f44eba096d43c83fbba7acf29a7ea8f6751abc5484b27b5a67d2d390",
+          "lines": [
+            295,
+            299
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:76d1526f6bf1cba2364c5328438e36d9d293882ccee1e0456120f9b8b2f778b3",
+          "lines": [
+            251,
+            258
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:5b3fa3175f0fe3fda9d7342bbc5754ce19dc84c17476989b0caf75ed5e601cb9",
+          "lines": [
+            247,
+            249
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:88f5ef8bd5349846ae3cefbba84789dc6621b4df62b0a27a16e6cb47048514d7",
+          "lines": [
+            270,
+            274
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:947bd1dc39847b4dbb09afdad72afcbfc59a6d7dd5094e250477743d34be94e8",
+          "lines": [
+            260,
+            268
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:1614e47dc07d16cd765ed15b22dc4886d3d6cad421eec2a2def002cf456dc06e",
+          "lines": [
+            237,
+            245
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -33836,6 +34726,76 @@
           "lines": [
             301,
             301
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:3e1b44edff40807ce14f752f75fcdc1b5cb51ac7a1035ab36d060032694f4894",
+          "lines": [
+            386,
+            394
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:64e65bddcd69088876ac50326df5edd56d7057f466ac5c40a73b4578e4ccb403",
+          "lines": [
+            317,
+            379
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:d0a4572d04d5ea8f90905ca0a2fbbdbf8d3a72b9786c5327e54ca035503823f7",
+          "lines": [
+            396,
+            406
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:2eacb66f57d5d0c45571b84c27dfc4e19c0a53b4944c75736e755b57e88751d4",
+          "lines": [
+            306,
+            308
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:e7c6f953d5f7c9b2de3062f817cc535cdf733e199a76c733058f20ffe03d2534",
+          "lines": [
+            381,
+            384
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:87fa4c7ebde5700a0bf3ba6d4218af422a4fcb94e20c12f3ecd3f098fc63cf21",
+          "lines": [
+            310,
+            315
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:5b0f34c9c6277e6fcd41038318ab530564197655521e83eecdd7dd2405721097",
+          "lines": [
+            303,
+            304
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -33941,6 +34901,66 @@
           "lines": [
             1026,
             1026
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:9ebe840088d30d109d09e0cef83d7eecf646b4c18306274266bb3c6b95bcaa40",
+          "lines": [
+            1051,
+            1063
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:fcbbd90474d6166e85b061950fa8fb8057e3a0db3bc5620058d3f8b88faff193",
+          "lines": [
+            1065,
+            1067
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:566b41446c3aa9404d0d5454c884b1db08198b0257619eb7f427790857961896",
+          "lines": [
+            1030,
+            1033
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:de7a7a475d8622778916bdf6a45b229be7296af12171b14cf226eac879a38985",
+          "lines": [
+            1046,
+            1049
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:efbb49f5e2bd1861892f567bb7f590ac0bddcb35321b92b4cf13f17b78cb04a6",
+          "lines": [
+            1035,
+            1044
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:53b4c27769d3370153c029d484ac31acee4d73f0524b5efe708750b8d8c9bac6",
+          "lines": [
+            1028,
+            1028
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -34123,6 +35143,96 @@
             616
           ],
           "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:49ab4dfbf3432d729c5540a5e375430e2f88299c17b76244caf23eb7290192fe",
+          "lines": [
+            653,
+            656
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:e45a482fd2f4a45d4d95d4553b571b5fc5ccbae5874934d185a142656acf379b",
+          "lines": [
+            640,
+            651
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:29fb9fb4f07abfa322836d97c36f01a2f0025ae595ecd5f064d46ce1e233a293",
+          "lines": [
+            670,
+            673
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:5b6ff44c9f5f192d68e6ff003adf4df0faef5f70f24cca1a315c04300a211867",
+          "lines": [
+            624,
+            625
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:6bd53368bd7a14d18768930fcd01d91cc70dc26981453437619bfb1f7067c970",
+          "lines": [
+            622,
+            622
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:67032cd7365a3ce5f290609392c6bd8f643f965b23b88e0b37a673510fedf686",
+          "lines": [
+            633,
+            638
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:afac8757a04e275b496da491e26ddfe8360f742bacb585b5e2b7c576bd724303",
+          "lines": [
+            658,
+            668
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:49cf12b53bf5299a46b2ac62af9c88ccedd5d0757063ea45dae7bb511a7af2e4",
+          "lines": [
+            627,
+            631
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:fea369a0fe3282f96496837f5ae5d6ea37b15e645f4b596b676961e0fa63266c",
+          "lines": [
+            618,
+            620
+          ],
+          "path": "docs/fleet-roadmap.md"
         }
       ],
       "id": "roadmap-item:ROUTE-003",
@@ -34154,6 +35264,66 @@
           "lines": [
             675,
             675
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:924189b3547a9424740426b8dfda7b6334e3578c18dee1dc70d7da5b58884412",
+          "lines": [
+            692,
+            694
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:14596f907fc11f64766f52600c530c08cece7bd4f898513dc9ecae2ffcd606d3",
+          "lines": [
+            696,
+            697
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:37d1ffe91e1258c8f1ff345021b5ddccc525c5edc6500914550f093466529047",
+          "lines": [
+            679,
+            681
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:a9cc3d0b95e31a6b54e39f32d7c4b5cc7d04959243015e13e3a1cccba44a79fd",
+          "lines": [
+            689,
+            690
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:a9b65cec568d7177244336f4b68e3113c7f97e2157d7f28efb9133682a68dc72",
+          "lines": [
+            683,
+            687
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:aad0c82decf898a04944f4d02b8e3ab56302c9d5c65f3e7c7e47811e1d8f7f99",
+          "lines": [
+            677,
+            677
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -34188,6 +35358,76 @@
           "lines": [
             1135,
             1135
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:722a78d6224266ae5f93d4c11978022c0c7ede0ef9542f6f5bbc48e61f7e266d",
+          "lines": [
+            1171,
+            1173
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:fc2c0ca1d341f4ffc12919640abde8fd85400a682ba1ce014c41e2ea9a3c7cc3",
+          "lines": [
+            1158,
+            1169
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:6af23081f65251c2bb8e05761854d03fec9fea8f588944deb0afbedcccb9c8ab",
+          "lines": [
+            1175,
+            1178
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:ebdef0c4fa1bc0b958d91f7d36e26f0768fcb7dc3288f8ea3916e633ca68b3c7",
+          "lines": [
+            1144,
+            1145
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:8ee277e6173c3544cbe69b1a5a3bc73df89117ffadf98a11ac7fdf745e4a9e20",
+          "lines": [
+            1154,
+            1156
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:f7cc5b4cfc09820bcc8e0ea85d07b60d2ed0ef3691fb2699f6105972493fc80c",
+          "lines": [
+            1147,
+            1152
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:0ac3c36353e53ee2705113768cf78624fbc6c4d60f0f40d65ce9741eb30f9810",
+          "lines": [
+            1137,
+            1142
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -34245,6 +35485,66 @@
           "lines": [
             482,
             482
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:a924fe37cb48a76f44548bf2f3c4fc99eaa5801e0f5136102a997117ae255f8b",
+          "lines": [
+            586,
+            594
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:d58d9b5170090fbc0682afce70c665db061d0a1f8b2db43a1210b2559bf86d91",
+          "lines": [
+            596,
+            614
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:5cfd375560a449dbf7a30e3972dce0fb985e98ad6829367ef0f81e3741befe9d",
+          "lines": [
+            487,
+            492
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:351db008144553b3cd4c024c0b34e99677f45fe0890b3f11c9cc0f0d595cdd7a",
+          "lines": [
+            574,
+            584
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:82d2e41546df51c925c73a552be5514c89a7b77b13149bff9f4d30ff8f284ebd",
+          "lines": [
+            494,
+            572
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:950220bcf59899ab4d7a3b1b8e9957447b62f4a5a4236c3bd61a0991cac5a842",
+          "lines": [
+            484,
+            485
           ],
           "path": "docs/fleet-roadmap.md"
         }
@@ -34398,6 +35698,66 @@
           "lines": [
             42,
             42
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:21ec03858ad21cf886f4fb910335d6b8b220e3a1fd87b90e07962fef23a449f8",
+          "lines": [
+            70,
+            75
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:086e2626dab0554f12f4ec08cc3407709780163a7ee0bfa45361c8d9d5f234ed",
+          "lines": [
+            77,
+            82
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:61e925dfd3e6f7f60787d7c90fd971844f2c4cefb4c9481799fa5a2fb70201b2",
+          "lines": [
+            46,
+            47
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:f15f7359e56e4b92cd39df9796a547a01527d35a91fdf1acad3be0cabf21eca4",
+          "lines": [
+            66,
+            68
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:3eff97ebd150f5724508fb19570263b1cd55d41a734bdb79234a6856e72d64b3",
+          "lines": [
+            49,
+            64
+          ],
+          "path": "docs/fleet-roadmap.md"
+        },
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "check_plan_status.roadmap_field",
+          "excerptHash": "sha256:10b0928f1b9a0272132aa1143b86f9fb3b8b9cb10e2968cca68807e4d40fce40",
+          "lines": [
+            44,
+            44
           ],
           "path": "docs/fleet-roadmap.md"
         }
