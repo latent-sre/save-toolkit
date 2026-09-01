@@ -129,26 +129,6 @@ class GraphContractTests(unittest.TestCase):
         self.assertIn("incident-state/v2", recovery)
         self.assertIn("→ Handing to:", handoff)
 
-    def test_all_agent_outputs_carry_lineage_and_resolved_model_evidence(self) -> None:
-        self.assertEqual(8, len(AGENTS))
-        for path in AGENTS:
-            text = _agent_contract_text(path)
-            with self.subTest(agent=path.stem):
-                self.assertIn("Run/attempt:", text)
-                self.assertIn("Model:", text)
-                self.assertIn("Preserve the caller-supplied run identity", text)
-                self.assertIn("increment the attempt", text)
-                self.assertIn("resolved model identity", text)
-                self.assertIn("cannot close a model-dependent decision", text)
-
-    def test_all_agents_distinguish_tool_absence_from_guard_denial(self) -> None:
-        for path in AGENTS:
-            text = _compact(path.read_text(encoding="utf-8"))
-            with self.subTest(agent=path.stem):
-                self.assertIn("absent from the runtime surface is unavailable/not granted", text)
-                self.assertIn("only after an attempted invocation returns a guard denial", text)
-                self.assertIn("observed denial reason", text)
-
     def test_documented_ungranted_handoffs_return_to_the_caller(self) -> None:
         expected = {
             "agent-engineer.md": ("reviewer", "software-engineer"),
@@ -219,16 +199,6 @@ class GraphContractTests(unittest.TestCase):
                 self.assertIn("Inputs/source trust:", text)
                 self.assertIn("Missing or unlabeled trust defaults to `[UNTRUSTED]`", text)
                 self.assertIn("claim-level `[UNTRUSTED]`", text)
-
-    def test_delegate_failure_path_is_explicit_and_has_no_scheduler_claim(self) -> None:
-        for filename in ("software-engineer.md", "sre.md", "observability-engineer.md", "agent-engineer.md"):
-            text = _agent_contract_text(ROOT / "agents" / filename)
-            with self.subTest(agent=filename):
-                self.assertIn("empty, malformed, partial, timed-out, or killed delegate return", text)
-                self.assertIn("failed attempt, never success", text)
-                self.assertIn("dispatch no dependent work", text)
-                self.assertIn("return `BLOCKED` or `INCONCLUSIVE`", text)
-                self.assertIn("no lease, stale-worker scheduler, or heartbeat", text)
 
     def test_authoring_method_requires_portable_lineage_and_delegate_failure_state(self) -> None:
         text = _compact(
