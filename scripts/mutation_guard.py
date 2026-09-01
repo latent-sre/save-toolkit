@@ -230,9 +230,10 @@ def discover(root: Path) -> list[tuple[Path, list[Path]]]:
             # generate_platform_adapters.py -- 735 lines, the single generator behind every host
             # projection -- had NO mutation coverage at all behind a 429-line test file, because
             # `import generate_platform_adapters as adapters` contains no `.py` literal and the
-            # sibling name does not match. `test_plan_status.py` -> `check_plan_status.py` missed
-            # for the same reason. Import-following fixes both without renaming any file, which
-            # matters because a rename would break the references those names already have.
+            # sibling name does not match. A sibling-name mismatch of the same shape (a test file
+            # whose stem does not match its subject's) missed for the same reason. Import-following
+            # fixes both without renaming any file, which matters because a rename would break the
+            # references those names already have.
             for node in ast.walk(tree):
                 if isinstance(node, ast.Import):
                     names = [alias.name for alias in node.names]

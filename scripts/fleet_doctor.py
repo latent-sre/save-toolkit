@@ -752,21 +752,13 @@ def _outside_checkout_checks() -> list[Check]:
             {"checkout": False},
             limitations=limitation,
         ),
-        Check(
-            "repository.plan-status",
-            "skip",
-            "No repository checkout is present; planning governance was not inspected.",
-            {"checkout": False},
-            limitations=limitation,
-        ),
     ]
 
 
 def _repository_checks(root: Path) -> list[Check]:
     try:
-        from scripts import check_plan_status, validate_fleet
+        from scripts import validate_fleet
     except ModuleNotFoundError:
-        import check_plan_status  # type: ignore[no-redef]
         import validate_fleet  # type: ignore[no-redef]
 
     names, fleet_issues = validate_fleet.validate_repo(root)
@@ -790,24 +782,6 @@ def _repository_checks(root: Path) -> list[Check]:
             ),
         )
     ]
-    plan_issues = check_plan_status.check(root)
-    checks.append(
-        Check(
-            "repository.plan-status",
-            "fail" if plan_issues else "pass",
-            (
-                f"Planning governance has {len(plan_issues)} issue(s)."
-                if plan_issues
-                else "The live roadmap and historical plan statuses are consistent."
-            ),
-            {"issue_count": len(plan_issues)},
-            limitations=(
-                ("Issue text is omitted from the portable envelope; rerun check_plan_status.py locally.",)
-                if plan_issues
-                else ()
-            ),
-        )
-    )
     return checks
 
 

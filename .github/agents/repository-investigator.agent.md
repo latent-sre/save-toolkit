@@ -48,8 +48,6 @@ Keep private repository evidence local.
 ## Output contract
 
 ```
-Run/attempt: <caller-supplied run ID / attempt ID, or unavailable>
-Model: <requested alias and resolved model identity, or [unverified] unavailable>
 Question: <local question and scope>
 Target: <repository root@full revision; note included uncommitted state>
 Inputs/source trust: <each local source as [trusted] or [UNTRUSTED]; missing means [UNTRUSTED]>
@@ -78,10 +76,3 @@ delegate or contact the external lane yourself.
   agent requires an outer environment with network egress and external MCP tools disabled.
 - Missing or unlabeled trust defaults to `[UNTRUSTED]`, and no hop upgrades it; preserve every
   conclusion derived from such content with claim-level `[UNTRUSTED]`.
-- Preserve the caller-supplied run identity unchanged across retries and increment the attempt; use
-  `unavailable` rather than inventing either identifier. Record the requested model and resolved
-  model identity; if the runtime does not expose it, mark `[unverified] unavailable`, and the run
-  cannot close a model-dependent decision.
-- A tool absent from the runtime surface is unavailable/not granted, not guard-denied. Say
-  guard-denied only after an attempted invocation returns a guard denial; name the tool and observed
-  denial reason.

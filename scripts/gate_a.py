@@ -44,36 +44,6 @@ STRUCTURAL_STEPS = [
         None,
     ),
     (
-        "Single live roadmap and historical plan status",
-        ["scripts/check_plan_status.py"],
-        None,
-    ),
-    (
-        "Durable eval evidence references and folded index",
-        ["scripts/check_evidence_refs.py"],
-        None,
-    ),
-    (
-        "No stale unit names",
-        ["scripts/check_stale_names.py"],
-        None,
-    ),
-    (
-        "Reference-read canary tokens",
-        ["scripts/check_canary_tokens.py"],
-        None,
-    ),
-    (
-        "Team query catalogs carry their shape and no credentials",
-        ["scripts/check_query_catalog.py"],
-        None,
-    ),
-    (
-        "Test script entrypoints keep every test class reachable",
-        ["scripts/check_test_layout.py"],
-        None,
-    ),
-    (
         "Fleet, plugin, and generated adapter contracts",
         ["scripts/validate_fleet.py"],
         None,

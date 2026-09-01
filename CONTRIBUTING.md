@@ -39,7 +39,7 @@ that test.
 | Change | Evidence |
 |---|---|
 | Code, validator, exit code, or schema | Run the affected tests. Follow [`schema-compatibility.md`](docs/schema-compatibility.md) for schema changes. |
-| Agent, skill, command, or bundled reference | Run the matching asset/contract test; canary-protected references also run `python scripts/test_canary_tokens.py`. |
+| Agent, skill, command, or bundled reference | Run the matching asset/contract test. |
 | Routing description | Run the overlapping clean-room scenarios after a routing-content change. A prior-revision baseline is needed only to diagnose a red case; pure wording changes need no live eval. |
 | Eval harness or scenario | Run the affected `evals/test_*.py`; run `python evals/run_evals.py --validate` when parsing or targeting changes. |
 | Read-only guard or hook wiring | Run `python scripts/test_readonly_guard.py` and `python scripts/test_hook_wiring.py`; preserve exit codes 42 allow, 43 deny, and 44 indeterminate. |

@@ -192,10 +192,6 @@ research from this local lane.
 
 This role cannot invoke `software-engineer`; the recommendation returns to the caller, who dispatches it.
 
-A tool absent from the runtime surface is unavailable/not granted, not guard-denied. Say
-guard-denied only after an attempted invocation returns a guard denial; name the tool and observed
-denial reason.
-
 When calling `researcher`, handling an empty or failed delegate return, or returning work that
 changes ownership, read `investigation-depth`'s incident-handoff reference before forming the packet. Do not
 load that reference for a bounded response that returns directly to the same human owner.
