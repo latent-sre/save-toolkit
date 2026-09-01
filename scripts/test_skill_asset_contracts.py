@@ -218,6 +218,36 @@ class SkillAssetContractTests(unittest.TestCase):
             "a rate-limited API documents its 429 on the operations that can return it",
         )
 
+    def test_backend_persistence_defers_stack_choices_and_aligns_recovery(self) -> None:
+        """Persistence guidance must consume the selected stack and recovery contract."""
+        skill = (ROOT / "skills/backend-craft/SKILL.md").read_text(encoding="utf-8")
+        persistence = (
+            ROOT / "skills/backend-craft/references/persistence.md"
+        ).read_text(encoding="utf-8")
+        stack = (
+            ROOT / "skills/stack-profile/references/application-and-data-stack.md"
+        ).read_text(encoding="utf-8")
+        reliability = (ROOT / "skills/database-reliability/SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        persistence_router = next(
+            line
+            for line in skill.splitlines()
+            if line.startswith("| a database or any persisted state |")
+        )
+
+        self.assertIn("PostgreSQL and SQL Server", stack)
+        self.assertIn("not already selected", persistence_router)
+        self.assertLess(
+            persistence_router.index("`stack-profile`"),
+            persistence_router.index("[persistence]"),
+        )
+        self.assertIn("Existing repository choices win", persistence)
+        self.assertNotIn("Postgres by default", persistence)
+        self.assertIn("not necessarily a reverse script", reliability)
+        self.assertIn("not necessarily a reverse script", persistence)
+        self.assertNotIn("versioned and reversible", persistence)
+
     def test_reusable_ci_concurrency_is_scoped_to_the_workflow(self) -> None:
         starter = (ROOT / "skills/ci-actions/assets/ci.reusable.yml").read_text(
             encoding="utf-8"

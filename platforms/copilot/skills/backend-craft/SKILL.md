@@ -129,7 +129,7 @@ review packet.
 | calling any upstream or third-party API | [consuming-apis](./references/consuming-apis.md) |
 | a queue, a scheduled job, or an inbound webhook | [background-work](./references/background-work.md) |
 | streaming to clients (SSE or WebSocket) | [live-data](./references/live-data.md) |
-| a database or any persisted state | [persistence](./references/persistence.md) |
+| a database or any persisted state | If datastore or driver is not already selected, load `stack-profile` first; then [persistence](./references/persistence.md) |
 | authenticating or authorizing a caller | [auth](./references/auth.md) |
 
 Trips two predicates? Read both. Trips none? The core above is the whole job.
