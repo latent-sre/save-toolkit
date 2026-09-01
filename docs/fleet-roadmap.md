@@ -183,9 +183,13 @@ values are required and no real team is onboarded.
 
 ### GRAPH-004 — `fleet-atlas`: a revision-bound knowledge graph over fleet artifacts
 
-**Status:** `active` (2026-08-30). The owner accepted the fleet-knowledge scope, the published
-branch carries the decision and initial implementation, and additional isolated implementation is
-in progress. No pull request exists and no candidate is accepted or merged.
+**Status:** `blocked` (2026-08-31). The owner accepted the fleet-knowledge scope and published
+[PR #205](https://github.com/latent-sre/save-toolkit/pull/205), but successive exact-head reviews
+continued to find contract defects after focused repair cycles. The current implementation is not a
+merge candidate. Preserve the PR as donor code and review evidence; `GRAPH-006` owns the replacement
+design and migration. The optional read-only external probe remains deferred until a named public
+source or consumer requires it and is not an acceptance prerequisite. No candidate is accepted or
+merged.
 
 **Owner:** `software-engineer` owns the generator, schema, catalog entry, drift check, and tests;
 `agent-engineer` owns the `fleet-atlas` skill and scenarios; `repository-investigator`,
@@ -221,10 +225,11 @@ bounded index/detail views cite revision and source; positive discovery and dire
 contradiction scenarios pass while existing code-graph and roster-graph near misses remain green;
 Gate A and independent exact-revision review pass. Generated findings never edit canonical truth.
 
-**Next action:** Finish the existing isolated `work/graph-004-fleet-atlas` candidate without
-overwriting its uncommitted files, restore a clean exact revision, run its focused atlas and
-mutation checks plus Gate A, obtain independent review, and open one review path for that exact
-candidate. Do not start a duplicate implementation or schedule GraphRAG.
+**Next action:** Stop one-finding-at-a-time expansion on PR #205. Keep it open as the implementation
+donor and exact-review record while `GRAPH-006` defines and proves a typed, evidence-bound replacement
+from current main. Do not merge, close, rewrite, or treat the PR's green checks as acceptance before
+the replacement reaches semantic parity and the owner makes an exact-candidate decision. Do not
+build the deferred external probe or schedule GraphRAG.
 
 ### GRAPH-005 — AutoGen GraphFlow + A2A canary-evidence sandbox
 
@@ -291,6 +296,65 @@ push the exact reviewed branch under the owner's 2026-08-31 publication authoriz
 pull request or acceptance decision, run the exact candidate's pinned-image and six-case lifecycle
 with cleanup evidence and present the exact acceptance packet. Publication alone does not promote
 the candidate.
+
+### GRAPH-006 — refactor `fleet-atlas` around a typed, evidence-bound pipeline
+
+**Status:** `ready` (2026-08-31). The owner requested a full refactor disposition on PR #205 and a
+separate backlog item after repeated review cycles continued to expose correctness defects. This
+item records the approved direction only; no replacement branch, migration, or candidate is
+implemented or accepted yet.
+
+**Owner:** `software-engineer` owns the replacement design implementation, compatibility harness,
+CLI, schema, generator, and tests; `agent-engineer` owns consumer-skill and scenario compatibility.
+The work remains builder-owned, with principal-level review required for the evidence model, v1
+compatibility boundary, phased cutover, and rollback decision. Save Toolkit maintainers accept or
+reject the exact replacement candidate. PR #205 remains donor/evidence, not an accepted baseline.
+
+**Outcome:** One explicit pipeline discovers canonical inputs, extracts every node, freezes typed
+multi-value indexes, resolves relationships, runs detectors, validates invariants, and then renders
+all projections. Every returned node attribute and edge is backed by the exact contributing source
+span; link resolution cannot silently collapse multiple semantic nodes sharing one path. `build`,
+`check`, and `query` use one projection/provenance verifier. Markdown views and CLI results use one
+fact renderer that preserves evidence class, label, canonical `path:line`, and a deterministic byte
+budget. The public v1 schema and CLI remain compatible until a measured cutover says otherwise.
+
+**Source:** The accepted product scope remains in `GRAPH-004` above. On
+[PR #205](https://github.com/latent-sre/save-toolkit/pull/205), exact-head review of
+`d0e83c2fbb1ece9f8a0472d95e440fd6bfc0e2c5` reported ten unresolved findings after earlier repair
+rounds. They cluster at four design boundaries: path/type identity resolution; claim-to-evidence
+completeness; provenance/freshness validation; and bounded query/view rendering. Green component
+and structural checks did not exercise those invariants, so another local patch pass would not by
+itself establish merge readiness.
+
+**Prerequisites:** Start the replacement from current main in a fresh branch or worktree. Preserve
+PR #205 and its commits without force-push or history rewrite until the replacement demonstrates
+parity. Before implementation, record the v1 observable contract: schema, CLI verbs and exit codes,
+ordering, labels, citations, truncation behavior, generated filenames, and deterministic bytes.
+Application-code graphs, runtime topology, external probes, canonical write-back, graph databases,
+and GraphRAG remain out of scope.
+
+**Acceptance:** Use expand → migrate → contract. (1) Add the new internal pipeline beside the v1
+implementation and compare normalized semantic output before switching consumers. (2) Shuffling
+extractor registration produces byte-identical output. (3) Typed resolution preserves every valid
+node sharing a path and requires the relationship to request its target type explicitly. (4) Every
+returned attribute and edge cites every source span that determined its value, including both sides
+of resolved links and batch matches. (5) Literals and fixture writes never become verification
+evidence. (6) `build`, `check`, and `query` reject canonical-byte, manifest, projection, and reachable
+non-ancestor revision tampering through the same verifier. (7) Two clean builds are byte-identical,
+and synthetic merge/rebase checkouts succeed only when canonical inputs and full projections match.
+(8) Every rendered fact preserves evidence class, `[verified]` / `[sourced]` / `[unverified]`, and a
+supporting canonical citation. (9) Query output is capped by encoded bytes with an explicit,
+deterministic truncation record and remains below the accepted 20,000-byte surface budget. (10)
+Every material PR #205 finding has a named regression. (11) The old and new paths remain available
+during comparison; each cutover step is independently reversible, and removal waits until no
+consumer uses the old path. (12) Focused atlas tests, component suites, eval validation, Gate A,
+clean-checkout determinism, hosted CI, and independent exact-head review pass on one candidate.
+
+**Next action:** Write the compact v2 design and compatibility matrix, naming the typed resolution
+API, claim/evidence invariant, shared verifier, renderer contract, migration slices, and rollback per
+slice. After owner review, create the replacement branch from current main and implement in small
+builder-owned commits. Keep PR #205 open until the replacement either proves parity or is rejected;
+closing or superseding it is a separate owner decision.
 
 ### HOST-002 — measure VS Code tool enforcement and re-probe hook portability
 
