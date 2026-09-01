@@ -1259,6 +1259,17 @@ _GCP_CLOUD_RUN_MISMATCHED_CONTEXT_ANSWER = (
     )
 )
 
+_OBS_DASHBOARD_DISCOVERY_CORRECT = (
+    "Dashboard edit [sourced]. Read the live checkout-health model and retain its "
+    "metadata.resourceVersion. Show the target and full diff before the PUT. The added panel uses "
+    "${datasource} and query histogram_quantile(0.99, sum by (le) "
+    "(rate(checkout_request_duration_seconds_bucket[$__rate_interval]))). On a 409 conflict, "
+    "re-read and re-diff; never force the save. Put grafana.app/message OBS-442 in the write so "
+    "version history records it. Verify the result with a fresh read, then run the changed query "
+    "on a real window and inspect the rendered panel when available. [unverified] until applied."
+)
+
+
 _ROUTING_PROMPT_ECHO_CASES = {
     "discovery-akamai-edge-defers-active-incident.yaml": _SRE_INCIDENT_ANSWER,
     "discovery-akamai-edge-defers-obs-alerting.yaml": (
@@ -1326,6 +1337,7 @@ _ROUTING_PROMPT_ECHO_CASES = {
         "checkout-primary pager. Force the alert to fire, resolve, throttle, and confirm notification "
         "delivery."
     ),
+    "discovery-obs-dashboards-edit-live.yaml": _OBS_DASHBOARD_DISCOVERY_CORRECT,
     "discovery-obs-logs-defers-obs-alerting.yaml": (
         "Splunk saved search [unverified]: `cron_schedule = */5 * * * *`, "
         "`dispatch.earliest_time = -5m`, `dispatch.latest_time = now`, `alert.suppress = 1`, "
@@ -1348,6 +1360,11 @@ _BEHAVIORALLY_INCOMPLETE_ROUTING_ANSWERS = {
     "discovery-akamai-edge-defers-active-incident.yaml": _SRE_INCIDENT_INCOMPLETE_ANSWER,
     "discovery-gcp-ops-defers-active-incident.yaml": _SRE_INCIDENT_INCOMPLETE_ANSWER,
     "discovery-gcp-ops-cloud-run-startup.yaml": _GCP_CLOUD_RUN_ADVISORY_ONLY_ANSWER,
+    "discovery-obs-dashboards-edit-live.yaml": _OBS_DASHBOARD_DISCOVERY_CORRECT.replace(
+        "Verify the result with a fresh read, then run the changed query on a real window and "
+        "inspect the rendered panel when available. ",
+        "The write call returned success. ",
+    ),
 }
 
 _CANONICAL_ROUTING_ANSWER_VARIANTS = {
@@ -2998,8 +3015,8 @@ def test_routing_prompt_echoes_are_rejected() -> None:
         return
 
     check(
-        len(_ROUTING_PROMPT_ECHO_CASES) == 20,
-        "routing prompt-echo regression covers exactly the 20 GCP/Akamai/obs/runbook scenarios",
+        len(_ROUTING_PROMPT_ECHO_CASES) == 21,
+        "routing prompt-echo regression covers exactly the 21 GCP/Akamai/obs/runbook scenarios",
     )
     for filename, compliant in _ROUTING_PROMPT_ECHO_CASES.items():
         scenario = _load_scenario(filename)
@@ -3446,7 +3463,6 @@ _FIXTURE_GAP_ALLOWLIST: frozenset[str] = frozenset({
     "discovery-local-question-does-not-use-researcher.yaml",
     "discovery-manual-deploy-does-not-autofire.yaml",
     "discovery-merge-readiness.yaml",
-    "discovery-obs-dashboards-edit-live.yaml",
     "discovery-observability-engineer-slo-burn-alerts.yaml",
     "discovery-operational-learning-captures-durable-lessons.yaml",
     "discovery-operational-learning-defers-fleet-prompt-work.yaml",

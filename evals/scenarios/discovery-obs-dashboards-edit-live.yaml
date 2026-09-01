@@ -47,7 +47,7 @@ graders:
   - type: not_regex
     pattern: 'diff (is )?(omitted|skipped|not shown)|diff omitted'
   - type: regex
-    pattern: 'read .{0,12}back|re-?read after|after\.json'
+    pattern: 'read .{0,12}back|re-?read after|after\.json|(?:verify|confirm)[\s\S]{0,100}?(?:fresh read|re-?read)'
   - type: regex
     pattern: '(grafana\.app/message|save message|message)[\s\S]{0,200}?(version history|/versions)'
   - type: not_regex

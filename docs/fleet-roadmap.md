@@ -614,6 +614,27 @@ upstream-client pressure, so the exact error, persistent-failure, authority, and
 remain. No deterministic test or backend discovery scenario was removed. Evidence is in the
 [`backend-craft disposition`](reviews/2026-09-01-skill-001-backend-craft.md).
 
+`obs-alerting` — accepted knowledge-cut candidate on branch `work/skill-001-obs-alerting`, exact candidate
+`9d1e4766e8cf1ff4b232ad9bbba8d9b0d6d76dbf`: 7,930 → 5,804 immutable entrypoint bytes (-26.8%),
+references unchanged at 32,843 bytes, description byte-identical. Five no-skill Terra probes
+supplied nine of ten alert-review behaviors in every run; all five omitted the fleet's exact burn
+definition, so `observed bad fraction / allowed bad fraction` remains explicit while generic SLI
+and worked-window recitation was cut. No test or eval was removed. Exact-commit native discovery
+evidence remains pending before PR. Current evidence is in the
+[`obs-alerting disposition`](reviews/2026-09-01-skill-001-obs-alerting.md).
+
+`obs-dashboards` — accepted router candidate with a probe-backed recitation and reference cut on
+`work/skill-001-backend-craft`: 11,419 → 7,160 entrypoint bytes (-37.3%), references 83,298 →
+34,480 (-58.6%), description byte-identical. The common live-edit load is 75,222 → 33,055 bytes.
+Three no-skill Terra controls scored 0/3 on the committed discovery graders: all omitted the
+fleet-required `${datasource}` form and evidence labels, and two asserted the older documented 412
+instead of the QA-observed Grafana 13.1 legacy 409. The dashboard-only authority, target discovery,
+stored-version/status traps, concurrency, UNKNOWN reconciliation, query/render/history proof, and
+evidence contract remain. No test or eval was removed; the existing discovery scenario gained a
+focused readback-language fixture. Exact-commit live build/discovery evidence remains pending before
+PR. Current evidence is in the
+[`obs-dashboards disposition`](reviews/2026-09-01-skill-001-obs-dashboards.md).
+
 **Phase 2 screen:** `[verified]` The screen is 7,800 immutable bytes (owner decision, 2026-08-30;
 7,500 from 2026-08-27, 5,000 before that). On exact campaign revision
 `a253f2ea84c945c227609402782e26e215a80416`, 33 entrypoints total 226,264 immutable bytes. After
@@ -667,12 +688,12 @@ phrase their discovery graders target. Each changed description passes the 600-b
 `Triggers:` contracts and has an after-change overlapping scenario run; a previous-revision baseline
 is required only for an existing scenario that returns red. Gate A green.
 
-**Next action:** Five undispositioned entrypoints remain at or above the 7,800-byte screen:
-`obs-alerting`, `obs-dashboards`, `runbook`, `incident-drill`, and `workflow-graph-engineering`.
-`obs-alerting` is selected for the next read-only evidence/recommendation checkpoint; no byte edit
-begins until the owner accepts that checkpoint. Then process one approved slice at a time:
-`obs-dashboards` and `runbook` carry live-write authority text and a worked exemplar to retain;
-`incident-drill` is explicit-invocation only and its references are drill packs; and
+**Next action:** Commit the integrated `obs-alerting`/`obs-dashboards` candidate, run the separately
+approved exact-commit evals, and publish the PR only after those results are dispositioned. Do not
+start another slice while this integration is open. After that gate, three untouched entrypoints
+remain from the exact 7,800-byte screen: `runbook`, `incident-drill`, and
+`workflow-graph-engineering`. `runbook` is the next read-only evidence/recommendation checkpoint;
+no byte edit begins until the owner accepts it. `incident-drill` is explicit-invocation only and its references are drill packs;
 `workflow-graph-engineering` already records why its entrypoint stays long, so commit that as its
 disposition after a checkpoint. Skills below the screen owe no disposition. The exact refresh evidence is in
 [`2026-08-30 live backlog refresh`](reviews/2026-08-30-live-backlog-refresh.md). Do not requeue a
