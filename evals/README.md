@@ -26,15 +26,27 @@ claims registered for `codex-cli` once its separate live-isolation blocker is re
 
 ## Multi-engine contract
 
-An execution profile uses [`eval-execution-profile/v1`](../schemas/eval-execution-profile-v1.schema.json)
-to bind the engine, exact scenario IDs, requested claims, required references, model, trials,
-per-trial timeout, total timeout, cost-budget representation, and a separate approval record. The
-profile also names one cross-engine comparison contract with the complete Claude/Codex model
-matrix. Its engine-neutral digest binds that matrix, scenario/reference selection, trial count,
-timeouts, adapter contract version, and both requested policy contracts; the reducer refuses
-envelopes whose comparison digests differ.
+New live execution uses
+[`eval-execution-profile/v2`](../schemas/eval-execution-profile-v2.schema.json) to bind the engine,
+exact scenario IDs, requested claims, required references, requested model, accepted resolved-model
+identity, reasoning/effort setting, trials, per-trial timeout, total timeout, cost-budget
+representation, a bounded campaign stop condition, and a separate approval record carrying the
+approved frozen evaluator-suite digest. Historical
+[`v1`](../schemas/eval-execution-profile-v1.schema.json) profiles remain readable for retained
+evidence but cannot authorize a new live run because they do not bind resolved-model identity or
+reasoning effort. The profile also names one cross-engine comparison contract with complete
+Claude/Codex requested-model, resolved-model, and reasoning-effort matrices. Its engine-neutral
+digest binds those matrices, scenario/reference selection, trial count, timeouts, adapter contract
+version, stop condition, and both requested policy contracts; the reducer refuses envelopes whose comparison
+digests differ.
 The parent bootstrap copies that profile into the frozen evaluator before starting the child. A live
-run refuses `approval: null`; preparing or validating a profile does not call a model.
+run refuses `approval: null` or an approval whose suite digest differs from the frozen runner,
+grader, support, or scenario bytes; preparing or validating a profile does not call a model.
+To measure an older candidate with the current contract, run the accepted evaluator checkout and
+pass both `--plugin-root <CANDIDATE_CHECKOUT>` and `--expect-plugin-commit <FULL_40_CHAR_OID>`.
+The parent binds that candidate root into the frozen child, and provenance rejects a different HEAD
+before querying the model CLI version. This keeps evaluator bytes separate from measured plugin
+bytes; do not run an older candidate's bundled evaluator merely because its checkout is the subject.
 
 Both adapters emit [`eval-result-envelope/v1`](../schemas/eval-result-envelope-v1.schema.json)
 beside the legacy private summary when a profile is used. The envelope binds the exact candidate
@@ -43,11 +55,13 @@ trace integrity, reference canaries, and claim-specific verdicts. It records sub
 authentication without copying credential material. Codex subscription cost is `unavailable` with
 null amount and currency, never zero.
 
-A decisive Claude reference trial must trace both a successful `Read` of every required path inside
-the frozen plugin and a denied `Read` of an evaluator-created file outside it. A decisive Codex
-trial must obtain the resolved model and effective ambient policy from trusted CLI trace metadata;
-if the installed CLI does not expose either, the trial is `INCONCLUSIVE` and the policy digest is
-null. Requested flags are not treated as observed policy evidence.
+A decisive Claude trial must observe the accepted resolved-model identity, and its command and
+policy digest bind the approved reasoning/effort setting. A decisive Claude reference trial must
+also trace both a successful `Read` of every required path inside the frozen plugin and a denied
+`Read` of an evaluator-created file outside it. A decisive Codex trial must obtain the accepted
+resolved model, reasoning/effort setting, and effective ambient policy from trusted CLI trace
+metadata; if the installed CLI does not expose them, the trial is `INCONCLUSIVE` and the policy
+digest is null. Requested flags are not treated as observed policy evidence.
 
 Codex live execution is additionally hard-disabled before `subprocess.run`. `--sandbox read-only`
 does not restrict reads, and subscriber authentication requires retaining host identity state. A
@@ -58,9 +72,11 @@ cannot bypass this gate.
 
 Claude can support native plugin/component and host-tool claims. Codex supports candidate integrity,
 reference use, portable behavior, and deterministic grader claims only. The comparison reducer
-classifies agreement, behavioral divergence, evidence gaps, or incomparable inputs; it never
-averages verdicts, rates, durations, or costs, and neither engine can offset the other's failure.
-Automated evidence never promotes a candidate.
+classifies each shared claim, then each scenario, as agreement, behavioral divergence, evidence gap,
+or incomparable input. Any claim involving `INCONCLUSIVE` is an evidence gap; behavioral divergence
+is reserved for conflicting decisive `PASS`/`FAIL` evidence. It never averages verdicts, rates,
+durations, or costs, and neither engine can offset the other's failure. Automated evidence never
+promotes a candidate.
 
 ## Claude behavioral evals
 

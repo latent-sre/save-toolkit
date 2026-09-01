@@ -44,6 +44,10 @@ ENGINE_CLAIMS = {
         }
     ),
 }
+ENGINE_ADAPTER_VERSIONS = {
+    "claude-plugin": frozenset({"1", "2"}),
+    "codex-cli": frozenset({"1", "2"}),
+}
 TOP_LEVEL_FIELDS = {
     "schema_version",
     "run_id",
@@ -218,7 +222,13 @@ def validate_envelope(envelope: object) -> None:
     engine_name = _string(engine["name"], "engine.name")
     if engine_name not in ENGINE_CLAIMS:
         raise ContractError(f"unknown eval engine {engine_name!r}")
-    _string(engine["adapter_version"], "engine.adapter_version")
+    adapter_version = _string(engine["adapter_version"], "engine.adapter_version")
+    if adapter_version not in ENGINE_ADAPTER_VERSIONS[engine_name]:
+        raise ContractError(
+            f"engine.adapter_version must be one of "
+            f"{sorted(ENGINE_ADAPTER_VERSIONS[engine_name])!r} "
+            f"for {engine_name}"
+        )
     _string(engine["runtime_version"], "engine.runtime_version")
     _string(engine["requested_model"], "engine.requested_model", nullable=True)
     resolved_model = _string(engine["resolved_model"], "engine.resolved_model", nullable=True)
@@ -482,17 +492,39 @@ def compare_envelopes(left: object, right: object) -> dict[str, object]:
         first_claims = _claim_index(first_scenarios[scenario_id])
         second_claims = _claim_index(second_scenarios[scenario_id])
         shared = sorted(set(first_claims) & set(second_claims))
-        if not shared:
-            classification = "evidence_gap"
-            any_gap = True
-        elif any(first_claims[name] != second_claims[name] for name in shared):
-            classification = "behavioral_divergence"
-            any_difference = True
-        elif set(first_claims) != set(second_claims):
-            classification = "evidence_gap"
-            any_gap = True
-        else:
-            classification = "agreement"
+        claim_comparisons: list[dict[str, object]] = []
+        scenario_difference = False
+        scenario_gap = set(first_claims) != set(second_claims) or not shared
+        for claim_type in sorted(set(first_claims) | set(second_claims)):
+            left_status = first_claims.get(claim_type)
+            right_status = second_claims.get(claim_type)
+            if left_status is None or right_status is None or "INCONCLUSIVE" in {
+                left_status, right_status
+            }:
+                claim_classification = "evidence_gap"
+                scenario_gap = True
+            elif left_status != right_status:
+                claim_classification = "behavioral_divergence"
+                scenario_difference = True
+            else:
+                claim_classification = "agreement"
+            claim_comparisons.append(
+                {
+                    "type": claim_type,
+                    "classification": claim_classification,
+                    "left": left_status,
+                    "right": right_status,
+                }
+            )
+        classification = (
+            "behavioral_divergence"
+            if scenario_difference
+            else "evidence_gap"
+            if scenario_gap
+            else "agreement"
+        )
+        any_difference = any_difference or scenario_difference
+        any_gap = any_gap or scenario_gap
         comparisons.append(
             {
                 "scenario_id": scenario_id,
@@ -500,6 +532,7 @@ def compare_envelopes(left: object, right: object) -> dict[str, object]:
                 "shared_claims": shared,
                 "left": {name: first_claims[name] for name in shared},
                 "right": {name: second_claims[name] for name in shared},
+                "claims": claim_comparisons,
             }
         )
     overall = (

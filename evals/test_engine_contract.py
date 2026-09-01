@@ -134,6 +134,12 @@ class EvalEngineContractTests(unittest.TestCase):
         with self.assertRaisesRegex(engine_contract.ContractError, "plugin_snapshot"):
             engine_contract.validate_envelope(envelope)
 
+    def test_adapter_version_must_match_the_registered_engine_contract(self) -> None:
+        envelope = self._valid()
+        envelope["engine"]["adapter_version"] = "99"
+        with self.assertRaisesRegex(engine_contract.ContractError, "adapter_version"):
+            engine_contract.validate_envelope(envelope)
+
     def test_claude_candidate_digest_must_match_the_plugin_snapshot(self) -> None:
         envelope = self._valid("claude-plugin")
         envelope["artifacts"]["plugin_snapshot"]["sha256"] = OTHER_DIGEST
@@ -279,6 +285,29 @@ class EvalEngineContractTests(unittest.TestCase):
         self.assertEqual("behavioral_divergence", result["classification"])
         self.assertNotIn("score", result)
         self.assertNotIn("average", result)
+
+    def test_inconclusive_claims_are_evidence_gaps_not_behavioral_results(self) -> None:
+        claude = self._valid("claude-plugin")
+        codex = self._valid("codex-cli")
+        for left_status, right_status in (("INCONCLUSIVE", "INCONCLUSIVE"), ("PASS", "INCONCLUSIVE")):
+            left = copy.deepcopy(claude)
+            right = copy.deepcopy(codex)
+            for envelope, status in ((left, left_status), (right, right_status)):
+                envelope["scenarios"][0]["claims"][0]["status"] = status
+                envelope["scenarios"][0]["verdict"] = status
+                envelope["verdict"] = status
+                envelope["promotion_eligible"] = False
+                if status == "PASS":
+                    envelope["scenarios"][0]["verdict"] = "PASS"
+                    envelope["verdict"] = "PASS"
+            result = engine_contract.compare_envelopes(left, right)
+            with self.subTest(left=left_status, right=right_status):
+                self.assertEqual("evidence_gap", result["classification"])
+                claim = next(
+                    item for item in result["scenarios"][0]["claims"]
+                    if item["type"] == "behavioral_contract"
+                )
+                self.assertEqual("evidence_gap", claim["classification"])
 
     def test_engine_specific_policy_digests_do_not_block_portable_comparison(self) -> None:
         claude = self._valid("claude-plugin")

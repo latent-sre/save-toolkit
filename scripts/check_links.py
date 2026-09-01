@@ -277,11 +277,12 @@ ALLOWED_KEYS = {
 }
 # Skills that must carry `disable-model-invocation: true`, and the only ones allowed to. Each is
 # explicit-only because autonomous invocation would be an effect or a cost the caller did not ask
-# for: `pcf-deploy` and `service-lifecycle` coordinate approved production effects, and
+# for: `pcf-deploy`, `service-lifecycle`, and `service-retirement` coordinate approved production
+# effects, and
 # `incident-drill` spawns many model sessions against a synthetic incident (real spend, real files)
 # and must never start because a conversation mentioned an outage. Adding a name here is a decision:
 # state why the skill cannot be model-invoked, and keep the message below in sync.
-MANUAL_ONLY = {"incident-drill", "pcf-deploy", "service-lifecycle"}
+MANUAL_ONLY = {"incident-drill", "pcf-deploy", "service-lifecycle", "service-retirement"}
 YAML_NON_STRING = re.compile(
     r"^(?:"
     r"~|null|true|false|yes|no|on|off|"

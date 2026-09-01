@@ -13,7 +13,7 @@ from typing import Mapping, Sequence
 import engine_contract
 
 
-ADAPTER_VERSION = "1"
+ADAPTER_VERSION = "2"
 READ_TOOLS = ("Glob", "Grep", "Read")
 BASE_TOOLS = ("Skill", "Task")
 DENIED_TOOLS = (
@@ -117,6 +117,7 @@ class ClaudeNativeAdapter:
         plugin_root: Path,
         qualified_target: str,
         model: str | None,
+        reasoning_effort: str | None = None,
         enable_snapshot_reads: bool = False,
         required_reference_paths: Sequence[str] = (),
         denied_probe_path: Path | None = None,
@@ -192,13 +193,20 @@ class ClaudeNativeAdapter:
             ]
         if model:
             command += ["--model", model]
+        if reasoning_effort:
+            command += ["--effort", reasoning_effort]
         return command
 
-    def policy_sha256(self, *, enable_snapshot_reads: bool) -> str:
-        return _policy_digest(
-            {
+    def policy_sha256(
+        self,
+        *,
+        enable_snapshot_reads: bool,
+        reasoning_effort: str | None = None,
+        adapter_version: str | None = None,
+    ) -> str:
+        policy: dict[str, object] = {
                 "adapter": self.name,
-                "version": self.version,
+                "version": adapter_version or self.version,
                 "claims": sorted(self.supported_claims),
                 "base_tools": list(BASE_TOOLS),
                 "read_tools": list(READ_TOOLS) if enable_snapshot_reads else [],
@@ -211,7 +219,9 @@ class ClaudeNativeAdapter:
                 "permission_mode": "dontAsk" if enable_snapshot_reads else None,
                 "positive_and_negative_boundary_preflight": enable_snapshot_reads,
             }
-        )
+        if reasoning_effort is not None:
+            policy["reasoning_effort"] = reasoning_effort
+        return _policy_digest(policy)
 
     def validate_tool_boundary(
         self,
@@ -320,6 +330,7 @@ class CodexResolvedContextAdapter:
         bundle_root: Path,
         response_schema: Path,
         model: str,
+        reasoning_effort: str | None = None,
     ) -> list[str]:
         if not model.strip():
             raise AdapterError("Codex evals require one explicit model")
@@ -327,7 +338,7 @@ class CodexResolvedContextAdapter:
         schema = response_schema.resolve()
         if not schema.is_relative_to(root):
             raise AdapterError("response schema must be inside the resolved context bundle")
-        return [
+        command = [
             executable,
             "exec",
             "--ephemeral",
@@ -348,8 +359,11 @@ class CodexResolvedContextAdapter:
             str(root),
             "--model",
             model,
-            "-",
         ]
+        if reasoning_effort is not None:
+            command += ["--config", f'model_reasoning_effort="{reasoning_effort}"']
+        command.append("-")
+        return command
 
     def sanitized_environment(self, source: Mapping[str, str] | None = None) -> dict[str, str]:
         environment = dict(source if source is not None else os.environ)
@@ -359,11 +373,15 @@ class CodexResolvedContextAdapter:
         environment["NO_COLOR"] = "1"
         return environment
 
-    def requested_policy_sha256(self) -> str:
-        return _policy_digest(
-            {
+    def requested_policy_sha256(
+        self,
+        *,
+        reasoning_effort: str | None = None,
+        adapter_version: str | None = None,
+    ) -> str:
+        policy: dict[str, object] = {
                 "adapter": self.name,
-                "version": self.version,
+                "version": adapter_version or self.version,
                 "claims": sorted(self.supported_claims),
                 "ephemeral": True,
                 "ignore_user_config": True,
@@ -379,9 +397,18 @@ class CodexResolvedContextAdapter:
                 "mcp_configuration": "ignored with user config; none supplied",
                 "provider_environment": "removed",
             }
-        )
+        if reasoning_effort is not None:
+            policy["reasoning_effort"] = reasoning_effort
+        return _policy_digest(policy)
 
-    def parse_trace(self, raw: str, *, requested_model: str) -> CodexTrace:
+    def parse_trace(
+        self,
+        raw: str,
+        *,
+        requested_model: str,
+        accepted_resolved_model: str | None = None,
+        requested_reasoning_effort: str | None = None,
+    ) -> CodexTrace:
         events: list[Mapping[str, object]] = []
 
         def reject_duplicates(pairs: list[tuple[str, object]]) -> dict[str, object]:
@@ -405,22 +432,50 @@ class CodexResolvedContextAdapter:
         if any(event["type"] in {"turn.failed", "error"} for event in events):
             raise AdapterError("Codex trace reports a failed turn")
         started_events = [event for event in events if event["type"] == "thread.started"]
+        turn_started_events = [event for event in events if event["type"] == "turn.started"]
         completed = [event for event in events if event["type"] == "turn.completed"]
-        messages: list[str] = []
-        for event in events:
+        messages: list[tuple[int, str]] = []
+        for event_index, event in enumerate(events):
             if event["type"] != "item.completed":
                 continue
             item = event.get("item")
             if isinstance(item, Mapping) and item.get("type") == "agent_message":
                 text = item.get("text")
                 if isinstance(text, str) and text:
-                    messages.append(text)
-        if len(started_events) != 1 or len(completed) != 1 or not messages:
+                    messages.append((event_index, text))
+        if (
+            len(started_events) != 1
+            or len(turn_started_events) != 1
+            or len(completed) != 1
+            or len(messages) != 1
+        ):
             raise AdapterError("incomplete Codex trace")
+        thread_index = events.index(started_events[0])
+        turn_index = events.index(turn_started_events[0])
+        completed_index = events.index(completed[0])
+        message_index = messages[0][0]
+        if not (
+            thread_index == 0
+            < turn_index
+            < message_index
+            < completed_index == len(events) - 1
+        ):
+            raise AdapterError("Codex trace is not one ordered single-turn execution")
         started = started_events[0]
         resolved_model = started.get("model")
         if not isinstance(resolved_model, str) or not resolved_model.strip():
             raise AdapterError("Codex trace does not report the resolved model identity")
+        accepted_model = accepted_resolved_model or requested_model
+        if resolved_model != accepted_model:
+            raise AdapterError(
+                "Codex resolved model does not match the accepted resolved-model identity"
+            )
+        observed_reasoning_effort = started.get("reasoning_effort")
+        if requested_reasoning_effort is not None:
+            if observed_reasoning_effort != requested_reasoning_effort:
+                raise AdapterError(
+                    "Codex trace does not match the approved reasoning-effort setting"
+                )
         effective_policy = started.get("effective_policy")
         if not isinstance(effective_policy, Mapping):
             raise AdapterError("Codex trace does not report the effective ambient policy")
@@ -432,8 +487,14 @@ class CodexResolvedContextAdapter:
             {
                 "adapter": self.name,
                 "version": self.version,
-                "requested": self.requested_policy_sha256(),
+                "requested": self.requested_policy_sha256(
+                    reasoning_effort=requested_reasoning_effort
+                ),
                 "effective": dict(effective_policy),
+                "requested_model": requested_model,
+                "accepted_resolved_model": accepted_model,
+                "requested_reasoning_effort": requested_reasoning_effort,
+                "observed_reasoning_effort": observed_reasoning_effort,
             }
         )
         usage_raw = completed[0].get("usage")
@@ -442,7 +503,7 @@ class CodexResolvedContextAdapter:
             for key, amount in usage_raw.items():
                 if isinstance(key, str) and isinstance(amount, int) and not isinstance(amount, bool) and amount >= 0:
                     usage[key] = amount
-        raw_response = messages[-1]
+        raw_response = messages[0][1]
         try:
             structured = json.loads(raw_response, object_pairs_hook=reject_duplicates)
         except (json.JSONDecodeError, AdapterError) as exc:

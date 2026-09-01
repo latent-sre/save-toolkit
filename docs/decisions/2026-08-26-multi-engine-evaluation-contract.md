@@ -64,9 +64,10 @@ trial defaults, and thresholds. It does not gain provider command lines, authent
 tool syntax, or engine-specific expected output.
 
 A separate versioned execution profile selects an engine, scenarios, requested claims, model,
-reasoning/effort setting when supported, trial count, timeout, and run budget. The runner validates
-the entire profile before starting the first model process. A profile requesting an unsupported
-claim is invalid, not downgraded at runtime.
+reasoning/effort setting when supported, trial count, timeout, and run budget. Its live approval
+binds the frozen evaluator-suite digest, including the runner, graders, support code, and scenario
+bytes. The runner validates the entire profile and digest before locating or starting the first
+model process. A profile requesting an unsupported claim is invalid, not downgraded at runtime.
 
 Every profile also carries the same explicit cross-engine comparison identity and complete
 Claude/Codex model matrix. A separate engine-neutral comparison digest binds that matrix, the
@@ -304,4 +305,4 @@ implementation only, including the claim matrix, separate `eval-result-envelope/
 snapshot-scoped read boundary, and subscriber-session Codex adapter. It does **not** approve any
 model call, paid campaign, push, merge, release, or promotion. The first live Claude or Codex run
 requires a separate fixed-budget approval naming model, trials, per-trial timeout, total timeout,
-and stop condition.
+stop condition, and exact frozen evaluator-suite digest.

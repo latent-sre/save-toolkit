@@ -14,8 +14,10 @@ import engine_adapters
 import engine_contract
 
 
-SCHEMA_VERSION = "eval-execution-profile/v1"
-FIELDS = {
+SCHEMA_VERSION_V1 = "eval-execution-profile/v1"
+SCHEMA_VERSION_V2 = "eval-execution-profile/v2"
+SCHEMA_VERSION = SCHEMA_VERSION_V2
+BASE_FIELDS = {
     "schema_version",
     "id",
     "comparison",
@@ -30,10 +32,19 @@ FIELDS = {
     "cost_budget",
     "approval",
 }
+FIELDS_BY_VERSION = {
+    SCHEMA_VERSION_V1: BASE_FIELDS,
+    SCHEMA_VERSION_V2: BASE_FIELDS | {"resolved_model", "reasoning_effort", "stop_condition"},
+}
+STOP_CONDITIONS = frozenset(
+    {"first-inconclusive", "declared-trials-or-budget-boundary"}
+)
 ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 TIMESTAMP_RE = re.compile(
     r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$"
 )
+REASONING_EFFORT_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 class ProfileError(ValueError):
@@ -56,6 +67,10 @@ class ExecutionProfile:
     approval: Mapping[str, str] | None
     sha256: str
     comparison_sha256: str
+    resolved_model: str | None = None
+    reasoning_effort: str | None = None
+    schema_version: str = SCHEMA_VERSION_V1
+    stop_condition: str | None = None
 
 
 def _mapping(value: object, field: str) -> Mapping[str, object]:
@@ -85,9 +100,21 @@ def _string(value: object, field: str) -> str:
     return value
 
 
-def _canonical_digest(value: Mapping[str, object]) -> str:
+def _reasoning_effort(value: object, field: str) -> str:
+    effort = _string(value, field)
+    if len(effort) > 32 or REASONING_EFFORT_RE.fullmatch(effort) is None:
+        raise ProfileError(f"{field} must be a bounded lowercase setting name")
+    return effort
+
+
+def _canonical_digest(value: Mapping[str, object], schema_version: str) -> str:
     encoded = json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return hashlib.sha256(b"save-toolkit-eval-profile-v1\0" + encoded).hexdigest()
+    domain = (
+        b"save-toolkit-eval-profile-v1\0"
+        if schema_version == SCHEMA_VERSION_V1
+        else b"save-toolkit-eval-profile-v2\0"
+    )
+    return hashlib.sha256(domain + encoded).hexdigest()
 
 
 def _comparison_digest(
@@ -98,7 +125,13 @@ def _comparison_digest(
     trials: int,
     timeout_s: int,
     total_timeout_s: int,
+    schema_version: str,
+    stop_condition: str | None,
 ) -> str:
+    reasoning_efforts = comparison.get("reasoning_efforts", {})
+    if not isinstance(reasoning_efforts, Mapping):
+        reasoning_efforts = {}
+    adapter_version = "2" if schema_version == SCHEMA_VERSION_V2 else "1"
     value = {
         "comparison": comparison,
         "scenario_ids": sorted(scenario_ids),
@@ -109,21 +142,34 @@ def _comparison_digest(
         "trials": trials,
         "timeout_s": timeout_s,
         "total_timeout_s": total_timeout_s,
-        "adapter_contract_version": "1",
+        "adapter_contract_version": adapter_version,
         "policy_contracts": {
             "claude-plugin": sorted(
                 {
                     engine_adapters.ClaudeNativeAdapter().policy_sha256(
-                        enable_snapshot_reads=bool(references.get(scenario_id))
+                        enable_snapshot_reads=bool(references.get(scenario_id)),
+                        reasoning_effort=(
+                            str(reasoning_efforts["claude-plugin"])
+                            if "claude-plugin" in reasoning_efforts else None
+                        ),
+                        adapter_version=adapter_version,
                     )
                     for scenario_id in scenario_ids
                 }
             ),
             "codex-cli": [
-                engine_adapters.CodexResolvedContextAdapter().requested_policy_sha256()
+                engine_adapters.CodexResolvedContextAdapter().requested_policy_sha256(
+                    reasoning_effort=(
+                        str(reasoning_efforts["codex-cli"])
+                        if "codex-cli" in reasoning_efforts else None
+                    ),
+                    adapter_version=adapter_version,
+                )
             ],
         },
     }
+    if stop_condition is not None:
+        value["stop_condition"] = stop_condition
     encoded = json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(b"save-toolkit-eval-comparison-v1\0" + encoded).hexdigest()
 
@@ -134,9 +180,12 @@ def validate_profile(
     require_approval: bool = False,
 ) -> ExecutionProfile:
     profile = _mapping(value, "profile")
-    _exact(profile, FIELDS, "profile")
-    if profile["schema_version"] != SCHEMA_VERSION:
-        raise ProfileError(f"profile.schema_version must be {SCHEMA_VERSION!r}")
+    schema_version = profile.get("schema_version")
+    if schema_version not in FIELDS_BY_VERSION:
+        raise ProfileError(
+            f"profile.schema_version must be one of {sorted(FIELDS_BY_VERSION)}"
+        )
+    _exact(profile, FIELDS_BY_VERSION[str(schema_version)], "profile")
     profile_id = _string(profile["id"], "profile.id")
     if ID_RE.fullmatch(profile_id) is None:
         raise ProfileError("profile.id must be a canonical lowercase slug")
@@ -145,19 +194,36 @@ def validate_profile(
         raise ProfileError(f"unknown eval engine {engine!r}")
 
     comparison_raw = _mapping(profile["comparison"], "profile.comparison")
-    _exact(comparison_raw, {"id", "models"}, "profile.comparison")
+    comparison_fields = (
+        {"id", "models", "resolved_models", "reasoning_efforts"}
+        if schema_version == SCHEMA_VERSION_V2
+        else {"id", "models"}
+    )
+    _exact(comparison_raw, comparison_fields, "profile.comparison")
     comparison_id = _string(comparison_raw["id"], "profile.comparison.id")
     if ID_RE.fullmatch(comparison_id) is None:
         raise ProfileError("profile.comparison.id must be a canonical lowercase slug")
     models_raw = _mapping(comparison_raw["models"], "profile.comparison.models")
     _exact(models_raw, set(engine_contract.ENGINE_CLAIMS), "profile.comparison.models")
-    comparison = {
+    comparison: dict[str, object] = {
         "id": comparison_id,
         "models": {
             name: _string(models_raw[name], f"profile.comparison.models.{name}")
             for name in sorted(models_raw)
         },
     }
+    if schema_version == SCHEMA_VERSION_V2:
+        for field in ("resolved_models", "reasoning_efforts"):
+            raw_matrix = _mapping(comparison_raw[field], f"profile.comparison.{field}")
+            _exact(raw_matrix, set(engine_contract.ENGINE_CLAIMS), f"profile.comparison.{field}")
+            comparison[field] = {
+                name: (
+                    _reasoning_effort(raw_matrix[name], f"profile.comparison.{field}.{name}")
+                    if field == "reasoning_efforts"
+                    else _string(raw_matrix[name], f"profile.comparison.{field}.{name}")
+                )
+                for name in sorted(raw_matrix)
+            }
 
     raw_claims = profile["claims"]
     if not isinstance(raw_claims, list) or not all(isinstance(item, str) for item in raw_claims):
@@ -215,6 +281,27 @@ def validate_profile(
     model = _string(profile["model"], "profile.model")
     if comparison["models"][engine] != model:  # type: ignore[index]
         raise ProfileError("profile.model must match its comparison model matrix entry")
+    resolved_model: str | None = None
+    reasoning_effort: str | None = None
+    stop_condition: str | None = None
+    if schema_version == SCHEMA_VERSION_V2:
+        resolved_model = _string(profile["resolved_model"], "profile.resolved_model")
+        reasoning_effort = _reasoning_effort(
+            profile["reasoning_effort"], "profile.reasoning_effort"
+        )
+        if comparison["resolved_models"][engine] != resolved_model:  # type: ignore[index]
+            raise ProfileError(
+                "profile.resolved_model must match its comparison resolved-model matrix entry"
+            )
+        if comparison["reasoning_efforts"][engine] != reasoning_effort:  # type: ignore[index]
+            raise ProfileError(
+                "profile.reasoning_effort must match its comparison reasoning-effort matrix entry"
+            )
+        stop_condition = _string(profile["stop_condition"], "profile.stop_condition")
+        if stop_condition not in STOP_CONDITIONS:
+            raise ProfileError(
+                f"profile.stop_condition must be one of {sorted(STOP_CONDITIONS)}"
+            )
     trials = _positive_int(profile["trials"], "profile.trials", minimum=2)
     timeout_s = _positive_int(profile["timeout_s"], "profile.timeout_s")
     total_timeout_s = _positive_int(profile["total_timeout_s"], "profile.total_timeout_s")
@@ -239,12 +326,25 @@ def validate_profile(
     approval: dict[str, str] | None = None
     if raw_approval is not None:
         approved = _mapping(raw_approval, "profile.approval")
-        _exact(approved, {"approved_by", "approved_at", "budget_id"}, "profile.approval")
+        approval_fields = {"approved_by", "approved_at", "budget_id"}
+        if schema_version == SCHEMA_VERSION_V2:
+            approval_fields.add("eval_suite_sha256")
+        _exact(approved, approval_fields, "profile.approval")
         approval = {
             "approved_by": _string(approved["approved_by"], "profile.approval.approved_by"),
             "approved_at": _string(approved["approved_at"], "profile.approval.approved_at"),
             "budget_id": _string(approved["budget_id"], "profile.approval.budget_id"),
         }
+        if schema_version == SCHEMA_VERSION_V2:
+            suite_sha256 = _string(
+                approved["eval_suite_sha256"],
+                "profile.approval.eval_suite_sha256",
+            )
+            if SHA256_RE.fullmatch(suite_sha256) is None:
+                raise ProfileError(
+                    "profile.approval.eval_suite_sha256 must be a lowercase SHA-256 digest"
+                )
+            approval["eval_suite_sha256"] = suite_sha256
         if TIMESTAMP_RE.fullmatch(approval["approved_at"]) is None:
             raise ProfileError("profile.approval.approved_at must be an RFC3339 UTC timestamp")
         try:
@@ -255,8 +355,14 @@ def validate_profile(
             raise ProfileError(
                 "profile.approval.approved_at is not a valid timestamp"
             ) from exc
-    if require_approval and approval is None:
-        raise ProfileError("live model execution requires explicit profile approval")
+    if require_approval:
+        if schema_version != SCHEMA_VERSION_V2:
+            raise ProfileError(
+                "live model execution requires eval-execution-profile/v2 with resolved model "
+                "and reasoning-effort binding"
+            )
+        if approval is None:
+            raise ProfileError("live model execution requires explicit profile approval")
 
     return ExecutionProfile(
         id=profile_id,
@@ -271,7 +377,7 @@ def validate_profile(
         total_timeout_s=total_timeout_s,
         cost_budget=dict(cost),
         approval=approval,
-        sha256=_canonical_digest(profile),
+        sha256=_canonical_digest(profile, str(schema_version)),
         comparison_sha256=_comparison_digest(
             comparison,
             scenario_ids=list(raw_scenarios),
@@ -279,8 +385,30 @@ def validate_profile(
             trials=trials,
             timeout_s=timeout_s,
             total_timeout_s=total_timeout_s,
+            schema_version=str(schema_version),
+            stop_condition=stop_condition,
         ),
+        resolved_model=resolved_model,
+        reasoning_effort=reasoning_effort,
+        schema_version=str(schema_version),
+        stop_condition=stop_condition,
     )
+
+
+def validate_approved_eval_suite(
+    profile: ExecutionProfile,
+    observed_sha256: str,
+) -> None:
+    """Require live evaluator/scenario/grader bytes to match the approved frozen suite."""
+
+    if profile.approval is None:
+        raise ProfileError("live model execution requires explicit profile approval")
+    expected_sha256 = profile.approval.get("eval_suite_sha256")
+    if expected_sha256 != observed_sha256:
+        raise ProfileError(
+            "approved eval suite digest does not match the frozen evaluator bytes: "
+            f"expected={expected_sha256!r} observed={observed_sha256!r}"
+        )
 
 
 def validate_scenario_bindings(
