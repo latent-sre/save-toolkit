@@ -1,5 +1,12 @@
 # Graph-sandbox same-effect reconciliation proof
 
+> **Status:** Historical post-closure evidence. PR
+> [#197](https://github.com/latent-sre/save-toolkit/pull/197) merged implementation head
+> `ea7b48208505706e51de6893054048676829f9ef` at merge commit
+> `a056b33453fb2331c9c7a8d0a95e3a4c1ecc06a2`; all four hosted checks passed and all eight review
+> threads were resolved. This strengthens the closed GRAPH-003 record, creates no live roadmap
+> item, and does not relabel the exact runtime proof below.
+
 > **Conclusion:** `[verified]` The supported `graph-sandbox/activate.py` lifecycle at exact source
 > revision `ffb7c327a2d2e8d3b7b713340bfdf92717c0ac79` published two independently validated runtime
 > snapshots for one checkout effect. The first snapshot ended `UNKNOWN`; the runner then resumed
