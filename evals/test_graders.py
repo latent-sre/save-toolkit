@@ -3306,7 +3306,7 @@ _FLEET_ATLAS_CASES = {
     "fleet-atlas-query-contract.yaml": (
         "`python scripts/fleet_atlas.py check` passed. I then ran "
         "`python scripts/fleet_atlas.py query depends-on EVAL-003`. The result is a "
-        "STATIC_INFERRED edge to HOST-003, cited at docs/fleet-roadmap.md:343; it is an inferred "
+        "STATIC_INFERRED edge to HOST-003, cited at docs/fleet-roadmap.md:363; it is an inferred "
         "mention rather than a CONTRACT_RESOLVED prerequisite.",
         "`python scripts/fleet_atlas.py check` passed, followed by "
         "`python scripts/fleet_atlas.py query depends-on EVAL-003`. EVAL-003 has dependencies.",
@@ -3341,6 +3341,25 @@ def test_fleet_atlas_scenarios_reject_echo_and_incomplete_answers() -> None:
             not grade_all(grader_specs, incomplete),
             f"{filename}: keyword-rich but behaviorally incomplete response is REJECTED",
         )
+        if filename == "fleet-atlas-query-contract.yaml":
+            missing_dependency = (
+                "`python scripts/fleet_atlas.py check` passed. I then ran "
+                "`python scripts/fleet_atlas.py query depends-on EVAL-003`. The result has a "
+                "STATIC_INFERRED dependency at docs/fleet-roadmap.md:363."
+            )
+            wrong_evidence = (
+                "`python scripts/fleet_atlas.py check` passed. I then ran "
+                "`python scripts/fleet_atlas.py query depends-on EVAL-003`. The result is a "
+                "STATIC_INFERRED edge to HOST-003 at docs/fleet-roadmap.md:343."
+            )
+            check(
+                not grade_all(grader_specs, missing_dependency),
+                f"{filename}: answer without HOST-003 is REJECTED",
+            )
+            check(
+                not grade_all(grader_specs, wrong_evidence),
+                f"{filename}: answer citing a non-evidence roadmap line is REJECTED",
+            )
 
 
 # Scenarios that predate the fixture convention and are inherited without adversarial controls.

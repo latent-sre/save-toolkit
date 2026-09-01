@@ -562,6 +562,10 @@ def extract_reviews(root: Path, graph: Graph) -> None:
                             "generated" if batch else "historical-evidence", relative,
                             "generated" if batch else "historical", attrs,
                             [cite(root, relative, 1, 1, "extract.review", "STATIC_EXTRACTED")]))
+
+
+def link_review_citations(root: Path, graph: Graph) -> None:
+    """Resolve review links after every node-producing extractor has completed."""
     index = _path_index(graph)
     for node in [n for n in graph.nodes.values() if n.type == "review"]:
         for line_no, line in enumerate((root / node.path).read_text(encoding="utf-8").splitlines(), start=1):

@@ -539,6 +539,34 @@ class ExtractEvidenceTests(unittest.TestCase):
         self.assertEqual(self.graph.nodes["probe:host-002-vscode-agent-delegation"].state, "live")
         self.assertEqual(self.graph.nodes["probe:host-002-vscode-tool-enforcement"].state, "historical")
 
+    def test_review_links_resolve_targets_created_by_later_extractors(self) -> None:
+        cited = {
+            (edge.source, edge.target)
+            for edge in self.graph.edges.values()
+            if edge.kind == "cites" and edge.source.startswith("review:")
+        }
+        self.assertIn(
+            (
+                "review:2026-08-24-sre-context-framework-architecture",
+                "schema:runbook-frontmatter-v1",
+            ),
+            cited,
+        )
+        self.assertIn(
+            (
+                "review:2026-08-25-sre-agent-human-assistance-review",
+                "scenario:agent-direct-sre-owns-recovery-to-terminal",
+            ),
+            cited,
+        )
+        self.assertIn(
+            (
+                "review:2026-08-25-sre-agent-human-assistance-review",
+                "scenario:agent-direct-sre-readonly-triage",
+            ),
+            cited,
+        )
+
     def test_a_component_named_in_an_owner_field_is_not_a_person(self) -> None:
         """An Owner field mentions components in passing; typing one 'human' invents a person.
 

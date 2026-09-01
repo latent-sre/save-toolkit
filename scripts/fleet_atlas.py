@@ -286,6 +286,7 @@ def build_graph(root: Path) -> Graph:
     fleet_atlas_extract.extract_tests(root, graph)
     fleet_atlas_extract.extract_probes(root, graph)
     fleet_atlas_extract.extract_owners(root, graph)
+    fleet_atlas_extract.link_review_citations(root, graph)
 
     import fleet_atlas_cite  # noqa: E402
     fleet_atlas_cite.cite_delegation(root, graph)

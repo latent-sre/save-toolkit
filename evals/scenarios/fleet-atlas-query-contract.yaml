@@ -20,7 +20,9 @@ graders:
     pattern: '(?i)python\s+scripts/fleet_atlas\.py\s+query\s+depends-on\s+EVAL-003'
   - type: contains_any
     of: ["CONTRACT_RESOLVED", "STATIC_EXTRACTED", "STATIC_INFERRED"]
+  - type: contains_all
+    of: ["HOST-003"]
   - type: regex
-    pattern: '(?i)\b(?:AGENTS|CONTRIBUTING|README|docs|skills|agents|evals|scripts)/?[^\s:]*:\d+\b'
+    pattern: '(?i)\bdocs/fleet-roadmap\.md:(?:363|378|407)\b'
   - type: not_regex
     pattern: '(?i)fleet_atlas\.py\s+build|regenerat(?:e|ed|ing)\s+(?:the\s+)?atlas|edit(?:ed|ing)?\s+(?:the\s+)?(?:generated\s+)?(?:atlas|projection)'
