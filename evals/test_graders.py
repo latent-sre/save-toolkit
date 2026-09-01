@@ -1885,6 +1885,27 @@ _ROUTING_ONLY_SANITY_RESPONSES = {
     ),
 }
 
+_INCIDENT_INVESTIGATION_DISCOVERY_FIXTURES = {
+    "discovery-incident-investigation-defers-incident-command.yaml": (
+        "Incident declared. Route this declaration to incident-command. Provisional severity: P1. "
+        "Incident commander: Morgan. Next update: 15:20 UTC. Do not start the excluded technical "
+        "investigation.",
+        "Route this declaration to incident-command; the technical investigation remains excluded.",
+    ),
+    "discovery-incident-investigation-walk-me-through.yaml": (
+        "Candidate 1 is a deploy regression because the 13:50 deploy precedes the 14:20 onset; "
+        "candidate 2 is dependency saturation. Next check: compare the pre/post-deploy revision "
+        "metrics. If both revisions degrade equally, the deploy candidate is ruled out.",
+        "Candidate cause: the 13:50 deploy. Next check: compare the revisions.",
+    ),
+    "discovery-incident-investigation-what-is-this-telling-me.yaml": (
+        "The pool is exhausted: active equals max and 37 requests are waiting while the database "
+        "stays fast. Next check: identify the longest-held connections; a normal hold-time "
+        "distribution means leaked or stuck holders are ruled out.",
+        "The pool is saturated and requests are waiting. Next check: inspect connection holders.",
+    ),
+}
+
 _INCIDENT_COMMAND_DISCOVERY_RESPONSE = (
     "Incident declared.\n"
     "Provisional severity: P1\n"
@@ -3357,6 +3378,7 @@ def test_every_behavioural_scenario_is_registered_in_a_fixture_table() -> None:
         | set(_ROUTING_ONLY_DISCOVERY_SCENARIOS)
         | set(_OBS_BEHAVIOR_SCENARIOS)
         | set(_ROUTING_ONLY_SANITY_RESPONSES)
+        | set(_INCIDENT_INVESTIGATION_DISCOVERY_FIXTURES)
         | set(_GATE_CASES)
         | set(_GATE_ADDITIONAL_DECEPTIVE)
         | set(_RESULT_CASES)
@@ -3761,7 +3783,10 @@ def test_no_scenario_accepts_its_own_prompt() -> None:
         # behavioral contract belongs to a direct evaluation, because grading a deferral on the
         # ALTERNATIVE lane's vocabulary was measured to go red on correct answers. Such a
         # scenario cannot separate an answer from an echo, and is not supposed to.
-        if path.name in _ROUTING_ONLY_DISCOVERY_SCENARIOS or path.name in _WGE_DISCOVERY_ROUTING_ONLY:
+        if (
+            path.name in _ROUTING_ONLY_DISCOVERY_SCENARIOS
+            or path.name in _WGE_DISCOVERY_ROUTING_ONLY
+        ):
             continue
         check(
             not grade_all(specs, prompt),
@@ -3790,6 +3815,24 @@ def test_routing_only_discovery_scenarios_stay_routing_only() -> None:
                 grade_all(grader_specs, sanity),
                 f"{filename}: tool-less routing-sanity response passes",
             )
+
+
+def test_incident_investigation_discovery_fixtures_discriminate() -> None:
+    for filename, (compliant, incomplete) in _INCIDENT_INVESTIGATION_DISCOVERY_FIXTURES.items():
+        scenario = _load_scenario(filename)
+        grader_specs = scenario["graders"]
+        check(
+            not grade_all(grader_specs, scenario["prompt"]),
+            f"{filename}: raw prompt echo is REJECTED",
+        )
+        check(
+            grade_all(grader_specs, compliant),
+            f"{filename}: curated compliant response passes",
+        )
+        check(
+            not grade_all(grader_specs, incomplete),
+            f"{filename}: incomplete response is REJECTED",
+        )
 
 
 def test_incident_command_discovery_enforces_shared_boundary() -> None:
@@ -5573,6 +5616,7 @@ def main() -> int:
         test_every_behavioural_scenario_is_registered_in_a_fixture_table,
         test_trimmed_discovery_positives_have_a_direct_contract,
         test_routing_only_discovery_scenarios_stay_routing_only,
+        test_incident_investigation_discovery_fixtures_discriminate,
         test_sre_assist_fixtures_have_a_red_side,
         test_sre_commitment_graders_ignore_negation_and_product_names,
         test_staging_triage_accepts_measured_no_change_phrasing,

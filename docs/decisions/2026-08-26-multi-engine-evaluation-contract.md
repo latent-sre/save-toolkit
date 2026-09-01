@@ -6,7 +6,7 @@
 - **Roadmap item:** [`EVAL-003`](../fleet-roadmap.md#eval-003--add-claim-scoped-claude-and-codex-evaluation-engines)
 - **Does not supersede:**
   [`2026-08-23-retire-codex-distribution-target.md`](2026-08-23-retire-codex-distribution-target.md),
-  [`2026-08-11-codex-terra-routing.md`](2026-08-11-codex-terra-routing.md), or
+  the retired Codex/Terra routing decision retained in Git history, or
   [`2026-08-22-agent-discovery-calibration.md`](2026-08-22-agent-discovery-calibration.md)
 
 ## Context

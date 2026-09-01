@@ -22,9 +22,8 @@
   [`2026-08-05-save-toolkit-rename.md`](2026-08-05-save-toolkit-rename.md)) mention Codex only as
   dated evidence of what those renames touched, and `docs/rules.md` requires leaving such records
   under their old vocabulary rather than rewriting recorded results.
-  [`2026-08-01-local-sol-conformance.md`](2026-08-01-local-sol-conformance.md) is already
-  superseded, [`2026-08-11-codex-terra-routing.md`](2026-08-11-codex-terra-routing.md) already
-  records its evaluator as retired, and
+  The local Sol conformance and Codex/Terra routing decisions (retained in Git history) already
+  record their evaluator paths as superseded or retired, and
   [`2026-08-11-immutable-release-promotion.md`](2026-08-11-immutable-release-promotion.md) governs
   release machinery that `main` retired independently in `1d9d8f7`.
 

@@ -44,4 +44,3 @@ close once this record, the generated evidence, and the tracker disposition are 
 
 GRADER-005 is complete. This closure does not promote a candidate, turn the aggregate batch green,
 or close ROUTE-004. Raw traces remain private; the bounded evidence record is the durable result.
-
