@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 import sys
+import json
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import engine_contract
 import eval_evidence
 import execution_profiles
+import run_evals
 
 
 DIGEST = "a" * 64
@@ -126,6 +131,83 @@ class EvalEvidenceTests(unittest.TestCase):
         emitted = {claim["type"] for claim in envelope["scenarios"][0]["claims"]}
         self.assertNotIn("native_plugin_loaded", emitted)
         self.assertFalse(envelope["promotion_eligible"])
+
+    def test_dirty_provenance_cannot_emit_a_clean_candidate(self) -> None:
+        provenance = self._provenance("codex-cli")
+        provenance["plugin_inputs_dirty"] = True
+        envelope = eval_evidence.build_envelope(
+            provenance=provenance,
+            profile=self._profile(),
+            scenario_results=self._results(),
+            reference_canaries={SCENARIO: {REFERENCE: CANARY}},
+            grader_sha256=DIGEST,
+            ended_at="2026-08-26T12:00:04Z",
+        )
+
+        self.assertFalse(envelope["candidate"]["clean"])
+        self.assertIn(
+            "candidate inputs differ from the recorded Git revision",
+            envelope["limitations"],
+        )
+
+    def test_ignored_measured_input_flows_through_provenance_to_candidate_clean(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td) / "candidate"
+            (root / "agents").mkdir(parents=True)
+            (root / "skills").mkdir()
+            (root / "commands").mkdir()
+            (root / "hooks").mkdir()
+            (root / "scripts").mkdir()
+            (root / ".claude-plugin").mkdir()
+            (root / ".gitignore").write_text("*.pyc\n", encoding="utf-8")
+            (root / "agents" / "agent.md").write_text("tracked\n", encoding="utf-8")
+            (root / ".claude-plugin" / "plugin.json").write_text(
+                json.dumps({"name": "save-toolkit", "version": "test"}),
+                encoding="utf-8",
+            )
+            for filename in (
+                "fleet_frontmatter.py",
+                "readonly-guard.py",
+                "readonly-guard-hook.sh",
+            ):
+                (root / "scripts" / filename).write_text("# measured\n", encoding="utf-8")
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(
+                ["git", "-c", "user.name=Eval Test", "-c", "user.email=eval@example.invalid",
+                 "add", "."],
+                cwd=root,
+                check=True,
+            )
+            subprocess.run(
+                ["git", "-c", "user.name=Eval Test", "-c", "user.email=eval@example.invalid",
+                 "commit", "-qm", "fixture"],
+                cwd=root,
+                check=True,
+            )
+            (root / "agents" / "helper.pyc").write_bytes(b"ignored measured bytes")
+
+            with mock.patch.object(run_evals, "ROOT", root):
+                with run_evals.frozen_plugin_snapshot() as snapshot:
+                    provenance = run_evals.collect_provenance(
+                        "gpt-5.6-terra",
+                        root,
+                        sys.executable,
+                        snapshot,
+                        DIGEST,
+                        engine_name="codex-cli",
+                    )
+
+            envelope = eval_evidence.build_envelope(
+                provenance=provenance,
+                profile=self._profile(),
+                scenario_results=self._results(),
+                reference_canaries={SCENARIO: {REFERENCE: CANARY}},
+                grader_sha256=DIGEST,
+                ended_at="2099-08-26T12:00:04Z",
+            )
+
+        self.assertEqual(["agents/helper.pyc"], provenance["ignored_plugin_inputs"])
+        self.assertFalse(envelope["candidate"]["clean"])
 
     def test_missing_reference_canary_makes_result_inconclusive(self) -> None:
         envelope = eval_evidence.build_envelope(

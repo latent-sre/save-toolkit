@@ -19,7 +19,7 @@ those facts by trusted-base handoff, labels gaps `[unverified]`, and never loads
 | Repository changes, dependencies, or verification | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 | Docker verification | [`docs/docker-verification.md`](docs/docker-verification.md) |
 | Generated adapters | Fix canonical source or [`generate_platform_adapters.py`](scripts/generate_platform_adapters.py), then regenerate |
-| Service readiness or approved onboarding | `service-readiness-audit` or explicit-only `service-lifecycle`; firing alerts stay with `sre` |
+| Service readiness, approved onboarding, or approved retirement | `service-readiness-audit`, explicit-only `service-lifecycle`, or explicit-only `service-retirement`; firing alerts stay with `sre` |
 | Rules or unfinished work | [`docs/rules.md`](docs/rules.md) and the only live backlog, [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md); history does not re-queue work |
 
 ## The roster

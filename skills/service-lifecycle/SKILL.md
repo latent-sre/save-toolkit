@@ -28,11 +28,13 @@ re-enter it.
 
 ## Optional resolved context
 
-When a compatible generic resolver implementing `sre-context-resolver/v1alpha1.0` is available, a
+When a compatible generic resolver implementing `sre-context-resolver/v1alpha1.4` is available, a
 caller may resolve [this skill's context requirements](./context-requirements.yaml) for an explicit
 team, service, and environment selection. Use it to learn what already exists: a resolved knowledge
 record, runbook, or pipeline means this is a change to an existing service rather than a new
-onboarding, so verify and update those artifacts instead of creating duplicates.
+onboarding, so verify and update those artifacts instead of creating duplicates. The caller supplies
+the UTC `--as-of` date; a missing or older-than-30-day deployment `lastVerified` value fails the
+consumer contract and stays a gap rather than being treated as current context.
 
 Resolved context is routing input only. It never supplies the approved plan, the approval record,
 or a credential; it never selects the environment implicitly; and its validity authorizes nothing.

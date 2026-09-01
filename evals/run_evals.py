@@ -53,6 +53,9 @@ except ModuleNotFoundError:
 
 
 ROOT = Path(os.environ.get("FLEET_ROOT") or EVAL_BUNDLE_ROOT).resolve()
+EVALUATOR_SOURCE_ROOT = Path(
+    os.environ.get("FLEET_EVALUATOR_ROOT") or EVAL_BUNDLE_ROOT
+).resolve()
 SCENARIOS_DIR = EVAL_ROOT / "scenarios"
 EVAL_SNAPSHOT_ROOT_ENV = "FLEET_EVAL_SNAPSHOT_ROOT"
 EVAL_INPUT_PATHS = (
@@ -85,6 +88,7 @@ DENIED_TOOLS = (
     "RemoteTrigger,ScheduleWakeup,Workflow,TaskCreate,TaskUpdate,TaskStop,Monitor"
 )
 SAFE_ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+FULL_GIT_OID_RE = re.compile(r"^[0-9a-f]{40}$")
 PLUGIN_INPUT_PATHS = (
     "agents", "skills", "commands", "hooks", ".claude-plugin/plugin.json",
     "scripts/fleet_frontmatter.py",
@@ -136,6 +140,13 @@ def positive_timeout(value: str) -> int:
     if timeout < 1:
         raise argparse.ArgumentTypeError(f"must be >= 1, got {timeout}")
     return timeout
+
+
+def full_git_oid(value: str) -> str:
+    normalized = value.lower()
+    if FULL_GIT_OID_RE.fullmatch(normalized) is None:
+        raise argparse.ArgumentTypeError("must be a full 40-character Git object ID")
+    return normalized
 
 
 def bounded_threshold(value: str) -> float:
@@ -209,11 +220,11 @@ def _target_error(target: object) -> str | None:
     return None
 
 
-def target_exists(target: dict) -> bool:
+def target_exists(target: dict, root: Path = ROOT) -> bool:
     name = target["name"]
     if target["kind"] == "skill":
-        return (ROOT / "skills" / name / "SKILL.md").is_file()
-    return (ROOT / "agents" / f"{name}.md").is_file()
+        return (root / "skills" / name / "SKILL.md").is_file()
+    return (root / "agents" / f"{name}.md").is_file()
 
 
 def qualified_target(target: dict, root: Path = ROOT) -> str:
@@ -227,7 +238,12 @@ def _prompt_names_target(prompt: str, target: dict) -> bool:
     return re.search(pattern, prompt, re.IGNORECASE) is not None
 
 
-def validate(scenarios: list[dict], *, full_suite: bool = False) -> list[str]:
+def validate(
+    scenarios: list[dict],
+    *,
+    full_suite: bool = False,
+    component_root: Path = ROOT,
+) -> list[str]:
     problems: list[str] = []
     seen: set[str] = set()
     for scenario in scenarios:
@@ -262,7 +278,7 @@ def validate(scenarios: list[dict], *, full_suite: bool = False) -> list[str]:
         target_problem = _target_error(target)
         if target_problem:
             problems.append(f"{where}: target {target_problem}")
-        elif not target_exists(target):
+        elif not target_exists(target, component_root):
             problems.append(
                 f"{where}: target '{target['kind']}:{target['name']}' is not a known component"
             )
@@ -338,7 +354,7 @@ def validate(scenarios: list[dict], *, full_suite: bool = False) -> list[str]:
                 else:
                     for alt in alternatives:
                         alt_problem = _target_error(alt)
-                        if alt_problem or not target_exists(alt):
+                        if alt_problem or not target_exists(alt, component_root):
                             problems.append(f"{where}: invalid routing.also_acceptable target {alt!r}")
                 expected_alt = routing.get("expected_alternative")
                 if routing["expect"] == "not_fire" and expected_alt is None:
@@ -360,18 +376,18 @@ def validate(scenarios: list[dict], *, full_suite: bool = False) -> list[str]:
                     )
                 if expected_alt is not None and expected_alt != "inline":
                     alt_problem = _target_error(expected_alt)
-                    if alt_problem or not target_exists(expected_alt):
+                    if alt_problem or not target_exists(expected_alt, component_root):
                         problems.append(f"{where}: invalid routing.expected_alternative {expected_alt!r}")
             if not target_problem and isinstance(prompt, str) and _prompt_names_target(prompt, target):
                 problems.append(f"{where}: discovery prompt names its target; it must be byte-for-byte unhinted")
 
-    if scenarios and not any(s.get("mode") == "discovery" for s in scenarios):
-        problems.append("suite: at least one discovery scenario is required")
-    if scenarios and not any(s.get("split") == "regression" for s in scenarios):
-        problems.append("suite: at least one visible regression scenario is required")
     # Only meaningful for the whole committed suite: a caller validating one scenario in
     # isolation is not missing the others.
     if full_suite:
+        if scenarios and not any(s.get("mode") == "discovery" for s in scenarios):
+            problems.append("suite: at least one discovery scenario is required")
+        if scenarios and not any(s.get("split") == "regression" for s in scenarios):
+            problems.append("suite: at least one visible regression scenario is required")
         present = {s.get("id") for s in scenarios}
         for required_id in REQUIRED_SCENARIO_IDS:
             if required_id not in present:
@@ -1020,6 +1036,7 @@ def build_command(
     enable_snapshot_reads: bool = False,
     required_reference_paths: tuple[str, ...] = (),
     denied_probe_path: Path | None = None,
+    reasoning_effort: str | None = None,
 ) -> list[str]:
     return engine_adapters.ClaudeNativeAdapter().build_command(
         scenario=scenario,
@@ -1027,6 +1044,7 @@ def build_command(
         plugin_root=plugin_root,
         qualified_target=qualified_target(scenario["target"], plugin_root),
         model=model,
+        reasoning_effort=reasoning_effort,
         enable_snapshot_reads=enable_snapshot_reads,
         required_reference_paths=required_reference_paths,
         denied_probe_path=denied_probe_path,
@@ -1152,6 +1170,8 @@ def run_agent(
     plugin_root: Path = ROOT,
     required_references: tuple[str, ...] | None = None,
     denied_probe_path: Path | None = None,
+    reasoning_effort: str | None = None,
+    accepted_resolved_model: str | None = None,
 ) -> TrialExecution:
     references = (
         reference_requirements(scenario)
@@ -1178,6 +1198,7 @@ def run_agent(
         enable_snapshot_reads=enable_snapshot_reads,
         required_reference_paths=references,
         denied_probe_path=denied_probe_path,
+        reasoning_effort=reasoning_effort,
     )
     started = time.monotonic()
     try:
@@ -1225,6 +1246,10 @@ def run_agent(
     boundary_proven = False
     try:
         parsed = parse_stream_trace(proc.stdout)
+        if accepted_resolved_model is not None and parsed.model != accepted_resolved_model:
+            raise clean_room.RunnerFailed(
+                "Claude resolved model does not match the accepted resolved-model identity"
+            )
         boundary_options: dict[str, object] = {"expected_tools": expected_tools, "optional_tools": optional_tools}
         if enable_snapshot_reads:
             boundary_options["callable_read_tools"] = engine_adapters.READ_TOOLS
@@ -1259,7 +1284,8 @@ def run_agent(
             parsed_trace=parsed,
             policy_sha256=(
                 engine_adapters.ClaudeNativeAdapter().policy_sha256(
-                    enable_snapshot_reads=enable_snapshot_reads
+                    enable_snapshot_reads=enable_snapshot_reads,
+                    reasoning_effort=reasoning_effort,
                 )
                 if boundary_proven else None
             ),
@@ -1283,7 +1309,8 @@ def run_agent(
             parsed_trace=parsed,
             policy_sha256=(
                 engine_adapters.ClaudeNativeAdapter().policy_sha256(
-                    enable_snapshot_reads=enable_snapshot_reads
+                    enable_snapshot_reads=enable_snapshot_reads,
+                    reasoning_effort=reasoning_effort,
                 )
                 if boundary_proven else None
             ),
@@ -1300,7 +1327,8 @@ def run_agent(
         proc.returncode,
         duration,
         policy_sha256=engine_adapters.ClaudeNativeAdapter().policy_sha256(
-            enable_snapshot_reads=enable_snapshot_reads
+            enable_snapshot_reads=enable_snapshot_reads,
+            reasoning_effort=reasoning_effort,
         ),
         expected_canaries=tuple(sorted(expected_canaries.values())),
         observed_canaries=tuple(
@@ -1324,6 +1352,8 @@ def run_codex_agent(
     required_references: tuple[str, ...],
     timeout: int,
     model: str,
+    accepted_resolved_model: str | None = None,
+    reasoning_effort: str | None = None,
     codex_bin: str,
     env: Mapping[str, str] | None = None,
 ) -> TrialExecution:
@@ -1358,6 +1388,7 @@ def run_codex_agent(
             bundle_root=bundle.root,
             response_schema=bundle.root / "response-schema.json",
             model=model,
+            reasoning_effort=reasoning_effort,
         )
         try:
             proc = subprocess.run(
@@ -1413,7 +1444,12 @@ def run_codex_agent(
                 **evidence,
             )
         try:
-            trace = adapter.parse_trace(proc.stdout, requested_model=model)
+            trace = adapter.parse_trace(
+                proc.stdout,
+                requested_model=model,
+                accepted_resolved_model=accepted_resolved_model,
+                requested_reasoning_effort=reasoning_effort,
+            )
         except engine_adapters.AdapterError as exc:
             raise InconclusiveTrial(
                 str(exc),
@@ -1650,6 +1686,19 @@ def observed_models(scenario_results: list[dict]) -> list[str]:
             if isinstance(model, str) and model:
                 models.add(model)
     return sorted(models)
+
+
+def profile_stops_after_state(
+    profile: execution_profiles.ExecutionProfile | None,
+    state: str,
+) -> bool:
+    """Return whether the approved profile ends the campaign after this trial state."""
+
+    return bool(
+        profile is not None
+        and profile.stop_condition == "first-inconclusive"
+        and state == "INCONCLUSIVE"
+    )
 
 
 def aggregate_verdict(states: list[str], threshold: float) -> str:
@@ -1990,6 +2039,48 @@ def plugin_digest(root: Path = ROOT) -> str:
     return _sha256_paths(files, base=root)
 
 
+def ignored_plugin_inputs(root: Path = ROOT) -> tuple[str, ...]:
+    """Return ignored files below measured roots so they cannot masquerade as clean inputs."""
+
+    argv = [
+            "git",
+            "ls-files",
+            "--others",
+            "--ignored",
+            "--exclude-standard",
+            "-z",
+            "--",
+            *PLUGIN_INPUT_PATHS,
+            *OPTIONAL_PLUGIN_INPUT_PATHS,
+        ]
+    proc = subprocess.run(
+        argv,
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+        encoding="utf-8",
+        errors="strict",
+    )
+    if proc.returncode != 0:
+        raise clean_room.RunnerFailed(
+            f"provenance command failed rc={proc.returncode}: {' '.join(argv)}: "
+            f"{proc.stderr.strip()[:300]}"
+        )
+    return tuple(
+        sorted(path.replace("\\", "/") for path in proc.stdout.split("\0") if path)
+    )
+
+
+def measured_plugin_inputs_dirty(
+    plugin_status: str,
+    ignored_inputs: Sequence[str],
+) -> bool:
+    """Bind the clean decision to tracked, untracked, and ignored measured inputs."""
+
+    return bool(plugin_status or ignored_inputs)
+
+
 def eval_suite_digest(root: Path = EVAL_ROOT) -> str:
     inputs = _files_under(*EVAL_INPUT_PATHS, root=root)
     inputs.extend(_files_under(*EVAL_SUPPORT_INPUT_PATHS, root=root.parent))
@@ -2065,14 +2156,37 @@ def freeze_profile_argument(argv: list[str], snapshot_root: Path) -> list[str]:
     return rewritten
 
 
+def plugin_root_argument(argv: list[str]) -> Path | None:
+    """Resolve the one explicit measured-plugin root before the frozen child imports."""
+
+    matches: list[str] = []
+    for index, argument in enumerate(argv):
+        if argument == "--plugin-root":
+            if index + 1 >= len(argv):
+                raise clean_room.RunnerFailed("--plugin-root requires a path")
+            matches.append(argv[index + 1])
+        elif argument.startswith("--plugin-root="):
+            matches.append(argument.partition("=")[2])
+    if len(matches) > 1:
+        raise clean_room.RunnerFailed("--plugin-root may be supplied only once")
+    if not matches:
+        return None
+    root = Path(matches[0]).resolve()
+    if not root.is_dir() or _is_reparse_point(root):
+        raise clean_room.RunnerFailed("--plugin-root must be an ordinary directory")
+    return root
+
+
 def run_from_frozen_eval(argv: list[str]) -> int:
     """Bootstrap a live run from frozen harness/scenario bytes, not the mutable checkout."""
     try:
         with frozen_eval_snapshot() as snapshot_root:
             frozen_argv = freeze_profile_argument(argv, snapshot_root)
+            measured_plugin_root = plugin_root_argument(argv) or ROOT
             env = os.environ.copy()
             env[EVAL_SNAPSHOT_ROOT_ENV] = str(snapshot_root)
-            env["FLEET_ROOT"] = str(ROOT)
+            env["FLEET_ROOT"] = str(measured_plugin_root)
+            env["FLEET_EVALUATOR_ROOT"] = str(EVAL_BUNDLE_ROOT)
             proc = subprocess.run(
                 [sys.executable, str(snapshot_root / "run_evals.py"), *frozen_argv],
                 cwd=Path.cwd(), env=env, check=False,
@@ -2156,6 +2270,7 @@ def collect_provenance(
     conditions: dict | None = None,
     *,
     engine_name: str = "claude-plugin",
+    expected_plugin_commit: str | None = None,
 ) -> dict:
     manifest_path = plugin_root / ".claude-plugin" / "plugin.json"
     manifest = plugin_manifest(plugin_root)
@@ -2165,11 +2280,18 @@ def collect_provenance(
         *PLUGIN_INPUT_PATHS,
         *OPTIONAL_PLUGIN_INPUT_PATHS,
     ])
+    ignored_inputs = ignored_plugin_inputs(ROOT)
     snapshot_digest = plugin_digest(plugin_root)
     workspace_digest = plugin_digest(ROOT)
     if workspace_digest != snapshot_digest:
         raise clean_room.RunnerFailed(
             "plugin workspace changed after the frozen execution snapshot was created"
+        )
+    plugin_commit = required_command_text(["git", "rev-parse", "HEAD"])
+    if expected_plugin_commit is not None and plugin_commit != expected_plugin_commit:
+        raise clean_room.RunnerFailed(
+            "measured plugin revision does not match --expect-plugin-commit: "
+            f"expected={expected_plugin_commit} observed={plugin_commit}"
         )
     runtime_version = required_command_text([claude_bin, "--version"])
     provenance = {
@@ -2182,9 +2304,11 @@ def collect_provenance(
         "requested_model": model,
         "plugin_name": manifest["name"],
         "plugin_version": manifest.get("version"),
-        "plugin_commit": required_command_text(["git", "rev-parse", "HEAD"]),
+        "plugin_commit": plugin_commit,
+        "expected_plugin_commit": expected_plugin_commit,
         "workspace_dirty": bool(status),
-        "plugin_inputs_dirty": bool(plugin_status),
+        "plugin_inputs_dirty": measured_plugin_inputs_dirty(plugin_status, ignored_inputs),
+        "ignored_plugin_inputs": list(ignored_inputs),
         "plugin_manifest_sha256": _sha256_file(manifest_path),
         "plugin_source_sha256": snapshot_digest,
         "plugin_workspace_source_sha256": workspace_digest,
@@ -2245,7 +2369,27 @@ def main() -> int:
     )
     parser.add_argument("--results-dir", type=Path, default=ROOT / ".eval-runs")
     parser.add_argument("--require-clean-plugin", action="store_true", help="refuse if plugin inputs differ from HEAD")
+    parser.add_argument(
+        "--plugin-root",
+        type=Path,
+        help="candidate plugin checkout to measure with this evaluator revision",
+    )
+    parser.add_argument(
+        "--expect-plugin-commit",
+        type=full_git_oid,
+        help="full candidate Git object ID required at --plugin-root before model execution",
+    )
     args = parser.parse_args()
+
+    if args.plugin_root is not None and args.plugin_root.resolve() != ROOT:
+        print("run_evals: frozen child plugin root does not match --plugin-root", file=sys.stderr)
+        return 2 if args.run else 3
+    if args.run and args.plugin_root is not None and args.expect_plugin_commit is None:
+        print(
+            "run_evals: --plugin-root requires --expect-plugin-commit for live execution",
+            file=sys.stderr,
+        )
+        return 2
 
     try:
         scenarios, suite_sha256 = load_stable_suite()
@@ -2255,7 +2399,11 @@ def main() -> int:
     if not scenarios:
         print(f"evals: no scenarios found in {SCENARIOS_DIR}")
         return 3
-    problems = validate(scenarios, full_suite=True)
+    problems = validate(
+        scenarios,
+        full_suite=True,
+        component_root=EVALUATOR_SOURCE_ROOT,
+    )
     if problems:
         print("EVAL SUITE INVALID:")
         print("\n".join("  - " + problem for problem in problems))
@@ -2301,12 +2449,19 @@ def main() -> int:
             return 2 if args.run else 3
         try:
             execution_profiles.validate_scenario_bindings(profile, selected)
+            if args.run:
+                execution_profiles.validate_approved_eval_suite(profile, suite_sha256)
         except execution_profiles.ProfileError as exc:
             print(f"run_evals: invalid execution profile: {exc}", file=sys.stderr)
             return 2 if args.run else 3
     else:
         args.timeout = args.timeout or 300
         selected = _filter_scenarios(scenarios, args)
+    candidate_problems = validate(selected, component_root=ROOT)
+    if candidate_problems:
+        print("SELECTED EVALS INVALID FOR MEASURED PLUGIN:")
+        print("\n".join("  - " + problem for problem in candidate_problems))
+        return 2 if args.run else 3
     if args.validate:
         direct = sum(s["mode"] == "direct" for s in scenarios)
         discovery = len(scenarios) - direct
@@ -2331,6 +2486,12 @@ def main() -> int:
         return 2
 
     engine_name = profile.engine if profile is not None else "claude-plugin"
+    if engine_name == "codex-cli":
+        try:
+            engine_adapters.CodexResolvedContextAdapter().require_safe_live_activation()
+        except engine_adapters.AdapterError as exc:
+            print(f"run_evals: {exc}", file=sys.stderr)
+            return 2
     runtime_setting = (
         os.environ.get("CODEX_BIN", "codex")
         if engine_name == "codex-cli"
@@ -2379,6 +2540,7 @@ def main() -> int:
                 args.model, workspace, runtime_bin, plugin_root, suite_sha256,
                 measurement_conditions(args),
                 engine_name=engine_name,
+                expected_plugin_commit=args.expect_plugin_commit,
             )
             if args.require_clean_plugin and provenance["plugin_inputs_dirty"]:
                 print("run_evals: plugin inputs differ from HEAD; refusing publishable baseline", file=sys.stderr)
@@ -2420,6 +2582,7 @@ def main() -> int:
                             enable_snapshot_reads=bool(planned_references),
                             required_reference_paths=planned_references,
                             denied_probe_path=denied_probe_path,
+                            reasoning_effort=(profile.reasoning_effort if profile else None),
                         )
                     else:
                         planned_command = [runtime_bin, "exec", "<ephemeral-resolved-context>"]
@@ -2467,6 +2630,8 @@ def main() -> int:
                                 plugin_root=plugin_root,
                                 required_references=planned_references,
                                 denied_probe_path=denied_probe_path,
+                                reasoning_effort=(profile.reasoning_effort if profile else None),
+                                accepted_resolved_model=(profile.resolved_model if profile else None),
                             )
                         else:
                             if profile is None:
@@ -2482,6 +2647,8 @@ def main() -> int:
                                 ),
                                 timeout=trial_timeout,
                                 model=profile.model,
+                                accepted_resolved_model=profile.resolved_model,
+                                reasoning_effort=profile.reasoning_effort,
                                 codex_bin=runtime_bin,
                                 env=env,
                             )
@@ -2507,6 +2674,9 @@ def main() -> int:
                             "duration_seconds": execution.duration_seconds,
                             "exit_code": execution.returncode,
                             "resolved_model": execution.parsed.model,
+                            "reasoning_effort": (
+                                profile.reasoning_effort if profile is not None else None
+                            ),
                             "session_id": execution.parsed.session_id,
                             "total_cost_usd": execution.parsed.total_cost_usd,
                             "completed_invocations": {
@@ -2570,6 +2740,9 @@ def main() -> int:
                             "duration_seconds": getattr(exc, "duration_seconds", None),
                             "requested_model": getattr(exc, "requested_model", args.model),
                             "resolved_model": getattr(exc, "resolved_model", None),
+                            "reasoning_effort": (
+                                profile.reasoning_effort if profile is not None else None
+                            ),
                             "model_executed": getattr(exc, "model_executed", False),
                             "session_id": (
                                 parsed_evidence.session_id if parsed_evidence is not None else None
@@ -2607,6 +2780,10 @@ def main() -> int:
                     states.append(state)
                     trial_results.append(trial_result)
                     print(f"  trial {trial_number}: {state}")
+                    if profile_stops_after_state(profile, state) and campaign_stop_reason is None:
+                        campaign_stop_reason = (
+                            "campaign stopped by the approved first-inconclusive stop condition"
+                        )
                     if state == "FAIL":
                         print("\n".join(trial_result["details"]))
                     elif state == "INCONCLUSIVE":
@@ -2638,6 +2815,16 @@ def main() -> int:
                     "\n!! WARNING: this batch mixed resolved models "
                     f"({', '.join(models_observed)}); it mixes measurement conditions and must "
                     "not be diffed as a single baseline. Pin --model for a comparable run."
+                )
+            if (
+                profile is not None
+                and profile.resolved_model is not None
+                and models_observed
+                and models_observed != [profile.resolved_model]
+            ):
+                integrity_errors.append(
+                    "batch resolved model does not match the accepted execution profile identity: "
+                    f"expected={profile.resolved_model!r} observed={models_observed}"
                 )
             if integrity_errors:
                 overall = "INCONCLUSIVE"

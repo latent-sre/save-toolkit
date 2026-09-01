@@ -38,11 +38,11 @@ class SkillAssetContractTests(unittest.TestCase):
         document = yaml.safe_load(sidecar_path.read_text(encoding="utf-8"))
 
         # The sre-context requirements schema remains authoritative. This assertion pins only the
-        # generic paths and budgets selected by this consumer for resolver v1alpha1.0.
+        # generic paths and budgets selected by this consumer for resolver v1alpha1.4.
         self.assertEqual(
             document,
             {
-                "apiVersion": "sre-context/requirements/v1alpha1",
+                "apiVersion": "sre-context/requirements/v1alpha2",
                 "kind": "ContextRequirements",
                 "metadata": {"id": "service-readiness-audit"},
                 "spec": {
@@ -60,6 +60,8 @@ class SkillAssetContractTests(unittest.TestCase):
                         "/resources/dependencies",
                         "/resources/configuration",
                     ],
+                    "forbidden": [],
+                    "freshness": [],
                     "alternatives": [
                         {
                             "id": "health-authority",
@@ -71,7 +73,7 @@ class SkillAssetContractTests(unittest.TestCase):
                 },
             },
             "service-readiness-audit requirements must stay generic and match "
-            "sre-context-resolver/v1alpha1.0",
+            "sre-context-resolver/v1alpha1.4",
         )
 
     def test_service_lifecycle_context_requirements_declare_no_authority_paths(self) -> None:
@@ -83,7 +85,7 @@ class SkillAssetContractTests(unittest.TestCase):
         self.assertEqual(
             document,
             {
-                "apiVersion": "sre-context/requirements/v1alpha1",
+                "apiVersion": "sre-context/requirements/v1alpha2",
                 "kind": "ContextRequirements",
                 "metadata": {"id": "service-lifecycle"},
                 "spec": {
@@ -99,6 +101,13 @@ class SkillAssetContractTests(unittest.TestCase):
                         "/resources/runbooks",
                         "/resources/observability",
                         "/resources/pipelines",
+                    ],
+                    "forbidden": [
+                        "/target/approval",
+                        "/target/credential",
+                    ],
+                    "freshness": [
+                        {"path": "/target/deployment", "maxAge": "P30D"},
                     ],
                     "alternatives": [],
                     "maxDepth": 6,
@@ -128,6 +137,28 @@ class SkillAssetContractTests(unittest.TestCase):
             "Before any production-facing step, load `production-change-gate` and re-enter it.",
             normalized_skill,
         )
+
+    def test_service_retirement_is_explicit_effect_shaped_and_preserves_tombstones(self) -> None:
+        path = ROOT / "skills/service-retirement/SKILL.md"
+        skill = path.read_text(encoding="utf-8")
+        normalized = " ".join(skill.split()).lower()
+
+        self.assertIn("disable-model-invocation: true", skill)
+        for phrase in (
+            "a human release owner or separately approved protected automation executes",
+            "entry guard:",
+            "proceed only when the caller explicitly invokes this workflow",
+            "this body-level guard remains binding",
+            "load `production-change-gate` and re-enter it",
+            "platform, telemetry, alerting, and active knowledge indexes",
+            "access-path changes remain tier 3",
+            "`retired` rather than deleted",
+            "what was not removed",
+            "unknown",
+            "evidence-bound handoff to `scribe`",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, normalized)
 
     def test_backend_openapi_starter_separates_liveness_and_readiness(self) -> None:
         starter = (ROOT / "skills/backend-craft/assets/openapi.starter.yaml").read_text(
