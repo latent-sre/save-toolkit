@@ -266,6 +266,23 @@ class A2AMAFIntegrationTests(unittest.IsolatedAsyncioTestCase):
                 artifact_id=result.artifact_id,
             )
 
+        for sequence in (
+            next(i for i, event in enumerate(plain["events"]) if event["event_kind"] == "data_artifact"),
+            len(plain["events"]) - 1,
+        ):
+            for field in ("task_id", "context_id"):
+                with self.subTest(sequence=sequence, field=field):
+                    missing_lineage = copy.deepcopy(plain)
+                    missing_lineage["events"][sequence][field] = None
+                    with self.assertRaisesRegex(ValueError, "lineage"):
+                        validate_event_timeline(
+                            missing_lineage,
+                            task_id=result.task_id,
+                            context_id=result.context_id,
+                            terminal_state=result.a2a_state,
+                            artifact_id=result.artifact_id,
+                        )
+
         fabricated = copy.deepcopy(plain)
         working = next(
             event

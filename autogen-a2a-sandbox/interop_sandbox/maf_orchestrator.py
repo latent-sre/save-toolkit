@@ -377,6 +377,13 @@ def validate_event_timeline(
         observed_state = event_value["a2a_state"]
         if observed_state is not None and observed_state not in _OBSERVED_A2A_STATES.values():
             raise ValueError("event timeline contains an unsupported A2A state")
+        requires_lineage = event_kind != "workflow_working" and (
+            event_kind == "data_artifact" or observed_state is not None
+        )
+        if requires_lineage and (
+            observed_task_id != task_id or observed_context_id != context_id
+        ):
+            raise ValueError("event timeline lineage is missing or changed")
         observed_artifact_id = _optional_id(
             event_value["artifact_id"], "event artifact_id"
         )

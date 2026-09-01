@@ -264,6 +264,12 @@ class ActivationImportTests(unittest.TestCase):
         module = _load_activate()
         self.assertTrue(callable(module.build_parser))
 
+    def test_run_id_bound_reserves_space_for_the_artifact_prefix(self) -> None:
+        module = _load_activate()
+        self.assertEqual(module._validated_run_id("a" * 105), "a" * 105)
+        with self.assertRaisesRegex(Exception, "run ID is malformed"):
+            module._validated_run_id("a" * 106)
+
     def test_parser_exposes_only_build_fresh_and_resume(self) -> None:
         parser = _load_activate().build_parser()
         for command in ("build", "fresh", "resume"):
@@ -1590,13 +1596,16 @@ class RuntimeStateValidationTests(unittest.TestCase):
                 str(SANDBOX_ROOT / "cases"),
             ],
         )
-        for command in commands:
-            with self.subTest(command=command[0]):
-                diagnostic = StringIO()
-                with redirect_stderr(diagnostic):
-                    exit_code = self.module.main(command)
-                self.assertEqual(exit_code, 70)
-                self.assertIn("container runtime", diagnostic.getvalue())
+        # The host-direct contract is the container boundary, not whichever proxy or provider
+        # variables happen to be present on the invoking workstation or CI runner.
+        with patch.dict(os.environ, {}, clear=True):
+            for command in commands:
+                with self.subTest(command=command[0]):
+                    diagnostic = StringIO()
+                    with redirect_stderr(diagnostic):
+                        exit_code = self.module.main(command)
+                    self.assertEqual(exit_code, 70)
+                    self.assertIn("container runtime", diagnostic.getvalue())
 
     def test_pending_state_is_closed_and_lineage_bound(self) -> None:
         value = self.module.validate_runtime_pending(
@@ -1606,6 +1615,22 @@ class RuntimeStateValidationTests(unittest.TestCase):
             case_id="mission-healthy-001",
         )
         self.assertEqual(value["analysis_invocations"], 1)
+
+    def test_protocol_timeline_artifact_and_state_events_require_lineage(self) -> None:
+        timeline = self.pending["a2a"]["event_timeline"]
+        for sequence in (1, 2):
+            for field in ("task_id", "context_id"):
+                with self.subTest(sequence=sequence, field=field):
+                    mutation = copy.deepcopy(timeline)
+                    mutation["events"][sequence][field] = None
+                    with self.assertRaisesRegex(Exception, "lineage"):
+                        self.module.validate_persisted_event_timeline(
+                            mutation,
+                            task_id="task-1",
+                            context_id="context-1",
+                            terminal_state="completed",
+                            artifact_id="release-recommendation:mission-healthy-001",
+                        )
 
     def test_pending_state_rejects_second_analysis_and_stale_artifact(self) -> None:
         for path, value in (

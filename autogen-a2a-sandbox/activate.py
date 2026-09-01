@@ -29,7 +29,9 @@ EXIT_TERMINAL = 2
 
 _REVISION = re.compile(r"^[0-9a-f]{40}$")
 _IMAGE_ID = re.compile(r"^sha256:[0-9a-f]{64}$")
-_RUN_ID = re.compile(r"^[a-z0-9][a-z0-9._-]{0,127}$")
+# The derived artifact ID prepends `release-recommendation:` (23 characters) and the closed
+# artifact contract caps opaque IDs at 128 characters, leaving 105 characters for the run ID.
+_RUN_ID = re.compile(r"^[a-z0-9][a-z0-9._-]{0,104}$")
 _RESOURCE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,62}$")
 _DAEMON_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 _PYTHON_VERSION = re.compile(r"^3\.12\.\d+$")

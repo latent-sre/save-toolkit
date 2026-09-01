@@ -230,6 +230,13 @@ def validate_persisted_event_timeline(
         observed_state = event.get("a2a_state")
         if observed_state is not None and observed_state not in _TIMELINE_STATES:
             raise RuntimeBoundaryError("A2A event timeline state is unsupported")
+        requires_lineage = event.get("event_kind") != "workflow_working" and (
+            event.get("event_kind") == "data_artifact" or observed_state is not None
+        )
+        if requires_lineage and (
+            event.get("task_id") != task_id or event.get("context_id") != context_id
+        ):
+            raise RuntimeBoundaryError("A2A event timeline lineage is missing or changed")
         observed_artifact = event.get("artifact_id")
         if event.get("event_kind") == "data_artifact":
             data_artifacts += 1
