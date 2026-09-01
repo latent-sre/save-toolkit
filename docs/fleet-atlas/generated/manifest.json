@@ -1,15 +1,15 @@
 {
   "apiVersion": "save-toolkit/fleet-atlas-manifest/v1",
   "files": {
-    "INDEX.md": "sha256:fd9626778283fe6175ed3d2c11626f16db0573d9d3b81be4eb2b9cb4f8e69980",
-    "atlas.json": "sha256:78c7847fe7872115f6601c1a0bd2a969cc9a17e261b5525991df25894ec07a85",
-    "capability-owner-map.md": "sha256:2a97e14263f40e6c3b5bbdcf385db764b665b91eff11b9eabae8c81e5ff6f6b3",
-    "claim-to-eval-map.md": "sha256:a0cb4bb34e4528bda97513b07bfd01efe5e1da2ffeef2f041fc67f67fce8ab41",
-    "contradictions-and-stale-evidence.md": "sha256:0000d582d8a846e695b64ddbd3832bc4373cb00be2ff50f64ea2e64dc3c573df",
-    "decision-supersession-map.md": "sha256:7deb906233e295496676132134e7da3de9969ccbe292c460d1f5da1f5ad11585",
-    "delegation.mmd": "sha256:79b9f262ec86e5497bbc2d6153921d15efde238831a8fa9bd43f101f2590a2f0",
-    "roadmap-dependency-map.md": "sha256:7f349a388da616371077c19c66a1cf930507ee68623dedcf12b65af7f312750c",
-    "roadmap-dependency-map.mmd": "sha256:f330cc54a9173332a015e88fe98a5be4bc3a566c3eb1b155fba7648d0b7454ef",
-    "skill-reference-loading-map.md": "sha256:9e2f1fb1b86465a729b73a965b2245d028d2b41e3eaabc0b0535737e67f32097"
+    "INDEX.md": "sha256:1a4ec46c37b2d8a11e3b7fba94e863cdf5d7ee5b9f8dc5e486aacf5ca3f67e46",
+    "atlas.json": "sha256:a144b6181be3f614db3320309439c86d51267f2dc300601a88092bb2ac3273dd",
+    "capability-owner-map.md": "sha256:57e8fb262a760aebfd154541037fab6898eed972abc42765b7b9f54dd2644cd0",
+    "claim-to-eval-map.md": "sha256:adf76ca701c8497ea62bfa1b1c7bc976fe73328d03345d44cecdfc9e7f2f80fb",
+    "contradictions-and-stale-evidence.md": "sha256:5ce1163618e620408d4afdc38bd25056cbda16a75dc8f3e116d3c776fdc80f23",
+    "decision-supersession-map.md": "sha256:afd0484ee2233f37dcff49ada8668507a455f4c2491f027613dfe9a7730bb887",
+    "delegation.mmd": "sha256:8c008cb7ca7fdf46b9585f28d0354a7eabeb70bba62ae1985ca5ea75ac7fa182",
+    "roadmap-dependency-map.md": "sha256:07186134524e48844965735bcec7c548fdd5617ec1b19bb2ec46f0803a9d0b0c",
+    "roadmap-dependency-map.mmd": "sha256:48c27669feb81429a544c30271183b35275a99fa4802bc86da3772da516c9742",
+    "skill-reference-loading-map.md": "sha256:ecdf9440101241b4522ac9c72e2fab6225c8b432f4642001667fc085bbb733bd"
   }
 }
