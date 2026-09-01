@@ -1672,6 +1672,19 @@ def observed_models(scenario_results: list[dict]) -> list[str]:
     return sorted(models)
 
 
+def profile_stops_after_state(
+    profile: execution_profiles.ExecutionProfile | None,
+    state: str,
+) -> bool:
+    """Return whether the approved profile ends the campaign after this trial state."""
+
+    return bool(
+        profile is not None
+        and profile.stop_condition == "first-inconclusive"
+        and state == "INCONCLUSIVE"
+    )
+
+
 def aggregate_verdict(states: list[str], threshold: float) -> str:
     required = math.ceil(len(states) * threshold)
     passes = states.count("PASS")
@@ -2043,6 +2056,15 @@ def ignored_plugin_inputs(root: Path = ROOT) -> tuple[str, ...]:
     )
 
 
+def measured_plugin_inputs_dirty(
+    plugin_status: str,
+    ignored_inputs: Sequence[str],
+) -> bool:
+    """Bind the clean decision to tracked, untracked, and ignored measured inputs."""
+
+    return bool(plugin_status or ignored_inputs)
+
+
 def eval_suite_digest(root: Path = EVAL_ROOT) -> str:
     inputs = _files_under(*EVAL_INPUT_PATHS, root=root)
     inputs.extend(_files_under(*EVAL_SUPPORT_INPUT_PATHS, root=root.parent))
@@ -2238,7 +2260,7 @@ def collect_provenance(
         "plugin_version": manifest.get("version"),
         "plugin_commit": required_command_text(["git", "rev-parse", "HEAD"]),
         "workspace_dirty": bool(status),
-        "plugin_inputs_dirty": bool(plugin_status or ignored_inputs),
+        "plugin_inputs_dirty": measured_plugin_inputs_dirty(plugin_status, ignored_inputs),
         "ignored_plugin_inputs": list(ignored_inputs),
         "plugin_manifest_sha256": _sha256_file(manifest_path),
         "plugin_source_sha256": snapshot_digest,
@@ -2386,6 +2408,12 @@ def main() -> int:
         return 2
 
     engine_name = profile.engine if profile is not None else "claude-plugin"
+    if engine_name == "codex-cli":
+        try:
+            engine_adapters.CodexResolvedContextAdapter().require_safe_live_activation()
+        except engine_adapters.AdapterError as exc:
+            print(f"run_evals: {exc}", file=sys.stderr)
+            return 2
     runtime_setting = (
         os.environ.get("CODEX_BIN", "codex")
         if engine_name == "codex-cli"
@@ -2673,6 +2701,10 @@ def main() -> int:
                     states.append(state)
                     trial_results.append(trial_result)
                     print(f"  trial {trial_number}: {state}")
+                    if profile_stops_after_state(profile, state) and campaign_stop_reason is None:
+                        campaign_stop_reason = (
+                            "campaign stopped by the approved first-inconclusive stop condition"
+                        )
                     if state == "FAIL":
                         print("\n".join(trial_result["details"]))
                     elif state == "INCONCLUSIVE":

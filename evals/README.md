@@ -30,13 +30,13 @@ New live execution uses
 [`eval-execution-profile/v2`](../schemas/eval-execution-profile-v2.schema.json) to bind the engine,
 exact scenario IDs, requested claims, required references, requested model, accepted resolved-model
 identity, reasoning/effort setting, trials, per-trial timeout, total timeout, cost-budget
-representation, and a separate approval record. Historical
+representation, a bounded campaign stop condition, and a separate approval record. Historical
 [`v1`](../schemas/eval-execution-profile-v1.schema.json) profiles remain readable for retained
 evidence but cannot authorize a new live run because they do not bind resolved-model identity or
 reasoning effort. The profile also names one cross-engine comparison contract with complete
 Claude/Codex requested-model, resolved-model, and reasoning-effort matrices. Its engine-neutral
 digest binds those matrices, scenario/reference selection, trial count, timeouts, adapter contract
-version, and both requested policy contracts; the reducer refuses envelopes whose comparison
+version, stop condition, and both requested policy contracts; the reducer refuses envelopes whose comparison
 digests differ.
 The parent bootstrap copies that profile into the frozen evaluator before starting the child. A live
 run refuses `approval: null`; preparing or validating a profile does not call a model.

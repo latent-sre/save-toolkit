@@ -28,10 +28,12 @@ provenance; it does not authorize an effect or promote the subject it describes.
 
 ## Evaluation contracts
 
-`eval-execution-profile-v1` binds one engine, requested claims, selected scenarios, required
-references, model, trial count, time limits, cost-budget representation, and separate live-run
-approval. `evals/execution_profiles.py` is its semantic validator. A profile with `approval: null`
-may be validated and reviewed offline, but cannot start a model process.
+`eval-execution-profile-v2` is current. It binds one engine, requested claims, selected scenarios,
+required references, requested and accepted resolved-model identity, reasoning effort, stop
+condition, trial count, time limits, cost-budget representation, and separate live-run approval.
+`eval-execution-profile-v1` remains supported for retained historical evidence but cannot start a
+new model process. `evals/execution_profiles.py` is their semantic validator. A current profile
+with `approval: null` may be validated and reviewed offline, but cannot start a model process.
 
 `eval-result-envelope-v1` is the active claim-scoped result shape for Claude native-plugin and
 Codex resolved-context measurements. `evals/engine_contract.py` rejects unsupported claims,

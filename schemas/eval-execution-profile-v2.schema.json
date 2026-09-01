@@ -7,7 +7,7 @@
   "additionalProperties": false,
   "required": [
     "schema_version", "id", "comparison", "engine", "claims", "scenario_ids", "required_references",
-    "model", "resolved_model", "reasoning_effort", "trials", "timeout_s", "total_timeout_s",
+    "model", "resolved_model", "reasoning_effort", "stop_condition", "trials", "timeout_s", "total_timeout_s",
     "cost_budget", "approval"
   ],
   "properties": {
@@ -56,6 +56,9 @@
       "minLength": 1,
       "maxLength": 32,
       "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "stop_condition": {
+      "enum": ["first-inconclusive", "declared-trials-or-budget-boundary"]
     },
     "trials": { "type": "integer", "minimum": 2 },
     "timeout_s": { "type": "integer", "minimum": 1 },

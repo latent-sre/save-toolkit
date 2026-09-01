@@ -1593,6 +1593,11 @@ class ArtifactTests(unittest.TestCase):
                 run_evals.ignored_plugin_inputs(root),
                 ("agents/helper.pyc",),
             )
+            self.assertTrue(
+                run_evals.measured_plugin_inputs_dirty(
+                    "", run_evals.ignored_plugin_inputs(root)
+                )
+            )
 
     def test_required_command_failure_does_not_look_clean(self) -> None:
         failed = mock.Mock(returncode=128, stdout="", stderr="not a git repository")
@@ -1629,6 +1634,46 @@ class ArtifactTests(unittest.TestCase):
 
 
 class AggregateVerdictTests(unittest.TestCase):
+    def test_codex_main_blocks_before_any_cli_subprocess(self) -> None:
+        profile = {
+            "schema_version": "eval-execution-profile/v2",
+            "id": "codex-preflight-block",
+            "comparison": {
+                "id": "codex-preflight-block",
+                "models": {"claude-plugin": "not-run", "codex-cli": "gpt-test"},
+                "resolved_models": {"claude-plugin": "not-run", "codex-cli": "gpt-test"},
+                "reasoning_efforts": {"claude-plugin": "not-run", "codex-cli": "high"},
+            },
+            "engine": "codex-cli",
+            "claims": ["behavioral_contract", "deterministic_grader_result"],
+            "scenario_ids": ["agent-direct-sre-readonly-triage"],
+            "required_references": {},
+            "model": "gpt-test",
+            "resolved_model": "gpt-test",
+            "reasoning_effort": "high",
+            "stop_condition": "first-inconclusive",
+            "trials": 2,
+            "timeout_s": 60,
+            "total_timeout_s": 120,
+            "cost_budget": {"status": "unavailable", "max_usd": None},
+            "approval": {
+                "approved_by": "test-owner",
+                "approved_at": "2026-08-31T12:00:00Z",
+                "budget_id": "test-budget",
+            },
+        }
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "profile.json"
+            path.write_text(json.dumps(profile), encoding="utf-8")
+            argv = ["run_evals.py", "--run", "--profile", str(path)]
+            with (
+                mock.patch.object(run_evals.sys, "argv", argv),
+                mock.patch.object(run_evals, "is_frozen_eval_process", return_value=True),
+                mock.patch.object(run_evals.subprocess, "run") as child,
+            ):
+                self.assertEqual(2, run_evals.main())
+            child.assert_not_called()
+
     def test_codex_live_blocker_prevents_subprocess_start(self) -> None:
         scenario = {"mode": "direct", "prompt": "untrusted candidate prompt"}
         with mock.patch.object(run_evals.subprocess, "run") as child:
@@ -1701,6 +1746,28 @@ class AggregateVerdictTests(unittest.TestCase):
         self.assertEqual(run_evals.aggregate_verdict(["PASS", "FAIL"], 1.0), "FAIL")
         self.assertEqual(run_evals.aggregate_verdict(["PASS", "INCONCLUSIVE"], 0.5), "PASS")
         self.assertEqual(run_evals.aggregate_verdict(["FAIL", "INCONCLUSIVE"], 0.5), "INCONCLUSIVE")
+
+    def test_first_inconclusive_profile_stop_is_enforced_between_trials(self) -> None:
+        profile = run_evals.execution_profiles.ExecutionProfile(
+            id="stop-profile",
+            comparison={},
+            engine="claude-plugin",
+            claims=(),
+            scenario_ids=(),
+            required_references={},
+            model="sonnet",
+            trials=2,
+            timeout_s=60,
+            total_timeout_s=120,
+            cost_budget={"status": "available", "max_usd": 1.0},
+            approval=None,
+            sha256="a" * 64,
+            comparison_sha256="b" * 64,
+            stop_condition="first-inconclusive",
+        )
+        self.assertTrue(run_evals.profile_stops_after_state(profile, "INCONCLUSIVE"))
+        self.assertFalse(run_evals.profile_stops_after_state(profile, "FAIL"))
+        self.assertFalse(run_evals.profile_stops_after_state(profile, "PASS"))
 
     def test_not_fire_threshold_is_clamped_to_full(self) -> None:
         not_fire = {"mode": "discovery", "routing": {"expect": "not_fire"}}

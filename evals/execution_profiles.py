@@ -34,8 +34,11 @@ BASE_FIELDS = {
 }
 FIELDS_BY_VERSION = {
     SCHEMA_VERSION_V1: BASE_FIELDS,
-    SCHEMA_VERSION_V2: BASE_FIELDS | {"resolved_model", "reasoning_effort"},
+    SCHEMA_VERSION_V2: BASE_FIELDS | {"resolved_model", "reasoning_effort", "stop_condition"},
 }
+STOP_CONDITIONS = frozenset(
+    {"first-inconclusive", "declared-trials-or-budget-boundary"}
+)
 ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 TIMESTAMP_RE = re.compile(
     r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$"
@@ -66,6 +69,7 @@ class ExecutionProfile:
     resolved_model: str | None = None
     reasoning_effort: str | None = None
     schema_version: str = SCHEMA_VERSION_V1
+    stop_condition: str | None = None
 
 
 def _mapping(value: object, field: str) -> Mapping[str, object]:
@@ -121,6 +125,7 @@ def _comparison_digest(
     timeout_s: int,
     total_timeout_s: int,
     schema_version: str,
+    stop_condition: str | None,
 ) -> str:
     reasoning_efforts = comparison.get("reasoning_efforts", {})
     if not isinstance(reasoning_efforts, Mapping):
@@ -162,6 +167,8 @@ def _comparison_digest(
             ],
         },
     }
+    if stop_condition is not None:
+        value["stop_condition"] = stop_condition
     encoded = json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(b"save-toolkit-eval-comparison-v1\0" + encoded).hexdigest()
 
@@ -275,6 +282,7 @@ def validate_profile(
         raise ProfileError("profile.model must match its comparison model matrix entry")
     resolved_model: str | None = None
     reasoning_effort: str | None = None
+    stop_condition: str | None = None
     if schema_version == SCHEMA_VERSION_V2:
         resolved_model = _string(profile["resolved_model"], "profile.resolved_model")
         reasoning_effort = _reasoning_effort(
@@ -287,6 +295,11 @@ def validate_profile(
         if comparison["reasoning_efforts"][engine] != reasoning_effort:  # type: ignore[index]
             raise ProfileError(
                 "profile.reasoning_effort must match its comparison reasoning-effort matrix entry"
+            )
+        stop_condition = _string(profile["stop_condition"], "profile.stop_condition")
+        if stop_condition not in STOP_CONDITIONS:
+            raise ProfileError(
+                f"profile.stop_condition must be one of {sorted(STOP_CONDITIONS)}"
             )
     trials = _positive_int(profile["trials"], "profile.trials", minimum=2)
     timeout_s = _positive_int(profile["timeout_s"], "profile.timeout_s")
@@ -359,10 +372,12 @@ def validate_profile(
             timeout_s=timeout_s,
             total_timeout_s=total_timeout_s,
             schema_version=str(schema_version),
+            stop_condition=stop_condition,
         ),
         resolved_model=resolved_model,
         reasoning_effort=reasoning_effort,
         schema_version=str(schema_version),
+        stop_condition=stop_condition,
     )
 
 

@@ -14,7 +14,7 @@
       "id": "eval-execution-profile-v1",
       "uri": "https://github.com/latent-sre/save-toolkit/schemas/eval-execution-profile-v1.schema.json",
       "version": 1,
-      "status": "active",
+      "status": "supported",
       "canonical_path": "schemas/eval-execution-profile-v1.schema.json",
       "validator": "evals/execution_profiles.py",
       "generated_projections": []
@@ -23,7 +23,7 @@
       "id": "eval-execution-profile-v2",
       "uri": "https://github.com/latent-sre/save-toolkit/schemas/eval-execution-profile-v2.schema.json",
       "version": 2,
-      "status": "active",
+      "status": "current",
       "canonical_path": "schemas/eval-execution-profile-v2.schema.json",
       "validator": "evals/execution_profiles.py",
       "generated_projections": []

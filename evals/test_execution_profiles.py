@@ -13,6 +13,13 @@ import execution_profiles
 
 
 class ExecutionProfileTests(unittest.TestCase):
+    CONSUMED_V1_PROFILES = (
+        "grader-005-frontend-posture-sonnet.json",
+        "grader-008-sre-progressive-object-sonnet.json",
+        "grader-009-defers-current-sonnet.json",
+        "grader-009-defers-incumbent-sonnet.json",
+        "route-003-discovery-reliability-sonnet.json",
+    )
     def _valid(self) -> dict[str, object]:
         return {
             "schema_version": "eval-execution-profile/v1",
@@ -65,6 +72,7 @@ class ExecutionProfileTests(unittest.TestCase):
         }
         value["resolved_model"] = "gpt-5.6-terra"
         value["reasoning_effort"] = "high"
+        value["stop_condition"] = "first-inconclusive"
         return value
 
     def test_valid_profile_is_digest_bound(self) -> None:
@@ -120,6 +128,22 @@ class ExecutionProfileTests(unittest.TestCase):
         unsafe["comparison"]["reasoning_efforts"]["codex-cli"] = unsafe["reasoning_effort"]
         with self.assertRaisesRegex(execution_profiles.ProfileError, "bounded lowercase"):
             execution_profiles.validate_profile(unsafe)
+
+    def test_v2_stop_condition_is_required_bounded_and_digest_bound(self) -> None:
+        value = self._valid_v2()
+        profile = execution_profiles.validate_profile(value)
+        self.assertEqual("first-inconclusive", profile.stop_condition)
+
+        changed = self._valid_v2()
+        changed["stop_condition"] = "declared-trials-or-budget-boundary"
+        changed_profile = execution_profiles.validate_profile(changed)
+        self.assertNotEqual(profile.sha256, changed_profile.sha256)
+        self.assertNotEqual(profile.comparison_sha256, changed_profile.comparison_sha256)
+
+        invalid = self._valid_v2()
+        invalid["stop_condition"] = "keep-going-forever"
+        with self.assertRaisesRegex(execution_profiles.ProfileError, "stop_condition"):
+            execution_profiles.validate_profile(invalid)
 
     def test_approval_timestamp_must_be_a_real_utc_instant(self) -> None:
         value = self._valid()
@@ -230,6 +254,22 @@ class ExecutionProfileTests(unittest.TestCase):
             execution_profiles.SCHEMA_VERSION_V2,
         )
         self.assertEqual(entry_v2["validator"], "evals/execution_profiles.py")
+        self.assertEqual("supported", entry["status"])
+        self.assertEqual("current", entry_v2["status"])
+
+    def test_consumed_profiles_remain_readable_v1_evidence_not_live_authority(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        for filename in self.CONSUMED_V1_PROFILES:
+            with self.subTest(filename=filename):
+                path = root / "evals" / "profiles" / filename
+                profile = execution_profiles.load_profile(
+                    path,
+                    require_approval=False,
+                )
+                self.assertEqual(execution_profiles.SCHEMA_VERSION_V1, profile.schema_version)
+                self.assertIsNotNone(profile.approval)
+                with self.assertRaisesRegex(execution_profiles.ProfileError, "v2"):
+                    execution_profiles.load_profile(path, require_approval=True)
 
 
 if __name__ == "__main__":

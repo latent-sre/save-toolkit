@@ -127,6 +127,24 @@ class EvalEvidenceTests(unittest.TestCase):
         self.assertNotIn("native_plugin_loaded", emitted)
         self.assertFalse(envelope["promotion_eligible"])
 
+    def test_dirty_provenance_cannot_emit_a_clean_candidate(self) -> None:
+        provenance = self._provenance("codex-cli")
+        provenance["plugin_inputs_dirty"] = True
+        envelope = eval_evidence.build_envelope(
+            provenance=provenance,
+            profile=self._profile(),
+            scenario_results=self._results(),
+            reference_canaries={SCENARIO: {REFERENCE: CANARY}},
+            grader_sha256=DIGEST,
+            ended_at="2026-08-26T12:00:04Z",
+        )
+
+        self.assertFalse(envelope["candidate"]["clean"])
+        self.assertIn(
+            "candidate inputs differ from the recorded Git revision",
+            envelope["limitations"],
+        )
+
     def test_missing_reference_canary_makes_result_inconclusive(self) -> None:
         envelope = eval_evidence.build_envelope(
             provenance=self._provenance("codex-cli"),
