@@ -727,12 +727,17 @@ integrity `PASS` and no trustworthy cost amount available.
 
 **Next action:** After authentication is restored, the owner decides whether the two consumed
 inconclusive attempts are sufficient to dispose the measurement or whether a newly designed,
-separately approved campaign is warranted. Do not reuse either consumed profile, tune unchanged
-bytes, or move reference-dependent behavior graders into discovery.
+separately approved campaign is warranted. Both retained packets are v1 evidence and cannot
+authorize a new live call under the current v2 execution contract. Any new campaign starts as a v2
+profile binding resolved-model identity, reasoning effort, stop condition, and the frozen evaluator
+suite before fresh approval. Do not reuse or mechanically migrate either consumed profile, tune
+unchanged bytes, or move reference-dependent behavior graders into discovery. Reconciliation:
+[`2026-09-01 decision-backlog reconciliation`](reviews/2026-09-01-decision-backlog-reconciliation.md).
 
 ### ROUTE-004 — the three `frontend-craft` discovery scenarios route unreliably on Sonnet
 
-**Status:** `decision-needed` (2026-08-27)
+**Status:** `decision-needed` (2026-09-01). A later exact-revision native batch is merged and
+disposition-ready; the three scenarios no longer support one shared routing conclusion.
 
 **Outcome:** The `frontend-craft` regression scenarios either fire reliably enough to sit in the
 regression split at threshold 1.0, or are moved to calibration with the reason recorded, so a red
@@ -744,15 +749,29 @@ on the untouched previous revision, with every failing trial a routing miss — 
 prompt routes to `merge-gate`, and the Preact review often invokes no skill at all. The description
 is byte-identical across both revisions.
 
-**Prerequisites:** Owner approval of a fixed measurement budget. Predeclare model, trials, timeout,
-and threshold; do not tune prompts to turn the batches green.
+**Current evidence:** `[verified]` The approved 2026-08-31 Sonnet batch on exact candidate
+`54f1c8d0ddbc17545f644fdd2568a36c8471454c` remeasured all three scenarios after the
+`gate_posture` repair. The Mantine/Tailwind case
+invoked `frontend-craft` 3/3; the Preact review invoked it 2/3; the merge-readiness case invoked it
+0/3 and routed to `merge-gate` in every trial. The first is a stable route, the second is a
+propensity, and the third follows the declared ownership map: `frontend-craft` advertises building
+or changing a UI, while `merge-gate` owns "is this ready to merge?" Evidence:
+[`GRADER-005 closure`](reviews/2026-08-31-grader-005-closure.md) and the
+[`2026-09-01 reconciliation`](reviews/2026-09-01-decision-backlog-reconciliation.md).
+
+**Prerequisites:** None for scenario disposition. A future description edit still follows the
+routing-content change playbook with a separately accepted candidate and fixed v2 measurement
+budget; no unchanged-byte rerun is owed.
 
 **Acceptance:** Either a predeclared batch shows each scenario at its declared threshold on an
 exact revision, or the scenarios move to the calibration split with the recorded rate; the
 description is edited only through the routing-content change playbook with an after-change run.
 
-**Next action:** Owner decides between a description-side routing fix (a separate SKILL-001-exempt
-slice) and reclassifying the scenarios. No rerun of unchanged bytes.
+**Next action:** Owner dispositions the scenarios separately. Recommended: retain the 3/3 Mantine
+case as the `frontend-craft` regression; move the Preact review to calibration or a direct
+UI-review contract; split the merge-readiness case so routing belongs to `merge-gate` and any
+UI-specific browser/keyboard behavior is tested directly. Do not broaden `frontend-craft` to
+compete with `merge-gate`, and do not rerun unchanged bytes.
 
 ### GRADER-004 — make `incident_recovery_authority` negation-aware
 
@@ -836,9 +855,10 @@ profile or change the prompt, threshold, split, or grader.
 
 ### GRADER-009 — two phrasing-narrow graders in the observability scenarios
 
-**Status:** `decision-needed` (2026-08-31). Both repairs and the two Sonnet profiles are approved,
-but the two prescribed Opus profiles have approval null. The fixed matrix remains unstarted and
-the current subscriber OAuth session also cannot authenticate a model call.
+**Status:** `decision-needed` (2026-09-01). Both deterministic repairs are merged and have direct
+red-to-green fixture evidence. The four prepared profiles are v1: their historical Sonnet approvals
+remain retained evidence, the Opus approvals remain null, and none can authorize a new live call
+under the current v2 execution contract. The fixed matrix remains unstarted.
 
 **Outcome:** Two graders stop scoring correct answers as reds: the routing grader in
 `…-defers-live-incident` recognises `hand off to sre` the way it already recognises `hand this to
@@ -859,31 +879,43 @@ phrasing-narrow graders in this round (an adjacency window twice, then these); t
 auditing at the third and filed rather than fix-and-re-measure again, so the reds stand in the
 recorded matrices.
 
-**Acceptance:** Both sentences are must-pass cases in their scenarios' fixture tables, every
-existing red side still fails — a real `just run it again` recommendation included — and both
-scenarios are re-measured on both sides.
+**Acceptance:** Both sentences are must-pass cases in their scenarios' fixture tables and every
+existing red side still fails—a real `just run it again` recommendation included. The current
+contract also requires both scenarios remeasured on both sides. Replacing that stochastic
+remeasurement with deterministic pre-repair/current replay and transfer fixtures is a revised
+closure contract and therefore requires explicit owner acceptance; it is not implied by this
+roadmap update.
 
 **Current evidence:** The quoted sentences and the particle-form / quoted-warning fixtures are
 recorded in the
 [observability-engineer evidence](reviews/2026-08-29-build-probe-observability-engineer.md)
 and the
 [`combined-branch amendment`](reviews/2026-08-29-grader-005-008-eval-004-working-evidence.md).
-The required model trials have not been rerun on the exact merged revision.
+The 2026-09-01 reconciliation replayed both accepted sentences against the pre-repair evaluator and
+current `main`: both fail before the repair and pass now, while the current transfer and unsafe-side
+fixtures pass 1,470/1,470 with the rest of the grader suite. This proves the deterministic repairs;
+the required model trials have not been rerun on the exact merged revision. Evidence:
+[`decision-backlog reconciliation`](reviews/2026-09-01-decision-backlog-reconciliation.md).
 
 **Prepared gate:** The
 [`GRADER-009 approval packet`](reviews/2026-08-30-grader-009-approval-gate.md) binds historical
 plugin `2cdcbbbac3bc560076a1d0c648149173b6863602`, current plugin
 `6e90d06e27acda01cbaa404fc65528a8bdb20625`, and the current evaluator on both sides. The handoff
 scenario runs Sonnet x3 per revision at 600 seconds/USD 2 per cell; the unknown-write scenario runs
-Opus x3 per revision at 900 seconds/USD 4 per cell. Four separate approval/budget records bound 12
-calls and USD 12 aggregate. Repairs `f9075751` and `ff7a6293` are ancestors of current. Every profile
-validates; the Sonnet profiles carry owner, UTC timestamp, and budget ID, while the Opus profiles
-remain unapproved. Preparation makes no model call and spends nothing.
+Opus x3 per revision at 900 seconds/USD 4 per cell. Four prepared cell records describe 12 calls and
+USD 12 aggregate; only the two Sonnet records contain historical approvals, while the Opus records
+remain null. Repairs `f9075751f0101453ad84ecfd44b42f3dd236280e` and
+`ff7a6293fc4e47009bca0fde9cb6bec285238724` are ancestors of current. Every profile validates as
+retained v1 evidence; none is current live authority. Preparation makes no model call and spends
+nothing.
 
-**Next action:** The owner explicitly authorizes or rejects the two Opus cells. If authorized,
-record their two approvals, refresh subscriber authentication, confirm one no-tool health check,
-then run the fixed four-cell matrix once with current evaluator bytes, isolated exact plugin
-revisions, and no tuning/retry. Do not start only the Sonnet half, substitute Sonnet for Opus, or
+**Next action:** The owner chooses the closure contract. Recommended: accept deterministic closure
+from the exact historical sentences, pre-repair/current replay, and retained negative/transfer
+fixtures; preserve the sealed model reds rather than spend a new stochastic campaign to rediscover
+different wording. If the owner still requires both scenarios remeasured on both revisions, replace
+all four v1 packets with four fixed v2 profiles, obtain four fresh approvals bound to the exact
+evaluator-suite digest, restore authentication, and run the matrix once with no tuning/retry. Do not
+approve only Opus while treating the v1 Sonnet records as live authority, substitute models, or
 aggregate unlike model/scenario cells.
 
 ### EVAL-005 — give the Grafana build probe a datasource worth writing a panel against
@@ -929,11 +961,13 @@ record Docker/image identities before deciding closure.
 
 ### EVAL-004 — measure the incident guidance added on 2026-08-26
 
-**Status:** `decision-needed` (2026-08-29)
+**Status:** `decision-needed` (2026-09-01). The eight scenario files exist, but no current profile
+selects all eight and both retained profiles are v1 evidence that cannot authorize a new live run.
+The closure contract must also be reconciled with `EVAL-007` before another campaign is approved.
 
-**Outcome:** Every behavior claim added to `incident-command` and `incident-investigation` on
-2026-08-26 has a discriminating scenario, so a later edit that removes the behavior turns a
-scenario red instead of passing silently.
+**Outcome:** Every behavior claim added to `incident-command` and the router now named
+`investigation-depth` on 2026-08-26 has a discriminating scenario, so a later edit that removes the
+behavior turns a scenario red instead of passing silently.
 
 **Source:** Seven guidance changes shipped with structural verification only. `incident-command`
 carries them on `work/incident-command-evidence-and-command`; the `incident-investigation` set was
@@ -956,6 +990,11 @@ records the frozen Terra and Luna transfer probes, the pre-guidance baselines, a
 fixes. Those probes are cooperative agent-task transfer evidence, not profile-backed native
 execution. Native profile behavior on the exact merged revision remains `[unverified]`. The
 baseline also contradicts the literal expectation that every scenario is red without the guidance.
+The retained `eval-004-reference-reachability` profile selects five scenarios and
+`eval-004-incident-guidance-references` selects two; neither is the fixed eight-scenario campaign
+described below. Both are v1 and therefore retained evidence only under the current execution
+contract. Inventory and direct validation:
+[`2026-09-01 reconciliation`](reviews/2026-09-01-decision-backlog-reconciliation.md).
 
 **Prerequisites:** None structural. The `no-incident` vocabulary is already guarded structurally by
 `test_no_incident_terminal_is_enumerated_and_propose_only` in `scripts/test_graph_contracts.py`,
@@ -964,8 +1003,10 @@ which is mutation-proven; that guard covers wording presence, not behavior.
 **Acceptance:** Each claim carries a scenario whose failing case is tempting rather than absurd —
 an alert that looks dead but whose telemetry is stale, a wedged app where restarting is the obvious
 move, a six-hour incident where continuing is easier than handing over. Graders discriminate by
-adjacency, not bare substring presence. Each scenario is measured red on a revision without the
-guidance before it is accepted green with it.
+stable structure or a named relation-aware contract, not bare substring or phrase-adjacency
+windows. Each behavior proposed as guidance-dependent is measured on a clean committed revision
+without the guidance before it is accepted green with it; baseline passes remain evidence that the
+behavior was not uniquely supplied by the guidance, not failures to tune away.
 
 `[verified]` **A profile cannot encode the without-guidance half.** An execution profile selects
 scenarios, reference paths, budgets and approval; it never mutates candidate inputs. A profile named
@@ -979,19 +1020,20 @@ profile formerly called `eval-004-guidance-removed-control` is renamed
 `eval-004-incident-guidance-references` for what it actually selects, and its already-consumed
 approval is cleared so it cannot authorize another live run.
 
-**Next action:** Owner decides whether to approve one fixed eight-scenario native Claude profile or
-to accept a revised propensity/transfer closure contract that preserves the measured baseline
-behavior. If a native run is approved, the without-guidance half must use a committed revision that
-lacks the guidance, cite that SHA, and require a clean plugin. Each live run needs its own fresh
-approval: `load_profile(require_approval=True)` checks only that an approval record exists, and the
-cost ceiling resets per process, so a retained approval in a committed profile is standing rather
-than spent authorization. Do not reuse the five-scenario reference-reachability approval, bypass
-the Codex live blocker, or rerun Terra merely to make the baseline uniformly red.
+**Next action:** First resolve the shared `EVAL-004`/`EVAL-007` closure architecture: recommended is
+one structured or named-relation contract plus a committed guidance-removal control, with the
+existing transfer evidence preserved. The owner then decides whether that offline/counterfactual
+packet closes the work or whether an eight-scenario native comparison is still warranted. If live
+runs are retained, author new v2 profiles for the exact current and clean committed
+without-guidance candidates, bind resolved model, reasoning effort, stop condition, evaluator-suite
+digest, and separate fresh approvals, then execute each fixed packet once. Do not reuse either v1
+approval, bypass the Codex live blocker, or rerun Terra merely to make the baseline uniformly red.
 
 ### EVAL-006 — calibrate `discovery-gcp-ops-cloud-run-startup` against measured model behavior
 
-**Status:** `decision-needed` (2026-08-29). Option (a) is applied and confirmed at nine trials. A
-later reframe found the prior next action unsound and replaced it; see the fixture finding below.
+**Status:** `decision-needed` (2026-09-01). Option (a) is applied and confirmed at nine trials. The
+remaining owner decision is the instrumented path: the current discovery fixture can grade a
+tool-less advisory response, not the live triage its success criteria still claim.
 
 **Outcome:** The scenario states which path it grades, and its prompt, fixture and graders agree on
 that path, so a red is attributable to the change under test instead of to instrument noise or to a
@@ -1067,17 +1109,21 @@ triage lane its `success_criteria` claim.
 That reframes the remaining failure rather than confirming it. All three misses attach a reason to
 the label — `(unverified until step 4/5 output exists)`, `[unverified — no log/describe output]`,
 `(unverified — no logs actually seen)` — and in a fixture where nothing can be verified, the reason
-for unverifiability is the most informative thing in the reply. The bare-token requirement is a
-fleet-wide convention graded by 23 scenarios, and no runtime consumer scans model output for it:
-`scripts/validate_fleet.py`'s `EVIDENCE_TRIAD` checks authored files, not replies.
+for unverifiability is useful context. It does not replace the fleet-wide evidence-label contract:
+the bare `[unverified]` token remains the label, and explanatory text belongs after it. The fact that
+no runtime consumer parses model replies does not remove the authored response contract. The
+fixture/path mismatch, rather than that label contract, is the reason not to tune the skill body on
+these results. Reconciliation:
+[`2026-09-01 decision-backlog reconciliation`](reviews/2026-09-01-decision-backlog-reconciliation.md).
 
-**Next action:** Decide what this scenario is for, then align prompt, fixture, graders and
-`success_criteria` to that answer. If the degraded path, say so in `success_criteria` and stop
-treating an explained label as a defect. If the triage lane, it needs an instrument that can
-execute, which the harness cannot currently provide. **Superseded and not to be resumed:** the
-earlier plan to patch the body so the label form lands. It would tune the skill against a
-constraint no real caller imposes, and the fleet already paid for that lesson once — a rule shaped
-by one path damages the paths that skip it. Also superseded: closing this item with
+**Next action:** Owner selects the instrumented path. Recommended: keep the scenario in calibration
+as the degraded advisory path; rewrite the prompt and `success_criteria` to say the lane cannot
+inspect in this fixture, require human-run read-only checks and the rollback packet, and retain the
+bare `[unverified]` token with any explanation outside it. If the owner instead wants live triage,
+design a different instrument with the required read boundary before another model call. A
+scenario-only contract correction uses offline grader/validation evidence; any later measurement is
+a separately approved v2 campaign. **Superseded and not to be resumed:** patching the skill body to
+land one fixture's label form. Also superseded: closing this item with
 `threshold: 0.66`, because at a true rate of 0.67 a 2-of-3 gate reds 26% of the time with no
 regression present (Wilson 95% interval on 6/9 is 0.35–0.88).
 
@@ -1126,7 +1172,9 @@ their evidence is in the commits, not here.
 
 ### EVAL-007 — grade incident behaviour without phrase adjacency
 
-**Status:** `decision-needed` (2026-08-30)
+**Status:** `decision-needed` (2026-09-01). The structured pilot and offline repair remain valid
+partial evidence. A later local branch adds another phrase-oracle reproduction but is not current-
+candidate or promotion evidence.
 
 **Outcome:** A behavioural incident scenario returns a verdict that reflects the response rather
 than its phrasing, so a red result is worth investigating instead of routinely being a pattern that
@@ -1174,6 +1222,14 @@ reviewed trial 3. The fixture was observed red under the old oracle and passes w
 the scenario's existing contradiction and authority negatives remain green. This is offline grader
 evidence only; the sealed 2/3 model result is not rewritten and the candidate has not been rerun.
 
+`[verified structural]` The 2026-09-01 reconciliation found the same failure class in the unmerged
+`work/incident-investigation-eval-evidence` branch: current `main` rejects a response whose board
+uses a nonempty `Next:` field, while the branch's widened phrase pattern accepts it. The branch's
+post-change model result still scored 1/3, its candidate and evaluator predate later `main` changes,
+and its pattern does not prove the semantic quality of the next check. It strengthens the case
+against phrase tuning but supplies no acceptance evidence. Packet:
+[`decision-backlog reconciliation`](reviews/2026-09-01-decision-backlog-reconciliation.md).
+
 **Prerequisites:** None structural. `exact_fields`, `exact_json`, and `embedded_exact_json` already
 exist in the grader registry, so a structured-output contract needs no new grader type. An
 LLM-judge grader would need a new one, plus a policy for a non-deterministic grader inside a suite
@@ -1184,23 +1240,25 @@ unchanged guidance. The removal control still discriminates: with the guidance r
 scenario fails. No grader rejects a response that a reader would call correct, tested against the
 transcripts already retained under `.eval-runs/`.
 
-**Next action:** Run the still-owed committed guidance-removal control. A new live campaign requires
-separate approval and must bind this exact evaluator candidate; until then the offline repair does
-not promote or supersede the sealed model result.
-Accepted in the meantime: these scenarios sit at 2 of 3, a red is not by itself a finding, and no
-further tuning run is spent on pattern repair.
+**Next action:** Do not start a standalone campaign until the owner resolves the shared
+`EVAL-004`/`EVAL-007` closure contract. Recommended: use one structured or named relation-aware
+grader design and one clean committed guidance-removal candidate for the counterfactual. If live
+measurement remains necessary after that decision, author a new v2 profile binding the exact
+evaluator and candidate, then obtain a fresh approval. Until then the offline repair does not
+promote or supersede the sealed 2/3 result; a red is not by itself a finding, and no further tuning
+run is spent on phrase patterns.
 
 ### ROUTE-005 — restate `incident-investigation`'s triggers in on-call phrasing
 
-**Status:** `decision-needed` (2026-08-30). The exact approved pair completed with no retries. Both
-arms routed correctly 9 of 9 times, but the candidate failed the full acceptance contract and is
-not promotion eligible. The incumbent description is restored in the PR repair; no candidate is
-promoted by publication. On 2026-08-31 the router was renamed `investigation-depth` with its
-description byte-identical; the on-call phrasings this item targets belong to the human-facing
-`incident-investigation` skill introduced in the follow-on change, which owns their measurement.
+**Status:** `decision-needed` (2026-09-01). The original exact approved pair completed with no
+retries. Both arms routed correctly 9 of 9 times, but the candidate failed the full acceptance
+contract and is not promotion eligible. The incumbent description was restored and the router was
+then renamed `investigation-depth` byte-identically. The original experiment is disposition-ready;
+it does not own acceptance of the later human-facing `incident-investigation` skill.
 
-**Outcome:** The skill's description triggers match what a responder types under load, so
-discovery does not depend on the caller knowing the fleet's vocabulary.
+**Outcome:** The original fixed pair determines whether replacing the router's meta-triggers with
+on-call phrasing strictly improves its full discovery contract; a rejected candidate leaves the
+incumbent unchanged rather than tuning against a partial routing win.
 
 **Source:** The
 [`incident-investigation` skill-creator round](reviews/2026-08-27-incident-investigation-skill-creator-round.md)
@@ -1226,14 +1284,27 @@ scenarios and 6/9 full-contract trials; routing 9/9 for each. Aggregate spend wa
 The candidate's systemic-failure positive authority wording check regressed from incumbent 2/3 to
 0/3, while the forbidden-self-action negative stayed clean 3/3 on both arms.
 
-**Acceptance:** A rewritten description passes the 600-byte and `Triggers:` contracts, keeps the
-three `discovery-incident-investigation-*` scenarios at their declared thresholds on the exact
-candidate, and the negative (`defers-engineering-altitude`) still does not fire.
+**Scope correction:** The measured scenarios were renamed to
+`discovery-investigation-depth-*` with their router. The three later
+`discovery-incident-investigation-*` scenarios target a new human-facing skill and were never part
+of this approved pair. A clean local legacy run observed correct routing in all nine of those newer
+trials, but it was not profile-backed, measured pre-current skill/evaluator bytes, and left one
+scenario red after a phrase-grader change. It is a lead for a separately accepted residual, not
+evidence that changes this experiment's verdict. Details:
+[`2026-09-01 reconciliation`](reviews/2026-09-01-decision-backlog-reconciliation.md).
+
+**Acceptance:** The owner accepts or rejects the original exact candidate against its fixed paired
+contract. If rejected, the retained incumbent—now named `investigation-depth`—stays canonical and
+the closure register records the exact pair and result. Any owner-accepted unfinished work for the
+later human-facing `incident-investigation` skill receives a new ID with its own scope, acceptance,
+and current-candidate evidence; it does not reopen or silently retarget `ROUTE-005`.
 
 **Next action:** Human owner decides whether to close ROUTE-005 with the exact candidate rejected
 and the incumbent retained. That is the recommendation because the fixed full-scenario acceptance
-contract was not met. A changed acceptance boundary, replacement candidate, or additional live run
-requires separately authorized work; this packet permits no retry or tuning.
+contract was not met. On acceptance, move this item to `roadmap-closed.md` with the exact paired
+evidence. Do not merge the stale local evidence branch into this closure. A replacement candidate,
+changed acceptance boundary, or new human-skill item requires separately authorized work; the
+consumed packet permits no retry or tuning.
 
 ## Deferred
 
