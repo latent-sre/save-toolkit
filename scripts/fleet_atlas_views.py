@@ -54,6 +54,17 @@ def _where(item: dict) -> str:
     return f"{evidence[0]['path']}:{evidence[0]['lines'][0]}" if evidence else "-"
 
 
+def _class_field(cls: str) -> str:
+    label = {
+        "CONTRACT_RESOLVED": "verified",
+        "STATIC_EXTRACTED": "verified",
+        "OPERATOR_CONFIRMED": "sourced",
+        "STATIC_INFERRED": "unverified",
+        "UNKNOWN": "unverified",
+    }.get(cls, "unverified")
+    return f"{cls} [{label}]"
+
+
 def _cap(lines: list[str], cap: int) -> str:
     out: list[str] = []
     size = 0
@@ -87,7 +98,7 @@ def render_index(document: dict) -> str:
 
 
 def _unknown_lines(items: list[dict]) -> list[str]:
-    return [f"{u['code']} | {u['path']} | {u['message']} | needed: {u['neededEvidence']}" for u in items]
+    return [f"UNKNOWN [unverified] | {u['code']} | {u['path']} | {u['message']} | needed: {u['neededEvidence']}" for u in items]
 
 
 def _render_unknown_group(code: str, items: list[dict]) -> list[str]:
@@ -104,9 +115,9 @@ def _render_unknown_group(code: str, items: list[dict]) -> list[str]:
     lines += _unknown_lines(individual)
     if len(generated) > COLLAPSE_THRESHOLD:
         examples = ", ".join(u["path"].rsplit("/", 1)[-1] for u in generated[:COLLAPSE_THRESHOLD])
-        lines.append(f"{code} | pattern: uncited generated eval-evidence review (*-eval-<batch>.md) | "
+        lines.append(f"UNKNOWN [unverified] | {code} | pattern: uncited generated eval-evidence review (*-eval-<batch>.md) | "
                      f"{len(generated)} matching | examples: {examples}")
-        lines.append(f"{code} | elided {len(generated)} generated eval-evidence docs of this identical shape "
+        lines.append(f"UNKNOWN [unverified] | {code} | elided {len(generated)} generated eval-evidence docs of this identical shape "
                      "from individual lines; regenerate the batch's review or see docs/reviews/*-eval-*.md")
     else:
         lines += _unknown_lines(generated)
@@ -118,40 +129,42 @@ def render_views(document: dict) -> dict[str, str]:
 
     lines = _head(document, "Capability and owner map")
     for e in _edges(document, "owns", "delegates_to", "constrained_by"):
-        lines.append(f"{e['source']} | {e['kind']} | {e['target']} | {e['class']} | {_where(e)}")
+        lines.append(f"{e['source']} | {e['kind']} | {e['target']} | {_class_field(e['class'])} | {_where(e)}")
     views["capability-owner-map.md"] = _cap(lines, VIEW_CAP)
 
     lines = _head(document, "Skill and reference loading map")
     for e in _edges(document, "loads_when"):
-        lines.append(f"{e['source']} | loads_when | {e['target']} | \"{e['attrs'].get('predicate', 'UNKNOWN')}\" | {_where(e)}")
+        lines.append(f"{e['source']} | loads_when | {e['target']} | {_class_field(e['class'])} | \"{e['attrs'].get('predicate', 'UNKNOWN')}\" | {_where(e)}")
     views["skill-reference-loading-map.md"] = _cap(lines, VIEW_CAP)
 
     lines = _head(document, "Claim to eval and test map")
     for e in _edges(document, "verified_by", "near_miss_for"):
         via = e["attrs"].get("mode") or e["attrs"].get("via") or e["attrs"].get("expected_alternative") or "-"
-        lines.append(f"{e['source']} | {e['kind']} | {e['target']} | {via} | {_where(e)}")
+        lines.append(f"{e['source']} | {e['kind']} | {e['target']} | {_class_field(e['class'])} | {via} | {_where(e)}")
     views["claim-to-eval-map.md"] = _cap(lines, VIEW_CAP)
 
     lines = _head(document, "Decision and supersession map")
     for n in sorted((n for n in document["nodes"] if n["type"] == "decision"), key=lambda n: n["id"]):
-        lines.append(f"{n['id']} | {n['state']} | {n['attrs'].get('date', '')} | {n['authority']} | {n['path']}")
+        cls = (n.get("evidence") or [{"class": "UNKNOWN"}])[0]["class"]
+        lines.append(f"{n['id']} | {n['state']} | {_class_field(cls)} | {n['attrs'].get('date', '')} | {n['authority']} | {n['path']}")
     for e in _edges(document, "supersedes", "governed_by"):
-        lines.append(f"{e['source']} | {e['attrs'].get('relation', e['kind'])} | {e['target']} | {e['class']} | {_where(e)}")
+        lines.append(f"{e['source']} | {e['attrs'].get('relation', e['kind'])} | {e['target']} | {_class_field(e['class'])} | {_where(e)}")
     for u in document["unknowns"]:
         if u["code"].startswith("extract.supersedes") or u["code"].startswith("extract.rule-source"):
-            lines.append(f"UNKNOWN | {u['code']} | {u['path']} | {u['message']}")
+            lines.append(f"UNKNOWN [unverified] | {u['code']} | {u['path']} | {u['message']}")
     views["decision-supersession-map.md"] = _cap(lines, VIEW_CAP)
 
     lines = _head(document, "Roadmap dependency map")
     for n in sorted((n for n in document["nodes"] if n["type"] == "roadmap-item"), key=lambda n: n["id"]):
-        lines.append(f"{n['id']} | {n['state']} | {n['attrs'].get('status', n['attrs'].get('closed', ''))} | {n['attrs'].get('owner', '')[:60]}".rstrip())
+        cls = (n.get("evidence") or [{"class": "UNKNOWN"}])[0]["class"]
+        lines.append(f"{n['id']} | {n['state']} | {_class_field(cls)} | {n['attrs'].get('status', n['attrs'].get('closed', ''))} | {n['attrs'].get('owner', '')[:60]}".rstrip())
     for e in _edges(document, "depends_on"):
-        lines.append(f"{e['source']} | depends_on | {e['target']} | {e['class']} ({e['attrs'].get('field', '')}) | {_where(e)}")
+        lines.append(f"{e['source']} | depends_on | {e['target']} | {_class_field(e['class'])} ({e['attrs'].get('field', '')}) | {_where(e)}")
     views["roadmap-dependency-map.md"] = _cap(lines, VIEW_CAP)
 
     lines = _head(document, "Contradictions and stale evidence")
     for e in _edges(document, "contradicts"):
-        lines.append(f"contradicts | {e['attrs']['detector']} | {e['source']} -> {e['target']} | {e['attrs']['message']} | {_where(e)}")
+        lines.append(f"contradicts | {e['attrs']['detector']} | {e['source']} -> {e['target']} | {_class_field(e['class'])} | {e['attrs']['message']} | {_where(e)}")
     by_code: dict[str, list[dict]] = {}
     for u in document["unknowns"]:
         by_code.setdefault(u["code"], []).append(u)

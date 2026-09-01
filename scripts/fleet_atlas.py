@@ -337,18 +337,23 @@ def provenance_failures(root: Path, metadata: object) -> list[str]:
         return ["atlas revision is not a full lowercase Git object ID"]
     if metadata.get("dirty") is not False:
         return ["atlas was generated from dirty canonical inputs"]
+    if metadata.get("treeDigest") != input_digest(root):
+        return ["atlas canonical-input digest does not match the current checkout"]
     exists = subprocess.run(
         ["git", "cat-file", "-e", f"{revision}^{{commit}}"],
         cwd=root, capture_output=True,
     )
+    # Rebase merges and review sandboxes may rewrite or omit the source commit. The exact input
+    # digest above plus projection_failures()'s full regenerate-and-compare still binds every
+    # returned byte; ancestry is an additional check when the original commit remains reachable.
     if exists.returncode != 0:
-        return [f"atlas revision {revision} is not available in this repository"]
+        return []
     ancestor = subprocess.run(
         ["git", "merge-base", "--is-ancestor", revision, "HEAD"],
         cwd=root, capture_output=True,
     )
     if ancestor.returncode != 0:
-        return [f"atlas revision {revision} is not an ancestor of HEAD"]
+        return []
     pathspecs = [*CANONICAL_INPUTS, *(f":(glob){item}" for item in CANONICAL_GLOBS)]
     equivalent = subprocess.run(
         ["git", "diff", "--quiet", revision, "HEAD", "--", *pathspecs],

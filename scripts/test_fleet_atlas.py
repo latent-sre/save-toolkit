@@ -394,6 +394,14 @@ class ExtractGovernanceTests(unittest.TestCase):
             evidence = edge.evidence[0]
             cited_line = lines[evidence.lines[0] - 1]
             self.assertIn(edge.target.removeprefix("roadmap-item:"), cited_line, edge.id)
+        for node in (n for n in self.graph.nodes.values() if n.type == "roadmap-item" and n.state == "live"):
+            cited = "\n".join(
+                lines[evidence.lines[0] - 1]
+                for evidence in node.evidence
+            )
+            self.assertIn("Status", cited, node.id)
+            if node.attrs.get("owner"):
+                self.assertIn("Owner", cited, node.id)
 
     def test_a_dependency_on_a_closed_item_is_kept_not_dropped(self) -> None:
         """A live item depending on a CLOSED item is a real relationship, and the one an operator
@@ -998,6 +1006,8 @@ class ViewAndDriftTests(unittest.TestCase):
             self.assertNotIn(str(self.root), text, path.name)
             self.assertNotIn("F:\\", text, path.name)
             self.assertTrue(all(line == line.rstrip() for line in text.splitlines()), path.name)
+            if path.name != "INDEX.md":
+                self.assertRegex(text, rb"\[(?:verified|sourced|unverified)\]", path.name)
 
     def test_check_detects_a_drifted_view_and_a_timestamp(self) -> None:
         view = self.root / "docs/fleet-atlas/generated/INDEX.md"

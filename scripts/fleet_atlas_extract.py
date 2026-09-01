@@ -342,13 +342,19 @@ def extract_roadmap(root: Path, graph: Graph) -> None:
     for item in items:
         fields = dict(item["fields"])
         status_text = fields.get("Status", "")
+        evidence = [cite(root, relative, item["line"], item["line"],
+                         "check_plan_status.roadmap_item", "CONTRACT_RESOLVED")]
+        for field_name in sorted(fields):
+            field_lines = _roadmap_field_lines(lines, int(item["line"]), field_name)
+            if field_lines:
+                evidence.append(cite(root, relative, min(field_lines), max(field_lines),
+                                     "check_plan_status.roadmap_field", "CONTRACT_RESOLVED"))
         graph.add_node(Node(f"roadmap-item:{item['id']}", "roadmap-item", item["id"], "live-contract",
                             relative, "live",
                             {"status": check_plan_status._status_state(status_text) if status_text else "",
                              "status_text": status_text[:200], "owner": fields.get("Owner", "")[:200],
                              "fields": sorted(fields)},
-                            [cite(root, relative, item["line"], item["line"], "check_plan_status.roadmap_item",
-                                  "CONTRACT_RESOLVED")]))
+                            evidence))
     for item in items:
         source = f"roadmap-item:{item['id']}"
         fields = dict(item["fields"])
