@@ -129,13 +129,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:6a7d33fb7aa22b6b56f3b264e278e055760215a166b2ea2da9cf8c4139e613c9",
           "lines": [
             67,
@@ -217,17 +217,17 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:305166c6f6d0d730818d4694fc8fe13bb018adafe55b6fa463b39d5b3eea2513",
+          "detector": "extract.test-file-read",
+          "excerptHash": "sha256:acc53ea59b6b411c70efc229f799b8abcd1bc08da01d3aaaa977cea9ae865eb7",
           "lines": [
-            89,
-            89
+            88,
+            88
           ],
           "path": "scripts/test_validate_fleet.py"
         }
@@ -259,39 +259,17 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:7988807514097646382f0e68faf63772119aadbb1ddae7707476cefe17158bd9",
+          "detector": "extract.test-file-read",
+          "excerptHash": "sha256:28a118fa05ce6cd40ba51de6a02d65f34afdc3a5cf8b2779c702ca2f0a18c45e",
           "lines": [
-            237,
-            237
-          ],
-          "path": "scripts/test_fleet_atlas.py"
-        }
-      ],
-      "id": "edge:048897d2492752fe",
-      "kind": "verified_by",
-      "source": "skill:stack-profile",
-      "target": "test:scripts/test_fleet_atlas.py"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:b648e37704541ee26bd6e119ae495b564851befafea3f89f6f6b285393f4869f",
-          "lines": [
-            35,
-            35
+            356,
+            356
           ],
           "path": "scripts/test_fleet_atlas.py"
         }
@@ -561,39 +539,17 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:760e2e4839591f5997eba72c442f0fd01b7e11fa0aa8fc6adced467be2cacedd",
+          "detector": "extract.test-file-read",
+          "excerptHash": "sha256:8966068266e9aea171059982d98dd1dd6ffa3dcfdd57e38518ba0c851b388503",
           "lines": [
-            40,
-            40
-          ],
-          "path": "scripts/test_validate_fleet.py"
-        }
-      ],
-      "id": "edge:06ce9385e8953cbe",
-      "kind": "verified_by",
-      "source": "skill:incident-command",
-      "target": "test:scripts/test_validate_fleet.py"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:3e51c6140b8eef1be55524e0bc343245d5df002d81e75b2df6743b6936dfd4af",
-          "lines": [
-            39,
-            39
+            74,
+            74
           ],
           "path": "scripts/test_graph_contracts.py"
         }
@@ -1100,13 +1056,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:eee3d3cb9cca9fa2489b6a905ae2f33e68f83f0f8e811cef3a1bf543ba97db73",
           "lines": [
             59,
@@ -1276,17 +1232,17 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:53948247bf5288d4f42dc5f3ee3fa373d7112153590527714a848c1a6d11eb43",
+          "detector": "extract.test-file-read",
+          "excerptHash": "sha256:5d89da7d683e587e9fc6643a6bcd05d146930e6ddef452b6c3a1d8460169bc2a",
           "lines": [
-            60,
-            60
+            167,
+            167
           ],
           "path": "scripts/test_validate_fleet.py"
         }
@@ -1529,50 +1485,6 @@
       "kind": "cites",
       "source": "review:2026-08-30-route-003-approval-gate",
       "target": "review:2026-08-31-eval-20260831T045127Z-b6efb49b"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:a4dee00a639155c1aa00afbb98f32d3b13642ee522cb897bedd774519e939199",
-          "lines": [
-            256,
-            256
-          ],
-          "path": "scripts/test_platform_adapters.py"
-        }
-      ],
-      "id": "edge:0f3da811cb94500e",
-      "kind": "verified_by",
-      "source": "agent:software-engineer",
-      "target": "test:scripts/test_platform_adapters.py"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:2c764cddda597acdfcde8a5355bca334fba91af0afa08d8cbc7b54069b90a0c5",
-          "lines": [
-            275,
-            275
-          ],
-          "path": "scripts/test_validate_fleet.py"
-        }
-      ],
-      "id": "edge:0fa17679a77b1c02",
-      "kind": "verified_by",
-      "source": "bundle-file:operational-learning/assets/knowledge-index-template.md",
-      "target": "test:scripts/test_validate_fleet.py"
     },
     {
       "attrs": {},
@@ -1827,28 +1739,6 @@
       "target": "bundle-file:obs-alerting/scripts/graph_sandbox_alerts.py"
     },
     {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:4d7dbcaa82d54883e0987a20ac4f8e2dd253cd5814994f406bef1a632b238401",
-          "lines": [
-            392,
-            392
-          ],
-          "path": "scripts/test_validate_fleet.py"
-        }
-      ],
-      "id": "edge:1269dd09096e0240",
-      "kind": "verified_by",
-      "source": "agent:observability-engineer",
-      "target": "test:scripts/test_validate_fleet.py"
-    },
-    {
       "attrs": {},
       "class": "CONTRACT_RESOLVED",
       "evidence": [
@@ -1887,28 +1777,6 @@
       "kind": "evidenced_by",
       "source": "roadmap-item:GRADER-006",
       "target": "review:2026-08-28-build-probe-software-engineer"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:cf82243424db0adf65853ae0022daca74ac6ceca2fb37d4d093e8f98c2ffca62",
-          "lines": [
-            109,
-            109
-          ],
-          "path": "evals/test_engine_contract.py"
-        }
-      ],
-      "id": "edge:12f2a695999b8ff1",
-      "kind": "verified_by",
-      "source": "document:evals/engine_contract.py",
-      "target": "test:evals/test_engine_contract.py"
     },
     {
       "attrs": {
@@ -2342,17 +2210,17 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:b8560badd9fdddcb2e91431fc20186656c64373041d0acb918a8a1f4a7971957",
+          "detector": "extract.test-file-read",
+          "excerptHash": "sha256:693fc73792b50b887bde67dea62bdfdf7df074f6120008d99bf1c302a0f2bed1",
           "lines": [
-            253,
-            253
+            252,
+            252
           ],
           "path": "scripts/test_graph_contracts.py"
         }
@@ -2467,28 +2335,6 @@
       "kind": "verified_by",
       "source": "skill:incident-command",
       "target": "scenario:incident-command-handover-readback"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:b884a29211c22d4e8021196469de017330c561480ee57b13a3f10ec532b29d2f",
-          "lines": [
-            411,
-            411
-          ],
-          "path": "scripts/test_validate_fleet.py"
-        }
-      ],
-      "id": "edge:1b39ca6ce22ada97",
-      "kind": "verified_by",
-      "source": "scenario:agent-direct-scribe-checkout-binding-permits-prepared",
-      "target": "test:scripts/test_validate_fleet.py"
     },
     {
       "attrs": {
@@ -2985,28 +2831,6 @@
       "target": "review:2026-08-30-vscode-subagent-handoff-enforcement"
     },
     {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:6d03f31c719e0ce96562abd9bd4ea790e6d43c4bcf6302c3453aceb680f173a1",
-          "lines": [
-            682,
-            682
-          ],
-          "path": "scripts/test_fleet_atlas.py"
-        }
-      ],
-      "id": "edge:1f77b78c54b0c275",
-      "kind": "verified_by",
-      "source": "review:2026-08-24-full-skill-audit-batch-1",
-      "target": "test:scripts/test_fleet_atlas.py"
-    },
-    {
       "attrs": {},
       "class": "STATIC_EXTRACTED",
       "evidence": [
@@ -3028,13 +2852,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:d501b0aa62838c4219def5b07f6735000aee5e30ddc5724be10962b3cbd166a3",
           "lines": [
             104,
@@ -3151,28 +2975,6 @@
       "kind": "evidenced_by",
       "source": "roadmap-item:ROUTE-003",
       "target": "review:2026-08-31-eval-20260831T045127Z-b6efb49b"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:9459e4252ef5a1d72f4506942f8293f7ab73c5fcabf4c2bbf0c7ab9b232c9c9e",
-          "lines": [
-            23,
-            23
-          ],
-          "path": "evals/test_resolved_context.py"
-        }
-      ],
-      "id": "edge:211a18b6082ece32",
-      "kind": "verified_by",
-      "source": "agent:sre",
-      "target": "test:evals/test_resolved_context.py"
     },
     {
       "attrs": {
@@ -3329,13 +3131,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:b1ae390a36842a654a5e96cc67f192df0f132d2c7fd26b784a6439ff3f1f2ffe",
           "lines": [
             244,
@@ -3370,28 +3172,6 @@
       "kind": "verified_by",
       "source": "skill:obs-dashboards",
       "target": "scenario:discovery-obs-dashboards-edit-live"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:ff29c41fd46d6510448997955b7646aef4165ed2c1d4bda095ee919dcd6f66a2",
-          "lines": [
-            33,
-            33
-          ],
-          "path": "scripts/test_canary_tokens.py"
-        }
-      ],
-      "id": "edge:2478647527bb257a",
-      "kind": "verified_by",
-      "source": "reference:obs-logs/logql.md",
-      "target": "test:scripts/test_canary_tokens.py"
     },
     {
       "attrs": {},
@@ -3585,13 +3365,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:81c2298abeb75fd462371f1c5545f46b4c74255ff8c5843003e06b3ca5381fa7",
           "lines": [
             207,
@@ -3604,28 +3384,6 @@
       "kind": "verified_by",
       "source": "skill:service-readiness-audit",
       "target": "test:scripts/test_graph_contracts.py"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:05aec2d42752c373760912d9c8eec506db0cd9b0f604556575b93b7d925eb2cc",
-          "lines": [
-            683,
-            683
-          ],
-          "path": "scripts/test_fleet_atlas.py"
-        }
-      ],
-      "id": "edge:26f0f7c2d53f1cab",
-      "kind": "verified_by",
-      "source": "review:2026-08-20-route001-linux-canary",
-      "target": "test:scripts/test_fleet_atlas.py"
     },
     {
       "attrs": {
@@ -3692,28 +3450,6 @@
       "kind": "verified_by",
       "source": "skill:incident-investigation",
       "target": "scenario:discovery-incident-investigation-what-is-this-telling-me"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:d64ec5d1da661ddbcdc65af896c2b6325a4cdf9ab9e73ce20a4549e8b7d2851c",
-          "lines": [
-            274,
-            274
-          ],
-          "path": "scripts/test_validate_fleet.py"
-        }
-      ],
-      "id": "edge:27ef964a45073545",
-      "kind": "verified_by",
-      "source": "bundle-file:operational-learning/assets/alert-card-template.md",
-      "target": "test:scripts/test_validate_fleet.py"
     },
     {
       "attrs": {},
@@ -3863,13 +3599,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:cad605d426418e3dfa1bdfb63555685cfb064b09f900f22c317dc7a6173461d5",
           "lines": [
             159,
@@ -4188,28 +3924,6 @@
       "target": "skill:gcp-ops"
     },
     {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:736516dbd4b38bcaf3cc1daf765d4a85e6dfd5acfc458bfd577f8dfa60a2d60f",
-          "lines": [
-            310,
-            310
-          ],
-          "path": "scripts/test_validate_fleet.py"
-        }
-      ],
-      "id": "edge:2e4bd6da73e949a0",
-      "kind": "verified_by",
-      "source": "reference:agent-authoring/roster.md",
-      "target": "test:scripts/test_validate_fleet.py"
-    },
-    {
       "attrs": {},
       "class": "STATIC_EXTRACTED",
       "evidence": [
@@ -4292,50 +4006,6 @@
       "kind": "cites",
       "source": "skill:service-lifecycle",
       "target": "bundle-file:service-lifecycle/context-requirements.yaml"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:e6e197991a5c3b0e79cca690d7ef337673810c3bce2f7589974c8fd34e8fa239",
-          "lines": [
-            28,
-            28
-          ],
-          "path": "evals/test_resolved_context.py"
-        }
-      ],
-      "id": "edge:2fb15c724e478b6e",
-      "kind": "verified_by",
-      "source": "skill:incident-investigation",
-      "target": "test:evals/test_resolved_context.py"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:521e4c6009b3920f9138321363cd8f9da6e317f42c571d9909d2d7f09e9ffd5c",
-          "lines": [
-            173,
-            173
-          ],
-          "path": "evals/test_execution_profiles.py"
-        }
-      ],
-      "id": "edge:2fe06fc287c1b768",
-      "kind": "verified_by",
-      "source": "document:evals/execution_profiles.py",
-      "target": "test:evals/test_execution_profiles.py"
     },
     {
       "attrs": {},
@@ -4593,39 +4263,17 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:29db8ec0ad812b8683ea6702e687523c4accd869759ad3383ca3fba121cfd240",
+          "detector": "extract.test-file-read",
+          "excerptHash": "sha256:4d4817e74fe30809bda3b04ef8253770046a790df010e0dcebe02debe163549a",
           "lines": [
-            35,
-            35
-          ],
-          "path": "scripts/test_canary_tokens.py"
-        }
-      ],
-      "id": "edge:325b1c6d149f24b7",
-      "kind": "verified_by",
-      "source": "reference:investigation-depth/first-response.md",
-      "target": "test:scripts/test_canary_tokens.py"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:ac137fd0d34ae31ebd83d1e55102618d31c15f733d46233cb65ac6352119f3af",
-          "lines": [
-            244,
-            244
+            266,
+            266
           ],
           "path": "scripts/test_release_skill_contracts.py"
         }
@@ -4656,28 +4304,6 @@
       "kind": "near_miss_for",
       "source": "scenario:discovery-akamai-edge-defers-pcf",
       "target": "skill:akamai-edge"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:71415d08942bdbf86827bd9a67449a6a65ceb80cc816baa2e3fc4be44b43e7c6",
-          "lines": [
-            470,
-            470
-          ],
-          "path": "scripts/test_check_links.py"
-        }
-      ],
-      "id": "edge:32ab3c0c6b68a8be",
-      "kind": "verified_by",
-      "source": "document:evals/README.md",
-      "target": "test:scripts/test_check_links.py"
     },
     {
       "attrs": {
@@ -4769,13 +4395,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:f44af7fb5d80771d493847c1207aa019e34cd02c8d9b659b75dbb13758e10ad4",
           "lines": [
             267,
@@ -4834,28 +4460,6 @@
       "target": "agent:sre"
     },
     {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:cfc629018e2243d5c17e055ba19fc769bdb4189c73e244304f965454de93a73b",
-          "lines": [
-            37,
-            37
-          ],
-          "path": "scripts/test_validate_fleet.py"
-        }
-      ],
-      "id": "edge:34af21538233138e",
-      "kind": "verified_by",
-      "source": "skill:postmortem",
-      "target": "test:scripts/test_validate_fleet.py"
-    },
-    {
       "attrs": {},
       "class": "STATIC_EXTRACTED",
       "evidence": [
@@ -4877,13 +4481,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:0339ef33e3dfcf2f174f73698a6dc672ecb4e8a19f9a80cf3cbd5caf02ed41bf",
           "lines": [
             59,
@@ -4899,13 +4503,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:8766180cab15866899b6a6e29e5b7f5f2deff385102119a3e96d72d682442a85",
           "lines": [
             294,
@@ -5089,13 +4693,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:f24f1aa4dadad0451b142b6c3fd218e6a485a1da914192186d1e11401d8b48a5",
           "lines": [
             188,
@@ -5151,17 +4755,17 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:8585ba48852f372bfce5cf08cad9fda1da267397eddd66aebf4261b602ebd238",
+          "detector": "extract.test-file-read",
+          "excerptHash": "sha256:50f724528cf09f100fcb7a0086ef859c86be5ee743c5be4fdf5f4a1a4d7bc9cb",
           "lines": [
-            109,
-            109
+            117,
+            117
           ],
           "path": "scripts/test_validate_fleet.py"
         }
@@ -5237,17 +4841,17 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:2b44ef0dda8bc3351943751dcf8b4174c363a683d486c89b5d76e6e1c6f1c2ca",
+          "detector": "extract.test-file-read",
+          "excerptHash": "sha256:9fa95f6eee31cda3fa38735c552ec3c3451b3925610fbf9ee6de1c6dc1f05afe",
           "lines": [
-            185,
-            185
+            184,
+            184
           ],
           "path": "scripts/test_validate_fleet.py"
         }
@@ -5385,28 +4989,6 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:82a2d8f5680f66eec381224efb2f78a583bd2f4983324e3e27533a08a5c69c7b",
-          "lines": [
-            53,
-            53
-          ],
-          "path": "scripts/test_observability_skill_contracts.py"
-        }
-      ],
-      "id": "edge:38e43281e1a0d7a0",
-      "kind": "verified_by",
-      "source": "skill:obs-logs",
-      "target": "test:scripts/test_observability_skill_contracts.py"
-    },
-    {
-      "attrs": {
         "expected_alternative": "agent:reviewer"
       },
       "class": "STATIC_EXTRACTED",
@@ -5518,13 +5100,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:760d494cb3aa63d079d0a0b9a3c0c27196dfa3b88491a15e35a4e28a43e16b97",
           "lines": [
             244,
@@ -5648,17 +5230,17 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:d9eb1619f0299f764fa1f21dbc20c782160170d5548e778a9071482f71cec646",
+          "detector": "extract.test-file-read",
+          "excerptHash": "sha256:d6c91904c83e32b42f4bbf87783fa7c5a0de7a388fb59fd7b1fd1ec1962e9255",
           "lines": [
-            271,
-            271
+            270,
+            270
           ],
           "path": "scripts/test_graph_contracts.py"
         }
@@ -5667,28 +5249,6 @@
       "kind": "verified_by",
       "source": "reference:investigation-depth/first-response.md",
       "target": "test:scripts/test_graph_contracts.py"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:abfa0ead2fb331ae4c6c0a857eb50006c894d28376bdc98cdbbb2e8e3c28fc29",
-          "lines": [
-            265,
-            265
-          ],
-          "path": "scripts/test_check_links.py"
-        }
-      ],
-      "id": "edge:3bc40442e5f94219",
-      "kind": "verified_by",
-      "source": "skill:incident-drill",
-      "target": "test:scripts/test_check_links.py"
     },
     {
       "attrs": {},
@@ -6096,13 +5656,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:cf067516900dd4c4d9e5281dc97ed302e8b6d016dc365d8e6614183c8c3b62e4",
           "lines": [
             168,
@@ -6388,28 +5948,6 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:6767ff22e0f62f1e8e24d7e1aeb768414c3ace7e5c12ede5aa113e8ef70a6839",
-          "lines": [
-            623,
-            623
-          ],
-          "path": "scripts/test_fleet_atlas.py"
-        }
-      ],
-      "id": "edge:447a1483f4455d7d",
-      "kind": "verified_by",
-      "source": "document:hooks/hooks.json",
-      "target": "test:scripts/test_fleet_atlas.py"
-    },
-    {
-      "attrs": {
         "via": "generate_platform_adapters.expected_outputs"
       },
       "class": "CONTRACT_RESOLVED",
@@ -6498,13 +6036,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:bbf4a4382f7a3cdae2f9d858c9dfaa1f30e2a5c77dc87f32823d2548a6666f4a",
           "lines": [
             69,
@@ -6606,28 +6144,6 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:0d62960da33ec2a86fbae10e8c63e3e8f1532569b751ddf6f78b14ee1a9aacce",
-          "lines": [
-            18,
-            18
-          ],
-          "path": "scripts/test_plan_status.py"
-        }
-      ],
-      "id": "edge:466351fd25a50de6",
-      "kind": "verified_by",
-      "source": "document:docs/fleet-roadmap.md",
-      "target": "test:scripts/test_plan_status.py"
-    },
-    {
-      "attrs": {
         "via": "generate_platform_adapters.expected_outputs"
       },
       "class": "CONTRACT_RESOLVED",
@@ -6689,28 +6205,6 @@
       "kind": "verified_by",
       "source": "skill:investigation-depth",
       "target": "scenario:investigation-depth-self-recovery-is-not-no-incident"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:e6e80fa886913573c54cb0e8c813086db5e3e9074f5f1c1cf196794acb322844",
-          "lines": [
-            308,
-            308
-          ],
-          "path": "scripts/test_validate_fleet.py"
-        }
-      ],
-      "id": "edge:46d41fa34e2c4115",
-      "kind": "verified_by",
-      "source": "skill:agent-authoring",
-      "target": "test:scripts/test_validate_fleet.py"
     },
     {
       "attrs": {},
@@ -7139,28 +6633,6 @@
       "target": "reference:agent-authoring/roster.md"
     },
     {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:9d26779c9609e547fb1c7490c92d46d912c6c11f4471efff395222c1a75bab41",
-          "lines": [
-            273,
-            273
-          ],
-          "path": "scripts/test_validate_fleet.py"
-        }
-      ],
-      "id": "edge:4d3a9ac97e369944",
-      "kind": "verified_by",
-      "source": "bundle-file:operational-learning/assets/service-card-template.md",
-      "target": "test:scripts/test_validate_fleet.py"
-    },
-    {
       "attrs": {},
       "class": "STATIC_EXTRACTED",
       "evidence": [
@@ -7568,28 +7040,6 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:f3c5e447d8b09fe729ef4e984f5d0168a07928c6cc68574ee5c994c95ede0635",
-          "lines": [
-            202,
-            202
-          ],
-          "path": "scripts/test_check_links.py"
-        }
-      ],
-      "id": "edge:532934dc16b2b4e7",
-      "kind": "verified_by",
-      "source": "skill:service-lifecycle",
-      "target": "test:scripts/test_check_links.py"
-    },
-    {
-      "attrs": {
         "batch": "20260829T030329Z-db161755"
       },
       "class": "STATIC_EXTRACTED",
@@ -7867,13 +7317,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:e57fec0f494a27f8ef3ae10fc724605457e411bd0fb3d7668a40660c560f27a4",
           "lines": [
             138,
@@ -8082,28 +7532,6 @@
       "target": "reference:pcf-ops/application-crashes-and-health-checks.md"
     },
     {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:9ba4c02de45c35a4fd5dc9d263d3ab7de65b3e94da7829053b4aff06e12102b4",
-          "lines": [
-            52,
-            52
-          ],
-          "path": "scripts/test_fleet_atlas.py"
-        }
-      ],
-      "id": "edge:59d8d4b756ebff15",
-      "kind": "verified_by",
-      "source": "agent:sre",
-      "target": "test:scripts/test_fleet_atlas.py"
-    },
-    {
       "attrs": {},
       "class": "STATIC_EXTRACTED",
       "evidence": [
@@ -8187,13 +7615,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:76ab8ab10a80906104544a1263f046b4828f3b5cfb017fabcbdfaaf021c87295",
           "lines": [
             263,
@@ -8339,13 +7767,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:99c96129153a226c1f38cdb8056c6a19f0f5336bf4fe91d5c86b920c7e3d9184",
           "lines": [
             297,
@@ -8465,28 +7893,6 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:2da418858de2bfc16bb3739a9f0597bd8acdff606be41f1057dbe6aae3f6595f",
-          "lines": [
-            272,
-            272
-          ],
-          "path": "scripts/test_validate_fleet.py"
-        }
-      ],
-      "id": "edge:5e813df96971b0f7",
-      "kind": "verified_by",
-      "source": "reference:operational-learning/disposition-policy.md",
-      "target": "test:scripts/test_validate_fleet.py"
-    },
-    {
-      "attrs": {
         "mode": "discovery"
       },
       "class": "STATIC_EXTRACTED",
@@ -8572,28 +7978,6 @@
       "kind": "near_miss_for",
       "source": "scenario:discovery-manual-deploy-does-not-autofire",
       "target": "skill:pcf-deploy"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:5577f4cc70ba267d84393b786277955549a36d6a43b3185c34f6ee8c11f56827",
-          "lines": [
-            1572,
-            1572
-          ],
-          "path": "evals/test_run_evals.py"
-        }
-      ],
-      "id": "edge:5f405e6a9acee44e",
-      "kind": "verified_by",
-      "source": "validator:scripts/readonly-guard.py",
-      "target": "test:evals/test_run_evals.py"
     },
     {
       "attrs": {
@@ -8700,28 +8084,6 @@
       "kind": "evidenced_by",
       "source": "roadmap-item:HOST-002",
       "target": "review:2026-08-30-live-backlog-refresh"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:e31e769f9e1ece1f6132c9af3181c60247179a12905472d1b6dcf260f53e5d41",
-          "lines": [
-            628,
-            628
-          ],
-          "path": "scripts/test_fleet_atlas.py"
-        }
-      ],
-      "id": "edge:607d6a53a31f8ca4",
-      "kind": "verified_by",
-      "source": "validator:scripts/evidence_envelope.py",
-      "target": "test:scripts/test_fleet_atlas.py"
     },
     {
       "attrs": {
@@ -8915,13 +8277,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:01cc641ea5ea29e8612430c65ff89fdf05a13aa42769397a78398af4c44239e8",
           "lines": [
             120,
@@ -8976,28 +8338,6 @@
       "kind": "evidenced_by",
       "source": "roadmap-item:GRADER-004",
       "target": "review:2026-08-26-sre-human-assistance-measurement-notes"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:76beb8e3fc9073a5881dedd41b3face139cea32fae07da1dc6f5cf522e426888",
-          "lines": [
-            417,
-            417
-          ],
-          "path": "scripts/test_validate_fleet.py"
-        }
-      ],
-      "id": "edge:64565eacea4e55c8",
-      "kind": "verified_by",
-      "source": "scenario:agent-direct-scribe-checkout-binding-bare-assertion-stays-proposed",
-      "target": "test:scripts/test_validate_fleet.py"
     },
     {
       "attrs": {
@@ -9305,13 +8645,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:dbec1c4d23e35fa81405197a018c4eb43b17e08d55dae82163315172d92ac191",
           "lines": [
             235,
@@ -9671,28 +9011,6 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:d6bdc570768eb5133229946873040dabfca2f482642d0242f980e20a0f301996",
-          "lines": [
-            270,
-            270
-          ],
-          "path": "scripts/test_validate_fleet.py"
-        }
-      ],
-      "id": "edge:6b511862656cedd2",
-      "kind": "verified_by",
-      "source": "schema:evidence-envelope-v1",
-      "target": "test:scripts/test_validate_fleet.py"
-    },
-    {
-      "attrs": {
         "via": "comment"
       },
       "class": "STATIC_INFERRED",
@@ -9715,13 +9033,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:a5049bbf628ed3403eaf7ebb081d1fd11bcf23776c65b7bc524e16ad83dd8486",
           "lines": [
             248,
@@ -9737,13 +9055,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:25b95afc34ec87c651ff33ea814d7cf1a5bdfe56dc840bb15b4e663e86cf5504",
           "lines": [
             193,
@@ -9759,13 +9077,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:db9d6af571c0e9eebe9d07a79fef6de3108cdf951c3399888c4454dd905fada6",
           "lines": [
             214,
@@ -9778,28 +9096,6 @@
       "kind": "verified_by",
       "source": "skill:gcp-ops",
       "target": "test:scripts/test_platform_skill_contracts.py"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:ec52406d3ee7affc656aad69069f09d68977520c9b4b7a8796e116c70312d21a",
-          "lines": [
-            685,
-            685
-          ],
-          "path": "scripts/test_fleet_atlas.py"
-        }
-      ],
-      "id": "edge:6c5e47081baaab10",
-      "kind": "verified_by",
-      "source": "review:2026-08-25-grader-003-verification-batch",
-      "target": "test:scripts/test_fleet_atlas.py"
     },
     {
       "attrs": {
@@ -9888,28 +9184,6 @@
       "kind": "near_miss_for",
       "source": "scenario:discovery-akamai-edge-defers-obs-metrics",
       "target": "skill:akamai-edge"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:e8744268a09f5f718dd5132ebd756da0a48de1c0b6b092f41b96f8c8879ed93b",
-          "lines": [
-            98,
-            98
-          ],
-          "path": "scripts/test_fleet_atlas.py"
-        }
-      ],
-      "id": "edge:6da5e21f3dfb2a45",
-      "kind": "verified_by",
-      "source": "validator:scripts/fleet_atlas.py",
-      "target": "test:scripts/test_fleet_atlas.py"
     },
     {
       "attrs": {
@@ -10355,28 +9629,6 @@
       "kind": "delegates_to",
       "source": "agent:software-engineer",
       "target": "agent:researcher"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:c3c4e7c8514a0a34daf1520c7f56a953e18fb28417a2b082048525e2aeb45e76",
-          "lines": [
-            37,
-            37
-          ],
-          "path": "scripts/test_skill_asset_contracts.py"
-        }
-      ],
-      "id": "edge:731a4e55611cc386",
-      "kind": "verified_by",
-      "source": "bundle-file:service-readiness-audit/context-requirements.yaml",
-      "target": "test:scripts/test_skill_asset_contracts.py"
     },
     {
       "attrs": {
@@ -11299,13 +10551,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:2898fb88ad0458dfb5db886d060b9e6aa1ca46fab7ae430598be71545e7ff8a0",
           "lines": [
             122,
@@ -11427,17 +10679,17 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:ff89ff47b40f68c6737086f2305021305d59e8819cad080413670ae6f8b95e69",
+          "detector": "extract.test-file-read",
+          "excerptHash": "sha256:4d7ca58c5989c2961f85886dec1cbd86e4b6626887cdf2c377ea4b3ccbe7eaca",
           "lines": [
-            83,
-            83
+            81,
+            81
           ],
           "path": "scripts/test_graph_contracts.py"
         }
@@ -11493,13 +10745,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:fb6a56a18b76edcade0d67d9507b3bfb64f1cac3073faf687fa078d55219800d",
           "lines": [
             35,
@@ -11709,17 +10961,17 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:90848e0a8e0d5c39441d2e29e1ac4398492899d2a15257525bf84332615de72c",
+          "detector": "extract.test-file-read",
+          "excerptHash": "sha256:2e12d8c6eb488fc9b424795147391ac8a6831b67be0d195ccc75f602fcd0ae72",
           "lines": [
-            38,
-            38
+            300,
+            300
           ],
           "path": "scripts/test_validate_fleet.py"
         }
@@ -11728,28 +10980,6 @@
       "kind": "verified_by",
       "source": "skill:operational-learning",
       "target": "test:scripts/test_validate_fleet.py"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:98bed8de585c4cde72b465d6e55e1f3dd856fe7ea6e6984639eac115eeca651a",
-          "lines": [
-            18,
-            18
-          ],
-          "path": "scripts/test_incident_drill_harness.py"
-        }
-      ],
-      "id": "edge:83972a35b5d76ee0",
-      "kind": "verified_by",
-      "source": "bundle-file:incident-drill/scripts/run_lane.py",
-      "target": "test:scripts/test_incident_drill_harness.py"
     },
     {
       "attrs": {
@@ -11838,28 +11068,6 @@
       "kind": "generated_from",
       "source": "generated-projection:platforms/copilot/skills/obs-metrics/references/gcp-monitoring.md",
       "target": "reference:obs-metrics/gcp-monitoring.md"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:28ae81c16bd40def8ca1d977016f77ed05be5237c42197ae472014376da337a5",
-          "lines": [
-            423,
-            423
-          ],
-          "path": "scripts/test_validate_fleet.py"
-        }
-      ],
-      "id": "edge:859f17955ad04057",
-      "kind": "verified_by",
-      "source": "scenario:agent-direct-scribe-checkout-binding-forbidden-root-blocked",
-      "target": "test:scripts/test_validate_fleet.py"
     },
     {
       "attrs": {},
@@ -12122,50 +11330,6 @@
       "target": "roadmap-item:GRADER-003"
     },
     {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:5d61d7460c7da3c53bd2a64f2c42f44879037f33aa78438bc36cef0da11cb289",
-          "lines": [
-            228,
-            228
-          ],
-          "path": "scripts/test_skill_asset_contracts.py"
-        }
-      ],
-      "id": "edge:87f71ede86a6408d",
-      "kind": "verified_by",
-      "source": "bundle-file:ops-tooling/assets/cli_skeleton.py",
-      "target": "test:scripts/test_skill_asset_contracts.py"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:3f0ee916433f06c4669334c4d0ffe9d5414e86c5a14058b1aca734944becdb57",
-          "lines": [
-            358,
-            358
-          ],
-          "path": "scripts/test_check_links.py"
-        }
-      ],
-      "id": "edge:882b0a887d36ecbb",
-      "kind": "verified_by",
-      "source": "document:docs/README.md",
-      "target": "test:scripts/test_check_links.py"
-    },
-    {
       "attrs": {},
       "class": "STATIC_EXTRACTED",
       "evidence": [
@@ -12380,13 +11544,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:0b08693179d04ef2e351b6387d66853bfaf49f2a0760ee3d6ab6b1913682ef5b",
           "lines": [
             34,
@@ -12486,28 +11650,6 @@
       "kind": "depends_on",
       "source": "roadmap-item:ROUTE-003",
       "target": "roadmap-item:GRADER-005"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:1e6eea16162215c157644f3dba84cbe7b04d995a3a7c2f7c41eac2f6c48cc03c",
-          "lines": [
-            42,
-            42
-          ],
-          "path": "scripts/test_validate_fleet.py"
-        }
-      ],
-      "id": "edge:8f29b9ce669bff4e",
-      "kind": "verified_by",
-      "source": "bundle-file:postmortem/assets/postmortem-template.md",
-      "target": "test:scripts/test_validate_fleet.py"
     },
     {
       "attrs": {
@@ -12791,13 +11933,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:812b47c1b730409e020c5724dfdf84dfaaf4608e0e1d4acbcb7c98cd3f47f5a9",
           "lines": [
             240,
@@ -12836,17 +11978,17 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:8ed42b480a29786bc574011f5f9510796831831416938ea579d81409eb7f1af6",
+          "detector": "extract.test-file-read",
+          "excerptHash": "sha256:cebdf4b0696cc0d4a6e6b0ff1d746197ab40a4849912615a8d92f74c355daef0",
           "lines": [
-            41,
-            41
+            625,
+            625
           ],
           "path": "scripts/test_validate_fleet.py"
         }
@@ -12981,28 +12123,6 @@
       "kind": "evidenced_by",
       "source": "roadmap-item:ROUTE-003",
       "target": "review:2026-08-30-live-backlog-refresh"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:e2c00218ce40c047d7d4af543c8213a824f02dee0378c41a9804e513067d8379",
-          "lines": [
-            78,
-            78
-          ],
-          "path": "scripts/test_skill_asset_contracts.py"
-        }
-      ],
-      "id": "edge:96b48d87ab0bf74c",
-      "kind": "verified_by",
-      "source": "bundle-file:service-lifecycle/context-requirements.yaml",
-      "target": "test:scripts/test_skill_asset_contracts.py"
     },
     {
       "attrs": {
@@ -13388,17 +12508,17 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:042455e35d0bfa41f226c7814e569d518952ed9e5f2cc2721e4fc00781a6209c",
+          "detector": "extract.test-file-read",
+          "excerptHash": "sha256:81ac0ccc3745b2f06f7a108ccda3210ac8d11b3da67d655be8687cc6ec970398",
           "lines": [
-            241,
-            241
+            260,
+            260
           ],
           "path": "scripts/test_release_skill_contracts.py"
         }
@@ -13452,13 +12572,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:a31e8f7d38cc403504bfdb6488a7a0e7242b21095e456f9eeb69df104771e146",
           "lines": [
             178,
@@ -13511,28 +12631,6 @@
       "kind": "cites",
       "source": "skill:obs-dashboards",
       "target": "bundle-file:obs-dashboards/scripts/dashboard_hygiene.py"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:24feb95e802b644f99143c268b3dcfbab15611b4cc111c4142fd820d324102e0",
-          "lines": [
-            646,
-            646
-          ],
-          "path": "scripts/test_mutation_guard.py"
-        }
-      ],
-      "id": "edge:9d748286e0b04ac8",
-      "kind": "verified_by",
-      "source": "bundle-file:obs-dashboards/scripts/dashboard_hygiene.py",
-      "target": "test:scripts/test_mutation_guard.py"
     },
     {
       "attrs": {
@@ -13602,35 +12700,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:decccadfc4fd6c1333742311c2986870af13cadd9c5fdea7aca06e1fe48c7257",
-          "lines": [
-            39,
-            39
-          ],
-          "path": "scripts/test_validate_fleet.py"
-        }
-      ],
-      "id": "edge:9ea9b66bfca8fb63",
-      "kind": "verified_by",
-      "source": "skill:service-lifecycle",
-      "target": "test:scripts/test_validate_fleet.py"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:815907ffc5dc127361f766ed0f035aae7c7a687819d6f5c6ad25632170f88bac",
           "lines": [
             121,
@@ -13749,28 +12825,6 @@
       "kind": "cites",
       "source": "review:2026-08-30-graph-003-current-runtime-evidence",
       "target": "reference:runbook/graph-sandbox.md"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:e75784f771967a23c46dc567d6cec3aa5606ff9e24a6cd9113cb2ba7ee5c222c",
-          "lines": [
-            935,
-            935
-          ],
-          "path": "scripts/test_fleet_atlas.py"
-        }
-      ],
-      "id": "edge:a09c4ac3cef2548c",
-      "kind": "verified_by",
-      "source": "reference:stack-profile/copilot-models.md",
-      "target": "test:scripts/test_fleet_atlas.py"
     },
     {
       "attrs": {
@@ -14028,13 +13082,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:e259eb27496d052f8c89ba26f79f302e0a80424bac074021b01763472c86413f",
           "lines": [
             290,
@@ -14369,13 +13423,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:d07811c86f11d8422a50c80e85a4c3055b07bdc7e0cd40bc5acb6464b523d896",
           "lines": [
             169,
@@ -14795,13 +13849,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:4a0d1c8df2398a81beb8af4b2b88cc07f8da043849af3d282d7ab1302a24f52f",
           "lines": [
             37,
@@ -14817,17 +13871,17 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:2647363a3527f30e0b6de1288ed322f579b5d506e75ce0fa8e968bf36d1aa328",
+          "detector": "extract.test-file-read",
+          "excerptHash": "sha256:ffcf5038edea2dba3c5b82b1e44eeb506fc41220e236d7c4a7ec18bf4be7ce7b",
           "lines": [
-            108,
-            108
+            155,
+            155
           ],
           "path": "scripts/test_validate_fleet.py"
         }
@@ -14968,28 +14022,6 @@
       "target": "reference:database-reliability/sql-server-migrations.md"
     },
     {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:1ee30b452f27254b3fc67b30c7932db9c720fc26f3f3140f5b22956fb04fe2b5",
-          "lines": [
-            634,
-            634
-          ],
-          "path": "scripts/test_fleet_atlas.py"
-        }
-      ],
-      "id": "edge:b0574e9dd47b12f3",
-      "kind": "verified_by",
-      "source": "document:evals/engine_contract.py",
-      "target": "test:scripts/test_fleet_atlas.py"
-    },
-    {
       "attrs": {},
       "class": "STATIC_EXTRACTED",
       "evidence": [
@@ -15050,28 +14082,6 @@
       "kind": "generated_from",
       "source": "generated-projection:platforms/copilot/skills/workflow-graph-engineering/references/observability-and-evaluation.md",
       "target": "reference:workflow-graph-engineering/observability-and-evaluation.md"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:9c6fc37cffb6c552eaddb042326f090cde1309dd2b4edc51f06cbce0d3a3e002",
-          "lines": [
-            869,
-            869
-          ],
-          "path": "scripts/test_fleet_atlas.py"
-        }
-      ],
-      "id": "edge:b0edd30ef056574f",
-      "kind": "verified_by",
-      "source": "document:evals/README.md",
-      "target": "test:scripts/test_fleet_atlas.py"
     },
     {
       "attrs": {
@@ -15303,28 +14313,6 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:be7c44259a096876f959a04141590525ef3b77de19d927670531f97803badb05",
-          "lines": [
-            47,
-            47
-          ],
-          "path": "scripts/test_canary_tokens.py"
-        }
-      ],
-      "id": "edge:b5225003508d3b9e",
-      "kind": "verified_by",
-      "source": "reference:obs-metrics/wql.md",
-      "target": "test:scripts/test_canary_tokens.py"
-    },
-    {
-      "attrs": {
         "predicate": "a form or any user input to submit"
       },
       "class": "STATIC_EXTRACTED",
@@ -15475,13 +14463,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:babf76ddcf2adf2e830857af9e2f10c83a4ed9a7e4f5b29be2a4b6d2213c31cc",
           "lines": [
             191,
@@ -15755,28 +14743,6 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:d7cd65fdd8355ff0780790fc34f1c9d8c1fc60c3c589970fc26b2a5c860671f2",
-          "lines": [
-            35,
-            35
-          ],
-          "path": "scripts/test_validate_fleet.py"
-        }
-      ],
-      "id": "edge:b9b0ca033ae071ba",
-      "kind": "verified_by",
-      "source": "agent:scribe",
-      "target": "test:scripts/test_validate_fleet.py"
-    },
-    {
-      "attrs": {
         "via": "roster-lane"
       },
       "class": "STATIC_INFERRED",
@@ -16012,28 +14978,6 @@
       "target": "bundle-file:incident-drill/assets/scenarios/checkout-payments-timeout/ground-truth.md"
     },
     {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:b2386d786120eba04eae7eb23a5c854ce45d859479f60e78a1dc639340e05a4a",
-          "lines": [
-            36,
-            36
-          ],
-          "path": "scripts/test_validate_fleet.py"
-        }
-      ],
-      "id": "edge:be6e5a36ec39d225",
-      "kind": "verified_by",
-      "source": "skill:runbook",
-      "target": "test:scripts/test_validate_fleet.py"
-    },
-    {
       "attrs": {},
       "class": "STATIC_EXTRACTED",
       "evidence": [
@@ -16183,13 +15127,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:fbbda76729962ba8645dd9eb5c0936a2b9f478ab0ce72938b145630c9f78b1c7",
           "lines": [
             204,
@@ -16202,28 +15146,6 @@
       "kind": "verified_by",
       "source": "skill:service-lifecycle",
       "target": "test:scripts/test_graph_contracts.py"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:9e91bac7317d6aa8258f1b2de5091f07a473e5b1d985a44d66686afb177c0e23",
-          "lines": [
-            633,
-            633
-          ],
-          "path": "scripts/test_fleet_atlas.py"
-        }
-      ],
-      "id": "edge:c026f2e53b6c990b",
-      "kind": "verified_by",
-      "source": "document:evals/execution_profiles.py",
-      "target": "test:scripts/test_fleet_atlas.py"
     },
     {
       "attrs": {
@@ -16605,28 +15527,6 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:eed16c78fc5c480fa60338964cc6eb854c8e01255e9e8b2f708a4c4f284cff82",
-          "lines": [
-            311,
-            311
-          ],
-          "path": "scripts/test_validate_fleet.py"
-        }
-      ],
-      "id": "edge:c38f2e994449d09a",
-      "kind": "verified_by",
-      "source": "skill:agent-security",
-      "target": "test:scripts/test_validate_fleet.py"
-    },
-    {
-      "attrs": {
         "batch": "20260831T045127Z-b6efb49b"
       },
       "class": "STATIC_EXTRACTED",
@@ -16649,17 +15549,17 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:2c670c4dae16d092c443914f276973129b89cf94adbd47e051a283dfd1436648",
           "lines": [
-            827,
-            827
+            883,
+            883
           ],
           "path": "scripts/test_fleet_atlas.py"
         }
@@ -16968,28 +15868,6 @@
       "kind": "evidenced_by",
       "source": "roadmap-item:ROUTE-003",
       "target": "review:2026-08-22-skill-clarity-routing-graph-audit"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:d0a4f753b007902fbf54733b9d164b145726ecd506f5d40b9a7d133fd8b3198c",
-          "lines": [
-            33,
-            33
-          ],
-          "path": "scripts/test_platform_adapters.py"
-        }
-      ],
-      "id": "edge:c7613cc67ac7c5f4",
-      "kind": "verified_by",
-      "source": "document:hooks/hooks.json",
-      "target": "test:scripts/test_platform_adapters.py"
     },
     {
       "attrs": {
@@ -17403,28 +16281,6 @@
       "target": "roadmap-item:CONTEXT-001"
     },
     {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:3f506419f14bc9c96bfb0582a033b9ba22e2082e19a4d9f763f2c124d531903f",
-          "lines": [
-            32,
-            32
-          ],
-          "path": "scripts/test_canary_tokens.py"
-        }
-      ],
-      "id": "edge:ccc98a199cc16d25",
-      "kind": "verified_by",
-      "source": "reference:obs-metrics/promql.md",
-      "target": "test:scripts/test_canary_tokens.py"
-    },
-    {
       "attrs": {},
       "class": "STATIC_EXTRACTED",
       "evidence": [
@@ -17530,17 +16386,17 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:42b13365f072351287f9ef33b61df6a3f2960eeff6cfd8fec0c63b96b7d0af23",
+          "detector": "extract.test-file-read",
+          "excerptHash": "sha256:a370116aad27f30649fabf8ccd0385a59705473075cf664ab2cc435e6e86e9d7",
           "lines": [
-            77,
-            77
+            76,
+            76
           ],
           "path": "scripts/test_graph_contracts.py"
         }
@@ -17549,28 +16405,6 @@
       "kind": "verified_by",
       "source": "scenario:agent-direct-sre-readonly-triage",
       "target": "test:scripts/test_graph_contracts.py"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:444830af5ab18e9bb96dba49732e152ed89df0527a5c3a4d8d5145ddb83aa19a",
-          "lines": [
-            62,
-            62
-          ],
-          "path": "scripts/test_canary_tokens.py"
-        }
-      ],
-      "id": "edge:ce6890aef48068ba",
-      "kind": "verified_by",
-      "source": "reference:obs-traces/traceql.md",
-      "target": "test:scripts/test_canary_tokens.py"
     },
     {
       "attrs": {
@@ -17635,28 +16469,6 @@
       "kind": "loads_when",
       "source": "skill:agent-authoring",
       "target": "reference:agent-authoring/skill-portability.md"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:0862eb23135e84a43b6abb1fd906ce1da456bf91ce29d0a95f9b847df4488e08",
-          "lines": [
-            25,
-            25
-          ],
-          "path": "scripts/test_incident_drill_harness.py"
-        }
-      ],
-      "id": "edge:cef68dff7131fd0e",
-      "kind": "verified_by",
-      "source": "bundle-file:incident-drill/scripts/drill_report.py",
-      "target": "test:scripts/test_incident_drill_harness.py"
     },
     {
       "attrs": {},
@@ -17894,17 +16706,17 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:4937bd3cdf395bb1c26e37210e6eb0d211225c031407aa73cc261007f9a86b0f",
+          "detector": "extract.test-file-read",
+          "excerptHash": "sha256:8585fecdce4d3e5aa3005ab007315229184480fa4386a5f9189d20a0e5beb45e",
           "lines": [
-            208,
-            208
+            207,
+            207
           ],
           "path": "scripts/test_skill_asset_contracts.py"
         }
@@ -17982,13 +16794,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:4756054134302ccd2c04090e5a2240b344f5e5ac120e2fca398916219c7e958d",
           "lines": [
             298,
@@ -18110,17 +16922,17 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:05e39bf0371f5243bca3a6e2f013efd4ae39aedd1a615d9ebf1c91d8e04d8b3a",
+          "detector": "extract.test-file-read",
+          "excerptHash": "sha256:bf115330e62f3139e7410369361403ab18dac029fdc541c129c6d010e69a35c2",
           "lines": [
-            250,
-            250
+            249,
+            249
           ],
           "path": "scripts/test_graph_contracts.py"
         }
@@ -18174,13 +16986,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:eab78f3f29d00d7c52adcada39e797b495106b992b9456b738418d8c7f5b8ad7",
           "lines": [
             232,
@@ -18326,13 +17138,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:d0395eb8d49203269da6dff5bc15331b6b62b6f90e61bd9ab6891a2d549a884b",
           "lines": [
             268,
@@ -18517,13 +17329,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:bc97f4428b3623fc05912754f408f147313e7904e8582ae97247bad0e09147bb",
           "lines": [
             133,
@@ -18685,13 +17497,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:16bc9ca776233d392024519afca9776f3aa753301d58ba6f5f994efb58851aab",
           "lines": [
             227,
@@ -18767,13 +17579,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:107a5d6dd2080ccc291ec775f16a9ba8774ed3f76b05da6cc224377646d7010b",
           "lines": [
             138,
@@ -18855,17 +17667,17 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:92876da25b786e8df5a75011196d1ef5205bc30ba9a9ee6fa3a37a0af25bc898",
+          "detector": "extract.test-file-read",
+          "excerptHash": "sha256:580859785c10ebfeb30a47b102ebe376c3755ccafe3faa5f14fee125ad4d0e2f",
           "lines": [
-            230,
-            230
+            278,
+            278
           ],
           "path": "scripts/test_release_skill_contracts.py"
         }
@@ -19324,17 +18136,17 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:29218ad0094065b5a5afef492d9e9ca491093c7c5f0cd24aef1fbad37d531aab",
           "lines": [
-            358,
-            358
+            376,
+            376
           ],
           "path": "scripts/test_fleet_atlas.py"
         }
@@ -19432,13 +18244,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:56d584ecfdd9ab5c4d2c48008014b210ceb454de439e500f65cc85b1a147cb7f",
           "lines": [
             124,
@@ -19473,28 +18285,6 @@
       "kind": "near_miss_for",
       "source": "scenario:discovery-scribe-defers-live-incident",
       "target": "agent:scribe"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:37b2972abf9cbf3e9ae2b934ab586952f289d90d94f11f0997cacd1f9e01ce6d",
-          "lines": [
-            684,
-            684
-          ],
-          "path": "scripts/test_fleet_atlas.py"
-        }
-      ],
-      "id": "edge:e50b2fb99dc2914d",
-      "kind": "verified_by",
-      "source": "review:2026-08-26-three-pass-skill-audit",
-      "target": "test:scripts/test_fleet_atlas.py"
     },
     {
       "attrs": {
@@ -19813,28 +18603,6 @@
       "kind": "routes_to",
       "source": "scenario:discovery-akamai-edge-defers-obs-logs",
       "target": "skill:obs-logs"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:1bd166479335e3108906c588f76da98025ade5aaaf09cbae94c6bc2765b978e7",
-          "lines": [
-            14,
-            14
-          ],
-          "path": "scripts/test_graph_contracts.py"
-        }
-      ],
-      "id": "edge:e823d5be3d49789a",
-      "kind": "verified_by",
-      "source": "reference:investigation-depth/incident-handoff.md",
-      "target": "test:scripts/test_graph_contracts.py"
     },
     {
       "attrs": {
@@ -20330,13 +19098,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:f589daccca9d41c981d68c2b7538587ad0c254c186590497e2d4d206869749b7",
           "lines": [
             210,
@@ -20352,17 +19120,17 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:75adbf783e9b3de435715bfca835c566e94214aaa969c24e4b154d65a4998601",
+          "detector": "extract.test-file-read",
+          "excerptHash": "sha256:92436b8e999b28339eee55f08acaaaf901cefd7888c909cc47bde477e3c93549",
           "lines": [
-            237,
-            237
+            255,
+            255
           ],
           "path": "scripts/test_release_skill_contracts.py"
         }
@@ -20479,50 +19247,6 @@
       "kind": "generated_from",
       "source": "generated-projection:platforms/copilot/skills/postmortem/SKILL.md",
       "target": "skill:postmortem"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:7f1b16325ef067ca56dc46e8450209cb7f2ca52481a7a3dd05819b42f1ecd3a1",
-          "lines": [
-            653,
-            653
-          ],
-          "path": "scripts/test_platform_adapters.py"
-        }
-      ],
-      "id": "edge:f06fceae468da113",
-      "kind": "verified_by",
-      "source": "skill:runbook",
-      "target": "test:scripts/test_platform_adapters.py"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:acb6e2062f76ada303f703ced03afb5db06f8609455f6f157901dd8fb7be2047",
-          "lines": [
-            118,
-            118
-          ],
-          "path": "scripts/test_runbook_schema.py"
-        }
-      ],
-      "id": "edge:f0a52f7236bb3a47",
-      "kind": "verified_by",
-      "source": "schema:runbook-frontmatter-v1",
-      "target": "test:scripts/test_runbook_schema.py"
     },
     {
       "attrs": {},
@@ -20701,13 +19425,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:27eb9fb9f2c651f20b6931368135c8e77911cc0ccb8963de998aea4b685be4d3",
           "lines": [
             304,
@@ -20763,13 +19487,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:3f7ef990d33c8e7b3cc95fb0f46f289c383054c70f8dd506dd104c027b2b82f1",
           "lines": [
             266,
@@ -20870,28 +19594,6 @@
       "kind": "generated_from",
       "source": "generated-projection:platforms/copilot/skills/runbook/references/confluence-import.md",
       "target": "reference:runbook/confluence-import.md"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:ed8ef450691cba08c409ebbfe5e45e4cd23c1d2c4bbf07d64786faae30fdaf20",
-          "lines": [
-            626,
-            626
-          ],
-          "path": "scripts/test_fleet_atlas.py"
-        }
-      ],
-      "id": "edge:f3dfac79c1da807e",
-      "kind": "verified_by",
-      "source": "document:docs/README.md",
-      "target": "test:scripts/test_fleet_atlas.py"
     },
     {
       "attrs": {},
@@ -21175,13 +19877,13 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
+        "via": "file-read"
       },
       "class": "STATIC_EXTRACTED",
       "evidence": [
         {
           "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
+          "detector": "extract.test-file-read",
           "excerptHash": "sha256:a19f57171effc2842c6191d4eb221bbbbcbe4f84ab7f8ccfbba5c58838cdcaf0",
           "lines": [
             167,
@@ -21495,28 +20197,6 @@
     },
     {
       "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:de0c852f236e8d4c8337adb42dd60170b1d0c7518d81b7aaa4b982702ed1fddb",
-          "lines": [
-            37,
-            37
-          ],
-          "path": "scripts/test_check_query_catalog.py"
-        }
-      ],
-      "id": "edge:fb1f94a7c2f99b8d",
-      "kind": "verified_by",
-      "source": "reference:obs-logs/query-catalog.md",
-      "target": "test:scripts/test_check_query_catalog.py"
-    },
-    {
-      "attrs": {
         "batch": "20260829T223656Z-69eab0e9"
       },
       "class": "STATIC_EXTRACTED",
@@ -21536,28 +20216,6 @@
       "kind": "evidenced_by",
       "source": "roadmap-item:EVAL-006",
       "target": "review:2026-08-29-skill-001-gcp-ops"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:64db5283361140e4e0d8d2af9b9ca458c7c84484f93ad532a792566cd19fc103",
-          "lines": [
-            15,
-            15
-          ],
-          "path": "scripts/test_graph_sandbox_alerts.py"
-        }
-      ],
-      "id": "edge:fb385a78b2380889",
-      "kind": "verified_by",
-      "source": "bundle-file:obs-alerting/scripts/graph_sandbox_alerts.py",
-      "target": "test:scripts/test_graph_sandbox_alerts.py"
     },
     {
       "attrs": {
@@ -21602,28 +20260,6 @@
       "kind": "verified_by",
       "source": "skill:obs-traces",
       "target": "scenario:discovery-obs-traces-cloud-trace"
-    },
-    {
-      "attrs": {
-        "via": "string-literal"
-      },
-      "class": "STATIC_EXTRACTED",
-      "evidence": [
-        {
-          "class": "STATIC_EXTRACTED",
-          "detector": "extract.test-literal",
-          "excerptHash": "sha256:b1258c95614543d2b3ba45ec292d2a0a9aeea250fe844e9d43a616410ec58505",
-          "lines": [
-            32,
-            32
-          ],
-          "path": "scripts/test_incident_drill_harness.py"
-        }
-      ],
-      "id": "edge:fc16b80e671ffdf0",
-      "kind": "verified_by",
-      "source": "bundle-file:incident-drill/scripts/scaffold_drill.py",
-      "target": "test:scripts/test_incident_drill_harness.py"
     },
     {
       "attrs": {
@@ -21949,11 +20585,11 @@
   "kind": "FleetAtlas",
   "metadata": {
     "dirty": false,
-    "edgeCount": 1024,
+    "edgeCount": 962,
     "nodeCount": 807,
     "repository": "latent-sre/save-toolkit",
-    "revision": "a4c86c4923dd0fdb25d4e94d1fa97ecef47a5c87",
-    "treeDigest": "sha256:5a528fef8fec1c42ec6eb9ce891d02ce9b03fedc2de44ad81c3b9cedbeeace6e",
+    "revision": "67d9f322e985c33c947ffd1251fa7e3370ec5cdc",
+    "treeDigest": "sha256:b8b5112d8b6959b7bdf2836756f5cd756a0f2110ad54f5ac63cb1e3fcbc1f4a3",
     "unknownCount": 6
   },
   "nodes": [
@@ -23280,6 +21916,16 @@
             4
           ],
           "path": "docs/decisions/2026-07-31-local-external-research-separation.md"
+        },
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.decision-date",
+          "excerptHash": "sha256:c1b3261986c23c4844f87f1e1e50623e1859218ec91e4e76831bd2710519a34e",
+          "lines": [
+            3,
+            3
+          ],
+          "path": "docs/decisions/2026-07-31-local-external-research-separation.md"
         }
       ],
       "id": "decision:2026-07-31-local-external-research-separation",
@@ -23302,6 +21948,16 @@
           "lines": [
             4,
             4
+          ],
+          "path": "docs/decisions/2026-07-31-multi-platform-plugin-packaging.md"
+        },
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.decision-date",
+          "excerptHash": "sha256:c1b3261986c23c4844f87f1e1e50623e1859218ec91e4e76831bd2710519a34e",
+          "lines": [
+            3,
+            3
           ],
           "path": "docs/decisions/2026-07-31-multi-platform-plugin-packaging.md"
         }
@@ -23328,6 +21984,16 @@
             4
           ],
           "path": "docs/decisions/2026-08-04-observability-engineer-rename.md"
+        },
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.decision-date",
+          "excerptHash": "sha256:7f1ea66ceb09e98cbcc9aa60cc02824e7f9e59dfa391dce8547373a355244955",
+          "lines": [
+            3,
+            3
+          ],
+          "path": "docs/decisions/2026-08-04-observability-engineer-rename.md"
         }
       ],
       "id": "decision:2026-08-04-observability-engineer-rename",
@@ -23350,6 +22016,16 @@
           "lines": [
             4,
             4
+          ],
+          "path": "docs/decisions/2026-08-05-language-idiom-rename.md"
+        },
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.decision-date",
+          "excerptHash": "sha256:6184c51b397a28bfd4cee2a8a9402537ba86e0b309efa0ffe0de8e9334c0bb83",
+          "lines": [
+            3,
+            3
           ],
           "path": "docs/decisions/2026-08-05-language-idiom-rename.md"
         }
@@ -23376,6 +22052,16 @@
             4
           ],
           "path": "docs/decisions/2026-08-05-save-toolkit-rename.md"
+        },
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.decision-date",
+          "excerptHash": "sha256:6184c51b397a28bfd4cee2a8a9402537ba86e0b309efa0ffe0de8e9334c0bb83",
+          "lines": [
+            3,
+            3
+          ],
+          "path": "docs/decisions/2026-08-05-save-toolkit-rename.md"
         }
       ],
       "id": "decision:2026-08-05-save-toolkit-rename",
@@ -23400,6 +22086,16 @@
             4
           ],
           "path": "docs/decisions/2026-08-11-immutable-release-promotion.md"
+        },
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.decision-date",
+          "excerptHash": "sha256:a62af377ec68224e14110f9739a766ef88f5e04621dd9ceea3ed4223dadf8cbe",
+          "lines": [
+            3,
+            3
+          ],
+          "path": "docs/decisions/2026-08-11-immutable-release-promotion.md"
         }
       ],
       "id": "decision:2026-08-11-immutable-release-promotion",
@@ -23422,6 +22118,16 @@
           "lines": [
             4,
             4
+          ],
+          "path": "docs/decisions/2026-08-21-observability-engineer-unguarded-bash.md"
+        },
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.decision-date",
+          "excerptHash": "sha256:a2badc897acf960ef4aab2dbbe407864526be1ea634fb00c340f9c8b0b0ac888",
+          "lines": [
+            3,
+            3
           ],
           "path": "docs/decisions/2026-08-21-observability-engineer-unguarded-bash.md"
         }
@@ -23520,6 +22226,16 @@
             4
           ],
           "path": "docs/decisions/2026-08-23-allow-model-aliases.md"
+        },
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.decision-date",
+          "excerptHash": "sha256:abe07eee8ba08cba99ec59aead2ce39175c7f1672f7c51a22ed32166313f3324",
+          "lines": [
+            3,
+            3
+          ],
+          "path": "docs/decisions/2026-08-23-allow-model-aliases.md"
         }
       ],
       "id": "decision:2026-08-23-allow-model-aliases",
@@ -23542,6 +22258,16 @@
           "lines": [
             4,
             4
+          ],
+          "path": "docs/decisions/2026-08-23-allow-third-party-dependencies.md"
+        },
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.decision-date",
+          "excerptHash": "sha256:abe07eee8ba08cba99ec59aead2ce39175c7f1672f7c51a22ed32166313f3324",
+          "lines": [
+            3,
+            3
           ],
           "path": "docs/decisions/2026-08-23-allow-third-party-dependencies.md"
         }
@@ -23568,6 +22294,16 @@
             4
           ],
           "path": "docs/decisions/2026-08-23-retire-codex-distribution-target.md"
+        },
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.decision-date",
+          "excerptHash": "sha256:abe07eee8ba08cba99ec59aead2ce39175c7f1672f7c51a22ed32166313f3324",
+          "lines": [
+            3,
+            3
+          ],
+          "path": "docs/decisions/2026-08-23-retire-codex-distribution-target.md"
         }
       ],
       "id": "decision:2026-08-23-retire-codex-distribution-target",
@@ -23590,6 +22326,16 @@
           "lines": [
             4,
             4
+          ],
+          "path": "docs/decisions/2026-08-24-sre-operational-context-contract.md"
+        },
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.decision-date",
+          "excerptHash": "sha256:aa062575da4e5213aba48009e1884955e9cacacab7ec9fa0065f445e002746c9",
+          "lines": [
+            3,
+            3
           ],
           "path": "docs/decisions/2026-08-24-sre-operational-context-contract.md"
         }
@@ -23616,6 +22362,16 @@
             4
           ],
           "path": "docs/decisions/2026-08-25-software-engineer-rename.md"
+        },
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.decision-date",
+          "excerptHash": "sha256:d537461ded59a956e09aea8423f8a00c5623f05d8d7d94245086170bad3c4da0",
+          "lines": [
+            3,
+            3
+          ],
+          "path": "docs/decisions/2026-08-25-software-engineer-rename.md"
         }
       ],
       "id": "decision:2026-08-25-software-engineer-rename",
@@ -23638,6 +22394,16 @@
           "lines": [
             4,
             4
+          ],
+          "path": "docs/decisions/2026-08-26-agent-engineer-rename.md"
+        },
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.decision-date",
+          "excerptHash": "sha256:021776fcb0a8709a701b4903a489f0fe0cb32b580cbc7958e9809742c6f86610",
+          "lines": [
+            3,
+            3
           ],
           "path": "docs/decisions/2026-08-26-agent-engineer-rename.md"
         }
@@ -23664,6 +22430,16 @@
             4
           ],
           "path": "docs/decisions/2026-08-26-graph-002-docker-sandbox-runtime.md"
+        },
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.decision-date",
+          "excerptHash": "sha256:f172a61c6e02de8ab057235e42d857584a274ca75629dc2d41c9404fbe7a5949",
+          "lines": [
+            3,
+            3
+          ],
+          "path": "docs/decisions/2026-08-26-graph-002-docker-sandbox-runtime.md"
         }
       ],
       "id": "decision:2026-08-26-graph-002-docker-sandbox-runtime",
@@ -23686,6 +22462,16 @@
           "lines": [
             4,
             4
+          ],
+          "path": "docs/decisions/2026-08-26-graph-003-observability-preparation.md"
+        },
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.decision-date",
+          "excerptHash": "sha256:f172a61c6e02de8ab057235e42d857584a274ca75629dc2d41c9404fbe7a5949",
+          "lines": [
+            3,
+            3
           ],
           "path": "docs/decisions/2026-08-26-graph-003-observability-preparation.md"
         }
@@ -23712,6 +22498,16 @@
             4
           ],
           "path": "docs/decisions/2026-08-26-multi-engine-evaluation-contract.md"
+        },
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.decision-date",
+          "excerptHash": "sha256:f172a61c6e02de8ab057235e42d857584a274ca75629dc2d41c9404fbe7a5949",
+          "lines": [
+            3,
+            3
+          ],
+          "path": "docs/decisions/2026-08-26-multi-engine-evaluation-contract.md"
         }
       ],
       "id": "decision:2026-08-26-multi-engine-evaluation-contract",
@@ -23734,6 +22530,16 @@
           "lines": [
             4,
             4
+          ],
+          "path": "docs/decisions/2026-08-29-graph-002-langgraph-security-pin.md"
+        },
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.decision-date",
+          "excerptHash": "sha256:9e0d3b8f2faefca7c0bd65a168e8ea664fe55ce60661494c6097f86a340ded21",
+          "lines": [
+            3,
+            3
           ],
           "path": "docs/decisions/2026-08-29-graph-002-langgraph-security-pin.md"
         }
