@@ -1007,7 +1007,7 @@ class ViewAndDriftTests(unittest.TestCase):
             self.assertNotIn("F:\\", text, path.name)
             self.assertTrue(all(line == line.rstrip() for line in text.splitlines()), path.name)
             if path.name != "INDEX.md":
-                self.assertRegex(text, rb"\[(?:verified|sourced|unverified)\]", path.name)
+                self.assertRegex(text, r"\[(?:verified|sourced|unverified)\]", path.name)
 
     def test_check_detects_a_drifted_view_and_a_timestamp(self) -> None:
         view = self.root / "docs/fleet-atlas/generated/INDEX.md"
