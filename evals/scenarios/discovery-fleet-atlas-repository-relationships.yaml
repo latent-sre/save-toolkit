@@ -21,7 +21,7 @@ graders:
   - type: contains_any
     of: ["fleet_atlas.py check", "fleet atlas freshness", "atlas freshness", "freshness check"]
   - type: contains_all
-    of: ["depends-on", "owner-of", "generated-from"]
+    of: ["blocks", "owner-of", "generated-from"]
   - type: contains_any
     of: ["CONTRACT_RESOLVED", "STATIC_EXTRACTED", "STATIC_INFERRED", "canonical source"]
   - type: not_regex

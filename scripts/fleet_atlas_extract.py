@@ -44,6 +44,12 @@ def _frontmatter(path: Path):
     return fleet_frontmatter.parse_file(path, mode="lenient")
 
 
+def _frontmatter_evidence(root: Path, relative: str, parsed, detector: str):
+    # raw_lines excludes both delimiters, so +2 reaches the closing `---`. Hash the complete
+    # frontmatter that supplied the extracted attributes rather than the identical opening marker.
+    return cite(root, relative, 1, len(parsed.raw_lines) + 2, detector, "STATIC_EXTRACTED")
+
+
 def _cells(line: str) -> list[str]:
     return [cell.strip() for cell in line.strip().strip("|").split("|")]
 
@@ -84,8 +90,7 @@ def extract_agents(root: Path, graph: Graph) -> None:
                 "tools": tools if isinstance(tools, list) else [str(tools)],
                 "grants": sorted(grants),
             },
-            evidence=[cite(root, relative, 1, find_line(root, relative, "---", 1) or 1,
-                           "extract.agent-frontmatter", "STATIC_EXTRACTED")],
+            evidence=[_frontmatter_evidence(root, relative, parsed, "extract.agent-frontmatter")],
         ))
 
 
@@ -103,7 +108,7 @@ def extract_skills(root: Path, graph: Graph) -> None:
                 "manual_only": str(parsed.fields.get("disable-model-invocation", "")).lower() == "true",
                 "bytes": skill_md.stat().st_size,
             },
-            evidence=[cite(root, relative, 1, 1, "extract.skill-frontmatter", "STATIC_EXTRACTED")],
+            evidence=[_frontmatter_evidence(root, relative, parsed, "extract.skill-frontmatter")],
         ))
         for reference in _tracked(root, (skill_dir / "references").glob("*.md")) if (skill_dir / "references").is_dir() else []:
             graph.add_node(Node(
@@ -190,7 +195,7 @@ def extract_commands(root: Path, graph: Graph) -> None:
                 "argument_hint": str(parsed.fields.get("argument-hint", "")),
                 "manual_only": str(parsed.fields.get("disable-model-invocation", "")).lower() == "true",
             },
-            evidence=[cite(root, relative, 1, 1, "extract.command-frontmatter", "STATIC_EXTRACTED")],
+            evidence=[_frontmatter_evidence(root, relative, parsed, "extract.command-frontmatter")],
         ))
 
 
@@ -201,6 +206,18 @@ LIVE_DOCS = {
     "AGENTS.md", "CONTRIBUTING.md", "README.md", "docs/README.md", "docs/rules.md",
     "docs/schema-compatibility.md", "docs/fleet-roadmap.md",
 }
+
+
+def live_guide_paths(root: Path) -> set[str]:
+    """Return tracked operating guides that can authoritatively retain review evidence."""
+    guides = set(LIVE_DOCS)
+    for relative in fleet_atlas.tracked_relative_paths(root):
+        path = Path(relative)
+        if relative.startswith("docs/reviews/"):
+            continue
+        if path.name in {"README.md", "CHANGELOG.md"}:
+            guides.add(relative)
+    return guides
 DATE_RE = re.compile(r"\b(20\d\d-\d\d-\d\d)\b")
 SUPERSEDES_RE = re.compile(r"\*\*Supersedes:?\*\*:?\s*(.+)|^-?\s*Supersedes:\s*(.+)", re.IGNORECASE)
 DISPOSES_RE = re.compile(r"disposes\s+`([A-Z][A-Z0-9]*-\d{3})`")
@@ -239,7 +256,7 @@ def ensure_document(root: Path, graph: Graph, relative: str) -> str:
         node_id, node_type, authority = f"validator:{relative}", "validator", "canonical"
     else:
         node_id, node_type = f"document:{relative}", "document"
-        authority = ("live-contract" if relative in LIVE_DOCS
+        authority = ("live-contract" if relative in live_guide_paths(root)
                      else "historical-evidence" if relative.startswith("docs/") else "canonical")
     graph.add_node(Node(node_id, node_type, relative, authority, relative, "live", {},
                         [cite(root, relative, 1, 1, "extract.document", "STATIC_EXTRACTED")]))
@@ -259,7 +276,7 @@ def _resolve_link(root: Path, base: str, raw_target: str) -> str | None:
 
 
 def extract_documents(root: Path, graph: Graph) -> None:
-    for relative in sorted(LIVE_DOCS):
+    for relative in sorted(live_guide_paths(root)):
         if (root / relative).is_file():
             ensure_document(root, graph, relative)
 
@@ -313,6 +330,7 @@ def extract_roadmap(root: Path, graph: Graph) -> None:
     # graph permits.
     closed_text = (root / "docs/roadmap-closed.md").read_text(encoding="utf-8") if (root / "docs/roadmap-closed.md").is_file() else ""
     known = {item["id"] for item in items} | set(BACKTICK_ID_RE.findall(closed_text))
+    lines = text.splitlines()
     for item in items:
         fields = dict(item["fields"])
         status_text = fields.get("Status", "")
@@ -331,14 +349,35 @@ def extract_roadmap(root: Path, graph: Graph) -> None:
                 if dep == item["id"] or dep not in known:
                     continue
                 contract = field_name == "Prerequisites"
+                field_lines = _roadmap_field_lines(lines, int(item["line"]), field_name)
+                evidence_line = next(
+                    (line_no for line_no in field_lines if dep in lines[line_no - 1]),
+                    int(item["line"]),
+                )
                 graph.add_edge(Edge(edge_id("depends_on", source, f"roadmap-item:{dep}", field_name), source,
                                     f"roadmap-item:{dep}", "depends_on",
                                     "CONTRACT_RESOLVED" if contract else "STATIC_INFERRED",
                                     {"field": field_name,
                                      "detector": "check_plan_status.prerequisites" if contract else "extract.roadmap-mention"},
-                                    [cite(root, relative, item["line"], item["line"],
+                                    [cite(root, relative, evidence_line, evidence_line,
                                           "check_plan_status.prerequisites" if contract else "extract.roadmap-mention",
                                           "CONTRACT_RESOLVED" if contract else "STATIC_INFERRED")]))
+
+
+def _roadmap_field_lines(lines: list[str], item_line: int, field_name: str) -> list[int]:
+    """Return 1-based lines that contribute to one field in a roadmap item."""
+    current: str | None = None
+    result: list[int] = []
+    for index in range(item_line, len(lines)):
+        stripped = lines[index].strip()
+        if stripped.startswith("### "):
+            break
+        match = check_plan_status.ROADMAP_FIELD_RE.match(stripped)
+        if match:
+            current = match.group(1)
+        if current == field_name and stripped and not stripped.startswith("##"):
+            result.append(index + 1)
+    return result
 
 
 def extract_closed_register(root: Path, graph: Graph) -> None:
@@ -614,39 +653,14 @@ def extract_schemas(root: Path, graph: Graph) -> None:
                                 [cite(root, "schemas/catalog-v1.json", line, line,
                                       "extract.catalog-validator", "CONTRACT_RESOLVED")]))
         for projection in entry.get("generated_projections", []):
-            # Deviates from the plan snippet on purpose, for three compounding reasons discovered
-            # by running the suite, not guessed:
-            #  1. schemas/fleet-atlas-v1.schema.json's own Node.type enum is closed (agent, skill,
-            #     reference, bundle-file, command, rule, decision, roadmap-item, review, scenario,
-            #     test, schema, generated-projection, capability, owner, probe, hook, document,
-            #     validator) and has no "schema-projection" or other free-form slot; inventing one
-            #     would make snapshot() emit atlas.json that fails its own committed schema.
-            #  2. Reusing type "generated-projection" for a schema-declared projection instead
-            #     collides with CitedContractTests.test_every_generated_output_has_exactly_one_
-            #     generated_from_edge and fleet_atlas_cite.parity_failures(), which both audit that
-            #     type, and the "generated_from" edge kind, as EXACTLY
-            #     generate_platform_adapters.expected_outputs() -- proven by running both fixes and
-            #     watching each break that test in a different way.
-            #  3. The one non-empty entry today, fleet-atlas-v1, declares
-            #     docs/fleet-atlas/generated/atlas.json -- the atlas's own build output, which this
-            #     task's constraints forbid writing or committing, and cite() (used by every node
-            #     constructor here) reads the file it cites, so fabricating a node for a path that
-            #     may not exist on disk would crash extraction on a checkout where Task 7 has not
-            #     run `fleet_atlas.py build` yet.
-            # None of those three are satisfied by minting a node, so an unresolved projection is
-            # exactly what the rest of this file calls an Unknown carrying its text: this schema
-            # declares a projection this atlas revision has no node for yet. If a future catalog
-            # entry's generated_projections happens to name a path some earlier extractor already
-            # gave a node (checked by path, not assumed), wire the real edge instead of guessing one.
             target = node_for_path(graph, projection)
             if target is None:
-                projection_path = root / projection
-                if projection == fleet_atlas.OUTPUT.joinpath("atlas.json").as_posix() and projection_path.is_file():
+                if projection == fleet_atlas.OUTPUT.joinpath("atlas.json").as_posix():
                     target = f"schema-projection:{projection}"
                     graph.add_node(Node(
                         target, "schema-projection", projection, "generated", projection, "generated",
                         {"schema": entry["id"]},
-                        [cite(root, projection, 1, 1,
+                        [cite(root, "schemas/catalog-v1.json", line, line,
                               "extract.catalog-projection", "CONTRACT_RESOLVED")],
                     ))
                 else:
@@ -664,10 +678,16 @@ def extract_schemas(root: Path, graph: Graph) -> None:
 
 
 def extract_probes(root: Path, graph: Graph) -> None:
-    roadmap = (root / "docs/fleet-roadmap.md").read_text(encoding="utf-8")
+    roadmap_relative = "docs/fleet-roadmap.md"
+    roadmap = (root / roadmap_relative).read_text(encoding="utf-8")
+    linked_targets = {
+        resolved
+        for match in LINK_RE.finditer(roadmap)
+        if (resolved := _resolve_link(root, roadmap_relative, match.group(2))) is not None
+    }
     for path in _tracked(root, (root / "docs/probes").glob("*")):
         relative = path.relative_to(root).as_posix()
-        linked = path.name in roadmap
+        linked = relative in linked_targets
         graph.add_node(Node(f"probe:{path.stem}", "probe", path.stem,
                             "live-contract" if linked else "historical-evidence", relative,
                             "live" if linked else "historical", {"linked_from_roadmap": linked},
@@ -681,8 +701,11 @@ def extract_owners(root: Path, graph: Graph) -> None:
         graph.add_node(Node(f"owner:{agent}", "owner", agent, "canonical", relative, "live", {"kind": "agent"},
                             [cite(root, relative, 1, 1, "extract.agent-owner", "STATIC_EXTRACTED")]))
     text = (root / "docs/fleet-roadmap.md").read_text(encoding="utf-8")
+    lines = text.splitlines()
     for item in check_plan_status._roadmap_items(text):
         owner_field = str(item["fields"].get("Owner", ""))
+        owner_lines = _roadmap_field_lines(lines, int(item["line"]), "Owner")
+        owner_line = owner_lines[0] if owner_lines else int(item["line"])
         # An Owner field names owners, but it also mentions components in passing ("`agent-engineer`
         # owns the `fleet-atlas` skill text"). A backticked name matching a skill or command is a
         # component reference, not an owner, and typing it "human" invents a person: `runbook` and
@@ -693,19 +716,36 @@ def extract_owners(root: Path, graph: Graph) -> None:
             match.group(1): owner_field[match.end() :].lstrip()
             for match in re.finditer(r"`([a-z][a-z0-9-]+)`", owner_field)
         }
+        prose_prefix = owner_field.split("`", 1)[0].strip()
+        prose_match = re.match(r"(.+?)\s+owns?\b", prose_prefix, re.IGNORECASE)
+        prose_owner = (prose_match.group(1) if prose_match else prose_prefix).strip(" .,:;")
+        if prose_owner:
+            owner_id = f"owner:{LANE_SLUG_RE.sub('-', prose_owner.lower()).strip('-')}"
+            if owner_id not in graph.nodes:
+                graph.add_node(Node(owner_id, "owner", prose_owner, "external", None, "live", {"kind": "human"},
+                                    [cite(root, "docs/fleet-roadmap.md", owner_line, owner_line,
+                                          "extract.roadmap-owner", "STATIC_EXTRACTED")]))
+            graph.add_edge(Edge(edge_id("owns", owner_id, f"roadmap-item:{item['id']}"), owner_id,
+                                f"roadmap-item:{item['id']}", "owns", "STATIC_EXTRACTED", {"field": "Owner"},
+                                [cite(root, "docs/fleet-roadmap.md", owner_line, owner_line,
+                                      "extract.roadmap-owner", "STATIC_EXTRACTED")]))
         for name, suffix in sorted(owner_mentions.items()):
+            mention_line = next(
+                (line_no for line_no in owner_lines if f"`{name}`" in lines[line_no - 1]),
+                owner_line,
+            )
             if name in components and name not in agents:
                 continue
             if name not in agents and re.match(r"(?:skill|command)\b", suffix):
                 continue
             if name not in agents and f"owner:{name}" not in graph.nodes:
                 graph.add_node(Node(f"owner:{name}", "owner", name, "external", None, "live", {"kind": "human"},
-                                    [cite(root, "docs/fleet-roadmap.md", item["line"], item["line"],
+                                    [cite(root, "docs/fleet-roadmap.md", mention_line, mention_line,
                                           "extract.roadmap-owner", "STATIC_EXTRACTED")]))
             if f"owner:{name}" in graph.nodes:
                 graph.add_edge(Edge(edge_id("owns", f"owner:{name}", f"roadmap-item:{item['id']}"), f"owner:{name}",
                                     f"roadmap-item:{item['id']}", "owns", "STATIC_EXTRACTED", {"field": "Owner"},
-                                    [cite(root, "docs/fleet-roadmap.md", item["line"], item["line"], "extract.roadmap-owner",
+                                    [cite(root, "docs/fleet-roadmap.md", mention_line, mention_line, "extract.roadmap-owner",
                                           "STATIC_EXTRACTED")]))
     in_table = False
     for line_no, line in enumerate((root / "AGENTS.md").read_text(encoding="utf-8").splitlines(), start=1):
@@ -744,16 +784,14 @@ def link_evidence(root: Path, graph: Graph) -> None:
         lines = text.splitlines()
         if node.type == "roadmap-item":
             start = int(node.evidence[0].lines[0]) if node.evidence else 1
-            # node.evidence[0].lines[0] is the 1-based line number of the "### ITEM-ID" heading
-            # itself (extract_roadmap cites exactly that line). The item's own content starts on
-            # the NEXT line, so the search for the next heading -- and the span handed to the
-            # second loop below, which treats each value as a 1-based line number -- both begin at
-            # start + 1. Using `start` unshifted here included the heading line in the span and
-            # searched for the terminator one line too early; off by one, though not one that
-            # happens to change any assertion in this file, since no evidence link in this
-            # repository's roadmap items sits on the heading line itself.
-            end = next((i for i in range(start, len(lines)) if lines[i].startswith("### ")), len(lines))
-            span = range(start + 1, end + 1)
+            if node.path == "docs/roadmap-closed.md":
+                span = range(start, start + 1)
+            else:
+                # node.evidence[0].lines[0] is the 1-based line number of the "### ITEM-ID"
+                # heading. Live-item content starts on the next line and ends before the next
+                # heading. Historical register nodes instead use the single-row span above.
+                end = next((i for i in range(start, len(lines)) if lines[i].startswith("### ")), len(lines))
+                span = range(start + 1, end + 1)
         else:
             span = range(1, len(lines) + 1)
         # Two separately-typed sets, not one mixed set: a link-derived hit dedupes by target alone

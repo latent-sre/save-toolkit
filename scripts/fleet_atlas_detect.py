@@ -60,7 +60,7 @@ def detect_uncited_review(root: Path, graph: Graph) -> None:
     # something this detector's scan set can fix, so docs/roadmap-closed.md was left out rather than
     # added for no measured benefit.
     index = {node.path: node.id for node in graph.nodes.values() if node.path}
-    for relative in sorted(fleet_atlas_extract.LIVE_DOCS):
+    for relative in sorted(fleet_atlas_extract.live_guide_paths(root)):
         path = root / relative
         if not path.is_file():
             continue

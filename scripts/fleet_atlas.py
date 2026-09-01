@@ -21,6 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = Path("docs/fleet-atlas/generated")
 API_VERSION = "save-toolkit/fleet-atlas/v1"
+REPOSITORY_ID = "latent-sre/save-toolkit"
 PROVENANCE = ("CONTRACT_RESOLVED", "STATIC_EXTRACTED", "STATIC_INFERRED", "OPERATOR_CONFIRMED", "UNKNOWN")
 AUTHORITY = ("canonical", "live-contract", "generated", "historical-evidence", "external")
 STATES = ("live", "historical", "retired", "proposed", "rejected", "deprecated", "generated")
@@ -222,7 +223,7 @@ def snapshot(root: Path, graph: Graph) -> dict[str, object]:
         "apiVersion": API_VERSION,
         "kind": "FleetAtlas",
         "metadata": {
-            "repository": root.name,
+            "repository": REPOSITORY_ID,
             "revision": revision,
             "dirty": dirty,
             "treeDigest": input_digest(root),
@@ -263,8 +264,8 @@ def build_graph(root: Path) -> Graph:
     fleet_atlas_extract.extract_decisions(root, graph)
     fleet_atlas_extract.extract_reviews(root, graph)
     fleet_atlas_extract.extract_scenarios(root, graph)
-    fleet_atlas_extract.extract_tests(root, graph)
     fleet_atlas_extract.extract_schemas(root, graph)
+    fleet_atlas_extract.extract_tests(root, graph)
     fleet_atlas_extract.extract_probes(root, graph)
     fleet_atlas_extract.extract_owners(root, graph)
 

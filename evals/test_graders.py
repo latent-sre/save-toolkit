@@ -5673,6 +5673,7 @@ def main() -> int:
         test_routing_batch1_scenarios_reject_echoes_and_incomplete,
         test_routing_workflow_graph_scenarios_reject_echoes_and_incomplete,
         test_skill_audit_scenarios_reject_echo_and_incomplete_answers,
+        test_fleet_atlas_scenarios_reject_echo_and_incomplete_answers,
         test_discovery_positives_grade_only_what_the_prompt_requests,
         test_every_behavioural_scenario_is_registered_in_a_fixture_table,
         test_trimmed_discovery_positives_have_a_direct_contract,

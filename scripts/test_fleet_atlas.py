@@ -62,6 +62,7 @@ class ModelTests(unittest.TestCase):
         graph = fleet_atlas.build_graph(ROOT)
         document = fleet_atlas.snapshot(ROOT, graph)
         self.assertEqual(document["apiVersion"], "save-toolkit/fleet-atlas/v1")
+        self.assertEqual(document["metadata"]["repository"], "latent-sre/save-toolkit")
         self.assertRegex(document["metadata"]["revision"], r"^[0-9a-f]{40}$")
         self.assertIn(document["metadata"]["dirty"], (True, False))
         self.assertRegex(document["metadata"]["treeDigest"], r"^sha256:[0-9a-f]{64}$")
@@ -161,6 +162,17 @@ class QueryTests(unittest.TestCase):
         self.assertTrue(truncated)
         self.assertEqual(len(results), fleet_atlas.QUERY_LIMIT)
 
+    def test_schema_validation_test_is_returned_by_verified_by_query(self) -> None:
+        results, truncated = fleet_atlas.query_document(
+            self.document, "verified-by", ["fleet-atlas-v1"]
+        )
+        self.assertFalse(truncated)
+        self.assertTrue(any(
+            item.get("kind") == "verified_by"
+            and item.get("target") == "test:scripts/test_fleet_atlas.py"
+            for item in results
+        ))
+
 
 import fleet_atlas_extract  # noqa: E402
 
@@ -180,6 +192,19 @@ class ExtractCanonicalTests(unittest.TestCase):
         self.assertEqual({n.name for n in self.graph.nodes.values() if n.type == "agent"}, agents)
         self.assertEqual({n.name for n in self.graph.nodes.values() if n.type == "skill"}, skills)
         self.assertEqual({n.name for n in self.graph.nodes.values() if n.type == "command"}, commands)
+
+    def test_frontmatter_evidence_covers_the_attributes_it_extracts(self) -> None:
+        for node in self.graph.nodes.values():
+            if node.type not in {"agent", "skill", "command"}:
+                continue
+            with self.subTest(node=node.id):
+                evidence = node.evidence[0]
+                lines = (ROOT / node.path).read_text(encoding="utf-8").splitlines()
+                excerpt = lines[evidence.lines[0] - 1 : evidence.lines[1]]
+                self.assertEqual(excerpt[0].strip(), "---")
+                self.assertEqual(excerpt[-1].strip(), "---")
+                self.assertTrue(any(line.startswith("description:") for line in excerpt))
+                self.assertEqual(evidence.excerpt_hash, fleet_atlas.excerpt_hash(excerpt))
 
     def test_every_reference_file_is_a_node_with_a_loads_when_edge(self) -> None:
         references = {
@@ -330,6 +355,11 @@ class ExtractGovernanceTests(unittest.TestCase):
         self.assertTrue(inferred, "a dependency stated outside Prerequisites must still be recorded")
         self.assertTrue(all(e.attrs.get("field") != "Prerequisites" for e in inferred),
                         "a Prerequisites dependency is CONTRACT_RESOLVED, never inferred")
+        lines = text.splitlines()
+        for edge in (e for e in self.graph.edges.values() if e.kind == "depends_on"):
+            evidence = edge.evidence[0]
+            cited_line = lines[evidence.lines[0] - 1]
+            self.assertIn(edge.target.removeprefix("roadmap-item:"), cited_line, edge.id)
 
     def test_a_dependency_on_a_closed_item_is_kept_not_dropped(self) -> None:
         """A live item depending on a CLOSED item is a real relationship, and the one an operator
@@ -413,6 +443,12 @@ class ExtractEvidenceTests(unittest.TestCase):
         self.assertIn("schema:evidence-envelope-v1", self.graph.nodes)
         self.assertTrue(any(e.kind == "constrained_by" and e.source == "schema:evidence-envelope-v1"
                             and e.target == "validator:scripts/evidence_envelope.py" for e in self.graph.edges.values()))
+        self.assertTrue(any(
+            e.kind == "verified_by"
+            and e.source == "schema:fleet-atlas-v1"
+            and e.target == "test:scripts/test_fleet_atlas.py"
+            for e in self.graph.edges.values()
+        ))
 
     def test_roadmap_evidence_links_and_batches_resolve(self) -> None:
         edges = [e for e in self.graph.edges.values() if e.kind == "evidenced_by" and e.source == "roadmap-item:SKILL-001"]
@@ -424,6 +460,35 @@ class ExtractEvidenceTests(unittest.TestCase):
         self.assertEqual(self.graph.nodes["owner:software-engineer"].attrs["kind"], "agent")
         caps = [e for e in self.graph.edges.values() if e.kind == "owns" and e.source == "agent:sre"]
         self.assertTrue(caps and all(e.cls == "STATIC_INFERRED" for e in caps))
+        maintainers = self.graph.nodes["owner:save-toolkit-maintainers"]
+        self.assertEqual(maintainers.name, "Save Toolkit maintainers")
+        owned = {
+            e.target for e in self.graph.edges.values()
+            if e.kind == "owns" and e.source == maintainers.id
+        }
+        self.assertIn("roadmap-item:EVAL-003", owned)
+        self.assertIn("roadmap-item:ROUTE-003", owned)
+        roadmap_lines = (ROOT / "docs/fleet-roadmap.md").read_text(encoding="utf-8").splitlines()
+        for edge in (e for e in self.graph.edges.values() if e.kind == "owns" and e.target.startswith("roadmap-item:")):
+            owner = self.graph.nodes[edge.source]
+            cited_line = roadmap_lines[edge.evidence[0].lines[0] - 1].casefold()
+            self.assertIn(owner.name.casefold(), cited_line, edge.id)
+
+    def test_closed_register_evidence_stays_on_each_items_own_row(self) -> None:
+        for edge in (e for e in self.graph.edges.values() if e.kind == "evidenced_by"):
+            source = self.graph.nodes[edge.source]
+            if source.path != "docs/roadmap-closed.md":
+                continue
+            self.assertEqual(edge.evidence[0].lines, source.evidence[0].lines, edge.id)
+        safe_targets = {
+            edge.target for edge in self.graph.edges.values()
+            if edge.kind == "evidenced_by" and edge.source == "roadmap-item:SAFE-001"
+        }
+        self.assertNotIn("review:2026-08-31-grader-005-closure", safe_targets)
+
+    def test_probe_liveness_uses_exact_resolved_roadmap_links(self) -> None:
+        self.assertEqual(self.graph.nodes["probe:host-002-vscode-agent-delegation"].state, "live")
+        self.assertEqual(self.graph.nodes["probe:host-002-vscode-tool-enforcement"].state, "historical")
 
     def test_a_component_named_in_an_owner_field_is_not_a_person(self) -> None:
         """An Owner field mentions components in passing; typing one 'human' invents a person.
@@ -538,6 +603,8 @@ class DetectorTests(unittest.TestCase):
         """
         uncited = {u.path for u in self.graph.unknowns if u.code == "stale.review-uncited"}
         self.assertNotIn("docs/reviews/2026-08-24-full-skill-audit-batch-1.md", uncited)
+        self.assertNotIn("docs/reviews/2026-08-20-route001-linux-canary.md", uncited)
+        self.assertNotIn("docs/reviews/2026-08-26-three-pass-skill-audit.md", uncited)
 
     def test_retired_name_detector_fires_on_prose_but_respects_the_filename_carve_out(self) -> None:
         import tempfile
@@ -660,6 +727,21 @@ class ViewAndDriftTests(unittest.TestCase):
             p.name: p.read_bytes()
             for p in (self.root / "docs/fleet-atlas/generated").iterdir()
         }
+        self.assertEqual(first, second)
+        self.assertEqual(fleet_atlas.main(["check"]), 0)
+
+    def test_clean_first_build_does_not_depend_on_previous_generated_bytes(self) -> None:
+        generated = self.root / "docs/fleet-atlas/generated"
+        shutil.rmtree(generated)
+        self.assertEqual(fleet_atlas.main(["build"]), 0)
+        first = {path.name: path.read_bytes() for path in generated.iterdir()}
+        document = json.loads(first["atlas.json"])
+        self.assertFalse(any(
+            item["code"] == "extract.schema-projection-unresolved"
+            for item in document["unknowns"]
+        ))
+        self.assertEqual(fleet_atlas.main(["build"]), 0)
+        second = {path.name: path.read_bytes() for path in generated.iterdir()}
         self.assertEqual(first, second)
         self.assertEqual(fleet_atlas.main(["check"]), 0)
 
