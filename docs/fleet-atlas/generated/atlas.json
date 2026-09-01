@@ -1981,8 +1981,8 @@
           "detector": "extract.catalog-validator",
           "excerptHash": "sha256:83f904cdca1325187b57be74b6cea2d4ea4d52e97c7d050caf19559f7935921e",
           "lines": [
-            41,
-            41
+            50,
+            50
           ],
           "path": "schemas/catalog-v1.json"
         }
@@ -2475,7 +2475,7 @@
         {
           "class": "STATIC_EXTRACTED",
           "detector": "extract.bundle-file",
-          "excerptHash": "sha256:cbbebcbcec8500815e87c1031eff331c1e037854d6fe4078f2b82b974ef50479",
+          "excerptHash": "sha256:c05bccf367600b33c55ae457bb089952a86286a1106d2bb51a616e44457fc2ef",
           "lines": [
             1,
             1
@@ -3608,8 +3608,8 @@
           "detector": "extract.test-file-read",
           "excerptHash": "sha256:cad605d426418e3dfa1bdfb63555685cfb064b09f900f22c317dc7a6173461d5",
           "lines": [
-            159,
-            159
+            190,
+            190
           ],
           "path": "scripts/test_skill_asset_contracts.py"
         }
@@ -3994,7 +3994,7 @@
         {
           "class": "STATIC_EXTRACTED",
           "detector": "extract.bundle-file",
-          "excerptHash": "sha256:cbbebcbcec8500815e87c1031eff331c1e037854d6fe4078f2b82b974ef50479",
+          "excerptHash": "sha256:c05bccf367600b33c55ae457bb089952a86286a1106d2bb51a616e44457fc2ef",
           "lines": [
             1,
             1
@@ -5665,8 +5665,8 @@
           "detector": "extract.test-file-read",
           "excerptHash": "sha256:cf067516900dd4c4d9e5281dc97ed302e8b6d016dc365d8e6614183c8c3b62e4",
           "lines": [
-            168,
-            168
+            254,
+            254
           ],
           "path": "evals/test_execution_profiles.py"
         }
@@ -6513,8 +6513,8 @@
           "detector": "extract.catalog-validator",
           "excerptHash": "sha256:5da7a02651d9cb55424e4b49f49ae2244055c1a2f0955812d58b13f674a3aa1f",
           "lines": [
-            23,
-            23
+            32,
+            32
           ],
           "path": "schemas/catalog-v1.json"
         }
@@ -7852,6 +7852,28 @@
       "target": "review:2026-08-24-host-context-budget-audit"
     },
     {
+      "attrs": {
+        "via": "file-read"
+      },
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.test-file-read",
+          "excerptHash": "sha256:41c0300af692642186ab537c48566e691f325201f3841004d5f2b189ea55630c",
+          "lines": [
+            265,
+            265
+          ],
+          "path": "evals/test_execution_profiles.py"
+        }
+      ],
+      "id": "edge:5dbea6a8130467ab",
+      "kind": "verified_by",
+      "source": "schema:eval-execution-profile-v2",
+      "target": "test:evals/test_execution_profiles.py"
+    },
+    {
       "attrs": {},
       "class": "STATIC_EXTRACTED",
       "evidence": [
@@ -8190,6 +8212,28 @@
       "kind": "cites",
       "source": "review:2026-08-25-sre-agent-human-assistance-review",
       "target": "scenario:agent-direct-sre-owns-recovery-to-terminal"
+    },
+    {
+      "attrs": {
+        "via": "generate_platform_adapters.expected_outputs"
+      },
+      "class": "CONTRACT_RESOLVED",
+      "evidence": [
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "generate_platform_adapters.expected_outputs",
+          "excerptHash": "sha256:1f3359ae7783eeceb67e3cdb064e931873a9e46791e26ebb7e2d55de8041191e",
+          "lines": [
+            472,
+            472
+          ],
+          "path": "scripts/generate_platform_adapters.py"
+        }
+      ],
+      "id": "edge:61411b555a20ef86",
+      "kind": "generated_from",
+      "source": "generated-projection:platforms/copilot/skills/service-retirement/SKILL.md",
+      "target": "skill:service-retirement"
     },
     {
       "attrs": {
@@ -10580,8 +10624,8 @@
           "detector": "extract.test-file-read",
           "excerptHash": "sha256:2898fb88ad0458dfb5db886d060b9e6aa1ca46fab7ae430598be71545e7ff8a0",
           "lines": [
-            122,
-            122
+            131,
+            131
           ],
           "path": "scripts/test_skill_asset_contracts.py"
         }
@@ -11670,6 +11714,28 @@
       "kind": "depends_on",
       "source": "roadmap-item:ROUTE-003",
       "target": "roadmap-item:GRADER-005"
+    },
+    {
+      "attrs": {
+        "mode": "direct"
+      },
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.scenario-target",
+          "excerptHash": "sha256:dc7109a476fe578ab9f325398483d31f6827a3fb96b44aab2aac1ef9f7da0709",
+          "lines": [
+            5,
+            5
+          ],
+          "path": "evals/scenarios/skill-direct-service-retirement-unknown-outcome.yaml"
+        }
+      ],
+      "id": "edge:8f8b28ae5a5b7a1d",
+      "kind": "verified_by",
+      "source": "skill:service-retirement",
+      "target": "scenario:skill-direct-service-retirement-unknown-outcome"
     },
     {
       "attrs": {
@@ -12848,6 +12914,28 @@
     },
     {
       "attrs": {
+        "via": "catalog-v1.json"
+      },
+      "class": "CONTRACT_RESOLVED",
+      "evidence": [
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "extract.catalog-validator",
+          "excerptHash": "sha256:42d13ec3e8400a2881c12427d312d19d3c56317dd9d21ae1b7fb7fed8800549f",
+          "lines": [
+            23,
+            23
+          ],
+          "path": "schemas/catalog-v1.json"
+        }
+      ],
+      "id": "edge:a0c5e564380c4fe8",
+      "kind": "constrained_by",
+      "source": "schema:eval-execution-profile-v2",
+      "target": "document:evals/execution_profiles.py"
+    },
+    {
+      "attrs": {
         "via": "generate_platform_adapters.expected_outputs"
       },
       "class": "CONTRACT_RESOLVED",
@@ -13421,6 +13509,28 @@
     },
     {
       "attrs": {
+        "expected_alternative": "inline"
+      },
+      "class": "STATIC_EXTRACTED",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.scenario-routing",
+          "excerptHash": "sha256:dc7109a476fe578ab9f325398483d31f6827a3fb96b44aab2aac1ef9f7da0709",
+          "lines": [
+            5,
+            5
+          ],
+          "path": "evals/scenarios/discovery-service-retirement-does-not-autofire.yaml"
+        }
+      ],
+      "id": "edge:a7eb421929c50329",
+      "kind": "near_miss_for",
+      "source": "scenario:discovery-service-retirement-does-not-autofire",
+      "target": "skill:service-retirement"
+    },
+    {
+      "attrs": {
         "expected_alternative": "agent:scribe"
       },
       "class": "STATIC_EXTRACTED",
@@ -13770,8 +13880,8 @@
           "detector": "extract.catalog-projection",
           "excerptHash": "sha256:83f904cdca1325187b57be74b6cea2d4ea4d52e97c7d050caf19559f7935921e",
           "lines": [
-            41,
-            41
+            50,
+            50
           ],
           "path": "schemas/catalog-v1.json"
         }
@@ -14492,8 +14602,8 @@
           "detector": "extract.test-file-read",
           "excerptHash": "sha256:babf76ddcf2adf2e830857af9e2f10c83a4ed9a7e4f5b29be2a4b6d2213c31cc",
           "lines": [
-            191,
-            191
+            222,
+            222
           ],
           "path": "scripts/test_skill_asset_contracts.py"
         }
@@ -16735,8 +16845,8 @@
           "detector": "extract.test-file-read",
           "excerptHash": "sha256:8585fecdce4d3e5aa3005ab007315229184480fa4386a5f9189d20a0e5beb45e",
           "lines": [
-            207,
-            207
+            238,
+            238
           ],
           "path": "scripts/test_skill_asset_contracts.py"
         }
@@ -17358,8 +17468,8 @@
           "detector": "extract.test-file-read",
           "excerptHash": "sha256:bc97f4428b3623fc05912754f408f147313e7904e8582ae97247bad0e09147bb",
           "lines": [
-            133,
-            133
+            164,
+            164
           ],
           "path": "scripts/test_skill_asset_contracts.py"
         }
@@ -20627,11 +20737,11 @@
   "kind": "FleetAtlas",
   "metadata": {
     "dirty": false,
-    "edgeCount": 964,
-    "nodeCount": 809,
+    "edgeCount": 969,
+    "nodeCount": 814,
     "repository": "latent-sre/save-toolkit",
-    "revision": "0c05801d0e93567b29143ef5d915b878292a3f14",
-    "treeDigest": "sha256:6d42bdfe5086ab666864549fcf0bb53102afe75b3371e99718d7dceb02b47b2f",
+    "revision": "4d02e870e90408bc01c1b8c60440c12db6b3022d",
+    "treeDigest": "sha256:9b6990029932719d01d471f27b0ca24b632c557f297fd116d5e86ec5e4ea3cc7",
     "unknownCount": 7
   },
   "nodes": [
@@ -21673,7 +21783,7 @@
         {
           "class": "STATIC_EXTRACTED",
           "detector": "extract.bundle-file",
-          "excerptHash": "sha256:cbbebcbcec8500815e87c1031eff331c1e037854d6fe4078f2b82b974ef50479",
+          "excerptHash": "sha256:c05bccf367600b33c55ae457bb089952a86286a1106d2bb51a616e44457fc2ef",
           "lines": [
             1,
             1
@@ -21696,7 +21806,7 @@
         {
           "class": "STATIC_EXTRACTED",
           "detector": "extract.bundle-file",
-          "excerptHash": "sha256:cbbebcbcec8500815e87c1031eff331c1e037854d6fe4078f2b82b974ef50479",
+          "excerptHash": "sha256:c05bccf367600b33c55ae457bb089952a86286a1106d2bb51a616e44457fc2ef",
           "lines": [
             1,
             1
@@ -23294,7 +23404,7 @@
     },
     {
       "attrs": {
-        "bytes": 5318
+        "bytes": 5340
       },
       "authority": "generated",
       "evidence": [
@@ -27158,7 +27268,7 @@
     },
     {
       "attrs": {
-        "bytes": 6629
+        "bytes": 6826
       },
       "authority": "generated",
       "evidence": [
@@ -27181,7 +27291,7 @@
     },
     {
       "attrs": {
-        "bytes": 496
+        "bytes": 620
       },
       "authority": "generated",
       "evidence": [
@@ -27227,7 +27337,7 @@
     },
     {
       "attrs": {
-        "bytes": 626
+        "bytes": 658
       },
       "authority": "generated",
       "evidence": [
@@ -27245,6 +27355,29 @@
       "id": "generated-projection:platforms/copilot/skills/service-readiness-audit/context-requirements.yaml",
       "name": "platforms/copilot/skills/service-readiness-audit/context-requirements.yaml",
       "path": "platforms/copilot/skills/service-readiness-audit/context-requirements.yaml",
+      "state": "generated",
+      "type": "generated-projection"
+    },
+    {
+      "attrs": {
+        "bytes": 6923
+      },
+      "authority": "generated",
+      "evidence": [
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "generate_platform_adapters.expected_outputs",
+          "excerptHash": "sha256:1f3359ae7783eeceb67e3cdb064e931873a9e46791e26ebb7e2d55de8041191e",
+          "lines": [
+            472,
+            472
+          ],
+          "path": "scripts/generate_platform_adapters.py"
+        }
+      ],
+      "id": "generated-projection:platforms/copilot/skills/service-retirement/SKILL.md",
+      "name": "platforms/copilot/skills/service-retirement/SKILL.md",
+      "path": "platforms/copilot/skills/service-retirement/SKILL.md",
       "state": "generated",
       "type": "generated-projection"
     },
@@ -27945,7 +28078,7 @@
     },
     {
       "attrs": {
-        "bytes": 5243,
+        "bytes": 5265,
         "skill": "agent-authoring"
       },
       "authority": "canonical",
@@ -39530,6 +39663,34 @@
     },
     {
       "attrs": {
+        "expect": "not_fire",
+        "expected_alternative": "inline",
+        "file": "evals/scenarios/discovery-service-retirement-does-not-autofire.yaml",
+        "mode": "discovery",
+        "split": "regression",
+        "threshold": null
+      },
+      "authority": "live-contract",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.scenario",
+          "excerptHash": "sha256:f4cabeda63543fcaa5c8e274acbe09cb2e32072bbc8bed94c057ae4b34dc35b7",
+          "lines": [
+            1,
+            1
+          ],
+          "path": "evals/scenarios/discovery-service-retirement-does-not-autofire.yaml"
+        }
+      ],
+      "id": "scenario:discovery-service-retirement-does-not-autofire",
+      "name": "discovery-service-retirement-does-not-autofire",
+      "path": "evals/scenarios/discovery-service-retirement-does-not-autofire.yaml",
+      "state": "live",
+      "type": "scenario"
+    },
+    {
+      "attrs": {
         "expect": "fire",
         "expected_alternative": "",
         "file": "evals/scenarios/discovery-software-engineer-build-cli-with-tests.yaml",
@@ -40398,6 +40559,34 @@
     },
     {
       "attrs": {
+        "expect": "",
+        "expected_alternative": "",
+        "file": "evals/scenarios/skill-direct-service-retirement-unknown-outcome.yaml",
+        "mode": "direct",
+        "split": "regression",
+        "threshold": null
+      },
+      "authority": "live-contract",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.scenario",
+          "excerptHash": "sha256:f4cabeda63543fcaa5c8e274acbe09cb2e32072bbc8bed94c057ae4b34dc35b7",
+          "lines": [
+            1,
+            1
+          ],
+          "path": "evals/scenarios/skill-direct-service-retirement-unknown-outcome.yaml"
+        }
+      ],
+      "id": "scenario:skill-direct-service-retirement-unknown-outcome",
+      "name": "skill-direct-service-retirement-unknown-outcome",
+      "path": "evals/scenarios/skill-direct-service-retirement-unknown-outcome.yaml",
+      "state": "live",
+      "type": "scenario"
+    },
+    {
+      "attrs": {
         "schema": "fleet-atlas-v1"
       },
       "authority": "generated",
@@ -40407,8 +40596,8 @@
           "detector": "extract.catalog-projection",
           "excerptHash": "sha256:83f904cdca1325187b57be74b6cea2d4ea4d52e97c7d050caf19559f7935921e",
           "lines": [
-            41,
-            41
+            50,
+            50
           ],
           "path": "schemas/catalog-v1.json"
         }
@@ -40421,7 +40610,7 @@
     },
     {
       "attrs": {
-        "status": "active",
+        "status": "supported",
         "version": 1
       },
       "authority": "live-contract",
@@ -40445,6 +40634,30 @@
     },
     {
       "attrs": {
+        "status": "current",
+        "version": 2
+      },
+      "authority": "live-contract",
+      "evidence": [
+        {
+          "class": "CONTRACT_RESOLVED",
+          "detector": "extract.catalog-entry",
+          "excerptHash": "sha256:42d13ec3e8400a2881c12427d312d19d3c56317dd9d21ae1b7fb7fed8800549f",
+          "lines": [
+            23,
+            23
+          ],
+          "path": "schemas/catalog-v1.json"
+        }
+      ],
+      "id": "schema:eval-execution-profile-v2",
+      "name": "eval-execution-profile-v2",
+      "path": "schemas/eval-execution-profile-v2.schema.json",
+      "state": "live",
+      "type": "schema"
+    },
+    {
+      "attrs": {
         "status": "active",
         "version": 1
       },
@@ -40455,8 +40668,8 @@
           "detector": "extract.catalog-entry",
           "excerptHash": "sha256:5da7a02651d9cb55424e4b49f49ae2244055c1a2f0955812d58b13f674a3aa1f",
           "lines": [
-            23,
-            23
+            32,
+            32
           ],
           "path": "schemas/catalog-v1.json"
         }
@@ -40503,8 +40716,8 @@
           "detector": "extract.catalog-entry",
           "excerptHash": "sha256:83f904cdca1325187b57be74b6cea2d4ea4d52e97c7d050caf19559f7935921e",
           "lines": [
-            41,
-            41
+            50,
+            50
           ],
           "path": "schemas/catalog-v1.json"
         }
@@ -40527,8 +40740,8 @@
           "detector": "extract.catalog-entry",
           "excerptHash": "sha256:15d24975c0c491ed9d35bfdfbee564e239e078b7dc224dba3bccdcd2e449392f",
           "lines": [
-            32,
-            32
+            41,
+            41
           ],
           "path": "schemas/catalog-v1.json"
         }
@@ -41316,7 +41529,7 @@
     },
     {
       "attrs": {
-        "bytes": 6352,
+        "bytes": 6549,
         "description": "Carry an approved service change through the platform, observability, and operational-knowledge model: onboarding a new service, and re-onboarding a materially changed one. Invoke explicitly as Copilot `/service-lifecycle` or Claude `/save-toolkit:service-lifecycle`. Triggers: 'onboard this service', 'register this application', 'complete service onboarding'. Retirement is not covered here. Not for read-only readiness reviews; use `service-readiness-audit`.",
         "manual_only": true
       },
@@ -41361,6 +41574,31 @@
       "id": "skill:service-readiness-audit",
       "name": "service-readiness-audit",
       "path": "skills/service-readiness-audit/SKILL.md",
+      "state": "live",
+      "type": "skill"
+    },
+    {
+      "attrs": {
+        "bytes": 6633,
+        "description": "Carry an approved service decommission through platform removal, telemetry and alert retirement, and durable operational-knowledge closeout. Invoke explicitly as Copilot `/service-retirement` or Claude `/save-toolkit:service-retirement`. Triggers: 'retire this service', 'decommission this application', 'remove this service from production'. Onboarding and material changes use `service-lifecycle`; read-only readiness reviews use `service-readiness-audit`.",
+        "manual_only": true
+      },
+      "authority": "canonical",
+      "evidence": [
+        {
+          "class": "STATIC_EXTRACTED",
+          "detector": "extract.skill-frontmatter",
+          "excerptHash": "sha256:f77e3c9a84cf5ff4ce1ff57e3520a367c8dfafc9d3af0bdb6bbb8d6aec1f7986",
+          "lines": [
+            1,
+            12
+          ],
+          "path": "skills/service-retirement/SKILL.md"
+        }
+      ],
+      "id": "skill:service-retirement",
+      "name": "service-retirement",
+      "path": "skills/service-retirement/SKILL.md",
       "state": "live",
       "type": "skill"
     },
