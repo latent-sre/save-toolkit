@@ -318,13 +318,15 @@ span; link resolution cannot silently collapse multiple semantic nodes sharing o
 fact renderer that preserves evidence class, label, canonical `path:line`, and a deterministic byte
 budget. The public v1 schema and CLI remain compatible until a measured cutover says otherwise.
 
-**Source:** The accepted product scope remains in `GRAPH-004` above. On
-[PR #205](https://github.com/latent-sre/save-toolkit/pull/205), exact-head review of
-`d0e83c2fbb1ece9f8a0472d95e440fd6bfc0e2c5` reported ten unresolved findings after earlier repair
-rounds. They cluster at four design boundaries: path/type identity resolution; claim-to-evidence
-completeness; provenance/freshness validation; and bounded query/view rendering. Green component
-and structural checks did not exercise those invariants, so another local patch pass would not by
-itself establish merge readiness.
+**Source:** The accepted product scope remains in `GRAPH-004` above. `[verified]` A live GraphQL
+readback on 2026-09-01 found ten unresolved, current review threads on
+[PR #205](https://github.com/latent-sre/save-toolkit/pull/205) at head
+`21dc443b55527d5955713c471fe6168644fac12b`; they originated in exact-head review of
+`d0e83c2fbb1ece9f8a0472d95e440fd6bfc0e2c5` and remain open after later branch commits. They
+cluster at four design boundaries: path/type identity resolution; claim-to-evidence completeness;
+provenance/freshness validation; and bounded query/view rendering. Green component and structural
+checks did not exercise those invariants, so another local patch pass would not by itself establish
+merge readiness.
 
 **Prerequisites:** Start the replacement from current main in a fresh branch or worktree. Preserve
 PR #205 and its commits without force-push or history rewrite until the replacement demonstrates
@@ -334,20 +336,25 @@ Application-code graphs, runtime topology, external probes, canonical write-back
 and GraphRAG remain out of scope.
 
 **Acceptance:** Use expand → migrate → contract. (1) Add the new internal pipeline beside the v1
-implementation and compare normalized semantic output before switching consumers. (2) Shuffling
-extractor registration produces byte-identical output. (3) Typed resolution preserves every valid
-node sharing a path and requires the relationship to request its target type explicitly. (4) Every
-returned attribute and edge cites every source span that determined its value, including both sides
-of resolved links and batch matches. (5) Literals and fixture writes never become verification
-evidence. (6) `build`, `check`, and `query` reject canonical-byte, manifest, projection, and reachable
-non-ancestor revision tampering through the same verifier. (7) Two clean builds are byte-identical,
-and synthetic merge/rebase checkouts succeed only when canonical inputs and full projections match.
-(8) Every rendered fact preserves evidence class, `[verified]` / `[sourced]` / `[unverified]`, and a
-supporting canonical citation. (9) Query output is capped by encoded bytes with an explicit,
-deterministic truncation record and remains below the accepted 20,000-byte surface budget. (10)
-Every material PR #205 finding has a named regression. (11) The old and new paths remain available
-during comparison; each cutover step is independently reversible, and removal waits until no
-consumer uses the old path. (12) Focused atlas tests, component suites, eval validation, Gate A,
+implementation and compare every observable recorded in the prerequisites—schema, CLI verbs and
+exit codes, ordering, labels, citations, truncation behavior, generated filenames, and deterministic
+bytes—before switching consumers; normalized semantic equivalence is supporting evidence, not the
+compatibility gate. (2) Shuffling extractor registration produces byte-identical output. (3) Typed
+resolution preserves every valid node sharing a path and requires the relationship to request its
+target type explicitly. (4) Every returned attribute and edge cites every source span that
+determined its value, including both sides of resolved links and batch matches. (5) Literals and
+fixture writes never become verification evidence. (6) `build`, `check`, and `query` reject
+canonical-byte, manifest, projection, and reachable non-ancestor revision tampering through the same
+verifier. (7) Two clean builds are byte-identical, and synthetic merge/rebase checkouts succeed only
+when canonical inputs and full projections match. (8) Every rendered fact preserves evidence class,
+`[verified]` / `[sourced]` / `[unverified]`, and a supporting canonical citation. (9) CLI query
+output and every generated index/detail view are capped by encoded bytes with an explicit,
+deterministic truncation record and remain below their accepted surface budgets. (10) Every material
+PR #205 finding has a named regression. (11) The old and new paths remain available during
+comparison; each cutover step is independently reversible, and removal waits until no consumer uses
+the old path. (12) The required principal consult returns one durable decision record disposing the
+evidence model, complete v1 compatibility boundary, phased cutover, and rollback per slice before
+implementation proceeds. (13) Focused atlas tests, component suites, eval validation, Gate A,
 clean-checkout determinism, hosted CI, and independent exact-head review pass on one candidate.
 
 **Next action:** Write the compact v2 design and compatibility matrix, naming the typed resolution
