@@ -45,7 +45,7 @@ hidden holdout; a case the corpus does not contain is unmeasured. The live direc
 now carry `rubric` graders have not been re-run end to end under the judge; that is the next
 owner-triggered measurement.
 
-## Addendum — 2026-09-02, review round on PR #210
+## Addendum — 2026-09-01, review round on PR #210
 
 Verbatim-evidence validation was added after this record: a verdict whose quotes are not in the
 graded response is now inconclusive rather than a judgment, and the check applies to cached verdicts

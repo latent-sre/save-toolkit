@@ -1,7 +1,7 @@
 # ADR: One Claude engine, deterministic structure graders, and a calibrated rubric judge
 
 - **Date:** 2026-09-01
-- **Status:** Proposed 2026-09-01; requires Save Toolkit maintainer acceptance before merge
+- **Status:** Accepted 2026-09-01
 - **Decision owner:** Save Toolkit maintainers
 - **Roadmap item:** fleet weight review steps G3 and G4
 - **Supersedes:**
@@ -129,8 +129,9 @@ engine is separately decided and built.
 
 ## Approval
 
-This ADR is **not accepted**. Save Toolkit maintainers must accept it before this change merges,
-because it supersedes an accepted ADR and changes what an automated eval verdict may rest on.
-Acceptance covers the contract above and the offline implementation only. It does not approve any
-model call, paid campaign, push, merge, release, or promotion; a live calibration or measurement run
-remains separately owner-triggered with its own budget.
+Save Toolkit maintainers accepted this ADR on 2026-09-01, superseding the multi-engine evaluation
+contract. The approval covers the two-grader split, the five bounding properties of the judge, and
+the offline implementation. It does **not** approve any model call, paid campaign, push, merge,
+release, or promotion: a live calibration or measurement run remains separately owner-triggered with
+its own budget, and human acceptance of an exact candidate revision remains the only promotion
+authority.
