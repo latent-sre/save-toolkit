@@ -20,52 +20,21 @@ Page on user-visible symptoms that require action now. Use an SLI and error budg
 significant sustained burn from a transient component signal; use correlation and synthetics to rank
 where responders should look, never to manufacture a root cause. Every alert links a runbook.
 
-## SLI — the measurement
+## SLI, SLO, and burn rate
 
-An SLI is a ratio of **good events / valid events** from the user's perspective:
+For every SLI, name the user journey and define **good events / valid events**: numerator,
+denominator, exclusions, and whether its unit is requests or time. Preserve the exact metric or log
+query with backend, target, time range, and result. A formula without a reproducible query is a
+proposal, not a verified SLI.
 
-```text
-availability SLI = successful requests / valid requests
-latency SLI      = requests faster than <threshold> / valid requests
-```
+**Burn rate = observed bad-event fraction / the SLO's allowed bad-event fraction.** Keep request- and
+time-based budgets in their own units; never translate a request-ratio budget to downtime minutes.
+Record consumed-budget status separately from the current alert verdict. The human service owner
+uses the budget to balance feature risk and reliability work.
 
-For every SLI, define the numerator and denominator explicitly: which outcomes are good, which events
-are valid, which health checks or client errors are excluded, and which user journey the ratio
-represents. Query it in the team's current metric or log backend and preserve the exact query as
-evidence with its time range, target, and result. A formula without a reproducible query is a proposal,
-not a verified SLI.
-
-## SLO — the target over a window
-
-- Pick one target for each critical user journey over a stated rolling window, commonly 28 days.
-- **Error budget = 1 − SLO**, and its unit follows the SLI. A request-based SLI has a budget measured
-  in bad requests; a time-based probe/uptime SLI has a budget measured in bad minutes.
-- For example, a 99.9% request SLO over 9.3 million valid requests permits about 9,300 bad requests;
-  a 99.9% time-based SLO over 28 days permits about 40.3 bad minutes. These are different SLIs and
-  are not interchangeable even though the percentage target is the same.
-- Never convert a request-ratio budget into downtime minutes: that assumes uniform traffic and hides
-  the difference between peak-hour and overnight impact.
-- Treat the budget as a decision input. Record the budget-status calculation separately from an alert
-  verdict; a recovered short window does not restore budget already consumed. The human service owner
-  uses the remaining budget and error-budget policy to balance feature risk and reliability work.
-
-Have a human (or an unguarded lane) run [error_budget.py](./scripts/error_budget.py) for local,
-pure-stdlib calculations and paste the output — the fleet's read-only guard deliberately denies
-script execution. It refuses mixed
-time/request units, validates numeric inputs, and emits a severity only when a legal long/short pair is
-selected and both measurements are present.
-
-## Burn-rate alerts
-
-Burn rate is the observed bad-event ratio divided by the SLO's allowed bad-event ratio. Bind each
-threshold to its window pair — the threshold is not a free label. The three starting-point
-window/threshold pairs, their source, and the mixing rules are in
-[burn rate](./references/burn-rate.md).
-
-Require BOTH the long and short windows to meet that pair's threshold. The long window provides
-significance; the short window proves the burn is still active and lets the notification resolve
-quickly after recovery. A one-window spike or a recovered short window is not a page, but neither is
-an all-clear about budget status.
+Load the burn-rate method below for its long/short pairs, low-traffic judgment, and guard-safe
+calculator. Treat a pair as one unit: both windows must meet its threshold. A one-window spike or
+recovered short window is not a page, but neither proves the service is in budget.
 
 Read only the row needed for the task:
 
@@ -115,10 +84,6 @@ stays labeled `[unverified]`.
 
 - Don't choose extra nines because they sound reliable; every nine raises operating cost. Match the
   target to user need and what the team can actually defend.
-- Don't page on every cause candidate such as CPU or one failed instance. Page on the symptom and give
-  the responder those signals as ranked diagnostic evidence.
-- Don't call a non-alert branch healthy, in budget, or an all-clear. Alert state answers whether the
-  paired burn condition is firing now; budget status answers what has already been consumed.
 - Don't create an alert without an owner, tested notification route, actionable summary, and runbook.
 
 ## Handoff

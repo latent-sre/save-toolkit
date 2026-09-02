@@ -1,76 +1,44 @@
-# Getting more from Viewer and Editor access
+# Viewer and Editor workflows
 
-Use this reference when helping people who consume dashboards — on-call engineers, leads, stakeholders
-with **Viewer** access, and dashboard authors with **Editor** access — get more from Grafana without
-widening anyone's role. Most requests for "can I get edit rights?" are really requests for one of the
-workflows below.
+Read this when helping someone consume or author dashboards without widening their organization role.
+Confirm the deployed Grafana edition and permission model; documentation describes capabilities, not
+the grants on this instance.
 
-## The role ladder, and the escape hatch
+## Permission boundary
 
-- **Viewer** is the read baseline. **Editor** adds create/manage for dashboards, folders, annotations,
-  library panels, and alerting. **Admin** adds organization management (data sources, teams, org
-  settings). `[sourced: RBAC basic role definitions,
-  grafana.com/docs/grafana-cloud/platform/security-and-account-management/security-and-access/authentication-and-permissions/access-control/rbac-fixed-basic-role-definitions]`
-- **Dashboard and folder permissions are the escape hatch**: a specific user or team can be granted
-  Edit or Admin on one folder or dashboard while staying an org Viewer, and dashboards inherit their
-  folder's grants. Reach for a folder-scoped grant before proposing an org-role bump — "needs to edit
-  the team's dashboards" is not "needs org Editor". Organization admins keep full access regardless.
-  `[sourced: dashboard permissions API and manage-dashboards docs]`
-- **Explore is permission-gated**, not tied to a hard-wired role: it hangs off the `datasources:explore`
-  permission. Where RBAC is licensed (Enterprise/Cloud), grant `fixed:datasources:explorer` to a team
-  of viewers to give them ad-hoc querying without dashboard-edit rights; data-source query permissions
-  still apply. `[sourced: RBAC rollout-strategy scenario docs]` On the deployed edition the available
-  levers are `[unverified]` — confirm the licence with the Grafana administrator (see the licence
-  section in the skill body) before promising Explore to a viewer team.
-- Permission and role changes are live Grafana configuration: they go through the Grafana
-  administrator and the normal approval path, not through an agent.
+- Viewer is the read baseline; Editor adds dashboard, folder, annotation, and library-panel changes.
+  Organization Admin also manages organization resources such as data sources and teams.
+- Prefer a user/team grant on the one dashboard or folder over an organization-wide role increase.
+  Dashboards inherit folder permissions. Where licensed, an Explore-specific RBAC grant can allow
+  ad-hoc querying without dashboard-edit authority.
+- Permission and role changes are live configuration outside the dashboard write rule. Prepare the
+  exact requested grant for the Grafana administrator; the agent does not apply it.
 
-Sources reviewed 2026-08-21 through the Context7 documentation mirror; behavior on the deployed
-Grafana 13 minor is `[unverified]` until exercised there.
+*[sourced: Grafana basic roles, RBAC fixed roles, and dashboard permissions documentation; target
+behavior remains `[unverified]` until checked]*
 
-## Viewer workflows — no new grants required
+## Viewer evidence
 
-- **Time, variables, and timezone live in the URL.** `?from=now-6h&to=now`, `&var-<name>=<value>`,
-  and `&timezone=utc` reconstruct the exact view; paste the full URL into an incident channel instead
-  of a screenshot, so the reader lands on the same window and scope. In dashboard links, the
-  `${__url_time_range}` variable carries the current range to the target dashboard.
-  `[sourced: dashboard URL variables and global-variables docs]`
-- **Panel inspect answers "what am I looking at".** Inspect shows the underlying query, the returned
-  data, and the panel JSON, and exports the data as CSV — a viewer can pull the numbers behind a graph
-  without Explore access or a data-source login.
-- **Share → internal link** produces a link with the time range locked and can render the panel to
-  PNG for a written update. Prefer the link over the image: the link stays live, the image goes stale
-  the moment it is pasted. `[sourced: share-dashboards-panels docs]`
-- **Kiosk mode and playlists** turn any dashboard set into a status screen: kiosk hides the chrome,
-  a playlist cycles dashboards unattended. Viewers can run playlists; building one is Editor work.
-- **Star the dashboards you actually use.** Starred dashboards filter to the top of search and the
-  home list — the cheap fix for "I can never find the right dashboard".
-- **Propose changes as code.** A viewer who spots a wrong threshold or a missing panel does not need
-  edit rights: an Editor or the observability lane can make the change on the instance — say which
-  dashboard, which panel, and what should differ.
+- Preserve the investigation state in the URL: absolute or relative time range, `var-<name>` values,
+  and timezone. Prefer an access-controlled live link over a screenshot; a screenshot freezes data
+  and can expose more than the recipient is authorized to query.
+- Panel Inspect exposes the query, returned data, panel JSON, and CSV without granting Explore.
+  Record the time window and variable values with exported evidence.
+- Internal panel/dashboard links remain access-controlled. A Grafana snapshot embeds queried data
+  outside the dashboard's normal access path: scrub it, set an expiry, and treat sharing it as data
+  egress.
 
-## Editor workflows — beyond dragging panels
+*[sourced: Grafana URL variables, panel inspection, and sharing documentation]*
 
-- **Library panels** publish one reviewed panel for reuse across dashboards; an edit propagates to
-  every consumer. Use them for a health/SLO row shared across dashboards, instead of
-  copy-pasted near-duplicates that drift apart.
-- **Annotations** mark deploys, incidents, and config changes on the time axis — the fastest "did the
-  deploy cause this?" evidence. Annotate at the moment of the event, tagged consistently; they can
-  also be written by automation through the annotations HTTP API.
-- **Version history** (dashboard settings → versions) shows who changed what, with diffs, and
-  restores a prior version — triage for "this dashboard looked different yesterday". **Check ownership
-  before calling a rollback done.** On a provisioned or tool-managed dashboard a UI restore is
-  temporary *and* the API write that would replace it is refused
-  ([http-api](./http-api.md)) — the owning tool reconciles its own source on the next cycle and your
-  change disappears. There is no durable rollback from this lane: stop, name the owning tool, and
-  hand the revert to whoever controls that source. Only an unmanaged dashboard rolls back here, by a
-  fresh API write of the saved model.
-- **Snapshots are data egress.** A snapshot embeds the queried data and detaches it from access
-  control; anyone with the link sees the numbers. Prefer an internal share link. If a snapshot is
-  genuinely needed (external party, ephemeral data), scrub it, set an expiry, and treat posting it
-  like attaching a log excerpt — redaction rules apply.
-- **A UI edit is a real change with no review.** Grafana records it in version history with your
-  name, and that history is the only trace. Set a meaningful save message, and prefer the API path in
-  [http-api](./http-api.md) when the change is worth a diff and a rollback.
+## Editor changes
+
+- Library panels propagate an edit to every consumer; inventory those consumers before changing one.
+- Annotations should mark deploys, incidents, and configuration changes with consistent tags.
+- Version history names who changed a dashboard and supports comparison/restore. A restore is durable
+  only for an unmanaged dashboard. Provisioned or tool-managed resources must be changed through
+  their owner or the next reconciliation will replace the UI/API edit.
+- Every UI or API save is a real change. Use a meaningful save message; prefer the API path in
+  [http-api](./http-api.md) when the work needs a reviewable diff, concurrency protection, query
+  evidence, and a rollback.
 
 <!-- terminal-canary: q_odview_7a3d -->

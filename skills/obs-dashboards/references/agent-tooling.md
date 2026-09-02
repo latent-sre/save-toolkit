@@ -1,105 +1,57 @@
-# Agent tooling beyond curl — gcx, the Grafana MCP server, and the vendor skills
+# Agent tooling safety notes
 
-The skill's primary path is the HTTP API with `curl` and JSON files ([http-api](./http-api.md)): it
-works on every host and in CI with nothing installed. This reference records the alternatives Grafana
-Labs now ships for agents, what each adds, and the one behavior of each that changes how you write.
-Nothing here is installed in this repository; adopting any of it is a stack decision recorded in
-`stack-profile`, not something this skill assumes.
+Read this only when the task names an installed Grafana CLI, MCP server, vendor skill, or Foundation
+SDK. The repository installs none of them. Adoption is a `stack-profile` decision, and current tool
+names, flags, and compatibility come from the installed version's `--help` plus current upstream
+documentation—not this file.
 
-Sources reviewed 2026-08-21 from the upstream repositories (file paths cited). Tool names and flags
-drift between releases — **list the live tools or run `--help` on the installed version before relying
-on any name below**; the vendor's own `assistant-mcp` skill was found naming MCP tools
-(`get_dashboard`, `create_dashboard`) that do not exist in the server's registration source.
+The HTTP API in [http-api](./http-api.md) remains the portable path and owns this fleet's
+concurrency, verification, and evidence rules. A helper may implement a call; it does not replace
+those rules or widen dashboard-only authority.
 
-## `gcx` — the Grafana CLI built for agents (recommended by Grafana for Grafana 13+)
+## `gcx`
 
-- Status: **generally available**, v1.1.0 (2026-08-14); "A CLI for managing Grafana and Grafana Cloud
-  resources. Optimized for agentic usage." Supports Grafana 13.x fully, 12.x "not actively supported",
-  below 12 refused (exit code 6). It replaces `grafanactl` (deprecated; archive announced for
-  2026-06-01) which replaced Grizzly (archived 2026-06-05). *[sourced: github.com/grafana/gcx README;
-  grafana/grafanactl README; grafana-cold-storage/grizzly]*
-- What it adds over curl: server-side **`--dry-run`** on push/delete, **`resources validate`** against
-  the target, idempotent create-or-update push of Kubernetes-style manifests, **version listing and
-  restore** (`gcx dashboards list-versions` / `versions restore`), and **`gcx dashboards snapshot`** —
-  renders a PNG of the dashboard for the visual check the vendor's skill treats as the definition of
-  done. Agent mode (auto-detected from `CLAUDECODE`, `CURSOR_AGENT`, `GITHUB_COPILOT`… or
-  `GCX_AGENT_MODE=true`) switches output to JSON and refuses destructive operations without `--force`.
-  *[sourced: gcx docs/design/safety.md, agent-mode.md; docs/reference/cli]*
-- Documented usage, quoted from the vendor (not an instruction to install): `gcx login <ctx> --server
-  <url> --token <sa token>`; `gcx dashboards get <uid> --api-version dashboard.grafana.app/v1`
-  ("defaults to server preferred version"); `gcx resources validate -p <dir>` → `gcx resources push -p
-  <dir> --dry-run` → `gcx resources push -p <dir>` → `gcx resources get dashboards/<uid>`;
-  `GCX_AGENT_MODE=true gcx dashboards snapshot <uid> --output-dir <dir> --since 6h --var env=prod`.
-  Auth via `GRAFANA_SERVER` / `GRAFANA_TOKEN` (Viewer reads, Editor pushes). A push that fails on
-  `grafana.app/managed-by` means another tool owns the resource — stop and ask before `--include-managed`.
-  *[sourced: gcx claude-plugin/skills/create-dashboard and manage-dashboards SKILL.md; README]*
-- `gcx assistant dashboard "<request>"` sends the request to Grafana Assistant and returns pushable
-  dashboard JSON; it is Cloud-backed and billable. *[sourced: gcx docs/reference/cli/gcx_assistant_dashboard.md]*
+If `gcx` is installed, confirm the live command surface before use. Prefer its server-side validation,
+dry-run, push, version history/restore, and dashboard snapshot flow when those commands exist. Pin the
+dashboard API version instead of accepting a server-preferred shape, and stop when
+`grafana.app/managed-by` names another owner.
 
-When gcx is on the host, prefer it for **validate → dry-run → push → snapshot**; keep curl for reads
-in CI and for anything gcx does not expose.
+Agent-mode safeguards and a successful dry-run are not approval. After a push, read the resource
+back, run changed queries, inspect a snapshot when rendering exists, and confirm the save record.
+Credentials stay in the process environment; never embed a token in a context, command transcript,
+or tracked config.
 
-## `grafana/mcp-grafana` — the official MCP server
+*[sourced: `grafana/gcx` README, safety design, and live CLI help; re-check before use]*
 
-- v1.1.0 (2026-08-10); Grafana ≥ 9. Auth: `GRAFANA_URL` + `GRAFANA_SERVICE_ACCOUNT_TOKEN` (or
-  `_TOKEN_FILE`; `GRAFANA_API_KEY` is deprecated); `GRAFANA_ORG_ID` selects the org. *[sourced: mcpgrafana.go]*
-- Dashboard tools as registered in source: `search_dashboards`, `search_folders`,
-  `get_dashboard_by_uid` (returns `apiVersion` and `isV2`; warns it can consume a large context
-  window), `get_dashboard_summary`, `get_dashboard_property` (JSONPath), `get_dashboard_panel_queries`,
-  `update_dashboard` (full JSON **or** `uid` + JSONPath patch `operations`), `create_folder`,
-  `get_panel_image` (needs the image renderer), `run_panel_query` (disabled by default),
-  `generate_deeplink`, snapshot and provisioning tools. *[sourced: tools/dashboard.go, search.go,
-  folder.go, rendering.go, run_panel_query.go, provisioning.go]*
-- **Read compactly:** "Use `get_dashboard_summary` for dashboard overview… Use `get_dashboard_property`
-  with JSONPath when you only need specific dashboard parts… Avoid `get_dashboard_by_uid` unless you
-  specifically need the complete dashboard JSON." *[sourced: README]*
-- **Patch mode forces `overwrite: true`.** `update_dashboard` with `operations` re-fetches the stored
-  dashboard, applies `replace|add|remove` at JSONPaths (numeric indices only, `/-` appends), restores
-  `uid` and the numeric `id`, and saves with overwrite hard-coded — a patch always wins a concurrent-edit
-  race. Full-JSON mode passes through the `version` inside your JSON and your `overwrite` flag, which
-  is the only way to keep optimistic locking through this server. It also refuses to write a V2 body over
-  a V1-stored dashboard. *[sourced: tools/dashboard.go updateDashboardWithPatches and the v1/v2 guard]*
-- **Read-only deployment:** `--disable-write` "provides a way to run the MCP server in read-only mode"
-  and removes `update_dashboard`, `create_folder`, annotation/snapshot/incident writes; pair it with a
-  Viewer service account. Per-category `--disable-<category>` flags exist; there is no `--disabled-tools`.
-  Tool calls with unknown argument keys are rejected since v1.0.0. *[sourced: README "Read-Only Mode";
-  cmd/mcp-grafana/main.go; v1.0.0 release notes]*
-- Not configured here: this repository ships no `.mcp.json` and the user-level config holds no Grafana
-  server. Wiring it means an entry with the token from the environment, never a committed secret.
+## `grafana/mcp-grafana`
 
-## Vendor skill packages (optional companions, Apache-2.0)
+Use summary/property/query tools for narrow reads; a complete-dashboard read consumes much more
+context and is justified only for a full model edit.
 
-- **`grafana/skills`** — an Agent Skills marketplace for Claude Code, Cursor, and Codex. The
-  `grafana-core` plugin carries `dashboarding` (classic JSON over `POST /api/dashboards/db`, "After
-  every API push, verify with the returned `version` plus a GET on the dashboard UID"), `promql`,
-  `alerting-irm`, `alloy`, `opentelemetry`; `grafana-cloud` carries `assistant-mcp` and `ml-ai`. The
-  dashboarding skill is classic-schema only and does not cover V2, the app-platform API, gcx, or MCP.
-  Documented install, quoted: `claude plugin marketplace add grafana/skills` then
-  `claude plugin install grafana-core@grafana-skills`. *[sourced: README; skills/grafana-core/dashboarding/SKILL.md]*
-- **`grafana/gcx` Claude plugin** — 24 skills including `create-dashboard`, `manage-dashboards`,
-  `import-dashboards` (live dashboard → Foundation SDK Go code), `generate-resource-stubs`,
-  `debug-with-grafana`, `investigate-alert`. Its loop — understand goal → discover data → author →
-  validate/push → snapshot → inspect → revise — and its hard rules ("Do not invent PromQL, LogQL,
-  datasource UIDs, label names, or folder UIDs"; "not complete after `push` succeeds… only after the
-  dashboard has been visually checked, or after you report exactly why the snapshot step is blocked")
-  are the source of this skill's loop. Documented install, quoted: `/plugin marketplace add grafana/gcx`,
-  `/plugin install gcx@gcx-marketplace`, or `gcx agent skills install --all`. *[sourced: gcx claude-plugin/]*
-- Neither Anthropic marketplace (`anthropics/skills`, `claude-plugins-official`) carries a Grafana
-  skill. *[verified 2026-08-21 by listing both repositories]*
+**Do not use patch-mode `update_dashboard` for a live write.** In the reviewed implementation,
+JSONPath operations re-fetch the model and save with `overwrite: true`, silently defeating the
+concurrency rule. Full-JSON mode can preserve the returned `version` with `overwrite: false`; if the
+installed server cannot do that, use the HTTP path instead. Re-check the installed tool source or
+version before relying on this behavior because it can change.
 
-These packages overlap this skill rather than replace it: they know Grafana, this skill knows the
-team's stack, licence limits, change ladder, and evidence rules. If one is installed, this skill still
-governs what may be written where.
+For a read-only deployment, combine the server's current write-disable option with a Viewer service
+account. A flag is defense in depth, not proof of isolation; inspect the registered live tool list.
 
-## Foundation SDK — typed dashboards as code
+*[sourced: `grafana/mcp-grafana` dashboard tool source and README, reviewed 2026-08-21]*
 
-Go, TypeScript, Python, PHP, Java builders generated from Grafana's schemas; "best suited for Grafana
->= 12"; public preview; v0.0.18 (2026-06-12). Builders emit Classic JSON or a V1/V2 Kubernetes manifest
-(`Manifest(api_version="dashboard.grafana.app/v1beta1", kind=DashboardKind, metadata=Metadata(name=uid),
-spec=dashboard)`) that gcx or Git Sync applies. Pin the Python package explicitly — PyPI also hosts
-older epoch-style releases (`1769699998!10.1.0`) that sort above `0.0.18`. Grafana's as-code docs:
-"Grafonnet is not officially supported by Grafana. Instead, use the Foundation SDK." Existing jsonnet
-mixins keep working; new typed code goes through the SDK. *[sourced: grafana-foundation-sdk README,
-examples/python/red-method; docs as-code/observability-as-code]*
+## Vendor skills and Foundation SDK
+
+Grafana's skill packages and `gcx` plugin overlap this skill. Their product knowledge may help author
+a model, but this fleet's stack, target discovery, authority, evidence labels, and no-force write
+contract still govern. Do not install or update a package as part of a dashboard task without a
+separate stack decision.
+
+The Foundation SDK can generate typed Classic, V1, or V2 dashboard models. Use it only when already
+adopted for repository-managed dashboard-as-code work; this team's live dashboards currently have no
+committed source. Pin the package through the repository dependency process and validate generated
+output against the target API version before applying it.
+
+*[sourced: `grafana/skills` and `grafana/grafana-foundation-sdk` upstream documentation; fetch current
+versions when adoption is actually proposed]*
 
 <!-- terminal-canary: q_odtool_5b2a -->
