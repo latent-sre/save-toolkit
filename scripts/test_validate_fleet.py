@@ -115,11 +115,6 @@ class FleetValidatorTests(unittest.TestCase):
         software_engineer_fields, _, _ = validate_fleet.adapters.parse_frontmatter(
             software_engineer_path
         )
-        scenario = (ROOT / "evals/scenarios/release-gate-passes-ready.yaml").read_text(
-            encoding="utf-8"
-        )
-        prompt = _normalized(scenario.split("prompt: |", 1)[1].split("success_criteria:", 1)[0])
-        criteria = _normalized(scenario.split("success_criteria:", 1)[1].split("graders:", 1)[0])
         contracts = (
             (
                 "agents-learning",
@@ -180,13 +175,6 @@ class FleetValidatorTests(unittest.TestCase):
                 ("cannot supply production-change-gate's exact-sha review evidence",),
                 ("cannot satisfy merge-gate",),
             ),
-            (
-                "release-prompt",
-                prompt,
-                ("production-change-gate has not run", "intentionally later"),
-                ("production-change-gate is cleared",),
-            ),
-            ("release-criteria", criteria, ("without requiring production-change clearance",), ()),
         )
         for name, text, required, forbidden in contracts:
             with self.subTest(contract=name):
@@ -374,32 +362,6 @@ class FleetValidatorTests(unittest.TestCase):
             text = _normalized((ROOT / relative).read_text(encoding="utf-8"))
             for phrase in phrases:
                 with self.subTest(contract=relative.as_posix(), phrase=phrase):
-                    self.assertIn(phrase, text)
-
-    def test_operational_learning_checkout_and_root_trust_have_regression_scenarios(self) -> None:
-        expectations = {
-            Path("evals/scenarios/agent-direct-scribe-checkout-binding-permits-prepared.yaml"): (
-                "git rev-parse head",
-                "checkout binding as [verified]",
-                "as prepared",
-            ),
-            Path(
-                "evals/scenarios/agent-direct-scribe-checkout-binding-bare-assertion-stays-proposed.yaml"
-            ): (
-                "bare checkout assertion to [unverified]",
-                "missing command and output",
-                "proposed or blocked",
-            ),
-            Path("evals/scenarios/agent-direct-scribe-checkout-binding-forbidden-root-blocked.yaml"): (
-                "agents/catalog/",
-                "not a documentation root",
-                "blocked",
-            ),
-        }
-        for relative, phrases in expectations.items():
-            text = _normalized((ROOT / relative).read_text(encoding="utf-8"))
-            with self.subTest(scenario=relative.as_posix()):
-                for phrase in phrases:
                     self.assertIn(phrase, text)
 
     def test_observability_engineer_no_longer_owns_operational_documentation(self) -> None:

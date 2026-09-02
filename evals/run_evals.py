@@ -113,9 +113,6 @@ REQUIRED_SCENARIO_IDS = (
 )
 ALLOWED_ROUTING_KEYS = {"expect", "scope", "also_acceptable", "expected_alternative"}
 REFERENCE_REQUIREMENTS = {
-    "agent-direct-sre-first-response-untriaged-alert": (
-        "skills/investigation-depth/references/first-response.md",
-    ),
     "agent-direct-sre-owns-recovery-to-terminal": (
         "skills/investigation-depth/references/recovery-lifecycle.md",
     ),

@@ -58,6 +58,10 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- `evals/test_graders.py`'s `check()` now asserts as well as recording, so `python -m pytest`
+  sees its failures; since the move to pytest every test in that file had passed regardless of
+  its checks, and one Splunk alerting fixture had been red since #209 without anyone seeing it.
+  The fixture now carries the scenario's fixed runbook link.
 - Every agent handoff packet is now six slots (`→ Handing to`, `Goal`, `Change`, `Findings`,
   `Verified`, `Not done`) in `software-engineer`, `reviewer`, `observability-engineer`, `scribe`,
   and the `sre` contract in `investigation-depth/references/incident-handoff.md`; the seven slots
@@ -319,6 +323,10 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   `unavailable`, and Codex live execution was already hard-disabled before `subprocess.run`. The
   legacy `--run`/`--validate`/`--mode`/`--split`/`--match`/`--model`/`--trials` Claude-plugin path
   is unchanged.
+- Retired 99 scenarios from `evals/scenarios/` in the eval-corpus cut (28 on skills slated for
+  merge or labs, 26 templated deferral negatives, 32 keyword-only direct scenarios, 13 duplicate
+  discovery positives); 46 remain (15 policy or structural direct, 25 one-per-target discovery
+  positives, 6 curated negatives) plus the six build probes.
 
 ## [0.1.0] - 2026-08-11
 
