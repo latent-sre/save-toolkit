@@ -58,6 +58,12 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- `stack-profile` records that the team operates PCF through Apps Manager (many SREs have no `cf`
+  CLI), the responder's incident tools in order (Apps Manager, Splunk, Wavefront and PCF App
+  Metrics), and that Wavefront is the live PCF metrics UI today. `incident-command`'s references
+  label an owner ratification `[sourced]` rather than `[verified]` and state that the commander's
+  record merges `sre`'s timeline lines. `observability-engineer` cites `production-change-gate`'s
+  tiers instead of restating them.
 - Folded `agent-security` into `agent-authoring` as `references/agent-security.md` (one 6 KB
   reference replacing a 15 KB three-file skill). Kept the lethal trifecta, the leg-cutting order
   and Rule of Two, the cross-agent trust boundaries, the controls that hold (envelope and

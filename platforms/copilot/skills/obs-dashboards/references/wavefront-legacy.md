@@ -13,6 +13,9 @@ Catalogue guidance is not entitlement evidence. Confirm edition, the installed p
 
 - Wavefront uses WQL through `grafana-wavefront-datasource`, an Enterprise plugin. Its backend
   continues as Broadcom DX OpenExplore; support against the team's tenant is `[unverified]`.
+  Wavefront is the live metrics UI for this team's PCF applications today; "legacy" here means the
+  data-source plugin and licence lineage, not the team's usage. *[sourced: operator statement
+  2026-09-02]*
 - Splunk uses SPL through `grafana-splunk-datasource` and has the same Enterprise-entitlement check.
 - ThousandEyes has no Grafana data-source plugin. Its OpenTelemetry signals land in an installed
   Prometheus/Mimir, Tempo, or Loki backend and are queried there; never invent a plugin type or uid.

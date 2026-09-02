@@ -14,7 +14,7 @@ human-only effect boundary remain controlling.
 | **P4 — Low** | Cosmetic or informational; no user impact | Normal work queue; no incident process |
 
 This is the fleet's canonical P1-P4 ladder and cadence, ratified by the owner on 2026-08-23.
-*[verified: owner ratification]*
+*[sourced: owner ratification]*
 
 ## Classify from impact, scope, and trend
 
