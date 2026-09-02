@@ -334,6 +334,11 @@ class FleetDoctorTests(unittest.TestCase):
         self.assertEqual("pass", statuses["guard.file"])
         self.assertEqual("pass", statuses["guard.interpreter-protocol"])
         self.assertIn("guard.interpreter-protocol", fleet_doctor.render_human(report))
+        # A saved or forwarded report must say which checkout and revision it describes; without
+        # that, the same output from two candidates is indistinguishable and can be misattributed.
+        human = fleet_doctor.render_human(report)
+        self.assertIn(str(report["root"]), human)
+        self.assertIn(str(report["revision"]), human)
 
     def test_minimal_installed_plugin_does_not_import_repository_helpers(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

@@ -146,6 +146,83 @@ class MeasurementCaptureTests(unittest.TestCase):
         self.assertIn("Observed judge models:** `none`", text)
         self.assertNotIn("Rubric judge:", text)
 
+    def test_exercise_capture_requires_revision_summary_and_verbatim_list(self) -> None:
+        root = self.make_root()
+        envelope = root / "exercise.json"
+        envelope.write_text(json.dumps({
+            "schema_version": 1,
+            "measurement_id": "terra-grader-check",
+            "producer": "agent-task",
+            "captured_at": "2026-08-26T12:00:00+00:00",
+            "repository_revision": "d" * 40,
+            "models": ["gpt-5.6-terra"],
+            "summary": "Three independent contract responses were checked. </pre>",
+            "verbatim_phrasings": ["bounded excerpt"],
+        }), encoding="utf-8")
+
+        output = capture.capture_exercise(envelope, root / "docs" / "reviews")
+
+        text = output.read_text(encoding="utf-8")
+        self.assertIn("terra-grader-check", text)
+        self.assertIn("Three independent", text)
+        self.assertIn("&lt;/pre&gt;", text)
+        self.assertIn("bounded excerpt", text)
+
+    def test_exercise_capture_rejects_an_envelope_that_cannot_be_attributed(self) -> None:
+        """Each field the validator demands is the one that makes the record attributable later."""
+        root = self.make_root()
+        envelope = root / "exercise.json"
+        valid = {
+            "schema_version": 1,
+            "measurement_id": "attribution-check",
+            "producer": "session-exercise",
+            "captured_at": "2026-08-26T12:00:00+00:00",
+            "repository_revision": "d" * 40,
+            "models": ["gpt-5.6-terra"],
+            "summary": "A durable summary.",
+            "verbatim_phrasings": [],
+        }
+        broken = {
+            "no schema_version": {"schema_version": 2},
+            "unsafe id": {"measurement_id": "../escape"},
+            "unknown producer": {"producer": "anonymous"},
+            "short revision": {"repository_revision": "d" * 7},
+            "empty summary": {"summary": "   "},
+            "no models": {"models": []},
+            "phrasings not a list": {"verbatim_phrasings": "one"},
+            "too many phrasings": {"verbatim_phrasings": ["x"] * 9},
+        }
+        for label, override in broken.items():
+            with self.subTest(case=label):
+                envelope.write_text(json.dumps({**valid, **override}), encoding="utf-8")
+                with self.assertRaises(capture.CaptureError):
+                    capture.capture_exercise(envelope, root / "docs" / "reviews")
+
+        envelope.write_text(json.dumps(valid), encoding="utf-8")
+        capture.capture_exercise(envelope, root / "docs" / "reviews")
+        with self.assertRaises(FileExistsError):
+            capture.capture_exercise(envelope, root / "docs" / "reviews")
+
+    def test_the_documented_exercise_subcommand_exists(self) -> None:
+        """`evals/README.md` tells an operator to run this before transient host output is gone."""
+        root = self.make_root()
+        envelope = root / "exercise.json"
+        envelope.write_text(json.dumps({
+            "schema_version": 1,
+            "measurement_id": "cli-path-check",
+            "producer": "manual-exercise",
+            "captured_at": "2026-08-26T12:00:00+00:00",
+            "repository_revision": "d" * 40,
+            "models": ["gpt-5.6-terra"],
+            "summary": "Captured through the CLI.",
+            "verbatim_phrasings": [],
+        }), encoding="utf-8")
+
+        code = capture.main(["--reviews-dir", str(root / "docs" / "reviews"), "exercise", str(envelope)])
+
+        self.assertEqual(code, 0)
+        self.assertTrue((root / "docs" / "reviews" / "2026-08-26-exercise-cli-path-check.md").is_file())
+
     def test_capture_refuses_overwrite(self) -> None:
         root = self.make_root()
         summary_path = root / "summary.json"

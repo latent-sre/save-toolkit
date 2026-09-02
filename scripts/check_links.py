@@ -60,6 +60,10 @@ LIVE_DOC_DIR_GLOBS = (
     ("docs", "*.md"),
     ("docs/decisions", "*.md"),
     ("docs/probes", "*.md"),
+    # Retained evidence packets cite each other. A retention pass that keeps a packet while deleting
+    # one it cites leaves an active item's evidence chain ending at a missing file, and did: six
+    # such links survived a green `check_links` because this directory was not read.
+    ("docs/reviews", "*.md"),
 )
 
 

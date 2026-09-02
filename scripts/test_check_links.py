@@ -282,6 +282,16 @@ class LinkCheckerTests(Fixture):
         self.skill("# Probe\n\nRead [missing](./references/missing.md).\n")
         self.assertTrue(any("dead link" in item for item in check_links.check(self.root)))
 
+    def test_a_review_packet_citing_a_deleted_packet_is_a_dead_link(self):
+        """Retained evidence cites retained evidence: a retention pass that keeps the citing packet
+        and deletes the cited one leaves an active item's chain ending nowhere, and did so behind a
+        green gate until `docs/reviews` was read."""
+        self.write("docs/reviews/kept.md", "# Kept\n\nSealed record: [eval](2026-08-30-eval-gone.md).\n")
+        failures = check_links.check(self.root)
+        self.assertTrue(any("docs/reviews/kept.md" in item and "dead link" in item for item in failures))
+        self.write("docs/reviews/2026-08-30-eval-gone.md", "# Eval\n")
+        self.assertFalse(any("docs/reviews/kept.md" in item for item in check_links.check(self.root)))
+
     def test_existing_relative_link_cannot_escape_the_skill_root(self):
         self.skill("# Probe\n\nRead [outside](../../outside.md).\n")
         self.write("outside.md", "untrusted context\n")

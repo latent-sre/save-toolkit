@@ -62,7 +62,11 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   `Verified`, `Not done`) in `software-engineer`, `reviewer`, `observability-engineer`, `scribe`,
   and the `sre` contract in `investigation-depth/references/incident-handoff.md`; the seven slots
   only the eval harness read are gone, and the Rules block keeps one owner, named change,
-  evidence labels, claim-level taint, non-actions, and the production gate.
+  evidence labels, claim-level taint, non-actions, and the production gate. The `agent-authoring`
+  roster's rule requiring `Run/attempt:` and `Model:` on every packet is removed with them: it was
+  the last statement of a contract no agent body has carried since the eval-harness doctrine was
+  cut. `scribe` keeps a seventh slot, `Follow-up:`, because the operational-learning disposition
+  policy routes a blocked closeout's tracker reference or filing owner through it.
 - Removed the 23 "ownership map only, not a load" sentences from skill bodies and references; a
   body no longer names a sibling skill in order to tell the model not to load it. The 15 copies in
   skill descriptions are routing metadata and stay until their evals are run.
@@ -266,11 +270,13 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Removed
 
-- Removed 66 uncited dated packets under `docs/reviews/` (kept: everything a test or a live
+- Removed 60 uncited dated packets under `docs/reviews/` (kept: everything a test or a live
   document cites; history is `git log -- docs/reviews`), `docs/rules.md`, and `docs/README.md`.
+  `check_links.py` now reads `docs/reviews/*.md` as well, so a retention pass that keeps a packet
+  while deleting one it cites fails the gate instead of passing it.
 - Removed the verification apparatus that guarded only itself: `mutation_guard.py`,
-  `evidence_envelope.py` and its schema, the envelope half of `capture_measurement_evidence.py`,
-  and the five prose-contract test files (`test_graph_contracts`,
+  `evidence_envelope.py` and its schema, the `fleet_doctor` envelope (a plain report that still
+  names the inspected root and revision replaces it), and the five prose-contract test files (`test_graph_contracts`,
   `test_observability_skill_contracts`, `test_platform_skill_contracts`,
   `test_release_skill_contracts`, `test_skill_asset_contracts`) that pinned sentences in agents
   and skills by substring; `test_graders.py` keeps one positive, one negative, and one adversarial

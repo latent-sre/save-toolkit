@@ -856,7 +856,9 @@ def _installation_checks(
     return checks
 
 
-REPORT_FIELDS = {"generated_at", "checks"}
+# The report names what it inspected: the same checks run against two checkouts or two
+# revisions produce otherwise indistinguishable output that can be attributed to the wrong candidate.
+REPORT_FIELDS = {"generated_at", "root", "revision", "checks"}
 CHECK_FIELDS = {"check_id", "status", "summary", "details", "command", "target", "limitations"}
 SENSITIVE_KEY_FRAGMENTS = (
     "api_key",
@@ -915,6 +917,9 @@ def validate_report(report: Mapping[str, object]) -> None:
         raise ValueError("fleet-doctor report fields do not match the plain report shape")
     if not isinstance(report["generated_at"], str) or not report["generated_at"]:
         raise ValueError("fleet-doctor generated_at must be a non-empty string")
+    for field in ("root", "revision"):
+        if not isinstance(report[field], str) or not report[field]:
+            raise ValueError(f"fleet-doctor {field} must be a non-empty string")
     checks = report["checks"]
     if not isinstance(checks, list) or not checks:
         raise ValueError("fleet-doctor checks must be a non-empty list")
@@ -954,6 +959,8 @@ def collect_report(
     ended = started if now is not None else datetime.now(timezone.utc)
     report: dict[str, object] = {
         "generated_at": ended.isoformat().replace("+00:00", "Z"),
+        "root": str(root),
+        "revision": revision,
         "checks": [_to_report_check(check, root=root, revision=revision) for check in checks],
     }
     validate_report(report)
@@ -961,7 +968,10 @@ def collect_report(
 
 
 def render_human(report: Mapping[str, object]) -> str:
-    lines = [f"Fleet doctor report generated at {report['generated_at']}"]
+    lines = [
+        f"Fleet doctor: {report['root']}@{report['revision']}",
+        f"generated at {report['generated_at']}",
+    ]
     for item in report["checks"]:  # type: ignore[index]
         lines.append(f"[{item['status'].upper():12}] {item['check_id']}: {item['summary']}")
         for limitation in item["limitations"]:

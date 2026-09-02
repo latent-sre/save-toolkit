@@ -102,7 +102,6 @@ thread is retained.
 | Labels copied exactly, never upgraded | A relabeling receiver manufactures evidence |
 | `Change:` names the PR, branch, diff, or working tree; the receiver re-derives the current diff | A prior review silently covering later changes |
 | State what you did not do | The receiver fills the gap with an assumption |
-| `Run/attempt:` and `Model:` with the requested and resolved model identity on every packet; preserve the run identity across a workflow and increment the attempt for every dispatch, retry, resume, or replacement | A missing resolved identity cannot close a model-dependent decision |
 | An empty, malformed, partial, timed-out, or killed return is a failed attempt rather than success: record it, dispatch no dependent work, and return control to the caller as `BLOCKED` or `INCONCLUSIVE`; a human may choose a replacement or a retry inside the declared budget | Success by silence. No background scheduler, lease, stale-worker detector, or heartbeat is implied |
 
 ## Design principles this fleet enforces

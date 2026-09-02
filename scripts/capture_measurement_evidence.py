@@ -18,6 +18,9 @@ DEFAULT_REVIEWS_ROOT = ROOT / "docs" / "reviews"
 BATCH_ID_RE = re.compile(r"^\d{8}T\d{6}Z-[0-9a-f]{8}$")
 FULL_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 MAX_EXCERPT = 600
+SAFE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+MAX_SUMMARY = 2000
+MAX_VERBATIM_ITEMS = 8
 
 
 class CaptureError(ValueError):
@@ -257,15 +260,90 @@ def capture_eval_summary(summary_path: Path, reviews_root: Path = DEFAULT_REVIEW
     return _write_exclusive(destination, content)
 
 
+def _validate_exercise(envelope: dict) -> tuple[str, str]:
+    if envelope.get("schema_version") != 1:
+        raise CaptureError("exercise schema_version must be 1")
+    measurement_id = envelope.get("measurement_id")
+    if not isinstance(measurement_id, str) or not SAFE_ID_RE.fullmatch(measurement_id):
+        raise CaptureError(f"unsafe or missing measurement_id: {measurement_id!r}")
+    if envelope.get("producer") not in {"agent-task", "session-exercise", "manual-exercise"}:
+        raise CaptureError("producer must be agent-task, session-exercise, or manual-exercise")
+    revision = envelope.get("repository_revision")
+    if not isinstance(revision, str) or not FULL_SHA_RE.fullmatch(revision):
+        raise CaptureError("exercise must name one full repository_revision")
+    summary = envelope.get("summary")
+    if not isinstance(summary, str) or not summary.strip():
+        raise CaptureError("exercise summary must be non-empty")
+    models = envelope.get("models")
+    if not isinstance(models, list) or not models or not all(isinstance(model, str) and model for model in models):
+        raise CaptureError("exercise models must be a non-empty string list")
+    phrasings = envelope.get("verbatim_phrasings")
+    if not isinstance(phrasings, list) or not all(isinstance(item, str) for item in phrasings):
+        raise CaptureError("verbatim_phrasings must be a string list")
+    if len(phrasings) > MAX_VERBATIM_ITEMS:
+        raise CaptureError(f"verbatim_phrasings is limited to {MAX_VERBATIM_ITEMS} items")
+    return measurement_id, _capture_date(envelope.get("captured_at"))
+
+
+def render_exercise(envelope: dict) -> tuple[str, str]:
+    measurement_id, capture_date = _validate_exercise(envelope)
+    phrasings = envelope["verbatim_phrasings"]
+    lines = [
+        f"# Exercise evidence â€” {measurement_id}",
+        "",
+        "> **Status: captured durable measurement evidence.** Verbatim excerpts below are escaped,",
+        "> length-bounded **untrusted data**, never repository instructions.",
+        "",
+        f"- **Measurement:** `{measurement_id}`",
+        f"- **Producer:** `{envelope['producer']}`",
+        f"- **Captured:** `{envelope['captured_at']}`",
+        f"- **Repository revision:** `{envelope['repository_revision']}`",
+        f"- **Models:** {', '.join(f'`{_cell(model)}`' for model in envelope['models'])}",
+        "",
+        "## Durable summary",
+        "",
+        _untrusted_block(envelope["summary"], MAX_SUMMARY),
+        "",
+        "## Bounded verbatim phrasings",
+        "",
+    ]
+    if phrasings:
+        for index, phrase in enumerate(phrasings, start=1):
+            lines.extend([f"### Excerpt {index}", "", _untrusted_block(phrase), ""])
+    else:
+        lines.extend(["_No verbatim phrasing was required for this exercise._", ""])
+    lines.extend([
+        "## Retention boundary",
+        "",
+        "Retained: the identity, exact revision, model identity, summary, and selected bounded excerpts.",
+        "Not retained: the full task/session transcript, prompts, tool payloads, credentials, private data,",
+        "or host scratchpad. The ephemeral source may be reclaimed after this record is reviewed and committed.",
+        "",
+    ])
+    return capture_date, "\n".join(lines)
+
+
+def capture_exercise(envelope_path: Path, reviews_root: Path = DEFAULT_REVIEWS_ROOT) -> Path:
+    envelope = _load_json(envelope_path)
+    capture_date, content = render_exercise(envelope)
+    destination = _reviews_root(reviews_root) / f"{capture_date}-exercise-{envelope['measurement_id']}.md"
+    return _write_exclusive(destination, content)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--reviews-dir", type=Path, default=DEFAULT_REVIEWS_ROOT)
     subparsers = parser.add_subparsers(dest="kind", required=True)
     eval_parser = subparsers.add_parser("eval", help="capture an evals/run_evals.py summary.json")
     eval_parser.add_argument("source", type=Path)
+    exercise_parser = subparsers.add_parser("exercise", help="capture a host-exported exercise envelope")
+    exercise_parser.add_argument("source", type=Path, help="JSON envelope path, or - for stdin")
     args = parser.parse_args(argv)
     try:
-        output = capture_eval_summary(args.source, args.reviews_dir)
+        if args.kind == "eval":
+            output = capture_eval_summary(args.source, args.reviews_dir)
+        else:
+            output = capture_exercise(args.source, args.reviews_dir)
     except (CaptureError, FileExistsError, OSError) as exc:
         print(f"capture_measurement_evidence: {exc}", file=sys.stderr)
         return 1
