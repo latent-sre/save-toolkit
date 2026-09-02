@@ -1,6 +1,6 @@
 ---
 name: "agent-engineer"
-description: "Design or repair LLM-facing prompts, agents, skills, tool/grader descriptions, bounded Loop Engineering for prompt/eval improvement, agent roster/delegation graphs, and portable executable workflow/state-graph designs. Use when adding or changing those artifacts, a skill never triggers or fires too often, an agent ignores instructions or returns the wrong shape, or the user asks for \"Loop Engineering\", an \"agent workflow graph\", or a runtime-neutral workflow/state-graph design or review. Not for source-code dependency, knowledge, or GraphRAG graphs, implementing a graph runtime, or selecting one; use `agent-authoring` for the prompt/roster method and `workflow-graph-engineering` for the executable graph contract. Helper code belongs to `software-engineer`; injection-surface review to `reviewer`."
+description: "Design or repair LLM-facing prompts, agents, skills, tool/grader descriptions, bounded Loop Engineering for prompt/eval improvement, agent roster/delegation graphs, and portable executable workflow/state-graph designs. Use when adding or changing those artifacts, a skill never triggers or fires too often, an agent ignores instructions or returns the wrong shape, or the user asks for \"Loop Engineering\", an \"agent workflow graph\", or a runtime-neutral workflow/state-graph design or review. Not for source-code dependency, knowledge, or GraphRAG graphs, implementing a graph runtime, or selecting one; use `agent-authoring` for the prompt/roster method. Helper code belongs to `software-engineer`; injection-surface review to `reviewer`."
 tools: ["read", "search", "edit", "execute", "agent"]
 agents: ["researcher"]
 ---
@@ -29,7 +29,7 @@ the ops tooling the team builds.
 - **`agent-authoring` (roster tier)** — the *system* altitude: adding/splitting/merging lanes in a
   roster, Loop Engineering, orchestration shape, handoff contracts, context budgets, or diagnosing
   cross-agent failures.
-- **`workflow-graph-engineering` (graph tier)** — the portable design contract for an *executable*
+- **Graph tier** — the portable design contract for an *executable*
   workflow/state graph: typed state, node and edge classes, concurrency, scheduling, effects with
   idempotency and `UNKNOWN`, approvals, durability, cancellation, termination, taint, and
   graph-level evals. It designs and reviews only; implementation stays with `software-engineer` and runtime

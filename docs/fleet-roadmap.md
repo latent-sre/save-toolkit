@@ -5,15 +5,16 @@
 > current fleet. Historical plans, reviews, audits, and decision records provide evidence and
 > rationale; they do not independently add work to this queue.
 
-The accepted architecture is
-[`2026-07-31-multi-platform-plugin-packaging.md`](decisions/2026-07-31-multi-platform-plugin-packaging.md):
+The accepted architecture is `docs/decisions/2026-07-31-multi-platform-plugin-packaging.md`:
 one canonical Claude plugin under `agents/`, `skills/`, and `commands/`, with generated host-native
 adapters for Copilot/VS Code. Codex was retired as a distribution target on 2026-08-23
 ([ADR](decisions/2026-08-23-retire-codex-distribution-target.md)); it remains a supported way to
 work in this repository, reading the root `AGENTS.md` like any other agent.
 
-Closed items and their dispositions live in [`roadmap-closed.md`](roadmap-closed.md). That register
-is evidence; it never re-queues work.
+The 2026-09-02 retention pass removed the closed-item register and most evidence packets this file
+cited. **Every record named below as a bare path rather than a link is in git history**: read it
+with `git show e77fc672^:<path>`. Restoring one is a deliberate act, not a link repair — an item
+whose evidence is worth re-reading often enough should carry the packet back into the tree.
 
 ## Item contract
 
@@ -21,8 +22,8 @@ Every live item carries six fields: **ID** (stable identifier), **Status** (`act
 `blocked`, `decision-needed`, or `deferred`, dated), **Owner**, **Outcome** (what done looks like, in
 one or two sentences), **Next action** (the next concrete step and who takes it), and **Evidence**
 (one link to the record that proves current state, or `none yet`). An item leaves this file only
-when its Outcome is met and merged, or an owner disposition is committed — both move to
-[`roadmap-closed.md`](roadmap-closed.md), which is evidence and never re-queues work.
+when its Outcome is met and merged, or an owner disposition is committed — and once it leaves, the
+commit that removed it and its CHANGELOG entry are its record. Neither re-queues work.
 
 ## Active runtime work
 
@@ -35,7 +36,7 @@ supported way to dispatch one exact trusted workflow without granting caller-sup
 **Next action:** Monitor the documented Workflow and `ultrareview` result contracts for immutable
 implementation binding and a machine-enforceable finding verdict; re-probe only after one materially
 changes. Do not restore `ship-review` or treat an exit-0 result as approval.
-**Evidence:** [`2026-08-30 live backlog refresh`](reviews/2026-08-30-live-backlog-refresh.md)
+**Evidence:** `docs/reviews/2026-08-30-live-backlog-refresh.md` (removed 2026-09-02)
 
 ## Repository work
 
@@ -50,7 +51,7 @@ was superseded by the rubric judge.
 **Next action:** The observability-engineer `…-defers-live-incident` scenario this item told the
 owner to edit was retired in the 2026-09-02 corpus cut. Re-decide under EVAL-009 whether the
 particle phrasing needs a scenario at all before authoring a new one.
-**Evidence:** [`GRADER-009` closed row](roadmap-closed.md)
+**Evidence:** `GRADER-009` closed row in `docs/roadmap-closed.md` (removed 2026-09-02)
 
 ### CONTEXT-001 — establish a generalized SRE operational-context contract
 
@@ -67,7 +68,7 @@ approval.
 `save-toolkit:work/context-001-close-contract-gap` at `96e1784`. Verify the mirrors and the
 condition-7 safety boundary together, complete independent review of the remaining acceptance
 evidence, then ask the owner to accept or reject the generic alpha.
-**Evidence:** [`2026-08-30 live backlog refresh`](reviews/2026-08-30-live-backlog-refresh.md)
+**Evidence:** `docs/reviews/2026-08-30-live-backlog-refresh.md` (removed 2026-09-02)
 
 ### GRAPH-004 — `fleet-atlas`: a revision-bound knowledge graph over fleet artifacts
 
@@ -93,7 +94,7 @@ exactly one human accept/reject decision that writes only a local record.
 **Next action:** Resolve independent correctness/security findings and rerun affected checks, then
 rerun the exact candidate's pinned-image and six-case lifecycle with cleanup evidence before any
 pull request or acceptance decision.
-**Evidence:** [`ede57417 verification`](reviews/2026-08-30-autogen-a2a-exact-revision-verification.md)
+**Evidence:** `docs/reviews/2026-08-30-autogen-a2a-exact-revision-verification.md` (removed 2026-09-02)
 
 ### GRAPH-006 — refactor `fleet-atlas` around a typed, evidence-bound pipeline
 
@@ -118,11 +119,12 @@ boundary remains open.
 the read-only guard is portable to that host or whether policy-delivered Copilot managed settings are
 the only real control there.
 **Next action:** On the first installed build proven to contain upstream `d679b159`, rerun all six
-criteria in the [agent-delegation probe](probes/host-002-vscode-agent-delegation.md), including the
+criteria in the agent-delegation probe (`docs/probes/host-002-vscode-agent-delegation.md`, removed
+2026-09-02 — restore it from git before rerunning), including the
 real plugin `software-engineer` -> `reviewer` edge and the paired allowed/forbidden canary, then run
 the agent-scoped hook canary. Do not infer runtime enforcement from source alone or populate
 `hooks/copilot-hooks.json` before that.
-**Evidence:** [`2026-08-30 VS Code subagent and handoff enforcement`](reviews/2026-08-30-vscode-subagent-handoff-enforcement.md)
+**Evidence:** `docs/reviews/2026-08-30-vscode-subagent-handoff-enforcement.md` (removed 2026-09-02)
 
 ### SKILL-001 — make confirmed oversized skills conditional routers
 
@@ -134,11 +136,11 @@ fleet's models already produce unprompted. Each screened entrypoint gets one pro
 disposition; a committed component contract outranks both the byte screen and the probe.
 **Next action:** At the next evidence/recommendation checkpoint, select the next slice among the five
 undispositioned entrypoints at or above the 7,800-byte screen: `obs-dashboards`, `backend-craft`,
-`runbook`, `workflow-graph-engineering`, `obs-alerting` (`incident-drill` was deleted entire on
-2026-09-02, owner decision, and drops out of this list). The prose-pinning test suites were removed
+`runbook`, `obs-alerting` (`incident-drill` was deleted entire on 2026-09-02, owner decision, and
+`workflow-graph-engineering` never shipped as a skill — both drop out of this list). The prose-pinning test suites were removed
 on 2026-09-01; after a cut, run `python scripts/check_links.py` (link containment and explicit-only
 frontmatter) and the skill's eval scenarios.
-**Evidence:** [`7,800-byte screen evidence`](reviews/2026-08-30-skill-001-7800-screen.md)
+**Evidence:** `docs/reviews/2026-08-30-skill-001-7800-screen.md` (removed 2026-09-02)
 
 ### ROUTE-003 — remeasure workflow-graph discovery reliability (the service-readiness scenario was retired 2026-09-02)
 
@@ -150,7 +152,7 @@ model-labelled reliability evidence before either is promoted into a stronger ro
 **Next action:** After authentication is restored, the owner decides whether the two consumed
 inconclusive attempts are sufficient to dispose the measurement or whether a newly designed,
 separately approved v2 campaign is warranted. Do not reuse either consumed profile.
-**Evidence:** [`2026-09-01 decision-backlog reconciliation`](reviews/2026-09-01-decision-backlog-reconciliation.md)
+**Evidence:** `docs/reviews/2026-09-01-decision-backlog-reconciliation.md` (removed 2026-09-02)
 
 ### ROUTE-004 — the three `frontend-craft` discovery scenarios route unreliably on Sonnet
 
@@ -164,7 +166,7 @@ means a skill regression rather than a routing coin-flip.
 leaving only the Mantine case, already in the regression split at threshold 1.0; that surviving
 positive is now the routing-reliability instrument for `frontend-craft`. Owner still decides whether
 it alone is sufficient evidence or a replacement calibration case is warranted.
-**Evidence:** [`GRADER-005 closure`](reviews/2026-08-31-grader-005-closure.md)
+**Evidence:** `docs/reviews/2026-08-31-grader-005-closure.md` (removed 2026-09-02)
 
 ### EVAL-005 — give the Grafana build probe a datasource worth writing a panel against
 
@@ -177,7 +179,7 @@ for a real query.
 **Next action:** Run the fixed packet once on the Windows Docker host — exact historical and current
 plugin revisions, three Sonnet trials per side, no tuning or retries — and record Docker/image
 identities before deciding closure.
-**Evidence:** [`fixed Windows execution packet`](reviews/2026-08-31-eval-005-prometheus-probe-gate.md)
+**Evidence:** `docs/reviews/2026-08-31-eval-005-prometheus-probe-gate.md` (removed 2026-09-02)
 
 ### EVAL-006 — calibrate `discovery-gcp-ops-cloud-run-startup` against measured model behavior
 
@@ -190,7 +192,7 @@ task the fixture forbids.
 **Next action:** Owner selects the instrumented path. Recommended: keep the scenario in calibration as
 the degraded advisory path, and rewrite the prompt/`success_criteria` to say the lane cannot inspect
 live in this fixture, requiring human-run read-only checks and the rollback packet.
-**Evidence:** [`2026-09-01 decision-backlog reconciliation`](reviews/2026-09-01-decision-backlog-reconciliation.md)
+**Evidence:** `docs/reviews/2026-09-01-decision-backlog-reconciliation.md` (removed 2026-09-02)
 
 ### LIFECYCLE-001 — a service record stays true for the whole service life
 
@@ -214,7 +216,7 @@ its phrasing, so a red result is worth investigating instead of routinely being 
 **Next action:** Do not start a standalone campaign until the owner resolves the shared
 EVAL-007 closure contract (EVAL-004 is superseded by EVAL-009). Recommended: one structured or named-relation grader plus one
 clean committed guidance-removal candidate for the counterfactual.
-**Evidence:** [`2026-09-01 decision-backlog reconciliation`](reviews/2026-09-01-decision-backlog-reconciliation.md)
+**Evidence:** `docs/reviews/2026-09-01-decision-backlog-reconciliation.md` (removed 2026-09-02)
 
 ### ROUTE-005 — restate `incident-investigation`'s triggers in on-call phrasing
 
@@ -227,7 +229,7 @@ routing win.
 **Next action:** Human owner decides whether to close ROUTE-005 with the exact candidate rejected and
 the incumbent (now named `investigation-depth`) retained. On acceptance, move this item to
 `roadmap-closed.md` with the paired evidence.
-**Evidence:** [`paired result`](reviews/2026-08-30-route-005-paired-result.md)
+**Evidence:** `docs/reviews/2026-08-30-route-005-paired-result.md` (removed 2026-09-02)
 
 ## Deferred
 

@@ -39,7 +39,7 @@ review rules live in `.github/copilot-instructions.md`. -->
 | a fleet failure used to justify an agent or skill change | one named regression red on the incumbent, then incumbent/candidate results on identical cases and conditions. Missing or inconclusive candidate evidence and ties retain the incumbent; make one candidate by default and keep the evidence in this PR rather than a second ledger |
 | any canonical agent or skill (`agents/`, `skills/`, `commands/`) | `python scripts/generate_platform_adapters.py --write` re-run and the projections committed; no generated root (`.github/agents/`, `platforms/copilot/skills/`) hand-edited |
 | an added, renamed, or removed component | host adapters regenerated; the retired name must not linger in `agents/`, `skills/`, or `commands/` (`rg` for it) — plus `python evals/run_evals.py --validate` green, since a rename/remove can orphan a scenario target |
-| the runbook frontmatter template, its schema, or its catalog entry (`skills/runbook/assets/runbook-template.md`, `schemas/runbook-frontmatter-v1.schema.json`, `schemas/catalog-v1.json`) | `python scripts/test_runbook_schema.py` green — the template/schema/catalog lockstep; it is not structural, so Gate A does not run it |
+| the runbook frontmatter template or its worked exemplar (`skills/runbook/assets/runbook-template.md`, `skills/runbook/assets/runbook-example.md`) | `python scripts/test_runbook_schema.py` green — the template/exemplar lockstep, plus `python scripts/test_confluence_import.py` when the key set changes, because the converter is pinned to the same template; neither is structural, so Gate A does not run them |
 | anything users install | whether every host manifest and marketplace needs the same version or cache update |
 
 ## Risk

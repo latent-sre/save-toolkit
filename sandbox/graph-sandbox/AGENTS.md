@@ -19,7 +19,7 @@ runtime decision, and the live roadmap remain authoritative.
 - **Credentials**: none — the offline profile accepts no model, cloud, GitHub, PCF, SSH, or host credential mount or environment variable.
 - **Progress**: GRAPH-002 and GRAPH-003 are closed. The post-closure same-effect reconciliation
   proof merged in PR #197 and is historical evidence, not remaining roadmap work. Current work is
-  listed only in [`docs/fleet-roadmap.md`](../docs/fleet-roadmap.md). Do not restore multi-worker
+  listed only in [`docs/fleet-roadmap.md`](../../docs/fleet-roadmap.md). Do not restore multi-worker
   plan files under `.agents/`.
 
 ## Mission block

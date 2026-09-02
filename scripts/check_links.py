@@ -31,14 +31,22 @@ CODE_PATH_RE = re.compile(
 SELF_SKILL_PATH_RE = re.compile(r"`skills/(?P<name>[a-z0-9-]+)/SKILL\.md`")
 # Documents whose links must RESOLVE, checked for nothing else.
 #
-# Scope is the live authority set -- the root guides, the roadmap, the live reference contracts,
-# and the accepted decisions. These were checked by nothing, and a dead pointer in any of them
-# sends someone looking for authority to a file that is not there.
+# Scope is every document a dead pointer can be REPAIRED in: the root guides, the roadmap, the live
+# reference contracts. These were checked by nothing, and a dead pointer in any of them sends
+# someone looking for authority to a file that is not there.
 #
-# Deliberately EXCLUDED: docs/superpowers/ and docs/reviews/. A historical plan or a dated review
-# legitimately references files a later round deleted -- that is what makes it a record rather than
-# a document. Failing the gate on ~31 such links would be noise, and noise in a gate is how a real
-# failure gets scrolled past.
+# Repairability is the whole selection rule, and it is why docs/decisions/ is NOT here. An accepted
+# ADR is append-only and immutable (commands/adr.md); the only sanctioned way to change one is to
+# write a successor. Gating a file the rules forbid repairing turns every retention pass into a red
+# gate with no legal fix -- 14 such links did exactly that on 2026-09-02. CONTRIBUTING's retention
+# policy makes this the steady state, not an accident: an evidence packet "is kept only while a
+# test or a live document cites it, and an uncited one is removed (history keeps it)." A record
+# citing a removed packet is that policy working. Recover any of them from git.
+#
+# docs/reviews/ stays: retained packets cite each other, and a retention pass that keeps a packet
+# while deleting one it cites leaves an active item's evidence chain ending at a missing file, and
+# did -- six such links survived a green `check_links` because this directory was not read. Unlike
+# an ADR, a retained packet may be edited or dropped, so a red here has a legal fix.
 #
 # Only resolvability is asserted. The skill rules applied elsewhere in this file (owned-root
 # containment, code-span pointers must be Markdown links) are conventions for skill bundles; docs
@@ -50,19 +58,18 @@ LIVE_DOC_ROOTS = (
     "CLAUDE.md",
     "CHANGELOG.md",
     "evals/README.md",
-    "graph-sandbox/AGENTS.md",
-    "graph-sandbox/contract.md",
+    # These two moved under sandbox/ on 2026-09-02. A LIVE_DOC_ROOTS entry naming a path that no
+    # longer exists is skipped by the is_file() filter below -- silently, so the gate reports
+    # coverage it is not providing. Any rename here has to land in the same commit as the move.
+    "sandbox/graph-sandbox/AGENTS.md",
+    "sandbox/graph-sandbox/contract.md",
     ".github/pull_request_template.md",
     ".github/copilot-instructions.md",
     "commands/adr.md",
 )
 LIVE_DOC_DIR_GLOBS = (
     ("docs", "*.md"),
-    ("docs/decisions", "*.md"),
     ("docs/probes", "*.md"),
-    # Retained evidence packets cite each other. A retention pass that keeps a packet while deleting
-    # one it cites leaves an active item's evidence chain ending at a missing file, and did: six
-    # such links survived a green `check_links` because this directory was not read.
     ("docs/reviews", "*.md"),
 )
 

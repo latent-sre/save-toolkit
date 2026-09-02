@@ -57,7 +57,7 @@ The one manual command is `/save-toolkit:adr` (ADR scaffold).
 | `reviewer` *(for maintainers and builders)* | Read-only correctness, quality, and security review | Reports findings; hands approved fixes to `software-engineer`; terminal |
 | `agent-engineer` *(for maintainers)* | The fleet's prompts, agents, skills, descriptions, evals, bounded prompt/eval loops, roster/delegation graphs, and portable executable workflow-graph designs | Delegates only sanitized public lookups to `researcher`; the caller separately dispatches helper code to `software-engineer` and injection-surface review to `reviewer` |
 
-The 30 skills, by area (each `skills/<name>/SKILL.md` carries its own description and triggers):
+The 28 skills, by area (each `skills/<name>/SKILL.md` carries its own description and triggers):
 
 - **Incident and operations** — `incident-investigation`, `investigation-depth`, `root-cause`, `incident-command`, `postmortem`, `runbook`,
   `operational-learning`, `service-lifecycle` (audit, onboard, and retire modes)
@@ -67,8 +67,7 @@ The 30 skills, by area (each `skills/<name>/SKILL.md` carries its own descriptio
 - **Change gates** — `production-change-gate`
 - **Engineering craft** — `language-idiom`, `backend-craft`, `frontend-craft`, `ops-tooling`,
   `ci-actions`, `database-reliability`, `eng-ladder`
-- **For maintainers: the fleet itself and the graphs it designs** — `agent-authoring`,
-  `workflow-graph-engineering`
+- **For maintainers: the fleet itself and the graphs it designs** — `agent-authoring`
 
 The roster's tool postures, enforcement model, and design disciplines are in
 [AGENTS.md](AGENTS.md); the repository layout and its consequences are under **Start here**.
@@ -107,8 +106,8 @@ Treat these as build-bound evidence, and rerun the linked probe after host upgra
 | Host surface | Contract shipped | Current evidence boundary |
 |---|---|---|
 | Claude Code | Canonical agents and skills load directly; tool absence is the primary role boundary, with the plugin-level read-only Bash guard for `sre` | Claude has the richest enforceable contract, but `Agent(target)` is enforced only on the main thread; subagent-depth restrictions remain documentary. See [`AGENTS.md`](AGENTS.md#enforcement-boundaries) |
-| VS Code 1.135.0 (`08d4889f`) | Generated agents, skills, model-call `agents:`, and human-selected `handoffs:` | `[verified]` On 2026-08-30, plugin registration, 8 agents, 33 skills, the separate ADR prompt, and a synthetic allowed child passed. A forbidden child still ran, the real `software-engineer` -> `reviewer` call was inconclusive, and the separate hook canary was not run. See the [live transcript](docs/reviews/evidence/host-002/2026-08-30-vscode-plugin-delegation-transcript.md) |
-| First installed VS Code build proven to contain `d679b159` | Upstream adds prepare/invoke rejection outside `agents:` and forwards each child's own list | `[sourced]` The [upstream change](https://github.com/microsoft/vscode/commit/d679b159e16d15d24e364b627ab85e144899ead0) is merged; `[unverified]` the installed plugin path until the [HOST-002 probe](docs/probes/host-002-vscode-agent-delegation.md) passes on that exact build |
+| VS Code 1.135.0 (`08d4889f`) | Generated agents, skills, model-call `agents:`, and human-selected `handoffs:` | `[verified]` On 2026-08-30, plugin registration, 8 agents, 33 skills, the separate ADR prompt, and a synthetic allowed child passed. A forbidden child still ran, the real `software-engineer` -> `reviewer` call was inconclusive, and the separate hook canary was not run. The live transcript was removed in the 2026-09-02 retention pass; recover it with `git show e77fc672^:docs/reviews/evidence/host-002/2026-08-30-vscode-plugin-delegation-transcript.md` |
+| First installed VS Code build proven to contain `d679b159` | Upstream adds prepare/invoke rejection outside `agents:` and forwards each child's own list | `[sourced]` The [upstream change](https://github.com/microsoft/vscode/commit/d679b159e16d15d24e364b627ab85e144899ead0) is merged; `[unverified]` the installed plugin path until the HOST-002 probe passes on that exact build (procedure removed 2026-09-02; recover it with `git show e77fc672^:docs/probes/host-002-vscode-agent-delegation.md`) |
 
 ### Other hosts
 
@@ -139,7 +138,8 @@ Open a neutral test workspace for that plugin check; opening this repository its
 without installing the plugin remains a checkout-only development path:
 [`.vscode/settings.json`](.vscode/settings.json) registers the generated skill projection.
 The exact beta discovery and agent-to-agent procedure is the
-[`HOST-002 VS Code plugin probe`](docs/probes/host-002-vscode-agent-delegation.md).
+`HOST-002` VS Code plugin probe, whose procedure was removed in the 2026-09-02 retention pass;
+recover it with `git show e77fc672^:docs/probes/host-002-vscode-agent-delegation.md`.
 
 **Codex:** the fleet is not distributed to Codex. Codex working *in* this repository picks up the
 root [`AGENTS.md`](AGENTS.md) automatically, which is all it needs
@@ -159,10 +159,9 @@ claude plugin validate . --strict                       # Claude platform contra
 ```
 
 Gate A proves the fleet is well-formed, never that it is correct — the change-shaped checks in
-[CONTRIBUTING.md](CONTRIBUTING.md)'s verification table are separate. Portable contracts are documented in the
-[schema compatibility policy](docs/schema-compatibility.md); active behavioral and routing evals
-live in [`evals/README.md`](evals/README.md). Accepted fleet failures become focused regressions and
-ordinary PR evidence.
+[CONTRIBUTING.md](CONTRIBUTING.md)'s verification table are separate. Active behavioral and routing
+evals live in [`evals/README.md`](evals/README.md). Accepted fleet failures become focused
+regressions and ordinary PR evidence.
 
 ## Contribute
 
