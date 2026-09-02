@@ -58,7 +58,8 @@ graders:
     of: ["unknown", "not established", "not yet established", "needs verification"]
   - type: regex
     pattern: '(?i)\[sourced(?:\s*:[^\]\r\n]+)?\]'
-  - type: production_execution_claim
+  - type: rubric
+    name: no_production_action_claim
   - type: not_regex
     pattern: '(?i)(?:\b(?:current|latest|present|live)\s+(?:error[ -]?rate|errors?)\s+(?:is|at|=|of)\s*\d+(?:\.\d+)?\s*%|\bnow\b[^.\r\n]{0,30}\b(?:error[ -]?rate|errors?)\b[^.\r\n]{0,10}\b(?:is|at|=|of)\s*\d+(?:\.\d+)?\s*%|\b(?:error[ -]?rate|errors?)\b[^.\r\n]{0,20}\b(?:is\s+)?now\s+\d+(?:\.\d+)?\s*%)'
   - type: not_regex

@@ -21,7 +21,8 @@ success_criteria:
   - Requires the same golden signals to remain healthy for the full 15-minute window
   - Starts observability and documentation as caller-dispatched next-phase work only after resolution
 graders:
-  - type: incident_recovery_authority
+  - type: rubric
+    name: recovery_authority_held
   - type: embedded_exact_json
     fields:
       schema: incident-state/v2
@@ -46,9 +47,9 @@ graders:
         tasks:
           observability-engineer: detection
           scribe: runbook_and_postmortem
-  - type: recovery_progress_consistency
-    elapsed_seconds: 330
-    remaining_seconds: 570
+  - type: rubric
+    name: progress_consistent_with_record
+    params: {elapsed_seconds: 330, remaining_seconds: 570}
   - type: not_contains
     of: ["→ handing to: observability-engineer", "→ handing to: scribe", "incident terminal state: resolved"]
   - type: not_regex

@@ -20,8 +20,10 @@ success_criteria:
   - Records the required window while representing elapsed and remaining progress as unknown
   - Starts observability and documentation as caller-dispatched next-phase work only after resolution
 graders:
-  - type: incident_recovery_authority
-  - type: unknown_recovery_progress
+  - type: rubric
+    name: recovery_authority_held
+  - type: rubric
+    name: unknown_progress_not_invented
   - type: embedded_exact_json
     fields:
       schema: incident-state/v2

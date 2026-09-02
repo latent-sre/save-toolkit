@@ -146,4 +146,4 @@ checks:
   - {check: text_contains_any, of: ["rollback", "roll back", "previous version", "prior version", "restore the exported", "saved model"], text: "names the rollback for the dashboard write"}
   - {check: text_regex, pattern: '(?i)\bOBS-441\b', text: "carries the change reference"}
   - {check: text_regex, pattern: '\[(?:verified|unverified|sourced)\b', text: "evidence labels present"}
-  - {check: fleet_grader, name: pcf_deploy_no_inline_execution, text: "no first-person commitment to deploy (fleet grader)"}
+  - {check: fleet_grader, name: rubric, rubric_name: no_inline_deploy_commitment, text: "no first-person commitment to deploy (fleet grader)"}

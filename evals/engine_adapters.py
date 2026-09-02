@@ -1,21 +1,21 @@
-"""Explicit host adapters for Claude plugin and Codex context-bundle eval execution."""
+"""Explicit host adapter for Claude plugin eval execution."""
 
 from __future__ import annotations
 
 import hashlib
 import json
-import os
-import re
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Mapping, Sequence
-
-import engine_contract
 
 
 ADAPTER_VERSION = "2"
 READ_TOOLS = ("Glob", "Grep", "Read")
 BASE_TOOLS = ("Skill", "Task")
+# The exact empty-MCP-server-set literal every clean-room spawn passes alongside
+# `--strict-mcp-config`, so no account-level connector can join the namespace. Shared with
+# evals/judge.py rather than duplicated -- that spawn also denies tools and MCP entirely.
+EMPTY_MCP_CONFIG = '{"mcpServers":{}}'
 DENIED_TOOLS = (
     "Bash",
     "Edit",
@@ -41,15 +41,6 @@ DENIED_TOOLS = (
     "TaskStop",
     "Monitor",
 )
-API_KEY_ENV = {
-    "ANTHROPIC_API_KEY",
-    "AZURE_OPENAI_API_KEY",
-    "CODEX_API_KEY",
-    "OPENAI_API_KEY",
-}
-PROVIDER_ENV_PREFIXES = ("ANTHROPIC_", "AZURE_OPENAI_", "OPENAI_")
-CANARY_RE = re.compile(r"^q_[a-z0-9_]{3,}$")
-
 
 
 def _is_rooted(value: object) -> bool:
@@ -77,28 +68,6 @@ class ToolAttempt:
     outcome: str
 
 
-@dataclass(frozen=True)
-class CodexTrace:
-    response: str
-    reference_canaries: tuple[str, ...]
-    resolved_model: str
-    policy_sha256: str
-    usage: Mapping[str, int]
-    complete: bool
-
-
-CODEX_EFFECTIVE_POLICY = {
-    "additional_directories": [],
-    "approval_policy": "never",
-    "mcp_servers": [],
-    "network_access": False,
-    "rules_loaded": False,
-    "sandbox": "read-only",
-    "shell_environment_inherit": "none",
-    "user_config_loaded": False,
-}
-
-
 def _policy_digest(value: Mapping[str, object]) -> str:
     encoded = json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(b"save-toolkit-engine-policy-v1\0" + encoded).hexdigest()
@@ -107,7 +76,18 @@ def _policy_digest(value: Mapping[str, object]) -> str:
 class ClaudeNativeAdapter:
     name = "claude-plugin"
     version = ADAPTER_VERSION
-    supported_claims = engine_contract.ENGINE_CLAIMS[name]
+    supported_claims = frozenset(
+        {
+            "candidate_snapshot_integrity",
+            "native_plugin_loaded",
+            "native_component_invoked",
+            "advertised_tool_inventory",
+            "callable_tool_boundary",
+            "reference_used",
+            "behavioral_contract",
+            "deterministic_grader_result",
+        }
+    )
 
     def build_command(
         self,
@@ -176,7 +156,7 @@ class ClaudeNativeAdapter:
             "--plugin-dir",
             str(plugin_root.resolve()),
             "--mcp-config",
-            '{"mcpServers":{}}',
+            EMPTY_MCP_CONFIG,
             "--strict-mcp-config",
             "--tools",
             ",".join(allowed_tools),
@@ -308,229 +288,3 @@ class ClaudeNativeAdapter:
         if denied_probe is not None and not observed_denied:
             raise AdapterError("missing denied out-of-snapshot boundary probe")
 
-
-class CodexResolvedContextAdapter:
-    name = "codex-cli"
-    version = ADAPTER_VERSION
-    supported_claims = engine_contract.ENGINE_CLAIMS[name]
-
-    def require_safe_live_activation(self) -> None:
-        """Fail until the host can structurally remove Codex access to non-bundle files."""
-
-        raise AdapterError(
-            "Codex live execution is disabled: read-only prevents writes but does not confine "
-            "tool reads away from HOME/CODEX_HOME; require a proven no-tool or bundle-only "
-            "runtime boundary before any subscriber-backed model process starts"
-        )
-
-    def build_command(
-        self,
-        *,
-        executable: str,
-        bundle_root: Path,
-        response_schema: Path,
-        model: str,
-        reasoning_effort: str | None = None,
-    ) -> list[str]:
-        if not model.strip():
-            raise AdapterError("Codex evals require one explicit model")
-        root = bundle_root.resolve()
-        schema = response_schema.resolve()
-        if not schema.is_relative_to(root):
-            raise AdapterError("response schema must be inside the resolved context bundle")
-        command = [
-            executable,
-            "exec",
-            "--ephemeral",
-            "--ignore-user-config",
-            "--ignore-rules",
-            "--strict-config",
-            "--config",
-            "shell_environment_policy.inherit=none",
-            "--config",
-            'approval_policy="never"',
-            "--sandbox",
-            "read-only",
-            "--skip-git-repo-check",
-            "--json",
-            "--output-schema",
-            str(schema),
-            "--cd",
-            str(root),
-            "--model",
-            model,
-        ]
-        if reasoning_effort is not None:
-            command += ["--config", f'model_reasoning_effort="{reasoning_effort}"']
-        command.append("-")
-        return command
-
-    def sanitized_environment(self, source: Mapping[str, str] | None = None) -> dict[str, str]:
-        environment = dict(source if source is not None else os.environ)
-        for name in tuple(environment):
-            if name in API_KEY_ENV or name.startswith(PROVIDER_ENV_PREFIXES):
-                environment.pop(name, None)
-        environment["NO_COLOR"] = "1"
-        return environment
-
-    def requested_policy_sha256(
-        self,
-        *,
-        reasoning_effort: str | None = None,
-        adapter_version: str | None = None,
-    ) -> str:
-        policy: dict[str, object] = {
-                "adapter": self.name,
-                "version": adapter_version or self.version,
-                "claims": sorted(self.supported_claims),
-                "ephemeral": True,
-                "ignore_user_config": True,
-                "ignore_rules": True,
-                "strict_config": True,
-                "sandbox": "read-only",
-                "approval_policy": "never",
-                "skip_git_repository_check": True,
-                "shell_environment_policy": {"inherit": "none"},
-                "session_resume": False,
-                "structured_output_required": True,
-                "additional_directories": [],
-                "mcp_configuration": "ignored with user config; none supplied",
-                "provider_environment": "removed",
-            }
-        if reasoning_effort is not None:
-            policy["reasoning_effort"] = reasoning_effort
-        return _policy_digest(policy)
-
-    def parse_trace(
-        self,
-        raw: str,
-        *,
-        requested_model: str,
-        accepted_resolved_model: str | None = None,
-        requested_reasoning_effort: str | None = None,
-    ) -> CodexTrace:
-        events: list[Mapping[str, object]] = []
-
-        def reject_duplicates(pairs: list[tuple[str, object]]) -> dict[str, object]:
-            value: dict[str, object] = {}
-            for key, child in pairs:
-                if key in value:
-                    raise AdapterError(f"duplicate JSON trace key {key!r}")
-                value[key] = child
-            return value
-
-        for line_number, line in enumerate(raw.splitlines(), start=1):
-            if not line.strip():
-                continue
-            try:
-                event = json.loads(line, object_pairs_hook=reject_duplicates)
-            except (json.JSONDecodeError, AdapterError) as exc:
-                raise AdapterError(f"invalid Codex JSONL at line {line_number}: {exc}") from exc
-            if not isinstance(event, Mapping) or not isinstance(event.get("type"), str):
-                raise AdapterError(f"invalid Codex event at line {line_number}")
-            events.append(event)
-        if any(event["type"] in {"turn.failed", "error"} for event in events):
-            raise AdapterError("Codex trace reports a failed turn")
-        started_events = [event for event in events if event["type"] == "thread.started"]
-        turn_started_events = [event for event in events if event["type"] == "turn.started"]
-        completed = [event for event in events if event["type"] == "turn.completed"]
-        messages: list[tuple[int, str]] = []
-        for event_index, event in enumerate(events):
-            if event["type"] != "item.completed":
-                continue
-            item = event.get("item")
-            if isinstance(item, Mapping) and item.get("type") == "agent_message":
-                text = item.get("text")
-                if isinstance(text, str) and text:
-                    messages.append((event_index, text))
-        if (
-            len(started_events) != 1
-            or len(turn_started_events) != 1
-            or len(completed) != 1
-            or len(messages) != 1
-        ):
-            raise AdapterError("incomplete Codex trace")
-        thread_index = events.index(started_events[0])
-        turn_index = events.index(turn_started_events[0])
-        completed_index = events.index(completed[0])
-        message_index = messages[0][0]
-        if not (
-            thread_index == 0
-            < turn_index
-            < message_index
-            < completed_index == len(events) - 1
-        ):
-            raise AdapterError("Codex trace is not one ordered single-turn execution")
-        started = started_events[0]
-        resolved_model = started.get("model")
-        if not isinstance(resolved_model, str) or not resolved_model.strip():
-            raise AdapterError("Codex trace does not report the resolved model identity")
-        accepted_model = accepted_resolved_model or requested_model
-        if resolved_model != accepted_model:
-            raise AdapterError(
-                "Codex resolved model does not match the accepted resolved-model identity"
-            )
-        observed_reasoning_effort = started.get("reasoning_effort")
-        if requested_reasoning_effort is not None:
-            if observed_reasoning_effort != requested_reasoning_effort:
-                raise AdapterError(
-                    "Codex trace does not match the approved reasoning-effort setting"
-                )
-        effective_policy = started.get("effective_policy")
-        if not isinstance(effective_policy, Mapping):
-            raise AdapterError("Codex trace does not report the effective ambient policy")
-        if dict(effective_policy) != CODEX_EFFECTIVE_POLICY:
-            raise AdapterError(
-                "Codex effective ambient policy does not match the approved read-only contract"
-            )
-        policy_sha256 = _policy_digest(
-            {
-                "adapter": self.name,
-                "version": self.version,
-                "requested": self.requested_policy_sha256(
-                    reasoning_effort=requested_reasoning_effort
-                ),
-                "effective": dict(effective_policy),
-                "requested_model": requested_model,
-                "accepted_resolved_model": accepted_model,
-                "requested_reasoning_effort": requested_reasoning_effort,
-                "observed_reasoning_effort": observed_reasoning_effort,
-            }
-        )
-        usage_raw = completed[0].get("usage")
-        usage: dict[str, int] = {}
-        if isinstance(usage_raw, Mapping):
-            for key, amount in usage_raw.items():
-                if isinstance(key, str) and isinstance(amount, int) and not isinstance(amount, bool) and amount >= 0:
-                    usage[key] = amount
-        raw_response = messages[0][1]
-        try:
-            structured = json.loads(raw_response, object_pairs_hook=reject_duplicates)
-        except (json.JSONDecodeError, AdapterError) as exc:
-            raise AdapterError("Codex final message is not the bound structured response") from exc
-        if not isinstance(structured, Mapping) or set(structured) != {
-            "response", "reference_canaries"
-        }:
-            raise AdapterError("Codex final message is not the bound structured response")
-        response = structured["response"]
-        structured_canaries = structured["reference_canaries"]
-        if not isinstance(response, str) or not response:
-            raise AdapterError("Codex structured response text must be non-empty")
-        if (
-            not isinstance(structured_canaries, list)
-            or not all(
-                isinstance(token, str) and CANARY_RE.fullmatch(token)
-                for token in structured_canaries
-            )
-            or len(structured_canaries) != len(set(structured_canaries))
-        ):
-            raise AdapterError("Codex structured reference_canaries are invalid")
-        canaries = tuple(structured_canaries)
-        return CodexTrace(
-            response=response,
-            reference_canaries=canaries,
-            resolved_model=resolved_model,
-            policy_sha256=policy_sha256,
-            usage=usage,
-            complete=True,
-        )

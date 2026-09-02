@@ -58,6 +58,26 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Hardened the calibrated `rubric` judge after review: every evidence item must be a verbatim quote
+  from the graded response, a verdict from a model other than the pinned identity is inconclusive,
+  the prompt travels on stdin instead of argv (a NUL or an over-long response is no longer a
+  mid-eval crash or a platform command-line failure), and the spawn honours `CLAUDE_BIN`.
+  Calibration takes the judge identity from its own first live call (or, for a fully cached run,
+  from the cached verdicts, saying so and spending nothing), scores agreement over conclusive
+  judgments only, and fails the run on any inconclusive rather than counting a timeout as agreement
+  with an expected FAIL. Judge cost, elapsed time, and resolved identity are recorded
+  per trial and rendered in durable evidence; `build_probe.py --regrade` keeps a rubric check's live
+  verdict instead of spending a fresh judge call. The contract is the accepted
+  `docs/decisions/2026-09-01-rubric-judge-evaluation-contract.md`, which supersedes the multi-engine
+  evaluation ADR and its `EVAL-003` roadmap item.
+- Replaced nine regex-based eval graders that judged natural-language policy (production-action
+  claims, deploy commitments, recovery authority, unknown-outcome reconciliation, retirement effect
+  claims, blind retry, invented recovery progress, progress-vs-record consistency, gate posture)
+  with one calibrated `rubric` grader that spawns a clean-room, tool-less `claude -p` judge turn
+  against a named rubric in the new `evals/rubrics.yaml`; fails closed on any broken judge and
+  caches verdicts by (model, rubric, rendered text, response). The twelve scenarios that used those
+  graders now reference the equivalent rubric; every other grader is unchanged. Calibrate with
+  `python evals/judge.py --calibrate`, checked against `evals/rubrics-calibration.yaml`.
 - Compacted three skills under SKILL-001, descriptions byte-identical, measured as canonical
   UTF-8 bytes against `main`: `backend-craft` SKILL.md 11,123 → 10,131 (endpoint, upstream-client,
   and persistence test mechanics routed to their references, which grew 29,198 → 30,182; the
@@ -232,6 +252,16 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Removed
 
+- Removed the nine natural-language-policy graders from `evals/graders.py`
+  (`production_execution_claim`, `pcf_deploy_no_inline_execution`, `incident_recovery_authority`,
+  `production_unknown_outcome`, `service_retirement_no_effect_claim`,
+  `unknown_write_no_blind_retry`, `unknown_recovery_progress`, `recovery_progress_consistency`,
+  `gate_posture`) and their dedicated adversarial regex-fixture tests in `evals/test_graders.py`
+  (graders.py 1706→677 lines, test_graders.py 5788→4354 lines); their calibrated adversarial
+  corpus lives on in `evals/rubrics-calibration.yaml` instead. The six structural graders
+  (`exact_fields`, `exact_json`, `embedded_exact_json`, `json_artifact_statuses`,
+  `cloud_run_rollback_packet`, `learning_loop_promotion`) and the five basic ones (`contains_all`,
+  `contains_any`, `not_contains`, `regex`, `not_regex`) are unchanged.
 - Removed the document-convention gates and their tests: `check_plan_status.py`,
   `check_evidence_refs.py`, `check_stale_names.py`, `check_canary_tokens.py`,
   `check_query_catalog.py`, `check_test_layout.py`, the sequential `run_component_tests.py`, and
@@ -253,6 +283,13 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   cleanup — match the whole first line against the `save-toolkit`/`sre-agents` markers, never a
   filename or prefix, because another installed suite's marker can differ by one character and
   share three role names.
+- Removed the multi-engine execution-profile and result-envelope eval stack (`engine_contract.py`,
+  `execution_profiles.py`, `eval_evidence.py`, `resolved_context.py`, the `evals/profiles/`
+  approved-profile directory, the `--profile` flag, and the Codex adapter/dispatch path in
+  `engine_adapters.py`/`run_evals.py`): it never changed a prompt, its cost field always reported
+  `unavailable`, and Codex live execution was already hard-disabled before `subprocess.run`. The
+  legacy `--run`/`--validate`/`--mode`/`--split`/`--match`/`--model`/`--trials` Claude-plugin path
+  is unchanged.
 
 ## [0.1.0] - 2026-08-11
 

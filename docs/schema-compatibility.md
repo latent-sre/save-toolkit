@@ -26,22 +26,6 @@ that must remain byte-identical to the canonical source.
 contracts. Its validator is `scripts/evidence_envelope.py`. The envelope preserves evidence and
 provenance; it does not authorize an effect or promote the subject it describes.
 
-## Evaluation contracts
-
-`eval-execution-profile-v2` is current. It binds one engine, requested claims, selected scenarios,
-required references, requested and accepted resolved-model identity, reasoning effort, stop
-condition, trial count, time limits, cost-budget representation, and separate live-run approval to
-the exact frozen evaluator, grader, and scenario-suite bytes.
-`eval-execution-profile-v1` remains supported for retained historical evidence but cannot start a
-new model process. `evals/execution_profiles.py` is their semantic validator. A current profile
-with `approval: null` may be validated and reviewed offline, but cannot start a model process.
-
-`eval-result-envelope-v1` is the active claim-scoped result shape for Claude native-plugin and
-Codex resolved-context measurements. `evals/engine_contract.py` rejects unsupported claims,
-incomplete traces presented as decisive results, missing canaries presented as reference use, and
-dirty candidates presented as promotion-eligible. The envelope records evidence; it never promotes
-a candidate, and cross-engine comparison never averages the engines into one score.
-
 ## Runbook frontmatter
 
 `runbook-frontmatter-v1` is `contract-only`. It publishes the machine-linkable shape carried by
@@ -52,7 +36,8 @@ and only bound rehearsal evidence changes `last_verified`.
 
 ## Retired before the first release
 
-The operational knowledge-update schemas v1-v3, their migrations and drift watcher, and the
-fleet-improvement v1 schema were removed before `save-toolkit--v0.1.0` was published. No GitHub
-Release or versioned release tag exposed them as supported consumer contracts. Git history retains
-their historical bytes; the active fleet makes no compatibility or migration promise for them.
+The operational knowledge-update schemas v1-v3, their migrations and drift watcher, the
+fleet-improvement v1 schema, `eval-execution-profile-v1`/`v2`, and `eval-result-envelope-v1` were
+removed before `save-toolkit--v0.1.0` was published. No GitHub Release or versioned release tag
+exposed them as supported consumer contracts. Git history retains their historical bytes; the
+active fleet makes no compatibility or migration promise for them.

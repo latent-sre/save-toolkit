@@ -41,7 +41,7 @@ that test.
 | Code, validator, exit code, or schema | Run the affected tests. Follow [`schema-compatibility.md`](docs/schema-compatibility.md) for schema changes. |
 | Agent, skill, command, or bundled reference | Run the matching asset/contract test. |
 | Routing description | Run the overlapping clean-room scenarios after a routing-content change. A prior-revision baseline is needed only to diagnose a red case; pure wording changes need no live eval. |
-| Eval harness or scenario | Run the affected `evals/test_*.py`; run `python evals/run_evals.py --validate` when parsing or targeting changes. |
+| Eval harness or scenario | Run the affected `evals/test_*.py`; run `python evals/run_evals.py --validate` when parsing or targeting changes; rubric change → re-run `python evals/judge.py --calibrate`. |
 | Read-only guard or hook wiring | Run `python scripts/test_readonly_guard.py` and `python scripts/test_hook_wiring.py`; preserve exit codes 42 allow, 43 deny, and 44 indeterminate. |
 
 Live routing and behavioral evals use `evals/run_evals.py` in a manual clean room, not CI. Keep raw

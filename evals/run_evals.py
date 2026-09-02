@@ -40,11 +40,7 @@ if str(SCRIPTS_ROOT) not in sys.path:
 import clean_room
 import capture_measurement_evidence
 import engine_adapters
-import engine_contract
-import eval_evidence
-import execution_profiles
 import graders
-import resolved_context
 
 try:
     import yaml
@@ -61,12 +57,10 @@ EVAL_SNAPSHOT_ROOT_ENV = "FLEET_EVAL_SNAPSHOT_ROOT"
 EVAL_INPUT_PATHS = (
     "run_evals.py",
     "graders.py",
+    "judge.py",
+    "rubrics.yaml",
     "clean_room.py",
     "engine_adapters.py",
-    "engine_contract.py",
-    "eval_evidence.py",
-    "execution_profiles.py",
-    "resolved_context.py",
     "scenarios",
 )
 EVAL_SUPPORT_INPUT_PATHS = (
@@ -89,6 +83,9 @@ DENIED_TOOLS = (
 )
 SAFE_ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 FULL_GIT_OID_RE = re.compile(r"^[0-9a-f]{40}$")
+# Canary tokens embedded in reference material, whose lineage a trial's tool-read transcript must
+# reproduce. Owned here (not resolved_context.py, which is Codex-only and deleted).
+CANARY_RE = re.compile(r"\bq_[a-z0-9_]{3,}\b")
 PLUGIN_INPUT_PATHS = (
     "agents", "skills", "commands", "hooks", ".claude-plugin/plugin.json",
     "scripts/fleet_frontmatter.py",
@@ -738,7 +735,7 @@ def parse_stream_trace(blob: str) -> ParsedTrace:
                         if not isinstance(rendered_content, str):
                             rendered_content = json.dumps(rendered_content, ensure_ascii=False)
                         observed_canaries.extend(
-                            resolved_context.CANARY_RE.findall(rendered_content)
+                            CANARY_RE.findall(rendered_content)
                         )
                 elif result_key in read_pending:
                     read_outcomes[result_key] = "denied"
@@ -882,7 +879,7 @@ def expected_canaries_for_paths(
         try:
             if not path.is_file() or _is_reparse_point(path):
                 raise ValueError("must be an ordinary file")
-            tokens = sorted(set(resolved_context.CANARY_RE.findall(path.read_text(encoding="utf-8"))))
+            tokens = sorted(set(CANARY_RE.findall(path.read_text(encoding="utf-8"))))
         except (OSError, UnicodeError, ValueError) as exc:
             raise clean_room.RunnerFailed(f"cannot inspect required reference {path}: {exc}") from exc
         if len(tokens) != 1:
@@ -1106,59 +1103,6 @@ class TrialExecution:
     observed_canaries: tuple[str, ...] = ()
 
 
-def enforce_reported_cost_budget(
-    profile: execution_profiles.ExecutionProfile,
-    spent_usd: float,
-    execution: TrialExecution,
-) -> float:
-    """Apply an available reported-cost ceiling at one-trial granularity."""
-
-    if profile.cost_budget["status"] == "unavailable":
-        return spent_usd
-    amount = execution.parsed.total_cost_usd
-    maximum = profile.cost_budget["max_usd"]
-    if amount is None or not isinstance(maximum, (int, float)):
-        raise InconclusiveTrial(
-            "approved cost budget is available but the trial reported no trustworthy cost",
-            raw_trace=execution.raw_trace,
-            stderr=execution.stderr,
-            returncode=execution.returncode,
-            command=execution.command,
-            duration_seconds=execution.duration_seconds,
-            requested_model=profile.model,
-            context_sha256=execution.context_sha256,
-            policy_sha256=execution.policy_sha256,
-            expected_canaries=execution.expected_canaries,
-            observed_canaries=execution.observed_canaries,
-            total_cost_usd=amount,
-            stop_campaign=True,
-            resolved_model=execution.parsed.model,
-            parsed_trace=execution.parsed,
-            model_executed=True,
-        )
-    updated = spent_usd + amount
-    if updated > float(maximum):
-        raise InconclusiveTrial(
-            f"reported cost budget exceeded after this trial: USD {updated:.6f} > {float(maximum):.6f}",
-            raw_trace=execution.raw_trace,
-            stderr=execution.stderr,
-            returncode=execution.returncode,
-            command=execution.command,
-            duration_seconds=execution.duration_seconds,
-            requested_model=profile.model,
-            context_sha256=execution.context_sha256,
-            policy_sha256=execution.policy_sha256,
-            expected_canaries=execution.expected_canaries,
-            observed_canaries=execution.observed_canaries,
-            total_cost_usd=amount,
-            stop_campaign=True,
-            resolved_model=execution.parsed.model,
-            parsed_trace=execution.parsed,
-            model_executed=True,
-        )
-    return updated
-
-
 def run_agent(
     scenario: dict,
     *,
@@ -1344,180 +1288,6 @@ def run_agent(
     )
 
 
-def run_codex_agent(
-    scenario: dict,
-    *,
-    candidate_root: Path,
-    candidate_sha: str,
-    required_references: tuple[str, ...],
-    timeout: int,
-    model: str,
-    accepted_resolved_model: str | None = None,
-    reasoning_effort: str | None = None,
-    codex_bin: str,
-    env: Mapping[str, str] | None = None,
-) -> TrialExecution:
-    """Run one direct portability trial against an ephemeral resolved-context bundle."""
-
-    if scenario.get("mode") != "direct":
-        raise clean_room.RunnerFailed("Codex portability profiles support direct scenarios only")
-    adapter = engine_adapters.CodexResolvedContextAdapter()
-    try:
-        adapter.require_safe_live_activation()
-    except engine_adapters.AdapterError as exc:
-        raise InconclusiveTrial(
-            str(exc),
-            requested_model=model,
-            duration_seconds=0.0,
-            stop_campaign=True,
-        ) from exc
-    started = time.monotonic()
-    with resolved_context.resolved_bundle(
-        candidate_root=candidate_root,
-        scenario=scenario,
-        candidate_sha=candidate_sha,
-        required_references=required_references,
-    ) as bundle:
-        expected = tuple(sorted(bundle.canaries.values()))
-        evidence = {
-            "context_sha256": bundle.tree_sha256,
-            "expected_canaries": expected,
-        }
-        command = adapter.build_command(
-            executable=codex_bin,
-            bundle_root=bundle.root,
-            response_schema=bundle.root / "response-schema.json",
-            model=model,
-            reasoning_effort=reasoning_effort,
-        )
-        try:
-            proc = subprocess.run(
-                command,
-                cwd=bundle.root,
-                input=scenario["prompt"],
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-                check=False,
-                encoding="utf-8",
-                errors="replace",
-                env=adapter.sanitized_environment(env),
-            )
-        except subprocess.TimeoutExpired as exc:
-            raw = exc.stdout if isinstance(exc.stdout, str) else (exc.stdout or b"").decode("utf-8", "replace")
-            err = exc.stderr if isinstance(exc.stderr, str) else (exc.stderr or b"").decode("utf-8", "replace")
-            raise InconclusiveTrial(
-                f"Codex trial timed out after {timeout}s",
-                raw_trace=raw,
-                stderr=err,
-                command=tuple(command),
-                duration_seconds=time.monotonic() - started,
-                requested_model=model,
-                model_executed=True,
-                **evidence,
-            ) from exc
-        duration = time.monotonic() - started
-        if clean_room.is_auth_failure(proc.stdout, proc.returncode) or clean_room.is_auth_failure(
-            proc.stderr, proc.returncode
-        ):
-            raise InconclusiveTrial(
-                "Codex trial did not authenticate with the subscriber session",
-                raw_trace=proc.stdout,
-                stderr=proc.stderr,
-                returncode=proc.returncode,
-                command=tuple(command),
-                duration_seconds=duration,
-                requested_model=model,
-                model_executed=True,
-                **evidence,
-            )
-        if proc.returncode != 0:
-            raise InconclusiveTrial(
-                f"Codex trial exited rc={proc.returncode}: {proc.stderr.strip()[:300]}",
-                raw_trace=proc.stdout,
-                stderr=proc.stderr,
-                returncode=proc.returncode,
-                command=tuple(command),
-                duration_seconds=duration,
-                requested_model=model,
-                model_executed=True,
-                **evidence,
-            )
-        try:
-            trace = adapter.parse_trace(
-                proc.stdout,
-                requested_model=model,
-                accepted_resolved_model=accepted_resolved_model,
-                requested_reasoning_effort=reasoning_effort,
-            )
-        except engine_adapters.AdapterError as exc:
-            raise InconclusiveTrial(
-                str(exc),
-                raw_trace=proc.stdout,
-                stderr=proc.stderr,
-                returncode=proc.returncode,
-                command=tuple(command),
-                duration_seconds=duration,
-                requested_model=model,
-                model_executed=True,
-                **evidence,
-            ) from exc
-        policy_sha256 = hashlib.sha256(
-            bytes.fromhex(bundle.policy_sha256) + bytes.fromhex(trace.policy_sha256)
-        ).hexdigest()
-        missing = set(expected) - set(trace.reference_canaries)
-        unexpected = set(trace.reference_canaries) - set(expected)
-        if missing or unexpected:
-            raise InconclusiveTrial(
-                f"Codex reference canary mismatch: missing={sorted(missing)}, "
-                f"unexpected={sorted(unexpected)}",
-                raw_trace=proc.stdout,
-                stderr=proc.stderr,
-                returncode=proc.returncode,
-                command=tuple(command),
-                duration_seconds=duration,
-                requested_model=model,
-                resolved_model=trace.resolved_model,
-                policy_sha256=policy_sha256,
-                observed_canaries=trace.reference_canaries,
-                model_executed=True,
-                **evidence,
-            )
-        parsed = ParsedTrace(
-            response=trace.response,
-            skills=(),
-            agents=(),
-            root_skills=(),
-            root_agents=(),
-            nested_ownership=(),
-            attempted_skills=(),
-            attempted_agents=(),
-            model=trace.resolved_model,
-            session_id=None,
-            total_cost_usd=None,
-            runtime_plugins=(),
-            mcp_servers=(),
-            available_skills=(),
-            available_agents=(),
-            available_tools=(),
-            tool_attempts=(),
-            observed_canaries=trace.reference_canaries,
-            stream_diagnostics=StreamDiagnostics(0, 1, 0, None, 1, 0, ()),
-        )
-        return TrialExecution(
-            parsed=parsed,
-            raw_trace=proc.stdout,
-            stderr=proc.stderr,
-            command=tuple(command),
-            returncode=proc.returncode,
-            duration_seconds=duration,
-            context_sha256=bundle.tree_sha256,
-            policy_sha256=policy_sha256,
-            expected_canaries=expected,
-            observed_canaries=trace.reference_canaries,
-        )
-
-
 def _completed_components(parsed: ParsedTrace, kind: str, *, scope: str = "any") -> set[str]:
     if scope == "root":
         return set(parsed.root_skills if kind == "skill" else parsed.root_agents)
@@ -1672,6 +1442,45 @@ def effective_threshold(scenario: dict, requested: float) -> float:
     return requested
 
 
+def drain_judge_spend() -> dict:
+    """What the `rubric` graders of the trial just graded spent, as a trial-level record.
+
+    A `rubric` grader spends a live judge call per trial, and that call's cost and wall-clock time
+    are not in the evaluated agent's process at all -- without this, every judged trial (twice over
+    for a scenario with two rubric graders) reports less spend and less elapsed time than it took.
+    `graders.py` imports `judge` lazily, so a batch with no rubric grader never loads it and this
+    stays an empty record.
+    """
+    module = sys.modules.get("judge")
+    calls = module.drain_spend() if module is not None else []
+    costs = [call["cost_usd"] for call in calls if isinstance(call.get("cost_usd"), (int, float))]
+    return {
+        "calls": len(calls),
+        # None, not 0.0, when nothing reported a cost: an unknown price is not a free one.
+        "cost_usd": sum(costs) if costs else None,
+        "seconds": round(sum(float(call.get("seconds") or 0.0) for call in calls), 3),
+        "cached_calls": sum(1 for call in calls if call.get("cached")),
+        "models_resolved": sorted({
+            call["model_resolved"] for call in calls if isinstance(call.get("model_resolved"), str)
+        }),
+    }
+
+
+def observed_judge_models(scenario_results: list[dict]) -> list[str]:
+    """Every model that actually judged a `rubric` grader in this batch.
+
+    The requested judge alias is in provenance, but a rubric-backed PASS/FAIL can only be attributed
+    -- or compared with another batch -- through the identity that produced it.
+    """
+    models: set[str] = set()
+    for scenario in scenario_results:
+        for trial in scenario.get("trials", []):
+            judge_record = trial.get("judge") or {}
+            if isinstance(judge_record, dict):
+                models.update(m for m in judge_record.get("models_resolved") or [] if isinstance(m, str))
+    return sorted(models)
+
+
 def observed_models(scenario_results: list[dict]) -> list[str]:
     """The sorted set of resolved models seen across every trial in a batch.
 
@@ -1686,19 +1495,6 @@ def observed_models(scenario_results: list[dict]) -> list[str]:
             if isinstance(model, str) and model:
                 models.add(model)
     return sorted(models)
-
-
-def profile_stops_after_state(
-    profile: execution_profiles.ExecutionProfile | None,
-    state: str,
-) -> bool:
-    """Return whether the approved profile ends the campaign after this trial state."""
-
-    return bool(
-        profile is not None
-        and profile.stop_condition == "first-inconclusive"
-        and state == "INCONCLUSIVE"
-    )
 
 
 def aggregate_verdict(states: list[str], threshold: float) -> str:
@@ -1960,9 +1756,6 @@ class ArtifactWriter:
     def write_summary(self, summary: dict) -> Path:
         return self._write_json(self.root / "summary.json", {**summary, "provenance": self.provenance})
 
-    def write_envelope(self, envelope: dict) -> Path:
-        return self._write_json(self.root / "eval-result-envelope-v1.json", envelope)
-
 
 def bounded_response_excerpt(response: str) -> str:
     """Keep diagnostic wording without turning the durable record into a raw transcript."""
@@ -1976,19 +1769,13 @@ def persist_summary_and_evidence(
     writer: ArtifactWriter,
     summary: dict,
     reviews_root: Path | None = None,
-    *,
-    envelope_path: Path | None = None,
 ) -> tuple[Path, Path]:
     """Seal the private summary and require its bounded durable review record."""
 
     summary_path = writer.write_summary(summary)
     try:
         capture_root = reviews_root or ROOT / "docs" / "reviews"
-        evidence_path = (
-            capture_measurement_evidence.capture_eval_envelope(envelope_path, capture_root)
-            if envelope_path is not None
-            else capture_measurement_evidence.capture_eval_summary(summary_path, capture_root)
-        )
+        evidence_path = capture_measurement_evidence.capture_eval_summary(summary_path, capture_root)
     except (capture_measurement_evidence.CaptureError, FileExistsError, OSError) as exc:
         raise clean_room.RunnerFailed(
             f"private summary was written but durable evidence capture failed: {exc}"
@@ -2119,43 +1906,6 @@ def frozen_eval_snapshot():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
-def freeze_profile_argument(argv: list[str], snapshot_root: Path) -> list[str]:
-    """Copy an optional execution profile beside the frozen harness and rewrite argv to it."""
-
-    rewritten = list(argv)
-    matches: list[tuple[int, str, bool]] = []
-    for index, argument in enumerate(rewritten):
-        if argument == "--profile":
-            if index + 1 >= len(rewritten):
-                raise clean_room.RunnerFailed("--profile requires a path")
-            matches.append((index + 1, rewritten[index + 1], False))
-        elif argument.startswith("--profile="):
-            matches.append((index, argument.partition("=")[2], True))
-    if not matches:
-        return rewritten
-    if len(matches) != 1:
-        raise clean_room.RunnerFailed("--profile may be supplied only once")
-    index, raw_path, joined = matches[0]
-    source = Path(raw_path)
-    try:
-        if not source.is_file() or _is_reparse_point(source):
-            raise ValueError("must be an ordinary file")
-        before = source.stat(follow_symlinks=False)
-        content = source.read_bytes()
-        after = source.stat(follow_symlinks=False)
-        if (before.st_size, before.st_mtime_ns) != (after.st_size, after.st_mtime_ns):
-            raise ValueError("changed while it was read")
-        destination = snapshot_root / "execution-profile.json"
-        destination.write_bytes(content)
-        if destination.read_bytes() != content:
-            raise ValueError("frozen copy did not preserve the source bytes")
-    except (OSError, ValueError) as exc:
-        raise clean_room.RunnerFailed(f"could not freeze execution profile {source}: {exc}") from exc
-    replacement = str(destination.resolve())
-    rewritten[index] = f"--profile={replacement}" if joined else replacement
-    return rewritten
-
-
 def plugin_root_argument(argv: list[str]) -> Path | None:
     """Resolve the one explicit measured-plugin root before the frozen child imports."""
 
@@ -2181,18 +1931,17 @@ def run_from_frozen_eval(argv: list[str]) -> int:
     """Bootstrap a live run from frozen harness/scenario bytes, not the mutable checkout."""
     try:
         with frozen_eval_snapshot() as snapshot_root:
-            frozen_argv = freeze_profile_argument(argv, snapshot_root)
             measured_plugin_root = plugin_root_argument(argv) or ROOT
             env = os.environ.copy()
             env[EVAL_SNAPSHOT_ROOT_ENV] = str(snapshot_root)
             env["FLEET_ROOT"] = str(measured_plugin_root)
             env["FLEET_EVALUATOR_ROOT"] = str(EVAL_BUNDLE_ROOT)
             proc = subprocess.run(
-                [sys.executable, str(snapshot_root / "run_evals.py"), *frozen_argv],
+                [sys.executable, str(snapshot_root / "run_evals.py"), *argv],
                 cwd=Path.cwd(), env=env, check=False,
             )
             return proc.returncode
-    except (clean_room.RunnerFailed, resolved_context.BundleError, engine_adapters.AdapterError) as exc:
+    except (clean_room.RunnerFailed, engine_adapters.AdapterError) as exc:
         print(f"run_evals: {exc}", file=sys.stderr)
         return 2
 
@@ -2269,7 +2018,6 @@ def collect_provenance(
     suite_sha256: str,
     conditions: dict | None = None,
     *,
-    engine_name: str = "claude-plugin",
     expected_plugin_commit: str | None = None,
 ) -> dict:
     manifest_path = plugin_root / ".claude-plugin" / "plugin.json"
@@ -2297,7 +2045,7 @@ def collect_provenance(
     provenance = {
         "run_id": datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8],
         "started_at": datetime.now(UTC).isoformat(),
-        "engine": engine_name,
+        "engine": "claude-plugin",
         "runtime_cli_path": str(Path(claude_bin).resolve()),
         "runtime_cli_version": runtime_version,
         "auth_mode": "subscriber_session",
@@ -2322,19 +2070,14 @@ def collect_provenance(
         "fixture_cwd": str(workspace),
         "fixture_sha256": hashlib.sha256(b"neutral-empty-git-root-v1\n").hexdigest(),
         "fixture_kind": "neutral-empty-git-root-v1",
-        "namespace": (
-            "save-toolkit plugin plus Claude built-ins; neutral project; strict empty MCP"
-            if engine_name == "claude-plugin"
-            else "ephemeral resolved context; read-only Codex sandbox; ignored user config/rules"
-        ),
+        "namespace": "save-toolkit plugin plus Claude built-ins; neutral project; strict empty MCP",
         "denied_tools": DENIED_TOOLS.split(","),
         "allowed_builtin_tools": list(ALLOWED_BUILTIN_TOOLS),
         "conditions": conditions if conditions is not None else {},
+        # Compatibility fields for the legacy v1 summary and durable renderer.
+        "claude_cli_path": str(Path(claude_bin).resolve()),
+        "claude_cli_version": runtime_version,
     }
-    if engine_name == "claude-plugin":
-        # Compatibility fields for the legacy v1 summary and durable renderer during expansion.
-        provenance["claude_cli_path"] = provenance["runtime_cli_path"]
-        provenance["claude_cli_version"] = runtime_version
     return provenance
 
 
@@ -2354,7 +2097,7 @@ def main() -> int:
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument("--validate", action="store_true", help="validate scenario schema; no model")
     action.add_argument("--list", action="store_true", help="list selected scenarios")
-    action.add_argument("--run", action="store_true", help="run selected scenarios through the selected engine")
+    action.add_argument("--run", action="store_true", help="run selected scenarios through the Claude plugin")
     parser.add_argument("--mode", choices=["all", *sorted(MODES)], default="all")
     parser.add_argument("--split", choices=["all", *sorted(SPLITS)], default="all")
     parser.add_argument("--match", help="select scenario IDs containing this substring")
@@ -2363,9 +2106,9 @@ def main() -> int:
     parser.add_argument("--timeout", type=positive_timeout, help="seconds per trial (default: 300)")
     parser.add_argument("--model", help="Claude model alias or full ID; actual model is recorded from trace")
     parser.add_argument(
-        "--profile",
-        type=Path,
-        help="versioned multi-engine execution profile; required for Codex and approval-gated for --run",
+        "--judge-model",
+        default="sonnet",
+        help="model for `rubric` graders' live judge (sets EVAL_JUDGE_MODEL; default: sonnet)",
     )
     parser.add_argument("--results-dir", type=Path, default=ROOT / ".eval-runs")
     parser.add_argument("--require-clean-plugin", action="store_true", help="refuse if plugin inputs differ from HEAD")
@@ -2380,6 +2123,7 @@ def main() -> int:
         help="full candidate Git object ID required at --plugin-root before model execution",
     )
     args = parser.parse_args()
+    os.environ["EVAL_JUDGE_MODEL"] = args.judge_model
 
     if args.plugin_root is not None and args.plugin_root.resolve() != ROOT:
         print("run_evals: frozen child plugin root does not match --plugin-root", file=sys.stderr)
@@ -2408,55 +2152,8 @@ def main() -> int:
         print("EVAL SUITE INVALID:")
         print("\n".join("  - " + problem for problem in problems))
         return 3
-    profile: execution_profiles.ExecutionProfile | None = None
-    if args.profile is not None:
-        try:
-            profile = execution_profiles.load_profile(
-                args.profile,
-                require_approval=args.run,
-            )
-        except execution_profiles.ProfileError as exc:
-            print(f"run_evals: invalid execution profile: {exc}", file=sys.stderr)
-            return 2 if args.run else 3
-        if any(
-            (
-                args.mode != "all",
-                args.split != "all",
-                args.match is not None,
-                args.trials is not None,
-                args.threshold is not None,
-                args.timeout is not None,
-                args.model is not None,
-            )
-        ):
-            print(
-                "run_evals: --profile owns engine, scenario selection, model, trials, and timeout; "
-                "do not combine it with selection/model/trial/timeout/threshold overrides",
-                file=sys.stderr,
-            )
-            return 2 if args.run else 3
-        args.model = profile.model
-        args.trials = profile.trials
-        args.timeout = profile.timeout_s
-        selected_ids = set(profile.scenario_ids)
-        selected = [scenario for scenario in scenarios if scenario["id"] in selected_ids]
-        missing_ids = selected_ids - {scenario["id"] for scenario in selected}
-        if missing_ids:
-            print(
-                f"run_evals: profile names unknown scenario(s): {sorted(missing_ids)}",
-                file=sys.stderr,
-            )
-            return 2 if args.run else 3
-        try:
-            execution_profiles.validate_scenario_bindings(profile, selected)
-            if args.run:
-                execution_profiles.validate_approved_eval_suite(profile, suite_sha256)
-        except execution_profiles.ProfileError as exc:
-            print(f"run_evals: invalid execution profile: {exc}", file=sys.stderr)
-            return 2 if args.run else 3
-    else:
-        args.timeout = args.timeout or 300
-        selected = _filter_scenarios(scenarios, args)
+    args.timeout = args.timeout or 300
+    selected = _filter_scenarios(scenarios, args)
     candidate_problems = validate(selected, component_root=ROOT)
     if candidate_problems:
         print("SELECTED EVALS INVALID FOR MEASURED PLUGIN:")
@@ -2485,23 +2182,12 @@ def main() -> int:
         print("run_evals: live execution requires the frozen eval bootstrap", file=sys.stderr)
         return 2
 
-    engine_name = profile.engine if profile is not None else "claude-plugin"
-    if engine_name == "codex-cli":
-        try:
-            engine_adapters.CodexResolvedContextAdapter().require_safe_live_activation()
-        except engine_adapters.AdapterError as exc:
-            print(f"run_evals: {exc}", file=sys.stderr)
-            return 2
-    runtime_setting = (
-        os.environ.get("CODEX_BIN", "codex")
-        if engine_name == "codex-cli"
-        else os.environ.get("CLAUDE_BIN", "claude")
-    )
+    runtime_setting = os.environ.get("CLAUDE_BIN", "claude")
     runtime_bin = shutil.which(runtime_setting) or (
         runtime_setting if Path(runtime_setting).is_file() else None
     )
     if not runtime_bin:
-        print(f"run_evals: {engine_name} CLI not found: {runtime_setting}", file=sys.stderr)
+        print(f"run_evals: claude-plugin CLI not found: {runtime_setting}", file=sys.stderr)
         return 2
 
     try:
@@ -2509,22 +2195,9 @@ def main() -> int:
         with contextlib.ExitStack() as stack:
             plugin_root = stack.enter_context(frozen_plugin_snapshot())
             workspace = stack.enter_context(clean_room.neutral_workspace())
-            env: Mapping[str, str]
-            if engine_name == "claude-plugin":
-                env = stack.enter_context(
-                    clean_room.clean_env(subscriber_only=profile is not None)
-                )
-            else:
-                env = os.environ.copy()
+            env: Mapping[str, str] = stack.enter_context(clean_room.clean_env())
             denied_probe_path: Path | None = None
-            if engine_name == "claude-plugin" and any(
-                (
-                    profile.required_references.get(scenario["id"], ())
-                    if profile is not None
-                    else reference_requirements(scenario)
-                )
-                for scenario in selected
-            ):
+            if any(reference_requirements(scenario) for scenario in selected):
                 denied_probe_root = Path(
                     stack.enter_context(
                         tempfile.TemporaryDirectory(prefix="fleet-eval-denied-boundary-")
@@ -2539,25 +2212,24 @@ def main() -> int:
             provenance = collect_provenance(
                 args.model, workspace, runtime_bin, plugin_root, suite_sha256,
                 measurement_conditions(args),
-                engine_name=engine_name,
                 expected_plugin_commit=args.expect_plugin_commit,
             )
             if args.require_clean_plugin and provenance["plugin_inputs_dirty"]:
                 print("run_evals: plugin inputs differ from HEAD; refusing publishable baseline", file=sys.stderr)
                 return 2
             run_dir = results_root / provenance["run_id"]
+            # `rubric` graders spend a live judge call per trial; the cache lives under this run's
+            # own artifacts so a re-grade of the same run costs nothing (see evals/judge.py).
+            os.environ["EVAL_JUDGE_CACHE"] = str(run_dir / "judge-cache")
+            provenance["rubrics_sha256"] = _sha256_file(EVAL_ROOT / "rubrics.yaml")
+            provenance["judge_model"] = args.judge_model
             writer = ArtifactWriter(run_dir, provenance)
             scenario_results: list[dict] = []
             print(
-                f"run: {provenance['run_id']} | engine {engine_name} | "
+                f"run: {provenance['run_id']} | engine claude-plugin | "
                 f"CLI {provenance['runtime_cli_version']} | candidate {provenance['plugin_commit']}"
             )
             print(f"namespace: {provenance['namespace']} | artifacts: {run_dir}")
-            batch_deadline = (
-                time.monotonic() + profile.total_timeout_s if profile is not None else None
-            )
-            reported_cost_usd = 0.0
-            campaign_stop_reason: str | None = None
             for scenario in selected:
                 trials = args.trials or scenario.get("trials", DEFAULT_TRIALS)
                 threshold = effective_threshold(
@@ -2568,103 +2240,31 @@ def main() -> int:
                 print(f"\n== {scenario['id']} [{scenario['mode']}/{scenario['split']}] ==")
                 for trial_number in range(1, trials + 1):
                     started_at = datetime.now(UTC).isoformat()
-                    if engine_name == "claude-plugin":
-                        planned_references = (
-                            profile.required_references.get(scenario["id"], ())
-                            if profile is not None
-                            else reference_requirements(scenario)
-                        )
-                        planned_command = build_command(
-                            scenario,
-                            args.model,
-                            runtime_bin,
-                            plugin_root,
-                            enable_snapshot_reads=bool(planned_references),
-                            required_reference_paths=planned_references,
-                            denied_probe_path=denied_probe_path,
-                            reasoning_effort=(profile.reasoning_effort if profile else None),
-                        )
-                    else:
-                        planned_command = [runtime_bin, "exec", "<ephemeral-resolved-context>"]
+                    planned_references = reference_requirements(scenario)
+                    planned_command = build_command(
+                        scenario,
+                        args.model,
+                        runtime_bin,
+                        plugin_root,
+                        enable_snapshot_reads=bool(planned_references),
+                        required_reference_paths=planned_references,
+                        denied_probe_path=denied_probe_path,
+                    )
                     try:
-                        if campaign_stop_reason is not None:
-                            raise InconclusiveTrial(
-                                campaign_stop_reason,
-                                command=tuple(planned_command),
-                                duration_seconds=0.0,
-                                requested_model=args.model,
-                                stop_campaign=True,
-                            )
-                        if (
-                            profile is not None
-                            and profile.cost_budget["status"] == "available"
-                            and reported_cost_usd >= float(profile.cost_budget["max_usd"])
-                        ):
-                            raise InconclusiveTrial(
-                                "reported cost budget was exhausted before trial start",
-                                command=tuple(planned_command),
-                                duration_seconds=0.0,
-                                requested_model=args.model,
-                                stop_campaign=True,
-                            )
-                        if batch_deadline is not None:
-                            remaining = batch_deadline - time.monotonic()
-                            if remaining <= 0:
-                                raise InconclusiveTrial(
-                                    "execution profile total timeout exhausted before trial start",
-                                    command=tuple(planned_command),
-                                    duration_seconds=0.0,
-                                    requested_model=args.model,
-                                )
-                            trial_timeout = min(args.timeout, max(1, math.ceil(remaining)))
-                        else:
-                            trial_timeout = args.timeout
-                        if engine_name == "claude-plugin":
-                            execution = run_agent(
-                                scenario,
-                                env=dict(env),
-                                cwd=workspace,
-                                timeout=trial_timeout,
-                                model=args.model,
-                                claude_bin=runtime_bin,
-                                plugin_root=plugin_root,
-                                required_references=planned_references,
-                                denied_probe_path=denied_probe_path,
-                                reasoning_effort=(profile.reasoning_effort if profile else None),
-                                accepted_resolved_model=(profile.resolved_model if profile else None),
-                            )
-                        else:
-                            if profile is None:
-                                raise clean_room.RunnerFailed(
-                                    "Codex execution requires a versioned approved profile"
-                                )
-                            execution = run_codex_agent(
-                                scenario,
-                                candidate_root=plugin_root,
-                                candidate_sha=provenance["plugin_commit"],
-                                required_references=profile.required_references.get(
-                                    scenario["id"], ()
-                                ),
-                                timeout=trial_timeout,
-                                model=profile.model,
-                                accepted_resolved_model=profile.resolved_model,
-                                reasoning_effort=profile.reasoning_effort,
-                                codex_bin=runtime_bin,
-                                env=env,
-                            )
-                        if profile is not None:
-                            reported_cost_usd = enforce_reported_cost_budget(
-                                profile,
-                                reported_cost_usd,
-                                execution,
-                            )
+                        execution = run_agent(
+                            scenario,
+                            env=dict(env),
+                            cwd=workspace,
+                            timeout=args.timeout,
+                            model=args.model,
+                            claude_bin=runtime_bin,
+                            plugin_root=plugin_root,
+                            required_references=planned_references,
+                            denied_probe_path=denied_probe_path,
+                        )
                         writer.write_trace(scenario["id"], trial_number, execution.raw_trace)
                         writer.write_stderr(scenario["id"], trial_number, execution.stderr)
-                        passed, details = grade_trial(
-                            scenario,
-                            execution.parsed,
-                            require_native_invocation=engine_name == "claude-plugin",
-                        )
+                        passed, details = grade_trial(scenario, execution.parsed)
                         state = "PASS" if passed else "FAIL"
                         trial_result = {
                             "trial": trial_number,
@@ -2672,11 +2272,10 @@ def main() -> int:
                             "model_executed": True,
                             "started_at": started_at,
                             "duration_seconds": execution.duration_seconds,
+                            "judge": drain_judge_spend(),
                             "exit_code": execution.returncode,
                             "resolved_model": execution.parsed.model,
-                            "reasoning_effort": (
-                                profile.reasoning_effort if profile is not None else None
-                            ),
+                            "reasoning_effort": None,
                             "session_id": execution.parsed.session_id,
                             "total_cost_usd": execution.parsed.total_cost_usd,
                             "completed_invocations": {
@@ -2715,18 +2314,6 @@ def main() -> int:
                     except (InconclusiveTrial, clean_room.AuthUnavailable) as exc:
                         state = "INCONCLUSIVE"
                         parsed_evidence = getattr(exc, "parsed_trace", None)
-                        incurred_cost = getattr(exc, "total_cost_usd", None)
-                        if (
-                            profile is not None
-                            and profile.cost_budget["status"] == "available"
-                            and isinstance(incurred_cost, (int, float))
-                        ):
-                            reported_cost_usd += incurred_cost
-                        if getattr(exc, "stop_campaign", False):
-                            campaign_stop_reason = (
-                                "campaign stopped before model execution after a prior budget "
-                                f"boundary became inconclusive: {exc}"
-                            )
                         raw = getattr(exc, "raw_trace", "")
                         stderr = getattr(exc, "stderr", "")
                         writer.write_trace(scenario["id"], trial_number, raw)
@@ -2738,11 +2325,12 @@ def main() -> int:
                             "reason": str(exc),
                             "exit_code": getattr(exc, "returncode", None),
                             "duration_seconds": getattr(exc, "duration_seconds", None),
+                            # Drained even though this trial never graded: an earlier trial's judge
+                            # spend must not accumulate into a later one's record.
+                            "judge": drain_judge_spend(),
                             "requested_model": getattr(exc, "requested_model", args.model),
                             "resolved_model": getattr(exc, "resolved_model", None),
-                            "reasoning_effort": (
-                                profile.reasoning_effort if profile is not None else None
-                            ),
+                            "reasoning_effort": None,
                             "model_executed": getattr(exc, "model_executed", False),
                             "session_id": (
                                 parsed_evidence.session_id if parsed_evidence is not None else None
@@ -2780,10 +2368,6 @@ def main() -> int:
                     states.append(state)
                     trial_results.append(trial_result)
                     print(f"  trial {trial_number}: {state}")
-                    if profile_stops_after_state(profile, state) and campaign_stop_reason is None:
-                        campaign_stop_reason = (
-                            "campaign stopped by the approved first-inconclusive stop condition"
-                        )
                     if state == "FAIL":
                         print("\n".join(trial_result["details"]))
                     elif state == "INCONCLUSIVE":
@@ -2816,68 +2400,34 @@ def main() -> int:
                     f"({', '.join(models_observed)}); it mixes measurement conditions and must "
                     "not be diffed as a single baseline. Pin --model for a comparable run."
                 )
-            if (
-                profile is not None
-                and profile.resolved_model is not None
-                and models_observed
-                and models_observed != [profile.resolved_model]
-            ):
-                integrity_errors.append(
-                    "batch resolved model does not match the accepted execution profile identity: "
-                    f"expected={profile.resolved_model!r} observed={models_observed}"
-                )
             if integrity_errors:
                 overall = "INCONCLUSIVE"
             completed_at = datetime.now(UTC).isoformat()
-            envelope_path: Path | None = None
-            if profile is not None:
-                try:
-                    reference_canaries = {
-                        scenario["id"]: expected_canaries_for_paths(
-                            profile.required_references.get(scenario["id"], ()),
-                            plugin_root,
-                        )
-                        for scenario in selected
-                        if profile.required_references.get(scenario["id"])
-                    }
-                    envelope = eval_evidence.build_envelope(
-                        provenance=provenance,
-                        profile=profile,
-                        scenario_results=scenario_results,
-                        reference_canaries=reference_canaries,
-                        grader_sha256=_sha256_file(EVAL_ROOT / "graders.py"),
-                        ended_at=completed_at,
-                        integrity_errors=integrity_errors,
-                    )
-                    envelope_path = writer.write_envelope(envelope)
-                except (eval_evidence.EvidenceError, engine_contract.ContractError) as exc:
-                    raise clean_room.RunnerFailed(
-                        f"could not produce normalized eval evidence: {exc}"
-                    ) from exc
             summary_path, evidence_path = persist_summary_and_evidence(writer, {
                 "schema_version": 1,
                 "verdict": overall,
                 "selected": {"mode": args.mode, "split": args.split, "match": args.match},
                 "scenarios": scenario_results,
                 "models_observed": models_observed,
+                "judge_model_requested": args.judge_model,
+                "judge_models_observed": observed_judge_models(scenario_results),
                 "integrity": {
                     "state": "PASS" if not integrity_errors else "INCONCLUSIVE",
                     "errors": integrity_errors,
                 },
                 "completed_at": completed_at,
-            }, envelope_path=envelope_path)
+            })
             if integrity_errors:
                 print("\nINCONCLUSIVE integrity check: " + "; ".join(integrity_errors))
             print(
                 f"\n{overall}: {verdicts.count('PASS')}/{len(verdicts)} scenarios passed; "
                 f"summary: {summary_path}; durable evidence: {evidence_path}"
-                + (f"; normalized envelope: {envelope_path}" if envelope_path else "")
             )
             return {"PASS": 0, "FAIL": 1, "INCONCLUSIVE": 2}[overall]
     except clean_room.AuthUnavailable as exc:
         print(f"run_evals: {exc}", file=sys.stderr)
         return 2
-    except (clean_room.RunnerFailed, resolved_context.BundleError, engine_adapters.AdapterError) as exc:
+    except (clean_room.RunnerFailed, engine_adapters.AdapterError) as exc:
         print(f"run_evals: {exc}", file=sys.stderr)
         return 2
 

@@ -1512,7 +1512,13 @@ def check_fleet_grader(ctx: Context, p: dict) -> tuple[bool, str]:
     name = p["name"]
     if name not in fleet_graders.REGISTRY:
         return False, f"unknown fleet grader {name!r}"
-    passed, detail = fleet_graders.run_grader({"type": name, **{k: v for k, v in p.items() if k not in ("check", "name", "text")}}, ctx.trace.result_text)
+    kwargs = {k: v for k, v in p.items() if k not in ("check", "name", "text")}
+    if name == "rubric":
+        # `rubric`'s own identity kwarg is also called `name`, which this config already spends on
+        # the registered grader TYPE ("rubric"). Spell the rubric identity `rubric_name` here and
+        # translate it to the `name` kwarg `graders.rubric()` expects.
+        kwargs["name"] = kwargs.pop("rubric_name")
+    passed, detail = fleet_graders.run_grader({"type": name, **kwargs}, ctx.trace.result_text)
     return bool(passed), str(detail)
 
 
@@ -1780,6 +1786,19 @@ REGRADABLE = {
 }
 
 
+def is_regradable(check: dict) -> bool:
+    """Whether this check can be rescored from saved artefacts alone.
+
+    `fleet_grader` is regradable in general, but not when it names the `rubric` grader: that one
+    spends a live, paid, nondeterministic judge call. Re-running it during `--regrade` would
+    overwrite a saved verdict with a fresh model judgment -- and with no authentication it would
+    silently rewrite a rubric check to FAIL. Those keep their live verdict instead.
+    """
+    if check.get("check") not in REGRADABLE:
+        return False
+    return not (check.get("check") == "fleet_grader" and check.get("name") == "rubric")
+
+
 def regrade_run(run_dir: Path, spec: dict) -> dict:
     """Re-score one saved run with the scenario's current checks; keep verdicts the artefacts cannot reproduce."""
     summary = json.loads((run_dir / "outputs" / "trace-summary.json").read_text(encoding="utf-8"))
@@ -1807,13 +1826,14 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
             label = describe(check)
             if inconclusive:
                 passed, evidence = False, f"INCONCLUSIVE: {inconclusive}"
-            elif check["check"] in REGRADABLE:
+            elif is_regradable(check):
                 try:
                     passed, evidence = CHECKS[check["check"]](ctx, check)
                 except Exception as exc:
                     passed, evidence = False, f"grader error: {exc!r}"
             elif label in old_by_text:
-                passed, evidence = old_by_text[label]["passed"], old_by_text[label]["evidence"] + " [kept: workspace-dependent]"
+                kept = "live-judge" if not is_regradable(check) and check["check"] in REGRADABLE else "workspace-dependent"
+                passed, evidence = old_by_text[label]["passed"], old_by_text[label]["evidence"] + f" [kept: {kept}]"
             else:
                 passed, evidence = False, "no saved verdict for a workspace-dependent check (re-run the trial)"
             expectations.append({"text": label, "passed": bool(passed), "evidence": str(evidence)[:600]})

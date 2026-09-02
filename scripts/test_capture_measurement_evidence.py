@@ -76,6 +76,76 @@ class MeasurementCaptureTests(unittest.TestCase):
         self.assertNotIn("private-session", text)
         self.assertLess(len(text), 6000)
 
+    def test_eval_capture_records_the_judge_that_decided_rubric_verdicts(self) -> None:
+        """A rubric-backed verdict is one model judging another; the durable record must name it.
+
+        The private batch may be reclaimed once this file is committed, so a judge identity that
+        lives only there cannot afterwards attribute or compare a rubric PASS/FAIL.
+        """
+        root = self.make_root()
+        summary_path = root / "summary.json"
+        summary_path.write_text(json.dumps({
+            "schema_version": 1,
+            "verdict": "PASS",
+            "completed_at": "2026-09-01T12:03:00+00:00",
+            "models_observed": ["claude-opus-5"],
+            "judge_model_requested": "sonnet",
+            "judge_models_observed": ["claude-sonnet-5"],
+            "integrity": {"state": "PASS", "errors": []},
+            "provenance": {
+                "run_id": "20260901T120000Z-1234abcd",
+                "plugin_commit": "a" * 40,
+                "requested_model": "opus",
+                "judge_model": "sonnet",
+                "rubrics_sha256": "d" * 64,
+                "conditions": {"selected": {"mode": "direct", "split": None, "match": None}},
+            },
+            "scenarios": [{
+                "id": "case-one", "mode": "direct", "split": "calibration",
+                "target": {"kind": "skill", "name": "agent-authoring"},
+                "verdict": "PASS", "threshold": 1.0,
+                "trials": [{
+                    "trial": 1, "state": "PASS", "resolved_model": "claude-opus-5",
+                    "duration_seconds": 20.0, "total_cost_usd": 0.40,
+                    "judge": {"calls": 2, "cost_usd": 0.06, "seconds": 8.0,
+                              "cached_calls": 0, "models_resolved": ["claude-sonnet-5"]},
+                    "completed_invocations": {"skills": [], "agents": []},
+                    "response_excerpt": "a response",
+                }],
+            }],
+        }), encoding="utf-8")
+
+        text = capture.capture_eval_summary(summary_path, root / "docs" / "reviews").read_text(encoding="utf-8")
+
+        self.assertIn("Requested judge model:** `sonnet`", text)
+        self.assertIn("Observed judge models:** `claude-sonnet-5`", text)
+        self.assertIn("Rubrics SHA-256:** `" + "d" * 64 + "`", text)
+        # The judge's spend is named, not folded into the evaluated agent's totals.
+        self.assertIn("USD 0.4000.", text)
+        self.assertIn("Rubric judge: 2 calls; 8.0 seconds; USD 0.0600.", text)
+
+    def test_eval_capture_of_a_batch_with_no_judge_says_none(self) -> None:
+        root = self.make_root()
+        summary_path = root / "summary.json"
+        summary_path.write_text(json.dumps({
+            "schema_version": 1,
+            "verdict": "PASS",
+            "completed_at": "2026-09-01T12:03:00+00:00",
+            "integrity": {"state": "PASS", "errors": []},
+            "provenance": {
+                "run_id": "20260901T130000Z-1234abcd",
+                "plugin_commit": "a" * 40,
+                "conditions": {"selected": {}},
+            },
+            "scenarios": [],
+        }), encoding="utf-8")
+
+        text = capture.capture_eval_summary(summary_path, root / "docs" / "reviews").read_text(encoding="utf-8")
+
+        self.assertIn("Requested judge model:** `none`", text)
+        self.assertIn("Observed judge models:** `none`", text)
+        self.assertNotIn("Rubric judge:", text)
+
     def test_exercise_capture_requires_revision_summary_and_verbatim_list(self) -> None:
         root = self.make_root()
         envelope = root / "exercise.json"
@@ -97,59 +167,6 @@ class MeasurementCaptureTests(unittest.TestCase):
         self.assertIn("Three independent", text)
         self.assertIn("&lt;/pre&gt;", text)
         self.assertIn("bounded excerpt", text)
-
-    def test_eval_envelope_capture_keeps_claims_and_drops_private_trace_data(self) -> None:
-        root = self.make_root()
-        envelope = root / "eval-result-envelope-v1.json"
-        envelope.write_text(json.dumps({
-            "schema_version": "eval-result-envelope/v1",
-            "run_id": "20260826T120000Z-1234abcd",
-            "engine": {
-                "name": "codex-cli", "adapter_version": "1", "runtime_version": "codex 1",
-                "requested_model": "gpt-5.6-terra", "resolved_model": "gpt-5.6-terra",
-                "auth_mode": "subscriber_session",
-            },
-            "candidate": {"git_sha": "a" * 40, "clean": True, "input_sha256": "b" * 64},
-            "artifacts": {
-                "plugin_snapshot": {"applicable": False, "sha256": None},
-                "resolved_context": {"applicable": True, "sha256": "c" * 64},
-            },
-            "digests": {
-                "scenario_suite": "d" * 64, "graders": "e" * 64,
-                "execution_profile": "f" * 64, "comparison": "5" * 64,
-                "policy": "1" * 64,
-            },
-            "canaries": [{
-                "scenario_id": "case-one", "path": "skills/x/references/a.md",
-                "expected": "q_reference_1234", "observed": "q_reference_1234", "status": "PASS",
-            }],
-            "claims_requested": ["reference_used", "behavioral_contract"],
-            "claims_supported": [
-                "behavioral_contract", "candidate_snapshot_integrity",
-                "deterministic_grader_result", "reference_used",
-            ],
-            "scenarios": [{
-                "id": "case-one", "sha256": "2" * 64, "verdict": "PASS", "claims": [
-                    {"type": "reference_used", "status": "PASS", "evidence": ["3" * 64], "limitations": []},
-                    {"type": "behavioral_contract", "status": "PASS", "evidence": ["3" * 64], "limitations": []},
-                ],
-            }],
-            "verdict": "PASS",
-            "timing": {"started_at": "2026-08-26T12:00:00Z", "ended_at": "2026-08-26T12:03:00Z", "duration_seconds": 180},
-            "cost": {"status": "unavailable", "amount": None, "currency": None, "reason": "subscriber"},
-            "trace": {"complete": True, "sha256": "4" * 64},
-            "promotion_eligible": False,
-            "limitations": ["portable evidence only"],
-        }), encoding="utf-8")
-
-        output = capture.capture_eval_envelope(envelope, root / "docs" / "reviews")
-        text = output.read_text(encoding="utf-8")
-
-        self.assertIn("codex-cli", text)
-        self.assertIn("reference_used", text)
-        self.assertIn("skills/x/references/a.md", text)
-        self.assertIn("portable evidence only", text)
-        self.assertNotIn("session_id", text)
 
     def test_capture_refuses_overwrite(self) -> None:
         root = self.make_root()

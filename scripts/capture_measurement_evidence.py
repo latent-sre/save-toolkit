@@ -13,11 +13,6 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-EVALS_ROOT = ROOT / "evals"
-if str(EVALS_ROOT) not in sys.path:
-    sys.path.insert(0, str(EVALS_ROOT))
-
-import engine_contract
 
 DEFAULT_REVIEWS_ROOT = ROOT / "docs" / "reviews"
 BATCH_ID_RE = re.compile(r"^\d{8}T\d{6}Z-[0-9a-f]{8}$")
@@ -120,10 +115,19 @@ def render_eval_summary(summary: dict) -> tuple[str, str]:
     models = summary.get("models_observed") or []
     if not isinstance(models, list):
         raise CaptureError("models_observed must be a list")
+    # A `rubric` grader's PASS/FAIL is one model judging another, and the retention policy allows
+    # reclaiming the private batch once this record is committed. Without the judge's identity here,
+    # a rubric-backed verdict could not afterwards be attributed or compared with another run.
+    judge_models = summary.get("judge_models_observed") or []
+    if not isinstance(judge_models, list):
+        raise CaptureError("judge_models_observed must be a list")
     scenarios = summary["scenarios"]
     total_cost = 0.0
     total_duration = 0.0
     trial_count = 0
+    judge_calls = 0
+    judge_cost = 0.0
+    judge_duration = 0.0
     lines = [
         f"# Eval evidence — {run_id}",
         "",
@@ -139,6 +143,10 @@ def render_eval_summary(summary: dict) -> tuple[str, str]:
         f"- **Workspace dirty:** `{_cell(provenance.get('workspace_dirty', 'unknown'))}`",
         f"- **Requested model:** `{provenance.get('requested_model', 'unknown')}`",
         f"- **Observed models:** {', '.join(f'`{_cell(model)}`' for model in models) or '`none`'}",
+        f"- **Requested judge model:** "
+        f"`{_cell(summary.get('judge_model_requested') or provenance.get('judge_model') or 'none')}`",
+        f"- **Observed judge models:** {', '.join(f'`{_cell(model)}`' for model in judge_models) or '`none`'}",
+        f"- **Rubrics SHA-256:** `{provenance.get('rubrics_sha256', 'none')}`",
         f"- **Timeout:** `{_cell(conditions.get('timeout_s', 'unknown'))}` seconds",
         f"- **Requested trials:** `{_cell(conditions.get('requested_trials', 'unknown'))}`",
         f"- **Requested threshold:** `{_cell(conditions.get('requested_threshold', 'unknown'))}`",
@@ -172,11 +180,23 @@ def render_eval_summary(summary: dict) -> tuple[str, str]:
                 trial_count += 1
                 total_cost += float(trial.get("total_cost_usd") or 0.0)
                 total_duration += float(trial.get("duration_seconds") or 0.0)
+                judge_record = trial.get("judge")
+                if isinstance(judge_record, dict):
+                    judge_calls += int(judge_record.get("calls") or 0)
+                    judge_cost += float(judge_record.get("cost_usd") or 0.0)
+                    judge_duration += float(judge_record.get("seconds") or 0.0)
 
+    # The agent totals stay the evaluated agent's own spend; the judge's is named separately rather
+    # than folded in, so neither number silently changes meaning when a scenario gains a rubric.
+    judge_totals = (
+        f" Rubric judge: {judge_calls} calls; {judge_duration:.1f} seconds; USD {judge_cost:.4f}."
+        if judge_calls
+        else ""
+    )
     lines.extend([
         "",
         f"**Totals:** {len(scenarios)} scenarios; {trial_count} trials; "
-        f"{total_duration:.1f} seconds; USD {total_cost:.4f}.",
+        f"{total_duration:.1f} seconds; USD {total_cost:.4f}.{judge_totals}",
         "",
         "## Trial identities",
         "",
@@ -237,105 +257,6 @@ def capture_eval_summary(summary_path: Path, reviews_root: Path = DEFAULT_REVIEW
     capture_date, content = render_eval_summary(summary)
     run_id = summary["provenance"]["run_id"]
     destination = _reviews_root(reviews_root) / f"{capture_date}-eval-{run_id}.md"
-    return _write_exclusive(destination, content)
-
-
-def render_eval_envelope(envelope: dict) -> tuple[str, str]:
-    try:
-        engine_contract.validate_envelope(envelope)
-    except engine_contract.ContractError as exc:
-        raise CaptureError(f"invalid eval result envelope: {exc}") from exc
-    run_id = str(envelope["run_id"])
-    capture_date = _capture_date(envelope["timing"]["ended_at"])
-    engine = envelope["engine"]
-    candidate = envelope["candidate"]
-    digests = envelope["digests"]
-    artifacts = envelope["artifacts"]
-    cost = envelope["cost"]
-    lines = [
-        f"# Eval evidence — {run_id}",
-        "",
-        "> **Status: generated durable claim-scoped measurement evidence.** This record contains",
-        "> bounded outcomes and digests only. Raw traces and credentials remain private.",
-        "",
-        "## Identity and outcome",
-        "",
-        f"- **Batch:** `{_cell(run_id)}`",
-        f"- **Engine / adapter:** `{_cell(engine['name'])}` / `{_cell(engine['adapter_version'])}`",
-        f"- **Runtime:** `{_cell(engine['runtime_version'])}`",
-        f"- **Requested / resolved model:** `{_cell(engine['requested_model'])}` / `{_cell(engine['resolved_model'])}`",
-        f"- **Authentication:** `{_cell(engine['auth_mode'])}` (credential material not retained)",
-        f"- **Candidate:** `{_cell(candidate['git_sha'])}`; clean `{_cell(candidate['clean'])}`",
-        f"- **Candidate-input SHA-256:** `{_cell(candidate['input_sha256'])}`",
-        f"- **Verdict:** `{_cell(envelope['verdict'])}`",
-        f"- **Promotion eligible:** `{_cell(envelope['promotion_eligible'])}`",
-        f"- **Trace complete / SHA-256:** `{_cell(envelope['trace']['complete'])}` / `{_cell(envelope['trace']['sha256'])}`",
-        f"- **Timing:** `{_cell(envelope['timing']['started_at'])}` to `{_cell(envelope['timing']['ended_at'])}` ({_cell(envelope['timing']['duration_seconds'])}s)",
-        f"- **Cost:** `{_cell(cost['status'])}`; amount `{_cell(cost['amount'])}`; currency `{_cell(cost['currency'])}`; reason `{_cell(cost['reason'])}`",
-        "",
-        "## Bound artifacts and policies",
-        "",
-        f"- **Plugin snapshot:** applicable `{_cell(artifacts['plugin_snapshot']['applicable'])}`; SHA-256 `{_cell(artifacts['plugin_snapshot']['sha256'])}`",
-        f"- **Resolved context:** applicable `{_cell(artifacts['resolved_context']['applicable'])}`; SHA-256 `{_cell(artifacts['resolved_context']['sha256'])}`",
-        f"- **Scenario suite:** `{_cell(digests['scenario_suite'])}`",
-        f"- **Graders:** `{_cell(digests['graders'])}`",
-        f"- **Execution profile:** `{_cell(digests['execution_profile'])}`",
-        f"- **Comparison contract:** `{_cell(digests['comparison'])}`",
-        f"- **Policy:** `{_cell(digests['policy'])}`",
-        "",
-        "## Claim outcomes",
-        "",
-        "| Scenario | Scenario digest | Claim | Status | Evidence digests | Limitations |",
-        "|---|---|---|---|---|---|",
-    ]
-    for scenario in envelope["scenarios"]:
-        for claim in scenario["claims"]:
-            lines.append(
-                f"| {_cell(scenario['id'])} | {_cell(scenario['sha256'])} | {_cell(claim['type'])} | "
-                f"{_cell(claim['status'])} | {_cell(', '.join(claim['evidence']))} | "
-                f"{_cell('; '.join(claim['limitations']) or '—')} |"
-            )
-    lines.extend([
-        "",
-        "## Reference canaries",
-        "",
-        "| Scenario | Reference path | Expected | Observed | Status |",
-        "|---|---|---|---|---|",
-    ])
-    if envelope["canaries"]:
-        for canary in envelope["canaries"]:
-            lines.append(
-                f"| {_cell(canary['scenario_id'])} | {_cell(canary['path'])} | "
-                f"{_cell(canary['expected'])} | {_cell(canary['observed'])} | {_cell(canary['status'])} |"
-            )
-    else:
-        lines.append("| — | — | — | — | — |")
-    lines.extend([
-        "",
-        "## Limitations",
-        "",
-    ])
-    if envelope["limitations"]:
-        lines.extend(f"- {_cell(item)}" for item in envelope["limitations"])
-    else:
-        lines.append("- None recorded.")
-    lines.extend([
-        "",
-        "## Retention boundary",
-        "",
-        "Retained: exact candidate and engine identity, artifact/policy/profile/scenario/trace digests,",
-        "claim and canary outcomes, timing, typed cost state, and bounded limitations.",
-        "Not retained: raw stdout/stderr, prompts, model responses, session IDs, tool payloads,",
-        "temporary paths, account state, credentials, or authentication material.",
-        "",
-    ])
-    return capture_date, "\n".join(lines)
-
-
-def capture_eval_envelope(envelope_path: Path, reviews_root: Path = DEFAULT_REVIEWS_ROOT) -> Path:
-    envelope = _load_json(envelope_path)
-    capture_date, content = render_eval_envelope(envelope)
-    destination = _reviews_root(reviews_root) / f"{capture_date}-eval-{envelope['run_id']}.md"
     return _write_exclusive(destination, content)
 
 
@@ -415,18 +336,12 @@ def main(argv: list[str] | None = None) -> int:
     subparsers = parser.add_subparsers(dest="kind", required=True)
     eval_parser = subparsers.add_parser("eval", help="capture an evals/run_evals.py summary.json")
     eval_parser.add_argument("source", type=Path)
-    envelope_parser = subparsers.add_parser(
-        "eval-envelope", help="capture an eval-result-envelope-v1 JSON artifact"
-    )
-    envelope_parser.add_argument("source", type=Path)
     exercise_parser = subparsers.add_parser("exercise", help="capture a host-exported exercise envelope")
     exercise_parser.add_argument("source", type=Path, help="JSON envelope path, or - for stdin")
     args = parser.parse_args(argv)
     try:
         if args.kind == "eval":
             output = capture_eval_summary(args.source, args.reviews_dir)
-        elif args.kind == "eval-envelope":
-            output = capture_eval_envelope(args.source, args.reviews_dir)
         else:
             output = capture_exercise(args.source, args.reviews_dir)
     except (CaptureError, FileExistsError, OSError) as exc:

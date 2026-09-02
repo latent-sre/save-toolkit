@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import types
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -170,7 +171,7 @@ class ScenarioValidationTests(unittest.TestCase):
                 "invalid configuration",
             ),
             (
-                {"type": "recovery_progress_consistency", "elapsed_seconds": -1, "remaining_seconds": 5},
+                {"type": "rubric", "name": "no_production_action_claim", "params": {"bogus": 1}},
                 "invalid configuration",
             ),
             ({"type": "embedded_exact_json", "fields": {"v": float("nan")}}, "invalid configuration"),
@@ -356,21 +357,6 @@ class InvocationPlanTests(unittest.TestCase):
                 support_path.write_bytes(original)
         self.assertNotEqual(digest_before, digest_after)
 
-    def test_execution_profile_is_copied_into_frozen_eval_snapshot(self) -> None:
-        with tempfile.TemporaryDirectory() as td:
-            source = Path(td) / "profile.json"
-            source.write_text('{"schema_version":"eval-execution-profile/v1"}\n', encoding="utf-8")
-            with run_evals.frozen_eval_snapshot() as snapshot:
-                rewritten = run_evals.freeze_profile_argument(
-                    ["--run", "--profile", str(source)],
-                    snapshot,
-                )
-                frozen = Path(rewritten[rewritten.index("--profile") + 1])
-                self.assertTrue(frozen.is_relative_to(snapshot))
-                self.assertEqual(frozen.read_bytes(), source.read_bytes())
-                source.write_text("{}\n", encoding="utf-8")
-                self.assertNotEqual(frozen.read_bytes(), source.read_bytes())
-
     def test_explicit_plugin_root_is_forwarded_to_the_frozen_evaluator(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             candidate = Path(td) / "candidate"
@@ -396,100 +382,6 @@ class InvocationPlanTests(unittest.TestCase):
                 observed["env"]["FLEET_EVALUATOR_ROOT"],
             )
             self.assertIn("--plugin-root", observed["argv"])
-
-    def test_frozen_current_suite_allows_unselected_target_absent_from_historical_candidate(self) -> None:
-        with tempfile.TemporaryDirectory() as td:
-            root = Path(td)
-            candidate = root / "candidate"
-            (candidate / "agents").mkdir(parents=True)
-            (candidate / ".claude-plugin").mkdir()
-            (candidate / "agents" / "sre.md").write_text("---\nname: sre\n---\n", encoding="utf-8")
-            (candidate / ".claude-plugin" / "plugin.json").write_text(
-                json.dumps({"name": "save-toolkit", "version": "historical-test"}),
-                encoding="utf-8",
-            )
-            subprocess.run(["git", "init", "-q"], cwd=candidate, check=True)
-            subprocess.run(
-                ["git", "-c", "user.name=Eval Test", "-c", "user.email=eval@example.invalid",
-                 "add", "."],
-                cwd=candidate,
-                check=True,
-            )
-            subprocess.run(
-                ["git", "-c", "user.name=Eval Test", "-c", "user.email=eval@example.invalid",
-                 "commit", "-qm", "historical candidate"],
-                cwd=candidate,
-                check=True,
-            )
-            candidate_oid = subprocess.run(
-                ["git", "rev-parse", "HEAD"],
-                cwd=candidate,
-                check=True,
-                capture_output=True,
-                text=True,
-            ).stdout.strip()
-            profile = {
-                "schema_version": "eval-execution-profile/v2",
-                "id": "offline-historical-boundary-test",
-                "comparison": {
-                    "id": "offline-historical-boundary-test",
-                    "models": {"claude-plugin": "sonnet", "codex-cli": "not-run"},
-                    "resolved_models": {
-                        "claude-plugin": "claude-sonnet-5",
-                        "codex-cli": "not-run",
-                    },
-                    "reasoning_efforts": {
-                        "claude-plugin": "high",
-                        "codex-cli": "not-run",
-                    },
-                },
-                "engine": "claude-plugin",
-                "claims": ["behavioral_contract", "deterministic_grader_result"],
-                "scenario_ids": ["agent-direct-sre-readonly-triage"],
-                "required_references": {},
-                "model": "sonnet",
-                "resolved_model": "claude-sonnet-5",
-                "reasoning_effort": "high",
-                "stop_condition": "first-inconclusive",
-                "trials": 3,
-                "timeout_s": 600,
-                "total_timeout_s": 2400,
-                "cost_budget": {"status": "available", "max_usd": 2},
-                "approval": {
-                    "approved_by": "test-owner",
-                    "approved_at": "2026-08-31T12:00:00Z",
-                    "budget_id": "offline-historical-boundary-test",
-                    "eval_suite_sha256": run_evals.eval_suite_digest(),
-                },
-            }
-            profile_path = root / "profile.json"
-            profile_path.write_text(json.dumps(profile), encoding="utf-8")
-            missing_cli = root / "definitely-missing-claude"
-            env = os.environ.copy()
-            env["CLAUDE_BIN"] = str(missing_cli)
-            proc = subprocess.run(
-                [
-                    sys.executable,
-                    str(Path(run_evals.__file__).resolve()),
-                    "--run",
-                    "--profile", str(profile_path),
-                    "--plugin-root", str(candidate),
-                    "--expect-plugin-commit", candidate_oid,
-                    "--results-dir", str(root / "results"),
-                    "--require-clean-plugin",
-                ],
-                cwd=run_evals.ROOT,
-                env=env,
-                capture_output=True,
-                text=True,
-                check=False,
-                timeout=60,
-            )
-
-        self.assertEqual(2, proc.returncode)
-        self.assertNotIn("EVAL SUITE INVALID", proc.stdout + proc.stderr)
-        self.assertNotIn("SELECTED EVALS INVALID", proc.stdout + proc.stderr)
-        self.assertIn("CLI not found", proc.stderr)
 
     def test_forged_snapshot_marker_cannot_bypass_bootstrap(self) -> None:
         with mock.patch.dict(
@@ -1611,7 +1503,6 @@ class ArtifactTests(unittest.TestCase):
             writer = run_evals.ArtifactWriter(root, provenance)
             trace_path = writer.write_trace("scenario", 1, "{\"type\":\"result\"}\n")
             summary_path = writer.write_summary({"verdict": "INCONCLUSIVE"})
-            envelope_path = writer.write_envelope({"schema_version": "eval-result-envelope/v1"})
             self.assertEqual(trace_path.read_text(encoding="utf-8"), '{"type":"result"}\n')
             summary = json.loads(summary_path.read_text(encoding="utf-8"))
             self.assertEqual(summary["verdict"], "INCONCLUSIVE")
@@ -1619,10 +1510,6 @@ class ArtifactTests(unittest.TestCase):
             self.assertEqual(summary["provenance"]["requested_model"], "sonnet")
             self.assertEqual(summary["provenance"]["plugin_commit"], "a" * 40)
             self.assertEqual(summary["provenance"]["fixture_sha256"], "b" * 64)
-            self.assertEqual(
-                json.loads(envelope_path.read_text(encoding="utf-8"))["schema_version"],
-                "eval-result-envelope/v1",
-            )
             if sys.platform != "win32":
                 self.assertEqual(trace_path.stat().st_mode & 0o077, 0)
             run_evals.assert_private_path(trace_path)
@@ -1661,26 +1548,6 @@ class ArtifactTests(unittest.TestCase):
             ):
                 with self.assertRaisesRegex(clean_room.RunnerFailed, "durable evidence capture failed"):
                     run_evals.persist_summary_and_evidence(writer, {"verdict": "PASS"})
-
-    def test_profile_envelope_is_the_bounded_durable_capture_source(self) -> None:
-        with tempfile.TemporaryDirectory() as td:
-            root = Path(td)
-            writer = run_evals.ArtifactWriter(root / "private", {"run_id": "run-1"})
-            envelope_path = writer.write_envelope({"schema_version": "eval-result-envelope/v1"})
-            expected = root / "docs/reviews/record.md"
-            with mock.patch.object(
-                run_evals.capture_measurement_evidence,
-                "capture_eval_envelope",
-                return_value=expected,
-            ) as capture:
-                _, evidence = run_evals.persist_summary_and_evidence(
-                    writer,
-                    {"verdict": "PASS"},
-                    root / "docs/reviews",
-                    envelope_path=envelope_path,
-                )
-            self.assertEqual(evidence, expected)
-            capture.assert_called_once_with(envelope_path, root / "docs/reviews")
 
     def test_summary_records_measurement_conditions(self) -> None:
         args = argparse.Namespace(
@@ -1807,301 +1674,11 @@ class ArtifactTests(unittest.TestCase):
 
 
 class AggregateVerdictTests(unittest.TestCase):
-    def test_approved_eval_suite_mismatch_blocks_before_cli_lookup(self) -> None:
-        profile = {
-            "schema_version": "eval-execution-profile/v2",
-            "id": "approved-suite-mismatch",
-            "comparison": {
-                "id": "approved-suite-mismatch",
-                "models": {"claude-plugin": "sonnet", "codex-cli": "not-run"},
-                "resolved_models": {
-                    "claude-plugin": "claude-sonnet-5",
-                    "codex-cli": "not-run",
-                },
-                "reasoning_efforts": {
-                    "claude-plugin": "high",
-                    "codex-cli": "not-run",
-                },
-            },
-            "engine": "claude-plugin",
-            "claims": ["behavioral_contract", "deterministic_grader_result"],
-            "scenario_ids": ["agent-direct-sre-readonly-triage"],
-            "required_references": {},
-            "model": "sonnet",
-            "resolved_model": "claude-sonnet-5",
-            "reasoning_effort": "high",
-            "stop_condition": "first-inconclusive",
-            "trials": 2,
-            "timeout_s": 60,
-            "total_timeout_s": 120,
-            "cost_budget": {"status": "available", "max_usd": 1},
-            "approval": {
-                "approved_by": "test-owner",
-                "approved_at": "2026-08-31T12:00:00Z",
-                "budget_id": "test-budget",
-                "eval_suite_sha256": "b" * 64,
-            },
-        }
-        scenario = next(
-            item
-            for item in run_evals.load_scenarios()
-            if item["id"] == "agent-direct-sre-readonly-triage"
-        )
-        with tempfile.TemporaryDirectory() as td:
-            path = Path(td) / "profile.json"
-            path.write_text(json.dumps(profile), encoding="utf-8")
-            stderr = io.StringIO()
-            with (
-                mock.patch.object(
-                    run_evals.sys,
-                    "argv",
-                    ["run_evals.py", "--run", "--profile", str(path)],
-                ),
-                mock.patch.object(
-                    run_evals, "load_stable_suite", return_value=([scenario], "a" * 64)
-                ),
-                mock.patch.object(run_evals, "validate", return_value=[]),
-                mock.patch.object(run_evals.shutil, "which") as runtime_lookup,
-                mock.patch.object(run_evals.subprocess, "run") as child,
-                contextlib.redirect_stderr(stderr),
-            ):
-                self.assertEqual(2, run_evals.main())
-
-        self.assertIn("approved eval suite", stderr.getvalue())
-        runtime_lookup.assert_not_called()
-        child.assert_not_called()
-
-    def test_codex_main_blocks_before_any_cli_subprocess(self) -> None:
-        profile = {
-            "schema_version": "eval-execution-profile/v2",
-            "id": "codex-preflight-block",
-            "comparison": {
-                "id": "codex-preflight-block",
-                "models": {"claude-plugin": "not-run", "codex-cli": "gpt-test"},
-                "resolved_models": {"claude-plugin": "not-run", "codex-cli": "gpt-test"},
-                "reasoning_efforts": {"claude-plugin": "not-run", "codex-cli": "high"},
-            },
-            "engine": "codex-cli",
-            "claims": ["behavioral_contract", "deterministic_grader_result"],
-            "scenario_ids": ["agent-direct-sre-readonly-triage"],
-            "required_references": {},
-            "model": "gpt-test",
-            "resolved_model": "gpt-test",
-            "reasoning_effort": "high",
-            "stop_condition": "first-inconclusive",
-            "trials": 2,
-            "timeout_s": 60,
-            "total_timeout_s": 120,
-            "cost_budget": {"status": "unavailable", "max_usd": None},
-            "approval": {
-                "approved_by": "test-owner",
-                "approved_at": "2026-08-31T12:00:00Z",
-                "budget_id": "test-budget",
-                "eval_suite_sha256": run_evals.eval_suite_digest(),
-            },
-        }
-        with tempfile.TemporaryDirectory() as td:
-            path = Path(td) / "profile.json"
-            path.write_text(json.dumps(profile), encoding="utf-8")
-            argv = ["run_evals.py", "--run", "--profile", str(path)]
-            with (
-                mock.patch.object(run_evals.sys, "argv", argv),
-                mock.patch.object(run_evals, "is_frozen_eval_process", return_value=True),
-                mock.patch.object(run_evals.subprocess, "run") as child,
-            ):
-                self.assertEqual(2, run_evals.main())
-            child.assert_not_called()
-
-    def test_codex_live_blocker_prevents_subprocess_start(self) -> None:
-        scenario = {"mode": "direct", "prompt": "untrusted candidate prompt"}
-        with mock.patch.object(run_evals.subprocess, "run") as child:
-            with self.assertRaisesRegex(
-                run_evals.InconclusiveTrial, "Codex live execution is disabled"
-            ) as caught:
-                run_evals.run_codex_agent(
-                    scenario,
-                    candidate_root=Path("/does/not/matter"),
-                    candidate_sha="a" * 40,
-                    required_references=(),
-                    timeout=60,
-                    model="gpt-test",
-                    codex_bin="codex",
-                    env={},
-                )
-        self.assertTrue(caught.exception.stop_campaign)
-        child.assert_not_called()
-
-    def test_reported_cost_budget_is_enforced_at_trial_boundary(self) -> None:
-        profile = run_evals.execution_profiles.ExecutionProfile(
-            id="claude-profile", engine="claude-plugin",
-            comparison={
-                "id": "case-one-v1",
-                "models": {"claude-plugin": "sonnet", "codex-cli": "gpt-test"},
-            },
-            claims=("behavioral_contract", "deterministic_grader_result"),
-            scenario_ids=("case-one",), required_references={}, model="sonnet",
-            trials=2, timeout_s=60, total_timeout_s=120,
-            cost_budget={"status": "available", "max_usd": 1.0},
-            approval=None, sha256="a" * 64,
-            comparison_sha256="b" * 64,
-        )
-        execution = mock.Mock()
-        execution.parsed.total_cost_usd = 0.6
-        self.assertEqual(
-            run_evals.enforce_reported_cost_budget(profile, 0.0, execution),
-            0.6,
-        )
-        with self.assertRaisesRegex(
-            run_evals.InconclusiveTrial, "cost budget exceeded"
-        ) as caught:
-            run_evals.enforce_reported_cost_budget(profile, 0.6, execution)
-        self.assertTrue(caught.exception.stop_campaign)
-
-    def test_missing_reported_cost_stops_the_campaign(self) -> None:
-        profile = run_evals.execution_profiles.ExecutionProfile(
-            id="claude-profile",
-            comparison={
-                "id": "case-one-v1",
-                "models": {"claude-plugin": "sonnet", "codex-cli": "gpt-test"},
-            },
-            engine="claude-plugin",
-            claims=("behavioral_contract", "deterministic_grader_result"),
-            scenario_ids=("case-one",), required_references={}, model="sonnet",
-            trials=2, timeout_s=60, total_timeout_s=120,
-            cost_budget={"status": "available", "max_usd": 1.0},
-            approval=None, sha256="a" * 64, comparison_sha256="b" * 64,
-        )
-        execution = mock.Mock()
-        execution.parsed.total_cost_usd = None
-
-        with self.assertRaises(run_evals.InconclusiveTrial) as caught:
-            run_evals.enforce_reported_cost_budget(profile, 0.0, execution)
-
-        self.assertTrue(caught.exception.stop_campaign)
-
     def test_pass_fail_and_inconclusive_are_distinct(self) -> None:
         self.assertEqual(run_evals.aggregate_verdict(["PASS", "PASS"], 1.0), "PASS")
         self.assertEqual(run_evals.aggregate_verdict(["PASS", "FAIL"], 1.0), "FAIL")
         self.assertEqual(run_evals.aggregate_verdict(["PASS", "INCONCLUSIVE"], 0.5), "PASS")
         self.assertEqual(run_evals.aggregate_verdict(["FAIL", "INCONCLUSIVE"], 0.5), "INCONCLUSIVE")
-
-    def test_first_inconclusive_profile_stop_is_enforced_between_trials(self) -> None:
-        profile = run_evals.execution_profiles.ExecutionProfile(
-            id="stop-profile",
-            comparison={},
-            engine="claude-plugin",
-            claims=(),
-            scenario_ids=(),
-            required_references={},
-            model="sonnet",
-            trials=2,
-            timeout_s=60,
-            total_timeout_s=120,
-            cost_budget={"status": "available", "max_usd": 1.0},
-            approval=None,
-            sha256="a" * 64,
-            comparison_sha256="b" * 64,
-            stop_condition="first-inconclusive",
-        )
-        self.assertTrue(run_evals.profile_stops_after_state(profile, "INCONCLUSIVE"))
-        self.assertFalse(run_evals.profile_stops_after_state(profile, "FAIL"))
-        self.assertFalse(run_evals.profile_stops_after_state(profile, "PASS"))
-
-    def test_first_inconclusive_stops_the_campaign_loop_before_a_second_model_call(self) -> None:
-        profile = {
-            "schema_version": "eval-execution-profile/v2",
-            "id": "first-inconclusive-test",
-            "comparison": {
-                "id": "first-inconclusive-test",
-                "models": {"claude-plugin": "sonnet", "codex-cli": "not-run"},
-                "resolved_models": {
-                    "claude-plugin": "claude-sonnet-5",
-                    "codex-cli": "not-run",
-                },
-                "reasoning_efforts": {"claude-plugin": "high", "codex-cli": "not-run"},
-            },
-            "engine": "claude-plugin",
-            "claims": ["behavioral_contract", "deterministic_grader_result"],
-            "scenario_ids": ["agent-direct-sre-readonly-triage"],
-            "required_references": {},
-            "model": "sonnet",
-            "resolved_model": "claude-sonnet-5",
-            "reasoning_effort": "high",
-            "stop_condition": "first-inconclusive",
-            "trials": 3,
-            "timeout_s": 600,
-            "total_timeout_s": 2400,
-            "cost_budget": {"status": "available", "max_usd": 2},
-            "approval": {
-                "approved_by": "test-owner",
-                "approved_at": "2026-08-31T12:00:00Z",
-                "budget_id": "test-budget",
-                "eval_suite_sha256": "a" * 64,
-            },
-        }
-        scenario = next(
-            item
-            for item in run_evals.load_scenarios()
-            if item["id"] == "agent-direct-sre-readonly-triage"
-        )
-        digest = "a" * 64
-        provenance = {
-            "run_id": "20260831T120000Z-testloop",
-            "started_at": "2026-08-31T12:00:00+00:00",
-            "engine": "claude-plugin",
-            "runtime_cli_version": "claude test",
-            "requested_model": "sonnet",
-            "namespace": "test namespace",
-            "plugin_commit": "b" * 40,
-            "plugin_inputs_dirty": False,
-            "plugin_source_sha256": digest,
-            "eval_suite_sha256": digest,
-        }
-        with tempfile.TemporaryDirectory() as td:
-            root = Path(td)
-            profile_path = root / "profile.json"
-            profile_path.write_text(json.dumps(profile), encoding="utf-8")
-            argv = [
-                "run_evals.py", "--run", "--profile", str(profile_path),
-                "--results-dir", str(root / "results"),
-            ]
-            first_inconclusive = run_evals.InconclusiveTrial(
-                "first trial lacks runtime evidence",
-                command=("claude",),
-                duration_seconds=0.1,
-                requested_model="sonnet",
-            )
-            with (
-                mock.patch.object(run_evals.sys, "argv", argv),
-                mock.patch.object(run_evals, "is_frozen_eval_process", return_value=True),
-                mock.patch.object(run_evals, "load_stable_suite", return_value=([scenario], digest)),
-                mock.patch.object(run_evals, "validate", return_value=[]),
-                mock.patch.object(run_evals.shutil, "which", return_value="claude"),
-                mock.patch.object(
-                    run_evals, "frozen_plugin_snapshot",
-                    return_value=contextlib.nullcontext(run_evals.ROOT),
-                ),
-                mock.patch.object(
-                    run_evals.clean_room, "neutral_workspace",
-                    return_value=contextlib.nullcontext(root / "workspace"),
-                ),
-                mock.patch.object(
-                    run_evals.clean_room, "clean_env",
-                    return_value=contextlib.nullcontext({}),
-                ),
-                mock.patch.object(run_evals, "collect_provenance", return_value=provenance),
-                mock.patch.object(run_evals, "plugin_digest", return_value=digest),
-                mock.patch.object(run_evals, "eval_suite_digest", return_value=digest),
-                mock.patch.object(run_evals, "run_agent", side_effect=first_inconclusive) as runner,
-                mock.patch.object(run_evals.eval_evidence, "build_envelope", return_value={}),
-                mock.patch.object(
-                    run_evals, "persist_summary_and_evidence",
-                    return_value=(root / "summary.json", root / "evidence.md"),
-                ),
-            ):
-                self.assertEqual(2, run_evals.main())
-
-        runner.assert_called_once()
 
     def test_not_fire_threshold_is_clamped_to_full(self) -> None:
         not_fire = {"mode": "discovery", "routing": {"expect": "not_fire"}}
@@ -2130,6 +1707,58 @@ class AggregateVerdictTests(unittest.TestCase):
         # Inconclusive trials carry resolved_model=None and must not count as a model.
         with_none = [{"trials": [{"resolved_model": "claude-a"}, {"resolved_model": None}]}]
         self.assertEqual(run_evals.observed_models(with_none), ["claude-a"])
+
+
+class JudgeSpendAccountingTests(unittest.TestCase):
+    """A `rubric` grader's live judge call is charged to the trial that triggered it."""
+
+    def setUp(self) -> None:
+        self._saved = sys.modules.get("judge")
+        self.addCleanup(self._restore)
+        sys.modules.pop("judge", None)
+
+    def _restore(self) -> None:
+        if self._saved is not None:
+            sys.modules["judge"] = self._saved
+        else:
+            sys.modules.pop("judge", None)
+
+    def _install(self, calls: list[dict]) -> None:
+        module = types.SimpleNamespace(drain_spend=lambda: calls)
+        sys.modules["judge"] = module
+
+    def test_no_judge_module_means_an_empty_record(self) -> None:
+        # A batch with no rubric grader never imports judge; grading it must not invent spend.
+        self.assertEqual(
+            run_evals.drain_judge_spend(),
+            {"calls": 0, "cost_usd": None, "seconds": 0.0, "cached_calls": 0, "models_resolved": []},
+        )
+
+    def test_two_judged_graders_sum_into_one_trial_record(self) -> None:
+        self._install([
+            {"cost_usd": 0.03, "seconds": 4.0, "cached": False, "model_resolved": "claude-sonnet-5"},
+            {"cost_usd": 0.02, "seconds": 3.5, "cached": False, "model_resolved": "claude-sonnet-5"},
+        ])
+        record = run_evals.drain_judge_spend()
+        self.assertEqual(record["calls"], 2)
+        self.assertAlmostEqual(record["cost_usd"], 0.05)
+        self.assertAlmostEqual(record["seconds"], 7.5)
+        self.assertEqual(record["models_resolved"], ["claude-sonnet-5"])
+
+    def test_unpriced_calls_report_unknown_cost_not_zero(self) -> None:
+        self._install([{"cost_usd": None, "seconds": 120.0, "cached": False, "model_resolved": None}])
+        record = run_evals.drain_judge_spend()
+        self.assertIsNone(record["cost_usd"])
+        self.assertEqual(record["seconds"], 120.0)
+
+    def test_observed_judge_models_span_the_batch(self) -> None:
+        scenario_results = [
+            {"trials": [{"judge": {"models_resolved": ["claude-sonnet-5"]}}, {"judge": {"models_resolved": []}}]},
+            {"trials": [{"judge": {"models_resolved": ["claude-sonnet-4-5"]}}, {}]},
+        ]
+        self.assertEqual(
+            run_evals.observed_judge_models(scenario_results), ["claude-sonnet-4-5", "claude-sonnet-5"]
+        )
 
 
 class DispatchContractTests(unittest.TestCase):

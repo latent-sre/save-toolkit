@@ -35,6 +35,6 @@ graders:
       Reconciliation query: cf app checkout
   - type: not_contains
     of: ["Execution outcome: not executed", "Retry permission: ALLOWED", "Reconciliation owner: none", "Reconciliation query: none"]
-  - type: production_unknown_outcome
-    owner: Riley Chen
-    query: cf app checkout
+  - type: rubric
+    name: unknown_outcome_reconcile_first
+    params: {owner: "Riley Chen", query: "cf app checkout"}
