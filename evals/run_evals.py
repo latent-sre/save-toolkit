@@ -85,7 +85,6 @@ SAFE_ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 FULL_GIT_OID_RE = re.compile(r"^[0-9a-f]{40}$")
 # Canary tokens embedded in reference material, whose lineage a trial's tool-read transcript must
 # reproduce. Owned here (not resolved_context.py, which is Codex-only and deleted).
-CANARY_RE = re.compile(r"\bq_[a-z0-9_]{3,}\b")
 PLUGIN_INPUT_PATHS = (
     "agents", "skills", "commands", "hooks", ".claude-plugin/plugin.json",
     "scripts/fleet_frontmatter.py",
@@ -452,7 +451,6 @@ class ParsedTrace:
     available_agents: tuple[str, ...]
     available_tools: tuple[str, ...]
     tool_attempts: tuple[engine_adapters.ToolAttempt, ...]
-    observed_canaries: tuple[str, ...]
     stream_diagnostics: StreamDiagnostics
 
 
@@ -682,7 +680,6 @@ def parse_stream_trace(blob: str) -> ParsedTrace:
     successful_ids: set[tuple[int, str | None, str]] = set()
     read_pending: dict[tuple[int, str | None, str], tuple[str, str | None]] = {}
     read_outcomes: dict[tuple[int, str | None, str], str] = {}
-    observed_canaries: list[str] = []
     attempted_skills: list[str] = []
     attempted_agents: list[str] = []
     epoch = 0
@@ -731,12 +728,6 @@ def parse_stream_trace(blob: str) -> ParsedTrace:
                     successful_ids.add(result_key)
                     if result_key in read_pending:
                         read_outcomes[result_key] = "allowed"
-                        rendered_content = node.get("content")
-                        if not isinstance(rendered_content, str):
-                            rendered_content = json.dumps(rendered_content, ensure_ascii=False)
-                        observed_canaries.extend(
-                            CANARY_RE.findall(rendered_content)
-                        )
                 elif result_key in read_pending:
                     read_outcomes[result_key] = "denied"
 
@@ -815,7 +806,6 @@ def parse_stream_trace(blob: str) -> ParsedTrace:
         available_agents=metadata["available_agents"],
         available_tools=metadata["available_tools"],
         tool_attempts=tool_attempts,
-        observed_canaries=_dedupe(observed_canaries),
         stream_diagnostics=diagnostics,
     )
 
@@ -862,32 +852,43 @@ def reference_requirements(scenario: Mapping[str, object]) -> tuple[str, ...]:
     return REFERENCE_REQUIREMENTS.get(str(scenario_id), ())
 
 
-def expected_reference_canaries(
-    scenario: Mapping[str, object],
-    plugin_root: Path = ROOT,
-) -> dict[str, str]:
-    return expected_canaries_for_paths(reference_requirements(scenario), plugin_root)
-
-
-def expected_canaries_for_paths(
+def required_reference_paths(
     paths: tuple[str, ...],
     plugin_root: Path = ROOT,
-) -> dict[str, str]:
-    expected: dict[str, str] = {}
+) -> dict[str, Path]:
+    """Map each required reference to the ordinary file the trial must read from the snapshot."""
+    required: dict[str, Path] = {}
     for relative in paths:
         path = plugin_root / relative
         try:
             if not path.is_file() or _is_reparse_point(path):
                 raise ValueError("must be an ordinary file")
-            tokens = sorted(set(CANARY_RE.findall(path.read_text(encoding="utf-8"))))
-        except (OSError, UnicodeError, ValueError) as exc:
+            required[relative] = path.resolve()
+        except (OSError, ValueError) as exc:
             raise clean_room.RunnerFailed(f"cannot inspect required reference {path}: {exc}") from exc
-        if len(tokens) != 1:
-            raise clean_room.RunnerFailed(
-                f"required reference must carry exactly one canary token: {path}"
-            )
-        expected[relative] = tokens[0]
-    return expected
+    return required
+
+
+def observed_reference_reads(
+    parsed: ParsedTrace | None,
+    required: Mapping[str, Path],
+) -> tuple[str, ...]:
+    """The required references the trace shows were read successfully inside the snapshot.
+
+    A successful Read of the file itself is the proof; the reference carries no token for it.
+    """
+    if parsed is None:
+        return ()
+    attempts = parsed.tool_attempts if isinstance(parsed.tool_attempts, tuple) else ()
+    read: set[Path] = set()
+    for attempt in attempts:
+        if attempt.outcome != "allowed" or attempt.tool != "Read" or not attempt.path:
+            continue
+        try:
+            read.add(Path(attempt.path).resolve())
+        except OSError:
+            continue
+    return tuple(sorted(rel for rel, path in required.items() if path in read))
 
 
 def expected_runtime_tools(
@@ -1064,8 +1065,8 @@ class InconclusiveTrial(clean_room.RunnerFailed):
         stream_diagnostics: dict | None = None,
         context_sha256: str | None = None,
         policy_sha256: str | None = None,
-        expected_canaries: tuple[str, ...] = (),
-        observed_canaries: tuple[str, ...] = (),
+        expected_references: tuple[str, ...] = (),
+        observed_references: tuple[str, ...] = (),
         total_cost_usd: float | None = None,
         stop_campaign: bool = False,
         model_executed: bool = False,
@@ -1082,8 +1083,8 @@ class InconclusiveTrial(clean_room.RunnerFailed):
         self.stream_diagnostics = stream_diagnostics
         self.context_sha256 = context_sha256
         self.policy_sha256 = policy_sha256
-        self.expected_canaries = expected_canaries
-        self.observed_canaries = observed_canaries
+        self.expected_references = expected_references
+        self.observed_references = observed_references
         self.total_cost_usd = total_cost_usd
         self.stop_campaign = stop_campaign
         self.model_executed = model_executed
@@ -1099,8 +1100,8 @@ class TrialExecution:
     duration_seconds: float
     context_sha256: str | None = None
     policy_sha256: str | None = None
-    expected_canaries: tuple[str, ...] = ()
-    observed_canaries: tuple[str, ...] = ()
+    expected_references: tuple[str, ...] = ()
+    observed_references: tuple[str, ...] = ()
 
 
 def run_agent(
@@ -1133,7 +1134,7 @@ def run_agent(
         enable_snapshot_reads=enable_snapshot_reads,
     )
     optional_tools = optional_runtime_tools(scenario, plugin_root)
-    expected_canaries = expected_canaries_for_paths(references, plugin_root)
+    required = required_reference_paths(references, plugin_root)
     command = build_command(
         scenario,
         model=model,
@@ -1206,18 +1207,15 @@ def run_agent(
             boundary_options["allowed_roots"] = (cwd,)
         enforce_runtime_boundary(parsed, plugin_root, **boundary_options)
         boundary_proven = True
-        if expected_canaries:
-            missing_canaries = set(expected_canaries.values()) - set(parsed.observed_canaries)
-            if missing_canaries:
+        if required:
+            missing = set(required) - set(observed_reference_reads(parsed, required))
+            if missing:
                 raise clean_room.RunnerFailed(
-                    f"required reference canary was not observed in a successful scoped read: "
-                    f"{sorted(missing_canaries)}"
+                    f"required reference was not read in a successful scoped read: "
+                    f"{sorted(missing)}"
                 )
     except clean_room.AuthUnavailable as exc:
-        observed = (
-            tuple(sorted(set(parsed.observed_canaries) & set(expected_canaries.values())))
-            if parsed else ()
-        )
+        observed = observed_reference_reads(parsed, required)
         raise InconclusiveTrial(
             str(exc), raw_trace=proc.stdout, stderr=proc.stderr, returncode=proc.returncode,
             command=tuple(command), duration_seconds=duration, requested_model=model,
@@ -1233,16 +1231,13 @@ def run_agent(
                 )
                 if boundary_proven else None
             ),
-            expected_canaries=tuple(sorted(expected_canaries.values())),
-            observed_canaries=observed,
+            expected_references=tuple(sorted(required)),
+            observed_references=observed,
             total_cost_usd=parsed.total_cost_usd if parsed else None,
             model_executed=True,
         ) from exc
     except clean_room.RunnerFailed as exc:
-        observed = (
-            tuple(sorted(set(parsed.observed_canaries) & set(expected_canaries.values())))
-            if parsed else ()
-        )
+        observed = observed_reference_reads(parsed, required)
         raise InconclusiveTrial(
             str(exc), raw_trace=proc.stdout, stderr=proc.stderr, returncode=proc.returncode,
             command=tuple(command), duration_seconds=duration, requested_model=model,
@@ -1258,8 +1253,8 @@ def run_agent(
                 )
                 if boundary_proven else None
             ),
-            expected_canaries=tuple(sorted(expected_canaries.values())),
-            observed_canaries=observed,
+            expected_references=tuple(sorted(required)),
+            observed_references=observed,
             total_cost_usd=parsed.total_cost_usd if parsed else None,
             model_executed=True,
         ) from exc
@@ -1274,17 +1269,8 @@ def run_agent(
             enable_snapshot_reads=enable_snapshot_reads,
             reasoning_effort=reasoning_effort,
         ),
-        expected_canaries=tuple(sorted(expected_canaries.values())),
-        observed_canaries=tuple(
-            sorted(
-                set(
-                    parsed.observed_canaries
-                    if isinstance(parsed.observed_canaries, tuple)
-                    else ()
-                )
-                & set(expected_canaries.values())
-            )
-        ),
+        expected_references=tuple(sorted(required)),
+        observed_references=observed_reference_reads(parsed, required),
     )
 
 
@@ -2311,9 +2297,9 @@ def main() -> int:
                             ).hexdigest(),
                             "context_sha256": execution.context_sha256,
                             "policy_sha256": execution.policy_sha256,
-                            "canaries": {
-                                "expected": list(execution.expected_canaries),
-                                "observed": list(execution.observed_canaries),
+                            "references": {
+                                "expected": list(execution.expected_references),
+                                "observed": list(execution.observed_references),
                             },
                         }
                     except (InconclusiveTrial, clean_room.AuthUnavailable) as exc:
@@ -2365,9 +2351,9 @@ def main() -> int:
                             "trace_sha256": hashlib.sha256(raw.encode("utf-8")).hexdigest(),
                             "context_sha256": getattr(exc, "context_sha256", None),
                             "policy_sha256": getattr(exc, "policy_sha256", None),
-                            "canaries": {
-                                "expected": list(getattr(exc, "expected_canaries", ())),
-                                "observed": list(getattr(exc, "observed_canaries", ())),
+                            "references": {
+                                "expected": list(getattr(exc, "expected_references", ())),
+                                "observed": list(getattr(exc, "observed_references", ())),
                             },
                         }
                     states.append(state)

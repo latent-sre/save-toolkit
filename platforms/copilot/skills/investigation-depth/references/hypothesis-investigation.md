@@ -68,12 +68,3 @@ Preserve severity, blast radius, the UTC timeline, every tested hypothesis with 
 against, the current cause/confidence, and mitigation performed by a human or recommended for human
 execution. Durable code, detection, and documentation work remains proposed next-phase work until
 the active incident reaches its terminal recovery state.
-
-## Inert canary
-
-This token only proves the reference loaded; it asserts nothing about the incident and belongs in
-no answer.
-
-```text
-q_iihi_5b2d
-```

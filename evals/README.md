@@ -166,7 +166,7 @@ inconclusive.
 Reference-bearing direct `sre` trials are the narrow exception: only the declared read tools needed
 for the scenario are made callable, only against the frozen plugin snapshot, with non-interactive
 path rules. Advertised inventory and callable policy remain separate claims. A successful read
-outside the snapshot, traversal, ambiguous outcome, missing required canary, or inability to prove
+outside the snapshot, traversal, ambiguous outcome, required reference not read, or inability to prove
 the exact CLI path-rule semantics makes the trial `INCONCLUSIVE`.
 
 This is a narrow evaluation boundary, not an OS security sandbox. Claude authentication remains
