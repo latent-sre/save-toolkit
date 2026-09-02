@@ -3,6 +3,10 @@
 Canonical sources are this repository's agents, skills, commands, and guards; generated adapters
 are consequences. Descriptions select lanes; Claude invokes `save-toolkit:<name>`.
 
+The fleet serves a human SRE who owns the work, and the agents that help them. `incident-investigation`
+advises the human; agents take the bounded jobs the human dispatches; skills serve both readers, so
+a platform check gives the human the console view and the agent the command beside it.
+
 The stack, stay-in-lane rule, and platform boundary live in
 [`stack-profile`](skills/stack-profile/SKILL.md). Skill-capable lanes load it before recommending or
 changing supported runtime, tooling, or infrastructure choices. The Skill-less `reviewer` receives
