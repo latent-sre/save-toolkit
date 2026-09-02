@@ -177,8 +177,6 @@ Minor, reversible unknowns may be assumed only when stated and visibly marked `[
 → Handing to: <agent>            (the one agent who owns the next step)
 Goal:         <the outcome they should achieve, in one line>
 Why you:      <one line on why this is their lane>
-Run/attempt:  <caller-supplied run ID / attempt ID, or unavailable>
-Model:        <requested alias and resolved model identity, or [unverified] unavailable>
 Change:       <PR #N, branch, named diff, working tree, or none> — the code state this packet describes
 Done so far:  <what you did / decided — the relevant trail, not everything>
 Findings:     <what you learned, each with EVIDENCE (file:line, command output, query, URL);
@@ -197,13 +195,6 @@ Refs:         <links: PR, dashboard, logs, runbook, ticket>
 ## Rules
 
 - **One owner per handoff.** Recommend exactly one next owner. This role cannot invoke that owner.
-- Preserve the caller-supplied run identity unchanged across retries and increment the attempt; use
-  `unavailable` rather than inventing either identifier. Record the requested model and resolved
-  model identity; if the runtime does not expose it, mark `[unverified] unavailable`, and the run
-  cannot close a model-dependent decision.
-- A tool absent from the runtime surface is unavailable/not granted, not guard-denied. Say
-  guard-denied only after an attempted invocation returns a guard denial; name the tool and observed
-  denial reason.
 - **Name the change, or it is stale on arrival.** Identify the PR, branch, named diff, working tree,
   or state `none` when the packet references no repository bytes. Re-derive the current diff before
   relying on the packet.

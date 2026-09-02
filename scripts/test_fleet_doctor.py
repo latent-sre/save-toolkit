@@ -15,8 +15,21 @@ from datetime import datetime, timezone
 from pathlib import Path
 from unittest import mock
 
-import evidence_envelope
 import fleet_doctor
+
+# Mirror fleet_doctor.py's own import order so this module and the one fleet_doctor imports are
+# the SAME module object. Under `python scripts/test_fleet_doctor.py`, sys.path[0] is scripts/ and
+# `from scripts import evidence_envelope` raises ModuleNotFoundError, so both fall back to the bare
+# name. Under `python -m pytest` from the repo root, `-m` puts the repo root on sys.path, so
+# `scripts` resolves as an implicit namespace package and `from scripts import evidence_envelope`
+# SUCCEEDS -- for fleet_doctor.py too. A plain `import evidence_envelope` here would then bind a
+# second, distinct module object (`evidence_envelope` vs `scripts.evidence_envelope`), so
+# `isinstance` checks against its `EnvelopeValidationError` would fail even though fleet_doctor.py
+# raised the "same" exception by name.
+try:
+    from scripts import evidence_envelope
+except ModuleNotFoundError:
+    import evidence_envelope  # type: ignore[no-redef]
 
 
 REPO = Path(__file__).resolve().parents[1]
@@ -330,7 +343,6 @@ class FleetDoctorTests(unittest.TestCase):
         self.assertEqual("skip", statuses["repository.git-revision"])
         self.assertEqual("skip", statuses["repository.worktree-state"])
         self.assertEqual("skip", statuses["repository.fleet-contracts"])
-        self.assertEqual("skip", statuses["repository.plan-status"])
         self.assertEqual("pass", statuses["guard.hook-registration"])
         self.assertEqual("pass", statuses["guard.file"])
         self.assertEqual("pass", statuses["guard.interpreter-protocol"])

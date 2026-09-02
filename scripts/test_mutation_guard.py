@@ -744,7 +744,7 @@ class ImportDiscoveryTests(unittest.TestCase):
     Discovery used only the sibling filename and `.py` literals resolved against the root, so real
     subjects scored as no-subject-at-all: `generate_platform_adapters.py` (735 lines, the single
     generator behind every host projection, reached as `import generate_platform_adapters as
-    adapters`), `check_plan_status.py` (sibling-name mismatch), and a skill-bundled converter
+    adapters`), a module reached only by a sibling-name mismatch, and a skill-bundled converter
     reached by path-joining, where the AST sees only the bare basename. Each had a dedicated test
     file and zero mutation coverage.
     """

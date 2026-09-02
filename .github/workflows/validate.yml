@@ -87,19 +87,12 @@ jobs:
 
       # PyYAML is required, not optional: evals/test_graders.py is layered, and without the
       # dependency its layer-2 scenario checks SKIP while the run still reports green. Running
-      # these tests without it is worse than not running them.
+      # these tests without it is worse than not running them. pytest itself is pinned here too.
       - name: Install pinned dev dependencies
         run: python -m pip install -r requirements-dev.txt
 
-      # Run the runner's own behavioural tests DIRECTLY first. Invoked through the runner they
-      # see COMPONENT_TEST_CHILD=1 and skip their recursion-unsafe cases, so the runner would be
-      # the only thing in CI whose guard never actually fires -- the exact defect class this job
-      # exists to catch.
-      - name: Component-test runner self-tests
-        run: python scripts/test_run_component_tests.py
-
       - name: Component tests
-        run: python scripts/run_component_tests.py
+        run: python -m pytest -q
 
   claude-plugin-contract:
     # The repository validator enforces fleet-specific authority and projection rules. Claude's
