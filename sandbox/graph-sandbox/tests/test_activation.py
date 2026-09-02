@@ -23,6 +23,7 @@ from activate import (  # noqa: E402
     RunClaim,
     _command_payload,
     _requires_reconciliation_timeline,
+    _runtime_revision_is_exact,
     _validate_published_run,
     _validate_reconciliation_pair,
     activate_runtime,
@@ -200,6 +201,37 @@ class TrustedLayoutTests(unittest.TestCase):
             ):
                 with self.assertRaisesRegex(PreflightError, "reparse point"):
                     trusted_layout(script)
+
+
+class RuntimeRevisionTests(unittest.TestCase):
+    """``git status --porcelain=v1`` names paths from the repository root."""
+
+    @staticmethod
+    def check(porcelain: str) -> None:
+        responses = iter((completed([], SOURCE_REVISION), completed([], porcelain)))
+
+        def runner(arguments, *, environment, timeout_seconds, stdin=None, binary=False):
+            return next(responses)
+
+        _runtime_revision_is_exact(
+            Path("repository"),
+            SOURCE_REVISION,
+            runner=runner,
+            environment={},
+        )
+
+    def test_only_the_repository_rooted_image_lock_may_be_dirty(self) -> None:
+        self.check(" M sandbox/graph-sandbox/images.lock.json")
+        for dirty in (
+            " M graph-sandbox/images.lock.json",
+            " M sandbox/graph-sandbox/activate.py",
+            "?? sandbox/graph-sandbox/images.lock.json",
+        ):
+            with self.subTest(dirty=dirty):
+                with self.assertRaisesRegex(
+                    ActivationError, "checkout changed outside the generated image lock"
+                ):
+                    self.check(dirty)
 
 
 class ResourceScopeTests(unittest.TestCase):
@@ -539,7 +571,7 @@ class SnapshotTests(unittest.TestCase):
                 completed([], ""),
                 subprocess.CompletedProcess([], 0, stdout=archive, stderr=b""),
                 completed([], SOURCE_REVISION),
-                completed([], " M graph-sandbox/runner/main.py"),
+                completed([], " M sandbox/graph-sandbox/runner/main.py"),
             )
         )
 

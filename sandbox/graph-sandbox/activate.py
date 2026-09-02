@@ -379,7 +379,7 @@ def _runtime_revision_is_exact(
     if status.returncode != 0:
         raise ActivationError("source_revision: checkout status unavailable")
     dirty = [line for line in str(status.stdout).splitlines() if line.strip()]
-    allowed = {" M graph-sandbox/images.lock.json"}
+    allowed = {" M sandbox/graph-sandbox/images.lock.json"}
     if set(dirty) - allowed or len(dirty) != len(set(dirty)):
         raise ActivationError("source_revision: checkout changed outside the generated image lock")
 
