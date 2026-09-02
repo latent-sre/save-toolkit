@@ -255,6 +255,19 @@ the incumbent (now named `investigation-depth`) retained. On acceptance, move th
 
 ## Deferred
 
+### EVAL-009 — reset the eval baseline after the fleet reshape
+
+**Status:** `deferred` (2026-09-02) until A3–A5, S1, and S4 of the fleet weight review have merged.
+**Owner:** Save Toolkit maintainers
+**Outcome:** One fresh baseline of the whole corpus (46 scenarios plus the six build probes) on one
+model and one runner build, a fresh judge calibration, and a decision on the 15 "ownership map"
+sentences still in skill descriptions. Every measurement taken during the reshape (the
+`docs/reviews/2026-09-02-eval-*` packets, the gate-merge batches, the corpus-cut evidence) is a
+transitional checkpoint, not a baseline, and is retired once this one exists.
+**Next action:** After the last reshape PR merges, run the full corpus at three trials, run
+`python evals/judge.py --calibrate`, record both, and retire the transitional packets.
+**Evidence:** [`PR #212`](https://github.com/latent-sre/save-toolkit/pull/212)
+
 ### EFFECT-001 — effect-bound execution broker
 
 **Status:** `deferred`
