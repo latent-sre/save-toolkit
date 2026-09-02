@@ -24,7 +24,6 @@ Primary reference:
 - Beyond these shapes — version-gated TraceQL
 - Limits and discard reasons — absence causes
 - Record the result boundary
-- Inert canary example
 
 ## Scope and spanset rules
 

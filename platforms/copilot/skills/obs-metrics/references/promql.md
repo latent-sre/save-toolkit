@@ -35,7 +35,6 @@ minutes. Semantics against *your* metric names, and Mimir's deployed version and
 - Recording rules, native histograms, remote_write — the parts around the query
 - Mimir per-tenant limits — typed `err-mimir-*` errors
 - Missing data and staleness
-- Inert canary example
 
 ## Selectors and label matchers
 

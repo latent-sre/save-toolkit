@@ -37,7 +37,6 @@ Primary references:
 - Missing data
 - WQL and PromQL mapping aid
 - Investigation handoff
-- Inert canary example
 
 ## Select series and filter point tags
 

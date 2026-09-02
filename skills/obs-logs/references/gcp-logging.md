@@ -18,7 +18,6 @@ and [`gcloud logging read`](https://docs.cloud.google.com/sdk/gcloud/reference/l
 - gcloud read from the terminal
 - Observability Analytics (SQL over logs)
 - Tips & gotchas
-- Inert canary example
 
 ## What this language is (and is not)
 

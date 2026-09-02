@@ -39,7 +39,6 @@ inventory, and field extractions.
 - Extract fields ad hoc
 - Fast paths at scale — tstats, data models, TERM/PREFIX
 - Tips & gotchas (Splunk-specific — where the default bites)
-- Inert canary example
 
 ## Start narrow
 

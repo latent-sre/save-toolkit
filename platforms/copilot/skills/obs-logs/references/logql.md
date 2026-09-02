@@ -29,7 +29,6 @@ in No Data, reproduced against a live Loki.
 - Compare before and after a deploy
 - Follow one request
 - Errors that are limits, not bugs
-- Inert canary example
 
 ## Stream selectors and label discipline
 
