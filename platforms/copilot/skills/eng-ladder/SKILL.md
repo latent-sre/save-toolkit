@@ -36,7 +36,7 @@ Ownership and consult are distinct outputs, and collapsing them miscalibrates in
 
 Routing includes routing to yourself. Work stays in the current context when it fits the conversation you're already in; hand work to the `software-engineer` agent when it needs fresh context or runs alongside other work. For in-context work, load the matching altitude reference and work its method: [builder](./references/builder.md), [principal](./references/principal.md), or [distinguished](./references/distinguished.md). Load **only** the tier that matches, and move up the moment it isn't enough — moving up means loading the next reference; a delegated agent reports a material fork to its caller instead of silently changing altitude. Each rung's reference file is its full bar.
 
-Ownership map only—not a load: the `ops-tooling` skill applies this altitude routing inside its build pipeline. This table is the source of truth for routing — on any conflict over which rung a task belongs to, the table wins; fix the paraphrase, not the table.
+The `ops-tooling` skill applies this altitude routing inside its build pipeline. This table is the source of truth for routing — on any conflict over which rung a task belongs to, the table wins; fix the paraphrase, not the table.
 
 Application-operations work routes to the `sre` agent; platform internals route to the platform team; code that runs on the platform still uses this ladder.
 

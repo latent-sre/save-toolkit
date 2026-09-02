@@ -64,7 +64,7 @@ Stop if `git status --porcelain` is non-empty or Gate A does not pass. Record th
 the baseline Gate A summary in `transcript.md` before opening Chat.
 
 Create a run directory outside the repository and a link-free snapshot of the committed bytes. Use
-the tree digest in every evidence envelope for this run.
+the snapshot digest in every JSON report for this run.
 
 ```powershell
 $RunId = "host-002-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
@@ -74,7 +74,7 @@ $SnapshotRoot = Join-Path $ProbeRun "target"
 New-Item -ItemType Directory -Path $ProbeRun
 git archive --format=zip --output=$SnapshotZip HEAD
 Expand-Archive -LiteralPath $SnapshotZip -DestinationPath $SnapshotRoot
-python scripts/evidence_envelope.py tree-digest $SnapshotRoot
+Get-FileHash -Algorithm SHA256 -LiteralPath $SnapshotZip
 ```
 
 Open **Help > About** in the exact VS Code window being tested and record:
@@ -158,7 +158,7 @@ Before the first toggle, open `.github/agents/sre.agent.md` in the editor and co
 dirty. Before the first toggle and after each toggle, record:
 
 ```powershell
-python scripts/evidence_envelope.py digest .github/agents/sre.agent.md
+Get-FileHash -Algorithm SHA256 -LiteralPath .github/agents/sre.agent.md
 git status --porcelain .github/agents/ .vscode/
 git diff -- .github/agents/sre.agent.md .vscode/settings.json
 ```
@@ -364,14 +364,13 @@ five omission-dependent roles.
 No single result authorizes editing [`AGENTS.md`](../../AGENTS.md). HOST-002 closure must cite the
 exact build, validated envelopes, transcript artifacts, and remaining limitations.
 
-## 4. Emit evidence-envelope v1 records
+## 4. Save JSON reports
 
-The Markdown transcript is an artifact, not the result contract. Emit one JSON envelope per
-criterion and validate it with the canonical schema helper:
+The Markdown transcript is an artifact, not the result contract. Save one JSON report per
+criterion:
 
 ```powershell
-python scripts/evidence_envelope.py digest '<artifact path>'
-python scripts/evidence_envelope.py validate '<envelope path>'
+Get-FileHash -Algorithm SHA256 -LiteralPath '<artifact path>'
 ```
 
 Required criterion records are:
@@ -403,16 +402,16 @@ Each envelope must contain:
 - SHA-256 and byte size for the transcript and any attachable metadata/screenshot artifacts; and
 - at least one honest limitation, including untested roles, paths, policies, or builds.
 
-Copy [`host-002-evidence-envelope.template.json`](host-002-evidence-envelope.template.json) once per
-criterion, replace every `REPLACE_` value, and use
-[`schemas/evidence-envelope-v1.schema.json`](../../schemas/evidence-envelope-v1.schema.json) as the
-shape authority. The template is intentionally invalid until its placeholders are replaced. Do not
-attach settings backups, credentials, raw secrets, or unredacted logs. Generate an evidence ID in
-PowerShell with:
+Copy [`host-002-json-report.template.json`](host-002-json-report.template.json) once per
+criterion and replace every `REPLACE_` value. The template is intentionally invalid until its
+placeholders are replaced. Do not attach settings backups, credentials, raw secrets, or unredacted
+logs. Generate an evidence ID in PowerShell with:
 
 ```powershell
 "ev_$([guid]::NewGuid().ToString('N'))"
-rg -n "REPLACE_" '<envelope path>'   # expect no output before validation
+rg -n "REPLACE_" '<report path>'   # expect no output before this report is saved as final
+$report = '<report path>'
+python -c "import json, pathlib, re, sys; from datetime import datetime; p = pathlib.Path(sys.argv[1]); d = json.loads(p.read_text(encoding='utf-8')); req = ('schema_version','evidence_id','context','target','criterion','status','started_at','ended_at','command','source','artifacts'); miss = [k for k in req if k not in d]; assert not miss, f'missing keys: {miss}'; assert d['schema_version'] == 1; assert re.fullmatch(r'ev_[0-9a-f]{32}', d['evidence_id']); assert d['context'].get('task_id') == 'HOST-002'; assert d['status'] in {'pass','fail','skip','inconclusive'}; parse = lambda s: datetime.fromisoformat(s.replace('Z', '+00:00')); assert str(d['started_at']).endswith('Z') and str(d['ended_at']).endswith('Z'); assert parse(d['ended_at']) >= parse(d['started_at']); cmd = d['command']; assert cmd is None or (isinstance(cmd, dict) and isinstance(cmd.get('argv'), list) and cmd['argv'] and all(isinstance(x, str) and x for x in cmd['argv']) and isinstance(cmd.get('cwd'), str) and cmd['cwd'] and isinstance(cmd.get('exit_code'), int)); arts = d['artifacts']; assert isinstance(arts, list) and arts; assert all(isinstance(a.get('size'), int) and a['size'] >= 0 for a in arts); print('host-002 report structure: PASS')" $report
 ```
 
 For the Step 4 command observation, replace the template's `command: null` with this shape, using the

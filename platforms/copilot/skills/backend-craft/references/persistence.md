@@ -12,5 +12,3 @@ The universal backend rules live in `../SKILL.md`. On any conflict, SKILL.md win
 - Size the pool to the DB's real connection limit; kill N+1 (fetch related rows in one query, not per row). Parameterized queries only — never string-built SQL.
 - Integration-test against a real ephemeral instance of the supported database; mocks do not
   exercise constraints, transactions, drivers, or SQL.
-
-Ownership map only—not a load: this file owns **writing** the data layer (drivers, pools, migrations, transactions); the `database-reliability` skill owns **operating** it—slow queries, lock contention, replication lag, and pool exhaustion during an incident.

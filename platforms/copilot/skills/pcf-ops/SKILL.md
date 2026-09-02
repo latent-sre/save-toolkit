@@ -128,7 +128,7 @@ hand it to the human release owner with the exact target, purpose, and rollback/
 `cf set-health-check` / `cf restart` / `cf restage` / `cf scale` / `cf push` / `cf map-route` / `cf unmap-route` /
 `cf set-env` / `cf stop` / `cf delete` / `cf cancel-deployment` / `cf continue-deployment` / `cf ssh`.
 
-Ownership only—not a load: the `incident-command` skill owns mitigation choice and the human-invoked `/pcf-deploy` workflow owns deployment execution; this read-only skill stops and hands off. Require an
+The `incident-command` skill owns mitigation choice and the human-invoked `/pcf-deploy` workflow owns deployment execution; this read-only skill stops and hands off. Require an
 already-approved Tier-2/3 evidence packet naming the exact target, action, actor, blast radius,
 verification, and rollback before any live command. Agents never execute deployment.
 

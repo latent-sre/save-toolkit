@@ -1,7 +1,7 @@
 # AutoGen GraphFlow + A2A sandbox project context
 
 These instructions apply only under `autogen-a2a-sandbox/`. The root `AGENTS.md`,
-`CONTRIBUTING.md`, `docs/rules.md`, and the live roadmap remain authoritative.
+`CONTRIBUTING.md`, and the live roadmap remain authoritative.
 
 ## Environment card
 

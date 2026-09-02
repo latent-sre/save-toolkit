@@ -31,10 +31,9 @@ CODE_PATH_RE = re.compile(
 SELF_SKILL_PATH_RE = re.compile(r"`skills/(?P<name>[a-z0-9-]+)/SKILL\.md`")
 # Documents whose links must RESOLVE, checked for nothing else.
 #
-# Scope is the live authority set per docs/README.md -- the root guides, the rules index, the
-# roadmap, the live reference contracts, and the accepted decisions. These were checked by nothing,
-# and the rules index in particular exists to point a reader at a primary source, so a dead pointer
-# there sends someone looking for authority to a file that is not there.
+# Scope is the live authority set -- the root guides, the roadmap, the live reference contracts,
+# and the accepted decisions. These were checked by nothing, and a dead pointer in any of them
+# sends someone looking for authority to a file that is not there.
 #
 # Deliberately EXCLUDED: docs/superpowers/ and docs/reviews/. A historical plan or a dated review
 # legitimately references files a later round deleted -- that is what makes it a record rather than
@@ -61,6 +60,10 @@ LIVE_DOC_DIR_GLOBS = (
     ("docs", "*.md"),
     ("docs/decisions", "*.md"),
     ("docs/probes", "*.md"),
+    # Retained evidence packets cite each other. A retention pass that keeps a packet while deleting
+    # one it cites leaves an active item's evidence chain ending at a missing file, and did: six
+    # such links survived a green `check_links` because this directory was not read.
+    ("docs/reviews", "*.md"),
 )
 
 
@@ -80,8 +83,7 @@ def _check_live_doc_links(root: Path) -> list[str]:
     # its left side with .resolve(), so an UNRESOLVED root makes the two sides disagree about the
     # same directory and every legitimate link reports as escaping. That is not theoretical: macOS
     # hands out `/var/folders/...` that resolves to `/private/var/...` and Windows hands out 8.3
-    # short paths, so this passed on Linux and failed both other CI legs. mutation_guard.main()
-    # carries the identical fix for the identical reason.
+    # short paths, so this passed on Linux and failed both other CI legs.
     root = Path(root).resolve()
     failures: list[str] = []
     for path in _iter_doc_paths(root, LIVE_DOC_ROOTS, LIVE_DOC_DIR_GLOBS):
@@ -363,8 +365,8 @@ def _check_guide(root: Path) -> list[str]:
         loads empty for every Claude session while both files still exist.
       * A renamed script or doc leaves the guide pointing at nothing — a dead Markdown link that
         fails nowhere at runtime.
-      * An inline-code path token (`scripts/gate_a.py`, `docs/README.md`) that stops resolving after
-        a rename reads as live guidance and isn't.
+      * An inline-code path token (`scripts/gate_a.py`, `docs/fleet-roadmap.md`) that stops
+        resolving after a rename reads as live guidance and isn't.
 
     Inline-code tokens are checked only when their FIRST segment is a real top-level repo entry.
     That is what keeps this from false-positiving on generic mentions (`references/`, `assets/`) and

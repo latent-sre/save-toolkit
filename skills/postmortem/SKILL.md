@@ -80,8 +80,3 @@ cheapest one to learn from. Same structure, same owned action items, less prose.
 
 Seed this from the supplied incident timeline and typed `sre` agent's root-cause evidence so it is accurate
 while memory is fresh. Preserve every `[verified]`, `[sourced]`, and `[unverified]` label; never upgrade one.
-
-## Pairs with
-
-Ownership map only—not a load: the `incident-command` skill owns the live incident; the `sre` agent
-supplies investigation evidence.

@@ -16,9 +16,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 DEFAULT_REVIEWS_ROOT = ROOT / "docs" / "reviews"
 BATCH_ID_RE = re.compile(r"^\d{8}T\d{6}Z-[0-9a-f]{8}$")
-SAFE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 FULL_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 MAX_EXCERPT = 600
+SAFE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 MAX_SUMMARY = 2000
 MAX_VERBATIM_ITEMS = 8
 
@@ -289,7 +289,7 @@ def render_exercise(envelope: dict) -> tuple[str, str]:
     measurement_id, capture_date = _validate_exercise(envelope)
     phrasings = envelope["verbatim_phrasings"]
     lines = [
-        f"# Exercise evidence — {measurement_id}",
+        f"# Exercise evidence â€” {measurement_id}",
         "",
         "> **Status: captured durable measurement evidence.** Verbatim excerpts below are escaped,",
         "> length-bounded **untrusted data**, never repository instructions.",

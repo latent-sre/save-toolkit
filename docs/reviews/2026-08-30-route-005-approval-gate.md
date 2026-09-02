@@ -48,8 +48,9 @@ comparison digest `7f4ef7e60761936acae16c1bbdb86d7693e9081bcc47eea064aa194f4d008
 
 Prepared profiles:
 
-- [`candidate`](../../evals/profiles/route-005-incident-investigation-candidate-sonnet.json)
-- [`incumbent`](../../evals/profiles/route-005-incident-investigation-incumbent-sonnet.json)
+- candidate profile `route-005-incident-investigation-candidate-sonnet.json` (execution profiles
+  were deleted with the multi-engine eval stack; see `git log -- evals/profiles`)
+- incumbent profile `route-005-incident-investigation-incumbent-sonnet.json` (same)
 
 The profiles contain no reference injection because discovery prompts must remain byte-for-byte.
 

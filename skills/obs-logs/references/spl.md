@@ -263,8 +263,7 @@ filter isn't index-time-selective (that's what `TERM()`/`tstats` fix).
   `stats by <id>` for correlation. *[unverified performance guidance for target data]*
 - Record every change and symptom in one UTC incident timeline; hand it to the `sre` agent with
   confidence labels.
-- Ownership map only—not a load: the `obs-alerting` skill owns Moogsoft correlation. Hand correlated
-  evidence to the `observability-engineer` agent.
+- Hand correlated evidence to the `observability-engineer` agent.
 
 ## Inert canary example
 

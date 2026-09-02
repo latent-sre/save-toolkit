@@ -58,6 +58,24 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Every agent handoff packet is now six slots (`→ Handing to`, `Goal`, `Change`, `Findings`,
+  `Verified`, `Not done`) in `software-engineer`, `reviewer`, `observability-engineer`, `scribe`,
+  and the `sre` contract in `investigation-depth/references/incident-handoff.md`; the seven slots
+  only the eval harness read are gone, and the Rules block keeps one owner, named change,
+  evidence labels, claim-level taint, non-actions, and the production gate. The `agent-authoring`
+  roster's rule requiring `Run/attempt:` and `Model:` on every packet is removed with them: it was
+  the last statement of a contract no agent body has carried since the eval-harness doctrine was
+  cut. `scribe` keeps a seventh slot, `Follow-up:`, because the operational-learning disposition
+  policy routes a blocked closeout's tracker reference or filing owner through it.
+- Removed the 23 "ownership map only, not a load" sentences from skill bodies and references; a
+  body no longer names a sibling skill in order to tell the model not to load it. The 15 copies in
+  skill descriptions are routing metadata and stay until their evals are run.
+- `docs/fleet-roadmap.md` is the six-field contract only (status, owner, outcome, next action, one
+  evidence link): 100 KB → 17 KB for the same live items; closed and superseded items are one line
+  each in `roadmap-closed.md`. `docs/rules.md` and `docs/README.md` are folded into AGENTS.md's
+  "Start here" table; the three entry documents are README, AGENTS.md, and CONTRIBUTING.
+- `fleet_doctor.py` emits a plain JSON report instead of an evidence envelope; explicit-only skills
+  are checked for `disable-model-invocation: true` by `check_links.py` instead of by a prose test.
 - Hardened the calibrated `rubric` judge after review: every evidence item must be a verbatim quote
   from the graded response, a verdict from a model other than the pinned identity is inconclusive,
   the prompt travels on stdin instead of argv (a NUL or an over-long response is no longer a
@@ -252,6 +270,17 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Removed
 
+- Removed 60 uncited dated packets under `docs/reviews/` (kept: everything a test or a live
+  document cites; history is `git log -- docs/reviews`), `docs/rules.md`, and `docs/README.md`.
+  `check_links.py` now reads `docs/reviews/*.md` as well, so a retention pass that keeps a packet
+  while deleting one it cites fails the gate instead of passing it.
+- Removed the verification apparatus that guarded only itself: `mutation_guard.py`,
+  `evidence_envelope.py` and its schema, the `fleet_doctor` envelope (a plain report that still
+  names the inspected root and revision replaces it), and the five prose-contract test files (`test_graph_contracts`,
+  `test_observability_skill_contracts`, `test_platform_skill_contracts`,
+  `test_release_skill_contracts`, `test_skill_asset_contracts`) that pinned sentences in agents
+  and skills by substring; `test_graders.py` keeps one positive, one negative, and one adversarial
+  case per assertion class.
 - Removed the nine natural-language-policy graders from `evals/graders.py`
   (`production_execution_claim`, `pcf_deploy_no_inline_execution`, `incident_recovery_authority`,
   `production_unknown_outcome`, `service_retirement_no_effect_claim`,

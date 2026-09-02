@@ -168,23 +168,92 @@ class MeasurementCaptureTests(unittest.TestCase):
         self.assertIn("&lt;/pre&gt;", text)
         self.assertIn("bounded excerpt", text)
 
-    def test_capture_refuses_overwrite(self) -> None:
+    def test_exercise_capture_rejects_an_envelope_that_cannot_be_attributed(self) -> None:
+        """Each field the validator demands is the one that makes the record attributable later."""
         root = self.make_root()
         envelope = root / "exercise.json"
-        envelope.write_text(json.dumps({
+        valid = {
             "schema_version": 1,
-            "measurement_id": "same-id",
+            "measurement_id": "attribution-check",
             "producer": "session-exercise",
             "captured_at": "2026-08-26T12:00:00+00:00",
             "repository_revision": "d" * 40,
             "models": ["gpt-5.6-terra"],
             "summary": "A durable summary.",
             "verbatim_phrasings": [],
-        }), encoding="utf-8")
-        capture.capture_exercise(envelope, root / "docs" / "reviews")
+        }
+        broken = {
+            "no schema_version": {"schema_version": 2},
+            "unsafe id": {"measurement_id": "../escape"},
+            "unknown producer": {"producer": "anonymous"},
+            "short revision": {"repository_revision": "d" * 7},
+            "empty summary": {"summary": "   "},
+            "no models": {"models": []},
+            "phrasings not a list": {"verbatim_phrasings": "one"},
+            "too many phrasings": {"verbatim_phrasings": ["x"] * 9},
+        }
+        for label, override in broken.items():
+            with self.subTest(case=label):
+                envelope.write_text(json.dumps({**valid, **override}), encoding="utf-8")
+                with self.assertRaises(capture.CaptureError):
+                    capture.capture_exercise(envelope, root / "docs" / "reviews")
 
+        envelope.write_text(json.dumps(valid), encoding="utf-8")
+        capture.capture_exercise(envelope, root / "docs" / "reviews")
         with self.assertRaises(FileExistsError):
             capture.capture_exercise(envelope, root / "docs" / "reviews")
+
+    def test_the_documented_exercise_subcommand_exists(self) -> None:
+        """`evals/README.md` tells an operator to run this before transient host output is gone."""
+        root = self.make_root()
+        envelope = root / "exercise.json"
+        envelope.write_text(json.dumps({
+            "schema_version": 1,
+            "measurement_id": "cli-path-check",
+            "producer": "manual-exercise",
+            "captured_at": "2026-08-26T12:00:00+00:00",
+            "repository_revision": "d" * 40,
+            "models": ["gpt-5.6-terra"],
+            "summary": "Captured through the CLI.",
+            "verbatim_phrasings": [],
+        }), encoding="utf-8")
+
+        code = capture.main(["--reviews-dir", str(root / "docs" / "reviews"), "exercise", str(envelope)])
+
+        self.assertEqual(code, 0)
+        self.assertTrue((root / "docs" / "reviews" / "2026-08-26-exercise-cli-path-check.md").is_file())
+
+    def test_capture_refuses_overwrite(self) -> None:
+        root = self.make_root()
+        summary_path = root / "summary.json"
+        summary_path.write_text(json.dumps({
+            "schema_version": 1,
+            "verdict": "PASS",
+            "completed_at": "2026-08-26T12:03:00+00:00",
+            "models_observed": ["gpt-5.6-terra"],
+            "integrity": {"state": "PASS", "errors": []},
+            "provenance": {
+                "run_id": "20260826T120000Z-1234abcd",
+                "plugin_commit": "a" * 40,
+                "requested_model": "gpt-5.6-terra",
+                "claude_cli_version": "test-cli",
+                "workspace_dirty": False,
+                "plugin_inputs_dirty": False,
+                "conditions": {
+                    "requested_trials": 1,
+                    "requested_threshold": 0.66,
+                    "timeout_s": 60,
+                    "selected": {"mode": "direct", "split": "calibration", "match": "case-one"},
+                },
+                "eval_suite_sha256": "b" * 64,
+                "plugin_source_sha256": "c" * 64,
+            },
+            "scenarios": [],
+        }), encoding="utf-8")
+        capture.capture_eval_summary(summary_path, root / "docs" / "reviews")
+
+        with self.assertRaises(FileExistsError):
+            capture.capture_eval_summary(summary_path, root / "docs" / "reviews")
 
 
 if __name__ == "__main__":

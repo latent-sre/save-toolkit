@@ -2,8 +2,8 @@
 """Report fleet repository, guard, and host health without changing them.
 
 The doctor validates in memory and invokes only an exact read-only command allowlist. It never
-generates, installs, fetches, prunes, or starts a model session. Every check is emitted as a validated
-evidence envelope; an unavailable or unprobed host is ``skip`` or ``inconclusive``, never ``pass``.
+generates, installs, fetches, prunes, or starts a model session. An unavailable or unprobed host is
+``skip`` or ``inconclusive``, never ``pass``.
 """
 
 from __future__ import annotations
@@ -16,38 +16,16 @@ import re
 import shutil
 import subprocess
 import sys
-import uuid
 from collections import Counter
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Mapping, Sequence
 
-# Importing repository helpers must not create scripts/__pycache__ in a clean checkout.
-_previous_dont_write_bytecode = sys.dont_write_bytecode
-sys.dont_write_bytecode = True
-try:
-    try:
-        from scripts import evidence_envelope
-    except ModuleNotFoundError:
-        import evidence_envelope  # type: ignore[no-redef]
-finally:
-    sys.dont_write_bytecode = _previous_dont_write_bytecode
-del _previous_dont_write_bytecode
-
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = PLUGIN_ROOT
 STATUSES = ("pass", "fail", "skip", "inconclusive")
-REPORT_FIELDS = {
-    "schema_version",
-    "run_id",
-    "generated_at",
-    "root",
-    "revision",
-    "summary",
-    "evidence",
-}
 SENSITIVE_OUTPUT_RE = re.compile(
     r"(?i)(api[-_ ]?key|authorization|bearer|cookie|credential|password|secret|token)"
 )
@@ -776,7 +754,7 @@ def _repository_checks(root: Path) -> list[Check]:
                 "issue_count": len(fleet_issues),
             },
             limitations=(
-                ("Issue text is omitted from the portable envelope; rerun validate_fleet.py locally.",)
+                ("Issue text is omitted from the plain JSON report; rerun validate_fleet.py locally.",)
                 if fleet_issues
                 else ()
             ),
@@ -878,65 +856,78 @@ def _installation_checks(
     return checks
 
 
-def _to_envelope(
-    check: Check,
-    *,
-    root: Path,
-    revision: str,
-    run_id: str,
-    started_at: datetime,
-    ended_at: datetime,
-) -> dict[str, object]:
-    return evidence_envelope.new_envelope(
-        producer="fleet_doctor",
-        role="fleet-health",
-        target_root=check.target_root if check.target_root is not None else str(root),
-        target_revision=(
-            check.target_revision if check.target_revision is not None else revision
-        ),
-        tree_digest=check.tree_digest,
-        criterion=check.check_id,
-        status=check.status,
-        started_at=started_at,
-        ended_at=ended_at,
-        command_argv=check.command_argv,
-        command_cwd=check.command_cwd,
-        exit_code=check.exit_code,
-        source={"summary": check.summary, "details": check.details},
-        run_id=run_id,
-        task_id=check.check_id,
-        attempt_id="attempt-1",
-        environment={"probe": "local-read-only"},
-        isolation={"writes": "none", "model_sessions": "none"},
-        limitations=check.limitations,
-    )
+# The report names what it inspected: the same checks run against two checkouts or two
+# revisions produce otherwise indistinguishable output that can be attributed to the wrong candidate.
+REPORT_FIELDS = {"generated_at", "root", "revision", "checks"}
+CHECK_FIELDS = {"check_id", "status", "summary", "details", "command", "target", "limitations"}
+SENSITIVE_KEY_FRAGMENTS = (
+    "api_key",
+    "apikey",
+    "authorization",
+    "cookie",
+    "credential",
+    "password",
+    "secret",
+    "token",
+)
+
+
+def _assert_no_secret_bearing_details(value: object, path: str = "details") -> None:
+    """Reject a check's own details before they can carry a credential into the JSON report."""
+
+    if isinstance(value, Mapping):
+        for key, child in value.items():
+            normalized = str(key).lower().replace("-", "_")
+            if any(fragment in normalized for fragment in SENSITIVE_KEY_FRAGMENTS):
+                raise ValueError(
+                    f"{path}.{key} looks secret-bearing; fleet doctor must not report credentials"
+                )
+            _assert_no_secret_bearing_details(child, f"{path}.{key}")
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            _assert_no_secret_bearing_details(child, f"{path}[{index}]")
+
+
+def _to_report_check(check: Check, *, root: Path, revision: str) -> dict[str, object]:
+    _assert_no_secret_bearing_details(check.details)
+    command: dict[str, object] | None = None
+    if check.command_argv is not None:
+        command = {
+            "argv": list(check.command_argv),
+            "cwd": check.command_cwd or str(root),
+            "exit_code": check.exit_code,
+        }
+    return {
+        "check_id": check.check_id,
+        "status": check.status,
+        "summary": check.summary,
+        "details": dict(check.details),
+        "command": command,
+        "target": {
+            "root": check.target_root if check.target_root is not None else str(root),
+            "revision": check.target_revision if check.target_revision is not None else revision,
+            "tree_digest": check.tree_digest,
+        },
+        "limitations": list(check.limitations),
+    }
 
 
 def validate_report(report: Mapping[str, object]) -> None:
     if set(report) != REPORT_FIELDS:
-        raise ValueError("fleet-doctor report fields do not match schema version 1")
-    if report["schema_version"] != 1:
-        raise ValueError("unsupported fleet-doctor schema version")
-    run_id = report["run_id"]
-    if not isinstance(run_id, str) or not evidence_envelope.CONTEXT_ID_RE.fullmatch(run_id):
-        raise ValueError("fleet-doctor run_id is invalid")
-    evidence = report["evidence"]
-    if not isinstance(evidence, list) or not evidence:
-        raise ValueError("fleet-doctor evidence must be a non-empty list")
-    counts = Counter()
-    for item in evidence:
-        if not isinstance(item, dict):
-            raise ValueError("fleet-doctor evidence entries must be objects")
-        evidence_envelope.validate_envelope(item)
-        if item["context"]["run_id"] != run_id:  # type: ignore[index]
-            raise ValueError("fleet-doctor evidence run_id mismatch")
-        counts[item["status"]] += 1
-    summary = report["summary"]
-    if not isinstance(summary, dict) or set(summary) != set(STATUSES):
-        raise ValueError("fleet-doctor summary must contain exact status counts")
-    expected = {status: counts.get(status, 0) for status in STATUSES}
-    if summary != expected:
-        raise ValueError("fleet-doctor summary does not match evidence")
+        raise ValueError("fleet-doctor report fields do not match the plain report shape")
+    if not isinstance(report["generated_at"], str) or not report["generated_at"]:
+        raise ValueError("fleet-doctor generated_at must be a non-empty string")
+    for field in ("root", "revision"):
+        if not isinstance(report[field], str) or not report[field]:
+            raise ValueError(f"fleet-doctor {field} must be a non-empty string")
+    checks = report["checks"]
+    if not isinstance(checks, list) or not checks:
+        raise ValueError("fleet-doctor checks must be a non-empty list")
+    for item in checks:
+        if not isinstance(item, dict) or set(item) != CHECK_FIELDS:
+            raise ValueError("fleet-doctor check entries do not match the plain check shape")
+        if item["status"] not in STATUSES:
+            raise ValueError(f"unknown fleet-doctor check status: {item['status']!r}")
 
 
 def collect_report(
@@ -955,7 +946,6 @@ def collect_report(
     plugin_root, plugin_root_source = _select_plugin_root(plugin_root, environment)
     home = (home or Path.home()).resolve()
     started = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
-    run_id = "doctor-" + started.strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8]
     if (root / ".git").exists():
         revision, checks = _git_checks(root, run)
         checks.extend(_repository_checks(root))
@@ -967,49 +957,34 @@ def collect_report(
     checks.extend(cli_checks)
     checks.extend(_installation_checks(root, home, executables, run))
     ended = started if now is not None else datetime.now(timezone.utc)
-    envelopes = [
-        _to_envelope(
-            check,
-            root=root,
-            revision=revision,
-            run_id=run_id,
-            started_at=started,
-            ended_at=ended,
-        )
-        for check in checks
-    ]
-    counts = Counter(item["status"] for item in envelopes)
     report: dict[str, object] = {
-        "schema_version": 1,
-        "run_id": run_id,
-        "generated_at": evidence_envelope.format_timestamp(ended),
+        "generated_at": ended.isoformat().replace("+00:00", "Z"),
         "root": str(root),
         "revision": revision,
-        "summary": {status: counts.get(status, 0) for status in STATUSES},
-        "evidence": envelopes,
+        "checks": [_to_report_check(check, root=root, revision=revision) for check in checks],
     }
     validate_report(report)
     return report
 
 
 def render_human(report: Mapping[str, object]) -> str:
-    lines = [f"Fleet doctor: {report['root']}@{report['revision']}"]
-    for item in report["evidence"]:  # type: ignore[index]
-        source = item["source"]
-        lines.append(
-            f"[{item['status'].upper():12}] {item['criterion']}: {source['summary']}"
-        )
+    lines = [
+        f"Fleet doctor: {report['root']}@{report['revision']}",
+        f"generated at {report['generated_at']}",
+    ]
+    for item in report["checks"]:  # type: ignore[index]
+        lines.append(f"[{item['status'].upper():12}] {item['check_id']}: {item['summary']}")
         for limitation in item["limitations"]:
             lines.append(f"  limitation: {limitation}")
-    summary = report["summary"]
-    lines.append("Summary: " + ", ".join(f"{s}={summary[s]}" for s in STATUSES))
+    counts = Counter(item["status"] for item in report["checks"])  # type: ignore[index]
+    lines.append("Summary: " + ", ".join(f"{s}={counts.get(s, 0)}" for s in STATUSES))
     return "\n".join(lines)
 
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=REPO_ROOT, help="fleet repository root")
-    parser.add_argument("--json", action="store_true", help="emit the versioned JSON report")
+    parser.add_argument("--json", action="store_true", help="emit the plain JSON report")
     return parser
 
 
@@ -1017,11 +992,12 @@ def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
         report = collect_report(args.root)
-    except (OSError, ValueError, evidence_envelope.EnvelopeValidationError) as exc:
+    except (OSError, ValueError) as exc:
         print(f"fleet doctor could not produce a report: {exc}", file=sys.stderr)
         return 2
     print(json.dumps(report, indent=2, sort_keys=True) if args.json else render_human(report))
-    return 1 if report["summary"]["fail"] else 0  # type: ignore[index]
+    failed = any(item["status"] == "fail" for item in report["checks"])  # type: ignore[index]
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

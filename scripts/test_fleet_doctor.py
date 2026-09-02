@@ -17,20 +17,6 @@ from unittest import mock
 
 import fleet_doctor
 
-# Mirror fleet_doctor.py's own import order so this module and the one fleet_doctor imports are
-# the SAME module object. Under `python scripts/test_fleet_doctor.py`, sys.path[0] is scripts/ and
-# `from scripts import evidence_envelope` raises ModuleNotFoundError, so both fall back to the bare
-# name. Under `python -m pytest` from the repo root, `-m` puts the repo root on sys.path, so
-# `scripts` resolves as an implicit namespace package and `from scripts import evidence_envelope`
-# SUCCEEDS -- for fleet_doctor.py too. A plain `import evidence_envelope` here would then bind a
-# second, distinct module object (`evidence_envelope` vs `scripts.evidence_envelope`), so
-# `isinstance` checks against its `EnvelopeValidationError` would fail even though fleet_doctor.py
-# raised the "same" exception by name.
-try:
-    from scripts import evidence_envelope
-except ModuleNotFoundError:
-    import evidence_envelope  # type: ignore[no-redef]
-
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -338,8 +324,9 @@ class FleetDoctorTests(unittest.TestCase):
                     now=datetime(2026, 8, 23, tzinfo=timezone.utc),
                 )
 
-        statuses = {item["criterion"]: item["status"] for item in report["evidence"]}
-        self.assertEqual("unknown", report["revision"])
+        statuses = {item["check_id"]: item["status"] for item in report["checks"]}
+        targets = {item["check_id"]: item["target"] for item in report["checks"]}
+        self.assertEqual("unknown", targets["repository.git-revision"]["revision"])
         self.assertEqual("skip", statuses["repository.git-revision"])
         self.assertEqual("skip", statuses["repository.worktree-state"])
         self.assertEqual("skip", statuses["repository.fleet-contracts"])
@@ -347,12 +334,17 @@ class FleetDoctorTests(unittest.TestCase):
         self.assertEqual("pass", statuses["guard.file"])
         self.assertEqual("pass", statuses["guard.interpreter-protocol"])
         self.assertIn("guard.interpreter-protocol", fleet_doctor.render_human(report))
+        # A saved or forwarded report must say which checkout and revision it describes; without
+        # that, the same output from two candidates is indistinguishable and can be misattributed.
+        human = fleet_doctor.render_human(report)
+        self.assertIn(str(report["root"]), human)
+        self.assertIn(str(report["revision"]), human)
 
     def test_minimal_installed_plugin_does_not_import_repository_helpers(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             plugin_root = Path(temporary) / "installed-plugin"
             self._write_guard_fixture(plugin_root)
-            for name in ("fleet_doctor.py", "evidence_envelope.py", "readonly-guard.py"):
+            for name in ("fleet_doctor.py", "readonly-guard.py"):
                 (plugin_root / "scripts" / name).write_bytes((REPO / "scripts" / name).read_bytes())
 
             environment = dict(os.environ)
@@ -372,8 +364,9 @@ class FleetDoctorTests(unittest.TestCase):
 
         self.assertEqual(0, result.returncode, result.stderr)
         report = json.loads(result.stdout)
-        statuses = {item["criterion"]: item["status"] for item in report["evidence"]}
-        self.assertEqual("unknown", report["revision"])
+        statuses = {item["check_id"]: item["status"] for item in report["checks"]}
+        targets = {item["check_id"]: item["target"] for item in report["checks"]}
+        self.assertEqual("unknown", targets["guard.plugin-root"]["revision"])
         self.assertEqual("skip", statuses["repository.fleet-contracts"])
         self.assertEqual("pass", statuses["guard.plugin-root"])
         self.assertEqual("pass", statuses["guard.interpreter-protocol"])
@@ -389,7 +382,7 @@ class FleetDoctorTests(unittest.TestCase):
                 now=datetime(2026, 8, 23, tzinfo=timezone.utc),
             )
 
-        statuses = {item["criterion"]: item["status"] for item in report["evidence"]}
+        statuses = {item["check_id"]: item["status"] for item in report["checks"]}
         self.assertEqual("fail", statuses["guard.plugin-root"])
         self.assertEqual("fail", statuses["guard.file"])
         self.assertEqual("skip", statuses["guard.interpreter-protocol"])
@@ -424,7 +417,7 @@ class FleetDoctorTests(unittest.TestCase):
                     now=datetime(2026, 8, 23, tzinfo=timezone.utc),
                 )
 
-        evidence = {item["criterion"]: item for item in report["evidence"]}
+        evidence = {item["check_id"]: item for item in report["checks"]}
         self.assertEqual(str(REPO), evidence["repository.git-revision"]["target"]["root"])
         self.assertEqual("a" * 40, evidence["repository.git-revision"]["target"]["revision"])
         self.assertEqual(
@@ -471,7 +464,7 @@ class FleetDoctorTests(unittest.TestCase):
         self.assertIn(f'"$RC" -eq {fleet_doctor.GUARD_ALLOW_EXIT}', launcher)
         self.assertIn(f'"$RC" -eq {fleet_doctor.GUARD_DENY_EXIT}', launcher)
 
-    def test_report_uses_valid_envelopes_and_does_not_touch_home(self) -> None:
+    def test_report_is_a_valid_plain_report_and_does_not_touch_home(self) -> None:
         calls: list[tuple[str, ...]] = []
 
         def run(argv: tuple[str, ...]) -> fleet_doctor.CommandResult:
@@ -523,10 +516,9 @@ class FleetDoctorTests(unittest.TestCase):
         self.assertEqual(before, after)
         self.assertTrue(calls)
         fleet_doctor.validate_report(report)
-        for item in report["evidence"]:
-            evidence_envelope.validate_envelope(item)
         self.assertEqual("2026-07-31T00:00:00Z", report["generated_at"])
-        self.assertGreaterEqual(report["summary"]["pass"], 1)
+        pass_count = sum(1 for item in report["checks"] if item["status"] == "pass")
+        self.assertGreaterEqual(pass_count, 1)
 
     def test_missing_hosts_are_skip_never_pass(self) -> None:
         checks, executables = fleet_doctor._cli_checks(lambda _: None, lambda _: None)  # type: ignore[arg-type]
@@ -599,32 +591,30 @@ class FleetDoctorTests(unittest.TestCase):
             "bad fixture",
             {"api_token": "must-not-land"},
         )
-        with self.assertRaisesRegex(evidence_envelope.EnvelopeValidationError, "secret-bearing"):
-            fleet_doctor._to_envelope(
-                check,
-                root=REPO,
-                revision="c" * 40,
-                run_id="doctor-1",
-                started_at=datetime(2026, 7, 31, tzinfo=timezone.utc),
-                ended_at=datetime(2026, 7, 31, tzinfo=timezone.utc),
-            )
+        with self.assertRaisesRegex(ValueError, "secret-bearing"):
+            fleet_doctor._to_report_check(check, root=REPO, revision="c" * 40)
 
     def test_main_exits_one_only_for_failing_checks(self) -> None:
         report = {
-            "schema_version": 1,
-            "run_id": "doctor-1",
             "generated_at": "2026-07-31T00:00:00Z",
-            "root": str(REPO),
-            "revision": "d" * 40,
-            "summary": {"pass": 0, "fail": 1, "skip": 0, "inconclusive": 0},
-            "evidence": [],
+            "checks": [
+                {
+                    "check_id": "fixture.failing",
+                    "status": "fail",
+                    "summary": "fixture failure",
+                    "details": {},
+                    "command": None,
+                    "target": {"root": str(REPO), "revision": "d" * 40, "tree_digest": None},
+                    "limitations": [],
+                }
+            ],
         }
         output = io.StringIO()
         with mock.patch.object(fleet_doctor, "collect_report", return_value=report):
             with redirect_stdout(output):
                 exit_code = fleet_doctor.main(["--json"])
         self.assertEqual(1, exit_code)
-        self.assertIn('"fail": 1', output.getvalue())
+        self.assertIn('"status": "fail"', output.getvalue())
 
     def test_trusted_hook_digests_pin_the_shipped_hook_configuration(self) -> None:
         """A pin that no longer describes hooks.json silently downgrades every guard verdict.

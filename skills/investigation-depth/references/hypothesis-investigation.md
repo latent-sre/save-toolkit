@@ -18,7 +18,7 @@ shows a distributed or self-sustaining mechanism.
 ## Where the loop lives
 
 The loop itself is the `sre` agent's Method, with `root-cause` owning the causal-testing
-discipline. This reference does not restate it. Ownership map only—not a load: the `stack-profile`
+discipline. This reference does not restate it. The `stack-profile`
 observability reference names which backend serves each signal today, and `obs-logs`,
 `obs-metrics`, `obs-traces`, and `obs-alerting` own the queries; do not assume a vendor from this
 file. When a common question already has a cataloged starting query, `obs-logs`' team query
@@ -66,10 +66,6 @@ Preserve severity, blast radius, the UTC timeline, every tested hypothesis with 
 against, the current cause/confidence, and mitigation performed by a human or recommended for human
 execution. Durable code, detection, and documentation work remains proposed next-phase work until
 the active incident reaches its terminal recovery state.
-
-Ownership map only—not a load: mitigation goes to the human release owner; durable code changes go
-to `software-engineer`; later signal and alert work goes to `observability-engineer`; a proven
-systemic or distributed mechanism changes this skill's mode to systemic failure.
 
 ## Inert canary
 

@@ -35,7 +35,7 @@ Rules:
 ## Runbook vs playbook vs SOP
 - **Runbook** — steps to handle *one* alert/task/failure mode (this template).
 - **Playbook** — a broader response *strategy* orchestrating multiple runbooks (e.g. a major-incident
-  playbook). Ownership map only—not a load: the `incident-command` skill owns live-incident coordination.
+  playbook).
 - **SOP** — a fixed procedure for routine operations (not incident-driven).
 
 Keep them current through evidence-backed rehearsal. A named human or service owner runs game days

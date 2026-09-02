@@ -57,8 +57,7 @@ backs off, and breaker opens. Test the material failure paths the client actuall
 
 ## Per-integration mechanics
 
-Ownership map only—not a load: `stack-profile` owns which products this team runs and their current
-names and versions. This section owns only the *integration mechanics* — the call shape that differs
+This section owns only the *integration mechanics* — the call shape that differs
 from a plain REST GET. If a name here disagrees with `stack-profile`, `stack-profile` wins and this
 file is stale.
 

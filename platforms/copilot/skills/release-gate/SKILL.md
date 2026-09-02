@@ -66,6 +66,6 @@ Blocking items: <the NOs>
 
 - **Gate topology:** recorded merge readiness is existing evidence consumed here. Production authorization
   is separate and later, and consumes this release-readiness record for the exact candidate and target.
-- Ownership map only—not a load: the `ci-actions` skill owns workflow definition. The release packet must
-  attach existing artifact-provenance and protected-environment evidence rather than invoke that skill.
+- The release packet must attach existing artifact-provenance and protected-environment evidence
+  rather than invoke `ci-actions`.
 - A release without a clean, evidenced rollback does not pass.

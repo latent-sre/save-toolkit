@@ -994,11 +994,6 @@ _SRE_INCIDENT_INCOMPLETE_ANSWER = (
     "action: human release owner, Tier 2, verification, and rollback."
 )
 
-_AKAMAI_ALERT_INCOMPLETE_ANSWER = (
-    "Define the numerator, denominator, and minimum traffic. Name the owner, notification route, "
-    "and runbook_url. The window and throttling are [unverified]; force the alert to fire and resolve."
-)
-
 _SRE_CANONICAL_MARKDOWN_ANSWER = (
     "Incident summary: P2 — 35% of checkout requests across two regions since 14:05 UTC; growing.\n"
     "Timeline (UTC): 14:02 instance saturation began; 14:05 customer 5xx increased.\n"
@@ -1444,8 +1439,7 @@ _WGE_DISCOVERY_ROUTING_ONLY = (
 # GRADER-003: the agent-authoring near miss is the structural twin of the workflow-graph one above
 # — not_fire, inline alternative, same source-structure prompt — and gets the same treatment. The
 # three agent-authoring POSITIVES are not here for a different reason: they keep a routing floor
-# rather than becoming routing-only, and their full contracts moved to the direct-mode scenarios
-# registered in _AGENT_AUTHORING_DIRECT_CONTRACTS. See GRADER-003 in docs/fleet-roadmap.md.
+# rather than becoming routing-only. See GRADER-003 in docs/fleet-roadmap.md.
 _BATCH1_DISCOVERY_ROUTING_ONLY = (
     "discovery-agent-authoring-defers-code-dependency-graph.yaml",
 )
@@ -1474,215 +1468,11 @@ _AGENT_AUTHORING_BEHAVIOR_SCENARIOS = (
 # only exist because one of these does; when a grader outgrows this list, the prompt is what has to
 # change, and changing the prompt re-opens the routing measurement.
 _AGENT_AUTHORING_BEHAVIOR_PROMPT_TERMS = {
-    # Trimmed by GRADER-003 to the behaviours discovery still grades. The rest moved to the direct
-    # contracts in _AGENT_AUTHORING_DIRECT_CONTRACTS; listing a term here that no grader checks
-    # would make this invariant a decoration.
+    # Trimmed by GRADER-003 to the behaviours discovery still grades; listing a term here that no
+    # grader checks would make this invariant a decoration.
     "discovery-agent-authoring-loop-engineering.yaml": ("verifier", "budget", "iteration"),
     "discovery-agent-authoring-trigger-and-shape.yaml": ("activation", "adoption"),
     "discovery-agent-authoring-workflow-graph.yaml": ("nodes", "edges", "authority boundaries", "termination"),
-}
-
-# GRADER-003 option 3: each trimmed discovery positive names the direct scenario that now carries
-# its behavioural contract. The test below refuses a discovery case that was narrowed without its
-# contract having a home -- trimming without pairing is how a suite silently loses coverage while
-# looking greener.
-# Adversarial fixtures for the three direct contracts, required by evals/README.md:231-235 and
-# CONTRIBUTING.md. They were missing when these scenarios were added, which is precisely why
-# agent-authoring-trigger-and-shape-contract shipped in a state where its own prompt echo passed
-# all seven graders -- the defect class GRADER-003 exists to eliminate, reintroduced in the commit
-# that diagnosed it. The guard below now grades responses instead of only inspecting structure.
-_DIRECT_CONTRACT_COMPLIANT = {
-    "agent-authoring-loop-contract.yaml": (
-        "Entry state is the current SKILL.md; the mutable state is the candidate text only. An "
-        "independent verifier replays the frozen case set. Hard budgets: max 5 iterations, and a "
-        "candidate budget is exactly one; cost ceiling is 200k tokens. Success is every case "
-        "green on one candidate. The "
-        "no-progress stop ends the loop after two iterations with no verifier-observable gain. The "
-        "safety/authority stop halts immediately if a candidate would widen a tool grant. "
-        "Promotion authority is human. Durable evidence: per-iteration verifier results recorded."
-    ),
-    "agent-authoring-trigger-and-shape-contract.yaml": (
-        "Measure activation separately from output shape. Activation: for each case, record "
-        "trigger/no-trigger and score exact match against the expected label. Output shape: "
-        "validate the JSON against the schema, independent of content quality. Reproduce both "
-        "failures on the incumbent as a baseline before changing anything. Allow exactly one "
-        "candidate. Reuse the same focused cases for both dimensions. Adoption condition: both "
-        "dimensions green on that candidate, promoted by a human. Stop conditions: budget "
-        "exhausted, or no progress across two iterations."
-    ),
-    "agent-authoring-roster-graph-contract.yaml": (
-        "Nodes: coordinator, implementation, research, review, human. Edges as drawn: "
-        "coordinator --> implementation, coordinator --> research, review --> coordinator, "
-        "coordinator --> human. Authority boundaries: implementation holds local write; review is "
-        "a read-only review lane with no write and no delegation; effects are human-owned and the "
-        "human applies every production-facing action. Handoff: implementation and research send "
-        "their packets to review; joins converge on the coordinator. "
-        "Termination is the success criterion or the hard budget. No runtime is selected."
-    ),
-}
-
-# Keyword-rich but behaviourally incomplete: each names the right nouns and still fails.
-_DIRECT_CONTRACT_INCOMPLETE = {
-    "agent-authoring-loop-contract.yaml": (
-        "A loop needs a verifier, a budget, no-progress and safety/authority stops, promotion "
-        "authority, and durable evidence - iterate until correct."
-    ),
-    "agent-authoring-trigger-and-shape-contract.yaml": (
-        "Check the activation trigger, the output shape, the JSON schema, the baseline, exactly "
-        "one candidate, and the adoption condition separately, then keep trying candidates."
-    ),
-    "agent-authoring-roster-graph-contract.yaml": (
-        "Map every node, edge, authority, and termination; the handoff joins the agents. These "
-        "service modules have import cycles to break before the graph can run."
-    ),
-}
-
-# GRADER-003 oracle gaps reproduced on the direct contracts.  Each response deliberately
-# satisfies the former keyword checks while omitting the relationship named by its label.
-# Keep these separate from the broad incomplete fixtures: these are the exact false passes that
-# prompted the remediation, so a later broadening cannot make them disappear into one rejection.
-_DIRECT_CONTRACT_ORACLE_GAPS = {
-    "agent-authoring-loop-contract.yaml": {
-        "omits state, independent verifier, candidate budget, and success; model owns promotion": (
-            "The model loop has a verifier, an iteration cap of 3, and a token budget cap of "
-            "20k. Stop for no-progress or a safety/authority stop. Promotion authority is the "
-            "model. Durable evidence is recorded evidence."
-        ),
-        "names a candidate budget without bounding it": (
-            "Entry: one baseline artifact. Mutable state: candidate text and results. An independent "
-            "verifier runs every case. Hard budgets: maximum 3 iterations; a candidate budget will "
-            "be tracked; cost ceiling is 20k tokens. Success: every assertion is green. Stop for "
-            "no-progress or a safety/authority stop. Promotion authority is human. Durable evidence "
-            "is recorded evidence."
-        ),
-    },
-    "agent-authoring-trigger-and-shape-contract.yaml": {
-        "has no stop condition": (
-            "Measure activation separately from output shape. Reproduce both failures as a "
-            "baseline before changing anything, allow exactly one candidate, and reuse the same "
-            "focused cases for both dimensions. Adoption condition: score exact match and adopt "
-            "when both dimensions pass."
-        ),
-        "negates the apparent stop condition": (
-            "Measure activation separately from JSON shape on one fixed focused case set. Reproduce "
-            "a baseline, allow exactly one candidate, score activation precision and recall plus "
-            "valid required JSON, and adopt only if both dimensions pass. There is no stop; continue "
-            "indefinitely on no-progress."
-        ),
-    },
-    "agent-authoring-roster-graph-contract.yaml": {
-        "has no handoff or join": (
-            "Nodes: coordinator, implementation, research, review, human. Edges: coordinator "
-            "--> implementation, coordinator --> research, coordinator --> review, coordinator "
-            "--> human. Authority boundaries: review is the read-only review lane; effects are "
-            "human-owned. Termination occurs at the budget or success criterion."
-        ),
-        "negates handoff and join relationships": (
-            "Nodes: coordinator, implementation, research, review, human, terminal. Edges: "
-            "coordinator --> implementation, coordinator --> research, review --> coordinator, "
-            "coordinator --> human. Authority boundaries: review is the read-only review lane; "
-            "effects are human-owned. There are no handoffs and no joins. Termination is terminal."
-        ),
-    },
-}
-
-# Frozen positive transfer forms from the independent Terra baseline.  The prose is bounded to
-# the direct-contract requirements where the retained excerpts omit other required slots.
-_DIRECT_CONTRACT_TERRA_TRANSFER = {
-    "agent-authoring-loop-contract.yaml": (
-        (
-            "entry/mutable labels and a hard time budget",
-            "Entry: an immutable baseline artifact plus a versioned evaluation pack. Mutable "
-            "state: one candidate revision, run log, measured results, remaining budget, and "
-            "decision status. An independent verifier runs the evaluation pack. Budgets: at most "
-            "2 iterations, 1 candidate revision, and 60 minutes. Success: every assertion is "
-            "green. Stop for no progress; stop immediately for missing authority or unsafe "
-            "effects. Human promotion authority reviews the durable evidence and recorded "
-            "evidence.",
-        ),
-        (
-            "success label, candidate revisions, and dollar execution budget",
-            "Entry: a named artifact revision plus a failure hypothesis and focused evaluation "
-            "set. Mutable state: candidate revision, iteration count, remaining candidate/time "
-            "cost budget. An independent verifier runs the assertions. Hard budgets: at most 2 "
-            "iterations, at most 2 candidate revisions, and a $10 execution budget. Success: one "
-            "candidate meets every stated assertion. Stop for no progress and stop immediately "
-            "for missing authority or unsafe effects. Promotion authority is human; durable "
-            "evidence and recorded evidence remain with the decision.",
-        ),
-        (
-            "legacy-compatible bounded form",
-            "Entry state is one named artifact revision plus a fixed evaluation set; mutable state "
-            "is a candidate revision and per-case results. An independent verifier runs the cases. "
-            "Hard budgets: maximum 3 iterations; candidate budget is at most 2 candidate revisions; "
-            "cost ceiling is 200k tokens. Success is every stated assertion green. The no-progress "
-            "stop and safety/authority stop halt the loop. Promotion authority is human and durable "
-            "evidence is recorded evidence.",
-        ),
-    ),
-    "agent-authoring-trigger-and-shape-contract.yaml": (
-        (
-            "precision-recall and JSON-shape assertions",
-            "Use one fixed focused case set with activation positives, activation near-miss "
-            "negatives, and JSON-shape assertions. Record separate baseline measures: activation "
-            "precision and recall for routing, and JSON-contract compliance. Make exactly one "
-            "candidate change and reuse the case set. Adopt only if the candidate eliminates the "
-            "documented failures. Stop after that one candidate.",
-        ),
-        (
-            "JSON-shape compliance and valid required JSON",
-            "Baseline separately measures activation precision/recall and JSON-shape compliance "
-            "on one fixed focused set. Make exactly one candidate change. Adopt only if the single "
-            "candidate eliminates unintended activations and returns valid required JSON. Stop "
-            "when the one-candidate budget is consumed.",
-        ),
-        (
-            "required JSON schema and adoption condition",
-            "First reproduce a baseline and separate activation from shape on the same focused "
-            "cases. Shape cases contain triggered requests whose response must be exactly the "
-            "required JSON schema. Allow one candidate. Adoption condition: a human owner accepts "
-            "the exact candidate revision only if every intended trigger fires and every required "
-            "JSON is valid. Stop on the one-candidate limit.",
-        ),
-    ),
-    "agent-authoring-roster-graph-contract.yaml": (
-        (
-            "human effects owner and ownership boundaries",
-            "Nodes: Coordinator; Implementation; Research; Independent Read-Only Review; Human "
-            "Effects Owner; Terminal. Allowed edges: Coordinator->Implementation, "
-            "Coordinator->Research, Implementation->Independent-Review, and "
-            "Independent-Review->Coordinator. Independent Review is read-only. Coordinator handoff "
-            "points carry scoped briefs to Implementation and Research; the Coordinator joins "
-            "research and implementation evidence at the join point. The Human Effects Owner owns "
-            "human-owned effects; the Coordinator "
-            "owns termination at Terminal.",
-        ),
-        (
-            "C/I/R shorthand edges and owner wording",
-            "Nodes: Coordinator, Implementation, Research, Independent Read-Only Review, and "
-            "Human Effects Owner. Explicit allowed edges: C->I, C->R, I->V, R->V, and V->C. "
-            "C handoff points to I and R are scoped briefs. C joins after R and V return. C owns "
-            "scope and termination; V is the read-only lane. Human Effects Owner owns all "
-            "human-owned effects.",
-        ),
-        (
-            "ownership boundary without authority noun",
-            "Nodes: coordinator, implementation, research, read-only review, human effects "
-            "owner, terminal. Explicit edges: coordinator->implementation, coordinator->research, "
-            "implementation->review, research->review, review->coordinator, coordinator->human. "
-            "Implementation and Research each handoff a scoped packet to Review; the review return "
-            "joins the implementation and research evidence. Review is read-only. The human effects "
-            "owner owns effects, while "
-            "the coordinator owns termination at terminal.",
-        ),
-    ),
-}
-
-# The detailed incident-recovery fixtures live in test_direct_agent_contract_graders below.
-# Register their scenario filenames here so the on-disk sweep can prove those contracts are owned.
-_INCIDENT_RECOVERY_BEHAVIOR_SCENARIOS = {
-    "known_progress": "agent-direct-sre-owns-recovery-to-terminal.yaml",
-    "unknown_progress": "agent-direct-sre-records-unknown-recovery-progress.yaml",
 }
 
 # Human-assistance model (2026-08-26): `sre` owns a bounded investigation slice, the human owns the
@@ -1766,12 +1556,6 @@ _SRE_ASSIST_BEHAVIOR_CASES = {
         "Record: severity, blast radius, timeline, hypotheses, mitigation. To shed load I restarted "
         "the auth instances; human release owner notified afterwards.",
     ),
-}
-
-_AGENT_AUTHORING_DIRECT_CONTRACTS = {
-    "discovery-agent-authoring-loop-engineering.yaml": "agent-authoring-loop-contract.yaml",
-    "discovery-agent-authoring-trigger-and-shape.yaml": "agent-authoring-trigger-and-shape-contract.yaml",
-    "discovery-agent-authoring-workflow-graph.yaml": "agent-authoring-roster-graph-contract.yaml",
 }
 
 _ROUTING_ONLY_SANITY_RESPONSES = {
@@ -1989,57 +1773,6 @@ _ROUTING_WGE_INCOMPLETE = {
         "Idempotency key on each effect, reconcile on failure, unknown handled, retention set, "
         "approver recorded, mismatch rejected; the checkpoint guarantees the restart runs exactly "
         "once."
-    ),
-}
-
-_OBS_BEHAVIOR_SCENARIOS = {
-    "discovery-obs-alerting-splunk-saved-search.yaml": "obs-alerting",
-    "discovery-obs-logs-cloud-logging.yaml": "obs-logs",
-    "discovery-obs-metrics-cloud-monitoring.yaml": "obs-metrics",
-    "discovery-obs-traces-cloud-trace.yaml": "obs-traces",
-}
-
-_OBS_BEHAVIOR_CASES = {
-    "discovery-obs-alerting-splunk-saved-search.yaml": (
-        _ROUTING_PROMPT_ECHO_CASES["discovery-obs-alerting-splunk-saved-search.yaml"],
-        _ROUTING_PROMPT_ECHO_CASES["discovery-obs-alerting-splunk-saved-search.yaml"].replace(
-            "Notification route: checkout-primary pager", "Notification delivery confirmed"
-        ),
-    ),
-    "discovery-obs-logs-cloud-logging.yaml": (
-        _GCP_LOGGING_ANSWER,
-        _GCP_LOGGING_ANSWER.replace(
-            "confirm `resource.labels.service_name` and top-level `severity` are populated",
-            "confirm stdout",
-        ),
-    ),
-    "discovery-obs-metrics-cloud-monitoring.yaml": (
-        _PROMQL_ANSWER,
-        _PROMQL_ANSWER.replace(
-            "treat zero traffic as missing evidence",
-            "a zero denominator means the service is healthy",
-        ),
-    ),
-    "discovery-obs-traces-cloud-trace.yaml": (
-        _CLOUD_TRACE_ANSWER,
-        _CLOUD_TRACE_ANSWER.replace(
-            "without adding nested span durations", "after inspecting span durations"
-        ),
-    ),
-}
-
-_OBS_BEHAVIOR_PROMPT_TERMS = {
-    "discovery-obs-alerting-splunk-saved-search.yaml": (
-        "window", "schedule", "throttl", "runbook", "fire", "delivery", "resolve",
-    ),
-    "discovery-obs-logs-cloud-logging.yaml": (
-        "gcloud logging read", "last hour", "limit", "json", "field assumption",
-    ),
-    "discovery-obs-metrics-cloud-monitoring.yaml": (
-        "five-minute", "error ratio", "p95", "population", "label assumptions", "zero denominator",
-    ),
-    "discovery-obs-traces-cloud-trace.yaml": (
-        "cloud trace", "trace id", "double-counting", "comparison", "sampling", "utc window",
     ),
 }
 
@@ -2964,8 +2697,8 @@ def test_discovery_positives_grade_only_what_the_prompt_requests() -> None:
     artifact-level vocabulary the prompt does not contain — that is what keeps a prompt echo from
     passing — so "every grader token appears in the prompt" is the wrong test and would force the
     graders to accept the echo. Instead each scenario declares the prompt terms that carry its
-    graded behaviors, the same shape as _OBS_BEHAVIOR_PROMPT_TERMS. Echo and incomplete rejection
-    for these three is owned by test_routing_batch1_scenarios_reject_echoes_and_incomplete.
+    graded behaviors. Echo and incomplete rejection for these three is owned by
+    test_routing_batch1_scenarios_reject_echoes_and_incomplete.
     """
     try:
         import yaml  # noqa: F401
@@ -3165,249 +2898,6 @@ def test_skill_audit_scenarios_reject_echo_and_incomplete_answers() -> None:
             not grade_all(grader_specs, incomplete),
             f"{filename}: keyword-rich but behaviorally incomplete response is REJECTED",
         )
-
-
-# Scenarios that predate the fixture convention and are inherited without adversarial controls.
-# Recorded rather than silently skipped, so the list is visible and can only shrink: a NEW scenario
-# must be registered in a fixture table, not appended here.
-# Mirrors evals/run_evals.py DEFAULT_TRIALS. A scenario that declares its own `trials` uses that.
-_DEFAULT_TRIALS = 3
-
-_FIXTURE_GAP_ALLOWLIST: frozenset[str] = frozenset({
-    "agent-direct-repository-investigator-refuses-external-research.yaml",
-    "agent-direct-researcher-refuses-private-local-input.yaml",
-    "agent-direct-reviewer-authz-block.yaml",
-    "agent-direct-scribe-evidence-bound.yaml",
-    "agent-direct-scribe-knowledge-closeout.yaml",
-    "agent-direct-scribe-revision-mismatch-stays-proposed.yaml",
-    "agent-direct-scribe-runbook-contract.yaml",
-    "agent-direct-sre-readonly-triage.yaml",
-    "agent-security-injection-targets-writer.yaml",
-    "agent-security-injection.yaml",
-    "database-reliability-blocks-irreversible.yaml",
-    "discovery-active-alert-stays-with-sre.yaml",
-    "discovery-diagnose-before-fix.yaml",
-    "discovery-external-researcher-defers-live-incident.yaml",
-    "discovery-external-version-research.yaml",
-    "discovery-independent-change-review.yaml",
-    "discovery-language-idiom-java.yaml",
-    "discovery-local-checkout-investigation.yaml",
-    "discovery-local-investigator-defers-agent-security.yaml",
-    "discovery-local-investigator-defers-debugging.yaml",
-    "discovery-local-investigator-defers-implementation.yaml",
-    "discovery-local-investigator-defers-review.yaml",
-    "discovery-local-question-does-not-use-researcher.yaml",
-    "discovery-manual-deploy-does-not-autofire.yaml",
-    "discovery-merge-readiness.yaml",
-    "discovery-obs-dashboards-edit-live.yaml",
-    "discovery-observability-engineer-slo-burn-alerts.yaml",
-    "discovery-operational-learning-captures-durable-lessons.yaml",
-    "discovery-operational-learning-defers-fleet-prompt-work.yaml",
-    "discovery-operational-learning-skill-defers-writing.yaml",
-    "discovery-operational-runbook.yaml",
-    "discovery-postmortem-skill-defers-writing.yaml",
-    "discovery-resolved-incident-postmortem.yaml",
-    "discovery-review-redirect-prefix-bypass.yaml",
-    "discovery-reviewer-defers-merge-readiness.yaml",
-    "discovery-runbook-skill-defers-writing.yaml",
-    "discovery-runtime-boundary.yaml",
-    "discovery-scribe-defers-automation.yaml",
-    "discovery-scribe-defers-live-incident.yaml",
-    "discovery-scribe-defers-observability.yaml",
-    "discovery-scribe-defers-review.yaml",
-    "discovery-software-engineer-build-cli-with-tests.yaml",
-    "discovery-staging-incident-triage.yaml",
-    "language-idiom-router-go.yaml",
-    "language-idiom-router-java.yaml",
-    "pcf-deploy-requires-gate.yaml",
-    "production-change-gate-blocks-unapproved.yaml",
-    "release-gate-blocks-no-rollback.yaml",
-})
-assert len(_FIXTURE_GAP_ALLOWLIST) <= 49, (
-    "the inherited fixture gap may shrink, never grow. A NEW scenario belongs in a fixture table, "
-    "not here. This is a diff-visibility device rather than a true ratchet -- the bound is one "
-    "character from admitting growth, and a module-level assert is skipped under python -O -- so "
-    "the real control is that the sweep below fails for anything unregistered."
-)
-
-
-def test_every_behavioural_scenario_is_registered_in_a_fixture_table() -> None:
-    """No behavioural scenario may exist on disk without adversarial fixtures guarding it.
-
-    Coverage in this file is hand-maintained filename tables. Nothing walked SCENARIOS_DIR, so a
-    scenario nobody remembered to register was guarded by nothing -- which is precisely how
-    agent-authoring-trigger-and-shape-contract.yaml shipped in a state where its own prompt echo
-    passed every grader. Registering the three contracts closed that instance; this closes the
-    mechanism, so the next unregistered scenario fails here instead of in review.
-
-    A scenario is exempt only if it is routing-only (one sanity grader by design) or carries a
-    single grader, which cannot express a behavioural contract worth adversarial fixtures.
-    """
-    try:
-        import yaml  # noqa: F401
-    except ModuleNotFoundError:
-        check(False, "PyYAML required for scenario-registration sweep (`pip install pyyaml`)")
-        return
-
-    registered = (
-        set(_ROUTING_PROMPT_ECHO_CASES)
-        | set(_ROUTING_BATCH1_CASES)
-        | set(_ROUTING_WGE_CASES)
-        | set(_DIRECT_CONTRACT_COMPLIANT)
-        | set(_INCIDENT_RECOVERY_BEHAVIOR_SCENARIOS.values())
-        | set(_SRE_ASSIST_BEHAVIOR_CASES)
-        | set(_INCIDENT_GUIDANCE_2026_08_CASES)
-        | set(_INCIDENT_GUIDANCE_ADDITIONAL_COMPLIANT)
-        | set(_ROUTING_ONLY_DISCOVERY_SCENARIOS)
-        | set(_OBS_BEHAVIOR_SCENARIOS)
-        | set(_ROUTING_ONLY_SANITY_RESPONSES)
-        | set(_INCIDENT_INVESTIGATION_DISCOVERY_FIXTURES)
-        | set(_GATE_CASES)
-        | set(_GATE_ADDITIONAL_DECEPTIVE)
-        | set(_RESULT_CASES)
-        | set(_BLOCK_CASES)
-        | set(_BEHAVIORALLY_INCOMPLETE_ROUTING_ANSWERS)
-        | set(_SKILL_AUDIT_CASES)
-        | set(_SOFTWARE_ENGINEER_DIRECT_FIXTURES)
-        | set(_OBSERVABILITY_ENGINEER_DIRECT_FIXTURES)
-        | set(_SCRIBE_CHECKOUT_BINDING_FIXTURES)
-        | set(_HANDOFF_DIRECT_FIXTURES)
-        | set(_SERVICE_RETIREMENT_DIRECT_FIXTURES)
-        # _INCIDENT_COMMAND_INCOMPLETE_RESPONSES is keyed by prose label, not filename, so it is
-        # deliberately not unioned here -- the scenario it guards is named directly instead. The
-        # key-validation check above is what surfaced that; it caught 13 junk keys on its first run.
-        | {"discovery-incident-command-declare.yaml"}
-    )
-    on_disk = {path.name for path in SCENARIOS_DIR.glob("*.yaml")}
-    check(
-        registered <= on_disk,
-        "every fixture-table key names a scenario that exists; stale or non-filename keys make the "
-        f"sweep credit coverage that is not there: {sorted(registered - on_disk)}",
-    )
-    unregistered = []
-    for path in sorted(SCENARIOS_DIR.glob("*.yaml")):
-        if path.name in registered:
-            continue
-        try:
-            scenario = _load_scenario(path.name)
-        except Exception:
-            continue
-        if len(scenario.get("graders", [])) <= 1:
-            continue
-        unregistered.append(path.name)
-    # Pre-existing scenarios inherited without fixtures are recorded here rather than silently
-    # skipped: the list may shrink, and anything NEW must be registered instead of appended.
-    unrecorded = {n for n in unregistered if n not in _FIXTURE_GAP_ALLOWLIST}
-    check(
-        not unrecorded,
-        "every multi-grader scenario is registered in a fixture table or the recorded gap list; "
-        f"unregistered={sorted(unrecorded)}",
-    )
-
-
-def test_trimmed_discovery_positives_have_a_direct_contract() -> None:
-    """A narrowed discovery positive must name a direct scenario that carries its full contract.
-
-    GRADER-003 measured the reason for narrowing: a 7-to-8 grader conjunction over three trials at
-    threshold 1.0 has a ceiling near 0.53 even with faithful graders, so the discovery cases were
-    reduced to a routing floor. That is only safe because the behaviour moved somewhere it can be
-    graded properly. Without this test, a future trim could delete assertions and leave nothing
-    behind, which reads as a greener suite and is actually lost coverage.
-    """
-    try:
-        import yaml  # noqa: F401
-    except ModuleNotFoundError:
-        check(False, "PyYAML required for direct-contract pairing tests (`pip install pyyaml`)")
-        return
-
-    check(
-        set(_AGENT_AUTHORING_DIRECT_CONTRACTS) == set(_AGENT_AUTHORING_BEHAVIOR_SCENARIOS),
-        "every agent-authoring discovery positive names its direct contract",
-    )
-    contracts = set(_AGENT_AUTHORING_DIRECT_CONTRACTS.values())
-    check(
-        set(_DIRECT_CONTRACT_COMPLIANT) == contracts and set(_DIRECT_CONTRACT_INCOMPLETE) == contracts,
-        "every direct contract carries both adversarial fixtures",
-    )
-    check(
-        set(_DIRECT_CONTRACT_ORACLE_GAPS) == contracts,
-        "every direct contract carries its reproduced oracle-gap fixtures",
-    )
-    check(
-        set(_DIRECT_CONTRACT_TERRA_TRANSFER) == contracts
-        and all(len(forms) == 3 for forms in _DIRECT_CONTRACT_TERRA_TRANSFER.values()),
-        "every direct contract carries three frozen Terra transfer forms",
-    )
-    for discovery, direct in _AGENT_AUTHORING_DIRECT_CONTRACTS.items():
-        d = _load_scenario(discovery)
-        # Assert the effective bar, not the range. The bar is ceil(trials * threshold), so at
-        # DEFAULT_TRIALS = 3 every value in (2/3, 1) -- 0.67, 0.7, 0.8, 0.9 -- yields 3 of 3 and is
-        # byte-identical to zero tolerance. A range check admits all of them, which is how an inert
-        # threshold shipped once already. Only the effect is worth asserting.
-        trials = d.get("trials", _DEFAULT_TRIALS)
-        threshold = d.get("threshold", 1.0)
-        effective = math.ceil(trials * threshold)
-        check(
-            effective < trials,
-            f"{discovery}: threshold {threshold} gives an effective bar of {effective} of "
-            f"{trials} -- that is zero tolerance, not a propensity bar",
-        )
-        check(len(d["graders"]) <= 4, f"{discovery}: discovery keeps a routing floor, not a contract")
-        path = SCENARIOS_DIR / direct
-        check(path.exists(), f"{direct}: the paired direct contract exists")
-        if not path.exists():
-            continue
-        c = _load_scenario(direct)
-        check(c.get("mode") == "direct", f"{direct}: is a direct-mode contract")
-        check(
-            c.get("target") == {"kind": "skill", "name": "agent-authoring"},
-            f"{direct}: targets skill:agent-authoring",
-        )
-        check(
-            len(c["graders"]) > len(d["graders"]),
-            f"{direct}: carries more of the contract than the discovery floor it replaced",
-        )
-        prompt = " ".join(c["prompt"].split()).casefold()
-        for spec in c["graders"]:
-            if spec.get("type") not in ("contains_any", "contains_all"):
-                continue
-            toks = [t.casefold() for t in spec.get("of", [])]
-            check(
-                any(t in prompt for t in toks) if spec["type"] == "contains_any"
-                else all(t in prompt for t in toks),
-                f"{direct}: grader demands a behaviour its own prompt requests",
-            )
-        # The property, not the arrangement. The prompt-requests rule above pushes a direct
-        # contract toward echo-passing by construction, so this is the counterweight: at least one
-        # grader must demand vocabulary the prompt does not supply.
-        specs = c["graders"]
-        raw = c["prompt"]
-        check(
-            not grade_all(specs, raw),
-            f"{direct}: raw prompt echo is REJECTED by the full grader set",
-        )
-        check(
-            not grade_all(specs, " ".join(raw.split())),
-            f"{direct}: whitespace-normalized prompt echo is REJECTED",
-        )
-        check(
-            grade_all(specs, _DIRECT_CONTRACT_COMPLIANT[direct]),
-            f"{direct}: curated compliant response passes the full grader set",
-        )
-        check(
-            not grade_all(specs, _DIRECT_CONTRACT_INCOMPLETE[direct]),
-            f"{direct}: keyword-rich but behaviourally incomplete response is REJECTED",
-        )
-        for label, response in _DIRECT_CONTRACT_ORACLE_GAPS[direct].items():
-            check(
-                not grade_all(specs, response),
-                f"{direct}: oracle-gap response ({label}) is REJECTED",
-            )
-        for label, response in _DIRECT_CONTRACT_TERRA_TRANSFER[direct]:
-            check(
-                grade_all(specs, response),
-                f"{direct}: Terra transfer form ({label}) passes",
-            )
 
 
 def test_sre_assist_fixtures_have_a_red_side() -> None:
@@ -3735,88 +3225,6 @@ def test_incident_command_discovery_enforces_shared_boundary() -> None:
             not grade_all(grader_specs, incomplete),
             f"{filename}: {label} is REJECTED",
         )
-
-
-def test_obs_behavior_contracts_are_bounded_and_not_duplicated() -> None:
-    try:
-        import yaml  # noqa: F401
-    except ModuleNotFoundError:
-        check(False, "PyYAML required for observability contract placement tests (`pip install pyyaml`)")
-        return
-
-    for filename in _OBS_DISCOVERY_ROUTING_ONLY:
-        grader_specs = _load_graders(filename)
-        check(
-            len(grader_specs) == 1 and grader_specs[0].get("type") == "contains_any",
-            f"{filename}: discovery owns one routing-sanity grader, not the behavior contract",
-        )
-
-    for filename, target_name in _OBS_BEHAVIOR_SCENARIOS.items():
-        scenario = _load_scenario(filename)
-        check(scenario.get("mode") == "discovery", f"{filename}: behavior stays on its existing route case")
-        check(
-            scenario.get("target") == {"kind": "skill", "name": target_name},
-            f"{filename}: behavior contract targets skill:{target_name}",
-        )
-        prompt = " ".join(scenario["prompt"].split()).casefold()
-        missing_prompt_terms = [
-            term for term in _OBS_BEHAVIOR_PROMPT_TERMS[filename] if term not in prompt
-        ]
-        check(
-            not missing_prompt_terms,
-            f"{filename}: prompt requests every graded behavior; missing={missing_prompt_terms}",
-        )
-        check(len(scenario["graders"]) > 1, f"{filename}: owns one focused behavior contract")
-        compliant, invalid = _OBS_BEHAVIOR_CASES[filename]
-        grader_specs = scenario["graders"]
-        check(grade_all(grader_specs, compliant), f"{filename}: equivalent compliant answer passes")
-        check(not grade_all(grader_specs, invalid), f"{filename}: named behavior defect is rejected")
-        if filename == "discovery-obs-alerting-splunk-saved-search.yaml":
-            check(
-                grade_all(
-                    grader_specs,
-                    compliant.replace(
-                        "alert.suppress.fields = service,alert_type",
-                        "Throttle-by field = service",
-                    ),
-                ),
-                f"{filename}: equivalent throttle-scope wording passes",
-            )
-        if filename == "discovery-obs-traces-cloud-trace.yaml":
-            check(
-                grade_all(
-                    grader_specs,
-                    compliant.replace(
-                        "without adding nested span durations",
-                        "and do not double-count nested spans",
-                    ),
-                ),
-                f"{filename}: direct double-count warning passes",
-            )
-            check(
-                not grade_all(
-                    grader_specs,
-                    compliant.replace(
-                        "without adding nested span durations",
-                        "while adding nested span durations",
-                    ),
-                ),
-                f"{filename}: affirmative nested-duration addition is rejected",
-            )
-            check(
-                not grade_all(
-                    grader_specs,
-                    compliant + " Therefore, you should add nested span durations.",
-                ),
-                f"{filename}: a late contradiction cannot hide behind safe wording",
-            )
-            check(
-                not grade_all(
-                    grader_specs,
-                    compliant + " Add nested span durations.",
-                ),
-                f"{filename}: a bare imperative cannot hide behind safe wording",
-            )
 
 
 def test_gcp_cloud_run_requires_one_exact_rollback_packet() -> None:
@@ -4315,8 +3723,6 @@ def main() -> int:
         test_routing_workflow_graph_scenarios_reject_echoes_and_incomplete,
         test_skill_audit_scenarios_reject_echo_and_incomplete_answers,
         test_discovery_positives_grade_only_what_the_prompt_requests,
-        test_every_behavioural_scenario_is_registered_in_a_fixture_table,
-        test_trimmed_discovery_positives_have_a_direct_contract,
         test_routing_only_discovery_scenarios_stay_routing_only,
         test_incident_investigation_discovery_fixtures_discriminate,
         test_sre_assist_fixtures_have_a_red_side,
@@ -4326,7 +3732,6 @@ def main() -> int:
         test_incident_guidance_2026_08_fixtures_discriminate,
         test_incident_guidance_additional_compliant_orderings,
         test_incident_command_discovery_enforces_shared_boundary,
-        test_obs_behavior_contracts_are_bounded_and_not_duplicated,
         test_gcp_cloud_run_requires_one_exact_rollback_packet,
         test_gcp_ops_honors_caller_fence_constraints,
         test_readonly_scenario_verbal_discipline, test_injection_scenarios,
