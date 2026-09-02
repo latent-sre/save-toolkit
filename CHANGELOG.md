@@ -58,6 +58,17 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Folded `agent-security` into `agent-authoring` as `references/agent-security.md` (one 6 KB
+  reference replacing a 15 KB three-file skill). Kept the lethal trifecta, the leg-cutting order
+  and Rule of Two, the cross-agent trust boundaries, the controls that hold (envelope and
+  invisible-Unicode stripping, Claude Code layer facts, MCP as a dependency), and the
+  five-question review. Dropped the fleet runtime-boundary restatement (`AGENTS.md` owns the
+  roster), the researcher sanitization paragraph (`AGENTS.md` owns it), and the OWASP LLM Top 10
+  crosswalk (git history keeps it). `agent-authoring`'s description gained the security-review
+  capability and the 'is this agent safe / prompt injection' trigger in place of the 'Loop
+  Engineering' phrasing its capability sentence already carried; `agent-engineer` now points at
+  the reference. The three `agent-security` scenarios retired; one discovery positive covers the
+  new trigger.
 - Every agent handoff packet is now six slots (`→ Handing to`, `Goal`, `Change`, `Findings`,
   `Verified`, `Not done`) in `software-engineer`, `reviewer`, `observability-engineer`, `scribe`,
   and the `sre` contract in `investigation-depth/references/incident-handoff.md`; the seven slots

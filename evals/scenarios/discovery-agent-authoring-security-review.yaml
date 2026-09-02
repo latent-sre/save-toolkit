@@ -1,0 +1,23 @@
+schema_version: 1
+id: discovery-agent-authoring-security-review
+mode: discovery
+# Calibration until a passing candidate result exists on the merged description.
+split: calibration
+threshold: 0.66
+target:
+  kind: skill
+  name: agent-authoring
+prompt: |
+  Is this agent safe? It reads webhook payloads and CI logs, holds a deploy token, and can open
+  network calls. Review it for prompt injection, least privilege, egress, unsafe delegation, and
+  blast radius, and separate structural controls from prose.
+routing:
+  expect: fire
+success_criteria:
+  - Invokes agent-authoring for an agent security review
+  - Names the trifecta legs the agent holds and which one to cut structurally
+graders:
+  # Routing floor only: one identity grader proving the review used the trifecta frame.
+  # Identity: the review names the legs and the structural cut.
+  - type: regex
+    pattern: '(?is)(?=.*\b(?:trifecta|legs?)\b)(?=.*\b(?:untrusted|injection)\b)(?=.*\b(?:tools?:|tool absence|remove|cut)\b)'

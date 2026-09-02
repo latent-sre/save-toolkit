@@ -125,7 +125,7 @@ The 34 skills, by area (each `skills/<name>/SKILL.md` carries its own descriptio
   `operational-learning`, `service-readiness-audit`, `service-lifecycle`, `service-retirement`
 - **Observability** — `obs-logs`, `obs-metrics`, `obs-traces`, `obs-dashboards`, `obs-alerting`,
   `obs-pipeline`
-- **The fleet itself and the graphs it designs** — `agent-authoring`, `agent-security`,
+- **The fleet itself and the graphs it designs** — `agent-authoring`,
   `workflow-graph-engineering`
 
 The roster's tool postures, enforcement model, and design disciplines are in
