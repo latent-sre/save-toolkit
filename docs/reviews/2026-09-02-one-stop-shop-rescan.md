@@ -4,12 +4,20 @@ Date: 2026-09-02. Scanned revision: `a5db765d` (branch `work/fleet-weight-round5
 
 ## Status of this document
 
-This document holds two passes. The first pass, below, is unverified. The second pass, at the
-end, was self-verified by the reader that raised each finding and carries its searches. Read the
-second pass's own status paragraph before trusting it: a reader checking its own work shares its
-own blind spots.
+This document holds three passes.
 
-**Every finding in the FIRST PASS is UNVERIFIED.** The review ran as a workflow of twelve reading agents,
+1. **The first pass**, below, is 87 findings from twelve readers, reported without verification.
+2. **The second pass** is 15 further findings, each self-verified by the reader that raised it.
+3. **The third pass** verifies the first pass adversarially: five verifiers, one per group of
+   files, each trying to refute rather than agree. Its verdict table is the authority on the
+   first pass. Read a first-pass finding together with its verdict, never alone.
+
+Of the 87 first-pass findings, 49 are confirmed, 10 are real but need a smaller change, 27 are
+duplicates of each other, and 1 is refuted. The third pass also corrects a byte figure the
+reviewer gave every agent, which affects two of its own verdicts; that correction is stated in
+place.
+
+**Findings in the first pass carry no verdict of their own.** The review ran as a workflow of twelve reading agents,
 each of which was to be followed by two independent refuters per finding: one checking the
 evidence, one checking that a real person on the team benefits. The twelve readers finished. The
 verification and synthesis stages hit the account session limit and never ran, so 12 of 174
@@ -828,10 +836,10 @@ Severity and effort are the reader's own estimates.
 
 ## What to do with this
 
-1. Resume the workflow after the session limit resets to get the two refuters per finding and the
-   synthesized plan. That is the cheap path, because the reads are cached.
-2. Until then, verify by hand only the recurring themes above. A theme two independent readers
-   reached is more likely to hold than a single reader's finding.
+1. Work from the third pass's verdict table, not from the first pass's finding list. The 49
+   confirmed items are ready to hand to an implementer; the 10 reduced ones carry their corrected
+   change; the 27 duplicates need no separate work.
+2. Reconsider the two verdicts that were reduced on the wrong byte figure before applying them.
 3. Nothing here has been applied to the repository.
 4. The second pass at the end of this document supersedes step 2 for the areas it covers: its
    fifteen findings are already checked and none repeat the first pass.
@@ -1090,3 +1098,197 @@ multi-window burn-rate method; the runbook's step-craft reference and worked exe
 gate's three-question checklist with its honest unknown path; and the database restore-drill and
 migration references. These put judgment in a person's hands, and nothing in either pass proposes
 touching them.
+
+## Third pass: adversarial verification of the first pass
+
+The first pass's 87 findings were partitioned by the files they touch into five briefs, and one
+Sonnet verifier took each brief. Each was told to refute rather than agree: open the cited line and
+check the quote is really there, grep the tree for an existing owner elsewhere, measure the target
+file against the byte screen before endorsing an addition, name the person and the moment or reject
+the finding, and mark any finding that repeats an earlier one in the same brief. The default on
+doubt was refusal.
+
+### Result
+
+| Verdict | Count |
+|---|---|
+| Confirmed as written | 49 |
+| Real, but the proposed change needs to be smaller or moved | 10 |
+| Refuted | 1 |
+| Duplicate of an earlier finding | 27 |
+
+So the first pass found roughly 59 distinct real defects and reported them 87 times. Almost nothing
+was fabricated: across all five briefs the verifiers found the quotes where the findings said they
+would be, with three exceptions noted below. What the first pass lacked was deduplication against
+its own output and any check of whether a proposed addition would fit.
+
+### A correction that affects these verdicts
+
+Every verifier was told the skill body screen is 7,500 bytes. It is **7,800**, raised by owner
+direction on 2026-08-30 and recorded in `docs/reviews/2026-08-30-skill-001-7800-screen.md`. The
+error is the reviewer's, not the verifiers'. Measured against the correct screen:
+
+| File | Bytes | Against 7,800 |
+|---|---|---|
+| `skills/production-change-gate/SKILL.md` | 7,435 | 365 free |
+| `skills/ci-actions/SKILL.md` | 8,779 | over by 979 |
+| `skills/runbook/SKILL.md` | 9,570 | over by 1,770 |
+| `skills/service-lifecycle/SKILL.md` | 8,313 | over by 513 |
+
+Three of the four files are still over, so those downgrades stand. But two verdicts, `change-craft 1`
+and `journeys 6`, were reduced only because the change gate appeared to have 65 bytes of headroom
+when it has 365. Both should be reconsidered before anyone applies the reduced version.
+
+### What the verification caught that a reader would not
+
+- **Two findings proposed deleting opposite halves of the same redundancy.** Both diagnosed the same
+  four-way repetition in `agents/sre.md` correctly. One proposed deleting lines 98-111, the other
+  lines 171-173. Only the first block carries the closeout-eligibility trigger, confirmed to appear
+  nowhere else. Applying both fixes, or the wrong one, would have deleted a live rule.
+- **One gap is a regression, not an absence.** The verifier ran the missing rule about a responder
+  without the command line against an earlier revision and found it there almost verbatim, dropped
+  by a later commit. The fix is to restore known-good wording, not to invent new text.
+- **One proposal would have restored withdrawn text.** A finding said its replacement table "already
+  exists" at an earlier commit. It does, but a later commit on the same ancestry deliberately
+  reverted it. Presenting withdrawn content as ready-made misreads the history.
+- **One citation was to lines that do not exist.** A finding cited lines 302-305 of a file that is
+  193 lines long, and its ownership claim contradicted the text it was citing.
+- **One grader blind spot was reproduced, not argued.** The verifier ran the fabrication grader's own
+  regular expression in Python and watched it miss a contract-shaped fabricated citation while
+  matching a plain one.
+- **The single refutation was a fleet-wide convention read as clutter.** A finding wanted the
+  untrusted-input label removed from one agent. The same label appears identically in all eight agent
+  files, tied to a documented defense against adversarial repository content. The quotes were right;
+  the reasoning ignored the pattern.
+
+### Verdicts
+
+Identifiers match the finding headings in the first pass above.
+
+#### Platform brief
+
+| ID | Verdict | Note |
+|---|---|---|
+| platform 1 | CONFIRMED | Quote verbatim; no Apps Manager anywhere in the skill; the fix replaces rather than adds, so the screen is safe |
+| platform 2 | CONFIRMED | Quote verbatim; no Splunk in the skill; both named catalog entries exist |
+| platform 3 | CONFIRMED | Both quotes verbatim; neither Wavefront nor App Metrics appears in the skill |
+| platform 4 | CONFIRMED | Quotes verbatim; five quota mentions exist and none is a headroom view; the fix lands in references |
+| platform 5 | CONFIRMED | No purge anywhere in the skill, while expiry appears twice, proving the search fires |
+| platform 6 | CONFIRMED | The eval's own comment calls the constraint one no real caller imposes; a pure deletion that also buys byte headroom |
+| platform 7 | NEEDS-EDIT | Real, but five separate console parentheticals do not fit; use the one-line version |
+| journeys 1 | DUPLICATE-OF platform 1 | Same file, lines, and remedy |
+| stack-truth 1 | DUPLICATE-OF platform 1 | Adds only pointers to the same table |
+| stack-truth 3 | DUPLICATE-OF platform 2 | Same evidence and remedy |
+| stack-truth 8 | DUPLICATE-OF platform 7 | Its wording is the better-sized fix and is used in the correction |
+| entry-surface 4 | DUPLICATE-OF platform 1 | Framed as a description problem, same defect |
+| who-is-the-text-talking-to 1 | DUPLICATE-OF platform 1 | Its 661-byte measurement was independently confirmed |
+| coverage 1 | DUPLICATE-OF platform 1 | Its source table was withdrawn by a later revert; do not treat it as ready-made |
+| coverage 5 | DUPLICATE-OF platform 5 | Same searches, same conclusion |
+
+#### Observability brief
+
+| ID | Verdict | Note |
+|---|---|---|
+| incident-stack 2 | NEEDS-EDIT | Quote verbatim and the gap is real, but the file is far over the screen; add tool pointers only and leave the healthy shape to the linked references |
+| observability 1 | CONFIRMED | No term for the PCF log path appears anywhere, while the collector the team does not use for it is found repeatedly |
+| observability 2 | CONFIRMED | The trigger exists; the knobs live only in per-backend references, with no procedure |
+| observability 3 | NEEDS-EDIT | Gap real, but alert-authoring fields do not belong in a query-dialect file; create the missing per-backend reference instead |
+| observability 4 | CONFIRMED | The team's metrics product appears nowhere under the observability skills; the cited placeholder is bare |
+| observability 5 | CONFIRMED | The dialect table has no row for the team's platform |
+| observability 6 | CONFIRMED | Both quotes verbatim and the proposed destination already exists |
+| observability 7 | CONFIRMED | One sentence, comfortably inside the corrected screen |
+| observability 8 | CONFIRMED | Confirmed that the tracing backend is new capability with no data from the team's platform |
+| agents-human-facing 3 | CONFIRMED | All four quotes verbatim; agent bodies carry no screen |
+| agents-human-facing 4 | DUPLICATE-OF observability 3 | Its design is the better fix and was folded into that correction |
+| agents-human-facing 6 | CONFIRMED | The proposed shape is already in live use in another agent, so it is copied, not invented |
+| journeys 5 | DUPLICATE-OF observability 2 | An elaboration of the same gap |
+| stack-truth 6 | DUPLICATE-OF observability 3 | Same gap, same citations |
+| entry-surface 6 | DUPLICATE-OF observability 7 | Its fix is larger and riskier for the same practical gain |
+| entry-surface 7 | CONFIRMED | Three-way trigger overlap confirmed across three files |
+| coverage 2 | DUPLICATE-OF observability 3 | Same gap; its new-reference proposal is the shape adopted |
+
+#### Entry-surface brief
+
+| ID | Verdict | Note |
+|---|---|---|
+| agents-support 1 | CONFIRMED | Quote verbatim, and no eval covers the pasted-error-string case |
+| agents-support 2 | REFUTED | The untrusted label is identical across all eight agents and tied to a documented defense; removing it from one breaks a deliberate convention |
+| agents-support 3 | CONFIRMED | The grader's blind spot was reproduced directly in Python |
+| agents-support 4 | CONFIRMED | The rule is unconditional here while the sibling lane already carries the conditional |
+| agents-support 5 | CONFIRMED | The claimed byte figure is slightly off; the substance holds and the edit stays inside both the cap and the trigger count |
+| entry-surface 2 | CONFIRMED | Mildly overstated, since the skills index does list it, but no document tells a human the command must be typed |
+| entry-surface 3 | CONFIRMED | The guide never names the advisor, while the bare word incident is found twice, proving the search fires |
+| entry-surface 5 | CONFIRMED | The fleet table reads as unconditional ownership against three other passages in the same repository |
+| entry-surface 8 | CONFIRMED | 29 skills, not 30, and the README disagrees with itself about the metrics tool |
+| coverage 6 | DUPLICATE-OF entry-surface 2 | Adds only an owner's-call footnote |
+
+#### Knowledge and craft brief
+
+| ID | Verdict | Note |
+|---|---|---|
+| change-craft 1 | NEEDS-EDIT | Make the fix entirely in the reference. Reconsider: this downgrade assumed 65 bytes of headroom, and there are 365 |
+| change-craft 2 | CONFIRMED | The task primitive appears nowhere, while the migration tool is found in exactly the two files claimed |
+| change-craft 3 | CONFIRMED | This toolkit's own ruleset is stated as the reader's fact; a sibling skill already models the right behavior |
+| change-craft 4 | CONFIRMED | No Java job or build tool anywhere in the starter, though the JVM is a real backend for this team |
+| change-craft 5 | NEEDS-EDIT | Keep the variant in the reference; the skill body is nearly a kilobyte over the screen |
+| change-craft 6 | CONFIRMED | The rollback row contradicts the deploy skill's own list of what rollback does not reverse, with no cross-reference |
+| change-craft 7 | CONFIRMED | The routing term appears nowhere, while a neighboring term in the same file is found |
+| change-craft 8 | CONFIRMED | A provenance parenthetical inside a rule, against the no-meta-prose rule; deletion leaves the rule whole |
+| agents-human-facing 5 | CONFIRMED | Distinct from the runbook findings: it targets the instruction in the writer agent itself |
+| knowledge-docs 1 | NEEDS-EDIT | Apply the asset changes as proposed; keep the skill-body line the same length or shorter |
+| knowledge-docs 2 | NEEDS-EDIT | Real contradiction; use shorter wording so an over-budget file does not grow |
+| knowledge-docs 3 | CONFIRMED | The improvement loop names a mechanism the responder agent explicitly says it does not perform |
+| knowledge-docs 4 | CONFIRMED | The service card has no slot for where signals live, and the alert card omits the team's tools |
+| knowledge-docs 5 | CONFIRMED | The exemplar's own escalation table fails the skill's own readback rule |
+| knowledge-docs 6 | CONFIRMED | The import path assumes one hosting model and the stack profile never says which one the team has |
+| journeys 4 | NEEDS-EDIT | Fold into the existing cell and coordinate with the other edit to the same over-budget table |
+| journeys 6 | NEEDS-EDIT | Use a parenthetical rather than a new row. Reconsider: this downgrade also assumed 65 bytes of headroom |
+| journeys 7 | DUPLICATE-OF knowledge-docs 2 | Same lines, same fix, different wording |
+| stack-truth 7 | DUPLICATE-OF knowledge-docs 1 | The earlier finding is the more complete one |
+| who-is-the-text-talking-to 8 | CONFIRMED | The 4,223-byte claim was measured exactly; every bullet restates a field already stated above it, except one the fix preserves |
+
+#### Incident brief
+
+| ID | Verdict | Note |
+|---|---|---|
+| incident-stack 1 | CONFIRMED | Quotes verbatim; the team's console and metrics tools appear zero times while the named incumbent appears three, proving the search fires |
+| incident-stack 3 | CONFIRMED | Nothing outside its own directory references the advisor, while a sibling skill is found in two places |
+| incident-stack 4 | NEEDS-EDIT | Real conflict, but the fix would leave two copies of one rule; delete the duplicate section and correct the reference only |
+| incident-stack 5 | CONFIRMED | Quotes verbatim; one sentence above an unchanged table |
+| incident-stack 6 | CONFIRMED | Quotes verbatim; only two files reference the skill, supporting the diagnosis |
+| incident-stack 7 | CONFIRMED | The postmortem never names the packet that calls itself the postmortem's source |
+| agents-human-facing 1 | CONFIRMED | No handling of an absent command line anywhere in the agent; see the regression note under coverage 4 |
+| agents-human-facing 2 | CONFIRMED | Rewrites two citations in the worked example while keeping every slot |
+| agents-human-facing 7 | CONFIRMED | Delete the later block and keep the earlier one, which uniquely carries the eligibility trigger |
+| journeys 2 | CONFIRMED | The stated intake has no slot to write into, so the loop cannot currently fire |
+| journeys 3 | DUPLICATE-OF incident-stack 1 | Same lines, same fix |
+| journeys 8 | DUPLICATE-OF incident-stack 4 | Cites lines 302-305 of a 193-line file, and its ownership claim contradicts the text it cites |
+| stack-truth 2 | DUPLICATE-OF incident-stack 1 | Identical |
+| stack-truth 4 | DUPLICATE-OF incident-stack 5 | Its table rewrite is heavier than the one-sentence fix |
+| stack-truth 5 | DUPLICATE-OF agents-human-facing 1 | Same gap, same target section |
+| entry-surface 1 | DUPLICATE-OF incident-stack 1 | Confirms the advisor contradicts the repository's own front page |
+| who-is-the-text-talking-to 2 | DUPLICATE-OF agents-human-facing 1 | Overstates the guard's read set, which carries ten verbs, not one |
+| who-is-the-text-talking-to 3 | DUPLICATE-OF incident-stack 1 | Its extra dialect-table row is a legitimate small addendum worth keeping |
+| who-is-the-text-talking-to 4 | DUPLICATE-OF agents-human-facing 7 | Proposes deleting the half that carries unique content; do not apply this version |
+| who-is-the-text-talking-to 5 | CONFIRMED | Byte count verified exactly; the deletion keeps the section the responder agent depends on |
+| who-is-the-text-talking-to 6 | CONFIRMED | The better fix for the same defect the earlier finding flags |
+| who-is-the-text-talking-to 7 | CONFIRMED | Removes label vocabulary from responder-facing text, about 300 bytes, substance retained |
+| coverage 3 | DUPLICATE-OF incident-stack 1 | Independently confirmed the claimed revert left the file untouched |
+| coverage 4 | DUPLICATE-OF agents-human-facing 1 | Its archaeology is the valuable part: the rule existed at an earlier revision and was dropped, so restore that wording |
+| coverage 7 | NEEDS-EDIT | Gap real, but a new template block is scope creep; add one sentence to the existing readback bullet |
+
+### The ten changes that need to be smaller
+
+`platform 7`, `incident-stack 2`, `observability 3`, `change-craft 1`, `change-craft 5`,
+`knowledge-docs 1`, `knowledge-docs 2`, `journeys 4`, `journeys 6`, `incident-stack 4`, and
+`coverage 7` each carry a corrected, smaller change in their verifier's report. Two of them,
+`change-craft 1` and `journeys 6`, were reduced on a byte figure that was wrong by 300 bytes and
+should be reconsidered at full size.
+
+### What this pass says about the first one
+
+The twelve-reader sweep converged reliably on real defects and reported each of them several times.
+Every verifier independently reached the same conclusion about the cause: the readers were given
+overlapping lenses and never deduplicated against each other, so three or four genuine gaps account
+for most of the 27 duplicates. The lesson for the next sweep is to dedupe between lenses before
+reporting, and to require every proposed addition to name its target file's current size.
