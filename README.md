@@ -153,8 +153,8 @@ python scripts/test_platform_adapters.py                 # Copilot projection + 
 claude plugin validate . --strict                       # Claude platform contract
 ```
 
-Gate A proves the fleet is well-formed, never that it is correct — the adversarial reviews in
-[CONTRIBUTING.md](CONTRIBUTING.md) are separate. Portable contracts are documented in the
+Gate A proves the fleet is well-formed, never that it is correct — the change-shaped checks in
+[CONTRIBUTING.md](CONTRIBUTING.md)'s verification table are separate. Portable contracts are documented in the
 [schema compatibility policy](docs/schema-compatibility.md); active behavioral and routing evals
 live in [`evals/README.md`](evals/README.md). Accepted fleet failures become focused regressions and
 ordinary PR evidence.

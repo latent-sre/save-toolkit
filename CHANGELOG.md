@@ -67,7 +67,12 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   adjacency over lexed tokens (so `xargs cf env` and `$(cf env app)` are caught while a quoted
   `rg "cf env"` is data), and a line that will not lex is not a denial, because denying every
   heredoc in the build lanes would buy nothing. `observability-engineer`'s "no hook enforces any
-  of this here" is retired. Proven by mutation: disabling the branch turns 56 subtests red.
+  of this here" is retired. Review of the first cut found three real defects, each reproduced
+  before its fix: a PATH- or `./`-qualified binary missed the match, a backslash continuation
+  split the command across two lines that each matched nothing, and any argument merely
+  shaped like `CF_TRACE=` was read as an assignment, so `rg CF_TRACE=true .` was denied.
+  Proven by mutation: disabling the deny, the basename, or the continuation join each turns
+  the regression subtests red.
 - Removed `scripts/fleet_doctor.py` and its test (1,669 lines). Nothing invoked it — not Gate A,
   not CI, not any agent or skill — and the session preflight already proves the guard's
   interpreter, which was the one question it answered that mattered. Git history keeps it.

@@ -849,6 +849,17 @@ class FleetCredentialDenyTest(unittest.TestCase):
         # Adjacency, not command position: a substitution or a wrapper is the same disclosure.
         "echo $(cf env checkout)",
         "xargs cf env",
+        # Review findings on PR #216, each reproduced as an ALLOW before its fix.
+        # A PATH- or `./`-qualified binary is the same command as the bare name.
+        "/usr/local/bin/cf env checkout",
+        "./cf env checkout",
+        "/usr/bin/gcloud auth print-access-token",
+        # Bash joins a backslash continuation before running it, so the scanner must too. Built
+        # from chr() on purpose: a literal backslash in this source is one shell or heredoc away
+        # from becoming the letter n, which is how the first probe of this case lied.
+        "cf " + chr(92) + chr(10) + " env checkout",
+        "gcloud auth " + chr(92) + chr(10) + " print-access-token",
+        "cf " + chr(92) + chr(13) + chr(10) + " env checkout",
     ]
 
     def test_every_credential_path_is_denied_in_a_previously_unguarded_lane(self) -> None:
@@ -888,6 +899,15 @@ class FleetCredentialDenyTest(unittest.TestCase):
             # Data, not a command: quoting keeps it one token, so nothing matches.
             'rg "cf env" docs/',
             'git commit -m "document why cf env is human-only"',
+            # Review finding on PR #216: an assignment SHAPE is not an assignment. Searching for
+            # the variable cannot enable tracing, and denying the search was a false positive.
+            "rg CF_TRACE=true .",
+            "grep -r CF_TRACE=1 docs/",
+            "CF_TRACE=false cf apps",
+            # Basenaming the executable must not basename its arguments, or a path that merely
+            # ends in the subcommand's name turns a search into a credential read.
+            "rg cf docs/env",
+            "git log " + chr(92) + chr(10) + " --oneline",
         ]
         for agent in self.UNGUARDED_LANES:
             for command in benign:

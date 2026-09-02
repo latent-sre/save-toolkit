@@ -862,6 +862,35 @@ def _strip_substitution(token: str) -> str:
     return token.strip("`").lstrip("$(").rstrip(")")
 
 
+def _executable_name(token: str) -> str:
+    """A command word reduced to its basename: `/usr/local/bin/cf` and `./cf` are both `cf`.
+
+    Applied ONLY to the token being tested as the executable, never to the arguments after it.
+    Basenaming everything would make `rg cf docs/env` look like `cf env` — a search turned into a
+    credential read by a path that happens to end in the subcommand's name.
+    """
+    word = _strip_substitution(token)
+    for separator in ("/", "\\"):
+        word = word.rpartition(separator)[2] or word
+    return word
+
+
+def _assignment_prefix(segment: list[str]) -> list[str]:
+    """The leading `VAR=value` assignments of one segment, including after `env`/`export`.
+
+    Position is the whole point: `CF_TRACE=1 cf apps` sets the variable, while `rg CF_TRACE=true .`
+    only reads about it. Scanning every token for an assignment shape denied the search.
+    """
+    index = 0
+    while index < len(segment) and _executable_name(segment[index]) in ("env", "export"):
+        index += 1
+    prefix: list[str] = []
+    while index < len(segment) and _ASSIGNMENT.match(segment[index]):
+        prefix.append(segment[index])
+        index += 1
+    return prefix
+
+
 def _gcloud_credential_reason(words: list[str]) -> "str | None":
     words = [word for word in words if word not in _RELEASE_TRACKS]
     if not words:
@@ -879,9 +908,8 @@ def _gcloud_credential_reason(words: list[str]) -> "str | None":
 
 
 def _credential_reason_for_tokens(tokens: list[str]) -> "str | None":
-    for token in tokens:
-        assignment = _ASSIGNMENT.match(token)
-        if assignment and assignment.group(1) == "CF_TRACE":
+    for token in _assignment_prefix(tokens):
+        if _ASSIGNMENT.match(token).group(1) == "CF_TRACE":
             value = token.partition("=")[2].strip().strip("\"'").lower()
             if value not in _TRACE_OFF:
                 return (
@@ -893,7 +921,8 @@ def _credential_reason_for_tokens(tokens: list[str]) -> "str | None":
         following = [item for item in words[index + 1:] if item and not item.startswith("-")]
         if not following:
             continue
-        if word == "cf":
+        executable = _executable_name(word)
+        if executable == "cf":
             reason = _CF_CREDENTIAL_SUBCOMMANDS.get(following[0])
             if reason is not None:
                 return reason
@@ -904,7 +933,7 @@ def _credential_reason_for_tokens(tokens: list[str]) -> "str | None":
                     "`cf curl` on an env or credential endpoint returns the same secrets `cf env` "
                     "does"
                 )
-        elif word == "gcloud":
+        elif executable == "gcloud":
             reason = _gcloud_credential_reason(following)
             if reason is not None:
                 return reason
@@ -915,7 +944,12 @@ def credential_reason(command: str) -> "str | None":
     """The rule denying a credential-printing command, or None when nothing matched."""
     if not command.strip():
         return None
-    for line in command.splitlines():
+    # Bash joins a backslash-continued line before running it, so the scanner must too: `cf \`
+    # newline `env checkout` reached the API while the first physical line failed to lex and the
+    # second carried no `cf` (Codex review, PR #216). Collapsing can only widen what is seen; a
+    # continuation inside a quoted string still lexes to one token and still matches nothing.
+    joined = command.replace("\\\r\n", " ").replace("\\\n", " ")
+    for line in joined.splitlines():
         if not line.strip():
             continue
         try:
