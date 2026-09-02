@@ -23,8 +23,7 @@ and the next task is to prove why the system broke.
 3. **Characterize the service.** If start time, blast radius, trend, or signal baseline is missing,
    read [signal characterization](./signal-characterization.md).
 4. **Use the documented procedure.** If the alert supplies one, follow it and record each observed
-   result. Ownership map only—not a load: `obs-logs`' team query catalog holds cataloged
-   starting queries for common questions, with what a healthy result looks like.
+   result.
 5. **Keep checks read-only.** Within the typed `sre` lane the read-only set is the platform
    skill's: on PCF `cf app <app>`, `cf events <app>`, and `cf logs <app> --recent` (`pcf-ops`); on
    Cloud Run `gcloud run services describe`, `gcloud run revisions list`, and `gcloud logging read`

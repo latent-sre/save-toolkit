@@ -144,8 +144,6 @@ known, result count, selected trace link, and any required attribute assumptions
 results `[verified]` only when they were actually run and retained; these examples remain `[unverified]`
 for the target.
 
-Ownership map only—not a load: the `obs-pipeline` skill owns trace instrumentation.
-
 ## Inert canary example
 
 This checks reference loading only; it is not a production trace or a claim that the target was queried.

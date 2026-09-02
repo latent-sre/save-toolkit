@@ -83,6 +83,4 @@ claim from the request. The entrypoint rules remain authoritative after a refere
 - **Incidents/recovery:** current evidence, hypothesis labels, human action boundary, and measured
   recovery gaps. Never present a destructive change without the safety check and recovery strategy.
 
-Ownership map only—not a load: the `language-idiom` skill owns call-site/contract analysis and safe refactoring;
-the `eng-ladder` skill owns principal altitude; the `pcf-ops` skill owns app-side triage. This skill
-contains the database method it requires.
+This skill contains the database method it requires.

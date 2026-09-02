@@ -15,7 +15,7 @@ platforms, and synthetics; this reference defines what to establish, not backend
 | **Errors** | What fraction fails, times out, or returns incorrect results? |
 | **Saturation** | Which finite resource—CPU, memory, threads, queues, pools, or connections—is near its limit? |
 
-Ownership map only—not a load: the `stack-profile` observability reference names which backend
+The `stack-profile` observability reference names which backend
 serves each signal today; the `obs-*` skills own the queries. Do not assume a vendor from this file.
 
 Use **RED**—rate, errors, duration—for request-driven services and **USE**—utilization, saturation,
@@ -50,8 +50,6 @@ A matching timestamp makes a change a priority hypothesis, not a proven cause.
 5. **Internal signals stay flat while users report impact:** inspect the external path, region, DNS,
    routing, and synthetic-probe or health-endpoint evidence. Also test whether the signals are
    arriving at all: a dead exporter, a stalled scrape, or a no-data panel reads exactly like health.
-   Ownership map only—not a load: `obs-metrics` and `obs-logs` own staleness and no-data semantics
-   for their backends, and `obs-alerting` owns the no-data alert state.
 
 An alert fires when its evaluation window closes and a probe reports when it sampled, so onset is
 a bound derived from the window, not the fire time itself; a deploy-to-onset gap constrains the

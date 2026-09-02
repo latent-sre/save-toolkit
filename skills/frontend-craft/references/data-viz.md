@@ -16,4 +16,4 @@ Chart *design*, in brief: pick the form the data asks for — time series → li
 - **Live data**: stream via the SSE→Query-cache path, but throttle/batch redraws (not every tick) and keep a rolling window for time-series.
 - **Perf & a11y**: canvas over SVG past ~1–2k points; downsample server-side when you can; give every chart a text or data-table alternative.
 
-Ownership map only—not a load: this file owns **product-UI charts** (Recharts/uPlot inside the app); the `obs-dashboards` skill owns Grafana operations dashboards—never rebuild those as app UIs.
+This file owns **product-UI charts** (Recharts/uPlot inside the app); the `obs-dashboards` skill owns Grafana operations dashboards—never rebuild those as app UIs.

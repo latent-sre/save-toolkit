@@ -93,5 +93,4 @@ schema or the output is intentionally free-form.
 
 `../SKILL.md`'s handoff and production-gate rules apply unchanged: an agent prepares a change but
 never manufactures or infers approval. A lane or orchestration problem goes to
-[roster guidance](./roster.md). Ownership map only—not a load: the `agent-security` skill owns the
-independent threat review.
+[roster guidance](./roster.md).

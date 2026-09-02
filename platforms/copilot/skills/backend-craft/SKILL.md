@@ -33,7 +33,6 @@ This skill is general-purpose — any backend or API, not just ops tooling — h
 - Every list endpoint paginates from the start — cursor-based by default (offset is fine for small, bounded admin lists); retrofitting pagination is a breaking change.
 - Compatibility review starts from this rule: a breaking change to a shipped contract is a principal-altitude change:
   expand → migrate → contract, with the compatibility and rollback path explicit.
-  Ownership map only—not a load: the `eng-ladder` skill owns the altitude vocabulary.
 
 ### Resource modeling & HTTP semantics
 

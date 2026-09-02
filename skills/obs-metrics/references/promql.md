@@ -107,8 +107,7 @@ window, SLO target, and target no-traffic behavior]*
 ```
 
 Do not coerce a missing or zero denominator to a healthy value without an explicit, verified no-traffic
-policy. Ownership map only—not a load: the `obs-alerting` skill owns the later multi-window threshold
-design.
+policy.
 
 ## Histogram p95
 
