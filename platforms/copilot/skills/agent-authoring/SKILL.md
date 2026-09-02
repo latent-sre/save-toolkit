@@ -1,11 +1,12 @@
 ---
 name: agent-authoring
 description: >-
-  Create or repair LLM-facing prompts, agents, skills, tool descriptions, graders, bounded Loop
-  Engineering for evaluation/verification, and agent roster/delegation graphs. Triggers: 'write me
-  an agent/skill/prompt', 'my skill fires too often', 'the output is the wrong shape', 'Loop
-  Engineering'. Not for source-code dependency, knowledge, or GraphRAG graphs, implementing a graph
-  runtime, or an executable workflow/state-graph contract (workflow-graph-engineering).
+  Create, repair, or security-review LLM-facing prompts, agents, skills, tool descriptions,
+  graders, bounded Loop Engineering for evaluation/verification, and agent roster/delegation
+  graphs. Triggers: 'write me an agent/skill/prompt', 'my skill fires too often', 'the output is
+  the wrong shape', 'is this agent safe / prompt injection'. Not for source-code dependency,
+  knowledge, or GraphRAG graphs, implementing a graph runtime, or an executable
+  workflow/state-graph contract (workflow-graph-engineering).
 argument-hint: "[artifact, roster, tool, or context problem]"
 ---
 
@@ -112,6 +113,7 @@ authorizes a self-modifying loop.
 | "Agent or skill?", delegation, fan-out, orchestration | [roster guidance](./references/roster.md) |
 | Adding, removing, or checking a delegation edge | [the delegation graph](./references/delegation-graph.md) — one enforced source, validated host renders, and host-specific enforcement limits |
 | A tool contract, or promoting a shell prototype to a tool | [tool guidance](./references/tools.md) |
+| Prompt injection, least privilege, egress, unsafe delegation, or blast radius of an agent, skill, tool, or flow | [agent security](./references/agent-security.md) — the lethal trifecta, cross-agent trust, the five-question review |
 | A cold-start packet or bounded evidence | [context guidance](./references/context.md) |
 | Authoring or debugging any agent or skill frontmatter | [Claude Code frontmatter](./references/claude-code-frontmatter.md) — the single source of truth |
 | Relying on a frontmatter field to enforce anything, or publishing a skill beyond this plugin | [skill portability](./references/skill-portability.md) — the portable set can grant, never restrict |
@@ -140,7 +142,7 @@ authorizes a self-modifying loop.
 
 ## Handoffs
 
-- Independent evaluation or review finding → the typed `reviewer` agent, with the exact artifact,
+- Independent evaluation, review, or security finding → the typed `reviewer` agent, with the exact artifact,
   success criteria, evidence, source trust, and unresolved labels.
 - Approved implementation or generator change → the typed `software-engineer` agent, with the
   failing fixture and minimal required scope.

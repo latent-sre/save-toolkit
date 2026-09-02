@@ -32,6 +32,7 @@ import functools
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -195,8 +196,13 @@ def _inconclusive(reason: str) -> tuple[bool, str]:
     return False, f"{INCONCLUSIVE_PREFIX}{reason}"
 
 
+_QUOTE_MARKS = str.maketrans({c: '"' for c in "'‘’“”"})
+_MARKDOWN_EMPHASIS = str.maketrans("", "", "*_`")
+_ELISION_RE = re.compile(r"\s*(?:\.\.\.|…)\s*")
+
+
 def _normalized(text: str) -> str:
-    return " ".join(text.split())
+    return " ".join(text.translate(_QUOTE_MARKS).translate(_MARKDOWN_EMPHASIS).split())
 
 
 def _evidence_problem(evidence: object, response: str) -> str | None:
@@ -205,8 +211,11 @@ def _evidence_problem(evidence: object, response: str) -> str | None:
     The prompt requires every evidence item to be a quote copied from the response; a calibration
     run caught the judge inventing one. A model that quotes text the response does not contain has
     not read what it graded, and its verdict must not decide a scenario, so an ungrounded quote is
-    inconclusive rather than a verdict. Whitespace is normalized on both sides -- a re-wrapped quote
-    is still the response's own words -- and nothing else is: a paraphrase is a contract violation,
+    inconclusive rather than a verdict. Four things are normalized, each of which keeps the quote
+    the response's own words: whitespace (a re-wrapped quote), quote marks (a judge that copies
+    "text" as 'text' or with curly quotes), markdown emphasis (a judge that copies **bold** or
+    `code` as plain text), and an elision -- a quote that drops its middle with "..." is checked
+    fragment by fragment, in order, every fragment verbatim. A paraphrase is a contract violation,
     not a near miss.
     """
     if not isinstance(evidence, list):
@@ -215,8 +224,13 @@ def _evidence_problem(evidence: object, response: str) -> str | None:
     for item in evidence:
         if not isinstance(item, str) or not item.strip():
             return f"evidence item is not a non-empty string: {item!r}"
-        if _normalized(item) not in haystack:
-            return f"evidence quote is not verbatim in the response: {item[:120]!r}"
+        fragments = [f for f in (_normalized(p) for p in _ELISION_RE.split(item)) if f]
+        position = 0
+        for fragment in fragments:
+            found = haystack.find(fragment, position)
+            if found < 0:
+                return f"evidence quote is not verbatim in the response: {item[:120]!r}"
+            position = found + len(fragment)
     return None
 
 

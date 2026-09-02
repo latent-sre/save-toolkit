@@ -155,7 +155,7 @@ on 2026-09-01; after a cut, run `python scripts/check_links.py` (link containmen
 frontmatter) and the skill's eval scenarios.
 **Evidence:** [`7,800-byte screen evidence`](reviews/2026-08-30-skill-001-7800-screen.md)
 
-### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
+### ROUTE-003 — remeasure workflow-graph discovery reliability (the service-readiness scenario was retired 2026-09-02)
 
 **Status:** `decision-needed` (2026-08-31). Both the original and one approved replacement batch
 ended INCONCLUSIVE (provider `server_error`, then expired OAuth) without resolving a model.
@@ -227,7 +227,7 @@ partial evidence.
 **Outcome:** A behavioural incident scenario returns a verdict that reflects the response rather than
 its phrasing, so a red result is worth investigating instead of routinely being a missed synonym.
 **Next action:** Do not start a standalone campaign until the owner resolves the shared
-EVAL-004/EVAL-007 closure contract. Recommended: one structured or named-relation grader plus one
+EVAL-007 closure contract (EVAL-004 is superseded by EVAL-009). Recommended: one structured or named-relation grader plus one
 clean committed guidance-removal candidate for the counterfactual.
 **Evidence:** [`2026-09-01 decision-backlog reconciliation`](reviews/2026-09-01-decision-backlog-reconciliation.md)
 

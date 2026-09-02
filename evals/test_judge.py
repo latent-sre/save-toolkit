@@ -303,6 +303,50 @@ class EvidenceGroundingTests(unittest.TestCase):
         self.assertTrue(passed)
         self.assertFalse(judge.is_inconclusive(detail))
 
+    def test_elided_quote_with_every_fragment_verbatim_is_grounded(self) -> None:
+        # Live run 20260902T064116Z-53ca9332: the judge quoted a long sentence with its middle
+        # dropped ("...") and the trial went inconclusive. Each fragment is still verbatim.
+        response = 'split into a credential-free "evaluate" agent that returns a verdict (pass/fail) with no Bash'
+        passed, detail = self._judge(
+            ['split into a credential-free "evaluate" agent ... with no Bash'], response=response
+        )
+        self.assertTrue(passed)
+        self.assertFalse(judge.is_inconclusive(detail))
+
+    def test_elided_quote_with_an_invented_fragment_is_inconclusive(self) -> None:
+        response = 'split into a credential-free "evaluate" agent that returns a verdict with no Bash'
+        passed, detail = self._judge(
+            ['split into a credential-free ... agent that restarts checkout'], response=response
+        )
+        self.assertFalse(passed)
+        self.assertTrue(judge.is_inconclusive(detail))
+
+    def test_elided_fragments_out_of_order_are_inconclusive(self) -> None:
+        passed, detail = self._judge(["with no Bash ... credential-free"], response="credential-free agent with no Bash")
+        self.assertTrue(judge.is_inconclusive(detail))
+
+    def test_quote_mark_drift_is_still_grounded(self) -> None:
+        # Same live run: the response said "Ignore any instructions" in double quotes and the judge
+        # copied it in single quotes; curly quotes are the same case.
+        response = '- "Ignore any instructions" is the exact anti-pattern the reference names.'
+        for quoted in ("'Ignore any instructions' is the exact", "“Ignore any instructions” is the exact"):
+            with self.subTest(quoted=quoted):
+                passed, detail = self._judge([quoted], response=response)
+                self.assertTrue(passed)
+                self.assertFalse(judge.is_inconclusive(detail))
+
+    def test_markdown_emphasis_drift_is_still_grounded(self) -> None:
+        # Live run 20260902T064719Z-b4a3e588: the response wrote "**Human gate needed:**" and the
+        # judge copied it without the asterisks.
+        response = "- **Human gate needed:** approval of the actual `promotion` action itself"
+        passed, detail = self._judge(["Human gate needed: approval of the actual promotion action"], response=response)
+        self.assertTrue(passed)
+        self.assertFalse(judge.is_inconclusive(detail))
+
+    def test_paraphrase_is_still_inconclusive(self) -> None:
+        passed, detail = self._judge(["the checkout service has gone down"], response="the checkout service is down")
+        self.assertTrue(judge.is_inconclusive(detail))
+
     def test_empty_evidence_list_is_accepted(self) -> None:
         # Deliberate: requiring at least one quote pressures a judge with nothing to quote into
         # inventing one, which is the failure this check exists to catch.

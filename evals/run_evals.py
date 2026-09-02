@@ -119,6 +119,9 @@ REFERENCE_REQUIREMENTS = {
     "agent-direct-sre-records-unknown-recovery-progress": (
         "skills/investigation-depth/references/recovery-lifecycle.md",
     ),
+    "skill-direct-agent-authoring-security-review": (
+        "skills/agent-authoring/references/agent-security.md",
+    ),
 }
 
 
