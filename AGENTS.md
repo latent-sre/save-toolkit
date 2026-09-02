@@ -15,6 +15,7 @@ those facts by trusted-base handoff, labels gaps `[unverified]`, and never loads
 | Agents, tools, or delegation | [`agents/`](agents) and the [`delegation graph`](skills/agent-authoring/references/delegation-graph.md); omitted `tools:` inherits every tool |
 | Skills or ADR command | [`skills/`](skills) and [`commands/adr.md`](commands/adr.md); link bundled references from `SKILL.md` |
 | Runtime, tooling, or infrastructure | [`stack-profile`](skills/stack-profile/SKILL.md) |
+| A live incident, a firing alert, or "what should I check next" | [`incident-investigation`](skills/incident-investigation/SKILL.md) advises the human responder; the `sre` agent gathers one bounded read-only slice when asked |
 | Guard behavior or wiring | [`readonly-guard.py`](scripts/readonly-guard.py), [`readonly-guard-hook.sh`](scripts/readonly-guard-hook.sh), and [`hooks.json`](hooks/hooks.json); exit codes stay 42 allow / 43 deny / 44 indeterminate |
 | Repository changes, dependencies, or verification | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 | Docker verification | [`docs/docker-verification.md`](docs/docker-verification.md) |

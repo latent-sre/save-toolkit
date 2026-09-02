@@ -16,8 +16,10 @@ human approval, and the state-changing-command stop; this file grants no executi
   APP/PROC/WEB: Exited with status 137                     <- SIGKILL; cause unverified
   ```
 
-  Check `cf events <app>` (`app.crash` -> `exit_description`), recent logs, and memory versus quota
-  (`cf app`, or `/v3/apps/<guid>/processes/web/stats` -> `usage.mem` vs `mem_quota`). On foundations
+  Check the app's Events list in Apps Manager (or `cf events <app>`, `app.crash` ->
+  `exit_description`), recent logs, and memory versus quota (the Overview instance table, `cf app`,
+  or `/v3/apps/<guid>/processes/web/stats` -> `usage.mem` vs `mem_quota`). Those show the current
+  instant; PCF App Metrics or Wavefront shows whether memory climbed steadily or spiked. On foundations
   where Garden uses containerd, a real OOM can surface as bare 137, so absence of the suffix does not
   disprove OOM. *[sourced: cloudfoundry/executor `run_step.go`; garden-runc-release issue #112]*
 - The app must listen on the platform-assigned **`$PORT`**, or health checks fail and it crash-loops.

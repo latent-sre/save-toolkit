@@ -17,6 +17,10 @@ Every value is `[unverified]` until checked against the target tenant and teleme
 | errors | `<app.http.requests.errors>` | `app`, `env`, `status` |
 | memory | `<app.container.memory.usage>` / `<...limit>` | `app`, `instance` |
 
+PCF apps also expose container CPU, memory, disk, and request metrics through **PCF App Metrics** in
+Apps Manager: use it for a quick per-instance view, and Wavefront for history and alerting.
+[unverified — confirm the metric names your foundation exports]
+
 ## Source / tag conventions
 
 - App identifier tag: `<app=...>` · environment tag: `<env=prod|nonprod>`

@@ -25,12 +25,12 @@ The exact alert/symptom that brings you here: <alert name + condition, or observ
 Dashboard: <link>  ·  Source/repo: <link>
 
 ## Prerequisites
-- Access: <roles, foundation/space, VPN, tools>
-- Tools: <cf CLI v8, Splunk, Wavefront, …>
+- Access: <roles, Apps Manager org/space, VPN, tools>
+- Tools: <Apps Manager, Splunk, Wavefront or PCF App Metrics; cf CLI v8 only if installed>
 - Useful links: <dashboard, saved search, prior postmortem>
 
 ## Triage / first checks
-1. Confirm impact (golden signals): <where to look>
+1. Confirm impact (golden signals): <Apps Manager view, Splunk search, or Wavefront chart>
 2. Decision tree:
    - If <condition A> → go to Procedure step <n>.
    - If <condition B> → this isn't the right runbook; see <other runbook> / escalate.

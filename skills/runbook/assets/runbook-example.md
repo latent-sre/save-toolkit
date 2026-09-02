@@ -36,11 +36,12 @@ with fast-burn multiplier ≥ 14.4.
 Dashboard: `https://grafana.example.internal/d/checkout-slo`  ·  Source/repo: `git@example.internal:payments/checkout`
 
 ## Prerequisites
-- Access: `cf` CLI v8 authenticated to the `payments` org, `prod` space; Grafana viewer; Splunk
-  `payments_*` index.
-- Tools: `cf` CLI v8. Confirm before you start: `cf target` must print
-  `org: payments` / `space: prod`. If it prints anything else, run `cf target -o payments -s prod` —
-  every command below assumes that target and none of them name the space explicitly.
+- Access: Apps Manager for the `payments` org, `prod` space; Splunk `payments_*` index; Wavefront
+  or PCF App Metrics; Grafana viewer. `cf` CLI v8 only if you have it.
+- Tools: Apps Manager is the console this team uses. Confirm before you start that its breadcrumb
+  reads `payments` / `prod`. With the `cf` CLI the equivalent is `cf target` printing
+  `org: payments` / `space: prod`; if it prints anything else run `cf target -o payments -s prod` —
+  every `cf` command below assumes that target and none of them name the space explicitly.
 - Useful links: SLO definition `checkout-availability`, prior postmortem `2026-01-19-checkout-pool`.
 
 ## Triage / first checks
