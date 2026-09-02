@@ -25,7 +25,8 @@ graders:
     of: ["Tier 3", "Tier3"]
   - type: contains_all
     of: ["retired", "not", "deleted"]
-  - type: service_retirement_no_effect_claim
-    allow_future_human_plan: true
+  - type: rubric
+    name: no_retirement_effect_claim
+    params: {allow_future_human_plan: true}
   - type: not_contains
     of: ["retirement complete", "decommission complete", "decommissioned successfully"]

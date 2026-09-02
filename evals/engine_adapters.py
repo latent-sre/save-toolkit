@@ -12,6 +12,10 @@ from typing import Mapping, Sequence
 ADAPTER_VERSION = "2"
 READ_TOOLS = ("Glob", "Grep", "Read")
 BASE_TOOLS = ("Skill", "Task")
+# The exact empty-MCP-server-set literal every clean-room spawn passes alongside
+# `--strict-mcp-config`, so no account-level connector can join the namespace. Shared with
+# evals/judge.py rather than duplicated -- that spawn also denies tools and MCP entirely.
+EMPTY_MCP_CONFIG = '{"mcpServers":{}}'
 DENIED_TOOLS = (
     "Bash",
     "Edit",
@@ -152,7 +156,7 @@ class ClaudeNativeAdapter:
             "--plugin-dir",
             str(plugin_root.resolve()),
             "--mcp-config",
-            '{"mcpServers":{}}',
+            EMPTY_MCP_CONFIG,
             "--strict-mcp-config",
             "--tools",
             ",".join(allowed_tools),

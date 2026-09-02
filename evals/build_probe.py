@@ -1445,7 +1445,13 @@ def check_fleet_grader(ctx: Context, p: dict) -> tuple[bool, str]:
     name = p["name"]
     if name not in fleet_graders.REGISTRY:
         return False, f"unknown fleet grader {name!r}"
-    passed, detail = fleet_graders.run_grader({"type": name, **{k: v for k, v in p.items() if k not in ("check", "name", "text")}}, ctx.trace.result_text)
+    kwargs = {k: v for k, v in p.items() if k not in ("check", "name", "text")}
+    if name == "rubric":
+        # `rubric`'s own identity kwarg is also called `name`, which this config already spends on
+        # the registered grader TYPE ("rubric"). Spell the rubric identity `rubric_name` here and
+        # translate it to the `name` kwarg `graders.rubric()` expects.
+        kwargs["name"] = kwargs.pop("rubric_name")
+    passed, detail = fleet_graders.run_grader({"type": name, **kwargs}, ctx.trace.result_text)
     return bool(passed), str(detail)
 
 

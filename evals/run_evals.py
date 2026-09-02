@@ -57,6 +57,8 @@ EVAL_SNAPSHOT_ROOT_ENV = "FLEET_EVAL_SNAPSHOT_ROOT"
 EVAL_INPUT_PATHS = (
     "run_evals.py",
     "graders.py",
+    "judge.py",
+    "rubrics.yaml",
     "clean_room.py",
     "engine_adapters.py",
     "scenarios",
@@ -2064,6 +2066,11 @@ def main() -> int:
     parser.add_argument("--threshold", type=bounded_threshold, help="override scenario pass threshold")
     parser.add_argument("--timeout", type=positive_timeout, help="seconds per trial (default: 300)")
     parser.add_argument("--model", help="Claude model alias or full ID; actual model is recorded from trace")
+    parser.add_argument(
+        "--judge-model",
+        default="sonnet",
+        help="model for `rubric` graders' live judge (sets EVAL_JUDGE_MODEL; default: sonnet)",
+    )
     parser.add_argument("--results-dir", type=Path, default=ROOT / ".eval-runs")
     parser.add_argument("--require-clean-plugin", action="store_true", help="refuse if plugin inputs differ from HEAD")
     parser.add_argument(
@@ -2077,6 +2084,7 @@ def main() -> int:
         help="full candidate Git object ID required at --plugin-root before model execution",
     )
     args = parser.parse_args()
+    os.environ["EVAL_JUDGE_MODEL"] = args.judge_model
 
     if args.plugin_root is not None and args.plugin_root.resolve() != ROOT:
         print("run_evals: frozen child plugin root does not match --plugin-root", file=sys.stderr)
@@ -2171,6 +2179,11 @@ def main() -> int:
                 print("run_evals: plugin inputs differ from HEAD; refusing publishable baseline", file=sys.stderr)
                 return 2
             run_dir = results_root / provenance["run_id"]
+            # `rubric` graders spend a live judge call per trial; the cache lives under this run's
+            # own artifacts so a re-grade of the same run costs nothing (see evals/judge.py).
+            os.environ["EVAL_JUDGE_CACHE"] = str(run_dir / "judge-cache")
+            provenance["rubrics_sha256"] = _sha256_file(EVAL_ROOT / "rubrics.yaml")
+            provenance["judge_model"] = args.judge_model
             writer = ArtifactWriter(run_dir, provenance)
             scenario_results: list[dict] = []
             print(

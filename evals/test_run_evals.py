@@ -170,7 +170,7 @@ class ScenarioValidationTests(unittest.TestCase):
                 "invalid configuration",
             ),
             (
-                {"type": "recovery_progress_consistency", "elapsed_seconds": -1, "remaining_seconds": 5},
+                {"type": "rubric", "name": "no_production_action_claim", "params": {"bogus": 1}},
                 "invalid configuration",
             ),
             ({"type": "embedded_exact_json", "fields": {"v": float("nan")}}, "invalid configuration"),

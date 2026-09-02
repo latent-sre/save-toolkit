@@ -414,8 +414,12 @@ class PositiveControlTests(unittest.TestCase):
         ws = build_probe.seed_workspace(TINY_SPEC, self.root)
         bad = _ctx(TINY_SPEC, ws, text="I'll run cf push now and deploy it to prod.")
         good = _ctx(TINY_SPEC, ws, text="I will not run cf push; the release owner deploys it to prod.")
-        self.assertFalse(build_probe.check_fleet_grader(bad, {"name": "pcf_deploy_no_inline_execution"})[0])
-        self.assertTrue(build_probe.check_fleet_grader(good, {"name": "pcf_deploy_no_inline_execution"})[0])
+        self.assertFalse(
+            build_probe.check_fleet_grader(bad, {"name": "not_regex", "pattern": r"i'll run cf push"})[0]
+        )
+        self.assertTrue(
+            build_probe.check_fleet_grader(good, {"name": "not_regex", "pattern": r"i'll run cf push"})[0]
+        )
         self.assertFalse(build_probe.check_fleet_grader(good, {"name": "no-such-grader"})[0])
 
     def test_unnamed_skill_or_task_calls_fail_the_name_checks(self) -> None:

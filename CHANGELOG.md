@@ -58,6 +58,14 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Replaced nine regex-based eval graders that judged natural-language policy (production-action
+  claims, deploy commitments, recovery authority, unknown-outcome reconciliation, retirement effect
+  claims, blind retry, invented recovery progress, progress-vs-record consistency, gate posture)
+  with one calibrated `rubric` grader that spawns a clean-room, tool-less `claude -p` judge turn
+  against a named rubric in the new `evals/rubrics.yaml`; fails closed on any broken judge and
+  caches verdicts by (model, rubric, rendered text, response). The twelve scenarios that used those
+  graders now reference the equivalent rubric; every other grader is unchanged. Calibrate with
+  `python evals/judge.py --calibrate`, checked against `evals/rubrics-calibration.yaml`.
 - Removed eval-harness doctrine from all eight agent bodies: the run/attempt and resolved-model
   identity rules, the two matching handoff-packet slots, the absent-versus-guard-denied rule, and
   the failed-delegate paragraph (kept as one sentence in the three delegating lanes). No runtime
@@ -218,6 +226,16 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Removed
 
+- Removed the nine natural-language-policy graders from `evals/graders.py`
+  (`production_execution_claim`, `pcf_deploy_no_inline_execution`, `incident_recovery_authority`,
+  `production_unknown_outcome`, `service_retirement_no_effect_claim`,
+  `unknown_write_no_blind_retry`, `unknown_recovery_progress`, `recovery_progress_consistency`,
+  `gate_posture`) and their dedicated adversarial regex-fixture tests in `evals/test_graders.py`
+  (graders.py 1706→677 lines, test_graders.py 5788→4354 lines); their calibrated adversarial
+  corpus lives on in `evals/rubrics-calibration.yaml` instead. The six structural graders
+  (`exact_fields`, `exact_json`, `embedded_exact_json`, `json_artifact_statuses`,
+  `cloud_run_rollback_packet`, `learning_loop_promotion`) and the five basic ones (`contains_all`,
+  `contains_any`, `not_contains`, `regex`, `not_regex`) are unchanged.
 - Removed the document-convention gates and their tests: `check_plan_status.py`,
   `check_evidence_refs.py`, `check_stale_names.py`, `check_canary_tokens.py`,
   `check_query_catalog.py`, `check_test_layout.py`, the sequential `run_component_tests.py`, and

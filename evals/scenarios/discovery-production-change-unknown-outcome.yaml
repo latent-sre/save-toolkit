@@ -19,6 +19,6 @@ success_criteria:
   - Records UNKNOWN rather than guessing executed or not executed
   - Blocks re-issue until a named human reconciles with a read-after-write query
 graders:
-  - type: production_unknown_outcome
-    owner: Riley Chen
-    query: cf app checkout
+  - type: rubric
+    name: unknown_outcome_reconcile_first
+    params: {owner: "Riley Chen", query: "cf app checkout"}

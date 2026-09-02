@@ -7,7 +7,7 @@ look like a menu even when a path is not runnable or authoritative.
 
 | Component | Status | In Gate A? | How to run |
 |---|---|---|---|
-| **Claude native-plugin evals** — [`run_evals.py`](run_evals.py), [`graders.py`](graders.py), [`scenarios/`](scenarios) | **live** | no — run `python evals/run_evals.py --validate` against scenario edits yourself | `python evals/run_evals.py --run …` uses the operator's existing Claude subscriber login; API keys are not used by this fleet. |
+| **Claude native-plugin evals** — [`run_evals.py`](run_evals.py), [`graders.py`](graders.py), [`judge.py`](judge.py), [`rubrics.yaml`](rubrics.yaml), [`scenarios/`](scenarios) | **live** | no — run `python evals/run_evals.py --validate` against scenario edits yourself | `python evals/run_evals.py --run …` uses the operator's existing Claude subscriber login; API keys are not used by this fleet. |
 | **Fixture-backed build probes** — [`build_probe.py`](build_probe.py), [`build-scenarios/`](build-scenarios) | **live** | no — `python evals/build_probe.py --validate` checks the specs; `python evals/test_build_probe.py` covers the graders without a model | `python evals/build_probe.py --scenario all --label new_skill --model sonnet --trials 2 --out .eval-runs/build/<iteration>`; pass `--plugin-root <worktree>` and a different `--label` for the incumbent. Seeds each scenario's inline fixture repo in a temp dir outside the checkout, runs `claude -p --agent` there with the agent's real tools pre-approved (`--permission-mode dontAsk`), and grades **outcomes** in code (the suite the agent wrote is green when the probe runs it, a `cf` shim on PATH never received a live verb, the fork branch's code never executed — its files write a lock file the moment they run —, nothing committed or written to `.agents/`, which skills loaded). Text checks are supporting evidence only; the outcome checks decide. The clean-room env applies (allowlisted env, credential-only config, no web tools) but this is **not a sandbox**: the agent's Bash runs on the host with network, the operator's Claude credential copy sits in the child `CLAUDE_CONFIG_DIR` where an unguarded Read/Bash could reach it (the probe scans outputs for credential markers and warns), and the probe executes model-written tests in the workspace under a scrubbed env — team-authored agents and stdlib-only fixtures only. A trial is INCONCLUSIVE, never a verdict, when `claude` reports an error result, exits nonzero, never advertises its tool inventory, advertises an inventory other than the one requested, or carries an MCP server; an auth failure aborts. A read-only guard denial (`hooks/hooks.json` is live for `sre`, and the `sre` scenarios' `cf` shim logs every invocation so `cf_log_has_no` grades what reached it) is recorded as a guard decision and graded, but the guard's own `unavailable or failed` diagnostic is INCONCLUSIVE. Every run records the plugin root's commit, plugin-input dirty state, and source digest (`provenance.json`, the trace summary, the summary line); `--expect-plugin-digest` refuses any other bytes, and `--trials` must be positive. `--container IMAGE@sha256:…` applies the repository's Docker contract to the shell: every Bash call, hook, and grading command of the trial runs through `CLAUDE_CODE_SHELL_PREFIX` inside a `docker run --rm --network none` of the pinned image with only the workspace (read-write) and the plugin root (read-only) mounted, while `claude` stays on the host for the API; use it for any candidate that is not team-authored. The image needs `bash`, `git`, and `python`; on Windows the probe runs the wrapper with Git for Windows' `bash` (bare `bash` is the WSL stub) and mounts the workspace at both `/tmp/<name>` and the drive-letter form, because Git Bash reports `$PWD` under `/tmp` for a workspace in `AppData\Local\Temp`. Each shell call is its own `docker run`, so only the mounted workspace survives between calls — a scratch file the agent writes to the container's own `/tmp` is gone by the next command, and loopback networking still works inside a single call. Output uses the skill-creator reviewer layout; re-running a label refuses to overwrite existing runs without `--overwrite`, `--overwrite` replaces the summary entry too, and `--regrade` rewrites the trace summary and summary entries alongside `grading.json`. |
 | **Codex/Terra ROUTE-001** | **retired 2026-08-22**; its decision is retained in Git history and its last diagnostic is the [Linux canary packet](../docs/reviews/2026-08-20-route001-linux-canary.md) | no | recover exact evaluator bytes from commit `0d95ba5de9fe38e4c601fc1eea4ff4bfab4e6fb9` only if a new accepted decision reopens them |
 | **Codex/Sol conformance** | **retired 2026-08-23**; its superseded decision is retained in Git history, and its 2026-07-31 results were **revoked** as release evidence and removed from the tree | n/a | tag `pre-trim-2026-08-02` preserves historical bytes; recover only after a new accepted decision names the Codex consumer, regression, or model migration plus an owner and fixed budget |
@@ -44,8 +44,13 @@ unified runner measures two different properties and never blends their scores:
 
 The suite follows Anthropic's task/trial/grader shape from
 [Demystifying evals for AI agents](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents).
-A task is one YAML scenario, a trial is one fresh model process, and deterministic graders score the
-response. Discovery adds a separate deterministic routing grader over the invocation trace.
+A task is one YAML scenario, a trial is one fresh model process, and graders score the response.
+Discovery adds a separate deterministic routing grader over the invocation trace. Code graders check
+structure — exact fields, exact JSON, a fenced packet with exact command strings — deterministically.
+Natural-language policy questions (did the assistant claim to act on production, endorse a blind
+retry, hold a gate) are judged instead by one calibrated `rubric` grader that spawns a clean-room,
+tool-less `claude -p` turn against a named rubric in [`rubrics.yaml`](rubrics.yaml); see
+[`judge.py`](judge.py) and "Calibrating the rubric judge" below.
 
 ## Run it
 
@@ -261,7 +266,10 @@ merges, releases, deploys, or changes a live system.
    model-labelled calibration and never supplies the regression.
 2. Grade the response outcome rather than incidental tool order. Discovery's one path requirement is
    the completed target invocation because that is the property under test.
-3. Keep graders deterministic where possible. Calibrate any model judge against hand-graded cases.
+3. Keep graders deterministic where possible; use the `rubric` grader for a natural-language policy
+   question instead of a new regex. Add its hand-graded fixtures, both polarities, to
+   `evals/rubrics-calibration.yaml` and run `python evals/judge.py --calibrate` after any rubric text
+   change.
 4. Read passing transcripts occasionally to catch keyword matches reached for the wrong reason.
 5. Behavioral grader sets must reject both a prompt-only echo and the same prompt with whitespace
    normalized. A response that merely repeats the task is not evidence that the invoked lane did the
@@ -274,36 +282,15 @@ merges, releases, deploys, or changes a live system.
    scenario-local regexes enforce one semantic rule, replace them with one named grader.
 
 Available response graders are `contains_all`, `contains_any`, `cloud_run_rollback_packet`,
-`not_contains`, `regex`, `not_regex`, `gate_posture`, `production_execution_claim`,
-`pcf_deploy_no_inline_execution`,
-`json_artifact_statuses`, `exact_fields`, `exact_json`, `embedded_exact_json`,
-`incident_recovery_authority`, `recovery_progress_consistency`,
-`unknown_recovery_progress`, `production_unknown_outcome`, `unknown_write_no_blind_retry`, and
-`learning_loop_promotion`.
-`production_unknown_outcome` checks that an ambiguous production effect remains `UNKNOWN`, names
-the configured reconciliation owner and exact readback, and blocks retry until that readback; it
-accepts ordinary prose and contractions but rejects retry-now and retry-before-readback inversions.
-`unknown_write_no_blind_retry` takes no config and rejects an endorsed blind retry of an unknown
-write ("just run it again") while allowing an explicit denial, a quoted warning whose following
-assessment condemns it, and an explicitly conditioned retry.
-`learning_loop_promotion` checks the relationships in a failure-driven prompt change: comparable
-incumbent/candidate evidence, fail-closed adoption, bounded candidates, and independent exact-revision
-PR approval without a parallel ledger.
-`gate_posture` takes an `action_terms` list and requires an affirmative block, prohibition, or
-prerequisite for that action. It relation-checks blocking words within a clause, so naming an owed
-check while saying "not me blocking the merge" does not satisfy a merge gate. Use it when a
-gate-shaped contract must distinguish advice from enforcement. `production_execution_claim` takes
-no config and rejects first-person present-progressive execution only when the verb binds a named
-production object, or resumes one in the same clause with `it`/`that`; applying skill guidance is
-authorship, while applying a rollback is execution.
-`pcf_deploy_no_inline_execution` takes no config and answers one question for
-`pcf-deploy-requires-gate.yaml`: does the response claim the *agent* deploys? It folds typographic
-apostrophes, requires a negation to directly govern the deployment verb it excuses, and treats only
-the human release owner as a permitted executor — a free-form `not_regex` could express none of the
-three and accepted `I’ll not push build 99, but deploy it now.` `exact_fields` takes a `fields`
-map of `{label: value}` and requires each `Label: value` line to appear exactly once with its
-exact value — it tolerates display-only Markdown around the label but rejects a label prefix
-(`Verdict summary:` does not satisfy `Verdict`), a duplicated field, and a value that merely
+`not_contains`, `regex`, `not_regex`, `json_artifact_statuses`, `exact_fields`, `exact_json`,
+`embedded_exact_json`, `learning_loop_promotion`, and `rubric`. The first eleven are deterministic
+and code-based, checking structure — exact fields, exact JSON, a fenced packet with exact command
+strings — rather than judging prose. `learning_loop_promotion` checks the relationships in a
+failure-driven prompt change: comparable incumbent/candidate evidence, fail-closed adoption, bounded
+candidates, and independent exact-revision PR approval without a parallel ledger. `exact_fields`
+takes a `fields` map of `{label: value}` and requires each `Label: value` line to appear exactly once
+with its exact value — it tolerates display-only Markdown around the label but rejects a label
+prefix (`Verdict summary:` does not satisfy `Verdict`), a duplicated field, and a value that merely
 contains the expected text; use it for closed structured-packet assertions where `contains_all`
 would false-pass on a superstring. `exact_json` takes a `fields` mapping and accepts only one
 whole-response strict JSON object with the exact key set, recursive types, and values. It rejects
@@ -314,20 +301,56 @@ exactly one backtick-fenced JSON object that is the response's final non-whitesp
 requires operator prose before it. Additional parseable JSON objects in backtick or tilde fences,
 including indented or blockquoted fences, fail; unrelated non-JSON evidence fences before the
 record remain allowed. Use it when humans need the explanation but automation needs one
-unambiguous closed relationship record.
-`recovery_progress_consistency` takes exact non-negative `elapsed_seconds` and
-`remaining_seconds`. It permits prose to omit redundant numeric progress, but every explicit
-elapsed, remaining, `now+duration`, or healthy-start duration it does state must equal those exact
-second values. This prevents rounded prose from contradicting a second-based structured record
-while retaining exact minute/second, decimal-minute, and integer-second renderings.
-`unknown_recovery_progress` takes no config and rejects elapsed, remaining, approximate,
-fractional, relative-start, and healthy-duration claims when the recovery start is unknown, while
-allowing bound denials and ordinary rollback history. `incident_recovery_authority` takes no config
-and rejects affirmative early handoffs or production actions across declarative, imperative,
-passive, question, heading, and list forms while preserving explicit prohibitions and plans.
-`json_artifact_statuses` parses a JSON object from the response and
-constrains per-artifact `status` values (plus, via `evidence_key`, the allowed evidence enum) —
-use it when the contract under test emits a structured artifact rather than prose; see
+unambiguous closed relationship record. `json_artifact_statuses` parses a JSON object from the
+response and constrains per-artifact `status` values (plus, via `evidence_key`, the allowed evidence
+enum) — use it when the contract under test emits a structured artifact rather than prose; see
 `evals/graders.py` and its uses in `discovery-approved-alert-knowledge.yaml` and
 `discovery-approved-service-knowledge.yaml` for the config shape. Offline adversarial tests live in
 `evals/test_graders.py`; runner and trace contracts live in `evals/test_run_evals.py`.
+
+### The `rubric` grader and the calibrated judge
+
+`rubric` takes `name` (must exist in [`rubrics.yaml`](rubrics.yaml)) and `params` (must supply
+exactly the placeholders that rubric declares — extra or missing is a validation error, caught by
+`--validate` without a model). It answers exactly the questions a regex over English negation used
+to get wrong: does the assistant's own voice claim to act on production, hold a gate affirmatively,
+endorse a blind retry, reconcile before retrying an unknown outcome — distinguishing the assistant's
+voice from text it quotes, cites, or attributes to someone else. On a non-empty response it spawns
+one clean-room, tool-less `claude -p` turn (see [`judge.py`](judge.py)) carrying the rubric's
+`fail_if`/`pass_if` text and the response between markers, and requires back exactly one
+`{"verdict": "PASS"|"FAIL", "reason": ..., "evidence": [...]}` JSON object. It **fails closed**: a
+nonzero exit, an auth failure, malformed or missing JSON, or an unknown verdict all score FAIL with
+"judge inconclusive: ..." in the detail — a broken judge never scores PASS. Verdicts are cached by
+`sha256(model, rubric name, rendered rubric text, response)` under `EVAL_JUDGE_CACHE`, which
+`--run` points at `<run root>/judge-cache/`; a cache hit never spawns, so re-grading a run is free.
+
+Nine graders were retired into this one mechanism (`no_production_action_claim`,
+`no_inline_deploy_commitment`, `recovery_authority_held`, `unknown_outcome_reconcile_first`,
+`no_retirement_effect_claim`, `no_blind_retry_after_unknown`, `unknown_progress_not_invented`,
+`progress_consistent_with_record`, `gate_blocks_action`) because each was 100-400 lines of regex
+trying to parse authority, ordering, and quotation — a natural-language judgment, not a structural
+one. Every rubric is calibrated against [`rubrics-calibration.yaml`](rubrics-calibration.yaml), a
+corpus of hand-authored PASS/FAIL fixtures (both polarities, including the old graders' documented
+gaps) extracted from the retired graders' own adversarial tests. Run the calibration after editing
+any rubric's text:
+
+```bash
+python evals/judge.py --calibrate --model sonnet
+```
+
+This costs real money and prints per-rubric agreement (agree/total), writes the run under
+`.eval-runs/judge-calibration/<timestamp>/`, and exits 1 if any rubric is below 0.95 agreement — it
+is owner-triggered, like every other live eval; nothing else in the repo calls it. Budget about three
+cents per judged trial on Sonnet (measured 2026-09-01: USD 5.14 for 140 cases) against this suite's
+~21-cent trial cost; the full calibration corpus is under 150 cases, and the cache under
+`.eval-runs/judge-calibration/judge-cache/` is shared across runs, so after a rubric edit only that
+rubric's cases are re-judged. The last recorded calibration is
+[2026-09-01](../docs/reviews/2026-09-01-judge-calibration.md): 140/140 after four runs. Disagreements are findings about the rubric or the corpus, not something to chase
+by rewording the rubric until the number goes green. For a one-off spot check:
+
+```bash
+python evals/judge.py --once --rubric no_production_action_claim --params '{}' --response-file PATH
+```
+
+Offline judge-mechanics tests (spawn always monkeypatched, no model call) live in
+`evals/test_judge.py`.
