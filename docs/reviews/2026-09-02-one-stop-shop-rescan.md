@@ -4,7 +4,12 @@ Date: 2026-09-02. Scanned revision: `a5db765d` (branch `work/fleet-weight-round5
 
 ## Status of this document
 
-**Every finding below is UNVERIFIED.** The review ran as a workflow of twelve reading agents,
+This document holds two passes. The first pass, below, is unverified. The second pass, at the
+end, was self-verified by the reader that raised each finding and carries its searches. Read the
+second pass's own status paragraph before trusting it: a reader checking its own work shares its
+own blind spots.
+
+**Every finding in the FIRST PASS is UNVERIFIED.** The review ran as a workflow of twelve reading agents,
 each of which was to be followed by two independent refuters per finding: one checking the
 evidence, one checking that a real person on the team benefits. The twelve readers finished. The
 verification and synthesis stages hit the account session limit and never ran, so 12 of 174
@@ -827,4 +832,261 @@ Severity and effort are the reader's own estimates.
    synthesized plan. That is the cheap path, because the reads are cached.
 2. Until then, verify by hand only the recurring themes above. A theme two independent readers
    reached is more likely to hold than a single reader's finding.
-3. Nothing here has been applied to the repository. PR #215 is unrelated to this scan.
+3. Nothing here has been applied to the repository.
+4. The second pass at the end of this document supersedes step 2 for the areas it covers: its
+   fifteen findings are already checked and none repeat the first pass.
+
+## Second pass: five readers, self-verified
+
+Run on the same revision later the same day, after the first pass was committed. Five Sonnet agents
+read one area each. Each was given the first pass's findings for its area and told to report only
+what that pass missed, so nothing here repeats the 87 above. Each was also told to verify its own
+candidates before reporting: open the file and confirm the quote sits at that line, grep the tree to
+confirm no other file already covers it, and name the person and the moment who benefits.
+
+**How much to trust this.** Every finding below was checked by the agent that raised it, and each
+carries the search that supports it, including a control search proving the detector fires. That is
+stronger than the first pass, where no verification ran at all. It is weaker than an independent
+refuter, because a reader checking its own work shares its own blind spots. Two findings carry
+explicit caveats from their own authors, noted in place.
+
+The recurring shape of this pass is different from the first. Where the first pass found the fleet
+speaking about the wrong tools, this pass found **dangling pointers**: places where one file points
+somewhere and the destination does not exist, and seams where a person's question falls between two
+owners. Thirteen of the fifteen are a single sentence or a single table row.
+
+### Incident path
+
+#### 2-1. The mitigation table's downstream-dependency row points at a document that does not exist
+
+- **Evidence:** `skills/incident-command/references/mitigation-selection.md:29` reads
+  "| Downstream dependency is failing | Fail over, degrade gracefully, or shed load | Follow the
+  dependency's approved operating evidence |". Searching the tree for "approved operating evidence"
+  returns only that line. Every other row in the same table (bad deploy, saturation, bad config,
+  hung instance, feature flag) names a concrete command.
+- **Change:** Replace the third cell with an honest instruction: disable or bypass the failing
+  integration point if a flag or config exists, otherwise degrade the dependent feature and shed
+  load at the caller; state plainly that there is no per-dependency failover runbook today, and
+  capture which dependency, its owner, and what was tried for the postmortem.
+- **Helps:** The commander facing a third-party or upstream outage, the most common incident that is
+  not your own code, at the moment they reach for the table.
+- **Size:** small
+
+#### 2-2. The advisor's routing table sends the human to a skill written for the agent
+
+- **Evidence:** `skills/incident-investigation/SKILL.md:166` routes "a deeper causal method once the
+  symptom is confirmed" to `root-cause`. But `skills/root-cause/SKILL.md:6-8` states that "for a
+  production incident with an unknown cause, the `sre` agent owns the investigation; this skill is
+  the method it (and software-engineer) load", and `agents/sre.md:80` confirms the agent loads it.
+  The body is shaped for debugging code, with bisect, log-p, and a continuous-integration clock
+  example. Every other row of that routing table routes to an agent, not a bare skill.
+- **Change:** In that one cell, route to the `sre` agent, which loads `root-cause`.
+- **Helps:** The responder who follows the table's next-step pointer mid-incident and would otherwise
+  land in a document written for a failing unit test.
+- **Size:** small
+
+#### 2-3. The sustained-recovery report ends with a machine schema nothing reads
+
+- **Evidence:** `skills/investigation-depth/references/recovery-lifecycle.md:28-34` requires the
+  operator report's "final non-whitespace content" to be exactly one fenced JSON object under schema
+  `incident-state/v2`, with about thirty further lines of key and type shape. Searching the tree for
+  the schema's own field names finds no consumer: not the scribe, not the observability engineer,
+  not any script. The only other occurrences are three eval scenarios that grade the block's
+  presence.
+- **Change:** Drop the mandatory JSON fence from the human-facing report and keep the recovery facts
+  as prose in the fields the human already reads.
+- **Caveat from the author of the finding:** this is a coupled cut, not a clean deletion. The three
+  `agent-direct-sre-*` eval scenarios grade the block and must change in the same commit. Owner
+  decision.
+- **Helps:** Whoever reads a sustained-response recovery update, who currently gets prose followed by
+  an unreadable schema block that exists for the test harness.
+- **Size:** medium
+
+### Platform
+
+#### 2-4. A PCF app calling a Cloud Run service has no documented auth or network path
+
+- **Evidence:** `skills/gcp-ops/references/cf-to-cloud-run.md:27` covers only the outbound direction,
+  Cloud Run reaching on-premises databases. `skills/gcp-ops/SKILL.md:112` mentions identity tokens
+  only to say the guard denies them to agents. Searching the skill for the invoker role or identity
+  tokens returns nothing else, while control searches in the same files return their expected hits.
+- **Change:** Add one row to the map table in `cf-to-cloud-run.md` giving both paths: the public path
+  through Akamai to the service endpoint, and the private path deploying without unauthenticated
+  access, granting the caller the invoker role, and attaching a human-fetched identity token as a
+  bearer header. Label it unverified until the platform owner confirms the cross-platform identity
+  story, since PCF has no native GCP service identity.
+- **Helps:** The engineer migrating one service at a time, for the whole span of the migration, whose
+  still-on-PCF app must call the service that already moved.
+- **Size:** small
+
+#### 2-5. "It works in staging but not in production" has no triage angle
+
+- **Evidence:** `skills/pcf-ops/references/foundations.md:17-21` carries only a static org and space
+  inventory. `skills/pcf-deploy/SKILL.md:45` mentions bindings only as something a rollback does not
+  restore. Searching both skills for any phrasing of cross-environment difference returns nothing,
+  while a control search for the org and space terms in the same files returns three hits.
+- **Change:** Add one bullet to the app-side versus platform-side section of `pcf-ops/SKILL.md`: when
+  the same app behaves differently in another space, compare the service bindings and the
+  environment between spaces before suspecting code, and record the difference rather than the
+  symptom.
+- **Helps:** The on-call SRE handed that exact sentence, who currently starts from a blank page.
+- **Size:** small
+
+#### 2-6. Cloud Run quota has a contact for increases but no headroom check
+
+- **Evidence:** `skills/gcp-ops/SKILL.md` contains the word quota zero times.
+  `skills/gcp-ops/references/projects.md:24` carries only a contact row for billing and quota
+  increases, which is how to ask for more, not how to see whether more is needed.
+- **Change:** Add one sentence near the scaling guidance: before raising maximum instances or
+  concurrency, or bulk-migrating services into a region, check headroom in the console's quota page
+  or through the quota list command, and note that the contact row is for requesting an increase.
+  Mark the command unverified until someone confirms it is on the guard's allowlist.
+- **Helps:** The release owner asked to scale under load, who would otherwise discover the ceiling
+  when the change is rejected.
+- **Size:** small
+
+### Observability
+
+#### 2-7. Nothing routes a symptom to a signal type
+
+- **Evidence:** `skills/obs-traces/SKILL.md:14-15` carries the only comparison of the three signal
+  types in all six observability skills, as a single sentence. Searching the logs and metrics skills
+  for trace returns one incidental hit about following an identifier, not about choosing traces.
+- **Change:** Add a five-row table at the top of `obs-logs/SKILL.md` mapping symptom to starting
+  signal: one slow or erratic request to traces; a population-wide error or rate change to metrics;
+  the exact failure text to logs; an app down or restarting to logs plus PCF operations; intermittent
+  to traces then logs by identifier. Replace the sentence in the traces skill with a pointer to it.
+- **Helps:** Anyone new to the fleet who types a plain symptom and must currently guess which of six
+  skills answers it.
+- **Size:** small
+
+#### 2-8. Wavefront has no week-over-week comparison, though Splunk does
+
+- **Evidence:** `skills/obs-logs/references/spl.md:145-157` gives a full seasonal comparison with a
+  working query for whether this hour is worse than the same hour last week. The Wavefront reference
+  has no such section; searching it for any time-shift phrasing returns nothing, while a control
+  search for percentile in the same file returns ten hits.
+- **Change:** Add a matching seasonal comparison section to the Wavefront reference with one
+  paste-ready query comparing the current window to the same window some days earlier.
+- **Caveat from the author of the finding:** the exact Wavefront function must be checked against
+  vendor documentation before publishing, and the section should carry an unverified label until
+  then.
+- **Helps:** The on-call SRE deciding whether a chart is abnormal or simply what that service looks
+  like at that hour, in the tool the team actually uses for metrics.
+- **Size:** small
+
+#### 2-9. An "actionable summary" is required four times and never defined
+
+- **Evidence:** `skills/obs-alerting/SKILL.md:82` forbids creating an alert without "an owner, tested
+  notification route, actionable summary, and runbook". The phrase recurs in the burn-rate and
+  Moogsoft references, always as a requirement. Searching the alerting bundle finds those four lines
+  and nothing else. The Grafana reference describes where a summary lives and how templating works,
+  never what it must say.
+- **Change:** Add one bullet to the verification list: an actionable summary names the service or
+  journey, the measured value against the threshold that fired, and the runbook link, so the
+  responder knows what broke and for whom before opening anything.
+- **Helps:** Whoever is paged at 3am and currently may see only a rule name.
+- **Size:** small
+
+#### 2-10. A blank dashboard panel has a rule for its author and no triage for its reader
+
+- **Evidence:** `skills/obs-dashboards/SKILL.md:76` says a blank panel must not look healthy, which
+  is a design rule for whoever builds the dashboard. The skill's triggers cover building and editing
+  only. Searching the bundle for no-data phrasing finds two authoring-side hits. The metrics and logs
+  references each carry a one-line caveat about empty results for someone writing an ad hoc query,
+  but nothing walks a viewer through which cause applies.
+- **Change:** Add a short triage subsection in order: check whether the data source and template
+  variables resolved for this panel; run the panel's exact query directly against the backend; if the
+  direct query is also empty the problem is signal-side, not dashboard-side; if it returns data the
+  problem is the panel, its variables, or its time range. Add a no-data phrasing to the trigger list.
+- **Helps:** The SRE who opens a service dashboard mid-incident and must know within seconds whether
+  a blank panel means nothing is wrong, the query broke, or the data never arrived.
+- **Size:** small
+
+### Knowledge and change
+
+#### 2-11. Review dates are written and never read, so a quiet service's runbook rots
+
+- **Evidence:** `skills/runbook/references/living-runbooks.md:9-13` fires only when an incident or
+  drill touches the runbook. `skills/operational-learning/assets/service-card-template.md:65` defines
+  a "Due / review date" column that nothing reads. `skills/service-lifecycle/SKILL.md:26` runs the
+  audit only on a readiness question, never on elapsed time, although line 62 already defines
+  evidence freshness as a finding class. A tree-wide search for staleness returns thirty hits, none of
+  them a document-age cadence.
+- **Change:** Extend the audit's "runs when" cell by one clause: also when a service card's or a
+  linked runbook's last review is older than ninety days.
+- **Helps:** The owner of a quiet service that is never paged, whose runbook currently rots in silence
+  until an incident finds the first wrong step.
+- **Size:** small
+
+#### 2-12. The runbook spots its own automation candidate and hands it to nobody
+
+- **Evidence:** `skills/runbook/SKILL.md:120-122` recommends automating a fully mechanical step along
+  a crawl, walk, run path, and `living-runbooks.md:30-32` turns three incidents with the same manual
+  fix into an automation candidate recorded in a follow-up column. Neither says who builds it.
+  Searching the operations-tooling skill for runbook returns nothing; searching the runbook skill for
+  the builder roles returns five hits, all about document conversion or code remediation.
+- **Change:** Extend that line: hand the candidate to `software-engineer` for a scoped script, or to
+  `ops-tooling` when it needs a new tool, several components, or a gate.
+- **Helps:** The on-call engineer running the same manual fix for the third time, who currently gets a
+  note in a history table that leads nowhere.
+- **Size:** small
+
+### Entry surface and remaining agents
+
+#### 2-13. The builder's own skill checklist omits database reliability, which its references defer to
+
+- **Evidence:** `agents/software-engineer.md:261-270` lists ten skills to load on demand and does not
+  include `database-reliability`. Yet `skills/backend-craft/references/fastapi.md:24` and
+  `spring-boot.md:50` both say live migration mechanics, lock-light schema changes, and restores
+  "belong to the `save-toolkit:database-reliability` skill, not this file". Searching the agent for
+  that skill name returns nothing; the same search against the two references hits both.
+- **Change:** Add one line to that list: load it before designing or applying a schema migration, or
+  when diagnosing lock contention or connection-pool exhaustion.
+- **Helps:** The engineer shipping a schema change who follows the craft reference's pointer and
+  currently finds the agent never named the destination.
+- **Size:** small
+
+#### 2-14. The repository investigator cannot read history and never says so
+
+- **Evidence:** `agents/repository-investigator.md:11` grants only read, grep, and glob, and the file
+  never mentions history, log, or blame. Its sibling has the identical gap and discloses it:
+  `agents/reviewer.md:60` tells the reviewer to request the touched regions' history from the caller
+  as data, or to record an explicit could-not-verify line, and never to guess.
+- **Change:** Add one sentence to its guardrails: this agent reads only current bytes, so a question
+  about why or when something was added needs history supplied by the caller as data, and the agent
+  should say so rather than infer from the shape of the current code.
+- **Helps:** The engineer asking why a piece of retry logic exists, who would otherwise get an answer
+  that reads as sourced but is inferred.
+- **Size:** small
+
+#### 2-15. Nobody owns "how many incidents this month, and is it getting better"
+
+- **Evidence:** Absent from the tree. A tree-wide search across every skill and agent for incident
+  trend, recurrence, month-over-month, or mean time to recovery returns one citation inside the
+  runbook skill and one unrelated example, while the same search finds its control terms elsewhere.
+  The nearest capability, the observability engineer's health report at `agents/observability-engineer.md:60`
+  and `:131`, is scoped to live service-level objectives and alerts, not to counting resolved
+  incidents.
+- **Change:** Extend that health-report bullet so that, when asked for an incident rollup, the agent
+  reports count and trend from the postmortem archive the scribe maintains, reading it and never
+  writing it.
+- **Helps:** A lead or manager asking a monthly question that currently falls between the agent that
+  sees live signals and the one that writes single postmortems and cannot roll anything up.
+- **Size:** small
+
+### One useful negative
+
+The entry-surface reader set out to find two descriptions competing for the same sentence and could
+not construct one, across five agents and four craft skills. The ownership-map clause repeated at the
+end of each craft and observability description is what prevents those collisions. It should stay.
+
+### What each reader said to protect
+
+Consistent across all five: the differential opener and the pressure-and-trap table in the incident
+advisor; the board's applied line, which stops a handover repeating an action; the commander's
+handover by read-back; the Splunk and Wavefront dialect references with their named traps; the
+multi-window burn-rate method; the runbook's step-craft reference and worked exemplar; the change
+gate's three-question checklist with its honest unknown path; and the database restore-drill and
+migration references. These put judgment in a person's hands, and nothing in either pass proposes
+touching them.
