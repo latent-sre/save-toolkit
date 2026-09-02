@@ -129,7 +129,7 @@ the right runbook automatically — each tool in our stack has a mechanism:
 ### Worked excerpt — tier-marked steps with provenance
 
 > **Trigger**: alert `checkout-p95-burn-fast` (page).
-> **First checks**: `cf app checkout` → expect `6/6 running` [unverified] (illustrative; no transcript is bundled).
+> **First checks**: Apps Manager → checkout → Instances: expect `6/6 running` (`cf app checkout`) [unverified].
 > **Procedure step 1** ⚠️ (Tier 2 — needs explicit human approval for this command/target):
 > `cf restart-app-instance checkout <idx>` — restarts ONE instance; the other five keep serving.
 > **Verification**: p95 back under 800 ms within 10 min on the checkout dashboard.

@@ -1,9 +1,14 @@
 # Save Toolkit
 
 A Claude Code plugin that helps a human SRE do their job on this team's stack: PCF (through Apps
-Manager), Cloud Run, Splunk, Wavefront and PCF App Metrics, Grafana, Akamai. It gives you an
-advisor to think with during an incident, read-only helpers that gather evidence, and skills that
-carry the team's own facts, queries, and checklists. A human executes every production action,
+Manager), Cloud Run, Splunk, Wavefront and PCF App Metrics, Grafana, Akamai. It fits together in
+three layers. **You own the work**: the incident, the change, the runbook. **An advisor thinks with
+you**: `incident-investigation` asks what to check next, says what each result means, and tells you
+when to mitigate. **Agents are your helpers**, dispatched for bounded jobs: the `sre` agent gathers
+one read-only evidence slice, `observability-engineer` tunes an alert, `scribe` writes the runbook
+afterward. The skills serve you and the agents alike: the same logs skill hands you a paste-ready
+Splunk search and hands the `sre` agent the method to build one, which is why a PCF check is always
+the Apps Manager view with the `cf` command beside it. A human executes every production action,
 with one narrow exception: an invoked `observability-engineer` may apply Grafana dashboard and
 folder writes under its [change-authority rule](agents/observability-engineer.md#change-authority).
 

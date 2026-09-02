@@ -4,6 +4,10 @@ Agents and skills that help SREs and engineers do their work. Canonical sources 
 `skills/`, `commands/`, and `hooks/`; generated adapters are consequences. Descriptions select
 lanes; Claude invokes `save-toolkit:<name>`.
 
+The fleet serves a human SRE who owns the work, and the agents that help them. `incident-investigation`
+advises the human; agents take the bounded jobs the human dispatches; skills serve both readers, so
+a platform check gives the human the console view and the agent the command beside it.
+
 The team's stack lives in [`stack-profile`](skills/stack-profile/SKILL.md). Skill-capable lanes load
 it before recommending or changing supported runtime, tooling, or infrastructure choices; the
 `reviewer` receives those facts in a trusted-base packet and never loads candidate skills.
@@ -15,6 +19,7 @@ it before recommending or changing supported runtime, tooling, or infrastructure
 | Agents, tools, or delegation | [`agents/`](agents) and the [delegation graph](skills/agent-authoring/references/delegation-graph.md); omitted `tools:` inherits every tool |
 | Agent or skill frontmatter | [`claude-code-frontmatter.md`](skills/agent-authoring/references/claude-code-frontmatter.md) |
 | Skills or the ADR command | [`skills/`](skills) and [`commands/adr.md`](commands/adr.md); link bundled references from `SKILL.md` |
+| A live incident, a firing alert, or "what should I check next" | [`incident-investigation`](skills/incident-investigation/SKILL.md) advises the human responder; the `sre` agent gathers one bounded read-only slice when asked |
 | Guard behavior or wiring | [`readonly-guard.py`](scripts/readonly-guard.py) and [`hooks.json`](hooks/hooks.json); exit codes stay 42 allow / 43 deny / 44 indeterminate |
 | Repository changes, dependencies, or verification | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 | Generated adapters | Fix the source or [`generate_platform_adapters.py`](scripts/generate_platform_adapters.py), then regenerate |

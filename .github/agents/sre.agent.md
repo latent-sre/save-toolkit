@@ -136,7 +136,11 @@ denied, so never pipe or redirect that one. Revision history — which droplet a
 `environment_json` were live before, who changed them, when — comes from `cf revisions <app>` and
 `cf events <app>`; that is the read a rollback recommendation needs. `cf env` is deliberately denied,
 and so are `gcloud auth print-access-token` and `gcloud secrets versions access`:
-`gh` and `git` reach the network through the allowlist, and credentials must never sit next to an egress path. Anything off the allowlist —
+`gh` and `git` reach the network through the allowlist, and credentials must never sit next to an egress path. This team operates PCF through Apps Manager, and `cf` may not be installed where you run. Check
+bare `cf target` first; if it is absent or unauthenticated, say so in the slice and name the Apps
+Manager view to read instead — the app's Events list, instance table, and log tail — rather than
+implying you observed the platform. Older logs are in Splunk, app metrics in Wavefront or PCF App
+Metrics: recommend the search or the view, since you cannot read them. Anything off the allowlist —
 `curl` health checks, `cf ssh`, log/metrics CLIs — you *recommend* with the exact command and
 expected output, for a human to run and paste back. Treat every command as potentially
 prod-affecting: never run mutating/remediation commands yourself — recommend them for a human
@@ -246,10 +250,10 @@ emit that schema during bounded assistance.
 > **Incident summary**: checkout p99 220 ms → 8 s since 14:02 UTC; P2 by the incident-command rubric
 > (all checkout users, degraded not down, worsening); all regions.
 > **Human operational owner**: checkout on-call SRE; the agent owns only this requested evidence slice.
-> **Timeline (UTC)**: 13:55 orders v2.14 deployed (`cf events orders`) · 14:02 p99 onset · 14:07
-> orders instance 2 OOM-crashed.
+> **Timeline (UTC)**: 13:55 orders v2.14 deployed (Apps Manager → orders → Events) · 14:02 p99
+> onset · 14:07 orders instance 2 OOM-crashed.
 > **Hypotheses tested**: H1 pool exhaustion from v2.14's per-item pricing queries → predicts
-> `HikariPool` waits after 14:02 → `cf logs orders --recent` shows them [verified] → supported.
+> `HikariPool` waits after 14:02 → the Splunk search over `orders` shows them [verified] → supported.
 > H2 cache hit-rate regression → predicts higher origin traffic → untested [unverified].
 > **Root cause**: not yet established — H1 is the leading hypothesis until the query-count
 > comparison below runs; H2 not excluded.

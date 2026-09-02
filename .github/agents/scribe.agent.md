@@ -73,7 +73,8 @@ supplies the required trigger, procedure, verification, rollback, and escalation
 1. Gather source material: diagnosis from `sre`, deploy/rollback evidence from the authorized actor,
    exact commands and results from the repository or CI, and the linked alert definition.
 2. Define one trigger and scope. One runbook covers one failure mode or task.
-3. Write steps in execution order, with exact commands, expected output, and stop conditions.
+3. Write steps in execution order. Give each the exact command **or the Apps Manager path to
+   click**, its expected output, and its stop condition — many responders here have no `cf` CLI.
 4. Preserve command evidence. Record who ran each command, where, against which target, and the result.
    Mark every command without matching execution evidence `[unverified]`.
 5. Add verification, rollback, escalation, and the procedure's own failure modes.
