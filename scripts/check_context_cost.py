@@ -71,8 +71,6 @@ TASK_FILES: dict[str, list[str]] = {
     ],
     "Build a backend change": [
         "agents/software-engineer.md",
-        "skills/eng-ladder/SKILL.md",
-        "skills/eng-ladder/references/builder.md",
         "skills/backend-craft/SKILL.md",
         "skills/language-idiom/SKILL.md",
         "skills/language-idiom/references/python.md",
@@ -85,7 +83,7 @@ TASK_BUDGETS: dict[str, int] = {
     "Noisy alert": 45_000,
     "Write a runbook": 40_000,
     "Audit a service": 40_000,
-    "Build a backend change": 60_000,
+    "Build a backend change": 55_000,
 }
 DESCRIPTION_TASK = "Always-loaded descriptions"
 DESCRIPTION_BUDGET = 20_000
