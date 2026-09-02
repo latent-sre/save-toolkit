@@ -123,20 +123,6 @@ the agent-scoped hook canary. Do not infer runtime enforcement from source alone
 `hooks/copilot-hooks.json` before that.
 **Evidence:** [`2026-08-30 VS Code subagent and handoff enforcement`](reviews/2026-08-30-vscode-subagent-handoff-enforcement.md)
 
-### EVAL-003 — add claim-scoped Claude and Codex evaluation engines
-
-**Status:** `active` (2026-08-26). Architecture and offline implementation accepted; no model
-execution is authorized yet.
-**Owner:** Save Toolkit maintainers own architecture and acceptance; `agent-engineer` owns claim
-vocabulary, scenarios, and graders; `software-engineer` owns the runner, adapters, and schemas.
-**Outcome:** One shared scenario/grader corpus runs through an explicit Claude native-plugin adapter
-and an explicit Codex resolved-context adapter, each producing a normalized envelope and a separate
-verdict with no averaged score; Codex is not restored as a distribution target.
-**Next action:** Finish offline full-suite verification and independent review of the exact clean
-candidate, then prepare one separately approved Codex profile binding model, scenarios, trial count,
-timeouts, and stop condition before any live run.
-**Evidence:** [`accepted multi-engine evaluation contract`](decisions/2026-08-26-multi-engine-evaluation-contract.md)
-
 ### SKILL-001 — make confirmed oversized skills conditional routers
 
 **Status:** `active` (2026-08-30). Phase 1 is closed as evidence; Phase 2 is the live work, one
