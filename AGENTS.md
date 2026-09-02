@@ -19,7 +19,7 @@ those facts by trusted-base handoff, labels gaps `[unverified]`, and never loads
 | Repository changes, dependencies, or verification | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 | Docker verification | [`docs/docker-verification.md`](docs/docker-verification.md) |
 | Generated adapters | Fix canonical source or [`generate_platform_adapters.py`](scripts/generate_platform_adapters.py), then regenerate |
-| Service readiness, approved onboarding, or approved retirement | `service-readiness-audit`, explicit-only `service-lifecycle`, or explicit-only `service-retirement`; firing alerts stay with `sre` |
+| Service readiness, approved onboarding, or approved retirement | `service-lifecycle` audits read-only and prepares onboarding or retirement for human execution; firing alerts stay with `sre` |
 | Unfinished work | The only live backlog, [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md); history does not re-queue work |
 | Agent metadata, tools, model, delegation, handoff, MCP, or memory | [`claude-code-frontmatter.md`](skills/agent-authoring/references/claude-code-frontmatter.md) and the [local/external separation ADR](docs/decisions/2026-07-31-local-external-research-separation.md) |
 | Dependency, test entrypoint, or Gate A-path import | `requirements-dev.txt` and the [dependency ADR](docs/decisions/2026-08-23-allow-third-party-dependencies.md) |

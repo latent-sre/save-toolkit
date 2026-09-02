@@ -62,8 +62,9 @@ as routing-only with no response graders; then `agent-engineer` implements it in
 particle phrasing `hand off to sre` as a valid deferral, or an owner records that the phrasing is
 out of contract. This is the routing-grader half of the closed GRADER-009; the retry-grader half
 was superseded by the rubric judge.
-**Next action:** Owner decides whether to widen the routing grader's alternative match; if yes,
-edit the scenario and run it in the clean room on Sonnet at its declared trial count.
+**Next action:** The observability-engineer `…-defers-live-incident` scenario this item told the
+owner to edit was retired in the 2026-09-02 corpus cut. Re-decide under EVAL-009 whether the
+particle phrasing needs a scenario at all before authoring a new one.
 **Evidence:** [`GRADER-009` closed row](roadmap-closed.md)
 
 ### CONTEXT-001 — establish a generalized SRE operational-context contract
@@ -146,11 +147,12 @@ skill per slice, probe-before-routing.
 **Outcome:** No skill spends a caller's context on detail the call did not need, or on what the
 fleet's models already produce unprompted. Each screened entrypoint gets one probe-then-checkpoint
 disposition; a committed component contract outranks both the byte screen and the probe.
-**Next action:** At the next evidence/recommendation checkpoint, select the next slice among the six
+**Next action:** At the next evidence/recommendation checkpoint, select the next slice among the five
 undispositioned entrypoints at or above the 7,800-byte screen: `obs-dashboards`, `backend-craft`,
-`runbook`, `workflow-graph-engineering`, `incident-drill`, `obs-alerting`. The prose-pinning test
-suites were removed on 2026-09-01; after a cut, run `python scripts/check_links.py` (link
-containment and explicit-only frontmatter) and the skill's eval scenarios.
+`runbook`, `workflow-graph-engineering`, `obs-alerting` (`incident-drill` was deleted entire on
+2026-09-02, owner decision, and drops out of this list). The prose-pinning test suites were removed
+on 2026-09-01; after a cut, run `python scripts/check_links.py` (link containment and explicit-only
+frontmatter) and the skill's eval scenarios.
 **Evidence:** [`7,800-byte screen evidence`](reviews/2026-08-30-skill-001-7800-screen.md)
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
@@ -173,9 +175,10 @@ disposition-ready; the three scenarios no longer support one shared routing conc
 **Outcome:** The `frontend-craft` regression scenarios either fire reliably enough to sit in the
 regression split at threshold 1.0, or move to calibration with the reason recorded, so a red there
 means a skill regression rather than a routing coin-flip.
-**Next action:** Owner dispositions the three scenarios. Recommended: retain the 3/3 Mantine case as
-the regression, move the Preact review to calibration, and split the merge-readiness case so routing
-belongs to `production-change-gate`.
+**Next action:** The 2026-09-02 corpus cut retired the Preact review and the merge-readiness split,
+leaving only the Mantine case, already in the regression split at threshold 1.0; that surviving
+positive is now the routing-reliability instrument for `frontend-craft`. Owner still decides whether
+it alone is sufficient evidence or a replacement calibration case is warranted.
 **Evidence:** [`GRADER-005 closure`](reviews/2026-08-31-grader-005-closure.md)
 
 ### EVAL-005 — give the Grafana build probe a datasource worth writing a panel against
@@ -190,19 +193,6 @@ for a real query.
 plugin revisions, three Sonnet trials per side, no tuning or retries — and record Docker/image
 identities before deciding closure.
 **Evidence:** [`fixed Windows execution packet`](reviews/2026-08-31-eval-005-prometheus-probe-gate.md)
-
-### EVAL-004 — measure the incident guidance added on 2026-08-26
-
-**Status:** `decision-needed` (2026-09-01). Eight scenario files exist, but no current profile
-selects all eight and both retained profiles are v1 evidence that cannot authorize a new live run.
-**Owner:** Save Toolkit maintainers
-**Outcome:** Every behavior claim added to `incident-command`/`investigation-depth` on 2026-08-26 has
-a discriminating scenario, so a later edit that removes the behavior turns a scenario red instead of
-passing silently.
-**Next action:** Resolve the shared EVAL-004/EVAL-007 closure architecture first — one structured or
-named-relation grader plus a committed guidance-removal control. The owner then decides whether that
-offline packet closes the work or an eight-scenario native comparison is still warranted.
-**Evidence:** [`2026-09-01 decision-backlog reconciliation`](reviews/2026-09-01-decision-backlog-reconciliation.md)
 
 ### EVAL-006 — calibrate `discovery-gcp-ops-cloud-run-startup` against measured model behavior
 
@@ -223,8 +213,9 @@ live in this fixture, requiring human-run read-only checks and the rollback pack
 **Owner:** Save Toolkit maintainers
 **Outcome:** The four unowned service-lifecycle transitions — change, remediation, refresh, and
 retirement — have owners, so a record in the operational memory is either current or visibly not.
-**Next action:** Design the retirement checklist as `service-lifecycle`'s effect-shaped sibling, then
-carry the two schema enhancements (`last_verified`/`maxAge`, and a `forbidden` path list) to
+**Next action:** Retirement is now the retire mode of `service-lifecycle` itself (`service-retirement`
+and `service-readiness-audit` folded in 2026-09-02), not a separate effect-shaped sibling skill.
+Carry the two schema enhancements (`last_verified`/`maxAge`, and a `forbidden` path list) to
 CONTEXT-001 as amendments rather than a skill-local schema.
 **Evidence:** none yet
 
@@ -265,7 +256,9 @@ sentences still in skill descriptions. Every measurement taken during the reshap
 `docs/reviews/2026-09-02-eval-*` packets, the gate-merge batches, the corpus-cut evidence) is a
 transitional checkpoint, not a baseline, and is retired once this one exists.
 **Next action:** After the last reshape PR merges, run the full corpus at three trials, run
-`python evals/judge.py --calibrate`, record both, and retire the transitional packets.
+`python evals/judge.py --calibrate`, record both, and retire the transitional packets. Injection-
+refusal coverage (the two retired `agent-security` scenarios) is re-added as a rubric-graded
+scenario when the baseline is reset.
 **Evidence:** [`PR #212`](https://github.com/latent-sre/save-toolkit/pull/212)
 
 ### EFFECT-001 — effect-bound execution broker

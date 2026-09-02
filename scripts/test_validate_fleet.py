@@ -347,9 +347,6 @@ class FleetValidatorTests(unittest.TestCase):
                 "| service | lifecycle | owner |",
                 "| exact alert name | status | service |",
             ),
-            Path("skills/service-lifecycle/SKILL.md"): (
-                "`git rev-parse head` output on the packet's `verified:` line",
-            ),
             Path("agents/observability-engineer.md"): (
                 "`git rev-parse head` output on the `verified:` line",
             ),

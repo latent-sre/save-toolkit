@@ -6,8 +6,7 @@ description: >-
   separates them, with what each result means; re-rank from what they paste; recommend the safe
   mitigation and who to page; keep a board. Triggers: 'walk me through this incident', 'help me
   understand what is going on with INC', 'what should I check next', 'what is this telling me'.
-  Not for the model's own triage (sre agent), incident command or comms (incident-command), or
-  drills (incident-drill).
+  Not for the model's own triage (sre agent) or incident command or comms (incident-command).
 argument-hint: "[INC id or symptom] [knowledge repository root]"
 ---
 
