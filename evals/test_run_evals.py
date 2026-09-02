@@ -86,31 +86,6 @@ class ScenarioValidationTests(unittest.TestCase):
             with self.subTest(scenario=required):
                 self.assertIn(required, ids)
 
-    def test_database_reliability_irreversible_case_uses_data_preserving_recovery_contract(self) -> None:
-        scenario_path = run_evals.SCENARIOS_DIR / "database-reliability-blocks-irreversible.yaml"
-        source = scenario_path.read_text(encoding="utf-8")
-
-        def contract_errors(text: str) -> list[str]:
-            errors: list[str] = []
-            if "verified backup and/or a reversible plan" in text:
-                errors.append("stale reversible-plan contract remains")
-            required_terms = (
-                "tested recovery strategy",
-                "roll-forward",
-                "compensating",
-                "restore",
-                "pitr",
-            )
-            if not all(term in text for term in required_terms):
-                errors.append("data-preserving recovery alternatives are incomplete")
-            return errors
-
-        stale = source.replace("tested recovery strategy", "verified backup and/or a reversible plan", 1)
-        stale = stale.replace("roll-forward", "backup", 1)
-        stale = stale.replace('"compensating", "restore", "pitr"', '"backup", "snapshot", "reversible"', 1)
-        self.assertTrue(contract_errors(stale))
-        self.assertEqual(contract_errors(source), [])
-
     def test_mode_and_split_are_required(self) -> None:
         missing_mode = self._scenario()
         del missing_mode["mode"]
@@ -228,7 +203,10 @@ class ScenarioValidationTests(unittest.TestCase):
         self.assertFalse(any("zero-tolerance" in p for p in problems))
 
     def test_not_fire_scenario_allows_root_scope(self) -> None:
+        # Unlike its siblings, this test calls validate() against the real repository root with no
+        # temp-dir override, so the target must be a real skill; merge-gate no longer exists.
         scenario = self._scenario(
+            target={"kind": "skill", "name": "production-change-gate"},
             mode="discovery",
             split="regression",
             routing={
@@ -341,7 +319,7 @@ class InvocationPlanTests(unittest.TestCase):
                 run_evals.eval_suite_digest(snapshot),
                 run_evals.eval_suite_digest(run_evals.EVAL_ROOT),
             )
-            self.assertTrue((snapshot / "scenarios" / "discovery-merge-readiness.yaml").is_file())
+            self.assertTrue((snapshot / "scenarios" / "discovery-agent-authoring-loop-engineering.yaml").is_file())
             self.assertTrue((snapshot.parent / "scripts/fleet_frontmatter.py").is_file())
         self.assertFalse(snapshot.parent.exists())
 

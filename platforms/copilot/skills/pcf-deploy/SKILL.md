@@ -3,8 +3,8 @@ name: pcf-deploy
 description: >-
   Plan human-approved VMware TAS/PCF application deploys, blue-green cutovers, scaling, and
   rollback verification. Triggers: 'deploy this app to PCF', 'design a blue-green deploy',
-  'scale this PCF app'. Ownership map only—not a load: the `release-gate` skill decides
-  readiness and the `incident-command` skill owns rollback decisions.
+  'scale this PCF app'. Ownership map only—not a load: `production-change-gate`'s release-readiness
+  question decides readiness and the `incident-command` skill owns rollback decisions.
 compatibility: Requires the cf CLI v8 and authorized access to the target PCF foundation/space
 # Deploys are human-initiated: invoke explicitly as `/pcf-deploy`; never auto-load.
 disable-model-invocation: true

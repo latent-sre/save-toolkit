@@ -21,7 +21,7 @@ small Git/file/CLI proof before introducing a catalog platform or transport serv
 `[verified]` The continuation check used current `origin/main`
 `773b596334c5fa5678fbcabad2de0fe35921bd06`:
 
-- [`service-readiness-audit`](../../skills/service-readiness-audit/SKILL.md) remains a read-only
+- `service-readiness-audit` remains a read-only
   consumer with no team-specific lookup contract; its intervening change only prevents padding the
   output to three fixes;
 - [`schemas/catalog-v1.json`](../../schemas/catalog-v1.json) still makes published schema versions

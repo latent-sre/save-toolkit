@@ -17,8 +17,8 @@ target:
 #
 # No not_contains grader here, deliberately: the prompt ends in a question, so a correct block
 # ("no reason to avoid the hooks, but don't pull in @mantine/core") contains both the banned and the
-# blessed package names. That false-negative shape is documented in
-# database-reliability-blocks-irreversible and is not worth reintroducing.
+# blessed package names. That false-negative shape was documented in database-reliability-blocks-
+# irreversible (retired 2026-09-02 in the eval-corpus cut) and is not worth reintroducing.
 # 2026-08-27 no-skill control: with no skill loaded, Opus blocked the mix and named the CSS-reset
 # conflict unprompted; Sonnet blocked it softly ('Mantine will work, but budget time to reskin')
 # and neither model volunteered the @mantine/hooks carve-out. The body keeps the rule for that
