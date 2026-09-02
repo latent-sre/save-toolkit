@@ -131,9 +131,3 @@ prove the call did not occur. Check the sampler, retention, export health, propa
 coverage before turning absence into a causal conclusion.
 
 *[sourced: OpenTelemetry sampling terminology; unverified for target sampler/export path]*
-
-## Inert canary example
-
-This checks reference loading only; it is not an observed span or target-runtime result.
-
-*[sourced: OpenTelemetry SpanKind vocabulary; unverified for target instrumentation]*

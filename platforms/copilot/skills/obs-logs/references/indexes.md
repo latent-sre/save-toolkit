@@ -40,15 +40,3 @@ All rows are `[unverified]` placeholders until checked against the target tenant
 | App / service | Tenant | Stable selector | Parser |
 |---|---|---|---|
 | `<app>` | `<tenant>` | `{app="<app>", env="<env>"}` | `<json|logfmt|regexp>` |
-
-## Inert canary example
-
-This example verifies that the inventory reference loaded; it does not assert that the placeholder
-index or field exists.
-
-*[unverified: target index and request-id extraction]*
-
-```spl
-index=<app_index> request_id="<fixture_request_id>" earliest=-5m
-| table request_id
-```
