@@ -58,6 +58,20 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Compacted three skills under SKILL-001, descriptions byte-identical, measured as canonical
+  UTF-8 bytes against `main`: `backend-craft` SKILL.md 11,123 → 10,131 (endpoint, upstream-client,
+  and persistence test mechanics routed to their references, which grew 29,198 → 30,182; the
+  selected stack now wins over an unconditional PostgreSQL default); `obs-alerting` SKILL.md
+  7,930 → 5,804 (generic SLI and worked burn-window recitation removed, references unchanged);
+  `obs-dashboards` SKILL.md 11,419 → 7,160 and references 83,298 → 34,480 (generic dashboard
+  advice and volatile tool catalogues removed; dashboard-only write authority, API-family
+  concurrency, ambiguous-write reconciliation, rollback, readback verification, and
+  version-specific storage rules kept). The observability build probe now fails closed before any
+  model launch when a fixture service is unavailable, and reaches fixture services through a pinned
+  fixed-target relay because Docker Desktop 29 suppresses host publication on internal networks.
+  Two discovery scenarios were repaired: the tool-less dashboard case asks for an explicitly
+  `[unverified]` procedure, and the Splunk alerting case supplies fixed fictional route and runbook
+  values instead of rewarding invention.
 - Removed eval-harness doctrine from all eight agent bodies: the run/attempt and resolved-model
   identity rules, the two matching handoff-packet slots, the absent-versus-guard-denied rule, and
   the failed-delegate paragraph (kept as one sentence in the three delegating lanes). No runtime

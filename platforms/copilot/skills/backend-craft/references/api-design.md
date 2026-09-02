@@ -42,5 +42,13 @@ conditional, and are not restated here. This file owns what SKILL.md leaves open
 - Deprecation is a protocol, not a comment: announce it, publish a sunset date, observe callers, and
   retire only after the supported migration window. SKILL.md's two-live-versions and `Sunset`/`410`
   rules are the mechanics.
-- Diff the OpenAPI document in CI with a breaking-change detector. A removal, type change, or new
-  required field cannot merge as an unlabeled accident.
+- Contract-test served shapes against OpenAPI, and diff the document in CI with a breaking-change
+  detector. A removal, type change, or new required field cannot merge as an unlabeled accident.
+
+## Endpoint verification
+
+- Test only applicable failures: missing, expired, or malformed credentials produce `401`; a wrong
+  role produces `403`; malformed input stays distinct from semantic validation; `404` covers an
+  absent resource; and `429` carries `Retry-After`. Replay an idempotency key and assert the recorded
+  response returns without a second effect. Verify upload magic bytes rather than names or declared
+  media types. A public `/healthz` has no auth or `404` row—inventing one changes the contract.
