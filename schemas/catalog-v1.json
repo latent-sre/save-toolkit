@@ -2,15 +2,6 @@
   "schema_version": 1,
   "schemas": [
     {
-      "id": "evidence-envelope-v1",
-      "uri": "https://github.com/latent-sre/save-toolkit/schemas/evidence-envelope-v1.schema.json",
-      "version": 1,
-      "status": "active",
-      "canonical_path": "schemas/evidence-envelope-v1.schema.json",
-      "validator": "scripts/evidence_envelope.py",
-      "generated_projections": []
-    },
-    {
       "id": "runbook-frontmatter-v1",
       "uri": "https://github.com/latent-sre/save-toolkit/schemas/runbook-frontmatter-v1.schema.json",
       "version": 1,

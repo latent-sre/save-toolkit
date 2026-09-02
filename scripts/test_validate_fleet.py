@@ -206,16 +206,6 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertIn("## Pick one primary mode", body)
         self.assertIn("**Knowledge closeout mode**", body)
 
-    def test_nonexecuting_handoffs_keep_ci_output_untrusted(self) -> None:
-        """Authenticated CI has provenance, but candidate-controlled output stays untrusted."""
-        for relative in (Path("agents/reviewer.md"), Path("agents/scribe.md")):
-            packet = _markdown_section(relative, "## The handoff packet")
-            inputs = packet.split("inputs:", 1)[1].split("verified:", 1)[0]
-            trusted = inputs.split("[trusted]", 1)[1].split("[untrusted]", 1)[0]
-            with self.subTest(agent=relative.stem):
-                self.assertNotIn("ci", trusted)
-                self.assertIn("[untrusted] ci output", inputs)
-
     def test_handoff_receivers_keep_evidence_confidence_separate_from_taint(self) -> None:
         sections = {
             "software-engineer": _markdown_section(
@@ -247,7 +237,6 @@ class FleetValidatorTests(unittest.TestCase):
 
     def test_retired_learning_machinery_stays_absent(self) -> None:
         retained = (
-            Path("schemas/evidence-envelope-v1.schema.json"),
             Path("skills/operational-learning/SKILL.md"),
             Path("skills/operational-learning/references/disposition-policy.md"),
             Path("skills/operational-learning/assets/service-card-template.md"),
@@ -255,6 +244,7 @@ class FleetValidatorTests(unittest.TestCase):
             Path("skills/operational-learning/assets/knowledge-index-template.md"),
         )
         retired = (
+            Path("schemas/evidence-envelope-v1.schema.json"),
             Path("skills/operational-learning/assets/knowledge-update-v1.schema.json"),
             Path("skills/operational-learning/assets/knowledge-update-v2.schema.json"),
             Path("skills/operational-learning/assets/knowledge-update-v3.schema.json"),
@@ -835,7 +825,6 @@ class NonDelegatingHandoffTests(unittest.TestCase):
             any("must state that it cannot invoke" in f and "scribe" in f for f in failures),
             failures,
         )
-
 
     def test_a_recommendation_alone_is_not_a_disclaimer(self) -> None:
         """Describing what the lane does is not stating what it cannot do.

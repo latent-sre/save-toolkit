@@ -58,6 +58,20 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Every agent handoff packet is now six slots (`→ Handing to`, `Goal`, `Change`, `Findings`,
+  `Verified`, `Not done`) in `software-engineer`, `reviewer`, `observability-engineer`, `scribe`,
+  and the `sre` contract in `investigation-depth/references/incident-handoff.md`; the seven slots
+  only the eval harness read are gone, and the Rules block keeps one owner, named change,
+  evidence labels, claim-level taint, non-actions, and the production gate.
+- Removed the 23 "ownership map only, not a load" sentences from skill bodies and references; a
+  body no longer names a sibling skill in order to tell the model not to load it. The 15 copies in
+  skill descriptions are routing metadata and stay until their evals are run.
+- `docs/fleet-roadmap.md` is the six-field contract only (status, owner, outcome, next action, one
+  evidence link): 100 KB → 17 KB for the same live items; closed and superseded items are one line
+  each in `roadmap-closed.md`. `docs/rules.md` and `docs/README.md` are folded into AGENTS.md's
+  "Start here" table; the three entry documents are README, AGENTS.md, and CONTRIBUTING.
+- `fleet_doctor.py` emits a plain JSON report instead of an evidence envelope; explicit-only skills
+  are checked for `disable-model-invocation: true` by `check_links.py` instead of by a prose test.
 - Replaced nine regex-based eval graders that judged natural-language policy (production-action
   claims, deploy commitments, recovery authority, unknown-outcome reconciliation, retirement effect
   claims, blind retry, invented recovery progress, progress-vs-record consistency, gate posture)
@@ -226,6 +240,15 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Removed
 
+- Removed 66 uncited dated packets under `docs/reviews/` (kept: everything a test or a live
+  document cites; history is `git log -- docs/reviews`), `docs/rules.md`, and `docs/README.md`.
+- Removed the verification apparatus that guarded only itself: `mutation_guard.py`,
+  `evidence_envelope.py` and its schema, the envelope half of `capture_measurement_evidence.py`,
+  and the five prose-contract test files (`test_graph_contracts`,
+  `test_observability_skill_contracts`, `test_platform_skill_contracts`,
+  `test_release_skill_contracts`, `test_skill_asset_contracts`) that pinned sentences in agents
+  and skills by substring; `test_graders.py` keeps one positive, one negative, and one adversarial
+  case per assertion class.
 - Removed the nine natural-language-policy graders from `evals/graders.py`
   (`production_execution_claim`, `pcf_deploy_no_inline_execution`, `incident_recovery_authority`,
   `production_unknown_outcome`, `service_retirement_no_effect_claim`,
