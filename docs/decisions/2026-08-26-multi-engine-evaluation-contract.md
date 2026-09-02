@@ -1,7 +1,7 @@
 # Multi-engine evaluation without restoring Codex distribution
 
 - **Date:** 2026-08-26
-- **Status:** Accepted 2026-08-26
+- **Status:** Superseded 2026-09-01 by [`2026-09-01-rubric-judge-evaluation-contract.md`](2026-09-01-rubric-judge-evaluation-contract.md); the multi-engine implementation was deleted before any engine comparison ran
 - **Decision owner:** Save Toolkit maintainers
 - **Roadmap item:** [`EVAL-003`](../fleet-roadmap.md#eval-003--add-claim-scoped-claude-and-codex-evaluation-engines)
 - **Does not supersede:**
@@ -10,6 +10,13 @@
   [`2026-08-22-agent-discovery-calibration.md`](2026-08-22-agent-discovery-calibration.md)
 
 ## Context
+
+> **Historical record only.** The Codex adapter, execution profiles, result envelope, claim
+> matrix, and comparison digest described here were built, never exercised, and deleted. Two
+> statements below no longer hold: deterministic graders are the gate only for structural questions,
+> and a calibrated model judge now decides natural-language policy rubrics. Read the superseding ADR
+> for the contract in force; nothing here re-queues the deleted architecture.
+
 
 The current evaluator has one useful shared scenario and grader vocabulary but one hard-coded host.
 `evals/run_evals.py` constructs a Claude command, parses Claude stream events, enforces a Claude

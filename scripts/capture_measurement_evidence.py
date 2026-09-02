@@ -115,10 +115,19 @@ def render_eval_summary(summary: dict) -> tuple[str, str]:
     models = summary.get("models_observed") or []
     if not isinstance(models, list):
         raise CaptureError("models_observed must be a list")
+    # A `rubric` grader's PASS/FAIL is one model judging another, and the retention policy allows
+    # reclaiming the private batch once this record is committed. Without the judge's identity here,
+    # a rubric-backed verdict could not afterwards be attributed or compared with another run.
+    judge_models = summary.get("judge_models_observed") or []
+    if not isinstance(judge_models, list):
+        raise CaptureError("judge_models_observed must be a list")
     scenarios = summary["scenarios"]
     total_cost = 0.0
     total_duration = 0.0
     trial_count = 0
+    judge_calls = 0
+    judge_cost = 0.0
+    judge_duration = 0.0
     lines = [
         f"# Eval evidence — {run_id}",
         "",
@@ -134,6 +143,10 @@ def render_eval_summary(summary: dict) -> tuple[str, str]:
         f"- **Workspace dirty:** `{_cell(provenance.get('workspace_dirty', 'unknown'))}`",
         f"- **Requested model:** `{provenance.get('requested_model', 'unknown')}`",
         f"- **Observed models:** {', '.join(f'`{_cell(model)}`' for model in models) or '`none`'}",
+        f"- **Requested judge model:** "
+        f"`{_cell(summary.get('judge_model_requested') or provenance.get('judge_model') or 'none')}`",
+        f"- **Observed judge models:** {', '.join(f'`{_cell(model)}`' for model in judge_models) or '`none`'}",
+        f"- **Rubrics SHA-256:** `{provenance.get('rubrics_sha256', 'none')}`",
         f"- **Timeout:** `{_cell(conditions.get('timeout_s', 'unknown'))}` seconds",
         f"- **Requested trials:** `{_cell(conditions.get('requested_trials', 'unknown'))}`",
         f"- **Requested threshold:** `{_cell(conditions.get('requested_threshold', 'unknown'))}`",
@@ -167,11 +180,23 @@ def render_eval_summary(summary: dict) -> tuple[str, str]:
                 trial_count += 1
                 total_cost += float(trial.get("total_cost_usd") or 0.0)
                 total_duration += float(trial.get("duration_seconds") or 0.0)
+                judge_record = trial.get("judge")
+                if isinstance(judge_record, dict):
+                    judge_calls += int(judge_record.get("calls") or 0)
+                    judge_cost += float(judge_record.get("cost_usd") or 0.0)
+                    judge_duration += float(judge_record.get("seconds") or 0.0)
 
+    # The agent totals stay the evaluated agent's own spend; the judge's is named separately rather
+    # than folded in, so neither number silently changes meaning when a scenario gains a rubric.
+    judge_totals = (
+        f" Rubric judge: {judge_calls} calls; {judge_duration:.1f} seconds; USD {judge_cost:.4f}."
+        if judge_calls
+        else ""
+    )
     lines.extend([
         "",
         f"**Totals:** {len(scenarios)} scenarios; {trial_count} trials; "
-        f"{total_duration:.1f} seconds; USD {total_cost:.4f}.",
+        f"{total_duration:.1f} seconds; USD {total_cost:.4f}.{judge_totals}",
         "",
         "## Trial identities",
         "",

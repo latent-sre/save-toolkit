@@ -472,8 +472,12 @@ enforcement from source alone, substitute a prompt-file override, or populate
 
 ### EVAL-003 — add claim-scoped Claude and Codex evaluation engines
 
-**Status:** `active` (2026-08-26). The architecture and offline implementation are accepted; no
-model execution is authorized.
+**Status:** `superseded` (2026-09-01, G3/G4) by the
+[rubric-judge evaluation ADR](decisions/2026-09-01-rubric-judge-evaluation-contract.md). The
+adapters, execution profiles, result envelope, claim matrix, and comparison digest were built,
+never exercised by any engine comparison, and deleted; the evaluator targets the Claude plugin host
+only. Nothing below re-queues that architecture. A second engine is a new decision with its own
+named claims, not a restoration of this item.
 
 **Owner:** Save Toolkit maintainers own the architecture, evidence/security contracts, live-run budgets, and
 acceptance of an exact revision. `agent-engineer` owns the claim vocabulary, scenarios, graders, and
@@ -489,7 +493,7 @@ separate in comparison and promotion views. Codex is not restored as a distribut
 
 **Source:** Owner direction on 2026-08-26 requested a multi-engine evaluation architecture and
 selected subscriber-account authentication for Codex. The
-[`accepted multi-engine evaluation contract`](decisions/2026-08-26-multi-engine-evaluation-contract.md)
+[`superseded multi-engine evaluation contract`](decisions/2026-08-26-multi-engine-evaluation-contract.md)
 records the claim matrix, adapters, evidence envelope, security boundary, rollout, rollback, and
 alternatives. This implementation candidate incorporates the published HOST-003 source revision
 `c93d8cb` on top of refreshed `origin/main`; final acceptance evidence still binds to the future

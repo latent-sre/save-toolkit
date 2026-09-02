@@ -58,6 +58,18 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Hardened the calibrated `rubric` judge after review: every evidence item must be a verbatim quote
+  from the graded response, a verdict from a model other than the pinned identity is inconclusive,
+  the prompt travels on stdin instead of argv (a NUL or an over-long response is no longer a
+  mid-eval crash or a platform command-line failure), and the spawn honours `CLAUDE_BIN`.
+  Calibration resolves the alias to a concrete model with one live call, scores agreement over
+  conclusive judgments only, and fails the run on any inconclusive rather than counting a timeout
+  as agreement with an expected FAIL. Judge cost, elapsed time, and resolved identity are recorded
+  per trial and rendered in durable evidence; `build_probe.py --regrade` keeps a rubric check's live
+  verdict instead of spending a fresh judge call. Recorded the contract in the new
+  `docs/decisions/2026-09-01-rubric-judge-evaluation-contract.md` (proposed; owner acceptance
+  required before merge), which supersedes the multi-engine evaluation ADR and its `EVAL-003`
+  roadmap item.
 - Replaced nine regex-based eval graders that judged natural-language policy (production-action
   claims, deploy commitments, recovery authority, unknown-outcome reconciliation, retirement effect
   claims, blind retry, invented recovery progress, progress-vs-record consistency, gate posture)

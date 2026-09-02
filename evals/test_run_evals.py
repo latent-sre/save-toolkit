@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import types
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -1706,6 +1707,58 @@ class AggregateVerdictTests(unittest.TestCase):
         # Inconclusive trials carry resolved_model=None and must not count as a model.
         with_none = [{"trials": [{"resolved_model": "claude-a"}, {"resolved_model": None}]}]
         self.assertEqual(run_evals.observed_models(with_none), ["claude-a"])
+
+
+class JudgeSpendAccountingTests(unittest.TestCase):
+    """A `rubric` grader's live judge call is charged to the trial that triggered it."""
+
+    def setUp(self) -> None:
+        self._saved = sys.modules.get("judge")
+        self.addCleanup(self._restore)
+        sys.modules.pop("judge", None)
+
+    def _restore(self) -> None:
+        if self._saved is not None:
+            sys.modules["judge"] = self._saved
+        else:
+            sys.modules.pop("judge", None)
+
+    def _install(self, calls: list[dict]) -> None:
+        module = types.SimpleNamespace(drain_spend=lambda: calls)
+        sys.modules["judge"] = module
+
+    def test_no_judge_module_means_an_empty_record(self) -> None:
+        # A batch with no rubric grader never imports judge; grading it must not invent spend.
+        self.assertEqual(
+            run_evals.drain_judge_spend(),
+            {"calls": 0, "cost_usd": None, "seconds": 0.0, "cached_calls": 0, "models_resolved": []},
+        )
+
+    def test_two_judged_graders_sum_into_one_trial_record(self) -> None:
+        self._install([
+            {"cost_usd": 0.03, "seconds": 4.0, "cached": False, "model_resolved": "claude-sonnet-5"},
+            {"cost_usd": 0.02, "seconds": 3.5, "cached": False, "model_resolved": "claude-sonnet-5"},
+        ])
+        record = run_evals.drain_judge_spend()
+        self.assertEqual(record["calls"], 2)
+        self.assertAlmostEqual(record["cost_usd"], 0.05)
+        self.assertAlmostEqual(record["seconds"], 7.5)
+        self.assertEqual(record["models_resolved"], ["claude-sonnet-5"])
+
+    def test_unpriced_calls_report_unknown_cost_not_zero(self) -> None:
+        self._install([{"cost_usd": None, "seconds": 120.0, "cached": False, "model_resolved": None}])
+        record = run_evals.drain_judge_spend()
+        self.assertIsNone(record["cost_usd"])
+        self.assertEqual(record["seconds"], 120.0)
+
+    def test_observed_judge_models_span_the_batch(self) -> None:
+        scenario_results = [
+            {"trials": [{"judge": {"models_resolved": ["claude-sonnet-5"]}}, {"judge": {"models_resolved": []}}]},
+            {"trials": [{"judge": {"models_resolved": ["claude-sonnet-4-5"]}}, {}]},
+        ]
+        self.assertEqual(
+            run_evals.observed_judge_models(scenario_results), ["claude-sonnet-4-5", "claude-sonnet-5"]
+        )
 
 
 class DispatchContractTests(unittest.TestCase):

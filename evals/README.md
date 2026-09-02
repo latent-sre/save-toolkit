@@ -50,7 +50,10 @@ structure — exact fields, exact JSON, a fenced packet with exact command strin
 Natural-language policy questions (did the assistant claim to act on production, endorse a blind
 retry, hold a gate) are judged instead by one calibrated `rubric` grader that spawns a clean-room,
 tool-less `claude -p` turn against a named rubric in [`rubrics.yaml`](rubrics.yaml); see
-[`judge.py`](judge.py) and "Calibrating the rubric judge" below.
+[`judge.py`](judge.py) and "Calibrating the rubric judge" below. The contract for that split —
+structure is deterministic, natural-language policy is judged, and neither promotes anything — is
+the [rubric-judge evaluation ADR](../docs/decisions/2026-09-01-rubric-judge-evaluation-contract.md),
+which supersedes the multi-engine ADR.
 
 ## Run it
 
@@ -319,10 +322,24 @@ voice from text it quotes, cites, or attributes to someone else. On a non-empty 
 one clean-room, tool-less `claude -p` turn (see [`judge.py`](judge.py)) carrying the rubric's
 `fail_if`/`pass_if` text and the response between markers, and requires back exactly one
 `{"verdict": "PASS"|"FAIL", "reason": ..., "evidence": [...]}` JSON object. It **fails closed**: a
-nonzero exit, an auth failure, malformed or missing JSON, or an unknown verdict all score FAIL with
-"judge inconclusive: ..." in the detail — a broken judge never scores PASS. Verdicts are cached by
-`sha256(model, rubric name, rendered rubric text, response)` under `EVAL_JUDGE_CACHE`, which
-`--run` points at `<run root>/judge-cache/`; a cache hit never spawns, so re-grading a run is free.
+nonzero exit, an auth failure, malformed or missing JSON, an unknown verdict, a verdict from a model
+other than the pinned one, or evidence that is not a verbatim quote from the graded response all
+score FAIL with "judge inconclusive: ..." in the detail — a broken judge never scores PASS, and an
+ungrounded judgment never decides a scenario. The prompt travels on stdin, not in argv, so a
+response carrying a NUL or exceeding the platform command-line limit is not a transport failure
+mid-run; the spawn uses the same `CLAUDE_BIN` the rest of the harness does. Verdicts are cached by
+`sha256(prompt template, model, rubric name, rendered rubric text, response)` under
+`EVAL_JUDGE_CACHE`, which `--run` points at `<run root>/judge-cache/`; a cache hit never spawns, so
+re-grading a run is free. An inconclusive is never cached, and a cached entry is ignored — and the
+response re-judged — when it came from a different resolved model or carries ungrounded evidence.
+
+Each judged trial records its judge calls in `trial.judge` (`calls`, `cost_usd`, `seconds`,
+`cached_calls`, `models_resolved`); the batch summary carries `judge_model_requested` and
+`judge_models_observed`, and provenance carries `judge_model` and `rubrics_sha256`. The durable
+evidence record renders all of them, so a rubric-backed PASS/FAIL stays attributable to the judge
+that produced it after the private batch is reclaimed. `build_probe.py --regrade` rescores from
+saved artefacts only: a rubric-backed check keeps its live verdict (`[kept: live-judge]`) rather
+than spending a fresh, paid, nondeterministic judge call.
 
 Nine graders were retired into this one mechanism (`no_production_action_claim`,
 `no_inline_deploy_commitment`, `recovery_authority_held`, `unknown_outcome_reconcile_first`,
@@ -338,9 +355,12 @@ any rubric's text:
 python evals/judge.py --calibrate --model sonnet
 ```
 
-This costs real money and prints per-rubric agreement (agree/total), writes the run under
-`.eval-runs/judge-calibration/<timestamp>/`, and exits 1 if any rubric is below 0.95 agreement — it
-is owner-triggered, like every other live eval; nothing else in the repo calls it. Budget about three
+This costs real money. It resolves the judge alias to a concrete model with one live call
+(recorded in `identity.json`; exit 2 if that fails), prints per-rubric agreement over **conclusive
+judgments**, writes the run under `.eval-runs/judge-calibration/<timestamp>/`, and exits 1 if any
+rubric is below 0.95 agreement or any case came back inconclusive. An inconclusive is a judge that
+never judged: counting it as FAIL would certify a rubric on a timeout, since most corpus cases
+expect FAIL. It is owner-triggered, like every other live eval; nothing else in the repo calls it. Budget about three
 cents per judged trial on Sonnet (measured 2026-09-01: USD 5.14 for 140 cases) against this suite's
 ~21-cent trial cost; the full calibration corpus is under 150 cases, and the cache under
 `.eval-runs/judge-calibration/judge-cache/` is shared across runs, so after a rubric edit only that

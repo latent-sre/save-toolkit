@@ -14,10 +14,12 @@ Never loads this fleet: no `--agent`, no `--plugin-dir`, and every tool and MCP 
 
 CLI:
     python evals/judge.py --calibrate [PATH] [--model sonnet]
-        Run every case in the calibration corpus (default evals/rubrics-calibration.yaml) once,
-        print per-rubric agreement (agree/total) and every disagreement, write the run under
-        .eval-runs/judge-calibration/<timestamp>/, and exit 1 if any rubric is below 0.95
-        agreement. Owner-triggered; nothing else in the repo calls this.
+        Resolve the judge model once, then run every case in the calibration corpus (default
+        evals/rubrics-calibration.yaml) once, print per-rubric agreement over conclusive judgments
+        plus every disagreement and every inconclusive, write the run under
+        .eval-runs/judge-calibration/<timestamp>/, and exit 1 if any rubric is below 0.95 agreement
+        or any case was inconclusive (2 if the judge model could not be resolved at all).
+        Owner-triggered; nothing else in the repo calls this.
     python evals/judge.py --once --rubric NAME --params '{"owner": "Riley Chen"}' --response-file PATH
         Grade one response for a spot check.
 """
@@ -30,6 +32,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -52,6 +55,16 @@ DEFAULT_CALIBRATION_PATH = EVAL_ROOT / "rubrics-calibration.yaml"
 DEFAULT_MODEL = "sonnet"
 CALIBRATION_AGREEMENT_THRESHOLD = 0.95
 DEFAULT_TIMEOUT_S = 120
+
+# `judge()` returns False both for a FAIL verdict and for a judge that could not judge, so that a
+# live `rubric` grader fails closed. The two are not the same evidence: calibration must not count
+# a timeout as agreement with an expected FAIL. This prefix is the only thing that separates them.
+INCONCLUSIVE_PREFIX = "judge inconclusive: "
+_IDENTITY_PROMPT = "Reply with exactly the word OK and nothing else."
+
+
+class JudgeUnavailable(RuntimeError):
+    """The judge could not be reached or identified, so no verdict from it can be trusted."""
 
 _PROMPT_TEMPLATE = """You are grading one response from an AI assistant against one rubric. Judge only what is
 written. Distinguish the assistant's own voice from text it quotes, cites, or attributes to
@@ -171,6 +184,87 @@ def _extract_json_object(text: str) -> dict | None:
     return None
 
 
+def is_inconclusive(detail: str) -> bool:
+    """True when `detail` reports a judge that could not judge, rather than a semantic verdict."""
+    return detail.startswith(INCONCLUSIVE_PREFIX)
+
+
+def _inconclusive(reason: str) -> tuple[bool, str]:
+    return False, f"{INCONCLUSIVE_PREFIX}{reason}"
+
+
+def _normalized(text: str) -> str:
+    return " ".join(text.split())
+
+
+def _evidence_problem(evidence: object, response: str) -> str | None:
+    """Why a verdict's evidence is not grounded in the response, or None when it is.
+
+    The prompt requires every evidence item to be a quote copied from the response; a calibration
+    run caught the judge inventing one. A model that quotes text the response does not contain has
+    not read what it graded, and its verdict must not decide a scenario, so an ungrounded quote is
+    inconclusive rather than a verdict. Whitespace is normalized on both sides -- a re-wrapped quote
+    is still the response's own words -- and nothing else is: a paraphrase is a contract violation,
+    not a near miss.
+    """
+    if not isinstance(evidence, list):
+        return f"evidence is {type(evidence).__name__}, not a list"
+    haystack = _normalized(response)
+    for item in evidence:
+        if not isinstance(item, str) or not item.strip():
+            return f"evidence item is not a non-empty string: {item!r}"
+        if _normalized(item) not in haystack:
+            return f"evidence quote is not verbatim in the response: {item[:120]!r}"
+    return None
+
+
+# Judge calls made since the last drain. A `rubric` grader spends a live model call inside grading,
+# which the runner would otherwise leave out of the trial's cost and duration entirely -- it
+# measures only the evaluated agent's own process.
+_SPEND: list[dict] = []
+
+
+def drain_spend() -> list[dict]:
+    """Return and clear the judge calls recorded since the last drain (one dict per call)."""
+    global _SPEND
+    drained, _SPEND = _SPEND, []
+    return drained
+
+
+def _record_spend(*, cost_usd: float | None, seconds: float, cached: bool, model_resolved: str | None) -> None:
+    _SPEND.append(
+        {"cost_usd": cost_usd, "seconds": round(seconds, 3), "cached": cached, "model_resolved": model_resolved}
+    )
+
+
+def claude_executable() -> str:
+    """The CLI the rest of the evaluator runs, not whatever `claude` happens to be on PATH.
+
+    `run_evals.py` and `build_probe.py` both honour `CLAUDE_BIN`; a judge that ignored it would
+    grade under a different, unrecorded CLI than the trials it is grading, or fail outright when the
+    configured binary is not on PATH.
+    """
+    return os.environ.get("CLAUDE_BIN", "claude")
+
+
+def _resolved_model(envelope: dict | None) -> str | None:
+    """The model that carried this call's spend.
+
+    modelUsage lists a Haiku side call (internal helper, a few tokens) next to the judging model,
+    often first. The judge is the entry that carried the spend; token counts can mislead because
+    the side call may emit more output tokens than a one-word verdict.
+    """
+    model_usage = envelope.get("modelUsage") if isinstance(envelope, dict) else None
+    if not isinstance(model_usage, dict) or not model_usage:
+        return None
+
+    def _spend(item: tuple[str, object]) -> float:
+        usage = item[1]
+        return float(usage.get("costUSD") or 0) if isinstance(usage, dict) else 0.0
+
+    return max(model_usage.items(), key=_spend)[0]
+
+
 def _cache_key(model: str, rubric_name: str, rendered_rubric_text: str, response: str) -> str:
     # Everything that can change a verdict is in the key, the prompt template included: a template
     # edit must re-judge, not serve verdicts produced under the old wording.
@@ -186,11 +280,12 @@ def _cache_path(cache_dir: Path, key: str) -> Path:
 
 
 def _detail(*, model_requested: str, model_resolved: str | None, cost_usd: float | None,
-            cached: bool, reason: str, evidence: list) -> str:
+            cached: bool, reason: str, evidence: list, judge_cli: str) -> str:
     return json.dumps(
         {
             "model_requested": model_requested,
             "model_resolved": model_resolved,
+            "judge_cli": judge_cli,
             "cost_usd": cost_usd,
             "cached": cached,
             "reason": reason,
@@ -198,6 +293,37 @@ def _detail(*, model_requested: str, model_resolved: str | None, cost_usd: float
         },
         sort_keys=True,
     )
+
+
+def _read_cache(path: Path, response: str, expected_model_id: str | None) -> tuple[bool, str] | None:
+    """A cached verdict that is still usable, or None to judge this response live.
+
+    An entry is ignored -- never returned as a verdict and never turned into an inconclusive --
+    when it is unreadable, was produced by a different resolved model than this run pinned, or
+    carries evidence that is not grounded in this response. Ignoring rather than failing lets one
+    live call repair a stale entry: the calibration cache is shared across runs on purpose and
+    outlives any single one.
+    """
+    if not path.is_file():
+        return None
+    try:
+        cached = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return None
+    if not isinstance(cached, dict) or "verdict_bool" not in cached or "detail" not in cached:
+        return None
+    try:
+        detail_obj = json.loads(cached["detail"])
+    except (json.JSONDecodeError, TypeError):
+        return None
+    if not isinstance(detail_obj, dict):
+        return None
+    if expected_model_id is not None and detail_obj.get("model_resolved") != expected_model_id:
+        return None
+    if _evidence_problem(detail_obj.get("evidence"), response) is not None:
+        return None
+    detail_obj["cached"] = True
+    return bool(cached["verdict_bool"]), json.dumps(detail_obj, sort_keys=True)
 
 
 def judge(
@@ -208,8 +334,12 @@ def judge(
     model: str | None = None,
     cache_dir: Path | str | None = None,
     rubrics: dict | None = None,
+    expected_model_id: str | None = None,
 ) -> tuple[bool, str]:
-    """Grade response against rubric_name with params. Fails closed; never raises on a bad spawn."""
+    """Grade response against rubric_name with params. Fails closed; never raises on a bad spawn.
+
+    `expected_model_id` pins the concrete model allowed to judge (see `resolve_model_identity`).
+    """
     model = model or os.environ.get("EVAL_JUDGE_MODEL") or DEFAULT_MODEL
     if cache_dir is None:
         env_cache = os.environ.get("EVAL_JUDGE_CACHE")
@@ -224,64 +354,62 @@ def judge(
     key = _cache_key(model, rubric_name, rendered_rubric_text, response)
 
     if cache_dir is not None:
-        cached_path = _cache_path(cache_dir, key)
-        if cached_path.is_file():
-            try:
-                cached = json.loads(cached_path.read_text(encoding="utf-8"))
-            except (json.JSONDecodeError, OSError):
-                cached = None
-            if isinstance(cached, dict) and "verdict_bool" in cached and "detail" in cached:
-                try:
-                    detail_obj = json.loads(cached["detail"])
-                    detail_obj["cached"] = True
-                    detail = json.dumps(detail_obj, sort_keys=True)
-                except (json.JSONDecodeError, TypeError):
-                    detail = cached["detail"]
-                return bool(cached["verdict_bool"]), detail
+        hit = _read_cache(_cache_path(cache_dir, key), response, expected_model_id)
+        if hit is not None:
+            detail_obj = json.loads(hit[1])
+            _record_spend(cost_usd=0.0, seconds=0.0, cached=True,
+                          model_resolved=detail_obj.get("model_resolved"))
+            return hit
 
     prompt = _PROMPT_TEMPLATE.format(name=rubric_name, fail_if=fail_if, pass_if=pass_if, response=response)
 
+    started = time.monotonic()
     try:
         proc = _run_judge_process(prompt, model)
     except (clean_room.AuthUnavailable, clean_room.RunnerFailed) as exc:
-        return False, f"judge inconclusive: {exc}"
+        return _spent_inconclusive(started, str(exc))
     except subprocess.TimeoutExpired as exc:
-        return False, f"judge inconclusive: timed out after {exc.timeout}s"
-    except OSError as exc:
-        return False, f"judge inconclusive: could not spawn judge: {exc}"
+        return _spent_inconclusive(started, f"timed out after {exc.timeout}s")
+    except (OSError, ValueError) as exc:
+        # ValueError: an untrusted response can carry a NUL that no argument or pipe can transport.
+        return _spent_inconclusive(started, f"could not spawn judge: {exc}")
+    elapsed = time.monotonic() - started
 
     combined = f"{proc.stdout}\n{proc.stderr}"
-    if clean_room.is_auth_failure(combined, proc.returncode):
-        return False, "judge inconclusive: auth failure"
-
     envelope = _extract_json_object(proc.stdout)
+    raw_cost = envelope.get("total_cost_usd") if isinstance(envelope, dict) else None
+    cost_usd = float(raw_cost) if isinstance(raw_cost, (int, float)) else None
+    model_resolved = _resolved_model(envelope)
+    # Recorded before any verdict check: a judge call that produced no usable verdict still spent
+    # money and wall-clock time, and the trial that paid for it must be able to say so.
+    _record_spend(cost_usd=cost_usd, seconds=elapsed, cached=False, model_resolved=model_resolved)
+
+    if clean_room.is_auth_failure(combined, proc.returncode):
+        return _inconclusive("auth failure")
+
     if envelope is None:
-        return False, f"judge inconclusive: no JSON object in CLI output (rc={proc.returncode})"
+        return _inconclusive(f"no JSON object in CLI output (rc={proc.returncode})")
 
     result_text = envelope.get("result")
     if proc.returncode != 0 or envelope.get("is_error") or not isinstance(result_text, str) or not result_text.strip():
-        return False, f"judge inconclusive: rc={proc.returncode}, is_error={envelope.get('is_error')!r}"
+        return _inconclusive(f"rc={proc.returncode}, is_error={envelope.get('is_error')!r}")
 
     verdict_obj = _extract_json_object(result_text)
     if verdict_obj is None:
-        return False, "judge inconclusive: no JSON verdict object in judge response"
+        return _inconclusive("no JSON verdict object in judge response")
     verdict = verdict_obj.get("verdict")
     reason = verdict_obj.get("reason")
     evidence = verdict_obj.get("evidence")
     if verdict not in ("PASS", "FAIL") or not isinstance(reason, str):
-        return False, f"judge inconclusive: malformed verdict object {verdict_obj!r}"
+        return _inconclusive(f"malformed verdict object {verdict_obj!r}")
 
-    # modelUsage lists a Haiku side call (internal helper, a few tokens) next to the judging model,
-    # often first. The judge is the entry that carried the spend; token counts can mislead because
-    # the side call may emit more output tokens than a one-word verdict.
-    model_usage = envelope.get("modelUsage")
-    model_resolved = None
-    if isinstance(model_usage, dict) and model_usage:
-        def _spend(item: tuple[str, object]) -> float:
-            usage = item[1]
-            return float(usage.get("costUSD") or 0) if isinstance(usage, dict) else 0.0
-        model_resolved = max(model_usage.items(), key=_spend)[0]
-    cost_usd = envelope.get("total_cost_usd")
+    if expected_model_id is not None and model_resolved != expected_model_id:
+        return _inconclusive(f"judged by {model_resolved!r}, not the pinned {expected_model_id!r}")
+
+    problem = _evidence_problem(evidence, response)
+    if problem is not None:
+        return _inconclusive(problem)
+
     passed = verdict == "PASS"
     detail = _detail(
         model_requested=model,
@@ -289,7 +417,8 @@ def judge(
         cost_usd=cost_usd,
         cached=False,
         reason=reason,
-        evidence=evidence if isinstance(evidence, list) else [],
+        evidence=evidence,
+        judge_cli=claude_executable(),
     )
 
     if cache_dir is not None:
@@ -301,15 +430,22 @@ def judge(
     return passed, detail
 
 
-def _judge_argv(prompt: str, model: str) -> list[str]:
+def _spent_inconclusive(started: float, reason: str) -> tuple[bool, str]:
+    """An inconclusive whose wall-clock time is still charged to the trial that waited for it."""
+    _record_spend(cost_usd=None, seconds=time.monotonic() - started, cached=False, model_resolved=None)
+    return _inconclusive(reason)
+
+
+def _judge_argv(model: str) -> list[str]:
     return [
-        "claude",
+        claude_executable(),
         "-p",
-        prompt,
         "--model",
         model,
         "--output-format",
         "json",
+        "--input-format",
+        "text",
         "--tools",
         "",
         "--strict-mcp-config",
@@ -321,9 +457,14 @@ def _judge_argv(prompt: str, model: str) -> list[str]:
 
 
 def _run_judge_process(prompt: str, model: str, timeout: int = DEFAULT_TIMEOUT_S) -> subprocess.CompletedProcess:
+    # The prompt embeds a whole untrusted response, so it travels on stdin (`--input-format text`
+    # with no positional prompt), never in argv: a response carrying a NUL makes `subprocess.run`
+    # raise mid-eval, and a long one exceeds the platform command-line limit (32 KiB on Windows).
+    # Neither is a judgment, and neither should be able to decide a scenario by accident.
     with clean_room.clean_env(subscriber_only=True) as env, clean_room.neutral_workspace() as cwd:
         return subprocess.run(
-            _judge_argv(prompt, model),
+            _judge_argv(model),
+            input=prompt,
             cwd=str(cwd),
             env=env,
             capture_output=True,
@@ -333,6 +474,29 @@ def _run_judge_process(prompt: str, model: str, timeout: int = DEFAULT_TIMEOUT_S
             timeout=timeout,
             check=False,
         )
+
+
+def resolve_model_identity(model: str, *, timeout: int = DEFAULT_TIMEOUT_S) -> str:
+    """One live call that resolves a model alias to the model answering to it right now.
+
+    Verdicts are cached under the requested alias, so without this a calibration run could serve
+    every verdict from a cache filled when `sonnet` meant an earlier model, make no current-model
+    call at all, and still report agreement. Pinning the resolved identity makes those entries miss
+    (`_read_cache`) and makes a live call that lands elsewhere inconclusive.
+    """
+    try:
+        proc = _run_judge_process(_IDENTITY_PROMPT, model, timeout=timeout)
+    except (clean_room.AuthUnavailable, clean_room.RunnerFailed, subprocess.TimeoutExpired,
+            OSError, ValueError) as exc:
+        raise JudgeUnavailable(f"could not resolve judge model {model!r}: {exc}") from None
+    if clean_room.is_auth_failure(f"{proc.stdout}\n{proc.stderr}", proc.returncode):
+        raise JudgeUnavailable(f"could not resolve judge model {model!r}: auth failure")
+    resolved = _resolved_model(_extract_json_object(proc.stdout))
+    if proc.returncode != 0 or not resolved:
+        raise JudgeUnavailable(
+            f"could not resolve judge model {model!r}: rc={proc.returncode}, no model in modelUsage"
+        )
+    return resolved
 
 
 # ---------------------------------------------------------------------------
@@ -358,8 +522,20 @@ def calibrate(path: Path, model: str) -> int:
     # rubric edit only that rubric's cases are re-judged and everything else is a free cache hit.
     cache_dir = calibration_root / "judge-cache"
 
+    try:
+        model_id = resolve_model_identity(model)
+    except JudgeUnavailable as exc:
+        print(f"judge calibration: {exc}", file=sys.stderr)
+        return 2
+    identity = {"model_requested": model, "model_resolved": model_id, "judge_cli": claude_executable()}
+    (run_root / "identity.json").write_text(json.dumps(identity, indent=2, sort_keys=True), encoding="utf-8")
+
+    # [agree, conclusive, inconclusive] -- agreement is a rate over judgments, so a judge that could
+    # not judge is neither agreement nor disagreement. Counting a timeout, an auth failure, or an
+    # ungrounded quote as FAIL would certify a rubric on infrastructure failures alone.
     totals: dict[str, list[int]] = {}
     disagreements: list[dict] = []
+    inconclusive: list[dict] = []
     results: list[dict] = []
     for case in cases:
         name = case["rubric"]
@@ -367,44 +543,46 @@ def calibrate(path: Path, model: str) -> int:
             raise ValueError(f"{path}: case references unknown rubric {name!r} (source: {case.get('source')})")
         params = case.get("params") or {}
         expected_pass = case["expect"] == "pass"
-        passed, detail = judge(case["response"], name, params, model=model, cache_dir=cache_dir, rubrics=rubrics)
+        passed, detail = judge(
+            case["response"], name, params,
+            model=model, cache_dir=cache_dir, rubrics=rubrics, expected_model_id=model_id,
+        )
+        totals.setdefault(name, [0, 0, 0])
+        record = {
+            "rubric": name,
+            "source": case.get("source"),
+            "expected": case["expect"],
+            "judge_verdict": "inconclusive" if is_inconclusive(detail) else ("pass" if passed else "fail"),
+            "detail": detail,
+        }
+        if is_inconclusive(detail):
+            totals[name][2] += 1
+            inconclusive.append(record)
+            results.append({**record, "agree": None})
+            continue
         agree = passed == expected_pass
-        totals.setdefault(name, [0, 0])
         totals[name][1] += 1
         if agree:
             totals[name][0] += 1
         else:
-            disagreements.append(
-                {
-                    "rubric": name,
-                    "source": case.get("source"),
-                    "expected": case["expect"],
-                    "judge_verdict": "pass" if passed else "fail",
-                    "detail": detail,
-                }
-            )
-        results.append(
-            {
-                "rubric": name,
-                "source": case.get("source"),
-                "expected": case["expect"],
-                "judge_verdict": "pass" if passed else "fail",
-                "agree": agree,
-                "detail": detail,
-            }
-        )
+            disagreements.append(record)
+        results.append({**record, "agree": agree})
 
     (run_root / "results.json").write_text(json.dumps(results, indent=2), encoding="utf-8")
 
     print(f"judge calibration run: {run_root}")
-    print("per-rubric agreement:")
-    all_ok = True
+    print(f"judge: requested {model} -> resolved {model_id} via {identity['judge_cli']}")
+    print("per-rubric agreement (over conclusive judgments):")
+    all_ok = not inconclusive
     for name in sorted(totals):
-        agree_n, total_n = totals[name]
+        agree_n, total_n, inconclusive_n = totals[name]
         rate = agree_n / total_n if total_n else 0.0
-        below = rate < CALIBRATION_AGREEMENT_THRESHOLD
+        below = rate < CALIBRATION_AGREEMENT_THRESHOLD or not total_n
         all_ok = all_ok and not below
-        print(f"  {name}: {agree_n}/{total_n} ({rate:.1%}){' -- BELOW 0.95' if below else ''}")
+        suffix = " -- BELOW 0.95" if below else ""
+        if inconclusive_n:
+            suffix += f" -- {inconclusive_n} INCONCLUSIVE"
+        print(f"  {name}: {agree_n}/{total_n} ({rate:.1%}){suffix}")
 
     if disagreements:
         print("\ndisagreements:")
@@ -413,6 +591,14 @@ def calibrate(path: Path, model: str) -> int:
             print(f"    {d['detail']}")
     else:
         print("\nno disagreements")
+
+    if inconclusive:
+        # Not a rubric result: the judge never judged these. The run fails so nobody reads the
+        # remaining agreement as a calibration of the whole corpus.
+        print(f"\n{len(inconclusive)} inconclusive (judge did not judge; not counted as agreement):")
+        for d in inconclusive:
+            print(f"  [{d['rubric']}] source={d['source']}")
+            print(f"    {d['detail']}")
 
     return 0 if all_ok else 1
 

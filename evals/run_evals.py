@@ -1442,6 +1442,45 @@ def effective_threshold(scenario: dict, requested: float) -> float:
     return requested
 
 
+def drain_judge_spend() -> dict:
+    """What the `rubric` graders of the trial just graded spent, as a trial-level record.
+
+    A `rubric` grader spends a live judge call per trial, and that call's cost and wall-clock time
+    are not in the evaluated agent's process at all -- without this, every judged trial (twice over
+    for a scenario with two rubric graders) reports less spend and less elapsed time than it took.
+    `graders.py` imports `judge` lazily, so a batch with no rubric grader never loads it and this
+    stays an empty record.
+    """
+    module = sys.modules.get("judge")
+    calls = module.drain_spend() if module is not None else []
+    costs = [call["cost_usd"] for call in calls if isinstance(call.get("cost_usd"), (int, float))]
+    return {
+        "calls": len(calls),
+        # None, not 0.0, when nothing reported a cost: an unknown price is not a free one.
+        "cost_usd": sum(costs) if costs else None,
+        "seconds": round(sum(float(call.get("seconds") or 0.0) for call in calls), 3),
+        "cached_calls": sum(1 for call in calls if call.get("cached")),
+        "models_resolved": sorted({
+            call["model_resolved"] for call in calls if isinstance(call.get("model_resolved"), str)
+        }),
+    }
+
+
+def observed_judge_models(scenario_results: list[dict]) -> list[str]:
+    """Every model that actually judged a `rubric` grader in this batch.
+
+    The requested judge alias is in provenance, but a rubric-backed PASS/FAIL can only be attributed
+    -- or compared with another batch -- through the identity that produced it.
+    """
+    models: set[str] = set()
+    for scenario in scenario_results:
+        for trial in scenario.get("trials", []):
+            judge_record = trial.get("judge") or {}
+            if isinstance(judge_record, dict):
+                models.update(m for m in judge_record.get("models_resolved") or [] if isinstance(m, str))
+    return sorted(models)
+
+
 def observed_models(scenario_results: list[dict]) -> list[str]:
     """The sorted set of resolved models seen across every trial in a batch.
 
@@ -2233,6 +2272,7 @@ def main() -> int:
                             "model_executed": True,
                             "started_at": started_at,
                             "duration_seconds": execution.duration_seconds,
+                            "judge": drain_judge_spend(),
                             "exit_code": execution.returncode,
                             "resolved_model": execution.parsed.model,
                             "reasoning_effort": None,
@@ -2285,6 +2325,9 @@ def main() -> int:
                             "reason": str(exc),
                             "exit_code": getattr(exc, "returncode", None),
                             "duration_seconds": getattr(exc, "duration_seconds", None),
+                            # Drained even though this trial never graded: an earlier trial's judge
+                            # spend must not accumulate into a later one's record.
+                            "judge": drain_judge_spend(),
                             "requested_model": getattr(exc, "requested_model", args.model),
                             "resolved_model": getattr(exc, "resolved_model", None),
                             "reasoning_effort": None,
@@ -2366,6 +2409,8 @@ def main() -> int:
                 "selected": {"mode": args.mode, "split": args.split, "match": args.match},
                 "scenarios": scenario_results,
                 "models_observed": models_observed,
+                "judge_model_requested": args.judge_model,
+                "judge_models_observed": observed_judge_models(scenario_results),
                 "integrity": {
                     "state": "PASS" if not integrity_errors else "INCONCLUSIVE",
                     "errors": integrity_errors,
