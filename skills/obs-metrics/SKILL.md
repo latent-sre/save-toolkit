@@ -4,8 +4,7 @@ description: >-
   The answer is in the metrics — latency percentiles, error ratios, saturation, rates,
   missing-data traps. Backends: Wavefront (WQL), Mimir/Prometheus (PromQL), and Cloud
   Monitoring on GCP (PromQL; MQL is deprecated). Triggers: 'query the metrics', 'graph the
-  error rate', 'is latency up', 'write a metric alert query'. Ownership map only—not a
-  load: obs-alerting owns alert design and obs-logs owns logs.
+  error rate', 'is latency up', 'write a metric alert query'. Not for alert design (obs-alerting) or logs (obs-logs).
 argument-hint: "[service, metric question, or query goal]"
 ---
 

@@ -66,5 +66,3 @@ consumer needs to the questions above, the effect model, the migration need, the
 and the platform boundary — and marks the selection **deferred** with the owner decision it waits
 on. When a separately approved consumer decision already names a runtime, record that identity in
 section 2 and evaluate the design against it; do not re-open the selection inside the design.
-
-Reference-read token: q_wgrun_4f8d

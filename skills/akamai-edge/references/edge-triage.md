@@ -136,5 +136,3 @@ Read-only triage path *[sourced: techdocs.akamai.com/security-ctr/docs/web-secur
 
 Evidence of a false positive — the sampled requests, the rule id, the affected user share — goes to
 the human security policy owner. This fleet never tunes or disables a protection itself.
-
-<!-- terminal-canary: q_aketri_3f7a -->

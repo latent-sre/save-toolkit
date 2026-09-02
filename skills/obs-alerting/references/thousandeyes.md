@@ -117,5 +117,3 @@ the account role, endpoint, schema, and target in the current developer referenc
 account-group labels and repository paths here—no API tokens. Hand approved automation to the `software-engineer`
 agent and a human release owner; creation, update, or deletion of tests is a controlled external change,
 not permission granted by this reference.
-
-<!-- terminal-canary: q_oate_9b52 -->

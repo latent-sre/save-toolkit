@@ -135,11 +135,3 @@ No entries yet. Add them under this heading using the same shape; `logql.md` own
 
 No entries yet. Metric searches belong to `obs-metrics`; add a pointer here only when a metric query
 is the natural companion to a log query above, and keep the query itself in the owning skill.
-
-## Inert canary
-
-This token only proves the catalog loaded; it asserts nothing about a query or an index.
-
-```text
-q_ol_qcat_8c2f
-```

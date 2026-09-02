@@ -37,7 +37,6 @@ Primary references:
 - Missing data
 - WQL and PromQL mapping aid
 - Investigation handoff
-- Inert canary example
 
 ## Select series and filter point tags
 
@@ -207,19 +206,3 @@ staleness conditions.
 
 Overlay the exact deploy timestamp, then keep both the aggregate and the dimension that isolates an
 outlier. Hand the `observability-engineer` agent the query, window, threshold, value, and missing-data behavior.
-
-## Inert canary example
-
-The expression is a reference-loading fixture, not a target metric claim.
-
-*[sourced: WQL `ts()` and trailing grouping syntax; unverified for placeholder metric/tags]*
-
-```text
-sum(ts(<fixture.metric>, app="<fixture_app>"), app)
-```
-
-Expected fixture output (inert):
-
-```text
-q_omwql_7b31
-```

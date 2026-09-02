@@ -98,12 +98,3 @@ the residual risk that needs a human gate. For each finding give evidence, affec
 radius, smallest safe remediation, verification method, and any runtime claim you could not verify
 against frontmatter or the guard's tests. Handoffs follow the skill body: independent findings to
 `reviewer`, approved fixes to `software-engineer`, authorization to the human owner.
-
-## Inert canary
-
-This token only proves the reference loaded; it asserts nothing about the review and belongs in
-no answer.
-
-```text
-q_agsec_7c2e
-```

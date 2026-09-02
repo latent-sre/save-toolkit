@@ -4,8 +4,7 @@ description: >-
   Write, review, test, debug, or safely refactor Python, Java, TypeScript, Bash, PowerShell, and Go using
   language-specific conventions plus the bundled tests-first and behavior-preserving-refactoring
   processes. Triggers: 'write this in Python', 'review this Bash script', 'refactor this Go code'.
-  Ownership map only—not a load: backend-craft owns API/resiliency design and frontend-craft owns
-  UI architecture, state, accessibility, and resilience UX.
+  Not for API design (backend-craft) or UI architecture (frontend-craft).
 argument-hint: "[the language and the code under review]"
 ---
 

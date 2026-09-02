@@ -33,7 +33,6 @@ minutes. Semantics against *your* metric names, and Mimir's deployed version and
 - Recording rules, native histograms, remote_write — the parts around the query
 - Mimir per-tenant limits — typed `err-mimir-*` errors
 - Missing data and staleness
-- Inert canary example
 
 ## Selectors and label matchers
 
@@ -201,19 +200,3 @@ Prometheus marks series stale when they stop being exported or a target disappea
 returning the series after the applicable lookback/staleness behavior. Record the target's scrape and
 rule intervals and test its no-data path separately from a threshold. *[sourced: Prometheus querying
 basics; unverified for target configuration]*
-
-## Inert canary example
-
-The expression is a reference-loading fixture, not a target metric claim.
-
-*[sourced: PromQL selector and `rate()` syntax; unverified placeholder metric/labels]*
-
-```promql
-sum by (app) (rate(fixture_requests_total{app="<fixture_app>"}[5m]))
-```
-
-Expected fixture output (inert):
-
-```text
-q_ompr_4e9a
-```

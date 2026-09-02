@@ -898,7 +898,7 @@ class StreamTraceTests(unittest.TestCase):
         with self.assertRaises(clean_room.RunnerFailed):
             run_evals.parse_stream_trace(incomplete)
 
-    def test_parser_records_read_attempt_path_and_outcome(self) -> None:
+    def test_parser_records_successful_reference_read_without_a_content_token(self) -> None:
         events = [
             self._init_event(),
             {"type": "assistant", "session_id": "session-1", "message": {"content": [{
@@ -911,7 +911,7 @@ class StreamTraceTests(unittest.TestCase):
                 "type": "tool_result",
                 "tool_use_id": "read-1",
                 "is_error": False,
-                "content": "reference body q_probe_1234",
+                "content": "ordinary reference body",
             }]}},
             self._result_event("done"),
         ]
@@ -924,7 +924,15 @@ class StreamTraceTests(unittest.TestCase):
                 outcome="allowed",
             ),),
         )
-        self.assertEqual(parsed.observed_canaries, ("q_probe_1234",))
+        required = {
+            "skills/x/references/a.md": Path(
+                "/tmp/frozen/skills/x/references/a.md"
+            ).resolve(),
+        }
+        self.assertEqual(
+            run_evals.observed_reference_reads(parsed, required),
+            ("skills/x/references/a.md",),
+        )
 
     def test_runtime_boundary_rejects_successful_read_outside_snapshot(self) -> None:
         parsed = run_evals.parse_stream_trace(self._trace())
@@ -1203,7 +1211,7 @@ class StreamTraceTests(unittest.TestCase):
         self.assertNotIn("private first response", serialized)
         self.assertNotIn("private second response", serialized)
 
-    def test_post_parse_canary_failure_retains_proven_model_policy_and_canaries(self) -> None:
+    def test_post_parse_reference_failure_retains_proven_model_policy_and_references(self) -> None:
         parsed = run_evals.parse_stream_trace(self._trace())
         completed = mock.Mock(returncode=0, stdout=self._trace(), stderr="")
         scenario = {
@@ -1214,12 +1222,16 @@ class StreamTraceTests(unittest.TestCase):
         with (
             mock.patch.object(run_evals, "build_command", return_value=["claude"]),
             mock.patch.object(run_evals, "expected_runtime_tools", return_value=("Skill", "Task")),
-            mock.patch.object(run_evals, "expected_canaries_for_paths", return_value={"ref": "q_probe_1234"}),
+            mock.patch.object(
+                run_evals,
+                "required_reference_paths",
+                return_value={"skills/x/references/a.md": run_evals.ROOT / "skills/x/references/a.md"},
+            ),
             mock.patch.object(run_evals.subprocess, "run", return_value=completed),
             mock.patch.object(run_evals, "parse_stream_trace", return_value=parsed),
             mock.patch.object(run_evals, "enforce_runtime_boundary"),
         ):
-            with self.assertRaisesRegex(run_evals.InconclusiveTrial, "canary") as caught:
+            with self.assertRaisesRegex(run_evals.InconclusiveTrial, "reference") as caught:
                 run_evals.run_agent(
                     scenario,
                     env={},
@@ -1232,8 +1244,8 @@ class StreamTraceTests(unittest.TestCase):
 
         self.assertEqual(caught.exception.resolved_model, "claude-test")
         self.assertIsNotNone(caught.exception.policy_sha256)
-        self.assertEqual(caught.exception.expected_canaries, ("q_probe_1234",))
-        self.assertEqual(caught.exception.observed_canaries, ())
+        self.assertEqual(caught.exception.expected_references, ("skills/x/references/a.md",))
+        self.assertEqual(caught.exception.observed_references, ())
         self.assertIs(caught.exception.parsed_trace, parsed)
         self.assertTrue(caught.exception.model_executed)
 

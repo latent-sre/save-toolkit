@@ -29,7 +29,6 @@ in No Data, reproduced against a live Loki.
 - Compare before and after a deploy
 - Follow one request
 - Errors that are limits, not bugs
-- Inert canary example
 
 ## Stream selectors and label discipline
 
@@ -187,19 +186,3 @@ troubleshoot and configuration docs]*
   raising it to absorb high-cardinality labels.
 - Which limits bind this tenant is `[unverified]` until read from the deployed config; upstream
   defaults are not the tenant's limits.
-
-## Inert canary example
-
-This checks reference loading only; it is not a production request id.
-
-*[sourced: Grafana Loki selector, `json`, and label-filter syntax; unverified for target labels]*
-
-```logql
-{app="checkout", env="prod"} | json | request_id="<fixture_request_id>"
-```
-
-Expected fixture output (inert):
-
-```text
-q_ol_loki_8c2d
-```

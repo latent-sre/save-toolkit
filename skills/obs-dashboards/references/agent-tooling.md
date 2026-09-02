@@ -53,5 +53,3 @@ output against the target API version before applying it.
 
 *[sourced: `grafana/skills` and `grafana/grafana-foundation-sdk` upstream documentation; fetch current
 versions when adoption is actually proposed]*
-
-<!-- terminal-canary: q_odtool_5b2a -->

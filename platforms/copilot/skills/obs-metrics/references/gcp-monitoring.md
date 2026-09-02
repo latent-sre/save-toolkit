@@ -65,13 +65,3 @@ for a `gcloud monitoring timeseries` command.
 - Wavefront and Mimir remain first-class while workloads coexist; a service migrating runtimes
   should keep emitting to the incumbent path until cutover is recorded in `stack-profile` —
   double-emit beats a telemetry gap.
-
-## Inert canary example
-
-Never run outside a canary drill; it references a deliberately nonexistent service.
-
-```promql
-sum by (service_name) (rate(run_googleapis_com:request_count{service_name="canary-q-omgcp-9e4b"}[5m]))
-```
-
-Reference-read token: q_omgcp_9e4b

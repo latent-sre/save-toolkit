@@ -35,11 +35,3 @@ Not done:     <explicitly what you did NOT do, and known unknowns>
 - **State what you did NOT do** — especially read-only → write handoffs (for example, `sre` → a human
   release owner: “I changed nothing in prod; recommended mitigation is X with rollback Y”).
 - **Prod-facing handoffs** carry the plan + rollback and require `production-change-gate`.
-
-## Inert canary
-
-This token only proves the reference loaded; it asserts nothing about a handoff.
-
-```text
-q_iiho_2e5a
-```

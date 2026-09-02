@@ -56,12 +56,3 @@ deploy hypothesis rather than confirming it.
 Return the exact start time, blast radius, and trend—worsening, stable, or recovering—with evidence
 labels. Those fields determine whether first response can continue or hypothesis investigation has
 enough foundation to begin.
-
-## Inert canary
-
-This token only proves the reference loaded; it asserts nothing about the incident and belongs in
-no answer.
-
-```text
-q_iisc_9d4f
-```

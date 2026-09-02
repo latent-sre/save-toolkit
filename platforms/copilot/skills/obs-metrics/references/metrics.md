@@ -84,11 +84,3 @@ histogram_quantile(
 
 Record the backend and tenant, exact metric name, type, unit, reporting or scrape interval, stable
 dimensions, owner, and telemetry-contract link. Unknown values stay `[unverified]`.
-
-## Inert canary example
-
-This output proves only that the inventory reference loaded.
-
-```text
-Reference-read token: q_ommet_c2d8
-```

@@ -61,7 +61,3 @@ After mitigation, confirm user impact has ended but keep the incident open throu
 recovery window. The typed `sre` agent continues root-cause work, the human release owner owns any
 fix-forward execution, and the typed `observability-engineer` owns recovery evidence and detection
 changes.
-
-```text
-q_icm_3ed5
-```

@@ -301,5 +301,3 @@ otherwise.
 
 Deleting dashboards, changing permissions/data sources/alerts/contact points, or altering platform
 configuration is outside the dashboard write rule.
-
-<!-- terminal-canary: q_odapi_4e19 -->

@@ -86,5 +86,3 @@ Each failure class needs a different response, so the runbook branches on it: mo
 failure, join starvation, approval timeout, checkpoint failure, effect uncertainty (`UNKNOWN`
 backlog), scheduler backlog, and budget exhaustion. An alert that says "workflow failed" without the
 class pages the wrong person.
-
-Reference-read token: q_wgobs_3b6f

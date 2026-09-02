@@ -91,5 +91,3 @@ canary run proves it.
 ## Done
 Every critical journey emits RED; every constrained resource emits USE; traces propagate and correlate to
 logs; **no unbounded metric label exists**; at least one SLI is computable from what you emit.
-
-Reference-read token: q_opsdk_5b21

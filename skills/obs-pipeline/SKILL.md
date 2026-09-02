@@ -4,7 +4,7 @@ description: >-
   What ships telemetry where — instrument a service with OTel and route metrics, traces, and
   structured logs through Alloy/collectors to Loki, Mimir, Tempo, Splunk, and Wavefront. Triggers:
   'instrument this service', 'add telemetry', 'logs are not showing up in', 'wire X to Grafana'.
-  Ownership map only—not a load: obs-logs, obs-metrics, and obs-traces own reading the signals.
+  Not for reading the signals (obs-logs, obs-metrics, obs-traces).
 argument-hint: "[service, missing signal, or telemetry route]"
 ---
 

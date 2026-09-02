@@ -4,8 +4,7 @@ description: >-
   Grafana 13 dashboards — build, view, edit, and export them over the HTTP API: panel and dashboard
   design for the 3am reader, panel and variable hygiene, Classic/V1/V2 dashboard JSON, concurrency
   conflicts and rollback, and data-source licence facts. Triggers: 'build a dashboard', 'edit a
-  dashboard', 'add a panel for', 'what should we dashboard'. Ownership map only, not a load:
-  frontend-craft owns product-UI charts, obs-alerting owns alert rules, sre owns an active incident.
+  dashboard', 'add a panel for', 'what should we dashboard'. Not for product-UI charts (frontend-craft), alert rules (obs-alerting), or an active incident (sre).
 argument-hint: "[service, dashboard uid, or dashboard change]"
 ---
 

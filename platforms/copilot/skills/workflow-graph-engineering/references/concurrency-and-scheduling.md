@@ -90,5 +90,3 @@ is a queue that will discover those policies during the first incident.
 | Double execution after lease expiry | Stale worker and replacement both dispatch the effect | Attempt identity, effect key, and `UNKNOWN` on lease expiry |
 | Hot tenant | One caller's burst delays every other tenant | Per-tenant quota and fairness rule |
 | Silent shed | Overload drops work with no record | Record every shed decision and surface it to the caller |
-
-Reference-read token: q_wgconc_5d19
