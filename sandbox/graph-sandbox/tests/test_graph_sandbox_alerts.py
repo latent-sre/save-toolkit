@@ -12,7 +12,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-MODULE_PATH = ROOT / "skills/obs-alerting/scripts/graph_sandbox_alerts.py"
+MODULE_PATH = ROOT / "scripts/graph_sandbox_alerts.py"
 AUTHORITATIVE_RESULT_ID = "result-001"
 
 

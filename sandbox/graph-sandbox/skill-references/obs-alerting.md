@@ -37,7 +37,7 @@ Run the pure-standard-library evaluator from the repository root and pass eviden
 any order; manifest end time supplies the chronology.
 
 ```powershell
-python skills/obs-alerting/scripts/graph_sandbox_alerts.py <FAULT_EVIDENCE_DIR> <RECOVERY_EVIDENCE_DIR>
+python sandbox/graph-sandbox/scripts/graph_sandbox_alerts.py <FAULT_EVIDENCE_DIR> <RECOVERY_EVIDENCE_DIR>
 ```
 
 Expected fire/resolve evidence contains both `NOT_EVALUATED->FIRING` and `FIRING->RESOLVED`.

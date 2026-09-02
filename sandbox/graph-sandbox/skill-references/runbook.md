@@ -51,7 +51,7 @@ dashboard or notification route in this phase.
 1. Evaluate the supplied timeline.
 
    ```powershell
-   python skills/obs-alerting/scripts/graph_sandbox_alerts.py <EVIDENCE_DIR>
+   python sandbox/graph-sandbox/scripts/graph_sandbox_alerts.py <EVIDENCE_DIR>
    ```
 
    Obtain `EVIDENCE_DIR` from the alert annotation. For a single-bundle run this is the published
@@ -59,7 +59,7 @@ dashboard or notification route in this phase.
    annotation names `<evidence-root>/<run-id>`; pass both child directories instead:
 
    ```powershell
-   python skills/obs-alerting/scripts/graph_sandbox_alerts.py <EVIDENCE_DIR>/unknown <EVIDENCE_DIR>/reconciled
+   python sandbox/graph-sandbox/scripts/graph_sandbox_alerts.py <EVIDENCE_DIR>/unknown <EVIDENCE_DIR>/reconciled
    ```
 
    Expected: valid JSON naming the current run, alert state, outcome, bounded failure
