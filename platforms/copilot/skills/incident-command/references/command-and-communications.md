@@ -55,7 +55,9 @@ Open actions: <owner — item — Instrumentation prerequisite: signal/exporter/
 Next update: <HH:MM UTC>
 ```
 
-Update this block in place. Do not fork separate severity, timeline, and mitigation records.
+Update this block in place. Do not fork separate severity, timeline, and mitigation records. Evidence slices from `sre` carry
+their own observed timeline lines; the commander merges them here, and this record stays the only
+authoritative one.
 
 ## Communications cadence
 

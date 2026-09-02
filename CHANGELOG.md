@@ -58,6 +58,17 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Rewrote the incident stack around the human responder. `incident-investigation` now leads every
+  turn with the next check, in the tools this team uses (Apps Manager, Splunk, Wavefront and PCF
+  App Metrics, the Cloud Run console) via a new `references/first-checks.md`, with the advisor's
+  voice and pressure traps in `references/advising.md`; `investigation-depth`'s modes, signal
+  shapes, and terminal rules are folded into it. The `sre` agent is now the bounded read-only
+  evidence-slice helper (19.5 → 10.6 KB): it says when the `cf` CLI is absent where it runs, carries
+  its handoff packet inline, and has no recovery-state machine or tier ladder. `observability-engineer`
+  cites `production-change-gate`'s tiers instead of restating them. `[verified: owner ratification]`
+  became `[sourced]`, and the commander's record is stated as the only timeline, merging `sre`'s
+  slices. `stack-profile` records that PCF is operated through Apps Manager and that Wavefront and
+  App Metrics are the live PCF metrics UI.
 - `run_evals.py` reconfigures stdout and stderr with `errors="replace"` at start: a judge
   evidence quote containing an arrow crashed a batch on a cp1252 Windows console after two
   trials, losing its summary and packet (2026-09-02).
@@ -281,6 +292,9 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Removed
 
+- Removed `skills/investigation-depth` (folded into `incident-investigation`) and the two `sre`
+  scenarios that graded the `incident-state/v2` recovery-state machine; the recovery rubrics and
+  their calibration cases stay in place without a scenario.
 - Removed `skills/merge-gate` and `skills/release-gate`.
 - Removed 60 uncited dated packets under `docs/reviews/` (kept: everything a test or a live
   document cites; history is `git log -- docs/reviews`), `docs/rules.md`, and `docs/README.md`.

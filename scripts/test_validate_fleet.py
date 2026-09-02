@@ -202,7 +202,7 @@ class FleetValidatorTests(unittest.TestCase):
             "software-engineer": _markdown_section(
                 Path("agents/software-engineer.md"), "## Untrusted input boundary"
             ),
-            "sre": _markdown_section(Path("agents/sre.md"), "## Working doctrine"),
+            "sre": _markdown_section(Path("agents/sre.md"), "## Evidence discipline"),
         }
         for agent, section in sections.items():
             with self.subTest(agent=agent):
@@ -216,12 +216,9 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertNotIn("`[sourced: handoff]` is invalid", sections["sre"])
 
     def test_sre_incident_summary_never_omits_provisional_severity(self) -> None:
-        bounded_assist = _markdown_section(
-            Path("agents/sre.md"), "## Assist at the evidence-selected incident mode"
-        )
         output = _markdown_section(Path("agents/sre.md"), "## Output contract")
         self.assertIn(
-            "insufficient evidence becomes `[unverified] assignment pending`", bounded_assist
+            "insufficient evidence becomes `[unverified] assignment pending`", output
         )
         self.assertIn("provisional severity + named scale", output)
         self.assertIn("or `[unverified] assignment pending`", output)
@@ -526,24 +523,15 @@ class FleetValidatorTests(unittest.TestCase):
                 if source.name == filename:
                     text = text.replace(before, after)
                 (root / "agents" / source.name).write_text(text, encoding="utf-8")
-            for relative in validate_fleet.CONDITIONAL_HANDOFF_CONTRACTS.values():
-                target = root / relative
-                target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_text((ROOT / relative).read_text(encoding="utf-8"), encoding="utf-8")
             _, failures = validate_fleet.validate_agents(root)
         return failures
 
-    def test_sre_conditional_handoff_requires_an_explicit_pointer(self) -> None:
+    def test_sre_missing_handoff_section_is_rejected(self) -> None:
+        # `sre` now carries its handoff contract inline (`## The handoff packet`), like every other
+        # delegating agent; removing that heading must fail the same "missing handoff contract" the
+        # conditional-pointer mechanism used to guard before it was retired with investigation-depth.
         failures = self._agents_with_mutation(
-            "sre.md", "incident-handoff reference", "conditional handoff details"
-        )
-        self.assertIn("missing handoff contract", "\n".join(failures))
-
-    def test_sre_conditional_handoff_rejects_a_negated_pointer(self) -> None:
-        failures = self._agents_with_mutation(
-            "sre.md",
-            "read `investigation-depth`'s incident-handoff reference before forming the packet",
-            "do not read `investigation-depth`'s incident-handoff reference before forming the packet",
+            "sre.md", "## The handoff packet", "## Renamed handoff section"
         )
         self.assertIn("missing handoff contract", "\n".join(failures))
 
@@ -820,38 +808,48 @@ class NonDelegatingHandoffTests(unittest.TestCase):
 
 
 class SharedHandoffBlockTests(unittest.TestCase):
-    """The delegating agents' inline or predicate-loaded rules stay byte-identical.
+    """The delegating agents' inline rules carry the same named bullets, in the same order.
 
-    It was NOT identical: `observability-engineer` carried two straight quotes where `software-engineer` and `sre`
-    have curly ones. Harmless in itself, diagnostic in aggregate — something edited one copy of a
-    duplicated block and the other copies did not move, which is the same mechanism that produced
-    the reviewer contradiction above. The next divergence may not be punctuation.
+    This used to assert full byte identity, and caught real drift: `observability-engineer` once
+    carried two straight quotes where `software-engineer` and `sre` had curly ones. `sre`'s Rules
+    section is now inline (the `investigation-depth`-pinned conditional handoff contract it used to
+    load is gone), and its wording is not byte-identical to the other two — beyond the "One owner
+    per handoff" bullet's expected extra sentence naming the lanes `sre` cannot invoke, several other
+    bullets are compacted relative to `software-engineer`/`observability-engineer`. Byte equality
+    would be false on the current, intentional bodies, so this compares the bullet SET (the bold
+    lead-in of each top-level bullet, in order) instead: it still catches a rule being dropped,
+    added, or reordered — the drift this test exists to catch — without demanding `sre` repeat the
+    other two lanes' exact prose.
     """
 
     DELEGATING = ("software-engineer", "sre", "observability-engineer")
 
     @staticmethod
     def _rules_block(name: str) -> str:
-        relative = validate_fleet.CONDITIONAL_HANDOFF_CONTRACTS.get(
-            name, Path("agents") / f"{name}.md"
-        )
-        text = (ROOT / relative).read_text(encoding="utf-8")
+        text = (ROOT / "agents" / f"{name}.md").read_text(encoding="utf-8")
         match = re.search(r"^## Rules\n(.*?)(?=\n## |\Z)", text, re.S | re.M)
         assert match is not None, f"{name}: no '## Rules' section"
         return match.group(1)
 
-    def test_rules_block_is_byte_identical_across_delegating_agents(self) -> None:
+    @staticmethod
+    def _bullet_labels(block: str) -> tuple[str, ...]:
+        return tuple(re.findall(r"^- \*\*(.+?)\*\*", block, re.M))
+
+    def test_rules_block_bullet_set_matches_across_delegating_agents(self) -> None:
         blocks = {name: self._rules_block(name) for name in self.DELEGATING}
         # Guard against the section regex silently matching nothing in every file, which would make
         # the equality assertion below trivially true.
         for name, block in blocks.items():
-            self.assertGreater(len(block), 500, f"{name}: '## Rules' block implausibly short")
-        distinct = set(blocks.values())
+            self.assertGreater(len(block), 400, f"{name}: '## Rules' block implausibly short")
+        labels = {name: self._bullet_labels(block) for name, block in blocks.items()}
+        for name, block in blocks.items():
+            self.assertTrue(labels[name], f"{name}: no bulleted rules found in '## Rules'")
+        distinct = set(labels.values())
         self.assertEqual(
             1,
             len(distinct),
-            "delegating agents' '## Rules' blocks have drifted: "
-            + ", ".join(f"{n}={len(b)}B" for n, b in blocks.items()),
+            "delegating agents' '## Rules' bullet sets have drifted: "
+            + ", ".join(f"{n}={list(v)}" for n, v in labels.items()),
         )
 
 

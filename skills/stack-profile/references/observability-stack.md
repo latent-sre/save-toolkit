@@ -10,7 +10,7 @@ labels; this inventory settles none of those rules by itself.
 | Signal | Incumbent | Additive, first-class |
 |---|---|---|
 | Logs | Splunk (SPL) | Loki (LogQL) |
-| Metrics | Wavefront / Aria Ops for Applications — now Broadcom DX OpenExplore (WQL) | Mimir / Prometheus (PromQL) |
+| Metrics | Wavefront / Aria Ops for Applications — now Broadcom DX OpenExplore (WQL); **the live metrics UI for PCF applications today, with PCF App Metrics** | Mimir / Prometheus (PromQL) |
 | Traces | — (new capability) | Tempo (TraceQL) |
 | Dashboards | Grafana 13.1.x self-managed; **13.2 upgrade planned** `[sourced: owner, 2026-08-21]` | same instance |
 | Alerting / correlation | Moogsoft (Dell APEX AIOps, on-prem v9.x); ThousandEyes synthetics | Grafana unified alerting |
@@ -21,4 +21,6 @@ Both incumbent columns stay first-class — Splunk, Wavefront, Grafana, Alloy, a
 deepen in place; none is being retired by team decision. The team's entitlement basis for DX
 OpenExplore under Broadcom is `[unverified]`; the stack owner records it here when known. As GCP
 workloads land, Cloud Logging / Cloud Monitoring / Cloud Trace join as additional backends via
-reference files in the obs skills — additive, same as everything else in the right column.
+reference files in the obs skills — additive, same as everything else in the right column. For PCF applications the incumbent column is
+what the responder opens first; the additive column is not a replacement until a service is
+instrumented into it. *[sourced: operator statement 2026-09-02]*

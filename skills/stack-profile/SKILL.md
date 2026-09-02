@@ -19,8 +19,11 @@ fourth state. A planned or candidate technology is never a current-stack fact un
 records the decision here.
 
 ## Runtime
-On-prem servers + PCF (VMware Tanzu Application Service); `cf` CLI v8 (CAPI V3) — this is what runs
-today. **GCP migration is in progress**: GCP is an approved target, arriving (as planned) as
+On-prem servers + PCF (VMware Tanzu Application Service); this is what runs today. **The team
+operates PCF through Apps Manager**, not the command line: many SREs do not have the `cf` CLI
+installed. Skills give first checks as Apps Manager views with the `cf` v8 (CAPI V3) equivalent as
+a fallback, and the `sre` agent says when `cf` is absent where it runs rather than pretending to
+have observed the platform. *[sourced: operator statement 2026-09-02]* **GCP migration is in progress**: GCP is an approved target, arriving (as planned) as
 reference files inside the obs skills plus the `gcp-ops` triage skill, not as a restructure. The
 landing runtime is **decision-pending** (Cloud Run is the primary candidate for TAS-shaped apps;
 GKE only if a workload demands it) — do not present either as decided. [unverified — record the
@@ -32,6 +35,12 @@ Kubernetes-free.
 The incumbent and additive observability stacks coexist as first-class; no listed backend is retired
 by team decision. Read the conditional observability reference for the signal inventory, query
 languages, lifecycle evidence, and GCP additions.
+
+During an incident the responder's tools are, in order: Apps Manager for what changed and instance
+state, Splunk for logs beyond the last minutes, and **Wavefront and PCF App Metrics** for
+application metrics. Grafana with Mimir, Loki, and Tempo is the additive stack: GCP workloads and
+services already instrumented with OpenTelemetry land there. *[sourced: operator statement
+2026-09-02]*
 
 ## Read only the conditional stack facts the request needs
 

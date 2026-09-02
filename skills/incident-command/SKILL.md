@@ -52,7 +52,7 @@ authoritative severity, timeline, and decision record rather than producing sepa
 
 Resolve only after the typed `sre` investigator confirms that user impact has ended and the same
 golden signals have remained at baseline for the stated sustained window. Until then the incident
-remains active in `monitoring-recovery`; a green point, a proposed follow-up, or a completed research
+remains active; a green point, a proposed follow-up, or a completed research
 call is not a terminal state.
 
 After terminal resolution, `sre` sends the resolution update and returns the authoritative timeline,
