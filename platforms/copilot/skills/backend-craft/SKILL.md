@@ -109,17 +109,8 @@ These are the system-wide principles. The client-side mechanics for *calling oth
 
 ## Testing & quality gate
 
-- **Unit** the pure logic; **integration-test** the handlers against a **real ephemeral database** (testcontainers or a throwaway Postgres — not mocks of your own DB).
-- **Mock the upstreams** you consume (respx / WireMock) and **test the failure paths that matter**: a timeout fires, a retry backs off, the circuit breaker opens. Resiliency code is worthless untested.
-- **Every endpoint earns a failure matrix** — of the failure modes that endpoint actually has, not
-  just a happy-path test: auth in its four shapes (missing, expired, malformed credential → 401;
-  authenticated-but-wrong-role → 403), the validation split exercised (400 malformed vs 422
-  semantically invalid), 404 on absent resources, 429 asserting `Retry-After` is present — and
-  where the endpoint takes an idempotency key, replaying the key returns the recorded response,
-  not a second effect. Uploads verify magic bytes, never the extension or declared Content-Type.
-  **Drop the rows the route doesn't have**: a deliberately public `/healthz` has no auth or 404 case,
-  and inventing one to complete the matrix changes the contract instead of testing it.
-- **Contract-test** against the OpenAPI spec so served shapes can't drift from what the frontend builds on.
+- Unit-test pure logic; exercise changed boundaries and material failure paths. The matching
+  conditional reference owns its test matrix; load only the references the task trips.
 - Before "done": the service starts clean, tests pass, and the primary endpoints were exercised with **real requests** (curl/httpie). Record only a bounded, redacted evidence excerpt: method/path, status, request ID, and schema assertion. Strip Authorization headers, cookies, credentials, PII, and full bodies; keep full evidence in an access-controlled local artifact referenced by path and content hash. An API that was never called is written, not verified.
 
 ## Before you write it — load the reference for what you're building
@@ -137,7 +128,7 @@ review packet.
 | calling any upstream or third-party API | [consuming-apis](./references/consuming-apis.md) |
 | a queue, a scheduled job, or an inbound webhook | [background-work](./references/background-work.md) |
 | streaming to clients (SSE or WebSocket) | [live-data](./references/live-data.md) |
-| a database or any persisted state | [persistence](./references/persistence.md) |
+| a database or any persisted state | If datastore or driver is not already selected, load `stack-profile` first; then [persistence](./references/persistence.md) |
 | authenticating or authorizing a caller | [auth](./references/auth.md) |
 
 Trips two predicates? Read both. Trips none? The core above is the whole job.

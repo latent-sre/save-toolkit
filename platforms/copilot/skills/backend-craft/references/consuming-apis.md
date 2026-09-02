@@ -50,6 +50,11 @@ The universal backend rules live in `../SKILL.md`. On any conflict, SKILL.md win
 logic is testable without side effects. Version operation/state contracts and keep retry behavior
 explicit. Cache slow, stable lookups (app GUIDs, metric metadata) with a TTL.
 
+## Test the client boundary
+
+Mock the upstream protocol (respx, WireMock, or equivalent) and prove the timeout fires, retry
+backs off, and breaker opens. Test the material failure paths the client actually claims to handle.
+
 ## Per-integration mechanics
 
 This section owns only the *integration mechanics* — the call shape that differs

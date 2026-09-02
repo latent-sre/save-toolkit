@@ -4,7 +4,9 @@ Read this when the service owns a database or any persisted state.
 
 The universal backend rules live in `../SKILL.md`. On any conflict, SKILL.md wins.
 
-- **Postgres by default** for anything with real data — async driver + a bounded connection pool (asyncpg + SQLAlchemy 2.0 async for FastAPI, pgx for Go, Postgres.js/Drizzle for Node). **SQLite** only for embedded, single-file, single-node cases.
-- **Migrations** versioned and reversible, expand → migrate → contract (Alembic for Python). Never edit a shipped migration — add a new one.
+- **Existing repository choices win.** If the datastore or driver is not selected, load `stack-profile` before choosing a supported, compatible option. Bound the connection pool. Use SQLite only for embedded, single-file, single-node deployments.
+- **Migrations:** versioned, backward-compatible, expand → migrate → contract. Never edit a shipped migration — add one. Require a tested recovery strategy, not necessarily a reverse script.
 - **Explicit, short transaction boundaries** wherever an invariant spans more than one write — and never hold a transaction open across an outbound API call.
 - Size the pool to the DB's real connection limit; kill N+1 (fetch related rows in one query, not per row). Parameterized queries only — never string-built SQL.
+- Integration-test against a real ephemeral instance of the supported database; mocks do not
+  exercise constraints, transactions, drivers, or SQL.

@@ -689,6 +689,36 @@ class ReviewFindingTests(unittest.TestCase):
                     container_image="python:3.12-bookworm@sha256:" + "0" * 64,
                 )
 
+    def test_service_start_failure_does_not_launch_the_model(self) -> None:
+        """A missing fixture target must stop before an agent can probe unrelated host services."""
+        out = self.root / "out"
+        with mock.patch.object(
+            build_probe,
+            "start_services",
+            side_effect=build_probe.ServiceUnavailable("grafana fixture unavailable"),
+        ), mock.patch.object(
+            build_probe,
+            "build_command",
+            side_effect=AssertionError("model launch reached after fixture failure"),
+        ):
+            summary = build_probe.run_trial(
+                self.spec,
+                plugin_root=ROOT,
+                label="candidate",
+                model="sonnet",
+                run_number=1,
+                out_dir=out,
+                timeout=60,
+                executable="claude",
+                keep_workspace=False,
+            )
+
+        self.assertEqual("INCONCLUSIVE", summary["status"])
+        run = out / "eval-tiny" / "candidate" / "run-1"
+        grading = json.loads((run / "grading.json").read_text(encoding="utf-8"))
+        self.assertIn("backing service unavailable", grading["expectations"][0]["evidence"])
+        self.assertEqual("", (run / "stdout.jsonl").read_text(encoding="utf-8"))
+
     def test_unreviewed_service_digest_is_rejected_even_when_pinned(self) -> None:
         spec = json.loads(json.dumps(TINY_SPEC))
         spec["fixture"]["services"] = [{
@@ -794,7 +824,8 @@ class ReviewFindingTests(unittest.TestCase):
         def docker_run(command, **_kwargs):
             calls.append(command)
             if command[1] == "run":
-                return subprocess.CompletedProcess(command, 0, "container-id\n", "")
+                run_number = sum(call[1] == "run" for call in calls)
+                return subprocess.CompletedProcess(command, 0, f"container-{run_number}\n", "")
             if command[1] == "port":
                 return subprocess.CompletedProcess(command, 0, "127.0.0.1:32123\n", "")
             return subprocess.CompletedProcess(command, 0, "", "")
@@ -804,9 +835,35 @@ class ReviewFindingTests(unittest.TestCase):
              mock.patch.object(build_probe, "_start_service_proxy", return_value=None, create=True):
             services = build_probe.start_services(spec)
             build_probe.stop_services(services)
-        argv = next(call for call in calls if call[1] == "run")
-        for expected in ("--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--pids-limit", "--memory"):
-            self.assertIn(expected, argv)
+        runs = [call for call in calls if call[1] == "run"]
+        self.assertEqual(2, len(runs), "one isolated service plus one fixed-target relay")
+        service_argv = next(call for call in runs if spec["fixture"]["services"][0]["image"] in call)
+        relay_argv = next(call for call in runs if build_probe.SERVICE_RELAY_IMAGE in call)
+        self.assertRegex(build_probe.SERVICE_RELAY_IMAGE, r"@sha256:[0-9a-f]{64}$")
+        for argv in (service_argv, relay_argv):
+            for expected in ("--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--pids-limit", "--memory"):
+                self.assertIn(expected, argv)
+        self.assertIn("--internal", next(call for call in calls if call[1:3] == ["network", "create"]))
+        self.assertIn("--network", service_argv)
+        self.assertNotIn("-p", service_argv, "the service itself never gets a host-facing port")
+        self.assertIn("--read-only", relay_argv)
+        self.assertEqual(
+            f"127.0.0.1::{build_probe.SERVICE_RELAY_PORT}",
+            relay_argv[relay_argv.index("-p") + 1],
+            "only the fixed relay receives a loopback-only ephemeral port",
+        )
+        connect = next(call for call in calls if call[1:3] == ["network", "connect"])
+        port = next(call for call in calls if call[1] == "port")
+        self.assertEqual("relay-grafana", connect[connect.index("--alias") + 1])
+        self.assertEqual(port[-1], f"{build_probe.SERVICE_RELAY_PORT}/tcp")
+        self.assertEqual([build_probe.SERVICE_RELAY_SCRIPT, "grafana", "3000"], relay_argv[-3:])
+        self.assertEqual("container-2", connect[-1])
+        self.assertEqual("container-2", port[2])
+        self.assertEqual("container-1", services[0].container_id)
+        self.assertEqual("container-2", services[0].relay_container_id)
+        self.assertLess(calls.index(service_argv), calls.index(relay_argv))
+        self.assertLess(calls.index(relay_argv), calls.index(connect))
+        self.assertLess(calls.index(connect), calls.index(port))
 
     def test_service_containers_share_one_internal_network_and_mount_only_declared_files(self) -> None:
         prometheus_image = (
@@ -848,11 +905,20 @@ class ReviewFindingTests(unittest.TestCase):
         network_create = next(call for call in calls if call[1:3] == ["network", "create"])
         self.assertIn("--internal", network_create)
         runs = [call for call in calls if call[1] == "run"]
-        self.assertEqual(2, len(runs))
-        networks = [call[call.index("--network") + 1] for call in runs]
+        self.assertEqual(4, len(runs))
+        service_runs = [call for call in runs if build_probe.SERVICE_RELAY_IMAGE not in call]
+        relay_runs = [call for call in runs if build_probe.SERVICE_RELAY_IMAGE in call]
+        self.assertEqual(2, len(service_runs))
+        self.assertEqual(2, len(relay_runs))
+        networks = [call[call.index("--network") + 1] for call in service_runs]
         self.assertEqual(1, len(set(networks)))
-        self.assertIn("prometheus", runs[0])
-        mount = runs[0][runs[0].index("--mount") + 1]
+        self.assertTrue(all("-p" not in call for call in service_runs))
+        connects = [call for call in calls if call[1:3] == ["network", "connect"]]
+        self.assertEqual(2, len(connects))
+        self.assertEqual(1, len({call[-2] for call in connects}))
+        self.assertEqual(["relay-prometheus", "relay-grafana"], [call[call.index("--alias") + 1] for call in connects])
+        prometheus_run = next(call for call in service_runs if prometheus_image in call)
+        mount = prometheus_run[prometheus_run.index("--mount") + 1]
         self.assertIn("target=/etc/prometheus/prometheus.yml", mount)
         self.assertIn("readonly", mount)
         self.assertFalse(config_root.exists(), "service runtime files are disposable")

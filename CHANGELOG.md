@@ -76,14 +76,14 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   from the graded response, a verdict from a model other than the pinned identity is inconclusive,
   the prompt travels on stdin instead of argv (a NUL or an over-long response is no longer a
   mid-eval crash or a platform command-line failure), and the spawn honours `CLAUDE_BIN`.
-  Calibration resolves the alias to a concrete model with one live call, scores agreement over
-  conclusive judgments only, and fails the run on any inconclusive rather than counting a timeout
-  as agreement with an expected FAIL. Judge cost, elapsed time, and resolved identity are recorded
+  Calibration takes the judge identity from its own first live call (or, for a fully cached run,
+  from the cached verdicts, saying so and spending nothing), scores agreement over conclusive
+  judgments only, and fails the run on any inconclusive rather than counting a timeout as agreement
+  with an expected FAIL. Judge cost, elapsed time, and resolved identity are recorded
   per trial and rendered in durable evidence; `build_probe.py --regrade` keeps a rubric check's live
-  verdict instead of spending a fresh judge call. Recorded the contract in the new
-  `docs/decisions/2026-09-01-rubric-judge-evaluation-contract.md` (proposed; owner acceptance
-  required before merge), which supersedes the multi-engine evaluation ADR and its `EVAL-003`
-  roadmap item.
+  verdict instead of spending a fresh judge call. The contract is the accepted
+  `docs/decisions/2026-09-01-rubric-judge-evaluation-contract.md`, which supersedes the multi-engine
+  evaluation ADR and its `EVAL-003` roadmap item.
 - Replaced nine regex-based eval graders that judged natural-language policy (production-action
   claims, deploy commitments, recovery authority, unknown-outcome reconciliation, retirement effect
   claims, blind retry, invented recovery progress, progress-vs-record consistency, gate posture)
@@ -92,6 +92,20 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   caches verdicts by (model, rubric, rendered text, response). The twelve scenarios that used those
   graders now reference the equivalent rubric; every other grader is unchanged. Calibrate with
   `python evals/judge.py --calibrate`, checked against `evals/rubrics-calibration.yaml`.
+- Compacted three skills under SKILL-001, descriptions byte-identical, measured as canonical
+  UTF-8 bytes against `main`: `backend-craft` SKILL.md 11,123 → 10,131 (endpoint, upstream-client,
+  and persistence test mechanics routed to their references, which grew 29,198 → 30,182; the
+  selected stack now wins over an unconditional PostgreSQL default); `obs-alerting` SKILL.md
+  7,930 → 5,804 (generic SLI and worked burn-window recitation removed, references unchanged);
+  `obs-dashboards` SKILL.md 11,419 → 7,160 and references 83,298 → 34,480 (generic dashboard
+  advice and volatile tool catalogues removed; dashboard-only write authority, API-family
+  concurrency, ambiguous-write reconciliation, rollback, readback verification, and
+  version-specific storage rules kept). The observability build probe now fails closed before any
+  model launch when a fixture service is unavailable, and reaches fixture services through a pinned
+  fixed-target relay because Docker Desktop 29 suppresses host publication on internal networks.
+  Two discovery scenarios were repaired: the tool-less dashboard case asks for an explicitly
+  `[unverified]` procedure, and the Splunk alerting case supplies fixed fictional route and runbook
+  values instead of rewarding invention.
 - Removed eval-harness doctrine from all eight agent bodies: the run/attempt and resolved-model
   identity rules, the two matching handoff-packet slots, the absent-versus-guard-denied rule, and
   the failed-delegate paragraph (kept as one sentence in the three delegating lanes). No runtime

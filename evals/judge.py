@@ -14,12 +14,14 @@ Never loads this fleet: no `--agent`, no `--plugin-dir`, and every tool and MCP 
 
 CLI:
     python evals/judge.py --calibrate [PATH] [--model sonnet]
-        Resolve the judge model once, then run every case in the calibration corpus (default
-        evals/rubrics-calibration.yaml) once, print per-rubric agreement over conclusive judgments
-        plus every disagreement and every inconclusive, write the run under
-        .eval-runs/judge-calibration/<timestamp>/, and exit 1 if any rubric is below 0.95 agreement
-        or any case was inconclusive (2 if the judge model could not be resolved at all).
-        Owner-triggered; nothing else in the repo calls this.
+        Run every case in the calibration corpus (default evals/rubrics-calibration.yaml) once,
+        print per-rubric agreement over conclusive judgments plus every disagreement and every
+        inconclusive, write the run under .eval-runs/judge-calibration/<timestamp>/, and exit 1 if
+        any rubric is below 0.95 agreement or any case was inconclusive. The judge identity is
+        taken from the run's own calls, or from the cached verdicts when every case is a cache hit
+        (which costs nothing and says so); --resolve-identity spends one call to confirm what the
+        alias resolves to now. Exit 2 if the cache mixes models or the alias has moved away from
+        them. Owner-triggered; nothing else in the repo calls this.
     python evals/judge.py --once --rubric NAME --params '{"owner": "Riley Chen"}' --response-file PATH
         Grade one response for a spot check.
 """
@@ -279,6 +281,18 @@ def _cache_path(cache_dir: Path, key: str) -> Path:
     return cache_dir / f"{key}.json"
 
 
+def prepare(rubric_name: str, params: dict, response: str, model: str, rubrics: dict) -> tuple[str, str, str]:
+    """Validate one grading request and return its (cache key, rendered fail_if, rendered pass_if).
+
+    Shared so that a caller can look up what the cache already holds for a case -- calibration reads
+    the identity of the verdicts it would be served before deciding whether it needs to call a model
+    at all -- without duplicating how a key is built and drifting from it.
+    """
+    rubric = validate_params(rubric_name, rubrics, params)
+    fail_if, pass_if = _render(rubric_name, rubric, params)
+    return _cache_key(model, rubric_name, f"{rubric_name}\n{fail_if}\n{pass_if}", response), fail_if, pass_if
+
+
 def _detail(*, model_requested: str, model_resolved: str | None, cost_usd: float | None,
             cached: bool, reason: str, evidence: list, judge_cli: str) -> str:
     return json.dumps(
@@ -348,10 +362,7 @@ def judge(
         cache_dir = Path(cache_dir)
 
     rubrics = rubrics if rubrics is not None else load_rubrics()
-    rubric = validate_params(rubric_name, rubrics, params)
-    fail_if, pass_if = _render(rubric_name, rubric, params)
-    rendered_rubric_text = f"{rubric_name}\n{fail_if}\n{pass_if}"
-    key = _cache_key(model, rubric_name, rendered_rubric_text, response)
+    key, fail_if, pass_if = prepare(rubric_name, params, response, model, rubrics)
 
     if cache_dir is not None:
         hit = _read_cache(_cache_path(cache_dir, key), response, expected_model_id)
@@ -512,7 +523,27 @@ def _load_calibration(path: Path) -> list[dict]:
     return data["cases"]
 
 
-def calibrate(path: Path, model: str) -> int:
+def _cached_identities(cases: list[dict], rubrics: dict, model: str, cache_dir: Path) -> set[str]:
+    """Which models produced the cached verdicts this corpus would be served, spawning nothing.
+
+    An entry the cache would refuse to serve (unreadable, or evidence not grounded in its response)
+    contributes no identity: it is going to be re-judged live anyway.
+    """
+    identities: set[str] = set()
+    for case in cases:
+        if case["rubric"] not in rubrics:
+            continue
+        key, _, _ = prepare(case["rubric"], case.get("params") or {}, case["response"], model, rubrics)
+        hit = _read_cache(_cache_path(cache_dir, key), case["response"], None)
+        if hit is None:
+            continue
+        resolved = json.loads(hit[1]).get("model_resolved")
+        if isinstance(resolved, str) and resolved:
+            identities.add(resolved)
+    return identities
+
+
+def calibrate(path: Path, model: str, *, resolve_identity: bool = False) -> int:
     cases = _load_calibration(path)
     rubrics = load_rubrics()
     calibration_root = REPO_ROOT / ".eval-runs" / "judge-calibration"
@@ -522,13 +553,35 @@ def calibrate(path: Path, model: str) -> int:
     # rubric edit only that rubric's cases are re-judged and everything else is a free cache hit.
     cache_dir = calibration_root / "judge-cache"
 
-    try:
-        model_id = resolve_model_identity(model)
-    except JudgeUnavailable as exc:
-        print(f"judge calibration: {exc}", file=sys.stderr)
+    # The judge identity comes from the run's own calls, not from a dedicated probe: a probe would
+    # charge every calibration -- including one that is fully cached and should be a free re-check --
+    # for a call that judges nothing. Cached verdicts each record the model that produced them, so a
+    # cache-only run can still name its judge; it just cannot claim the alias still resolves there,
+    # and says so. `--resolve-identity` buys that claim with one call when the owner wants it.
+    cached_identities = _cached_identities(cases, rubrics, model, cache_dir)
+    if len(cached_identities) > 1:
+        print(
+            "judge calibration: the cache holds verdicts from more than one model "
+            f"({', '.join(sorted(cached_identities))}); delete {cache_dir} and re-judge the corpus",
+            file=sys.stderr,
+        )
         return 2
-    identity = {"model_requested": model, "model_resolved": model_id, "judge_cli": claude_executable()}
-    (run_root / "identity.json").write_text(json.dumps(identity, indent=2, sort_keys=True), encoding="utf-8")
+    pinned = next(iter(cached_identities), None)
+
+    if resolve_identity:
+        try:
+            probed = resolve_model_identity(model)
+        except JudgeUnavailable as exc:
+            print(f"judge calibration: {exc}", file=sys.stderr)
+            return 2
+        if pinned is not None and probed != pinned:
+            print(
+                f"judge calibration: {model!r} now resolves to {probed}, but the cache holds "
+                f"verdicts from {pinned}; delete {cache_dir} to re-judge the corpus under {probed}",
+                file=sys.stderr,
+            )
+            return 2
+        pinned = probed
 
     # [agree, conclusive, inconclusive] -- agreement is a rate over judgments, so a judge that could
     # not judge is neither agreement nor disagreement. Counting a timeout, an auth failure, or an
@@ -537,6 +590,9 @@ def calibrate(path: Path, model: str) -> int:
     disagreements: list[dict] = []
     inconclusive: list[dict] = []
     results: list[dict] = []
+    drain_spend()
+    live_calls = cached_calls = 0
+    spent_usd = 0.0
     for case in cases:
         name = case["rubric"]
         if name not in rubrics:
@@ -545,8 +601,18 @@ def calibrate(path: Path, model: str) -> int:
         expected_pass = case["expect"] == "pass"
         passed, detail = judge(
             case["response"], name, params,
-            model=model, cache_dir=cache_dir, rubrics=rubrics, expected_model_id=model_id,
+            model=model, cache_dir=cache_dir, rubrics=rubrics, expected_model_id=pinned,
         )
+        for call in drain_spend():
+            if call["cached"]:
+                cached_calls += 1
+                continue
+            live_calls += 1
+            spent_usd += float(call["cost_usd"] or 0.0)
+            # A cold cache has no identity to pin until something is judged; the first live call
+            # supplies it and every later call in the run is held to it.
+            if pinned is None and isinstance(call["model_resolved"], str):
+                pinned = call["model_resolved"]
         totals.setdefault(name, [0, 0, 0])
         record = {
             "rubric": name,
@@ -568,10 +634,30 @@ def calibrate(path: Path, model: str) -> int:
             disagreements.append(record)
         results.append({**record, "agree": agree})
 
+    identity_source = "probe" if resolve_identity else ("live" if live_calls else "cache")
+    identity = {
+        "model_requested": model,
+        "model_resolved": pinned,
+        "identity_source": identity_source,
+        "judge_cli": claude_executable(),
+        "live_calls": live_calls,
+        "cached_calls": cached_calls,
+        "cost_usd": round(spent_usd, 6),
+    }
+    (run_root / "identity.json").write_text(json.dumps(identity, indent=2, sort_keys=True), encoding="utf-8")
     (run_root / "results.json").write_text(json.dumps(results, indent=2), encoding="utf-8")
 
     print(f"judge calibration run: {run_root}")
-    print(f"judge: requested {model} -> resolved {model_id} via {identity['judge_cli']}")
+    print(
+        f"judge: requested {model} -> {pinned or 'unknown'} via {identity['judge_cli']}; "
+        f"{live_calls} live call(s), {cached_calls} from cache, USD {spent_usd:.4f}"
+    )
+    if identity_source == "cache":
+        print(
+            "  every verdict came from cache: this run did not call a model, so it re-checks the "
+            f"recorded verdicts of {pinned or 'an unrecorded model'} and does not prove that "
+            f"{model!r} still resolves there. Pass --resolve-identity to confirm that with one call."
+        )
     print("per-rubric agreement (over conclusive judgments):")
     all_ok = not inconclusive
     for name in sorted(totals):
@@ -599,6 +685,11 @@ def calibrate(path: Path, model: str) -> int:
         for d in inconclusive:
             print(f"  [{d['rubric']}] source={d['source']}")
             print(f"    {d['detail']}")
+        if any("not the pinned" in d["detail"] for d in inconclusive):
+            print(
+                f"  {model!r} no longer resolves to the model that produced the cached verdicts; "
+                f"delete {cache_dir} to re-judge the corpus under the current one."
+            )
 
     return 0 if all_ok else 1
 
@@ -618,13 +709,20 @@ def main() -> int:
     parser.add_argument("--params", default="{}", help="JSON params object for --once")
     parser.add_argument("--response-file", type=Path, help="file holding the response text for --once")
     parser.add_argument("--model", default=None, help="judge model alias (default: sonnet, or EVAL_JUDGE_MODEL)")
+    parser.add_argument(
+        "--resolve-identity",
+        action="store_true",
+        help="spend one extra call confirming what the model alias resolves to right now "
+             "(otherwise the identity comes from the run's own calls, or from the cached verdicts)",
+    )
     args = parser.parse_args()
 
     if args.calibrate is not None and args.once:
         parser.error("--calibrate and --once are mutually exclusive")
 
     if args.calibrate is not None:
-        return calibrate(Path(args.calibrate), args.model or DEFAULT_MODEL)
+        return calibrate(Path(args.calibrate), args.model or DEFAULT_MODEL,
+                         resolve_identity=args.resolve_identity)
 
     if args.once:
         if not args.rubric or not args.response_file:

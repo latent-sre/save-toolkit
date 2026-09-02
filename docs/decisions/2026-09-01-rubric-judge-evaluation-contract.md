@@ -1,7 +1,7 @@
 # ADR: One Claude engine, deterministic structure graders, and a calibrated rubric judge
 
 - **Date:** 2026-09-01
-- **Status:** Proposed 2026-09-01; requires Save Toolkit maintainer acceptance before merge
+- **Status:** Accepted 2026-09-01
 - **Decision owner:** Save Toolkit maintainers
 - **Roadmap item:** fleet weight review steps G3 and G4
 - **Supersedes:**
@@ -77,8 +77,10 @@ The judge is bounded by five properties, each enforced in `evals/judge.py` and t
 2. **Grounded.** Every evidence item must be a verbatim quote from the graded response
    (whitespace-normalized). A verdict quoting text the response does not contain is inconclusive,
    not a judgment.
-3. **Pinned and identified.** Calibration resolves the model alias to a concrete identity with one
-   live call and refuses cached verdicts from any other model. Batch runs record the requested judge
+3. **Pinned and identified.** A calibration run takes its judge identity from its own first live
+   call, holds every later call to it, and refuses cached verdicts from any other model; a run that
+   judged nothing live reports the identity recorded in the cache and states that it made no model
+   call. No calibration spends a call that judges nothing. Batch runs record the requested judge
    model, the rubrics digest, and every observed judge identity in durable evidence.
 4. **Isolated.** One clean-room `claude -p` turn, no `--agent`, no `--plugin-dir`, every tool and
    MCP server denied, the untrusted response delivered on stdin between markers and labelled data.
@@ -104,7 +106,7 @@ engine is separately decided and built.
   every verdict carries the judge's reason and verbatim evidence in the trial detail.
 - Judged trials cost about three cents each on Sonnet, recorded separately from the evaluated
   agent's own spend so neither number silently changes meaning.
-- `docs/rules.md`'s "Eval runner, live profile, or durable eval evidence" row points here.
+- `docs/rules.md`'s "Eval runner, grader class, or durable eval evidence" row points here.
 - Roadmap items that tracked repairs to the deleted regex graders (GRADER-005/007/008) are
   superseded, each with a pointer to the rubric that replaced it.
 
@@ -121,11 +123,15 @@ engine is separately decided and built.
   money, and is less reliable than the equality it would replace.
 - **Treat an inconclusive judge as a FAIL in calibration.** It certifies rubrics on infrastructure
   failures; agreement is computed over judgments only.
+- **Probe the model alias on every calibration run.** It charges a call that judges nothing, and it
+  charges it hardest in the case that should be free: re-checking a corpus that is fully cached.
+  The identity a run needs is the one that judged it, which its own calls already report.
 
 ## Approval
 
-This ADR is **not accepted**. Save Toolkit maintainers must accept it before this change merges,
-because it supersedes an accepted ADR and changes what an automated eval verdict may rest on.
-Acceptance covers the contract above and the offline implementation only. It does not approve any
-model call, paid campaign, push, merge, release, or promotion; a live calibration or measurement run
-remains separately owner-triggered with its own budget.
+Save Toolkit maintainers accepted this ADR on 2026-09-01, superseding the multi-engine evaluation
+contract. The approval covers the two-grader split, the five bounding properties of the judge, and
+the offline implementation. It does **not** approve any model call, paid campaign, push, merge,
+release, or promotion: a live calibration or measurement run remains separately owner-triggered with
+its own budget, and human acceptance of an exact candidate revision remains the only promotion
+authority.
