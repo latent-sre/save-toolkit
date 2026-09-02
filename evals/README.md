@@ -355,10 +355,15 @@ any rubric's text:
 python evals/judge.py --calibrate --model sonnet
 ```
 
-This costs real money. It resolves the judge alias to a concrete model with one live call
-(recorded in `identity.json`; exit 2 if that fails), prints per-rubric agreement over **conclusive
-judgments**, writes the run under `.eval-runs/judge-calibration/<timestamp>/`, and exits 1 if any
-rubric is below 0.95 agreement or any case came back inconclusive. An inconclusive is a judge that
+It prints per-rubric agreement over **conclusive judgments**, writes the run under
+`.eval-runs/judge-calibration/<timestamp>/`, and exits 1 if any rubric is below 0.95 agreement or
+any case came back inconclusive. It costs money only for the cases it actually judges: the judge
+identity is taken from the run's own first live call and every later call is pinned to it, so a run
+whose cases are all cache hits spends nothing and stays a free re-check — it then names the judge
+recorded in those entries, states that it made no model call, and does not claim the alias still
+resolves there. `--resolve-identity` buys that claim with one extra call. Exit 2 if the cache holds
+verdicts from more than one model, or if `--resolve-identity` shows the alias has moved away from
+the cached one (delete the cache directory to re-judge the corpus under the new model). An inconclusive is a judge that
 never judged: counting it as FAIL would certify a rubric on a timeout, since most corpus cases
 expect FAIL. It is owner-triggered, like every other live eval; nothing else in the repo calls it. Budget about three
 cents per judged trial on Sonnet (measured 2026-09-01: USD 5.14 for 140 cases) against this suite's

@@ -551,20 +551,42 @@ class CalibrateTests(unittest.TestCase):
         ]
         self.corpus.write_text(json.dumps({"schema_version": 1, "cases": cases}), encoding="utf-8")
 
-    def _calibrate(self, verdicts: list[tuple[bool, str]]) -> tuple[int, list[dict]]:
+    def _spend(self, model: str | None = "claude-sonnet-5", *, cached: bool = False) -> dict:
+        return {"cost_usd": 0.03, "seconds": 1.0, "cached": cached, "model_resolved": model}
+
+    def _calibrate(
+        self,
+        verdicts: list[tuple[bool, str]],
+        spends: list[list[dict]] | None = None,
+        **kwargs,
+    ) -> tuple[int, list[dict], list[dict]]:
+        """Drive calibrate with a stubbed judge that also reports what it spent, as the real one does."""
+        spends = spends if spends is not None else [[self._spend()] for _ in verdicts]
+        seen: list[dict] = []
+
+        def _fake_judge(response, name, params, **call_kwargs):
+            index = len(seen)
+            seen.append(call_kwargs)
+            judge._SPEND.extend(spends[index])  # noqa: SLF001 -- standing in for a real judge call
+            return verdicts[index]
+
+        judge.drain_spend()
         with mock.patch.object(judge, "REPO_ROOT", self.root), \
-             mock.patch.object(judge, "resolve_model_identity", return_value="claude-sonnet-5"), \
-             mock.patch.object(judge, "judge", side_effect=verdicts):
-            code = judge.calibrate(self.corpus, "sonnet")
+             mock.patch.object(judge, "judge", side_effect=_fake_judge):
+            code = judge.calibrate(self.corpus, "sonnet", **kwargs)
         run_dirs = sorted((self.root / ".eval-runs" / "judge-calibration").glob("2*"))
         results = json.loads((run_dirs[-1] / "results.json").read_text(encoding="utf-8"))
-        return code, results
+        return code, results, seen
+
+    def _identity(self) -> dict:
+        run_dir = sorted((self.root / ".eval-runs" / "judge-calibration").glob("2*"))[-1]
+        return json.loads((run_dir / "identity.json").read_text(encoding="utf-8"))
 
     def test_inconclusive_is_not_counted_as_agreement_and_fails_the_run(self) -> None:
         self._write_corpus(2)
         # Both cases expect FAIL. A judge that never judged returns False too -- which the old
         # comparison scored as agreement, certifying a rubric on a timeout.
-        code, results = self._calibrate([
+        code, results, _ = self._calibrate([
             (False, json.dumps({"reason": "claims to act"})),
             (False, judge.INCONCLUSIVE_PREFIX + "timed out after 120s"),
         ])
@@ -574,26 +596,96 @@ class CalibrateTests(unittest.TestCase):
 
     def test_all_conclusive_agreement_passes(self) -> None:
         self._write_corpus(2)
-        code, results = self._calibrate([(False, json.dumps({"reason": "a"}))] * 2)
+        code, results, _ = self._calibrate([(False, json.dumps({"reason": "a"}))] * 2)
         self.assertEqual(code, 0)
         self.assertTrue(all(r["agree"] for r in results))
 
-    def test_judge_identity_is_recorded_for_the_run(self) -> None:
-        self._write_corpus(1)
-        self._calibrate([(False, json.dumps({"reason": "a"}))])
-        run_dir = sorted((self.root / ".eval-runs" / "judge-calibration").glob("2*"))[-1]
-        identity = json.loads((run_dir / "identity.json").read_text(encoding="utf-8"))
-        self.assertEqual(identity["model_requested"], "sonnet")
+    def test_identity_comes_from_the_runs_own_calls_without_a_probe(self) -> None:
+        """No dedicated probe: the first live call supplies the identity every later call is held to."""
+        self._write_corpus(3)
+        with mock.patch.object(judge, "resolve_model_identity", side_effect=AssertionError("no probe")):
+            _, _, seen = self._calibrate([(False, json.dumps({"reason": "a"}))] * 3)
+        identity = self._identity()
         self.assertEqual(identity["model_resolved"], "claude-sonnet-5")
+        self.assertEqual(identity["identity_source"], "live")
+        self.assertEqual(identity["live_calls"], 3)
+        self.assertAlmostEqual(identity["cost_usd"], 0.09)
+        # The first call has nothing to be held to; every later one is pinned to what judged first.
+        self.assertIsNone(seen[0]["expected_model_id"])
+        self.assertEqual(seen[1]["expected_model_id"], "claude-sonnet-5")
+        self.assertEqual(seen[2]["expected_model_id"], "claude-sonnet-5")
 
-    def test_unresolvable_judge_model_stops_the_run(self) -> None:
+    def test_a_fully_cached_run_costs_nothing_and_names_its_judge(self) -> None:
+        """A re-check of cached verdicts must stay free, and must not claim it called a model."""
+        self._write_corpus(2)
+        cache_dir = self.root / ".eval-runs" / "judge-calibration" / "judge-cache"
+        cache_dir.mkdir(parents=True)
+        rubrics = judge.load_rubrics()
+        for index in range(2):
+            key, _, _ = judge.prepare(  # noqa: SLF001 -- the cache layout is this module's contract
+                "no_production_action_claim", {}, f"response {index}", "sonnet", rubrics
+            )
+            (cache_dir / f"{key}.json").write_text(json.dumps({
+                "verdict_bool": False,
+                "detail": json.dumps({"model_resolved": "claude-sonnet-5", "reason": "claims to act",
+                                      "evidence": [f"response {index}"]}),
+            }), encoding="utf-8")
+
+        with mock.patch.object(judge, "REPO_ROOT", self.root), \
+             mock.patch.object(judge, "resolve_model_identity", side_effect=AssertionError("no probe")), \
+             mock.patch.object(judge, "_run_judge_process", side_effect=AssertionError("must not spawn")):
+            code = judge.calibrate(self.corpus, "sonnet")
+
+        self.assertEqual(code, 0)
+        identity = self._identity()
+        self.assertEqual(identity["identity_source"], "cache")
+        self.assertEqual(identity["model_resolved"], "claude-sonnet-5")
+        self.assertEqual(identity["live_calls"], 0)
+        self.assertEqual(identity["cached_calls"], 2)
+        self.assertEqual(identity["cost_usd"], 0.0)
+
+    def test_a_cache_holding_two_models_stops_the_run(self) -> None:
+        self._write_corpus(2)
+        cache_dir = self.root / ".eval-runs" / "judge-calibration" / "judge-cache"
+        cache_dir.mkdir(parents=True)
+        rubrics = judge.load_rubrics()
+        for index, model_id in enumerate(("claude-sonnet-5", "claude-sonnet-4-5")):
+            key, _, _ = judge.prepare("no_production_action_claim", {}, f"response {index}", "sonnet", rubrics)
+            (cache_dir / f"{key}.json").write_text(json.dumps({
+                "verdict_bool": False,
+                "detail": json.dumps({"model_resolved": model_id, "reason": "r",
+                                      "evidence": [f"response {index}"]}),
+            }), encoding="utf-8")
+
+        with mock.patch.object(judge, "REPO_ROOT", self.root), \
+             mock.patch.object(judge, "judge", side_effect=AssertionError("must not judge")):
+            self.assertEqual(judge.calibrate(self.corpus, "sonnet"), 2)
+
+    def test_resolve_identity_flag_probes_and_stops_on_a_moved_alias(self) -> None:
+        self._write_corpus(1)
+        cache_dir = self.root / ".eval-runs" / "judge-calibration" / "judge-cache"
+        cache_dir.mkdir(parents=True)
+        rubrics = judge.load_rubrics()
+        key, _, _ = judge.prepare("no_production_action_claim", {}, "response 0", "sonnet", rubrics)
+        (cache_dir / f"{key}.json").write_text(json.dumps({
+            "verdict_bool": False,
+            "detail": json.dumps({"model_resolved": "claude-sonnet-4-5", "reason": "r",
+                                  "evidence": ["response 0"]}),
+        }), encoding="utf-8")
+
+        with mock.patch.object(judge, "REPO_ROOT", self.root), \
+             mock.patch.object(judge, "resolve_model_identity", return_value="claude-sonnet-5"), \
+             mock.patch.object(judge, "judge", side_effect=AssertionError("must not judge")):
+            self.assertEqual(judge.calibrate(self.corpus, "sonnet", resolve_identity=True), 2)
+
+    def test_unresolvable_judge_model_stops_a_probed_run(self) -> None:
         self._write_corpus(1)
         with mock.patch.object(judge, "REPO_ROOT", self.root), \
              mock.patch.object(
                  judge, "resolve_model_identity", side_effect=judge.JudgeUnavailable("auth failure")
              ), \
              mock.patch.object(judge, "judge", side_effect=AssertionError("must not judge")):
-            self.assertEqual(judge.calibrate(self.corpus, "sonnet"), 2)
+            self.assertEqual(judge.calibrate(self.corpus, "sonnet", resolve_identity=True), 2)
 
 
 if __name__ == "__main__":
