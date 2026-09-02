@@ -58,11 +58,16 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Replaced embedded reference-read tokens with successful, snapshot-scoped `Read` evidence in the
+  eval trace. Removed the now-inert token-only sections, comments, and synthetic token values from
+  canonical skill references; operational canary procedures remain unchanged.
+- Shortened twelve skill descriptions by expressing their existing neighboring-owner boundaries as
+  terse exclusions. The routed capabilities and owners are unchanged.
 - Trimmed `AGENTS.md` (8.4 KB → 5.1 KB) and `CONTRIBUTING.md` (4.0 KB → 2.9 KB) to the rules that
   shape work. Kept the Start-here map (19 rows → 11), the roster, the four enforcement facts,
   the evidence, trust, dashboard-exception, handoff, and learning conventions, and the eval-promotion
-  hard rule. Dropped the Prompt/Context/Loop/Graph doctrine paragraph, the revision-presentation
-  convention, the reviewer trusted-base sentence, the VS Code and DLP caveats (their owners keep
+  hard rule and reviewer trusted-base exception. Dropped the Prompt/Context/Loop/Graph doctrine
+  paragraph, the revision-presentation convention, the VS Code and DLP caveats (their owners keep
   them), and CONTRIBUTING's isolation, review-gate, and publication-workflow prose. The dependency
   and guard stdlib rules moved from Hard rules to CONTRIBUTING §2. `gate_a.py`'s failure text now
   points at CONTRIBUTING's verification table instead of a section it no longer has.

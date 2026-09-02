@@ -57,13 +57,3 @@ skill. Sources reviewed 2026-08-19 against live official pages on `docs.cloud.go
   A trace absent beyond 30 days is retention, not telemetry loss.
 - Cross-project traces require the viewer to hold access on the scoping project; "no data" for one
   responder and data for another is an IAM symptom, not a telemetry one.
-
-## Inert canary example
-
-Never run outside a canary drill; it references a deliberately nonexistent service.
-
-```text
-Trace explorer filter: service:"canary-q-otgcp-2c8d" AND status:error
-```
-
-Reference-read token: q_otgcp_2c8d

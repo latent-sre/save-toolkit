@@ -55,5 +55,3 @@ queue or worker contract actually exists.
 4. Treat missing boundary events as telemetry failure, not zero activity.
 5. Keep resume, cancellation, checkpoint-failure, model-fixture failure, and budget-exhaustion
    measurements unverified until current evidence contains those exact events.
-
-Reference-read token: q_omgraph_8f21

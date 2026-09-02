@@ -37,5 +37,3 @@ Return the source revision, run and case ID, absolute UTC window, terminal outco
 events, bounded planes/classes, unresolved-effect count, and artifact location. Redact unique
 identities from broad reports; include one only when following that exact run in an access-controlled
 packet.
-
-Reference-read token: q_olgraph_5e92

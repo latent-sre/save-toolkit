@@ -217,9 +217,3 @@ The expression is a reference-loading fixture, not a target metric claim.
 ```text
 sum(ts(<fixture.metric>, app="<fixture_app>"), app)
 ```
-
-Expected fixture output (inert):
-
-```text
-q_omwql_7b31
-```

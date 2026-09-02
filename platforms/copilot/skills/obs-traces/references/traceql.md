@@ -149,9 +149,3 @@ for the target.
 This checks reference loading only; it is not a production trace or a claim that the target was queried.
 
 *[sourced: Grafana Tempo trace-id filtering syntax; unverified for target availability]*
-
-Expected fixture output (inert):
-
-```text
-q_otql_7b3e
-```

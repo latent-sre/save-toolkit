@@ -861,7 +861,7 @@ class StreamTraceTests(unittest.TestCase):
         with self.assertRaises(clean_room.RunnerFailed):
             run_evals.parse_stream_trace(incomplete)
 
-    def test_parser_records_read_attempt_path_and_outcome(self) -> None:
+    def test_parser_records_successful_reference_read_without_a_content_token(self) -> None:
         events = [
             self._init_event(),
             {"type": "assistant", "session_id": "session-1", "message": {"content": [{
@@ -874,7 +874,7 @@ class StreamTraceTests(unittest.TestCase):
                 "type": "tool_result",
                 "tool_use_id": "read-1",
                 "is_error": False,
-                "content": "reference body q_probe_1234",
+                "content": "ordinary reference body",
             }]}},
             self._result_event("done"),
         ]
@@ -886,6 +886,15 @@ class StreamTraceTests(unittest.TestCase):
                 path="/tmp/frozen/skills/x/references/a.md",
                 outcome="allowed",
             ),),
+        )
+        required = {
+            "skills/x/references/a.md": Path(
+                "/tmp/frozen/skills/x/references/a.md"
+            ).resolve(),
+        }
+        self.assertEqual(
+            run_evals.observed_reference_reads(parsed, required),
+            ("skills/x/references/a.md",),
         )
 
     def test_runtime_boundary_rejects_successful_read_outside_snapshot(self) -> None:

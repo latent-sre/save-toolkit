@@ -197,9 +197,3 @@ This checks reference loading only; it is not a production request id.
 ```logql
 {app="checkout", env="prod"} | json | request_id="<fixture_request_id>"
 ```
-
-Expected fixture output (inert):
-
-```text
-q_ol_loki_8c2d
-```

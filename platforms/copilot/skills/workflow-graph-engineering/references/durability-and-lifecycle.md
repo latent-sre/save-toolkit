@@ -116,5 +116,3 @@ not restore evidence.
 | Missing terminal state | Graph ends when nothing is left to do | Named terminal nodes with required evidence |
 | Two live runs for one intent | Retry submits a new run without cancelling the old | Durable cancel before supersession |
 | Build drift | New build resumes an old checkpoint with a changed schema | Compatibility boundary and migration policy |
-
-Reference-read token: q_wgdur_8e43

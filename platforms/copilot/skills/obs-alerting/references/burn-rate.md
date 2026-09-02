@@ -63,5 +63,3 @@ py -3 skills/obs-alerting/scripts/error_budget.py --slo 99.9 --long-window 3d --
 ```
 
 The third command is deliberately invalid and must exit 2 with the exact allowed-pair list.
-
-<!-- terminal-canary: q_oaburn_8c71 -->

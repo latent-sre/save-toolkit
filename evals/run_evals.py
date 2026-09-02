@@ -83,8 +83,7 @@ DENIED_TOOLS = (
 )
 SAFE_ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 FULL_GIT_OID_RE = re.compile(r"^[0-9a-f]{40}$")
-# Canary tokens embedded in reference material, whose lineage a trial's tool-read transcript must
-# reproduce. Owned here (not resolved_context.py, which is Codex-only and deleted).
+# Canonical plugin inputs whose bytes are frozen and hashed for every trial.
 PLUGIN_INPUT_PATHS = (
     "agents", "skills", "commands", "hooks", ".claude-plugin/plugin.json",
     "scripts/fleet_frontmatter.py",

@@ -139,9 +139,3 @@ coverage before turning absence into a causal conclusion.
 This checks reference loading only; it is not an observed span or target-runtime result.
 
 *[sourced: OpenTelemetry SpanKind vocabulary; unverified for target instrumentation]*
-
-Expected fixture output (inert):
-
-```text
-q_otel_c4a9
-```

@@ -48,5 +48,3 @@ The built-in dimensions (browser, OS, device, network, geography, ISP) are the t
   beacon-level cache attribution; use DataStream 2 for that.
 - Beacon data is user telemetry: apply the fleet's redaction rules before quoting URLs or session
   attributes into a packet.
-
-<!-- terminal-canary: q_akrum_5e1b -->

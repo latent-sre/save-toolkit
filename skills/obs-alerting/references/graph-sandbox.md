@@ -49,5 +49,3 @@ The 2026-08-30 current-runtime exercise observed the page fire on checkout readi
 resolve on a later healthy run. A separate ambiguous-after-commit timeline remained firing after
 that healthy run because one checkout effect was still `UNKNOWN`. Notification delivery is
 unverified because this item deliberately creates no route.
-
-Reference-read token: q_oagraph_7c31

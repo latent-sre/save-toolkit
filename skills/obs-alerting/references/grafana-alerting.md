@@ -137,5 +137,3 @@ Submit rule-group and policy changes through a pull request. Capture the target 
 revision, before/after exported resource, validation result, and notification-path evidence. Roll back
 by reverting the source revision and reapplying it through the same controlled path, then verify the
 prior rule UID, policy, and contact route are active.
-
-<!-- terminal-canary: q_oagraf_4d2b -->

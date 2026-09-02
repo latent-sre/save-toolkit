@@ -114,5 +114,3 @@ Names, IDs, field maps, and links only—no credentials or API keys.
 Track alerts per Situation, percentage auto-clustered, false merges, missed clusters, page volume, and
 mean time from first event to actionable Situation. Record current baselines and targets here:
 `<reviewed measurement source and target>`.
-
-<!-- terminal-canary: q_oamoog_6f3a -->

@@ -50,9 +50,3 @@ index or field exists.
 index=<app_index> request_id="<fixture_request_id>" earliest=-5m
 | table request_id
 ```
-
-Expected fixture output (inert):
-
-```text
-q_ol_idx_5e1b
-```

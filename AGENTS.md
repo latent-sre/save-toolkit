@@ -4,8 +4,9 @@ Agents and skills that help SREs and engineers do their work. Canonical sources 
 `skills/`, `commands/`, and `hooks/`; generated adapters are consequences. Descriptions select
 lanes; Claude invokes `save-toolkit:<name>`.
 
-The team's stack lives in [`stack-profile`](skills/stack-profile/SKILL.md). Load it before
-recommending or changing supported runtime, tooling, or infrastructure choices.
+The team's stack lives in [`stack-profile`](skills/stack-profile/SKILL.md). Skill-capable lanes load
+it before recommending or changing supported runtime, tooling, or infrastructure choices; the
+`reviewer` receives those facts in a trusted-base packet and never loads candidate skills.
 
 ## Start here
 

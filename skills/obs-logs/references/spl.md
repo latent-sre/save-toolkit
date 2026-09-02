@@ -275,9 +275,3 @@ This checks reference loading only; it is not a production identifier.
 index=<app_index> request_id="<fixture_request_id>" earliest=-5m
 | table _time request_id service status
 ````
-
-Expected fixture output (inert):
-
-```text
-q_ol_spl_3f7a
-```

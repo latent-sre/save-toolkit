@@ -213,9 +213,3 @@ The expression is a reference-loading fixture, not a target metric claim.
 ```promql
 sum by (app) (rate(fixture_requests_total{app="<fixture_app>"}[5m]))
 ```
-
-Expected fixture output (inert):
-
-```text
-q_ompr_4e9a
-```
