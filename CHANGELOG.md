@@ -58,6 +58,14 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Trimmed `AGENTS.md` (8.4 KB → 5.1 KB) and `CONTRIBUTING.md` (4.0 KB → 2.9 KB) to the rules that
+  shape work. Kept the Start-here map (19 rows → 11), the roster, the four enforcement facts,
+  the evidence, trust, dashboard-exception, handoff, and learning conventions, and the eval-promotion
+  hard rule. Dropped the Prompt/Context/Loop/Graph doctrine paragraph, the revision-presentation
+  convention, the reviewer trusted-base sentence, the VS Code and DLP caveats (their owners keep
+  them), and CONTRIBUTING's isolation, review-gate, and publication-workflow prose. The dependency
+  and guard stdlib rules moved from Hard rules to CONTRIBUTING §2. `gate_a.py`'s failure text now
+  points at CONTRIBUTING's verification table instead of a section it no longer has.
 - `stack-profile` records that the team operates PCF through Apps Manager (many SREs have no `cf`
   CLI), the responder's incident tools in order (Apps Manager, Splunk, Wavefront and PCF App
   Metrics), and that Wavefront is the live PCF metrics UI today. `incident-command`'s references

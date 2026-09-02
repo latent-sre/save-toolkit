@@ -112,7 +112,7 @@ def main(argv=None) -> int:
             print("  - %s" % label)
         print(
             "\nGate A is structural only. Passing it would still not clear the "
-            "adversarial reviews (CONTRIBUTING.md)."
+            "verification table in CONTRIBUTING.md."
         )
         return 1
 
