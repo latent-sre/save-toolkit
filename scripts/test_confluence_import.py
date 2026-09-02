@@ -3,7 +3,7 @@
 The converter turns a human-supplied Confluence export (view/export HTML preferred; storage-format
 XHTML best-effort) into a DRAFT runbook in the template shape. The contract under test:
 
-  * the draft's frontmatter carries exactly the runbook-frontmatter-v1 key set, with the import
+  * the draft's frontmatter carries exactly the runbook template's key set, with the import
     invariants pinned: status draft, version 1, both dates null, empty verification evidence;
   * recognizable source headings land in the matching template slot; unrecognized content lands in
     an explicit "Imported content (unmapped)" section — nothing is silently dropped;
@@ -30,8 +30,27 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CONVERTER = ROOT / "skills" / "runbook" / "scripts" / "confluence_to_runbook.py"
-SCHEMA_PATH = ROOT / "schemas" / "runbook-frontmatter-v1.schema.json"
+# The published `schemas/runbook-frontmatter-v1.schema.json` was removed in the 2026-09-02
+# retention pass, so the template is the frontmatter contract now (see test_runbook_schema.py).
+# Pinning the converter to the template is the stronger binding anyway: the template is the file a
+# human copies, so a converter that agrees with it agrees with what runbooks actually look like.
+TEMPLATE_PATH = ROOT / "skills" / "runbook" / "assets" / "runbook-template.md"
 IMPORT_REFERENCE = ROOT / "skills" / "runbook" / "references" / "confluence-import.md"
+
+_TEMPLATE_KEY_RE = re.compile(r"^([a-z_][a-z0-9_]*):")
+
+
+def template_frontmatter_keys() -> list[str]:
+    """Top-level keys between the runbook template's first two `---` fences."""
+    lines = TEMPLATE_PATH.read_text(encoding="utf-8").splitlines()
+    keys: list[str] = []
+    for line in lines[1:]:
+        if line.strip() == "---":
+            return keys
+        match = _TEMPLATE_KEY_RE.match(line)
+        if match:
+            keys.append(match.group(1))
+    raise AssertionError(f"{TEMPLATE_PATH}: frontmatter fence never closes")
 
 VIEW_HTML = """<html><head><title>Restart the checkout worker</title></head><body>
 <h1>Restart the checkout worker</h1>
@@ -115,10 +134,9 @@ class ConfluenceImportTest(unittest.TestCase):
             f"converter failed: stderr={self.proc.stderr[:500]!r}",
         )
 
-    def test_frontmatter_matches_the_published_schema_keys(self) -> None:
-        schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    def test_frontmatter_matches_the_template_key_set(self) -> None:
         fields = frontmatter_fields(self.draft)
-        self.assertEqual(sorted(fields), sorted(schema["properties"]))
+        self.assertEqual(sorted(fields), sorted(template_frontmatter_keys()))
 
     def test_import_invariants_are_pinned(self) -> None:
         # An import is never a review or a rehearsal: draft status, first version, null dates.
@@ -154,8 +172,7 @@ class ConfluenceImportTest(unittest.TestCase):
         proc, draft = run_converter(VIEW_HTML, "--owner", "ops\ninjected: true")
         self.assertEqual(proc.returncode, 0, proc.stderr)
         fields = frontmatter_fields(draft)
-        schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
-        self.assertEqual(sorted(fields), sorted(schema["properties"]))
+        self.assertEqual(sorted(fields), sorted(template_frontmatter_keys()))
         self.assertNotIn("injected", fields)
         self.assertEqual(json.loads(fields["owner"]), "ops\ninjected: true")
 

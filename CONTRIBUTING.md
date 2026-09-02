@@ -32,7 +32,7 @@ that fails for the named break and passes after the fix.
 
 | Change | Evidence |
 |---|---|
-| Code, validator, exit code, or schema | The affected tests; [`schema-compatibility.md`](docs/schema-compatibility.md) for schema changes |
+| Code, validator, or exit code | The affected tests |
 | Agent, skill, command, or bundled reference | The matching asset or contract test |
 | Routing description | The overlapping clean-room scenarios; pure wording changes need no live eval |
 | Eval harness or scenario | The affected `evals/test_*.py`; `python evals/run_evals.py --validate` for parsing or targeting changes; `python evals/judge.py --calibrate` after a rubric edit |

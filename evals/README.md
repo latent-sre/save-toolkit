@@ -9,15 +9,15 @@ look like a menu even when a path is not runnable or authoritative.
 |---|---|---|---|
 | **Claude native-plugin evals** — [`run_evals.py`](run_evals.py), [`graders.py`](graders.py), [`judge.py`](judge.py), [`rubrics.yaml`](rubrics.yaml), [`scenarios/`](scenarios) | **live** | no — run `python evals/run_evals.py --validate` against scenario edits yourself | `python evals/run_evals.py --run …` uses the operator's existing Claude subscriber login; API keys are not used by this fleet. |
 | **Fixture-backed build probes** — [`build_probe.py`](build_probe.py), [`build-scenarios/`](build-scenarios) | **live** | no — `python evals/build_probe.py --validate` checks the specs; `python evals/test_build_probe.py` covers the graders without a model | `python evals/build_probe.py --scenario all --label new_skill --model sonnet --trials 2 --out .eval-runs/build/<iteration>`; pass `--plugin-root <worktree>` and a different `--label` for the incumbent. Seeds each scenario's inline fixture repo in a temp dir outside the checkout, runs `claude -p --agent` there with the agent's real tools pre-approved (`--permission-mode dontAsk`), and grades **outcomes** in code (the suite the agent wrote is green when the probe runs it, a `cf` shim on PATH never received a live verb, the fork branch's code never executed — its files write a lock file the moment they run —, nothing committed or written to `.agents/`, which skills loaded). Text checks are supporting evidence only; the outcome checks decide. Service-backed fixtures keep declared services on a disposable internal network and expose each only through a digest-pinned, fixed-target TCP relay plus the host audit proxy; a startup, relay, seed, or snapshot failure records INCONCLUSIVE artifacts and returns before constructing or launching the model command. The clean-room env applies (allowlisted env, credential-only config, no web tools) but this is **not a sandbox**: the agent's Bash runs on the host with network, the operator's Claude credential copy sits in the child `CLAUDE_CONFIG_DIR` where an unguarded Read/Bash could reach it (the probe scans outputs for credential markers and warns), and the probe executes model-written tests in the workspace under a scrubbed env — team-authored agents and stdlib-only fixtures only. A trial is INCONCLUSIVE, never a verdict, when `claude` reports an error result, exits nonzero, never advertises its tool inventory, advertises an inventory other than the one requested, or carries an MCP server; an auth failure aborts. A read-only guard denial (`hooks/hooks.json` is live for `sre`, and the `sre` scenarios' `cf` shim logs every invocation so `cf_log_has_no` grades what reached it) is recorded as a guard decision and graded, but the guard's own `unavailable or failed` diagnostic is INCONCLUSIVE. Every run records the plugin root's commit, plugin-input dirty state, and source digest (`provenance.json`, the trace summary, the summary line); `--expect-plugin-digest` refuses any other bytes, and `--trials` must be positive. `--container IMAGE@sha256:…` applies the repository's Docker contract to the shell: every Bash call, hook, and grading command of the trial runs through `CLAUDE_CODE_SHELL_PREFIX` inside a `docker run --rm --network none` of the pinned image with only the workspace (read-write) and the plugin root (read-only) mounted, while `claude` stays on the host for the API; use it for any candidate that is not team-authored. The image needs `bash`, `git`, and `python`; on Windows the probe runs the wrapper with Git for Windows' `bash` (bare `bash` is the WSL stub) and mounts the workspace at both `/tmp/<name>` and the drive-letter form, because Git Bash reports `$PWD` under `/tmp` for a workspace in `AppData\Local\Temp`. Each shell call is its own `docker run`, so only the mounted workspace survives between calls — a scratch file the agent writes to the container's own `/tmp` is gone by the next command, and loopback networking still works inside a single call. Output uses the skill-creator reviewer layout; re-running a label refuses to overwrite existing runs without `--overwrite`, `--overwrite` replaces the summary entry too, and `--regrade` rewrites the trace summary and summary entries alongside `grading.json`. |
-| **Codex/Terra ROUTE-001** | **retired 2026-08-22**; its decision is retained in Git history and its last diagnostic is the [Linux canary packet](../docs/reviews/2026-08-20-route001-linux-canary.md) | no | recover exact evaluator bytes from commit `0d95ba5de9fe38e4c601fc1eea4ff4bfab4e6fb9` only if a new accepted decision reopens them |
+| **Codex/Terra ROUTE-001** | **retired 2026-08-22**; its decision is retained in Git history and its last diagnostic is the Linux canary packet (`docs/reviews/2026-08-20-route001-linux-canary.md`, removed 2026-09-02, in git at `e77fc672^`) | no | recover exact evaluator bytes from commit `0d95ba5de9fe38e4c601fc1eea4ff4bfab4e6fb9` only if a new accepted decision reopens them |
 | **Codex/Sol conformance** | **retired 2026-08-23**; its superseded decision is retained in Git history, and its 2026-07-31 results were **revoked** as release evidence and removed from the tree | n/a | tag `pre-trim-2026-08-02` preserves historical bytes; recover only after a new accepted decision names the Codex consumer, regression, or model migration plus an owner and fixed budget |
 
 Active `evals/test_*.py` suites are owner-triggered: run the affected file directly
 (`python evals/test_graders.py`, `python evals/test_run_evals.py`, …) when you change its owning
 harness code. Gate A is structural only and does not run them. Retired execution code stays out of
 the active tree, and frozen evidence remains read-only. Uncited sealed packets were folded into the
-[`eval measurement index`](../docs/reviews/2026-08-30-folded-eval-index.md); recover a full packet
-from git history by batch ID.
+`eval measurement index` (`docs/reviews/2026-08-30-folded-eval-index.md`, removed 2026-09-02, in git
+at `e77fc672^`); recover a full packet from git history by batch ID.
 
 ## Claude behavioral evals
 
@@ -193,7 +193,8 @@ python scripts/capture_measurement_evidence.py eval .eval-runs/<run-id>/summary.
 ```
 
 For a host-owned agent task or session exercise, export the versioned JSON envelope described in
-[`EVIDENCE-001`'s capture design](../docs/reviews/2026-08-26-evidence-001-capture-design.md) while the
+`EVIDENCE-001`'s capture design — removed 2026-09-02, read it with
+`git show e77fc672^:docs/reviews/2026-08-26-evidence-001-capture-design.md` — while the
 host output still exists, then run `python scripts/capture_measurement_evidence.py exercise <file>`.
 The exercise command also accepts `-` to read the envelope from standard input without leaving a
 second scratch file.
@@ -387,7 +388,7 @@ cents per judged trial on Sonnet (measured 2026-09-01: USD 5.14 for 140 cases) a
 ~21-cent trial cost; the full calibration corpus is under 150 cases, and the cache under
 `.eval-runs/judge-calibration/judge-cache/` is shared across runs, so after a rubric edit only that
 rubric's cases are re-judged. The last recorded calibration is
-[2026-09-01](../docs/reviews/2026-09-01-judge-calibration.md): 140/140 after four runs. Disagreements are findings about the rubric or the corpus, not something to chase
+2026-09-01 (packet removed 2026-09-02, in git at `e77fc672^`): 140/140 after four runs. Disagreements are findings about the rubric or the corpus, not something to chase
 by rewording the rubric until the number goes green. For a one-off spot check:
 
 ```bash

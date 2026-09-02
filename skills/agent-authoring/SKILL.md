@@ -5,8 +5,8 @@ description: >-
   graders, bounded Loop Engineering for evaluation/verification, and agent roster/delegation
   graphs. Triggers: 'write me an agent/skill/prompt', 'my skill fires too often', 'the output is
   the wrong shape', 'is this agent safe / prompt injection'. Not for source-code dependency,
-  knowledge, or GraphRAG graphs, implementing a graph runtime, or an executable
-  workflow/state-graph contract (workflow-graph-engineering).
+  knowledge, or GraphRAG graphs, implementing a graph runtime, or the design contract for an
+  executable workflow/state graph (agent-engineer's graph tier).
 argument-hint: "[artifact, roster, tool, or context problem]"
 ---
 
@@ -91,7 +91,7 @@ authority, isolation, independent verification, or justified parallel breadth.
 |---|---|---|
 | Roster, delegation/handoff edges, context and authority boundaries, joins, termination | Agent workflow graph | This skill |
 | Source-code import graph, knowledge graph, GraphRAG | A different capability | Not this skill |
-| Durable executable workflow/state graph — typed state, node and edge classes, effects, checkpoints, cancellation, termination | Executable graph contract | `workflow-graph-engineering`; this skill still owns its prompts and roster; implementation `software-engineer`; runtime a `stack-profile` decision, never LangGraph because the design is graph-shaped |
+| Durable executable workflow/state graph — typed state, node and edge classes, effects, checkpoints, cancellation, termination | Executable graph contract | `agent-engineer`'s graph tier; this skill still owns its prompts and roster; implementation `software-engineer`; runtime a `stack-profile` decision, never LangGraph because the design is graph-shaped |
 
 **5. Loop Engineering** — the bounded gather/action/verify/repeat contract inside a lane: entry
 state, verifier, iteration/candidate/cost/time budget, success and no-progress termination, safety

@@ -106,14 +106,14 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   Engineering' phrasing its capability sentence already carried; `agent-engineer` now points at
   the reference. The three `agent-security` scenarios retired. The new trigger is covered by
   `discovery-agent-authoring-security-review` (Sonnet, 3/3, batch `20260902T055813Z-7dad56ec`,
-  [evidence](docs/reviews/2026-09-02-eval-20260902T055813Z-7dad56ec.md); an earlier batch,
+  evidence packet retained in git history by batch ID; an earlier batch,
   `20260902T050121Z-e3774dc8`, kept the four then-existing `agent-authoring` discovery
   scenarios at 3/3 after the description change and failed the new one on a prompt that implied
   a file to read, which the clean room cannot grant). The reference's own contract is covered by
   `skill-direct-agent-authoring-security-review`, a direct scenario with scoped reference access
   and the new `security_review_structural` rubric (12 calibration cases, 12/12 on calibration run
   `20260902T062709Z`; Sonnet 3/3, batch `20260902T065206Z-3f16d3b6`,
-  [evidence](docs/reviews/2026-09-02-eval-20260902T065206Z-3f16d3b6.md)).
+  evidence packet retained in git history by batch ID).
 - `evals/judge.py`'s evidence-grounding check now normalizes quote marks and markdown emphasis
   and checks an elided quote (`...`) fragment by fragment in order, every fragment still
   verbatim. Two live batches of the new security-review scenario went inconclusive on quotes
@@ -233,7 +233,7 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   `810f7e6`; the owner kept the three direct grader scenarios in `calibration` rather than
   relabelling host-neutral Terra transfer as native Claude behavior.
 - Cut the body/reference duplication the
-  [2026-08-26 three-pass audit](docs/reviews/2026-08-26-three-pass-skill-audit.md) measured — the same rule
+  2026-08-26 three-pass audit measured (packet retained in git history) — the same rule
   bought twice whenever a reference loaded alongside the body that already states it. **Context:**
   `agent-authoring`'s `artifact.md` no longer restates SKILL.md's source-trust gate, four method
   steps, description rule, failure→form table, or handoff/production-gate rules; it now owns only
