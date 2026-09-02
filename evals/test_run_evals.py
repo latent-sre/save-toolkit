@@ -666,6 +666,25 @@ class StreamTraceTests(unittest.TestCase):
         self.assertNotIn("Glob", skill_tools)
         self.assertEqual(skill_tools, ("Skill", "Task"))
 
+    def test_agent_target_discovery_reads_are_callable_inside_the_workspace(self) -> None:
+        """A granted read that is not callable makes the trial INCONCLUSIVE at the boundary check
+        (`unexpected callable read tool`), which would defeat EVAL-008. Agent-target discovery
+        registers the three read tools as callable and the harness-owned workspace as the root a
+        relative read may resolve into; nothing else gets either."""
+        workspace = Path("/tmp/neutral-workspace")
+        agent_discovery = {"mode": "discovery", "target": {"kind": "agent", "name": "scribe"}}
+        skill_discovery = {"mode": "discovery", "target": {"kind": "skill", "name": "runbook"}}
+        direct_agent = {"mode": "direct", "target": {"kind": "agent", "name": "scribe"}}
+        self.assertTrue(run_evals.agent_target_discovery(agent_discovery))
+        self.assertFalse(run_evals.agent_target_discovery(skill_discovery))
+        self.assertFalse(run_evals.agent_target_discovery(direct_agent))
+        self.assertEqual(
+            run_evals.discovery_boundary_options(agent_discovery, workspace),
+            {"callable_read_tools": run_evals.engine_adapters.READ_TOOLS, "allowed_roots": (workspace,)},
+        )
+        self.assertEqual(run_evals.discovery_boundary_options(skill_discovery, workspace), {})
+        self.assertEqual(run_evals.discovery_boundary_options(direct_agent, workspace), {})
+
     def test_direct_agent_frontmatter_uses_the_snapshotted_shared_strict_parser(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

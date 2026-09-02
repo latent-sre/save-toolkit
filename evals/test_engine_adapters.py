@@ -97,6 +97,19 @@ class ClaudeNativeAdapterTests(unittest.TestCase):
         self.assertIn("Grep", skill_denied)
         self.assertIn("Glob", skill_denied)
 
+    def test_policy_digest_binds_the_agent_target_discovery_read_grant(self) -> None:
+        """The digest must change whenever the effective tool inventory does: an agent-target
+        discovery trial runs with Read/Grep/Glob granted and must not share a policy identity with
+        a base-set trial. Snapshot-read trials keep their existing digest."""
+        base = self.adapter.policy_sha256(enable_snapshot_reads=False)
+        discovery = self.adapter.policy_sha256(
+            enable_snapshot_reads=False, agent_target_discovery=True
+        )
+        snapshot = self.adapter.policy_sha256(enable_snapshot_reads=True)
+        self.assertNotEqual(base, discovery)
+        self.assertNotEqual(snapshot, discovery)
+        self.assertEqual(base, self.adapter.policy_sha256(enable_snapshot_reads=False, agent_target_discovery=False))
+
     def test_unexpected_advertised_tool_is_rejected(self) -> None:
         with self.assertRaisesRegex(engine_adapters.AdapterError, "unexpected advertised tool"):
             self.adapter.validate_tool_boundary(

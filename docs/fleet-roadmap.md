@@ -235,7 +235,7 @@ the incumbent (now named `investigation-depth`) retained. On acceptance, move th
 
 **Status:** `deferred` (2026-09-02) until A3–A5, S1, and S4 of the fleet weight review have merged.
 **Owner:** Save Toolkit maintainers
-**Outcome:** One fresh baseline of the whole corpus (46 scenarios plus the six build probes) on one
+**Outcome:** One fresh baseline of the whole corpus (46 scenarios plus the nine build probes) on one
 model and one runner build, a fresh judge calibration, and a decision on the 15 "ownership map"
 sentences still in skill descriptions. Every measurement taken during the reshape (the
 `docs/reviews/2026-09-02-eval-*` packets, the gate-merge batches, the corpus-cut evidence) is a

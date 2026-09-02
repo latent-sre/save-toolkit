@@ -890,6 +890,29 @@ def expected_canaries_for_paths(
     return expected
 
 
+def agent_target_discovery(scenario: dict) -> bool:
+    """True when the trial may dispatch a tool-minimal agent and so carries the read grant.
+
+    Agent-target discovery may dispatch reviewer, repository-investigator, scribe, or researcher,
+    whose own declared tools are Read/Grep/Glob with no Skill or Agent grant. The CLI refuses to
+    spawn a subagent whose declared tools resolve to nothing, so the three read tools are granted
+    for these scenarios and their calls inside the harness-owned workspace are in bounds; the
+    workspace is empty and outside the checkout, so the reads are harmless. Skill-target discovery
+    stays on the base set.
+    """
+    return scenario["mode"] != "direct" and scenario["target"]["kind"] == "agent"
+
+
+def discovery_boundary_options(scenario: dict, cwd: Path) -> dict[str, object]:
+    """Boundary options that make the discovery read grant callable instead of INCONCLUSIVE."""
+    if not agent_target_discovery(scenario):
+        return {}
+    return {
+        "callable_read_tools": engine_adapters.READ_TOOLS,
+        "allowed_roots": (cwd,),
+    }
+
+
 def expected_runtime_tools(
     scenario: dict,
     plugin_root: Path = ROOT,
@@ -899,16 +922,10 @@ def expected_runtime_tools(
     """Return the exact advertised built-in inventory expected for this invocation plan."""
     _require_matching_frontmatter_parser(plugin_root)
     frontmatter_parser = _load_trusted_frontmatter_parser()
+    if agent_target_discovery(scenario):
+        return tuple(sorted((*ALLOWED_BUILTIN_TOOLS, *engine_adapters.READ_TOOLS)))
     target = scenario["target"]
     if scenario["mode"] != "direct":
-        # Agent-target discovery may dispatch a tool-minimal agent (reviewer,
-        # repository-investigator, scribe, researcher) whose own declared tools are Read/Grep/Glob
-        # with no Skill or Agent grant. The CLI refuses to spawn a subagent whose declared tools
-        # resolve to nothing, so the three read tools must be part of the advertised inventory for
-        # these scenarios; the clean room's workspace is empty and outside the checkout, so reads
-        # there are harmless. Skill-target discovery stays on the base set.
-        if target["kind"] == "agent":
-            return tuple(sorted((*ALLOWED_BUILTIN_TOOLS, *engine_adapters.READ_TOOLS)))
         return ALLOWED_BUILTIN_TOOLS
     if target["kind"] == "skill":
         if enable_snapshot_reads:
@@ -1203,6 +1220,7 @@ def run_agent(
                 "Claude resolved model does not match the accepted resolved-model identity"
             )
         boundary_options: dict[str, object] = {"expected_tools": expected_tools, "optional_tools": optional_tools}
+        boundary_options.update(discovery_boundary_options(scenario, cwd))
         if enable_snapshot_reads:
             boundary_options["callable_read_tools"] = engine_adapters.READ_TOOLS
             boundary_options["required_allowed_paths"] = tuple(
@@ -1237,6 +1255,7 @@ def run_agent(
             policy_sha256=(
                 engine_adapters.ClaudeNativeAdapter().policy_sha256(
                     enable_snapshot_reads=enable_snapshot_reads,
+                    agent_target_discovery=agent_target_discovery(scenario),
                     reasoning_effort=reasoning_effort,
                 )
                 if boundary_proven else None
@@ -1262,6 +1281,7 @@ def run_agent(
             policy_sha256=(
                 engine_adapters.ClaudeNativeAdapter().policy_sha256(
                     enable_snapshot_reads=enable_snapshot_reads,
+                    agent_target_discovery=agent_target_discovery(scenario),
                     reasoning_effort=reasoning_effort,
                 )
                 if boundary_proven else None
@@ -1280,6 +1300,7 @@ def run_agent(
         duration,
         policy_sha256=engine_adapters.ClaudeNativeAdapter().policy_sha256(
             enable_snapshot_reads=enable_snapshot_reads,
+            agent_target_discovery=agent_target_discovery(scenario),
             reasoning_effort=reasoning_effort,
         ),
         expected_canaries=tuple(sorted(expected_canaries.values())),

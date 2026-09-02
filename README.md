@@ -3,8 +3,9 @@
 A Claude Code plugin that helps a human SRE do their job on this team's stack: PCF (through Apps
 Manager), Cloud Run, Splunk, Wavefront and PCF App Metrics, Grafana, Akamai. It gives you an
 advisor to think with during an incident, read-only helpers that gather evidence, and skills that
-carry the team's own facts, queries, and checklists. It never changes a live system; a human
-executes every production action.
+carry the team's own facts, queries, and checklists. A human executes every production action,
+with one narrow exception: an invoked `observability-engineer` may apply Grafana dashboard and
+folder writes under its [change-authority rule](agents/observability-engineer.md#change-authority).
 
 > **Pre-release (0.1.0).** Installs track `main` and may change without notice. The repository has
 > no supported immutable release channel.
