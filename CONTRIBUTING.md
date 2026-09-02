@@ -43,6 +43,7 @@ that test.
 | Routing description | Run the overlapping clean-room scenarios after a routing-content change. A prior-revision baseline is needed only to diagnose a red case; pure wording changes need no live eval. |
 | Eval harness or scenario | Run the affected `evals/test_*.py`; run `python evals/run_evals.py --validate` when parsing or targeting changes; rubric change → re-run `python evals/judge.py --calibrate`. |
 | Read-only guard or hook wiring | Run `python scripts/test_readonly_guard.py` and `python scripts/test_hook_wiring.py`; preserve exit codes 42 allow, 43 deny, and 44 indeterminate. |
+| A file loaded on a canonical task path, or a `description:` field | Run `python scripts/check_context_cost.py`; it fails if a task's or the always-loaded description total's byte budget is exceeded. |
 
 Live routing and behavioral evals use `evals/run_evals.py` in a manual clean room, not CI. Keep raw
 traces under `.eval-runs/`; only the runner's bounded durable summary belongs under `docs/reviews/`.

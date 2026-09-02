@@ -143,7 +143,17 @@ class ClaudeNativeAdapter:
                 "Continue with the task only after making every probe. Do not quote the denied file.",
             ]
             prompt = "\n".join(preflight) + "\n\n" + prompt
-        allowed_tools = tuple(sorted((*BASE_TOOLS, *READ_TOOLS))) if enable_snapshot_reads else BASE_TOOLS
+        # Agent-target discovery may dispatch a tool-minimal agent (reviewer,
+        # repository-investigator, scribe, researcher) whose own declared tools are Read/Grep/Glob
+        # with no Skill or Agent grant. The CLI refuses to spawn a subagent whose declared tools
+        # resolve to nothing, so the three read tools must be granted here too; the clean room's
+        # workspace is empty and outside the checkout, so reads there are harmless.
+        agent_target_discovery = scenario.get("mode") != "direct" and target.get("kind") == "agent"
+        allowed_tools = (
+            tuple(sorted((*BASE_TOOLS, *READ_TOOLS)))
+            if enable_snapshot_reads or agent_target_discovery
+            else BASE_TOOLS
+        )
         denied = [tool for tool in DENIED_TOOLS if tool not in allowed_tools]
         command += [
             "-p",

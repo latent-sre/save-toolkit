@@ -77,7 +77,10 @@ Onboard and retire both end with an evidence-bound handoff to `scribe` for the s
 cards, index entry, and any missing or stale runbook: the authorizing record, exact repository
 revision and checkout binding, execution receipts, retained evidence labels, what was not done, and
 one recommended course of action. Audit findings travel the same route as closeout-eligible
-evidence. This skill never loads `operational-learning` or authors a record.
+evidence. This skill never loads `operational-learning` or authors a record. When no service card or
+index entry exists, the audit's handoff asks `scribe` to create them from the templates in
+`operational-learning`'s assets, so the next incident on this service has an owner and an escalation
+path to read.
 
 ## Return
 

@@ -51,6 +51,52 @@ class ClaudeNativeAdapterTests(unittest.TestCase):
         self.assertIn("skills/incident/references/first.md", prompt)
         self.assertIn("/tmp/denied-boundary.txt", prompt)
 
+    def test_agent_target_discovery_grants_read_tools_skill_target_does_not(self) -> None:
+        """EVAL-008: a tool-minimal agent (Read/Grep/Glob, no Skill/Agent) must not resolve to zero
+        tools when Task-dispatched, so agent-target discovery widens the grant; skill-target
+        discovery does not need it and stays on the base set."""
+        plugin = Path("/tmp/frozen-plugin")
+        agent_discovery = {
+            "mode": "discovery",
+            "target": {"kind": "agent", "name": "reviewer"},
+            "prompt": "Review the pending change.",
+        }
+        skill_discovery = {
+            "mode": "discovery",
+            "target": {"kind": "skill", "name": "runbook"},
+            "prompt": "Write the runbook.",
+        }
+        agent_command = self.adapter.build_command(
+            scenario=agent_discovery,
+            executable="claude",
+            plugin_root=plugin,
+            qualified_target="save-toolkit:reviewer",
+            model="sonnet",
+        )
+        skill_command = self.adapter.build_command(
+            scenario=skill_discovery,
+            executable="claude",
+            plugin_root=plugin,
+            qualified_target="save-toolkit:runbook",
+            model="sonnet",
+        )
+        self.assertEqual(
+            "Glob,Grep,Read,Skill,Task",
+            agent_command[agent_command.index("--tools") + 1],
+        )
+        agent_denied = set(agent_command[agent_command.index("--disallowedTools") + 1].split(","))
+        self.assertNotIn("Read", agent_denied)
+        self.assertNotIn("Grep", agent_denied)
+        self.assertNotIn("Glob", agent_denied)
+        self.assertEqual(
+            "Skill,Task",
+            skill_command[skill_command.index("--tools") + 1],
+        )
+        skill_denied = set(skill_command[skill_command.index("--disallowedTools") + 1].split(","))
+        self.assertIn("Read", skill_denied)
+        self.assertIn("Grep", skill_denied)
+        self.assertIn("Glob", skill_denied)
+
     def test_unexpected_advertised_tool_is_rejected(self) -> None:
         with self.assertRaisesRegex(engine_adapters.AdapterError, "unexpected advertised tool"):
             self.adapter.validate_tool_boundary(

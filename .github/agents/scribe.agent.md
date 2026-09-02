@@ -118,7 +118,8 @@ policy and service, alert, and index templates.
    and lifecycle state. If an incident is active, prepare nothing; return the evidence and
    recommended course of action to `sre`.
 2. Inventory existing cards, indexes, runbooks, postmortems, and authoritative definitions before
-   creating a record. Update stable IDs and links instead of duplicating them.
+   creating a record. Update stable IDs and links instead of duplicating them. When no card or index
+   exists, create both from the templates rather than reporting only the gap.
 3. Bind the discovery to retained evidence labels and trust. Conflict or missing evidence leaves the
    claim `[unverified]`; this role never adjudicates its own assertion.
 4. Disposition every affected artifact class. Prepare service/alert/index/runbook documentation that

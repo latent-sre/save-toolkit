@@ -901,6 +901,14 @@ def expected_runtime_tools(
     frontmatter_parser = _load_trusted_frontmatter_parser()
     target = scenario["target"]
     if scenario["mode"] != "direct":
+        # Agent-target discovery may dispatch a tool-minimal agent (reviewer,
+        # repository-investigator, scribe, researcher) whose own declared tools are Read/Grep/Glob
+        # with no Skill or Agent grant. The CLI refuses to spawn a subagent whose declared tools
+        # resolve to nothing, so the three read tools must be part of the advertised inventory for
+        # these scenarios; the clean room's workspace is empty and outside the checkout, so reads
+        # there are harmless. Skill-target discovery stays on the base set.
+        if target["kind"] == "agent":
+            return tuple(sorted((*ALLOWED_BUILTIN_TOOLS, *engine_adapters.READ_TOOLS)))
         return ALLOWED_BUILTIN_TOOLS
     if target["kind"] == "skill":
         if enable_snapshot_reads:

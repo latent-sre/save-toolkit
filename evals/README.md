@@ -36,7 +36,9 @@ unified runner measures two different properties and never blends their scores:
   "agent broken". See the
   [accepted EVAL-002 decision](../docs/decisions/2026-08-22-agent-discovery-calibration.md).
   The clean room's `--tools Skill,Task` and `--disallowedTools` reach every subagent the main session
-  dispatches, so a routed agent can report but never Read, Write, or run anything. Discovery graders
+  dispatches; agent-target discovery widens the advertised inventory to the three read tools so a
+  tool-minimal target (reviewer, repository-investigator, scribe, researcher) can be dispatched at
+  all, but a routed agent still cannot Write or run anything. Discovery graders
   must therefore be satisfiable by a tool-less, routed response; a grader that demands execution
   evidence is unsatisfiable here by construction.
 - **Direct contract compliance**: once the component is explicitly pinned, does its response satisfy
