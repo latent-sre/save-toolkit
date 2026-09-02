@@ -2090,6 +2090,11 @@ def _filter_scenarios(scenarios: list[dict], args: argparse.Namespace) -> list[d
 
 
 def main() -> int:
+    # Judge evidence and model excerpts carry arbitrary Unicode; a cp1252 console on Windows
+    # otherwise raises UnicodeEncodeError mid-run and loses the batch summary.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(errors="replace")
     parser = argparse.ArgumentParser(description=__doc__)
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument("--validate", action="store_true", help="validate scenario schema; no model")

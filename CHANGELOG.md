@@ -58,6 +58,9 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- `run_evals.py` reconfigures stdout and stderr with `errors="replace"` at start: a judge
+  evidence quote containing an arrow crashed a batch on a cp1252 Windows console after two
+  trials, losing its summary and packet (2026-09-02).
 - `evals/test_graders.py`'s `check()` now asserts as well as recording, so `python -m pytest`
   sees its failures; since the move to pytest every test in that file had passed regardless of
   its checks, and one Splunk alerting fixture had been red since #209 without anyone seeing it.
