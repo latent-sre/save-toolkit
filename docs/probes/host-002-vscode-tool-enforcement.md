@@ -410,6 +410,8 @@ logs. Generate an evidence ID in PowerShell with:
 ```powershell
 "ev_$([guid]::NewGuid().ToString('N'))"
 rg -n "REPLACE_" '<report path>'   # expect no output before this report is saved as final
+$report = '<report path>'
+python -c "import json, pathlib, re, sys; from datetime import datetime; p = pathlib.Path(sys.argv[1]); d = json.loads(p.read_text(encoding='utf-8')); req = ('schema_version','evidence_id','context','target','criterion','status','started_at','ended_at','command','source','artifacts'); miss = [k for k in req if k not in d]; assert not miss, f'missing keys: {miss}'; assert d['schema_version'] == 1; assert re.fullmatch(r'ev_[0-9a-f]{32}', d['evidence_id']); assert d['context'].get('task_id') == 'HOST-002'; assert d['status'] in {'pass','fail','skip','inconclusive'}; parse = lambda s: datetime.fromisoformat(s.replace('Z', '+00:00')); assert str(d['started_at']).endswith('Z') and str(d['ended_at']).endswith('Z'); assert parse(d['ended_at']) >= parse(d['started_at']); cmd = d['command']; assert cmd is None or (isinstance(cmd, dict) and isinstance(cmd.get('argv'), list) and cmd['argv'] and all(isinstance(x, str) and x for x in cmd['argv']) and isinstance(cmd.get('cwd'), str) and cmd['cwd'] and isinstance(cmd.get('exit_code'), int)); arts = d['artifacts']; assert isinstance(arts, list) and arts; assert all(isinstance(a.get('size'), int) and a['size'] >= 0 for a in arts); print('host-002 report structure: PASS')" $report
 ```
 
 For the Step 4 command observation, replace the template's `command: null` with this shape, using the

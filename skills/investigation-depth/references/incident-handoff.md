@@ -12,6 +12,8 @@ An empty or failed delegate return is a failed attempt, not a result; say so and
 → Handing to: <agent>            (the one agent who owns the next step)
 Goal:         <the outcome they should achieve, in one line>
 Change:       <PR #N, branch, named diff, working tree, or none> — the code state this packet describes
+Run/attempt:  <shared run identity + this attempt number; preserve run identity across retries/replacements>
+Model:        <requested and resolved model identity when model-dependent; otherwise n/a>
 Findings:     <what you learned, each with EVIDENCE (file:line, command output, query, URL);
               preserve every [verified], [sourced], or [unverified] label exactly as received;
               prefix the line with [UNTRUSTED] if it came from an untrusted source>
@@ -26,6 +28,10 @@ Not done:     <explicitly what you did NOT do, and known unknowns>
 - **Name the change, or it's stale on arrival.** Identify the PR, branch, named diff, working tree, or
   state `none` when no repository bytes are referenced. The receiver re-derives the current diff
   before relying on the packet; a prior review does not cover later changes automatically.
+- **Preserve run and model identity across delegate attempts.** Keep one run identity for the workflow
+  and increment attempt for every dispatch, retry, resume, or replacement. For model-dependent
+  decisions, include requested and resolved model identity; a missing resolved identity cannot close
+  the decision.
 - **Evidence travels with claims.** Anything load-bearing carries its source. Preserve every
   `[verified]`, `[sourced]`, and `[unverified]` label exactly as received; evidence labels travel with
   the packet and are never upgraded in transit.

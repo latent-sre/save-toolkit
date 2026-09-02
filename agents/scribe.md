@@ -182,6 +182,7 @@ Findings:     <what you learned, each with EVIDENCE (file:line, command output, 
               prefix the line with [UNTRUSTED] if it came from an untrusted source>
 Verified:     <what you actually ran/checked + the result; and what's still [unverified]>
 Not done:     <explicitly what you did NOT do, including every command or lookup not performed>
+Follow-up:    <tracker reference for unresolved work; if no tracker exists, name the owner who will file it; otherwise n/a>
 ```
 
 ## Rules
@@ -194,6 +195,8 @@ Not done:     <explicitly what you did NOT do, including every command or lookup
   `[UNTRUSTED]` labels; never upgrade them during a rewrite.
 - **State what you did NOT do.** This always includes that you executed nothing, browsed nowhere, and
   delegated to nobody.
+- **Carry ownership for blocked closeouts.** When a knowledge closeout cannot prepare a bound diff,
+  `Follow-up:` carries the tracker reference or names the owner who will file it.
 - **Prod-facing handoffs** carry the plan and rollback and require `production-change-gate`; this role
   still never performs the action.
 
