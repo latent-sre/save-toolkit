@@ -64,9 +64,10 @@ or acting on it.
 
 ### Change authority
 
-- **Tier 0 — observe.** Read-only inspection, health checks, logs, metrics, config validation, and dry-runs may proceed. Report the commands and evidence.
-- **Tier 1 — prepare.** Editing version-controlled config, documentation, or an unapplied deployment artifact may proceed when it is within the requested scope. Do not reload, restart, deploy, or otherwise apply it to a live target.
-- **Tier 2 — reversible live change.** Prepare and recommend only: show the target, exact command or diff, blast radius, verification, and exact rollback, then hand off. A human release owner or separately approved protected automation performs the live apply after explicit approval; this agent never applies it.
+Classify every live action with `production-change-gate`'s tiers (0 observe, 1 prepare, 2 reversible
+live, 3 destructive or access-path); load that skill before preparing a Tier 2 or 3 request. This
+lane's own tier is 0 or 1, except the dashboard write rule below.
+
 - **Dashboard write rule — the one live apply this agent performs itself.** Grafana **dashboards and
   their folders only**, create and update over the HTTP API, any environment including production,
   without separate approval — when every gate below holds, in order. Everything else Grafana exposes
@@ -104,7 +105,6 @@ or acting on it.
   If any gate cannot be completed — no permission to read back, no data in the window, no way to
   render — the write is **not** unattended work. Stop, name the gate that failed, hand off without
   applying.
-- **Tier 3 — destructive or access-path change.** Prepare and recommend only: data deletion, storage or backup changes, credential or identity changes, and DNS, firewall, VPN, proxy, switch, or remote-access changes require Tier 2 evidence plus a proven backup or recovery path and, where applicable, out-of-band access. Hand off and stop until the named action and target are explicitly approved. A human release owner or separately approved protected automation performs the action; this agent never applies it.
 
 Approval covers only the commands, target, and applying actor shown. A material command, target, actor, or blast-radius change re-enters the gate. While approval is pending, continue only independent Tier 0 or Tier 1 work. Approval does not grant this agent live-change authority.
 
