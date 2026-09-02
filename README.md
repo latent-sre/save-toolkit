@@ -121,7 +121,7 @@ The 30 skills, by area (each `skills/<name>/SKILL.md` carries its own descriptio
   `ci-actions`, `database-reliability`, `eng-ladder`
 - **Platform** — `stack-profile`, `pcf-ops`, `pcf-deploy`, `gcp-ops`, `akamai-edge`
 - **Change gates** — `production-change-gate`
-- **Incident and operations** — `incident-investigation`, `root-cause`, `incident-command`, `postmortem`, `runbook`,
+- **Incident and operations** — `incident-investigation`, `investigation-depth`, `root-cause`, `incident-command`, `postmortem`, `runbook`,
   `operational-learning`, `service-lifecycle` (audit, onboard, and retire modes)
 - **Observability** — `obs-logs`, `obs-metrics`, `obs-traces`, `obs-dashboards`, `obs-alerting`,
   `obs-pipeline`

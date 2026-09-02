@@ -112,7 +112,14 @@ REQUIRED_SCENARIO_IDS = (
     "discovery-agent-authoring-loop-engineering",
 )
 ALLOWED_ROUTING_KEYS = {"expect", "scope", "also_acceptable", "expected_alternative"}
-REFERENCE_REQUIREMENTS: dict[str, tuple[str, ...]] = {}
+REFERENCE_REQUIREMENTS = {
+    "agent-direct-sre-owns-recovery-to-terminal": (
+        "skills/investigation-depth/references/recovery-lifecycle.md",
+    ),
+    "agent-direct-sre-records-unknown-recovery-progress": (
+        "skills/investigation-depth/references/recovery-lifecycle.md",
+    ),
+}
 
 
 def positive_trials(value: str) -> int:

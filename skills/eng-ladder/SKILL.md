@@ -5,7 +5,7 @@ description: >-
   may span components, teams, migrations, or hard-to-reverse choices. Triggers: 'how rigorous
   should this be', 'review this at the principal level', 'is this a design doc or just a PR'. A
   scoped change with an obvious owner and existing pattern routes straight to its builder or craft
-  skill. Active-alert troubleshooting belongs to incident-investigation.
+  skill. Active-alert investigation depth belongs to investigation-depth.
 argument-hint: "[task, diff, file, or design doc]"
 ---
 

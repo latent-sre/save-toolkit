@@ -240,7 +240,7 @@ retries; both arms routed correctly 9/9, but the candidate failed the full accep
 on-call phrasing strictly improves its full discovery contract, rather than tuning against a partial
 routing win.
 **Next action:** Human owner decides whether to close ROUTE-005 with the exact candidate rejected and
-the incumbent (folded into `incident-investigation` on 2026-09-02) retained. On acceptance, move this item to
+the incumbent (now named `investigation-depth`) retained. On acceptance, move this item to
 `roadmap-closed.md` with the paired evidence.
 **Evidence:** [`paired result`](reviews/2026-08-30-route-005-paired-result.md)
 

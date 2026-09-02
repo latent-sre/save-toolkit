@@ -1,0 +1,67 @@
+# Signal characterization — read the system before explaining it
+
+Use this companion when the incident record lacks an exact start time, blast radius, trend, or a
+trusted baseline for service health. Pull signals from the team's active logs, metrics, dashboards,
+platforms, and synthetics; this reference defines what to establish, not backend query syntax.
+
+## Golden signals
+
+| Signal | Question |
+|---|---|
+| **Latency** | How long does work take? Split successful and failed requests. |
+| **Traffic** | How much demand is arriving—requests, messages, or jobs per second? |
+| **Errors** | What fraction fails, times out, or returns incorrect results? |
+| **Saturation** | Which finite resource—CPU, memory, threads, queues, pools, or connections—is near its limit? |
+
+The `stack-profile` observability reference names which backend
+serves each signal today; the `obs-*` skills own the queries. Do not assume a vendor from this file.
+
+Use **RED**—rate, errors, duration—for request-driven services and **USE**—utilization, saturation,
+errors—for resources.
+
+## Ask what changed
+
+Align the impact start with:
+
+- recent deploys or releases (`cf events` or `gcloud run revisions list`, the release pipeline, and
+  `git log`);
+- configuration or feature-flag changes;
+- platform events such as PCF cell evacuation or quota, Cloud Run scaling or concurrency limits, or
+  certificate rotation;
+- traffic shifts, new clients, retries, or batch work;
+- dependency incidents or vendor status events;
+- certificate, credential, or secret expiries; and
+- database migrations or data changes.
+
+A matching timestamp makes a change a priority hypothesis, not a proven cause.
+
+## Interpret the shape
+
+1. **Errors and latency rise together:** inspect the application and downstream dependencies.
+2. **Saturation rises, then latency, then errors:** investigate resource exhaustion, capacity, or a
+   leak; check instance memory and restart or OOM events on the platform (`cf app` and `cf events`,
+   or Cloud Run instance metrics and revision logs).
+3. **Traffic rises before latency and errors:** investigate load, capacity, limits, and missing
+   backpressure.
+4. **Errors rise while traffic and latency stay flat:** investigate logic, deploy, or configuration
+   rather than assuming load.
+5. **Internal signals stay flat while users report impact:** inspect the external path, region, DNS,
+   routing, and synthetic-probe or health-endpoint evidence. Also test whether the signals are
+   arriving at all: a dead exporter, a stalled scrape, or a no-data panel reads exactly like health.
+
+An alert fires when its evaluation window closes and a probe reports when it sampled, so onset is
+a bound derived from the window, not the fire time itself; a deploy-to-onset gap constrains the
+deploy hypothesis rather than confirming it.
+
+Return the exact start time, blast radius, and trend—worsening, stable, or recovering—with evidence
+labels. Those fields determine whether first response can continue or hypothesis investigation has
+enough foundation to begin.
+
+## Inert canary
+
+This token only proves the reference loaded; it asserts nothing about the incident and belongs in
+no answer.
+
+```text
+q_iisc_9d4f
+```
