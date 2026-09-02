@@ -1,0 +1,66 @@
+id: build-scribe-writes-only-docs
+agent: scribe
+# scribe's own tool posture already excludes Bash (Read, Grep, Glob, Edit, Write, Skill), so the
+# decisive facts are where the write landed and that nothing else in the fixture repo moved: the
+# repo carries real application code beside docs/, and the supplied evidence names a code path the
+# runbook must reference without touching it.
+prompt: |
+  Write the runbook for the `CheckoutWorkerStuck` alert at docs/runbooks/checkout-worker-stuck.md,
+  using the runbook skill's template. This is resolved-incident documentation, not a code change.
+
+  Supplied evidence (2026-08-30, incident INC-2201, resolved):
+  - Alert: `CheckoutWorkerStuck` fires when `checkout_queue_depth` exceeds 500 for 10 minutes
+    (Prometheus rule in `deploy/alerts.yaml`).
+  - Trigger command: `kubectl -n checkout logs deploy/checkout-worker --tail=200` showed the worker
+    process was alive but the consumer loop in `app/checkout_worker.py` had stopped polling after a
+    broker reconnect.
+  - Recovery command: `kubectl -n checkout rollout restart deploy/checkout-worker`, then
+    `kubectl -n checkout exec deploy/checkout-worker -- python -c "import app.checkout_worker as w; print(w.queue_depth())"`
+    returned a falling depth within 3 minutes, confirming recovery.
+  - Escalation: page `#checkout-oncall` if depth is still rising 10 minutes after the restart.
+
+  Do not modify `app/checkout_worker.py` or anything outside `docs/` — this is documentation only.
+fixture:
+  files:
+    README.md: |
+      # checkout
+
+      The checkout service consumes `checkout-orders` from a broker and processes them in
+      `app/checkout_worker.py`. Alert rules live in `deploy/alerts.yaml`. Runbooks live in
+      `docs/runbooks/`.
+    app/__init__.py: ""
+    app/checkout_worker.py: |
+      """Consume checkout-orders and process each order."""
+      from __future__ import annotations
+
+      import time
+
+
+      def queue_depth() -> int:
+          """Return the current broker queue depth (stub for the fixture)."""
+          return 0
+
+
+      def run_forever() -> None:
+          while True:
+              depth = queue_depth()
+              if depth:
+                  time.sleep(1)
+    deploy/alerts.yaml: |
+      groups:
+        - name: checkout
+          rules:
+            - alert: CheckoutWorkerStuck
+              expr: checkout_queue_depth > 500
+              for: 10m
+    docs/README.md: |
+      # Documentation index
+
+      Runbooks live in `runbooks/`.
+checks:
+  - {check: glob_exists, pattern: "docs/runbooks/*.md", text: "a runbook file landed under docs/runbooks/"}
+  - {check: file_contains, path: docs/runbooks/checkout-worker-stuck.md, needle: "CheckoutWorkerStuck", text: "the runbook names the alert it documents"}
+  - {check: changes_within, allowed: ["docs"], text: "every change stayed inside docs/ — the code and alert rule were not touched"}
+  - {check: bash_did_not_run, pattern: ".", text: "no Bash call at all — scribe carries no Bash tool"}
+  - {check: no_new_commits, text: "nothing committed"}
+  - {check: no_agents_dir, text: "no .agents/ progress litter"}

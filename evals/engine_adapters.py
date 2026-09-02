@@ -143,7 +143,17 @@ class ClaudeNativeAdapter:
                 "Continue with the task only after making every probe. Do not quote the denied file.",
             ]
             prompt = "\n".join(preflight) + "\n\n" + prompt
-        allowed_tools = tuple(sorted((*BASE_TOOLS, *READ_TOOLS))) if enable_snapshot_reads else BASE_TOOLS
+        # Agent-target discovery may dispatch a tool-minimal agent (reviewer,
+        # repository-investigator, scribe, researcher) whose own declared tools are Read/Grep/Glob
+        # with no Skill or Agent grant. The CLI refuses to spawn a subagent whose declared tools
+        # resolve to nothing, so the three read tools must be granted here too; the clean room's
+        # workspace is empty and outside the checkout, so reads there are harmless.
+        agent_target_discovery = scenario.get("mode") != "direct" and target.get("kind") == "agent"
+        allowed_tools = (
+            tuple(sorted((*BASE_TOOLS, *READ_TOOLS)))
+            if enable_snapshot_reads or agent_target_discovery
+            else BASE_TOOLS
+        )
         denied = [tool for tool in DENIED_TOOLS if tool not in allowed_tools]
         command += [
             "-p",
@@ -181,24 +191,31 @@ class ClaudeNativeAdapter:
         self,
         *,
         enable_snapshot_reads: bool,
+        agent_target_discovery: bool = False,
         reasoning_effort: str | None = None,
         adapter_version: str | None = None,
     ) -> str:
+        # The read grant is real under either flag; the digest must change whenever the effective
+        # tool inventory does, or an agent-target discovery trial would share a policy identity
+        # with a base-set trial it did not run under.
+        reads_granted = enable_snapshot_reads or agent_target_discovery
         policy: dict[str, object] = {
                 "adapter": self.name,
                 "version": adapter_version or self.version,
                 "claims": sorted(self.supported_claims),
                 "base_tools": list(BASE_TOOLS),
-                "read_tools": list(READ_TOOLS) if enable_snapshot_reads else [],
+                "read_tools": list(READ_TOOLS) if reads_granted else [],
                 "denied_tools": [
                     tool
                     for tool in DENIED_TOOLS
-                    if not enable_snapshot_reads or tool not in READ_TOOLS
+                    if not reads_granted or tool not in READ_TOOLS
                 ],
                 "empty_mcp": True,
                 "permission_mode": "dontAsk" if enable_snapshot_reads else None,
                 "positive_and_negative_boundary_preflight": enable_snapshot_reads,
             }
+        if agent_target_discovery:
+            policy["agent_target_discovery_reads"] = True
         if reasoning_effort is not None:
             policy["reasoning_effort"] = reasoning_effort
         return _policy_digest(policy)

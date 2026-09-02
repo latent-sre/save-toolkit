@@ -35,6 +35,11 @@ class StructuralScopeTests(unittest.TestCase):
             "behavioral evals are focused implementation work, never a push-boundary step",
         )
 
+    def test_context_cost_gate_is_the_third_structural_step(self) -> None:
+        commands = [argv[0] for _label, argv, _env in gate_a.STEPS]
+        self.assertEqual(3, len(gate_a.STEPS))
+        self.assertEqual("scripts/check_context_cost.py", commands[2])
+
 
 class RunStepsTests(unittest.TestCase):
     def _run(self, steps, *, verbose=False):

@@ -39,21 +39,6 @@ changes. Do not restore `ship-review` or treat an exit-0 result as approval.
 
 ## Repository work
 
-### EVAL-008 — the clean room refuses to spawn tool-minimal agents
-
-**Status:** `decision-needed` (2026-09-02)
-**Owner:** Save Toolkit maintainers
-**Outcome:** Agent-target discovery scenarios in the clean room can dispatch `reviewer`,
-`repository-investigator`, `scribe`, and `researcher` and grade the routed agent's own answer.
-Today the runner passes `--tools Skill,Task`, so an agent whose frontmatter is `Read, Grep, Glob`
-resolves to zero tools and the CLI refuses the spawn ("would be spawned with zero tools —
-refusing"); the main session answers in the agent's place and the routing grader still records a
-dispatch. Measured 3/3 on `discovery-independent-change-review` on 2026-09-02.
-**Next action:** Owner decides between allowing `Read, Grep, Glob` in the clean room's neutral,
-empty workspace (harmless there, keeps the agent's real posture) or marking agent-target discovery
-as routing-only with no response graders; then `agent-engineer` implements it in `run_evals.py`.
-**Evidence:** [`2026-09-02 reviewer discovery packet`](reviews/2026-09-02-eval-20260902T043027Z-37d053cc.md)
-
 ### ROUTE-006 — the `defers-live-incident` routing grader misses the particle form `hand off to sre`
 
 **Status:** `decision-needed` (2026-09-01)
@@ -250,7 +235,7 @@ the incumbent (now named `investigation-depth`) retained. On acceptance, move th
 
 **Status:** `deferred` (2026-09-02) until A3–A5, S1, and S4 of the fleet weight review have merged.
 **Owner:** Save Toolkit maintainers
-**Outcome:** One fresh baseline of the whole corpus (46 scenarios plus the six build probes) on one
+**Outcome:** One fresh baseline of the whole corpus (46 scenarios plus the nine build probes) on one
 model and one runner build, a fresh judge calibration, and a decision on the 15 "ownership map"
 sentences still in skill descriptions. Every measurement taken during the reshape (the
 `docs/reviews/2026-09-02-eval-*` packets, the gate-merge batches, the corpus-cut evidence) is a

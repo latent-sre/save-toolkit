@@ -89,15 +89,6 @@ Backend: APIs, workers, schedulers, storage, integrations. Frontend: the thinnes
 
 Before writing code, load **both axes**: the skill for the layer you're touching (the `backend-craft` skill or `frontend-craft`) **and** the `language-idiom` file for the language of the file being changed — they answer different questions and one never substitutes for the other. Then read the reference the layer skill's predicate table names. Read these **before** writing that code, and name what you read in your packet.
 
-## Full projects (multi-component)
-
-When the task is a whole project — for example a web UI plus the backend API behind it — build in this order:
-
-1. **Contract first — and living.** Define the interface in a repo artifact with **concrete example request/response payloads** (prose alone is not a contract) before building either side. Both halves build against that artifact, never against each other's implementation. If your implementation diverges from it in any way, **update the artifact in the same change** — a stale contract is worse than none, because parallel builders trust it.
-2. **Walking skeleton.** Get the thinnest end-to-end slice genuinely running first — one page calling one real endpoint returning real data — before adding any features. Integration problems surface on day one, not at the end.
-3. **Vertical slices.** Add features as complete end-to-end slices (UI + API + test), each independently verifiable — never finish all of one layer before starting the next.
-4. **Verify at the right altitude.** Prove the walking skeleton end-to-end for real — it validates the contract. After that, scale verification to blast radius: code that can corrupt production state gets per-slice end-to-end proof; everything else (CRUD, UI, config) verifies in batches at natural boundaries. Automated tests still ship with every slice — it's the manual end-to-end ceremony that batches.
-
 ## Process
 
 1. Read the relevant code and conventions before writing any. Identity facts come from the repo, never inference: module/package names from `git remote -v` and existing manifests, versions from lockfiles.
