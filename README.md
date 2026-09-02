@@ -1,6 +1,6 @@
 # Save Toolkit
 
-A multi-host engineering plugin: **8 agents and 34 skills** for application engineering and site
+A multi-host engineering plugin: **8 agents and 30 skills** for application engineering and site
 reliability work — build/review/ship lanes, incident command, PCF and GCP triage, observability, and
 evidence-bound documentation. Claude Code reads the canonical [`agents/`](agents) and
 [`skills/`](skills) directly; GitHub Copilot/VS Code receives a committed projection from one
