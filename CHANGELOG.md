@@ -58,6 +58,30 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Folded `agent-security` into `agent-authoring` as `references/agent-security.md` (one 6 KB
+  reference replacing a 15 KB three-file skill). Kept the lethal trifecta, the leg-cutting order
+  and Rule of Two, the cross-agent trust boundaries, the controls that hold (envelope and
+  invisible-Unicode stripping, Claude Code layer facts, MCP as a dependency), and the
+  five-question review. Dropped the fleet runtime-boundary restatement (`AGENTS.md` owns the
+  roster), the researcher sanitization paragraph (`AGENTS.md` owns it), and the OWASP LLM Top 10
+  crosswalk (git history keeps it). `agent-authoring`'s description gained the security-review
+  capability and the 'is this agent safe / prompt injection' trigger in place of the 'Loop
+  Engineering' phrasing its capability sentence already carried; `agent-engineer` now points at
+  the reference. The three `agent-security` scenarios retired. The new trigger is covered by
+  `discovery-agent-authoring-security-review` (Sonnet, 3/3, batch `20260902T055813Z-7dad56ec`,
+  [evidence](docs/reviews/2026-09-02-eval-20260902T055813Z-7dad56ec.md); an earlier batch,
+  `20260902T050121Z-e3774dc8`, kept the four then-existing `agent-authoring` discovery
+  scenarios at 3/3 after the description change and failed the new one on a prompt that implied
+  a file to read, which the clean room cannot grant). The reference's own contract is covered by
+  `skill-direct-agent-authoring-security-review`, a direct scenario with scoped reference access
+  and the new `security_review_structural` rubric (12 calibration cases, 12/12 on calibration run
+  `20260902T062709Z`; Sonnet 3/3, batch `20260902T065206Z-3f16d3b6`,
+  [evidence](docs/reviews/2026-09-02-eval-20260902T065206Z-3f16d3b6.md)).
+- `evals/judge.py`'s evidence-grounding check now normalizes quote marks and markdown emphasis
+  and checks an elided quote (`...`) fragment by fragment in order, every fragment still
+  verbatim. Two live batches of the new security-review scenario went inconclusive on quotes
+  that were the response's own words with `"` copied as `'`, `**bold**` copied plain, or a
+  dropped middle; a paraphrase is still inconclusive.
 - `run_evals.py` reconfigures stdout and stderr with `errors="replace"` at start: a judge
   evidence quote containing an arrow crashed a batch on a cp1252 Windows console after two
   trials, losing its summary and packet (2026-09-02).

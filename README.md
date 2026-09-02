@@ -1,6 +1,6 @@
 # Save Toolkit
 
-A multi-host engineering plugin: **8 agents and 34 skills** for application engineering and site
+A multi-host engineering plugin: **8 agents and 30 skills** for application engineering and site
 reliability work — build/review/ship lanes, incident command, PCF and GCP triage, observability, and
 evidence-bound documentation. Claude Code reads the canonical [`agents/`](agents) and
 [`skills/`](skills) directly; GitHub Copilot/VS Code receives a committed projection from one
@@ -125,7 +125,7 @@ The 30 skills, by area (each `skills/<name>/SKILL.md` carries its own descriptio
   `operational-learning`, `service-lifecycle` (audit, onboard, and retire modes)
 - **Observability** — `obs-logs`, `obs-metrics`, `obs-traces`, `obs-dashboards`, `obs-alerting`,
   `obs-pipeline`
-- **The fleet itself and the graphs it designs** — `agent-authoring`, `agent-security`,
+- **The fleet itself and the graphs it designs** — `agent-authoring`,
   `workflow-graph-engineering`
 
 The roster's tool postures, enforcement model, and design disciplines are in

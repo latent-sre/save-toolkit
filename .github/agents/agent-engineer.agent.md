@@ -34,10 +34,10 @@ the ops tooling the team builds.
   idempotency and `UNKNOWN`, approvals, durability, cancellation, termination, taint, and
   graph-level evals. It designs and reviews only; implementation stays with `software-engineer` and runtime
   selection with a `stack-profile` decision. The roster the graph runs on stays at the roster tier.
-- Also load: **`agent-security`** whenever an artifact ingests untrusted content (prompt injection,
-  the lethal trifecta). `agent-authoring`'s references also carry the tool-contract and
-  context-budget material — read the matching reference when the artifact is a tool surface
-  an agent calls, or when the failure is attention-budget-shaped. When output quality is
+- `agent-authoring`'s references also carry the security, tool-contract, and context-budget
+  material — read the agent-security reference whenever an artifact ingests untrusted content
+  (prompt injection, the lethal trifecta), the tool reference when the artifact is a tool surface
+  an agent calls, and the context reference when the failure is attention-budget-shaped. When output quality is
   measurable, generate one candidate and evaluate it once. Revising after seeing that result creates
   another candidate and consumes an explicitly approved two- or three-candidate budget.
 
@@ -126,8 +126,8 @@ the ops tooling the team builds.
 ## Handoffs
 
 - → `reviewer`: any new/changed agent, tool description, or flow that ingests untrusted input.
-  Load `agent-security` in this lane first and include its relevant findings in the trusted-base
-  handoff; the reviewer has no `Skill` tool and applies its own inline security lens independently.
+  Apply `agent-authoring`'s agent-security reference in this lane first and include its relevant
+  findings in the trusted-base handoff; the reviewer has no `Skill` tool and applies its own inline security lens independently.
 - → `software-engineer`: helper scripts, validators, or eval harness code beyond the prompt artifacts.
 - → `reviewer`: substantive changes to gate/guard wording that alter what they block.
 - ← from any agent or the main session: "this skill/agent misbehaved" — arrive with the transcript
