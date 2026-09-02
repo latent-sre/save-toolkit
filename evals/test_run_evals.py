@@ -646,7 +646,44 @@ class StreamTraceTests(unittest.TestCase):
         )
         self.assertEqual(run_evals.expected_runtime_tools(researcher), ())
         self.assertEqual(run_evals.expected_runtime_tools(repository_investigator), ())
-        self.assertEqual(run_evals.expected_runtime_tools(discovery), ("Skill", "Task"))
+        # Agent-target discovery must include the three read tools (EVAL-008): the CLI refuses to
+        # spawn a subagent whose declared tools resolve to nothing, and reviewer's own tools are
+        # Read/Grep/Glob with no Skill or Agent grant.
+        self.assertEqual(
+            run_evals.expected_runtime_tools(discovery), ("Glob", "Grep", "Read", "Skill", "Task")
+        )
+
+    def test_agent_target_discovery_includes_read_tools_skill_target_does_not(self) -> None:
+        agent_discovery = {"mode": "discovery", "target": {"kind": "agent", "name": "scribe"}}
+        skill_discovery = {"mode": "discovery", "target": {"kind": "skill", "name": "runbook"}}
+        agent_tools = run_evals.expected_runtime_tools(agent_discovery)
+        skill_tools = run_evals.expected_runtime_tools(skill_discovery)
+        self.assertIn("Read", agent_tools)
+        self.assertIn("Grep", agent_tools)
+        self.assertIn("Glob", agent_tools)
+        self.assertNotIn("Read", skill_tools)
+        self.assertNotIn("Grep", skill_tools)
+        self.assertNotIn("Glob", skill_tools)
+        self.assertEqual(skill_tools, ("Skill", "Task"))
+
+    def test_agent_target_discovery_reads_are_callable_inside_the_workspace(self) -> None:
+        """A granted read that is not callable makes the trial INCONCLUSIVE at the boundary check
+        (`unexpected callable read tool`), which would defeat EVAL-008. Agent-target discovery
+        registers the three read tools as callable and the harness-owned workspace as the root a
+        relative read may resolve into; nothing else gets either."""
+        workspace = Path("/tmp/neutral-workspace")
+        agent_discovery = {"mode": "discovery", "target": {"kind": "agent", "name": "scribe"}}
+        skill_discovery = {"mode": "discovery", "target": {"kind": "skill", "name": "runbook"}}
+        direct_agent = {"mode": "direct", "target": {"kind": "agent", "name": "scribe"}}
+        self.assertTrue(run_evals.agent_target_discovery(agent_discovery))
+        self.assertFalse(run_evals.agent_target_discovery(skill_discovery))
+        self.assertFalse(run_evals.agent_target_discovery(direct_agent))
+        self.assertEqual(
+            run_evals.discovery_boundary_options(agent_discovery, workspace),
+            {"callable_read_tools": run_evals.engine_adapters.READ_TOOLS, "allowed_roots": (workspace,)},
+        )
+        self.assertEqual(run_evals.discovery_boundary_options(skill_discovery, workspace), {})
+        self.assertEqual(run_evals.discovery_boundary_options(direct_agent, workspace), {})
 
     def test_direct_agent_frontmatter_uses_the_snapshotted_shared_strict_parser(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

@@ -37,6 +37,7 @@ that fails for the named break and passes after the fix.
 | Routing description | The overlapping clean-room scenarios; pure wording changes need no live eval |
 | Eval harness or scenario | The affected `evals/test_*.py`; `python evals/run_evals.py --validate` for parsing or targeting changes; `python evals/judge.py --calibrate` after a rubric edit |
 | Read-only guard or hook wiring | `python -m pytest scripts/test_readonly_guard.py scripts/test_hook_wiring.py`; exit codes stay 42 allow, 43 deny, 44 indeterminate |
+| Canonical task-path file or `description:` field | `python scripts/check_context_cost.py`; it fails when a task or the always-loaded description total exceeds its byte budget |
 
 Live evals run from `evals/run_evals.py` in a manual clean room, not CI. Raw traces stay under
 `.eval-runs/`; a durable packet under `docs/reviews/` is kept only while a test or a live document

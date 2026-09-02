@@ -48,6 +48,11 @@ STRUCTURAL_STEPS = [
         ["scripts/validate_fleet.py"],
         None,
     ),
+    (
+        "Context-cost budgets for canonical tasks",
+        ["scripts/check_context_cost.py"],
+        None,
+    ),
 ]
 
 STEPS = STRUCTURAL_STEPS
