@@ -20,7 +20,16 @@ those facts by trusted-base handoff, labels gaps `[unverified]`, and never loads
 | Docker verification | [`docs/docker-verification.md`](docs/docker-verification.md) |
 | Generated adapters | Fix canonical source or [`generate_platform_adapters.py`](scripts/generate_platform_adapters.py), then regenerate |
 | Service readiness, approved onboarding, or approved retirement | `service-readiness-audit`, explicit-only `service-lifecycle`, or explicit-only `service-retirement`; firing alerts stay with `sre` |
-| Rules or unfinished work | [`docs/rules.md`](docs/rules.md) and the only live backlog, [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md); history does not re-queue work |
+| Unfinished work | The only live backlog, [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md); history does not re-queue work |
+| Agent metadata, tools, model, delegation, handoff, MCP, or memory | [`claude-code-frontmatter.md`](skills/agent-authoring/references/claude-code-frontmatter.md) and the [local/external separation ADR](docs/decisions/2026-07-31-local-external-research-separation.md) |
+| Dependency, test entrypoint, or Gate A-path import | `requirements-dev.txt` and the [dependency ADR](docs/decisions/2026-08-23-allow-third-party-dependencies.md) |
+| Eval runner, live profile, or durable eval evidence | [`evals/README.md`](evals/README.md) and the [multi-engine evaluation ADR](docs/decisions/2026-08-26-multi-engine-evaluation-contract.md) |
+| Production change, deployment, release, or live dashboard write | [`production-change-gate`](skills/production-change-gate/SKILL.md) and [`release-gate`](skills/release-gate/SKILL.md) |
+| Roadmap-linked probe | The active [`fleet-roadmap.md`](docs/fleet-roadmap.md) item and its instrument under [`docs/probes/`](docs/probes) |
+| Query catalog or observability reference | [`query-catalog.md`](skills/obs-logs/references/query-catalog.md) |
+| Operational learning, runbook, or knowledge disposition | [`operational-learning`](skills/operational-learning/SKILL.md) and its [disposition policy](skills/operational-learning/references/disposition-policy.md) |
+| Plan, specification, ADR, review, or historical evidence | [`docs/decisions/`](docs/decisions) and [`docs/reviews/`](docs/reviews); each document names its own owner |
+| Commit or independent review inside the operator-tool pipeline | [`ops-tooling`](skills/ops-tooling/SKILL.md) |
 
 ## The roster
 
@@ -78,7 +87,7 @@ The last column is the validated Claude model-delegation graph. VS Code handoffs
 
 ## Hard rules
 
-[`docs/rules.md`](docs/rules.md) is the conditional rule map. These invariants stay unconditional:
+Conditional routing lives in the Start here table above. These invariants stay unconditional:
 
 - Pin third-party dependencies in `requirements-dev.txt`. `scripts/readonly-guard.py` stays
   standard-library-only under `python -I -S`. The first third-party Gate A import updates both CI

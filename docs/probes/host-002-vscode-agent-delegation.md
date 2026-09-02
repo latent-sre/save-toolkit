@@ -149,8 +149,7 @@ from model-visible context is not rejection.
 
 ## 6. Emit evidence and clean up
 
-Use one validated
-[`evidence-envelope-v1`](host-002-evidence-envelope.template.json) record for each criterion:
+Save one JSON report for each criterion:
 
 1. plugin registered and enabled from the exact candidate root;
 2. complete agent discovery;
@@ -159,13 +158,12 @@ Use one validated
 5. synthetic allowed-child invocation; and
 6. synthetic forbidden-child rejection.
 
-Bind every envelope to the candidate SHA, candidate tree digest, VS Code version/commit, Copilot
+Bind every report to the candidate SHA, candidate tree digest, VS Code version/commit, Copilot
 account scope (or its explicit unavailable value), fixture file digests, UTC timestamps, and a
-non-secret transcript. Model-driven envelopes also carry the selected model for every submission
+non-secret transcript. Model-driven reports also carry the selected model for every submission
 and retry. Use `pass`, `fail`, `inconclusive`, and `skip` as evidence-acquisition outcomes, not
-security grades. Validate each record with
-`python scripts/evidence_envelope.py validate <path>`. A local path or screenshot without a durable
-validated envelope is not closure evidence.
+security grades. Save each record's exact JSON report. A local path or screenshot without a durable
+saved JSON report is not closure evidence.
 
 Remove the `chat.pluginLocations` entry from the disposable profile, confirm Save Toolkit
 disappears from **Agent Plugins - Installed**, close the disposable window, and delete only the

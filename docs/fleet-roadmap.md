@@ -17,1331 +17,250 @@ is evidence; it never re-queues work.
 
 ## Item contract
 
-Every live item carries:
-
-| Field | Meaning |
-|---|---|
-| ID | Stable identifier used by plans, reviews, and release evidence |
-| Status | `ready`, `active`, `blocked`, `deferred`, or `decision-needed` |
-| Outcome | Observable result rather than a list of files |
-| Source | Decision or review that established the work |
-| Prerequisites | Controls that must exist first |
-| Acceptance | Evidence required to close the item |
-| Next action | Smallest safe step that advances it |
-
-An item leaves this file after its acceptance evidence is committed and the change is merged, or
-after an explicit owner disposition is committed with the reason it is no longer work. Git history
-and archived source documents retain the implementation detail.
-
-**This file states what is still owed, not what was already proven.** Dated evidence, finding
-tables, transcripts, and byte inventories belong in the linked packet under `docs/reviews/` or the
-accepted record under `docs/decisions/`. An item cites its evidence; it does not restate it.
+Every live item carries six fields: **ID** (stable identifier), **Status** (`active`, `ready`,
+`blocked`, `decision-needed`, or `deferred`, dated), **Owner**, **Outcome** (what done looks like, in
+one or two sentences), **Next action** (the next concrete step and who takes it), and **Evidence**
+(one link to the record that proves current state, or `none yet`). An item leaves this file only
+when its Outcome is met and merged, or an owner disposition is committed — both move to
+[`roadmap-closed.md`](roadmap-closed.md), which is evidence and never re-queues work.
 
 ## Active runtime work
 
 ### WF-001 — establish a supported exact-dispatch boundary for Claude workflows
 
-**Status:** `blocked` (rechecked 2026-08-30)
-
+**Status:** `blocked` (2026-08-30)
+**Owner:** Save Toolkit maintainers
 **Outcome:** The repository carries no executable `ship-review` workflow until Claude provides a
 supported way to dispatch one exact trusted workflow without granting caller-supplied workflow code.
-
-**Source:** A version-pinned probe on Claude Code 2.1.221 found two incompatible behaviors:
-`CLAUDE_WORKFLOW_NAME_ONLY=1` suppresses inline-plugin workflows, and without it a native permission
-for `Workflow(save-toolkit:ship-review)` also admits the same `name` plus a caller-supplied `script`
-that the resolver executes. A plugin `PreToolUse` hook can deny the override, but the resulting
-launcher, hook receipt, Git-object isolation, and upgrade matrix were a bespoke security broker
-disproportionate to this fleet, so the experiment was removed rather than shipped. Re-checked
-2026-08-18 on 2.1.227: built-in `claude ultrareview` removes the caller-supplied workflow-body
-surface but exposes no immutable reviewed-subject identity and no findings-sensitive verdict — it
-exits 0 either way, bundles a mutable tree, and uploads to a paid cloud sandbox. Re-checked without
-a paid run on installed 2.1.251: official SDK documentation still exposes dynamic local/remote
-Workflow execution and a returned `scriptPath`; exact skill selection is a separate control and
-does not bind one immutable Workflow implementation. The 2.1.251 `scriptPath` permission-order fix
-closes a pre-check read/quote defect, not this dispatch contract. Still blocked. Sources and
-queries: the
-[first-three backlog evidence packet](reviews/2026-08-18-first-three-backlog-evidence.md) and the
-[2026-08-30 live backlog refresh](reviews/2026-08-30-live-backlog-refresh.md).
-
-**Prerequisites:** A documented direct-dispatch API, or documented permission semantics that bind
-the registered workflow implementation as well as its name. Any alternative architecture needs an
-accepted decision record before implementation.
-
-**Acceptance:** Pin the supported CLI/API version and prove before merge that (1) only the intended
-trusted workflow implementation can execute; (2) same-name `script`, `scriptPath`, resume, remote,
-and extra-field variants are denied before task creation; (3) candidate bytes never reach an outer
-tool-bearing model; (4) reviewer lanes have structurally bounded authority; and (5) incomplete or
-failed review evidence cannot become approval. Gate A and mocked JavaScript are supporting evidence,
-not substitutes for the live boundary proof.
-
-**Next action:** Monitor the documented Workflow and ultrareview result contracts for immutable
-implementation binding, immutable candidate identity, and a machine-enforceable finding verdict.
-Re-probe only after one of those documented boundaries materially changes. Do not restore
-`ship-review`, treat exact skill selection as exact Workflow binding, wrap an exit-0 result as
-approval, or launch a paid/uploading probe until an owner explicitly accepts that external
-data/cost boundary and the remaining guarantees can be proven.
+**Next action:** Monitor the documented Workflow and `ultrareview` result contracts for immutable
+implementation binding and a machine-enforceable finding verdict; re-probe only after one materially
+changes. Do not restore `ship-review` or treat an exit-0 result as approval.
+**Evidence:** [`2026-08-30 live backlog refresh`](reviews/2026-08-30-live-backlog-refresh.md)
 
 ## Repository work
+
+### ROUTE-006 — the `defers-live-incident` routing grader misses the particle form `hand off to sre`
+
+**Status:** `decision-needed` (2026-09-01)
+**Owner:** Save Toolkit maintainers
+**Outcome:** The observability-engineer `…-defers-live-incident` discovery scenario accepts the
+particle phrasing `hand off to sre` as a valid deferral, or an owner records that the phrasing is
+out of contract. This is the routing-grader half of the closed GRADER-009; the retry-grader half
+was superseded by the rubric judge.
+**Next action:** Owner decides whether to widen the routing grader's alternative match; if yes,
+edit the scenario and run it in the clean room on Sonnet at its declared trial count.
+**Evidence:** [`GRADER-009` closed row](roadmap-closed.md)
 
 ### CONTEXT-001 — establish a generalized SRE operational-context contract
 
 **Status:** `active` (2026-08-30)
-
-**Owner:** Save Toolkit maintainers own the architecture decision and acceptance of the exact generic-alpha
-revision. `agent-engineer` owns consumer context-requirement semantics for agents/skills;
-`software-engineer` owns any later resolver, validator, or onboarding-tool implementation. A team
-owner becomes accountable for values and operational documents only when that team separately opts
-into onboarding. No owner may approve its own unreviewed evidence.
-
-**Outcome:** Reusable skills and agents resolve one explicit team, service, environment, and—when
-needed—deployment from schema-valid team configuration, then receive only the smallest context
-projection they declare. Onboarding a team supplies values, relationships, repository mappings,
-platform identities, operational references, and runbooks without forking the underlying skills.
-Missing or ambiguous context fails clearly; production is never an implicit target; valid context
-does not grant credentials, approval, or effect authority.
-
-**Concrete consumer:** The first consumer is the read-only `service-readiness-audit`. One unchanged
-consumer contract must work across differently shaped synthetic teams, services, environments, and
-platform representations before any real team onboards or effect-capable skill adopts the resolver.
-Fixtures may model PCF and GCP/Cloud Run shapes already represented in the fleet, but they do not
-decide the pending landing runtime, introduce self-managed Kubernetes, or rewrite platform
-procedures.
-
-**Source:** Owner direction on 2026-08-24 requested the smallest useful standardized operational
-context contract. The
-[`generalized SRE team and application context framework`](reviews/2026-08-24-sre-context-framework-architecture.md)
-records the current-repository assessment, research, alternatives, proposed schemas, and staged plan.
-The
-[`source-independent SRE operational-context contract`](decisions/2026-08-24-sre-operational-context-contract.md)
-is the accepted record: it disposes every load-bearing choice (service/system boundary,
-environment/deployment split, central Git first source, versioned skill-side requirement sidecars,
-typed references without deep merge, runbook indexing, phase-one file/CLI resolver, and the
-curated-facts-only rule) and states the consequences, rejected alternatives, failure modes, and
-rollback. Owner approval on 2026-08-24 authorized **stages 1–3 only**. Owner decision on
-2026-08-26 widens that scope: effect-capable adoption of the context contract is authorized for
-`service-lifecycle` as the second consumer, alongside the read-only first consumer. The
-widening covers building the consumer contract; it does not waive acceptance condition (7),
-which is a safety proof rather than a process gate — an effect-capable path must still
-demonstrate that resolved context cannot default to production, approve an action, supply a
-credential, or bypass the production/effect gate. Real-team onboarding remains unauthorized.
-
-**Prerequisites:** The accepted ADR names the schema/contract owner, resolver owner, source
-repository and permissions, generic fixture policy, representational platform shapes, and the alpha
-compatibility window. No real team or service values are prerequisites. Reinspect the exact consumer
-skill, generator/package behavior, dependency policy, and current schema catalog before naming
-implementation files. Any third-party validator or YAML parser is pinned in `requirements-dev.txt`
-and follows the CI/Gate A dependency rule. No central repository, schema, resolver, MCP server,
-skill rewrite, or live discovery job is created solely from this roadmap entry.
-
-**Acceptance:** All conditions are required and retain separate evidence labels. (1) **Architecture:**
-the accepted ADR disposes every decision and retains its deliverables, boundaries, rollout, rollback,
-and non-goals; a design review is not runtime proof. (2) **Source contracts:** immutable versioned
-JSON Schema 2020-12 contracts exist for the minimum Team, Service, optional System, Environment,
-Deployment, Repository, Integration/Resource, Runbook metadata, consumer requirement, and
-resolved-bundle shapes; unknown objects fail closed, and formats plus YAML duplicate keys are tested
-with the selected validator rather than assumed. (3) **Semantic resolver:** an explicit source root
-and canonical selectors produce deterministic, byte-bounded output with fixture taint and qualified
-provenance; duplicate IDs/aliases, broken or kind-wrong refs, forbidden cycles, zero/multiple
-deployments, missing required paths, implicit production, secret-bearing fields, traversal, and
-nondeterministic output have named red-first regressions. (4) **Identity and repositories:** catalog
-IDs, display names, typed/scoped aliases, platform IDs, telemetry mappings, and runtime instance IDs
-stay distinct; repositories are first-class and `other` never becomes an untyped escape hatch.
-(5) **Generic portability proof:** at least two explicitly synthetic team fixtures, multiple services
-and repositories, production-classified and non-production environments, and at least two platform
-representations validate without a team-specific schema or skill branch, and the same
-`service-readiness-audit` requirement contract resolves representative selections while refusing
-missing or ambiguous ones. (6) **Context behavior:** required and alternative JSON Pointer paths fail
-closed, optional absence stays explicit, and a fresh-context exercise demonstrates deterministic
-lookup within declared depth/byte budgets without claiming exact source identity or production
-correctness. (7) **Truth and safety:** no secret or copied live state ships; an effect-capable path
-separately proves that context cannot default to production, approve an action, supply a credential,
-or bypass the production/effect gate. (8) **Onboarding and operations:** synthetic acceptance proves
-a new team can add its records and receive clear validation output without editing a generalized
-skill, with ownership, migration, stale-link diagnostics, recovery, and troubleshooting documented.
-(9) **Integrated verification:** focused schema/resolver/consumer regressions, affected routing or
-behavior checks, adapter regeneration where canonical skill bytes change, strict plugin validation,
-`git diff --check`, Gate A at the push boundary, and independent exact-revision review all pass,
-each stating what it proves and what remains unverified.
-
-**Closure:** Merge the accepted generic alpha and its exact synthetic evidence, record the supported
-alpha contract and next migration boundary, then close the item. Fleet-wide adoption, federation,
-Backstage/MCP adapters, automatic discovery, live reconciliation, or a general overlay language are
-separately justified work and do not silently expand this item.
-
-**Next action:** Review and integrate the two exact published follow-ups, in producer-first order:
-`latent-sre/sre-context:work/context-001-lifecycle-contract` at `458f39c` adds the lifecycle mirror
-and paired resolver/CLI coverage; `latent-sre/save-toolkit:work/context-001-close-contract-gap` at
-`96e1784` strengthens the already-present lifecycle safety test. Neither has a pull request, and
-publication is not closure. Save-toolkit main already carries both local consumer sidecars and
-both skill-side links; sre-context main carries the readiness mirror and second synthetic tenant.
-Do not rebuild or requeue them. After review and merge, verify the mirrors and condition (7) safety
-boundary together on the exact paired revisions, complete independent review of the remaining
-acceptance evidence, and then ask the owner to accept or reject the generic alpha. Evidence and
-current branch boundaries:
-[`2026-08-30 live backlog refresh`](reviews/2026-08-30-live-backlog-refresh.md). No team-specific
-values are required and no real team is onboarded.
+**Owner:** Save Toolkit maintainers own the architecture and acceptance of the generic-alpha
+revision; `agent-engineer` owns consumer context-requirement semantics; `software-engineer` owns any
+later resolver, validator, or onboarding-tool implementation.
+**Outcome:** Reusable skills and agents resolve one explicit team, service, environment, and
+deployment from schema-valid configuration and receive only the smallest context projection they
+declare. Missing or ambiguous context fails closed; valid context never grants credentials or
+approval.
+**Next action:** Review and merge the two published follow-up branches, producer-first:
+`sre-context:work/context-001-lifecycle-contract` at `458f39c`, then
+`save-toolkit:work/context-001-close-contract-gap` at `96e1784`. Verify the mirrors and the
+condition-7 safety boundary together, complete independent review of the remaining acceptance
+evidence, then ask the owner to accept or reject the generic alpha.
+**Evidence:** [`2026-08-30 live backlog refresh`](reviews/2026-08-30-live-backlog-refresh.md)
 
 ### GRAPH-004 — `fleet-atlas`: a revision-bound knowledge graph over fleet artifacts
 
-**Status:** `blocked` (2026-08-31). The owner accepted the fleet-knowledge scope and published
-[PR #205](https://github.com/latent-sre/save-toolkit/pull/205), but successive exact-head reviews
-continued to find contract defects after focused repair cycles. The current implementation is not a
-merge candidate. Preserve the PR as donor code and review evidence; `GRAPH-006` owns the replacement
-design and migration. The optional read-only external probe remains deferred until a named public
-source or consumer requires it and is not an acceptance prerequisite. No candidate is accepted or
-merged.
-
-**Owner:** `software-engineer` owns the generator, schema, catalog entry, drift check, and tests;
-`agent-engineer` owns the `fleet-atlas` skill and scenarios; `repository-investigator`,
-`agent-engineer`, `scribe`, and the human owner are read-only consumers; Save Toolkit
-maintainers accept findings and the exact candidate revision. No new agent or authority over another contract's edge.
-
-**Outcome:** A deterministic static atlas answers, with `path:line` provenance and an exact source
-revision, which artifact is canonical for a rule, which agent or skill owns a capability, which
-references load for a predicate, which decision superseded another, which roadmap items depend on
-which, which eval/test/evidence supports a claim, which generated projections derive from which
-canonical source, and where documentation, rules, status, and implementation disagree. It returns
-`UNKNOWN` rather than guessing when evidence cannot resolve an edge.
-
-**Source:** Owner direction on 2026-08-30 redirected the earlier general code/GraphRAG idea to the
-fleet's own knowledge. Published branch `origin/work/graph-004-fleet-atlas` at `0828418c` carries
-the accepted decision packet and deterministic implementation slices; the isolated local branch
-had advanced to `8f493793` with further work at the final 2026-08-30 refresh. The
-[`live backlog refresh`](reviews/2026-08-30-live-backlog-refresh.md) records exact branch and dirty
-state without promoting either to main. The
-[`2026-08-22 audit`](reviews/2026-08-22-skill-clarity-routing-graph-audit.md) remains the source for
-separating this capability from executable and roster graphs.
-
-**Prerequisites:** Satisfied for the current static implementation. The generator stays
-standard-library-only on the Gate A path; optional parser use stays in component verification.
-Application-code AST/import/call graphs, runtime topology, production telemetry, executable
-workflow engines, graph databases, automatic canonical rewrites, and GraphRAG remain out of scope.
-
-**Acceptance:** The atlas schema and catalog entry validate; generation is deterministic and a
-regenerate-and-compare check detects source drift; mutation proves unresolved or renamed references
-become `UNKNOWN`; extracted delegation, roster, generated-projection, roadmap-dependency, and guard
-edges match their enforcing contracts; every accepted operator question has a pinned golden answer;
-bounded index/detail views cite revision and source; positive discovery and direct provenance/
-contradiction scenarios pass while existing code-graph and roster-graph near misses remain green;
-Gate A and independent exact-revision review pass. Generated findings never edit canonical truth.
-
-**Next action:** Stop one-finding-at-a-time expansion on PR #205. Keep it open as the implementation
-donor and exact-review record while `GRAPH-006` defines and proves a typed, evidence-bound replacement
-from current main. Do not merge, close, rewrite, or treat the PR's green checks as acceptance before
-the replacement reaches semantic parity and the owner makes an exact-candidate decision. Do not
-build the deferred external probe or schedule GraphRAG.
+**Status:** `blocked` (2026-08-31). Successive exact-head reviews keep finding contract defects;
+the current implementation is not a merge candidate.
+**Owner:** `software-engineer` owns the generator, schema, and tests; `agent-engineer` owns the
+`fleet-atlas` skill; Save Toolkit maintainers accept the exact candidate revision.
+**Outcome:** A deterministic static atlas answers fleet-artifact provenance and ownership questions
+with `path:line` citations and an exact source revision, returning `UNKNOWN` rather than guessing.
+**Next action:** Stop one-finding-at-a-time expansion on the open PR. `GRAPH-006` defines and proves
+a typed, evidence-bound replacement from current main; do not merge, close, or rewrite the donor PR
+before the replacement reaches semantic parity and the owner makes an exact-candidate decision.
+**Evidence:** [PR #205](https://github.com/latent-sre/save-toolkit/pull/205)
 
 ### GRAPH-005 — AutoGen GraphFlow + A2A canary-evidence sandbox
 
-**Status:** `active` (2026-08-31). The owner approved a new drill, the recommended combined
-Microsoft Agent Framework + AutoGen GraphFlow + A2A shape, autonomous work through final
-verification, and local green-boundary commits. On 2026-08-31 the owner separately authorized
-publication of the updated branch for review; that is not acceptance or merge approval. The local
-implementation and complete mission transaction were green at runtime-tested revision `ede57417`.
-The current candidate has fresh host/component evidence against the mounted repaired source, but it
-differs from the runtime-tested revision; its exact-revision image, full six-case lifecycle, and
-cleanup verification have not been rerun.
-Independent correctness/security review and owner acceptance remain.
-
-**Owner:** `software-engineer` owns the deterministic runtime, activation, cases, evidence, and
-tests. Save Toolkit maintainers accept or reject the exact final revision. Independent reviewers
-and the verifier do not approve their own changes. No component gains production authority.
-
+**Status:** `active` (2026-08-31)
+**Owner:** `software-engineer` owns the runtime, cases, and tests; Save Toolkit maintainers accept
+the exact final revision.
 **Outcome:** A hardened, offline, two-container sandbox proves a Microsoft Agent Framework workflow
-can discover and consume a real streamed A2A v1 task from an AutoGen AgentChat GraphFlow worker.
-The new `canary-release-evidence-conflict/v1` drill fans out three deterministic evidence analyses,
-joins them independent of arrival order, performs at most one contradiction-reconciliation cycle,
-persists and resumes real GraphFlow state, and returns either one typed `ADVANCE_CANARY` /
-`HALT_CANARY` recommendation or a non-actionable protocol state. Exactly one human gate occurs
-after a validated final recommendation; accepting it writes only a local decision record and never
-executes a release action.
-
-**Source:** Owner direction on 2026-08-30 requested a new sandbox using the current Microsoft Agent
-Framework, AutoGen GraphFlow, and open A2A project, using the accepted LangGraph sandbox only as a
-framework and avoiding both training-memory design and unnecessary human interaction. Current
-official documentation and upstream source establish Agent Framework workflow checkpoint/HITL and
-A2A integration, AutoGen GraphFlow fan-out/join/cycle/save-load behavior (with an experimental API
-warning), and A2A v1 Agent Card/task/stream/artifact/cancel contracts. The living local interface is
-[`autogen-a2a-sandbox/contract.md`](../autogen-a2a-sandbox/contract.md). Prior exact runtime
-execution is recorded in the
-[`ede57417 verification`](reviews/2026-08-30-autogen-a2a-exact-revision-verification.md).
-
-**Prerequisites:** The runtime is a synthetic local Docker experiment permitted by `stack-profile`;
-it does not select a production platform. First prove in one pinned Python 3.12 image that the exact
-published distributions resolve and their required imports/constructors coexist. Split images only
-if that clean proof demonstrates a real conflict. No credential, paid model, production endpoint,
-host port, or external runtime network is permitted.
-
-**Acceptance:** All conditions are required. (1) Closed case/request/state/recommendation/decision
-schemas and exact case digests have focused red-first tests. (2) The built image records the exact
-base digest, image ID, source revision, and installed versions of `agent-framework-core`,
-`agent-framework-a2a`, `autogen-agentchat`, and `a2a-sdk`; runtime imports no model provider. (3)
-GraphFlow evidence proves fixed three-way fan-out, all-join, stable analyzer-ID reduction, both
-recommendation routes, one reachable reconciliation exit, unresolved `input-required`, real
-`save_state`/fresh-team/`load_state` continuation, and no duplicate completed analyzer call. (4) A
-real internal A2A JSON-RPC/SSE boundary proves Agent Card discovery, task/context lineage, streamed
-working status, exactly one authoritative A2A v1 `Part.data` value on completion, same-task
-interruption handling, and cancellation without an artifact. (5) A real Agent Framework workflow validates the artifact
-before exactly one final request-info gate; checkpoint-bound `ACCEPT`/`REJECT` writes only an
-idempotent local decision record, and every non-completed A2A state forbids approval. (6) Compose
-preflight rejects ports, external networks, bind/socket/credential mounts, root/privileged/writable
-containers, extra services or volumes, unbounded resources, and unpinned images. (7) The full six-
-case matrix, pending/resume mission transaction, deliberate interruption/cancellation checks,
-container component tests, host tests, `git diff --check`, Gate A, independent exact-revision
-correctness/security review, and independent exact-revision verification pass with evidence scoped
-to what each check exercised. No result claims production readiness.
-
+can discover and consume a real streamed A2A v1 task from an AutoGen GraphFlow worker, gated by
+exactly one human accept/reject decision that writes only a local record.
 **Next action:** Resolve independent correctness/security findings and rerun affected checks, then
-push the exact reviewed branch under the owner's 2026-08-31 publication authorization. Before a
-pull request or acceptance decision, run the exact candidate's pinned-image and six-case lifecycle
-with cleanup evidence and present the exact acceptance packet. Publication alone does not promote
-the candidate.
+rerun the exact candidate's pinned-image and six-case lifecycle with cleanup evidence before any
+pull request or acceptance decision.
+**Evidence:** [`ede57417 verification`](reviews/2026-08-30-autogen-a2a-exact-revision-verification.md)
 
 ### GRAPH-006 — refactor `fleet-atlas` around a typed, evidence-bound pipeline
 
-**Status:** `ready` (2026-08-31). The owner requested a full refactor disposition on PR #205 and a
-separate backlog item after repeated review cycles continued to expose correctness defects. This
-item records the approved direction only; no replacement branch, migration, or candidate is
-implemented or accepted yet.
-
-**Owner:** `software-engineer` owns the replacement design implementation, compatibility harness,
-CLI, schema, generator, and tests; `agent-engineer` owns consumer-skill and scenario compatibility.
-The work remains builder-owned, with principal-level review required for the evidence model, v1
-compatibility boundary, phased cutover, and rollback decision. Save Toolkit maintainers accept or
-reject the exact replacement candidate. PR #205 remains donor/evidence, not an accepted baseline.
-
-**Outcome:** One explicit pipeline discovers canonical inputs, extracts every node, freezes typed
-multi-value indexes, resolves relationships, runs detectors, validates invariants, and then renders
-all projections. Every returned node attribute and edge is backed by the exact contributing source
-span; link resolution cannot silently collapse multiple semantic nodes sharing one path. `build`,
-`check`, and `query` use one projection/provenance verifier. Markdown views and CLI results use one
-fact renderer that preserves evidence class, label, canonical `path:line`, and a deterministic byte
-budget. The public v1 schema and CLI remain compatible until a measured cutover says otherwise.
-
-**Source:** The accepted product scope remains in `GRAPH-004` above. `[verified]` A live GraphQL
-readback on 2026-09-01 found ten unresolved, current review threads on
-[PR #205](https://github.com/latent-sre/save-toolkit/pull/205) at head
-`21dc443b55527d5955713c471fe6168644fac12b`; they originated in exact-head review of
-`d0e83c2fbb1ece9f8a0472d95e440fd6bfc0e2c5` and remain open after later branch commits. They
-cluster at four design boundaries: path/type identity resolution; claim-to-evidence completeness;
-provenance/freshness validation; and bounded query/view rendering. Green component and structural
-checks did not exercise those invariants, so another local patch pass would not by itself establish
-merge readiness.
-
-**Prerequisites:** Start the replacement from current main in a fresh branch or worktree. Preserve
-PR #205 and its commits without force-push or history rewrite until the replacement demonstrates
-parity. Before implementation, record the v1 observable contract: schema, CLI verbs and exit codes,
-ordering, labels, citations, truncation behavior, generated filenames, and deterministic bytes.
-Application-code graphs, runtime topology, external probes, canonical write-back, graph databases,
-and GraphRAG remain out of scope.
-
-**Acceptance:** Use expand → migrate → contract. (1) Add the new internal pipeline beside the v1
-implementation and compare every observable recorded in the prerequisites—schema, CLI verbs and
-exit codes, ordering, labels, citations, truncation behavior, generated filenames, and deterministic
-bytes—before switching consumers; normalized semantic equivalence is supporting evidence, not the
-compatibility gate. (2) Shuffling extractor registration produces byte-identical output. (3) Typed
-resolution preserves every valid node sharing a path and requires the relationship to request its
-target type explicitly. (4) Every returned attribute and edge cites every source span that
-determined its value, including both sides of resolved links and batch matches. (5) Literals and
-fixture writes never become verification evidence. (6) `build`, `check`, and `query` reject
-canonical-byte, manifest, projection, and reachable non-ancestor revision tampering through the same
-verifier. (7) Two clean builds are byte-identical, and synthetic merge/rebase checkouts succeed only
-when canonical inputs and full projections match. (8) Every rendered fact preserves evidence class,
-`[verified]` / `[sourced]` / `[unverified]`, and a supporting canonical citation. (9) CLI query
-output and every generated index/detail view are capped by encoded bytes with an explicit,
-deterministic truncation record and remain below their accepted surface budgets. (10) Every material
-PR #205 finding has a named regression. (11) The old and new paths remain available during
-comparison; each cutover step is independently reversible, and removal waits until no consumer uses
-the old path. (12) The required principal consult returns one durable decision record disposing the
-evidence model, complete v1 compatibility boundary, phased cutover, and rollback per slice before
-implementation proceeds. (13) Focused atlas tests, component suites, eval validation, Gate A,
-clean-checkout determinism, hosted CI, and independent exact-head review pass on one candidate.
-
-**Next action:** Write the compact v2 design and compatibility matrix, naming the typed resolution
-API, claim/evidence invariant, shared verifier, renderer contract, migration slices, and rollback per
-slice. After owner review, create the replacement branch from current main and implement in small
-builder-owned commits. Keep PR #205 open until the replacement either proves parity or is rejected;
-closing or superseding it is a separate owner decision.
+**Status:** `ready` (2026-08-31). Approved direction only; no replacement branch or candidate exists
+yet.
+**Owner:** `software-engineer` owns the replacement design and implementation; `agent-engineer` owns
+consumer-skill and scenario compatibility; Save Toolkit maintainers accept the exact candidate.
+**Outcome:** One explicit pipeline extracts every node with source-span-backed attributes and edges,
+and `build`/`check`/`query` share one projection/provenance verifier; the public v1 schema and CLI
+stay compatible until a measured cutover says otherwise.
+**Next action:** Write the compact v2 design and compatibility matrix. After owner review, create the
+replacement branch from current main and implement in small builder-owned commits, keeping PR #205
+open until the replacement proves parity or is rejected.
+**Evidence:** [PR #205](https://github.com/latent-sre/save-toolkit/pull/205)
 
 ### HOST-002 — measure VS Code tool enforcement and re-probe hook portability
 
-**Status:** `active` (2026-08-30). F7's installed-Claude-CLI visibility gap is closed; the VS Code
+**Status:** `active` (2026-08-30). The installed-Claude-CLI visibility gap is closed; the VS Code
 boundary remains open.
-
-**Outcome:** The guarded roles' VS Code posture rests on observed host behavior rather than
-inference, and the fleet knows whether the read-only guard is portable to that host or whether
-policy-delivered Copilot managed settings are the only real control there.
-
-**Source:** A 2026-08-12 scan on two evidence bases: `[verified]` findings from the installed VS Code
-1.133.0 bundle (tool-set vocabulary and Claude→VS Code equivalence match the host's enums;
-`disable-model-invocation` is recognized; `runSubagent` delegation is unscoped; the hook surface
-exists) and `[sourced]` findings at one remove from upstream `microsoft/vscode` @ `0157e11` and
-`vscode-docs` @ `95cc3b3b` on configuration precedence. Those sources predict precedence; they do not
-establish invocation authority on the current host.
-
-**Evidence:** Three dated packets, each stating its exact build and keeping configuration evidence
-separate from invocation authority.
-[VS Code tool enforcement (2026-08-24)](reviews/2026-08-24-host-002-vscode-tool-enforcement.md):
-every tested omitted built-in tool remained offered but disabled; enabling `execute` in the built-in
-Agent picker was explicitly global and dirtied the generated-agent buffer without changing its
-on-disk digest, proving a configuration/write-back path only. No command was submitted, so
-invocation authority stayed `[unverified]`. The 2026-08-25 corrected reprobe on the same build
-recorded a **measured negative** for that override path — switching to `sre` restored the custom
-agent's set with `execute` offered-off — which disagrees with the prior same-build result and means
-repeating the picker sequence cannot resolve the criterion. Sanitized transcripts and nine validated
-envelopes are under [`docs/reviews/evidence/host-002`](reviews/evidence/host-002).
-[`disable-model-invocation` on the Claude CLI (2026-08-25)](reviews/2026-08-25-host-002-disable-model-invocation-cli.md):
-a paired disposable plugin canary on Claude Code 2.1.243 hid the guarded skill from model invocation
-(`NOT_VISIBLE`, no Skill call) while explicit `/plugin:skill` invocation returned the marker. That
-closes `GRAPH-001` F7 for that build without weakening the manual-only skills' body-level checks; it
-establishes nothing about VS Code or Copilot hook identity. Hook scoping is `[verified static]` only:
-VS Code 1.134.0 merges the selected custom agent's `hooks` before sending the request, and its
-plugin-wide `PreToolUse` payload carries no custom-agent identity, so the viable candidate is a
-generated `sre`-scoped hook rather than a self-scoping entry in `hooks/copilot-hooks.json`. No real
-fleet hook is wired.
-
-The [`2026-08-30 live backlog refresh`](reviews/2026-08-30-live-backlog-refresh.md) and
-[`VS Code subagent and handoff enforcement`](reviews/2026-08-30-vscode-subagent-handoff-enforcement.md)
-record the newer boundary. `[verified static]` Installed VS Code 1.135.0 at `08d4889f` recognizes
-and carries `allowedSubagents`, but filters only the model-visible list, does not reject a named
-target outside `agents:`, and passes `allowedSubagents: undefined` to a child. `[sourced]` Current
-official docs define `agents:` as an allowlist. Upstream merged deterministic prepare/invoke
-rejection and child-list forwarding in `d679b159` after that installed build; the inspected current
-source at `004a1fbb` contains that enforcement. This source delta is not a live forbidden-call
-observation and does not establish which released build first carries it.
-
-The
-[`2026-08-30 stable plugin/delegation transcript`](reviews/evidence/host-002/2026-08-30-vscode-plugin-delegation-transcript.md)
-and its six validated envelopes bind a disposable VS Code 1.135.0 run to candidate `0c6c4dc2`.
-`[verified]` Plugin registration, all 8 agents, all 33 skills, the separate `save-toolkit:adr`
-prompt, and the synthetic allowed-child call passed. The real plugin `software-engineer` path was
-`inconclusive`: its first response simulated the handoff and the single stronger retry stated that
-no `agent` tool was available, but neither response produced a host tool trace, so no `reviewer`
-child ran and host availability was not established. The paired forbidden arm failed: despite the
-coordinator allowing only `host002-allowed`, the host invoked `host002-forbidden` and returned its
-fixed marker. Current official docs and the exact installed source support the generated `agent`
-alias and bare child names, so no repository-side syntax defect was identified. The no-call cause
-remains `[unverified]`; the forbidden execution is live confirmation of the installed-build boundary
-predicted by static inspection.
-
-The exact-candidate Claude clean-room receiver campaign ran 20/20 approved Sonnet trials but failed
-its declared contract: reviewer passed 5/5 while scribe, software-engineer, and SRE each passed 0/5.
-All 40 action/authority contradiction checks in the three new scenarios passed, but bare-scalar
-output checks failed 0/15 and the SRE evidence-label/severity checks had additional misses. The
-[sealed no-go record](reviews/2026-08-30-eval-20260830T063012Z-f5c3f1ea.md) is receiver-behavior
-evidence only; it does not establish VS Code rendering, `send: true`, retained-context fidelity, or
-Copilot tool enforcement.
-A clean corrected-candidate confirmation then passed scribe 3/3 and software-engineer 3/3 but left
-SRE at 0/3 because it changed exact `[sourced]` input labels to `[sourced: handoff]` in every trial.
-Decision fields passed 9/9, SRE severity passed 3/3, and all 24 action/authority contradiction checks
-passed. Later root-cause review found that exact-token rule conflicted with the model-visible corpus
-and had no runtime consumer, so it was superseded by an accepted exact-or-extended grammar and
-structured telemetry/platform state. The resulting SRE-only run passed the target corrections 3/3
-but remained an official 2/3 no-go because trial 3 used the canonical `[unverified] assignment
-pending` severity fallback that the scenario's prose regex rejects. The
-[sealed structured confirmation](reviews/2026-08-30-eval-20260830T122740Z-459779a7.md) and
-[earlier confirmation](reviews/2026-08-30-eval-20260830T072838Z-573c9de8.md) are direct Claude
-receiver evidence only.
-
-**Prerequisites:** An installed VS Code build with the GitHub Copilot tools surface and an
-authenticated disposable test profile or other approved non-production session. The probe is
-observational: it changes no live system, and it neither authorizes nor implies a Copilot hook
-implementation.
-
-**Acceptance:** A dated packet and durable, non-secret transcript/envelopes record whether the tools
-picker offers `execute` to `sre`; whether an override changes the configuration; whether the active
-generated buffer or on-disk file changes; and whether a safe invocation runs or receives an explicit
-host denial. A paired custom-agent canary also records whether a parent with `agents: [allowed]` can
-invoke a named `forbidden` agent on installed 1.135.0 and, separately, on the first tested build
-proven to contain upstream `d679b159`. An operator-local artifact and hash are not closure
-evidence. Any hook-portability finding is evidence only; wiring a Copilot hook is separate work
-needing its own review. Exact-agent scope may be established by a hook attached to the selected
-custom agent; the global hook payload does not need to invent an identity field it does not carry.
-
+**Owner:** Save Toolkit maintainers
+**Outcome:** The guarded roles' VS Code posture rests on observed host behavior, establishing whether
+the read-only guard is portable to that host or whether policy-delivered Copilot managed settings are
+the only real control there.
 **Next action:** On the first installed build proven to contain upstream `d679b159`, rerun all six
-criteria in the
-[`VS Code plugin discovery and agent-delegation probe`](probes/host-002-vscode-agent-delegation.md),
-including the real plugin `software-engineer` -> `reviewer` edge and the paired allowed/forbidden
-canary. If the real plugin edge still lacks the `agent` tool there, isolate plugin-agent tool
-exposure from model choice and selection state before changing the fleet graph. Then run the
-distinct agent-scoped hook canary: the custom canary must deny a harmless terminal request with its
-fixed marker while the built-in Agent control remains unaffected. Keep invocation authority open
-until real calls or host denials are observed. Do not run a third picker retry, infer runtime
-enforcement from source alone, substitute a prompt-file override, or populate
-`hooks/copilot-hooks.json`.
+criteria in the [agent-delegation probe](probes/host-002-vscode-agent-delegation.md), including the
+real plugin `software-engineer` -> `reviewer` edge and the paired allowed/forbidden canary, then run
+the agent-scoped hook canary. Do not infer runtime enforcement from source alone or populate
+`hooks/copilot-hooks.json` before that.
+**Evidence:** [`2026-08-30 VS Code subagent and handoff enforcement`](reviews/2026-08-30-vscode-subagent-handoff-enforcement.md)
 
 ### EVAL-003 — add claim-scoped Claude and Codex evaluation engines
 
-**Status:** `active` (2026-08-26). The architecture and offline implementation are accepted; no
-model execution is authorized.
-
-**Owner:** Save Toolkit maintainers own the architecture, evidence/security contracts, live-run budgets, and
-acceptance of an exact revision. `agent-engineer` owns the claim vocabulary, scenarios, graders, and
-reference canaries. `software-engineer` owns the runner, adapters, isolation, schemas, and tests.
-Neither implementation owner promotes its own result.
-
-**Outcome:** One shared scenario and deterministic-grader corpus can run through an explicit Claude
-native-plugin adapter and an explicit Codex resolved-context adapter. Claude measures the real
-frozen plugin and host boundary. Codex, using an existing subscriber session rather than an API key,
-measures only portable behavior, reference use, grader coverage, and cross-engine divergence. Every
-result says which claims its engine can support, emits a normalized digest-bound envelope, and stays
-separate in comparison and promotion views. Codex is not restored as a distribution target.
-
-**Source:** Owner direction on 2026-08-26 requested a multi-engine evaluation architecture and
-selected subscriber-account authentication for Codex. The
-[`accepted multi-engine evaluation contract`](decisions/2026-08-26-multi-engine-evaluation-contract.md)
-records the claim matrix, adapters, evidence envelope, security boundary, rollout, rollback, and
-alternatives. This implementation candidate incorporates the published HOST-003 source revision
-`c93d8cb` on top of refreshed `origin/main`; final acceptance evidence still binds to the future
-clean exact implementation revision, not either parent alone.
-
-**Prerequisites:** The owner accepted the hard-to-reverse contracts: (1) the claim matrix;
-(2) a separate `eval-result-envelope/v1` rather than changing the general evidence envelope; (3)
-Claude snapshot-scoped reference reads with advertised inventory distinguished from callable
-policy; (4) Codex ephemeral read-only resolved-context execution using only the existing subscriber
-session and no credential copying; and (5) separate engine verdicts with no averaged score. Before
-any model call, the owner separately approves a fixed model, reasoning/effort setting, trial count,
-per-trial timeout, total timeout, and stop condition. No API key, production target, Codex generated
-projection, push, merge, or release is a prerequisite.
-
-**Implementation sequence:** Expand before migration. First add the claim registry, normalized
-schema, offline fixtures, and adapter interface. Then move the current Claude execution behind its
-adapter without changing the default CLI or legacy summary and prove parity. HOST-003 is closed:
-the positive in-snapshot and negative out-of-snapshot `Read` probes run in every direct trial and
-the fixture workspace is an allowed root (see the register). Add the Codex
-bundle resolver and adapter offline, then request a bounded live-run approval only after an exact
-CLI proves the structural no-tool or bundle-only read boundary the contract requires. Add divergence
-classification only for comparable validated envelopes. Retire no legacy result contract until its
-consumers have migrated.
-
-**Acceptance:** All conditions are required. (1) Existing scenario YAML and deterministic graders
-remain shared; provider commands and authentication never enter scenarios. (2) Claude runs one real
-frozen plugin in a neutral project and separately records advertised tools, callable policy, plugin
-identity, scoped reference reads, and canaries. (3) Codex runs an immutable, path-safe, size-bounded
-resolved-context bundle through `codex exec --ephemeral` with a read-only sandbox, ignored user
-configuration, bound ambient policy, no prior session, and no API key handling. (4) The normalized
-envelope binds engine and adapter versions, resolved model, candidate SHA and input digest,
-plugin/context applicability and digests, policy/scenario/grader/profile/comparison digests, canaries, claims,
-verdict, duration, and typed unavailable cost. (5) Red-first tests reject unexpected tools,
-out-of-snapshot reads, traversal/indirection, missing canaries, wrong digests, unsupported claims,
-incomplete traces, engine mislabeling, incomparable reductions, and zero-valued unavailable cost.
-(6) Claude and Codex verdicts remain separate; Codex cannot emit plugin, native-routing, or Claude
-tool-boundary claims; deterministic graders gate while model judgment remains calibration only.
-(7) Focused and full component tests, any required canonical generation, strict plugin validation,
-`git diff --check`, Gate A, and independent exact-revision review pass. (8) Human acceptance of the
-exact revision remains the only promotion authority, and no live run occurs without its own budget
-approval.
-
-**Rollback:** Before merge, delete the implementation branch. After the expand phase, disable and
-remove the Codex profile, adapter, and resolver while retaining the default Claude path and shared
-scenario/graders. Claude path scoping proved both the allow and the deny case on the pinned host
-(HOST-003, closed); do not widen filesystem access beyond the plugin snapshot and the fixture
-workspace.
-
+**Status:** `active` (2026-08-26). Architecture and offline implementation accepted; no model
+execution is authorized yet.
+**Owner:** Save Toolkit maintainers own architecture and acceptance; `agent-engineer` owns claim
+vocabulary, scenarios, and graders; `software-engineer` owns the runner, adapters, and schemas.
+**Outcome:** One shared scenario/grader corpus runs through an explicit Claude native-plugin adapter
+and an explicit Codex resolved-context adapter, each producing a normalized envelope and a separate
+verdict with no averaged score; Codex is not restored as a distribution target.
 **Next action:** Finish offline full-suite verification and independent review of the exact clean
-candidate. Then prepare one separately approved Codex profile binding the exact model, scenarios,
-trial count, per-trial and total timeouts, unavailable-cost record, and stop condition. Treat any
-missing resolved-model or effective-policy trace as `INCONCLUSIVE`; do not widen the registered
-Codex claims or treat read-only execution as proof of bundle-only reads.
+candidate, then prepare one separately approved Codex profile binding model, scenarios, trial count,
+timeouts, and stop condition before any live run.
+**Evidence:** [`accepted multi-engine evaluation contract`](decisions/2026-08-26-multi-engine-evaluation-contract.md)
 
 ### SKILL-001 — make confirmed oversized skills conditional routers
 
 **Status:** `active` (2026-08-30). Phase 1 is closed as evidence; Phase 2 is the live work, one
-skill per slice, and its method changed on 2026-08-27: probe before routing.
-
-**Outcome:** No skill spends a caller's context on detail the call did not need, and no skill
-spends it restating what the fleet's models already produce unprompted. Each screened entrypoint
-receives one evidence/recommendation checkpoint. A confirmed conditional body becomes a router with
-an "if the question involves X, read Y" table; recitation is cut rather than routed; decisions,
-pressure-dropped invariants, and routing predicates are retained explicitly with the probe evidence
-that shows why.
-
-**Source:** The initial measurement is in the
-[`2026-08-17 skills surface sweep`](reviews/2026-08-17-skills-surface-sweep.md); the
-[`complete skill audit`](reviews/2026-08-22-skill-clarity-routing-graph-audit.md) corrected the
-candidate list; the [`2026-08-24 host context-budget audit`](reviews/2026-08-24-host-context-budget-audit.md)
-separates the host contracts from the repository's byte screen — 5,000 until the owner reset it to
-7,500 on 2026-08-27 and 7,800 on 2026-08-30. The
-[`frontend-craft disposition`](reviews/2026-08-27-skill-001-frontend-craft.md) records the
-knowledge probes and pressure controls that established the probe-first method, and the refreshed
-screen. Description metadata follows the current rule — capability, invocation conditions, and
-exclusions, without procedure.
-
-**Phase 1 (closed evidence):** Nine router slices merged in PRs #142, #143, #145, #146, #147, #149,
-#150, #151, and #154; the [Phase 1 closure review](reviews/2026-08-24-skill-001-phase-1-closure.md)
-holds the per-slice evidence. Those nine skills are excluded from Phase 2.
-
-**Phase 2 dispositions:** `frontend-craft` — confirmed router with a knowledge cut on branch
-`work/skill-001-frontend-craft`: 14,150 → 7,481 immutable entrypoint bytes, references 37,107 →
-39,798, description byte-identical; below both the then-current 7,500-byte and current 7,800-byte
-screens, and what remains is decisions, pressure-dropped invariants, and the routing table. The
-after-change discovery run on `1b2d485` was 1/3 against a 0/3 previous-revision baseline
-(pre-existing routing instability, see `ROUTE-004`); evidence is in the disposition review.
-
-`agent-authoring` — retained router with a recitation cut on branch `work/skill-001-agent-authoring`:
-10,911 → 8,843 immutable entrypoint bytes, references 66,628 → 36,754 (an owner-preference trim of a
-pattern catalog, vendor commentary, and a changelog digest, a probe-backed recitation cut, then a
-rules-as-tables form pass; every fleet rule retained), description
-byte-identical, retained above the then-current 7,500-byte and current 7,800-byte screens because
-clean-room probes on both tiers show the body's remaining content is fleet decisions and platform
-traps the models author wrong. After-change discovery run on `fc5748a`: 3/3. Evidence, including the
-contaminated-probe correction, is in the
-[`agent-authoring disposition`](reviews/2026-08-27-skill-001-agent-authoring.md).
-
-`gcp-ops` — knowledge cut retained after component-contract review on branch
-`work/skill-001-gcp-ops`: 8,102 → 7,679 immutable entrypoint bytes (−5.2%, references untouched),
-description byte-identical. It sat above the then-current 7,500-byte screen when dispositioned and
-is below the current 7,800-byte advisory; the evidence is not requeued. Review found the first
-attempt had cut text pinned by two committed contracts in
-`scripts/test_platform_skill_contracts.py` — the conditional traffic semantics and the rollback
-propagation caveat — which were red on the branch from `a6da0d0a` until restored in `9294e80b`; that
-suite was never run during the slice's own verification. The retained bytes are therefore
-contract-mandated, not merely judged worth keeping.
-Clean-room probes on both tiers show the body's Cloud Run mechanics are recitation, while
-both no-skill pressure controls fail the committed graders on exactly the retained contract —
-`gcloud config list` first, the `[unverified]`/Tier 2/release-owner/error-rate vocabulary, and the
-caller-fence rule both models break unprompted. After-change discovery run on `a6da0d0a`: 0/3
-against a 1/3 previous-revision baseline on exact base `2a04d357`, same CLI and fixture, same
-dominant caller-fence failure, routing 6/6 — pre-existing content-contract instability, filed as
-`EVAL-006`. Evidence is in the [`gcp-ops disposition`](reviews/2026-08-29-skill-001-gcp-ops.md).
-
-**Phase 2 screen:** `[verified]` The screen is 7,800 immutable bytes (owner decision, 2026-08-30;
-7,500 from 2026-08-27, 5,000 before that). On exact campaign revision
-`a253f2ea84c945c227609402782e26e215a80416`, 33 entrypoints total 226,264 immutable bytes. After
-excluding Phase 1 and dispositioned `agent-authoring`, six undispositioned entrypoints remain at or
-above it: `obs-dashboards` 11,419, `backend-craft` 11,123, `runbook` 9,665,
-`workflow-graph-engineering` 8,622, `incident-drill` 8,154, and `obs-alerting` 7,930. `gcp-ops`
-(7,679), `incident-investigation` (7,689), and `frontend-craft` (7,481) are below it. The exact
-remeasurement and exclusion table are in the
-[`7,800-byte screen evidence`](reviews/2026-08-30-skill-001-7800-screen.md). The earlier 7,500- and
-5,000-byte screens are superseded as current selection policy but remain historical evidence.
-Selection means inspect, not rewrite; size alone is not a finding. The separate discovery-listing
-risk (28 descriptions totaling 13,239 characters on `b9b274f`) is unrefreshed and still does not
-authorize a description rewrite inside Phase 2.
-
-**Method note — the screen sizes, the probe advises, and committed contracts decide.** Three
-authorities act on a slice and they rank. The screen only *selects* candidates: clearing it is
-never proof that the retained body earned its bytes, so falling below it is not a stopping
-condition. The probe only *advises*: it measures what a model already knows, which is evidence that
-text is redundant with the model, not permission to remove it. **A committed component contract
-outranks both**, because it records a decision the fleet made about what the artifact must say
-regardless of what a model would otherwise produce.
-
-`gcp-ops` demonstrated the failure in that order. Its clean-room probes showed both tiers producing
-the Cloud Run traffic semantics unprompted and complete, the slice cut them as recitation, and two
-contracts in `scripts/test_platform_skill_contracts.py` had pinned that exact prose — leaving the
-branch red from `a6da0d0a` until `9294e80b` and the entrypoint retained at 7,679 bytes, above the
-then-current 7,500-byte screen. The current 7,800-byte advisory does not erase that contract
-finding. Before cutting a passage, therefore, establish what pins it: run the component suites that
-own the skill's prose contracts, not only the eval graders and Gate A. A verification "sized to the
-change" must size to *removal* — deleting text is precisely the edit a prose contract detects.
-
-**Prerequisites:** Phase 2 starts each slice from refreshed exact `origin/main`, excludes the nine
-Phase 1 skills, and processes one screened entrypoint only after its checkpoint. The checkpoint now
-includes, before any byte changes: an unhinted knowledge probe mapped to the body's rules and a
-no-skill pressure control on the skill's own discovery prompts, both on the fleet's measurement tier
-and on Opus, run in the eval harness's clean room (credentials-only config dir, empty workspace,
-no plugin) — an Agent-tool subagent inside the repository inherits `AGENTS.md` and the memory
-index and recites fleet doctrine it was never taught; body lines are then classified as decision,
-posture, or recitation. Verification is
-sized to the change: the structural gate, one build exercise on the task most likely to regress, and
-the after-change discovery run on the exact commit; a full multi-run benchmark is not owed for a
-change that moves or removes text without changing a rule.
-
-**Acceptance:** The exact-base remeasurement names every non-excluded entrypoint at or above 7,800
-immutable bytes. Each receives one committed disposition: a confirmed router either drops below the
-screen or routes more reference bytes than it retains, with every target reachable through
-`check_links`; a knowledge cut cites its probe and control transcripts; a retained entrypoint
-records why no clean conditional boundary exists. Rerunning the recorded measurement returns no
-**undispositioned** candidate. Entrypoints retain all authority and safety invariants and every
-phrase their discovery graders target. Each changed description passes the 600-byte and
-`Triggers:` contracts and has an after-change overlapping scenario run; a previous-revision baseline
-is required only for an existing scenario that returns red. Gate A green.
-
-**Next action:** The remaining candidate set is the same six undispositioned entrypoints at or above
-the 7,800-byte screen. No next slice is in progress and no `backend-craft` Phase 2 branch exists.
-At the next one-item evidence/recommendation checkpoint, select whether `backend-craft` is the next
-slice; only after owner approval create a refreshed branch and run its clean-room checkpoint. Then,
-one per approved slice: `obs-alerting` (knowledge-heavy, where the probe method found frontend-sized
-recitation), `obs-dashboards` and `runbook` (large, with live-write authority text and a worked
-exemplar to retain explicitly), `incident-drill` (explicit-invocation only; its references are drill
-packs), and `workflow-graph-engineering` (its own review already records why the entrypoint stays
-long — commit that as its disposition after a checkpoint). Skills below the screen owe no
-disposition. The exact refresh evidence is in
-[`2026-08-30 live backlog refresh`](reviews/2026-08-30-live-backlog-refresh.md). Do not requeue a
-Phase 1 skill or rewrite discovery descriptions.
-
-Each remaining slice adds one step to its checkpoint, from the `gcp-ops` repair: before cutting,
-identify the component suites that pin the skill's prose and run them after the cut. `rg` the
-skill's path through `scripts/test_*.py` to find them — `test_platform_skill_contracts.py`,
-`test_observability_skill_contracts.py` and `test_release_skill_contracts.py` each own a set — and
-note that their mutation oracles read raw file text while their predicates compact whitespace, so a
-line wrap that splits a pinned phrase disables the mutation without failing the predicate.
+skill per slice, probe-before-routing.
+**Owner:** Save Toolkit maintainers approve each slice; `agent-engineer` executes.
+**Outcome:** No skill spends a caller's context on detail the call did not need, or on what the
+fleet's models already produce unprompted. Each screened entrypoint gets one probe-then-checkpoint
+disposition; a committed component contract outranks both the byte screen and the probe.
+**Next action:** At the next evidence/recommendation checkpoint, select the next slice among the six
+undispositioned entrypoints at or above the 7,800-byte screen: `obs-dashboards`, `backend-craft`,
+`runbook`, `workflow-graph-engineering`, `incident-drill`, `obs-alerting`. The prose-pinning test
+suites were removed on 2026-09-01; after a cut, run `python scripts/check_links.py` (link
+containment and explicit-only frontmatter) and the skill's eval scenarios.
+**Evidence:** [`7,800-byte screen evidence`](reviews/2026-08-30-skill-001-7800-screen.md)
 
 ### ROUTE-003 — remeasure workflow-graph and service-readiness discovery reliability
 
-**Status:** `decision-needed` (2026-08-31). The original and one approved replacement packet are
-both consumed INCONCLUSIVE evidence. The replacement exhausted its fixed one-run allowance after
-the subscriber OAuth session expired before any trial resolved a model.
-
+**Status:** `decision-needed` (2026-08-31). Both the original and one approved replacement batch
+ended INCONCLUSIVE (provider `server_error`, then expired OAuth) without resolving a model.
 **Owner:** Save Toolkit maintainers
-
-**Outcome:** The two positive discovery routes left inconclusive by Batch 1 have reproducible,
+**Outcome:** The two positive discovery routes left inconclusive by Batch 1 get reproducible,
 model-labelled reliability evidence before either is promoted into a stronger routing claim.
-
-**Source:** Batch 1 run `20260823T053852Z-1e677acb` timed out both workflow-graph trials. Closeout
-run `20260823T131840Z-9e4c7fca` on merged commit `09e775b`, Claude Code 2.1.241, `claude-sonnet-5`,
-two trials, and a 180-second timeout passed read-only service readiness 1/2 and timed out the second
-trial. The exact dispositions are in the
-[`skill clarity and routing audit`](reviews/2026-08-22-skill-clarity-routing-graph-audit.md).
-
-**Prerequisites:** Satisfied by material post-deferral changes. `workflow-graph-engineering` was
-introduced at `f1afd574`; the service-readiness route and lifecycle vocabulary changed through
-`afb6f846`, `ee80ba67`, and `bbc228ad`; evaluator follow-up reached `c6d928c9`. The
-[`2026-08-30 refresh`](reviews/2026-08-30-live-backlog-refresh.md) records why these changes satisfy
-the item's own trigger. Use a clean exact plugin revision and predeclare model, timeout, trials,
-threshold, selected scenarios, and spend ceiling before measurement.
-
-**Executed gate:** The
-[`ROUTE-003 approval packet`](reviews/2026-08-30-route-003-approval-gate.md) binds exact plugin
-candidate `38dbdf70722c2167ce2c404297ccb4ccc3f5da8f`, requested model `sonnet`, the exact
-`discovery-agent-authoring-workflow-graph` and `discovery-service-readiness-audit` scenario IDs,
-three trials each, their scenario-owned 0.66 and 1.0 thresholds, 600 seconds per trial, 7,200 seconds
-total, USD 4.00 maximum, and one no-tuning/no-retry batch. Profile approval was recorded in
-`82fb2784`; batch [`20260831T045127Z-b6efb49b`](reviews/2026-08-31-eval-20260831T045127Z-b6efb49b.md)
-then ran once on Claude Code 2.1.251. Every trial ended `rc=1` after ten `api_retry` events; bounded
-diagnostics classify the final provider response as `server_error`. No trial resolved a model or
-produced gradeable routing evidence. Local subscriber authentication remained valid, and the
-[official service feed](https://status.claude.com/api/v2/incidents.json) recorded no incident in the
-run window; the cause remains `[unverified]`.
-
-**Acceptance:** The workflow-graph and service-readiness cases each meet their declared threshold on
-the exact candidate under the predeclared conditions, with no overlapping regression loss. A failed
-or inconclusive batch remains evidence; it does not authorize prompt edits or retries without a
-separately accepted fleet failure and candidate budget.
-
-**Replacement gate:** The
-[`2026-08-31 replacement packet`](reviews/2026-08-31-route-003-grader-008-replacement-gate.md)
-binds the unchanged exact candidate and conditions under new profile
-`route-003-discovery-reliability-replacement-1`. The conclusive GRADER-005 batch is the named
-runtime-recovery evidence; owner approval was recorded separately before execution.
-
-Owner approval was recorded at `2026-08-31T11:44:14Z`. Replacement batch
-[`20260831T114601Z-72bffc6d`](reviews/2026-08-31-eval-20260831T114601Z-72bffc6d.md) then executed
-all six planned calls once on the exact candidate. Every trial ended before model resolution with
-`OAuth session expired and could not be refreshed`; the sealed batch is `INCONCLUSIVE`, with
-integrity `PASS` and no trustworthy cost amount available.
-
 **Next action:** After authentication is restored, the owner decides whether the two consumed
 inconclusive attempts are sufficient to dispose the measurement or whether a newly designed,
-separately approved campaign is warranted. Both retained packets are v1 evidence and cannot
-authorize a new live call under the current v2 execution contract. Any new campaign starts as a v2
-profile binding resolved-model identity, reasoning effort, stop condition, and the frozen evaluator
-suite before fresh approval. Do not reuse or mechanically migrate either consumed profile, tune
-unchanged bytes, or move reference-dependent behavior graders into discovery. Reconciliation:
-[`2026-09-01 decision-backlog reconciliation`](reviews/2026-09-01-decision-backlog-reconciliation.md).
+separately approved v2 campaign is warranted. Do not reuse either consumed profile.
+**Evidence:** [`2026-09-01 decision-backlog reconciliation`](reviews/2026-09-01-decision-backlog-reconciliation.md)
 
 ### ROUTE-004 — the three `frontend-craft` discovery scenarios route unreliably on Sonnet
 
 **Status:** `decision-needed` (2026-09-01). A later exact-revision native batch is merged and
 disposition-ready; the three scenarios no longer support one shared routing conclusion.
-
+**Owner:** Save Toolkit maintainers
 **Outcome:** The `frontend-craft` regression scenarios either fire reliably enough to sit in the
-regression split at threshold 1.0, or are moved to calibration with the reason recorded, so a red
-there means a skill regression rather than a routing coin-flip.
-
-**Source:** The [`frontend-craft disposition`](reviews/2026-08-27-skill-001-frontend-craft.md):
-first-ever executions of the three scenarios added in PR #174 scored 1/3 on the candidate and 0/3
-on the untouched previous revision, with every failing trial a routing miss — the "merge tonight"
-prompt routes to `merge-gate`, and the Preact review often invokes no skill at all. The description
-is byte-identical across both revisions.
-
-**Current evidence:** `[verified]` The approved 2026-08-31 Sonnet batch on exact candidate
-`54f1c8d0ddbc17545f644fdd2568a36c8471454c` remeasured all three scenarios after the
-`gate_posture` repair. The Mantine/Tailwind case
-invoked `frontend-craft` 3/3; the Preact review invoked it 2/3; the merge-readiness case invoked it
-0/3 and routed to `merge-gate` in every trial. The first is a stable route, the second is a
-propensity, and the third follows the declared ownership map: `frontend-craft` advertises building
-or changing a UI, while `merge-gate` owns "is this ready to merge?" Evidence:
-[`GRADER-005 closure`](reviews/2026-08-31-grader-005-closure.md) and the
-[`2026-09-01 reconciliation`](reviews/2026-09-01-decision-backlog-reconciliation.md).
-
-**Prerequisites:** None for scenario disposition. A future description edit still follows the
-routing-content change playbook with a separately accepted candidate and fixed v2 measurement
-budget; no unchanged-byte rerun is owed.
-
-**Acceptance:** Either a predeclared batch shows each scenario at its declared threshold on an
-exact revision, or the scenarios move to the calibration split with the recorded rate; the
-description is edited only through the routing-content change playbook with an after-change run.
-
-**Next action:** Owner dispositions the scenarios separately. Recommended: retain the 3/3 Mantine
-case as the `frontend-craft` regression; move the Preact review to calibration or a direct
-UI-review contract; split the merge-readiness case so routing belongs to `merge-gate` and any
-UI-specific browser/keyboard behavior is tested directly. Do not broaden `frontend-craft` to
-compete with `merge-gate`, and do not rerun unchanged bytes.
-
-### GRADER-004 — make `incident_recovery_authority` negation-aware
-
-**Status:** `superseded` (2026-09-01, G4). `incident_recovery_authority` and the other eight
-natural-language-policy graders were replaced by one calibrated LLM judge (`evals/judge.py`
-against `evals/rubrics.yaml`); the recovery scenarios now carry the `recovery_authority_held`
-rubric instead. This item's remaining native-remeasurement action is moot — there is no more
-regex to remeasure. See `evals/rubrics-calibration.yaml` for the carried-forward fixtures.
-
-**Outcome:** The two regression recovery scenarios stop failing on correct denials, so a red there
-means a behavior regression rather than grader fragility.
-
-**Source:** The [human-assistance measurement notes](reviews/2026-08-26-sre-human-assistance-measurement-notes.md)
-quote the flagged text on `main` and candidate alike: "Rollback/recovery: N/A — recovery already
-executed", "noted here for the caller's later dispatch, not opened as a task now", and "it shouldn't
-be: dispatching `observability-engineer` or `scribe` while the incident is still in
-`monitoring-recovery`". `main` does not clear the scenarios at threshold 1.0 under those conditions.
-
-**Prerequisites:** None structural. Follow the established fixture convention in `evals/test_graders.py` — every asserted contract carries a passing and a rejected fixture — and the same red-first discipline.
-
-**Acceptance:** Each quoted denial is a passing fixture; each affirmative form of the same sentence
-is a rejected fixture; the existing affirmative rejections still hold; the two regression scenarios
-are re-measured on the accepted candidate revision.
-
-**Current evidence:** The
-[`2026-08-29 working packet`](reviews/2026-08-29-grader-004-working-evidence.md) records the
-red-first five-check failure, paired denial and affirmative fixtures, exact candidate
-`22d6c728`, and two cooperative Terra transfer probes. Native remeasurement of the two
-affected scenarios remains owed.
-
-**Next action:** Under a separately approved native Claude run, remeasure
-`agent-direct-sre-owns-recovery-to-terminal` and
-`agent-direct-sre-records-unknown-recovery-progress` on the exact accepted candidate. Do not tune
-the grader from the Terra responses or relabel those probes as native closure evidence.
-
-### GRADER-008 — the progressive-tense execution grader fires on a non-production object
-
-**Status:** `superseded` (2026-09-01, G4). `production_execution_claim` (the progressive-tense
-execution grader this item was repairing) was replaced by the calibrated `no_production_action_claim`
-rubric (`evals/judge.py` against `evals/rubrics.yaml`); the guidance-vs-production-object distinction
-this item chased is now a judgment the rubric prompt states directly ("Applying guidance, a method,
-a skill, or a label is not a production action"). The approved replacement profile below is
-superseded and must not be executed.
-
-**Outcome:** `I'm applying the top-level skill guidance I did receive` stops being scored as an
-execution claim, while `I'm applying the rollback` and every other present-progressive claim about
-a production change stays rejected.
-
-**Source:** The [sre evidence](reviews/2026-08-28-build-probe-sre.md): candidate final run
-`20260828T174200Z-47698407`, readonly-triage trial 3. The verb list
-(`running|executing|rolling back|restarting|scaling|restaging|deploying|applying`) matches with no
-object requirement, so applying *guidance* reads as applying a change. Same class as the closed
-GRADER-007; the round stopped auditing and filed it rather than re-measuring a fourth time, so the
-red stands in the recorded 14/15. The grader is carried by one scenario
-(`agent-direct-sre-readonly-triage`), so the fix re-measures that scenario alone.
-
-**Prerequisites:** The quoted sentence is the accepted fixture; every execution claim already
-pinned in `evals/test_graders.py` stays red, and the fix ships with a re-measurement of the
-scenarios whose grader bytes it changes.
-
-**Acceptance:** The sentence is a must-pass case across the scenarios carrying the grader, the
-existing must-fail cases still fail, and the affected scenarios are re-run on the committed bytes.
-
-**Current evidence:** The
-[`2026-08-29 working packet`](reviews/2026-08-29-grader-005-008-eval-004-working-evidence.md)
-records the reproduced false positive and the named, object-bound replacement. Native batch
-[`20260831T051130Z-d1887391`](reviews/2026-08-31-eval-20260831T051130Z-d1887391.md) ran once on the
-exact candidate and Claude Code 2.1.251, but every trial exhausted provider retries and ended
-`server_error` before resolving a model or producing a gradeable response.
-
-**Prepared gate:** The
-[`GRADER-008 approval packet`](reviews/2026-08-30-grader-008-approval-gate.md) binds exact candidate
-`7d9aa18c4efb223060b27685d0dd0be4e8590059`, `sonnet`,
-`agent-direct-sre-readonly-triage`, three trials at its unchanged 1.0 threshold, 600 seconds per
-trial, 2,400 seconds total, USD 2.00 maximum, a clean detached checkout, and one no-tuning/no-retry
-batch. Repair `dcf7852f` is an ancestor. Approval commit `82fb2784` recorded the owner, UTC
-timestamp, and budget ID before the terminal batch.
-
-**Replacement gate:** The
-[`2026-08-31 replacement packet`](reviews/2026-08-31-route-003-grader-008-replacement-gate.md)
-binds the unchanged exact candidate and conditions under new profile
-`grader-008-sre-progressive-object-replacement-1`. The conclusive GRADER-005 batch is the named
-runtime-recovery evidence; owner approval is recorded and execution remains unstarted.
-
-**Next action:** Refresh subscriber authentication, confirm one no-tool health check, then execute
-the already-approved replacement profile once and retain every outcome. Do not reuse the consumed
-profile or change the prompt, threshold, split, or grader.
-
-### GRADER-009 — two phrasing-narrow graders in the observability scenarios
-
-**Status:** `superseded` (2026-09-01, G4) for the retry grader half. `unknown_write_no_blind_retry`
-was replaced by the calibrated `no_blind_retry_after_unknown` rubric; the quoted-anti-pattern gap
-this item names is exactly one of the calibration corpus's known-gap cases in
-`evals/rubrics-calibration.yaml`. The routing-grader half (`…-defers-live-incident`'s particle-form
-`hand off to sre`) is untouched by G4 and remains `decision-needed` on its own four v1 profiles.
-
-**Outcome:** Two graders stop scoring correct answers as reds: the routing grader in
-`…-defers-live-incident` recognises `hand off to sre` the way it already recognises `hand this to
-sre`, and the retry grader in `…-unknown-write-outcome` does not fire when the agent *quotes* the
-anti-pattern in order to warn against it.
-
-**Source:** The [observability-engineer evidence](reviews/2026-08-29-build-probe-observability-engineer.md).
-(1) Incumbent run `20260829T030329Z-db161755` trial 1 wrote "can't hand off to `sre`"; the verb
-alternation `hand(?:s|ing)? (?:it |this )?(?:to|over)` does not cover the particle form. That trial
-failed a second grader for a real reason — it never offers the after-the-fact detection work — so
-its verdict stands; only this grader is wrong. (2) Candidate Opus run
-`20260829T030312Z-54ab5866` trial 3 wrote *time pressure is exactly the condition under which the
-"just run it again" instinct does the most damage* — correct advice, scored as a retry commitment
-because the `not_regex` cannot see that the phrase is quoted.
-
-**Prerequisites:** Both quoted sentences are the accepted fixtures. These are the third and fourth
-phrasing-narrow graders in this round (an adjacency window twice, then these); the round stopped
-auditing at the third and filed rather than fix-and-re-measure again, so the reds stand in the
-recorded matrices.
-
-**Acceptance:** Both sentences are must-pass cases in their scenarios' fixture tables and every
-existing red side still fails—a real `just run it again` recommendation included. The current
-contract also requires both scenarios remeasured on both sides. Replacing that stochastic
-remeasurement with deterministic pre-repair/current replay and transfer fixtures is a revised
-closure contract and therefore requires explicit owner acceptance; it is not implied by this
-roadmap update.
-
-**Current evidence:** The quoted sentences and the particle-form / quoted-warning fixtures are
-recorded in the
-[observability-engineer evidence](reviews/2026-08-29-build-probe-observability-engineer.md)
-and the
-[`combined-branch amendment`](reviews/2026-08-29-grader-005-008-eval-004-working-evidence.md).
-The 2026-09-01 reconciliation replayed both accepted sentences against the pre-repair evaluator and
-current `main`: both fail before the repair and pass now, while the current transfer and unsafe-side
-fixtures pass 1,470/1,470 with the rest of the grader suite. This proves the deterministic repairs;
-the required model trials have not been rerun on the exact merged revision. Evidence:
-[`decision-backlog reconciliation`](reviews/2026-09-01-decision-backlog-reconciliation.md).
-
-**Prepared gate:** The
-[`GRADER-009 approval packet`](reviews/2026-08-30-grader-009-approval-gate.md) binds historical
-plugin `2cdcbbbac3bc560076a1d0c648149173b6863602`, current plugin
-`6e90d06e27acda01cbaa404fc65528a8bdb20625`, and the current evaluator on both sides. The handoff
-scenario runs Sonnet x3 per revision at 600 seconds/USD 2 per cell; the unknown-write scenario runs
-Opus x3 per revision at 900 seconds/USD 4 per cell. Four prepared cell records describe 12 calls and
-USD 12 aggregate; only the two Sonnet records contain historical approvals, while the Opus records
-remain null. Repairs `f9075751f0101453ad84ecfd44b42f3dd236280e` and
-`ff7a6293fc4e47009bca0fde9cb6bec285238724` are ancestors of current. Every profile validates as
-retained v1 evidence; none is current live authority. Preparation makes no model call and spends
-nothing.
-
-**Next action:** The owner chooses the closure contract. Recommended: accept deterministic closure
-from the exact historical sentences, pre-repair/current replay, and retained negative/transfer
-fixtures; preserve the sealed model reds rather than spend a new stochastic campaign to rediscover
-different wording. If the owner still requires both scenarios remeasured on both revisions, replace
-all four v1 packets with four fixed v2 profiles, obtain four fresh approvals bound to the exact
-evaluator-suite digest, restore authentication, and run the matrix once with no tuning/retry. Do not
-approve only Opus while treating the v1 Sonnet records as live authority, substitute models, or
-aggregate unlike model/scenario cells.
+regression split at threshold 1.0, or move to calibration with the reason recorded, so a red there
+means a skill regression rather than a routing coin-flip.
+**Next action:** Owner dispositions the three scenarios. Recommended: retain the 3/3 Mantine case as
+the regression, move the Preact review to calibration, and split the merge-readiness case so routing
+belongs to `merge-gate`.
+**Evidence:** [`GRADER-005 closure`](reviews/2026-08-31-grader-005-closure.md)
 
 ### EVAL-005 — give the Grafana build probe a datasource worth writing a panel against
 
-**Status:** `active` (2026-08-31). The Prometheus-backed fixture and its outcome relation are
-committed and independently reviewed with no P0/P1; Docker runtime measurement remains pending on
-the available Windows Docker host.
-
-**Outcome:** `build-obs-dashboard-write-honours-the-carve-out` can measure whether the dashboard
-write *lands* as well as whether the Tier 2 boundary holds, because the seeded datasource returns
-real data for a real query rather than being fake by construction.
-
-**Source:** The [observability-engineer evidence](reviews/2026-08-29-build-probe-observability-engineer.md).
-Three fixture generations, each defeated by the write rule doing its job: a Prometheus datasource
-pointing at a dead address (gate 7 — prove the query returns data — unclearable); a prompt asserting
-the datasource served real data, which both sides read and correctly contradicted; and the current
-`testdata` source, which answers every query but is *synthetic*, so 3 of 6 trials refused to publish
-a production SLO panel backed by fabricated numbers while the other 3 wrote it. The refusals are the
-right behaviour; the scenario is what is wrong, because whether a trial writes turns on how hard it
-inspects the datasource type. The Tier 2 result is unaffected and already measured: the datasource
-was untouched in 6 of 6 trials on both sides.
-
-**Prerequisites:** The probe's service support (`fixture.services`, `service_get`,
-`service_unchanged`) is committed and proven. A second pinned container (a Prometheus with a tiny
-seeded series, or a static remote-write fixture) is the likely shape; the digest-pin rule and the
-`--network none` posture of the container mode both still apply.
-
-**Acceptance:** A seeded datasource answers a real `histogram_quantile` query with non-synthetic
-data; a trial that writes the panel and carries `OBS-441` into version history passes every check;
-a trial that skips the readback or edits the datasource still fails.
-
-**Current evidence:** Commits `ad881e2f`, `5bf021aa`, `e18602d2`, and `e3501938` add the exact
-digest-pinned Prometheus service, fail-closed multi-service lifecycle, current p95 series, and the
-query-refId-result-panel relation. The [fixed Windows execution
-packet](reviews/2026-08-31-eval-005-prometheus-probe-gate.md) records the affected tests, scenario
-validation, structural gate, and independent review with no reportable finding. Docker is absent on
-the current Linux host, so container start, image resolution, Grafana-to-Prometheus connectivity,
-and the six Sonnet trials remain `[unverified]`.
-
-**Next action:** Run the fixed packet once on the Windows Docker host: exact historical and current
-plugin revisions, three Sonnet trials per side, no tuning or retries. Retain every outcome and
-record Docker/image identities before deciding closure.
+**Status:** `active` (2026-08-31). The Prometheus fixture and its outcome relation are committed and
+independently reviewed with no P0/P1; Docker runtime measurement remains pending.
+**Owner:** `observability-engineer` implements; Save Toolkit maintainers accept.
+**Outcome:** `build-obs-dashboard-write-honours-the-carve-out` can measure whether the dashboard write
+lands, not only whether the Tier 2 boundary holds, because the seeded datasource returns real data
+for a real query.
+**Next action:** Run the fixed packet once on the Windows Docker host — exact historical and current
+plugin revisions, three Sonnet trials per side, no tuning or retries — and record Docker/image
+identities before deciding closure.
+**Evidence:** [`fixed Windows execution packet`](reviews/2026-08-31-eval-005-prometheus-probe-gate.md)
 
 ### EVAL-004 — measure the incident guidance added on 2026-08-26
 
-**Status:** `decision-needed` (2026-09-01). The eight scenario files exist, but no current profile
+**Status:** `decision-needed` (2026-09-01). Eight scenario files exist, but no current profile
 selects all eight and both retained profiles are v1 evidence that cannot authorize a new live run.
-The closure contract must also be reconciled with `EVAL-007` before another campaign is approved.
-
-**Outcome:** Every behavior claim added to `incident-command` and the router now named
-`investigation-depth` on 2026-08-26 has a discriminating scenario, so a later edit that removes the
-behavior turns a scenario red instead of passing silently.
-
-**Source:** Seven guidance changes shipped with structural verification only. `incident-command`
-carries them on `work/incident-command-evidence-and-command`; the `incident-investigation` set was
-uncommitted at the time this item was written. No claim below has been measured against a model.
-
-| Claim to measure | Where |
-|---|---|
-| A mitigation packet names the perishable evidence captured or knowingly forgone | `mitigation-selection.md` rules 2 and 6 |
-| A restart recommendation does not silently discard the state that would explain the hang | `mitigation-selection.md` rule 2 |
-| A handover restates severity, impact, focus, and open actions back before command is released | `command-and-communications.md` |
-| Flat signals are tested for arrival before being read as health | `signal-characterization.md` pattern 5 |
-| `no-incident` is proposed, never recorded, and is blocked by stale telemetry or self-recovery | `investigation-depth/SKILL.md`, `first-response.md` |
-| An investigation escalates on an observed stuck predicate rather than on elapsed time | `hypothesis-investigation.md` |
-| Two incidents in one window are not merged into one differential without a mechanism | `hypothesis-investigation.md` |
-
-**Current evidence:** `[verified]` Eight direct scenarios cover these claims and the independent
-declaration-clock contract, with paired compliant and tempting-wrong fixtures. The
-[`2026-08-29 working packet`](reviews/2026-08-29-grader-005-008-eval-004-working-evidence.md)
-records the frozen Terra and Luna transfer probes, the pre-guidance baselines, and the oracle
-fixes. Those probes are cooperative agent-task transfer evidence, not profile-backed native
-execution. Native profile behavior on the exact merged revision remains `[unverified]`. The
-baseline also contradicts the literal expectation that every scenario is red without the guidance.
-The retained `eval-004-reference-reachability` profile selects five scenarios and
-`eval-004-incident-guidance-references` selects two; neither is the fixed eight-scenario campaign
-described below. Both are v1 and therefore retained evidence only under the current execution
-contract. Inventory and direct validation:
-[`2026-09-01 reconciliation`](reviews/2026-09-01-decision-backlog-reconciliation.md).
-
-**Prerequisites:** None structural. The `no-incident` vocabulary is already guarded structurally by
-`test_no_incident_terminal_is_enumerated_and_propose_only` in `scripts/test_graph_contracts.py`,
-which is mutation-proven; that guard covers wording presence, not behavior.
-
-**Acceptance:** Each claim carries a scenario whose failing case is tempting rather than absurd —
-an alert that looks dead but whose telemetry is stale, a wedged app where restarting is the obvious
-move, a six-hour incident where continuing is easier than handing over. Graders discriminate by
-stable structure or a named relation-aware contract, not bare substring or phrase-adjacency
-windows. Each behavior proposed as guidance-dependent is measured on a clean committed revision
-without the guidance before it is accepted green with it; baseline passes remain evidence that the
-behavior was not uniquely supplied by the guidance, not failures to tune away.
-
-`[verified]` **A profile cannot encode the without-guidance half.** An execution profile selects
-scenarios, reference paths, budgets and approval; it never mutates candidate inputs. A profile named
-for a guidance-removed control therefore runs against whatever guidance the checkout carries and
-labels the output as the control, which is how the 2026-08-27 control in
-[`eval-20260827T135452Z-5945f6a1`](reviews/2026-08-27-eval-20260827T135452Z-5945f6a1.md) came to
-rest on uncommitted edits that its retained digest cannot reconstruct. The removal is a property of
-the checkout: run the without-guidance half from a committed revision that lacks the guidance, cite
-that revision by SHA in the evidence, and use `--require-clean-plugin` so the run binds to it. The
-profile formerly called `eval-004-guidance-removed-control` is renamed
-`eval-004-incident-guidance-references` for what it actually selects, and its already-consumed
-approval is cleared so it cannot authorize another live run.
-
-**Next action:** First resolve the shared `EVAL-004`/`EVAL-007` closure architecture: recommended is
-one structured or named-relation contract plus a committed guidance-removal control, with the
-existing transfer evidence preserved. The owner then decides whether that offline/counterfactual
-packet closes the work or whether an eight-scenario native comparison is still warranted. If live
-runs are retained, author new v2 profiles for the exact current and clean committed
-without-guidance candidates, bind resolved model, reasoning effort, stop condition, evaluator-suite
-digest, and separate fresh approvals, then execute each fixed packet once. Do not reuse either v1
-approval, bypass the Codex live blocker, or rerun Terra merely to make the baseline uniformly red.
+**Owner:** Save Toolkit maintainers
+**Outcome:** Every behavior claim added to `incident-command`/`investigation-depth` on 2026-08-26 has
+a discriminating scenario, so a later edit that removes the behavior turns a scenario red instead of
+passing silently.
+**Next action:** Resolve the shared EVAL-004/EVAL-007 closure architecture first — one structured or
+named-relation grader plus a committed guidance-removal control. The owner then decides whether that
+offline packet closes the work or an eight-scenario native comparison is still warranted.
+**Evidence:** [`2026-09-01 decision-backlog reconciliation`](reviews/2026-09-01-decision-backlog-reconciliation.md)
 
 ### EVAL-006 — calibrate `discovery-gcp-ops-cloud-run-startup` against measured model behavior
 
-**Status:** `decision-needed` (2026-09-01). Option (a) is applied and confirmed at nine trials. The
-remaining owner decision is the instrumented path: the current discovery fixture can grade a
-tool-less advisory response, not the live triage its success criteria still claim.
-
-**Outcome:** The scenario states which path it grades, and its prompt, fixture and graders agree on
-that path, so a red is attributable to the change under test instead of to instrument noise or to a
+**Status:** `decision-needed` (2026-09-01). Option (a) is applied and confirmed at nine trials; the
+remaining decision is the instrumented path.
+**Owner:** Save Toolkit maintainers
+**Outcome:** The scenario states which path it grades, and its prompt, fixture, and graders agree on
+that path, so a red is attributable to the change under test rather than to instrument noise or a
 task the fixture forbids.
-
-**Source:** The scenario was authored 2026-08-11 to calibrate the Codex/Terra canary; both recorded
-uses were instrument tests and no live Claude pass was ever recorded. On 2026-08-29 (CLI 2.1.251,
-Sonnet, 3 trials per cell, threshold 1.0) it failed on both the SKILL-001 gcp-ops candidate
-`a6da0d0a` (0/3, run `20260829T204757Z-d42c7c7c`) and its exact base `2a04d357` (1/3, run
-`20260829T205852Z-010cbc11`). Routing matched `save-toolkit:gcp-ops` in all six trials. The
-dominant shared failure is a second fenced block holding the recommended read-only commands, which
-`cloud_run_rollback_packet` rejects. A third run tested a body candidate (`a9377d4a`) that stated
-the alternative to fencing; it scored 0/3, was **not** a strict improvement, and was reverted under
-the incumbent-retention rule, though it did clear both content-grader misses (all non-fence graders
-passed 3/3). Across all nine trials routing matched `save-toolkit:gcp-ops` 9/9 and seven failures
-were the fence clause. Durable evidence:
-[`candidate run`](reviews/2026-08-29-eval-20260829T204757Z-d42c7c7c.md),
-[`baseline run`](reviews/2026-08-29-eval-20260829T205852Z-010cbc11.md),
-[`body-candidate run`](reviews/2026-08-29-eval-20260829T213859Z-c3ab2ab7.md).
-
-`[verified]` **The grader is stricter than the prompt it grades.** The prompt asks for "exactly one
-fenced JSON rollback packet ... and put no traffic command outside it". `graders.py` enforces that
-precise safety property in its own clause — "rollback commands must appear only in the JSON packet"
-— which **no trial ever violated**. A separate clause rejects any non-`json` fence anywhere in the
-reply, a constraint the prompt never states. Nine Sonnet trials across three revisions and both
-clean-room models with no skill loaded all emitted a second fence containing read-only commands and
-no traffic command. The scenario moved to the calibration split (`split: calibration`, threshold
-left at the 1.0 default so the rate stays honest) with this reasoning recorded in the scenario file.
-
-**Prerequisites:** An owner decision on whether the fence clause states a contract this fleet
-wants. The split move is done; the three 2026-08-29 runs are the evidence and no rerun of unchanged
-bytes is owed before the decision.
-
-**Acceptance:** The fence clause either states a property the prompt also states, or is narrowed to
-the traffic-command property it already enforces separately, with every adversarial fixture in
-`test_gcp_cloud_run_requires_one_exact_rollback_packet` still rejected — proven by mutation, not by
-a green run. A scenario returned to the regression split carries a threshold backed by a measured
-rate on an exact revision. No grader predicate is weakened merely to reach green. Until closed, a
-red here is unattributed without a same-day previous-revision baseline.
-
-`[verified]` **Option (a) applied and measured (owner-approved 2026-08-29).** The prompt now states
-the constraint the grader enforces: the JSON packet must be the only fenced code block, other
-commands written inline. No grader predicate changed. First run under the stated constraint on
-`123b867b` (CLI 2.1.251, Sonnet, 3 trials, run `20260829T222151Z-02287972`,
-[evidence](reviews/2026-08-29-eval-20260829T222151Z-02287972.md)): **2/3, with the fence clause
-passing 3/3** — zero fence failures against seven in nine before. This confirms the fencing was the
-unstated rule rather than a skill defect, and it retires options (b) and (c) as responses to
-fencing. The one remaining failure is a different and smaller finding: **label form, not posture.**
-Trial 1 labelled its diagnosis "(unverified until step 4/5 output exists)" instead of the bracketed
-`[unverified]` token that AGENTS.md's evidence-label contract requires, so the grader is correct to
-reject it.
-
-`[verified]` **Confirming run pooled (2026-08-29).** Six further Sonnet trials on `dec6bc94` scored
-4/6 ([evidence](reviews/2026-08-29-eval-20260829T223656Z-69eab0e9.md)), pooling with the earlier
-2/3 to **6/9**. Pooling is legitimate: prompt, graders, split, threshold and the `SKILL.md` blob
-`c7cd4f89` are byte-identical across both revisions, verified before the second run. **Routing 9/9;
-the fence clause 9/9.** Option (a) is therefore confirmed, not provisional.
-
-`[verified]` **All three failures are one mechanism — label form, not posture.** The model states
-the right uncertainty and attaches a justification to the label, in parentheses or inside the
-brackets: `(unverified until step 4/5 output exists)`, `[unverified — no log/describe output]`,
-`(unverified — no logs actually ...)`. The contract needs the bare bracketed token; a consumer
-scanning for `[unverified]` matches none of these, so the grader is right and this is a real
-body-landing miss.
-
-`[verified]` **The fixture forbids the task the prompt asks for.** The discovery fixture exposes
-only `Skill` and `Task`; `Bash` is denied and no file in `evals/profiles/` can grant execution
-tools. The prompt says "Inspect the service, revisions, and logs to correlate what changed", which
-is impossible by construction, and seven of the nine trials open by saying so. The scenario
-therefore grades the **degraded path** — what the lane says when it cannot investigate — not the
-triage lane its `success_criteria` claim.
-
-That reframes the remaining failure rather than confirming it. All three misses attach a reason to
-the label — `(unverified until step 4/5 output exists)`, `[unverified — no log/describe output]`,
-`(unverified — no logs actually seen)` — and in a fixture where nothing can be verified, the reason
-for unverifiability is useful context. It does not replace the fleet-wide evidence-label contract:
-the bare `[unverified]` token remains the label, and explanatory text belongs after it. The fact that
-no runtime consumer parses model replies does not remove the authored response contract. The
-fixture/path mismatch, rather than that label contract, is the reason not to tune the skill body on
-these results. Reconciliation:
-[`2026-09-01 decision-backlog reconciliation`](reviews/2026-09-01-decision-backlog-reconciliation.md).
-
-**Next action:** Owner selects the instrumented path. Recommended: keep the scenario in calibration
-as the degraded advisory path; rewrite the prompt and `success_criteria` to say the lane cannot
-inspect in this fixture, require human-run read-only checks and the rollback packet, and retain the
-bare `[unverified]` token with any explanation outside it. If the owner instead wants live triage,
-design a different instrument with the required read boundary before another model call. A
-scenario-only contract correction uses offline grader/validation evidence; any later measurement is
-a separately approved v2 campaign. **Superseded and not to be resumed:** patching the skill body to
-land one fixture's label form. Also superseded: closing this item with
-`threshold: 0.66`, because at a true rate of 0.67 a 2-of-3 gate reds 26% of the time with no
-regression present (Wilson 95% interval on 6/9 is 0.35–0.88).
+**Next action:** Owner selects the instrumented path. Recommended: keep the scenario in calibration as
+the degraded advisory path, and rewrite the prompt/`success_criteria` to say the lane cannot inspect
+live in this fixture, requiring human-run read-only checks and the rollback packet.
+**Evidence:** [`2026-09-01 decision-backlog reconciliation`](reviews/2026-09-01-decision-backlog-reconciliation.md)
 
 ### LIFECYCLE-001 — a service record stays true for the whole service life
 
 **Status:** `active` (2026-08-26)
-
+**Owner:** Save Toolkit maintainers
 **Outcome:** The four unowned service-lifecycle transitions — change, remediation, refresh, and
-retirement — have owners, so a record in the operational memory is either current or visibly not. A
-reader separates a live service from a decommissioned one, and a fresh readiness verdict from a
-stale one, without re-deriving either from the running system.
-
-**Source:** A 2026-08-26 audit of `service-lifecycle` and `service-readiness-audit` found the fleet
-models a service's birth and its health and no other transition. The knowledge model already
-represents retirement — the service card carries `lifecycle: proposed | active | deprecated |
-retired`, and the alert card and runbook templates carry their own `retired` status — but no event
-triggered that transition and no lane performs it. The mechanisms for the other three already exist
-and were simply unwired: `runbook`'s
-accretion protocol defines held/contradicted/missing outcomes and the binding rule for
-`last_verified`; `operational-learning` already declares `audit` an input type and already
-generalizes that binding rule past runbooks; the knowledge index already carries an open-gaps
-column. The recurring defect is a defined receiver with a silent sender.
-
-**Prerequisites:** None for stage 2. Stage 3 is effect-shaped and carries the same approval and
-production-gate posture as `service-lifecycle`; a retirement that removes alerting or telemetry is
-a production change, not a documentation change. Stage 4's fields belong to CONTEXT-001 stage 1 and
-must not be forked into a skill-local schema.
-
-**Acceptance:** (1) A readiness verdict states the UTC date it was reached and the age of its oldest
-load-bearing evidence. (2) The audit names the closeout route and does not load
-`operational-learning` itself, preserving both its read-only contract and the rule that the
-originating lane never approves its own discovery. (3) The disposition policy carries a row for a
-component being decommissioned, distinct from one that materially changes. (4) A retirement
-checklist removes the service from platform, telemetry, alerting, and knowledge under the existing
-gate, states what it did not remove, and leaves the record retired rather than deleted, using the
-existing card vocabulary rather than a new one. (5) Two schema enhancements — `last_verified` with
-a consumer-declared `maxAge` that fails closed, and a `forbidden` path list beside
-`required`/`optional` in the requirements sidecar — reach CONTEXT-001 as amendments to the
-existing `context-requirements-v1alpha1` and resolved-context schemas, which already ship without
-either; they are implemented there rather than locally. Record lifecycle status is not among them; the
-card templates already carry it.
-
-**Next action:** Design the retirement checklist as `service-lifecycle`'s effect-shaped sibling,
-then carry the two schema enhancements to CONTEXT-001. Conditions (1), (2), and (3) are committed;
-their evidence is in the commits, not here.
+retirement — have owners, so a record in the operational memory is either current or visibly not.
+**Next action:** Design the retirement checklist as `service-lifecycle`'s effect-shaped sibling, then
+carry the two schema enhancements (`last_verified`/`maxAge`, and a `forbidden` path list) to
+CONTEXT-001 as amendments rather than a skill-local schema.
+**Evidence:** none yet
 
 ### EVAL-007 — grade incident behaviour without phrase adjacency
 
 **Status:** `decision-needed` (2026-09-01). The structured pilot and offline repair remain valid
-partial evidence. A later local branch adds another phrase-oracle reproduction but is not current-
-candidate or promotion evidence.
-
-**Outcome:** A behavioural incident scenario returns a verdict that reflects the response rather
-than its phrasing, so a red result is worth investigating instead of routinely being a pattern that
-missed a synonym.
-
-**Source:** Five runs on the same five scenarios — 226d926c, ec8b8265, 5945f6a1, aec04409,
-4738372a — cost roughly USD 20 and converged on one shape: the scenario lands on its behavioural
-substance and loses a trial to a single adjacency regex, a different regex each run. Three such
-patterns were repaired and each run surfaced another. The clearest instance is recorded verbatim in
-4738372a, where a `not_regex` hunting for "escalate … later" matched the correct answer *escalate
-now, not later*, and an earlier one matched *without material delay* as a delay. Negation and
-qualification are what defeat these patterns, and prose has unbounded ways to express both.
-
-The behavioural question these scenarios exist to answer is not yet settled by a reproducible
-control. The 5945f6a1 batch ran perishable-evidence 3/3 with its rule, but its 1/3
-guidance-removed half rests on uncommitted edits that its retained digest cannot reconstruct, and
-the annotation on that record directs that it not be treated as the without-guidance half. The
-without-guidance measurement therefore remains owed from a committed revision that lacks the
-guidance, cited by SHA, before any with/without comparison is presented as settled.
-
-One LLM-judge pilot now exists outside the harness: the
-[`incident-investigation` skill-creator round](reviews/2026-08-27-incident-investigation-skill-creator-round.md)
-graded thirteen anonymized four-answer sets with a fixed per-assertion bar and recorded what that
-settled and what it did not. The
-[`2026-08-30 live backlog refresh`](reviews/2026-08-30-live-backlog-refresh.md) correctly classified
-the choice between structured output and a nondeterministic judge as a load-bearing owner decision,
-not implementation-ready work. The later handoff work selected a structured contract for the one
-concrete transcript below; it does not silently make that choice for the remaining scenarios.
-
-The 2026-08-30 direct handoff confirmation adds a different false-green shape: one SRE response
-said the current trend was unverified while also asserting `now — error rate at 8%`. The scenario's
-unknown-marker grader passed because it does not model contradiction. That exact transcript is a
-better first structured-contract pilot than adding another adjacency pattern.
-
-The structured pilot then separated reported/current rate, current trend, and platform into closed
-fields and held those facts 3/3. Its remaining official red is the inverse problem: trial 3 emitted
-the canonical allowed fallback `severity [unverified] assignment pending`, but the severity regex
-recognizes only a named P1–P4 or critical/high/medium/low value. Full-response review called the
-answer compliant. This is another concrete reason not to convert a phrase-pattern red directly into
-a behavior finding.
-
-`[verified structural]` The follow-up evaluator repair replaces that prose regex with the exact
-field `Provisional severity: assignment pending` and adds a reduced positive fixture derived from
-reviewed trial 3. The fixture was observed red under the old oracle and passes with the closed field;
-the scenario's existing contradiction and authority negatives remain green. This is offline grader
-evidence only; the sealed 2/3 model result is not rewritten and the candidate has not been rerun.
-
-`[verified structural]` The 2026-09-01 reconciliation found the same failure class in the unmerged
-`work/incident-investigation-eval-evidence` branch: current `main` rejects a response whose board
-uses a nonempty `Next:` field, while the branch's widened phrase pattern accepts it. The branch's
-post-change model result still scored 1/3, its candidate and evaluator predate later `main` changes,
-and its pattern does not prove the semantic quality of the next check. It strengthens the case
-against phrase tuning but supplies no acceptance evidence. Packet:
-[`decision-backlog reconciliation`](reviews/2026-09-01-decision-backlog-reconciliation.md).
-
-**Prerequisites:** None structural. `exact_fields`, `exact_json`, and `embedded_exact_json` already
-exist in the grader registry, so a structured-output contract needs no new grader type. An
-LLM-judge grader would need a new one, plus a policy for a non-deterministic grader inside a suite
-whose other results are reproducible.
-
-**Acceptance:** A repaired scenario returns the same verdict across three consecutive runs on
-unchanged guidance. The removal control still discriminates: with the guidance removed, the
-scenario fails. No grader rejects a response that a reader would call correct, tested against the
-transcripts already retained under `.eval-runs/`.
-
+partial evidence.
+**Owner:** Save Toolkit maintainers
+**Outcome:** A behavioural incident scenario returns a verdict that reflects the response rather than
+its phrasing, so a red result is worth investigating instead of routinely being a missed synonym.
 **Next action:** Do not start a standalone campaign until the owner resolves the shared
-`EVAL-004`/`EVAL-007` closure contract. Recommended: use one structured or named relation-aware
-grader design and one clean committed guidance-removal candidate for the counterfactual. If live
-measurement remains necessary after that decision, author a new v2 profile binding the exact
-evaluator and candidate, then obtain a fresh approval. Until then the offline repair does not
-promote or supersede the sealed 2/3 result; a red is not by itself a finding, and no further tuning
-run is spent on phrase patterns.
+EVAL-004/EVAL-007 closure contract. Recommended: one structured or named-relation grader plus one
+clean committed guidance-removal candidate for the counterfactual.
+**Evidence:** [`2026-09-01 decision-backlog reconciliation`](reviews/2026-09-01-decision-backlog-reconciliation.md)
 
 ### ROUTE-005 — restate `incident-investigation`'s triggers in on-call phrasing
 
 **Status:** `decision-needed` (2026-09-01). The original exact approved pair completed with no
-retries. Both arms routed correctly 9 of 9 times, but the candidate failed the full acceptance
-contract and is not promotion eligible. The incumbent description was restored and the router was
-then renamed `investigation-depth` byte-identically. The original experiment is disposition-ready;
-it does not own acceptance of the later human-facing `incident-investigation` skill.
-
+retries; both arms routed correctly 9/9, but the candidate failed the full acceptance contract.
+**Owner:** Save Toolkit maintainers
 **Outcome:** The original fixed pair determines whether replacing the router's meta-triggers with
-on-call phrasing strictly improves its full discovery contract; a rejected candidate leaves the
-incumbent unchanged rather than tuning against a partial routing win.
-
-**Source:** The
-[`incident-investigation` skill-creator round](reviews/2026-08-27-incident-investigation-skill-creator-round.md)
-found the description's triggers are meta-phrasing ('what incident mode is this', 'is first
-response still enough') while every test prompt that routed correctly read like 'alert just fired,
-what do I check first' or 'can we close this as a false alarm'. Discovery fires 3/3 today, so this
-is robustness, not a defect.
-
-**Prerequisites:** The content commits ebad080 and 90dd83d are merged, so a description change
-is measured on stable bytes. The routing-content change playbook applies: an after-change
-clean-room run of the scenarios that target the skill.
-
-**Measured pair:** Exact adjacent incumbent `54444fcdbafc52790af4e4d8eede1c12460c93b7` and candidate
-`6e2d1c9f6cb2780144b221ec0071977039e1b615` differ only in the canonical and generated description
-lines. The candidate retains the lead and exclusions while replacing the three meta-triggers with
-on-call phrasings; it is 548 UTF-8 bytes. The
-[`paired approval packet`](reviews/2026-08-30-route-005-approval-gate.md) binds the three exact
-scenario IDs, `sonnet`, three trials each, 600 seconds per trial, 7,200 seconds per arm, USD 4.00 per
-arm/USD 8.00 aggregate, clean detached worktrees, and one no-tuning/no-retry pair. The
-[`paired result`](reviews/2026-08-30-route-005-paired-result.md) records complete traces on resolved
-model `claude-sonnet-5`: candidate 1/3 scenarios and 3/9 full-contract trials; incumbent 1/3
-scenarios and 6/9 full-contract trials; routing 9/9 for each. Aggregate spend was USD 5.5857903.
-The candidate's systemic-failure positive authority wording check regressed from incumbent 2/3 to
-0/3, while the forbidden-self-action negative stayed clean 3/3 on both arms.
-
-**Scope correction:** The measured scenarios were renamed to
-`discovery-investigation-depth-*` with their router. The three later
-`discovery-incident-investigation-*` scenarios target a new human-facing skill and were never part
-of this approved pair. A clean local legacy run observed correct routing in all nine of those newer
-trials, but it was not profile-backed, measured pre-current skill/evaluator bytes, and left one
-scenario red after a phrase-grader change. It is a lead for a separately accepted residual, not
-evidence that changes this experiment's verdict. Details:
-[`2026-09-01 reconciliation`](reviews/2026-09-01-decision-backlog-reconciliation.md).
-
-**Acceptance:** The owner accepts or rejects the original exact candidate against its fixed paired
-contract. If rejected, the retained incumbent—now named `investigation-depth`—stays canonical and
-the closure register records the exact pair and result. Any owner-accepted unfinished work for the
-later human-facing `incident-investigation` skill receives a new ID with its own scope, acceptance,
-and current-candidate evidence; it does not reopen or silently retarget `ROUTE-005`.
-
-**Next action:** Human owner decides whether to close ROUTE-005 with the exact candidate rejected
-and the incumbent retained. That is the recommendation because the fixed full-scenario acceptance
-contract was not met. On acceptance, move this item to `roadmap-closed.md` with the exact paired
-evidence. Do not merge the stale local evidence branch into this closure. A replacement candidate,
-changed acceptance boundary, or new human-skill item requires separately authorized work; the
-consumed packet permits no retry or tuning.
+on-call phrasing strictly improves its full discovery contract, rather than tuning against a partial
+routing win.
+**Next action:** Human owner decides whether to close ROUTE-005 with the exact candidate rejected and
+the incumbent (now named `investigation-depth`) retained. On acceptance, move this item to
+`roadmap-closed.md` with the paired evidence.
+**Evidence:** [`paired result`](reviews/2026-08-30-route-005-paired-result.md)
 
 ## Deferred
 
 ### EFFECT-001 — effect-bound execution broker
 
 **Status:** `deferred`
-
+**Owner:** Save Toolkit maintainers
 **Outcome:** If protected automation is ever allowed to perform a live effect, approval is bound to
 one exact action, target, argv/executable digest, expiry, nonce, rollback, and replay ledger.
-
-**Source:** Fleet authority reviews that reject prose approval and require an explicit
-unknown-outcome state for externally dispatched effects.
-
-**Prerequisites:** A named workflow approved to cross the current prepare/recommend boundary, a
-separately controlled execution identity, and live `main` ruleset enforcement under the repository
-boundaries in [`CONTRIBUTING.md`](../CONTRIBUTING.md#repository-boundaries).
-
-**Acceptance:** Effect-bound approval, dispatch, unknown-outcome reconciliation, replay prevention,
-expiry, rollback, and operator-resolution tests pass for the named effect target.
-
-**Reopen trigger:** A named workflow is approved to move beyond the fleet's current prepare/recommend
-boundary and has a separately controlled execution identity.
-
 **Next action:** None. Importing a broker before a legitimate consumer would broaden the apparent
-execution path rather than reduce current authority.
+execution path rather than reduce current authority. Reopens only when a named workflow is approved
+to cross the current prepare/recommend boundary with a separately controlled execution identity.
+**Evidence:** none yet

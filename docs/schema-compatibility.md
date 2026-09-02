@@ -9,9 +9,7 @@ that must remain byte-identical to the canonical source.
 
 - A published schema version is immutable. A shape change uses a new version and URI.
 - Objects with fixed contract fields are closed (`additionalProperties: false`), so adding a field
-  to one of those objects is a breaking shape change. The evidence envelope deliberately leaves
-  `source`, `environment`, and `isolation` as extensible metadata maps; its semantic validator
-  rejects secret-bearing keys rather than freezing every producer-specific field in JSON Schema.
+  to one of those objects is a breaking shape change.
 - Catalog statuses are `current` (writers emit it), `supported` (readers still accept it),
   `active` (one version with no successor), and `contract-only` (published shape without a
   contract-grade semantic validator).
@@ -19,12 +17,6 @@ that must remain byte-identical to the canonical source.
   deployment, or production verification.
 - Canonical sources under `schemas/` or `skills/*/assets/` are edited directly. Generated host
   projections change only through `scripts/generate_platform_adapters.py --write`.
-
-## Evidence envelope
-
-`evidence-envelope-v1` is the active portable evidence shape used by runtime probes and verification
-contracts. Its validator is `scripts/evidence_envelope.py`. The envelope preserves evidence and
-provenance; it does not authorize an effect or promote the subject it describes.
 
 ## Runbook frontmatter
 
@@ -37,7 +29,8 @@ and only bound rehearsal evidence changes `last_verified`.
 ## Retired before the first release
 
 The operational knowledge-update schemas v1-v3, their migrations and drift watcher, the
-fleet-improvement v1 schema, `eval-execution-profile-v1`/`v2`, and `eval-result-envelope-v1` were
+fleet-improvement v1 schema, `eval-execution-profile-v1`/`v2`, `eval-result-envelope-v1`, and
+`evidence-envelope-v1` (with its `fleet_doctor` emitter, which now writes a plain JSON report) were
 removed before `save-toolkit--v0.1.0` was published. No GitHub Release or versioned release tag
 exposed them as supported consumer contracts. Git history retains their historical bytes; the
 active fleet makes no compatibility or migration promise for them.

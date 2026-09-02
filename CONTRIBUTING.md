@@ -1,7 +1,7 @@
 # Contributing
 
-This is the short path for repository changes. [`AGENTS.md`](AGENTS.md) owns fleet-wide authority
-and safety rules, [`docs/rules.md`](docs/rules.md) indexes the uncommon contracts, and
+This is the short path for repository changes. [`AGENTS.md`](AGENTS.md) owns fleet-wide authority,
+safety rules, and the conditional rule map ("Start here"), and
 [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md) is the only live backlog. Load a linked rule only
 when the change matches it.
 
@@ -46,6 +46,8 @@ that test.
 
 Live routing and behavioral evals use `evals/run_evals.py` in a manual clean room, not CI. Keep raw
 traces under `.eval-runs/`; only the runner's bounded durable summary belongs under `docs/reviews/`.
+A dated evidence packet under `docs/reviews/` is kept only while a test or a live document still
+cites it; an uncited packet is removed, and its history remains in `git log -- docs/reviews`.
 
 Before pushing, run the structural repository gate:
 
