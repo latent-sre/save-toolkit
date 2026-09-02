@@ -113,14 +113,14 @@ REQUIRED_SCENARIO_IDS = (
 )
 ALLOWED_ROUTING_KEYS = {"expect", "scope", "also_acceptable", "expected_alternative"}
 REFERENCE_REQUIREMENTS = {
-    "agent-direct-sre-first-response-untriaged-alert": (
-        "skills/investigation-depth/references/first-response.md",
-    ),
     "agent-direct-sre-owns-recovery-to-terminal": (
         "skills/investigation-depth/references/recovery-lifecycle.md",
     ),
     "agent-direct-sre-records-unknown-recovery-progress": (
         "skills/investigation-depth/references/recovery-lifecycle.md",
+    ),
+    "skill-direct-agent-authoring-security-review": (
+        "skills/agent-authoring/references/agent-security.md",
     ),
 }
 
@@ -2093,6 +2093,11 @@ def _filter_scenarios(scenarios: list[dict], args: argparse.Namespace) -> list[d
 
 
 def main() -> int:
+    # Judge evidence and model excerpts carry arbitrary Unicode; a cp1252 console on Windows
+    # otherwise raises UnicodeEncodeError mid-run and loses the batch summary.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(errors="replace")
     parser = argparse.ArgumentParser(description=__doc__)
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument("--validate", action="store_true", help="validate scenario schema; no model")

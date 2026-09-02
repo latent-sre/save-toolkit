@@ -1,0 +1,27 @@
+schema_version: 1
+id: discovery-production-change-gate-release-readiness
+mode: discovery
+split: regression
+target:
+  kind: skill
+  name: production-change-gate
+prompt: |
+  Is build 4.12 ready to ship to prod? The merge for this exact candidate commit is recorded as a
+  `merge: PASS`, and the exact tested artifact was promoted through the immutable-release path. Nobody
+  has written the rollback steps yet, and there is no monitoring or alerting evidence for the new
+  behaviour.
+routing:
+  expect: fire
+success_criteria:
+  - Applies the release-readiness checklist and returns its verdict shape
+  - Blocks on the missing rollback and monitoring evidence despite the recorded merge PASS and immutable artifact
+graders:
+  # Anchored to the verdict shape and tolerant of markdown around label and value; the
+  # exact-fields grader found zero occurrences of `**gate: release**` on 2026-09-02.
+  - type: regex
+    pattern: '(?im)^\W*gate\W*:\s*\W*release\b'
+  - type: regex
+    pattern: '(?im)^\W*verdict\W*:\s*\W*BLOCKED\b'
+  - type: rubric
+    name: gate_blocks_action
+    params: {action_terms: "ship / shipping / release / deploy"}

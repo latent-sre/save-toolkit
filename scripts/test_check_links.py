@@ -191,13 +191,13 @@ class LinkCheckerTests(Fixture):
 
     def test_manual_only_control_is_required_inside_frontmatter_and_cannot_widen(self):
         manual_frontmatter = CLEAN_FRONTMATTER.replace(
-            "name: probe-skill", "name: service-lifecycle"
+            "name: probe-skill", "name: pcf-deploy"
         ).replace(
             'argument-hint: "[the probe]"',
             'argument-hint: "[the probe]"\ndisable-model-invocation: true',
         )
         self.write(
-            "skills/service-lifecycle/SKILL.md",
+            "skills/pcf-deploy/SKILL.md",
             manual_frontmatter + "\n# Manual probe\n",
         )
         self.assertEqual([], check_links.check(self.root))
@@ -206,7 +206,7 @@ class LinkCheckerTests(Fixture):
         missing = fixture_root / "missing"
         self.root = missing
         self.write(
-            "skills/service-lifecycle/SKILL.md",
+            "skills/pcf-deploy/SKILL.md",
             manual_frontmatter.replace("disable-model-invocation: true\n", "")
             + "\n# Manual probe\n",
         )
@@ -217,7 +217,7 @@ class LinkCheckerTests(Fixture):
         moved = fixture_root / "moved"
         self.root = moved
         self.write(
-            "skills/service-lifecycle/SKILL.md",
+            "skills/pcf-deploy/SKILL.md",
             manual_frontmatter.replace("disable-model-invocation: true\n", "")
             + "\ndisable-model-invocation: true\n# Manual probe\n",
         )
@@ -245,32 +245,6 @@ class LinkCheckerTests(Fixture):
                 all(name in item for name in check_links.MANUAL_ONLY)
                 for item in check_links.check(self.root)
             )
-        )
-
-    def test_incident_drill_is_manual_only(self):
-        """`incident-drill` spawns paid model sessions; it must never be model-invocable.
-
-        Pinned as its own case because the cost of a regression here is a drill that starts because
-        a conversation mentioned an outage.
-        """
-        self.assertIn("incident-drill", check_links.MANUAL_ONLY)
-        frontmatter = CLEAN_FRONTMATTER.replace(
-            "name: probe-skill", "name: incident-drill"
-        ).replace(
-            'argument-hint: "[the probe]"',
-            'argument-hint: "[the probe]"\ndisable-model-invocation: true',
-        )
-        self.write("skills/incident-drill/SKILL.md", frontmatter + "\n# Drill probe\n")
-        self.assertEqual([], check_links.check(self.root))
-
-        without = Path(self._tmp.name) / "drill-without"
-        self.root = without
-        self.write(
-            "skills/incident-drill/SKILL.md",
-            frontmatter.replace("disable-model-invocation: true\n", "") + "\n# Drill probe\n",
-        )
-        self.assertTrue(
-            any("manual-only skill must contain frontmatter" in item for item in check_links.check(self.root))
         )
 
     def test_code_span_pointer_is_rejected(self):

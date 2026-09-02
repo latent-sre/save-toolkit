@@ -95,8 +95,9 @@ or the fleet will confidently recommend someone else's tools.
 
 - *"orders is 502-ing in prod since 14:20 UTC — investigate"* → the `sre` agent triages read-only
   and recommends a mitigation for a human to apply.
-- *"is PR #42 ready to merge?"* → the `merge-gate` checklist, including disposition of any known
-  blocking findings; independent exact-SHA review is reserved for production deployments.
+- *"is PR #42 ready to merge?"* → `production-change-gate`'s merge-readiness checklist, including
+  disposition of any known blocking findings; independent exact-SHA review is reserved for
+  production deployments.
 - *"write a runbook for the checkout deploy"* → the `scribe` agent with the `runbook` skill.
 
 The one manual command is `/save-toolkit:adr` (ADR scaffold).
@@ -114,15 +115,14 @@ The one manual command is `/save-toolkit:adr` (ADR scaffold).
 | `researcher` | External-only research against official docs, upstream code, packages, and advisories | No local file access; returns cited public evidence to caller |
 | `agent-engineer` | The fleet's prompts, agents, skills, descriptions, evals, bounded prompt/eval loops, roster/delegation graphs, and portable executable workflow-graph designs | Delegates only sanitized public lookups to `researcher`; the caller separately dispatches helper code to `software-engineer` and injection-surface review to `reviewer` |
 
-The 34 skills, by area (each `skills/<name>/SKILL.md` carries its own description and triggers):
+The 30 skills, by area (each `skills/<name>/SKILL.md` carries its own description and triggers):
 
 - **Engineering craft** — `language-idiom`, `backend-craft`, `frontend-craft`, `ops-tooling`,
   `ci-actions`, `database-reliability`, `eng-ladder`
 - **Platform** — `stack-profile`, `pcf-ops`, `pcf-deploy`, `gcp-ops`, `akamai-edge`
-- **Change gates** — `merge-gate`, `release-gate`, `production-change-gate`
+- **Change gates** — `production-change-gate`
 - **Incident and operations** — `incident-investigation`, `investigation-depth`, `root-cause`, `incident-command`, `postmortem`, `runbook`,
-  `incident-drill` (explicit-only game day against the fleet itself),
-  `operational-learning`, `service-readiness-audit`, `service-lifecycle`, `service-retirement`
+  `operational-learning`, `service-lifecycle` (audit, onboard, and retire modes)
 - **Observability** — `obs-logs`, `obs-metrics`, `obs-traces`, `obs-dashboards`, `obs-alerting`,
   `obs-pipeline`
 - **The fleet itself and the graphs it designs** — `agent-authoring`,

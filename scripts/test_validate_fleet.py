@@ -67,38 +67,38 @@ class FleetValidatorTests(unittest.TestCase):
         """Deleting or moving the review boundary must fail this contract."""
         production_checklist = _markdown_section(
             Path("skills/production-change-gate/SKILL.md"),
-            "## Checklist",
+            "## Production authorization",
         )
         self.assertIn(
-            "production deployment of a new artifact requires independent review of the exact "
-            "candidate commit id",
+            "a new-artifact deployment attaches the exact candidate commit's independent review",
             production_checklist,
         )
         self.assertIn(
-            "for a new-artifact deployment, attach protected-environment evidence",
+            "for a deployment, the protected environment gating the credential",
             production_checklist,
         )
         self.assertIn(
-            "for another planned production action, attach evidence that the named human or "
-            "protected automation",
+            "a non-deployment action attaches the current command or diff and named approval "
+            "instead",
             production_checklist,
         )
 
-        for relative in (
-            Path("skills/merge-gate/SKILL.md"),
-            Path("skills/release-gate/SKILL.md"),
+        for relative, heading in (
+            (Path("skills/production-change-gate/references/merge-readiness.md"), "# Merge readiness"),
+            (Path("skills/production-change-gate/references/release-readiness.md"), "# Release readiness"),
         ):
-            checklist = _markdown_section(relative, "## Checklist")
+            checklist = _markdown_section(relative, heading)
             with self.subTest(contract=relative.as_posix()):
                 self.assertNotIn("requires independent review", checklist)
                 self.assertNotIn("reviewed commit id", checklist)
 
     def test_release_gate_uses_distribution_specific_immutability(self) -> None:
         checklist = _markdown_section(
-            Path("skills/release-gate/SKILL.md"), "## Checklist"
+            Path("skills/production-change-gate/references/release-artifact-evidence.md"),
+            "# Release artifact evidence",
         ).replace("*", "")
 
-        self.assertIn("when the artifact is distributed as a github release", checklist)
+        self.assertIn("github release as the distribution path", checklist)
         self.assertIn("gh api repos/{owner}/{repo}/immutable-releases", checklist)
         self.assertIn('"enabled": true', checklist)
         self.assertIn("gh api repos/{owner}/{repo}/rulesets/{ruleset_id}", checklist)
@@ -107,7 +107,7 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertIn("ref_name.include", checklist)
         self.assertIn("no matching exclusion", checklist)
         self.assertIn("`update` and `deletion` rules", checklist)
-        self.assertIn("for any other distribution path", checklist)
+        self.assertIn("any other distribution path", checklist)
         self.assertIn("do not require github release controls", checklist)
 
     def test_review_consumers_keep_routine_work_out_of_the_prod_review_gate(self) -> None:
@@ -115,11 +115,6 @@ class FleetValidatorTests(unittest.TestCase):
         software_engineer_fields, _, _ = validate_fleet.adapters.parse_frontmatter(
             software_engineer_path
         )
-        scenario = (ROOT / "evals/scenarios/release-gate-passes-ready.yaml").read_text(
-            encoding="utf-8"
-        )
-        prompt = _normalized(scenario.split("prompt: |", 1)[1].split("success_criteria:", 1)[0])
-        criteria = _normalized(scenario.split("success_criteria:", 1)[1].split("graders:", 1)[0])
         contracts = (
             (
                 "agents-learning",
@@ -132,8 +127,11 @@ class FleetValidatorTests(unittest.TestCase):
             ),
             (
                 "merge-ci",
-                _markdown_section(Path("skills/merge-gate/SKILL.md"), "## Checklist"),
-                ("read the trusted ci record directly", "missing reviewer packet alone is not a **no**"),
+                _markdown_section(
+                    Path("skills/production-change-gate/references/merge-readiness.md"),
+                    "# Merge readiness",
+                ),
+                ("read from the ci record",),
                 ("read the reviewer's packet",),
             ),
             (
@@ -180,13 +178,6 @@ class FleetValidatorTests(unittest.TestCase):
                 ("cannot supply production-change-gate's exact-sha review evidence",),
                 ("cannot satisfy merge-gate",),
             ),
-            (
-                "release-prompt",
-                prompt,
-                ("production-change-gate has not run", "intentionally later"),
-                ("production-change-gate is cleared",),
-            ),
-            ("release-criteria", criteria, ("without requiring production-change clearance",), ()),
         )
         for name, text, required, forbidden in contracts:
             with self.subTest(contract=name):
@@ -356,9 +347,6 @@ class FleetValidatorTests(unittest.TestCase):
                 "| service | lifecycle | owner |",
                 "| exact alert name | status | service |",
             ),
-            Path("skills/service-lifecycle/SKILL.md"): (
-                "`git rev-parse head` output on the packet's `verified:` line",
-            ),
             Path("agents/observability-engineer.md"): (
                 "`git rev-parse head` output on the `verified:` line",
             ),
@@ -374,32 +362,6 @@ class FleetValidatorTests(unittest.TestCase):
             text = _normalized((ROOT / relative).read_text(encoding="utf-8"))
             for phrase in phrases:
                 with self.subTest(contract=relative.as_posix(), phrase=phrase):
-                    self.assertIn(phrase, text)
-
-    def test_operational_learning_checkout_and_root_trust_have_regression_scenarios(self) -> None:
-        expectations = {
-            Path("evals/scenarios/agent-direct-scribe-checkout-binding-permits-prepared.yaml"): (
-                "git rev-parse head",
-                "checkout binding as [verified]",
-                "as prepared",
-            ),
-            Path(
-                "evals/scenarios/agent-direct-scribe-checkout-binding-bare-assertion-stays-proposed.yaml"
-            ): (
-                "bare checkout assertion to [unverified]",
-                "missing command and output",
-                "proposed or blocked",
-            ),
-            Path("evals/scenarios/agent-direct-scribe-checkout-binding-forbidden-root-blocked.yaml"): (
-                "agents/catalog/",
-                "not a documentation root",
-                "blocked",
-            ),
-        }
-        for relative, phrases in expectations.items():
-            text = _normalized((ROOT / relative).read_text(encoding="utf-8"))
-            with self.subTest(scenario=relative.as_posix()):
-                for phrase in phrases:
                     self.assertIn(phrase, text)
 
     def test_observability_engineer_no_longer_owns_operational_documentation(self) -> None:

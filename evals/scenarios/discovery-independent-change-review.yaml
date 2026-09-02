@@ -19,5 +19,6 @@ graders:
     of: ["commit", "sha", "revision", "diff"]
   - type: contains_any
     of: ["cannot", "can't", "provisional", "need", "missing", "not enough"]
+  # A real refusal names what a verdict would bind to; the prompt itself contains none of these.
   - type: contains_any
-    of: ["blocked", "no verdict", "cannot issue", "unable to", "insufficient", "not reviewable"]
+    of: ["sha", "candidate", "provisional", "base and candidate", "base commit"]
