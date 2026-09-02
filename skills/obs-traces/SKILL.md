@@ -4,8 +4,7 @@ description: >-
   Follow one request across services — when logs say 'slow' and metrics say 'sometimes',
   the trace says where. Read waterfalls, find the span that ate latency, and correlate
   trace ids with logs. Backends: Tempo (TraceQL) and Cloud Trace on GCP. Triggers: 'trace this
-  request', 'where did the latency go', 'follow this correlation id'. Ownership map only—not a
-  load: obs-pipeline owns trace instrumentation.
+  request', 'where did the latency go', 'follow this correlation id'. Not for trace instrumentation (obs-pipeline).
 argument-hint: "[trace id, service, or latency question]"
 ---
 

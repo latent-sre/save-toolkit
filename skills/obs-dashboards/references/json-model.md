@@ -196,5 +196,3 @@ dashboard exports; Grafana history remains the record.
 
 A clean linter result never proves target permissions, query data, rendering, concurrency, or the
 durable save record; [http-api](./http-api.md) verifies those.
-
-<!-- terminal-canary: q_odjson_3c7e -->

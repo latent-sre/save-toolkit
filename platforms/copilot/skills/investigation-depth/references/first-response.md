@@ -66,12 +66,3 @@ and the next task is to prove why the system broke.
 
 When evidence is thin, remain in first response and name the next safe observation. Uncertainty is
 not permission to poke production.
-
-## Inert canary
-
-This token only proves the reference loaded; it asserts nothing about the incident and belongs in
-no answer.
-
-```text
-q_iifr_3a1c
-```

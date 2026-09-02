@@ -3,8 +3,7 @@ name: pcf-ops
 description: >-
   Investigate application-side PCF/TAS failures with cf app, events, logs, and routes, and
   distinguish app faults from platform-wide symptoms. Triggers: 'the app is crashing', 'why is
-  my app 502-ing', 'exit code 137', 'X-Cf-RouterError'. Ownership map only—not a load: the `stack-profile` skill supplies boundary facts; widespread Diego/Gorouter failures go to the platform
-  team with evidence.
+  my app 502-ing', 'exit code 137', 'X-Cf-RouterError'. Not for widespread Diego/Gorouter failures, which go to the platform team with evidence.
 compatibility: Requires Apps Manager access to the target PCF foundation; the cf v8 equivalents need that CLI installed
 argument-hint: "[the app or platform symptom]"
 ---

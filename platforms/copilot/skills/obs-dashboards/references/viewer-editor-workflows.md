@@ -42,5 +42,3 @@ behavior remains `[unverified]` until checked]*
 - Every UI or API save is a real change. Use a meaningful save message; prefer the API path in
   [http-api](./http-api.md) when the work needs a reviewable diff, concurrency protection, query
   evidence, and a rollback.
-
-<!-- terminal-canary: q_odview_7a3d -->

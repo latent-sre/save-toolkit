@@ -56,5 +56,3 @@ or marked not applicable with a reason. Then check:
 3. What could not be checked and why.
 4. What the review did not do: it did not execute, benchmark, or select a runtime, and it grants no
    authority.
-
-Reference-read token: q_wgrev_7c02

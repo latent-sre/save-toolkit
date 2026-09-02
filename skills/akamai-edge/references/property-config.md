@@ -65,5 +65,3 @@ activated. Production activation is Tier 2 minimum, human release owner, through
 - Behaviors that change debugging itself (Enhanced Debug key rotation, `disablePragma`, GRN) —
   losing debug access mid-incident is a self-inflicted wound.
 - Hostnames added/removed from the property — that is blast radius, list them in the packet.
-
-<!-- terminal-canary: q_akprop_9c2d -->

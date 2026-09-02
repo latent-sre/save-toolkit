@@ -20,7 +20,6 @@ and [`gcloud logging read`](https://docs.cloud.google.com/sdk/gcloud/reference/l
 - gcloud read from the terminal
 - Observability Analytics (SQL over logs)
 - Tips & gotchas
-- Inert canary example
 
 ## What this language is (and is not)
 
@@ -118,15 +117,3 @@ it — upgrade state per bucket is `[unverified]`, check before promising a SQL 
   user-created buckets default to **30 days**, configurable per bucket *[sourced:
   docs.cloud.google.com/logging/quotas]*. "No entries" past the bucket's retention is ageing, not
   absence at write time.
-
-## Inert canary example
-
-Never run outside a canary drill; it references a deliberately nonexistent service.
-
-```text
-resource.type = "cloud_run_revision"
-resource.labels.service_name = "canary-q-olgcp-7d2f"
-severity >= "ERROR"
-```
-
-Reference-read token: q_olgcp_7d2f

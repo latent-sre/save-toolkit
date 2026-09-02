@@ -201,4 +201,4 @@ routes are required, Mimir for the metric, and Tempo for the trace. Preserve eac
 time range, and result. Promote a route from `[unverified]` to `[verified]` only when that evidence
 demonstrates the same canary crossed every boundary without leaking forbidden fields.
 
-Worked-evidence canary (inert until a target run records it): `canary_id=q_opalloy_6d4c`.
+Worked-evidence canary (record only after a target run): `canary_id=<unique-run-id>`.

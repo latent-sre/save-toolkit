@@ -5,8 +5,7 @@ description: >-
   status, WAF denials, DataStream 2), delivery config (Property Manager versions, staging-first
   activation, fast fallback), and mPulse RUM (network-side vs app-side slowdowns). Triggers: 'is
   it the CDN or the origin', 'Reference #9.', 'is the WAF blocking real users', 'mPulse shows
-  slow pages'. Ownership map only—not a load: obs-logs owns backend log queries; an actively
-  firing alert stays with sre.
+  slow pages'. Not for backend log queries (obs-logs) or a firing alert (sre).
 compatibility: Requires Akamai Control Center access; DataStream 2 queries run in the configured log backend
 argument-hint: "[the edge, CDN, WAF, or RUM problem]"
 ---

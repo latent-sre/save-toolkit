@@ -57,12 +57,3 @@ If evidence instead supports one bounded cause in one service, return to
 - Detection, SLO, prevention, and evidence-capture proposals return to the caller for later
   `observability-engineer` work; the durable retrospective method belongs to `postmortem` after
   terminal recovery.
-
-## Inert canary
-
-This token only proves the reference loaded; it asserts nothing about the incident and belongs in
-no answer.
-
-```text
-q_iisf_7c3e
-```

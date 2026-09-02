@@ -39,7 +39,6 @@ inventory, and field extractions.
 - Extract fields ad hoc
 - Fast paths at scale — tstats, data models, TERM/PREFIX
 - Tips & gotchas (Splunk-specific — where the default bites)
-- Inert canary example
 
 ## Start narrow
 
@@ -264,20 +263,3 @@ filter isn't index-time-selective (that's what `TERM()`/`tstats` fix).
 - Record every change and symptom in one UTC incident timeline; hand it to the `sre` agent with
   confidence labels.
 - Hand correlated evidence to the `observability-engineer` agent.
-
-## Inert canary example
-
-This checks reference loading only; it is not a production identifier.
-
-*[sourced: Splunk equality-filter and `table` syntax; unverified for target index/field availability]*
-
-````spl
-index=<app_index> request_id="<fixture_request_id>" earliest=-5m
-| table _time request_id service status
-````
-
-Expected fixture output (inert):
-
-```text
-q_ol_spl_3f7a
-```

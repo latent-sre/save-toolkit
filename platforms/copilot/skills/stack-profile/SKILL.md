@@ -109,5 +109,3 @@ use a generation alias (`haiku`, `sonnet`, `opus`, `fable`, or `inherit`) only w
 or latency profile justifies tiering, and never a full model ID. When a task needs the team's current
 Copilot picker order or fallback sequence, load the conditional model reference and preserve its
 verification state; that host inventory does not select a Claude agent alias.
-
-<!-- profile canary: sp_7c2e — quoted output proves this file loaded; guarded by the tripwire test -->

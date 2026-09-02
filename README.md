@@ -156,11 +156,10 @@ python scripts/check_context_cost.py                    # canonical-task and des
 python scripts/generate_platform_adapters.py --write    # after any canonical edit
 python scripts/test_platform_adapters.py                 # Copilot projection + plugin contract
 claude plugin validate . --strict                       # Claude platform contract
-python scripts/fleet_doctor.py                          # repo + installed-host health, read-only
 ```
 
-Gate A proves the fleet is well-formed, never that it is correct — the adversarial reviews in
-[CONTRIBUTING.md](CONTRIBUTING.md) are separate. Portable contracts are documented in the
+Gate A proves the fleet is well-formed, never that it is correct — the change-shaped checks in
+[CONTRIBUTING.md](CONTRIBUTING.md)'s verification table are separate. Portable contracts are documented in the
 [schema compatibility policy](docs/schema-compatibility.md); active behavioral and routing evals
 live in [`evals/README.md`](evals/README.md). Accepted fleet failures become focused regressions and
 ordinary PR evidence.

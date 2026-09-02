@@ -120,5 +120,3 @@ where a human can be shown the plan and rollback before anything moves.
 | Automatic replay while `UNKNOWN` | Retry loop hides a committed remote write | Persist `UNKNOWN`; reconcile before any retry |
 | Approval detached from the action | Approval granted on one candidate, dispatched on another | Bind approval to candidate identity and re-check on resume |
 | Compensation assumed | "On failure we roll back the notification" | Mark irreversible; design the terminal state that reports it |
-
-Reference-read token: q_wgeff_2a7c

@@ -22,7 +22,6 @@ Primary reference:
 - Beyond these shapes — version-gated TraceQL
 - Limits and discard reasons — absence causes
 - Record the result boundary
-- Inert canary example
 
 ## Scope and spanset rules
 
@@ -141,15 +140,3 @@ For every query, return the expression, absolute UTC window, tenant/data source,
 known, result count, selected trace link, and any required attribute assumptions. Label observed target
 results `[verified]` only when they were actually run and retained; these examples remain `[unverified]`
 for the target.
-
-## Inert canary example
-
-This checks reference loading only; it is not a production trace or a claim that the target was queried.
-
-*[sourced: Grafana Tempo trace-id filtering syntax; unverified for target availability]*
-
-Expected fixture output (inert):
-
-```text
-q_otql_7b3e
-```

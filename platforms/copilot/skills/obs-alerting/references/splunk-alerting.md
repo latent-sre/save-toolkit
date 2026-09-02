@@ -89,5 +89,3 @@ Force the condition with a test search or fixture events and observe trigger + t
 delivery end to end; a green "search ran" is not delivery evidence. For the noise review, the
 correlation lane stays with Moogsoft (its reference in this skill) — Splunk-side throttling is per
 alert, Moogsoft owns cross-alert dedup/correlation; don't build both for the same storm.
-
-<!-- terminal-canary: q_oasplk_8b2e -->

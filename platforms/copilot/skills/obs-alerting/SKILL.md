@@ -4,8 +4,7 @@ description: >-
   Design alerting that pages on symptoms — SLIs/SLOs and multi-window burn rates, Grafana unified
   alerting as code, Splunk saved-search alerts, Moogsoft correlation, and ThousandEyes synthetics.
   Triggers: 'define an SLO', 'this alert is too noisy', 'what should page', 'design a synthetic
-  check'. Ownership map only—not a load:
-  obs-metrics/obs-logs own queries and obs-dashboards owns dashboards.
+  check'. Not for queries (obs-metrics, obs-logs) or dashboards (obs-dashboards).
 argument-hint: "[service, SLO, alert, storm, or synthetic check]"
 ---
 

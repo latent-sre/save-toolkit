@@ -96,7 +96,3 @@ Send the resolution update, then return the UTC timeline, its evidence labels, a
 next-phase work to the caller. After resolution, the caller separately dispatches typed `scribe`
 for the durable postmortem and operational-learning closeout and typed `observability-engineer` for
 detection changes. Neither typed lane is part of live recovery confirmation.
-
-```text
-q_icc_6963
-```

@@ -47,5 +47,3 @@ Before any create or edit, record in the task evidence: Grafana instance and edi
 folder uids, owner, purpose/SLO, installed data-source names/types/uids, entitlement status, and any
 linked alert/runbook. Unknown values remain `[unverified]`. Alert thresholds, notification routing,
 and evaluation ownership belong to `obs-alerting`.
-
-<!-- terminal-canary: q_odwf_6a2e -->

@@ -30,7 +30,7 @@ and only bound rehearsal evidence changes `last_verified`.
 
 The operational knowledge-update schemas v1-v3, their migrations and drift watcher, the
 fleet-improvement v1 schema, `eval-execution-profile-v1`/`v2`, `eval-result-envelope-v1`, and
-`evidence-envelope-v1` (with its `fleet_doctor` emitter, which now writes a plain JSON report) were
+`evidence-envelope-v1` (with its `fleet_doctor` emitter, itself since removed) were
 removed before `save-toolkit--v0.1.0` was published. No GitHub Release or versioned release tag
 exposed them as supported consumer contracts. Git history retains their historical bytes; the
 active fleet makes no compatibility or migration promise for them.
