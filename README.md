@@ -151,7 +151,6 @@ python scripts/check_context_cost.py                    # canonical-task and des
 python scripts/generate_platform_adapters.py --write    # after any canonical edit
 python scripts/test_platform_adapters.py                 # Copilot projection + plugin contract
 claude plugin validate . --strict                       # Claude platform contract
-python scripts/fleet_doctor.py                          # repo + installed-host health, read-only
 ```
 
 Gate A proves the fleet is well-formed, never that it is correct — the adversarial reviews in

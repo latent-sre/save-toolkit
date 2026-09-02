@@ -49,7 +49,8 @@ The last column is the enforced Claude delegation graph; VS Code handoffs are se
 - The guard is not a sandbox; OS identity, credentials, and network controls remain load-bearing,
   and a control proven on one host is unverified on another.
 - Never request credential-bearing output: `cf env`, `cf service-key`, `CF_TRACE`, cloud
-  tokens/ADC, Secret Manager, or KMS-decrypt. Do not repeat an exposed secret.
+  tokens/ADC, Secret Manager, or KMS-decrypt. The guard denies these for every roster lane, as
+  a tripwire over the named paths rather than a boundary. Do not repeat an exposed secret.
 
 ## Shared conventions
 

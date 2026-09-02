@@ -58,6 +58,19 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- The credential rule is now enforced for every roster lane, not stated in prose. The plugin's
+  PreToolUse guard denies `cf env`/`cf e`, `cf service-key`/`cf sk`, a `cf curl` on an env or
+  credential endpoint, a `CF_TRACE` set to anything but off, `gcloud auth print-access-token`/
+  `print-identity-token`, `gcloud secrets versions access`, and `gcloud kms decrypt` — in the three
+  unguarded-Bash lanes as well as the guarded one, and never for the main loop, which is the
+  human's own terminal. It is a denylist and therefore a tripwire, not a boundary: it matches by
+  adjacency over lexed tokens (so `xargs cf env` and `$(cf env app)` are caught while a quoted
+  `rg "cf env"` is data), and a line that will not lex is not a denial, because denying every
+  heredoc in the build lanes would buy nothing. `observability-engineer`'s "no hook enforces any
+  of this here" is retired. Proven by mutation: disabling the branch turns 56 subtests red.
+- Removed `scripts/fleet_doctor.py` and its test (1,669 lines). Nothing invoked it — not Gate A,
+  not CI, not any agent or skill — and the session preflight already proves the guard's
+  interpreter, which was the one question it answered that mattered. Git history keeps it.
 - Replaced embedded reference-read tokens with successful, snapshot-scoped `Read` evidence in the
   eval trace. Removed the now-inert token-only sections, comments, and synthetic token values from
   canonical skill references; operational canary procedures remain unchanged.

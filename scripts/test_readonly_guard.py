@@ -817,5 +817,97 @@ class GuardScopingTest(unittest.TestCase):
         self.assertEqual(decision(proc), "allow")
 
 
+class FleetCredentialDenyTest(unittest.TestCase):
+    """The credential rule covers EVERY roster lane, not only the guarded one.
+
+    Before this, `cf env` was prose in four agent bodies and nothing enforced it: the three
+    unguarded-Bash lanes could print VCAP_SERVICES straight into a context that also holds egress.
+    The rule is a denylist and therefore a tripwire, not a boundary (see the honest-scope note in
+    the guard) — so these tests pin two things equally: that it fires on the named paths in the
+    lanes that were unguarded, and that it does NOT fire on data, on `false`, or on the main loop.
+    """
+
+    UNGUARDED_LANES = (
+        "save-toolkit:software-engineer",
+        "save-toolkit:observability-engineer",
+        "save-toolkit:agent-engineer",
+        "software-engineer",
+    )
+    CREDENTIAL_COMMANDS = [
+        "cf env checkout",
+        "cf e checkout",
+        "cf service-key checkout-db my-key",
+        "cf sk checkout-db my-key",
+        "CF_TRACE=true cf apps",
+        "export CF_TRACE=1",
+        "gcloud auth print-access-token",
+        "gcloud auth print-identity-token",
+        "gcloud alpha auth application-default print-access-token",
+        "gcloud secrets versions access latest --secret=checkout-db",
+        "gcloud kms decrypt --ciphertext-file=c --plaintext-file=p --key=k",
+        "cf curl /v3/apps/abc/env",
+        # Adjacency, not command position: a substitution or a wrapper is the same disclosure.
+        "echo $(cf env checkout)",
+        "xargs cf env",
+    ]
+
+    def test_every_credential_path_is_denied_in_a_previously_unguarded_lane(self) -> None:
+        for agent in self.UNGUARDED_LANES:
+            for command in self.CREDENTIAL_COMMANDS:
+                with self.subTest(agent=agent, command=command):
+                    proc = run_guard(bash_call(command, agent_type=agent))
+                    self.assertEqual(decision(proc), "deny", f"allowed: {command!r}")
+                    self.assertIn("fleet credential rule", proc.stdout.decode("utf-8"))
+
+    def test_the_same_paths_stay_denied_for_the_guarded_lane(self) -> None:
+        for command in self.CREDENTIAL_COMMANDS:
+            with self.subTest(command=command):
+                proc = run_guard(bash_call(command, agent_type=SRE))
+                self.assertEqual(decision(proc), "deny", f"allowed for sre: {command!r}")
+
+    def test_the_main_loop_keeps_its_own_credential_commands(self) -> None:
+        """The rule is addressed to the fleet's agents. A human's own terminal is not ours to gate."""
+        for command in self.CREDENTIAL_COMMANDS:
+            with self.subTest(command=command):
+                proc = run_guard(bash_call(command, agent_type=None))
+                self.assertEqual(decision(proc), "allow", f"gated the main loop: {command!r}")
+
+    def test_ordinary_unguarded_work_is_untouched(self) -> None:
+        """Prove the detector discriminates: these must stay allowed in the build lanes."""
+        benign = [
+            "cf apps",
+            "cf app checkout",
+            "cf logs checkout --recent",
+            "cf curl /v3/apps",
+            "CF_TRACE=false cf apps",
+            "gcloud auth list",
+            "gcloud secrets list",
+            "gcloud run services describe checkout --region us-east1",
+            "git push origin feature/dashboards",
+            "python -m pytest -q",
+            # Data, not a command: quoting keeps it one token, so nothing matches.
+            'rg "cf env" docs/',
+            'git commit -m "document why cf env is human-only"',
+        ]
+        for agent in self.UNGUARDED_LANES:
+            for command in benign:
+                with self.subTest(agent=agent, command=command):
+                    proc = run_guard(bash_call(command, agent_type=agent))
+                    self.assertEqual(decision(proc), "allow", f"false positive: {command!r}")
+
+    def test_an_unlexable_line_is_not_a_credential_denial(self) -> None:
+        """Documented limit: the credential rule needs a positive match, so it never guesses.
+
+        Denying every unparseable command in the build lanes would break heredocs and commit
+        messages for no security gain; the guarded lane's allowlist still denies what it cannot
+        parse, which this asserts in the same test so the two contracts cannot drift apart.
+        """
+        unlexable = "git commit -m \"unbalanced"
+        proc = run_guard(bash_call(unlexable, agent_type="save-toolkit:software-engineer"))
+        self.assertEqual(decision(proc), "allow")
+        proc = run_guard(bash_call(unlexable, agent_type=SRE))
+        self.assertEqual(decision(proc), "deny")
+
+
 if __name__ == "__main__":
     unittest.main()

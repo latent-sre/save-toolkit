@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """PreToolUse guard — enforce read-only agents at the command level, by ALLOWLIST.
 
-Wired in THIS repo at plugin scope: `hooks/hooks.json` receives every Bash `PreToolUse` event and
-this guard acts only when `agent_type` identifies `sre`. (`observability-engineer` left the roster on
+Wired in THIS repo at plugin scope: `hooks/hooks.json` receives every Bash `PreToolUse` event.
+The read-only ALLOWLIST below acts only when `agent_type` identifies `sre`; the credential
+DENYLIST near the bottom of the file acts for every roster lane. Both no-op for the main loop. (`observability-engineer` left the roster on
 2026-08-21 — docs/decisions/2026-08-21-observability-engineer-unguarded-bash.md — so it can apply
 Grafana dashboards over HTTP and run config validators itself; it now holds unguarded Bash like
 `software-engineer`.) Claude Code silently ignores hooks embedded in plugin-shipped agent frontmatter, so the
@@ -89,6 +90,18 @@ PLUGIN_NAME = "save-toolkit"
 GUARDED_AGENT_NAMES = frozenset({"sre"})
 GUARDED_AGENTS = frozenset(
     set(GUARDED_AGENT_NAMES) | {f"{PLUGIN_NAME}:{name}" for name in GUARDED_AGENT_NAMES}
+)
+
+# Every lane in the roster. The read-only allowlist above covers ONE of them; the credential
+# deny near the bottom of this file covers all of them, because AGENTS.md states that rule for
+# the whole fleet and three lanes (`software-engineer`, `observability-engineer`,
+# `agent-engineer`) hold unguarded Bash, where it was prose and nothing enforced it.
+FLEET_AGENT_NAMES = frozenset({
+    "software-engineer", "reviewer", "repository-investigator", "sre",
+    "observability-engineer", "scribe", "researcher", "agent-engineer",
+})
+FLEET_AGENTS = frozenset(
+    set(FLEET_AGENT_NAMES) | {f"{PLUGIN_NAME}:{name}" for name in FLEET_AGENT_NAMES}
 )
 
 # Exit codes AUTHENTICATE the guard's answer to the hook — they are not decoration.
@@ -816,6 +829,106 @@ def explain(command: str, agent: str = "") -> "str | None":
     return None
 
 
+# --- fleet-wide credential deny ---------------------------------------------------------------
+# HONEST SCOPE, stated before the code so nobody mistakes what this buys: it is a DENYLIST, the
+# shape this file argues against for read-only containment, and it is a TRIPWIRE, not a boundary.
+# It cannot be complete — `cf curl` on an arbitrary v3 path, a wrapper script, a base64 round-trip,
+# or any tool that reads the same API reaches the same bytes. OS-level credential scoping stays the
+# load-bearing control. What it does buy: the paths a helpful agent actually reaches for stop being
+# prose in four agent bodies, in every lane rather than only the guarded one.
+#
+# Two deliberate limits keep it from breaking the build lanes it now covers:
+#   * It fires only on a POSITIVE match over lexed tokens, so quoted data is never a command —
+#     `rg "cf env" docs/` is one token and matches nothing.
+#   * A line that will not lex is NOT a denial here. The guarded lane's allowlist already denies
+#     what it cannot parse; denying every unparseable command in the unguarded build lanes (a
+#     heredoc, an unbalanced quote in a commit message) would break ordinary work for no gain.
+# Matching is by ADJACENCY, not command position: `xargs cf env`, `sudo cf env`, and `$(cf env app)`
+# are the same disclosure as a bare `cf env`. The accepted over-reach is a contrived `echo cf env`,
+# which denies loudly with the rule that fired.
+_ASSIGNMENT = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)=")
+_TRACE_OFF = frozenset({"", "false", "0", "no", "off"})
+_RELEASE_TRACKS = frozenset({"alpha", "beta"})
+_CF_CREDENTIAL_SUBCOMMANDS = {
+    "env": "`cf env` prints the app's full environment, VCAP_SERVICES credentials included",
+    "e": "`cf e` is `cf env`, which prints the app's environment with its credentials",
+    "service-key": "`cf service-key` prints a service instance's live credentials",
+    "sk": "`cf sk` is `cf service-key`, which prints live service credentials",
+}
+
+
+def _strip_substitution(token: str) -> str:
+    """The command word inside `$(...)` or backticks, so a substitution is not a hiding place."""
+    return token.strip("`").lstrip("$(").rstrip(")")
+
+
+def _gcloud_credential_reason(words: list[str]) -> "str | None":
+    words = [word for word in words if word not in _RELEASE_TRACKS]
+    if not words:
+        return None
+    head, rest = words[0], words[1:]
+    if head == "auth" and any(
+        word in ("print-access-token", "print-identity-token") for word in rest
+    ):
+        return "`gcloud auth print-access-token`/`print-identity-token` prints a live OAuth token"
+    if head == "secrets" and "access" in rest:
+        return "`gcloud secrets versions access` prints a secret's payload"
+    if head == "kms" and "decrypt" in rest:
+        return "`gcloud kms decrypt` returns decrypted plaintext"
+    return None
+
+
+def _credential_reason_for_tokens(tokens: list[str]) -> "str | None":
+    for token in tokens:
+        assignment = _ASSIGNMENT.match(token)
+        if assignment and assignment.group(1) == "CF_TRACE":
+            value = token.partition("=")[2].strip().strip("\"'").lower()
+            if value not in _TRACE_OFF:
+                return (
+                    "`CF_TRACE` dumps the whole CF API exchange, bearer token included, into the "
+                    "transcript"
+                )
+    words = [_strip_substitution(token) for token in tokens]
+    for index, word in enumerate(words):
+        following = [item for item in words[index + 1:] if item and not item.startswith("-")]
+        if not following:
+            continue
+        if word == "cf":
+            reason = _CF_CREDENTIAL_SUBCOMMANDS.get(following[0])
+            if reason is not None:
+                return reason
+            if following[0] == "curl" and any(
+                "env" in item or "credential" in item for item in following[1:]
+            ):
+                return (
+                    "`cf curl` on an env or credential endpoint returns the same secrets `cf env` "
+                    "does"
+                )
+        elif word == "gcloud":
+            reason = _gcloud_credential_reason(following)
+            if reason is not None:
+                return reason
+    return None
+
+
+def credential_reason(command: str) -> "str | None":
+    """The rule denying a credential-printing command, or None when nothing matched."""
+    if not command.strip():
+        return None
+    for line in command.splitlines():
+        if not line.strip():
+            continue
+        try:
+            tokens = _tokenize(line)
+        except ValueError:
+            continue  # not a match; see the honest-scope note above
+        for segment in _split_segments(tokens):
+            reason = _credential_reason_for_tokens(segment)
+            if reason is not None:
+                return reason
+    return None
+
+
 def main() -> None:
     try:
         # Read raw bytes and decode with utf-8-sig so a leading BOM (which some Windows shells
@@ -840,6 +953,21 @@ def main() -> None:
     # carries NO `agent_type`
     # key, so the user's own Bash exits here and is never inspected.
     agent = data.get("agent_type")
+
+    # Fleet-wide first: every roster lane, not only the guarded one. The main loop is still
+    # exempt — this rule is addressed to the fleet's agents, and denying a human's own
+    # `cf env` in their own terminal is over-reach the fleet has no standing to impose.
+    if agent in FLEET_AGENTS:
+        credential = credential_reason(
+            (data.get("tool_input") or {}).get("command", "") or ""
+        )
+        if credential is not None:
+            _deny(
+                f"Blocked by the fleet credential rule: {credential}. Ask the human owner to "
+                "run it and paste a sanitized excerpt; never route a live credential through "
+                "an agent's context."
+            )
+
     if agent not in GUARDED_AGENTS:
         # Contract canary. `agent_type` is undocumented. If it is renamed upstream, every payload
         # starts looking like the main loop and the guard would quietly stop guarding — precisely
