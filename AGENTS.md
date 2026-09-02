@@ -24,7 +24,7 @@ those facts by trusted-base handoff, labels gaps `[unverified]`, and never loads
 | Agent metadata, tools, model, delegation, handoff, MCP, or memory | [`claude-code-frontmatter.md`](skills/agent-authoring/references/claude-code-frontmatter.md) and the [local/external separation ADR](docs/decisions/2026-07-31-local-external-research-separation.md) |
 | Dependency, test entrypoint, or Gate A-path import | `requirements-dev.txt` and the [dependency ADR](docs/decisions/2026-08-23-allow-third-party-dependencies.md) |
 | Eval runner, grader class, or durable eval evidence | [`evals/README.md`](evals/README.md) and the [rubric-judge evaluation ADR](docs/decisions/2026-09-01-rubric-judge-evaluation-contract.md) |
-| Production change, deployment, release, or live dashboard write | [`production-change-gate`](skills/production-change-gate/SKILL.md) and [`release-gate`](skills/release-gate/SKILL.md) |
+| Production change, deployment, release, or live dashboard write | [`production-change-gate`](skills/production-change-gate/SKILL.md) |
 | Roadmap-linked probe | The active [`fleet-roadmap.md`](docs/fleet-roadmap.md) item and its instrument under [`docs/probes/`](docs/probes) |
 | Query catalog or observability reference | [`query-catalog.md`](skills/obs-logs/references/query-catalog.md) |
 | Operational learning, runbook, or knowledge disposition | [`operational-learning`](skills/operational-learning/SKILL.md) and its [disposition policy](skills/operational-learning/references/disposition-policy.md) |

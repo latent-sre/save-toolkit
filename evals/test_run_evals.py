@@ -203,7 +203,10 @@ class ScenarioValidationTests(unittest.TestCase):
         self.assertFalse(any("zero-tolerance" in p for p in problems))
 
     def test_not_fire_scenario_allows_root_scope(self) -> None:
+        # Unlike its siblings, this test calls validate() against the real repository root with no
+        # temp-dir override, so the target must be a real skill; merge-gate no longer exists.
         scenario = self._scenario(
+            target={"kind": "skill", "name": "production-change-gate"},
             mode="discovery",
             split="regression",
             routing={

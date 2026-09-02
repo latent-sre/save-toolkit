@@ -75,7 +75,7 @@ python evals/run_evals.py --validate
 python evals/run_evals.py --list
 python evals/run_evals.py --run --mode discovery --split calibration --trials 3
 python evals/run_evals.py --run --mode discovery --split regression --trials 3
-python evals/run_evals.py --run --mode direct --match merge-gate --trials 3
+python evals/run_evals.py --run --mode direct --match production-change-gate --trials 3
 ```
 
 `--validate` is the CI-safe schema, target, and grader check. `--run` needs a Claude-enabled runner

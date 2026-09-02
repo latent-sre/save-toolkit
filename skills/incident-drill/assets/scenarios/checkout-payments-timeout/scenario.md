@@ -2,7 +2,7 @@
 scenario: checkout-payments-timeout
 title: Checkout saturates when a raised dependency timeout meets one hung upstream instance
 severity_arc: P3 (on-call's first read) → P2 (triage) → P1 (burn alert) → resolved
-lanes: sre, incident-command, production-change-gate, observability-engineer, scribe, software-engineer, reviewer, merge-gate
+lanes: sre, incident-command, production-change-gate, observability-engineer, scribe, software-engineer, reviewer
 approx_cost_usd: 7.40
 approx_wall_clock_min: 90
 ---
@@ -75,7 +75,7 @@ your own before dispatch.
 | `12-obs-alert-proposal.md` | `observability-engineer` | prepare-only alert, tests, dashboard diff |
 | `13-software-engineer-fix-round.md` | `software-engineer` | one bounded fix round on the review findings |
 | `14-reviewer-rereview.md` | `reviewer` | append the delta diff and dispositions |
-| `15-merge-gate.md` | `merge-gate` | merge readiness on the exact candidate |
+| `15-merge-gate.md` | `production-change-gate` | merge readiness on the exact candidate |
 
 ## Human decision points
 

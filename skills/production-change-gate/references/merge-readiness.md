@@ -1,0 +1,22 @@
+# Merge readiness
+
+Read only for "is this change ready to merge". The parent `SKILL.md` owns the verdict shape and the
+rule that a later gate consumes this verdict without re-running it.
+
+`HEAD` means the PR head commit, never the local checkout. Any **NO** blocks; P0/P1 findings cannot
+be waived, and any other waiver is a recorded human decision.
+
+| Item | Passes when |
+|---|---|
+| CI | Build, lint, and the full suite are green in trusted CI at the exact PR-head commit, read from the CI record. An asserted result is `[unverified]` and is a NO. |
+| Behaviour tested | New or changed behaviour has a regression test that fails without the change, run at `HEAD`; stale evidence re-runs. |
+| Findings disposed | Every current P0/P1 review finding is fixed or rejected with evidence. An ordinary merge needs no independent re-review per push. |
+| Security | When auth, input handling, secrets, crypto, file or network access, or dependencies changed, the affected risks are assessed and no P0/P1 is open. No credential, token, or key in code, fixtures, artifacts, or logs. |
+| Compatible | Contract changes use expand-then-contract; migrations, API contracts, and UI state are checked for affected interfaces. A web GUI change checks keyboard and WCAG behaviour or records a waiver. |
+| Scoped | Smallest correct change, no dead code or unrelated churn; ask for a split only when size or mixed concerns prevent reliable review. |
+| Docs and ops | Changed behaviour or operations update the docs: a `scribe` handoff for runbooks or postmortems, an `observability-engineer` handoff for dashboards, alerts, or SLOs, or a recorded reason neither is needed. |
+
+Severity: P0/P1 block; a P2 blocks only when the candidate introduced or worsened it; P3 never
+blocks. This repository's ruleset requires a pull request and zero approvals, so this checklist
+never claims independent review is enforced; exact-commit independent review belongs to a
+production deployment, not to every merge.

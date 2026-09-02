@@ -39,6 +39,21 @@ changes. Do not restore `ship-review` or treat an exit-0 result as approval.
 
 ## Repository work
 
+### EVAL-008 — the clean room refuses to spawn tool-minimal agents
+
+**Status:** `decision-needed` (2026-09-02)
+**Owner:** Save Toolkit maintainers
+**Outcome:** Agent-target discovery scenarios in the clean room can dispatch `reviewer`,
+`repository-investigator`, `scribe`, and `researcher` and grade the routed agent's own answer.
+Today the runner passes `--tools Skill,Task`, so an agent whose frontmatter is `Read, Grep, Glob`
+resolves to zero tools and the CLI refuses the spawn ("would be spawned with zero tools —
+refusing"); the main session answers in the agent's place and the routing grader still records a
+dispatch. Measured 3/3 on `discovery-independent-change-review` on 2026-09-02.
+**Next action:** Owner decides between allowing `Read, Grep, Glob` in the clean room's neutral,
+empty workspace (harmless there, keeps the agent's real posture) or marking agent-target discovery
+as routing-only with no response graders; then `agent-engineer` implements it in `run_evals.py`.
+**Evidence:** [`2026-09-02 reviewer discovery packet`](reviews/2026-09-02-eval-20260902T043027Z-37d053cc.md)
+
 ### ROUTE-006 — the `defers-live-incident` routing grader misses the particle form `hand off to sre`
 
 **Status:** `decision-needed` (2026-09-01)
@@ -160,7 +175,7 @@ regression split at threshold 1.0, or move to calibration with the reason record
 means a skill regression rather than a routing coin-flip.
 **Next action:** Owner dispositions the three scenarios. Recommended: retain the 3/3 Mantine case as
 the regression, move the Preact review to calibration, and split the merge-readiness case so routing
-belongs to `merge-gate`.
+belongs to `production-change-gate`.
 **Evidence:** [`GRADER-005 closure`](reviews/2026-08-31-grader-005-closure.md)
 
 ### EVAL-005 — give the Grafana build probe a datasource worth writing a panel against

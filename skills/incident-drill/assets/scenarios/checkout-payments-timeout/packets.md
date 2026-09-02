@@ -950,8 +950,9 @@ do not merge) with what you could not check. Merging is not deploying; release-g
 ## 15-merge-gate.md
 
 ````markdown
-From Alex (release owner), 2026-08-25T00:28Z. Invoke `save-toolkit:merge-gate` through the Skill tool
-for the change below and give me the merge-readiness verdict in the gate's own shape. You are in the
+From Alex (release owner), 2026-08-25T00:28Z. Invoke `save-toolkit:production-change-gate` through the
+Skill tool, asking "is this ready to merge", for the change below and give me the merge-readiness
+verdict in the gate's own shape. You are in the
 checkout-service repository; the branch is checked out (HEAD = bf99b0a). Merging this branch into
 `main` is a repository action I will perform myself if the gate passes; it is NOT a deploy —
 release-gate and production-change-gate govern that separately. `cf`/`gcloud` are unavailable;

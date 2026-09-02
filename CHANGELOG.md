@@ -271,9 +271,14 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 - Generalized `release-gate` so non-GitHub distributions can prove immutable artifact identity
   without inheriting GitHub Release controls, while GitHub Releases still require current
   repository immutability and matching tag-ruleset evidence.
+- Folded `merge-gate` and `release-gate` into `production-change-gate` as its merge-readiness and
+  release-readiness references; one skill now answers "ready to merge", "ready to ship", and "may
+  this act on production", each with its own checklist and a shared verdict shape. 24.6 KB across
+  three skills is now 12.7 KB in one; `SKILL.md` is 7,488 B.
 
 ### Removed
 
+- Removed `skills/merge-gate` and `skills/release-gate`.
 - Removed 60 uncited dated packets under `docs/reviews/` (kept: everything a test or a live
   document cites; history is `git log -- docs/reviews`), `docs/rules.md`, and `docs/README.md`.
   `check_links.py` now reads `docs/reviews/*.md` as well, so a retention pass that keeps a packet
