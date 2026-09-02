@@ -98,59 +98,6 @@ class MeasurementCaptureTests(unittest.TestCase):
         self.assertIn("&lt;/pre&gt;", text)
         self.assertIn("bounded excerpt", text)
 
-    def test_eval_envelope_capture_keeps_claims_and_drops_private_trace_data(self) -> None:
-        root = self.make_root()
-        envelope = root / "eval-result-envelope-v1.json"
-        envelope.write_text(json.dumps({
-            "schema_version": "eval-result-envelope/v1",
-            "run_id": "20260826T120000Z-1234abcd",
-            "engine": {
-                "name": "codex-cli", "adapter_version": "1", "runtime_version": "codex 1",
-                "requested_model": "gpt-5.6-terra", "resolved_model": "gpt-5.6-terra",
-                "auth_mode": "subscriber_session",
-            },
-            "candidate": {"git_sha": "a" * 40, "clean": True, "input_sha256": "b" * 64},
-            "artifacts": {
-                "plugin_snapshot": {"applicable": False, "sha256": None},
-                "resolved_context": {"applicable": True, "sha256": "c" * 64},
-            },
-            "digests": {
-                "scenario_suite": "d" * 64, "graders": "e" * 64,
-                "execution_profile": "f" * 64, "comparison": "5" * 64,
-                "policy": "1" * 64,
-            },
-            "canaries": [{
-                "scenario_id": "case-one", "path": "skills/x/references/a.md",
-                "expected": "q_reference_1234", "observed": "q_reference_1234", "status": "PASS",
-            }],
-            "claims_requested": ["reference_used", "behavioral_contract"],
-            "claims_supported": [
-                "behavioral_contract", "candidate_snapshot_integrity",
-                "deterministic_grader_result", "reference_used",
-            ],
-            "scenarios": [{
-                "id": "case-one", "sha256": "2" * 64, "verdict": "PASS", "claims": [
-                    {"type": "reference_used", "status": "PASS", "evidence": ["3" * 64], "limitations": []},
-                    {"type": "behavioral_contract", "status": "PASS", "evidence": ["3" * 64], "limitations": []},
-                ],
-            }],
-            "verdict": "PASS",
-            "timing": {"started_at": "2026-08-26T12:00:00Z", "ended_at": "2026-08-26T12:03:00Z", "duration_seconds": 180},
-            "cost": {"status": "unavailable", "amount": None, "currency": None, "reason": "subscriber"},
-            "trace": {"complete": True, "sha256": "4" * 64},
-            "promotion_eligible": False,
-            "limitations": ["portable evidence only"],
-        }), encoding="utf-8")
-
-        output = capture.capture_eval_envelope(envelope, root / "docs" / "reviews")
-        text = output.read_text(encoding="utf-8")
-
-        self.assertIn("codex-cli", text)
-        self.assertIn("reference_used", text)
-        self.assertIn("skills/x/references/a.md", text)
-        self.assertIn("portable evidence only", text)
-        self.assertNotIn("session_id", text)
-
     def test_capture_refuses_overwrite(self) -> None:
         root = self.make_root()
         envelope = root / "exercise.json"

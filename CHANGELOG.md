@@ -239,6 +239,13 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   cleanup — match the whole first line against the `save-toolkit`/`sre-agents` markers, never a
   filename or prefix, because another installed suite's marker can differ by one character and
   share three role names.
+- Removed the multi-engine execution-profile and result-envelope eval stack (`engine_contract.py`,
+  `execution_profiles.py`, `eval_evidence.py`, `resolved_context.py`, the `evals/profiles/`
+  approved-profile directory, the `--profile` flag, and the Codex adapter/dispatch path in
+  `engine_adapters.py`/`run_evals.py`): it never changed a prompt, its cost field always reported
+  `unavailable`, and Codex live execution was already hard-disabled before `subprocess.run`. The
+  legacy `--run`/`--validate`/`--mode`/`--split`/`--match`/`--model`/`--trials` Claude-plugin path
+  is unchanged.
 
 ## [0.1.0] - 2026-08-11
 

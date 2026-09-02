@@ -11,33 +11,6 @@
       "generated_projections": []
     },
     {
-      "id": "eval-execution-profile-v1",
-      "uri": "https://github.com/latent-sre/save-toolkit/schemas/eval-execution-profile-v1.schema.json",
-      "version": 1,
-      "status": "supported",
-      "canonical_path": "schemas/eval-execution-profile-v1.schema.json",
-      "validator": "evals/execution_profiles.py",
-      "generated_projections": []
-    },
-    {
-      "id": "eval-execution-profile-v2",
-      "uri": "https://github.com/latent-sre/save-toolkit/schemas/eval-execution-profile-v2.schema.json",
-      "version": 2,
-      "status": "current",
-      "canonical_path": "schemas/eval-execution-profile-v2.schema.json",
-      "validator": "evals/execution_profiles.py",
-      "generated_projections": []
-    },
-    {
-      "id": "eval-result-envelope-v1",
-      "uri": "https://github.com/latent-sre/save-toolkit/schemas/eval-result-envelope-v1.schema.json",
-      "version": 1,
-      "status": "active",
-      "canonical_path": "schemas/eval-result-envelope-v1.schema.json",
-      "validator": "evals/engine_contract.py",
-      "generated_projections": []
-    },
-    {
       "id": "runbook-frontmatter-v1",
       "uri": "https://github.com/latent-sre/save-toolkit/schemas/runbook-frontmatter-v1.schema.json",
       "version": 1,

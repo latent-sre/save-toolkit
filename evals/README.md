@@ -7,9 +7,8 @@ look like a menu even when a path is not runnable or authoritative.
 
 | Component | Status | In Gate A? | How to run |
 |---|---|---|---|
-| **Claude native-plugin evals** — [`run_evals.py`](run_evals.py), [`graders.py`](graders.py), [`scenarios/`](scenarios) | **live** | no — run `python evals/run_evals.py --validate` against scenario edits yourself | Legacy `python evals/run_evals.py --run …` remains compatible. Claim-scoped runs use an approved execution profile and the operator's existing Claude subscriber login; API keys are not used by this fleet. |
+| **Claude native-plugin evals** — [`run_evals.py`](run_evals.py), [`graders.py`](graders.py), [`scenarios/`](scenarios) | **live** | no — run `python evals/run_evals.py --validate` against scenario edits yourself | `python evals/run_evals.py --run …` uses the operator's existing Claude subscriber login; API keys are not used by this fleet. |
 | **Fixture-backed build probes** — [`build_probe.py`](build_probe.py), [`build-scenarios/`](build-scenarios) | **live** | no — `python evals/build_probe.py --validate` checks the specs; `python evals/test_build_probe.py` covers the graders without a model | `python evals/build_probe.py --scenario all --label new_skill --model sonnet --trials 2 --out .eval-runs/build/<iteration>`; pass `--plugin-root <worktree>` and a different `--label` for the incumbent. Seeds each scenario's inline fixture repo in a temp dir outside the checkout, runs `claude -p --agent` there with the agent's real tools pre-approved (`--permission-mode dontAsk`), and grades **outcomes** in code (the suite the agent wrote is green when the probe runs it, a `cf` shim on PATH never received a live verb, the fork branch's code never executed — its files write a lock file the moment they run —, nothing committed or written to `.agents/`, which skills loaded). Text checks are supporting evidence only; the outcome checks decide. The clean-room env applies (allowlisted env, credential-only config, no web tools) but this is **not a sandbox**: the agent's Bash runs on the host with network, the operator's Claude credential copy sits in the child `CLAUDE_CONFIG_DIR` where an unguarded Read/Bash could reach it (the probe scans outputs for credential markers and warns), and the probe executes model-written tests in the workspace under a scrubbed env — team-authored agents and stdlib-only fixtures only. A trial is INCONCLUSIVE, never a verdict, when `claude` reports an error result, exits nonzero, never advertises its tool inventory, advertises an inventory other than the one requested, or carries an MCP server; an auth failure aborts. A read-only guard denial (`hooks/hooks.json` is live for `sre`, and the `sre` scenarios' `cf` shim logs every invocation so `cf_log_has_no` grades what reached it) is recorded as a guard decision and graded, but the guard's own `unavailable or failed` diagnostic is INCONCLUSIVE. Every run records the plugin root's commit, plugin-input dirty state, and source digest (`provenance.json`, the trace summary, the summary line); `--expect-plugin-digest` refuses any other bytes, and `--trials` must be positive. `--container IMAGE@sha256:…` applies the repository's Docker contract to the shell: every Bash call, hook, and grading command of the trial runs through `CLAUDE_CODE_SHELL_PREFIX` inside a `docker run --rm --network none` of the pinned image with only the workspace (read-write) and the plugin root (read-only) mounted, while `claude` stays on the host for the API; use it for any candidate that is not team-authored. The image needs `bash`, `git`, and `python`; on Windows the probe runs the wrapper with Git for Windows' `bash` (bare `bash` is the WSL stub) and mounts the workspace at both `/tmp/<name>` and the drive-letter form, because Git Bash reports `$PWD` under `/tmp` for a workspace in `AppData\Local\Temp`. Each shell call is its own `docker run`, so only the mounted workspace survives between calls — a scratch file the agent writes to the container's own `/tmp` is gone by the next command, and loopback networking still works inside a single call. Output uses the skill-creator reviewer layout; re-running a label refuses to overwrite existing runs without `--overwrite`, `--overwrite` replaces the summary entry too, and `--regrade` rewrites the trace summary and summary entries alongside `grading.json`. |
-| **Codex resolved-context evals** — same scenarios and deterministic graders through [`engine_adapters.py`](engine_adapters.py) | **offline; live activation blocked** | no | Profiles, bundles, commands, traces, and evidence contracts are validated offline. The runner refuses before starting `codex` because this CLI has no proven tool-read boundary separating the bundle from subscriber `HOME`/`CODEX_HOME`. This is not a Codex plugin or distribution target. |
 | **Codex/Terra ROUTE-001** | **retired 2026-08-22**; its decision is retained in Git history and its last diagnostic is the [Linux canary packet](../docs/reviews/2026-08-20-route001-linux-canary.md) | no | recover exact evaluator bytes from commit `0d95ba5de9fe38e4c601fc1eea4ff4bfab4e6fb9` only if a new accepted decision reopens them |
 | **Codex/Sol conformance** | **retired 2026-08-23**; its superseded decision is retained in Git history, and its 2026-07-31 results were **revoked** as release evidence and removed from the tree | n/a | tag `pre-trim-2026-08-02` preserves historical bytes; recover only after a new accepted decision names the Codex consumer, regression, or model migration plus an owner and fixed budget |
 
@@ -19,64 +18,6 @@ harness code. Gate A is structural only and does not run them. Retired execution
 the active tree, and frozen evidence remains read-only. Uncited sealed packets were folded into the
 [`eval measurement index`](../docs/reviews/2026-08-30-folded-eval-index.md); recover a full packet
 from git history by batch ID.
-
-The active Codex adapter does not restore the retired ROUTE-001 or Sol harnesses. It creates a
-bounded, read-only context bundle for one direct scenario and is designed to measure only the
-claims registered for `codex-cli` once its separate live-isolation blocker is resolved.
-
-## Multi-engine contract
-
-New live execution uses
-[`eval-execution-profile/v2`](../schemas/eval-execution-profile-v2.schema.json) to bind the engine,
-exact scenario IDs, requested claims, required references, requested model, accepted resolved-model
-identity, reasoning/effort setting, trials, per-trial timeout, total timeout, cost-budget
-representation, a bounded campaign stop condition, and a separate approval record carrying the
-approved frozen evaluator-suite digest. Historical
-[`v1`](../schemas/eval-execution-profile-v1.schema.json) profiles remain readable for retained
-evidence but cannot authorize a new live run because they do not bind resolved-model identity or
-reasoning effort. The profile also names one cross-engine comparison contract with complete
-Claude/Codex requested-model, resolved-model, and reasoning-effort matrices. Its engine-neutral
-digest binds those matrices, scenario/reference selection, trial count, timeouts, adapter contract
-version, stop condition, and both requested policy contracts; the reducer refuses envelopes whose comparison
-digests differ.
-The parent bootstrap copies that profile into the frozen evaluator before starting the child. A live
-run refuses `approval: null` or an approval whose suite digest differs from the frozen runner,
-grader, support, or scenario bytes; preparing or validating a profile does not call a model.
-To measure an older candidate with the current contract, run the accepted evaluator checkout and
-pass both `--plugin-root <CANDIDATE_CHECKOUT>` and `--expect-plugin-commit <FULL_40_CHAR_OID>`.
-The parent binds that candidate root into the frozen child, and provenance rejects a different HEAD
-before querying the model CLI version. This keeps evaluator bytes separate from measured plugin
-bytes; do not run an older candidate's bundled evaluator merely because its checkout is the subject.
-
-Both adapters emit [`eval-result-envelope/v1`](../schemas/eval-result-envelope-v1.schema.json)
-beside the legacy private summary when a profile is used. The envelope binds the exact candidate
-Git SHA and input digest, engine and adapter, runtime/model, scenario and grader digests, policy,
-trace integrity, reference canaries, and claim-specific verdicts. It records subscriber-session
-authentication without copying credential material. Codex subscription cost is `unavailable` with
-null amount and currency, never zero.
-
-A decisive Claude trial must observe the accepted resolved-model identity, and its command and
-policy digest bind the approved reasoning/effort setting. A decisive Claude reference trial must
-also trace both a successful `Read` of every required path inside the frozen plugin and a denied
-`Read` of an evaluator-created file outside it. A decisive Codex trial must obtain the accepted
-resolved model, reasoning/effort setting, and effective ambient policy from trusted CLI trace
-metadata; if the installed CLI does not expose them, the trial is `INCONCLUSIVE` and the policy
-digest is null. Requested flags are not treated as observed policy evidence.
-
-Codex live execution is additionally hard-disabled before `subprocess.run`. `--sandbox read-only`
-does not restrict reads, and subscriber authentication requires retaining host identity state. A
-candidate bundle is untrusted model context, so prompt instructions cannot safely prevent shell
-tools from reading or returning host files. Activation requires a structural no-tool or
-bundle-only read boundary plus an exact-CLI negative out-of-bundle probe; profile approval alone
-cannot bypass this gate.
-
-Claude can support native plugin/component and host-tool claims. Codex supports candidate integrity,
-reference use, portable behavior, and deterministic grader claims only. The comparison reducer
-classifies each shared claim, then each scenario, as agreement, behavioral divergence, evidence gap,
-or incomparable input. Any claim involving `INCONCLUSIVE` is an evidence gap; behavioral divergence
-is reserved for conflicting decisive `PASS`/`FAIL` evidence. It never averages verdicts, rates,
-durations, or costs, and neither engine can offset the other's failure. Automated evidence never
-promotes a candidate.
 
 ## Claude behavioral evals
 
@@ -126,15 +67,11 @@ and starts a fresh non-persistent process for every trial. It supports `--mode`,
 `--model`, `--timeout`, `--trials` (minimum 2), and `--threshold`. The discovery regression command
 selects skill targets only; agent-target discovery cases are optional calibration measurements.
 
-For a profile-backed run, do not combine `--profile` with `--mode`, `--split`, `--match`, `--model`,
-or `--trials`; the profile owns those values. A Codex profile may select direct scenarios only.
-Before any live run, the owner must separately approve the exact model, trial count, per-trial
-timeout, total timeout, and budget record. No such approval is implied by an accepted design or by
-offline test success. When a CLI reports trustworthy currency cost, the runner checks the approved
-ceiling after each trial and starts no later trial once exhausted or once a supposedly available
-cost is not reported; enforcement is therefore at one-trial granularity. Codex subscriber cost is
-unavailable, so its declared ceilings are trials and wall-clock time.
-Codex still refuses live execution until its independent isolation blocker is resolved.
+To measure an older candidate with the current evaluator, pass both
+`--plugin-root <CANDIDATE_CHECKOUT>` and `--expect-plugin-commit <FULL_40_CHAR_OID>`. The parent
+binds that candidate root into the frozen child, and provenance rejects a different HEAD before
+querying the model CLI version. This keeps evaluator bytes separate from measured plugin bytes; do
+not run an older candidate's bundled evaluator merely because its checkout is the subject.
 
 Pin `--model` on every `--run`. The fleet's measurement default is the `sonnet` alias unless the
 roadmap item or scenario names another tier: it is the tier the existing routing evidence was
@@ -220,14 +157,12 @@ This is a narrow evaluation boundary, not an OS security sandbox. Claude authent
 available to the CLI process, and the plugin source remains readable by the host. Use only reviewed,
 non-secret scenario prompts and keep raw traces private.
 
-The harness refuses to grade an unauthenticated run. Profile-backed multi-engine evals use the
-operator's existing subscriber sessions for Claude and Codex; they do not request, copy, or accept
-API keys. Bedrock, Vertex, and API-key-backed modes are outside this claim-scoped contract. The
-legacy profile-less Claude command retains its pre-existing direct-key compatibility during the
-expand/migrate window, but it cannot produce the new claim-scoped result.
+The harness refuses to grade an unauthenticated run. It uses the operator's existing Claude
+subscriber session; it does not request, copy, or accept API keys. Bedrock, Vertex, and
+API-key-backed modes are outside this contract.
 
-Raw stdout, stderr, `summary.json`, and profile-backed `eval-result-envelope-v1.json` land under
-`.eval-runs/<run-id>/`. The directory is gitignored.
+Raw stdout, stderr, and `summary.json` land under `.eval-runs/<run-id>/`. The directory is
+gitignored.
 After sealing `summary.json`, the runner must also create a bounded durable record under
 `docs/reviews/<date>-eval-<run-id>.md`; a capture failure makes the batch non-publishable. The record
 keeps identities, dirty-state flags, run-shaping conditions, verdicts, trial states, cost/duration,
@@ -237,7 +172,6 @@ paths. Backfill a sealed private batch with:
 
 ```powershell
 python scripts/capture_measurement_evidence.py eval .eval-runs/<run-id>/summary.json
-python scripts/capture_measurement_evidence.py eval-envelope .eval-runs/<run-id>/eval-result-envelope-v1.json
 ```
 
 For a host-owned agent task or session exercise, export the versioned JSON envelope described in
