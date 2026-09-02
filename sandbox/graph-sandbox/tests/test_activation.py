@@ -666,7 +666,7 @@ class ActivationTests(unittest.TestCase):
                 "exit_status": 0,
             }
             for phase, command in (
-                ("activation", ["python", "graph-sandbox/activate.py", "fresh"]),
+                ("activation", ["python", "sandbox/graph-sandbox/activate.py", "fresh"]),
                 ("preflight", ["docker", "--context", context, "compose", "config"]),
                 ("up", ["docker", "--context", context, "compose", "up"]),
                 ("export", ["docker", "--context", context, "container", "cp"]),
@@ -3884,7 +3884,7 @@ class ActivationTests(unittest.TestCase):
                         {
                             "command_version": "graph-sandbox-command/v1",
                             "phase": "activation",
-                            "command": ["python", "graph-sandbox/activate.py", "resume"],
+                            "command": ["python", "sandbox/graph-sandbox/activate.py", "resume"],
                             "time_utc": "2026-08-29T12:00:00.000Z",
                             "exit_status": 0,
                         }

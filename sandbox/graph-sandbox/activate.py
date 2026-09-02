@@ -2081,8 +2081,8 @@ def _command_record(phase: str, command: Sequence[str], exit_status: int) -> dic
 def _command_is_sanitized(phase: object, command: list[object]) -> bool:
     if phase == "activation":
         return command in (
-            ["python", "graph-sandbox/activate.py", "fresh"],
-            ["python", "graph-sandbox/activate.py", "resume"],
+            ["python", "sandbox/graph-sandbox/activate.py", "fresh"],
+            ["python", "sandbox/graph-sandbox/activate.py", "resume"],
         )
     if len(command) < 3 or command[:2] != ["docker", "--context"]:
         return False
@@ -3051,7 +3051,7 @@ def cleanup_published_resources(
 def _resume_command(args: argparse.Namespace) -> list[str]:
     return [
         "python",
-        "graph-sandbox/activate.py",
+        "sandbox/graph-sandbox/activate.py",
         "resume",
         "--docker-context",
         args.docker_context,
@@ -3275,7 +3275,7 @@ def activate_runtime(
                 commands=(
                     _command_record(
                         "activation",
-                        ["python", "graph-sandbox/activate.py", args.operation],
+                        ["python", "sandbox/graph-sandbox/activate.py", args.operation],
                         0,
                     ),
                     _command_record(
