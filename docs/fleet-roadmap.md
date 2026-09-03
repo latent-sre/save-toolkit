@@ -18,18 +18,20 @@ whose evidence is worth re-reading often enough should carry the packet back int
 
 ## Item contract
 
-Every live item carries six fields: **ID** (stable identifier), **Status** (`active`, `ready`,
+Every live item carries seven fields: **ID** (stable identifier), **Status** (`active`, `ready`,
 `blocked`, `decision-needed`, or `deferred`, dated), **Owner**, **Outcome** (what done looks like, in
-one or two sentences), **Next action** (the next concrete step and who takes it), and **Evidence**
-(one link to the record that proves current state, or `none yet`). An item leaves this file only
-when its Outcome is met and merged, or an owner disposition is committed — and once it leaves, the
-commit that removed it and its CHANGELOG entry are its record. Neither re-queues work.
+one or two sentences), **Next action** (the next concrete step and who takes it), **Evidence**
+(one link to the record that proves current state, or `none yet`), and **SRE task** (the task a
+human SRE does differently when this lands; an item that cannot name one is `deferred`). An item
+leaves this file only when its Outcome is met and merged, or an owner disposition is committed — and
+once it leaves, the commit that removed it and its CHANGELOG entry are its record. Neither re-queues
+work.
 
 ## Active runtime work
 
 ### WF-001 — establish a supported exact-dispatch boundary for Claude workflows
 
-**Status:** `blocked` (2026-08-30)
+**Status:** `deferred` (2026-09-03) — no SRE task names it; see SRE task below
 **Owner:** Save Toolkit maintainers
 **Outcome:** The repository carries no executable `ship-review` workflow until Claude provides a
 supported way to dispatch one exact trusted workflow without granting caller-supplied workflow code.
@@ -37,12 +39,14 @@ supported way to dispatch one exact trusted workflow without granting caller-sup
 implementation binding and a machine-enforceable finding verdict; re-probe only after one materially
 changes. Do not restore `ship-review` or treat an exit-0 result as approval.
 **Evidence:** `docs/reviews/2026-08-30-live-backlog-refresh.md` (removed 2026-09-02)
+**SRE task:** none named — this item only withholds an unsafe capability; landing it changes no task
+an SRE performs.
 
 ## Repository work
 
 ### ROUTE-006 — the `defers-live-incident` routing grader misses the particle form `hand off to sre`
 
-**Status:** `decision-needed` (2026-09-01)
+**Status:** `deferred` (2026-09-03) — no SRE task names it; see SRE task below
 **Owner:** Save Toolkit maintainers
 **Outcome:** The observability-engineer `…-defers-live-incident` discovery scenario accepts the
 particle phrasing `hand off to sre` as a valid deferral, or an owner records that the phrasing is
@@ -52,6 +56,8 @@ was superseded by the rubric judge.
 owner to edit was retired in the 2026-09-02 corpus cut. Re-decide under EVAL-009 whether the
 particle phrasing needs a scenario at all before authoring a new one.
 **Evidence:** `GRADER-009` closed row in `docs/roadmap-closed.md` (removed 2026-09-02)
+**SRE task:** none named — this decides only whether a grader accepts a phrasing; it does not change
+observability-engineer's own prompt or behavior.
 
 ### CONTEXT-001 — establish a generalized SRE operational-context contract
 
@@ -69,11 +75,12 @@ approval.
 condition-7 safety boundary together, complete independent review of the remaining acceptance
 evidence, then ask the owner to accept or reject the generic alpha.
 **Evidence:** `docs/reviews/2026-08-30-live-backlog-refresh.md` (removed 2026-09-02)
+**SRE task:** An SRE (or a skill/agent acting for them) states their team, service, environment, and
+deployment once in schema-valid config, instead of restating it in every session.
 
 ### GRAPH-004 — `fleet-atlas`: a revision-bound knowledge graph over fleet artifacts
 
-**Status:** `blocked` (2026-08-31). Successive exact-head reviews keep finding contract defects;
-the current implementation is not a merge candidate.
+**Status:** `deferred` (2026-09-03) — no SRE task names it; see SRE task below
 **Owner:** `software-engineer` owns the generator, schema, and tests; `agent-engineer` owns the
 `fleet-atlas` skill; Save Toolkit maintainers accept the exact candidate revision.
 **Outcome:** A deterministic static atlas answers fleet-artifact provenance and ownership questions
@@ -82,10 +89,12 @@ with `path:line` citations and an exact source revision, returning `UNKNOWN` rat
 a typed, evidence-bound replacement from current main; do not merge, close, or rewrite the donor PR
 before the replacement reaches semantic parity and the owner makes an exact-candidate decision.
 **Evidence:** [PR #205](https://github.com/latent-sre/save-toolkit/pull/205)
+**SRE task:** none named — this answers fleet-artifact provenance questions for the people building
+the fleet, not an incident-response or operational task.
 
 ### GRAPH-005 — AutoGen GraphFlow + A2A canary-evidence sandbox
 
-**Status:** `active` (2026-08-31)
+**Status:** `deferred` (2026-09-03) — no SRE task names it; see SRE task below
 **Owner:** `software-engineer` owns the runtime, cases, and tests; Save Toolkit maintainers accept
 the exact final revision.
 **Outcome:** A hardened, offline, two-container sandbox proves a Microsoft Agent Framework workflow
@@ -95,11 +104,12 @@ exactly one human accept/reject decision that writes only a local record.
 rerun the exact candidate's pinned-image and six-case lifecycle with cleanup evidence before any
 pull request or acceptance decision.
 **Evidence:** `docs/reviews/2026-08-30-autogen-a2a-exact-revision-verification.md` (removed 2026-09-02)
+**SRE task:** none named — this is a runtime-canary sandbox for fleet engineering, not a capability an
+SRE uses.
 
 ### GRAPH-006 — refactor `fleet-atlas` around a typed, evidence-bound pipeline
 
-**Status:** `ready` (2026-08-31). Approved direction only; no replacement branch or candidate exists
-yet.
+**Status:** `deferred` (2026-09-03) — no SRE task names it; see SRE task below
 **Owner:** `software-engineer` owns the replacement design and implementation; `agent-engineer` owns
 consumer-skill and scenario compatibility; Save Toolkit maintainers accept the exact candidate.
 **Outcome:** One explicit pipeline extracts every node with source-span-backed attributes and edges,
@@ -109,11 +119,12 @@ stay compatible until a measured cutover says otherwise.
 replacement branch from current main and implement in small builder-owned commits, keeping PR #205
 open until the replacement proves parity or is rejected.
 **Evidence:** [PR #205](https://github.com/latent-sre/save-toolkit/pull/205)
+**SRE task:** none named — same fleet-artifact provenance tool as GRAPH-004, still not an operational
+task.
 
 ### HOST-002 — measure VS Code tool enforcement and re-probe hook portability
 
-**Status:** `active` (2026-08-30). The installed-Claude-CLI visibility gap is closed; the VS Code
-boundary remains open.
+**Status:** `deferred` (2026-09-03) — no SRE task names it; see SRE task below
 **Owner:** Save Toolkit maintainers
 **Outcome:** The guarded roles' VS Code posture rests on observed host behavior, establishing whether
 the read-only guard is portable to that host or whether policy-delivered Copilot managed settings are
@@ -125,6 +136,8 @@ real plugin `software-engineer` -> `reviewer` edge and the paired allowed/forbid
 the agent-scoped hook canary. Do not infer runtime enforcement from source alone or populate
 `hooks/copilot-hooks.json` before that.
 **Evidence:** `docs/reviews/2026-08-30-vscode-subagent-handoff-enforcement.md` (removed 2026-09-02)
+**SRE task:** none named — this measures host enforcement for the fleet's own guard; it changes no
+task an SRE performs.
 
 ### SKILL-001 — make confirmed oversized skills conditional routers
 
@@ -140,11 +153,12 @@ undispositioned entrypoints at or above the 7,800-byte screen: `obs-dashboards`,
 on 2026-09-01; after a cut, run `python scripts/check_links.py` (link containment and explicit-only
 frontmatter) and the skill's eval scenarios.
 **Evidence:** `docs/reviews/2026-08-30-skill-001-7800-screen.md` (removed 2026-09-02)
+**SRE task:** An SRE gets a faster, cheaper answer, because a skill only loads the routing detail the
+call actually needed instead of every branch's reference material.
 
 ### ROUTE-003 — remeasure workflow-graph discovery reliability (the service-readiness scenario was retired 2026-09-02)
 
-**Status:** `decision-needed` (2026-08-31). Both the original and one approved replacement batch
-ended INCONCLUSIVE (provider `server_error`, then expired OAuth) without resolving a model.
+**Status:** `deferred` (2026-09-03) — no SRE task names it; see SRE task below
 **Owner:** Save Toolkit maintainers
 **Outcome:** The two positive discovery routes left inconclusive by Batch 1 get reproducible,
 model-labelled reliability evidence before either is promoted into a stronger routing claim.
@@ -152,11 +166,12 @@ model-labelled reliability evidence before either is promoted into a stronger ro
 inconclusive attempts are sufficient to dispose the measurement or whether a newly designed,
 separately approved v2 campaign is warranted. Do not reuse either consumed profile.
 **Evidence:** `docs/reviews/2026-09-01-decision-backlog-reconciliation.md` (removed 2026-09-02)
+**SRE task:** none named — landing this produces reliability evidence for a future promotion
+decision; it does not itself change routing behavior.
 
 ### ROUTE-004 — the three `frontend-craft` discovery scenarios route unreliably on Sonnet
 
-**Status:** `decision-needed` (2026-09-01). A later exact-revision native batch is merged and
-disposition-ready; the three scenarios no longer support one shared routing conclusion.
+**Status:** `deferred` (2026-09-03) — no SRE task names it; see SRE task below
 **Owner:** Save Toolkit maintainers
 **Outcome:** The `frontend-craft` regression scenarios either fire reliably enough to sit in the
 regression split at threshold 1.0, or move to calibration with the reason recorded, so a red there
@@ -166,11 +181,12 @@ leaving only the Mantine case, already in the regression split at threshold 1.0;
 positive is now the routing-reliability instrument for `frontend-craft`. Owner still decides whether
 it alone is sufficient evidence or a replacement calibration case is warranted.
 **Evidence:** `docs/reviews/2026-08-31-grader-005-closure.md` (removed 2026-09-02)
+**SRE task:** none named — `frontend-craft` is a software-engineer-lane skill, and this item only
+disposes an eval-reliability question about it.
 
 ### EVAL-005 — give the Grafana build probe a datasource worth writing a panel against
 
-**Status:** `active` (2026-08-31). The Prometheus fixture and its outcome relation are committed and
-independently reviewed with no P0/P1; Docker runtime measurement remains pending.
+**Status:** `deferred` (2026-09-03) — no SRE task names it; see SRE task below
 **Owner:** `observability-engineer` implements; Save Toolkit maintainers accept.
 **Outcome:** `build-obs-dashboard-write-honours-the-carve-out` can measure whether the dashboard write
 lands, not only whether the Tier 2 boundary holds, because the seeded datasource returns real data
@@ -179,11 +195,12 @@ for a real query.
 plugin revisions, three Sonnet trials per side, no tuning or retries — and record Docker/image
 identities before deciding closure.
 **Evidence:** `docs/reviews/2026-08-31-eval-005-prometheus-probe-gate.md` (removed 2026-09-02)
+**SRE task:** none named — this strengthens what one build probe measures; it changes no dashboard an
+SRE reads.
 
 ### EVAL-006 — calibrate `discovery-gcp-ops-cloud-run-startup` against measured model behavior
 
-**Status:** `decision-needed` (2026-09-01). Option (a) is applied and confirmed at nine trials; the
-remaining decision is the instrumented path.
+**Status:** `deferred` (2026-09-03) — no SRE task names it; see SRE task below
 **Owner:** Save Toolkit maintainers
 **Outcome:** The scenario states which path it grades, and its prompt, fixture, and graders agree on
 that path, so a red is attributable to the change under test rather than to instrument noise or a
@@ -192,6 +209,8 @@ task the fixture forbids.
 the degraded advisory path, and rewrite the prompt/`success_criteria` to say the lane cannot inspect
 live in this fixture, requiring human-run read-only checks and the rollback packet.
 **Evidence:** `docs/reviews/2026-09-01-decision-backlog-reconciliation.md` (removed 2026-09-02)
+**SRE task:** none named — this rewrites an eval fixture's prompt to match what `gcp-ops` already
+does; it does not change `gcp-ops`'s own guidance to the SRE.
 
 ### LIFECYCLE-001 — a service record stays true for the whole service life
 
@@ -204,11 +223,12 @@ and `service-readiness-audit` folded in 2026-09-02), not a separate effect-shape
 Carry the two schema enhancements (`last_verified`/`maxAge`, and a `forbidden` path list) to
 CONTEXT-001 as amendments rather than a skill-local schema.
 **Evidence:** none yet
+**SRE task:** An SRE reading a service record trusts it is current, because every lifecycle
+transition (change, remediation, refresh, retirement) has a real owner writing to it.
 
 ### EVAL-007 — grade incident behaviour without phrase adjacency
 
-**Status:** `decision-needed` (2026-09-01). The structured pilot and offline repair remain valid
-partial evidence.
+**Status:** `deferred` (2026-09-03) — no SRE task names it; see SRE task below
 **Owner:** Save Toolkit maintainers
 **Outcome:** A behavioural incident scenario returns a verdict that reflects the response rather than
 its phrasing, so a red result is worth investigating instead of routinely being a missed synonym.
@@ -216,6 +236,8 @@ its phrasing, so a red result is worth investigating instead of routinely being 
 EVAL-007 closure contract (EVAL-004 is superseded by EVAL-009). Recommended: one structured or named-relation grader plus one
 clean committed guidance-removal candidate for the counterfactual.
 **Evidence:** `docs/reviews/2026-09-01-decision-backlog-reconciliation.md` (removed 2026-09-02)
+**SRE task:** none named — this is a grading-fidelity fix for one eval scenario; it changes no
+incident-response behavior.
 
 ### ROUTE-005 — restate `incident-investigation`'s triggers in on-call phrasing
 
@@ -229,6 +251,8 @@ routing win.
 the incumbent (now named `investigation-depth`) retained. On acceptance, move this item to
 `roadmap-closed.md` with the paired evidence.
 **Evidence:** `docs/reviews/2026-08-30-route-005-paired-result.md` (removed 2026-09-02)
+**SRE task:** An on-call SRE using plain on-call phrasing, not meta "use the skill" language, is
+routed into `incident-investigation` reliably — if the candidate is accepted.
 
 ## Deferred
 
@@ -246,6 +270,7 @@ transitional checkpoint, not a baseline, and is retired once this one exists.
 refusal coverage (the two retired `agent-security` scenarios) is re-added as a rubric-graded
 scenario when the baseline is reset.
 **Evidence:** [`PR #212`](https://github.com/latent-sre/save-toolkit/pull/212)
+**SRE task:** none named — eval-harness baseline maintenance only; no SRE-facing behavior changes.
 
 ### EFFECT-001 — effect-bound execution broker
 
@@ -257,3 +282,5 @@ one exact action, target, argv/executable digest, expiry, nonce, rollback, and r
 execution path rather than reduce current authority. Reopens only when a named workflow is approved
 to cross the current prepare/recommend boundary with a separately controlled execution identity.
 **Evidence:** none yet
+**SRE task:** An SRE approving a live automated action gets one exact, bound, revocable approval —
+target, argv/executable digest, expiry, rollback — instead of an open-ended execution grant.

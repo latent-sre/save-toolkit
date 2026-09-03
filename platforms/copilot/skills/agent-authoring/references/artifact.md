@@ -48,6 +48,9 @@ decision evidence; scratch attempts are discarded.
 - Independent review is conditional — a finding needing independent reconciliation, a
   security/authority rule, or exact-SHA production-deployment evidence — not a universal merge
   prerequisite. A bounded read-only canary only for a named host or runtime risk.
+- Before adding text to an always-loaded file, ask the model tools-off; if it already answers, the
+  text is a tax. Prose carries the team's choices among alternatives and facts the model lacks; a
+  rule the model reads and does not apply ships as a copied test or asset, not a stronger sentence.
 
 ## Descriptions
 
