@@ -57,7 +57,7 @@ The one manual command is `/save-toolkit:adr` (ADR scaffold).
 | `reviewer` *(for maintainers and builders)* | Read-only correctness, quality, and security review | Reports findings; hands approved fixes to `software-engineer`; terminal |
 | `agent-engineer` *(for maintainers)* | The fleet's prompts, agents, skills, descriptions, evals, bounded prompt/eval loops, roster/delegation graphs, and portable executable workflow-graph designs | Delegates only sanitized public lookups to `researcher`; the caller separately dispatches helper code to `software-engineer` and injection-surface review to `reviewer` |
 
-The 28 skills, by area (each `skills/<name>/SKILL.md` carries its own description and triggers):
+The 26 skills, by area (each `skills/<name>/SKILL.md` carries its own description and triggers):
 
 - **Incident and operations** — `incident-investigation`, `investigation-depth`, `root-cause`, `incident-command`, `postmortem`, `runbook`,
   `operational-learning`, `service-lifecycle` (audit, onboard, and retire modes)
@@ -65,7 +65,7 @@ The 28 skills, by area (each `skills/<name>/SKILL.md` carries its own descriptio
   `obs-pipeline`
 - **Platform** — `stack-profile`, `pcf-ops`, `pcf-deploy`, `gcp-ops`, `akamai-edge`
 - **Change gates** — `production-change-gate`
-- **Engineering craft** — `language-idiom`, `backend-craft`, `frontend-craft`, `ops-tooling`,
+- **Engineering craft** — `backend-craft`, `frontend-craft`,
   `ci-actions`, `database-reliability`, `eng-ladder`
 - **For maintainers: the fleet itself and the graphs it designs** — `agent-authoring`
 

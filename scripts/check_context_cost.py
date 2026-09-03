@@ -72,8 +72,7 @@ TASK_FILES: dict[str, list[str]] = {
     "Build a backend change": [
         "agents/software-engineer.md",
         "skills/backend-craft/SKILL.md",
-        "skills/language-idiom/SKILL.md",
-        "skills/language-idiom/references/python.md",
+        "skills/stack-profile/references/application-and-data-stack.md",
         "skills/production-change-gate/SKILL.md",
     ],
 }

@@ -1,6 +1,6 @@
 # Graph-sandbox project context
 
-These instructions apply only under `graph-sandbox/`. The root `AGENTS.md`, the accepted GRAPH-002
+These instructions apply only under `sandbox/graph-sandbox/`. The root `AGENTS.md`, the accepted GRAPH-002
 runtime decision, and the live roadmap remain authoritative.
 
 ## Environment card
@@ -8,14 +8,14 @@ runtime decision, and the live roadmap remain authoritative.
 - **Toolchain**: Python 3.12.10 at `python`; Docker Engine 29.7.2 Linux/amd64; Docker Compose 5.4.0;
   container base `python:3.12.10-slim-bookworm@sha256:97983fa8cc88343512862c62307159a82261c3528dc025f79e5a3f7af43e50b4`
   for Linux/amd64.
-- **Build**: `python graph-sandbox/activate.py build --docker-context <named-local-context> --source-revision <40-lowercase-hex>`.
-- **Run**: `python graph-sandbox/activate.py fresh --docker-context <same-named-local-context> --source-revision <same-40-hex> --run-id mission-healthy-001 --evidence-root <existing-canonical-dir> --case mission-healthy-001 --approval-fixture APPROVED`.
+- **Build**: `python sandbox/graph-sandbox/activate.py build --docker-context <named-local-context> --source-revision <40-lowercase-hex>`.
+- **Run**: `python sandbox/graph-sandbox/activate.py fresh --docker-context <same-named-local-context> --source-revision <same-40-hex> --run-id mission-healthy-001 --evidence-root <existing-canonical-dir> --case mission-healthy-001 --approval-fixture APPROVED`.
 - **Resume**: replace `fresh` with `resume` and reuse the exact context, revision, run ID, and
   evidence root. `activate.py` is the only supported activation path; never invoke the runtime
   Compose file directly.
-- **Test**: `python -m unittest discover -s graph-sandbox/tests -p "test_*.py"` for host-side contract/preflight tests; the Compose integration command is the Run command above.
+- **Test**: `python -m unittest discover -s sandbox/graph-sandbox/tests -p "test_*.py"` for host-side contract/preflight tests; the Compose integration command is the Run command above.
 - **Ports**: none — the offline profile publishes no host ports; service ports exist only on the internal Compose network.
-- **Module identity**: `git@github.com:latent-sre/save-toolkit.git`; implementation root `graph-sandbox/`; contract `checkout-payments-timeout-drill/v1`.
+- **Module identity**: `git@github.com:latent-sre/save-toolkit.git`; implementation root `sandbox/graph-sandbox/`; contract `checkout-payments-timeout-drill/v1`.
 - **Credentials**: none — the offline profile accepts no model, cloud, GitHub, PCF, SSH, or host credential mount or environment variable.
 - **Progress**: GRAPH-002 and GRAPH-003 are closed. The post-closure same-effect reconciliation
   proof merged in PR #197 and is historical evidence, not remaining roadmap work. Current work is
@@ -31,7 +31,9 @@ runtime decision, and the live roadmap remain authoritative.
 
 ## Local implementation constraints
 
-- Direct host execution is allowed only for the standard-library preflight validator and tests.
+- Direct host execution is allowed only for the standard-library preflight validator, the tests, and
+  the standard-library alert evaluator (`scripts/graph_sandbox_alerts.py`), which reads evidence a
+  run already published and contacts no Grafana, notification route, or live system.
   LangGraph and all synthetic application code execute only inside `graph-sandbox/v1` containers.
 - The default Compose network is `internal: true`; publish no host ports and mount no Docker socket,
   host home, credential store, SSH agent, or arbitrary workspace path.

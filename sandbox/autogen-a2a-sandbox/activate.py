@@ -26,6 +26,7 @@ EXIT_PRECONDITION = 69
 EXIT_RUNTIME = 70
 EXIT_PENDING = 20
 EXIT_TERMINAL = 2
+CHECKOUT_SEARCH_DEPTH = 4
 
 _REVISION = re.compile(r"^[0-9a-f]{40}$")
 _IMAGE_ID = re.compile(r"^sha256:[0-9a-f]{64}$")
@@ -750,7 +751,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         revision = _validated_revision(args.source_revision)
         context = _validated_context_name(args.docker_context)
         root = Path(__file__).resolve().parent
-        repo = root.parent
+        repo = _checkout_root(root)
         _validate_source_tree(repo, root, revision)
         daemon_id = _validate_docker_context(context)
         if args.command == "build":
@@ -1856,6 +1857,17 @@ def _validated_run_id(value: str) -> str:
     if _RUN_ID.fullmatch(value) is None:
         raise ActivationError("invalid_run", "run ID is malformed", EXIT_USAGE)
     return value
+
+
+def _checkout_root(sandbox: Path) -> Path:
+    """Nearest ancestor that is the checkout itself, whatever depth the sandbox sits at."""
+
+    for candidate in list(sandbox.parents)[:CHECKOUT_SEARCH_DEPTH]:
+        if (candidate / ".git").exists() and (candidate / "AGENTS.md").is_file():
+            return candidate
+    raise ActivationError(
+        "source_mismatch", "sandbox is outside the expected checkout", EXIT_PRECONDITION
+    )
 
 
 def _validate_source_tree(repo: Path, sandbox: Path, revision: str) -> None:

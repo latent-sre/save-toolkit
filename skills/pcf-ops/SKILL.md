@@ -91,7 +91,7 @@ evidence gathered so far in this triage, and no others.
 
 | If the request involves… | Read first |
 |---|---|
-| App crashes, status 137, OOM evidence, `$PORT`, or liveness/readiness health checks | [Application crashes and health checks](./references/application-crashes-and-health-checks.md) |
+| App crashes, status 137, OOM evidence, JVM memory sizing, `$PORT`, or liveness/readiness health checks | [Application crashes and health checks](./references/application-crashes-and-health-checks.md) |
 | `X-Cf-RouterError`, 404/502/503 interpretation, keep-alive failures, connection limits, route services, or certificate/clock-skew symptoms | [Router errors](./references/router-errors.md) |
 | The task requires repository-owned foundation/API, org/space, app inventory, route, owner, or runbook values, or the expected target for a human helper | [Foundations and app inventory](./references/foundations.md) |
 

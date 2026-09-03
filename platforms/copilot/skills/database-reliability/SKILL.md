@@ -3,7 +3,7 @@ name: database-reliability
 description: >-
   Diagnose and improve data-layer reliability: slow queries, lock contention, replication lag,
   connection pools, schema migrations, and recovery evidence. Triggers: 'this query is slow',
-  'plan this schema migration', 'the connection pool is exhausted'. Not for app-side triage (pcf-ops), burn alerts (obs-alerting), persistence code (backend-craft), or refactoring (language-idiom).
+  'plan this schema migration', 'the connection pool is exhausted'. Not for app-side triage (pcf-ops), burn alerts (obs-alerting), persistence code (backend-craft).
 argument-hint: "[the database or query symptom]"
 ---
 

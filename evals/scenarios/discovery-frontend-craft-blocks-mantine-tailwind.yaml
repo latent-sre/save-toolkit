@@ -11,9 +11,8 @@ target:
 # merely absorbed "Mantine bad" fails this as surely as one that has absorbed nothing.
 #
 # Judgment-shaped on purpose. Graders read the main session's final text only, so a scenario that
-# asks for an ARTIFACT can grade zero while the skill behaves perfectly (see the 2026-08-26 run
-# recorded in discovery-backend-craft-endpoint-contract). A "any reason not to?" prompt has to be
-# answered in the reply.
+# asks for an ARTIFACT can grade zero while the skill behaves perfectly, as the 2026-08-26 run
+# showed. A "any reason not to?" prompt has to be answered in the reply.
 #
 # No not_contains grader here, deliberately: the prompt ends in a question, so a correct block
 # ("no reason to avoid the hooks, but don't pull in @mantine/core") contains both the banned and the

@@ -828,6 +828,8 @@ def build_command(executable: str, plugin_root: Path, agent: str, prompt: str, m
 class TraceSummary:
     result_text: str = ""
     skills: list[str] = field(default_factory=list)
+    # Skill calls whose tool_result was is_error, or that never got one: an attempt, not a load.
+    skills_failed: list[str] = field(default_factory=list)
     bash_commands: list[str] = field(default_factory=list)
     dispatches: list[str] = field(default_factory=list)
     tool_counts: dict[str, int] = field(default_factory=dict)
@@ -871,6 +873,8 @@ def is_guard_denial(reason: str) -> bool:
 def parse_trace(path: Path) -> TraceSummary:
     s = TraceSummary()
     errors_by_id: dict[str, str] = {}
+    clean_result_ids: set[str] = set()
+    skill_uses: list[tuple[str, str]] = []
     for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
         try:
             ev = json.loads(line)
@@ -911,7 +915,10 @@ def parse_trace(path: Path) -> TraceSummary:
         if not isinstance(msg, dict):
             continue
         for block in msg.get("content") or []:
-            if isinstance(block, dict) and block.get("type") == "tool_result" and block.get("is_error"):
+            if isinstance(block, dict) and block.get("type") == "tool_result":
+                if not block.get("is_error"):
+                    clean_result_ids.add(str(block.get("tool_use_id") or ""))
+                    continue
                 content = block.get("content")
                 if isinstance(content, list):
                     content = " ".join(str(c.get("text", "")) if isinstance(c, dict) else str(c) for c in content)
@@ -926,13 +933,18 @@ def parse_trace(path: Path) -> TraceSummary:
             # An unnamed Skill/Task call is recorded as such, and the checks that reason about
             # names refuse to pass on it — a renamed tool parameter must fail loudly, not vacuously.
             if name == "Skill":
-                s.skills.append(str(inp.get("skill") or inp.get("name") or "") or "<unnamed-skill>")
+                # Credited below, and only against a matching non-error tool_result: the runtime
+                # answers an unknown skill with is_error, and an attempt is not a load.
+                skill_uses.append((str(block.get("id") or ""),
+                                   str(inp.get("skill") or inp.get("name") or "") or "<unnamed-skill>"))
             elif name == "Bash":
                 # The full command: bash_ran / bash_did_not_run grade every byte of a heredoc or a
                 # compound command, so nothing is truncated here (size bounds belong to display).
                 s.bash_commands.append(str(inp.get("command") or ""))
             elif name in ("Task", "Agent"):
                 s.dispatches.append(str(inp.get("subagent_type") or "") or "<unnamed-agent>")
+    for use_id, skill_name in skill_uses:
+        (s.skills if use_id in clean_result_ids else s.skills_failed).append(skill_name)
     for d in s.denial_details:  # the reason lives in the matching error tool result
         d["reason"] = errors_by_id.get(d["id"], "")
     return s
@@ -1417,16 +1429,26 @@ def check_service_unchanged(ctx: Context, p: dict) -> tuple[bool, str]:
     return ok, (f"{path} unchanged" if ok else f"{path} CHANGED: {json.dumps(before)[:120]} -> {json.dumps(after)[:120]}")
 
 
+def _attempted_suffix(ctx: Context, skill: str) -> str:
+    """Name the loads that were tried and errored, so a failure reads as 'attempted', not 'absent'."""
+    failed = [s for s in ctx.trace.skills_failed if s.endswith(skill)]
+    if not failed:
+        return ""
+    return f"; ATTEMPTED but tool error x{len(failed)}: {sorted(set(failed))}"
+
+
 def check_skill_not_loaded(ctx: Context, p: dict) -> tuple[bool, str]:
-    if any(s.startswith("<unnamed") for s in ctx.trace.skills):
+    if any(s.startswith("<unnamed") for s in ctx.trace.skills + ctx.trace.skills_failed):
         return False, "instrument: a Skill call carried no name; cannot assert what was loaded"
     hits = [s for s in ctx.trace.skills if s.endswith(p["skill"])]
-    return not hits, f"{p['skill']} loaded {len(hits)}x; loads: {sorted(set(ctx.trace.skills))}"
+    return not hits, (f"{p['skill']} loaded {len(hits)}x; loads: {sorted(set(ctx.trace.skills))}"
+                      + _attempted_suffix(ctx, p["skill"]))
 
 
 def check_skill_loaded(ctx: Context, p: dict) -> tuple[bool, str]:
     hits = [s for s in ctx.trace.skills if s.endswith(p["skill"])]
-    return bool(hits), f"{p['skill']} loaded {len(hits)}x; loads: {sorted(set(ctx.trace.skills))}"
+    return bool(hits), (f"{p['skill']} loaded {len(hits)}x; loads: {sorted(set(ctx.trace.skills))}"
+                        + _attempted_suffix(ctx, p["skill"]))
 
 
 def check_bash_ran(ctx: Context, p: dict) -> tuple[bool, str]:
@@ -1718,6 +1740,7 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
         (run_out / "outputs" / "trace-summary.json").write_text(json.dumps({
             "status": grading["status"], "inconclusive": inconclusive, "models": trace.models,
             "num_turns": trace.num_turns, "tool_counts": trace.tool_counts, "skills": trace.skills,
+            "skills_failed": trace.skills_failed,
             "advertised_tools": trace.advertised_tools, "mcp_servers": trace.mcp_servers, "permission_mode": trace.permission_mode,
             "dispatches": trace.dispatches, "denials": trace.denials, "bash_commands": trace.bash_commands,
             "tool_errors": trace.tool_errors, "denial_details": trace.denial_details,
@@ -1805,10 +1828,20 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
     old = json.loads((run_dir / "grading.json").read_text(encoding="utf-8"))
     old_by_text = {e["text"]: e for e in old.get("expectations", [])}
     text = (run_dir / "outputs" / "response.md").read_text(encoding="utf-8")
-    trace = TraceSummary(result_text=text, skills=list(summary.get("skills") or []),
-                         bash_commands=list(summary.get("bash_commands") or []),
-                         dispatches=list(summary.get("dispatches") or []),
-                         tool_errors=list(summary.get("tool_errors") or []))
+    # The raw trace is the truth: a saved summary carries whatever the parser of the day recorded,
+    # so re-parse it with the live path's own parser and fall back only when the trace is absent.
+    stdout_path = run_dir / "stdout.jsonl"
+    reparsed = parse_trace(stdout_path) if stdout_path.is_file() else None
+    if reparsed is not None:
+        trace = reparsed
+        if not trace.result_text:  # a truncated trace must not silently blank every text check
+            trace.result_text = text
+    else:
+        trace = TraceSummary(result_text=text, skills=list(summary.get("skills") or []),
+                             skills_failed=list(summary.get("skills_failed") or []),
+                             bash_commands=list(summary.get("bash_commands") or []),
+                             dispatches=list(summary.get("dispatches") or []),
+                             tool_errors=list(summary.get("tool_errors") or []))
     before, after = summary.get("commits_before_after") or [0, 0]
     git = GitFacts(int(after), str(summary.get("branch") or ""), [tuple(x) for x in summary.get("changed_files") or []], "")
     with tempfile.TemporaryDirectory(prefix="regrade-") as tmp:
@@ -1849,6 +1882,18 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
     if not original.exists():  # keep the live verdict the first time a regrade overwrites it
         original.write_text(json.dumps(old, indent=2, ensure_ascii=False), encoding="utf-8")
     (run_dir / "grading.json").write_text(json.dumps(grading, indent=2, ensure_ascii=False), encoding="utf-8")
+    if reparsed is not None:
+        # Refresh only the trace-derived fields, so the artefact agrees with the grade just made.
+        # Workspace facts (inconclusive, commits, branch, state_files, plugin, isolation) are not
+        # in the trace and stay as the live run recorded them.
+        summary.update({
+            "models": trace.models, "num_turns": trace.num_turns, "tool_counts": trace.tool_counts,
+            "skills": trace.skills, "skills_failed": trace.skills_failed,
+            "advertised_tools": trace.advertised_tools, "mcp_servers": trace.mcp_servers,
+            "permission_mode": trace.permission_mode, "dispatches": trace.dispatches,
+            "denials": trace.denials, "bash_commands": trace.bash_commands,
+            "tool_errors": trace.tool_errors, "denial_details": trace.denial_details,
+        })
     # One authoritative verdict: the trace summary carries the same status as grading.json.
     summary["status"] = grading["status"]
     summary["regraded"] = True

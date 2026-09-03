@@ -134,10 +134,9 @@ skill per slice, probe-before-routing.
 **Outcome:** No skill spends a caller's context on detail the call did not need, or on what the
 fleet's models already produce unprompted. Each screened entrypoint gets one probe-then-checkpoint
 disposition; a committed component contract outranks both the byte screen and the probe.
-**Next action:** At the next evidence/recommendation checkpoint, select the next slice among the five
+**Next action:** At the next evidence/recommendation checkpoint, select the next slice among the four
 undispositioned entrypoints at or above the 7,800-byte screen: `obs-dashboards`, `backend-craft`,
-`runbook`, `obs-alerting` (`incident-drill` was deleted entire on 2026-09-02, owner decision, and
-`workflow-graph-engineering` never shipped as a skill — both drop out of this list). The prose-pinning test suites were removed
+`runbook`, `obs-alerting`. The prose-pinning test suites were removed
 on 2026-09-01; after a cut, run `python scripts/check_links.py` (link containment and explicit-only
 frontmatter) and the skill's eval scenarios.
 **Evidence:** `docs/reviews/2026-08-30-skill-001-7800-screen.md` (removed 2026-09-02)

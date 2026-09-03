@@ -250,9 +250,9 @@ the graph.
 ## Commands
 
 ```text
-python graph-sandbox/activate.py build --docker-context <local> --source-revision <40-hex>
-python graph-sandbox/activate.py fresh --docker-context <local> --source-revision <40-hex> --run-id <run> --evidence-root <absolute-existing-dir> --case <case-id> --approval-fixture APPROVED|REJECTED|TIMEOUT
-python graph-sandbox/activate.py resume --docker-context <same> --source-revision <same> --run-id <same> --evidence-root <same> --case <same-case-id> --approval-fixture <same>
+python sandbox/graph-sandbox/activate.py build --docker-context <local> --source-revision <40-hex>
+python sandbox/graph-sandbox/activate.py fresh --docker-context <local> --source-revision <40-hex> --run-id <run> --evidence-root <absolute-existing-dir> --case <case-id> --approval-fixture APPROVED|REJECTED|TIMEOUT
+python sandbox/graph-sandbox/activate.py resume --docker-context <same> --source-revision <same> --run-id <same> --evidence-root <same> --case <same-case-id> --approval-fixture <same>
 ```
 
 No direct Compose command, alternate profile, path override, ambient Docker selector, or credentials
