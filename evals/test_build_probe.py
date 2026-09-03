@@ -1101,7 +1101,7 @@ class ReviewFindingTests(unittest.TestCase):
         service.requests[1]["request"]["dashboard"]["version"] = 6
         self.assertFalse(build_probe.check_grafana_dashboard_write(ctx, check)[0])
 
-    def test_grafana_query_contract_requires_real_p95_data_before_the_write(self) -> None:
+    def test_grafana_query_contract_requires_real_p95_data_for_the_persisted_query(self) -> None:
         ws = build_probe.seed_workspace(TINY_SPEC, self.root / "ws-grafana-query")
         service = build_probe.Service("grafana", "image@sha256:" + "0" * 64, "cid", "http://127.0.0.1:32123")
         ctx = _ctx(TINY_SPEC, ws)
@@ -1129,8 +1129,15 @@ class ReviewFindingTests(unittest.TestCase):
         ]
         self.assertTrue(build_probe.check_grafana_query_succeeded(ctx, check)[0])
         service.requests.reverse()
-        self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0], "a query after the write is not preflight")
+        self.assertTrue(build_probe.check_grafana_query_succeeded(ctx, check)[0],
+                        "the skill proves the query at its verify step, after the write")
         write = service.requests[0]
+        write["request"]["dashboard"]["panels"][0]["targets"][0]["expr"] = (
+            "histogram_quantile(0.95, rate(checkout_request_duration_seconds_bucket[$__rate_interval]))")
+        self.assertTrue(build_probe.check_grafana_query_succeeded(ctx, check)[0],
+                        "a concrete window substituted for $__rate_interval is the same query")
+        write["request"]["dashboard"]["panels"][0]["targets"][0]["expr"] = (
+            "histogram_quantile(0.95, rate(checkout_request_duration_seconds_bucket[5m]))")
         p95 = "histogram_quantile(0.95, rate(checkout_request_duration_seconds_bucket[5m]))"
         service.requests = [
             {
