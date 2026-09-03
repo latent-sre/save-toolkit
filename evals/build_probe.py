@@ -593,7 +593,9 @@ def start_services(spec: dict, docker: str = "docker") -> list[Service]:
     A service that will not start, become ready, seed, snapshot, or start its audit proxy is harness
     breakage: the caller turns it into INCONCLUSIVE rather than a verdict about the agent.
     """
-    declared_services = spec["fixture"].get("services") or []
+    # Routing and contract scenarios carry no fixture at all; the first live routing trial after
+    # the consolidation died here with KeyError before any grade.
+    declared_services = (spec.get("fixture") or {}).get("services") or []
     if not declared_services:
         return []
     started: list[Service] = []
@@ -865,8 +867,8 @@ def seed_workspace(spec: dict, root: Path, *, posix_paths: bool = False) -> Work
     repo, bin_dir, state_dir = root / "repo", root / "bin", root / "state"
     for d in (repo, bin_dir, state_dir, root / "home", root / "tmp"):
         d.mkdir(parents=True, exist_ok=True)
-    fixture = spec["fixture"]
-    files = dict(fixture["files"])
+    fixture = spec.get("fixture") or {"files": {}}  # a routing/contract trial gets an empty repo
+    files = dict(fixture.get("files") or {})
     files.setdefault(".gitignore", DEFAULT_GITIGNORE)
     _write_files(repo, files)
     _git(repo, "init", "-q", "-b", "main")

@@ -1759,3 +1759,17 @@ class JudgeSpendAccountingTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FixturelessSpecTests(unittest.TestCase):
+    """Routing and contract scenarios carry no fixture; every path that reads one must tolerate that."""
+
+    def test_start_services_without_a_fixture_starts_nothing(self) -> None:
+        self.assertEqual([], build_probe.start_services({"id": "r", "prompt": "x"}))
+
+    def test_seed_workspace_without_a_fixture_makes_an_empty_repo(self) -> None:
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as tmp:
+            build_probe.seed_workspace({"id": "r", "prompt": "x"}, Path(tmp))
+            self.assertTrue((Path(tmp) / "repo" / ".git").exists())
