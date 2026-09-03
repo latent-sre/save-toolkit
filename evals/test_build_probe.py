@@ -401,9 +401,8 @@ class TraceAndCommandTests(unittest.TestCase):
         self.assertIn("allowlist guard", s.denial_details[0]["reason"])
         self.assertTrue(build_probe.is_guard_denial(s.denial_details[0]["reason"]))
         self.assertFalse(build_probe.is_guard_denial("Permission denied by the user"))
-        # The inconclusive rule in run_trial mirrors this: a guard denial leaves nothing 'blocked'.
-        blocked = [d["tool"] for d in s.denial_details if d["tool"] in build_probe.BUILD_TOOLS and not build_probe.is_guard_denial(d["reason"])]
-        self.assertEqual([], blocked)
+        # The inconclusive rule in run_trial: a guard denial leaves nothing 'blocked'.
+        self.assertEqual([], build_probe.runtime_blocked_tools(s, TINY_SPEC))
 
     def test_dispatches_namespaced_flags_bare_agent_names(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1773,3 +1772,47 @@ class FixturelessSpecTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             build_probe.seed_workspace({"id": "r", "prompt": "x"}, Path(tmp))
             self.assertTrue((Path(tmp) / "repo" / ".git").exists())
+
+
+class SubagentDenialTests(unittest.TestCase):
+    """A routing verdict is the main session's dispatch; a refusal inside the dispatched subagent lands after it."""
+
+    ROUTING_SPEC = {"id": "r", "prompt": "x", "target": {"kind": "agent", "name": "sre-assistant"},
+                    "routing": {"expect": "fire"}}
+    BUILD_SPEC = {"id": "b", "prompt": "x", "fixture": {"files": {}}}
+
+    def _trace(self, *, inside: bool) -> build_probe.TraceSummary:
+        events = [
+            {"type": "assistant", "message": {"content": [
+                {"type": "tool_use", "id": "tu_dispatch", "name": "Agent",
+                 "input": {"subagent_type": "save-toolkit:sre-assistant", "prompt": "check cf events"}},
+            ]}},
+            {"type": "assistant", "parent_tool_use_id": "tu_dispatch" if inside else None,
+             "message": {"content": [
+                 {"type": "tool_use", "id": "tu_read", "name": "Read",
+                  "input": {"file_path": "F:/plugin/skills/pcf-ops/references/foundations.md"}},
+             ]}},
+            {"type": "user", "message": {"content": [
+                {"type": "tool_result", "tool_use_id": "tu_read", "is_error": True,
+                 "content": "Permission to use Read has been denied."},
+            ]}},
+            {"type": "result", "result": "done", "duration_ms": 10, "usage": {},
+             "permission_denials": [{"tool_name": "Read", "tool_use_id": "tu_read", "tool_input": {}}]},
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "t.jsonl"
+            path.write_text("\n".join(json.dumps(e) for e in events), encoding="utf-8")
+            return build_probe.parse_trace(path)
+
+    def test_parser_records_which_tool_uses_ran_inside_a_subagent(self) -> None:
+        self.assertEqual(["tu_read"], self._trace(inside=True).subagent_tool_ids)
+        self.assertEqual([], self._trace(inside=False).subagent_tool_ids)
+
+    def test_a_subagent_refusal_does_not_void_a_routing_trial(self) -> None:
+        self.assertEqual([], build_probe.runtime_blocked_tools(self._trace(inside=True), self.ROUTING_SPEC))
+
+    def test_a_main_session_refusal_still_voids_a_routing_trial(self) -> None:
+        self.assertEqual(["Read"], build_probe.runtime_blocked_tools(self._trace(inside=False), self.ROUTING_SPEC))
+
+    def test_a_subagent_refusal_still_voids_a_build_trial(self) -> None:
+        self.assertEqual(["Read"], build_probe.runtime_blocked_tools(self._trace(inside=True), self.BUILD_SPEC))

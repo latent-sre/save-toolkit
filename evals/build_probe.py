@@ -1163,6 +1163,8 @@ class TraceSummary:
     result_subtype: str = ""
     tool_errors: list[str] = field(default_factory=list)  # is_error tool results, e.g. guard denials
     denial_details: list[dict] = field(default_factory=list)  # {tool, id, command, reason} per permission denial
+    # tool_use ids issued inside a dispatched subagent (the event carried parent_tool_use_id).
+    subagent_tool_ids: list[str] = field(default_factory=list)
     saw_init: bool = False
     advertised_tools: list[str] = field(default_factory=list)
     mcp_servers: list = field(default_factory=list)
@@ -1186,6 +1188,21 @@ def is_guard_denial(reason: str) -> bool:
     if GUARD_UNAVAILABLE_MARKER in low:
         return False
     return any(m in low for m in GUARD_DENIAL_MARKERS)
+
+
+def runtime_blocked_tools(trace: TraceSummary, spec: dict) -> list[str]:
+    """Build tools the runtime (not the guard) refused; a non-empty list voids the trial.
+
+    A routing trial's verdict is the main session's dispatch, so a refusal inside the subagent it
+    dispatched lands after the verdict was decided and does not void it: the clean room runs a
+    dispatched agent without Bash and the CLI refuses its reads outside the workspace, which on
+    2026-09-03 voided two of three dispatched-read trials whose dispatch had already happened.
+    """
+    inside = set(trace.subagent_tool_ids) if scenario_kind(spec) == "routing" else set()
+    if trace.denial_details:
+        return [d["tool"] for d in trace.denial_details
+                if d["tool"] in BUILD_TOOLS and not is_guard_denial(d["reason"]) and d["id"] not in inside]
+    return [d for d in trace.denials if d in BUILD_TOOLS]
 
 
 def parse_trace(path: Path) -> TraceSummary:
@@ -1251,6 +1268,8 @@ def parse_trace(path: Path) -> TraceSummary:
             name = str(block.get("name"))
             inp = block.get("input") or {}
             s.tool_counts[name] = s.tool_counts.get(name, 0) + 1
+            if ev.get("parent_tool_use_id"):
+                s.subagent_tool_ids.append(str(block.get("id") or ""))
             # An unnamed Skill/Task call is recorded as such, and the checks that reason about
             # names refuse to pass on it — a renamed tool parameter must fail loudly, not vacuously.
             if name == "Skill":
@@ -2306,9 +2325,7 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
                 inconclusive = read_boundary_problem(trace, (ws.repo, plugin_root.resolve()))
         # A guard decision (hooks/hooks.json denying an off-allowlist command) is a RESULT about
         # the agent; only a runtime/permission refusal of a build tool makes the trial inconclusive.
-        blocked = [d["tool"] for d in trace.denial_details if d["tool"] in BUILD_TOOLS and not is_guard_denial(d["reason"])]
-        if not trace.denial_details:
-            blocked = [d for d in trace.denials if d in BUILD_TOOLS]
+        blocked = runtime_blocked_tools(trace, spec)
         if inconclusive is None and blocked:
             inconclusive = f"build tools denied by the runtime: {blocked}"
         git = collect_git_facts(ws)
@@ -2454,6 +2471,11 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
             (ws.repo / ".agents").mkdir(parents=True)
         ctx = Context(spec, ws, trace, git)
         inconclusive = summary.get("inconclusive")
+        if reparsed is not None and str(inconclusive or "").startswith("build tools denied by the runtime"):
+            # The denial rule is re-derived from the raw trace so a regrade applies the live rule
+            # (a subagent's refusal no longer voids a routing verdict), not the one saved that day.
+            blocked = runtime_blocked_tools(trace, spec)
+            inconclusive = f"build tools denied by the runtime: {blocked}" if blocked else None
         expectations = []
 
         def keep(label: str, kept: str) -> dict:
