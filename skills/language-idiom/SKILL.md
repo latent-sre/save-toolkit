@@ -1,10 +1,9 @@
 ---
 name: language-idiom
 description: >-
-  Write, review, test, debug, or safely refactor Python, Java, TypeScript, Bash, PowerShell, and Go using
-  language-specific conventions plus the bundled tests-first and behavior-preserving-refactoring
-  processes. Triggers: 'write this in Python', 'review this Bash script', 'refactor this Go code'.
-  Not for API design (backend-craft) or UI architecture (frontend-craft).
+  Write, review, test, debug, or safely refactor Python, Java, TypeScript, Bash, PowerShell, and Go
+  using language-specific conventions. Triggers: 'write this in Python', 'review this Bash script',
+  'refactor this Go code'. Not for API design (backend-craft) or UI architecture (frontend-craft).
 argument-hint: "[the language and the code under review]"
 ---
 
