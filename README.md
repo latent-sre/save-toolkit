@@ -29,8 +29,9 @@ Routing is by description; there are no commands to memorize.
 - *"walk me through INC-4132, checkout is 502-ing since 14:02 UTC"* → `incident-investigation`
   sits beside you: what to check next in Apps Manager, Splunk, or Wavefront, what each result would
   mean, when to mitigate, who to page, and a board so nothing learned is lost.
-- *"why is orders 502-ing in prod? what changed?"* → the `sre-assistant` agent gathers one read-only evidence
-  slice and recommends a mitigation for a human to apply.
+- *"why is orders 502-ing in prod?"* → `incident-investigation` again; you own it, it advises.
+- *"check cf events and recent logs for orders since 14:00 UTC"* → the `sre-assistant` agent gathers
+  that one read-only evidence slice, with a mitigation stance, and stops.
 - *"this alert is too noisy"* → `observability-engineer` with `obs-alerting`.
 - *"write a runbook for the checkout deploy"* → the `scribe` agent with the `runbook` skill.
 - *"is PR #42 ready to merge?"* → `production-change-gate`'s merge-readiness checklist, including

@@ -71,7 +71,8 @@ documentation are the only operational effects in this lane.
 Use for one concrete alert, task, failure mode, or routine operational procedure. The `runbook` skill
 supplies the required trigger, procedure, verification, rollback, and escalation sections.
 
-1. Gather source material: diagnosis from `sre-assistant`, deploy/rollback evidence from the authorized actor,
+1. Gather source material: diagnosis from the incident record (the advisor's board and closeout packet,
+   any `sre-assistant` slices), deploy/rollback evidence from the authorized actor,
    exact commands and results from the repository or CI, and the linked alert definition.
 2. Define one trigger and scope. One runbook covers one failure mode or task.
 3. Write steps in execution order. Give each the exact command **or the Apps Manager path to
@@ -95,7 +96,8 @@ Use only after the incident is resolved. The `postmortem` skill supplies Summary
 Root cause and contributing factors, Detection, Response, Causal analysis selected to fit the evidence,
 Action items, and Lessons. Do not force Procedure or Rollback headings into a postmortem.
 
-1. Gather the authoritative UTC timeline, technical findings from `sre-assistant`, impact/SLO data, mitigation
+1. Gather the authoritative UTC timeline, technical findings from the incident record (the advisor's
+   closeout packet and any `sre-assistant` slices), impact/SLO data, mitigation
    records, and relevant change history. `incident-command` owns the live-incident timeline.
 2. Separate facts from hypotheses. State how each unresolved causal claim could be verified.
 3. Explain systemic causes and contributing conditions, never individual blame. Record what made each
@@ -118,7 +120,8 @@ policy and service, alert, and index templates.
 
 1. Confirm the target repository/revision, service/application, documented knowledge roots, trigger,
    and lifecycle state. If an incident is active, prepare nothing; return the evidence and
-   recommended course of action to `sre-assistant`.
+   recommended course of action to the human responder, who troubleshoots with
+   `incident-investigation`.
 2. Inventory existing cards, indexes, runbooks, postmortems, and authoritative definitions before
    creating a record. Update stable IDs and links instead of duplicating them. When no card or index
    exists, create both from the templates rather than reporting only the gap.
@@ -160,7 +163,8 @@ owner to resolve it.
 
 ## Handoffs
 
-- ← from `sre-assistant`: turn a completed diagnosis into a postmortem or reusable runbook.
+- ← from the responder's closeout packet (`incident-investigation`): turn a completed diagnosis into a
+  postmortem or reusable runbook.
 - ← from `observability-engineer`: author the runbook linked by an alert or document a closed detection gap.
 - ← from `software-engineer`: document new operational steps introduced by a completed change.
 - ← from `service-lifecycle` or a service owner: create/update the approved service and alert KB

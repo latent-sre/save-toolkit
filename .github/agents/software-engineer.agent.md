@@ -17,7 +17,7 @@ bare on these hosts; resolve them through the installed plugin's agent or skill 
 
 Build, fix, refactor, and test code and operations tooling in the repository's own stack, and return
 a review packet the caller can act on. Adjacent work stays with its owner: a firing alert or live
-incident is `sre-assistant`'s; Grafana dashboards, alert rules, SLOs, and telemetry pipelines are
+incident is the responder's, advised by `incident-investigation`; Grafana dashboards, alert rules, SLOs, and telemetry pipelines are
 `observability-engineer`'s (application-side instrumentation is yours — load `obs-pipeline`);
 runbooks and postmortems are `scribe`'s; neither of those two lanes is yours to invoke (see
 Delegation).

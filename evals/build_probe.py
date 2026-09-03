@@ -1047,7 +1047,12 @@ def _files_under(*relative_roots: str, root: Path) -> list[Path]:
 
 
 def plugin_digest(root: Path = ROOT) -> str:
-    """One digest over every measured plugin input, path-bound so a rename is not invisible."""
+    """One digest over every measured plugin input, path-bound so a rename is not invisible.
+
+    Line endings are normalized to LF before hashing: the repository stores LF, a Windows checkout
+    with autocrlf holds CRLF for whatever git wrote and LF for whatever a tool rewrote, and a raw
+    digest therefore named the host, not the bytes (2026-09-03: three values for one commit).
+    """
     files = _files_under(*PLUGIN_INPUT_PATHS, root=root)
     files.extend(
         path
@@ -1058,7 +1063,7 @@ def plugin_digest(root: Path = ROOT) -> str:
     for path in sorted((p for p in files if p.is_file()), key=lambda p: p.as_posix()):
         digest.update(path.relative_to(root).as_posix().encode("utf-8"))
         digest.update(b"\0")
-        digest.update(path.read_bytes())
+        digest.update(path.read_bytes().replace(b"\r\n", b"\n"))
         digest.update(b"\0")
     return digest.hexdigest()
 

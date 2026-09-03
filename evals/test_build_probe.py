@@ -1816,3 +1816,30 @@ class SubagentDenialTests(unittest.TestCase):
 
     def test_a_subagent_refusal_still_voids_a_build_trial(self) -> None:
         self.assertEqual(["Read"], build_probe.runtime_blocked_tools(self._trace(inside=True), self.BUILD_SPEC))
+
+
+class PluginDigestTests(unittest.TestCase):
+    """The digest names the committed bytes, not the checkout's line endings."""
+
+    def _root(self, tmp: str, newline: bytes) -> Path:
+        root = Path(tmp)
+        for relative in build_probe.PLUGIN_INPUT_PATHS:  # every required input must exist
+            path = root / relative
+            if "." in path.name:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b"x" + newline)
+            else:
+                path.mkdir(parents=True, exist_ok=True)
+        (root / "agents" / "a.md").write_bytes(b"---" + newline + b"name: a" + newline + b"---" + newline + b"body" + newline)
+        return root
+
+    def test_crlf_and_lf_checkouts_of_the_same_source_hash_alike(self) -> None:
+        with tempfile.TemporaryDirectory() as lf, tempfile.TemporaryDirectory() as crlf:
+            self.assertEqual(build_probe.plugin_digest(self._root(lf, b"\n")),
+                             build_probe.plugin_digest(self._root(crlf, b"\r\n")))
+
+    def test_a_content_change_still_changes_the_digest(self) -> None:
+        with tempfile.TemporaryDirectory() as a, tempfile.TemporaryDirectory() as b:
+            ra, rb = self._root(a, b"\n"), self._root(b, b"\n")
+            (rb / "agents" / "a.md").write_bytes(b"---\nname: a\n---\nbody changed\n")
+            self.assertNotEqual(build_probe.plugin_digest(ra), build_probe.plugin_digest(rb))

@@ -50,7 +50,7 @@ see Section 5 for what "verbatim" means for those two.
 | `evals/rubrics.yaml` (3 rubrics extracted, see Section 5) | `archive/incident-autonomy/evals/rubrics.yaml` | 2666 |
 | `evals/rubrics-calibration.yaml` (35 cases extracted, see Section 5) | `archive/incident-autonomy/evals/rubrics-calibration.yaml` | 14755 |
 
-Folder total: 102261 bytes across the 13 files above, plus this README.
+Total of the 13 files above: 96,903 bytes. This README is not counted: editing it changes its own size.
 
 ## 4. What a restore needs before this can run unattended
 

@@ -44,7 +44,7 @@ events  →  deduplicate into ALERTS  →  cluster into SITUATIONS  →  notify 
 3. If the local v9 instance merges or supersedes Situations, follow the currently live Situation and
    record every absorbed/superseded ID; verify the exact behavior against the target version.
 4. Record alternate hypotheses, which service/region is affected, and which signals share a source.
-5. Hand the ranked evidence to the `sre-assistant` agent with Situation link/ID, first/last timestamps, blast
+5. Hand the ranked evidence to the responder (or the `sre-assistant` slice they dispatched) with Situation link/ID, first/last timestamps, blast
    radius, event-source lineage, and unresolved alternatives.
 
 ## The bar for asserting cause

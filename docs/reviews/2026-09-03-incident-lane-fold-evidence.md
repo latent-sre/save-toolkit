@@ -14,7 +14,7 @@ and by the pull request.
 | Item | Value |
 |---|---|
 | Incumbent plugin root | detached worktree at `8a997e68` (main): agent `sre` 20,032 B, loading `investigation-depth` 29,717 B |
-| Trimmed plugin root | this branch at `3cf0a170`: agent `sre-assistant` 14,095 B, no depth skill; plugin source digest `7d08f89d3803`, unchanged at `2111660e` where the last trials ran (that commit added only `archive/` files) |
+| Trimmed plugin root | this branch at `3cf0a170`: agent `sre-assistant` 14,095 B, no depth skill; plugin source digest `b93a6c5a1729` with line endings normalized, identical at `2111660e` where the last trials ran (that commit added only `archive/` files). The runs recorded `7d08f89d3803`, the raw digest of this host's partly-CRLF checkout; the runner normalizes line endings in the digest since the fix committed with this packet edit, so any checkout reproduces the normalized value |
 | Runner | `evals/build_probe.py` from each arm's own checkout, because the scenario ids and the agent name differ between them; the dispatched-read runs regraded at `3efe6c6d` (see the instrument defect below) |
 | Model | `claude-sonnet-5` only |
 | Trials | 3 per arm and per routing scenario |

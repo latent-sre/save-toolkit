@@ -50,9 +50,9 @@ signals in Splunk, Wavefront, Grafana, or Apps Manager.
 - Measured in [`2026-09-03-incident-lane-fold-evidence.md`](../reviews/2026-09-03-incident-lane-fold-evidence.md):
   the trimmed agent passes the guarded-triage probe 17/17 in three trials with a third fewer tokens
   than the incumbent's 18/18, and on Sonnet the four incident routing scenarios pass 3/3 each.
-- A restore needs what the archive README states: a trigger loop, read paths to the signals, and
-  the old name added back to the guard's roster. Until those exist the machinery is weight with no
-  reader.
+- A restore needs what the archive README states: a trigger loop, read paths to the signals, and a
+  re-proof of the existing `sre-assistant` guard, since the restored body keeps that name. Until
+  those exist the machinery is weight with no reader.
 - Seven skill descriptions changed by the agent's name token only, and `eng-ladder`'s exclusion
   points at the advisor; neither had an after-run beyond the four incident scenarios.
 - The catalogue is 25 skills; the agent's incident context path fell from 89 KB to 72 KB.
