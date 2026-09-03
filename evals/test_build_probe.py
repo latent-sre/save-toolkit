@@ -1140,6 +1140,10 @@ class ReviewFindingTests(unittest.TestCase):
         for window in ("[1s]", "[$__interval]"):  # another concrete window, or the window the checker rejects
             write["request"]["dashboard"]["panels"][0]["targets"][0]["expr"] = f"histogram_quantile(0.95, rate(checkout_request_duration_seconds_bucket{window}))"
             self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0], f"{window} is not proven by [5m]")
+        write["request"]["dashboard"]["panels"][0]["targets"][0]["expr"] = "histogram_quantile(0.95, rate(checkout_request_duration_seconds_bucket[$__rate_interval]) / rate(checkout_request_duration_seconds_bucket[$__rate_interval]))"
+        for verified, expected in (("[5m]", "[5m]"), ("[30s]", "[5m]")):
+            service.requests[1]["request"]["queries"][0]["expr"] = "histogram_quantile(0.95, rate(checkout_request_duration_seconds_bucket%s) / rate(checkout_request_duration_seconds_bucket%s))" % (verified, expected)
+            self.assertEqual(verified == expected, build_probe.check_grafana_query_succeeded(ctx, check)[0], "one template variable expands to one window everywhere")
         write["request"]["dashboard"]["panels"][0]["targets"][0]["expr"] = (
             "histogram_quantile(0.95, rate(checkout_request_duration_seconds_bucket[5m]))")
         p95 = "histogram_quantile(0.95, rate(checkout_request_duration_seconds_bucket[5m]))"

@@ -128,13 +128,13 @@ checks:
       - {pointer: datasource/uid, equals: checkout-metrics}
       - {pointer: targets, nonempty: true}
       - {pointer: targets, regex: '(?is)histogram_quantile.*checkout_request_duration_seconds_bucket'}
-      # The skill's own content rules, on the same panel: a time unit for a seconds histogram, a
-      # description, and a 'No value' text that says no data or no traffic rather than health
+      # The skill's own content rules, on the same panel: unit `s` for a seconds histogram, a
+      # description, and a 'No value' text that says no data or no traffic and never health
       # (added 2026-09-03 for the obs-dashboards trim; graded as presence in a separate check
       # during that campaign, bound to this panel and asserted by value since).
-      - {pointer: fieldConfig/defaults/unit, regex: '^(s|ms|µs|us|ns)$'}
+      - {pointer: fieldConfig/defaults/unit, regex: '^s$'}
       - {pointer: description, regex: '\S{12,}|\S+\s+\S+'}
-      - {pointer: fieldConfig/defaults/noValue, regex: '(?i)\bno\b.{0,30}\b(data|traffic|samples?|requests?|series|value)'}
+      - {pointer: fieldConfig/defaults/noValue, regex: '(?is)^(?!.*health)(?=.*\bno\b.{0,30}\b(data|traffic|samples?|requests?|series|value))'}
     text: "a distinct p95 latency panel landed with the expected datasource, a real query target, a time unit, a description, and a no-data 'No value' text"
   - {check: service_get, service: grafana, path: /api/dashboards/uid/checkout-slo, pointer: dashboard/title, equals: Checkout SLO, text: "the dashboard is still the one it was asked to edit"}
   - {check: service_get, service: grafana, path: /api/dashboards/uid/checkout-slo/versions, contains: ["OBS-441"], text: "the change reference is on a version in history"}

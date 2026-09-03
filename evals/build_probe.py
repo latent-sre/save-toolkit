@@ -1763,13 +1763,9 @@ def check_grafana_dashboard_write(ctx: Context, p: dict) -> tuple[bool, str]:
 
 
 def check_grafana_query_succeeded(ctx: Context, p: dict) -> tuple[bool, str]:
-    """Prove the persisted PromQL returned real data through Grafana after the dashboard write.
-
-    The skill writes, then proves each changed query with a concrete window substituted for
-    `$__rate_interval` (the query API does not expand it): only requests after the accepted write
-    count, and a persisted template window is canonicalized against the concrete one (2026-09-03:
-    both baseline arms followed the skill and were marked red by a proof-before-write, byte-equal rule).
-    """
+    """Prove the persisted PromQL returned real data through Grafana after the dashboard write: the
+    skill writes, then proves each changed query with one concrete window in place of
+    `$__rate_interval`, so only post-write requests count and that substitution is the same query."""
     import urllib.parse  # noqa: PLC0415 — used only for audited datasource-proxy paths
 
     service = _service(ctx, p.get("service"))
@@ -1789,15 +1785,16 @@ def check_grafana_query_succeeded(ctx: Context, p: dict) -> tuple[bool, str]:
         return re.sub(r"\s+", "", expression).lower()
 
     def same_query(persisted: str, verified: str) -> bool:
-        """Equal, or a persisted template window proven by one concrete window (the skill's
-        substitution for `$__rate_interval`); two concrete windows are different queries."""
+        """Equal, or every `[$__rate_interval]` replaced by ONE concrete window; other windows do not count."""
         p, v = canon(persisted), canon(verified)
         if p == v:
             return True
-        if "$__rate_interval" not in p:  # `$__interval` is not the skill's window and does not count
+        parts = p.split("[$__rate_interval]")
+        if len(parts) < 2:
             return False
-        return (re.sub(r"\[\$__rate_interval\]", "[w]", p)
-                == re.sub(r"\[[0-9]+(?:ms|s|m|h|d|w|y)\]", "[w]", v))
+        window = r"(\[[0-9]+(?:ms|s|m|h|d|w|y)\])"
+        pattern = re.escape(parts[0]) + window + re.escape(parts[1]) + "".join(r"\1" + re.escape(part) for part in parts[2:])
+        return re.fullmatch(pattern, v) is not None
 
     def persisted_on_p95_panel(expression: str) -> bool:
         body = write.get("request")

@@ -36,8 +36,9 @@ The version in a read URL controls the returned *shape*, not what is stored: QA 
 `v0alpha1`, `v1`, `v1beta1`, `v2alpha1`, `v2beta1`, and `v2` with preferred `v2`, so a Classic
 `spec.panels[]` transform against an unpinned read can silently see nothing. Find the stored version
 first: read the dashboard at `v0alpha1` (unstructured, no migration) and take
-`status.conversion.storedVersion`, falling back to the returned `apiVersion`; then pin every read
-and write to that version. If the probe and the pinned read disagree, stop without diffing or
+`status.conversion.storedVersion`, falling back to the returned `apiVersion`; both may be
+group-qualified (`dashboard.grafana.app/v0alpha1`), so the version is the segment after the last
+slash, never the whole value spliced into the path; then pin every read and write to that version. If the probe and the pinned read disagree, stop without diffing or
 writing. Do not use the legacy `meta.apiVersion` as storage evidence: it reports what the client
 asked for.
 
@@ -64,8 +65,10 @@ uids leave only under a separate authorization.
 
 **Create** is a live change with the same evidence duty as an update. App platform: `POST` the
 envelope to the collection path, `…/namespaces/<ns>/dashboards`, never to the `<uid>` item path,
-with `metadata.name` set to a stable 8–40 character uid, the folder in the `grafana.app/folder`
-annotation, the change reference in `grafana.app/message`, and no version; success is 201. Legacy: `POST /api/dashboards/db` with `id: null`, `folderUid`, `message`, and
+with `apiVersion` set to the pinned `dashboard.grafana.app/<version>`, `metadata.name` set to a
+stable 8–40 character uid, the folder in the `grafana.app/folder` annotation, the change reference
+in `grafana.app/message`, and no `metadata.resourceVersion` or `generation` (those are the server's
+concurrency fields, absent on a create); success is 201. Legacy: `POST /api/dashboards/db` with `id: null`, `folderUid`, `message`, and
 `overwrite: false`; success is 200. A 409 or `name-exists` means the uid is taken: stop and
 reconcile, never switch to `overwrite: true`. QA 13.1.4 returned 409 for a taken uid where older
 docs say 412.
