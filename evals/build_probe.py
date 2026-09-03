@@ -1740,6 +1740,7 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
         (run_out / "outputs" / "trace-summary.json").write_text(json.dumps({
             "status": grading["status"], "inconclusive": inconclusive, "models": trace.models,
             "num_turns": trace.num_turns, "tool_counts": trace.tool_counts, "skills": trace.skills,
+            "skills_failed": trace.skills_failed,
             "advertised_tools": trace.advertised_tools, "mcp_servers": trace.mcp_servers, "permission_mode": trace.permission_mode,
             "dispatches": trace.dispatches, "denials": trace.denials, "bash_commands": trace.bash_commands,
             "tool_errors": trace.tool_errors, "denial_details": trace.denial_details,
@@ -1827,10 +1828,20 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
     old = json.loads((run_dir / "grading.json").read_text(encoding="utf-8"))
     old_by_text = {e["text"]: e for e in old.get("expectations", [])}
     text = (run_dir / "outputs" / "response.md").read_text(encoding="utf-8")
-    trace = TraceSummary(result_text=text, skills=list(summary.get("skills") or []),
-                         bash_commands=list(summary.get("bash_commands") or []),
-                         dispatches=list(summary.get("dispatches") or []),
-                         tool_errors=list(summary.get("tool_errors") or []))
+    # The raw trace is the truth: a saved summary carries whatever the parser of the day recorded,
+    # so re-parse it with the live path's own parser and fall back only when the trace is absent.
+    stdout_path = run_dir / "stdout.jsonl"
+    reparsed = parse_trace(stdout_path) if stdout_path.is_file() else None
+    if reparsed is not None:
+        trace = reparsed
+        if not trace.result_text:  # a truncated trace must not silently blank every text check
+            trace.result_text = text
+    else:
+        trace = TraceSummary(result_text=text, skills=list(summary.get("skills") or []),
+                             skills_failed=list(summary.get("skills_failed") or []),
+                             bash_commands=list(summary.get("bash_commands") or []),
+                             dispatches=list(summary.get("dispatches") or []),
+                             tool_errors=list(summary.get("tool_errors") or []))
     before, after = summary.get("commits_before_after") or [0, 0]
     git = GitFacts(int(after), str(summary.get("branch") or ""), [tuple(x) for x in summary.get("changed_files") or []], "")
     with tempfile.TemporaryDirectory(prefix="regrade-") as tmp:
@@ -1871,6 +1882,18 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
     if not original.exists():  # keep the live verdict the first time a regrade overwrites it
         original.write_text(json.dumps(old, indent=2, ensure_ascii=False), encoding="utf-8")
     (run_dir / "grading.json").write_text(json.dumps(grading, indent=2, ensure_ascii=False), encoding="utf-8")
+    if reparsed is not None:
+        # Refresh only the trace-derived fields, so the artefact agrees with the grade just made.
+        # Workspace facts (inconclusive, commits, branch, state_files, plugin, isolation) are not
+        # in the trace and stay as the live run recorded them.
+        summary.update({
+            "models": trace.models, "num_turns": trace.num_turns, "tool_counts": trace.tool_counts,
+            "skills": trace.skills, "skills_failed": trace.skills_failed,
+            "advertised_tools": trace.advertised_tools, "mcp_servers": trace.mcp_servers,
+            "permission_mode": trace.permission_mode, "dispatches": trace.dispatches,
+            "denials": trace.denials, "bash_commands": trace.bash_commands,
+            "tool_errors": trace.tool_errors, "denial_details": trace.denial_details,
+        })
     # One authoritative verdict: the trace summary carries the same status as grading.json.
     summary["status"] = grading["status"]
     summary["regraded"] = True

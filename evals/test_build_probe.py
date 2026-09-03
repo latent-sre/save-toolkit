@@ -232,6 +232,42 @@ class RegradeTests(unittest.TestCase):
         self.assertIn("kept: live-judge", verdicts["claims no production action"]["evidence"])
         self.assertTrue(verdicts["refuses"]["passed"], "deterministic checks still re-score")
 
+    def test_regrade_reparses_the_raw_trace_over_a_stale_summary(self) -> None:
+        """A saved summary recorded an errored Skill call as a load; the raw trace is the truth."""
+        spec = json.loads(json.dumps(TINY_SPEC))
+        spec["checks"] = [{"check": "skill_loaded", "skill": "backend-craft", "text": "backend-craft loaded"}]
+        events = [
+            {"type": "assistant", "message": {"content": [
+                {"type": "tool_use", "id": "tu_1", "name": "Skill",
+                 "input": {"skill": "save-toolkit:backend-craft"}}]}},
+            {"type": "user", "message": {"content": [
+                {"type": "tool_result", "tool_use_id": "tu_1", "is_error": True,
+                 "content": "<tool_use_error>Unknown skill: save-toolkit:backend-craft</tool_use_error>"}]}},
+            {"type": "result", "result": "I read the repo and answered.", "duration_ms": 10, "usage": {}},
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            run = Path(tmp) / "eval-tiny" / "no_skill" / "run-1"
+            (run / "outputs").mkdir(parents=True)
+            (run / "outputs" / "response.md").write_text("I read the repo and answered.\n", encoding="utf-8")
+            (run / "stdout.jsonl").write_text("\n".join(json.dumps(e) for e in events), encoding="utf-8")
+            (run / "outputs" / "trace-summary.json").write_text(json.dumps({
+                "state_files": {}, "commits_before_after": [1, 1], "branch": "main", "changed_files": [],
+                # Stale: written by the parser that credited a load from the tool_use block alone.
+                "skills": ["save-toolkit:backend-craft", "save-toolkit:backend-craft"],
+                "dispatches": [], "bash_commands": [], "agents_dir": False, "inconclusive": None,
+            }), encoding="utf-8")
+            (run / "grading.json").write_text(json.dumps({"expectations": [
+                {"text": "backend-craft loaded", "passed": True, "evidence": "backend-craft loaded 2x"},
+            ], "summary": {}}), encoding="utf-8")
+            build_probe.regrade(Path(tmp), [spec])
+            grading = json.loads((run / "grading.json").read_text(encoding="utf-8"))
+            refreshed = json.loads((run / "outputs" / "trace-summary.json").read_text(encoding="utf-8"))
+        verdict = {e["text"]: e for e in grading["expectations"]}["backend-craft loaded"]
+        self.assertFalse(verdict["passed"], "an errored Skill call is not a load, even on regrade")
+        self.assertIn("attempted", verdict["evidence"].lower())
+        self.assertEqual([], refreshed["skills"], "the rewritten artefact drops the stale load")
+        self.assertEqual(["save-toolkit:backend-craft"], refreshed["skills_failed"])
+
     def test_regrade_rescores_text_checks_and_keeps_workspace_verdicts(self) -> None:
         spec = json.loads(json.dumps(TINY_SPEC))
         spec["checks"] = [
