@@ -16,19 +16,19 @@ WORKFLOW = ROOT / ".github" / "workflows" / "validate.yml"
 class ValidateWorkflowTests(unittest.TestCase):
     def test_linux_validate_job_runs_gate_a(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
-        linux_job, separator, _remainder = workflow.partition("\n  validate-windows:")
-        self.assertTrue(separator, "validate workflow has no dedicated validate-windows job")
-        self.assertIn("runs-on: ubuntu-latest", linux_job, "the Linux validate job lost its runner")
+        validate_job, separator, _remainder = workflow.partition("\n  component-tests:")
+        self.assertTrue(separator, "validate workflow has no component-tests job")
+        self.assertIn("runs-on: ubuntu-latest", validate_job, "the Linux validate job lost its runner")
         self.assertIn(
             "run: python scripts/gate_a.py",
-            linux_job,
+            validate_job,
             "the Linux validate job no longer invokes Gate A",
         )
 
     def test_linux_and_windows_are_the_only_gate_platforms(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("runs-on: ubuntu-latest", workflow)
-        self.assertIn("runs-on: windows-latest", workflow)
+        self.assertIn("windows-latest", workflow, "Windows must still run somewhere in the gate")
         self.assertNotIn(
             "macos-latest",
             workflow,
@@ -131,22 +131,37 @@ class ValidateWorkflowTests(unittest.TestCase):
         hook = (ROOT / "hooks" / "hooks.json").read_text(encoding="utf-8")
         self.assertIn("-I -S", hook, "the guard's isolated invocation is what makes this binding")
 
-    def test_windows_gate_runs_on_pull_requests(self) -> None:
-        """Windows keeps native path and generated-byte validation on every pull request."""
-        workflow = WORKFLOW.read_text(encoding="utf-8")
-        linux_job, separator, remainder = workflow.partition("\n  validate-windows:")
-        self.assertTrue(separator, "validate workflow has no dedicated validate-windows job")
-        self.assertNotIn("windows-latest", linux_job, "Windows runs as its own job")
-        windows_job = remainder.partition("\n  claude-plugin-contract:")[0]
-        self.assertIn("runs-on: windows-latest", windows_job)
-        self.assertNotRegex(
-            windows_job,
-            re.compile(r"^    if: .*pull_request", re.MULTILINE),
-            "the Windows gate must not be skipped on pull requests",
-        )
-        self.assertIn("run: python scripts/gate_a.py", windows_job, "Windows must invoke `python`, never the Store-stub `python3`")
+    def test_component_tests_run_on_windows_as_well_as_linux(self) -> None:
+        """Windows coverage lives where it can actually catch something: the tests.
 
-    def test_windows_gate_still_has_a_schedule(self) -> None:
+        The retired `validate-windows` job ran `gate_a.py` only, which runs no `test_*.py` at all.
+        The one Windows-only defect this repository has had -- 8.3 short paths defeating the
+        link-containment check, fixed at `scripts/check_links.py` by resolving the root -- was
+        caught by test fixtures under an OS matrix, not by the structural gate. A Windows job that
+        runs no tests could not have caught it.
+        """
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        self.assertNotIn(
+            "\n  validate-windows:",
+            workflow,
+            "the test-less Windows gate is retired; Windows coverage belongs on component-tests",
+        )
+        job = workflow.partition("\n  component-tests:")[2].partition("\n  claude-plugin-contract:")[0]
+        self.assertTrue(job, "validate workflow has no component-tests job")
+        self.assertIn("windows-latest", job, "component tests must run on Windows")
+        self.assertIn("ubuntu-latest", job, "component tests must still run on Linux")
+        self.assertIn("matrix:", job, "the two operating systems are one matrix, not two jobs")
+        self.assertIn("${{ matrix.os }}", job)
+        self.assertIn(
+            "run: python -m pytest -q", job,
+            "invoke `python`, never the Store-stub `python3`, so Windows resolves the real interpreter",
+        )
+        self.assertIn(
+            "run: python -m pip install -r requirements-dev.txt", job,
+            "PyYAML is required on both runners or layered grader checks silently SKIP",
+        )
+
+    def test_the_gate_still_has_a_schedule_and_manual_dispatch(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
         triggers = workflow.partition("\npermissions:")[0]
         self.assertRegex(triggers, re.compile(r"^  schedule:\n    - cron: ", re.MULTILINE))

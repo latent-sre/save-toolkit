@@ -39,25 +39,8 @@ jobs:
         with:
           python-version: '3.12'
 
-      # Gate A owns the live-tree structural roster. Component tests and eval dependencies stay
-      # with the implementation that changed them.
-      - name: Gate A -- mechanical audit
-        run: python scripts/gate_a.py
-
-  validate-windows:
-    # Keep native Windows path and generated-byte validation. Invoke `python`, never the Store-stub
-    # `python3`.
-    runs-on: windows-latest
-    timeout-minutes: 20
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-
-      - name: Set up Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
-        with:
-          python-version: '3.12'
-
+      # Gate A owns the live-tree structural roster (check_links + validate_fleet +
+      # check_context_cost). It runs no test_*.py; component-tests does, on both operating systems.
       - name: Gate A -- mechanical audit
         run: python scripts/gate_a.py
 
@@ -67,15 +50,24 @@ jobs:
     # CI running no test file at all -- and three were failing on main with nobody notified. This is
     # that gate.
     #
-    # Cost, measured 2026-08-26: 30 tests in ~48 s wall, sequential. Three files dominate
-    # (evals/test_run_evals.py ~15 s, scripts/test_mutation_guard.py ~13 s,
-    # scripts/test_readonly_guard.py ~8 s), so parallelising would buy little and would make a
-    # failure harder to attribute. The pip install adds a few seconds.
+    # Windows moved HERE from a separate `validate-windows` job on 2026-09-03. That job ran
+    # `gate_a.py` and nothing else, and `gate_a.py` runs no test file -- so it could not exercise
+    # the guard, the gate lock, the adapters, or the host-install probes its own justification
+    # cited. The one Windows-only defect this repository has had (8.3 short paths defeating the
+    # link-containment check, fixed by resolving the root in scripts/check_links.py) was caught by
+    # test FIXTURES under an OS matrix. Across the last 200 CI runs, validate-windows never failed
+    # without the Linux Gate A failing too, while component-tests failed alone twelve times.
+    # Windows coverage therefore belongs where the tests are.
     #
-    # Limitation, stated rather than discovered later: this runs on ubuntu only. Windows behaviour
-    # of these tests is unverified in CI; validate-windows still covers the structural gate there.
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Cost, measured 2026-09-03: the whole workflow ran 32-52 s wall; component-tests was 30-45 s
+    # of it on ubuntu. Windows Gate A had been 13-15 s. Invoke `python`, never the Store-stub
+    # `python3`, so Windows resolves the real interpreter.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     steps:
       - name: Check out repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
