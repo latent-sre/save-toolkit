@@ -1824,20 +1824,6 @@ def test_discovery_positives_grade_only_what_the_prompt_requests() -> None:
 # matters for this batch: every defect this audit found in its own scenarios was a grader set that
 # a wrong answer could satisfy, so the fixture that has to exist is the plausible wrong answer.
 _SKILL_AUDIT_CASES = {
-    "discovery-backend-craft-endpoint-contract.yaml": (
-        "Before writing it, four things the contract has to settle. Pagination: an incident list "
-        "is unbounded, so return a page with an opaque cursor and a server-enforced max page size "
-        "rather than every incident. Errors: use application/problem+json per RFC 9457 with the "
-        "real HTTP status code, never 200 with an error body. Upstream calls need a connect and "
-        "read timeout plus an overall request budget, or a slow dependency becomes a hang here. "
-        "And the failure paths are part of the contract, not an afterthought: 401 unauthenticated "
-        "and 403 unauthorized are different answers, and 422 covers a well-formed body that fails "
-        "validation.",
-        # Keyword-rich: names pagination and status codes, silent on deadlines and failure paths.
-        "I would return a paginated list using a cursor and a page size, and map errors to the "
-        "right HTTP status code with a problem details body. The handler stays thin and the "
-        "repository does the query, which keeps the happy path readable.",
-    ),
     "discovery-ci-actions-harden-workflow.yaml": (
         "Three changes. Add an explicit least-privilege `permissions:` block -- `contents: read` "
         "at the workflow level, widened per job only where a job genuinely writes. Pin every "

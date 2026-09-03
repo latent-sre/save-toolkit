@@ -58,12 +58,14 @@ the [rubric-judge evaluation ADR](../docs/decisions/2026-09-01-rubric-judge-eval
 which supersedes the multi-engine ADR.
 
 The corpus was cut to its load-bearing core on 2026-09-02 (99 templated, duplicate, and
-keyword-only scenarios retired). The standing regression is now the nine build probes plus the
+keyword-only scenarios retired). The standing regression is now the ten build probes plus the
 fifteen policy/structural direct scenarios graded by `rubric` or a structural grader
 (`exact_fields`, `exact_json`, `embedded_exact_json`, `json_artifact_statuses`,
 `learning_loop_promotion`, `cloud_run_rollback_packet`); a skill's discovery positive runs only
-when that skill's own description changes. New scenarios are added as a `rubric` or structural
-grader, never a keyword list.
+when that skill's own description changes. A skill may instead carry a fixture-backed build probe as
+its regression, in which case that probe replaces the discovery positive — `backend-craft` is the
+first, graded by `build-software-engineer-incidents-api.yaml`. New scenarios are added as a `rubric`
+or structural grader, never a keyword list.
 
 ## Run it
 
