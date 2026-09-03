@@ -6,7 +6,7 @@ backend query: carry the reviewed numerator/denominator query and its result int
 ## Primary method
 
 `[sourced]` Google's SRE Workbook chapter
-[Alerting on SLOs](https://sre-assistant.google/workbook/alerting-on-slos/) defines burn rate as error-budget
+[Alerting on SLOs](https://sre.google/workbook/alerting-on-slos/) defines burn rate as error-budget
 consumption relative to the SLO, recommends multi-window/multi-burn-rate alerting, and in Table 5-8
 binds these three starting-point pairs for a 99.9% SLO:
 
