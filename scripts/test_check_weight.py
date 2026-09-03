@@ -56,3 +56,34 @@ class WeightEvaluationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TrackedFilesOnlyTests(unittest.TestCase):
+    """The totals count what git tracks; bytecode a test run leaves beside a skill script is not weight."""
+
+    def test_untracked_bytecode_does_not_count(self) -> None:
+        import subprocess
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "skills" / "s" / "scripts" / "__pycache__").mkdir(parents=True)
+            (root / "skills" / "s" / "SKILL.md").write_text("x" * 100, encoding="utf-8")
+            (root / "skills" / "s" / "scripts" / "__pycache__" / "t.pyc").write_bytes(b"y" * 5000)
+            (root / "evals").mkdir()
+            (root / "agents").mkdir()
+            # No git here: the fallback must still exclude the cache.
+            self.assertEqual(100, check_weight.measure(root)["skills_bytes"])
+            # With git: only tracked files count, so an untracked sibling is invisible too.
+            subprocess.run(["git", "-C", tmp, "init", "-q"], check=True)
+            subprocess.run(["git", "-C", tmp, "add", "skills/s/SKILL.md"], check=True)
+            (root / "skills" / "s" / "untracked.md").write_text("z" * 700, encoding="utf-8")
+            self.assertEqual(100, check_weight.measure(root)["skills_bytes"])
+
+    def test_real_tree_measures_only_tracked_skill_bytes(self) -> None:
+        import subprocess
+        tracked = subprocess.run(
+            ["git", "-C", str(check_weight.ROOT), "ls-files", "-z", "--", "skills"],
+            capture_output=True, text=True, encoding="utf-8", check=True,
+        ).stdout.split("\0")
+        expected = sum((check_weight.ROOT / n).stat().st_size for n in tracked if n)
+        self.assertEqual(expected, check_weight.measure()["skills_bytes"])

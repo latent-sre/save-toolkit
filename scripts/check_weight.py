@@ -11,6 +11,7 @@ unrelated change.
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -27,12 +28,34 @@ def _count_lines(path: Path) -> int:
         return sum(1 for _ in handle)
 
 
+def _tracked_files(root: Path, prefix: str) -> list[Path]:
+    """Files git tracks under *prefix*; without git, every file except bytecode caches.
+
+    The first recorded ceilings were measured over `rglob`, which counted 40 KB of untracked
+    `__pycache__` bytecode that tests leave beside skill scripts -- a total that moved with whether
+    the suite had run, and that a `git clean` could lower without touching a skill.
+    """
+    try:
+        proc = subprocess.run(
+            ["git", "-C", str(root), "ls-files", "-z", "--", prefix],
+            capture_output=True, text=True, encoding="utf-8", check=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return [
+            path for path in sorted((root / prefix).rglob("*"))
+            if path.is_file() and "__pycache__" not in path.parts
+        ]
+    return [root / name for name in proc.stdout.split("\0") if name]
+
+
 def measure(root: Path = ROOT) -> dict[str, int]:
-    evals_lines = sum(_count_lines(path) for path in sorted((root / "evals").rglob("*.py")))
-    skills_bytes = sum(
-        path.stat().st_size for path in sorted((root / "skills").rglob("*")) if path.is_file()
+    evals_lines = sum(
+        _count_lines(path) for path in _tracked_files(root, "evals") if path.suffix == ".py"
     )
-    agents_bytes = sum(path.stat().st_size for path in sorted((root / "agents").glob("*.md")))
+    skills_bytes = sum(path.stat().st_size for path in _tracked_files(root, "skills"))
+    agents_bytes = sum(
+        path.stat().st_size for path in _tracked_files(root, "agents") if path.suffix == ".md"
+    )
     return {
         "evals_python_lines": evals_lines,
         "skills_bytes": skills_bytes,
