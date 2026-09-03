@@ -9,7 +9,7 @@ Byte-exact copies of the incident-autonomy machinery removed from the live tree:
 - The `investigation-depth` mode-ladder skill that the `sre` agent used to
   scale investigation depth to incident severity.
 - The evals that exercised sustained-response behavior: two scenarios and the
-  four rubrics (with their calibration cases) that graded them.
+  three rubrics (with their calibration cases) that graded them.
 
 Parked on 2026-09-03. The fleet's incident lane is the human-facing
 `incident-investigation` advisor plus a thin, dispatched, read-only helper.
@@ -47,8 +47,8 @@ see Section 5 for what "verbatim" means for those two.
 | `skills/investigation-depth/references/systemic-failure.md` | `archive/incident-autonomy/skills/investigation-depth/references/systemic-failure.md` | 3565 |
 | `evals/scenarios/agent-direct-sre-owns-recovery-to-terminal.yaml` | `archive/incident-autonomy/evals/scenarios/agent-direct-sre-owns-recovery-to-terminal.yaml` | 3886 |
 | `evals/scenarios/agent-direct-sre-records-unknown-recovery-progress.yaml` | `archive/incident-autonomy/evals/scenarios/agent-direct-sre-records-unknown-recovery-progress.yaml` | 4618 |
-| `evals/rubrics.yaml` (4 rubrics extracted, see Section 5) | `archive/incident-autonomy/evals/rubrics.yaml` | 3562 |
-| `evals/rubrics-calibration.yaml` (47 cases extracted, see Section 5) | `archive/incident-autonomy/evals/rubrics-calibration.yaml` | 19217 |
+| `evals/rubrics.yaml` (3 rubrics extracted, see Section 5) | `archive/incident-autonomy/evals/rubrics.yaml` | 2666 |
+| `evals/rubrics-calibration.yaml` (35 cases extracted, see Section 5) | `archive/incident-autonomy/evals/rubrics-calibration.yaml` | 14755 |
 
 Folder total: 102261 bytes across the 13 files above, plus this README.
 
@@ -71,10 +71,10 @@ Folder total: 102261 bytes across the 13 files above, plus this README.
 ## 5. Restore steps
 
 1. Copy the files in the manifest back to their source paths.
-2. Re-add the four rubrics (`recovery_authority_held`,
-   `no_blind_retry_after_unknown`, `unknown_progress_not_invented`,
+2. Re-add the three rubrics (`recovery_authority_held`,
+   `unknown_progress_not_invented`,
    `progress_consistent_with_record`) from `evals/rubrics.yaml` in this
-   folder into the live `evals/rubrics.yaml`, and the 47 calibration cases
+   folder into the live `evals/rubrics.yaml`, and the 35 calibration cases
    from `evals/rubrics-calibration.yaml` in this folder into the live
    `evals/rubrics-calibration.yaml`.
 3. Apply the patches under `patches/` — a later commit in the same pull

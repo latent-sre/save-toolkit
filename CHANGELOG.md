@@ -367,10 +367,11 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 - Removed the `sre` agent's sustained-response machinery: it needed a trigger loop and signal read
   paths the repository does not have. The two scenarios
   (`agent-direct-sre-owns-recovery-to-terminal`, `agent-direct-sre-records-unknown-recovery-progress`),
-  the four rubrics (`recovery_authority_held`, `no_blind_retry_after_unknown`,
-  `unknown_progress_not_invented`, `progress_consistent_with_record`) and their 47 calibration
+  the three rubrics (`recovery_authority_held`,
+  `unknown_progress_not_invented`, `progress_consistent_with_record`) and their 35 calibration
   cases, and `validate_fleet.py`'s conditional-handoff rule are all archived under
-  `archive/incident-autonomy`.
+  `archive/incident-autonomy`. `no_blind_retry_after_unknown` stays live; the
+  observability-engineer unknown-write scenario grades with it.
 - Removed `skills/merge-gate` and `skills/release-gate`.
 - Removed 60 uncited dated packets under `docs/reviews/` (kept: everything a test or a live
   document cites; history is `git log -- docs/reviews`), `docs/rules.md`, and `docs/README.md`.
