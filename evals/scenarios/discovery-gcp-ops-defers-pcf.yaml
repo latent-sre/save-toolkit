@@ -1,26 +1,17 @@
-schema_version: 1
 id: discovery-gcp-ops-defers-pcf
-mode: discovery
 split: regression
-target:
-  kind: skill
-  name: gcp-ops
 prompt: |
   Checkout has not migrated to GCP; it still runs on PCF/TAS. The app is 502-ing with
   X-Cf-RouterError and recent exit code 137 events. Inspect cf app, events, logs, and routes without
   changing the foundation.
+success_criteria:
+- Keeps a PCF application failure in the PCF operations lane
+- Does not route the coexistence-era request to GCP operations
+target:
+  kind: skill
+  name: gcp-ops
 routing:
   expect: not_fire
   expected_alternative:
     kind: skill
     name: pcf-ops
-success_criteria:
-  - Keeps a PCF application failure in the PCF operations lane
-  - Does not route the coexistence-era request to GCP operations
-graders:
-  - type: contains_all
-    of: ["cf target", "cf app checkout", "cf events checkout", "cf logs checkout --recent", "cf routes"]
-  - type: contains_all
-    of: ["status 137", "SIGKILL", "not proof of OOM", "(out of memory)"]
-  - type: contains_all
-    of: ["X-Cf-RouterError", "app-side", "platform-side", "[unverified]"]

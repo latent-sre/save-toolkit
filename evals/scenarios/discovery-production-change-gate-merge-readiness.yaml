@@ -1,26 +1,14 @@
-schema_version: 1
 id: discovery-production-change-gate-merge-readiness
-mode: discovery
 split: regression
-target:
-  kind: skill
-  name: production-change-gate
 prompt: |
   Is PR #42 ready to merge? CI is green — build, lint, and the full suite all passed at the PR-head
   commit. There is one open P1 review finding that hasn't been fixed or rejected yet, and the changed
   behaviour still has no regression test covering it.
+success_criteria:
+- Applies the merge-readiness checklist and returns its verdict shape
+- Blocks on the untested changed behaviour and the open P1 finding
+target:
+  kind: skill
+  name: production-change-gate
 routing:
   expect: fire
-success_criteria:
-  - Applies the merge-readiness checklist and returns its verdict shape
-  - Blocks on the untested changed behaviour and the open P1 finding
-graders:
-  # Anchored to the verdict shape and tolerant of markdown around label and value; the
-  # exact-fields grader found zero occurrences of `**gate: merge**` on 2026-09-02.
-  - type: regex
-    pattern: '(?im)^\W*gate\W*:\s*\W*merge\b'
-  - type: regex
-    pattern: '(?im)^\W*verdict\W*:\s*\W*BLOCKED\b'
-  - type: rubric
-    name: gate_blocks_action
-    params: {action_terms: "merge / merging"}

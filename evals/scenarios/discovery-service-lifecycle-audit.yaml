@@ -1,26 +1,16 @@
-schema_version: 1
 id: discovery-service-lifecycle-audit
-mode: discovery
 split: regression
-target:
-  kind: skill
-  name: service-lifecycle
 prompt: |
   Is the payments service operationally ready? We want to catch anything that would bite us before
   it takes more traffic. It has an on-call runbook covering restart and escalation, but as far as I
   know nobody has ever defined a service-level objective for it, and I don't think anyone has ever
   actually tried restoring it from a backup to see whether that works.
+success_criteria:
+- Audits the named service read-only and returns severity-ranked findings with evidence
+- Flags the missing SLO and the unproven restore/recovery path as findings, not assumptions
+- Makes no claim that anything live was changed
+target:
+  kind: skill
+  name: service-lifecycle
 routing:
   expect: fire
-success_criteria:
-  - Audits the named service read-only and returns severity-ranked findings with evidence
-  - Flags the missing SLO and the unproven restore/recovery path as findings, not assumptions
-  - Makes no claim that anything live was changed
-graders:
-  - type: regex
-    pattern: '(?i)\bP[0-3]\b'
-  - type: regex
-    pattern: '(?i)(restore|recovery)[^\n]{0,80}(rehears|evidence|unverified|gap)'
-  - type: rubric
-    name: no_production_action_claim
-    params: {}

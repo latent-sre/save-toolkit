@@ -61,7 +61,7 @@ def _ctx(spec: dict, ws: build_probe.Workspace, *, text: str = "", skills=(), sk
 
 class ScenarioSpecTests(unittest.TestCase):
     def test_committed_scenarios_validate_and_carry_the_trap_inline_only(self) -> None:
-        scenarios = build_probe.load_all_scenarios()
+        scenarios = build_probe.load_all_scenarios(build_probe.SCENARIO_DIR)
         self.assertGreaterEqual(len(scenarios), 3)
         ids = {s["id"] for s in scenarios}
         self.assertIn("build-software-engineer-refuses-untrusted-suite-run", ids)
@@ -473,7 +473,8 @@ class PositiveControlTests(unittest.TestCase):
         bash = _posix_bash()
         if bash is None:
             self.skipTest("no POSIX bash available (Git Bash on Windows)")
-        shipped = [s for s in build_probe.load_all_scenarios() if "cf" in (s["fixture"].get("fake_bin") or {})]
+        shipped = [s for s in build_probe.load_all_scenarios(build_probe.SCENARIO_DIR)
+                   if "cf" in (s["fixture"].get("fake_bin") or {})]
         self.assertGreaterEqual(len(shipped), 3)
         for spec in shipped:
             with self.subTest(scenario=spec["id"]):
@@ -1242,6 +1243,199 @@ class ReviewFindingTests(unittest.TestCase):
         self.assertTrue(trace["regraded"])
         entries = json.loads((self.root / "summary-new_skill-default.json").read_text(encoding="utf-8"))
         self.assertEqual(("FAIL", 0, True), (entries[0]["status"], entries[0]["passed"], entries[0]["regraded"]))
+
+
+def _trace(*, skills=(), agents=(), text="an answer", plugins=(("save-toolkit",),)) -> build_probe.TraceSummary:
+    trace = build_probe.TraceSummary()
+    trace.skills = list(skills)
+    trace.agents = list(agents)
+    trace.result_text = text
+    trace.runtime_plugins = [{"name": name} for (name,) in plugins]
+    return trace
+
+
+class RoutingGradeTests(unittest.TestCase):
+    """The one check a routing scenario makes: did the named component complete?"""
+
+    plugin_root = ROOT
+
+    def _fire(self, name: str, kind: str = "skill") -> dict:
+        return {"id": "r", "prompt": "p", "target": {"kind": kind, "name": name},
+                "routing": {"expect": "fire"}}
+
+    def test_fire_credits_a_completed_namespaced_invocation(self) -> None:
+        passed, detail = build_probe.grade_routing(
+            self._fire("incident-command"),
+            _trace(skills=["save-toolkit:incident-command"]),
+            self.plugin_root,
+        )
+        self.assertTrue(passed, detail)
+        self.assertIn("save-toolkit:incident-command", detail)
+
+    def test_fire_is_not_satisfied_by_an_inline_answer(self) -> None:
+        passed, detail = build_probe.grade_routing(
+            self._fire("incident-command"), _trace(), self.plugin_root
+        )
+        self.assertFalse(passed)
+        self.assertIn("saw []", detail)
+
+    def test_fire_is_not_satisfied_by_a_failed_skill_call(self) -> None:
+        """An attempt is not a load: skills_failed must not count."""
+        trace = _trace()
+        trace.skills_failed = ["save-toolkit:incident-command"]
+        passed, _ = build_probe.grade_routing(self._fire("incident-command"), trace, self.plugin_root)
+        self.assertFalse(passed)
+
+    def test_fire_on_an_agent_target_reads_completed_dispatches(self) -> None:
+        passed, _ = build_probe.grade_routing(
+            self._fire("reviewer", kind="agent"),
+            _trace(agents=["save-toolkit:reviewer"]),
+            self.plugin_root,
+        )
+        self.assertTrue(passed)
+        failed = _trace()
+        failed.agents_failed = ["save-toolkit:reviewer"]
+        passed, _ = build_probe.grade_routing(self._fire("reviewer", kind="agent"), failed, self.plugin_root)
+        self.assertFalse(passed)
+
+    def test_namespace_comes_from_the_loaded_plugin_not_a_literal(self) -> None:
+        spec = self._fire("incident-command")
+        trace = _trace(skills=["renamed:incident-command"], plugins=(("renamed",),))
+        passed, _ = build_probe.grade_routing(spec, trace, self.plugin_root)
+        self.assertTrue(passed)
+
+    def test_not_fire_inline_requires_no_component_and_an_answer(self) -> None:
+        spec = {"id": "r", "prompt": "p", "target": {"kind": "skill", "name": "pcf-deploy"},
+                "routing": {"expect": "not_fire", "expected_alternative": "inline"}}
+        passed, _ = build_probe.grade_routing(spec, _trace(), self.plugin_root)
+        self.assertTrue(passed)
+        fired, detail = build_probe.grade_routing(
+            spec, _trace(skills=["save-toolkit:pcf-deploy"]), self.plugin_root
+        )
+        self.assertFalse(fired)
+        self.assertIn("unexpectedly fired", detail)
+        silent, _ = build_probe.grade_routing(spec, _trace(text="  "), self.plugin_root)
+        self.assertFalse(silent, "an empty response is not a passing inline answer")
+
+    def test_not_fire_with_a_named_alternative_requires_that_alternative(self) -> None:
+        spec = {"id": "r", "prompt": "p", "target": {"kind": "skill", "name": "obs-logs"},
+                "routing": {"expect": "not_fire",
+                            "expected_alternative": {"kind": "skill", "name": "obs-alerting"}}}
+        passed, _ = build_probe.grade_routing(
+            spec, _trace(skills=["save-toolkit:obs-alerting"]), self.plugin_root
+        )
+        self.assertTrue(passed)
+        # Absence of the forbidden target alone is not a pass.
+        missing, detail = build_probe.grade_routing(spec, _trace(), self.plugin_root)
+        self.assertFalse(missing)
+        self.assertIn("expected alternative", detail)
+
+
+class ThresholdAggregationTests(unittest.TestCase):
+    def test_positive_threshold_is_honoured(self) -> None:
+        spec = {"id": "p", "threshold": 0.66}
+        self.assertEqual(0.66, build_probe.effective_threshold(spec, None))
+        self.assertEqual("PASS", build_probe.aggregate_verdict(["PASS", "PASS", "FAIL"], 0.66))
+        self.assertEqual("FAIL", build_probe.aggregate_verdict(["PASS", "FAIL", "FAIL"], 0.66))
+
+    def test_negative_routing_is_clamped_to_full(self) -> None:
+        spec = {"id": "n", "routing": {"expect": "not_fire", "expected_alternative": "inline"},
+                "target": {"kind": "skill", "name": "pcf-deploy"}}
+        self.assertEqual(1.0, build_probe.effective_threshold(spec, 0.5))
+        self.assertEqual("FAIL", build_probe.aggregate_verdict(["PASS", "PASS", "FAIL"], 1.0))
+
+    def test_a_sub_full_threshold_on_a_negative_is_a_validation_error(self) -> None:
+        spec = {"id": "n", "prompt": "unrelated words", "threshold": 0.5,
+                "target": {"kind": "skill", "name": "pcf-deploy"},
+                "routing": {"expect": "not_fire", "expected_alternative": "inline"}}
+        problems = build_probe.validate_scenario(spec)
+        self.assertTrue(any("zero-tolerance" in p for p in problems), problems)
+
+    def test_inconclusive_short_of_the_bar_is_inconclusive_not_fail(self) -> None:
+        self.assertEqual("INCONCLUSIVE", build_probe.aggregate_verdict(["PASS", "INCONCLUSIVE"], 1.0))
+        self.assertEqual("FAIL", build_probe.aggregate_verdict(["FAIL", "FAIL"], 1.0))
+
+    def test_aggregation_groups_by_scenario(self) -> None:
+        scenarios = [{"id": "a", "threshold": 0.5}, {"id": "b"}]
+        results = [
+            {"scenario": "a", "status": "PASS"}, {"scenario": "a", "status": "FAIL"},
+            {"scenario": "b", "status": "PASS"}, {"scenario": "b", "status": "FAIL"},
+        ]
+        verdicts = build_probe.aggregate_by_scenario(scenarios, results, None)
+        self.assertEqual("PASS", verdicts["a"]["verdict"])
+        self.assertEqual("FAIL", verdicts["b"]["verdict"])
+
+
+class MainSessionCommandTests(unittest.TestCase):
+    def test_a_scenario_without_an_agent_runs_the_main_session_on_skill_task(self) -> None:
+        spec = {"id": "r", "prompt": "Latency tripled.", "target": {"kind": "skill", "name": "x"},
+                "routing": {"expect": "fire"}}
+        command = build_probe.build_command(
+            "claude", ROOT, None, spec["prompt"], "sonnet", build_probe.scenario_tools(spec)
+        )
+        self.assertNotIn("--agent", command)
+        self.assertEqual("Skill,Task", command[command.index("--tools") + 1])
+        # A routing trial must not be pre-approved to act; it should route.
+        self.assertNotIn("--permission-mode", command)
+        denied = command[command.index("--disallowedTools") + 1].split(",")
+        self.assertIn("Bash", denied)
+        self.assertIn("Write", denied)
+
+    def test_a_scenario_may_widen_its_own_tool_grant(self) -> None:
+        spec = {"id": "r", "prompt": "p", "tools": ["Skill", "Task", "Read"]}
+        self.assertEqual(("Skill", "Task", "Read"), build_probe.scenario_tools(spec))
+
+    def test_a_pinned_agent_still_gets_the_build_tools_pre_approved(self) -> None:
+        spec = {"id": "b", "agent": "software-engineer", "prompt": "p"}
+        command = build_probe.build_command(
+            "claude", ROOT, "save-toolkit:software-engineer", "p", None,
+            build_probe.scenario_tools(spec),
+        )
+        self.assertIn("--agent", command)
+        self.assertIn("--permission-mode", command)
+
+
+class ScenarioKindValidationTests(unittest.TestCase):
+    def test_a_routing_scenario_may_not_pin_an_agent(self) -> None:
+        spec = {"id": "r", "prompt": "unrelated", "agent": "sre",
+                "target": {"kind": "skill", "name": "runbook"},
+                "routing": {"expect": "fire"}}
+        problems = build_probe.validate_scenario(spec)
+        self.assertTrue(any("must not pin" in p for p in problems), problems)
+
+    def test_a_routing_prompt_may_not_name_its_target(self) -> None:
+        spec = {"id": "r", "prompt": "Use the runbook skill please.",
+                "target": {"kind": "skill", "name": "runbook"},
+                "routing": {"expect": "fire"}}
+        problems = build_probe.validate_scenario(spec)
+        self.assertTrue(any("byte-for-byte unhinted" in p for p in problems), problems)
+
+    def test_a_contract_scenario_needs_an_agent_and_graders(self) -> None:
+        problems = build_probe.validate_scenario({"id": "c", "prompt": "p"})
+        self.assertTrue(any("must pin `agent`" in p for p in problems), problems)
+        self.assertTrue(any("needs `graders`" in p for p in problems), problems)
+
+    def test_an_unknown_grader_type_is_rejected(self) -> None:
+        spec = {"id": "c", "prompt": "p", "agent": "sre",
+                "graders": [{"type": "no_such_grader"}]}
+        problems = build_probe.validate_scenario(spec)
+        self.assertTrue(any("unknown grader type" in p for p in problems), problems)
+
+    def test_a_malformed_regex_grader_is_reported_not_raised(self) -> None:
+        spec = {"id": "c", "prompt": "p", "agent": "sre",
+                "graders": [{"type": "regex", "pattern": "([unclosed"}]}
+        problems = build_probe.validate_scenario(spec)
+        self.assertTrue(any("invalid configuration" in p for p in problems), problems)
+
+    def test_checks_are_rejected_on_a_fixtureless_scenario(self) -> None:
+        spec = {"id": "c", "prompt": "p", "agent": "sre", "graders": [{"type": "regex", "pattern": "x"}],
+                "checks": [{"check": "file_exists", "path": "a"}]}
+        problems = build_probe.validate_scenario(spec)
+        self.assertTrue(any("grade a fixture workspace" in p for p in problems), problems)
+
+    def test_the_committed_build_scenarios_still_validate(self) -> None:
+        for spec in build_probe.load_all_scenarios():
+            self.assertEqual([], build_probe.validate_scenario(spec, where=spec["id"]))
 
 
 class GuardDenialClassificationTests(unittest.TestCase):

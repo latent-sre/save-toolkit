@@ -126,26 +126,6 @@ class ScenarioValidationTests(unittest.TestCase):
             ({"type": "exact_fields", "fields": {}}, "invalid configuration"),
             ({"type": "exact_fields", "fields": {"a": 123}}, "invalid configuration"),
             (
-                {
-                    "type": "json_artifact_statuses",
-                    "artifacts": [],
-                    "allowed_statuses": ["ok"],
-                    "allowed_evidence": ["e"],
-                },
-                "invalid configuration",
-            ),
-            (
-                {
-                    "type": "cloud_run_rollback_packet",
-                    "required_weight": 150,
-                    "required_trailing_flags": {},
-                    "required_service": "svc-a",
-                    "forward_target": "rev-a",
-                    "inverse_target": "rev-b",
-                },
-                "invalid configuration",
-            ),
-            (
                 {"type": "rubric", "name": "no_production_action_claim", "params": {"bogus": 1}},
                 "invalid configuration",
             ),

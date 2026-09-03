@@ -1,36 +1,15 @@
-schema_version: 1
 id: discovery-obs-logs-cloud-logging
-mode: discovery
 split: regression
-target:
-  kind: skill
-  name: obs-logs
 prompt: |
   The checkout service runs on Cloud Run. Return a bounded `gcloud logging read` command that finds
   ERROR and more-severe entries for checkout over the last hour. Limit the result, return JSON, and
   name the field assumption that must be validated before an empty result is trusted. This is query
   construction only; do not triage the service configuration or change anything.
+success_criteria:
+- Routes Cloud Logging query construction to the log-query lane
+- Returns a bounded command for the correct resource/service and surfaces the empty-result assumption
+target:
+  kind: skill
+  name: obs-logs
 routing:
   expect: fire
-success_criteria:
-  - Routes Cloud Logging query construction to the log-query lane
-  - Returns a bounded command for the correct resource/service and surfaces the empty-result assumption
-graders:
-  - type: regex
-    pattern: '\bgcloud\s+logging\s+read\b'
-  - type: regex
-    pattern: 'resource\.type\s*=\s*["'']?cloud_run_revision\b'
-  - type: regex
-    pattern: 'resource\.labels\.service_name\s*=\s*["'']?checkout\b'
-  - type: regex
-    pattern: 'severity\s*(?:>=\s*["'']?ERROR\b|=\s*\([^)]*\bERROR\b[^)]*\bCRITICAL\b[^)]*\))'
-  - type: regex
-    pattern: '--freshness(?:=|\s+)1h\b'
-  - type: regex
-    pattern: '--limit(?:=|\s+)[1-9]\d*\b'
-  - type: regex
-    pattern: '--format(?:=|\s+)json\b'
-  - type: regex
-    pattern: '\b(?:confirm|validate|check)\b[^\n.]{0,100}\b(?:resource\.type|resource\.labels\.service_name|severity|jsonpayload|textpayload)\b'
-  - type: regex
-    pattern: '\b(?:empty|no\s+(?:results?|entries|logs?))\b[^\n.]{0,100}\b(?:evidence|trust|conclu\w*|interpret\w*|mean\w*|treat\w*)\b|\b(?:evidence|trust|conclu\w*|interpret\w*|treat\w*)\b[^\n.]{0,100}\b(?:empty|no\s+(?:results?|entries|logs?))\b'

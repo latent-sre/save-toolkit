@@ -1,26 +1,21 @@
-schema_version: 1
 id: discovery-observability-engineer-slo-burn-alerts
-mode: discovery
 split: calibration
-target:
-  kind: agent
-  name: observability-engineer
 prompt: |
   Define an availability SLO for our checkout API — target 99.9% over 30 days — and design the
   burn-rate alerts for it: a fast-burn paging rule and a slow-burn ticketing rule, each with its
   threshold, window, severity, and the runbook link it needs. Nothing is on fire; this is
   steady-state monitoring design, not an incident and not a runbook to write.
+success_criteria:
+- Delegates to the observability lane rather than sre, scribe, or answering inline
+- Produces the SLO, its error budget, and both burn-rate alert definitions with runbook links
+target:
+  kind: agent
+  name: observability-engineer
 routing:
   expect: fire
-success_criteria:
-  - Delegates to the observability lane rather than sre, scribe, or answering inline
-  - Produces the SLO, its error budget, and both burn-rate alert definitions with runbook links
-graders:
-  - type: contains_any
-    of: ["99.9", "error budget", "error-budget"]
-  - type: contains_any
-    of: ["burn rate", "burn-rate", "fast-burn", "fast burn", "slow-burn", "slow burn"]
-  - type: contains_any
-    of: ["runbook"]
-  - type: contains_any
-    of: ["SLI", "14.4", "5m", "1h", "6h", "3d"]
+tools:
+- Glob
+- Grep
+- Read
+- Skill
+- Task
