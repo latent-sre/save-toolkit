@@ -247,7 +247,7 @@ incident-response behavior.
 and (2026-09-03) until the skills trims that follow PR #224 have merged: the routing after-run for
 the eleven descriptions #224 changed is folded in here rather than run twice.
 **Owner:** Save Toolkit maintainers
-**Outcome:** One fresh baseline of the whole corpus (59 specs: 11 build probes, 15 contract, 33 routing) on one
+**Outcome:** One fresh baseline of the whole corpus (60 specs: 11 build probes, 15 contract, 34 routing) on one
 model and one runner build, a fresh judge calibration, and a decision on the 15 "ownership map"
 sentences still in skill descriptions. Every measurement taken during the reshape (the
 `docs/reviews/2026-09-02-eval-*` packets, the gate-merge batches, the corpus-cut evidence) is a
