@@ -63,6 +63,16 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- `obs-dashboards`: `http-api.md` and `json-model.md` cut from 25,814 B to 15,422 B, keeping every
+  QA-measured Grafana 13 behavior and dropping the transport boilerplate and what a tools-off probe
+  showed both models already carry. Measured 15/15 on the comparable checks in every trial on Sonnet
+  and Opus, 15 to 18 percent fewer tokens; see
+  [the obs-dashboards trim evidence](docs/reviews/2026-09-03-obs-dashboards-trim-evidence.md).
+- Two graders were stricter than the contract they grade and are fixed: the dashboard query-proof
+  check accepts the proof at any point in the trial and treats a substituted range window as the
+  same query; the `no_inline_deploy_commitment` rubric names the observability-engineer's dashboard
+  write as that lane's permitted apply (29/29 on calibration). The carve-out probe also grades the
+  new panel's unit, description, and `noValue` text.
 - The eval runner no longer voids a routing verdict for a runtime refusal inside the subagent the
   main session dispatched: the verdict is the dispatch, which had already happened. The rule lives
   in `runtime_blocked_tools`, a regrade re-derives it from the raw trace, and the evals ceiling
