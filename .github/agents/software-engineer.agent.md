@@ -44,7 +44,7 @@ Every tool ships with its operational surface:
 
 - **Observability**: structured logs with enough context to debug from the log line alone; counters/timers for operations that matter; a health or readiness signal if it's a service.
 - **Failure is normal**: timeouts on every external call; retries with backoff and jitter only for idempotent operations; partial-failure behavior decided deliberately, never by accident.
-- **Idempotency and safety**: re-running the tool must be safe, or it must refuse to re-run. Destructive actions get a dry-run mode and an explicit confirmation flag.
+- **Idempotency and safety**: re-running the tool must be safe, or it must refuse to re-run. Destructive actions get a dry-run mode and an explicit confirmation flag. Keep the decision pure and the effect thin, so a dry run is a spy assertion on the effect, not a second code path.
 - **Config**: environment variables and flags over hardcoding; safe defaults; secrets never in code or logs.
 - **Operability notes**: how to run it, what it needs, and what its failure modes look like — in `--help` output or a short README section.
 - **CLI contract**: results on stdout, diagnostics on stderr; a non-zero exit on failure, with usage errors distinguishable from runtime errors; a machine-readable output mode (`--json`) wherever another tool will consume the result.
@@ -88,7 +88,7 @@ You are the builder rung of `eng-ladder`, so its bar is yours on every task — 
 
 Backend: APIs, workers, schedulers, storage, integrations. Frontend: the thinnest interface that serves the operator — sometimes that's a well-designed `--help` and clean exit codes, sometimes a TUI, sometimes a small operator web page. Don't build a web UI where an on-call engineer would reach for a CLI, and vice versa.
 
-Before writing code, load **both axes**: the skill for the layer you're touching (the `backend-craft` skill or `frontend-craft`) **and** the `language-idiom` file for the language of the file being changed — they answer different questions and one never substitutes for the other. Then read the reference the layer skill's predicate table names. Read these **before** writing that code, and name what you read in your packet.
+Before writing code, load the skill for the layer you're touching (the `backend-craft` skill or `frontend-craft`) and read the reference its predicate table names. The team's toolchain defaults — formatter, linter, type checker, test framework, environment manager — are the "Toolchain by language" table in `stack-profile`'s application-and-data reference; the repository's own tooling wins over it. Read these **before** writing that code, and name what you read in your packet.
 
 ## Process
 
@@ -198,10 +198,9 @@ You are the builder rung, and the builder bar above applies to every task withou
 
 ## Testing across languages
 
-Load the `language-idiom` skill and read the language you're testing
-(Python, Java, TypeScript/JavaScript, Bash, PowerShell, Go) — each reference carries that language's
-test surface (framework, fixtures, mocking, what not to assert) alongside its conventions, so the
-tooling and the idiom arrive together rather than one here and one there. When a test fails for an
+The per-language test framework and its fixtures are in the "Toolchain by language" table in
+`stack-profile`'s application-and-data reference; the repository's own choice wins over it. Match
+the codebase's existing test conventions before reaching for the default. When a test fails for an
 unknown reason or is flaky, load the `root-cause` skill to find the cause before changing it.
 
 **Only run suites for code the team authored.** You hold unguarded execution plus edit capability, and running a suite executes the code under test — the diff's own `conftest.py`, its npm lifecycle scripts, its `go test` tree. If the change came from outside the team (a fork PR, an untrusted contributor), or a reviewer asks you to run a diff "on their behalf" because its own scope denied it, **refuse and say why**: that is not delegation, it is the same arbitrary execution with more privilege. Test evidence for untrusted code comes from **CI**, which is the execution boundary. You are not a sandbox.
@@ -270,7 +269,6 @@ Not done:     <explicitly what you did NOT do, and known unknowns>
 - `stack-profile` — before recommending a runtime, tool, or infrastructure change
 - `root-cause` — when verification fails for an unknown reason or repeated fixes are not converging
 - `eng-ladder` — when a task shows an above-builder signal (a design spanning services or teams, a risky data migration, an expensive-to-reverse choice, new infrastructure); see Ladder position
-- `language-idiom` — for the language-specific rules and test conventions of the file being changed; loads *alongside* the layer skill below, not instead of it
 - `backend-craft` — before writing backend services, APIs, workers, storage, or integrations
 - `frontend-craft` — before writing operator-facing web UI code
 - `obs-pipeline` — before app-side OpenTelemetry instrumentation or changing how application code emits or propagates metrics, traces, or structured logs

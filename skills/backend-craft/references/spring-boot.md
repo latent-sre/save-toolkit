@@ -28,8 +28,8 @@ per-module artifacts (noted below where it bites), so check before copying a dep
   `@ConfigurationProperties` class per concern. Controllers stay thin — a handler that hashes
   passwords or writes rows is the anti-pattern; it can't be tested or reused without HTTP.
   Top-level packages named `controllers/`, `services/`, or `repositories/` are the package-by-layer
-  anti-pattern; the language-idiom Java rules require package-by-feature and reject layer packages
-  at the top level.
+  anti-pattern; the Java row of `stack-profile`'s "Toolchain by language" table requires
+  package-by-feature and rejects layer packages at the top level.
 - **Config via `@ConfigurationProperties` + `@Validated`**: one typed class per prefix, bound once
   at startup. `@Validated` is what makes it the validate-at-startup rule — binding runs
   `jakarta.validation` constraints **before** `@PostConstruct`, and a failure is a startup failure

@@ -24,6 +24,19 @@ An existing repo's stack always wins — match it. Greenfield is always a **Reac
 
 For a greenfield SPA, use this stack no matter how small. Existing repositories keep their established stack as required above. If the user explicitly asks for plain HTML or a static page, comply; that call is theirs. Any greenfield deviation from this default gets one line in the review packet.
 
+## TypeScript rules
+
+Universal to any TypeScript or JavaScript in the UI, whichever framework the view uses:
+
+- Keep **`strict`** enabled. Avoid `any`; narrow `unknown` at the boundary with a schema or type
+  guard.
+- Enable **`no-floating-promises`**: every promise is awaited, returned, or deliberately observed
+  with a rejection handler.
+- **Branded identifiers** where two domain IDs share a primitive type, and **discriminated unions**
+  switched exhaustively with a `never` check.
+- **Vitest or Jest + React Testing Library**, **MSW** at the network boundary, and **Playwright** for
+  the few critical user journeys.
+
 ## Build & serve on PCF
 
 Build hashed static assets (`vite build`). Serve via the **`staticfile`/`nginx` buildpack** or co-serve

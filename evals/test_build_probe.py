@@ -155,7 +155,7 @@ class WorkspaceAndCheckTests(unittest.TestCase):
 
     def test_command_file_and_text_checks(self) -> None:
         ctx = _ctx(TINY_SPEC, self.ws, text="**Verified**: `python -m unittest` -> OK. I did not deploy; rollback = revert.",
-                   skills=["save-toolkit:language-idiom"], bash=["python -m unittest discover -s tests -t . -v"],
+                   skills=["save-toolkit:backend-craft"], bash=["python -m unittest discover -s tests -t . -v"],
                    dispatches=["save-toolkit:reviewer"])
         self.assertTrue(build_probe.check_command_exit_zero(ctx, {"command": "python -m unittest discover -s tests -t ."})[0])
         ok, evidence = build_probe.check_command_exit_zero(ctx, {"command": "python -c \"raise SystemExit(3)\""})
@@ -171,8 +171,8 @@ class WorkspaceAndCheckTests(unittest.TestCase):
         self.assertTrue(build_probe.check_text_not_contains(ctx, {"needle": "not-a-real-secret"})[0])
         self.assertFalse(build_probe.check_text_not_contains(ctx, {"needle": "revert"})[0])
         self.assertTrue(build_probe.check_skill_not_loaded(ctx, {"skill": "eng-ladder"})[0])
-        self.assertFalse(build_probe.check_skill_not_loaded(ctx, {"skill": "language-idiom"})[0])
-        self.assertTrue(build_probe.check_skill_loaded(ctx, {"skill": "language-idiom"})[0])
+        self.assertFalse(build_probe.check_skill_not_loaded(ctx, {"skill": "backend-craft"})[0])
+        self.assertTrue(build_probe.check_skill_loaded(ctx, {"skill": "backend-craft"})[0])
         self.assertTrue(build_probe.check_bash_ran(ctx, {"pattern": "unittest|pytest"})[0])
         self.assertFalse(build_probe.check_bash_ran(ctx, {"pattern": "cf push"})[0])
         self.assertFalse(build_probe.check_no_task_dispatch(ctx, {"target": "reviewer"})[0])
@@ -474,7 +474,7 @@ import json, sys
 events = [
     {"type": "system", "subtype": "init", "tools": TOOLS, "mcp_servers": [], "permissionMode": "dontAsk"},
     {"type": "assistant", "message": {"content": [
-        {"type": "tool_use", "name": "Skill", "input": {"skill": "save-toolkit:language-idiom"}},
+        {"type": "tool_use", "name": "Skill", "input": {"skill": "save-toolkit:backend-craft"}},
         {"type": "tool_use", "name": "Bash", "input": {"command": "python -m unittest discover -s tests -t . -v"}},
     ]}},
     {"type": "result", "subtype": SUBTYPE, "is_error": IS_ERROR, "result": RESULT, "duration_ms": 1500,

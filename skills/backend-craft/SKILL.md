@@ -4,7 +4,7 @@ description: >-
   Build or change an API or backend service — HTTP endpoints, workers, schedulers, the service behind
   a UI — and consume third-party APIs safely (clients, SDK wrappers, sync jobs, webhooks), including
   our platform/obs APIs. Triggers: 'add an endpoint', 'wrap X behind an API', 'write a client for Y'.
-  Not for UI work (frontend-craft), live-data operations (database-reliability), or per-language rules (language-idiom).
+  Not for UI work (frontend-craft), live-data operations (database-reliability).
 argument-hint: "[the API or service to build or change]"
 ---
 

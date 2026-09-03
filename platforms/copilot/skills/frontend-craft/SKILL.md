@@ -4,7 +4,7 @@ description: >-
   Build or change a web UI — pages, dashboards-as-app-features, forms, admin panels — from a single
   page to a full SPA, including serving it on PCF. Owns UI-layer TypeScript/React idiom — component
   state, interaction, accessibility, resilience UX. Triggers: 'build a UI for', 'add a
-  page/form/table', 'make this dashboard page'. Not for the service behind the UI (backend-craft) or Grafana dashboards (obs-dashboards); language-idiom loads alongside for the TypeScript rules.
+  page/form/table', 'make this dashboard page'. Not for the service behind the UI (backend-craft) or Grafana dashboards (obs-dashboards).
 argument-hint: "[the UI to build or change]"
 ---
 
@@ -54,6 +54,7 @@ packet.
 | dialogs, drawers, menus, tabs, custom widgets, or async announcements | [interaction accessibility](./references/interaction-a11y.md) |
 | labels, actions, errors, empty states, or toasts | [interface copy](./references/ux-writing.md) |
 | choosing a stack for a greenfield UI, or serving a SPA on PCF | Load `stack-profile` first, then [stack](./references/stack.md) |
+| writing TypeScript or JavaScript in any UI code | [stack](./references/stack.md) — its TypeScript rules |
 | a table, list, or grid of records | [data views](./references/data-views.md) |
 | a chart, graph, or metric visualization | [data visualization](./references/data-viz.md) |
 | a form or any user input to submit | [forms](./references/forms.md) |
