@@ -94,9 +94,50 @@ started here:
 3. Two Opus builds answered a hung vendor with `200` and a null owner (graceful degradation). The
    oracle demands a 5xx; whether degrading is the house rule is a decision to record in the skill.
 
+## The no-skill arm (run afterwards, same day)
+
+Ten more trials from a detached worktree at `bdfc4f83`, which is the trimmed tree with
+`skills/backend-craft/` deleted in a local commit that was never pushed. Every Skill call in
+those trials answered `<tool_use_error>Unknown skill: save-toolkit:backend-craft</tool_use_error>`
+(verified from the raw traces: 0 successful loads, 12 errored attempts), so the arm is clean.
+
+| Arm | Scores (of 18) | Total | Skill loaded | Tokens, five trials |
+|---|---|---|---|---|
+| No skill, Sonnet | 13, 13, 13, 13, 13 | 65/90 | 0/5 | 3,847,020 |
+| No skill, Opus | 13, 13, 13, 13, 13 | 65/90 | 0/5 | 5,048,522 |
+
+| Check | No skill, Sonnet | No skill, Opus |
+|---|---|---|
+| Cursor pagination | 0 | 0 |
+| `?status=` filter (all five: no `{data}` envelope) | 0 | 0 |
+| 404 as problem+json | 0 | 0 |
+| Vendor timeout as 5xx problem+json | 0 | 0 |
+| `internal_note` kept out; owner fetched; `/healthz` fast; tests; packet; surgical; no commit | 5 | 5 |
+
+Read against the two skill arms above:
+
+- **The skill's whole measured effect is cursor pagination on Opus**: 0/5 without it, 5/5 with
+  either bundle. Both Opus skill arms score 77/90 to the no-skill arm's 65/90, and 10 of those 12
+  points are the pagination check and the load check; the other two are the single problem+json
+  passes.
+- **On Sonnet the skill has no measured effect.** The three Sonnet arms are identical on every
+  oracle check; their totals differ only by the load check (4/5, 2/5, 0/5).
+- **The error contract lands 2 of 30 trials across all arms**, so it is not a question of which
+  bundle carries the sentence.
+- **Reading the skill costs tokens**: Opus spent 26% more with the trimmed bundle than with none,
+  and 54% more with the full one; Sonnet 7% and 48%.
+
+Grader provenance for this arm: the trials were graded live at `fdc50cdc`, whose
+`skill_loaded` check credited attempted loads; all thirty runs were regraded at `2b9492d5`, which
+re-parses the raw trace and credits a load only on a non-error tool result. The regrade changed
+only the load check in the no-skill arm (10 spurious passes became fails); every other verdict
+is unchanged, and the oracle's `limit` fix does not apply to regrades because command checks keep
+their live verdicts.
+
 ## Not measured
 
-No no-skill arm was run, so "the model does this unprompted" is inferred from the knowledge probe
-and from the four Sonnet trials that happened not to load the skill, not from a controlled arm.
-One task on one stack; nothing here says anything about the Spring Boot reference. Four arms ran
-concurrently on one host, so wall-clock seconds are indicative only.
+One task on one stack; nothing here says anything about the Spring Boot reference. The no-skill
+arm ran on the fixed oracle (`limit=40`) while the skill arms ran on the original, so its filter
+column is comparable only through the reclassification above (every no-skill failure was the
+missing envelope, not the cap). Up to four arms ran concurrently on one host, so wall-clock
+seconds are indicative only.
