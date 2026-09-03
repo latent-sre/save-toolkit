@@ -29,23 +29,46 @@ def _count_lines(path: Path) -> int:
 
 
 def _tracked_files(root: Path, prefix: str) -> list[Path]:
-    """Files git tracks under *prefix*; without git, every file except bytecode caches.
+    """Files git tracks under *prefix* and still present on disk; without git, every file except
+    bytecode caches.
 
     The first recorded ceilings were measured over `rglob`, which counted 40 KB of untracked
     `__pycache__` bytecode that tests leave beside skill scripts -- a total that moved with whether
     the suite had run, and that a `git clean` could lower without touching a skill.
+
+    `git ls-files` only works if *root* is the toplevel of the repository it resolves to; a
+    Git-less copy of the toolkit sitting untracked inside another repository would otherwise get
+    that enclosing repository's `ls-files`, which lists none of these paths and measures zero. And
+    `ls-files` lists the index, not the working tree, so a tracked file deleted or renamed without
+    `git rm`/`git add` is filtered out here rather than raising when `measure` tries to stat it.
     """
+    same_repo = False
     try:
-        proc = subprocess.run(
-            ["git", "-C", str(root), "ls-files", "-z", "--", prefix],
+        toplevel = subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "--show-toplevel"],
             capture_output=True, text=True, encoding="utf-8", check=True,
         )
+        same_repo = Path(toplevel.stdout.strip()).resolve() == root.resolve()
+        if same_repo:
+            proc = subprocess.run(
+                ["git", "-C", str(root), "ls-files", "-z", "--", prefix],
+                capture_output=True, text=True, encoding="utf-8", check=True,
+            )
     except (OSError, subprocess.CalledProcessError):
+        same_repo = False
+    if not same_repo:
         return [
             path for path in sorted((root / prefix).rglob("*"))
             if path.is_file() and "__pycache__" not in path.parts
         ]
-    return [root / name for name in proc.stdout.split("\0") if name]
+    tracked = []
+    for name in proc.stdout.split("\0"):
+        if not name:
+            continue
+        path = root / name
+        if path.is_file():
+            tracked.append(path)
+    return tracked
 
 
 def measure(root: Path = ROOT) -> dict[str, int]:
@@ -53,8 +76,11 @@ def measure(root: Path = ROOT) -> dict[str, int]:
         _count_lines(path) for path in _tracked_files(root, "evals") if path.suffix == ".py"
     )
     skills_bytes = sum(path.stat().st_size for path in _tracked_files(root, "skills"))
+    agents_dir = root / "agents"
     agents_bytes = sum(
-        path.stat().st_size for path in _tracked_files(root, "agents") if path.suffix == ".md"
+        path.stat().st_size
+        for path in _tracked_files(root, "agents")
+        if path.suffix == ".md" and path.parent == agents_dir
     )
     return {
         "evals_python_lines": evals_lines,
