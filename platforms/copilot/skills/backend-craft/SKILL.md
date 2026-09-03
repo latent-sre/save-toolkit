@@ -42,6 +42,12 @@ failure-first, observable, safe to operate.
 | Persistence | The existing datastore wins, otherwise load `stack-profile`; parameterized queries only; short explicit transactions, never held across an outbound call; migration safety belongs to `database-reliability` |
 | Background work | A real queue for anything that must not be lost (ARQ or TaskIQ for async FastAPI, Celery for its ecosystem — default until recorded in stack-profile); scheduled jobs idempotent under one scheduler; webhooks verified, acknowledged with `202`, deduped by event id |
 
+## Install the contract before you build
+
+1. Copy [test_http_contract.py](./assets/test_http_contract.py) into the repository's test directory and fill its three constants. Run it: every test fails.
+2. Copy [problem_fastapi.py](./assets/problem_fastapi.py) (or [ProblemAdvice.java](./assets/ProblemAdvice.java)) into the service and register it in the app factory.
+3. Build until the contract test is green, and leave it in the repository as the contract's regression.
+
 ## Done means
 
 - The service starts clean, the tests pass, and the primary endpoints were exercised with real requests.
@@ -56,6 +62,7 @@ failure-first, observable, safe to operate.
 | building in Java + Spring Boot | [Spring Boot mechanics](./references/spring-boot.md) |
 | calling any upstream or third-party API, including our platform and observability APIs | [consuming-apis](./references/consuming-apis.md) |
 | a new HTTP contract with no project-owned one | [openapi.starter.yaml](./assets/openapi.starter.yaml) |
+| an existing service that does not yet pass the contract test | the three steps above |
 | choosing a stack for a greenfield service | Load `stack-profile` |
 
 Trips two predicates? Read both. Trips none? The core above is the whole job.
