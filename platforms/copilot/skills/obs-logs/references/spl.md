@@ -262,6 +262,6 @@ filter isn't index-time-selective (that's what `TERM()`/`tstats` fix).
   *[sourced: Splunk field/search behavior; unverified target extractions]*
 - `stats`/`timechart`/`tstats` aggregate; `transaction` groups events but is expensive — prefer
   `stats by <id>` for correlation. *[unverified performance guidance for target data]*
-- Record every change and symptom in one UTC incident timeline; hand it to the `sre-assistant` agent with
+- Record every change and symptom in one UTC incident timeline; hand it to the responder (or the `sre-assistant` slice they dispatched) with
   confidence labels.
 - Hand correlated evidence to the `observability-engineer` agent.

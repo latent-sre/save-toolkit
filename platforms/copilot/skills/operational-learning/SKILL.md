@@ -23,8 +23,8 @@ none approves its own promotion into the knowledge base.
 
 This is a documentation-only method. `scribe` may read the workspace and prepare documentation
 changes, but it never executes, browses, queries a live target, delegates, or marks its own output
-approved, merged, or verified. Active incidents stay with `sre-assistant`; alert, SLO, and dashboard design
-stays with `observability-engineer`; code or automation stays with `software-engineer`.
+approved, merged, or verified. Active incidents stay with the responder and `incident-investigation`;
+alert, SLO, and dashboard design stays with `observability-engineer`; code or automation stays with `software-engineer`.
 
 ## Load only what the closeout needs
 
@@ -48,7 +48,8 @@ stays with `observability-engineer`; code or automation stays with `software-eng
    assertion is `[unverified]`, and this lane never derives the binding from `.git/` contents.
    A missing or mismatched binding permits only `proposed` or `blocked` outcomes.
    An active incident permits only
-   `proposed` or `blocked` outcomes and returns to `sre-assistant`.
+   `proposed` or `blocked` outcomes and returns to the human responder, who troubleshoots it with
+   `incident-investigation`.
 2. **Inventory before creating.** Read existing service cards, alert cards, indexes, runbooks,
    postmortems, alert definitions, and ownership conventions. Update stable IDs and links instead of
    forking duplicates.
