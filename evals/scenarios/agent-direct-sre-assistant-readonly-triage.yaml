@@ -83,7 +83,7 @@ graders:
   - incident commander
   - owns the incident
   - human owns
-  - human sre-assistant
+  - human sre
   - human ic
   - your ic
   - ic/release owner
