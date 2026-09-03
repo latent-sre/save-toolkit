@@ -53,8 +53,9 @@ TINY_SPEC = {
 }
 
 
-def _ctx(spec: dict, ws: build_probe.Workspace, *, text: str = "", skills=(), bash=(), dispatches=()) -> build_probe.Context:
-    trace = build_probe.TraceSummary(result_text=text, skills=list(skills), bash_commands=list(bash), dispatches=list(dispatches))
+def _ctx(spec: dict, ws: build_probe.Workspace, *, text: str = "", skills=(), skills_failed=(), bash=(), dispatches=()) -> build_probe.Context:
+    trace = build_probe.TraceSummary(result_text=text, skills=list(skills), skills_failed=list(skills_failed),
+                                     bash_commands=list(bash), dispatches=list(dispatches))
     return build_probe.Context(spec, ws, trace, build_probe.collect_git_facts(ws))
 
 
@@ -273,9 +274,13 @@ class TraceAndCommandTests(unittest.TestCase):
         events = [
             {"type": "system", "subtype": "init"},
             {"type": "assistant", "message": {"content": [
-                {"type": "tool_use", "name": "Skill", "input": {"skill": "save-toolkit:eng-ladder"}},
+                {"type": "tool_use", "id": "tu_s", "name": "Skill", "input": {"skill": "save-toolkit:eng-ladder"}},
                 {"type": "tool_use", "name": "Bash", "input": {"command": "python -m unittest -v"}},
                 {"type": "tool_use", "name": "Task", "input": {"subagent_type": "save-toolkit:reviewer"}},
+            ]}},
+            # A Skill load is credited only against its own clean tool_result.
+            {"type": "user", "message": {"content": [
+                {"type": "tool_result", "tool_use_id": "tu_s", "content": "eng-ladder loaded"},
             ]}},
             {"type": "result", "result": "done", "duration_ms": 1234, "num_turns": 3,
              "usage": {"input_tokens": 10, "output_tokens": 5, "cache_read_input_tokens": 100},
@@ -294,6 +299,51 @@ class TraceAndCommandTests(unittest.TestCase):
         self.assertEqual(["claude-sonnet-5"], s.models)
         self.assertEqual(["Bash"], s.denials)
         self.assertEqual({"Skill": 1, "Bash": 1, "Task": 1}, s.tool_counts)
+
+    @staticmethod
+    def _parse_events(events: list) -> "build_probe.TraceSummary":
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "t.jsonl"
+            path.write_text("\n".join(json.dumps(e) for e in events), encoding="utf-8")
+            return build_probe.parse_trace(path)
+
+    @staticmethod
+    def _skill_events(*, is_error: bool) -> list:
+        return [
+            {"type": "assistant", "message": {"content": [
+                {"type": "tool_use", "id": "tu_skill", "name": "Skill",
+                 "input": {"skill": "save-toolkit:backend-craft"}}]}},
+            {"type": "user", "message": {"content": [
+                {"type": "tool_result", "tool_use_id": "tu_skill", "is_error": is_error,
+                 "content": "<tool_use_error>Unknown skill: save-toolkit:backend-craft</tool_use_error>"
+                            if is_error else "backend-craft loaded"}]}},
+            {"type": "result", "result": "done", "duration_ms": 10, "usage": {}},
+        ]
+
+    def _skill_check(self, summary, name: str, params: dict, fn):
+        with tempfile.TemporaryDirectory() as tmp:
+            ws = build_probe.seed_workspace(TINY_SPEC, Path(tmp) / name)
+            ctx = build_probe.Context(TINY_SPEC, ws, summary, build_probe.collect_git_facts(ws))
+            return fn(ctx, params)
+
+    def test_an_errored_skill_call_is_an_attempt_not_a_load(self) -> None:
+        """The 2026-09-02 no-skill arm: Skill(save-toolkit:backend-craft) answered `Unknown skill`
+        with is_error, and the old parser still recorded it as a load."""
+        s = self._parse_events(self._skill_events(is_error=True))
+        self.assertEqual([], s.skills, "an errored Skill call is not a load")
+        self.assertEqual(["save-toolkit:backend-craft"], s.skills_failed)
+        ok, evidence = self._skill_check(s, "ws-err", {"skill": "backend-craft"}, build_probe.check_skill_loaded)
+        self.assertFalse(ok, "an Unknown skill tool error must not count as a load")
+        self.assertIn("attempted", evidence.lower())
+        self.assertIn("save-toolkit:backend-craft", evidence)
+
+    def test_a_skill_call_with_a_clean_tool_result_is_still_credited(self) -> None:
+        s = self._parse_events(self._skill_events(is_error=False))
+        self.assertEqual(["save-toolkit:backend-craft"], s.skills)
+        self.assertEqual([], s.skills_failed)
+        ok, evidence = self._skill_check(s, "ws-ok", {"skill": "backend-craft"}, build_probe.check_skill_loaded)
+        self.assertTrue(ok)
+        self.assertIn("loaded 1x", evidence)
 
     def test_guard_denials_are_joined_to_their_reason_and_not_treated_as_runtime_refusals(self) -> None:
         events = [
