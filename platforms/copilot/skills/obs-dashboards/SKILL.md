@@ -4,7 +4,7 @@ description: >-
   Grafana 13 dashboards — build, view, edit, and export them over the HTTP API: panel and dashboard
   design for the 3am reader, panel and variable hygiene, Classic/V1/V2 dashboard JSON, concurrency
   conflicts and rollback, and data-source licence facts. Triggers: 'build a dashboard', 'edit a
-  dashboard', 'add a panel for', 'what should we dashboard'. Not for product-UI charts (frontend-craft), alert rules (obs-alerting), or an active incident (sre).
+  dashboard', 'add a panel for', 'what should we dashboard'. Not for product-UI charts (frontend-craft), alert rules (obs-alerting), or an active incident (sre-assistant).
 argument-hint: "[service, dashboard uid, or dashboard change]"
 ---
 
@@ -81,7 +81,7 @@ advice:
 - Keep the existing time range across panels and leave `timezone` unset for this team. Preserve time
   and variables in dashboard links.
 - Query construction belongs to the matching signal skill. New alert rules/SLOs go to
-  `obs-alerting`; active unknown-cause impact goes to `sre`.
+  `obs-alerting`; active unknown-cause impact goes to `sre-assistant`.
 
 Wavefront and Splunk data-source plugins require Enterprise entitlement. ThousandEyes has no Grafana
 data-source plugin; its OpenTelemetry signals are queried through the installed metrics, trace, or

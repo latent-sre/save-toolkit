@@ -3,7 +3,7 @@ name: operational-learning
 description: >-
   Apply the operational-learning closeout after scribe selects knowledge closeout mode, or when a
   user explicitly invokes this skill. Direct KB writing belongs to scribe; active incidents route
-  to sre, alert design routes to observability-engineer, and fleet prompt work routes to
+  to sre-assistant, alert design routes to observability-engineer, and fleet prompt work routes to
   agent-engineer. Triggers: 'knowledge closeout mode selected',
   'apply the operational-learning closeout', 'capture durable operational lessons'.
 argument-hint: "[component, alert, incident, drill, or audit]"
@@ -23,7 +23,7 @@ none approves its own promotion into the knowledge base.
 
 This is a documentation-only method. `scribe` may read the workspace and prepare documentation
 changes, but it never executes, browses, queries a live target, delegates, or marks its own output
-approved, merged, or verified. Active incidents stay with `sre`; alert, SLO, and dashboard design
+approved, merged, or verified. Active incidents stay with `sre-assistant`; alert, SLO, and dashboard design
 stays with `observability-engineer`; code or automation stays with `software-engineer`.
 
 ## Load only what the closeout needs
@@ -48,7 +48,7 @@ stays with `observability-engineer`; code or automation stays with `software-eng
    assertion is `[unverified]`, and this lane never derives the binding from `.git/` contents.
    A missing or mismatched binding permits only `proposed` or `blocked` outcomes.
    An active incident permits only
-   `proposed` or `blocked` outcomes and returns to `sre`.
+   `proposed` or `blocked` outcomes and returns to `sre-assistant`.
 2. **Inventory before creating.** Read existing service cards, alert cards, indexes, runbooks,
    postmortems, alert definitions, and ownership conventions. Update stable IDs and links instead of
    forking duplicates.

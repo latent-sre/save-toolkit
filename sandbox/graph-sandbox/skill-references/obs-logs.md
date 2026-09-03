@@ -20,12 +20,12 @@ headers, credentials, or raw exception bodies.
 
 | Plane | Distinguishing evidence | Response ownership |
 |---|---|---|
-| graph control | terminal outcome, join/replay/control events | `sre` during impact; `software-engineer` for runtime defects |
-| runner/worker | runner exit/OOM state, task start/completion gaps | `sre`, then `software-engineer` |
-| model fixture or approved provider | bounded provider/fixture class and budget state | `sre`; provider/fixture owner for remediation |
-| checkpoint store | write, reject, and resume events with compatibility result | `sre`, then `software-engineer` |
-| checkout, payments, inventory | service readiness/HTTP class and receipt boundary | `sre`; owning synthetic-service code path for remediation |
-| effect reconciliation | `UNKNOWN`, replay-refused, receipt, and reconciliation events | `sre`; never automatic replay |
+| graph control | terminal outcome, join/replay/control events | `sre-assistant` during impact; `software-engineer` for runtime defects |
+| runner/worker | runner exit/OOM state, task start/completion gaps | `sre-assistant`, then `software-engineer` |
+| model fixture or approved provider | bounded provider/fixture class and budget state | `sre-assistant`; provider/fixture owner for remediation |
+| checkpoint store | write, reject, and resume events with compatibility result | `sre-assistant`, then `software-engineer` |
+| checkout, payments, inventory | service readiness/HTTP class and receipt boundary | `sre-assistant`; owning synthetic-service code path for remediation |
+| effect reconciliation | `UNKNOWN`, replay-refused, receipt, and reconciliation events | `sre-assistant`; never automatic replay |
 
 One aggregate failure count cannot select among these branches. When multiple planes appear, retain
 the causal event sequence. For example, an observed checkout uncertainty also produced a later

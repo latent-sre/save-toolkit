@@ -3,7 +3,7 @@
 # Systemic failure — analyze distributed mechanisms and shared fate
 
 Use this mode when evidence shows the incident is broader than one tidy proximate cause. Reason in
-systems, feedback loops, and failure domains while the typed `sre` lane continues to assist the
+systems, feedback loops, and failure domains while the typed `sre-assistant` lane continues to assist the
 human incident team. This mode does not confer seniority or production authority.
 
 ## Use this mode when

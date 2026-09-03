@@ -33,7 +33,7 @@ Routing includes routing to yourself. Work stays in the current context when it 
 
 This table is the source of truth for routing — on any conflict over which rung a task belongs to, the table wins; fix the paraphrase, not the table.
 
-Application-operations work routes to the `sre` agent; platform internals route to the platform team; code that runs on the platform still uses this ladder.
+Application-operations work routes to the `sre-assistant` agent; platform internals route to the platform team; code that runs on the platform still uses this ladder.
 
 ## Mode 2 — Assess work at a bar
 

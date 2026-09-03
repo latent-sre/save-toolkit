@@ -82,7 +82,7 @@ Write-Section "done (read-only evidence)"
 @"
 Next steps:
   - Record the first event/error timestamp and correlation ID; compare with the release history.
-  - Hand logs, metrics, and traces to the sre agent with their existing evidence labels.
+  - Hand logs, metrics, and traces to the sre-assistant agent with their existing evidence labels.
   - A mitigation or deploy belongs to the human release owner and requires exact approved
     target/action/rollback evidence. This helper never mutates the app.
 "@

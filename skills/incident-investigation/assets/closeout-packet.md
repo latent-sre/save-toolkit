@@ -16,7 +16,7 @@ Mitigation:       <what a human executed, when, verified how; what was recommend
 Worked / slow:    <what helped; what cost time; where the team got lucky>
 Ledger:           <the Board's final Follow-ups, lossless: Discoveries · Actions (what, owner, due) · Decisions (who asked, who decided, UTC) · Unknowns (every check nobody could run, still `[unverified]`)>
 Knowledge repo:   <root> · read: <paths> · missing or stale: <paths>
-Evidence:         <sanitized excerpts or access-controlled references — pasted outputs, sre agent packets, dashboard ranges — each with its label; credential-bearing output is never carried: record that it was exposed, where, and to whom>
+Evidence:         <sanitized excerpts or access-controlled references — pasted outputs, sre-assistant agent packets, dashboard ranges — each with its label; credential-bearing output is never carried: record that it was exposed, where, and to whom>
 
 Next owners:
 1. `scribe`, postmortem mode — this packet is the source; `incident-command` holds the

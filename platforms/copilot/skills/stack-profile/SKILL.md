@@ -27,7 +27,7 @@ records the decision here.
 On-prem servers + PCF (VMware Tanzu Application Service); this is what runs today. **The team
 operates PCF through Apps Manager**, not the command line: many SREs do not have the `cf` CLI
 installed. Skills give first checks as Apps Manager views with the `cf` v8 (CAPI V3) equivalent as
-a fallback, and the `sre` agent says when `cf` is absent where it runs rather than pretending to
+a fallback, and the `sre-assistant` agent says when `cf` is absent where it runs rather than pretending to
 have observed the platform. *[sourced: operator statement 2026-09-02]* **GCP migration is in progress**: GCP is an approved target, arriving (as planned) as
 reference files inside the obs skills plus the `gcp-ops` triage skill, not as a restructure. The
 landing runtime is **decision-pending** (Cloud Run is the primary candidate for TAS-shaped apps;

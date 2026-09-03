@@ -88,7 +88,7 @@ class PlatformAdapterTests(unittest.TestCase):
             "reviewer": None,
             "scribe": None,
             "software-engineer": ["reviewer", "scribe", "researcher"],
-            "sre": ["researcher"],
+            "sre-assistant": ["researcher"],
         }
         self.assertEqual(
             set(expected),
@@ -117,13 +117,13 @@ class PlatformAdapterTests(unittest.TestCase):
     def test_copilot_agents_offer_the_current_roster_handoff_graph(self) -> None:
         expected_targets = {
             "agent-engineer": [],
-            "observability-engineer": ["sre", "scribe"],
+            "observability-engineer": ["sre-assistant", "scribe"],
             "repository-investigator": [],
             "researcher": [],
             "reviewer": ["software-engineer"],
             "scribe": ["software-engineer"],
             "software-engineer": ["reviewer", "scribe"],
-            "sre": ["scribe", "software-engineer"],
+            "sre-assistant": ["scribe", "software-engineer"],
         }
         for name, targets in expected_targets.items():
             with self.subTest(agent=name):
@@ -146,12 +146,12 @@ class PlatformAdapterTests(unittest.TestCase):
                         self.assertIn("explicitly approved", handoff["prompt"])
                         self.assertIn("[UNTRUSTED]", handoff["prompt"])
                         self.assertIn("without editing", handoff["prompt"])
-                    if handoff["agent"] == "sre":
+                    if handoff["agent"] == "sre-assistant":
                         self.assertIn("[UNTRUSTED]", handoff["prompt"])
                         self.assertIn("without applying production changes", handoff["prompt"])
 
     def test_copilot_handoffs_are_independent_of_model_called_subagents(self) -> None:
-        self.assertNotIn("sre", self._copilot_agents("observability-engineer") or [])
+        self.assertNotIn("sre-assistant", self._copilot_agents("observability-engineer") or [])
         self.assertEqual(["software-engineer"], [
             handoff["agent"] for handoff in self._copilot_handoffs("reviewer") or []
         ])

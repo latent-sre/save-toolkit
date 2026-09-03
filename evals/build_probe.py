@@ -1289,7 +1289,7 @@ def declared_agent_tools(plugin_root: Path, agent: str) -> tuple[str, ...] | Non
 
     `None` when the agent omits `tools:` — omission inherits every tool. A read-only lane declares
     no `Edit`/`Write`, and the runtime is right to advertise fewer tools than the probe asked for;
-    measuring against the probe's superset made every `sre` trial INCONCLUSIVE (2026-08-28).
+    measuring against the probe's superset made every `sre-assistant` trial INCONCLUSIVE (2026-08-28).
     """
     text = (plugin_root / "agents" / f"{agent}.md").read_text(encoding="utf-8")
     match = re.match(r"^---\r?\n(.*?)\r?\n---\r?\n", text, re.S)

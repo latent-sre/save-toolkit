@@ -68,7 +68,7 @@ An alert that has never fired is written, not verified. Before handing it off:
   test contact point, or `promtool test rules` to prove the burn-rate arithmetic and the long/short
   window pair. Never force a production receiver. `promtool check` and `promtool test` are
   agent-runnable **in the `observability-engineer` lane only** (`test` creates a disk-backed
-  temporary TSDB — run it in a scratch directory); an `sre` loading this skill routes both to a
+  temporary TSDB — run it in a scratch directory); an `sre-assistant` loading this skill routes both to a
   human and preserves the exact output. A rule that has only ever evaluated false is
   unverified; so is one never observed resolving after recovery.
 - The notification route delivered to the intended contact point.
@@ -90,6 +90,6 @@ Hand the reviewed alert definition and target-validation gaps to the `observabil
 formula and exact query evidence, target/window, selected long/short pair, both measured burns, rule
 source and UID, labels, notification route, runbook URL, no-data/error behavior, test evidence, and
 every remaining `[unverified]` item. If a signal represents current user impact or unknown cause, hand
-the time-bounded evidence to the `sre` agent; alert design does not investigate the live incident.
+the time-bounded evidence to the `sre-assistant` agent; alert design does not investigate the live incident.
 Redact sensitive label and tag values from query evidence before it enters the packet; prefer an
 access-controlled link plus the smallest necessary excerpt.

@@ -6,7 +6,7 @@ prompt: |
   threshold, window, severity, and the runbook link it needs. Nothing is on fire; this is
   steady-state monitoring design, not an incident and not a runbook to write.
 success_criteria:
-- Delegates to the observability lane rather than sre, scribe, or answering inline
+- Delegates to the observability lane rather than sre-assistant, scribe, or answering inline
 - Produces the SLO, its error budget, and both burn-rate alert definitions with runbook links
 target:
   kind: agent

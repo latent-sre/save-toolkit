@@ -44,12 +44,12 @@ an SRE performs.
 
 ## Repository work
 
-### ROUTE-006 — the `defers-live-incident` routing grader misses the particle form `hand off to sre`
+### ROUTE-006 — the `defers-live-incident` routing grader misses the particle form `hand off to sre-assistant`
 
 **Status:** `deferred` (2026-09-03) — no SRE task names it; see SRE task below
 **Owner:** Save Toolkit maintainers
 **Outcome:** The observability-engineer `…-defers-live-incident` discovery scenario accepts the
-particle phrasing `hand off to sre` as a valid deferral, or an owner records that the phrasing is
+particle phrasing `hand off to sre-assistant` as a valid deferral, or an owner records that the phrasing is
 out of contract. This is the routing-grader half of the closed GRADER-009; the retry-grader half
 was superseded by the rubric judge.
 **Next action:** The observability-engineer `…-defers-live-incident` scenario this item told the

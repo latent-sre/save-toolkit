@@ -24,7 +24,7 @@ the highest-value findings in this repo:
   a subagent — the type list is only enforced main-thread. Do not treat either as an enforced
   control on a delegated role.
 - **A Bash-holding agent with no write tool is read-only only if the guard covers it.** The guard
-  roster is exactly `sre`. A new agent that carries Bash but no Write
+  roster is exactly `sre-assistant`. A new agent that carries Bash but no Write
   and is *not* on that roster is unguarded — its read-only-ness is unenforced, not a property of the
   missing Write tool.
 - **The guard is an allowlist, deliberately.** Adding a *reader* is fine; adding anything that can

@@ -2,7 +2,7 @@
 """PreToolUse guard — enforce read-only agents at the command level, by ALLOWLIST.
 
 Wired in THIS repo at plugin scope: `hooks/hooks.json` receives every Bash `PreToolUse` event.
-The read-only ALLOWLIST below acts only when `agent_type` identifies `sre`; the credential
+The read-only ALLOWLIST below acts only when `agent_type` identifies `sre-assistant`; the credential
 DENYLIST near the bottom of the file acts for every roster lane. Both no-op for the main loop. (`observability-engineer` left the roster on
 2026-08-21 — docs/decisions/2026-08-21-observability-engineer-unguarded-bash.md — so it can apply
 Grafana dashboards over HTTP and run config validators itself; it now holds unguarded Bash like
@@ -60,7 +60,7 @@ narrower and far more defensible than before: nothing outside a short, reviewed 
 runs.
 
 SCOPING CONTRACT (probed, not assumed): the stdin payload carries `agent_type` — namespaced for a
-plugin agent (`save-toolkit:sre`), bare for a project/user-scope one. THE MAIN LOOP CARRIES
+plugin agent (`save-toolkit:sre-assistant`), bare for a project/user-scope one. THE MAIN LOOP CARRIES
 NO `agent_type` KEY AT ALL, which is what makes a session-wide hook safe: the user's own Bash can
 never match GUARDED_AGENTS and is never inspected. `agent_type` is UNDOCUMENTED, so if it is ever
 renamed upstream the guard would silently stop guarding — see the contract canary in main().
@@ -87,7 +87,7 @@ PLUGIN_NAME = "save-toolkit"
 # deliberately unguarded (building/testing team code, and applying dashboards and validating obs
 # config, are their jobs); `reviewer` and `researcher` hold no Bash at all, which is a stronger
 # control than any hook.
-GUARDED_AGENT_NAMES = frozenset({"sre"})
+GUARDED_AGENT_NAMES = frozenset({"sre-assistant"})
 GUARDED_AGENTS = frozenset(
     set(GUARDED_AGENT_NAMES) | {f"{PLUGIN_NAME}:{name}" for name in GUARDED_AGENT_NAMES}
 )
@@ -97,7 +97,7 @@ GUARDED_AGENTS = frozenset(
 # the whole fleet and three lanes (`software-engineer`, `observability-engineer`,
 # `agent-engineer`) hold unguarded Bash, where it was prose and nothing enforced it.
 FLEET_AGENT_NAMES = frozenset({
-    "software-engineer", "reviewer", "repository-investigator", "sre",
+    "software-engineer", "reviewer", "repository-investigator", "sre-assistant",
     "observability-engineer", "scribe", "researcher", "agent-engineer",
 })
 FLEET_AGENTS = frozenset(
@@ -1012,7 +1012,7 @@ def main() -> None:
         # The check is deliberately keyed, not a substring search over the envelope:
         #   * `tool_input` is excluded outright — the command is attacker- and user-controlled
         #     text, and scanning it would deny an ordinary main-session command that merely
-        #     MENTIONS the agent (`git commit -m "fix save-toolkit:sre"`).
+        #     MENTIONS the agent (`git commit -m "fix save-toolkit:sre-assistant"`).
         #   * only keys whose NAME contains "agent" are consulted, and only for exact GUARDED
         #     values, so `cwd`/`transcript_path` — which could legitimately contain an agent's name
         #     as a directory component — can never trip it.
@@ -1025,12 +1025,12 @@ def main() -> None:
         # Second canary, same silent-disarm class on a different axis: the PLUGIN can be renamed
         # under us. `agent_type` still arrives, still namespaced, but with a namespace PLUGIN_NAME
         # no longer spells — so the exact-match above misses and the `agent is None` canary below
-        # never fires, because `agent_type` is present. The guard would hand `sre`
+        # never fires, because `agent_type` is present. The guard would hand `sre-assistant`
         # unguarded Bash while looking perfectly healthy. A namespaced
         # payload whose BARE name is guarded is unambiguously one of our agents under a moved
         # namespace, so deny and say which constant to fix.
         #
-        # Trade-off, accepted deliberately: an unrelated plugin shipping its own agent named `sre`
+        # Trade-off, accepted deliberately: an unrelated plugin shipping its own agent named `sre-assistant`
         # is denied too. That is over-reach, but it is loud, self-explanatory, and one constant
         # away from resolution — whereas the alternative is this fleet's read-only boundary
         # disappearing silently on a rename.

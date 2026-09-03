@@ -14,7 +14,7 @@ routing:
   expect: not_fire
   expected_alternative:
     kind: agent
-    name: sre
+    name: sre-assistant
 tools:
 - Glob
 - Grep

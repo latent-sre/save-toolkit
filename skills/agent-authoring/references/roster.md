@@ -68,7 +68,7 @@ The contract fields are `../SKILL.md` rule 5. Name the verifier before the work:
 |---|---|
 | `software-engineer` | A failing test or fixture |
 | `reviewer` | The two-lens packet |
-| `sre`, `observability-engineer` | Golden-signal recovery evidence |
+| `sre-assistant`, `observability-engineer` | Golden-signal recovery evidence |
 | A changed fleet contract | One focused red-first test, plus Gate A once before push |
 
 An agent whose loop has no verifier can only emit [unverified] claims. Gather the slice (grep, tail,

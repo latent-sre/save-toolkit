@@ -18,7 +18,7 @@ guess into evidence.
 
 ## Who runs a catalog entry
 
-The `sre` lane's allowlist covers `cf logs --recent` and `gcloud logging read`, so it can gather
+The `sre-assistant` lane's allowlist covers `cf logs --recent` and `gcloud logging read`, so it can gather
 that evidence directly. It holds **no Splunk CLI**, so every Splunk entry below is a
 *recommendation*: the exact query, what the output means, and what a healthy result looks like, for
 a human to run and paste back. That is why the "reads as" and "healthy looks like" fields are

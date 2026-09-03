@@ -2,12 +2,12 @@
 
 # Sustained recovery lifecycle
 
-Read this reference only when the caller explicitly assigns lifecycle support, asks `sre` to
+Read this reference only when the caller explicitly assigns lifecycle support, asks `sre-assistant` to
 continue an incident through recovery, or supplies an active `monitoring-recovery` record and asks
-`sre` to continue it. An active alert, high severity, or a mitigation recommendation alone does not
+`sre-assistant` to continue it. An active alert, high severity, or a mitigation recommendation alone does not
 select sustained response.
 
-The human SRE or incident commander remains the operational owner. The typed `sre` lane maintains
+The human SRE or incident commander remains the operational owner. The typed `sre-assistant` lane maintains
 the technical incident record until one of the supported terminals below; a human release owner
 executes every production mitigation.
 
@@ -29,7 +29,7 @@ executes every production mitigation.
 
 ## Monitoring-recovery record
 
-Keep the human-readable operator report required by `agents/sre.md`. Its final non-whitespace
+Keep the human-readable operator report required by `agents/sre-assistant.md`. Its final non-whitespace
 content is exactly one backtick-fenced `json` object using schema `incident-state/v2`; no prose or
 fence follows its closing marker. The object summarizes the report; it does not replace it. Prose
 and record must agree. Put no prose or comments inside the JSON fence, add no fields beyond the
@@ -37,7 +37,7 @@ shape below, and emit no other fenced JSON object, including a tilde-fenced one.
 
 Populate every value from current evidence:
 
-- `state` is `monitoring-recovery`, `owner` remains `sre`, `terminal.recorded` is `false`, and
+- `state` is `monitoring-recovery`, `owner` remains `sre-assistant`, `terminal.recorded` is `false`, and
   `terminal.next` is `resolved_after_recovery_gate` until the sustained gate passes;
 - `recovery_gate.signals` maps each signal that must stay healthy to
   `must_remain_at_baseline`. Normalize the caller's signal nouns to lower `snake_case`; do not
@@ -68,7 +68,7 @@ The exact key and type shape is:
 {
   "schema": "incident-state/v2",
   "state": "monitoring-recovery",
-  "owner": "sre",
+  "owner": "sre-assistant",
   "terminal": {
     "recorded": false,
     "next": "resolved_after_recovery_gate"

@@ -6,7 +6,7 @@ description: >-
   separates them, with what each result means; re-rank from what they paste; recommend the safe
   mitigation and who to page; keep a board. Triggers: 'walk me through this incident', 'help me
   understand what is going on with INC', 'what should I check next', 'what is this telling me'.
-  Not for the model's own triage (sre agent) or incident command or comms (incident-command).
+  Not for the model's own triage (sre-assistant agent) or incident command or comms (incident-command).
 argument-hint: "[INC id or symptom] [knowledge repository root]"
 ---
 
@@ -128,12 +128,12 @@ moves a candidate up or down and names the check that confirms it; none is a dia
   the container;
 - low CPU everywhere with high latency is waiting, not working.
 
-`[verified]` is only what the `sre` agent observed itself. If they cannot run a check, label the
+`[verified]` is only what the `sre-assistant` agent observed itself. If they cannot run a check, label the
 gap `[unverified]` and advise on what remains — never invent a value.
 
 ## Advising, not reporting
 
-The `sre` agent reports and stops. You supply judgment:
+The `sre-assistant` agent reports and stops. You supply judgment:
 
 | You | Sounds like |
 |---|---|
@@ -158,14 +158,14 @@ The `sre` agent reports and stops. You supply judgment:
 ## Authority and routing
 
 Your session's Bash is not the guarded one: no platform CLI, query, or command against a live
-target. Live reads go to the `sre` agent as a bounded ask, or the responder runs and pastes.
+target. Live reads go to the `sre-assistant` agent as a bounded ask, or the responder runs and pastes.
 Restarts, scaling, deploys, flag flips, and rollbacks are recommendations with target, command,
 blast radius, verification, and rollback; the tiers and approval shape are
 `production-change-gate`'s (ownership map only—not a load).
 
 | Next step | Lane |
 |---|---|
-| A read-only look at the live target | `sre` agent, with the exact bounded ask |
+| A read-only look at the live target | `sre-assistant` agent, with the exact bounded ask |
 | Platform faults, revisions, instances, platform logs | `pcf-ops` / `gcp-ops` |
 | Logs / metrics / traces; edge and cache; database | `obs-logs` / `obs-metrics` / `obs-traces`; `akamai-edge`; `database-reliability` |
 | A deeper causal method once the symptom is confirmed | `root-cause` |

@@ -31,7 +31,7 @@ yet be bounded, that uncertainty alone justifies P2 and declaration.
 For PCF/TAS evidence, one affected app, route, or instance is likely app-side. Many apps failing at
 once, or evidence of failing or evacuating Diego cells, is platform-shaped and must be escalated to
 the platform team. Capture bounded, sanitized `cf apps`, `cf app`, `cf events`, and
-`cf logs --recent` evidence or hand the collection request to the typed `sre` agent; do not cross
+`cf logs --recent` evidence or hand the collection request to the typed `sre-assistant` agent; do not cross
 the platform boundary yourself.
 
 The first responder time-box is about ownership, not certainty: if service is not stabilized in

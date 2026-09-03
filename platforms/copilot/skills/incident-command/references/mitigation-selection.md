@@ -12,7 +12,7 @@ and follow the human security incident owner's exact direction instead.
 ## Pick the fastest safe, reversible action
 
 Stopping user pain comes before root cause. Prefer an action that can be undone in seconds and make
-the decision explicit. The typed `sre` agent recommends from evidence; the human incident commander
+the decision explicit. The typed `sre-assistant` agent recommends from evidence; the human incident commander
 owns the decision in a major incident; a human release owner executes.
 
 The commands below are planning examples, not current-foundation evidence. They remain
@@ -43,7 +43,7 @@ rollback.
 3. **One change at a time.** Then have the typed `observability-engineer` or named human watch the
    golden signals for 1–2 minutes before another action, so the response can attribute the result.
 4. **Restart is not root-cause closure.** If restart restores service, preserve the leak, poison
-   input, or dependency hypothesis and continue investigation with the typed `sre` agent.
+   input, or dependency hypothesis and continue investigation with the typed `sre-assistant` agent.
 5. **Record every decision and result in UTC** in the IC-owned timeline.
 6. **Confirm before executing.** The packet names the exact target, change, command, blast radius,
    verification window, rollback, human executor, and approving decider. It also records the
@@ -58,6 +58,6 @@ artifact, and every destructive or access-path action, remain on the full gate w
 recovery evidence.
 
 After mitigation, confirm user impact has ended but keep the incident open through the sustained
-recovery window. The typed `sre` agent continues root-cause work, the human release owner owns any
+recovery window. The typed `sre-assistant` agent continues root-cause work, the human release owner owns any
 fix-forward execution, and the typed `observability-engineer` owns recovery evidence and detection
 changes.

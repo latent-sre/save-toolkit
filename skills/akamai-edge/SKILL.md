@@ -5,7 +5,7 @@ description: >-
   status, WAF denials, DataStream 2), delivery config (Property Manager versions, staging-first
   activation, fast fallback), and mPulse RUM (network-side vs app-side slowdowns). Triggers: 'is
   it the CDN or the origin', 'Reference #9.', 'is the WAF blocking real users', 'mPulse shows
-  slow pages'. Not for backend log queries (obs-logs) or a firing alert (sre).
+  slow pages'. Not for backend log queries (obs-logs) or a firing alert (sre-assistant).
 compatibility: Requires Akamai Control Center access; DataStream 2 queries run in the configured log backend
 argument-hint: "[the edge, CDN, WAF, or RUM problem]"
 ---
@@ -38,7 +38,7 @@ fix differs completely by leg. Establish the leg **before** hypothesizing:
 
 Edge-side evidence (WAF deny, cache misconfiguration, edge 5xx) stays in this skill's lanes;
 origin-side evidence (edge→origin errors, healthy edge with slow turnaround) hands back to the
-`sre` agent's app/platform investigation with the leg finding attached.
+`sre-assistant` agent's app/platform investigation with the leg finding attached.
 
 ## Three lanes, three authority postures
 
@@ -64,7 +64,7 @@ origin-side evidence (edge→origin errors, healthy edge with slow turnaround) h
 
 ## Handoffs
 
-An actively firing alert or live user impact belongs to the `sre` agent — send the leg finding
+An actively firing alert or live user impact belongs to the `sre-assistant` agent — send the leg finding
 (edge vs origin), the exact portal tool and result, and timestamps. A recurring query, missing
 alert, or detection gap goes to the `observability-engineer` agent. A property change that is ready
 to propose goes to the human release owner as a prepared version with diff, blast radius,

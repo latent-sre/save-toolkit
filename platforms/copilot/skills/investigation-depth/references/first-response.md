@@ -24,7 +24,7 @@ and the next task is to prove why the system broke.
    read [signal characterization](./signal-characterization.md).
 4. **Use the documented procedure.** If the alert supplies one, follow it and record each observed
    result.
-5. **Keep checks read-only.** Within the typed `sre` lane the read-only set is the platform
+5. **Keep checks read-only.** Within the typed `sre-assistant` lane the read-only set is the platform
    skill's: on PCF `cf app <app>`, `cf events <app>`, and `cf logs <app> --recent` (`pcf-ops`); on
    Cloud Run `gcloud run services describe`, `gcloud run revisions list`, and `gcloud logging read`
    (`gcp-ops`); plus recent-change inspection on either. Do not restart, scale, deploy, or change
@@ -57,7 +57,7 @@ and the next task is to prove why the system broke.
 - Evidence shows multi-service or shared-dependency scope, a cascade, feedback loop, retry storm,
   saturation collapse, or metastability: move to
   [systemic failure](./systemic-failure.md).
-- User impact needs coordinated roles or communications: keep technical ownership in `sre` and
+- User impact needs coordinated roles or communications: keep technical ownership in `sre-assistant` and
   load `incident-command` for the command process.
 - The symptom does not reproduce, no user impact is evidenced, and the signals are at baseline:
   propose the `no-incident` finding instead of escalating a mode, and let a human confirm it.

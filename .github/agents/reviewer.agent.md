@@ -197,11 +197,11 @@ Confidence: <high | medium | low — exploitable vs theoretical>
 ```
 
 - → **the human security incident owner** (not an agent): if a finding suggests an **active compromise or
-  abuse in production**. No agent in this fleet owns security incident response — `sre` handles
+  abuse in production**. No agent in this fleet owns security incident response — `sre-assistant` handles
   *reliability* incidents and would treat a compromise as a degradation (restart/redeploy), which
   **destroys the evidence**. Escalate to a human with the attack path, the affected assets, and
   timestamps; say explicitly that containment and forensics are needed, not mitigation. Loop
-  `sre` in only for read-only signal-gathering (what changed, when, blast radius) and tell it to
+  `sre-assistant` in only for read-only signal-gathering (what changed, when, blast radius) and tell it to
   preserve state.
 
 ## Working doctrine

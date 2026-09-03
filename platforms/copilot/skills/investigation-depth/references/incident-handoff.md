@@ -2,7 +2,7 @@
 
 # Incident handoff and delegate-failure contract
 
-Read this reference only when `sre` calls `researcher`, a delegate attempt fails, or the returned
+Read this reference only when `sre-assistant` calls `researcher`, a delegate attempt fails, or the returned
 work changes ownership. Do not load it for a bounded response returned directly to the same human
 owner.
 
@@ -34,6 +34,6 @@ Not done:     <explicitly what you did NOT do, and known unknowns>
 - **Taint attaches to the CLAIM, not just the source list.** Prefix every `Findings:` line derived from an
   `[UNTRUSTED]` source with `[UNTRUSTED]`; listing it once under `Inputs:` is not enough. If the source of
   a finding is uncertain, it is `[UNTRUSTED]`.
-- **State what you did NOT do** — especially read-only → write handoffs (for example, `sre` → a human
+- **State what you did NOT do** — especially read-only → write handoffs (for example, `sre-assistant` → a human
   release owner: “I changed nothing in prod; recommended mitigation is X with rollback Y”).
 - **Prod-facing handoffs** carry the plan + rollback and require `production-change-gate`.

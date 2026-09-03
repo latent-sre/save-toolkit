@@ -9,7 +9,7 @@ success_criteria:
 - Produces severity, blast-radius, evidence, and hypothesis guidance without acting
 target:
   kind: agent
-  name: sre
+  name: sre-assistant
 routing:
   expect: fire
 tools:

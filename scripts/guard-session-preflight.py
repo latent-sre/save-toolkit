@@ -15,7 +15,7 @@ TIMEOUT_SECONDS = 5
 ALLOW_PAYLOAD = json.dumps(
     {
         "tool_name": "Bash",
-        "agent_type": "save-toolkit:sre",
+        "agent_type": "save-toolkit:sre-assistant",
         "tool_input": {"command": "git status --short"},
     },
     separators=(",", ":"),
@@ -23,7 +23,7 @@ ALLOW_PAYLOAD = json.dumps(
 DENY_PAYLOAD = json.dumps(
     {
         "tool_name": "Bash",
-        "agent_type": "save-toolkit:sre",
+        "agent_type": "save-toolkit:sre-assistant",
         "tool_input": {"command": "python -c pass"},
     },
     separators=(",", ":"),

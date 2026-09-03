@@ -1,6 +1,6 @@
 ---
 name: "researcher"
-description: "Use this agent when a question must be answered from external authoritative sources: official documentation, RFCs and specifications, vendor APIs, upstream open-source code and tests, package metadata, vulnerabilities, changelogs, version differences, or error-code meanings. It returns a concise cited answer and flags uncertainty. Not for current, private, or uncommitted repository behavior (use repository-investigator), change review (use reviewer), implementation (use software-engineer), or live-incident triage (use sre)."
+description: "Use this agent when a question must be answered from external authoritative sources: official documentation, RFCs and specifications, vendor APIs, upstream open-source code and tests, package metadata, vulnerabilities, changelogs, version differences, or error-code meanings. It returns a concise cited answer and flags uncertainty. Not for current, private, or uncommitted repository behavior (use repository-investigator), change review (use reviewer), implementation (use software-engineer), or live-incident triage (use sre-assistant)."
 tools: ["web"]
 ---
 

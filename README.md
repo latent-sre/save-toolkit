@@ -4,10 +4,10 @@ A Claude Code plugin that helps a human SRE do their job on this team's stack: P
 Manager), Cloud Run, Splunk, Wavefront and PCF App Metrics, Grafana, Akamai. It fits together in
 three layers. **You own the work**: the incident, the change, the runbook. **An advisor thinks with
 you**: `incident-investigation` asks what to check next, says what each result means, and tells you
-when to mitigate. **Agents are your helpers**, dispatched for bounded jobs: the `sre` agent gathers
+when to mitigate. **Agents are your helpers**, dispatched for bounded jobs: the `sre-assistant` agent gathers
 one read-only evidence slice, `observability-engineer` tunes an alert, `scribe` writes the runbook
 afterward. The skills serve you and the agents alike: the same logs skill hands you a paste-ready
-Splunk search and hands the `sre` agent the method to build one, which is why a PCF check is always
+Splunk search and hands the `sre-assistant` agent the method to build one, which is why a PCF check is always
 the Apps Manager view with the `cf` command beside it. A human executes every production action,
 with one narrow exception: an invoked `observability-engineer` may apply Grafana dashboard and
 folder writes under its [change-authority rule](agents/observability-engineer.md#change-authority).
@@ -29,7 +29,7 @@ Routing is by description; there are no commands to memorize.
 - *"walk me through INC-4132, checkout is 502-ing since 14:02 UTC"* → `incident-investigation`
   sits beside you: what to check next in Apps Manager, Splunk, or Wavefront, what each result would
   mean, when to mitigate, who to page, and a board so nothing learned is lost.
-- *"why is orders 502-ing in prod? what changed?"* → the `sre` agent gathers one read-only evidence
+- *"why is orders 502-ing in prod? what changed?"* → the `sre-assistant` agent gathers one read-only evidence
   slice and recommends a mitigation for a human to apply.
 - *"this alert is too noisy"* → `observability-engineer` with `obs-alerting`.
 - *"write a runbook for the checkout deploy"* → the `scribe` agent with the `runbook` skill.
@@ -48,8 +48,8 @@ The one manual command is `/save-toolkit:adr` (ADR scaffold).
 
 | Agent | Lane | Routing |
 |---|---|---|
-| `sre` | Investigate active production or staging failures (guarded read-only Bash) | Owns the incident through terminal recovery and delegates only sanitized public fact checks to `researcher`; the caller separately dispatches observability and documentation work after resolution |
-| `observability-engineer` | Steady-state observability (unguarded Bash; applies Grafana dashboards directly) | Delegates docs to `scribe` and sanitized public lookups to `researcher`; the caller separately dispatches active incidents to `sre` and automation to `software-engineer` |
+| `sre-assistant` | Investigate active production or staging failures (guarded read-only Bash) | Owns the incident through terminal recovery and delegates only sanitized public fact checks to `researcher`; the caller separately dispatches observability and documentation work after resolution |
+| `observability-engineer` | Steady-state observability (unguarded Bash; applies Grafana dashboards directly) | Delegates docs to `scribe` and sanitized public lookups to `researcher`; the caller separately dispatches active incidents to `sre-assistant` and automation to `software-engineer` |
 | `scribe` | Write evidence-bound runbooks, resolved-incident postmortems, and approved service/application/alert knowledge | Local document writer with no shell, web, external MCP, or delegation authority |
 | `software-engineer` | Build, fix, refactor, and test code or operations tooling | Routes requested or risk-triggered review to `reviewer`, operational docs to `scribe`, and sanitized public lookups to `researcher` |
 | `repository-investigator` | Local-only answers about private, current, or uncommitted checkout behavior | Cites `file:line`; no shell, write, web, external MCP, skill, or delegation |
@@ -105,7 +105,7 @@ Treat these as build-bound evidence, and rerun the linked probe after host upgra
 
 | Host surface | Contract shipped | Current evidence boundary |
 |---|---|---|
-| Claude Code | Canonical agents and skills load directly; tool absence is the primary role boundary, with the plugin-level read-only Bash guard for `sre` | Claude has the richest enforceable contract, but `Agent(target)` is enforced only on the main thread; subagent-depth restrictions remain documentary. See [`AGENTS.md`](AGENTS.md#enforcement-boundaries) |
+| Claude Code | Canonical agents and skills load directly; tool absence is the primary role boundary, with the plugin-level read-only Bash guard for `sre-assistant` | Claude has the richest enforceable contract, but `Agent(target)` is enforced only on the main thread; subagent-depth restrictions remain documentary. See [`AGENTS.md`](AGENTS.md#enforcement-boundaries) |
 | VS Code 1.135.0 (`08d4889f`) | Generated agents, skills, model-call `agents:`, and human-selected `handoffs:` | `[verified]` On 2026-08-30, plugin registration, 8 agents, 33 skills, the separate ADR prompt, and a synthetic allowed child passed. A forbidden child still ran, the real `software-engineer` -> `reviewer` call was inconclusive, and the separate hook canary was not run. The live transcript was removed in the 2026-09-02 retention pass; recover it with `git show e77fc672^:docs/reviews/evidence/host-002/2026-08-30-vscode-plugin-delegation-transcript.md` |
 | First installed VS Code build proven to contain `d679b159` | Upstream adds prepare/invoke rejection outside `agents:` and forwards each child's own list | `[sourced]` The [upstream change](https://github.com/microsoft/vscode/commit/d679b159e16d15d24e364b627ab85e144899ead0) is merged; `[unverified]` the installed plugin path until the HOST-002 probe passes on that exact build (procedure removed 2026-09-02; recover it with `git show e77fc672^:docs/probes/host-002-vscode-agent-delegation.md`) |
 

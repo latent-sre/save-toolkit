@@ -6,7 +6,7 @@ prompt: |
   severity and blast radius, gather the first evidence, and form testable hypotheses.
 success_criteria:
 - Keeps active incident investigation out of the documentation lane
-- Delegates to sre for read-only triage
+- Delegates to sre-assistant for read-only triage
 target:
   kind: agent
   name: scribe
@@ -14,7 +14,7 @@ routing:
   expect: not_fire
   expected_alternative:
     kind: agent
-    name: sre
+    name: sre-assistant
 tools:
 - Glob
 - Grep

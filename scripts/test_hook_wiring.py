@@ -182,11 +182,11 @@ class HookWiringTests(unittest.TestCase):
         def invoke(payload: dict, *, env: dict[str, str] = environment) -> subprocess.CompletedProcess[str]:
             return invoke_raw(json.dumps(payload), env=env)
 
-        safe = invoke({"tool_name": "Bash", "agent_type": "save-toolkit:sre", "tool_input": {"command": "git status --short"}})
-        denied = invoke({"tool_name": "Bash", "agent_type": "save-toolkit:sre", "tool_input": {"command": "git push origin main"}})
+        safe = invoke({"tool_name": "Bash", "agent_type": "save-toolkit:sre-assistant", "tool_input": {"command": "git status --short"}})
+        denied = invoke({"tool_name": "Bash", "agent_type": "save-toolkit:sre-assistant", "tool_input": {"command": "git push origin main"}})
         main = invoke({"tool_name": "Bash", "tool_input": {"command": "git push origin main"}})
-        whitespace = invoke_raw('{\n "tool_name" : "Bash", "agent_type"\t:\t"save-toolkit:sre", "tool_input" : {"command" : "git push origin main"}}')
-        renamed = invoke({"tool_name": "Bash", "subagent_type": "save-toolkit:sre", "tool_input": {"command": "git push origin main"}})
+        whitespace = invoke_raw('{\n "tool_name" : "Bash", "agent_type"\t:\t"save-toolkit:sre-assistant", "tool_input" : {"command" : "git push origin main"}}')
+        renamed = invoke({"tool_name": "Bash", "subagent_type": "save-toolkit:sre-assistant", "tool_input": {"command": "git push origin main"}})
         unavailable = invoke(
             {"tool_name": "Bash", "tool_input": {"command": "git status"}},
             env=dict(environment, PATH=""),
@@ -215,7 +215,7 @@ class HookWiringTests(unittest.TestCase):
         cat = shutil.which("cat")
         if cat is None:
             self.skipTest("`cat` not on PATH; the hook reads stdin through it")
-        guarded_write = json.dumps({"tool_name": "Bash", "agent_type": "save-toolkit:sre", "tool_input": {"command": "git push origin main"}})
+        guarded_write = json.dumps({"tool_name": "Bash", "agent_type": "save-toolkit:sre-assistant", "tool_input": {"command": "git push origin main"}})
         main_thread = json.dumps({"tool_name": "Bash", "tool_input": {"command": "git push origin main"}})
 
         def run(path: str, payload: str) -> subprocess.CompletedProcess[str]:

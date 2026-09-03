@@ -69,7 +69,7 @@ observed itself.
 ## What you return
 
 The reader is a responder in the middle of an incident, so a bounded answer is built to be acted on
-from its first screen. When the caller's lane carries its own output contract (the typed `sre`
+from its first screen. When the caller's lane carries its own output contract (the typed `sre-assistant`
 agent's), fill that contract. Otherwise the answer is, in order:
 
 1. **The finding**, in two or three sentences in the responder's terms: what is happening,
@@ -95,11 +95,11 @@ single green point.
 ## Ownership and support span
 
 **Whoever loaded this skill still owns the work.** A skill load deepens the current lane; it never
-transfers ownership and never confers another lane's tool posture. When the typed `sre` agent loads
-this, `sre` owns the current bounded technical task and owns the technical record through verified
+transfers ownership and never confers another lane's tool posture. When the typed `sre-assistant` agent loads
+this, `sre-assistant` owns the current bounded technical task and owns the technical record through verified
 recovery only when the caller explicitly assigns that lifecycle. When any other context loads it, that
-context remains the owner, holds only its own tools, and must delegate to `sre` if the guarded
-read-only investigation posture is actually required — do not emit a record that names `sre` as owner
+context remains the owner, holds only its own tools, and must delegate to `sre-assistant` if the guarded
+read-only investigation posture is actually required — do not emit a record that names `sre-assistant` as owner
 when no delegation occurred. Either way the human SRE or incident commander stays the operational
 owner. This skill changes investigation depth and support span only; it grants no tools, production
 authority, command role, or permission to apply a mitigation.
@@ -107,7 +107,7 @@ authority, command role, or permission to apply a mitigation.
 - **Bounded assist is the default.** Return the requested evidence slice, preserve the incident
   spine, name unknowns, and stop at the caller's stated condition.
 - **Sustained response is explicit.** Select it only when the caller assigns lifecycle support, asks
-  `sre` to continue through recovery, or supplies an active `monitoring-recovery` record and asks to
+  `sre-assistant` to continue through recovery, or supplies an active `monitoring-recovery` record and asks to
   continue it. Then read [recovery lifecycle](./references/recovery-lifecycle.md) and remain on the
   technical record through its supported terminal.
 - **Handoff context is conditional.** When calling `researcher`, handling a failed delegate return,

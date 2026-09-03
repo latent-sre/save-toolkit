@@ -4,14 +4,14 @@
 
 Use this reference to establish command roles, maintain the authoritative incident record, prepare
 stakeholder communications, or decide whether to downgrade or close. Technical investigation stays
-with the typed `sre` agent, and every production effect stays with the named human release owner.
+with the typed `sre-assistant` agent, and every production effect stays with the named human release owner.
 
 ## Run the response
 
 Once declared, assign an **incident commander** who runs the process rather than the debugging.
 
 - Keep the response moving toward the fastest safe mitigation; delegate technical RCA to the typed
-  `sre` agent and remediation to a human release owner.
+  `sre-assistant` agent and remediation to a human release owner.
 - Assign Investigation, Operations/remediation, and Communications/timeline owners. For a large P1,
   split Communications and Timeline/Scribe from the commander. During the live incident the scribe
   is a named human, not the typed `scribe` documentation agent.
@@ -55,7 +55,7 @@ Open actions: <owner — item — Instrumentation prerequisite: signal/exporter/
 Next update: <HH:MM UTC>
 ```
 
-Update this block in place. Do not fork separate severity, timeline, and mitigation records. Evidence slices from `sre` carry
+Update this block in place. Do not fork separate severity, timeline, and mitigation records. Evidence slices from `sre-assistant` carry
 their own observed timeline lines; the commander merges them here, and this record stays the only
 authoritative one.
 
@@ -80,7 +80,7 @@ update goes out within the hour.
 Downgrade only when current impact, scope, and trend fit the lower tier; record why and notify the
 same audience that received the higher classification.
 
-Resolve only after the typed `sre` investigator confirms that user impact has ended and the same
+Resolve only after the typed `sre-assistant` investigator confirms that user impact has ended and the same
 golden signals have returned to baseline and remained there for the stated sustained window. A
 single green point is not enough for a metastable service. Keep the incident in `monitoring` until
 that evidence permits terminal resolution.

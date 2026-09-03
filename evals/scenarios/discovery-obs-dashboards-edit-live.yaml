@@ -8,7 +8,7 @@ prompt: |
   operator avoids clobbering someone else's concurrent save, how they verify the write landed, and
   what record survives afterwards. This is a dashboard edit, not alert design or incident triage.
 success_criteria:
-- Routes a dashboard-edit procedure to the dashboards lane rather than metrics, alerting, or sre
+- Routes a dashboard-edit procedure to the dashboards lane rather than metrics, alerting, or sre-assistant
 - Reads before writing, pins the version it read, refuses overwrite, and verifies after the call
 - Records the change in the save message, the only durable trace of an instance-only write
 target:

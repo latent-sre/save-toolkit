@@ -58,7 +58,7 @@ Sources reviewed 2026-07-14:
 4. Separate the observed layer from ownership: network evidence goes to the network/platform team;
    clean path plus app errors stays in the application lane.
 
-Hand incident evidence to the `sre` agent with test/agent IDs, target, time range, failing and healthy
+Hand incident evidence to the `sre-assistant` agent with test/agent IDs, target, time range, failing and healthy
 vantages, hop/AS and loss/latency deltas, DNS/BGP observations, `cf app` and application logs excerpts,
 timestamps, blast radius, and every alternative that remains unverified.
 

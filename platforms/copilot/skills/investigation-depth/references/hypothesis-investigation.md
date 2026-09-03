@@ -19,7 +19,7 @@ shows a distributed or self-sustaining mechanism.
 
 ## Where the loop lives
 
-The loop itself is the `sre` agent's Method, with `root-cause` owning the causal-testing
+The loop itself is the `sre-assistant` agent's Method, with `root-cause` owning the causal-testing
 discipline. This reference does not restate it. The `stack-profile`
 observability reference names which backend serves each signal today, and `obs-logs`,
 `obs-metrics`, `obs-traces`, and `obs-alerting` own the queries; do not assume a vendor from this
