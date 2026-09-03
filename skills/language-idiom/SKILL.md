@@ -8,35 +8,22 @@ description: >-
 argument-hint: "[the language and the code under review]"
 ---
 
-# Language idiom — pick the language
+# Language idiom — the team's choices
 
-Match the repo's existing tooling first; the per-language defaults apply when none is set. Two rules
-hold in every language:
+Match the repo's existing tooling first; the per-language defaults apply when none is set.
 
-- **The dangerous operations are the silent ones.** A crash is a good outcome; the failure modes worth
-  memorizing continue with wrong state — a swallowed exception, an unchecked error return, a dry-run
-  that dries the wrong half.
-- **Read the neighbors before writing.** Two files near what you're changing tell you more about what
-  will be accepted than any style guide.
+Load exactly one language reference for the language being changed. Do not preload the others.
 
-Load exactly one language reference for the language being changed. Also load the tests-first
-process for new behavior or a bug fix, and the safe-refactoring process for a behavior-preserving
-reshape. Do not preload other language references or an inapplicable process.
-
-- **Python** — typing, `ruff`/`uv`, `pytest`, exceptions, subprocess/HTTP safety, secrets-safe logging.
+- **Python** — `ruff` for lint and format, `uv` for environments, `mypy` or `pyright`, `pytest`;
+  decision separated from effect so `--dry-run` is provable.
   → [`references/python.md`](./references/python.md)
-- **Bash** — strict mode, quoting, `[[ ]]`, `shellcheck`, traps/`mktemp`, word-splitting pitfalls.
+- **Bash** — a 5.1 floor, so the bare `shopt -s inherit_errexit`; `shellcheck` clean; `bats` for tests.
   → [`references/bash.md`](./references/bash.md)
-- **PowerShell** — approved verbs, advanced functions, object-pipeline output, `5.1` vs `7+`, `Pester`.
+- **PowerShell** — state the 5.1 or 7+ target; `PSScriptAnalyzer` failing CI on `Error`; Pester 5.
   → [`references/powershell.md`](./references/powershell.md)
-- **Go** — `gofmt`/`go vet`/`golangci-lint`, error wrapping with `%w`, table tests with `-race`,
-  context/goroutine-leak safety. → [`references/go.md`](./references/go.md)
-- **Java** — version contract from the build file, records/sealed types, JSpecify nullability,
-  virtual threads, boxed-`==` and `java.time` traps, the PCF buildpack memory calculator.
-  → [`references/java.md`](./references/java.md)
-- **TypeScript/JavaScript** — strict types, promise safety, request-scope state, idempotent writes.
-  → [`references/typescript.md`](./references/typescript.md)
-- **Writing tests first / after any bug fix** — use the regression-first method before implementation.
-  → [tests first](./references/tdd.md)
-- **A behavior-preserving refactor** — pin behavior, map consumers, and work in reversible steps.
-  → [safe refactoring](./references/safe-refactor.md)
+- **Go** — `gofmt`/`goimports` and `go vet` in CI; `golangci-lint` on the named baseline.
+  → [`references/go.md`](./references/go.md)
+- **Java** — Spotless, Error Prone + NullAway, JSpecify `@NullMarked`, package by feature,
+  JUnit Jupiter + AssertJ. → [`references/java.md`](./references/java.md)
+- **TypeScript/JavaScript** — `strict` on and no `any`; `no-floating-promises`; Vitest or Jest with
+  React Testing Library and MSW. → [`references/typescript.md`](./references/typescript.md)
