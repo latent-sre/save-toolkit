@@ -63,10 +63,11 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
-- `obs-dashboards`: `http-api.md` and `json-model.md` cut from 25,814 B to 15,422 B, keeping every
+- `obs-dashboards`: `http-api.md` and `json-model.md` cut from 25,814 B to 16,816 B (15,422 B in the
+  measured candidate; the review restored labels and two sentences afterwards), keeping every
   QA-measured Grafana 13 behavior and dropping the transport boilerplate and what a tools-off probe
-  showed both models already carry. Measured 15/15 on the comparable checks in every trial on Sonnet
-  and Opus, 15 to 18 percent fewer tokens; see
+  showed both models already carry. The measured candidate scored 15/15 on the comparable checks in
+  every trial on Sonnet and Opus with 15 to 18 percent fewer tokens; see
   [the obs-dashboards trim evidence](docs/reviews/2026-09-03-obs-dashboards-trim-evidence.md).
 - Two graders were stricter than the contract they grade and are fixed: the dashboard query-proof
   check accepts the proof at any point in the trial and treats a substituted range window as the

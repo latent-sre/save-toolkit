@@ -1763,13 +1763,12 @@ def check_grafana_dashboard_write(ctx: Context, p: dict) -> tuple[bool, str]:
 
 
 def check_grafana_query_succeeded(ctx: Context, p: dict) -> tuple[bool, str]:
-    """Prove the persisted PromQL returned real data through Grafana at some point in the trial.
+    """Prove the persisted PromQL returned real data through Grafana after the dashboard write.
 
-    The skill's loop proves each changed query at its verify step, after the write, and tells the
-    agent to substitute a concrete window for `$__rate_interval`, which the query API does not
-    expand. So the proof may come before or after the write, and a range window is canonicalized
-    before the persisted and verified expressions are compared (2026-09-03: both baseline arms
-    followed the skill exactly and were marked red by the stricter rule this replaces).
+    The skill writes, then proves each changed query with a concrete window substituted for
+    `$__rate_interval` (the query API does not expand it): only requests after the accepted write
+    count, and a persisted template window is canonicalized against the concrete one (2026-09-03:
+    both baseline arms followed the skill and were marked red by a proof-before-write, byte-equal rule).
     """
     import urllib.parse  # noqa: PLC0415 — used only for audited datasource-proxy paths
 
@@ -1784,6 +1783,7 @@ def check_grafana_query_succeeded(ctx: Context, p: dict) -> tuple[bool, str]:
     # The last accepted write holds what the instance persisted; a rejected attempt does not.
     accepted = [entry for entry in writes if 200 <= int(entry.get("status") or 0) < 300]
     write = (accepted or writes)[-1]
+    after_write = service.requests[service.requests.index(write) + 1:]
 
     def canon(expression: str) -> str:
         return re.sub(r"\s+", "", expression).lower()
@@ -1829,7 +1829,7 @@ def check_grafana_query_succeeded(ctx: Context, p: dict) -> tuple[bool, str]:
         )
 
     reasons: list[str] = []
-    for entry in service.requests:
+    for entry in after_write:
         path = urllib.parse.unquote(str(entry.get("path") or ""))
         if "/api/ds/query" not in path and "/api/datasources/proxy/" not in path:
             continue
@@ -1872,7 +1872,7 @@ def check_grafana_query_succeeded(ctx: Context, p: dict) -> tuple[bool, str]:
             reasons.append("successful datasource-proxy query was not persisted on the p95 panel")
         else:
             return True, f"successful {function} proxy query for {metric} matched the persisted panel"
-    return False, "no successful Grafana query matched the persisted p95 query" + (
+    return False, "no successful Grafana query after the write matched the persisted p95 query" + (
         ": " + "; ".join(reasons) if reasons else ""
     )
 

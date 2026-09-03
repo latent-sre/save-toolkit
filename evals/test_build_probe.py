@@ -1127,10 +1127,11 @@ class ReviewFindingTests(unittest.TestCase):
                 "response": {},
             },
         ]
-        self.assertTrue(build_probe.check_grafana_query_succeeded(ctx, check)[0])
+        self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0],
+                         "a preflight query before the write is not the skill's verify step")
         service.requests.reverse()
         self.assertTrue(build_probe.check_grafana_query_succeeded(ctx, check)[0],
-                        "the skill proves the query at its verify step, after the write")
+                        "the skill writes, then proves the query at its verify step")
         write = service.requests[0]
         write["request"]["dashboard"]["panels"][0]["targets"][0]["expr"] = (
             "histogram_quantile(0.95, rate(checkout_request_duration_seconds_bucket[$__rate_interval]))")
@@ -1154,8 +1155,9 @@ class ReviewFindingTests(unittest.TestCase):
             },
             write,
         ]
+        service.requests.reverse()  # the write first: only post-write queries count
         self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0], "unrelated batch data cannot clear a red p95 refId")
-        service.requests[0]["response"]["results"]["A"]["frames"] = [{"data": {"values": [[1], [0.2]]}}]
+        service.requests[1]["response"]["results"]["A"]["frames"] = [{"data": {"values": [[1], [0.2]]}}]
         write["request"]["dashboard"]["panels"][0]["targets"][0]["expr"] = p95 + " + 1"
         self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0], "the successful query must equal the persisted panel target")
         write["request"]["dashboard"]["panels"][0]["targets"][0]["expr"] = p95
@@ -1169,8 +1171,9 @@ class ReviewFindingTests(unittest.TestCase):
             },
             write,
         ]
+        service.requests.reverse()  # the write first: only post-write queries count
         self.assertTrue(build_probe.check_grafana_query_succeeded(ctx, check)[0])
-        service.requests[0]["response"]["data"]["result"] = []
+        service.requests[1]["response"]["data"]["result"] = []
         self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0], "proxy success without series data is not proof")
 
     def test_post_run_service_transport_failure_is_inconclusive(self) -> None:
