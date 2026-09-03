@@ -117,7 +117,9 @@ References section so the paper trail survives the move.
 ## Alert → runbook links and the Crawl → Walk → Run path
 
 Link every paging alert to its runbook. When investigation is needed, hand the trigger and evidence
-to the `sre-assistant` agent; when code remediation is needed, hand the defect and evidence to the `software-engineer` agent.
+to the responder with `incident-investigation`, dispatching `sre-assistant` only for a named app,
+UTC window, and bounded read; when code remediation is needed, hand the defect and evidence to the
+`software-engineer` agent.
 When a new alert/service, drill, audit, or resolved incident exposes a missing or contradicted
 runbook, record an `operational-learning` disposition and have `scribe` prepare the evidence-bound
 create/update. Do not let a chat-only observation disappear or silently bump `last_verified`.
