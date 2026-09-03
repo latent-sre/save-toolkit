@@ -90,7 +90,10 @@ class TrackedFilesOnlyTests(unittest.TestCase):
 
     def _git(self, cwd: Path, *args: str) -> None:
         import subprocess
-        subprocess.run(["git", "-C", str(cwd), *args], check=True, capture_output=True, text=True)
+        # A throwaway repository: give it an identity and no signing, so the seed commit works on a
+        # CI runner with no git config and on a workstation whose global config signs commits.
+        identity = ["-c", "user.name=test", "-c", "user.email=test@example.invalid", "-c", "commit.gpgsign=false"]
+        subprocess.run(["git", "-C", str(cwd), *identity, *args], check=True, capture_output=True, text=True)
 
     def _init_toolkit(self, root: Path, commit: bool = True) -> None:
         import subprocess
