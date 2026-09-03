@@ -58,14 +58,17 @@ the [rubric-judge evaluation ADR](../docs/decisions/2026-09-01-rubric-judge-eval
 which supersedes the multi-engine ADR.
 
 The corpus was cut to its load-bearing core on 2026-09-02 (99 templated, duplicate, and
-keyword-only scenarios retired). The standing regression is now the ten build probes plus the
-fifteen policy/structural direct scenarios graded by `rubric` or a structural grader
-(`exact_fields`, `exact_json`, `embedded_exact_json`, `json_artifact_statuses`,
-`learning_loop_promotion`, `cloud_run_rollback_packet`); a skill's discovery positive runs only
-when that skill's own description changes. A skill may instead carry a fixture-backed build probe as
-its regression, in which case that probe replaces the discovery positive — `backend-craft` is the
-first, graded by `build-software-engineer-incidents-api.yaml`. New scenarios are added as a `rubric`
-or structural grader, never a keyword list.
+keyword-only scenarios retired). The standing regression is the ten build probes plus the **eleven
+direct scenarios carrying `split: regression`**, graded by `rubric` or a structural grader
+(`exact_fields`, `exact_json`, `embedded_exact_json`). A skill may instead carry a fixture-backed
+build probe as its regression, in which case that probe replaces the discovery positive —
+`backend-craft` is the first, graded by `build-software-engineer-incidents-api.yaml`. New scenarios
+are added as a `rubric` or structural grader, never a keyword list.
+
+Discovery scenarios carry their own `split`, and `--split regression --mode discovery` selects
+every discovery scenario marked `regression` — the field is what the runner reads. Treat a skill's
+discovery positive as a **description-change check** rather than a per-PR one: run it when that
+skill's own description changes, not on every review.
 
 ## Run it
 
@@ -122,14 +125,8 @@ rate — so its effective threshold is always clamped to 1.0, and `--validate` r
 scenario that declares `threshold < 1`. Without this, `--threshold 0.66` would let a forbidden
 component over-trigger on a third of trials and still report PASS.
 
-Negative routing examines every completed invocation by default, including calls made by a delegated
-agent. A `not_fire` scenario may instead declare `routing.scope: root` when the contract is about
-which lane owns the request: the forbidden target must be absent from completed root invocations and
-the named component alternative must be present there (`inline` is invalid). A nested call to the
-target can then provide bounded support only when its completed agent-call ancestry resolves to that
-expected root agent. An orphan, ambiguous, non-agent, or different-root ancestry fails closed. Root
-scope is invalid for positive `fire` scenarios, and omitting `scope` preserves the stricter
-any-invocation behavior. The grader derives lineage transiently; private trial results record only
+Negative routing examines every completed invocation, including calls made by a delegated
+agent: any completed invocation of the forbidden target fails the trial. Private trial results record only
 the canonical completed root skill and agent identities needed to audit the grade, never ancestry
 IDs through the scoped evidence field.
 
@@ -144,9 +141,7 @@ Exit codes are 0 pass, 1 fail, 2 inconclusive or runner unavailable, and 3 inval
 
 ## Clean-room boundary
 
-For `--run`, a parent bootstrap first copies the runner, graders, clean-room module, and scenarios to
-a temporary suite image, verifies stable source/copy digests, and executes that image. Every trial
-then points `CLAUDE_CONFIG_DIR` at a temporary directory holding only the selected Claude credential,
+For `--run`, every trial points `CLAUDE_CONFIG_DIR` at a temporary directory holding only the selected Claude credential,
 while `--plugin-dir` loads a stable copy of this plugin created once per batch. The plugin copy is
 accepted only when its full input digest matches the worktree digest measured before and after
 copying. The child environment is rebuilt from an allowlist, so unrelated host tokens do not reach
@@ -163,15 +158,9 @@ further reduce it through its own frontmatter; the harness derives and requires 
 intersection (`Skill` and/or the runtime's `Task` name for an `Agent(...)` grant). One tolerance:
 the pinned agent's declared `Grep`/`Glob` are optional inventory — CLI 2.1.243–2.1.246 advertised
 them while denying their calls, 2.1.250 does not advertise them for the same frontmatter — so they
-are accepted present or absent and stay denied at call time unless a reference-bearing plan enables
-snapshot reads. A missing required tool or any tool outside expected ∪ optional makes the trial
-inconclusive.
-
-Reference-bearing direct `sre` trials are the narrow exception: only the declared read tools needed
-for the scenario are made callable, only against the frozen plugin snapshot, with non-interactive
-path rules. Advertised inventory and callable policy remain separate claims. A successful read
-outside the snapshot, traversal, ambiguous outcome, required reference not read, or inability to prove
-the exact CLI path-rule semantics makes the trial `INCONCLUSIVE`.
+are accepted present or absent and stay denied at call time. A missing required tool or any tool
+outside expected ∪ optional makes the trial inconclusive. A successful read outside the plugin
+snapshot, a traversal, or an ambiguous tool outcome makes the trial `INCONCLUSIVE`.
 
 This is a narrow evaluation boundary, not an OS security sandbox. Claude authentication remains
 available to the CLI process, and the plugin source remains readable by the host. Use only reviewed,
@@ -188,20 +177,8 @@ After sealing `summary.json`, the runner must also create a bounded durable reco
 keeps identities, dirty-state flags, run-shaping conditions, verdicts, trial states, cost/duration,
 and at most 600 characters of each response as escaped untrusted data. It deliberately excludes raw
 traces, complete prompts and responses, session IDs, tool payloads, credentials, and temporary
-paths. Backfill a sealed private batch with:
-
-```powershell
-python scripts/capture_measurement_evidence.py eval .eval-runs/<run-id>/summary.json
-```
-
-For a host-owned agent task or session exercise, export the versioned JSON envelope described in
-`EVIDENCE-001`'s capture design — removed 2026-09-02, read it with
-`git show e77fc672^:docs/reviews/2026-08-26-evidence-001-capture-design.md` — while the
-host output still exists, then run `python scripts/capture_measurement_evidence.py exercise <file>`.
-The exercise command also accepts `-` to read the envelope from standard input without leaving a
-second scratch file.
-The runner enforces and verifies owner-only POSIX modes or a current-user-only Windows ACL; inability
-to prove that boundary is an instrument failure, not a fleet result. The manifest records CLI
+paths. Quote the numbers a review depends on into that review; the raw batch is not published.
+The runner creates its artifact tree owner-only (`0o700` directories, `0o600` files). The manifest records CLI
 path/version, requested model, resolved per-trial model, plugin commit and snapshot hashes, dirty state,
 scenario hashes bound to the eval-snapshot bytes, neutral fixture identity, exact argv, duration,
 cost, and observed invocations. Plugin-snapshot and eval-suite digests are checked again before the
@@ -255,9 +232,7 @@ graders:
 
 For `routing.expect: not_fire`, set `expected_alternative: inline` or name the component expected
 instead. A negative scenario does not pass merely because the forbidden target stayed absent; the
-expected alternative and response graders must also pass. Add `scope: root` only when a nested call
-is legitimate support descended from the expected root agent; `inline` is not a valid root-scoped
-alternative. Otherwise leave scope omitted so any completed invocation of the forbidden target fails
+expected alternative and response graders must also pass. Any completed invocation of the forbidden target fails
 the trial.
 
 Repository-visible cases are `calibration` or `regression`; neither is hidden from the artifact

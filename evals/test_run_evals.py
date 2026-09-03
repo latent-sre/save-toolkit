@@ -202,53 +202,6 @@ class ScenarioValidationTests(unittest.TestCase):
         problems = run_evals.validate([scenario])
         self.assertFalse(any("zero-tolerance" in p for p in problems))
 
-    def test_not_fire_scenario_allows_root_scope(self) -> None:
-        # Unlike its siblings, this test calls validate() against the real repository root with no
-        # temp-dir override, so the target must be a real skill; merge-gate no longer exists.
-        scenario = self._scenario(
-            target={"kind": "skill", "name": "production-change-gate"},
-            mode="discovery",
-            split="regression",
-            routing={
-                "expect": "not_fire",
-                "scope": "root",
-                "expected_alternative": {"kind": "agent", "name": "sre"},
-            },
-        )
-        problems = run_evals.validate([scenario])
-        self.assertEqual(problems, [])
-
-    def test_routing_scope_rejects_unknown_value(self) -> None:
-        scenario = self._scenario(
-            mode="discovery",
-            split="regression",
-            routing={
-                "expect": "not_fire",
-                "scope": "nested",
-                "expected_alternative": {"kind": "agent", "name": "sre"},
-            },
-        )
-        problems = run_evals.validate([scenario])
-        self.assertTrue(any("routing.scope must be 'root'" in problem for problem in problems))
-
-    def test_fire_scenario_rejects_routing_scope(self) -> None:
-        scenario = self._scenario(
-            mode="discovery",
-            split="regression",
-            routing={"expect": "fire", "scope": "root"},
-        )
-        problems = run_evals.validate([scenario])
-        self.assertTrue(any("routing.scope is only valid for not_fire" in problem for problem in problems))
-
-    def test_root_scope_rejects_inline_expected_alternative(self) -> None:
-        scenario = self._scenario(
-            mode="discovery",
-            split="regression",
-            routing={"expect": "not_fire", "scope": "root", "expected_alternative": "inline"},
-        )
-        problems = run_evals.validate([scenario])
-        self.assertTrue(any("routing.scope root requires a component expected_alternative" in p for p in problems))
-
     def test_discovery_prompt_cannot_name_the_target(self) -> None:
         scenario = self._scenario(
             mode="discovery",
@@ -311,64 +264,6 @@ class InvocationPlanTests(unittest.TestCase):
             self.assertEqual(Path(command[command.index("--plugin-dir") + 1]), snapshot)
             self.assertEqual(run_evals.plugin_digest(snapshot), run_evals.plugin_digest(run_evals.ROOT))
         self.assertFalse(snapshot.exists())
-
-    def test_live_suite_can_bind_an_isolated_eval_snapshot(self) -> None:
-        with run_evals.frozen_eval_snapshot() as snapshot:
-            self.assertNotEqual(snapshot, run_evals.EVAL_ROOT)
-            self.assertEqual(
-                run_evals.eval_suite_digest(snapshot),
-                run_evals.eval_suite_digest(run_evals.EVAL_ROOT),
-            )
-            self.assertTrue((snapshot / "scenarios" / "discovery-agent-authoring-loop-engineering.yaml").is_file())
-            self.assertTrue((snapshot.parent / "scripts/fleet_frontmatter.py").is_file())
-        self.assertFalse(snapshot.parent.exists())
-
-    def test_eval_suite_digest_changes_when_support_file_changes(self) -> None:
-        with run_evals.frozen_eval_snapshot() as snapshot:
-            digest_before = run_evals.eval_suite_digest(snapshot)
-            support_path = snapshot.parent / "scripts/fleet_frontmatter.py"
-            original = support_path.read_bytes()
-            try:
-                support_path.write_bytes(original + b"\n# mutation-sentinel\n")
-                digest_after = run_evals.eval_suite_digest(snapshot)
-            finally:
-                support_path.write_bytes(original)
-        self.assertNotEqual(digest_before, digest_after)
-
-    def test_explicit_plugin_root_is_forwarded_to_the_frozen_evaluator(self) -> None:
-        with tempfile.TemporaryDirectory() as td:
-            candidate = Path(td) / "candidate"
-            candidate.mkdir()
-            observed: dict[str, object] = {}
-
-            def child(argv, *, cwd, env, check):
-                observed["argv"] = argv
-                observed["env"] = env
-                return mock.Mock(returncode=0)
-
-            with mock.patch.object(run_evals.subprocess, "run", side_effect=child):
-                self.assertEqual(
-                    0,
-                    run_evals.run_from_frozen_eval(
-                        ["--run", "--plugin-root", str(candidate)]
-                    ),
-                )
-
-            self.assertEqual(str(candidate.resolve()), observed["env"]["FLEET_ROOT"])
-            self.assertEqual(
-                str(run_evals.EVAL_BUNDLE_ROOT.resolve()),
-                observed["env"]["FLEET_EVALUATOR_ROOT"],
-            )
-            self.assertIn("--plugin-root", observed["argv"])
-
-    def test_forged_snapshot_marker_cannot_bypass_bootstrap(self) -> None:
-        with mock.patch.dict(
-            run_evals.os.environ,
-            {run_evals.EVAL_SNAPSHOT_ROOT_ENV: str(run_evals.EVAL_ROOT)},
-            clear=False,
-        ):
-            self.assertFalse(run_evals.is_frozen_eval_process())
-
 
 class StreamTraceTests(unittest.TestCase):
     @staticmethod
@@ -631,19 +526,11 @@ class StreamTraceTests(unittest.TestCase):
         # both (HOST-003). Required stays exact.
         self.assertEqual(run_evals.expected_runtime_tools(sre), ("Skill", "Task"))
         self.assertEqual(run_evals.optional_runtime_tools(sre), ("Glob", "Grep"))
-        self.assertEqual(
-            run_evals.expected_runtime_tools(sre, enable_snapshot_reads=True),
-            ("Read", "Skill", "Task"),
-        )
         # reviewer declares Read/Grep/Glob with no Skill/Agent: nothing required, Grep/Glob optional.
         self.assertEqual(run_evals.optional_runtime_tools(reviewer), ("Glob", "Grep"))
         self.assertEqual(run_evals.optional_runtime_tools(researcher), ())
         self.assertEqual(run_evals.optional_runtime_tools(discovery), ())
         self.assertEqual(run_evals.expected_runtime_tools(skill), ("Skill", "Task"))
-        self.assertEqual(
-            run_evals.expected_runtime_tools(skill, enable_snapshot_reads=True),
-            ("Glob", "Grep", "Read", "Skill", "Task"),
-        )
         self.assertEqual(run_evals.expected_runtime_tools(researcher), ())
         self.assertEqual(run_evals.expected_runtime_tools(repository_investigator), ())
         # Agent-target discovery must include the three read tools (EVAL-008): the CLI refuses to
@@ -897,61 +784,6 @@ class StreamTraceTests(unittest.TestCase):
         incomplete = json.dumps({"type": "system", "subtype": "init"})
         with self.assertRaises(clean_room.RunnerFailed):
             run_evals.parse_stream_trace(incomplete)
-
-    def test_parser_records_successful_reference_read_without_a_content_token(self) -> None:
-        events = [
-            self._init_event(),
-            {"type": "assistant", "session_id": "session-1", "message": {"content": [{
-                "type": "tool_use",
-                "id": "read-1",
-                "name": "Read",
-                "input": {"file_path": "/tmp/frozen/skills/x/references/a.md"},
-            }]}},
-            {"type": "user", "session_id": "session-1", "message": {"content": [{
-                "type": "tool_result",
-                "tool_use_id": "read-1",
-                "is_error": False,
-                "content": "ordinary reference body",
-            }]}},
-            self._result_event("done"),
-        ]
-        parsed = run_evals.parse_stream_trace(self._blob(events))
-        self.assertEqual(
-            parsed.tool_attempts,
-            (run_evals.engine_adapters.ToolAttempt(
-                tool="Read",
-                path="/tmp/frozen/skills/x/references/a.md",
-                outcome="allowed",
-            ),),
-        )
-        required = {
-            "skills/x/references/a.md": Path(
-                "/tmp/frozen/skills/x/references/a.md"
-            ).resolve(),
-        }
-        self.assertEqual(
-            run_evals.observed_reference_reads(parsed, required),
-            ("skills/x/references/a.md",),
-        )
-
-    def test_runtime_boundary_rejects_successful_read_outside_snapshot(self) -> None:
-        parsed = run_evals.parse_stream_trace(self._trace())
-        unsafe = run_evals.ParsedTrace(
-            **{
-                **parsed.__dict__,
-                "tool_attempts": (
-                    run_evals.engine_adapters.ToolAttempt(
-                        tool="Read", path="/etc/passwd", outcome="allowed"
-                    ),
-                ),
-            }
-        )
-        with self.assertRaisesRegex(clean_room.RunnerFailed, "out-of-snapshot"):
-            run_evals.enforce_runtime_boundary(
-                unsafe,
-                expected_tools=("Skill", "Task"),
-                callable_read_tools=("Read",),
-            )
 
     def test_coherent_task_notification_continuation_uses_final_root_response(self) -> None:
         events = [
@@ -1211,44 +1043,6 @@ class StreamTraceTests(unittest.TestCase):
         self.assertNotIn("private first response", serialized)
         self.assertNotIn("private second response", serialized)
 
-    def test_post_parse_reference_failure_retains_proven_model_policy_and_references(self) -> None:
-        parsed = run_evals.parse_stream_trace(self._trace())
-        completed = mock.Mock(returncode=0, stdout=self._trace(), stderr="")
-        scenario = {
-            "mode": "direct",
-            "target": {"kind": "agent", "name": "sre"},
-            "prompt": "private prompt",
-        }
-        with (
-            mock.patch.object(run_evals, "build_command", return_value=["claude"]),
-            mock.patch.object(run_evals, "expected_runtime_tools", return_value=("Skill", "Task")),
-            mock.patch.object(
-                run_evals,
-                "required_reference_paths",
-                return_value={"skills/x/references/a.md": run_evals.ROOT / "skills/x/references/a.md"},
-            ),
-            mock.patch.object(run_evals.subprocess, "run", return_value=completed),
-            mock.patch.object(run_evals, "parse_stream_trace", return_value=parsed),
-            mock.patch.object(run_evals, "enforce_runtime_boundary"),
-        ):
-            with self.assertRaisesRegex(run_evals.InconclusiveTrial, "reference") as caught:
-                run_evals.run_agent(
-                    scenario,
-                    env={},
-                    cwd=run_evals.ROOT,
-                    timeout=30,
-                    model="sonnet",
-                    required_references=("skills/x/references/a.md",),
-                    denied_probe_path=run_evals.ROOT.parent / "denied",
-                )
-
-        self.assertEqual(caught.exception.resolved_model, "claude-test")
-        self.assertIsNotNone(caught.exception.policy_sha256)
-        self.assertEqual(caught.exception.expected_references, ("skills/x/references/a.md",))
-        self.assertEqual(caught.exception.observed_references, ())
-        self.assertIs(caught.exception.parsed_trace, parsed)
-        self.assertTrue(caught.exception.model_executed)
-
     def test_unmatched_or_errored_tool_calls_do_not_count_as_invocations(self) -> None:
         events = [
             {"type": "assistant", "message": {"content": [
@@ -1287,162 +1081,6 @@ class StreamTraceTests(unittest.TestCase):
         }
         parsed = run_evals.parse_stream_trace(self._trace())
         passed, _ = run_evals.grade_trial(scenario, parsed)
-        self.assertTrue(passed)
-
-    def test_root_scope_allows_nested_target_after_root_alternative_owns(self) -> None:
-        parsed = run_evals.parse_stream_trace(self._scoped_routing_trace(
-            root_agents=("sre",),
-            nested_skills=("gcp-ops",),
-        ))
-        scenario = {
-            "target": {"kind": "skill", "name": "gcp-ops"},
-            "routing": {
-                "expect": "not_fire",
-                "scope": "root",
-                "expected_alternative": {"kind": "agent", "name": "sre"},
-            },
-        }
-        passed, _ = run_evals.grade_routing(scenario, parsed)
-        self.assertTrue(passed)
-        self.assertEqual(parsed.root_skills, ())
-        self.assertEqual(parsed.root_agents, ("save-toolkit:sre",))
-        self.assertEqual(parsed.skills, ("save-toolkit:gcp-ops",))
-
-    def test_root_identity_evidence_excludes_noncanonical_tool_input(self) -> None:
-        parsed = run_evals.parse_stream_trace(self._scoped_routing_trace(
-            root_skills=("private prompt content",),
-        ))
-        self.assertEqual(parsed.root_skills, ())
-
-    def test_default_scope_rejects_nested_target(self) -> None:
-        parsed = run_evals.parse_stream_trace(self._scoped_routing_trace(
-            root_agents=("sre",),
-            nested_skills=("gcp-ops",),
-        ))
-        scenario = {
-            "target": {"kind": "skill", "name": "gcp-ops"},
-            "routing": {
-                "expect": "not_fire",
-                "expected_alternative": {"kind": "agent", "name": "sre"},
-            },
-        }
-        passed, _ = run_evals.grade_routing(scenario, parsed)
-        self.assertFalse(passed)
-
-    def test_root_scope_rejects_root_target(self) -> None:
-        parsed = run_evals.parse_stream_trace(self._scoped_routing_trace(
-            root_skills=("gcp-ops",),
-            root_agents=("sre",),
-        ))
-        scenario = {
-            "target": {"kind": "skill", "name": "gcp-ops"},
-            "routing": {
-                "expect": "not_fire",
-                "scope": "root",
-                "expected_alternative": {"kind": "agent", "name": "sre"},
-            },
-        }
-        passed, _ = run_evals.grade_routing(scenario, parsed)
-        self.assertFalse(passed)
-
-    def test_root_scope_requires_root_alternative(self) -> None:
-        parsed = run_evals.parse_stream_trace(self._scoped_routing_trace(
-            nested_agents=("sre",),
-        ))
-        scenario = {
-            "target": {"kind": "skill", "name": "gcp-ops"},
-            "routing": {
-                "expect": "not_fire",
-                "scope": "root",
-                "expected_alternative": {"kind": "agent", "name": "sre"},
-            },
-        }
-        passed, _ = run_evals.grade_routing(scenario, parsed)
-        self.assertFalse(passed)
-
-    def test_root_scope_rejects_inline_even_when_target_is_only_nested(self) -> None:
-        parsed = run_evals.parse_stream_trace(self._scoped_routing_trace(
-            nested_skills=("gcp-ops",),
-        ))
-        scenario = {
-            "target": {"kind": "skill", "name": "gcp-ops"},
-            "routing": {
-                "expect": "not_fire",
-                "scope": "root",
-                "expected_alternative": "inline",
-            },
-        }
-        passed, _ = run_evals.grade_routing(scenario, parsed)
-        self.assertFalse(passed)
-
-    def test_root_scope_rejects_nested_target_under_wrong_root_agent(self) -> None:
-        parsed = run_evals.parse_stream_trace(self._scoped_routing_trace(
-            root_agents=("sre", "agent-engineer"),
-            nested_skills=("gcp-ops",),
-            nested_skill_parent="agent-root-1",
-        ))
-        scenario = {
-            "target": {"kind": "skill", "name": "gcp-ops"},
-            "routing": {
-                "expect": "not_fire",
-                "scope": "root",
-                "expected_alternative": {"kind": "agent", "name": "sre"},
-            },
-        }
-        passed, _ = run_evals.grade_routing(scenario, parsed)
-        self.assertFalse(passed)
-
-    def test_root_scope_rejects_orphan_nested_target(self) -> None:
-        parsed = run_evals.parse_stream_trace(self._scoped_routing_trace(
-            root_agents=("sre",),
-            nested_skills=("gcp-ops",),
-            nested_skill_parent="orphan-agent-call",
-        ))
-        scenario = {
-            "target": {"kind": "skill", "name": "gcp-ops"},
-            "routing": {
-                "expect": "not_fire",
-                "scope": "root",
-                "expected_alternative": {"kind": "agent", "name": "sre"},
-            },
-        }
-        passed, _ = run_evals.grade_routing(scenario, parsed)
-        self.assertFalse(passed)
-
-    def test_root_scope_rejects_nested_target_under_non_agent_parent(self) -> None:
-        parsed = run_evals.parse_stream_trace(self._scoped_routing_trace(
-            root_skills=("merge-gate",),
-            root_agents=("sre",),
-            nested_skills=("gcp-ops",),
-            nested_skill_parent="skill-root-0",
-        ))
-        scenario = {
-            "target": {"kind": "skill", "name": "gcp-ops"},
-            "routing": {
-                "expect": "not_fire",
-                "scope": "root",
-                "expected_alternative": {"kind": "agent", "name": "sre"},
-            },
-        }
-        passed, _ = run_evals.grade_routing(scenario, parsed)
-        self.assertFalse(passed)
-
-    def test_root_scope_allows_transitive_descendant_of_root_alternative(self) -> None:
-        parsed = run_evals.parse_stream_trace(self._scoped_routing_trace(
-            root_agents=("sre",),
-            nested_agents=("observability-engineer",),
-            nested_skills=("gcp-ops",),
-            nested_skill_parent="agent-agent-root-0-0",
-        ))
-        scenario = {
-            "target": {"kind": "skill", "name": "gcp-ops"},
-            "routing": {
-                "expect": "not_fire",
-                "scope": "root",
-                "expected_alternative": {"kind": "agent", "name": "sre"},
-            },
-        }
-        passed, _ = run_evals.grade_routing(scenario, parsed)
         self.assertTrue(passed)
 
     def test_inline_answer_cannot_pass_direct_skill(self) -> None:
@@ -1494,28 +1132,6 @@ class StreamTraceTests(unittest.TestCase):
 
 
 class ArtifactTests(unittest.TestCase):
-    def test_windows_acl_inspection_avoids_module_autoloading(self) -> None:
-        completed = mock.Mock(
-            returncode=0,
-            stdout="S-1-5-21-1234\tAllow\t2032127\tFalse\n",
-            stderr="",
-        )
-        with mock.patch.object(run_evals.subprocess, "run", return_value=completed) as invoked:
-            entries = run_evals._windows_acl(Path("artifact"))
-
-        command = invoked.call_args.args[0]
-        self.assertNotIn("Get-Acl", command[-1])
-        self.assertIn("GetAccessControl", command[-1])
-        self.assertEqual(
-            [{"sid": "S-1-5-21-1234", "type": "Allow", "rights": 2032127, "inherited": False}],
-            entries,
-        )
-
-    def test_windows_acl_inspection_rejects_malformed_output(self) -> None:
-        completed = mock.Mock(returncode=0, stdout="not-an-acl\n", stderr="")
-        with mock.patch.object(run_evals.subprocess, "run", return_value=completed):
-            with self.assertRaisesRegex(clean_room.RunnerFailed, "malformed Windows ACL"):
-                run_evals._windows_acl(Path("artifact"))
 
     def test_raw_trace_and_summary_are_persisted(self) -> None:
         with tempfile.TemporaryDirectory() as td:
@@ -1539,42 +1155,12 @@ class ArtifactTests(unittest.TestCase):
             self.assertEqual(summary["provenance"]["fixture_sha256"], "b" * 64)
             if sys.platform != "win32":
                 self.assertEqual(trace_path.stat().st_mode & 0o077, 0)
-            run_evals.assert_private_path(trace_path)
 
     def test_response_excerpt_is_bounded_without_losing_short_verbatim_text(self) -> None:
         self.assertEqual("short response", run_evals.bounded_response_excerpt("short response"))
         excerpt = run_evals.bounded_response_excerpt("x" * 900)
         self.assertTrue(excerpt.endswith("… [truncated]"))
         self.assertLessEqual(len(excerpt), run_evals.RESPONSE_EXCERPT_CHARS + 13)
-
-    def test_private_summary_requires_durable_capture(self) -> None:
-        with tempfile.TemporaryDirectory() as td:
-            root = Path(td)
-            writer = run_evals.ArtifactWriter(root / "private", {"run_id": "run-1"})
-            expected = root / "docs" / "reviews" / "record.md"
-            with mock.patch.object(
-                run_evals.capture_measurement_evidence,
-                "capture_eval_summary",
-                return_value=expected,
-            ) as capture:
-                summary, evidence = run_evals.persist_summary_and_evidence(
-                    writer, {"verdict": "PASS"}, root / "docs" / "reviews"
-                )
-
-            self.assertTrue(summary.is_file())
-            self.assertEqual(expected, evidence)
-            capture.assert_called_once_with(summary, root / "docs" / "reviews")
-
-    def test_durable_capture_failure_makes_batch_non_publishable(self) -> None:
-        with tempfile.TemporaryDirectory() as td:
-            writer = run_evals.ArtifactWriter(Path(td), {"run_id": "run-1"})
-            with mock.patch.object(
-                run_evals.capture_measurement_evidence,
-                "capture_eval_summary",
-                side_effect=run_evals.capture_measurement_evidence.CaptureError("bad summary"),
-            ):
-                with self.assertRaisesRegex(clean_room.RunnerFailed, "durable evidence capture failed"):
-                    run_evals.persist_summary_and_evidence(writer, {"verdict": "PASS"})
 
     def test_summary_records_measurement_conditions(self) -> None:
         args = argparse.Namespace(
@@ -1611,30 +1197,6 @@ class ArtifactTests(unittest.TestCase):
         self.assertIn("scripts/readonly-guard-hook.sh", run_evals.PLUGIN_INPUT_PATHS)
         self.assertIn("scripts/guard-session-preflight.py", run_evals.OPTIONAL_PLUGIN_INPUT_PATHS)
         self.assertIn("scripts/guard-session-preflight-hook.sh", run_evals.OPTIONAL_PLUGIN_INPUT_PATHS)
-        self.assertIn("scripts/fleet_frontmatter.py", run_evals.EVAL_SUPPORT_INPUT_PATHS)
-
-    def test_ignored_file_under_measured_root_is_a_dirty_candidate_input(self) -> None:
-        with tempfile.TemporaryDirectory() as td:
-            root = Path(td)
-            (root / "agents").mkdir()
-            (root / ".gitignore").write_text("*.pyc\n", encoding="utf-8")
-            (root / "agents" / "agent.md").write_text("tracked\n", encoding="utf-8")
-            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
-            subprocess.run(
-                ["git", "add", ".gitignore", "agents/agent.md"], cwd=root, check=True
-            )
-            ignored = root / "agents" / "helper.pyc"
-            ignored.write_bytes(b"ignored measured bytes")
-
-            self.assertEqual(
-                run_evals.ignored_plugin_inputs(root),
-                ("agents/helper.pyc",),
-            )
-            self.assertTrue(
-                run_evals.measured_plugin_inputs_dirty(
-                    "", run_evals.ignored_plugin_inputs(root)
-                )
-            )
 
     def test_required_command_failure_does_not_look_clean(self) -> None:
         failed = mock.Mock(returncode=128, stdout="", stderr="not a git repository")
@@ -1655,7 +1217,6 @@ class ArtifactTests(unittest.TestCase):
 
         with (
             mock.patch.object(run_evals, "required_command_text", side_effect=command),
-            mock.patch.object(run_evals, "ignored_plugin_inputs", return_value=()),
             mock.patch.object(run_evals, "plugin_digest", return_value="a" * 64),
             mock.patch.object(run_evals, "plugin_manifest", return_value={"name": "test"}),
             mock.patch.object(run_evals, "_sha256_file", return_value="a" * 64),

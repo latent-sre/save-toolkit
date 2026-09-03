@@ -38,7 +38,6 @@ if str(SCRIPTS_ROOT) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_ROOT))
 
 import clean_room
-import capture_measurement_evidence
 import engine_adapters
 import graders
 
@@ -53,20 +52,6 @@ EVALUATOR_SOURCE_ROOT = Path(
     os.environ.get("FLEET_EVALUATOR_ROOT") or EVAL_BUNDLE_ROOT
 ).resolve()
 SCENARIOS_DIR = EVAL_ROOT / "scenarios"
-EVAL_SNAPSHOT_ROOT_ENV = "FLEET_EVAL_SNAPSHOT_ROOT"
-EVAL_INPUT_PATHS = (
-    "run_evals.py",
-    "graders.py",
-    "judge.py",
-    "rubrics.yaml",
-    "clean_room.py",
-    "engine_adapters.py",
-    "scenarios",
-)
-EVAL_SUPPORT_INPUT_PATHS = (
-    "scripts/fleet_frontmatter.py",
-    "scripts/capture_measurement_evidence.py",
-)
 SCHEMA_VERSION = 1
 MODES = {"direct", "discovery"}
 SPLITS = {"calibration", "regression"}
@@ -109,18 +94,7 @@ ALLOWED_TARGET_KEYS = {"kind", "name"}
 REQUIRED_SCENARIO_IDS = (
     "discovery-agent-authoring-loop-engineering",
 )
-ALLOWED_ROUTING_KEYS = {"expect", "scope", "also_acceptable", "expected_alternative"}
-REFERENCE_REQUIREMENTS = {
-    "agent-direct-sre-owns-recovery-to-terminal": (
-        "skills/investigation-depth/references/recovery-lifecycle.md",
-    ),
-    "agent-direct-sre-records-unknown-recovery-progress": (
-        "skills/investigation-depth/references/recovery-lifecycle.md",
-    ),
-    "skill-direct-agent-authoring-security-review": (
-        "skills/agent-authoring/references/agent-security.md",
-    ),
-}
+ALLOWED_ROUTING_KEYS = {"expect", "also_acceptable", "expected_alternative"}
 
 
 def positive_trials(value: str) -> int:
@@ -157,17 +131,6 @@ def plugin_manifest(root: Path = ROOT) -> dict:
 
 def plugin_name(root: Path = ROOT) -> str:
     return str(plugin_manifest(root)["name"])
-
-
-def is_frozen_eval_process() -> bool:
-    """Require the bootstrap's exact external snapshot path; a boolean env marker is forgeable."""
-    claimed = os.environ.get(EVAL_SNAPSHOT_ROOT_ENV)
-    if not claimed:
-        return False
-    try:
-        return Path(claimed).resolve() == EVAL_ROOT and not EVAL_ROOT.is_relative_to(ROOT)
-    except OSError:
-        return False
 
 
 def load_scenarios() -> list[dict]:
@@ -337,12 +300,6 @@ def validate(
                 routing_unknown = set(routing) - ALLOWED_ROUTING_KEYS
                 if routing_unknown:
                     problems.append(f"{where}: routing has unknown key(s): {', '.join(sorted(routing_unknown))}")
-                scope = routing.get("scope")
-                if scope is not None:
-                    if scope != "root":
-                        problems.append(f"{where}: routing.scope must be 'root'")
-                    elif routing["expect"] != "not_fire":
-                        problems.append(f"{where}: routing.scope is only valid for not_fire")
                 alternatives = routing.get("also_acceptable", [])
                 if not isinstance(alternatives, list):
                     problems.append(f"{where}: routing.also_acceptable must be a list")
@@ -354,10 +311,6 @@ def validate(
                 expected_alt = routing.get("expected_alternative")
                 if routing["expect"] == "not_fire" and expected_alt is None:
                     problems.append(f"{where}: routing.expect not_fire requires expected_alternative")
-                if scope == "root" and expected_alt == "inline":
-                    problems.append(
-                        f"{where}: routing.scope root requires a component expected_alternative"
-                    )
                 if (
                     routing["expect"] == "not_fire"
                     and "threshold" in scenario
@@ -425,20 +378,12 @@ class StreamAuthUnavailable(clean_room.AuthUnavailable):
 
 
 @dataclass(frozen=True)
-class NestedComponentOwnership:
-    kind: str
-    name: str
-    root_agent: str | None
-
-
-@dataclass(frozen=True)
 class ParsedTrace:
     response: str
     skills: tuple[str, ...]
     agents: tuple[str, ...]
     root_skills: tuple[str, ...]
     root_agents: tuple[str, ...]
-    nested_ownership: tuple[NestedComponentOwnership, ...]
     attempted_skills: tuple[str, ...]
     attempted_agents: tuple[str, ...]
     model: str | None
@@ -746,34 +691,6 @@ def parse_stream_trace(blob: str) -> ParsedTrace:
         if kind == "agent" and call_key[1] is None
     ]
 
-    calls_by_epoch_and_id: dict[tuple[int, str], list[tuple[int, str | None, str]]] = {}
-    for call_key in pending:
-        calls_by_epoch_and_id.setdefault((call_key[0], call_key[2]), []).append(call_key)
-
-    def root_agent_owner(call_key: tuple[int, str | None, str]) -> str | None:
-        epoch_number, parent_id, _ = call_key
-        seen: set[tuple[int, str | None, str]] = set()
-        while parent_id is not None:
-            candidates = calls_by_epoch_and_id.get((epoch_number, parent_id), [])
-            if len(candidates) != 1:
-                return None
-            parent_key = candidates[0]
-            if parent_key in seen or parent_key not in completed:
-                return None
-            seen.add(parent_key)
-            parent_kind, parent_name = completed[parent_key]
-            if parent_kind != "agent":
-                return None
-            if parent_key[1] is None:
-                return parent_name if _is_canonical_component_identity(parent_name) else None
-            parent_id = parent_key[1]
-        return None
-
-    nested_ownership = tuple(
-        NestedComponentOwnership(kind, name, root_agent_owner(call_key))
-        for call_key, (kind, name) in completed.items()
-        if call_key[1] is not None and _is_canonical_component_identity(name)
-    )
     response = result.get("result", "")
     if not isinstance(response, str):
         response = json.dumps(response, ensure_ascii=False)
@@ -793,7 +710,6 @@ def parse_stream_trace(blob: str) -> ParsedTrace:
         agents=_dedupe(agents),
         root_skills=_dedupe([name for name in root_skills if _is_canonical_component_identity(name)]),
         root_agents=_dedupe([name for name in root_agents if _is_canonical_component_identity(name)]),
-        nested_ownership=nested_ownership,
         attempted_skills=_dedupe(attempted_skills),
         attempted_agents=_dedupe(attempted_agents),
         model=metadata["model"],
@@ -846,50 +762,6 @@ def _load_trusted_frontmatter_parser() -> ModuleType:
         raise clean_room.RunnerFailed(f"cannot load trusted frontmatter parser: {exc}") from exc
 
 
-def reference_requirements(scenario: Mapping[str, object]) -> tuple[str, ...]:
-    scenario_id = scenario.get("id")
-    return REFERENCE_REQUIREMENTS.get(str(scenario_id), ())
-
-
-def required_reference_paths(
-    paths: tuple[str, ...],
-    plugin_root: Path = ROOT,
-) -> dict[str, Path]:
-    """Map each required reference to the ordinary file the trial must read from the snapshot."""
-    required: dict[str, Path] = {}
-    for relative in paths:
-        path = plugin_root / relative
-        try:
-            if not path.is_file() or _is_reparse_point(path):
-                raise ValueError("must be an ordinary file")
-            required[relative] = path.resolve()
-        except (OSError, ValueError) as exc:
-            raise clean_room.RunnerFailed(f"cannot inspect required reference {path}: {exc}") from exc
-    return required
-
-
-def observed_reference_reads(
-    parsed: ParsedTrace | None,
-    required: Mapping[str, Path],
-) -> tuple[str, ...]:
-    """The required references the trace shows were read successfully inside the snapshot.
-
-    A successful Read of the file itself is the proof; the reference carries no token for it.
-    """
-    if parsed is None:
-        return ()
-    attempts = parsed.tool_attempts if isinstance(parsed.tool_attempts, tuple) else ()
-    read: set[Path] = set()
-    for attempt in attempts:
-        if attempt.outcome != "allowed" or attempt.tool != "Read" or not attempt.path:
-            continue
-        try:
-            read.add(Path(attempt.path).resolve())
-        except OSError:
-            continue
-    return tuple(sorted(rel for rel, path in required.items() if path in read))
-
-
 def agent_target_discovery(scenario: dict) -> bool:
     """True when the trial may dispatch a tool-minimal agent and so carries the read grant.
 
@@ -916,8 +788,6 @@ def discovery_boundary_options(scenario: dict, cwd: Path) -> dict[str, object]:
 def expected_runtime_tools(
     scenario: dict,
     plugin_root: Path = ROOT,
-    *,
-    enable_snapshot_reads: bool = False,
 ) -> tuple[str, ...]:
     """Return the exact advertised built-in inventory expected for this invocation plan."""
     _require_matching_frontmatter_parser(plugin_root)
@@ -928,8 +798,6 @@ def expected_runtime_tools(
     if scenario["mode"] != "direct":
         return ALLOWED_BUILTIN_TOOLS
     if target["kind"] == "skill":
-        if enable_snapshot_reads:
-            return tuple(sorted((*ALLOWED_BUILTIN_TOOLS, *engine_adapters.READ_TOOLS)))
         return ALLOWED_BUILTIN_TOOLS
     if target["kind"] != "agent":
         return ALLOWED_BUILTIN_TOOLS
@@ -949,22 +817,18 @@ def expected_runtime_tools(
         effective.append("Skill")
     if "Agent" in bases:
         effective.append("Task")
-    # Read becomes advertised only for a plan that explicitly enables snapshot-scoped reference
-    # access. The agent's declared Grep/Glob are OPTIONAL inventory (see optional_runtime_tools):
+    # The agent's declared Grep/Glob are OPTIONAL inventory (see optional_runtime_tools):
     # Claude 2.1.243--2.1.246 advertised them while denying their calls; 2.1.250 no longer
     # advertises them for the same frontmatter. Requiring either shape made every direct trial of
     # a Grep/Glob-declaring agent INCONCLUSIVE on the other CLI (HOST-003, both directions).
-    if enable_snapshot_reads and "Read" in bases:
-        effective.append("Read")
     return tuple(sorted(effective))
 
 
 def optional_runtime_tools(scenario: dict, plugin_root: Path = ROOT) -> tuple[str, ...]:
     """Advertised tools the boundary tolerates in either state: a pinned agent's declared Grep/Glob.
 
-    Inventory is recorded separately from callable policy; these tools stay denied at call time
-    unless a reference-bearing plan enables snapshot reads. Anything outside expected ∪ optional
-    still makes the trial inconclusive.
+    Inventory is recorded separately from callable policy; these tools stay denied at call time.
+    Anything outside expected ∪ optional still makes the trial inconclusive.
     """
     target = scenario["target"]
     if scenario["mode"] != "direct" or target["kind"] != "agent":
@@ -990,8 +854,6 @@ def enforce_runtime_boundary(
     expected_tools: tuple[str, ...] = ALLOWED_BUILTIN_TOOLS,
     optional_tools: tuple[str, ...] = (),
     callable_read_tools: tuple[str, ...] = (),
-    required_allowed_paths: tuple[Path, ...] = (),
-    required_denied_path: Path | None = None,
     allowed_roots: tuple[Path, ...] = (),
 ) -> None:
     """Refuse a measurement if the CLI did not honor the requested namespace/tool boundary.
@@ -1035,14 +897,12 @@ def enforce_runtime_boundary(
             f"observed {runtime_plugin}"
         )
     try:
-        engine_adapters.ClaudeNativeAdapter().validate_tool_boundary(
+        engine_adapters.validate_tool_boundary(
             advertised=parsed.available_tools,
             expected=expected_tools,
             attempts=parsed.tool_attempts,
             plugin_root=expected_plugin_root,
             callable_read_tools=callable_read_tools,
-            required_allowed_paths=required_allowed_paths,
-            required_denied_path=required_denied_path,
             allowed_roots=allowed_roots,
         )
     except engine_adapters.AdapterError as exc:
@@ -1054,22 +914,13 @@ def build_command(
     model: str | None,
     claude_bin: str | None = None,
     plugin_root: Path = ROOT,
-    *,
-    enable_snapshot_reads: bool = False,
-    required_reference_paths: tuple[str, ...] = (),
-    denied_probe_path: Path | None = None,
-    reasoning_effort: str | None = None,
 ) -> list[str]:
-    return engine_adapters.ClaudeNativeAdapter().build_command(
+    return engine_adapters.build_command(
         scenario=scenario,
         executable=claude_bin or os.environ.get("CLAUDE_BIN", "claude"),
         plugin_root=plugin_root,
         qualified_target=qualified_target(scenario["target"], plugin_root),
         model=model,
-        reasoning_effort=reasoning_effort,
-        enable_snapshot_reads=enable_snapshot_reads,
-        required_reference_paths=required_reference_paths,
-        denied_probe_path=denied_probe_path,
     )
 
 
@@ -1087,10 +938,6 @@ class InconclusiveTrial(clean_room.RunnerFailed):
         resolved_model: str | None = None,
         parsed_trace: ParsedTrace | None = None,
         stream_diagnostics: dict | None = None,
-        context_sha256: str | None = None,
-        policy_sha256: str | None = None,
-        expected_references: tuple[str, ...] = (),
-        observed_references: tuple[str, ...] = (),
         total_cost_usd: float | None = None,
         stop_campaign: bool = False,
         model_executed: bool = False,
@@ -1105,10 +952,6 @@ class InconclusiveTrial(clean_room.RunnerFailed):
         self.resolved_model = resolved_model
         self.parsed_trace = parsed_trace
         self.stream_diagnostics = stream_diagnostics
-        self.context_sha256 = context_sha256
-        self.policy_sha256 = policy_sha256
-        self.expected_references = expected_references
-        self.observed_references = observed_references
         self.total_cost_usd = total_cost_usd
         self.stop_campaign = stop_campaign
         self.model_executed = model_executed
@@ -1122,10 +965,6 @@ class TrialExecution:
     command: tuple[str, ...]
     returncode: int
     duration_seconds: float
-    context_sha256: str | None = None
-    policy_sha256: str | None = None
-    expected_references: tuple[str, ...] = ()
-    observed_references: tuple[str, ...] = ()
 
 
 def run_agent(
@@ -1137,37 +976,14 @@ def run_agent(
     model: str | None,
     claude_bin: str | None = None,
     plugin_root: Path = ROOT,
-    required_references: tuple[str, ...] | None = None,
-    denied_probe_path: Path | None = None,
-    reasoning_effort: str | None = None,
-    accepted_resolved_model: str | None = None,
 ) -> TrialExecution:
-    references = (
-        reference_requirements(scenario)
-        if required_references is None
-        else required_references
-    )
-    enable_snapshot_reads = bool(references)
-    if enable_snapshot_reads and denied_probe_path is None:
-        raise clean_room.RunnerFailed(
-            "reference trials require an external negative boundary probe"
-        )
-    expected_tools = expected_runtime_tools(
-        scenario,
-        plugin_root,
-        enable_snapshot_reads=enable_snapshot_reads,
-    )
+    expected_tools = expected_runtime_tools(scenario, plugin_root)
     optional_tools = optional_runtime_tools(scenario, plugin_root)
-    required = required_reference_paths(references, plugin_root)
     command = build_command(
         scenario,
         model=model,
         claude_bin=claude_bin,
         plugin_root=plugin_root,
-        enable_snapshot_reads=enable_snapshot_reads,
-        required_reference_paths=references,
-        denied_probe_path=denied_probe_path,
-        reasoning_effort=reasoning_effort,
     )
     started = time.monotonic()
     try:
@@ -1212,35 +1028,12 @@ def run_agent(
             model_executed=True,
         )
     parsed: ParsedTrace | None = None
-    boundary_proven = False
     try:
         parsed = parse_stream_trace(proc.stdout)
-        if accepted_resolved_model is not None and parsed.model != accepted_resolved_model:
-            raise clean_room.RunnerFailed(
-                "Claude resolved model does not match the accepted resolved-model identity"
-            )
         boundary_options: dict[str, object] = {"expected_tools": expected_tools, "optional_tools": optional_tools}
         boundary_options.update(discovery_boundary_options(scenario, cwd))
-        if enable_snapshot_reads:
-            boundary_options["callable_read_tools"] = engine_adapters.READ_TOOLS
-            boundary_options["required_allowed_paths"] = tuple(
-                plugin_root / relative for relative in references
-            )
-            boundary_options["required_denied_path"] = denied_probe_path
-            # The neutral fixture workspace is harness-owned (its digest is recorded), so a read that
-            # resolves inside it — a cwd-relative Grep/Glob included — is in bounds (HOST-003).
-            boundary_options["allowed_roots"] = (cwd,)
         enforce_runtime_boundary(parsed, plugin_root, **boundary_options)
-        boundary_proven = True
-        if required:
-            missing = set(required) - set(observed_reference_reads(parsed, required))
-            if missing:
-                raise clean_room.RunnerFailed(
-                    f"required reference was not read in a successful scoped read: "
-                    f"{sorted(missing)}"
-                )
-    except clean_room.AuthUnavailable as exc:
-        observed = observed_reference_reads(parsed, required)
+    except (clean_room.AuthUnavailable, clean_room.RunnerFailed) as exc:
         raise InconclusiveTrial(
             str(exc), raw_trace=proc.stdout, stderr=proc.stderr, returncode=proc.returncode,
             command=tuple(command), duration_seconds=duration, requested_model=model,
@@ -1249,39 +1042,6 @@ def run_agent(
             ),
             resolved_model=parsed.model if parsed else None,
             parsed_trace=parsed,
-            policy_sha256=(
-                engine_adapters.ClaudeNativeAdapter().policy_sha256(
-                    enable_snapshot_reads=enable_snapshot_reads,
-                    agent_target_discovery=agent_target_discovery(scenario),
-                    reasoning_effort=reasoning_effort,
-                )
-                if boundary_proven else None
-            ),
-            expected_references=tuple(sorted(required)),
-            observed_references=observed,
-            total_cost_usd=parsed.total_cost_usd if parsed else None,
-            model_executed=True,
-        ) from exc
-    except clean_room.RunnerFailed as exc:
-        observed = observed_reference_reads(parsed, required)
-        raise InconclusiveTrial(
-            str(exc), raw_trace=proc.stdout, stderr=proc.stderr, returncode=proc.returncode,
-            command=tuple(command), duration_seconds=duration, requested_model=model,
-            stream_diagnostics=(
-                getattr(exc, "stream_diagnostics", None) or _safe_stream_diagnostics(proc.stdout)
-            ),
-            resolved_model=parsed.model if parsed else None,
-            parsed_trace=parsed,
-            policy_sha256=(
-                engine_adapters.ClaudeNativeAdapter().policy_sha256(
-                    enable_snapshot_reads=enable_snapshot_reads,
-                    agent_target_discovery=agent_target_discovery(scenario),
-                    reasoning_effort=reasoning_effort,
-                )
-                if boundary_proven else None
-            ),
-            expected_references=tuple(sorted(required)),
-            observed_references=observed,
             total_cost_usd=parsed.total_cost_usd if parsed else None,
             model_executed=True,
         ) from exc
@@ -1292,19 +1052,10 @@ def run_agent(
         tuple(command),
         proc.returncode,
         duration,
-        policy_sha256=engine_adapters.ClaudeNativeAdapter().policy_sha256(
-            enable_snapshot_reads=enable_snapshot_reads,
-            agent_target_discovery=agent_target_discovery(scenario),
-            reasoning_effort=reasoning_effort,
-        ),
-        expected_references=tuple(sorted(required)),
-        observed_references=observed_reference_reads(parsed, required),
     )
 
 
-def _completed_components(parsed: ParsedTrace, kind: str, *, scope: str = "any") -> set[str]:
-    if scope == "root":
-        return set(parsed.root_skills if kind == "skill" else parsed.root_agents)
+def _completed_components(parsed: ParsedTrace, kind: str) -> set[str]:
     return set(parsed.skills if kind == "skill" else parsed.agents)
 
 
@@ -1316,8 +1067,7 @@ def _runtime_namespace(parsed: ParsedTrace) -> str:
 def grade_routing(scenario: dict, parsed: ParsedTrace) -> tuple[bool, str]:
     target = scenario["target"]
     routing = scenario["routing"]
-    scope = routing.get("scope", "any")
-    actual = _completed_components(parsed, target["kind"], scope=scope)
+    actual = _completed_components(parsed, target["kind"])
     namespace = _runtime_namespace(parsed)
 
     def runtime_target(component: dict) -> str:
@@ -1331,48 +1081,20 @@ def grade_routing(scenario: dict, parsed: ParsedTrace) -> tuple[bool, str]:
 
     target_name = runtime_target(target)
     if target_name in actual:
-        scope_detail = " at root scope" if scope == "root" else ""
-        return False, f"routing unexpectedly fired {target_name}{scope_detail}"
+        return False, f"routing unexpectedly fired {target_name}"
     alternative = routing["expected_alternative"]
-    if scope == "root":
-        if alternative == "inline":
-            return False, "routing root scope requires a completed component alternative"
-        nested_target_owners = [
-            ownership.root_agent
-            for ownership in parsed.nested_ownership
-            if ownership.kind == target["kind"] and ownership.name == target_name
-        ]
-        expected_owner = runtime_target(alternative) if alternative["kind"] == "agent" else None
-        if nested_target_owners and (
-            expected_owner is None
-            or any(owner != expected_owner for owner in nested_target_owners)
-        ):
-            observed_owners = sorted(owner or "unresolved" for owner in nested_target_owners)
-            return False, (
-                f"routing nested target {target_name} lacks expected root owner "
-                f"{expected_owner or 'agent alternative'}; saw {observed_owners}"
-            )
     if alternative == "inline":
-        scoped_skills = _completed_components(parsed, "skill", scope=scope)
-        scoped_agents = _completed_components(parsed, "agent", scope=scope)
-        no_components = not scoped_skills and not scoped_agents
-        if scope == "any":
-            detail = f"routing expected inline; saw skills={list(parsed.skills)}, agents={list(parsed.agents)}"
-        else:
-            detail = (
-                f"routing expected inline at root scope; saw skills={sorted(scoped_skills)}, "
-                f"agents={sorted(scoped_agents)}"
-            )
+        no_components = not parsed.skills and not parsed.agents
+        detail = f"routing expected inline; saw skills={list(parsed.skills)}, agents={list(parsed.agents)}"
         return bool(no_components and parsed.response.strip()), (
             "routing stayed inline" if no_components and parsed.response.strip()
             else detail
         )
-    alternate_actual = _completed_components(parsed, alternative["kind"], scope=scope)
+    alternate_actual = _completed_components(parsed, alternative["kind"])
     alternate_name = runtime_target(alternative)
-    scope_detail = " at root scope" if scope == "root" else ""
     return (
         alternate_name in alternate_actual,
-        f"routing expected alternative {alternate_name}{scope_detail}; saw {sorted(alternate_actual)}",
+        f"routing expected alternative {alternate_name}; saw {sorted(alternate_actual)}",
     )
 
 
@@ -1532,171 +1254,24 @@ def _is_reparse_point(path: Path) -> bool:
     return path.is_symlink() or bool(attributes & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0))
 
 
-@functools.lru_cache(maxsize=1)
-def _windows_sid() -> str:
-    command = [
-        "powershell", "-NoProfile", "-NonInteractive", "-Command",
-        "[System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value",
-    ]
-    proc = subprocess.run(
-        command, capture_output=True, text=True, check=False, encoding="utf-8", errors="replace",
-    )
-    sid = proc.stdout.strip()
-    if proc.returncode != 0 or not re.fullmatch(r"S-\d+(?:-\d+)+", sid):
-        raise clean_room.RunnerFailed(
-            f"could not determine the current Windows SID: {proc.stderr.strip()[:300]}"
-        )
-    return sid
-
-
-def _windows_acl(path: Path) -> list[dict]:
-    # Do not use Get-Acl here. It depends on Microsoft.PowerShell.Security module autoloading,
-    # which is not reliable on current Windows hosted runners. DirectoryInfo/FileInfo expose the
-    # same Windows security descriptor through .NET without importing a PowerShell module.
-    script = (
-        "$ErrorActionPreference='Stop'; try { "
-        "$path=$env:FLEET_EVAL_ACL_PATH; "
-        "if ([System.IO.Directory]::Exists($path)) { "
-        "$item=[System.IO.DirectoryInfo]::new($path) "
-        "} elseif ([System.IO.File]::Exists($path)) { "
-        "$item=[System.IO.FileInfo]::new($path) "
-        "} else { throw 'ACL path is missing' }; "
-        "$acl=$item.GetAccessControl(); "
-        "foreach ($entry in $acl.Access) { "
-        "$sid=$entry.IdentityReference.Translate("
-        "[System.Security.Principal.SecurityIdentifier]).Value; "
-        "$fields=@($sid,$entry.AccessControlType.ToString(),"
-        "([int]$entry.FileSystemRights).ToString(),([bool]$entry.IsInherited).ToString()); "
-        "[Console]::Out.WriteLine(($fields -join [char]9)) "
-        "} } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }"
-    )
-    acl_env = os.environ.copy()
-    acl_env["FLEET_EVAL_ACL_PATH"] = str(path)
-    proc = subprocess.run(
-        ["powershell", "-NoProfile", "-NonInteractive", "-Command", script], env=acl_env,
-        capture_output=True, text=True, check=False, encoding="utf-8", errors="replace",
-    )
-    if proc.returncode != 0 or not proc.stdout.strip():
-        raise clean_room.RunnerFailed(
-            f"could not inspect Windows ACL for {path}: {proc.stderr.strip()[:300]}"
-        )
-    entries: list[dict] = []
-    for line in proc.stdout.splitlines():
-        fields = line.split("\t")
-        if len(fields) != 4:
-            raise clean_room.RunnerFailed(f"malformed Windows ACL output for {path}")
-        sid, access_type, raw_rights, raw_inherited = fields
-        if (
-            not re.fullmatch(r"S-\d+(?:-\d+)+", sid)
-            or access_type not in {"Allow", "Deny"}
-            or raw_inherited.casefold() not in {"true", "false"}
-        ):
-            raise clean_room.RunnerFailed(f"malformed Windows ACL output for {path}")
-        try:
-            rights = int(raw_rights)
-        except ValueError as exc:
-            raise clean_room.RunnerFailed(f"malformed Windows ACL output for {path}") from exc
-        if rights < 0:
-            raise clean_room.RunnerFailed(f"malformed Windows ACL output for {path}")
-        entries.append(
-            {
-                "sid": sid,
-                "type": access_type,
-                "rights": rights,
-                "inherited": raw_inherited.casefold() == "true",
-            }
-        )
-    if not entries:
-        raise clean_room.RunnerFailed(f"Windows ACL output has no access entries for {path}")
-    return entries
-
-
-def _set_windows_private_acl(path: Path, *, directory: bool) -> None:
-    sid = _windows_sid()
-
-    def run_icacls(*arguments: str) -> None:
-        proc = subprocess.run(
-            ["icacls", str(path), *arguments, "/C", "/Q"],
-            capture_output=True, text=True, check=False, encoding="utf-8", errors="replace",
-        )
-        if proc.returncode != 0:
-            raise clean_room.RunnerFailed(
-                f"could not secure Windows artifact ACL for {path}: "
-                f"{(proc.stderr or proc.stdout).strip()[:300]}"
-            )
-
-    permission = f"*{sid}:(OI)(CI)F" if directory else f"*{sid}:F"
-    # Establish an explicit owner ACE before removing inherited access, or a newly-created file
-    # whose only ACE is inherited can become temporarily unreadable to this process.
-    run_icacls("/grant:r", permission)
-    run_icacls("/inheritance:r")
-    for entry in _windows_acl(path):
-        principal = entry.get("sid")
-        if isinstance(principal, str) and principal != sid:
-            operation = "/remove:d" if entry.get("type") == "Deny" else "/remove:g"
-            run_icacls(operation, f"*{principal}")
-    run_icacls("/grant:r", permission)
-
-
-def assert_private_path(path: Path) -> None:
-    """Fail unless a trace path is protected for only the current OS identity."""
-    if not path.exists() or _is_reparse_point(path):
-        raise clean_room.RunnerFailed(f"private artifact path is missing or redirected: {path}")
-    if os.name != "nt":
-        if path.stat().st_mode & 0o077:
-            raise clean_room.RunnerFailed(f"private artifact has group/other permissions: {path}")
-        return
-
-    sid = _windows_sid()
-    entries = _windows_acl(path)
-    if not entries:
-        raise clean_room.RunnerFailed(f"private artifact has no verifiable Windows ACL: {path}")
-    for entry in entries:
-        if (
-            entry.get("sid") != sid
-            or entry.get("type") != "Allow"
-            or entry.get("inherited") is not False
-            or int(entry.get("rights", 0)) != 2032127  # FileSystemRights.FullControl
-        ):
-            raise clean_room.RunnerFailed(
-                f"private artifact ACL grants an unexpected principal or permission: {path}: {entry}"
-            )
-
-
 def secure_directory(path: Path, *, recursive: bool = False) -> Path:
-    """Create a directory and enforce a private, non-inherited permission boundary."""
+    """Create an owner-only artifact directory.
+
+    The mode is set at creation rather than verified afterwards: the run's own artifacts are the
+    only thing under this root, and re-reading the ACL back through PowerShell proved nothing the
+    creation mode did not already establish.
+    """
     try:
-        path.mkdir(parents=True, exist_ok=True)
+        path.mkdir(parents=True, exist_ok=True, mode=0o700)
     except OSError as exc:
         raise clean_room.RunnerFailed(f"could not create private artifact directory {path}: {exc}") from exc
     if _is_reparse_point(path):
         raise clean_room.RunnerFailed(f"refusing redirected private artifact directory: {path}")
-    if os.name == "nt":
-        targets = [path]
-        if recursive:
-            targets.extend(path.rglob("*"))
-        for target in targets:
-            if _is_reparse_point(target):
-                raise clean_room.RunnerFailed(
-                    f"refusing redirected path beneath private artifact directory: {target}"
-                )
-            _set_windows_private_acl(target, directory=target.is_dir())
-    else:
+    if os.name != "nt":
         try:
             os.chmod(path, stat.S_IRWXU)
-            if recursive:
-                for child in path.rglob("*"):
-                    if _is_reparse_point(child):
-                        raise clean_room.RunnerFailed(
-                            f"refusing redirected path beneath private artifact directory: {child}"
-                        )
-                    os.chmod(child, stat.S_IRWXU if child.is_dir() else stat.S_IRUSR | stat.S_IWUSR)
         except OSError as exc:
             raise clean_room.RunnerFailed(f"could not secure artifact directory {path}: {exc}") from exc
-    assert_private_path(path)
-    if recursive:
-        for child in path.rglob("*"):
-            assert_private_path(child)
     return path
 
 
@@ -1719,10 +1294,7 @@ def resolve_results_root(requested: Path) -> Path:
 
 def _private_write(path: Path, content: str) -> Path:
     try:
-        if path.parent.exists():
-            assert_private_path(path.parent)
-        else:
-            secure_directory(path.parent)
+        secure_directory(path.parent)
         if path.exists() or path.is_symlink():
             raise clean_room.RunnerFailed(f"refusing to overwrite private artifact: {path}")
         flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
@@ -1734,11 +1306,8 @@ def _private_write(path: Path, content: str) -> Path:
             with contextlib.suppress(OSError):
                 os.close(fd)
             raise
-        if os.name == "nt":
-            _set_windows_private_acl(path, directory=False)
-        else:
+        if os.name != "nt":
             os.chmod(path, stat.S_IRUSR | stat.S_IWUSR)
-        assert_private_path(path)
     except clean_room.RunnerFailed:
         raise
     except OSError as exc:
@@ -1777,24 +1346,6 @@ def bounded_response_excerpt(response: str) -> str:
     if len(response) <= RESPONSE_EXCERPT_CHARS:
         return response
     return response[:RESPONSE_EXCERPT_CHARS] + "… [truncated]"
-
-
-def persist_summary_and_evidence(
-    writer: ArtifactWriter,
-    summary: dict,
-    reviews_root: Path | None = None,
-) -> tuple[Path, Path]:
-    """Seal the private summary and require its bounded durable review record."""
-
-    summary_path = writer.write_summary(summary)
-    try:
-        capture_root = reviews_root or ROOT / "docs" / "reviews"
-        evidence_path = capture_measurement_evidence.capture_eval_summary(summary_path, capture_root)
-    except (capture_measurement_evidence.CaptureError, FileExistsError, OSError) as exc:
-        raise clean_room.RunnerFailed(
-            f"private summary was written but durable evidence capture failed: {exc}"
-        ) from exc
-    return summary_path, evidence_path
 
 
 def _sha256_file(path: Path) -> str:
@@ -1840,124 +1391,9 @@ def plugin_digest(root: Path = ROOT) -> str:
     return _sha256_paths(files, base=root)
 
 
-def ignored_plugin_inputs(root: Path = ROOT) -> tuple[str, ...]:
-    """Return ignored files below measured roots so they cannot masquerade as clean inputs."""
-
-    argv = [
-            "git",
-            "ls-files",
-            "--others",
-            "--ignored",
-            "--exclude-standard",
-            "-z",
-            "--",
-            *PLUGIN_INPUT_PATHS,
-            *OPTIONAL_PLUGIN_INPUT_PATHS,
-        ]
-    proc = subprocess.run(
-        argv,
-        cwd=root,
-        capture_output=True,
-        text=True,
-        check=False,
-        encoding="utf-8",
-        errors="strict",
-    )
-    if proc.returncode != 0:
-        raise clean_room.RunnerFailed(
-            f"provenance command failed rc={proc.returncode}: {' '.join(argv)}: "
-            f"{proc.stderr.strip()[:300]}"
-        )
-    return tuple(
-        sorted(path.replace("\\", "/") for path in proc.stdout.split("\0") if path)
-    )
-
-
-def measured_plugin_inputs_dirty(
-    plugin_status: str,
-    ignored_inputs: Sequence[str],
-) -> bool:
-    """Bind the clean decision to tracked, untracked, and ignored measured inputs."""
-
-    return bool(plugin_status or ignored_inputs)
-
-
 def eval_suite_digest(root: Path = EVAL_ROOT) -> str:
-    inputs = _files_under(*EVAL_INPUT_PATHS, root=root)
-    inputs.extend(_files_under(*EVAL_SUPPORT_INPUT_PATHS, root=root.parent))
-    return _sha256_paths(inputs, base=root.parent)
-
-
-@contextlib.contextmanager
-def frozen_eval_snapshot():
-    """Copy one stable eval suite image before the measured runner process starts."""
-    tmp = Path(tempfile.mkdtemp(prefix="fleet-eval-suite-snapshot-"))
-    snapshot_root = tmp / "evals"
-    try:
-        before = eval_suite_digest(EVAL_ROOT)
-        for relative in EVAL_INPUT_PATHS:
-            source_root = EVAL_ROOT / relative
-            if source_root.is_dir():
-                (snapshot_root / relative).mkdir(parents=True, exist_ok=True)
-        for source in _files_under(*EVAL_INPUT_PATHS, root=EVAL_ROOT):
-            destination = snapshot_root / source.relative_to(EVAL_ROOT)
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source, destination)
-        for source in _files_under(*EVAL_SUPPORT_INPUT_PATHS, root=EVAL_ROOT.parent):
-            destination = tmp / source.relative_to(EVAL_ROOT.parent)
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source, destination)
-        after = eval_suite_digest(EVAL_ROOT)
-        snapshot = eval_suite_digest(snapshot_root)
-        if before != after or snapshot != before:
-            raise clean_room.RunnerFailed(
-                "eval inputs changed while the frozen execution snapshot was being created"
-            )
-        yield snapshot_root.resolve()
-    except OSError as exc:
-        raise clean_room.RunnerFailed(f"could not create frozen eval snapshot: {exc}") from exc
-    finally:
-        shutil.rmtree(tmp, ignore_errors=True)
-
-
-def plugin_root_argument(argv: list[str]) -> Path | None:
-    """Resolve the one explicit measured-plugin root before the frozen child imports."""
-
-    matches: list[str] = []
-    for index, argument in enumerate(argv):
-        if argument == "--plugin-root":
-            if index + 1 >= len(argv):
-                raise clean_room.RunnerFailed("--plugin-root requires a path")
-            matches.append(argv[index + 1])
-        elif argument.startswith("--plugin-root="):
-            matches.append(argument.partition("=")[2])
-    if len(matches) > 1:
-        raise clean_room.RunnerFailed("--plugin-root may be supplied only once")
-    if not matches:
-        return None
-    root = Path(matches[0]).resolve()
-    if not root.is_dir() or _is_reparse_point(root):
-        raise clean_room.RunnerFailed("--plugin-root must be an ordinary directory")
-    return root
-
-
-def run_from_frozen_eval(argv: list[str]) -> int:
-    """Bootstrap a live run from frozen harness/scenario bytes, not the mutable checkout."""
-    try:
-        with frozen_eval_snapshot() as snapshot_root:
-            measured_plugin_root = plugin_root_argument(argv) or ROOT
-            env = os.environ.copy()
-            env[EVAL_SNAPSHOT_ROOT_ENV] = str(snapshot_root)
-            env["FLEET_ROOT"] = str(measured_plugin_root)
-            env["FLEET_EVALUATOR_ROOT"] = str(EVAL_BUNDLE_ROOT)
-            proc = subprocess.run(
-                [sys.executable, str(snapshot_root / "run_evals.py"), *argv],
-                cwd=Path.cwd(), env=env, check=False,
-            )
-            return proc.returncode
-    except (clean_room.RunnerFailed, engine_adapters.AdapterError) as exc:
-        print(f"run_evals: {exc}", file=sys.stderr)
-        return 2
+    """Digest the committed scenario bytes so mid-run edits to the suite are detectable."""
+    return _sha256_paths(_files_under("scenarios", root=root), base=root.parent)
 
 
 @contextlib.contextmanager
@@ -2042,7 +1478,6 @@ def collect_provenance(
         *PLUGIN_INPUT_PATHS,
         *OPTIONAL_PLUGIN_INPUT_PATHS,
     ])
-    ignored_inputs = ignored_plugin_inputs(ROOT)
     snapshot_digest = plugin_digest(plugin_root)
     workspace_digest = plugin_digest(ROOT)
     if workspace_digest != snapshot_digest:
@@ -2069,8 +1504,7 @@ def collect_provenance(
         "plugin_commit": plugin_commit,
         "expected_plugin_commit": expected_plugin_commit,
         "workspace_dirty": bool(status),
-        "plugin_inputs_dirty": measured_plugin_inputs_dirty(plugin_status, ignored_inputs),
-        "ignored_plugin_inputs": list(ignored_inputs),
+        "plugin_inputs_dirty": bool(plugin_status),
         "plugin_manifest_sha256": _sha256_file(manifest_path),
         "plugin_source_sha256": snapshot_digest,
         "plugin_workspace_source_sha256": workspace_digest,
@@ -2078,19 +1512,12 @@ def collect_provenance(
         "plugin_snapshot_kind": "stable-copy-v1",
         "eval_suite_sha256": suite_sha256,
         "eval_snapshot_path": str(EVAL_ROOT),
-        "eval_snapshot_kind": (
-            "stable-copy-v1" if is_frozen_eval_process() else "workspace"
-        ),
         "fixture_cwd": str(workspace),
-        "fixture_sha256": hashlib.sha256(b"neutral-empty-git-root-v1\n").hexdigest(),
         "fixture_kind": "neutral-empty-git-root-v1",
         "namespace": "save-toolkit plugin plus Claude built-ins; neutral project; strict empty MCP",
         "denied_tools": DENIED_TOOLS.split(","),
         "allowed_builtin_tools": list(ALLOWED_BUILTIN_TOOLS),
         "conditions": conditions if conditions is not None else {},
-        # Compatibility fields for the legacy v1 summary and durable renderer.
-        "claude_cli_path": str(Path(claude_bin).resolve()),
-        "claude_cli_version": runtime_version,
     }
     return provenance
 
@@ -2197,10 +1624,6 @@ def main() -> int:
             print(f"- {scenario['id']} [{scenario['mode']}/{scenario['split']}] -> {target['kind']}:{target['name']}")
         return 0
 
-    if not is_frozen_eval_process():
-        print("run_evals: live execution requires the frozen eval bootstrap", file=sys.stderr)
-        return 2
-
     runtime_setting = os.environ.get("CLAUDE_BIN", "claude")
     runtime_bin = shutil.which(runtime_setting) or (
         runtime_setting if Path(runtime_setting).is_file() else None
@@ -2215,19 +1638,6 @@ def main() -> int:
             plugin_root = stack.enter_context(frozen_plugin_snapshot())
             workspace = stack.enter_context(clean_room.neutral_workspace())
             env: Mapping[str, str] = stack.enter_context(clean_room.clean_env())
-            denied_probe_path: Path | None = None
-            if any(reference_requirements(scenario) for scenario in selected):
-                denied_probe_root = Path(
-                    stack.enter_context(
-                        tempfile.TemporaryDirectory(prefix="fleet-eval-denied-boundary-")
-                    )
-                )
-                denied_probe_path = denied_probe_root / "must-remain-denied.txt"
-                denied_probe_path.write_text(
-                    "Evaluator boundary sentinel. This content must not be readable.\n",
-                    encoding="utf-8",
-                )
-                denied_probe_path.chmod(0o600)
             provenance = collect_provenance(
                 args.model, workspace, runtime_bin, plugin_root, suite_sha256,
                 measurement_conditions(args),
@@ -2259,15 +1669,11 @@ def main() -> int:
                 print(f"\n== {scenario['id']} [{scenario['mode']}/{scenario['split']}] ==")
                 for trial_number in range(1, trials + 1):
                     started_at = datetime.now(UTC).isoformat()
-                    planned_references = reference_requirements(scenario)
                     planned_command = build_command(
                         scenario,
                         args.model,
                         runtime_bin,
                         plugin_root,
-                        enable_snapshot_reads=bool(planned_references),
-                        required_reference_paths=planned_references,
-                        denied_probe_path=denied_probe_path,
                     )
                     try:
                         execution = run_agent(
@@ -2278,8 +1684,6 @@ def main() -> int:
                             model=args.model,
                             claude_bin=runtime_bin,
                             plugin_root=plugin_root,
-                            required_references=planned_references,
-                            denied_probe_path=denied_probe_path,
                         )
                         writer.write_trace(scenario["id"], trial_number, execution.raw_trace)
                         writer.write_stderr(scenario["id"], trial_number, execution.stderr)
@@ -2294,7 +1698,6 @@ def main() -> int:
                             "judge": drain_judge_spend(),
                             "exit_code": execution.returncode,
                             "resolved_model": execution.parsed.model,
-                            "reasoning_effort": None,
                             "session_id": execution.parsed.session_id,
                             "total_cost_usd": execution.parsed.total_cost_usd,
                             "completed_invocations": {
@@ -2323,12 +1726,6 @@ def main() -> int:
                             "trace_sha256": hashlib.sha256(
                                 execution.raw_trace.encode("utf-8")
                             ).hexdigest(),
-                            "context_sha256": execution.context_sha256,
-                            "policy_sha256": execution.policy_sha256,
-                            "references": {
-                                "expected": list(execution.expected_references),
-                                "observed": list(execution.observed_references),
-                            },
                         }
                     except (InconclusiveTrial, clean_room.AuthUnavailable) as exc:
                         state = "INCONCLUSIVE"
@@ -2349,7 +1746,6 @@ def main() -> int:
                             "judge": drain_judge_spend(),
                             "requested_model": getattr(exc, "requested_model", args.model),
                             "resolved_model": getattr(exc, "resolved_model", None),
-                            "reasoning_effort": None,
                             "model_executed": getattr(exc, "model_executed", False),
                             "session_id": (
                                 parsed_evidence.session_id if parsed_evidence is not None else None
@@ -2377,12 +1773,6 @@ def main() -> int:
                             "stream_diagnostics": getattr(exc, "stream_diagnostics", None),
                             "argv": list(getattr(exc, "command", ()) or planned_command),
                             "trace_sha256": hashlib.sha256(raw.encode("utf-8")).hexdigest(),
-                            "context_sha256": getattr(exc, "context_sha256", None),
-                            "policy_sha256": getattr(exc, "policy_sha256", None),
-                            "references": {
-                                "expected": list(getattr(exc, "expected_references", ())),
-                                "observed": list(getattr(exc, "observed_references", ())),
-                            },
                         }
                     states.append(state)
                     trial_results.append(trial_result)
@@ -2422,7 +1812,7 @@ def main() -> int:
             if integrity_errors:
                 overall = "INCONCLUSIVE"
             completed_at = datetime.now(UTC).isoformat()
-            summary_path, evidence_path = persist_summary_and_evidence(writer, {
+            summary_path = writer.write_summary({
                 "schema_version": 1,
                 "verdict": overall,
                 "selected": {"mode": args.mode, "split": args.split, "match": args.match},
@@ -2440,7 +1830,7 @@ def main() -> int:
                 print("\nINCONCLUSIVE integrity check: " + "; ".join(integrity_errors))
             print(
                 f"\n{overall}: {verdicts.count('PASS')}/{len(verdicts)} scenarios passed; "
-                f"summary: {summary_path}; durable evidence: {evidence_path}"
+                f"summary: {summary_path}"
             )
             return {"PASS": 0, "FAIL": 1, "INCONCLUSIVE": 2}[overall]
     except clean_room.AuthUnavailable as exc:
@@ -2452,6 +1842,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    if "--run" in sys.argv[1:] and not is_frozen_eval_process():
-        raise SystemExit(run_from_frozen_eval(sys.argv[1:]))
     raise SystemExit(main())
