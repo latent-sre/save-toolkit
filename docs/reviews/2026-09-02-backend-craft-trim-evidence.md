@@ -134,6 +134,35 @@ only the load check in the no-skill arm (10 spurious passes became fails); every
 is unchanged, and the oracle's `limit` fix does not apply to regrades because command checks keep
 their live verdicts.
 
+## The contract-as-test arm (2026-09-03)
+
+Eight trials against `62991d39`, which adds `assets/test_http_contract.py` (four tests: cursor
+page, 404 as problem+json, invalid query as problem+json, unexpected error as problem+json),
+`assets/problem_fastapi.py`, `assets/ProblemAdvice.java`, a three-step "install the contract
+before you build" section in the skill, and the layer-skill load moved to `software-engineer`'s
+Process step 1. The Opus arm was stopped by the maintainer after three trials.
+
+| Arm | Scores (of 18) | Skill loaded first | Assets read | Contract test copied |
+|---|---|---|---|---|
+| Contract, Sonnet | 18, 14, 14, 14, 14 | 4/5 | 1/5 | 1/5 |
+| Contract, Opus (3 trials) | 18, 15, 18 | 3/3 | 2/3 | 0/3 (built the handlers inline) |
+
+- **When the assets were read, the build passed every check: 3 of 3 trials, both models.** The
+  first perfect trials of the campaign, and the first time Sonnet paginated or emitted
+  problem+json in sixteen attempts. Sonnet's perfect trial copied the test into the repository and
+  ran pytest ten times; Opus's two read the test and wrote the handlers to satisfy it.
+- **When the assets were not read, the result was the old one** (14 on Sonnet, 15 on Opus), with
+  the skill loaded and its body read.
+- **The Process step 1 move worked for loading**: Sonnet loaded the skill as its first call in 4
+  of 5 trials, against 2 of 5 and 4 of 5 in the earlier arms.
+- **The install step is the remaining flaky link**: followed 3 times in 8. It sits after the
+  house-contract table; the trials that skipped it read the table and built from that.
+
+Decision: the assets stay. Next change, unmeasured: make the install step the first thing in the
+skill body, before the table, and name the contract test as the acceptance criterion in
+`software-engineer`'s "Verifiable goals" bullet, so the step is reached from the agent body as
+well as from the skill. Re-measure with this probe, five and five.
+
 ## Not measured
 
 One task on one stack; nothing here says anything about the Spring Boot reference. The no-skill
