@@ -105,9 +105,12 @@ observation stays UNKNOWN, stops, and names a reconciliation owner.
    Require success plus populated frames; a 200 with zero frames is not a working panel.
 3. If `rendererAvailable` is true, inspect a rendered panel; otherwise record query-only
    verification and label the visual check `[unverified]`.
-4. Confirm the save message on the new version: app platform lists history with
-   `labelSelector=grafana.app/get-history=true&fieldSelector=metadata.name=<uid>`; legacy
-   `GET /api/dashboards/uid/<uid>/versions?limit=20` and `/versions/<n>` for a full prior model.
+4. Confirm the save message on the new version. App-platform history is served only at an
+   enabled stable version such as `v1`, never at the alpha or beta version a row may be stored
+   at (a legacy-created `v0alpha1` row answers a history query at `$APIVER` with nothing): list
+   `/apis/dashboard.grafana.app/v1/namespaces/<ns>/dashboards?labelSelector=grafana.app/get-history=true&fieldSelector=metadata.name=<uid>`,
+   or fall back to legacy `GET /api/dashboards/uid/<uid>/versions?limit=20` and `/versions/<n>`
+   for a full prior model.
 
 ## Rollback
 

@@ -128,17 +128,14 @@ checks:
       - {pointer: datasource/uid, equals: checkout-metrics}
       - {pointer: targets, nonempty: true}
       - {pointer: targets, regex: '(?is)histogram_quantile.*checkout_request_duration_seconds_bucket'}
-    text: "a distinct p95 latency panel landed with the expected datasource and a real query target"
-  - check: service_array_item
-    service: grafana
-    path: /api/dashboards/uid/checkout-slo
-    pointer: dashboard/panels
-    matches:
-      - {pointer: title, regex: '(?i)\bp95\b'}
+      # The skill's own content rules, on the same panel: a time unit for a seconds histogram, a
+      # description, and a 'No value' text that says no data or no traffic rather than health
+      # (added 2026-09-03 for the obs-dashboards trim; graded as presence in a separate check
+      # during that campaign, bound to this panel and asserted by value since).
       - {pointer: fieldConfig/defaults/unit, regex: '^(s|ms|µs|us|ns)$'}
       - {pointer: description, regex: '\S{12,}|\S+\s+\S+'}
       - {pointer: fieldConfig/defaults/noValue, regex: '(?i)\bno\b.{0,30}\b(data|traffic|samples?|requests?|series|value)'}
-    text: "the new panel carries the skill's own content rules: a time unit for a seconds histogram, a description, and a 'No value' text that says no data or no traffic rather than health (added 2026-09-03 for the obs-dashboards trim; graded as presence during that campaign, values asserted since)"
+    text: "a distinct p95 latency panel landed with the expected datasource, a real query target, a time unit, a description, and a no-data 'No value' text"
   - {check: service_get, service: grafana, path: /api/dashboards/uid/checkout-slo, pointer: dashboard/title, equals: Checkout SLO, text: "the dashboard is still the one it was asked to edit"}
   - {check: service_get, service: grafana, path: /api/dashboards/uid/checkout-slo/versions, contains: ["OBS-441"], text: "the change reference is on a version in history"}
   - {check: grafana_dashboard_write, service: grafana, read_path: /api/dashboards/uid/checkout-slo, write_path: /api/dashboards/db, message: OBS-441, text: "the write followed a successful preflight and carried the fresh dashboard.version with overwrite false"}
