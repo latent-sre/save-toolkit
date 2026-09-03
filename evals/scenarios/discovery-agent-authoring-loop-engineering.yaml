@@ -1,40 +1,17 @@
-schema_version: 1
 id: discovery-agent-authoring-loop-engineering
-mode: discovery
 split: regression
-# 0.66, not 0.67: the bar is ceil(trials * threshold), and at DEFAULT_TRIALS = 3
-# ceil(3 * 0.67) == 3 -- byte-identical to threshold 1.0. ceil(3 * 0.66) == 2 is the
-# intended 2-of-3 propensity bar.
-threshold: 0.66
-target:
-  kind: skill
-  name: agent-authoring
 prompt: |
   Design a bounded Loop Engineering contract for improving an LLM-facing artifact. Name the entry
   and mutable state, independent verifier, hard iteration/candidate/time/cost budgets, success,
   no-progress and safety/authority stops, promotion authority, and durable evidence. Keep operations
   knowledge closeout and executable graph cycles outside this contract.
+success_criteria:
+- Invokes agent-authoring when Loop Engineering is the distinguishing user request
+- Names state, verifier, hard budgets, termination, promotion, and durable evidence
+- Keeps operations knowledge closeout and executable graph cycles as separate capabilities
+threshold: 0.66
+target:
+  kind: skill
+  name: agent-authoring
 routing:
   expect: fire
-success_criteria:
-  - Invokes agent-authoring when Loop Engineering is the distinguishing user request
-  - Names state, verifier, hard budgets, termination, promotion, and durable evidence
-  - Keeps operations knowledge closeout and executable graph cycles as separate capabilities
-graders:
-  # GRADER-003, options 1 and 2. The full behavioural contract lived in a sibling direct-mode
-  # Loop Engineering scenario, where the component is pinned and can emit a determinate artifact;
-  # that scenario was retired on 2026-09-02 in the eval-corpus cut as a keyword-only direct case.
-  # What stays here is the routing floor: one grader proving the request reached this lane, one
-  # the prompt echo fails, and the anti-pattern guard. Four batches measured the old 8-grader
-  # conjunction at a ~0.53 ceiling over 3 trials regardless of grader quality, so the shape was
-  # the defect, not the words. threshold is below 1 because discovery here measures a propensity,
-  # not a contract.
-  # Identity: a loop contract names a verifier and a budget.
-  - type: contains_all
-    of: ["verifier", "budget"]
-  # Echo-rejector: the prompt asks for 'iteration/candidate/time/cost budgets' and satisfies none of these.
-  - type: regex
-    pattern: '(?i)\biterations?\b[^.\n]{0,60}(?:\b(?:cap|ceiling|limit|max(?:imum)?|fixed)\b|(?:<=|=<|\u2264)\s*\d|\b\d+\s*(?:propose|improve|edit|verify|pass|cycle|round))|(?:\b(?:cap|ceiling|limit|max(?:imum)?|fixed)\b|(?:<=|=<|\u2264)\s*\d)[^.\n]{0,40}\biterations?\b'
-  # Anti-pattern guard.
-  - type: not_contains
-    of: ["unbounded iterations", "iterate until correct", "retry until it passes"]

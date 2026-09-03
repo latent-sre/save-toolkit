@@ -15,46 +15,35 @@ template.
 
 ## App shell and composition
 
-- **Default to a sidebar rail.** Any app with more than ~5 destinations gets a persistent left
-  sidebar rail, not top tabs (tabs don't scale past a handful): icon + label nav grouped by area,
-  the active item marked with an accent bar or tint, a brand mark at the top and the user/account
-  with theme toggle pinned at the bottom. The rail collapses to icons-only on narrow viewports and
-  to a drawer on mobile. Top tabs or a single-column layout are reserved for genuinely small apps
-  (≤5 views) or a focused single-purpose tool.
-- **Spacing grid** on a consistent 4/8px scale: generous whitespace at decision points, higher
-  density where data lives.
-- **Typography**: 4–5 sizes total; hierarchy through size and weight, never color alone. A quality
-  UI font (Inter or similar, self-hosted — no CDN dependency), tight letter-spacing on large
-  headings, `tabular-nums` for data, big confident numbers on stat tiles.
-- Daily-use operator surfaces are dense, calm, and scannable. Put expressive moments in login,
-  onboarding, empty, or overview states — not in every table row.
+- **Sidebar rail above ~5 destinations**: icon + label nav grouped by area, active item marked with
+  an accent bar or tint, brand mark at top, user/account with theme toggle pinned at the bottom.
+  Collapses to icons-only on narrow viewports, to a drawer on mobile. Top tabs or a single-column
+  layout only for ≤5 views or a focused single-purpose tool.
+- **Spacing grid** on a consistent 4/8px scale.
+- **Typography**: 4–5 sizes total, hierarchy through size and weight, never color alone. Inter (or
+  similar, self-hosted), tight letter-spacing on large headings, `tabular-nums` for data, big
+  confident numbers on stat tiles.
 
 ## Visual character
 
 - **Dark-first, layered surfaces.** Dark is the designed-for theme; light stays fully supported
-  through the same tokens, and the app ships a manual light/dark/system toggle, persisted and
-  defaulting to the OS setting. A deep page background, cards a distinct step lighter, raised
-  elements a step lighter again. Depth comes from this layering plus low-alpha borders and soft
-  shadows — not heavy lines.
-- **Color with courage.** One vivid accent used confidently: gradient touches on primary actions
-  and active states, and one hero moment per view — a gradient heading, a glowing stat. Status
-  colors saturated enough to glow against dark surfaces (each still paired with its dot and text).
-- **Categorical accents on KPI grids.** When a view shows a row of distinct metrics or stat cards,
-  give each its own accent hue (e.g. purple / teal / amber / cyan) rather than repeating one color —
-  the color *codes* the category, with the icon and number tinted to match. Elevate one card above
-  the rest (an accent border-glow on the most important metric) so the grid has a focal point. Keep
-  the accent set to ~4–5 hues drawn from the theme tokens; this is categorical coding, not a rainbow.
-- **Depth cues, spent sparingly.** Rounded-xl cards, soft elevation shadows, hover lift (small
-  translate + shadow), accent-colored focus rings. If every surface is elevated, nothing is.
-- Icons anchor navigation, actions, and stats.
+  through the same tokens, with a manual light/dark/system toggle, persisted and defaulting to the
+  OS setting. Deep page background, cards a step lighter, raised elements a step lighter again;
+  depth from layering plus low-alpha borders and soft shadows, not heavy lines.
+- **One vivid accent**, used with gradient touches on primary actions and active states, and one
+  hero moment per view. Status colors saturated enough to glow against dark surfaces, each still
+  paired with its dot and text.
+- **Categorical KPI accents**: a row of distinct metrics or stat cards gets its own accent hue per
+  card (e.g. purple / teal / amber / cyan), icon and number tinted to match, one card elevated above
+  the rest. Keep the set to ~4–5 hues drawn from the theme tokens.
+- **Depth cues, spent sparingly**: rounded-xl cards, soft elevation shadows, hover lift (small
+  translate + shadow), accent-colored focus rings.
 
 ## Motion
 
-Choose one orchestrated moment per view. Hover lifts, pressed states, animated number changes on
-live stats, staggered list entrances (30–50 ms steps), and smooth expand/collapse are the
-vocabulary; simultaneous glow, lift, stagger, and number animation reads as noise rather than craft.
-Transitions 150–250 ms, ease-out, animating `opacity` and `transform` only; if an animation makes the
-user wait, cut it; respect `prefers-reduced-motion`.
+One orchestrated motion moment per view — hover lifts, pressed states, animated number changes on
+live stats, staggered list entrances (30–50 ms steps), smooth expand/collapse. Transitions 150–250
+ms, ease-out, animating `opacity` and `transform` only; respect `prefers-reduced-motion`.
 
 ## Self-critique as you build
 

@@ -1,35 +1,16 @@
-schema_version: 1
 id: discovery-obs-alerting-splunk-saved-search
-mode: discovery
 split: regression
-target:
-  kind: skill
-  name: obs-alerting
 prompt: |
   Design a Splunk saved-search paging alert for sustained checkout 5xx errors. Give a concrete
   search window and schedule pairing; define a finite throttle period and scope; and describe the
   fire, delivery, and resolve test. Use the supplied fictional fixture values exactly: notification
   route `checkout-primary pager` and runbook link `runbooks/checkout-5xx.md`. They are eval inputs,
   not live endpoints. Use any clear format. This is steady-state alert design; no alert is firing.
+success_criteria:
+- Routes Splunk saved-search alert design to the alerting lane
+- Covers the window/schedule pair, scoped throttling, runbook, and end-to-end verification
+target:
+  kind: skill
+  name: obs-alerting
 routing:
   expect: fire
-success_criteria:
-  - Routes Splunk saved-search alert design to the alerting lane
-  - Covers the window/schedule pair, scoped throttling, runbook, and end-to-end verification
-graders:
-  - type: regex
-    pattern: '(?:cron_schedule\s*=\s*\S+|\bschedule\b[^\n]{0,80}\b[1-9]\d*\s*(?:m|min|minutes)\b)'
-  - type: regex
-    pattern: '(?:dispatch\.earliest_time\s*=\s*-[1-9]\d*[mh]|\b(?:search|evaluation|short|long)\s+window\b[^\n]{0,80}\b[1-9]\d*\s*(?:m|min|minutes|h|hours)\b)'
-  - type: regex
-    pattern: '(?:alert\.suppress\.period\s*=\s*|\b(?:throttl|suppress)\w*\b[^\n]{0,50})[1-9]\d*\s*(?:m|min|minutes)\b'
-  - type: contains_any
-    of: ["alert.suppress.fields", "throttle-by field", "throttle key", "suppression key", "throttle per", "suppress per", "per service", "per route"]
-  - type: contains_all
-    of: ["runbooks/checkout-5xx.md"]
-  - type: contains_all
-    of: ["checkout-primary pager"]
-  - type: contains_all
-    of: ["fire", "resolve"]
-  - type: regex
-    pattern: '\b(?:(?:notification|webhook|pager)[^\n.]{0,100}(?:deliver|delivery|reach(?:es|ed)?|arriv(?:e|ed)|confirm)|(?:deliver|delivery|reach(?:es|ed)?|confirm)[^\n.]{0,100}(?:notification|webhook|pager)|deliver\s+to)\b'

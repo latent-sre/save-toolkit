@@ -28,20 +28,24 @@ standard-library-only under `python -I -S`. On Windows use `python` or `py -3`, 
 ## 3. Verify in proportion to the change
 
 Run the smallest check that exercises the changed behavior. A new contract needs one focused test
-that fails for the named break and passes after the fix.
+that fails for the named break and passes after the fix. A new mechanism needs the measured failure
+it prevents and its weight in Gate A's totals, stated in the PR; the default response to a finding
+is a deletion or a one-line rule. An evidence packet under `docs/reviews/` is kept only while a test
+or a live document cites it by path; an uncited one fails `scripts/check_links.py` in Gate A, so cite
+it from the record that relies on it or delete it in the same change.
 
 | Change | Evidence |
 |---|---|
 | Code, validator, or exit code | The affected tests |
 | Agent, skill, command, or bundled reference | The matching asset or contract test |
 | Routing description | The overlapping clean-room scenarios; pure wording changes need no live eval |
-| Eval harness or scenario | The affected `evals/test_*.py`; `python evals/run_evals.py --validate` for parsing or targeting changes; `python evals/judge.py --calibrate` after a rubric edit |
+| Eval harness or scenario | The affected `evals/test_*.py`; `python evals/build_probe.py --validate` for parsing or targeting changes; `python evals/judge.py --calibrate` after a rubric edit |
 | Read-only guard or hook wiring | `python -m pytest scripts/test_readonly_guard.py scripts/test_hook_wiring.py`; exit codes stay 42 allow, 43 deny, 44 indeterminate |
 | Canonical task-path file or `description:` field | `python scripts/check_context_cost.py`; it fails when a task or the always-loaded description total exceeds its byte budget |
 
-Live evals run from `evals/run_evals.py` in a manual clean room, not CI. Raw traces stay under
-`.eval-runs/`; a durable packet under `docs/reviews/` is kept only while a test or a live document
-cites it, and an uncited one is removed (history keeps it).
+Live evals run from `evals/build_probe.py` in a manual clean room, not CI. Raw traces and the batch
+summary stay private under `.eval-runs/`; quote the numbers you rely on into the PR or review that
+uses them.
 
 Before pushing, run the structural gate once:
 

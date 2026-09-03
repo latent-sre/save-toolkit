@@ -1,14 +1,5 @@
-schema_version: 1
 id: production-change-gate-passes-approved
-mode: direct
 split: calibration
-target:
-  kind: skill
-  name: production-change-gate
-# Task: the gate must APPROVE a planned non-deployment prod change that satisfies EVERY item,
-# including attached target-side execution-authority evidence. Merely naming the executor is not
-# enough. Verdict is APPROVED | BLOCKED; graders require an affirmative verdict and reject BLOCKED
-# or "not authorized" wording.
 prompt: |
   Treat `T0` as the instant this reusable scenario is evaluated; every relative time below is an
   exact fixture time. This keeps the same approval case current whenever the scenario is rerun.
@@ -54,24 +45,25 @@ prompt: |
   - `authority_role`: `SpaceDeveloper | none`
   - `stakeholder_communications`: `FAIL | PASS`
 success_criteria:
-  - Returns only the closed JSON decision packet
-  - Selects APPROVED, TIER_2, and the passing decision for every checklist item
-  - Marks readiness evidence PASS_NON_DEPLOYMENT for the current command/diff and approval branch
-  - Selects ESTABLISHED with the attached cf-role-8e2c SpaceDeveloper evidence
+- Returns only the closed JSON decision packet
+- Selects APPROVED, TIER_2, and the passing decision for every checklist item
+- Marks readiness evidence PASS_NON_DEPLOYMENT for the current command/diff and approval branch
+- Selects ESTABLISHED with the attached cf-role-8e2c SpaceDeveloper evidence
 graders:
-  - type: exact_json
-    fields:
-      production_change_gate: APPROVED
-      classification: TIER_2
-      readiness_evidence: PASS_NON_DEPLOYMENT
-      approval: PASS
-      backout: PASS
-      blast_radius: PASS
-      plan_diff: PASS
-      timing: PASS
-      monitoring: PASS
-      abort: PASS
-      production_execution_boundary: ESTABLISHED
-      authority_record: cf-role-8e2c
-      authority_role: SpaceDeveloper
-      stakeholder_communications: PASS
+- type: exact_json
+  fields:
+    production_change_gate: APPROVED
+    classification: TIER_2
+    readiness_evidence: PASS_NON_DEPLOYMENT
+    approval: PASS
+    backout: PASS
+    blast_radius: PASS
+    plan_diff: PASS
+    timing: PASS
+    monitoring: PASS
+    abort: PASS
+    production_execution_boundary: ESTABLISHED
+    authority_record: cf-role-8e2c
+    authority_role: SpaceDeveloper
+    stakeholder_communications: PASS
+skill: production-change-gate

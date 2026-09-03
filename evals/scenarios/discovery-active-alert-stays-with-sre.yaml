@@ -1,27 +1,23 @@
-schema_version: 1
 id: discovery-active-alert-stays-with-sre
-mode: discovery
 split: calibration
-target:
-  kind: agent
-  name: scribe
 prompt: |
   A brand-new CheckoutErrorBudgetBurn alert is paging now, customers are failing checkout, and the
   cause and blast radius are unknown. Investigate the active production incident, assess severity,
   build hypotheses and an evidence plan, and recommend the safest mitigation. Update the KB later.
+success_criteria:
+- Keeps a newly introduced but actively firing alert in the incident lane
+- Defers documentation publication until the incident is resolved
+target:
+  kind: agent
+  name: scribe
 routing:
   expect: not_fire
   expected_alternative:
     kind: agent
     name: sre
-success_criteria:
-  - Keeps a newly introduced but actively firing alert in the incident lane
-  - Defers documentation publication until the incident is resolved
-graders:
-  - type: regex   # `sre` on a name boundary, so the `save-toolkit` plugin prefix (present in almost
-                  # any answer naming a fleet component) cannot stand in for routing to the lane
-    pattern: '(?<![A-Za-z0-9-])sre(?![A-Za-z0-9-])|active incident|incident investigation|triage'
-  - type: contains_any
-    of: ["severity", "blast radius", "hypothesis", "evidence"]
-  - type: contains_any
-    of: ["later", "after resolution", "after the incident", "once resolved", "until resolved", "actually resolved", "and a resolution", "deferred", "defer", "proposed", "not prepared"]
+tools:
+- Glob
+- Grep
+- Read
+- Skill
+- Task

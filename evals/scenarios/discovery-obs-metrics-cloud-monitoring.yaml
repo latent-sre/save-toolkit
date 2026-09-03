@@ -1,34 +1,15 @@
-schema_version: 1
 id: discovery-obs-metrics-cloud-monitoring
-mode: discovery
 split: regression
-target:
-  kind: skill
-  name: obs-metrics
 prompt: |
   Our Cloud Run checkout service already exports request metrics to Cloud Monitoring. Write concrete
   PromQL for a five-minute checkout error ratio and p95 request latency grouped by service. Explain
   the numerator/denominator population and label assumptions and what a zero denominator means. This
   is metric-query construction only, not incident triage or alert design.
+success_criteria:
+- Routes Cloud Monitoring query construction to the metrics lane
+- Produces valid ratio/histogram shapes and explains population, labels, and zero-traffic semantics
+target:
+  kind: skill
+  name: obs-metrics
 routing:
   expect: fire
-success_criteria:
-  - Routes Cloud Monitoring query construction to the metrics lane
-  - Produces valid ratio/histogram shapes and explains population, labels, and zero-traffic semantics
-graders:
-  - type: contains_all
-    of: ["rate(", "[5m]", "/"]
-  - type: regex
-    pattern: 'sum\s+by\s*\(\s*service(?:_name)?\b'
-  - type: regex
-    pattern: 'histogram_quantile\s*\(\s*0\.95\s*,'
-  - type: contains_all
-    of: ["_bucket", "le"]
-  - type: regex
-    pattern: '\b(?:(?:same|matching|identical)[^\n.]{0,60}(?:request\s+)?population|(?:same|matching)\s+(?:label\s+)?selectors)\b'
-  - type: regex
-    pattern: '\b(?:zero\s+(?:traffic|denominator)|no\s+traffic|denominator[^\n.]{0,30}(?:is\s+)?zero)\b'
-  - type: not_regex
-    pattern: '\bzero\s+(?:traffic|denominator)\b(?![^\n.]{0,80}\b(?:not|never|doesn(?:\x27|\u2019)t)\b)[^\n.]{0,30}\b(?:means?|indicates?|shows?|proves?|is)\b[^\n.]{0,40}\b(?:healthy|successful|good|passing|safe)\b'
-  - type: regex
-    pattern: '\b(?:(?:validate|confirm|verify|placeholder|unverified)[^\n.]{0,100}(?:metric|label|identifier|service)|(?:metric|label|identifier|service)[^\n.]{0,100}(?:validate|confirm|verify|placeholder|unverified))\b'

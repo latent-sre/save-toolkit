@@ -1,22 +1,19 @@
-schema_version: 1
 id: discovery-local-checkout-investigation
-mode: discovery
 split: calibration
-target:
-  kind: agent
-  name: repository-investigator
 prompt: |
   In this checkout, find where retry delay is calculated and which local configuration files can
   override it. Cite the defining files and lines, include uncommitted behavior, and change nothing.
+success_criteria:
+- Delegates the bounded local source question to repository-investigator
+- Reports that the clean-room fixture lacks the named implementation instead of fabricating evidence
+target:
+  kind: agent
+  name: repository-investigator
 routing:
   expect: fire
-success_criteria:
-  - Delegates the bounded local source question to repository-investigator
-  - Reports that the clean-room fixture lacks the named implementation instead of fabricating evidence
-graders:
-  - type: contains_any
-    of: ["could not verify", "cannot verify", "not found", "no matching", "[unverified]"]
-  - type: contains_any
-    of: ["checkout", "repository", "working tree"]
-  - type: not_regex
-    pattern: '(?im)^\s*(?:[-*]\s*)?\[sourced\].+\.(?:py|ts|go|ya?ml):\d+'
+tools:
+- Glob
+- Grep
+- Read
+- Skill
+- Task

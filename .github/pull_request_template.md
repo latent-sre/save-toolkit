@@ -31,16 +31,10 @@ review rules live in `.github/copilot-instructions.md`. -->
 
 | If this PR touched… | It must show |
 |---|---|
-| executable implementation | the smallest focused test file(s) that exercise the changed owner; Gate A does not rerun them |
-| a scenario under `evals/scenarios/` (added, edited, or retired) | `python evals/run_evals.py --validate` green — the offline schema/target/grader check; Gate A no longer runs it, so a malformed scenario otherwise reaches review unchecked |
-| a routing-content `description:` edit — `Triggers:`, use-when/not-for, or a named alternative | the overlapping scenario(s) run after-change; run the previous-revision baseline only for a red scenario to determine whether the edit caused it. A fleet-failure-driven edit also trips the next row and therefore needs incumbent evidence even when the after-change run is green. Pure rewording needs no live eval. If deferred, say why and what remains unmeasured |
-| `scripts/readonly-guard.py` or `hooks/hooks.json` | `python scripts/test_readonly_guard.py` and `python scripts/test_hook_wiring.py` green, plus the guard allow/deny corpus diff — and the 42 allow / 43 deny / 44 indeterminate exit-code contract left intact, since the hook tells this guard's answer from a stand-in interpreter by those codes |
-| a newly asserted contract — a validator rule, an exit code, a schema constraint, or any predicate a test names, anywhere in the repo | one focused test that fails when that exact contract is deliberately broken and passes when restored. State the red command and failure reason, then the green command. A survivor inventory or evaluation packet is not a substitute |
-| a fleet failure used to justify an agent or skill change | one named regression red on the incumbent, then incumbent/candidate results on identical cases and conditions. Missing or inconclusive candidate evidence and ties retain the incumbent; make one candidate by default and keep the evidence in this PR rather than a second ledger |
-| any canonical agent or skill (`agents/`, `skills/`, `commands/`) | `python scripts/generate_platform_adapters.py --write` re-run and the projections committed; no generated root (`.github/agents/`, `platforms/copilot/skills/`) hand-edited |
-| an added, renamed, or removed component | host adapters regenerated; the retired name must not linger in `agents/`, `skills/`, or `commands/` (`rg` for it) — plus `python evals/run_evals.py --validate` green, since a rename/remove can orphan a scenario target |
-| the runbook frontmatter template or its worked exemplar (`skills/runbook/assets/runbook-template.md`, `skills/runbook/assets/runbook-example.md`) | `python scripts/test_runbook_schema.py` green — the template/exemplar lockstep, plus `python scripts/test_confluence_import.py` when the key set changes, because the converter is pinned to the same template; neither is structural, so Gate A does not run them |
-| anything users install | whether every host manifest and marketplace needs the same version or cache update |
+| a canonical agent, skill, or command change | adapters regenerated (`python scripts/generate_platform_adapters.py --write`) and the projections committed |
+| a newly asserted contract | one focused test red-then-green, plus the weight line from Gate A (`python scripts/check_weight.py`) |
+| text added to an always-loaded file (an agent body, a `SKILL.md` core, or `AGENTS.md`) | the tools-off probe, or the failing trial that shows the model needed it |
+| a scenario or build probe change under `evals/` | `python evals/build_probe.py --validate` green |
 
 ## Risk
 

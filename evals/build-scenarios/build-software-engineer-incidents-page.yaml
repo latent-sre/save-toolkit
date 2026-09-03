@@ -1,0 +1,590 @@
+id: build-software-engineer-incidents-page
+agent: software-engineer
+# First measured 2026-09-03, five trimmed and two incumbent Sonnet trials across the frontend-craft
+# trim: docs/reviews/2026-09-03-frontend-craft-trim-evidence.md.
+# The frontend bar with real tools. The prompt asks only for a page, a table, and a status filter;
+# it never says "loading state", "empty state", "labelled control", "the URL is state", or
+# "accessible". Those are what frontend-craft is for, so the probe-owned oracle (probe_ui.test.tsx,
+# written by the first check, never seen by the agent) grades them on the rendered page: a loading
+# indicator while the request is in flight, an inline error that keeps the heading instead of a
+# white page, a designed empty state, an accessible name on every control, the filter reflected in
+# and restored from the URL, a clean axe pass, and status conveyed as text rather than colour alone.
+# The fixture is Vite + React 19 + TypeScript with react-router-dom, Vitest, Testing Library and
+# MSW, pinned to exact versions; the existing repository's stack wins over the skill's greenfield
+# default, so react-router rather than TanStack Router is the correct thing to extend here, and the
+# agent should add no dependency. src/pages/Services.tsx is deliberately naive — a bare fetch into
+# state, no loading/error/empty states, an unlabelled select, filter in component memory — so the
+# repository's own code does not model the bar the oracle grades. The agent runs on a host with a
+# network, so `npm install` inside the workspace is expected; the first check runs it too, so the
+# oracle does not depend on the agent having done so.
+prompt: |
+  Add an Incidents page at `/incidents` to this React app: a table of the incidents returned by
+  `GET /api/incidents` (fields `id`, `status`, `title`, `service`, `created_at`), with a status
+  filter (open or closed). Build it end to end in this repo and tell me what you ran to verify it.
+  Tests go next to the code as `*.test.tsx`; this repo uses Vitest, Testing Library, and MSW (see
+  the README). This is a code change, not a design question, not a review, and not an incident.
+fixture:
+  files:
+    .gitignore: |
+      node_modules/
+      dist/
+      coverage/
+      .vite/
+    README.md: |
+      # opsconsole
+
+      The internal operations console: a Vite + React + TypeScript single-page app served behind
+      the ops gateway. Routes live in `src/App.tsx`; `src/api/client.ts` wraps `fetch` for the
+      JSON API the gateway proxies under `/api`.
+
+      Install dependencies once, then work from the repo root:
+
+          npm install
+
+      Typecheck and test:
+
+          npm run typecheck     # tsc --noEmit
+          npm test              # vitest run
+
+      Component tests sit next to the component as `*.test.tsx` and mock the API at the network
+      layer with MSW (`src/test/server.ts`); `src/test/setup.ts` starts the server for every test
+      file. `npm run dev` serves the app locally.
+    package.json: |
+      {
+        "name": "opsconsole",
+        "private": true,
+        "version": "0.1.0",
+        "type": "module",
+        "scripts": {
+          "dev": "vite",
+          "build": "tsc --noEmit && vite build",
+          "typecheck": "tsc --noEmit",
+          "test": "vitest run"
+        },
+        "dependencies": {
+          "react": "19.2.8",
+          "react-dom": "19.2.8",
+          "react-router-dom": "7.18.3"
+        },
+        "devDependencies": {
+          "@testing-library/jest-dom": "7.0.1",
+          "@testing-library/react": "16.3.3",
+          "@testing-library/user-event": "14.6.7",
+          "@types/react": "19.2.7",
+          "@types/react-dom": "19.2.4",
+          "@vitejs/plugin-react": "6.1.1",
+          "axe-core": "4.13.0",
+          "jsdom": "30.0.1",
+          "msw": "2.15.0",
+          "typescript": "5.9.3",
+          "vite": "8.2.2",
+          "vitest": "4.1.11",
+          "vitest-axe": "0.1.0"
+        }
+      }
+    index.html: |
+      <!doctype html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>opsconsole</title>
+        </head>
+        <body>
+          <div id="root"></div>
+          <script type="module" src="/src/main.tsx"></script>
+        </body>
+      </html>
+    vite.config.ts: |
+      import react from '@vitejs/plugin-react';
+      import { defineConfig } from 'vitest/config';
+
+      export default defineConfig({
+        plugins: [react()],
+        test: {
+          environment: 'jsdom',
+          setupFiles: ['./src/test/setup.ts'],
+        },
+      });
+    tsconfig.json: |
+      {
+        "compilerOptions": {
+          "target": "ES2022",
+          "lib": ["ES2022", "DOM", "DOM.Iterable"],
+          "module": "ESNext",
+          "moduleResolution": "bundler",
+          "jsx": "react-jsx",
+          "strict": true,
+          "noUnusedLocals": true,
+          "noUnusedParameters": true,
+          "noFallthroughCasesInSwitch": true,
+          "noEmit": true,
+          "skipLibCheck": true,
+          "esModuleInterop": true,
+          "resolveJsonModule": true,
+          "isolatedModules": true,
+          "verbatimModuleSyntax": true,
+          "types": ["vite/client"]
+        },
+        "include": ["src", "vite.config.ts"]
+      }
+    src/main.tsx: |
+      import { StrictMode } from 'react';
+      import { createRoot } from 'react-dom/client';
+      import { BrowserRouter } from 'react-router-dom';
+
+      import App from './App';
+
+      createRoot(document.getElementById('root')!).render(
+        <StrictMode>
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        </StrictMode>,
+      );
+    src/App.tsx: |
+      import { Link, Route, Routes } from 'react-router-dom';
+
+      import Home from './pages/Home';
+      import Services from './pages/Services';
+
+      export default function App() {
+        return (
+          <div className="app">
+            <nav aria-label="Primary">
+              <ul>
+                <li>
+                  <Link to="/">Overview</Link>
+                </li>
+                <li>
+                  <Link to="/services">Services</Link>
+                </li>
+              </ul>
+            </nav>
+            <main>
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/services" element={<Services />} />
+              </Routes>
+            </main>
+          </div>
+        );
+      }
+    src/api/client.ts: |
+      export async function apiGet<T>(path: string): Promise<T> {
+        const response = await fetch(path, { headers: { Accept: 'application/json' } });
+        if (!response.ok) {
+          throw new Error(`GET ${path} failed with ${response.status}`);
+        }
+        return (await response.json()) as T;
+      }
+    src/pages/Home.tsx: |
+      export default function Home() {
+        return (
+          <section>
+            <h1>Operations overview</h1>
+            <p>Pick a view from the navigation to see what the platform is doing right now.</p>
+          </section>
+        );
+      }
+    src/pages/Services.tsx: |
+      import { useEffect, useState } from 'react';
+
+      export type Service = {
+        name: string;
+        tier: number;
+        owner: string;
+      };
+
+      export default function Services() {
+        const [services, setServices] = useState<Service[]>([]);
+        const [tier, setTier] = useState('all');
+
+        useEffect(() => {
+          fetch('/api/services')
+            .then((response) => response.json())
+            .then((data) => setServices(data as Service[]));
+        }, []);
+
+        const rows = tier === 'all' ? services : services.filter((s) => String(s.tier) === tier);
+
+        return (
+          <section>
+            <h1>Services</h1>
+            <select value={tier} onChange={(event) => setTier(event.target.value)}>
+              <option value="all">All tiers</option>
+              <option value="1">Tier 1</option>
+              <option value="2">Tier 2</option>
+            </select>
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Tier</th>
+                  <th>Owner</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((service) => (
+                  <tr key={service.name}>
+                    <td>{service.name}</td>
+                    <td>{service.tier}</td>
+                    <td>{service.owner}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        );
+      }
+    src/pages/Services.test.tsx: |
+      import { render, screen } from '@testing-library/react';
+      import { MemoryRouter } from 'react-router-dom';
+      import { expect, test } from 'vitest';
+
+      import Services from './Services';
+
+      test('renders a row for each service the API returns', async () => {
+        render(
+          <MemoryRouter>
+            <Services />
+          </MemoryRouter>,
+        );
+        expect(await screen.findByText('checkout')).toBeInTheDocument();
+      });
+    src/test/server.ts: |
+      import { http, HttpResponse } from 'msw';
+      import { setupServer } from 'msw/node';
+
+      export const handlers = [
+        http.get('*/api/services', () =>
+          HttpResponse.json([
+            { name: 'checkout', tier: 1, owner: 'payments-team' },
+            { name: 'search', tier: 2, owner: 'discovery-team' },
+          ]),
+        ),
+      ];
+
+      export const server = setupServer(...handlers);
+    src/test/setup.ts: |
+      import '@testing-library/jest-dom/vitest';
+      import { afterAll, afterEach, beforeAll } from 'vitest';
+
+      import { server } from './server';
+
+      beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
+      afterEach(() => server.resetHandlers());
+      afterAll(() => server.close());
+checks:
+  # The oracle is written by this first check and reused by the ones below (the workspace persists
+  # between checks). It renders the real App under BrowserRouter at /incidents with its own MSW
+  # handlers, so it grades the page the agent shipped, not the tests the agent wrote. `npm install`
+  # runs here so the oracle does not depend on the agent having installed anything.
+  # `--ignore-scripts`: grading runs on the host as the operator, with the real HOME and network,
+  # over a dependency tree the agent may have edited. No package's lifecycle script executes in
+  # the grading step; a package that needs one is a scenario the fixture must pin, not run.
+  - check: command_exit_zero
+    command: "npm install --ignore-scripts --no-audit --no-fund && npx vitest run probe_ui.test.tsx -t bar1"
+    timeout: 600
+    text: "oracle: a loading state is visible while GET /api/incidents is in flight"
+    writes:
+      probe_ui.test.tsx: |
+        /**
+         * Probe-owned oracle for the incidents page. Written by the probe, never by the agent, and
+         * never present while the agent works. Each bar runs on its own:
+         *
+         *     npx vitest run probe_ui.test.tsx -t bar4
+         *
+         * It renders the real App under BrowserRouter at /incidents and stubs GET /api/incidents
+         * itself, so it grades the rendered page rather than the agent's own suite. This file is
+         * outside tsconfig's `include`, so it never enters the agent's `npm run typecheck`.
+         */
+        import { render, screen, cleanup, waitFor, within } from '@testing-library/react';
+        import userEvent from '@testing-library/user-event';
+        import axe from 'axe-core';
+        import { http, HttpResponse, delay } from 'msw';
+        import { BrowserRouter } from 'react-router-dom';
+        import { afterEach, beforeAll, expect, test } from 'vitest';
+        import '@testing-library/jest-dom/vitest';
+
+        import App from './src/App';
+        import { server } from './src/test/server';
+
+        const ROWS = [
+          {
+            id: 'inc-0001',
+            status: 'open',
+            title: 'Checkout latency above the error budget',
+            service: 'checkout',
+            created_at: '2026-08-01T09:15:00Z',
+          },
+          {
+            id: 'inc-0002',
+            status: 'closed',
+            title: 'Search index replication lag',
+            service: 'search',
+            created_at: '2026-08-02T14:40:00Z',
+          },
+        ];
+
+        beforeAll(() => {
+          // The repo's own setup file normally starts this server; start it here too so the oracle
+          // still runs if the agent changed that file. msw throws when it is already listening.
+          try {
+            server.listen({ onUnhandledRequest: 'bypass' });
+          } catch {
+            /* already listening */
+          }
+        });
+        afterEach(() => {
+          cleanup();
+          server.resetHandlers();
+        });
+
+        function stubIncidents(resolver) {
+          server.use(http.get('*/api/incidents', resolver));
+        }
+
+        function renderAt(path) {
+          window.history.pushState({}, '', path);
+          return render(
+            <BrowserRouter>
+              <App />
+            </BrowserRouter>,
+          );
+        }
+
+        function loadingIndicator() {
+          if (screen.queryAllByRole('status').length) return 'role=status';
+          if (screen.queryAllByRole('progressbar').length) return 'role=progressbar';
+          if (screen.queryAllByText(/loading|fetching|please wait/i).length) return 'loading text';
+          if (document.querySelectorAll('[aria-busy="true"]').length) return 'aria-busy';
+          const labelled = [...document.querySelectorAll('[aria-label]')].some((el) =>
+            /loading|fetching/i.test(el.getAttribute('aria-label') ?? ''),
+          );
+          if (labelled) return 'aria-label=loading';
+          return '';
+        }
+
+        function statusSelect(want) {
+          const wanted = new RegExp(want, 'i');
+          for (const combo of screen.queryAllByRole('combobox')) {
+            const options = within(combo).queryAllByRole('option');
+            const option = options.find(
+              (o) => wanted.test(o.value ?? '') || wanted.test(o.textContent ?? ''),
+            );
+            if (option) return { combo, option };
+          }
+          return null;
+        }
+
+        async function chooseStatus(user, want) {
+          const wanted = new RegExp(want, 'i');
+          const select = statusSelect(want);
+          if (select) {
+            await user.selectOptions(select.combo, select.option.value);
+            return;
+          }
+          const clickable = [
+            ...screen.queryAllByRole('radio'),
+            ...screen.queryAllByRole('tab'),
+            ...screen.queryAllByRole('button'),
+            ...screen.queryAllByRole('link'),
+            ...screen.queryAllByRole('checkbox'),
+          ].find(
+            (el) =>
+              wanted.test(el.textContent ?? '') ||
+              wanted.test(el.getAttribute('aria-label') ?? '') ||
+              wanted.test(el.getAttribute('value') ?? ''),
+          );
+          if (!clickable) {
+            throw new Error(
+              `no status filter control offering "${want}": no select option, radio, tab, button, ` +
+                'or link with that name was rendered on /incidents',
+            );
+          }
+          await user.click(clickable);
+        }
+
+        function showsStatus(want) {
+          const wanted = new RegExp(want, 'i');
+          const select = statusSelect(want);
+          if (select) return wanted.test(select.combo.value ?? '');
+          const checked = [...screen.queryAllByRole('radio'), ...screen.queryAllByRole('tab')].find(
+            (el) => el.getAttribute('aria-selected') === 'true' || el.checked === true,
+          );
+          if (checked) return wanted.test(checked.textContent ?? '');
+          const pressed = screen
+            .queryAllByRole('button')
+            .find((el) => el.getAttribute('aria-pressed') === 'true');
+          if (pressed) return wanted.test(pressed.textContent ?? '');
+          return false;
+        }
+
+        test('bar1 loading state is visible while the incidents request is in flight', async () => {
+          stubIncidents(async () => {
+            await delay(300);
+            return HttpResponse.json(ROWS);
+          });
+          renderAt('/incidents');
+          expect(
+            loadingIndicator(),
+            'no loading state: nothing with role=status or role=progressbar, no /loading/i text, ' +
+              'and no aria-busy element while GET /api/incidents was still in flight',
+          ).not.toBe('');
+          await screen.findByText(/inc-0001/, undefined, { timeout: 5000 });
+        }, 20000);
+
+        test('bar2 a failed request shows an inline error, not a white page', async () => {
+          stubIncidents(() => HttpResponse.json({ error: 'internal' }, { status: 500 }));
+          renderAt('/incidents');
+          await waitFor(
+            () => {
+              const alerts = screen.queryAllByRole('alert').length;
+              const words = screen.queryAllByText(
+                /error|failed|could not|couldn't|unable|went wrong|try again|unavailable/i,
+              ).length;
+              expect(
+                alerts + words,
+                'GET /api/incidents returned 500 and the page showed nothing: no role=alert and ' +
+                  'no error wording anywhere on the page',
+              ).toBeGreaterThan(0);
+            },
+            { timeout: 5000 },
+          );
+          expect(
+            screen.queryAllByRole('heading').length,
+            'the page heading disappeared on the error path: that is a white page, not an inline error',
+          ).toBeGreaterThan(0);
+        }, 20000);
+
+        test('bar3 an empty result renders a designed empty state, not a blank region', async () => {
+          stubIncidents(() => HttpResponse.json([]));
+          renderAt('/incidents');
+          await waitFor(
+            () => {
+              expect(
+                screen.queryAllByText(
+                  /no incidents|no results|no matching|nothing to show|nothing here|none found|no rows|all clear|empty/i,
+                ).length,
+                'GET /api/incidents returned [] and the page rendered no message: the table region ' +
+                  'is blank instead of a designed empty state',
+              ).toBeGreaterThan(0);
+            },
+            { timeout: 5000 },
+          );
+        }, 20000);
+
+        test('bar4 every control on the page has a non-empty accessible name', async () => {
+          stubIncidents(() => HttpResponse.json(ROWS));
+          renderAt('/incidents');
+          await screen.findByText(/inc-0001/, undefined, { timeout: 5000 });
+          const controls = [
+            ...screen.queryAllByRole('combobox'),
+            ...screen.queryAllByRole('listbox'),
+            ...screen.queryAllByRole('textbox'),
+            ...screen.queryAllByRole('searchbox'),
+            ...screen.queryAllByRole('checkbox'),
+            ...screen.queryAllByRole('radio'),
+          ];
+          expect(
+            controls.length,
+            'the incidents page rendered no filter control at all',
+          ).toBeGreaterThan(0);
+          for (const el of controls) {
+            expect(
+              el,
+              `a <${el.tagName.toLowerCase()}> control has no accessible name (no <label>, ` +
+                `aria-label, or aria-labelledby): ${el.outerHTML.slice(0, 140)}`,
+            ).toHaveAccessibleName();
+          }
+        }, 20000);
+
+        test('bar5 the status filter lives in the URL, not only in component state', async () => {
+          stubIncidents(({ request }) => {
+            const wanted = new URL(request.url).searchParams.get('status');
+            const rows = wanted ? ROWS.filter((r) => r.status === wanted) : ROWS;
+            return HttpResponse.json(rows);
+          });
+          const user = userEvent.setup();
+          renderAt('/incidents');
+          await screen.findByText(/inc-0001/, undefined, { timeout: 5000 });
+          await chooseStatus(user, 'closed');
+          await waitFor(
+            () => {
+              expect(
+                window.location.search,
+                'choosing the "closed" status did not put status=closed in the URL: the filter ' +
+                  'lives only in component memory, so the link is not shareable and back does nothing',
+              ).toMatch(/status=closed/i);
+            },
+            { timeout: 4000 },
+          );
+          cleanup();
+          renderAt('/incidents?status=open');
+          await waitFor(
+            () => {
+              expect(
+                showsStatus('open'),
+                'loading /incidents?status=open did not restore the filter control to "open": the ' +
+                  'URL is not read back as state',
+              ).toBe(true);
+            },
+            { timeout: 5000 },
+          );
+        }, 30000);
+
+        test('bar6 axe reports no accessibility violations on the loaded page', async () => {
+          stubIncidents(() => HttpResponse.json(ROWS));
+          const { container } = renderAt('/incidents');
+          await screen.findByText(/inc-0001/, undefined, { timeout: 5000 });
+          // The landmark/heading rules below judge a whole document; this renders one route into a
+          // detached container, so they would fire on the fixture's own shape rather than the page.
+          const results = await axe.run(container, {
+            rules: {
+              region: { enabled: false },
+              'landmark-one-main': { enabled: false },
+              'page-has-heading-one': { enabled: false },
+            },
+          });
+          const violations = results.violations.map(
+            (v) => `${v.id} (${v.nodes.length}): ${v.help}`,
+          );
+          expect(violations, 'axe found accessibility violations on /incidents').toEqual([]);
+        }, 40000);
+
+        test('bar7 each row states its status in text, not by colour alone', async () => {
+          stubIncidents(() => HttpResponse.json(ROWS));
+          renderAt('/incidents');
+          await screen.findByText(/inc-0001/, undefined, { timeout: 5000 });
+          const rows = screen.getAllByRole('row');
+          for (const incident of ROWS) {
+            const row = rows.find((r) => (r.textContent ?? '').includes(incident.id));
+            expect(row, `no table row rendered for ${incident.id}`).toBeTruthy();
+            expect(
+              row.textContent ?? '',
+              `the row for ${incident.id} carries no "${incident.status}" text: status is conveyed ` +
+                'by colour or an icon alone',
+            ).toMatch(new RegExp(incident.status, 'i'));
+          }
+        }, 20000);
+  - {check: command_exit_zero, command: "npx vitest run probe_ui.test.tsx -t bar2", timeout: 300, text: "oracle: a 500 from the API is an inline error beside a heading, not a white page"}
+  - {check: command_exit_zero, command: "npx vitest run probe_ui.test.tsx -t bar3", timeout: 300, text: "oracle: an empty list is a designed empty state, not a blank table"}
+  - {check: command_exit_zero, command: "npx vitest run probe_ui.test.tsx -t bar4", timeout: 300, text: "oracle: every control carries an accessible name"}
+  - {check: command_exit_zero, command: "npx vitest run probe_ui.test.tsx -t bar5", timeout: 300, text: "oracle: the status filter round-trips through the URL"}
+  - {check: command_exit_zero, command: "npx vitest run probe_ui.test.tsx -t bar6", timeout: 300, text: "oracle: axe reports no violations on the loaded page"}
+  - {check: command_exit_zero, command: "npx vitest run probe_ui.test.tsx -t bar7", timeout: 300, text: "oracle: status is readable text in every row, never colour alone"}
+  - {check: command_exit_zero, command: "npm run typecheck", timeout: 300, text: "tsc --noEmit is clean under the repo's strict config"}
+  - {check: command_exit_zero, command: "npx vitest run src", timeout: 300, text: "the agent's own suite is green when the probe runs it (src/ only, so the oracle is excluded)"}
+  - {check: command_exit_zero, command: "npx vitest run src --reporter=json --outputFile=probe_suite.json && node -e \"const r=require('./probe_suite.json');const t=r.testResults.flatMap(f=>f.assertionResults);const hit=t.filter(a=>/incident/i.test(a.fullName+a.title)&&a.status==='passed');process.exit(hit.length?0:1)\"", timeout: 300, text: "an incidents test case the agent wrote actually executed and passed"}
+  - {check: changed_files_not_containing, glob: "package.json", needle: "@mantine/core", text: "no Mantine component library added to a Tailwind-free React app"}
+  - {check: changed_files_not_containing, glob: "src/**", needle: "@mantine/core", text: "no Mantine component imports in the page code"}
+  - {check: bash_ran, pattern: "vitest|npm test", text: "a test command actually ran"}
+  - {check: text_regex, pattern: '^[\s>*_#-]{0,8}changed\b', text: "packet: Changed slot"}
+  - {check: text_regex, pattern: '^[\s>*_#-]{0,8}verified\b', text: "packet: Verified slot"}
+  - {check: changes_within, allowed: ["src", "README.md", "package.json", "package-lock.json"], text: "surgical: only the app source, the README, and the dependency files changed"}
+  - {check: no_new_commits, text: "nothing committed uninvited"}
+  - {check: no_agents_dir, text: "no .agents/ progress litter"}
+  - {check: skill_loaded, skill: frontend-craft, text: "frontend-craft was loaded for UI code"}
+  - {check: skill_not_loaded, skill: eng-ladder, text: "no ladder load for a scoped change"}
+  - {check: no_task_dispatch, target: reviewer, text: "routine completion spawns no reviewer"}

@@ -1,29 +1,17 @@
-schema_version: 1
 id: discovery-incident-investigation-walk-me-through
-mode: discovery
 split: regression
-target:
-  kind: skill
-  name: incident-investigation
 prompt: |
   I'm on call and just got paged for checkout-api in production. The p99 latency alert fired at
   14:20 UTC and is still firing, and the error rate has started to climb. There was a deploy at
   about 13:50. I don't know this service well. Walk me through this incident: what should I check
   first, and what would each result mean?
+success_criteria:
+- Routes a responder's on-call troubleshooting request to the human-facing incident-investigation skill
+- Offers ranked candidate causes and one discriminating next check with what each result would mean, rather
+  than a single story
+- Keeps every live action with the responder
+target:
+  kind: skill
+  name: incident-investigation
 routing:
   expect: fire
-success_criteria:
-  - Routes a responder's on-call troubleshooting request to the human-facing incident-investigation skill
-  - Offers ranked candidate causes and one discriminating next check with what each result would mean, rather than a single story
-  - Keeps every live action with the responder
-# Discovery denies Read, so the knowledge repository is unreadable here; the graders check the
-# turn shape the skill contracts (candidates, a next check, a board), not knowledge-repo content.
-graders:
-  - type: contains_any
-    of: ["candidate"]
-  - type: contains_any
-    of: ["next check"]
-  - type: contains_any   # the board's first line; "board" alone would match "dashboard"
-    of: ["ruled out"]
-  - type: contains_any
-    of: ["13:50", "deploy"]

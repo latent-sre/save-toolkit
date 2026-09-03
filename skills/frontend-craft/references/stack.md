@@ -20,7 +20,7 @@ An existing repo's stack always wins — match it. Greenfield is always a **Reac
 - **@mantine/hooks** for utility logic (disclosure, debounce, local storage, hotkeys, click-outside, media query, element size); optionally **@mantine/form** for form state. Both ship no CSS and need no provider.
 - Accessible *widget* behavior (focus trap, ARIA, roving tabindex) comes from **Radix / Base UI**, not from Mantine hooks.
 
-**One hard rule** (restated from `../SKILL.md`): never import **@mantine/core** or any styled Mantine component — its CSS reset fights Tailwind's. Mantine's *hooks* are pure logic and mix freely; its *components* do not.
+The Mantine rule lives in `../SKILL.md`'s decisions table.
 
 For a greenfield SPA, use this stack no matter how small. Existing repositories keep their established stack as required above. If the user explicitly asks for plain HTML or a static page, comply; that call is theirs. Any greenfield deviation from this default gets one line in the review packet.
 

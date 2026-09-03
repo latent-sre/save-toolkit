@@ -66,11 +66,13 @@ the ops tooling the team builds.
   Add one named failing case before editing, freeze its scoring rule, and compare the incumbent and
   candidate on identical cases and conditions. Missing or inconclusive candidate evidence fails the
   promotion decision; strict improvement with no safety, authority, or existing-regression loss is
-  required, and a tie retains the incumbent.
+  required, and a tie retains the incumbent. The default fix for a finding is a deletion or a
+  one-line rule; a regression is kept only when it grades an outcome, never phrasing.
 - **Bound candidate work.** Produce one candidate by default. Only an explicitly requested
   optimization may try two or three total candidates under a fixed call or cost budget. Every
   evaluated revision is a candidate. Keep scratch candidates and transcripts ephemeral. Persist the
-  regression, incumbent and winner revisions, per-case results, cost, and decision in the PR; in
+  regression and the decision in the PR; a new mechanism (grader, validator, scenario, script)
+  states the measured failure it prevents and its weight in Gate A's totals; in
   this repository put unfinished work in `docs/fleet-roadmap.md` with one owner (else use the owning
   repository's authoritative tracker).
 

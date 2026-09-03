@@ -10,55 +10,51 @@ argument-hint: "[the UI to build or change]"
 
 # Frontend craft
 
-**You write the actual code.** Complete, runnable files — components, styles, config, wiring — never pseudo-code, never "you could use X," never TODO stubs. If a decision is needed, make it, state it in one line, and build. Exception — a material fork (the answer changes what gets built: data model, auth, interface scope) that can't be inferred is worth one batched question round with recommended defaults *before* building; a wrong build costs a full rebuild-and-review cycle, a question costs seconds. If the *requested* approach has a materially better alternative, recommend it in one line with the trade-off — then build what was chosen; never silently substitute your own preference.
+You write the actual code: complete, runnable files (components, styles, config, wiring), never
+pseudo-code or TODO stubs. Any web UI, held to one bar: failure-first, verifiable, operable. What
+the product has already decided (brand, design system, framework, conventions) wins over every
+default below.
 
-Any web UI — a SaaS product or a hobby project as much as an ops console — held to one bar: failure-first, verifiable, operable. What the product has already decided — its brand, design system, framework, conventions — wins over any default this skill carries; the defaults load through the table at the end only when nothing has been decided yet. This file holds only what gets dropped under deadline pressure and what this fleet has chosen.
+## Invariants
 
-## Invariants — the rules that get skipped once the build is green
-
-- **All color through theme tokens** — the product's own, or the [design language](./references/design-language.md) defaults when it has none. **Status never by color alone**: a colored dot *plus* text or an icon. Contrast at AA in every theme shipped.
-- **Theme without a flash**: a persisted theme is applied in an inline `<head>` script *before first paint*; reading it in an effect after mount flashes the wrong theme on every load.
-- **The URL is state**: search, filters, page, sort, and the open tab or detail live in search params — back button, shareable link, refresh all work. Never only in component memory.
-- **Failure-first**: design loading, error, and empty states before the happy path — the empty state is a real design ("no targets configured yet — add one"), never a blank region. One failing panel shows an inline error in *its* card, never a white page; no double-submits, no infinite spinners; toasts never replace inline validation.
-- **Every view is a composition**: a mostly empty viewport is a defect — enrich it with what the data honestly supports or constrain the canvas. Never ship a screen that is mostly empty page.
-- **Real content only** — never lorem or filler; writing the copy is part of the job. Wording rules: [interface copy](./references/ux-writing.md).
-- **Accessibility is baseline**: semantic HTML, every input labeled, keyboard reachable with visible focus, focus moved to the main heading on route change. Overlays, widgets, and announcements: [interaction accessibility](./references/interaction-a11y.md).
+| Rule | What it means here |
+|---|---|
+| Color through tokens | All colour through theme tokens; status never by colour alone (a dot plus text or an icon); AA contrast in every theme shipped. |
+| Theme without a flash | A persisted theme is applied by an inline `<head>` script before first paint. |
+| The URL is state | Search, filters, page, sort, and the open tab or detail live in the URL. |
+| Failure-first | Loading, error, and empty states are designed before the happy path; one failing panel shows an inline error in its own card. |
+| Every view is a composition | Never ship a mostly empty viewport. |
+| Real content | Real copy, never lorem or filler. |
+| Accessibility is baseline | Semantic HTML, every input labelled, keyboard reachable with visible focus, focus moves to the main heading on route change. |
 
 ## Decisions this fleet has made
 
-- **React targets only:** never import `@mantine/core` or any styled Mantine component — its CSS reset fights Tailwind's, and that mix is the one incoherent hybrid. `@mantine/hooks` and `@mantine/form` are React packages; within a React target they ship no CSS and can mix with Tailwind. Do not recommend Mantine packages for Vue or another non-React target.
-- Server state lives in the query/cache layer (TanStack Query in the greenfield stack) — caching, retries, invalidation, and the sink for any live stream. UI state stays local; no global store until two distant components genuinely share state.
-- **Typed API client derived from the contract** — the OpenAPI spec or shared types are the source of truth (`openapi-typescript`/`orval`); generate against the versioned server contract and fail CI on incompatible drift. Never hand-maintain response shapes in two places.
-- The greenfield stack, default design language, chart and form layers, and PCF serving are decisions too; they load through the table below only when the task trips them.
+| Area | Decision |
+|---|---|
+| Mantine | React targets never import `@mantine/core` or any styled Mantine component — its reset fights Tailwind's. |
+| Mantine hooks/form | `@mantine/hooks` and `@mantine/form` are fine in React; never recommended for Vue. |
+| State | Server state lives in the query/cache layer (TanStack Query in the greenfield stack); UI state stays local — no global store until two distant components genuinely share state. |
+| API client | A typed API client generated from the OpenAPI contract; CI fails on drift. |
+| Forms | `react-hook-form` or `@mantine/form` in React; `v-model` plus the repo's validation layer in Vue; the server is the validation truth. |
+| Charts | Recharts v3 by default in React, visx for a bespoke one-off, uPlot for dense real-time series; never `@mantine/charts`; charts read theme tokens. |
+| Tables | TanStack Table, virtualised past a few hundred rows, sort/filter/page in the URL. |
+| Auth | OIDC Authorization Code + PKCE against corp SSO; BFF or httpOnly-cookie session; access token in memory, never `localStorage`; one fetch wrapper does 401 → refresh once → retry; a `reviewer` pass for sensitive flows. |
+| Live data | SSE for one-way live data via the query cache. |
 
-## Testing & quality gate
+## Done means
 
-- **Vitest + the target repository's established component-testing layer + MSW component/contract tests** — test behavior the user can observe (validation, conditional rendering, error/empty states), not implementation details, and mock the API at the network layer. React greenfield uses React Testing Library; a Vue target keeps its established Vue component-testing layer. Write the failing regression first.
-- **Playwright critical-path test** for each end-to-end flow whose breakage would page someone — the failing regression first, then the fixed path proven in a real browser.
-- **"Done" is a gate, not advice.** It typechecks, lints, unit + E2E tests pass, the dev server runs, and the primary flow was exercised in a **real browser render** — screenshot it and look at it — including a keyboard-only pass, with the evidence in the review packet. Green `tsc` and green tests prove the code compiles, not that the UI works; a UI that was never rendered is written, not verified, and that blocks the merge.
+Vitest + the repo's component-testing layer + MSW, and a Playwright test for each flow whose
+breakage would page someone — the failing regression first. Typecheck, lint, unit and E2E tests
+green, the dev server runs, and the primary flow was exercised in a real browser render —
+screenshot it and look at it — including a keyboard-only pass, with the evidence in the review
+packet. A UI that was never rendered is written, not verified.
 
 ## Before you write it — load the reference for what you're building
 
-Everything above applies to every UI task. The rules below apply only when the view involves the thing
-named. Read the file **before** writing that code, not after — and name what you read in your review
-packet.
-
 | If the view involves… | Read first |
 |---|---|
-| a greenfield or unbranded UI — nothing to match: no brand, no design system, no established visual conventions | [design language](./references/design-language.md) |
-| dialogs, drawers, menus, tabs, custom widgets, or async announcements | [interaction accessibility](./references/interaction-a11y.md) |
-| labels, actions, errors, empty states, or toasts | [interface copy](./references/ux-writing.md) |
+| a greenfield or unbranded UI — nothing to match | [design language](./references/design-language.md) |
 | choosing a stack for a greenfield UI, or serving a SPA on PCF | Load `stack-profile` first, then [stack](./references/stack.md) |
-| writing TypeScript or JavaScript in any UI code | [stack](./references/stack.md) — its TypeScript rules |
-| a table, list, or grid of records | [data views](./references/data-views.md) |
 | a chart, graph, or metric visualization | [data visualization](./references/data-viz.md) |
-| a form or any user input to submit | [forms](./references/forms.md) |
-| login, tokens, or route guarding | [auth](./references/auth.md) |
-| React UI code — the request names React, touched code imports React, the target UI package declares `react`/`react-dom`, or the greenfield stack selected React | [React](./references/react.md) |
-| Vue UI code — the request names Vue, the target is a Vue `.vue` SFC or Vue composable, or touched code imports from `vue` | [Vue](./references/vue.md) |
-
-"Component," "SPA," JSX, or a `.tsx` suffix is not framework evidence. Preact, Solid, and other JSX
-runtimes are not React. If neither the request nor the target UI package/touched code identifies
-React or Vue, read neither framework reference.
 
 Trips two predicates? Read both. Trips none? The core above is the whole job.

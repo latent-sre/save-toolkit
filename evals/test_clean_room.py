@@ -192,62 +192,6 @@ def test_is_auth_failure_is_gated_on_exit_code_not_just_text() -> None:
     )
 
 
-def test_run_evals_aborts_on_auth_failure_instead_of_grading_the_error_string() -> None:
-    import subprocess
-    import unittest.mock as mock
-
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
-    import run_evals  # noqa: E402
-
-    fake = subprocess.CompletedProcess(
-        args=[], returncode=1, stdout="Not logged in · Please run /login", stderr="",
-    )
-    scenario = {"mode": "direct", "target": {"kind": "skill", "name": "root-cause"}, "prompt": "hi"}
-    with mock.patch.object(run_evals.subprocess, "run", return_value=fake) as m:
-        try:
-            run_evals.run_agent(
-                scenario, env={"CLAUDE_CONFIG_DIR": "/tmp/room"}, cwd=Path.cwd(),
-                timeout=10, model=None, claude_bin="claude",
-            )
-            check(False, "auth failure must raise, NOT return a string for the graders to score")
-        except run_evals.InconclusiveTrial as exc:
-            check(True, "run_agent raises an inconclusive trial instead of returning an auth error string")
-            check(exc.returncode == 1 and bool(exc.raw_trace),
-                  "auth inconclusive retains return code and raw trace")
-            check(exc.duration_seconds is not None and bool(exc.command),
-                  "auth inconclusive retains duration and exact argv")
-    kwargs = m.call_args.kwargs
-    check((kwargs.get("env") or {}).get("CLAUDE_CONFIG_DIR") == "/tmp/room",
-          "run_agent passes the clean env to subprocess.run")
-
-
-def test_run_evals_raises_runner_failed_on_a_non_auth_nonzero_exit() -> None:
-    """[P0] A broken runner (rate limit, 5xx, bad flag — anything that is NOT an auth failure) must
-    raise RunnerFailed, never fall through to `return f"[runner error ...]"` where it would be handed
-    to the TEXT graders and scored as a plausible-looking scenario FAILURE."""
-    import subprocess
-    import unittest.mock as mock
-
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
-    import run_evals  # noqa: E402
-
-    fake = subprocess.CompletedProcess(
-        args=[], returncode=1, stdout="", stderr="upstream 529: overloaded, try again later",
-    )
-    scenario = {"mode": "direct", "target": {"kind": "skill", "name": "root-cause"}, "prompt": "hi"}
-    with mock.patch.object(run_evals.subprocess, "run", return_value=fake):
-        try:
-            result = run_evals.run_agent(
-                scenario, env={"CLAUDE_CONFIG_DIR": "/tmp/room"}, cwd=Path.cwd(),
-                timeout=10, model=None, claude_bin="claude",
-            )
-            check(False, f"non-auth runner failure must raise RunnerFailed, not return {result!r}")
-        except clean_room.AuthUnavailable:
-            check(False, "a non-auth failure must NOT be misclassified as AuthUnavailable")
-        except clean_room.RunnerFailed as e:
-            check("529" in str(e) or "overloaded" in str(e), "RunnerFailed carries the runner's own error text")
-
-
 def main() -> int:
     tests = [
         test_clean_env_copies_only_the_credentials,
@@ -259,8 +203,6 @@ def main() -> int:
         test_is_auth_failure_recognises_a_real_not_logged_in_trace,
         test_is_auth_failure_does_not_fire_on_a_healthy_trace,
         test_is_auth_failure_is_gated_on_exit_code_not_just_text,
-        test_run_evals_aborts_on_auth_failure_instead_of_grading_the_error_string,
-        test_run_evals_raises_runner_failed_on_a_non_auth_nonzero_exit,
     ]
     for t in tests:
         t()

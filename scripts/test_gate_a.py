@@ -30,18 +30,23 @@ class StructuralScopeTests(unittest.TestCase):
             "component tests belong to the changed implementation, not every push",
         )
         self.assertNotIn(
-            "evals/run_evals.py",
+            "evals/build_probe.py",
             commands,
             "behavioral evals are focused implementation work, never a push-boundary step",
         )
 
     def test_context_cost_gate_is_the_third_structural_step(self) -> None:
         commands = [argv[0] for _label, argv, _env in gate_a.STEPS]
-        self.assertEqual(3, len(gate_a.STEPS))
+        self.assertEqual(4, len(gate_a.STEPS))
         self.assertEqual("scripts/check_context_cost.py", commands[2])
+
+    def test_weight_totals_gate_is_the_fourth_structural_step(self) -> None:
+        commands = [argv[0] for _label, argv, _env in gate_a.STEPS]
+        self.assertEqual("scripts/check_weight.py", commands[3])
 
 
 class RunStepsTests(unittest.TestCase):
+
     def _run(self, steps, *, verbose=False):
         out = io.StringIO()
         with contextlib.redirect_stdout(out):

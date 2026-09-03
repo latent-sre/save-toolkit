@@ -1,12 +1,5 @@
-schema_version: 1
 id: production-change-gate-blocks-missing-execution-authority
-mode: direct
 split: regression
-target:
-  kind: skill
-  name: production-change-gate
-# Paired with production-change-gate-passes-approved. Every checklist item is held constant except
-# target-side execution-authority evidence, so a title or promise alone must not clear the gate.
 prompt: |
   Treat `T0` as the instant this reusable scenario is evaluated; every relative time below is an
   exact fixture time. This keeps the same approval case current whenever the scenario is rerun.
@@ -52,24 +45,25 @@ prompt: |
   - `authority_role`: `SpaceDeveloper | none`
   - `stakeholder_communications`: `FAIL | PASS`
 success_criteria:
-  - Returns only the closed JSON decision packet
-  - Selects BLOCKED and TIER_2 while every non-authority checklist decision passes
-  - Marks readiness evidence PASS_NON_DEPLOYMENT for the current command/diff and approval branch
-  - Selects MISSING with none_attached and no authority role
+- Returns only the closed JSON decision packet
+- Selects BLOCKED and TIER_2 while every non-authority checklist decision passes
+- Marks readiness evidence PASS_NON_DEPLOYMENT for the current command/diff and approval branch
+- Selects MISSING with none_attached and no authority role
 graders:
-  - type: exact_json
-    fields:
-      production_change_gate: BLOCKED
-      classification: TIER_2
-      readiness_evidence: PASS_NON_DEPLOYMENT
-      approval: PASS
-      backout: PASS
-      blast_radius: PASS
-      plan_diff: PASS
-      timing: PASS
-      monitoring: PASS
-      abort: PASS
-      production_execution_boundary: MISSING
-      authority_record: none_attached
-      authority_role: none
-      stakeholder_communications: PASS
+- type: exact_json
+  fields:
+    production_change_gate: BLOCKED
+    classification: TIER_2
+    readiness_evidence: PASS_NON_DEPLOYMENT
+    approval: PASS
+    backout: PASS
+    blast_radius: PASS
+    plan_diff: PASS
+    timing: PASS
+    monitoring: PASS
+    abort: PASS
+    production_execution_boundary: MISSING
+    authority_record: none_attached
+    authority_role: none
+    stakeholder_communications: PASS
+skill: production-change-gate

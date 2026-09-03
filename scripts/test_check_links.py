@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -431,6 +432,78 @@ class LiveDocLinkTests(unittest.TestCase):
                 self.skipTest("cannot create a directory symlink here")
             self.assertNotEqual(link.resolve(), link, "fixture did not produce an aliased root")
             self.assertEqual([], check_links._check_live_doc_links(link))
+
+
+class UncitedEvidencePacketTests(Fixture):
+    """A retained docs/reviews/ packet must be cited from somewhere a reader would look."""
+
+    def _git(self, *args: str) -> None:
+        subprocess.run(
+            ["git", *args], cwd=self.root, check=True, capture_output=True, text=True
+        )
+
+    def test_an_uncited_tracked_packet_fails_and_a_cited_one_does_not(self) -> None:
+        self.write("docs/reviews/cited.md", "# Cited\n")
+        self.write("docs/reviews/uncited.md", "# Uncited\n")
+        self.write(
+            "docs/fleet-roadmap.md",
+            "**Evidence:** `docs/reviews/cited.md`\n",
+        )
+        self._git("init", "-q")
+        self._git("add", "-A")
+        failures = check_links._check_uncited_review_packets(self.root)
+        self.assertTrue(
+            any("uncited evidence packet: docs/reviews/uncited.md" in f for f in failures),
+            failures,
+        )
+        self.assertFalse(any("cited.md" in f and "uncited" not in f for f in failures), failures)
+
+    def test_a_packet_cannot_cite_itself_into_compliance(self) -> None:
+        self.write(
+            "docs/reviews/self-citing.md",
+            "# Self-citing\n\nThis file is docs/reviews/self-citing.md.\n",
+        )
+        self._git("init", "-q")
+        self._git("add", "-A")
+        failures = check_links._check_uncited_review_packets(self.root)
+        self.assertTrue(
+            any("uncited evidence packet: docs/reviews/self-citing.md" in f for f in failures),
+            failures,
+        )
+
+    def test_an_untracked_packet_is_invisible_to_the_gate(self) -> None:
+        self.write("docs/reviews/tracked.md", "# Tracked\n")
+        self._git("init", "-q")
+        self._git("add", "docs/reviews/tracked.md")
+        self.write("docs/reviews/untracked.md", "# Untracked\n")
+        failures = check_links._check_uncited_review_packets(self.root)
+        self.assertTrue(any("tracked.md" in f for f in failures), failures)
+        self.assertFalse(any("untracked.md" in f for f in failures), failures)
+
+    def test_a_directory_shaped_packet_is_cited_through_its_entry_point(self) -> None:
+        """A citation of the packet directory (e.g. its README) covers every file inside it,
+        mirroring how the 2026-08-22 ADR cites only the incident-navigation packet's README."""
+        self.write(
+            "docs/reviews/2026-08-12-bundle/README.md",
+            "# Bundle\n\n[manifest.json](manifest.json)\n",
+        )
+        self.write("docs/reviews/2026-08-12-bundle/manifest.json", "{}\n")
+        self.write(
+            "docs/decisions/2026-08-22-example.md",
+            "See the [packet](../reviews/2026-08-12-bundle/README.md).\n",
+        )
+        self._git("init", "-q")
+        self._git("add", "-A")
+        failures = check_links._check_uncited_review_packets(self.root)
+        self.assertEqual([], failures, failures)
+
+    def test_no_git_repository_skips_rather_than_fails(self) -> None:
+        self.write("docs/reviews/orphan.md", "# Orphan\n")
+        self.assertEqual([], check_links._check_uncited_review_packets(self.root))
+
+    def test_the_real_tree_has_no_uncited_packet(self) -> None:
+        failures = check_links._check_uncited_review_packets(ROOT)
+        self.assertEqual([], failures, failures)
 
 
 class EscapingLinkTests(unittest.TestCase):
