@@ -1451,3 +1451,17 @@ class GuardDenialClassificationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ReadBoundaryScopeTests(unittest.TestCase):
+    """The read boundary proves clean-room reads stayed in bounds; a build lane is graded on outcomes."""
+
+    def test_fixture_less_trial_with_read_tools_is_bounded(self) -> None:
+        self.assertTrue(build_probe.read_boundary_applies({"prompt": "x"}, ["Skill", "Read"]))
+
+    def test_build_lane_is_not_bounded_by_reads(self) -> None:
+        spec = {"prompt": "x", "fixture": {"files": {"README.md": "hi"}}}
+        self.assertFalse(build_probe.read_boundary_applies(spec, ["Read", "Bash", "Write"]))
+
+    def test_no_read_tools_means_no_boundary(self) -> None:
+        self.assertFalse(build_probe.read_boundary_applies({"prompt": "x"}, ["Skill", "Task"]))

@@ -1282,6 +1282,16 @@ def _is_rooted(value: object) -> bool:
     return Path(value).is_absolute()
 
 
+def read_boundary_applies(spec: dict, requested: Sequence[str]) -> bool:
+    """Only a fixture-less clean-room trial proves its reads stayed inside harness-owned trees.
+
+    A build lane runs with its real tools on the host and legitimately reads outside the workspace
+    (the CLI's own bundled-skill cache, the npm cache); it is graded on what it produced. Applying
+    the read boundary to it turned every frontend build trial INCONCLUSIVE on 2026-09-03.
+    """
+    return not spec.get("fixture") and bool(set(requested) & set(READ_TOOLS))
+
+
 def read_boundary_problem(trace: TraceSummary, allowed_roots: Sequence[Path]) -> str | None:
     """Why a granted read escaped its allowed roots, or None.
 
@@ -2183,9 +2193,7 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
                 else requested
             )
             inconclusive = runtime_boundary_problem(trace, expected)
-            if inconclusive is None and set(requested) & set(READ_TOOLS):
-                # Reads were granted: prove they stayed inside harness-owned trees. A build lane's
-                # own outcome checks cover what it wrote; this covers what it read.
+            if inconclusive is None and read_boundary_applies(spec, requested):
                 inconclusive = read_boundary_problem(trace, (ws.repo, plugin_root.resolve()))
         # A guard decision (hooks/hooks.json denying an off-allowlist command) is a RESULT about
         # the agent; only a runtime/permission refusal of a build tool makes the trial inconclusive.
