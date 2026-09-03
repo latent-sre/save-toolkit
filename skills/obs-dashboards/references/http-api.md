@@ -26,7 +26,7 @@ of two silent traps:
 
 | Family | Path | Use |
 |---|---|---|
-| App platform | `/apis/dashboard.grafana.app/<version>/namespaces/<ns>/dashboards/<uid>` | version-pinned read, create, update, delete; stable-version history |
+| App platform | `/apis/dashboard.grafana.app/<version>/namespaces/<ns>/dashboards` for create and list; `…/dashboards/<uid>` for read, update, delete | version-pinned; stable-version history |
 | Legacy | `/api/dashboards/*`, `/api/search`, `/api/folders`, `/api/datasources` | discovery, Classic fallback, create when its managed-permission grant is needed |
 
 The namespace is `default` for org 1, `org-<id>` otherwise, `stacks-<id>` on Grafana Cloud.
@@ -63,9 +63,9 @@ uids leave only under a separate authorization.
 ## Create, import, update
 
 **Create** is a live change with the same evidence duty as an update. App platform: `POST` the
-envelope with `metadata.name` set to a stable 8–40 character uid, the folder in the
-`grafana.app/folder` annotation, the change reference in `grafana.app/message`, and no version;
-success is 201. Legacy: `POST /api/dashboards/db` with `id: null`, `folderUid`, `message`, and
+envelope to the collection path, `…/namespaces/<ns>/dashboards`, never to the `<uid>` item path,
+with `metadata.name` set to a stable 8–40 character uid, the folder in the `grafana.app/folder`
+annotation, the change reference in `grafana.app/message`, and no version; success is 201. Legacy: `POST /api/dashboards/db` with `id: null`, `folderUid`, `message`, and
 `overwrite: false`; success is 200. A 409 or `name-exists` means the uid is taken: stop and
 reconcile, never switch to `overwrite: true`. QA 13.1.4 returned 409 for a taken uid where older
 docs say 412.

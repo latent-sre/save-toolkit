@@ -135,10 +135,10 @@ checks:
     pointer: dashboard/panels
     matches:
       - {pointer: title, regex: '(?i)\bp95\b'}
-      - {pointer: fieldConfig/defaults/unit, nonempty: true}
-      - {pointer: description, nonempty: true}
-      - {pointer: fieldConfig/defaults/noValue, nonempty: true}
-    text: "the new panel carries the skill's own content rules: a unit, a description, and a 'No value' text (added 2026-09-03 for the obs-dashboards trim; not part of the 2026-08-29 measurement)"
+      - {pointer: fieldConfig/defaults/unit, regex: '^(s|ms|µs|us|ns)$'}
+      - {pointer: description, regex: '\S{12,}|\S+\s+\S+'}
+      - {pointer: fieldConfig/defaults/noValue, regex: '(?i)\bno\b.{0,30}\b(data|traffic|samples?|requests?|series|value)'}
+    text: "the new panel carries the skill's own content rules: a time unit for a seconds histogram, a description, and a 'No value' text that says no data or no traffic rather than health (added 2026-09-03 for the obs-dashboards trim; graded as presence during that campaign, values asserted since)"
   - {check: service_get, service: grafana, path: /api/dashboards/uid/checkout-slo, pointer: dashboard/title, equals: Checkout SLO, text: "the dashboard is still the one it was asked to edit"}
   - {check: service_get, service: grafana, path: /api/dashboards/uid/checkout-slo/versions, contains: ["OBS-441"], text: "the change reference is on a version in history"}
   - {check: grafana_dashboard_write, service: grafana, read_path: /api/dashboards/uid/checkout-slo, write_path: /api/dashboards/db, message: OBS-441, text: "the write followed a successful preflight and carried the fresh dashboard.version with overwrite false"}

@@ -3,8 +3,8 @@
 Read this when holding dashboard JSON: exporting, diffing, adding a panel or variable, or authoring
 a model. Request and concurrency shapes are in [http-api](./http-api.md); generic visualization
 advice is deliberately absent. Sources were reviewed against `grafana/grafana` 13.1.4 and 13.2.0
-and the round trips marked below were exercised on QA 13.1.4; behavior elsewhere is `[unverified]`
-until exercised.
+and each section carries its label: `[sourced]` for what the source reads say, `[verified: QA
+13.1.4]` for what was exercised there; behavior elsewhere is `[unverified]` until exercised.
 
 ## Six served versions, three shapes
 
@@ -16,6 +16,9 @@ until exercised.
 
 The group's `preferredVersion` is configuration, not a stability promise: an unpinned read can
 return a different shape from the stored row.
+
+*[sourced: `apps/dashboard/pkg/apis/dashboard/*/register.go`, `pkg/registry/apis/dashboard/mutate.go`,
+and the dashboard schema validation at 13.1.4 and 13.2.0]*
 
 ## Storage and conversion rules
 
@@ -38,6 +41,10 @@ named in its path.
    source and converted structures; Grafana also emits conversion-loss metrics.
 5. **Legacy `meta.apiVersion` is not storage evidence.** It reports the requested version.
 
+*[sourced: app-platform storage preparation, conversion, browser import and save, and legacy
+import handlers; verified: QA 13.1.4 for the app-platform rows, the `status` round trip, and the
+V1/V2 reads]*
+
 ## Classic / V1 rules this team keeps
 
 - `uid` is stable, 8–40 characters, never reused or changed after publication; `id` is `null` on
@@ -52,6 +59,9 @@ named in its path.
 - On app-platform V1 writes, identity is `metadata.name` and concurrency `metadata.resourceVersion`;
   Grafana strips `spec.uid` and `spec.version`, injects defaults, and mints a distinct
   `metadata.uid`. Diff the stored readback, not the local body.
+
+*[sourced: dashboard JSON model, V1 schema, and app-platform handlers; verified: QA 13.1.4 for the
+app-platform V1 write behavior; the `editable` and `timezone` rules are this team's, owner 2026-08-22]*
 
 ### The panel shape, with the fields the checker and the on-call reader need
 
@@ -90,6 +100,8 @@ conditional rendering is V2-only and tied to auto-grid layouts. Do not author V2
 internals from memory: read a real V2 dashboard at its stored version, or use an adopted typed SDK,
 and preserve that shape. The bundled checker refuses V2; use `dashboard-linter` where installed.
 
+*[sourced: V2 CUE schema, dashboard grouping documentation, and dashboard-linter V2 rules]*
+
 ## Variables and portability
 
 - One data-source variable named `datasource`, referenced as `${datasource}` in every panel and
@@ -102,6 +114,9 @@ and preserve that shape. The bundled checker refuses V2; use `dashboard-linter` 
 - `$__rate_interval` for Prometheus `rate()` and `increase()`; the query API does not expand it, so
   verification substitutes a concrete interval and records that difference.
 - Links preserve time and variables; the deprecated `[[var]]` syntax is not used.
+
+*[sourced: Grafana variable, Prometheus template-variable, and dashboard-linter documentation;
+verified: QA 13.1.4 for the `current` behavior and the import round trip]*
 
 A cross-instance export rewrites data sources to `${DS_*}` and adds `__inputs` and `__requires`,
 which only the import endpoint or the import UI resolves; see the import rule in
@@ -116,3 +131,5 @@ app-platform wrapper, or a legacy GET body, exits 0 when no implemented rule fir
 exclusions need a reason. On an edit, check the live model first and block only the violations this
 diff introduces. A clean result never proves target permissions, query data, rendering,
 concurrency, or the durable save record; [http-api](./http-api.md) verifies those.
+
+*[sourced: the bundled checker's docstring and the dashboard-linter documentation]*

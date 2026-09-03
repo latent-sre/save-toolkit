@@ -1785,8 +1785,19 @@ def check_grafana_query_succeeded(ctx: Context, p: dict) -> tuple[bool, str]:
     accepted = [entry for entry in writes if 200 <= int(entry.get("status") or 0) < 300]
     write = (accepted or writes)[-1]
 
-    def normalized(expression: str) -> str:
-        return re.sub(r"\[[^\]]*\]", "[W]", re.sub(r"\s+", "", expression)).lower()
+    def canon(expression: str) -> str:
+        return re.sub(r"\s+", "", expression).lower()
+
+    def same_query(persisted: str, verified: str) -> bool:
+        """Equal, or a persisted template window proven by one concrete window (the skill's
+        substitution for `$__rate_interval`); two concrete windows are different queries."""
+        p, v = canon(persisted), canon(verified)
+        if p == v:
+            return True
+        if "$__rate_interval" not in p and "$__interval" not in p:
+            return False
+        return (re.sub(r"\[\$__(?:rate_)?interval\]", "[w]", p)
+                == re.sub(r"\[[0-9]+(?:ms|s|m|h|d|w|y)\]", "[w]", v))
 
     def persisted_on_p95_panel(expression: str) -> bool:
         body = write.get("request")
@@ -1794,7 +1805,6 @@ def check_grafana_query_succeeded(ctx: Context, p: dict) -> tuple[bool, str]:
         panels = dashboard.get("panels") if isinstance(dashboard, dict) else None
         if not isinstance(panels, list):
             return False
-        expected = normalized(expression)
         for panel in panels:
             if not isinstance(panel, dict) or not re.search(r"(?i)\bp95\b.*\blatency\b|\blatency\b.*\bp95\b", str(panel.get("title") or "")):
                 continue
@@ -1802,7 +1812,7 @@ def check_grafana_query_succeeded(ctx: Context, p: dict) -> tuple[bool, str]:
             if isinstance(targets, list) and any(
                 isinstance(target, dict)
                 and isinstance(target.get("expr"), str)
-                and normalized(target["expr"]) == expected
+                and same_query(target["expr"], expression)
                 for target in targets
             ):
                 return True

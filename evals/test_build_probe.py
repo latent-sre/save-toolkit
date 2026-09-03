@@ -1137,6 +1137,10 @@ class ReviewFindingTests(unittest.TestCase):
         self.assertTrue(build_probe.check_grafana_query_succeeded(ctx, check)[0],
                         "a concrete window substituted for $__rate_interval is the same query")
         write["request"]["dashboard"]["panels"][0]["targets"][0]["expr"] = (
+            "histogram_quantile(0.95, rate(checkout_request_duration_seconds_bucket[1s]))")
+        self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0],
+                         "two concrete windows are different queries; [1s] is not proven by [5m]")
+        write["request"]["dashboard"]["panels"][0]["targets"][0]["expr"] = (
             "histogram_quantile(0.95, rate(checkout_request_duration_seconds_bucket[5m]))")
         p95 = "histogram_quantile(0.95, rate(checkout_request_duration_seconds_bucket[5m]))"
         service.requests = [
