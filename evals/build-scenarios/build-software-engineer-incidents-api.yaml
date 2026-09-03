@@ -7,7 +7,9 @@ agent: software-engineer
 # 404 and for a bad filter, an internal field that must not cross the boundary, the vendor owner
 # actually fetched, an outbound timeout proven against a vendor that sleeps 20 s, and /healthz
 # independent of that vendor. The fixture is stdlib plus fastapi/httpx, which requirements-dev.txt
-# pins and the host has installed; the agent adds no dependency.
+# pins and the host has installed; the agent adds no dependency. First measured 2026-09-02, five
+# Sonnet and five Opus trials per side of the backend-craft trim:
+# docs/reviews/2026-09-02-backend-craft-trim-evidence.md.
 prompt: |
   Add two endpoints to this FastAPI service, build them end to end in this repo, and tell me what
   you ran to verify it.
@@ -258,10 +260,15 @@ checks:
 
 
         def check_filter(client):
-            r = client.get("/v1/incidents", params={"status": "open", "limit": 200})
+            # limit=40 stays under any sane server-side cap; the 2026-09-02 campaign asked for 200
+            # and false-failed three Opus builds whose cap was lower (see the evidence packet).
+            r = client.get("/v1/incidents", params={"status": "open", "limit": 40})
             if r.status_code != 200:
                 fail("?status=open -> %d" % r.status_code)
-            bad = [i["id"] for i in r.json()["data"] if i.get("status") != "open"]
+            body = r.json()
+            if not isinstance(body, dict) or "data" not in body:
+                fail("list body is not {data, next_cursor}: %s" % type(body).__name__)
+            bad = [i["id"] for i in body["data"] if i.get("status") != "open"]
             if bad:
                 fail("filter leaked non-open incidents: %s" % bad[:3])
             r = client.get("/v1/incidents", params={"status": "bogus"})
