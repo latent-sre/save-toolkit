@@ -40,6 +40,24 @@ def measure(root: Path = ROOT) -> dict[str, int]:
     }
 
 
+def ceiling_problem(measured: dict[str, int], ceilings: dict[str, int]) -> str | None:
+    """Why the configured ceilings are not the measured totals, or None.
+
+    ``evaluate`` iterates the ceilings and treats an absent measured name as zero, so deleting or
+    misspelling one key silently retires that ceiling while the report still says every configured
+    total is within bounds -- a green Gate A measuring less than it claims to.
+    """
+    unmeasured = sorted(set(ceilings) - set(measured))
+    unbounded = sorted(set(measured) - set(ceilings))
+    if not unmeasured and not unbounded:
+        return None
+    return (
+        "scripts/weights.json must name exactly the measured totals (%s)" % ", ".join(sorted(measured))
+        + ("; no ceiling for: %s" % ", ".join(unbounded) if unbounded else "")
+        + ("; not a measured total: %s" % ", ".join(unmeasured) if unmeasured else "")
+    )
+
+
 def evaluate(
     measured: dict[str, int], ceilings: dict[str, int]
 ) -> tuple[list[tuple[str, int, int, int]], list[str]]:
@@ -56,7 +74,12 @@ def evaluate(
 
 def main() -> int:
     ceilings = load_weights()
-    rows, failed = evaluate(measure(), ceilings)
+    measured = measure()
+    problem = ceiling_problem(measured, ceilings)
+    if problem:
+        print("check_weight: FAIL -- " + problem)
+        return 1
+    rows, failed = evaluate(measured, ceilings)
 
     width = max(len(name) for name, *_ in rows)
     print("%-*s  %10s  %10s  %10s" % (width, "Total", "measured", "ceiling", "headroom"))

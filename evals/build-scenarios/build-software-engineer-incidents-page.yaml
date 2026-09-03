@@ -280,8 +280,11 @@ checks:
   # between checks). It renders the real App under BrowserRouter at /incidents with its own MSW
   # handlers, so it grades the page the agent shipped, not the tests the agent wrote. `npm install`
   # runs here so the oracle does not depend on the agent having installed anything.
+  # `--ignore-scripts`: grading runs on the host as the operator, with the real HOME and network,
+  # over a dependency tree the agent may have edited. No package's lifecycle script executes in
+  # the grading step; a package that needs one is a scenario the fixture must pin, not run.
   - check: command_exit_zero
-    command: "npm install --no-audit --no-fund && npx vitest run probe_ui.test.tsx -t bar1"
+    command: "npm install --ignore-scripts --no-audit --no-fund && npx vitest run probe_ui.test.tsx -t bar1"
     timeout: 600
     text: "oracle: a loading state is visible while GET /api/incidents is in flight"
     writes:

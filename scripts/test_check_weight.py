@@ -38,6 +38,21 @@ class WeightEvaluationTests(unittest.TestCase):
         measured = check_weight.measure()
         self.assertEqual(set(weights), set(measured))
 
+    def test_a_missing_or_misspelled_ceiling_is_not_a_silent_pass(self) -> None:
+        """Codex review of PR #222: evaluate iterates the ceilings, so a deleted key retires itself."""
+        measured = check_weight.measure()
+        self.assertIsNone(check_weight.ceiling_problem(measured, check_weight.load_weights()))
+        for broken, marker in (
+            ({k: v for k, v in check_weight.load_weights().items() if k != "agents_bytes"}, "agents_bytes"),
+            ({**{k: v for k, v in check_weight.load_weights().items() if k != "skills_bytes"},
+              "skill_bytes": 1}, "skill_bytes"),
+        ):
+            problem = check_weight.ceiling_problem(measured, broken)
+            self.assertIsNotNone(problem, broken)
+            self.assertIn(marker, problem)
+            # ...and the silent pass it used to produce: the dropped total is judged by nothing.
+            self.assertNotIn(marker, check_weight.evaluate(measured, broken)[1])
+
 
 if __name__ == "__main__":
     unittest.main()
