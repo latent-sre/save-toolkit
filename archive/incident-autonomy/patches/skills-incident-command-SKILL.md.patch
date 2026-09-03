@@ -1,0 +1,28 @@
+diff --git a/skills/incident-command/SKILL.md b/skills/incident-command/SKILL.md
+index 3549db80..36f3158d 100644
+--- a/skills/incident-command/SKILL.md
++++ b/skills/incident-command/SKILL.md
+@@ -50,13 +50,13 @@ authoritative severity, timeline, and decision record rather than producing sepa
+ 
+ ## Close and return
+ 
+-Resolution is confirmed by the human owner when user impact has ended and the same golden signals
+-have remained at baseline for the stated sustained window (the recovery criterion the
+-`incident-investigation` advisor set with the mitigation). Until then the incident remains active;
+-a green point, a proposed follow-up, or a completed research call is not resolution.
+-
+-After resolution the incident commander sends the resolution update, and the authoritative
+-timeline goes to closeout with `scribe` as the next owner. The caller separately dispatches typed
+-`observability-engineer` for detection changes and typed `scribe` for the postmortem, operating
+-guidance, and learning dispositions. Neither next-phase lane confirms live incident recovery or
+-starts work while the incident is active.
++Resolve only after the typed `sre-assistant` investigator confirms that user impact has ended and the same
++golden signals have remained at baseline for the stated sustained window. Until then the incident
++remains active in `monitoring-recovery`; a green point, a proposed follow-up, or a completed research
++call is not a terminal state.
++
++After terminal resolution, `sre-assistant` sends the resolution update and returns the authoritative timeline,
++evidence labels, and proposed next-phase work to the caller. The caller, not `sre-assistant`, separately
++dispatches typed `observability-engineer` for detection changes and typed `scribe` for the
++postmortem, operating guidance, and learning dispositions. Neither next-phase lane confirms live
++incident recovery or starts work while the SRE loop is active.

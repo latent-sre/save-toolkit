@@ -77,9 +77,16 @@ Folder total: 102261 bytes across the 13 files above, plus this README.
    folder into the live `evals/rubrics.yaml`, and the 35 calibration cases
    from `evals/rubrics-calibration.yaml` in this folder into the live
    `evals/rubrics-calibration.yaml`.
-3. Apply the patches under `patches/` — a later commit in the same pull
-   request adds that directory with one reverse diff per line removed from
-   a file this archive does not hold a full copy of (a file shared with
-   machinery that stays live).
+3. Apply the patches under `patches/`: `git apply archive/incident-autonomy/patches/*.patch`.
+   Each is a reverse diff for one file shared with machinery that stays live, taken from the
+   cut commit back to the commit before it (so they name the agent `sre-assistant`, the
+   post-rename name; restoring the archived `sre` body means adding `sre` to
+   `GUARDED_AGENT_NAMES` as Section 4 says). The two `evals-rubrics*` patches re-add exactly
+   the fragments in step 2, so applying them makes step 2 unnecessary. The set: the fleet
+   validator's conditional-handoff rule and its tests, the context-cost path entry, the
+   `skill_loaded` check in the guarded-triage build probe, the forbidden-schema line in the
+   read-only triage scenario, `incident-command`'s close-and-return section, `eng-ladder`'s
+   description sentence, the AGENTS.md roster row, the README catalogue line, the rubric
+   files, and the roadmap's ROUTE-005 item.
 4. Regenerate adapters: `python scripts/generate_platform_adapters.py --write`.
 5. Run `python scripts/gate_a.py` and confirm it passes.
