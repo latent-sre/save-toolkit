@@ -33,7 +33,8 @@ of retained before/after snapshots without letting an unrelated run clear uncert
 
 ## Evaluate without deploying
 
-Run the pure-standard-library evaluator from the repository root and pass evidence directories in
+Run the pure-standard-library evaluator — one of the three scripts the sandbox's `AGENTS.md`
+authorizes for direct host execution — from the repository root, and pass evidence directories in
 any order; manifest end time supplies the chronology.
 
 ```powershell

@@ -31,7 +31,9 @@ runtime decision, and the live roadmap remain authoritative.
 
 ## Local implementation constraints
 
-- Direct host execution is allowed only for the standard-library preflight validator and tests.
+- Direct host execution is allowed only for the standard-library preflight validator, the tests, and
+  the standard-library alert evaluator (`scripts/graph_sandbox_alerts.py`), which reads evidence a
+  run already published and contacts no Grafana, notification route, or live system.
   LangGraph and all synthetic application code execute only inside `graph-sandbox/v1` containers.
 - The default Compose network is `internal: true`; publish no host ports and mount no Docker socket,
   host home, credential store, SSH agent, or arbitrary workspace path.
