@@ -116,7 +116,7 @@ preserve the evidence directory and hand off without retrying.
 
 | When | Escalate to | Handoff |
 |---|---|---|
-| active impact, uncertain effect, or approval wait | `sre-assistant` | trigger, exact revision, outcome, planes, unresolved effects |
+| active impact, uncertain effect, or approval wait | on-call SRE with `incident-investigation` (`sre-assistant` only for a dispatched read) | trigger, exact revision, outcome, planes, unresolved effects |
 | graph-control, runner, or checkpoint defect after stabilization | `software-engineer` | minimized event/evidence contract failure |
 | alert/query/runbook defect after the run is stable | `observability-engineer` / `scribe` | rule result and contradicted or missing step |
 | any production target or credential appears | human release/security owner | stop; do not copy or execute it |

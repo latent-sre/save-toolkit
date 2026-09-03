@@ -3,7 +3,7 @@ name: operational-learning
 description: >-
   Apply the operational-learning closeout after scribe selects knowledge closeout mode, or when a
   user explicitly invokes this skill. Direct KB writing belongs to scribe; active incidents route
-  to sre-assistant, alert design routes to observability-engineer, and fleet prompt work routes to
+  to incident-investigation, alert design routes to observability-engineer, and fleet prompt work routes to
   agent-engineer. Triggers: 'knowledge closeout mode selected',
   'apply the operational-learning closeout', 'capture durable operational lessons'.
 argument-hint: "[component, alert, incident, drill, or audit]"

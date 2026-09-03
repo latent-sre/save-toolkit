@@ -63,30 +63,34 @@ Folder total: 102261 bytes across the 13 files above, plus this README.
   sustained-response design assumes it can read these to characterize
   signals and track recovery; those integrations must be built first.
 - **The read-only guard.** `scripts/readonly-guard.py` gates Bash by agent
-  name via `GUARDED_AGENT_NAMES`. A restored agent named `sre` must be added
-  back to that list, and the guard's behavior for it re-proven with
-  `scripts/guard-session-preflight.py` before the agent runs against a real
-  environment.
+  name via `GUARDED_AGENT_NAMES`, which already lists `sre-assistant` — step 1
+  restores the agent under that name, so nothing here needs adding. Re-prove
+  the guard's behavior for it with `scripts/guard-session-preflight.py` before
+  the agent runs against a real environment.
 
 ## 5. Restore steps
 
-1. Copy the files in the manifest back to their source paths.
-2. Re-add the three rubrics (`recovery_authority_held`,
-   `unknown_progress_not_invented`,
-   `progress_consistent_with_record`) from `evals/rubrics.yaml` in this
-   folder into the live `evals/rubrics.yaml`, and the 35 calibration cases
-   from `evals/rubrics-calibration.yaml` in this folder into the live
-   `evals/rubrics-calibration.yaml`.
-3. Apply the patches under `patches/`: `git apply archive/incident-autonomy/patches/*.patch`.
-   Each is a reverse diff for one file shared with machinery that stays live, taken from the
-   cut commit back to the commit before it (so they name the agent `sre-assistant`, the
-   post-rename name; restoring the archived `sre` body means adding `sre` to
-   `GUARDED_AGENT_NAMES` as Section 4 says). The two `evals-rubrics*` patches re-add exactly
-   the fragments in step 2, so applying them makes step 2 unnecessary. The set: the fleet
-   validator's conditional-handoff rule and its tests, the context-cost path entry, the
-   `skill_loaded` check in the guarded-triage build probe, the forbidden-schema line in the
-   read-only triage scenario, `incident-command`'s close-and-return section, `eng-ladder`'s
-   description sentence, the AGENTS.md roster row, the README catalogue line, the rubric
-   files, and the roadmap's ROUTE-005 item.
-4. Regenerate adapters: `python scripts/generate_platform_adapters.py --write`.
-5. Run `python scripts/gate_a.py` and confirm it passes.
+1. Copy `agents/sre.md` from this folder over `agents/sre-assistant.md` and set
+   its frontmatter to `name: sre-assistant`. The rename stays: a second agent
+   named `sre` beside `sre-assistant` fails the fleet validator's roster check,
+   and restoring the old name means reversing commit 122070f5 across the guard
+   roster, the generator roster, the validator's `EXPECTED_AUTHORITY` and
+   `EXPECTED_DELEGATION`, the manifests, and the tests.
+2. Copy `skills/investigation-depth/` and the two scenarios from this folder
+   back to their source paths.
+3. Apply the name token to the restored files: replace the whole word `sre`
+   (not inside `sre-assistant`, `sre-ladder`, `sre-context-resolver`, or a
+   domain such as `sre.google`) with `sre-assistant` in the restored skill and
+   both scenarios. They predate the rename, and the shared handoff `## Rules`
+   block test compares bytes across agents.
+4. `git apply archive/incident-autonomy/patches/*.patch`. The two
+   `evals-rubrics*` patches re-add the three rubrics and their 35 cases, so the
+   YAML fragments in this folder are reference copies, not a step.
+5. `python scripts/generate_platform_adapters.py --write`.
+6. Raise `agents_bytes` and `skills_bytes` in `scripts/weights.json` to the
+   measured totals in the same diff. The 2026-09-03 dry run of these steps
+   measured 119,023 B of agents and 641,444 B of skills against ceilings of
+   115,000 and 640,000.
+7. `python scripts/gate_a.py` (PASS 4/4 in the dry run), `python -m pytest
+   scripts evals -q` (445 passed), `python evals/build_probe.py --validate` (61
+   specs).

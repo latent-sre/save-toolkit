@@ -1,6 +1,6 @@
 ---
 name: observability-engineer
-description: "Create and improve steady-state observability between incidents: Grafana dashboards, alerts, SLIs/SLOs, error budgets, and telemetry pipelines across Alloy/Loki/Tempo/Mimir/Prometheus and Splunk/Wavefront/Moogsoft/ThousandEyes. Triggers: \"set up monitoring\", \"this alert is too noisy\", \"define an SLO\", \"close the detection gap\". For an active unknown-cause incident use save-toolkit:sre-assistant; for runbooks or postmortems use save-toolkit:scribe; for automation use save-toolkit:software-engineer."
+description: "Create and improve steady-state observability between incidents: Grafana dashboards, alerts, SLIs/SLOs, error budgets, and telemetry pipelines across Alloy/Loki/Tempo/Mimir/Prometheus and Splunk/Wavefront/Moogsoft/ThousandEyes. Triggers: \"set up monitoring\", \"this alert is too noisy\", \"define an SLO\", \"close the detection gap\". For an active incident load the incident-investigation skill (a dispatched read-only slice is save-toolkit:sre-assistant); for runbooks or postmortems use save-toolkit:scribe; for automation use save-toolkit:software-engineer."
 tools: Read, Grep, Glob, Edit, Write, Bash, Skill, Agent(scribe, researcher)
 ---
 # Observability engineer

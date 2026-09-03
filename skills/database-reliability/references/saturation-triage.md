@@ -13,8 +13,8 @@ Check the cheapest discriminating evidence first:
 - **Replication lag:** current lag, freshness impact, and failover risk. Hand SLO/burn evidence to
   `observability-engineer` with raw windows, thresholds, and measurements.
 - **Disk, IOPS, and temp:** capacity, latency, growth, and runaway sort/spill evidence.
-- **Recent migrations and deploys:** correlate times with the symptom and give the evidence to `sre-assistant`
-  without upgrading correlation into root cause.
+- **Recent migrations and deploys:** correlate times with the symptom and give the evidence to the
+  responder with `incident-investigation` without upgrading correlation into root cause.
 
 Return current impact, verified signals, competing hypotheses, the next read-only discriminator, and
 the named owner. If mitigation is requested, show the exact target, command, blast radius,

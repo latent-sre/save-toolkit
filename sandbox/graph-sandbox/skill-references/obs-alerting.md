@@ -9,7 +9,7 @@ entry, production route, or pager integration.
 | Field | Contract |
 |---|---|
 | Severity | `page` in the synthetic evaluator; no receiver is configured |
-| Owner | `sre-assistant` for an active failed/uncertain run; `observability-engineer` owns the rule |
+| Owner | on-call SRE with `incident-investigation` for an active failed/uncertain run (`sre-assistant` only for a dispatched read); `observability-engineer` owns the rule |
 | Fires | latest verified outcome is not `SUCCEEDED`, or any earlier effect remains terminally `UNKNOWN` |
 | Resolves | latest verified outcome is `SUCCEEDED` **and** the evaluated timeline contains no unresolved `UNKNOWN` effect |
 | First action | inspect the latest verified bundle, then follow the matching failure-plane branch in the graph-sandbox runbook |

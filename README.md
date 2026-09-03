@@ -48,7 +48,7 @@ The one manual command is `/save-toolkit:adr` (ADR scaffold).
 
 | Agent | Lane | Routing |
 |---|---|---|
-| `sre-assistant` | Investigate active production or staging failures (guarded read-only Bash) | Owns the incident through terminal recovery and delegates only sanitized public fact checks to `researcher`; the caller separately dispatches observability and documentation work after resolution |
+| `sre-assistant` | One bounded read-only evidence slice during an incident (guarded read-only Bash), dispatched by the responder or by the `incident-investigation` advisor | Returns the slice and stops; the human owns the incident; delegates only sanitized public fact checks to `researcher` |
 | `observability-engineer` | Steady-state observability (unguarded Bash; applies Grafana dashboards directly) | Delegates docs to `scribe` and sanitized public lookups to `researcher`; the caller separately dispatches active incidents to `sre-assistant` and automation to `software-engineer` |
 | `scribe` | Write evidence-bound runbooks, resolved-incident postmortems, and approved service/application/alert knowledge | Local document writer with no shell, web, external MCP, or delegation authority |
 | `software-engineer` | Build, fix, refactor, and test code or operations tooling | Routes requested or risk-triggered review to `reviewer`, operational docs to `scribe`, and sanitized public lookups to `researcher` |

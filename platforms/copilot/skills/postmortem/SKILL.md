@@ -4,7 +4,7 @@ description: >-
   Apply the standard blameless postmortem structure after the scribe agent selects postmortem mode,
   or when a user explicitly invokes this skill. Covers the resolved incident, systemic causes,
   timeline, detection, response, and owned action items. Direct retrospective writing belongs to
-  scribe; active incidents route to sre-assistant and incident-command. Triggers:
+  scribe; active incidents route to incident-investigation and incident-command. Triggers:
   "postmortem mode selected", "apply the postmortem structure", "use the postmortem template".
 argument-hint: "[the resolved incident]"
 ---

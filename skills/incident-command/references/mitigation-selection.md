@@ -41,7 +41,9 @@ rollback.
 3. **One change at a time.** Then have the typed `observability-engineer` or named human watch the
    golden signals for 1–2 minutes before another action, so the response can attribute the result.
 4. **Restart is not root-cause closure.** If restart restores service, preserve the leak, poison
-   input, or dependency hypothesis and continue investigation with the typed `sre-assistant` agent.
+   input, or dependency hypothesis and continue investigation with the human on-call, advised by
+   `incident-investigation` (dispatching the typed `sre-assistant` agent for a bounded read-only
+   slice).
 5. **Record every decision and result in UTC** in the IC-owned timeline.
 6. **Confirm before executing.** The packet names the exact target, change, command, blast radius,
    verification window, rollback, human executor, and approving decider. It also records the
@@ -56,6 +58,7 @@ artifact, and every destructive or access-path action, remain on the full gate w
 recovery evidence.
 
 After mitigation, confirm user impact has ended but keep the incident open through the sustained
-recovery window. The typed `sre-assistant` agent continues root-cause work, the human release owner owns any
-fix-forward execution, and the typed `observability-engineer` owns recovery evidence and detection
-changes.
+recovery window. The human on-call continues root-cause work with `incident-investigation`
+(dispatching the typed `sre-assistant` agent for a bounded read-only slice), the human release
+owner owns any fix-forward execution, and the typed `observability-engineer` owns recovery evidence
+and detection changes.

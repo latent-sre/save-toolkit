@@ -71,7 +71,9 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   read-only evidence slice: its description now describes a dispatched bounded read and excludes
   the responder's own triage phrasing, which the `incident-investigation` advisor owns. Body cut
   from 20.0 KB to about 14 KB with sustained response, the tiers table, the closeout boundary, and
-  the on-demand skill list removed.
+  the on-demand skill list removed. The always-loaded descriptions of five agents and six skills
+  now send an active incident to `incident-investigation` and name `sre-assistant` only for a
+  dispatched read.
 - Added the self-sustaining-mechanism pattern and the two-incidents-are-not-one-cause rule to the
   `incident-investigation` advisor: a check for whether load on the dependency fell when the
   trigger was removed, and a caution against merging two differentials without a mechanism

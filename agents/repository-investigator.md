@@ -5,9 +5,9 @@ description: >-
   or configuration is defined, trace call sites and data flow, explain how this repository works,
   compare local files, or verify private or uncommitted implementation. It returns cited file:line
   evidence and does not modify anything. Not for reviewing a change or giving a merge verdict (use
-  save-toolkit:reviewer), implementing a fix (use save-toolkit:software-engineer), investigating a live incident (use
-  save-toolkit:sre-assistant), or researching external docs, upstream code, packages, or versions (use
-  save-toolkit:researcher).
+  save-toolkit:reviewer), implementing a fix (use save-toolkit:software-engineer), investigating a
+  live incident (load the incident-investigation skill), or researching external docs, upstream
+  code, packages, or versions (use save-toolkit:researcher).
 tools: Read, Grep, Glob
 ---
 

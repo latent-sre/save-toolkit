@@ -85,6 +85,7 @@ Hand the reviewed alert definition and target-validation gaps to the `observabil
 formula and exact query evidence, target/window, selected long/short pair, both measured burns, rule
 source and UID, labels, notification route, runbook URL, no-data/error behavior, test evidence, and
 every remaining `[unverified]` item. If a signal represents current user impact or unknown cause, hand
-the time-bounded evidence to the `sre-assistant` agent; alert design does not investigate the live incident.
+the time-bounded evidence to the responder with `incident-investigation` (dispatching `sre-assistant`
+only for a bounded read); alert design does not investigate the live incident.
 Redact sensitive label and tag values from query evidence before it enters the packet; prefer an
 access-controlled link plus the smallest necessary excerpt.

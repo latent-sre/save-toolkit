@@ -843,7 +843,7 @@ _INCIDENT_COMMAND_DISCOVERY_RESPONSE = (
     "Incident declared.\n"
     "Provisional severity: P1\n"
     "Incident commander: Morgan\n"
-    "Investigation lead: sre-assistant\n"
+    "Investigation lead: on-call SRE (incident-investigation)\n"
     "Operations/remediation owner: Taylor, human release owner\n"
     "Communications/timeline owner: Casey\n"
     "Timeline (UTC): 15:05 - incident declared and roles assigned\n"
@@ -854,7 +854,7 @@ _INCIDENT_COMMAND_DISCOVERY_RESPONSE = (
 _INCIDENT_COMMAND_CANONICAL_STATUS_RESPONSE = (
     "Incident declared. Provisional classification follows.\n"
     "Incident: Checkout   **Severity:** P1   Status: investigating\n"
-    "Roles: **IC=**Morgan   Investigation=sre-assistant   Ops=Taylor (human release owner)   "
+    "Roles: **IC=**Morgan   Investigation=on-call SRE   Ops=Taylor (human release owner)   "
     "Comms/Timeline=Casey\n"
     "**Timeline (UTC):** 15:05 - incident declared and roles assigned\n"
     "**Next update:** 15:20 UTC\n"
@@ -873,7 +873,7 @@ _INCIDENT_COMMAND_INCOMPLETE_RESPONSES = {
         "Incident commander: Morgan\n", "Incident commander: TBD\n"
     ),
     "missing investigation owner": _INCIDENT_COMMAND_DISCOVERY_RESPONSE.replace(
-        "Investigation lead: sre-assistant\n", ""
+        "Investigation lead: on-call SRE (incident-investigation)\n", ""
     ),
     "missing human operations owner": _INCIDENT_COMMAND_DISCOVERY_RESPONSE.replace(
         "Operations/remediation owner: Taylor, human release owner\n",

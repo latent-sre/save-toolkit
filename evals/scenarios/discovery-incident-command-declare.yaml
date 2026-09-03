@@ -7,7 +7,7 @@ prompt: |
   investigate the technical cause and do not execute a mitigation.
 success_criteria:
 - Invokes incident-command for declaration, severity, roles, timeline, and communications
-- Keeps technical diagnosis with sre-assistant and every production effect with a human
+- Keeps technical diagnosis with the responder and incident-investigation, and every production effect with a human
 target:
   kind: skill
   name: incident-command

@@ -1,6 +1,6 @@
 ---
 name: software-engineer
-description: "Build, fix, refactor, and test code and operations tooling — backend services, APIs, CLIs, automation, operator web UIs — end to end in the language the repository already uses, shipped with its operational surface (logs, timeouts, dry-run, tests). Triggers: \"implement\", \"build\", \"add this feature\", \"fix this bug\", \"refactor\", \"write tests for this\". For Grafana dashboards, alert rules, or SLOs use save-toolkit:observability-engineer; for a firing alert or live incident use save-toolkit:sre-assistant; for runbooks or postmortems use save-toolkit:scribe. A production deploy is prepared here and executed by the human release owner."
+description: "Build, fix, refactor, and test code and operations tooling — backend services, APIs, CLIs, automation, operator web UIs — end to end in the language the repository already uses, shipped with its operational surface (logs, timeouts, dry-run, tests). Triggers: \"implement\", \"build\", \"add this feature\", \"fix this bug\", \"refactor\", \"write tests for this\". For Grafana dashboards, alert rules, or SLOs use save-toolkit:observability-engineer; for a firing alert or live incident load the incident-investigation skill; for runbooks or postmortems use save-toolkit:scribe. A production deploy is prepared here and executed by the human release owner."
 tools: Read, Grep, Glob, Bash, Edit, Write, Skill, Agent(reviewer, scribe, researcher)
 ---
 # Software Engineer
