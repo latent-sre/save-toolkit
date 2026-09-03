@@ -7,6 +7,11 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Added
 
+- Added `archive/incident-autonomy/`: byte-exact copies of the `sre` agent, its VS Code
+  projection, `investigation-depth`, the two sustained-response scenarios, and the three rubrics
+  with their 35 calibration cases, plus twelve restore patches and a README with the restore
+  steps. Measured in [the incident-lane fold evidence](docs/reviews/2026-09-03-incident-lane-fold-evidence.md)
+  and decided in [the advisor-and-hands ADR](docs/decisions/2026-09-03-incident-lane-advisor-and-hands.md).
 - Added `incident-investigation`, the human-facing troubleshooting advisor a responder runs in
   their own session. Every turn puts the loop on the first screen: what is known now, two or three
   ranked candidate causes with evidence for and against, the one check whose results separate them
@@ -58,6 +63,10 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- The eval runner no longer voids a routing verdict for a runtime refusal inside the subagent the
+  main session dispatched: the verdict is the dispatch, which had already happened. The rule lives
+  in `runtime_blocked_tools`, a regrade re-derives it from the raw trace, and the evals ceiling
+  rises 8,600 to 8,700 lines for the fix and its four tests.
 - Rewrote the `sre-assistant` agent body (renamed from `sre`) around a single dispatched, bounded,
   read-only evidence slice: its description now describes a dispatched bounded read and excludes
   the responder's own triage phrasing, which the `incident-investigation` advisor owns. Body cut
