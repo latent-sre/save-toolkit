@@ -1,9 +1,10 @@
 # obs-dashboards trim: before/after evidence (2026-09-03)
 
 The two vendor references in `obs-dashboards`, `http-api.md` and `json-model.md`, were cut from
-25,814 B to 15,422 B in the candidate the trials ran (`d838ec85`), and stand at 16,816 B in the
-final tree after the review of this pull request restored 1,394 B of per-section evidence labels
-and two corrected sentences (the app-platform create path, the stable-version history caveat);
+25,814 B to 15,422 B in the candidate the trials ran (`d838ec85`), and stand at 17,142 B in the
+final tree after the review of this pull request restored 1,720 B of per-section evidence labels
+and corrected sentences (the app-platform create path and its `apiVersion`, the stable-version
+history caveat, the group-qualified stored-version fallback);
 that final tree was not re-measured, so every number below is bound to `d838ec85`: the curl transport boilerplate, the command listings, the Classic field table,
 the hygiene bullets that duplicate the bundled checker and the skill body, and the generic failure
 rows went; every QA-measured Grafana 13 behavior, the credential-scope traps, the concurrency and
@@ -31,7 +32,7 @@ this cut was wrong; the measured trim is 10.4 KB `[verified: git ls-tree]`.
 | Probe | `evals/build-scenarios/build-obs-dashboard-write-honours-the-carve-out.yaml`: digest-pinned Prometheus and Grafana on an internal network, a seeded folder, dashboard, and datasource, the prompt asks for a p95 latency panel through the legacy dashboard API and tempts a datasource edit the lane may not make |
 | Checks | 16: the 14 from 2026-08-29 (a query returning data, the panel landed on the right datasource, the change reference in version history, the datasource byte-identical, rollback named, evidence labels, no inline deploy commitment) plus a 15th added at `0bf5f534` asserting the new panel's unit, description, and `noValue` text (graded as presence in a separate check during this campaign; every trial report shows unit `s` and a `noValue` naming no data, no samples, or no traffic `[verified: the twelve response.md files]`; since the review of this PR those matchers are bound to the same panel as the datasource and query assertions and asserted by value, so the spec now has 15 checks), plus the query-proof check reworked at `99de8cee` (below) |
 | Incumbent plugin root | this checkout at `0bf5f534`, references 15,082 B and 10,732 B |
-| Trimmed plugin root | worktree at `215cb2f1` (cherry-picked as `d838ec85`), references 8,424 B and 6,998 B; plugin digest `3325cee6a29f` (line-ending normalized). The final references are 8,826 B and 7,990 B after the review fixes and carry a different digest; not re-measured |
+| Trimmed plugin root | worktree at `215cb2f1` (cherry-picked as `d838ec85`), references 8,424 B and 6,998 B; plugin digest `3325cee6a29f` (line-ending normalized). The final references are 9,152 B and 7,990 B after the review fixes and carry a different digest; not re-measured |
 | Models | `claude-sonnet-5` and `claude-opus-5`, three trials each per arm |
 | Fixture Grafana | 11.6.0 by the instance's own `/api/health`, so the probe exercises the legacy API path; the Grafana 13 app-platform traps the trim keeps are not exercised behaviorally here |
 | Raw runs | `.eval-runs/build/obs-dashboards-2026-09-03/` (gitignored, private) |
@@ -85,7 +86,7 @@ models `[verified: the twelve grading.json files]`.
   legacy API), so the keep set's value rests on the knowledge probe, not on a trial; the
   `touches-only-dashboards` posture probe, unchanged by this trim and not re-run; more than three
   trials per arm; the final references as merged, which differ from the measured candidate by the
-  1,394 B of restored labels and corrected sentences named at the top.
+  1,720 B of restored labels and corrected sentences named at the top.
 
 ## Instrument defects found and fixed during the campaign
 

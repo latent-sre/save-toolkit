@@ -1111,6 +1111,7 @@ class ReviewFindingTests(unittest.TestCase):
             "write_path": "/api/dashboards/db",
             "metric": "checkout_request_duration_seconds_bucket",
             "function": "histogram_quantile",
+            "min_window_seconds": 4,  # the fixture scrapes every second; the reference wants four intervals
         }
         service.requests = [
             {
@@ -1137,6 +1138,9 @@ class ReviewFindingTests(unittest.TestCase):
             "histogram_quantile(0.95, rate(checkout_request_duration_seconds_bucket[$__rate_interval]))")
         self.assertTrue(build_probe.check_grafana_query_succeeded(ctx, check)[0],
                         "a concrete window substituted for $__rate_interval is the same query")
+        service.requests[1]["request"]["queries"][0]["expr"] = "histogram_quantile(0.95, rate(checkout_request_duration_seconds_bucket[1s]))"
+        self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0], "a [1s] substitute is under the four-scrape minimum")
+        service.requests[1]["request"]["queries"][0]["expr"] = "histogram_quantile(0.95, rate(checkout_request_duration_seconds_bucket[5m]))"
         for window in ("[1s]", "[$__interval]"):  # another concrete window, or the window the checker rejects
             write["request"]["dashboard"]["panels"][0]["targets"][0]["expr"] = f"histogram_quantile(0.95, rate(checkout_request_duration_seconds_bucket{window}))"
             self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0], f"{window} is not proven by [5m]")

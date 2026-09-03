@@ -63,8 +63,8 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
-- `obs-dashboards`: `http-api.md` and `json-model.md` cut from 25,814 B to 16,816 B (15,422 B in the
-  measured candidate; the review restored labels and two sentences afterwards), keeping every
+- `obs-dashboards`: `http-api.md` and `json-model.md` cut from 25,814 B to 17,142 B (15,422 B in the
+  measured candidate; the review restored labels and four sentences afterwards), keeping every
   QA-measured Grafana 13 behavior and dropping the transport boilerplate and what a tools-off probe
   showed both models already carry. The measured candidate scored 15/15 on the comparable checks in
   every trial on Sonnet and Opus with 15 to 18 percent fewer tokens; see

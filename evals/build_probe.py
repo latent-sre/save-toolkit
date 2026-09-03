@@ -1772,6 +1772,7 @@ def check_grafana_query_succeeded(ctx: Context, p: dict) -> tuple[bool, str]:
     write_path = str(p["write_path"])
     metric = str(p["metric"]).lower()
     function = str(p["function"]).lower()
+    minimum_seconds = float(p.get("min_window_seconds") or 0)  # the reference's four scrape intervals
     writes = [entry for entry in service.requests
               if entry.get("method") == "POST" and entry.get("path") == write_path]
     if not writes:
@@ -1785,16 +1786,18 @@ def check_grafana_query_succeeded(ctx: Context, p: dict) -> tuple[bool, str]:
         return re.sub(r"\s+", "", expression).lower()
 
     def same_query(persisted: str, verified: str) -> bool:
-        """Equal, or every `[$__rate_interval]` replaced by ONE concrete window; other windows do not count."""
+        """Equal, or every `[$__rate_interval]` replaced by ONE concrete window no shorter than
+        `min_window_seconds`; other windows do not count."""
         p, v = canon(persisted), canon(verified)
         if p == v:
             return True
         parts = p.split("[$__rate_interval]")
         if len(parts) < 2:
             return False
-        window = r"(\[[0-9]+(?:ms|s|m|h|d|w|y)\])"
-        pattern = re.escape(parts[0]) + window + re.escape(parts[1]) + "".join(r"\1" + re.escape(part) for part in parts[2:])
-        return re.fullmatch(pattern, v) is not None
+        pattern = re.escape(parts[0]) + r"\[([0-9]+)(ms|s|m|h|d|w|y)\]" + re.escape(parts[1]) + "".join(r"\[\1\2\]" + re.escape(part) for part in parts[2:])
+        match = re.fullmatch(pattern, v)
+        unit = {"ms": 0.001, "s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800, "y": 31536000}
+        return match is not None and int(match.group(1)) * unit[match.group(2)] >= minimum_seconds
 
     def persisted_on_p95_panel(expression: str) -> bool:
         body = write.get("request")
