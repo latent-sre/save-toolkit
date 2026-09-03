@@ -87,3 +87,76 @@ class TrackedFilesOnlyTests(unittest.TestCase):
         ).stdout.split("\0")
         expected = sum((check_weight.ROOT / n).stat().st_size for n in tracked if n)
         self.assertEqual(expected, check_weight.measure()["skills_bytes"])
+
+    def _git(self, cwd: Path, *args: str) -> None:
+        import subprocess
+        subprocess.run(["git", "-C", str(cwd), *args], check=True, capture_output=True, text=True)
+
+    def _init_toolkit(self, root: Path, commit: bool = True) -> None:
+        import subprocess
+        (root / "skills").mkdir(parents=True, exist_ok=True)
+        (root / "evals").mkdir(parents=True, exist_ok=True)
+        (root / "agents").mkdir(parents=True, exist_ok=True)
+        subprocess.run(["git", "-C", str(root), "init", "-q"], check=True)
+
+    def test_unstaged_deletion_of_a_committed_file_counts_only_what_remains(self) -> None:
+        """Codex review of #223: git ls-files lists the index, not the working tree."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._init_toolkit(root)
+            (root / "skills" / "s").mkdir(parents=True)
+            (root / "skills" / "s" / "SKILL.md").write_text("x" * 100, encoding="utf-8")
+            (root / "skills" / "s" / "other.md").write_text("y" * 50, encoding="utf-8")
+            self._git(root, "add", "skills")
+            self._git(root, "commit", "-q", "-m", "seed")
+            (root / "skills" / "s" / "SKILL.md").unlink()  # unstaged deletion
+            self.assertEqual(50, check_weight.measure(root)["skills_bytes"])
+
+    def test_unstaged_rename_counts_neither_old_nor_new_path(self) -> None:
+        """Codex review of #223: a rename without `git add` leaves the old cached path absent and
+        the new path untracked, so it should count zero, not raise."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._init_toolkit(root)
+            (root / "skills" / "s").mkdir(parents=True)
+            (root / "skills" / "s" / "SKILL.md").write_text("x" * 100, encoding="utf-8")
+            self._git(root, "add", "skills")
+            self._git(root, "commit", "-q", "-m", "seed")
+            (root / "skills" / "s" / "SKILL.md").unlink()
+            (root / "skills" / "s" / "RENAMED.md").write_text("x" * 100, encoding="utf-8")
+            self.assertEqual(0, check_weight.measure(root)["skills_bytes"])
+
+    def test_untracked_copy_inside_an_enclosing_repository_falls_back_to_filesystem(self) -> None:
+        """Codex review of #223: a Git-less copy of the toolkit sitting untracked inside another
+        repository must not be measured by that enclosing repository's (empty) `ls-files`."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            outer = Path(tmp)
+            self._git(outer, "init", "-q")
+            root = outer / "toolkit"
+            (root / "skills" / "s").mkdir(parents=True)
+            (root / "evals").mkdir(parents=True)
+            (root / "agents").mkdir(parents=True)
+            (root / "skills" / "s" / "SKILL.md").write_text("x" * 100, encoding="utf-8")
+            (root / "agents" / "x.md").write_text("a" * 30, encoding="utf-8")
+            (root / "evals" / "t.py").write_text("print(1)\nprint(2)\n", encoding="utf-8")
+            # Deliberately not added to the outer repo: an untracked subtree.
+            measured = check_weight.measure(root)
+            self.assertEqual(100, measured["skills_bytes"])
+            self.assertEqual(30, measured["agents_bytes"])
+            self.assertEqual(2, measured["evals_python_lines"])
+
+    def test_agents_total_is_top_level_only(self) -> None:
+        """The documented metric is `agents/*.md`; a tracked file under a subdirectory is not it."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._init_toolkit(root)
+            (root / "agents" / "sub").mkdir(parents=True)
+            (root / "agents" / "x.md").write_text("a" * 40, encoding="utf-8")
+            (root / "agents" / "sub" / "y.md").write_text("b" * 999, encoding="utf-8")
+            self._git(root, "add", "agents")
+            self._git(root, "commit", "-q", "-m", "seed")
+            self.assertEqual(40, check_weight.measure(root)["agents_bytes"])
