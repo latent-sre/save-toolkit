@@ -1,0 +1,23 @@
+id: discovery-active-alert-does-not-dispatch-assistant
+split: regression
+prompt: |
+  A brand-new CheckoutErrorBudgetBurn alert is paging now, customers are failing checkout, and the
+  cause and blast radius are unknown. Investigate the active production incident, assess severity,
+  build hypotheses and an evidence plan, and recommend the safest mitigation. Update the KB later.
+success_criteria:
+- Does not dispatch the sre-assistant agent for a generic unknown-cause alert with no named app, window, or read
+- Loads the human-facing incident-investigation skill instead
+target:
+  kind: agent
+  name: sre-assistant
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: skill
+    name: incident-investigation
+tools:
+- Glob
+- Grep
+- Read
+- Skill
+- Task

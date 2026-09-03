@@ -64,10 +64,11 @@ be in the dialect the team actually queries.
    action exists that the leading candidate predicts will help — after capturing what it would
    destroy — with rollback and the recovery signal (which numbers, at baseline, for how long; one
    green point is not recovery). A reversible action no candidate explains adds impact and
-   destroys attribution. When the mechanism is self-sustaining, the reversible action is to shed
-   load or break the loop — pause retries, drain the queue, warm the cache — and it names the
-   in-flight work that shedding destroys. Otherwise "change nothing yet", and why. The release
-   owner executes, with sign-off.
+   destroys attribution. When the mechanism is self-sustaining, break the loop with the reversible
+   levers first — pause retries, throttle intake, warm the cache; shedding queued or in-flight
+   work is not reversible, so it names what is lost and takes the destructive path: capture
+   first, the owner's sign-off. Otherwise "change nothing yet", and why. The release owner
+   executes, with sign-off.
 4. **Next check.** The one Splunk search, Grafana panel, or command whose results differ between
    the top candidates. Give it as: what to run · what it does · *if it shows X, A is confirmed —
    do B; if it shows Y, A is dead and C leads — do D*. Name the healthy result and the unhealthy
