@@ -158,10 +158,11 @@ Process step 1. The Opus arm was stopped by the maintainer after three trials.
 - **The install step is the remaining flaky link**: followed 3 times in 8. It sits after the
   house-contract table; the trials that skipped it read the table and built from that.
 
-Decision: the assets stay. Next change, unmeasured: make the install step the first thing in the
-skill body, before the table, and name the contract test as the acceptance criterion in
-`software-engineer`'s "Verifiable goals" bullet, so the step is reached from the agent body as
-well as from the skill. Re-measure with this probe, five and five.
+Decision: the assets stay. That next change landed in the following commit and is **still
+unmeasured**: the install step is now the first thing in the skill body, before the table, and
+`software-engineer`'s "Verifiable goals" bullet names the contract test as the acceptance
+criterion, so the step is reached from the agent body as well as from the skill. No trial has run
+against it. Re-measure with this probe, five and five.
 
 ## Not measured
 

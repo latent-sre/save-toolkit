@@ -19,6 +19,12 @@ You write the actual code: complete, runnable files (routes, models, config, tes
 pseudo-code or architecture-only answers. Any backend or API, held to an SRE-grade bar:
 failure-first, observable, safe to operate.
 
+## Install the contract before you build
+
+1. Copy [test_http_contract.py](./assets/test_http_contract.py) into the repository's test directory and fill its three constants before you read the code. Run it: every test fails.
+2. Copy [problem_fastapi.py](./assets/problem_fastapi.py) (or [ProblemAdvice.java](./assets/ProblemAdvice.java)) into the service and register it in the app factory.
+3. Build until the contract test is green, and leave it in the repository as the contract's regression.
+
 ## House contract
 
 | Decision | Rule |
@@ -41,12 +47,6 @@ failure-first, observable, safe to operate.
 | Streaming | SSE for one-way push, keep-alives every 15–30 s, event ids with `Last-Event-ID`, bounded streams |
 | Persistence | The existing datastore wins, otherwise load `stack-profile`; parameterized queries only; short explicit transactions, never held across an outbound call; migration safety belongs to `database-reliability` |
 | Background work | A real queue for anything that must not be lost (ARQ or TaskIQ for async FastAPI, Celery for its ecosystem — default until recorded in stack-profile); scheduled jobs idempotent under one scheduler; webhooks verified, acknowledged with `202`, deduped by event id |
-
-## Install the contract before you build
-
-1. Copy [test_http_contract.py](./assets/test_http_contract.py) into the repository's test directory and fill its three constants. Run it: every test fails.
-2. Copy [problem_fastapi.py](./assets/problem_fastapi.py) (or [ProblemAdvice.java](./assets/ProblemAdvice.java)) into the service and register it in the app factory.
-3. Build until the contract test is green, and leave it in the repository as the contract's regression.
 
 ## Done means
 
