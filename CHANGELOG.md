@@ -70,8 +70,8 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   every trial on Sonnet and Opus with 15 to 18 percent fewer tokens; see
   [the obs-dashboards trim evidence](docs/reviews/2026-09-03-obs-dashboards-trim-evidence.md).
 - Two graders were stricter than the contract they grade and are fixed: the dashboard query-proof
-  check accepts the proof at any point in the trial and treats a substituted range window as the
-  same query; the `no_inline_deploy_commitment` rubric names the observability-engineer's dashboard
+  check requires the proof after the write, as the skill's verify step does, and treats a concrete
+  window substituted for `$__rate_interval` as the same query; the `no_inline_deploy_commitment` rubric names the observability-engineer's dashboard
   write as that lane's permitted apply (29/29 on calibration). The carve-out probe also grades the
   new panel's unit, description, and `noValue` text.
 - The eval runner no longer voids a routing verdict for a runtime refusal inside the subagent the

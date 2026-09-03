@@ -1794,9 +1794,9 @@ def check_grafana_query_succeeded(ctx: Context, p: dict) -> tuple[bool, str]:
         p, v = canon(persisted), canon(verified)
         if p == v:
             return True
-        if "$__rate_interval" not in p and "$__interval" not in p:
+        if "$__rate_interval" not in p:  # `$__interval` is not the skill's window and does not count
             return False
-        return (re.sub(r"\[\$__(?:rate_)?interval\]", "[w]", p)
+        return (re.sub(r"\[\$__rate_interval\]", "[w]", p)
                 == re.sub(r"\[[0-9]+(?:ms|s|m|h|d|w|y)\]", "[w]", v))
 
     def persisted_on_p95_panel(expression: str) -> bool:
