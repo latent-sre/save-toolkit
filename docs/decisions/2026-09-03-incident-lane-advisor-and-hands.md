@@ -56,3 +56,10 @@ signals in Splunk, Wavefront, Grafana, or Apps Manager.
 - Seven skill descriptions changed by the agent's name token only, and `eng-ladder`'s exclusion
   points at the advisor; neither had an after-run beyond the four incident scenarios.
 - The catalogue is 25 skills; the agent's incident context path fell from 89 KB to 72 KB.
+- Routing a responder's generic incident ask to the advisor puts pasted, attacker-controllable
+  evidence in the main session, whose Bash the read-only guard does not scope and whose
+  credential tripwire exempts the main loop by design (`scripts/readonly-guard.py`, "the fleet
+  has no standing to gate a human's own terminal"). The advisor runs nothing and treats pastes
+  as data, and the host's permission mode decides whether a Bash call needs the responder's
+  approval. Extending the credential tripwire to the main loop, or scoping the advisor's turn
+  with a host-specific `disallowed-tools` key, are owner calls recorded here as open.

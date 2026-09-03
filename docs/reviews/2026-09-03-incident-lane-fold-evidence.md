@@ -48,6 +48,12 @@ Main session with `Skill` and `Task`, three trials each, on the branch.
 | `discovery-active-alert-stays-with-advisor` | `scribe` does not fire; the advisor is the alternative | 3/3 |
 | `discovery-sre-assistant-dispatched-read` | the agent fires for a dispatched bounded read | 3/3 (one live pass, two regraded after the instrument fix; all three traces show the dispatch) |
 
+The active-alert scenario asserts only that `scribe` stays silent and the advisor loads; a
+companion scenario, `discovery-active-alert-does-not-dispatch-assistant`, now asserts that the
+agent is not dispatched for the same prompt. It has not been run; the six active-alert traces on
+disk (three before the review fixes, three after) show `incident-investigation` loaded and no
+agent dispatched in every trial, which is what it grades.
+
 The staging row is the number this change was for. Before it, the same phrasing routed to the
 agent by design, and the maintainer's 2026-09-02 session measured the advisor firing zero times in
 seven on Sonnet for a new SRE's plain ask while the agent competed for it. That earlier figure is
