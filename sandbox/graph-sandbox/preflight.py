@@ -48,6 +48,7 @@ MAX_CPUS = 2.0
 MAX_MEMORY_BYTES = 512 * 1024 * 1024
 MAX_PIDS = 128
 MAX_RUN_SECONDS = 900
+CHECKOUT_SEARCH_DEPTH = 4
 OWNER_LABEL_PREFIX = "com.latent-sre.graph-sandbox"
 ALLOWED_ENVIRONMENT_NAMES = frozenset(
     {
@@ -271,6 +272,12 @@ class RepositoryLayout:
     build_compose_file: Path
     images_lock: Path
 
+    @property
+    def archive_root(self) -> Path:
+        """``git archive`` names members relative to its own working directory."""
+
+        return self.sandbox_root.parent
+
 
 @dataclass(frozen=True)
 class SandboxCase:
@@ -403,20 +410,28 @@ def validate_local_context(
     return ContextIdentity(context_name, endpoint, fingerprint)
 
 
+def _checkout_root(sandbox_root: Path) -> Path:
+    """Nearest ancestor that is the checkout itself, whatever depth the sandbox sits at."""
+
+    for candidate in list(sandbox_root.parents)[:CHECKOUT_SEARCH_DEPTH]:
+        if (candidate / ".git").exists() and (candidate / "AGENTS.md").is_file():
+            _reject_path_indirection(candidate)
+            return candidate
+    raise PreflightError("layout.repository: script is outside the expected checkout")
+
+
 def trusted_layout(script_path: Path) -> RepositoryLayout:
     script = Path(os.path.abspath(script_path))
     _reject_path_indirection(script)
     if not script.is_file():
         raise PreflightError("layout.script: trusted entrypoint is not a regular file")
     sandbox_root = script.parent
-    repository_root = sandbox_root.parent
+    repository_root = _checkout_root(sandbox_root)
     required = {
         "compose_file": sandbox_root / "compose.yaml",
         "build_compose_file": sandbox_root / "compose.build.yaml",
         "images_lock": sandbox_root / "images.lock.json",
     }
-    if not (repository_root / ".git").exists() or not (repository_root / "AGENTS.md").is_file():
-        raise PreflightError("layout.repository: script is outside the expected checkout")
     for label, path in required.items():
         _reject_path_indirection(path)
         if not path.is_file():

@@ -165,6 +165,7 @@ def prepare_git_snapshot(
     source_revision: str,
     destination: Path,
     *,
+    archive_root: Path,
     runner=run_process,
     environ: Mapping[str, str] | None = None,
 ) -> Path:
@@ -182,7 +183,7 @@ def prepare_git_snapshot(
         [
             "git",
             "-C",
-            str(repository_root),
+            str(archive_root),
             "archive",
             "--format=tar",
             source_revision,
@@ -251,6 +252,7 @@ def build_and_lock(
             layout.repository_root,
             source_revision,
             Path(temporary) / "snapshot",
+            archive_root=layout.archive_root,
             runner=runner,
             environ=ambient,
         )

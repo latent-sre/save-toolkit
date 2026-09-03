@@ -4,6 +4,11 @@ from pathlib import Path
 
 
 SANDBOX_ROOT = Path(__file__).resolve().parents[1]
+REPOSITORY_ROOT = next(
+    parent
+    for parent in SANDBOX_ROOT.parents
+    if (parent / ".git").exists() and (parent / "AGENTS.md").is_file()
+)
 sys.path.insert(0, str(SANDBOX_ROOT))
 
 from interop_sandbox import dependency_probe
@@ -52,7 +57,7 @@ class DependencyProbeTests(unittest.TestCase):
         }
         repository_pins = {
             line
-            for line in (SANDBOX_ROOT.parent / "requirements-dev.txt")
+            for line in (REPOSITORY_ROOT / "requirements-dev.txt")
             .read_text(encoding="utf-8")
             .splitlines()
             if line and not line.startswith("#")

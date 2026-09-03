@@ -177,23 +177,34 @@ class ContextBoundaryTests(unittest.TestCase):
 
 
 class TrustedLayoutTests(unittest.TestCase):
-    def test_repository_layout_is_derived_and_reparse_ancestors_are_rejected(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            repository = Path(temporary) / "repo"
-            sandbox = repository / "graph-sandbox"
-            sandbox.mkdir(parents=True)
+    @staticmethod
+    def build_tree(temporary: str, *, relative: str, checkout: bool = True) -> tuple[Path, Path]:
+        """Lay out ``<temporary>/repo/<relative>/activate.py`` as the real checkout does."""
+
+        repository = Path(temporary) / "repo"
+        sandbox = repository.joinpath(*relative.split("/"))
+        sandbox.mkdir(parents=True)
+        if checkout:
             (repository / ".git").mkdir()
             (repository / "AGENTS.md").write_text("# test\n", encoding="utf-8")
-            script = sandbox / "activate.py"
-            for path in (
-                script,
-                sandbox / "compose.yaml",
-                sandbox / "compose.build.yaml",
-                sandbox / "images.lock.json",
-            ):
-                path.write_text("{}\n", encoding="utf-8")
+        script = sandbox / "activate.py"
+        for path in (
+            script,
+            sandbox / "compose.yaml",
+            sandbox / "compose.build.yaml",
+            sandbox / "images.lock.json",
+        ):
+            path.write_text("{}\n", encoding="utf-8")
+        return repository, script
+
+    def test_repository_layout_is_derived_and_reparse_ancestors_are_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            repository, script = self.build_tree(temporary, relative="sandbox/graph-sandbox")
+            sandbox = script.parent
             layout = trusted_layout(script)
             self.assertEqual(layout.repository_root, repository)
+            self.assertEqual(layout.sandbox_root, sandbox)
+            self.assertEqual(layout.archive_root, repository / "sandbox")
             real_check = __import__("preflight")._is_link_or_junction
             with mock.patch(
                 "preflight._is_link_or_junction",
@@ -201,6 +212,23 @@ class TrustedLayoutTests(unittest.TestCase):
             ):
                 with self.assertRaisesRegex(PreflightError, "reparse point"):
                     trusted_layout(script)
+
+    def test_checkout_root_is_found_at_any_supported_depth(self) -> None:
+        for relative in ("graph-sandbox", "sandbox/graph-sandbox"):
+            with self.subTest(relative=relative):
+                with tempfile.TemporaryDirectory() as temporary:
+                    repository, script = self.build_tree(temporary, relative=relative)
+                    layout = trusted_layout(script)
+                    self.assertEqual(layout.repository_root, repository)
+                    self.assertEqual(layout.archive_root, script.parent.parent)
+
+    def test_tree_without_a_qualifying_ancestor_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            _, script = self.build_tree(
+                temporary, relative="sandbox/graph-sandbox", checkout=False
+            )
+            with self.assertRaisesRegex(PreflightError, "layout.repository"):
+                trusted_layout(script)
 
 
 class RuntimeRevisionTests(unittest.TestCase):
@@ -581,7 +609,11 @@ class SnapshotTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             with self.assertRaisesRegex(SnapshotError, "changed during snapshot"):
                 prepare_git_snapshot(
-                    Path(temporary), SOURCE_REVISION, Path(temporary) / "snapshot", runner=runner
+                    Path(temporary),
+                    SOURCE_REVISION,
+                    Path(temporary) / "snapshot",
+                    archive_root=Path(temporary) / "sandbox",
+                    runner=runner,
                 )
 
 
