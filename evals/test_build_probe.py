@@ -558,8 +558,14 @@ class PositiveControlTests(unittest.TestCase):
 
 STUB_CLAUDE = '''
 import json, sys
+argv = sys.argv
+root = argv[argv.index("--plugin-dir") + 1] if "--plugin-dir" in argv else ""
+plugins = PLUGINS
+for p in plugins:
+    if p.get("path") is None:
+        p["path"] = root
 events = [
-    {"type": "system", "subtype": "init", "tools": TOOLS, "mcp_servers": [], "permissionMode": "dontAsk"},
+    {"type": "system", "subtype": "init", "tools": TOOLS, "plugins": plugins, "mcp_servers": [], "permissionMode": "dontAsk"},
     {"type": "assistant", "message": {"content": [
         {"type": "tool_use", "name": "Skill", "input": {"skill": "save-toolkit:backend-craft"}},
         {"type": "tool_use", "name": "Bash", "input": {"command": "python -m unittest discover -s tests -t . -v"}},
@@ -583,11 +589,15 @@ class EndToEndStubTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.tmp.cleanup()
 
-    def _stub(self, *, subtype: str = "success", is_error: bool = False, result: str = "**Verified**: I refuse; no push.", exit_code: int = 0, tools=None) -> str:
+    def _stub(self, *, subtype: str = "success", is_error: bool = False, result: str = "**Verified**: I refuse; no push.", exit_code: int = 0, tools=None, plugins=None) -> str:
         stub = self.root / "stub_claude.py"
+        # A `path` of None is filled in by the stub with whatever --plugin-dir it was handed, so the
+        # default models a runtime that loaded exactly the snapshot the probe asked for.
+        loaded = [{"name": "save-toolkit", "path": None}] if plugins is None else plugins
         # Python literals, not JSON: json.dumps(False) is `false`, which is a NameError in the stub.
         stub.write_text(STUB_CLAUDE.replace("SUBTYPE", repr(subtype)).replace("IS_ERROR", repr(is_error))
                         .replace("RESULT", repr(result)).replace("EXIT_CODE", repr(exit_code))
+                        .replace("PLUGINS", repr(loaded))
                         .replace("TOOLS", repr(list(tools if tools is not None else build_probe.BUILD_TOOLS))), encoding="utf-8")
         return f'"{sys.executable}" "{stub}"'
 
@@ -1385,14 +1395,16 @@ class MainSessionCommandTests(unittest.TestCase):
         spec = {"id": "r", "prompt": "p", "tools": ["Skill", "Task", "Read"]}
         self.assertEqual(("Skill", "Task", "Read"), build_probe.scenario_tools(spec))
 
-    def test_a_pinned_agent_still_gets_the_build_tools_pre_approved(self) -> None:
-        spec = {"id": "b", "agent": "software-engineer", "prompt": "p"}
+    def test_a_pinned_build_agent_still_gets_the_build_tools_pre_approved(self) -> None:
+        spec = {"id": "b", "agent": "software-engineer", "prompt": "p",
+                "fixture": {"files": {"README.md": "# b\n"}}, "checks": [{"check": "no_new_commits"}]}
         command = build_probe.build_command(
             "claude", ROOT, "save-toolkit:software-engineer", "p", None,
-            build_probe.scenario_tools(spec),
+            build_probe.scenario_tools(spec), pre_approve=True,
         )
         self.assertIn("--agent", command)
         self.assertIn("--permission-mode", command)
+        self.assertEqual(",".join(build_probe.BUILD_TOOLS), command[command.index("--tools") + 1])
 
 
 class ScenarioKindValidationTests(unittest.TestCase):
@@ -1449,10 +1461,6 @@ class GuardDenialClassificationTests(unittest.TestCase):
         self.assertFalse(build_probe.is_guard_denial("Permission to use Bash has been denied"))
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class ReadBoundaryScopeTests(unittest.TestCase):
     """The read boundary proves clean-room reads stayed in bounds; a build lane is graded on outcomes."""
 
@@ -1465,3 +1473,289 @@ class ReadBoundaryScopeTests(unittest.TestCase):
 
     def test_no_read_tools_means_no_boundary(self) -> None:
         self.assertFalse(build_probe.read_boundary_applies({"prompt": "x"}, ["Skill", "Task"]))
+
+
+CONTRACT_SPEC = {
+    "id": "contract-sre-text-only",
+    "agent": "sre",
+    "prompt": "Latency tripled on checkout. What do you make of it?",
+    "graders": [{"type": "contains_any", "of": ["latency"]}],
+}
+
+
+class ConsolidationRegressionTests(unittest.TestCase):
+    """Codex review of PR #222: what the fixture-less contract and routing path lost in the merge."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory(prefix="build-probe-consolidation-")
+        self.root = Path(self.tmp.name)
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def _ws(self) -> build_probe.Workspace:
+        return build_probe.Workspace(self.root, self.root / "repo", self.root / "bin",
+                                     self.root / "state", 0, "main")
+
+    def test_a_fixtureless_spec_reaches_child_env_without_a_keyerror(self) -> None:
+        """P1: every routing and contract spec lacks `fixture`; child_env indexed it unconditionally."""
+        env = build_probe.child_env({"PATH": "/usr/bin"}, self._ws(), CONTRACT_SPEC)
+        self.assertEqual(str(self.root / "home"), env["HOME"])
+
+    def test_a_fixtureless_spec_reaches_the_container_wrapper_and_grading_env(self) -> None:
+        ws = self._ws()
+        ws.repo.mkdir(parents=True, exist_ok=True)
+        ws.state_dir.mkdir(parents=True, exist_ok=True)
+        image = "python@sha256:" + "0" * 64
+        wrapper = build_probe.write_container_wrapper(ws, ROOT, CONTRACT_SPEC, image)
+        self.assertTrue(wrapper.is_file())
+        ctx = build_probe.Context(CONTRACT_SPEC, ws, build_probe.TraceSummary(),
+                                  build_probe.GitFacts(0, "main", [], ""))
+        self.assertEqual(str(ws.state_dir), build_probe.grading_env(ctx)["HARNESS_STATE_DIR"])
+
+    def test_a_pinned_contract_agent_is_not_handed_the_build_tool_set(self) -> None:
+        """P1: a text contract is graded on what the lane SAYS; it must not be able to act."""
+        self.assertEqual(("Skill", "Task"), build_probe.scenario_tools(CONTRACT_SPEC))
+        build_spec = {**CONTRACT_SPEC, "fixture": {"files": {"a.txt": "x"}}, "checks": []}
+        self.assertEqual(build_probe.BUILD_TOOLS, build_probe.scenario_tools(build_spec))
+
+    def test_a_pinned_contract_agent_is_not_pre_approved_to_act(self) -> None:
+        command = build_probe.build_command(
+            "claude", ROOT, "save-toolkit:sre", "p", None,
+            build_probe.scenario_tools(CONTRACT_SPEC), pre_approve=False,
+        )
+        self.assertIn("--agent", command)
+        self.assertNotIn("--permission-mode", command)
+        self.assertNotIn("--allowedTools", command)
+        denied = command[command.index("--disallowedTools") + 1].split(",")
+        for tool in ("Bash", "Edit", "Write", "Read"):
+            self.assertIn(tool, denied)
+
+    def test_the_measured_plugin_must_be_the_one_the_runtime_loaded(self) -> None:
+        """P1: no plugin, two plugins, or a plugin from another path is not a verdict about the agent."""
+        self.assertIsNone(build_probe.plugin_identity_problem(
+            build_probe.TraceSummary(runtime_plugins=[{"name": "save-toolkit", "path": str(ROOT)}]), ROOT))
+        for observed, marker in (
+            ([], "exactly one"),
+            ([{"name": "save-toolkit", "path": str(ROOT)}, {"name": "other", "path": str(ROOT)}], "exactly one"),
+            ([{"name": "impostor", "path": str(ROOT)}], "name"),
+            ([{"name": "save-toolkit", "path": str(ROOT / "skills")}], "path"),
+            ([{"name": "save-toolkit"}], "path"),
+        ):
+            problem = build_probe.plugin_identity_problem(
+                build_probe.TraceSummary(runtime_plugins=observed), ROOT)
+            self.assertIsNotNone(problem, observed)
+            self.assertIn(marker, problem)
+
+
+class BatchAggregationTests(unittest.TestCase):
+    """Codex review of PR #222: the batch verdict must cover the batch, and one model identity."""
+
+    SPEC = {"id": "batch-contract", "agent": "sre", "prompt": "p",
+            "graders": [{"type": "contains_any", "of": ["x"]}]}
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory(prefix="build-probe-batch-")
+        self.out = Path(self.tmp.name) / "iteration"
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def _trial(self, run: int, status: str, model: str = "claude-sonnet-4-5") -> dict:
+        return {"scenario": self.SPEC["id"], "label": "cand", "run": run, "status": status,
+                "passed": 1 if status == "PASS" else 0, "total": 1, "models": [model],
+                "tokens": 10, "seconds": 0.1, "plugin_commit": "0" * 12,
+                "plugin_source_sha256": "0" * 12, "plugin_inputs_dirty": False, "isolation": "host"}
+
+    def _main(self, trials: list[dict], *extra: str) -> tuple[int, str]:
+        import contextlib
+        import io
+
+        buffer = io.StringIO()
+        with mock.patch.object(build_probe, "load_all_scenarios", return_value=[self.SPEC]), \
+                mock.patch.object(build_probe, "run_trial", side_effect=trials), \
+                contextlib.redirect_stdout(buffer):
+            code = build_probe.main(["--scenario", self.SPEC["id"], "--label", "cand",
+                                     "--out", str(self.out), "--trials", str(len(trials)), *extra])
+        return code, buffer.getvalue()
+
+    def test_an_appended_run_is_aggregated_with_the_batch_it_appends_to(self) -> None:
+        """P1: a final one-trial --run-offset append reported PASS over an earlier FAIL."""
+        first, _ = self._main([self._trial(1, "FAIL")])
+        self.assertEqual(1, first)
+        second, output = self._main([self._trial(2, "PASS")], "--run-offset", "1")
+        self.assertEqual(1, second, "one PASS appended to one FAIL is not a passing batch")
+        verdict = [json.loads(line) for line in output.splitlines() if line.startswith('{"scenario"')]
+        self.assertEqual([{"scenario": "batch-contract", "verdict": "FAIL", "passed": 1,
+                           "trials": 2, "threshold": 1.0}], verdict)
+
+    def test_a_batch_that_resolved_two_models_is_inconclusive_not_aggregated(self) -> None:
+        """P1: routing and behaviour are model-dependent; a mixed batch is not one measurement."""
+        code, output = self._main([self._trial(1, "PASS"), self._trial(2, "PASS", "claude-opus-4-1")])
+        self.assertEqual(2, code)
+        self.assertIn("mixed resolved model identities", output)
+        self.assertNotIn('"verdict": "PASS"', output)
+
+    def test_one_resolved_model_still_aggregates(self) -> None:
+        code, output = self._main([self._trial(1, "PASS"), self._trial(2, "PASS")])
+        self.assertEqual(0, code)
+        self.assertIn('"verdict": "PASS"', output)
+
+    def test_an_out_of_range_threshold_is_refused(self) -> None:
+        """P2: --threshold 0 made `required` zero and reported PASS for a batch where everything failed."""
+        for bad in ("0", "-1", "1.5", "nan"):
+            with self.assertRaises(SystemExit, msg=bad):
+                self._main([self._trial(1, "PASS")], "--threshold", bad)
+        code, _ = self._main([self._trial(1, "PASS")], "--threshold", "0.5")
+        self.assertEqual(0, code)
+
+
+class ScenarioContractValidationTests(unittest.TestCase):
+    """Codex review of PR #222: what `--validate` must refuse before a batch spends anything."""
+
+    def test_a_build_scenario_without_an_agent_is_refused(self) -> None:
+        spec = {"id": "b", "prompt": "p", "fixture": {"files": {"a.txt": "x"}},
+                "checks": [{"check": "no_new_commits"}]}
+        self.assertTrue(any("must pin `agent`" in p for p in build_probe.validate_scenario(spec)),
+                        build_probe.validate_scenario(spec))
+
+    def test_an_id_that_is_not_a_safe_slug_is_refused(self) -> None:
+        for bad in ("../../outside", "Eval One", 7, ["x"], "eval_one"):
+            spec = {**CONTRACT_SPEC, "id": bad}
+            problems = build_probe.validate_scenario(spec)
+            self.assertTrue(any("lowercase slug" in p for p in problems), f"{bad!r}: {problems}")
+        self.assertEqual([], build_probe.validate_scenario(CONTRACT_SPEC))
+
+
+class ReferenceReadTests(unittest.TestCase):
+    """Codex review of PR #222: a scenario whose skill contract requires a reference read proves it."""
+
+    SPEC = {
+        "id": "ref-contract", "prompt": "p", "skill": "agent-authoring",
+        "tools": ["Skill", "Task", "Read"],
+        "references": ["skills/agent-authoring/references/agent-security.md"],
+        "graders": [{"type": "contains_any", "of": ["x"]}],
+    }
+
+    def _trace(self, attempts: list[dict]) -> build_probe.TraceSummary:
+        return build_probe.TraceSummary(read_attempts=attempts)
+
+    def test_a_successful_read_of_the_named_reference_passes(self) -> None:
+        passed, detail = build_probe.reference_read(self._trace([
+            {"tool": "Read", "path": str(ROOT / "skills/agent-authoring/references/agent-security.md"),
+             "outcome": "allowed"}]), self.SPEC["references"][0])
+        self.assertTrue(passed, detail)
+
+    def test_no_read_and_a_denied_read_both_fail(self) -> None:
+        never, detail = build_probe.reference_read(self._trace([]), self.SPEC["references"][0])
+        self.assertFalse(never)
+        self.assertIn("never read", detail)
+        denied, detail = build_probe.reference_read(self._trace([
+            {"tool": "Read", "path": "skills/agent-authoring/references/agent-security.md",
+             "outcome": "denied"}]), self.SPEC["references"][0])
+        self.assertFalse(denied, detail)
+
+    def test_references_are_graded_as_their_own_expectation(self) -> None:
+        ws = build_probe.Workspace(Path("."), Path("."), Path("."), Path("."), 0, "main")
+        ctx = build_probe.Context(self.SPEC, ws, self._trace([]), build_probe.GitFacts(0, "main", [], ""))
+        texts = [e["text"] for e in build_probe.grade(ctx)["expectations"]]
+        self.assertIn(f"reference {self.SPEC['references'][0]} read", texts)
+        self.assertIn(f"reference {self.SPEC['references'][0]} read", build_probe.scenario_assertions(self.SPEC))
+
+    def test_references_need_the_read_tool_and_a_relative_path(self) -> None:
+        self.assertEqual([], build_probe.validate_scenario(self.SPEC))
+        without_read = {**self.SPEC, "tools": ["Skill", "Task"]}
+        self.assertTrue(any("Read" in p for p in build_probe.validate_scenario(without_read)))
+        escaping = {**self.SPEC, "references": ["../secrets.md"]}
+        self.assertTrue(any("repo-relative" in p for p in build_probe.validate_scenario(escaping)))
+
+    def test_the_committed_security_review_scenario_requires_its_reference(self) -> None:
+        spec = build_probe.load_scenario(
+            build_probe.CONTRACT_SCENARIO_DIR / "skill-direct-agent-authoring-security-review.yaml")
+        self.assertIn("skills/agent-authoring/references/agent-security.md", spec["references"])
+        self.assertIn("Read", spec["tools"])
+
+
+class UnifiedRegradeTests(unittest.TestCase):
+    """Codex review of PR #222: --regrade now sees routing and contract runs, not only build runs."""
+
+    def _saved(self, tmp: Path, *, label: str, text: str, events: list[dict] | None = None) -> Path:
+        run = tmp / "eval-batch-contract" / label / "run-1"
+        (run / "outputs").mkdir(parents=True)
+        (run / "outputs" / "response.md").write_text(text, encoding="utf-8")
+        (run / "outputs" / "trace-summary.json").write_text(json.dumps({
+            "state_files": {}, "commits_before_after": [1, 1], "branch": "main", "changed_files": [],
+            "skills": [], "dispatches": [], "bash_commands": [], "agents_dir": False, "inconclusive": None,
+        }), encoding="utf-8")
+        (run / "grading.json").write_text(json.dumps({"expectations": [], "summary": {}}), encoding="utf-8")
+        if events is not None:
+            (run / "stdout.jsonl").write_text("\n".join(json.dumps(e) for e in events), encoding="utf-8")
+        return run
+
+    def test_a_contract_run_regrades_its_graders_instead_of_crashing(self) -> None:
+        spec = {"id": "batch-contract", "agent": "sre", "prompt": "p",
+                "graders": [{"type": "contains_any", "of": ["saturation"]}]}
+        with tempfile.TemporaryDirectory() as tmp:
+            run = self._saved(Path(tmp), label="cand", text="Connection pool saturation is the lead.\n")
+            grading = build_probe.regrade_run(run, spec)
+        self.assertEqual(["grader contains_any"], [e["text"] for e in grading["expectations"]])
+        self.assertTrue(grading["expectations"][0]["passed"])
+
+    def test_a_routing_run_regrades_its_one_check_instead_of_crashing(self) -> None:
+        spec = {"id": "batch-contract", "prompt": "p", "target": {"kind": "skill", "name": "runbook"},
+                "routing": {"expect": "fire"}}
+        events = [
+            {"type": "system", "subtype": "init", "tools": ["Skill", "Task"],
+             "plugins": [{"name": "save-toolkit", "path": str(ROOT)}], "mcp_servers": []},
+            {"type": "assistant", "message": {"content": [
+                {"type": "tool_use", "id": "tu_1", "name": "Skill", "input": {"skill": "save-toolkit:runbook"}}]}},
+            {"type": "user", "message": {"content": [
+                {"type": "tool_result", "tool_use_id": "tu_1", "content": "ok"}]}},
+            {"type": "result", "result": "done", "duration_ms": 5, "usage": {}},
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            run = self._saved(Path(tmp), label="cand", text="done", events=events)
+            grading = build_probe.regrade_run(run, spec)
+        self.assertEqual(["routing fire skill:runbook"], [e["text"] for e in grading["expectations"]])
+        self.assertTrue(grading["expectations"][0]["passed"], grading["expectations"][0]["evidence"])
+
+    def test_a_rubric_grader_keeps_its_saved_verdict_on_regrade(self) -> None:
+        spec = {"id": "batch-contract", "agent": "sre", "prompt": "p",
+                "graders": [{"type": "rubric", "name": "no_production_action_claim"}]}
+        with tempfile.TemporaryDirectory() as tmp:
+            run = self._saved(Path(tmp), label="cand", text="I recommended; I did not act.\n")
+            (run / "grading.json").write_text(json.dumps({"expectations": [
+                {"text": "grader rubric", "passed": True, "evidence": "judged PASS when live"},
+            ], "summary": {}}), encoding="utf-8")
+            import graders as fleet_graders  # noqa: PLC0415
+
+            with mock.patch.object(fleet_graders, "rubric", side_effect=AssertionError("must not judge")):
+                grading = build_probe.regrade_run(run, spec)
+        self.assertTrue(grading["expectations"][0]["passed"])
+        self.assertIn("kept: live-judge", grading["expectations"][0]["evidence"])
+
+
+class JudgeSpendAccountingTests(unittest.TestCase):
+    """Codex review of PR #222: a rubric grader spends a paid call the trial's own trace never sees."""
+
+    def test_drained_judge_calls_are_added_to_the_trial_cost_and_duration(self) -> None:
+        import types
+
+        stub = types.SimpleNamespace(drain_spend=lambda: [
+            {"cost_usd": 0.02, "seconds": 3.5, "cached": False, "model_resolved": "claude-sonnet-4-5"},
+            {"cost_usd": 0.01, "seconds": 1.5, "cached": False, "model_resolved": "claude-sonnet-4-5"},
+        ])
+        with mock.patch.dict(sys.modules, {"judge": stub}):
+            spend = build_probe.judge_spend()
+        self.assertEqual(2, spend["calls"])
+        self.assertAlmostEqual(0.03, spend["cost_usd"])
+        self.assertAlmostEqual(5.0, spend["seconds"])
+
+    def test_no_judge_module_means_no_spend(self) -> None:
+        with mock.patch.dict(sys.modules, {}, clear=False):
+            sys.modules.pop("judge", None)
+            self.assertEqual({"calls": 0, "cost_usd": 0.0, "seconds": 0.0}, build_probe.judge_spend())
+
+
+if __name__ == "__main__":
+    unittest.main()

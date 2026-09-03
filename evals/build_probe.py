@@ -126,6 +126,7 @@ REQUIRED_KEYS = ("id", "prompt")
 #   routing  -- `routing`: run the main session, grade which component fired.
 # `agent` pins the session; without it the trial runs as the main session with `tools`.
 DEFAULT_MAIN_SESSION_TOOLS = ("Skill", "Task")
+SLUG = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 ROUTING_EXPECTATIONS = ("fire", "not_fire")
 TARGET_KINDS = ("skill", "agent")
 SPLITS = ("calibration", "regression")
@@ -171,6 +172,10 @@ def validate_scenario(spec: object, *, where: str = "scenario") -> list[str]:
     for key in REQUIRED_KEYS:
         if key not in spec:
             problems.append(f"{where}: missing key {key!r}")
+    if "id" in spec and not (isinstance(spec["id"], str) and SLUG.fullmatch(spec["id"])):
+        # The id is a dict key and a path component (`eval-<id>/`): an unhashable value crashes
+        # --validate, and `../../outside` writes trial artifacts outside the requested --out tree.
+        problems.append(f"{where}: id must be a canonical lowercase slug, got {spec['id']!r}"[:200])
     if not isinstance(spec.get("prompt"), str) or not spec.get("prompt", "").strip():
         problems.append(f"{where}: prompt must be a non-empty string")
     problems.extend(_routing_problems(spec, where))
@@ -184,6 +189,11 @@ def validate_scenario(spec: object, *, where: str = "scenario") -> list[str]:
         problems.append(f"{where}: a contract scenario needs `graders`")
     if kind == "contract" and not (spec.get("agent") or spec.get("skill")):
         problems.append(f"{where}: a contract scenario must pin `agent` or `skill`")
+    if kind == "build" and not spec.get("agent"):
+        # Without a pin the trial runs as the main session while still receiving the build tool
+        # inventory: a result, but not a measurement of the lane the scenario names.
+        problems.append(f"{where}: a build scenario must pin `agent`")
+    problems.extend(_reference_problems(spec, where, kind))
     if spec.get("agent") and spec.get("skill"):
         problems.append(f"{where}: pin `agent` or `skill`, not both")
     if spec.get("routing") and spec.get("skill"):
@@ -299,6 +309,31 @@ def validate_scenario(spec: object, *, where: str = "scenario") -> list[str]:
                 "(it applies to positives only)"
             )
     return problems
+
+
+def _reference_problems(spec: dict, where: str, kind: str) -> list[str]:
+    """`references:` names bundled files the pinned component's own contract requires it to read.
+
+    The runner already traces every Read and its outcome, so the requirement is graded from the
+    trace rather than trusted: without it a scenario whose success criteria say "loads
+    references/agent-security.md" passes on a response rubric alone, having read nothing.
+    """
+    references = spec.get("references")
+    if references is None:
+        return []
+    if kind != "contract":
+        return [f"{where}: `references` are proven from a contract trial's read trace"]
+    if not isinstance(references, list) or not references or not all(
+        isinstance(r, str) and r.strip() and not Path(r).is_absolute() and ".." not in Path(r).parts
+        for r in references
+    ):
+        return [f"{where}: references must be a non-empty list of repo-relative paths"]
+    missing = [r for r in references if not (ROOT / r).is_file()]
+    if missing:
+        return [f"{where}: references name files that do not exist: {missing}"]
+    if "Read" not in (spec.get("tools") or ()):
+        return [f"{where}: a scenario with `references` must grant the Read tool in `tools`"]
+    return []
 
 
 def _is_negative_routing(spec: dict) -> bool:
@@ -800,6 +835,15 @@ def container_root(ws: Workspace) -> str:
     return "/tmp/" + ws.root.name
 
 
+def declared_env(spec: dict) -> dict:
+    """The env vars this scenario's fixture points at harness paths.
+
+    Routing and contract scenarios carry no `fixture` at all -- the runner seeds them a synthetic
+    one to get an empty git root -- so every fixture read on the trial path goes through here.
+    """
+    return (spec.get("fixture") or {}).get("env") or {}
+
+
 def _posix_bash() -> str:
     """A POSIX bash for running the container wrapper: Git for Windows', never the WSL stub."""
     if os.name != "nt":
@@ -889,7 +933,7 @@ def write_container_wrapper(ws: Workspace, plugin_root: Path, spec: dict, image:
         raise ValueError(f"container image must be pinned by digest (name@sha256:…), got {image!r}")
     fixture_env = " ".join(
         '-e "{}={}"'.format(str(key), _fixture_value(str(value), ws, posix=True))
-        for key, value in (spec["fixture"].get("env") or {}).items()
+        for key, value in declared_env(spec).items()
     )
     host_ws = str(ws.root.resolve()).replace("\\", "/")
     alias = agent_path(ws.root)
@@ -939,7 +983,7 @@ def child_env(base: dict[str, str], ws: Workspace, spec: dict, container: Contai
         env["HOMEDRIVE"] = home.drive
         env["HOMEPATH"] = str(home)[len(home.drive):]
     # No harness-named variable reaches the agent; fixtures point innocuous names at ${STATE_DIR}.
-    for key, value in (spec["fixture"].get("env") or {}).items():
+    for key, value in declared_env(spec).items():
         env[str(key)] = _service_value(
             _fixture_value(str(value), ws, posix=container is not None), services, for_agent=True
         )
@@ -1043,21 +1087,24 @@ def plugin_provenance(plugin_root: Path) -> dict:
 def scenario_tools(spec: dict) -> tuple[str, ...]:
     """The tool inventory this scenario asks the runtime for.
 
-    A pinned-agent build trial gets the agent's real tools pre-approved. A main-session routing
-    trial gets `Skill,Task` so the only thing it can do is route; a scenario may widen that (an
-    agent-target routing case needs the read tools, or the CLI refuses to spawn a tool-minimal
-    subagent at all).
+    Only a build trial -- a seeded fixture repo whose `checks` grade outcomes -- gets the agent's
+    real tools pre-approved. A contract trial is graded on the text its lane returns, and several
+    of them deliberately ask a lane to deploy or mutate production; handing those Bash/Edit/Write
+    would let the evaluator cause the effect it is supposed to be reading about. They and the
+    routing trials get `Skill,Task`, and a scenario may widen that itself (an agent-target routing
+    case needs the read tools, or the CLI refuses to spawn a tool-minimal subagent at all).
     """
     declared = spec.get("tools")
     if declared:
         return tuple(dict.fromkeys(str(t).strip() for t in declared))
-    if spec.get("agent"):
+    if scenario_kind(spec) == "build":
         return BUILD_TOOLS
     return DEFAULT_MAIN_SESSION_TOOLS
 
 
 def build_command(executable: str, plugin_root: Path, agent: str | None, prompt: str,
-                  model: str | None, tools: Sequence[str] = BUILD_TOOLS) -> list[str]:
+                  model: str | None, tools: Sequence[str] = BUILD_TOOLS,
+                  *, pre_approve: bool = True) -> list[str]:
     tools = tuple(tools)
     denied = [t for t in clean_room.DENIED_TOOLS if t not in tools]
     # `--executable` may be a bare binary or "python stub.py" (tests use a stub that emits stream-json).
@@ -1074,9 +1121,9 @@ def build_command(executable: str, plugin_root: Path, agent: str | None, prompt:
         "--tools", ",".join(tools),
         "--disallowedTools", ",".join(denied),
     ]
-    if agent:
-        # A pinned build lane runs the agent's real tools without prompting. A main-session trial
-        # is deliberately not pre-approved: it should route, not act.
+    if agent and pre_approve:
+        # A pinned build lane runs the agent's real tools without prompting. A routing or contract
+        # trial is deliberately not pre-approved: it should route or answer, not act.
         command += ["--allowedTools", ",".join(tools), "--permission-mode", "dontAsk"]
     if model:
         command += ["--model", model]
@@ -1344,6 +1391,34 @@ def runtime_boundary_problem(trace: TraceSummary, expected: Sequence[str]) -> st
     return None
 
 
+def plugin_identity_problem(trace: TraceSummary, plugin_root: Path) -> str | None:
+    """Why the runtime did not load exactly the measured plugin snapshot, or None.
+
+    The tool inventory says nothing about which plugin answered. If `--plugin-dir` loaded nothing,
+    loaded a second plugin, or resolved to another checkout, then a FAIL means "the candidate bytes
+    were never there" and a PASS means "something else passed" -- neither is a verdict about the
+    measured revision. `runtime_namespace` would also fall back to the candidate manifest and
+    manufacture a namespace no component actually fired under.
+    """
+    if len(trace.runtime_plugins) != 1:
+        return (f"expected exactly one runtime plugin from the measured snapshot, "
+                f"observed {trace.runtime_plugins}")
+    observed = trace.runtime_plugins[0]
+    if not isinstance(observed, dict):
+        return f"runtime plugin entry is not an object: {observed!r}"
+    manifest = json.loads((plugin_root / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
+    if observed.get("name") != manifest["name"]:
+        return f"runtime plugin name {observed.get('name')!r}, expected {manifest['name']!r}"
+    observed_path = observed.get("path")
+    try:
+        matches = isinstance(observed_path, str) and Path(observed_path).resolve() == plugin_root.resolve()
+    except OSError as exc:
+        return f"cannot normalize runtime plugin path {observed_path!r}: {exc}"
+    if not matches:
+        return f"runtime plugin path {observed_path!r}, expected {plugin_root.resolve()}"
+    return None
+
+
 # --------------------------------------------------------------------------- post-run facts
 
 
@@ -1395,7 +1470,7 @@ def grading_env(ctx: Context) -> dict[str, str]:
     keys = set(getattr(clean_room, "SAFE_ENV_KEYS", ())) | {"PATH", "PATHEXT", "SYSTEMROOT", "WINDIR", "COMSPEC", "TEMP", "TMP", "HOME", "LANG", "PYTHONIOENCODING", "PYTHONUTF8"}
     env = {k: v for k, v in os.environ.items() if k in keys or k.upper() in keys}
     env["HARNESS_STATE_DIR"] = str(ctx.ws.state_dir)
-    for key, value in (ctx.spec["fixture"].get("env") or {}).items():
+    for key, value in declared_env(ctx.spec).items():
         env[str(key)] = _service_value(
             _fixture_value(str(value), ctx.ws, posix=ctx.container is not None), ctx.services
         )
@@ -1998,61 +2073,67 @@ def grade_skill_fired(spec: dict, trace: TraceSummary, plugin_root: Path) -> tup
     return False, f"pinned skill {expected} did not complete; saw skills={sorted(actual)}"
 
 
-def scenario_assertions(spec: dict) -> list[str]:
-    """One line per graded expectation, in the order grade() evaluates them."""
-    lines: list[str] = []
+def reference_read(trace: TraceSummary, reference: str) -> tuple[bool, str]:
+    """Did the trial actually read the reference its contract requires, with a non-error result?"""
+    wanted = reference.replace("\\", "/").lstrip("/")
+    attempts = [a for a in trace.read_attempts
+                if a["tool"] == "Read" and str(a["path"] or "").replace("\\", "/").endswith(wanted)]
+    if any(a["outcome"] == "allowed" for a in attempts):
+        return True, f"read {reference}"
+    if attempts:
+        return False, f"{reference} was read but the read did not succeed"
+    return False, (f"{reference} was never read; reads: "
+                   f"{[a['path'] for a in trace.read_attempts] or 'none'}")
+
+
+def scenario_expectations(spec: dict, trace: TraceSummary,
+                          plugin_root: Path) -> list[tuple[str, object]]:
+    """Every trace-graded expectation as (text, thunk), in the order grade() evaluates them.
+
+    The `checks` are not here: they need a live workspace, which regrade does not have. One list
+    keeps the live grade, the regrade, and the recorded assertion text from drifting apart -- a
+    regrade matches saved verdicts by that text.
+    """
+    graded: list[tuple[str, object]] = []
     if spec.get("routing"):
         target = spec["target"]
-        lines.append(f"routing {spec['routing']['expect']} {target['kind']}:{target['name']}")
+        graded.append((f"routing {spec['routing']['expect']} {target['kind']}:{target['name']}",
+                       lambda: grade_routing(spec, trace, plugin_root)))
     if spec.get("skill"):
-        lines.append(f"pinned skill {spec['skill']} completed")
-    lines += [f"grader {g.get('type')}" for g in spec.get("graders") or []]
-    lines += [describe(c) for c in spec.get("checks") or []]
-    return lines
+        graded.append((f"pinned skill {spec['skill']} completed",
+                       lambda: grade_skill_fired(spec, trace, plugin_root)))
+    for reference in spec.get("references") or []:
+        graded.append((f"reference {reference} read",
+                       lambda r=reference: reference_read(trace, r)))
+    for grader in spec.get("graders") or []:
+        graded.append((f"grader {grader.get('type')}",
+                       lambda g=grader: fleet_graders.run_grader(dict(g), trace.result_text)))
+    return graded
+
+
+def scenario_assertions(spec: dict) -> list[str]:
+    """One line per graded expectation, in the order grade() evaluates them."""
+    return ([text for text, _ in scenario_expectations(spec, TraceSummary(), ROOT)]
+            + [describe(c) for c in spec.get("checks") or []])
+
+
+def _expectation(text: str, live, inconclusive: str | None) -> dict:
+    """One graded expectation. A grader crash is a red with its reason, never a silent pass."""
+    if inconclusive:
+        passed, evidence = False, f"INCONCLUSIVE: {inconclusive}"
+    else:
+        try:
+            passed, evidence = live()
+        except Exception as exc:
+            passed, evidence = False, f"grader error: {exc!r}"
+    return {"text": text, "passed": bool(passed), "evidence": str(evidence)[:600]}
 
 
 def grade(ctx: Context, *, inconclusive: str | None = None) -> dict:
     expectations = []
     instrument_failure: str | None = None
-    if ctx.spec.get("routing"):
-        if inconclusive:
-            passed, evidence = False, f"INCONCLUSIVE: {inconclusive}"
-        else:
-            try:
-                passed, evidence = grade_routing(ctx.spec, ctx.trace, ctx.plugin_root)
-            except Exception as exc:
-                passed, evidence = False, f"grader error: {exc!r}"
-        expectations.append({
-            "text": f"routing {ctx.spec['routing']['expect']} {ctx.spec['target']['kind']}:{ctx.spec['target']['name']}",
-            "passed": bool(passed),
-            "evidence": str(evidence)[:600],
-        })
-    if ctx.spec.get("skill"):
-        if inconclusive:
-            passed, evidence = False, f"INCONCLUSIVE: {inconclusive}"
-        else:
-            try:
-                passed, evidence = grade_skill_fired(ctx.spec, ctx.trace, ctx.plugin_root)
-            except Exception as exc:
-                passed, evidence = False, f"grader error: {exc!r}"
-        expectations.append({
-            "text": f"pinned skill {ctx.spec['skill']} completed",
-            "passed": bool(passed),
-            "evidence": str(evidence)[:600],
-        })
-    for grader in ctx.spec.get("graders") or []:
-        if inconclusive:
-            passed, evidence = False, f"INCONCLUSIVE: {inconclusive}"
-        else:
-            try:
-                passed, evidence = fleet_graders.run_grader(dict(grader), ctx.trace.result_text)
-            except Exception as exc:
-                passed, evidence = False, f"grader error: {exc!r}"
-        expectations.append({
-            "text": f"grader {grader.get('type')}",
-            "passed": bool(passed),
-            "evidence": str(evidence)[:600],
-        })
+    for text, live in scenario_expectations(ctx.spec, ctx.trace, ctx.plugin_root):
+        expectations.append(_expectation(text, live, inconclusive))
     for check in ctx.spec.get("checks") or []:
         if inconclusive:
             passed, evidence = False, f"INCONCLUSIVE: {inconclusive}"
@@ -2071,6 +2152,23 @@ def grade(ctx: Context, *, inconclusive: str | None = None) -> dict:
         "summary": {"passed": n_pass, "failed": len(expectations) - n_pass, "total": len(expectations),
                     "pass_rate": round(n_pass / len(expectations), 4) if expectations else 0.0},
         "status": "INCONCLUSIVE" if inconclusive or instrument_failure else ("PASS" if n_pass == len(expectations) else "FAIL"),
+    }
+
+
+def judge_spend() -> dict:
+    """Drain and total the judge calls a `rubric` grader spent inside this trial's grading.
+
+    A rubric grader launches a second paid Claude process. Its cost and duration are in neither the
+    graded trial's trace nor the elapsed time measured around it, so candidate-budget and
+    incumbent/candidate comparisons understate every judged scenario until this is added back.
+    `judge` is imported lazily by the grader, so an unjudged batch never loads it at all.
+    """
+    drain = getattr(sys.modules.get("judge"), "drain_spend", None)
+    calls = list(drain()) if callable(drain) else []
+    return {
+        "calls": len(calls),
+        "cost_usd": round(sum(float(c.get("cost_usd") or 0.0) for c in calls), 6),
+        "seconds": round(sum(float(c.get("seconds") or 0.0) for c in calls), 3),
     }
 
 
@@ -2102,6 +2200,12 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
     if (run_out / "grading.json").exists() and not overwrite:
         raise RuntimeError(f"{run_out} already holds a graded run; pass --overwrite or a --run-offset")
     (run_out / "outputs").mkdir(parents=True, exist_ok=True)
+    # Raw traces carry whole prompts, responses, session ids, and tool payloads, and the README
+    # calls them owner-only. Real on POSIX; advisory on Windows/NTFS, the same caveat clean_room
+    # states for the credential copy -- the OS ACL, not this bit, is the control there.
+    for directory in (run_out.parent.parent, run_out.parent, run_out, run_out / "outputs"):
+        with contextlib.suppress(OSError):
+            directory.chmod(stat.S_IRWXU)
     metadata = {
         "eval_id": eval_name, "eval_name": eval_name, "prompt": spec["prompt"],
         "assertions": scenario_assertions(spec),
@@ -2144,6 +2248,7 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
                 scenario_prompt(spec),
                 model,
                 scenario_tools(spec),
+                pre_approve=scenario_kind(spec) == "build",
             )
             make_env = env_factory or (lambda: clean_room.clean_env(subscriber_only=True))
             with make_env() as base_env:
@@ -2193,6 +2298,8 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
                 else requested
             )
             inconclusive = runtime_boundary_problem(trace, expected)
+            if inconclusive is None:
+                inconclusive = plugin_identity_problem(trace, plugin_root)
             if inconclusive is None and read_boundary_applies(spec, requested):
                 inconclusive = read_boundary_problem(trace, (ws.repo, plugin_root.resolve()))
         # A guard decision (hooks/hooks.json denying an off-allowlist command) is a RESULT about
@@ -2234,11 +2341,19 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
             "services": [{"name": s.name, "image": s.image, "base_url": s.base_url} for s in ctx.services],
         }, indent=2, ensure_ascii=False), encoding="utf-8")
         (run_out / "grading.json").write_text(json.dumps(grading, indent=2, ensure_ascii=False), encoding="utf-8")
+        # Drained after grading: a rubric grader's judge call is spend this trial caused.
+        judge = judge_spend()
+        trial_seconds = (trace.duration_ms or elapsed * 1000) / 1000
         (run_out / "timing.json").write_text(json.dumps({
             "total_tokens": trace.total_tokens, "output_tokens": trace.output_tokens,
             "duration_ms": trace.duration_ms or int(elapsed * 1000),
-            "total_duration_seconds": round((trace.duration_ms or elapsed * 1000) / 1000, 1),
-            "num_turns": trace.num_turns, "total_cost_usd": trace.total_cost_usd,
+            "trial_duration_seconds": round(trial_seconds, 1),
+            "total_duration_seconds": round(trial_seconds + judge["seconds"], 1),
+            "num_turns": trace.num_turns,
+            "trial_cost_usd": trace.total_cost_usd,
+            "total_cost_usd": (round((trace.total_cost_usd or 0.0) + judge["cost_usd"], 6)
+                               if trace.total_cost_usd is not None or judge["calls"] else None),
+            "judge": judge,
             "requested_model": model, "models": trace.models, "label": label,
         }, indent=2), encoding="utf-8")
         summary = {"scenario": eval_name, "label": label, "run": run_number, "status": grading["status"],
@@ -2338,21 +2453,31 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
         ctx = Context(spec, ws, trace, git)
         inconclusive = summary.get("inconclusive")
         expectations = []
-        for check in spec["checks"]:
-            label = describe(check)
+
+        def keep(label: str, kept: str) -> dict:
             if inconclusive:
-                passed, evidence = False, f"INCONCLUSIVE: {inconclusive}"
-            elif is_regradable(check):
-                try:
-                    passed, evidence = CHECKS[check["check"]](ctx, check)
-                except Exception as exc:
-                    passed, evidence = False, f"grader error: {exc!r}"
-            elif label in old_by_text:
-                kept = "live-judge" if not is_regradable(check) and check["check"] in REGRADABLE else "workspace-dependent"
-                passed, evidence = old_by_text[label]["passed"], old_by_text[label]["evidence"] + f" [kept: {kept}]"
+                return {"text": label, "passed": False, "evidence": f"INCONCLUSIVE: {inconclusive}"}
+            if label not in old_by_text:
+                return {"text": label, "passed": False,
+                        "evidence": f"no saved verdict for a {kept} expectation (re-run the trial)"}
+            return {"text": label, "passed": bool(old_by_text[label]["passed"]),
+                    "evidence": (old_by_text[label]["evidence"] + f" [kept: {kept}]")[:600]}
+
+        # Routing, pinned-skill, reference, and non-rubric grader verdicts all come from the saved
+        # trace, so a routing or contract run regrades like a build run. A rubric grader would
+        # spend a live judge call, so it keeps the verdict the live batch paid for.
+        rubric_texts = {f"grader {g.get('type')}" for g in spec.get("graders") or []
+                        if g.get("type") == "rubric"}
+        for label, live in scenario_expectations(spec, trace, ROOT):
+            expectations.append(keep(label, "live-judge") if label in rubric_texts
+                                else _expectation(label, live, inconclusive))
+        for check in spec.get("checks") or []:
+            label = describe(check)
+            if is_regradable(check):
+                expectations.append(_expectation(label, lambda c=check: CHECKS[c["check"]](ctx, c), inconclusive))
             else:
-                passed, evidence = False, "no saved verdict for a workspace-dependent check (re-run the trial)"
-            expectations.append({"text": label, "passed": bool(passed), "evidence": str(evidence)[:600]})
+                expectations.append(keep(
+                    label, "live-judge" if check["check"] in REGRADABLE else "workspace-dependent"))
     n_pass = sum(e["passed"] for e in expectations)
     grading = {
         "expectations": expectations,
@@ -2420,6 +2545,22 @@ def regrade(iteration_dir: Path, scenarios: list[dict]) -> list[dict]:
 # --------------------------------------------------------------------------- cli
 
 
+def _threshold(value: str) -> float:
+    """The same bound the scenario validator applies: 0 < threshold <= 1.
+
+    An unbounded float makes the flag a way to fake a verdict: 0 or less sets `required` to zero
+    and reports PASS for a batch where every trial failed, above one makes success impossible, and
+    `nan` crashes `math.ceil` mid-batch. All three fail the one comparison below.
+    """
+    try:
+        number = float(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"--threshold must be a number, got {value!r}") from None
+    if not 0 < number <= 1:  # also rejects nan and inf, which compare false against everything
+        raise argparse.ArgumentTypeError(f"--threshold must be > 0 and <= 1, got {value!r}")
+    return number
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--scenario", default="all", help="scenario id under evals/build-scenarios, or 'all'")
@@ -2428,7 +2569,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--model", default=None, help="Claude model alias; resolved model is recorded from the trace")
     parser.add_argument("--trials", type=int, default=1)
     parser.add_argument(
-        "--threshold", type=float, default=None,
+        "--threshold", type=_threshold, default=None,
         help="fraction of trials that must PASS for a scenario verdict (positives only; "
              "not_fire scenarios are always clamped to 1.0). Default: the scenario's own.",
     )
@@ -2503,18 +2644,32 @@ def main(argv: list[str] | None = None) -> int:
                 executable=args.executable, keep_workspace=args.keep_workspace, overwrite=args.overwrite,
                 container_image=args.container, docker=args.docker,
             ))
+    merged = results
     with contextlib.suppress(OSError):
         summary_path = out / f"summary-{args.label}-{args.model or 'default'}.json"
         existing = json.loads(summary_path.read_text(encoding="utf-8")) if summary_path.exists() else []
         # --overwrite replaced the run directory; the summary entry is replaced too, never doubled.
-        summary_path.write_text(json.dumps(_merge_summary_entries(existing, results), indent=2), encoding="utf-8")
-    verdicts = aggregate_by_scenario(scenarios, results, args.threshold)
+        merged = _merge_summary_entries(existing, results)
+        summary_path.write_text(json.dumps(merged, indent=2), encoding="utf-8")
+    # `--run-offset` appends trials to an existing label. The verdict is about that whole batch, not
+    # about this invocation: a final one-trial append must not report PASS over earlier failures.
+    selected = {spec["id"] for spec in scenarios}
+    batch = [entry for entry in merged if entry.get("scenario") in selected]
+    identities = model_identities(batch)
+    if len(identities) > 1:
+        # Routing and behaviour are model-dependent, so trials under two resolved models are two
+        # measurements. Aggregating them would emit one verdict for neither.
+        print(json.dumps({"batch": "INCONCLUSIVE", "reason": "mixed resolved model identities",
+                          "models": identities}), flush=True)
+        print(f"{len(batch)} trial(s) under {len(identities)} resolved models: not aggregated, not publishable")
+        return 2
+    verdicts = aggregate_by_scenario(scenarios, batch, args.threshold)
     for scenario_id, verdict in sorted(verdicts.items()):
         print(json.dumps({"scenario": scenario_id, "verdict": verdict["verdict"],
                           "passed": verdict["passed"], "trials": verdict["trials"],
                           "threshold": verdict["threshold"]}), flush=True)
-    passed = sum(r["status"] == "PASS" for r in results)
-    print(f"{passed}/{len(results)} trials PASS ({sum(r['status'] == 'INCONCLUSIVE' for r in results)} inconclusive)")
+    passed = sum(r["status"] == "PASS" for r in batch)
+    print(f"{passed}/{len(batch)} trials PASS ({sum(r['status'] == 'INCONCLUSIVE' for r in batch)} inconclusive)")
     states = [v["verdict"] for v in verdicts.values()]
     if "FAIL" in states:
         return 1
@@ -2535,6 +2690,11 @@ def effective_threshold(spec: dict, requested: float | None) -> float:
     if requested is not None:
         return float(requested)
     return float(declared) if declared is not None else 1.0
+
+
+def model_identities(entries: list[dict]) -> list[str]:
+    """Every concrete model recorded across a batch's trials. A mutable alias can resolve twice."""
+    return sorted({str(model) for entry in entries for model in (entry.get("models") or [])})
 
 
 def aggregate_verdict(states: list[str], threshold: float) -> str:

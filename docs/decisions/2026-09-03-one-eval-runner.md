@@ -105,6 +105,14 @@ way a regex expects", and produced reds that named the wrong defect.
   `docs/reviews/` automatically. A review quotes the numbers it relies on.
 - The read-path guarantee is narrower than it was and now applies where reads are actually granted,
   rather than being carried by a boundary object that only one caller constructed.
+- **Reference-bearing trials came back, as a scenario key rather than a subsystem.** The first cut
+  deleted them with the scoped-read preflight, which left
+  `skill-direct-agent-authoring-security-review` claiming a reference load in its success criteria
+  that nothing measured: with `Read` denied, its rubric could pass on a response that read nothing.
+  A contract scenario may now declare `references:`, and each named path becomes one graded
+  expectation asserting the trial's own read trace shows a successful `Read` of it. It costs the
+  scenario an explicit `tools:` grant and the runner about thirty lines, reusing the read tracing
+  the boundary check already records — no preflight, no sentinel, no boundary object.
 
 ## Reopen conditions
 
