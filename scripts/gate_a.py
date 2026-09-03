@@ -53,6 +53,11 @@ STRUCTURAL_STEPS = [
         ["scripts/check_context_cost.py"],
         None,
     ),
+    (
+        "Weight totals: evals lines, skills bytes, agents bytes",
+        ["scripts/check_weight.py"],
+        None,
+    ),
 ]
 
 STEPS = STRUCTURAL_STEPS

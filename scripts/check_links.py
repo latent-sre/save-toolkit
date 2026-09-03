@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 from urllib.parse import unquote
@@ -39,9 +40,11 @@ SELF_SKILL_PATH_RE = re.compile(r"`skills/(?P<name>[a-z0-9-]+)/SKILL\.md`")
 # ADR is append-only and immutable (commands/adr.md); the only sanctioned way to change one is to
 # write a successor. Gating a file the rules forbid repairing turns every retention pass into a red
 # gate with no legal fix -- 14 such links did exactly that on 2026-09-02. CONTRIBUTING's retention
-# policy makes this the steady state, not an accident: an evidence packet "is kept only while a
-# test or a live document cites it, and an uncited one is removed (history keeps it)." A record
-# citing a removed packet is that policy working. Recover any of them from git.
+# policy is that an evidence packet is kept only while something cites it -- but citation used to be
+# unenforced: a packet could sit uncited indefinitely and nothing failed. `_check_uncited_review_packets`
+# below makes citation a gate: an uncited packet under docs/reviews/ now fails Gate A directly,
+# rather than waiting on a human retention pass. A record citing a removed packet is that policy
+# working. Recover any removed packet from git.
 #
 # docs/reviews/ stays: retained packets cite each other, and a retention pass that keeps a packet
 # while deleting one it cites leaves an active item's evidence chain ending at a missing file, and
@@ -118,6 +121,92 @@ def _check_live_doc_links(root: Path) -> list[str]:
                 failures.append(
                     f"{path.relative_to(root).as_posix()}: dead link {target!r}"
                 )
+    return failures
+
+
+def _tracked_review_packets(root: Path) -> list[Path]:
+    """Every git-tracked file under docs/reviews/, via `git ls-files` (never a directory read).
+
+    `git ls-files` excludes untracked files by construction, so an untracked packet is never
+    considered here -- the citation gate cannot see, and must not see, a file no one has committed.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "ls-files", "docs/reviews"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        print(f"check_links: git unavailable, skipping the uncited-evidence check ({exc})")
+        return []
+    return [root / line for line in result.stdout.splitlines() if line.strip()]
+
+
+def _citing_candidates(root: Path) -> list[Path]:
+    """Every file a review packet may legitimately be cited from."""
+    files: list[Path] = list(_iter_doc_paths(root, LIVE_DOC_ROOTS, LIVE_DOC_DIR_GLOBS))
+    decisions = root / "docs" / "decisions"
+    if decisions.is_dir():
+        files.extend(sorted(decisions.glob("*.md")))
+    evals_dir = root / "evals"
+    if evals_dir.is_dir():
+        files.extend(sorted(evals_dir.rglob("*.yaml")))
+        files.extend(sorted(evals_dir.glob("*.py")))
+    scripts_dir = root / "scripts"
+    if scripts_dir.is_dir():
+        files.extend(sorted(scripts_dir.glob("*.py")))
+    roadmap = root / "docs" / "fleet-roadmap.md"
+    if roadmap.is_file() and roadmap not in files:
+        files.append(roadmap)
+    return files
+
+
+def _citation_keys(relative: str) -> list[str]:
+    """Path substrings that count as citing this packet, absolute and one-level-relative.
+
+    A flat packet (`docs/reviews/2026-08-30-x.md`) is cited only by its own path. A directory-shaped
+    packet (a README plus a manifest and patches, e.g. `2026-08-12-incident-navigation-preservation/`)
+    is one evidence unit with one citable entry point -- citing the packet's directory, the way the
+    2026-08-22 ADR cites its README, covers every file inside, the same way a skill bundle's files
+    need not each be linked externally.
+    """
+    after_reviews = relative.split("docs/reviews/", 1)[1]
+    top = after_reviews.split("/", 1)[0]
+    return [relative, f"reviews/{after_reviews}", f"docs/reviews/{top}", f"reviews/{top}"]
+
+
+def _check_uncited_review_packets(root: Path) -> list[str]:
+    """A retained packet earns its keep by being cited; an uncited one fails the gate.
+
+    Citation is checked by path substring across the live documents, decisions, eval scenarios and
+    harness, and validator scripts -- never against the packet's own text, so a packet cannot cite
+    itself into compliance.
+    """
+    packets = _tracked_review_packets(root)
+    if not packets:
+        return []
+    candidates = []
+    for path in _citing_candidates(root):
+        try:
+            candidates.append((path.resolve(), path.read_text(encoding="utf-8")))
+        except (OSError, UnicodeError):
+            continue
+    failures = []
+    for packet in packets:
+        if not packet.is_file():
+            continue
+        relative = packet.relative_to(root).as_posix()
+        resolved_packet = packet.resolve()
+        keys = _citation_keys(relative)
+        cited = any(
+            any(key in text for key in keys)
+            for resolved, text in candidates
+            if resolved != resolved_packet
+        )
+        if not cited:
+            failures.append(f"uncited evidence packet: {relative}")
     return failures
 
 
@@ -454,6 +543,7 @@ def check(root: Path = ROOT) -> list[str]:
     # has already shipped a review pointing at a file the same round deleted. What is NOT in scope
     # is anchor-only and cross-repo links, which `_check_markdown` already ignores.
     failures.extend(_check_live_doc_links(root))
+    failures.extend(_check_uncited_review_packets(root))
     command_root = root / "commands"
     if command_root.is_dir():
         for command in sorted(command_root.glob("*.md")):

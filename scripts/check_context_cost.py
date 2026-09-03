@@ -19,9 +19,9 @@ except ModuleNotFoundError:
 
 ROOT = Path(__file__).resolve().parents[1]
 
-# Byte budgets per canonical task. These are generous placeholders -- the owner tightens them
-# later once real sessions are measured; today they exist to catch a task growing unboundedly,
-# not to hold any task to a tight number.
+# Byte budgets per canonical task, set to measured usage plus 5% and rounded up to the next 1,000.
+# Raising one is a reviewed decision made in the same diff that earns it, not a side effect of an
+# unrelated change.
 TASK_FILES: dict[str, list[str]] = {
     "PCF incident, human path": [
         "skills/incident-investigation/SKILL.md",
@@ -77,15 +77,15 @@ TASK_FILES: dict[str, list[str]] = {
     ],
 }
 TASK_BUDGETS: dict[str, int] = {
-    "PCF incident, human path": 65_000,
-    "PCF incident, sre agent path": 90_000,
-    "Noisy alert": 45_000,
-    "Write a runbook": 40_000,
-    "Audit a service": 40_000,
-    "Build a backend change": 55_000,
+    "PCF incident, human path": 64_000,
+    "PCF incident, sre agent path": 94_000,
+    "Noisy alert": 44_000,
+    "Write a runbook": 41_000,
+    "Audit a service": 39_000,
+    "Build a backend change": 45_000,
 }
 DESCRIPTION_TASK = "Always-loaded descriptions"
-DESCRIPTION_BUDGET = 20_000
+DESCRIPTION_BUDGET = 17_000
 
 
 class MissingFile(Exception):
