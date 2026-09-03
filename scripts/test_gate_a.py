@@ -30,7 +30,7 @@ class StructuralScopeTests(unittest.TestCase):
             "component tests belong to the changed implementation, not every push",
         )
         self.assertNotIn(
-            "evals/run_evals.py",
+            "evals/build_probe.py",
             commands,
             "behavioral evals are focused implementation work, never a push-boundary step",
         )

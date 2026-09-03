@@ -9,7 +9,7 @@ clean-room `claude -p` turn judges one response against one named rubric from `e
 and fails closed on anything but a clean PASS/FAIL verdict.
 
 Never loads this fleet: no `--agent`, no `--plugin-dir`, and every tool and MCP server denied
-(mirrors `ClaudeNativeAdapter.build_command`'s denial in `evals/engine_adapters.py`, with an empty
+(mirrors the runner's own tool denial in `evals/build_probe.py`, with an empty
 `--tools` list instead of `Skill,Task`).
 
 CLI:
@@ -44,7 +44,6 @@ if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
 
 import clean_room  # noqa: E402
-import engine_adapters  # noqa: E402
 
 try:
     import yaml  # noqa: E402
@@ -256,7 +255,7 @@ def _record_spend(*, cost_usd: float | None, seconds: float, cached: bool, model
 def claude_executable() -> str:
     """The CLI the rest of the evaluator runs, not whatever `claude` happens to be on PATH.
 
-    `run_evals.py` and `build_probe.py` both honour `CLAUDE_BIN`; a judge that ignored it would
+    The runner honours `CLAUDE_BIN`; a judge that ignored it would
     grade under a different, unrecorded CLI than the trials it is grading, or fail outright when the
     configured binary is not on PATH.
     """
@@ -475,7 +474,7 @@ def _judge_argv(model: str) -> list[str]:
         "",
         "--strict-mcp-config",
         "--mcp-config",
-        engine_adapters.EMPTY_MCP_CONFIG,
+        clean_room.EMPTY_MCP_CONFIG,
         "--max-turns",
         "1",
     ]

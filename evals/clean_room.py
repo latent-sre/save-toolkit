@@ -37,6 +37,38 @@ from pathlib import Path
 
 CREDENTIALS = ".credentials.json"
 
+# The exact empty-MCP-server-set literal every clean-room spawn passes alongside
+# `--strict-mcp-config`, so no account-level connector can join the namespace.
+EMPTY_MCP_CONFIG = '{"mcpServers":{}}'
+
+# The broad deny list every clean-room spawn applies as defense in depth. A trial's own `--tools`
+# grant is subtracted from it: what a scenario asks for is allowed, everything else is refused.
+DENIED_TOOLS = (
+    "Bash",
+    "Edit",
+    "Write",
+    "NotebookEdit",
+    "Read",
+    "Glob",
+    "Grep",
+    "WebFetch",
+    "WebSearch",
+    "ToolSearch",
+    "CronCreate",
+    "CronDelete",
+    "DesignSync",
+    "EnterWorktree",
+    "ExitWorktree",
+    "PushNotification",
+    "RemoteTrigger",
+    "ScheduleWakeup",
+    "Workflow",
+    "TaskCreate",
+    "TaskUpdate",
+    "TaskStop",
+    "Monitor",
+)
+
 # Markers of an auth failure in a trial's output.
 # NOT `subtype`: the result event of a not-logged-in run says subtype="success" while is_error=true.
 AUTH_MARKERS = ("authentication_failed", "Not logged in")

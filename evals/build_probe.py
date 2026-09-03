@@ -1,6 +1,6 @@
 """Fixture-backed, tool-bearing agent probes: measure what an agent DOES in a disposable repo.
 
-The clean-room runner (`run_evals.py`) denies every file, shell, and web tool, so a build lane can
+The clean-room runner denies every file, shell, and web tool, so a build lane can
 only be graded on what it says. This probe seeds a small fixture repository in a system temp
 directory, runs `claude -p --agent <plugin agent>` there with the agent's real tools pre-approved,
 and grades outcomes with code: the tests it wrote pass when the probe runs them, a fake `cf` on
@@ -27,7 +27,7 @@ combining those scenarios with `--container`. Every run records which level it r
 A trial is INCONCLUSIVE, never a verdict about the agent, when `claude` reports an error result,
 exits nonzero, never advertises its tool inventory, advertises a different inventory than the
 probe asked for, or carries an MCP server in a strict-empty run; an authentication failure aborts
-the batch (the same rules `run_evals.py` applies). Each run also records the plugin root's commit,
+the batch. Each run also records the plugin root's commit,
 plugin-input dirty state, and source digest, and `--expect-plugin-digest` refuses any other bytes.
 
 Usage:
@@ -46,6 +46,7 @@ import argparse
 import base64
 import contextlib
 import fnmatch
+import hashlib
 import json
 import math
 import os
@@ -60,14 +61,13 @@ import tempfile
 import time
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "evals"))
 import clean_room  # noqa: E402
-import engine_adapters  # noqa: E402
 import graders as fleet_graders  # noqa: E402
 
 SCENARIO_DIR = ROOT / "evals" / "build-scenarios"
@@ -957,11 +957,70 @@ def _service_value(value: str, services: list, *, for_agent: bool = False) -> st
 # --------------------------------------------------------------------------- claude invocation
 
 
+# Canonical plugin inputs whose bytes are hashed for every trial.
+PLUGIN_INPUT_PATHS = (
+    "agents", "skills", "commands", "hooks", ".claude-plugin/plugin.json",
+    "scripts/fleet_frontmatter.py",
+    "scripts/readonly-guard.py", "scripts/readonly-guard-hook.sh",
+)
+# Runtime files introduced after the baseline revision remain measured when present, while their
+# absence is itself a valid property of an older plugin image in a fixed incumbent/candidate run.
+OPTIONAL_PLUGIN_INPUT_PATHS = (
+    "scripts/guard-session-preflight.py",
+    "scripts/guard-session-preflight-hook.sh",
+)
+
+
+def _is_reparse_point(path: Path) -> bool:
+    """True for links/junctions, so a measured input cannot be redirected outside the checkout."""
+    try:
+        info = path.lstat()
+    except OSError as exc:
+        raise RuntimeError(f"could not inspect path {path}: {exc}") from exc
+    attributes = getattr(info, "st_file_attributes", 0)
+    return path.is_symlink() or bool(attributes & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0))
+
+
+def _files_under(*relative_roots: str, root: Path) -> list[Path]:
+    files: list[Path] = []
+    for relative in relative_roots:
+        path = root / relative
+        if not path.exists():
+            raise RuntimeError(f"required measured input is missing: {path}")
+        if _is_reparse_point(path):
+            raise RuntimeError(f"refusing linked/reparse measured input: {path}")
+        if path.is_file():
+            files.append(path)
+        elif path.is_dir():
+            for child in path.rglob("*"):
+                if _is_reparse_point(child):
+                    raise RuntimeError(f"refusing linked/reparse measured input: {child}")
+                if child.is_file():
+                    files.append(child)
+    return files
+
+
+def plugin_digest(root: Path = ROOT) -> str:
+    """One digest over every measured plugin input, path-bound so a rename is not invisible."""
+    files = _files_under(*PLUGIN_INPUT_PATHS, root=root)
+    files.extend(
+        path
+        for relative in OPTIONAL_PLUGIN_INPUT_PATHS
+        if (path := root / relative).is_file() and not _is_reparse_point(path)
+    )
+    digest = hashlib.sha256()
+    for path in sorted((p for p in files if p.is_file()), key=lambda p: p.as_posix()):
+        digest.update(path.relative_to(root).as_posix().encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(path.read_bytes())
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
 def plugin_provenance(plugin_root: Path) -> dict:
     """Bind a run to the bytes it measured: the plugin root's HEAD, whether its plugin inputs are
-    dirty, and the plugin-source digest the direct runner defines (one definition, not two).
+    dirty, and the plugin-source digest.
     A label such as `new_skill` is operator-chosen; this is what proves which revision was graded."""
-    import run_evals  # noqa: PLC0415  (the digest and the input-path list live with the direct runner)
 
     def _git_text(*args: str) -> str | None:
         proc = subprocess.run(["git", *args], cwd=str(plugin_root), capture_output=True, text=True,
@@ -972,12 +1031,12 @@ def plugin_provenance(plugin_root: Path) -> dict:
     if commit is None:
         raise RuntimeError(f"plugin root {plugin_root} is not a git checkout; provenance cannot be recorded")
     dirty = _git_text("status", "--porcelain=v1", "--untracked-files=all", "--",
-                      *run_evals.PLUGIN_INPUT_PATHS, *run_evals.OPTIONAL_PLUGIN_INPUT_PATHS)
+                      *PLUGIN_INPUT_PATHS, *OPTIONAL_PLUGIN_INPUT_PATHS)
     return {
         "plugin_root": str(plugin_root.resolve()),
         "plugin_commit": commit,
         "plugin_inputs_dirty": bool(dirty),
-        "plugin_source_sha256": run_evals.plugin_digest(plugin_root),
+        "plugin_source_sha256": plugin_digest(plugin_root),
     }
 
 
@@ -1000,7 +1059,7 @@ def scenario_tools(spec: dict) -> tuple[str, ...]:
 def build_command(executable: str, plugin_root: Path, agent: str | None, prompt: str,
                   model: str | None, tools: Sequence[str] = BUILD_TOOLS) -> list[str]:
     tools = tuple(tools)
-    denied = [t for t in engine_adapters.DENIED_TOOLS if t not in tools]
+    denied = [t for t in clean_room.DENIED_TOOLS if t not in tools]
     # `--executable` may be a bare binary or "python stub.py" (tests use a stub that emits stream-json).
     exe = [t.strip('"') for t in shlex.split(executable, posix=False)] if " " in executable else [executable]
     command = [*exe]
@@ -1040,6 +1099,8 @@ class TraceSummary:
     agents: list[str] = field(default_factory=list)
     agents_failed: list[str] = field(default_factory=list)
     runtime_plugins: list = field(default_factory=list)
+    # {tool, path, outcome} per Read/Grep/Glob call, for the read-path boundary check.
+    read_attempts: list[dict] = field(default_factory=list)
     tool_counts: dict[str, int] = field(default_factory=dict)
     denials: list[str] = field(default_factory=list)
     duration_ms: int = 0
@@ -1084,6 +1145,7 @@ def parse_trace(path: Path) -> TraceSummary:
     clean_result_ids: set[str] = set()
     skill_uses: list[tuple[str, str]] = []
     agent_uses: list[tuple[str, str]] = []
+    read_uses: list[tuple[str, str, str | None]] = []
     for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
         try:
             ev = json.loads(line)
@@ -1155,10 +1217,19 @@ def parse_trace(path: Path) -> TraceSummary:
                 agent_name = str(inp.get("subagent_type") or "") or "<unnamed-agent>"
                 s.dispatches.append(agent_name)
                 agent_uses.append((str(block.get("id") or ""), agent_name))
+            elif name in READ_TOOLS:
+                path = next((inp[f] for f in ("file_path", "path", "pattern")
+                             if isinstance(inp.get(f), str)), None)
+                read_uses.append((str(block.get("id") or ""), name, path))
     for use_id, skill_name in skill_uses:
         (s.skills if use_id in clean_result_ids else s.skills_failed).append(skill_name)
     for use_id, agent_name in agent_uses:
         (s.agents if use_id in clean_result_ids else s.agents_failed).append(agent_name)
+    for use_id, tool, path in read_uses:
+        s.read_attempts.append({
+            "tool": tool, "path": path,
+            "outcome": "allowed" if use_id in clean_result_ids else "denied",
+        })
     for d in s.denial_details:  # the reason lives in the matching error tool result
         d["reason"] = errors_by_id.get(d["id"], "")
     return s
@@ -1192,6 +1263,56 @@ def expected_runtime_tools(plugin_root: Path, agent: str,
     """What the runtime should advertise: the probe's requested set, bounded by what the agent declares."""
     declared = declared_agent_tools(plugin_root, agent)
     return tuple(t for t in requested if declared is None or t in declared)
+
+
+READ_TOOLS = ("Glob", "Grep", "Read")
+
+
+def _is_rooted(value: object) -> bool:
+    """True when a path is absolute in POSIX form or in this platform's form.
+
+    A tool transcript carries whatever shape the runner produced, and ``Path("/a/b").is_absolute()``
+    is False on Windows because the path has no drive. Reading a rooted POSIX path as relative would
+    make an out-of-workspace read that succeeded look like a harmless relative one.
+    """
+    if value is None:
+        return False
+    if str(value).replace("\\", "/").startswith("/"):
+        return True
+    return Path(value).is_absolute()
+
+
+def read_boundary_problem(trace: TraceSummary, allowed_roots: Sequence[Path]) -> str | None:
+    """Why a granted read escaped its allowed roots, or None.
+
+    Only trials that were granted read tools reach this. `allowed_roots` are harness-owned trees a
+    read may resolve into -- the fixture workspace and the plugin snapshot. A relative read resolves
+    against the workspace cwd, so a cwd-relative Grep/Glob is in bounds there and out of bounds
+    anywhere else (HOST-003 owner decision, 2026-08-28).
+    """
+    roots = [root.resolve() for root in allowed_roots]
+    for attempt in trace.read_attempts:
+        path, outcome = attempt["path"], attempt["outcome"]
+        if not path:
+            return f"{attempt['tool']} attempt has no path evidence"
+        normalized = path.replace("\\", "/")
+        if ".." in PurePosixPath(normalized).parts:
+            return f"path traversal attempted by {attempt['tool']}: {path}"
+        if outcome != "allowed":
+            continue
+        prefix = normalized
+        for marker in ("*", "?", "["):
+            prefix = prefix.split(marker, 1)[0]
+        candidate = Path(prefix or normalized)
+        if not _is_rooted(candidate):
+            continue  # relative: resolves inside the workspace cwd
+        try:
+            resolved = candidate.resolve()
+        except OSError as exc:
+            return f"cannot normalize tool path {path!r}: {exc}"
+        if not any(resolved.is_relative_to(root) for root in roots):
+            return f"successful out-of-workspace read: {path}"
+    return None
 
 
 def runtime_boundary_problem(trace: TraceSummary, expected: Sequence[str]) -> str | None:
@@ -2062,6 +2183,10 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
                 else requested
             )
             inconclusive = runtime_boundary_problem(trace, expected)
+            if inconclusive is None and set(requested) & set(READ_TOOLS):
+                # Reads were granted: prove they stayed inside harness-owned trees. A build lane's
+                # own outcome checks cover what it wrote; this covers what it read.
+                inconclusive = read_boundary_problem(trace, (ws.repo, plugin_root.resolve()))
         # A guard decision (hooks/hooks.json denying an off-allowlist command) is a RESULT about
         # the agent; only a runtime/permission refusal of a build tool makes the trial inconclusive.
         blocked = [d["tool"] for d in trace.denial_details if d["tool"] in BUILD_TOOLS and not is_guard_denial(d["reason"])]
