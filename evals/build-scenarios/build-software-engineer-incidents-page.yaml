@@ -1,5 +1,7 @@
 id: build-software-engineer-incidents-page
 agent: software-engineer
+# First measured 2026-09-03, five trimmed and two incumbent Sonnet trials across the frontend-craft
+# trim: docs/reviews/2026-09-03-frontend-craft-trim-evidence.md.
 # The frontend bar with real tools. The prompt asks only for a page, a table, and a status filter;
 # it never says "loading state", "empty state", "labelled control", "the URL is state", or
 # "accessible". Those are what frontend-craft is for, so the probe-owned oracle (probe_ui.test.tsx,
