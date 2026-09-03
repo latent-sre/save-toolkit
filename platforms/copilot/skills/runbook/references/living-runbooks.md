@@ -5,7 +5,7 @@
 The stakes, from the source material: Google's SRE book reports "roughly a 3x improvement in MTTR"
 when responders work from a playbook instead of improvising, and Google's stated convention is that
 "whenever an alert is created, a corresponding playbook entry is usually created"
-*[sourced: sre-assistant.google/sre-book/introduction/; sre-assistant.google/workbook/on-call/]*. The same sources tie
+*[sourced: sre.google/sre-book/introduction/; sre.google/workbook/on-call/]*. The same sources tie
 playbook updates to postmortem action items — which is exactly the disposition loop below.
 
 A runbook is an accreting asset, not a published-once document. Every incident or drill that

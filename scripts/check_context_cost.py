@@ -36,8 +36,6 @@ TASK_FILES: dict[str, list[str]] = {
     ],
     "PCF incident, sre-assistant agent path": [
         "agents/sre-assistant.md",
-        "skills/investigation-depth/SKILL.md",
-        "skills/investigation-depth/references/first-response.md",
         "skills/pcf-ops/SKILL.md",
         "skills/pcf-ops/references/router-errors.md",
         "skills/obs-logs/SKILL.md",
@@ -78,7 +76,7 @@ TASK_FILES: dict[str, list[str]] = {
 }
 TASK_BUDGETS: dict[str, int] = {
     "PCF incident, human path": 64_000,
-    "PCF incident, sre-assistant agent path": 94_000,
+    "PCF incident, sre-assistant agent path": 76_000,
     "Noisy alert": 44_000,
     "Write a runbook": 41_000,
     "Audit a service": 39_000,

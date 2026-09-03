@@ -50,18 +50,6 @@ NON_DELEGATION_DISCLAIMERS = (
     "cannot delegate",
     "caller must invoke",
 )
-CONDITIONAL_HANDOFF_CONTRACTS = {
-    "sre-assistant": Path("skills/investigation-depth/references/incident-handoff.md"),
-}
-CONDITIONAL_HANDOFF_POINTERS = {
-    "sre-assistant": (
-        "When calling `researcher`, handling an empty or failed delegate return, or returning work "
-        "that changes ownership, read `investigation-depth`'s incident-handoff reference before forming the "
-        "packet. Do not load that reference for a bounded response that returns directly to the "
-        "same human owner."
-    ),
-}
-
 
 def _flatten(text: str) -> str:
     """Collapse all whitespace runs to single spaces for substring matching.
@@ -162,22 +150,11 @@ def _delegates(raw: object) -> set[str]:
 
 
 def _resolve_handoff_contract(root: Path, name: str, body: str) -> str | None:
-    """Resolve an inline or explicitly predicate-loaded handoff contract."""
+    """Resolve an inline handoff contract."""
 
     if "## The handoff packet" in body or "## Handoffs" in body:
         return body
-    relative = CONDITIONAL_HANDOFF_CONTRACTS.get(name)
-    pointer = CONDITIONAL_HANDOFF_POINTERS.get(name)
-    paragraphs = {_flatten(paragraph) for paragraph in re.split(r"\n\s*\n", body)}
-    if relative is None or pointer is None or pointer not in paragraphs:
-        return None
-    try:
-        contract = (root / relative).read_text(encoding="utf-8")
-    except (OSError, UnicodeError):
-        return None
-    if "## The handoff packet" not in contract and "## Handoffs" not in contract:
-        return None
-    return contract
+    return None
 
 
 def validate_agents(root: Path) -> tuple[list[str], list[str]]:

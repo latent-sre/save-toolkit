@@ -55,7 +55,6 @@ graders:
   pattern: '(?im)^\s*learning dispositions?\s*:'
 - type: not_contains
   of:
-  - incident-state/v2
   - '→ handing to:'
 - type: contains_any
   of:

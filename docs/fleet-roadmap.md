@@ -44,12 +44,12 @@ an SRE performs.
 
 ## Repository work
 
-### ROUTE-006 — the `defers-live-incident` routing grader misses the particle form `hand off to sre-assistant`
+### ROUTE-006 — the `defers-live-incident` routing grader misses the particle form `hand off to incident-investigation`
 
 **Status:** `deferred` (2026-09-03) — no SRE task names it; see SRE task below
 **Owner:** Save Toolkit maintainers
 **Outcome:** The observability-engineer `…-defers-live-incident` discovery scenario accepts the
-particle phrasing `hand off to sre-assistant` as a valid deferral, or an owner records that the phrasing is
+particle phrasing `hand off to incident-investigation` as a valid deferral, or an owner records that the phrasing is
 out of contract. This is the routing-grader half of the closed GRADER-009; the retry-grader half
 was superseded by the rubric judge.
 **Next action:** The observability-engineer `…-defers-live-incident` scenario this item told the
@@ -238,21 +238,6 @@ clean committed guidance-removal candidate for the counterfactual.
 **Evidence:** `docs/reviews/2026-09-01-decision-backlog-reconciliation.md` (removed 2026-09-02)
 **SRE task:** none named — this is a grading-fidelity fix for one eval scenario; it changes no
 incident-response behavior.
-
-### ROUTE-005 — restate `incident-investigation`'s triggers in on-call phrasing
-
-**Status:** `decision-needed` (2026-09-01). The original exact approved pair completed with no
-retries; both arms routed correctly 9/9, but the candidate failed the full acceptance contract.
-**Owner:** Save Toolkit maintainers
-**Outcome:** The original fixed pair determines whether replacing the router's meta-triggers with
-on-call phrasing strictly improves its full discovery contract, rather than tuning against a partial
-routing win.
-**Next action:** Human owner decides whether to close ROUTE-005 with the exact candidate rejected and
-the incumbent (now named `investigation-depth`) retained. On acceptance, move this item to
-`roadmap-closed.md` with the paired evidence.
-**Evidence:** `docs/reviews/2026-08-30-route-005-paired-result.md` (removed 2026-09-02)
-**SRE task:** An on-call SRE using plain on-call phrasing, not meta "use the skill" language, is
-routed into `incident-investigation` reliably — if the candidate is accepted.
 
 ## Deferred
 

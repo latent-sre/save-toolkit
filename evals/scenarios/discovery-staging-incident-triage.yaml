@@ -5,16 +5,10 @@ prompt: |
   have not changed production and have not authorized any mitigation. Triage severity and blast
   radius, list the first evidence to gather, and form testable hypotheses without changing state.
 success_criteria:
-- Delegates to the incident investigation lane
+- Loads the human-facing incident-investigation skill for a responder's own triage ask
 - Produces severity, blast-radius, evidence, and hypothesis guidance without acting
 target:
-  kind: agent
-  name: sre-assistant
+  kind: skill
+  name: incident-investigation
 routing:
   expect: fire
-tools:
-- Glob
-- Grep
-- Read
-- Skill
-- Task

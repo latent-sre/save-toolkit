@@ -59,8 +59,10 @@ be in the dialect the team actually queries.
    action exists that the leading candidate predicts will help — after capturing what it would
    destroy — with rollback and the recovery signal (which numbers, at baseline, for how long; one
    green point is not recovery). A reversible action no candidate explains adds impact and
-   destroys attribution. Otherwise "change nothing yet", and why. The release owner executes, with
-   sign-off.
+   destroys attribution. When the mechanism is self-sustaining, the reversible action is to shed
+   load or break the loop — pause retries, drain the queue, warm the cache — and it names the
+   in-flight work that shedding destroys. Otherwise "change nothing yet", and why. The release
+   owner executes, with sign-off.
 4. **Next check.** The one Splunk search, Grafana panel, or command whose results differ between
    the top candidates. Give it as: what to run · what it does · *if it shows X, A is confirmed —
    do B; if it shows Y, A is dead and C leads — do D*. Name the healthy result and the unhealthy
@@ -80,7 +82,9 @@ service or several); **what the failing cases have in common** (a region, a paym
 instance, one customer segment); **is it getting worse**; **does it reproduce from the user's
 side**. Five classes hold nearly every candidate: a change, a dependency, saturation (pool,
 threads, memory, quota), data or state (expiry, a bad row, a cache), and outside the app (load
-balancer, edge, DNS, provider).
+balancer, edge, DNS, provider). Two incidents in the same window are not evidence of one cause
+until a mechanism connects them; assuming a shared cause merges two differentials and can hide the
+second failure.
 
 What to ask the responder for, by phase — each ask names the tool, what it does, and what a
 healthy and an unhealthy result look like:
@@ -121,7 +125,10 @@ moves a candidate up or down and names the check that confirms it; none is a dia
   it waits on a socket is the reason;
 - a load balancer that sees seconds where the container logs milliseconds is time spent outside
   the container;
-- low CPU everywhere with high latency is waiting, not working.
+- low CPU everywhere with high latency is waiting, not working;
+- the trigger is gone — rolled back, flag off — and the service is still degraded: the mechanism
+  is self-sustaining (retries, a queue backlog, cold caches, a control loop reacting to its own
+  effect); the check is whether load on the dependency fell when the trigger was removed.
 
 `[verified]` is only what the `sre-assistant` agent observed itself. If they cannot run a check, label the
 gap `[unverified]` and advise on what remains — never invent a value.

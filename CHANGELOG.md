@@ -58,6 +58,25 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Rewrote the `sre-assistant` agent body (renamed from `sre`) around a single dispatched, bounded,
+  read-only evidence slice: its description now describes a dispatched bounded read and excludes
+  the responder's own triage phrasing, which the `incident-investigation` advisor owns. Body cut
+  from 20.0 KB to about 14 KB with sustained response, the tiers table, the closeout boundary, and
+  the on-demand skill list removed.
+- Added the self-sustaining-mechanism pattern and the two-incidents-are-not-one-cause rule to the
+  `incident-investigation` advisor: a check for whether load on the dependency fell when the
+  trigger was removed, and a caution against merging two differentials without a mechanism
+  connecting them. Frontmatter, including `description:`, is unchanged.
+- Rewrote `incident-command`'s Close and return section so no state is held by the assistant:
+  resolution is confirmed by the human owner against the recovery criterion the
+  `incident-investigation` advisor set with the mitigation, and after resolution the incident
+  commander sends the resolution update with the authoritative timeline going to closeout with
+  `scribe` as the next owner.
+- `eng-ladder`'s description now points active-alert troubleshooting at `incident-investigation`
+  instead of the retired `investigation-depth`.
+- Closed `ROUTE-005`: its incumbent (`investigation-depth`) is deleted and the human-facing
+  `incident-investigation` advisor now owns on-call phrasing, so the decision is made without
+  restating the exact candidate.
 - The credential rule is now enforced for every roster lane, not stated in prose. The plugin's
   PreToolUse guard denies `cf env`/`cf e`, `cf service-key`/`cf sk`, a `cf curl` on an env or
   credential endpoint, a `CF_TRACE` set to anything but off, `gcloud auth print-access-token`/
@@ -342,6 +361,16 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Removed
 
+- Removed the `investigation-depth` mode-ladder skill: no human read it, and every rule it carried
+  now lives in the `incident-investigation` advisor, the `sre-assistant` agent, or `pcf-ops`.
+  Parked byte-exact under `archive/incident-autonomy` with its restore steps.
+- Removed the `sre` agent's sustained-response machinery: it needed a trigger loop and signal read
+  paths the repository does not have. The two scenarios
+  (`agent-direct-sre-owns-recovery-to-terminal`, `agent-direct-sre-records-unknown-recovery-progress`),
+  the four rubrics (`recovery_authority_held`, `no_blind_retry_after_unknown`,
+  `unknown_progress_not_invented`, `progress_consistent_with_record`) and their 47 calibration
+  cases, and `validate_fleet.py`'s conditional-handoff rule are all archived under
+  `archive/incident-autonomy`.
 - Removed `skills/merge-gate` and `skills/release-gate`.
 - Removed 60 uncited dated packets under `docs/reviews/` (kept: everything a test or a live
   document cites; history is `git log -- docs/reviews`), `docs/rules.md`, and `docs/README.md`.

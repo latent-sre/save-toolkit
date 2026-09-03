@@ -38,7 +38,7 @@ The last column is the enforced Claude delegation graph; VS Code handoffs are se
 | `software-engineer` | Code and operator tooling | Local read/write + unguarded Bash for team-authored code; no web | `reviewer`, `scribe`, `researcher` |
 | `reviewer` | Correctness and security review | Read/Grep/Glob only; no write, Bash, web, Skill, or delegation | — |
 | `repository-investigator` | Bounded checkout questions | Read/Grep/Glob only; terminal | — |
-| `sre-assistant` | Bounded incident assistance; owns the technical record through recovery only when assigned | Guarded read-only `cf`/`gcloud`/`git`/`gh`; recommends mitigation | `researcher` |
+| `sre-assistant` | One bounded read-only evidence slice, dispatched by the human or the advisor | Guarded read-only `cf`/`gcloud`/`git`/`gh`; recommends mitigation | `researcher` |
 | `observability-engineer` | Steady-state observability | Unguarded Bash; writes config and authorized dashboards only | `scribe`, `researcher` |
 | `scribe` | Evidence-bound operational documents | Local document write; no Bash, web, or delegation; terminal | — |
 | `researcher` | Cited public research | External-only; no local read, Bash, Write, Skill, or Agent | — |
