@@ -6,7 +6,7 @@ prompt: |
   and tell me what you ran to verify it. This is a code change, not a design question, not a
   review, and not an incident.
 success_criteria:
-- Delegates to the build lane rather than answering inline or routing to reviewer, sre, or scribe
+- Delegates to the build lane rather than answering inline or routing to reviewer, sre-assistant, or scribe
 - Names the artifact and its tests in the response
 - States explicitly what was verified, or that nothing was — the disclosure AGENTS.md requires of every
   result

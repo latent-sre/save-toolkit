@@ -1,0 +1,72 @@
+diff --git a/scripts/test_validate_fleet.py b/scripts/test_validate_fleet.py
+index 143a8ce2..fd47ecd0 100644
+--- a/scripts/test_validate_fleet.py
++++ b/scripts/test_validate_fleet.py
+@@ -217,11 +217,11 @@ class FleetValidatorTests(unittest.TestCase):
+ 
+     def test_sre_incident_summary_never_omits_provisional_severity(self) -> None:
+         bounded_assist = _markdown_section(
+-            Path("agents/sre-assistant.md"), "## One bounded read-only slice, then stop"
++            Path("agents/sre-assistant.md"), "## Assist at the evidence-selected incident mode"
+         )
+         output = _markdown_section(Path("agents/sre-assistant.md"), "## Output contract")
+         self.assertIn(
+-            "or `[unverified] assignment pending`, never omission", bounded_assist
++            "insufficient evidence becomes `[unverified] assignment pending`", bounded_assist
+         )
+         self.assertIn("provisional severity + named scale", output)
+         self.assertIn("or `[unverified] assignment pending`", output)
+@@ -526,9 +526,27 @@ class FleetValidatorTests(unittest.TestCase):
+                 if source.name == filename:
+                     text = text.replace(before, after)
+                 (root / "agents" / source.name).write_text(text, encoding="utf-8")
++            for relative in validate_fleet.CONDITIONAL_HANDOFF_CONTRACTS.values():
++                target = root / relative
++                target.parent.mkdir(parents=True, exist_ok=True)
++                target.write_text((ROOT / relative).read_text(encoding="utf-8"), encoding="utf-8")
+             _, failures = validate_fleet.validate_agents(root)
+         return failures
+ 
++    def test_sre_conditional_handoff_requires_an_explicit_pointer(self) -> None:
++        failures = self._agents_with_mutation(
++            "sre-assistant.md", "incident-handoff reference", "conditional handoff details"
++        )
++        self.assertIn("missing handoff contract", "\n".join(failures))
++
++    def test_sre_conditional_handoff_rejects_a_negated_pointer(self) -> None:
++        failures = self._agents_with_mutation(
++            "sre-assistant.md",
++            "read `investigation-depth`'s incident-handoff reference before forming the packet",
++            "do not read `investigation-depth`'s incident-handoff reference before forming the packet",
++        )
++        self.assertIn("missing handoff contract", "\n".join(failures))
++
+     def test_model_alias_is_accepted(self) -> None:
+         """An alias must produce NO failure at all, not merely avoid one message.
+ 
+@@ -804,18 +822,19 @@ class NonDelegatingHandoffTests(unittest.TestCase):
+ class SharedHandoffBlockTests(unittest.TestCase):
+     """The delegating agents' inline or predicate-loaded rules stay byte-identical.
+ 
+-    It was NOT identical: `observability-engineer` carried two straight quotes where `software-engineer`
+-    has curly ones. Harmless in itself, diagnostic in aggregate — something edited one copy of a
++    It was NOT identical: `observability-engineer` carried two straight quotes where `software-engineer` and `sre-assistant`
++    have curly ones. Harmless in itself, diagnostic in aggregate — something edited one copy of a
+     duplicated block and the other copies did not move, which is the same mechanism that produced
+-    the reviewer contradiction above. The next divergence may not be punctuation. `sre-assistant`
+-    carries its own `## Handoffs` section rather than this shared block and is not compared here.
++    the reviewer contradiction above. The next divergence may not be punctuation.
+     """
+ 
+-    DELEGATING = ("software-engineer", "observability-engineer")
++    DELEGATING = ("software-engineer", "sre-assistant", "observability-engineer")
+ 
+     @staticmethod
+     def _rules_block(name: str) -> str:
+-        relative = Path("agents") / f"{name}.md"
++        relative = validate_fleet.CONDITIONAL_HANDOFF_CONTRACTS.get(
++            name, Path("agents") / f"{name}.md"
++        )
+         text = (ROOT / relative).read_text(encoding="utf-8")
+         match = re.search(r"^## Rules\n(.*?)(?=\n## |\Z)", text, re.S | re.M)
+         assert match is not None, f"{name}: no '## Rules' section"

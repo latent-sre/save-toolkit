@@ -60,7 +60,8 @@ hr "done (read-only evidence)"
 cat <<'EOF'
 Next steps:
   - Record the first event/error timestamp and correlation ID; compare with the release history.
-  - Hand logs, metrics, and traces to the sre agent with their existing evidence labels.
+  - Hand logs, metrics, and traces to the responder, who may dispatch sre-assistant for a bounded
+    read, with their existing evidence labels.
   - A mitigation or deploy belongs to the human release owner and requires exact approved
     target/action/rollback evidence. This helper never mutates the app.
 EOF

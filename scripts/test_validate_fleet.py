@@ -202,7 +202,7 @@ class FleetValidatorTests(unittest.TestCase):
             "software-engineer": _markdown_section(
                 Path("agents/software-engineer.md"), "## Untrusted input boundary"
             ),
-            "sre": _markdown_section(Path("agents/sre.md"), "## Working doctrine"),
+            "sre-assistant": _markdown_section(Path("agents/sre-assistant.md"), "## Working doctrine"),
         }
         for agent, section in sections.items():
             with self.subTest(agent=agent):
@@ -211,17 +211,17 @@ class FleetValidatorTests(unittest.TestCase):
                 self.assertIn("never replaces the evidence label", section)
         self.assertIn(
             "`[sourced]` and `[sourced: <source>]` are both valid sourced forms",
-            sections["sre"],
+            sections["sre-assistant"],
         )
-        self.assertNotIn("`[sourced: handoff]` is invalid", sections["sre"])
+        self.assertNotIn("`[sourced: handoff]` is invalid", sections["sre-assistant"])
 
     def test_sre_incident_summary_never_omits_provisional_severity(self) -> None:
         bounded_assist = _markdown_section(
-            Path("agents/sre.md"), "## Assist at the evidence-selected incident mode"
+            Path("agents/sre-assistant.md"), "## One bounded read-only slice, then stop"
         )
-        output = _markdown_section(Path("agents/sre.md"), "## Output contract")
+        output = _markdown_section(Path("agents/sre-assistant.md"), "## Output contract")
         self.assertIn(
-            "insufficient evidence becomes `[unverified] assignment pending`", bounded_assist
+            "or `[unverified] assignment pending`, never omission", bounded_assist
         )
         self.assertIn("provisional severity + named scale", output)
         self.assertIn("or `[unverified] assignment pending`", output)
@@ -510,7 +510,7 @@ class FleetValidatorTests(unittest.TestCase):
 
     def test_sre_postincident_delegation_edges_are_rejected(self) -> None:
         failures = self._agents_with_mutation(
-            "sre.md",
+            "sre-assistant.md",
             "Agent(researcher)",
             "Agent(observability-engineer, scribe, researcher)",
         )
@@ -526,26 +526,8 @@ class FleetValidatorTests(unittest.TestCase):
                 if source.name == filename:
                     text = text.replace(before, after)
                 (root / "agents" / source.name).write_text(text, encoding="utf-8")
-            for relative in validate_fleet.CONDITIONAL_HANDOFF_CONTRACTS.values():
-                target = root / relative
-                target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_text((ROOT / relative).read_text(encoding="utf-8"), encoding="utf-8")
             _, failures = validate_fleet.validate_agents(root)
         return failures
-
-    def test_sre_conditional_handoff_requires_an_explicit_pointer(self) -> None:
-        failures = self._agents_with_mutation(
-            "sre.md", "incident-handoff reference", "conditional handoff details"
-        )
-        self.assertIn("missing handoff contract", "\n".join(failures))
-
-    def test_sre_conditional_handoff_rejects_a_negated_pointer(self) -> None:
-        failures = self._agents_with_mutation(
-            "sre.md",
-            "read `investigation-depth`'s incident-handoff reference before forming the packet",
-            "do not read `investigation-depth`'s incident-handoff reference before forming the packet",
-        )
-        self.assertIn("missing handoff contract", "\n".join(failures))
 
     def test_model_alias_is_accepted(self) -> None:
         """An alias must produce NO failure at all, not merely avoid one message.
@@ -556,7 +538,7 @@ class FleetValidatorTests(unittest.TestCase):
         being tested.
         """
         failures = self._agents_with_mutation(
-            "sre.md", "name: sre\n", "name: sre\nmodel: sonnet\n"
+            "sre-assistant.md", "name: sre-assistant\n", "name: sre-assistant\nmodel: sonnet\n"
         )
         self.assertEqual([], failures)
 
@@ -564,7 +546,7 @@ class FleetValidatorTests(unittest.TestCase):
         # The staleness the old blanket ban existed to prevent: a dated ID keeps pointing at
         # a model long after the fleet has moved on, and nothing errors.
         failures = self._agents_with_mutation(
-            "sre.md", "name: sre\n", "name: sre\nmodel: claude-opus-4-1-20250805\n"
+            "sre-assistant.md", "name: sre-assistant\n", "name: sre-assistant\nmodel: claude-opus-4-1-20250805\n"
         )
         self.assertIn("model must be one of", "\n".join(failures))
 
@@ -572,7 +554,7 @@ class FleetValidatorTests(unittest.TestCase):
         # `Bash(git diff:*)` reads like a narrowed shell and grants an open one — the runtime
         # ignores the scope. Only Agent(...) scoping is real.
         failures = self._agents_with_mutation(
-            "sre.md", "Read, Grep, Glob, Bash, Skill", "Read, Grep, Glob, Bash(git diff:*), Skill"
+            "sre-assistant.md", "Read, Grep, Glob, Bash, Skill", "Read, Grep, Glob, Bash(git diff:*), Skill"
         )
         self.assertIn("scoped tool grant", "\n".join(failures))
 
@@ -615,8 +597,8 @@ class FleetValidatorTests(unittest.TestCase):
             root = self._guard_wiring_root(
                 temporary,
                 lambda t: t.replace(
-                    'frozenset({"sre"})',
-                    'frozenset({"sre", "software-engineer"})',
+                    'frozenset({"sre-assistant"})',
+                    'frozenset({"sre-assistant", "software-engineer"})',
                 ),
             )
             failures = validate_fleet.validate_guard_wiring(
@@ -629,11 +611,11 @@ class FleetValidatorTests(unittest.TestCase):
             root = self._guard_wiring_root(
                 temporary,
                 lambda t: t.replace(
-                    'frozenset({"sre"})',
-                    'frozenset({"sre", "ghost-agent"})',
+                    'frozenset({"sre-assistant"})',
+                    'frozenset({"sre-assistant", "ghost-agent"})',
                 ),
             )
-            failures = validate_fleet.validate_guard_wiring(root, ["sre", "observability-engineer"])
+            failures = validate_fleet.validate_guard_wiring(root, ["sre-assistant", "observability-engineer"])
         self.assertIn("non-existent agent", "\n".join(failures))
 
     def test_guard_plugin_name_mismatch_with_manifest_is_rejected(self) -> None:
@@ -822,19 +804,18 @@ class NonDelegatingHandoffTests(unittest.TestCase):
 class SharedHandoffBlockTests(unittest.TestCase):
     """The delegating agents' inline or predicate-loaded rules stay byte-identical.
 
-    It was NOT identical: `observability-engineer` carried two straight quotes where `software-engineer` and `sre`
-    have curly ones. Harmless in itself, diagnostic in aggregate — something edited one copy of a
+    It was NOT identical: `observability-engineer` carried two straight quotes where `software-engineer`
+    has curly ones. Harmless in itself, diagnostic in aggregate — something edited one copy of a
     duplicated block and the other copies did not move, which is the same mechanism that produced
-    the reviewer contradiction above. The next divergence may not be punctuation.
+    the reviewer contradiction above. The next divergence may not be punctuation. `sre-assistant`
+    carries its own `## Handoffs` section rather than this shared block and is not compared here.
     """
 
-    DELEGATING = ("software-engineer", "sre", "observability-engineer")
+    DELEGATING = ("software-engineer", "observability-engineer")
 
     @staticmethod
     def _rules_block(name: str) -> str:
-        relative = validate_fleet.CONDITIONAL_HANDOFF_CONTRACTS.get(
-            name, Path("agents") / f"{name}.md"
-        )
+        relative = Path("agents") / f"{name}.md"
         text = (ROOT / relative).read_text(encoding="utf-8")
         match = re.search(r"^## Rules\n(.*?)(?=\n## |\Z)", text, re.S | re.M)
         assert match is not None, f"{name}: no '## Rules' section"

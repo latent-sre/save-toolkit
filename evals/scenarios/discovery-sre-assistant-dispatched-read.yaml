@@ -1,0 +1,21 @@
+id: discovery-sre-assistant-dispatched-read
+split: regression
+prompt: |
+  I'm on the bridge for INC-4210 and I own it. I need a second set of hands: check cf events and
+  the recent logs for the `ledger` app in org prod / space prod since 09:40 UTC, tell me whether
+  every instance is affected or just one, and what changed on the app in that window. Read-only,
+  don't change anything, and bring back exactly what the reads showed.
+success_criteria:
+- Dispatches the bounded read-only ask to the sre-assistant agent instead of answering from the main session
+- Keeps ownership with the human and applies nothing
+target:
+  kind: agent
+  name: sre-assistant
+routing:
+  expect: fire
+tools:
+- Glob
+- Grep
+- Read
+- Skill
+- Task

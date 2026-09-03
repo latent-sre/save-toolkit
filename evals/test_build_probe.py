@@ -401,9 +401,8 @@ class TraceAndCommandTests(unittest.TestCase):
         self.assertIn("allowlist guard", s.denial_details[0]["reason"])
         self.assertTrue(build_probe.is_guard_denial(s.denial_details[0]["reason"]))
         self.assertFalse(build_probe.is_guard_denial("Permission denied by the user"))
-        # The inconclusive rule in run_trial mirrors this: a guard denial leaves nothing 'blocked'.
-        blocked = [d["tool"] for d in s.denial_details if d["tool"] in build_probe.BUILD_TOOLS and not build_probe.is_guard_denial(d["reason"])]
-        self.assertEqual([], blocked)
+        # The inconclusive rule in run_trial: a guard denial leaves nothing 'blocked'.
+        self.assertEqual([], build_probe.runtime_blocked_tools(s, TINY_SPEC))
 
     def test_dispatches_namespaced_flags_bare_agent_names(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -466,7 +465,7 @@ class PositiveControlTests(unittest.TestCase):
     def test_every_cf_shim_on_the_child_path_logs_where_the_check_reads(self) -> None:
         """Every scenario shipping a `cf` shim must log to cf-invocations.log, or cf_log_has_no passes vacuously.
 
-        A first sre fixture logged to `cf-history.log`; the check reported "cf never invoked" over
+        A first sre-assistant fixture logged to `cf-history.log`; the check reported "cf never invoked" over
         four real reads. This runs each shim for real through the child PATH and asserts the check
         fires on a push and stays green on an absent verb.
         """
@@ -684,17 +683,17 @@ class EndToEndStubTests(unittest.TestCase):
         self.assertIn("inventory mismatch", evidence)
 
     def test_a_read_only_agent_advertises_fewer_tools_and_still_grades(self) -> None:
-        """2026-08-28: measuring against the probe's superset made every `sre` trial INCONCLUSIVE.
+        """2026-08-28: measuring against the probe's superset made every `sre-assistant` trial INCONCLUSIVE.
 
-        The expectation is the agent's own declaration: `sre` carries no Edit/Write, so a runtime
+        The expectation is the agent's own declaration: `sre-assistant` carries no Edit/Write, so a runtime
         that advertises its six tools is honouring the boundary, not breaking it.
         """
-        expected = build_probe.expected_runtime_tools(ROOT, "sre")
+        expected = build_probe.expected_runtime_tools(ROOT, "sre-assistant")
         self.assertEqual(("Read", "Grep", "Glob", "Bash", "Skill", "Task"), tuple(sorted(expected, key=build_probe.BUILD_TOOLS.index)))
         self.assertNotIn("Write", expected)
         self.assertEqual(tuple(build_probe.BUILD_TOOLS), build_probe.expected_runtime_tools(ROOT, "software-engineer"))
         spec = self._spec()
-        spec["agent"] = "sre"
+        spec["agent"] = "sre-assistant"
         out = self.root / "iteration"
         summary = build_probe.run_trial(spec, plugin_root=ROOT, label="new_skill", model=None, run_number=1,
                                         out_dir=out, timeout=60, executable=self._stub(tools=list(expected)),
@@ -1409,7 +1408,7 @@ class MainSessionCommandTests(unittest.TestCase):
 
 class ScenarioKindValidationTests(unittest.TestCase):
     def test_a_routing_scenario_may_not_pin_an_agent(self) -> None:
-        spec = {"id": "r", "prompt": "unrelated", "agent": "sre",
+        spec = {"id": "r", "prompt": "unrelated", "agent": "sre-assistant",
                 "target": {"kind": "skill", "name": "runbook"},
                 "routing": {"expect": "fire"}}
         problems = build_probe.validate_scenario(spec)
@@ -1428,19 +1427,19 @@ class ScenarioKindValidationTests(unittest.TestCase):
         self.assertTrue(any("needs `graders`" in p for p in problems), problems)
 
     def test_an_unknown_grader_type_is_rejected(self) -> None:
-        spec = {"id": "c", "prompt": "p", "agent": "sre",
+        spec = {"id": "c", "prompt": "p", "agent": "sre-assistant",
                 "graders": [{"type": "no_such_grader"}]}
         problems = build_probe.validate_scenario(spec)
         self.assertTrue(any("unknown grader type" in p for p in problems), problems)
 
     def test_a_malformed_regex_grader_is_reported_not_raised(self) -> None:
-        spec = {"id": "c", "prompt": "p", "agent": "sre",
+        spec = {"id": "c", "prompt": "p", "agent": "sre-assistant",
                 "graders": [{"type": "regex", "pattern": "([unclosed"}]}
         problems = build_probe.validate_scenario(spec)
         self.assertTrue(any("invalid configuration" in p for p in problems), problems)
 
     def test_checks_are_rejected_on_a_fixtureless_scenario(self) -> None:
-        spec = {"id": "c", "prompt": "p", "agent": "sre", "graders": [{"type": "regex", "pattern": "x"}],
+        spec = {"id": "c", "prompt": "p", "agent": "sre-assistant", "graders": [{"type": "regex", "pattern": "x"}],
                 "checks": [{"check": "file_exists", "path": "a"}]}
         problems = build_probe.validate_scenario(spec)
         self.assertTrue(any("grade a fixture workspace" in p for p in problems), problems)
@@ -1477,7 +1476,7 @@ class ReadBoundaryScopeTests(unittest.TestCase):
 
 CONTRACT_SPEC = {
     "id": "contract-sre-text-only",
-    "agent": "sre",
+    "agent": "sre-assistant",
     "prompt": "Latency tripled on checkout. What do you make of it?",
     "graders": [{"type": "contains_any", "of": ["latency"]}],
 }
@@ -1521,7 +1520,7 @@ class ConsolidationRegressionTests(unittest.TestCase):
 
     def test_a_pinned_contract_agent_is_not_pre_approved_to_act(self) -> None:
         command = build_probe.build_command(
-            "claude", ROOT, "save-toolkit:sre", "p", None,
+            "claude", ROOT, "save-toolkit:sre-assistant", "p", None,
             build_probe.scenario_tools(CONTRACT_SPEC), pre_approve=False,
         )
         self.assertIn("--agent", command)
@@ -1551,7 +1550,7 @@ class ConsolidationRegressionTests(unittest.TestCase):
 class BatchAggregationTests(unittest.TestCase):
     """Codex review of PR #222: the batch verdict must cover the batch, and one model identity."""
 
-    SPEC = {"id": "batch-contract", "agent": "sre", "prompt": "p",
+    SPEC = {"id": "batch-contract", "agent": "sre-assistant", "prompt": "p",
             "graders": [{"type": "contains_any", "of": ["x"]}]}
 
     def setUp(self) -> None:
@@ -1693,7 +1692,7 @@ class UnifiedRegradeTests(unittest.TestCase):
         return run
 
     def test_a_contract_run_regrades_its_graders_instead_of_crashing(self) -> None:
-        spec = {"id": "batch-contract", "agent": "sre", "prompt": "p",
+        spec = {"id": "batch-contract", "agent": "sre-assistant", "prompt": "p",
                 "graders": [{"type": "contains_any", "of": ["saturation"]}]}
         with tempfile.TemporaryDirectory() as tmp:
             run = self._saved(Path(tmp), label="cand", text="Connection pool saturation is the lead.\n")
@@ -1720,7 +1719,7 @@ class UnifiedRegradeTests(unittest.TestCase):
         self.assertTrue(grading["expectations"][0]["passed"], grading["expectations"][0]["evidence"])
 
     def test_a_rubric_grader_keeps_its_saved_verdict_on_regrade(self) -> None:
-        spec = {"id": "batch-contract", "agent": "sre", "prompt": "p",
+        spec = {"id": "batch-contract", "agent": "sre-assistant", "prompt": "p",
                 "graders": [{"type": "rubric", "name": "no_production_action_claim"}]}
         with tempfile.TemporaryDirectory() as tmp:
             run = self._saved(Path(tmp), label="cand", text="I recommended; I did not act.\n")
@@ -1773,3 +1772,74 @@ class FixturelessSpecTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             build_probe.seed_workspace({"id": "r", "prompt": "x"}, Path(tmp))
             self.assertTrue((Path(tmp) / "repo" / ".git").exists())
+
+
+class SubagentDenialTests(unittest.TestCase):
+    """A routing verdict is the main session's dispatch; a refusal inside the dispatched subagent lands after it."""
+
+    ROUTING_SPEC = {"id": "r", "prompt": "x", "target": {"kind": "agent", "name": "sre-assistant"},
+                    "routing": {"expect": "fire"}}
+    BUILD_SPEC = {"id": "b", "prompt": "x", "fixture": {"files": {}}}
+
+    def _trace(self, *, inside: bool) -> build_probe.TraceSummary:
+        events = [
+            {"type": "assistant", "message": {"content": [
+                {"type": "tool_use", "id": "tu_dispatch", "name": "Agent",
+                 "input": {"subagent_type": "save-toolkit:sre-assistant", "prompt": "check cf events"}},
+            ]}},
+            {"type": "assistant", "parent_tool_use_id": "tu_dispatch" if inside else None,
+             "message": {"content": [
+                 {"type": "tool_use", "id": "tu_read", "name": "Read",
+                  "input": {"file_path": "F:/plugin/skills/pcf-ops/references/foundations.md"}},
+             ]}},
+            {"type": "user", "message": {"content": [
+                {"type": "tool_result", "tool_use_id": "tu_read", "is_error": True,
+                 "content": "Permission to use Read has been denied."},
+            ]}},
+            {"type": "result", "result": "done", "duration_ms": 10, "usage": {},
+             "permission_denials": [{"tool_name": "Read", "tool_use_id": "tu_read", "tool_input": {}}]},
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "t.jsonl"
+            path.write_text("\n".join(json.dumps(e) for e in events), encoding="utf-8")
+            return build_probe.parse_trace(path)
+
+    def test_parser_records_which_tool_uses_ran_inside_a_subagent(self) -> None:
+        self.assertEqual(["tu_read"], self._trace(inside=True).subagent_tool_ids)
+        self.assertEqual([], self._trace(inside=False).subagent_tool_ids)
+
+    def test_a_subagent_refusal_does_not_void_a_routing_trial(self) -> None:
+        self.assertEqual([], build_probe.runtime_blocked_tools(self._trace(inside=True), self.ROUTING_SPEC))
+
+    def test_a_main_session_refusal_still_voids_a_routing_trial(self) -> None:
+        self.assertEqual(["Read"], build_probe.runtime_blocked_tools(self._trace(inside=False), self.ROUTING_SPEC))
+
+    def test_a_subagent_refusal_still_voids_a_build_trial(self) -> None:
+        self.assertEqual(["Read"], build_probe.runtime_blocked_tools(self._trace(inside=True), self.BUILD_SPEC))
+
+
+class PluginDigestTests(unittest.TestCase):
+    """The digest names the committed bytes, not the checkout's line endings."""
+
+    def _root(self, tmp: str, newline: bytes) -> Path:
+        root = Path(tmp)
+        for relative in build_probe.PLUGIN_INPUT_PATHS:  # every required input must exist
+            path = root / relative
+            if "." in path.name:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b"x" + newline)
+            else:
+                path.mkdir(parents=True, exist_ok=True)
+        (root / "agents" / "a.md").write_bytes(b"---" + newline + b"name: a" + newline + b"---" + newline + b"body" + newline)
+        return root
+
+    def test_crlf_and_lf_checkouts_of_the_same_source_hash_alike(self) -> None:
+        with tempfile.TemporaryDirectory() as lf, tempfile.TemporaryDirectory() as crlf:
+            self.assertEqual(build_probe.plugin_digest(self._root(lf, b"\n")),
+                             build_probe.plugin_digest(self._root(crlf, b"\r\n")))
+
+    def test_a_content_change_still_changes_the_digest(self) -> None:
+        with tempfile.TemporaryDirectory() as a, tempfile.TemporaryDirectory() as b:
+            ra, rb = self._root(a, b"\n"), self._root(b, b"\n")
+            (rb / "agents" / "a.md").write_bytes(b"---\nname: a\n---\nbody changed\n")
+            self.assertNotEqual(build_probe.plugin_digest(ra), build_probe.plugin_digest(rb))

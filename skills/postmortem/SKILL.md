@@ -4,7 +4,7 @@ description: >-
   Apply the standard blameless postmortem structure after the scribe agent selects postmortem mode,
   or when a user explicitly invokes this skill. Covers the resolved incident, systemic causes,
   timeline, detection, response, and owned action items. Direct retrospective writing belongs to
-  scribe; active incidents route to sre and incident-command. Triggers:
+  scribe; active incidents route to incident-investigation and incident-command. Triggers:
   "postmortem mode selected", "apply the postmortem structure", "use the postmortem template".
 argument-hint: "[the resolved incident]"
 ---
@@ -51,7 +51,7 @@ Two claims that need evidence, not silence:
   missing telemetry; otherwise the dependent action remains blocked until this prerequisite lands.
 - Each item is **owned, dated, tracked** — an un-owned action item is a wish. Use typed handoffs:
   resilience/code → typed `software-engineer` agent; detection/SLO → typed `observability-engineer` agent; investigation follow-up →
-  typed `sre` agent; deploy/rollback safety → human release owner; operating documentation → typed `scribe`
+  the responder with `incident-investigation`; deploy/rollback safety → human release owner; operating documentation → typed `scribe`
   agent.
 - Be honest about what you don't know; mark unconfirmed causes `[unverified]` and state how to confirm them.
 
@@ -78,5 +78,6 @@ cheapest one to learn from. Same structure, same owned action items, less prose.
 
 ## Tip
 
-Seed this from the supplied incident timeline and typed `sre` agent's root-cause evidence so it is accurate
+Seed this from the supplied incident timeline and the incident record's root-cause evidence (the advisor's
+closeout packet and any `sre-assistant` slices) so it is accurate
 while memory is fresh. Preserve every `[verified]`, `[sourced]`, and `[unverified]` label; never upgrade one.

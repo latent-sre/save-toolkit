@@ -1,4 +1,4 @@
-id: discovery-active-alert-stays-with-sre
+id: discovery-active-alert-stays-with-advisor
 split: calibration
 prompt: |
   A brand-new CheckoutErrorBudgetBurn alert is paging now, customers are failing checkout, and the
@@ -13,8 +13,8 @@ target:
 routing:
   expect: not_fire
   expected_alternative:
-    kind: agent
-    name: sre
+    kind: skill
+    name: incident-investigation
 tools:
 - Glob
 - Grep

@@ -50,18 +50,6 @@ NON_DELEGATION_DISCLAIMERS = (
     "cannot delegate",
     "caller must invoke",
 )
-CONDITIONAL_HANDOFF_CONTRACTS = {
-    "sre": Path("skills/investigation-depth/references/incident-handoff.md"),
-}
-CONDITIONAL_HANDOFF_POINTERS = {
-    "sre": (
-        "When calling `researcher`, handling an empty or failed delegate return, or returning work "
-        "that changes ownership, read `investigation-depth`'s incident-handoff reference before forming the "
-        "packet. Do not load that reference for a bounded response that returns directly to the "
-        "same human owner."
-    ),
-}
-
 
 def _flatten(text: str) -> str:
     """Collapse all whitespace runs to single spaces for substring matching.
@@ -115,7 +103,7 @@ EXPECTED_AUTHORITY = {
         "required": {"Read", "Bash", "Edit", "Write", "Skill", "Agent"},
         "forbidden": EXTERNAL_EVIDENCE_TOOLS,
     },
-    "sre": {
+    "sre-assistant": {
         "required": {"Read", "Bash", "Skill", "Agent"},
         "forbidden": {*WRITE_TOOLS, *EXTERNAL_EVIDENCE_TOOLS},
     },
@@ -137,7 +125,7 @@ EXPECTED_DELEGATION = {
     "repository-investigator": set(),
     "researcher": set(),
     "software-engineer": {"reviewer", "scribe", "researcher"},
-    "sre": {"researcher"},
+    "sre-assistant": {"researcher"},
     "observability-engineer": {"scribe", "researcher"},
     "scribe": set(),
     "agent-engineer": {"researcher"},
@@ -162,22 +150,11 @@ def _delegates(raw: object) -> set[str]:
 
 
 def _resolve_handoff_contract(root: Path, name: str, body: str) -> str | None:
-    """Resolve an inline or explicitly predicate-loaded handoff contract."""
+    """Resolve an inline handoff contract."""
 
     if "## The handoff packet" in body or "## Handoffs" in body:
         return body
-    relative = CONDITIONAL_HANDOFF_CONTRACTS.get(name)
-    pointer = CONDITIONAL_HANDOFF_POINTERS.get(name)
-    paragraphs = {_flatten(paragraph) for paragraph in re.split(r"\n\s*\n", body)}
-    if relative is None or pointer is None or pointer not in paragraphs:
-        return None
-    try:
-        contract = (root / relative).read_text(encoding="utf-8")
-    except (OSError, UnicodeError):
-        return None
-    if "## The handoff packet" not in contract and "## Handoffs" not in contract:
-        return None
-    return contract
+    return None
 
 
 def validate_agents(root: Path) -> tuple[list[str], list[str]]:
@@ -337,7 +314,7 @@ def validate_guard_wiring(root: Path, agent_names: list[str]) -> list[str]:
       * the guard's roster and the generator's roster are two independent literals that nothing
         forces to agree — a name added to one but not the other guards nothing or renders no adapter;
       * a roster entry that resolves to no agent (a typo) makes the guard match nobody, silently;
-      * the guard recognizes its subject by the namespaced `agent_type` (`save-toolkit:sre`), so a
+      * the guard recognizes its subject by the namespaced `agent_type` (`save-toolkit:sre-assistant`), so a
         plugin rename that misses PLUGIN_NAME makes every payload fail to match and the guard allows
         everything while looking healthy.
     """

@@ -44,12 +44,12 @@ an SRE performs.
 
 ## Repository work
 
-### ROUTE-006 — the `defers-live-incident` routing grader misses the particle form `hand off to sre`
+### ROUTE-006 — the `defers-live-incident` routing grader misses the particle form `hand off to incident-investigation`
 
 **Status:** `deferred` (2026-09-03) — no SRE task names it; see SRE task below
 **Owner:** Save Toolkit maintainers
 **Outcome:** The observability-engineer `…-defers-live-incident` discovery scenario accepts the
-particle phrasing `hand off to sre` as a valid deferral, or an owner records that the phrasing is
+particle phrasing `hand off to incident-investigation` as a valid deferral, or an owner records that the phrasing is
 out of contract. This is the routing-grader half of the closed GRADER-009; the retry-grader half
 was superseded by the rubric judge.
 **Next action:** The observability-engineer `…-defers-live-incident` scenario this item told the
@@ -239,28 +239,15 @@ clean committed guidance-removal candidate for the counterfactual.
 **SRE task:** none named — this is a grading-fidelity fix for one eval scenario; it changes no
 incident-response behavior.
 
-### ROUTE-005 — restate `incident-investigation`'s triggers in on-call phrasing
-
-**Status:** `decision-needed` (2026-09-01). The original exact approved pair completed with no
-retries; both arms routed correctly 9/9, but the candidate failed the full acceptance contract.
-**Owner:** Save Toolkit maintainers
-**Outcome:** The original fixed pair determines whether replacing the router's meta-triggers with
-on-call phrasing strictly improves its full discovery contract, rather than tuning against a partial
-routing win.
-**Next action:** Human owner decides whether to close ROUTE-005 with the exact candidate rejected and
-the incumbent (now named `investigation-depth`) retained. On acceptance, move this item to
-`roadmap-closed.md` with the paired evidence.
-**Evidence:** `docs/reviews/2026-08-30-route-005-paired-result.md` (removed 2026-09-02)
-**SRE task:** An on-call SRE using plain on-call phrasing, not meta "use the skill" language, is
-routed into `incident-investigation` reliably — if the candidate is accepted.
-
 ## Deferred
 
 ### EVAL-009 — reset the eval baseline after the fleet reshape
 
-**Status:** `deferred` (2026-09-02) until A3–A5, S1, and S4 of the fleet weight review have merged.
+**Status:** `deferred` (2026-09-02) until A3–A5, S1, and S4 of the fleet weight review have merged,
+and (2026-09-03) until the skills trims that follow PR #224 have merged: the routing after-run for
+the eleven descriptions #224 changed is folded in here rather than run twice.
 **Owner:** Save Toolkit maintainers
-**Outcome:** One fresh baseline of the whole corpus (46 scenarios plus the nine build probes) on one
+**Outcome:** One fresh baseline of the whole corpus (59 specs: 11 build probes, 15 contract, 33 routing) on one
 model and one runner build, a fresh judge calibration, and a decision on the 15 "ownership map"
 sentences still in skill descriptions. Every measurement taken during the reshape (the
 `docs/reviews/2026-09-02-eval-*` packets, the gate-merge batches, the corpus-cut evidence) is a

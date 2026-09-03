@@ -5,7 +5,7 @@ description: >-
   may span components, teams, migrations, or hard-to-reverse choices. Triggers: 'how rigorous
   should this be', 'review this at the principal level', 'is this a design doc or just a PR'. A
   scoped change with an obvious owner and existing pattern routes straight to its builder or craft
-  skill. Active-alert investigation depth belongs to investigation-depth.
+  skill. Active-alert troubleshooting belongs to incident-investigation.
 argument-hint: "[task, diff, file, or design doc]"
 ---
 
@@ -38,7 +38,7 @@ Routing includes routing to yourself. Work stays in the current context when it 
 
 This table is the source of truth for routing — on any conflict over which rung a task belongs to, the table wins; fix the paraphrase, not the table.
 
-Application-operations work routes to the `sre` agent; platform internals route to the platform team; code that runs on the platform still uses this ladder.
+Application-operations work routes to the responder with `incident-investigation` (`sre-assistant` only for a dispatched read); platform internals route to the platform team; code that runs on the platform still uses this ladder.
 
 ## Mode 2 — Assess work at a bar
 

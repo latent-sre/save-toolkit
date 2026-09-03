@@ -1,0 +1,12 @@
+diff --git a/evals/scenarios/agent-direct-sre-assistant-readonly-triage.yaml b/evals/scenarios/agent-direct-sre-assistant-readonly-triage.yaml
+index b21a9216..9b45d2ff 100644
+--- a/evals/scenarios/agent-direct-sre-assistant-readonly-triage.yaml
++++ b/evals/scenarios/agent-direct-sre-assistant-readonly-triage.yaml
+@@ -55,6 +55,7 @@ graders:
+   pattern: '(?im)^\s*learning dispositions?\s*:'
+ - type: not_contains
+   of:
++  - incident-state/v2
+   - '→ handing to:'
+ - type: contains_any
+   of:

@@ -4,7 +4,7 @@ description: >-
   Coordinate a live incident: set or revise P1-P4 severity, establish command roles and the
   authoritative timeline, prepare stakeholder updates, and choose a reversible mitigation for human
   execution. Triggers: 'declare an incident', 'what severity is this', 'send the incident update',
-  'should we roll back'. Not for technical diagnosis (sre), resolved-incident documentation
+  'should we roll back'. Not for technical diagnosis (incident-investigation), resolved-incident documentation
   (scribe), or applying production changes.
 argument-hint: "[the incident or severity question]"
 ---
@@ -17,9 +17,10 @@ when unsure: declaring is cheap; under-declaring leaves impact unowned.
 
 ## Shared control boundary
 
-- **Command is not investigation.** The incident commander runs the response process. The typed
-  `sre` agent owns technical triage and root-cause hypotheses; a human release owner owns
-  remediation. Do not let the commander disappear into logs.
+- **Command is not investigation.** The incident commander runs the response process. The human
+  on-call owns technical triage and root-cause hypotheses, advised by `incident-investigation`; the
+  typed `sre-assistant` agent may be dispatched for a bounded read-only slice. A human release owner
+  owns remediation. Do not let the commander disappear into logs.
 - **One source of truth.** Keep one UTC timeline with observed facts, decisions, actions, owners,
   and the next update time. Preserve `[verified]`, `[sourced]`, and `[unverified]` labels.
 - **Mitigate first, but never act from this skill.** Recommend the fastest safe, reversible action.
@@ -29,10 +30,12 @@ when unsure: declaring is cheap; under-declaring leaves impact unowned.
 - **Suspected compromise or integrity loss exits the reliability path.** Escalate immediately to
   the human security incident owner and preserve state and forensic evidence. Do not restart,
   redeploy, scale, remap routes, or use a generic mitigation unless that owner directs the exact
-  action. The typed `sre` agent may collect only the named read-only signals requested by that
+  action. The typed `sre-assistant` agent may collect only the named read-only signals requested by that
   owner; it does not contain, eradicate, or recover a compromised system.
 - **Keep roles explicit without inventing people.** Bind supplied human names to incident command,
-  operations/remediation, and communications/timeline; the typed `sre` agent may own investigation.
+  operations/remediation, investigation (advised by `incident-investigation`), and
+  communications/timeline; the typed `sre-assistant` agent may be dispatched only for a bounded
+  read-only slice.
   If the packet does not name responders, assign the accountable pager/team role, mark named-human
   assignment pending, and ask the human commander to bind it in the live record. The typed `scribe`
   agent receives the timeline only after resolution.
@@ -50,13 +53,13 @@ authoritative severity, timeline, and decision record rather than producing sepa
 
 ## Close and return
 
-Resolve only after the typed `sre` investigator confirms that user impact has ended and the same
-golden signals have remained at baseline for the stated sustained window. Until then the incident
-remains active in `monitoring-recovery`; a green point, a proposed follow-up, or a completed research
-call is not a terminal state.
+Resolution is confirmed by the human owner when user impact has ended and the same golden signals
+have remained at baseline for the stated sustained window (the recovery criterion the
+`incident-investigation` advisor set with the mitigation). Until then the incident remains active;
+a green point, a proposed follow-up, or a completed research call is not resolution.
 
-After terminal resolution, `sre` sends the resolution update and returns the authoritative timeline,
-evidence labels, and proposed next-phase work to the caller. The caller, not `sre`, separately
-dispatches typed `observability-engineer` for detection changes and typed `scribe` for the
-postmortem, operating guidance, and learning dispositions. Neither next-phase lane confirms live
-incident recovery or starts work while the SRE loop is active.
+After resolution the incident commander sends the resolution update, and the authoritative
+timeline goes to closeout with `scribe` as the next owner. The caller separately dispatches typed
+`observability-engineer` for detection changes and typed `scribe` for the postmortem, operating
+guidance, and learning dispositions. Neither next-phase lane confirms live incident recovery or
+starts work while the incident is active.

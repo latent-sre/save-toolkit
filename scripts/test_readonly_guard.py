@@ -8,7 +8,7 @@ In this repo one plugin-level hook receives all Bash events; the guard scopes it
 payload's exact agent identity. Two consequences shape every test here:
 
   * The guard no-ops unless the payload's `agent_type` names a guarded agent. A payload WITHOUT
-    `agent_type` therefore exercises nothing at all — so `bash_call` supplies the sre agent by
+    `agent_type` therefore exercises nothing at all — so `bash_call` supplies the sre-assistant agent by
     default, or the entire denylist below would pass while testing the short-circuit.
   * The verdict is carried by the EXIT CODE as well as stdout, so the hook can tell the real
     guard apart from a stand-in interpreter that merely exits 0. `decision()` asserts the two
@@ -33,7 +33,7 @@ EXIT_ALLOW = 42
 EXIT_DENY = 43
 EXIT_INDETERMINATE = 44
 
-SRE = "save-toolkit:sre"
+SRE = "save-toolkit:sre-assistant"
 OBS_ENGINEER = "save-toolkit:observability-engineer"
 # Backwards-compatible alias used throughout: the default guarded agent for the corpus runs.
 REVIEWER = SRE
@@ -167,7 +167,7 @@ ALLOWED = [
     "gh pr diff 12",
     "gh pr list --limit 5",
     "gh issue view 3",
-    # cf reads — the sre agent's bread-and-butter triage set
+    # cf reads — the sre-assistant agent's bread-and-butter triage set
     "cf app my-app",
     "cf apps",
     "cf events my-app",
@@ -510,7 +510,7 @@ DENIED = [
     # normalized to `$NAME` and permitted.
     "echo ${VAR:-fallback}",
     "echo ${PATH/x/y}",
-    # --- config validators are not on sre's list (observability-engineer, which runs them, is unguarded) --
+    # --- config validators are not on sre-assistant's list (observability-engineer, which runs them, is unguarded) --
     "promtool check rules rules.yml",
     "promtool test rules tests/burn_test.yml",
     "alloy validate config.alloy",
@@ -651,8 +651,8 @@ class ReadonlyGuardTest(unittest.TestCase):
         # guarded payload used to flip from deny to allow that way. Exit indeterminate so the hook
         # falls through to its blanket deny instead of taking exit 0 as ALLOW. A bare JSON list is
         # parseable but is not the documented dict envelope, so it lands here too.
-        for stdin_text in ("not json {", '{"tool_name": "Bash", "agent_type": "save-toolkit:sre"',
-                           '["Bash", "sre"]'):
+        for stdin_text in ("not json {", '{"tool_name": "Bash", "agent_type": "save-toolkit:sre-assistant"',
+                           '["Bash", "sre-assistant"]'):
             with self.subTest(stdin=stdin_text):
                 proc = run_guard(stdin_text)
                 self.assertEqual(
@@ -674,7 +674,7 @@ class ObservabilityUnguardedTest(unittest.TestCase):
 
     It applies Grafana dashboards over the HTTP API and runs config validators itself, so the guard
     must no-op for it under BOTH agent_type spellings — including for commands the guard denies
-    `sre`. The second test is the half that matters: the guard got narrower in WHO it covers, not
+    `sre-assistant`. The second test is the half that matters: the guard got narrower in WHO it covers, not
     looser in WHAT it allows.
     """
 
@@ -696,11 +696,11 @@ class ObservabilityUnguardedTest(unittest.TestCase):
                     self.assertEqual(decision(proc), "allow", f"guarded an unguarded lane: {command!r}")
 
     def test_the_same_commands_stay_denied_for_sre(self) -> None:
-        for agent in (SRE, "sre"):
+        for agent in (SRE, "sre-assistant"):
             for command in self.UNGUARDED_SAMPLE:
                 with self.subTest(agent=agent, command=command):
                     proc = run_guard(bash_call(command, agent_type=agent))
-                    self.assertEqual(decision(proc), "deny", f"falsely allowed for sre: {command!r}")
+                    self.assertEqual(decision(proc), "deny", f"falsely allowed for sre-assistant: {command!r}")
 
 
 class GuardScopingTest(unittest.TestCase):
@@ -733,7 +733,7 @@ class GuardScopingTest(unittest.TestCase):
         # Project/user-scope installs report a bare agent_type (probed on CLI 2.1.200; the
         # --plugin-dir dev loop reports the NAMESPACED form). The guard must not be sidestepped by
         # installing the agent at a different scope.
-        for agent in ("sre",):
+        for agent in ("sre-assistant",):
             with self.subTest(agent=agent):
                 proc = run_guard(bash_call("git push origin main", agent_type=agent))
                 self.assertEqual(decision(proc), "deny")
@@ -742,7 +742,7 @@ class GuardScopingTest(unittest.TestCase):
         # `tool_input.command` is user-controlled text. A guard that scanned it for the agent name
         # would deny this exact commit — the one someone editing this guard is about to make.
         proc = run_guard(
-            bash_call('git commit -m "fix save-toolkit:sre"', agent_type=None)
+            bash_call('git commit -m "fix save-toolkit:sre-assistant"', agent_type=None)
         )
         self.assertEqual(decision(proc), "allow")
 
@@ -750,7 +750,7 @@ class GuardScopingTest(unittest.TestCase):
         # The other silent-disarm axis: the PLUGIN is renamed but PLUGIN_NAME here is not. The
         # payload still carries `agent_type`, so the field-rename canary below never fires, and the
         # exact-match set misses because the namespace moved. Before this check the guard handed
-        # `sre` and `observability-engineer` unguarded Bash while looking healthy — `rm -rf` was
+        # `sre-assistant` and `observability-engineer` unguarded Bash while looking healthy — `rm -rf` was
         # allowed under the moved namespace. A namespaced payload whose bare name is guarded is one
         # of ours under a moved namespace; deny it.
         #
@@ -759,7 +759,7 @@ class GuardScopingTest(unittest.TestCase):
         # every namespace here different from the live PLUGIN_NAME — the live one is guarded
         # through the normal allowlist path, so listing it here would test nothing.
         for namespace in ("sre-agents", "renamed-plugin", "save-toolkit-v2"):
-            for bare in ("sre",):
+            for bare in ("sre-assistant",):
                 with self.subTest(agent_type=f"{namespace}:{bare}"):
                     proc = run_guard(bash_call("rm -rf /tmp/x", agent_type=f"{namespace}:{bare}"))
                     self.assertEqual(decision(proc), "deny")
@@ -787,7 +787,7 @@ class GuardScopingTest(unittest.TestCase):
         # (project/user scope). The first canary design searched the envelope only for the
         # namespaced string, so a rename disarmed the guard silently in exactly the scope a
         # hand-installed copy runs in — caught in review, pinned here.
-        for renamed_value in (SRE, "sre"):
+        for renamed_value in (SRE, "sre-assistant"):
             with self.subTest(agent_type=renamed_value):
                 proc = run_guard(
                     json.dumps(
@@ -874,7 +874,7 @@ class FleetCredentialDenyTest(unittest.TestCase):
         for command in self.CREDENTIAL_COMMANDS:
             with self.subTest(command=command):
                 proc = run_guard(bash_call(command, agent_type=SRE))
-                self.assertEqual(decision(proc), "deny", f"allowed for sre: {command!r}")
+                self.assertEqual(decision(proc), "deny", f"allowed for sre-assistant: {command!r}")
 
     def test_the_main_loop_keeps_its_own_credential_commands(self) -> None:
         """The rule is addressed to the fleet's agents. A human's own terminal is not ours to gate."""

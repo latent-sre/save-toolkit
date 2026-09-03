@@ -464,7 +464,7 @@ def evaluate_timeline(evidence_directories: Iterable[Path]) -> dict[str, object]
         "rule": {
             "name": "GraphSandboxRunNeedsAction",
             "severity": "page",
-            "owner": "sre",
+            "owner": "on-call-sre",
             "first_action": (
                 "Inspect the latest verified evidence bundle and follow the matching "
                 "failure-plane branch in the graph-sandbox operations runbook."

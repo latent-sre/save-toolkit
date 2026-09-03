@@ -6,7 +6,7 @@ description: >-
   separates them, with what each result means; re-rank from what they paste; recommend the safe
   mitigation and who to page; keep a board. Triggers: 'walk me through this incident', 'help me
   understand what is going on with INC', 'what should I check next', 'what is this telling me'.
-  Not for the model's own triage (sre agent) or incident command or comms (incident-command).
+  Not for the model's own triage (sre-assistant agent) or incident command or comms (incident-command).
 argument-hint: "[INC id or symptom] [knowledge repository root]"
 ---
 
@@ -59,8 +59,10 @@ be in the dialect the team actually queries.
    action exists that the leading candidate predicts will help — after capturing what it would
    destroy — with rollback and the recovery signal (which numbers, at baseline, for how long; one
    green point is not recovery). A reversible action no candidate explains adds impact and
-   destroys attribution. Otherwise "change nothing yet", and why. The release owner executes, with
-   sign-off.
+   destroys attribution. When the mechanism is self-sustaining, the reversible action is to shed
+   load or break the loop — pause retries, drain the queue, warm the cache — and it names the
+   in-flight work that shedding destroys. Otherwise "change nothing yet", and why. The release
+   owner executes, with sign-off.
 4. **Next check.** The one Splunk search, Grafana panel, or command whose results differ between
    the top candidates. Give it as: what to run · what it does · *if it shows X, A is confirmed —
    do B; if it shows Y, A is dead and C leads — do D*. Name the healthy result and the unhealthy
@@ -80,7 +82,9 @@ service or several); **what the failing cases have in common** (a region, a paym
 instance, one customer segment); **is it getting worse**; **does it reproduce from the user's
 side**. Five classes hold nearly every candidate: a change, a dependency, saturation (pool,
 threads, memory, quota), data or state (expiry, a bad row, a cache), and outside the app (load
-balancer, edge, DNS, provider).
+balancer, edge, DNS, provider). Two incidents in the same window are not evidence of one cause
+until a mechanism connects them; assuming a shared cause merges two differentials and can hide the
+second failure.
 
 What to ask the responder for, by phase — each ask names the tool, what it does, and what a
 healthy and an unhealthy result look like:
@@ -121,14 +125,17 @@ moves a candidate up or down and names the check that confirms it; none is a dia
   it waits on a socket is the reason;
 - a load balancer that sees seconds where the container logs milliseconds is time spent outside
   the container;
-- low CPU everywhere with high latency is waiting, not working.
+- low CPU everywhere with high latency is waiting, not working;
+- the trigger is gone — rolled back, flag off — and the service is still degraded: the mechanism
+  is self-sustaining (retries, a queue backlog, cold caches, a control loop reacting to its own
+  effect); the check is whether load on the dependency fell when the trigger was removed.
 
-`[verified]` is only what the `sre` agent observed itself. If they cannot run a check, label the
+`[verified]` is only what the `sre-assistant` agent observed itself. If they cannot run a check, label the
 gap `[unverified]` and advise on what remains — never invent a value.
 
 ## Advising, not reporting
 
-The `sre` agent reports and stops. You supply judgment:
+The `sre-assistant` agent reports and stops. You supply judgment:
 
 | You | Sounds like |
 |---|---|
@@ -153,14 +160,14 @@ The `sre` agent reports and stops. You supply judgment:
 ## Authority and routing
 
 Your session's Bash is not the guarded one: no platform CLI, query, or command against a live
-target. Live reads go to the `sre` agent as a bounded ask, or the responder runs and pastes.
+target. Live reads go to the `sre-assistant` agent as a bounded ask, or the responder runs and pastes.
 Restarts, scaling, deploys, flag flips, and rollbacks are recommendations with target, command,
 blast radius, verification, and rollback; the tiers and approval shape are
 `production-change-gate`'s (ownership map only—not a load).
 
 | Next step | Lane |
 |---|---|
-| A read-only look at the live target | `sre` agent, with the exact bounded ask |
+| A read-only look at the live target | `sre-assistant` agent, with the exact bounded ask |
 | Platform faults, revisions, instances, platform logs | `pcf-ops` / `gcp-ops` |
 | Logs / metrics / traces; edge and cache; database | `obs-logs` / `obs-metrics` / `obs-traces`; `akamai-edge`; `database-reliability` |
 | A deeper causal method once the symptom is confirmed | `root-cause` |

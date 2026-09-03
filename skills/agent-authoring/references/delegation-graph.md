@@ -29,7 +29,7 @@ Read the current edges from the validated roster table, not from memory.
 
 | Role | Agents | Why |
 |---|---|---|
-| Orchestrators | `software-engineer` (build lane), `sre` (incident lane) | The two lanes that dispatch work |
+| Orchestrators | `software-engineer` (build lane); `sre-assistant` dispatches only a sanitized public question to `researcher` | The lanes that dispatch work |
 | Universal sink | `researcher` | Every orchestrating lane reaches it for sanitized public fact-finding |
 | Terminal for model calls | `reviewer`, `repository-investigator`, `scribe` | No `Agent` grant, so the model cannot dispatch onward; a user may still select a declared VS Code handoff, which starts a new owner without giving the source delegation authority |
 

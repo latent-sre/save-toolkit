@@ -19,7 +19,7 @@ it before recommending or changing supported runtime, tooling, or infrastructure
 | Agents, tools, or delegation | [`agents/`](agents) and the [delegation graph](skills/agent-authoring/references/delegation-graph.md); omitted `tools:` inherits every tool |
 | Agent or skill frontmatter | [`claude-code-frontmatter.md`](skills/agent-authoring/references/claude-code-frontmatter.md) |
 | Skills or the ADR command | [`skills/`](skills) and [`commands/adr.md`](commands/adr.md); link bundled references from `SKILL.md` |
-| A live incident, a firing alert, or "what should I check next" | [`incident-investigation`](skills/incident-investigation/SKILL.md) advises the human responder; the `sre` agent gathers one bounded read-only slice when asked |
+| A live incident, a firing alert, or "what should I check next" | [`incident-investigation`](skills/incident-investigation/SKILL.md) advises the human responder; the `sre-assistant` agent gathers one bounded read-only slice when asked |
 | Guard behavior or wiring | [`readonly-guard.py`](scripts/readonly-guard.py) and [`hooks.json`](hooks/hooks.json); exit codes stay 42 allow / 43 deny / 44 indeterminate |
 | Repository changes, dependencies, or verification | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 | Generated adapters | Fix the source or [`generate_platform_adapters.py`](scripts/generate_platform_adapters.py), then regenerate |
@@ -38,7 +38,7 @@ The last column is the enforced Claude delegation graph; VS Code handoffs are se
 | `software-engineer` | Code and operator tooling | Local read/write + unguarded Bash for team-authored code; no web | `reviewer`, `scribe`, `researcher` |
 | `reviewer` | Correctness and security review | Read/Grep/Glob only; no write, Bash, web, Skill, or delegation | — |
 | `repository-investigator` | Bounded checkout questions | Read/Grep/Glob only; terminal | — |
-| `sre` | Bounded incident assistance; owns the technical record through recovery only when assigned | Guarded read-only `cf`/`gcloud`/`git`/`gh`; recommends mitigation | `researcher` |
+| `sre-assistant` | One bounded read-only evidence slice, dispatched by the human or the advisor | Guarded read-only `cf`/`gcloud`/`git`/`gh`; recommends mitigation | `researcher` |
 | `observability-engineer` | Steady-state observability | Unguarded Bash; writes config and authorized dashboards only | `scribe`, `researcher` |
 | `scribe` | Evidence-bound operational documents | Local document write; no Bash, web, or delegation; terminal | — |
 | `researcher` | Cited public research | External-only; no local read, Bash, Write, Skill, or Agent | — |
@@ -48,7 +48,7 @@ The last column is the enforced Claude delegation graph; VS Code handoffs are se
 
 - Prefer tool absence: `reviewer`, `repository-investigator`, `scribe`, and `researcher` carry
   only lane-minimum tools. Other local roles send sanitized public questions to `researcher`.
-- The fail-closed Bash allowlist applies only to `sre`, through [`hooks/hooks.json`](hooks/hooks.json)
+- The fail-closed Bash allowlist applies only to `sre-assistant`, through [`hooks/hooks.json`](hooks/hooks.json)
   and exact `agent_type` values. Plugin agents ignore `hooks:`, `mcpServers:`, `permissionMode:`,
   and unknown frontmatter keys.
 - The guard is not a sandbox; OS identity, credentials, and network controls remain load-bearing,
