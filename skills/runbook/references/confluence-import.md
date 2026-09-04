@@ -37,7 +37,7 @@ page API and storage-format reference; curl manual on `--user`; reviewed 2026-08
 `software-engineer`-run) turns one exported page into a draft:
 
 ```bash
-python skills/runbook/scripts/confluence_to_runbook.py page.html -o runbooks/<slug>.md \
+python ${CLAUDE_PLUGIN_ROOT}/skills/runbook/scripts/confluence_to_runbook.py page.html -o docs/runbooks/<slug>.md \
   --source-url "https://<site>.atlassian.net/wiki/pages/<id>" --service-id <service>
 ```
 

@@ -85,6 +85,33 @@ class LinkCheckerTests(Fixture):
         )
         self.assertEqual([], check_links.check(self.root))
 
+    def test_a_fenced_command_running_its_own_bundled_script_is_flagged(self):
+        """The same defect in the one place it actually runs: a command line inside a fence.
+
+        `python skills/<own>/scripts/x.py` resolves only from the repository root -- not from
+        platforms/copilot/skills/, and not from a user's project, where the plugin is installed
+        outside this repository. `${CLAUDE_PLUGIN_ROOT}/`, the runtime root hooks/hooks.json
+        already uses, is the fix and must not itself be flagged.
+        """
+        self.skill("# Probe\n\nRead [notes](./references/notes.md).\n")
+        self.write(
+            "skills/probe-skill/references/notes.md",
+            "# Notes\n\n```bash\npython skills/probe-skill/scripts/x.py\n```\n",
+        )
+        self.assertTrue(
+            any(
+                "points at its own skill by repo-rooted path" in f
+                for f in check_links.check(self.root)
+            ),
+            check_links.check(self.root),
+        )
+        self.write(
+            "skills/probe-skill/references/notes.md",
+            "# Notes\n\n```bash\npython ${CLAUDE_PLUGIN_ROOT}"
+            "/skills/probe-skill/scripts/x.py\n```\n",
+        )
+        self.assertEqual([], check_links.check(self.root))
+
     def test_top_level_frontmatter_comment_is_allowed(self):
         frontmatter = CLEAN_FRONTMATTER.replace(
             'argument-hint: "[the probe]"',

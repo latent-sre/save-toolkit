@@ -2,7 +2,7 @@
 name: obs-pipeline
 description: >-
   What ships telemetry where — instrument a service with OTel and route metrics, traces, and
-  structured logs through Alloy/collectors to Loki, Mimir, Tempo, Splunk, and Wavefront. Triggers:
+  structured logs through Alloy/collectors to Loki, Mimir, and Tempo. Triggers:
   'instrument this service', 'add telemetry', 'logs are not showing up in', 'wire X to Grafana'.
   Not for reading the signals (obs-logs, obs-metrics, obs-traces).
 argument-hint: "[service, missing signal, or telemetry route]"
@@ -23,9 +23,12 @@ app → SDK/agent → collector/Alloy → backend
 
 | Signal | App emission | Transport and processing | Backend |
 |---|---|---|---|
-| Structured logs | approved JSON fields plus trace/span correlation | OTLP or file receiver → redact/filter/batch → route | Loki; Splunk where required |
-| Metrics | OTel instruments with bounded attributes | OTLP receiver → resource/attribute processing → route | Mimir and the current Wavefront path |
+| Structured logs | approved JSON fields plus trace/span correlation | OTLP or file receiver → redact/filter/batch → route | Loki |
+| Metrics | OTel instruments with bounded attributes | OTLP receiver → resource/attribute processing → route | Mimir |
 | Traces | spans with propagated W3C trace context | OTLP receiver → sampling/batch → route | Tempo |
+
+Splunk and Wavefront/PCF App Metrics are fed by the PCF platform, not by anything this
+skill wires: 'logs are not in Splunk' is a `pcf-ops` and `obs-logs` question.
 
 GCP backends are landing with the migration: the documented ingest is OTLP to the Telemetry API
 (`telemetry.googleapis.com` — all three signals, though logs ingestion is Pre-GA) through the same
@@ -44,8 +47,8 @@ route behavior remain `[unverified]` until a canary run proves them.
 4. **The exporter/backend rejects, delays, or misroutes it.** Tier-0: check exporter send/failure
    evidence, then issue one time-bounded backend query using the canary's exact service and trace IDs.
 
-At each boundary, record the target, time range, exact check, and result. A healthy later component
-does not prove an earlier boundary, and a backend query with no bounded canary does not identify loss.
+A healthy later component does not prove an earlier boundary, and a backend query with no bounded
+canary does not identify loss.
 
 Read only the reference needed for the task:
 
@@ -57,7 +60,7 @@ Read only the reference needed for the task:
 ## The cardinality rule (this is what blows up metric stores)
 **Bounded** dimensions → metric labels/tags. **Unbounded** identity (user/request/trace IDs, full URLs,
 emails, raw SQL) → traces and logs, **never** metric labels. A label with unbounded values creates a new
-time series per value and melts the metrics backend.
+time series per value.
 
 ## Naming — OTel uses DOTS, not underscores
 - **The OTel name is the source of truth:** namespaces delimited by **dots**, `snake_case` only *within*
@@ -75,12 +78,11 @@ time series per value and melts the metrics backend.
 - **This lands natively on our stack.** Wavefront takes dot-delimited names + point tags
   (`app.http.requests.latency`) — the OTel shape, near-unchanged. Keep the bounded-tag discipline;
   this section owns the emitted naming/tag contract.
-- *Portability note (off-stack):* a Prometheus-style exporter translates **for you, by default**
+- *Portability note (the Mimir path):* a Prometheus-style exporter translates **for you, by default**
   (`translation_strategy: UnderscoreEscapingWithSuffixes`) — dots → `_`, a unit suffix appended,
   `_total` on monotonic sums; with Prometheus 3.x UTF-8 names, `NoTranslation` passes the dotted name
   through instead. The exporter dedupes suffixes the name already carries, so pre-baking is not
-  applied twice — it is still wrong because it breaks the OTel naming contract and every
-  non-Prometheus rendering. Authoring the underscore form and calling it OTel is the common error.
+  applied twice — and it still breaks the OTel naming contract and every non-Prometheus rendering.
   *[sourced: OTel spec `sdk_exporters/prometheus` and the Prometheus-compatibility spec]*
 
 ## Build the evidence packet

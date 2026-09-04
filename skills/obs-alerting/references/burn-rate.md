@@ -34,9 +34,9 @@ A human or an unguarded lane runs it and pastes the output; the read-only guard 
 execution by design. The three admitted pair behaviours:
 
 ```powershell
-py -3 skills/obs-alerting/scripts/error_budget.py --slo 99.9 --sli-long 99.45 --sli-short 99.95
-py -3 skills/obs-alerting/scripts/error_budget.py --slo 99.9 --sli-long 99.45 --sli-short 99.8 --long-window 3d --short-window 6h
-py -3 skills/obs-alerting/scripts/error_budget.py --slo 99.9 --long-window 3d --short-window 5m
+py -3 ${CLAUDE_PLUGIN_ROOT}/skills/obs-alerting/scripts/error_budget.py --slo 99.9 --sli-long 99.45 --sli-short 99.95
+py -3 ${CLAUDE_PLUGIN_ROOT}/skills/obs-alerting/scripts/error_budget.py --slo 99.9 --sli-long 99.45 --sli-short 99.8 --long-window 3d --short-window 6h
+py -3 ${CLAUDE_PLUGIN_ROOT}/skills/obs-alerting/scripts/error_budget.py --slo 99.9 --long-window 3d --short-window 5m
 ```
 
 The third command is deliberately invalid and must exit 2 with the exact allowed-pair list.

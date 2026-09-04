@@ -23,13 +23,19 @@ LINK_RE = re.compile(r"\[([^\]]*)\]\(([^)]+)\)")
 CODE_PATH_RE = re.compile(
     r"`((?:references|assets|scripts)/[A-Za-z0-9._/-]+)`"
 )
-# A reference naming its OWN parent skill by repo-rooted path (`skills/backend-craft/SKILL.md`
-# inside skills/backend-craft/references/). It reads correct and is wrong everywhere it is read:
-# not from the reference's own directory, and not in platforms/copilot/skills/, where the skill
-# lives under a different prefix entirely. `../SKILL.md` is the form that resolves in both trees.
-# CODE_PATH_RE never caught it because that pattern only covers bundle-internal prefixes, so eight
-# of backend-craft's nine references carried a dead pointer through every green gate.
-SELF_SKILL_PATH_RE = re.compile(r"`skills/(?P<name>[a-z0-9-]+)/SKILL\.md`")
+# A file naming its OWN skill bundle by repo-rooted path (`skills/backend-craft/SKILL.md` inside
+# skills/backend-craft/references/, or `python skills/obs-alerting/scripts/x.py` inside a fence).
+# It reads correct and is wrong everywhere it is read: not from the file's own directory, not in
+# platforms/copilot/skills/, where the bundle sits under a different prefix, and not from a user's
+# project, where the plugin is installed outside this repository. Prose wants `../SKILL.md`; a
+# runnable command wants `${CLAUDE_PLUGIN_ROOT}/skills/<name>/...`, the runtime root already used
+# by hooks/hooks.json. Fences and code spans are in scope on purpose: a command line is exactly
+# where this defect lands, and three bundles shipped one through every green gate.
+SELF_SKILL_PATH_RE = re.compile(
+    r"(?<![A-Za-z0-9._/-])(?P<root>\$\{CLAUDE_PLUGIN_ROOT\}/)?"
+    r"skills/(?P<name>[a-z0-9-]+)/"
+    r"(?:SKILL\.md|(?:scripts|references|assets)/[A-Za-z0-9._/-]+)"
+)
 # Documents whose links must RESOLVE, checked for nothing else.
 #
 # Scope is every document a dead pointer can be REPAIRED in: the root guides, the roadmap, the live
@@ -367,20 +373,25 @@ def _relative_target(raw: str) -> str | None:
 
 
 def _check_self_skill_pointer(path: Path, text: str, skill_name: str) -> list[str]:
-    """Reject a reference pointing at its own SKILL.md by repo-rooted path.
+    """Reject a file naming its own bundle -- SKILL.md, scripts/, references/, assets/ -- by
+    repo-rooted path.
 
-    Only the self-pointer is rejected, and only inside that skill's own bundle. A reference may
+    Only the self-pointer is rejected, and only inside that skill's own bundle. A file may
     legitimately name a *sibling* skill's file to describe ownership, and drill scenario assets
     quote paths from systems that are not this repository at all -- neither is a broken pointer.
+    A `${CLAUDE_PLUGIN_ROOT}/` prefix is the fix, not the defect, so it is passed over.
     """
     failures = []
-    for match in SELF_SKILL_PATH_RE.finditer(_strip_fences(text)):
-        if match.group("name") != skill_name:
+    for match in SELF_SKILL_PATH_RE.finditer(text):
+        if match.group("name") != skill_name or match.group("root"):
             continue
+        line = text[: match.start()].count("\n") + 1
         failures.append(
-            f"{path.as_posix()}: reference points at its own skill by repo-rooted path "
-            f"'{match.group(0).strip('`')}'; use '../SKILL.md', which resolves in the canonical "
-            "tree and in platforms/copilot/skills/"
+            f"{path.as_posix()}:{line}: points at its own skill by repo-rooted path "
+            f"'{match.group(0)}'; a command takes "
+            f"'${{CLAUDE_PLUGIN_ROOT}}/{match.group(0)}', prose takes a relative link "
+            "('../SKILL.md') -- both resolve in the canonical tree, in "
+            "platforms/copilot/skills/, and from an installed plugin"
         )
     return failures
 
@@ -515,6 +526,9 @@ def check(root: Path = ROOT) -> list[str]:
             body, frontmatter_failures = _check_skill_frontmatter(skill_path, text)
             failures.extend(frontmatter_failures)
             failures.extend(_check_markdown(skill_path, body, skill_path.parent))
+            failures.extend(
+                _check_self_skill_pointer(skill_path, body, skill_path.parent.name)
+            )
             failures.extend(_check_direct_bundle_links(skill_path, body))
             references = skill_path.parent / "references"
             if references.is_dir():

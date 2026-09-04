@@ -43,7 +43,9 @@ Routing is by description; there are no commands to memorize.
 routes through it — if that is not your stack, update its entrypoint and matching references first
 or the fleet will confidently recommend someone else's tools.
 
-The one manual command is `/save-toolkit:adr` (ADR scaffold).
+Two entry points are manual only, so type them: `/save-toolkit:adr` (ADR scaffold) and
+`/save-toolkit:pcf-deploy` (PCF/TAS deploy plan — model invocation is disabled, so nothing
+will offer it).
 
 ## The fleet
 

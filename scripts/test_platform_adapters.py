@@ -580,6 +580,8 @@ class PlatformAdapterTests(unittest.TestCase):
         self.assertIn("`runbook` skill", bare)
         self.assertIn("references/x.md", nested)
         self.assertNotEqual(bare, nested)
+        # A bundled script is invoked on a command line, so its projection stays a runnable path.
+        self.assertEqual("skills/runbook/scripts/y.py", describe("skills/runbook/scripts/y.py"))
 
 if __name__ == "__main__":
     unittest.main()

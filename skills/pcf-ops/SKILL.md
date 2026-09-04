@@ -100,38 +100,35 @@ lane, turn repository values into trusted target evidence, or authorize a state-
 
 ## Drill in (read-only)
 
-```bash
-cf app <app> --guid
-cf curl /v3/apps/<guid>/processes
-cf curl /v3/processes/<process-guid>/stats
-cf routes
-cf services
-cf service <name>
-```
+| Question | Apps Manager | `cf` |
+|---|---|---|
+| GUID and processes | **Overview** | `cf app <app> --guid` |
+| Per-instance state/CPU/mem/disk | **Overview** instances | *human* `cf curl /v3/processes/<guid>/stats` |
+| Process detail | **Overview** | *human* `cf curl /v3/apps/<guid>/processes` |
+| Routes | **Routes** tab | `cf routes` |
+| Services and plan | **Services** tab | `cf services`; *human* `cf service <name>` |
 
-`/v3/apps/<guid>/processes` lists processes, not instances. Per-instance cpu/mem/disk/state comes from
-the process `/stats` endpoint. *[sourced: CAPI V3 process endpoints]* Those are the current
-instant; for memory or CPU **over time**, use PCF App Metrics or Wavefront.
+*human* = human-run; the guard denies that form to the agent. `cf curl` is the current instant; for
+CPU or memory **over time**, use App Metrics or Wavefront. *[sourced: CAPI V3 processes]*
 
 ### Secrets: credential-bearing reads are human-only
 
-Fleet agents never run `cf env`, `cf service-key`, or `CF_TRACE` output because those reads can leak
-credentials to an agent with egress — the read-only guard's allowlist omits them for exactly this
-reason. A human runs these credential-bearing reads.
-If raw environment data is genuinely required, the human captures and sanitizes the smallest excerpt
-outside the agent context. Preserve its evidence label and content hash through handoff.
+Fleet agents never run `cf env`, `cf service-key`, or `CF_TRACE`: those reads leak credentials to an
+agent with egress, and the guard's allowlist omits them for that reason. A human runs them, and if
+raw environment data is required, captures and sanitizes the smallest excerpt outside the agent
+context, preserving its evidence label and content hash through handoff.
 
-Treat `cf ssh` as privileged shell access, not read-only triage. Recommend it only when necessary and
-hand it to the human release owner with the exact target, purpose, and rollback/exit plan.
+Treat `cf ssh` as privileged shell access, not read-only triage: recommend it only when necessary,
+and hand the human release owner the exact target, purpose, and rollback/exit plan.
 
 ## State-changing — human execution only
 
 `cf set-health-check` / `cf restart` / `cf restage` / `cf scale` / `cf push` / `cf map-route` / `cf unmap-route` /
 `cf set-env` / `cf stop` / `cf delete` / `cf cancel-deployment` / `cf continue-deployment` / `cf ssh`.
 
-The `incident-command` skill owns mitigation choice and the human-invoked `/save-toolkit:pcf-deploy` workflow owns deployment execution; this read-only skill stops and hands off. Require an
+The `incident-command` skill owns mitigation choice and the human-invoked `/save-toolkit:pcf-deploy` workflow owns the deployment plan the human release owner executes; this read-only skill stops and hands off. Require an
 already-approved Tier-2/3 evidence packet naming the exact target, action, actor, blast radius,
-verification, and rollback before any live command. Agents never execute deployment.
+verification, and rollback before any live command.
 
 ## Tips
 

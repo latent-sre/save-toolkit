@@ -10,8 +10,8 @@ and follow the human security incident owner's exact direction instead.
 ## Pick the fastest safe, reversible action
 
 Stopping user pain comes before root cause. Prefer an action that can be undone in seconds and make
-the decision explicit. The typed `sre-assistant` agent recommends from evidence; the human incident commander
-owns the decision in a major incident; a human release owner executes.
+the decision explicit. The responder, advised by `incident-investigation`, recommends; `sre-assistant`
+reports evidence and stops; a human release owner executes.
 
 The commands below are planning examples, not current-foundation evidence. They remain
 `[unverified]` until the human release owner validates the exact target, capability, command, and
@@ -38,8 +38,8 @@ rollback.
    then either capture it or record it as knowingly traded for speed with the deciding human
    named. When the action is instance-scoped, holding one instance back unrestarted preserves
    the evidence for the cost of one instance's recovery.
-3. **One change at a time.** Then have the typed `observability-engineer` or named human watch the
-   golden signals for 1–2 minutes before another action, so the response can attribute the result.
+3. **One change at a time.** The responder, or a dispatched `sre-assistant` read, watches the
+   golden signals for 1–2 minutes before another action, so the response can attribute it.
 4. **Restart is not root-cause closure.** If restart restores service, preserve the leak, poison
    input, or dependency hypothesis and continue investigation with the human on-call, advised by
    `incident-investigation` (dispatching the typed `sre-assistant` agent for a bounded read-only
@@ -60,5 +60,5 @@ recovery evidence.
 After mitigation, confirm user impact has ended but keep the incident open through the sustained
 recovery window. The human on-call continues root-cause work with `incident-investigation`
 (dispatching the typed `sre-assistant` agent for a bounded read-only slice), the human release
-owner owns any fix-forward execution, and the typed `observability-engineer` owns recovery evidence
-and detection changes.
+owner owns any fix-forward execution, and the responder owns recovery evidence; `observability-engineer`
+owns detection changes after resolution.
