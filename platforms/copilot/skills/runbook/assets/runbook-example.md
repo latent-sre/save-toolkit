@@ -100,15 +100,16 @@ Dashboard: `https://grafana.example.internal/d/checkout-slo`  ·  Source/repo: `
    gates step 3: scaling checkout against a slow vendor only queues more work at the same
    bottleneck, so rule the vendor out *before* changing the instance count.
    ```bash
-   cf logs checkout --recent | awk '/vendor_timeout/ {n++} END {print n+0}'
+   cf logs checkout --recent > /tmp/checkout-recent.log &&
+     awk '/vendor_timeout/ {n++} END {print n+0}' /tmp/checkout-recent.log
    ```
    Expected: a count, within 30 s. Zero or single digits over the last few minutes is normal
    background.
    - Dozens or more → the vendor is the cause. **Do not scale.** Stop here and switch to
      `payments-vendor-degraded`.
    - Background levels → the latency is ours. Go to step 3.
-   - `cf logs` itself hangs past 30 s or errors (awk always prints a count, so an error here is
-     the platform API, not a zero) → escalate on the table's platform row.
+   - No count printed (the `&&` stops at a failed `cf logs`), an error, or a hang past 30 s → the
+     platform API is the problem, not checkout; escalate on the table's platform row.
 
 3. ⚠️ **Scale out.** (Tier 2 — needs approval naming the target instance count. Do not run this
    until step 2 returned background levels.)
@@ -117,8 +118,11 @@ Dashboard: `https://grafana.example.internal/d/checkout-slo`  ·  Source/repo: `
    ```
    Expected: `OK`, then `9/9 running` within 3 min. p95 should fall within 10 min of the last
    instance reaching `running` — not before, so do not judge this early.
-   - p95 still above 0.8 s 10 min after the last instance reached `running` → capacity was not
-     the bottleneck. **Do not scale further.** Escalate on the table's scale-out row.
+   - `9/9 running` and p95 under 0.8 s within that window → go to Verification.
+   - `9/9 running`, p95 lower but still above 0.8 s at 10 min → it partly worked: hold the
+     count, **do not scale further**, and escalate on the table's scale-out row with both readings.
+   - Not `9/9 running` after 3 min, or p95 unchanged at 10 min → capacity was not the
+     bottleneck. **Do not scale further.** Escalate on the table's scale-out row.
    Scaling is a stopgap that buys time; it does not fix a leak or a slow dependency. File the
    follow-up before you leave the incident.
 
@@ -127,9 +131,11 @@ Dashboard: `https://grafana.example.internal/d/checkout-slo`  ·  Source/repo: `
    ```bash
    cf logs checkout --recent > /tmp/checkout-crash-$(date -u +%Y%m%dT%H%M%SZ).log
    ```
-   Expected: a non-empty file within 30 s. Attach it to the incident, then escalate per the table
-   below — a crash loop is a defect, not a latency incident, and this runbook ends here. If the
-   capture is empty or errors twice, escalate with what you have rather than trying a third time.
+   Expected: a non-empty file within 30 s.
+   - Non-empty → attach it to the incident and escalate per the table below; a crash loop is a
+     defect, not a latency incident, and this runbook ends here.
+   - Empty, or the capture errors twice → escalate with what you have rather than trying a
+     third time.
 
 ## Verification
 p95 under 0.8 s for 15 continuous minutes on the SLO dashboard's "p95 by route" panel, **and** the
