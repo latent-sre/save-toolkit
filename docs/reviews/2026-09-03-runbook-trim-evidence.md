@@ -1,8 +1,8 @@
 # runbook trim: before/after evidence (2026-09-03)
 
 The `runbook` skill was cut from 50,817 B to 44,748 B in the candidate the trials ran, and stands
-at 45,100 B in the final tree after the import test's pinned export command was restored (not
-re-measured); more to the point, it was measured for the first time against its own authoring
+at 45,544 B in the final tree after the import test's pinned export command was restored and the
+review's exemplar fixes landed (not re-measured); more to the point, it was measured for the first time against its own authoring
 rules. A tools-off probe of Sonnet and Opus set the cut line;
 a probe-owned oracle of eleven rules, added to the existing scribe build probe, graded every trial;
 and two candidates were run, the trim alone and the trim plus two template lines, because the
@@ -45,7 +45,7 @@ does not fall, fixed in the candidate.
 | Probe | `evals/build-scenarios/build-scribe-writes-only-docs.yaml`: scribe writes the runbook for a resolved incident from supplied evidence, in a fixture repo with real code beside `docs/`; 6 original checks plus the 11 rules above, 17 in all |
 | Incumbent plugin root | this checkout at `b3ec12ff`, bundle 50,817 B |
 | Candidate one | worktree at `322ba4c7` (`ea716ef4` + `82bc03ec` here), digest `e972b230ee8a`: `step-craft.md` deleted with its list kept in one body sentence, the runbook/playbook/SOP paragraph dropped, the Confluence export walkthrough compressed to its three team rules, the exemplar's scale step given its route, and one added sentence: a new runbook starts `status: draft`. Bundle 44,338 B |
-| Candidate two | worktree at `d1aae6d8` (`30702179` here), digest `514082266fc4`: candidate one plus two lines in the template's procedure slot, the step's exit line and a note that every step carries an Expected line. Bundle 44,748 B; the final tree is 45,100 B after `77cdf135` restored the pinned export command, not re-measured |
+| Candidate two | worktree at `d1aae6d8` (`30702179` here), digest `514082266fc4`: candidate one plus two lines in the template's procedure slot, the step's exit line and a note that every step carries an Expected line. Bundle 44,748 B; the final tree is 45,544 B after `77cdf135` restored the pinned export command and `7a9b1c21` fixed the exemplar, not re-measured |
 | Models | `claude-sonnet-5` and `claude-opus-5`, three trials per arm |
 | Raw runs | `.eval-runs/build/runbook-2026-09-03/` (gitignored, private) |
 

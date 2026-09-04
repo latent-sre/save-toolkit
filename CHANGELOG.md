@@ -63,7 +63,7 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
-- `runbook`: 50,817 B to 45,100 B (44,748 B in the measured candidate). `step-craft.md`, the runbook/playbook/SOP paragraph, and the
+- `runbook`: 50,817 B to 45,544 B (44,748 B in the measured candidate). `step-craft.md`, the runbook/playbook/SOP paragraph, and the
   Confluence export walkthrough went, on a tools-off probe showing both models carry them; the body
   now says a new runbook starts `status: draft`, the exemplar's scale step has the route it lacked,
   and the template's procedure slot carries the step's exit line and the every-step Expected rule.
