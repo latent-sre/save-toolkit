@@ -64,3 +64,211 @@ checks:
   - {check: bash_did_not_run, pattern: ".", text: "no Bash call at all — scribe carries no Bash tool"}
   - {check: no_new_commits, text: "nothing committed"}
   - {check: no_agents_dir, text: "no .agents/ progress litter"}
+  # --- the skill's own authoring rules, made mechanical (added 2026-09-03 for the runbook trim).
+  # The checker is probe-owned and written after the agent has finished, so the change checks
+  # above never see it; each rule is proven red on a thin runbook and green on a complete one.
+  - check: command_exit_zero
+    command: "python probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck frontmatter"
+    text: "frontmatter carries the template's key set, status draft, both dates null, and names the alert"
+    writes:
+      probe_runbook_slots.py: |
+        """Probe-owned oracle for a runbook written with the runbook skill's template.
+
+        Usage: python probe_runbook_slots.py <runbook.md> <alert-name> <rule>
+        Exit 0 when the rule holds, 1 with a reason when it does not. The rules are the skill's own
+        authoring rules, made mechanical: the shape the template requires, an expected-output line under
+        every procedure step, a source for every placeholder, a stop condition on every step that can
+        fail, a rollback or an explicit "nothing to undo" for every state change, a reachable escalation
+        row with a time-box, a routed triage tree, frontmatter in the import-safe initial state, evidence
+        labels, and no template placeholder left behind.
+        """
+        import re
+        import sys
+
+        SLOTS = ("Purpose & scope", "Trigger", "Prerequisites", "Triage", "Procedure", "Verification",
+                 "Rollback", "Escalation", "Communication", "Post-Incident", "Incident history", "References")
+        FRONTMATTER_KEYS = ("schema_version", "runbook_id", "service_id", "status", "alert_names", "owner",
+                            "severity", "source_revision", "last_reviewed", "last_verified",
+                            "verification_evidence", "version")
+        TEMPLATE_LITERALS = ("<stable-runbook-slug>", "<stable-service-slug>", "<…>", "<YYYY-MM-DD>",
+                             "<concise title", "<team/role>", "<imperative step>", "<command>",
+                             "<what you should see>", "<next step>")
+        STATE_CHANGE = re.compile(r"\b(restart|rollout|scale|delete|truncate|kill|drain|failover|apply|patch)\b", re.I)
+        BOUND = re.compile(r"\b\d+\s*(?:s|sec|seconds?|m|min|minutes?|h|hours?|times|attempts?|retries)\b", re.I)
+        ROUTE = re.compile(r"(→|->|go to|escalate|stop here|this runbook ends|switch to|see `)", re.I)
+        SOURCE = re.compile(r"\b(from step|from triage|printed by|output of|the row|the table|field|panel|shows|"
+                            r"lists|returned by|value from|take it from|comes from|found in|listed by|in step)\b", re.I)
+
+
+        def section(text: str, name: str) -> str:
+            """The body of the H2 section whose heading starts with `name`, or ''."""
+            m = re.search(r"^## " + re.escape(name) + r"[^\n]*\n(.*?)(?=^## |\Z)", text, re.M | re.S)
+            return m.group(1) if m else ""
+
+
+        def steps(body: str) -> list[str]:
+            """Numbered steps of a section, each with its indented continuation lines."""
+            parts = re.split(r"^(?=\d+\.\s)", body, flags=re.M)
+            return [p for p in parts if re.match(r"\d+\.\s", p)]
+
+
+        def frontmatter(text: str) -> dict:
+            m = re.match(r"---\n(.*?)\n---", text, re.S)
+            if not m:
+                return {}
+            out = {}
+            for line in m.group(1).splitlines():
+                if ":" in line and not line.startswith(" "):
+                    key, _, value = line.partition(":")
+                    out[key.strip()] = value.strip()
+            return out
+
+
+        def rule_frontmatter(text: str, alert: str) -> str | None:
+            fm = frontmatter(text)
+            missing = [k for k in FRONTMATTER_KEYS if k not in fm]
+            if missing:
+                return "frontmatter missing " + ", ".join(missing)
+            if fm.get("status") != "draft":
+                return f"status is {fm.get('status')!r}; a new runbook starts draft"
+            for key in ("last_reviewed", "last_verified"):
+                if fm.get(key) not in ("null", "~", ""):
+                    return f"{key} is {fm.get(key)!r}; it starts null until a human review or bound rehearsal"
+            if alert not in fm.get("alert_names", ""):
+                return f"alert_names does not name {alert}"
+            return None
+
+
+        def rule_slots(text: str, alert: str) -> str | None:
+            missing = [s for s in SLOTS if not re.search(r"^## " + re.escape(s), text, re.M)]
+            return ("missing sections: " + ", ".join(missing)) if missing else None
+
+
+        def rule_expected_per_step(text: str, alert: str) -> str | None:
+            procedure = steps(section(text, "Procedure"))
+            if not procedure:
+                return "no numbered procedure steps"
+            bare = [s.split("\n", 1)[0][:60] for s in procedure if not re.search(r"expected\s*:", s, re.I)]
+            return ("procedure steps without an Expected line: " + " | ".join(bare)) if bare else None
+
+
+        def rule_expected_distinguishes(text: str, alert: str) -> str | None:
+            """An expected-output line earns its place when it routes partly-worked and failed somewhere."""
+            procedure = steps(section(text, "Procedure"))
+            routed = [s for s in procedure if re.search(r"expected\s*:", s, re.I) and ROUTE.search(s)]
+            return None if routed else "no procedure step's expected output routes a partial or failed outcome anywhere"
+
+
+        def rule_placeholders_sourced(text: str, alert: str) -> str | None:
+            body = section(text, "Triage") + section(text, "Procedure")
+            unsourced = []
+            for s in steps(body):
+                if re.search(r"<[a-z][a-z0-9_-]*>", s) and not SOURCE.search(s):
+                    unsourced.append(s.split("\n", 1)[0][:60])
+            return ("placeholders with no source: " + " | ".join(unsourced)) if unsourced else None
+
+
+        def commands(step: str) -> str:
+            """The fenced command blocks of a step, so prose like "do not restart" is not a state change."""
+            return "\n".join(re.findall(r"```[^\n]*\n(.*?)```", step, re.S))
+
+
+        def rule_stop_conditions(text: str, alert: str) -> str | None:
+            unbounded = []
+            for s in steps(section(text, "Procedure")):
+                if STATE_CHANGE.search(commands(s)) and not (BOUND.search(s) and ROUTE.search(s)):
+                    unbounded.append(s.split("\n", 1)[0][:60])
+            return ("state-changing steps with no bound and route: " + " | ".join(unbounded)) if unbounded else None
+
+
+        def rule_rollback_per_change(text: str, alert: str) -> str | None:
+            rollback = section(text, "Rollback")
+            if not rollback.strip():
+                return "no Rollback / cleanup section body"
+            if not re.search(r"safe-abort", rollback, re.I):
+                return "no Safe-abort line"
+            changing = [s for s in steps(section(text, "Procedure")) if STATE_CHANGE.search(commands(s))]
+            if changing and not (STATE_CHANGE.search(rollback) or re.search(r"nothing to undo|no rollback|one-way", rollback, re.I)):
+                return "rollback names no state-changing command and does not say nothing to undo"
+            return None
+
+
+        def rule_escalation_reachable(text: str, alert: str) -> str | None:
+            esc = section(text, "Escalation")
+            rows = [l for l in esc.splitlines() if l.startswith("|") and not re.match(r"\|\s*-", l) and "When" not in l]
+            if not rows:
+                return "no escalation rows"
+            reachable = [r for r in rows if re.search(r"#[a-z0-9-]+|pager|page\b|on-?call", r, re.I)]
+            if not reachable:
+                return "no escalation row names a pager or channel"
+            if not any(BOUND.search(r) for r in rows):
+                return "no escalation row carries a time-box"
+            return None
+
+
+        def rule_triage_routes(text: str, alert: str) -> str | None:
+            triage = section(text, "Triage")
+            routes = len(ROUTE.findall(triage))
+            return None if routes >= 2 else f"triage routes {routes} outcome(s); a decision tree needs at least two"
+
+
+        def rule_evidence_labels(text: str, alert: str) -> str | None:
+            return None if re.search(r"\[(verified|sourced|unverified)", text) else "no evidence label anywhere"
+
+
+        def rule_no_template_literals(text: str, alert: str) -> str | None:
+            left = [t for t in TEMPLATE_LITERALS if t in text]
+            return ("template placeholders left in: " + ", ".join(left)) if left else None
+
+
+        RULES = {name[5:].replace("_", "-"): fn for name, fn in globals().items() if name.startswith("rule_")}
+
+
+        def main() -> int:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+            path, alert, rule = sys.argv[1], sys.argv[2], sys.argv[3]
+            try:
+                text = open(path, encoding="utf-8").read()
+            except OSError as exc:
+                print(f"FAIL {rule}: cannot read {path}: {exc}")
+                return 1
+            if rule not in RULES:
+                print(f"FAIL {rule}: unknown rule; known: {', '.join(sorted(RULES))}")
+                return 1
+            problem = RULES[rule](text, alert)
+            print(f"{'PASS' if problem is None else 'FAIL'} {rule}" + (f": {problem}" if problem else ""))
+            return 0 if problem is None else 1
+
+
+        if __name__ == "__main__":
+            raise SystemExit(main())
+  - check: command_exit_zero
+    command: "python probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck slots"
+    text: "every template section is present"
+  - check: command_exit_zero
+    command: "python probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck expected-per-step"
+    text: "every procedure step has an Expected line"
+  - check: command_exit_zero
+    command: "python probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck expected-distinguishes"
+    text: "at least one expected-output line routes a partial or failed outcome somewhere"
+  - check: command_exit_zero
+    command: "python probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck placeholders-sourced"
+    text: "every placeholder in triage or procedure says where its value comes from"
+  - check: command_exit_zero
+    command: "python probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck stop-conditions"
+    text: "every state-changing command carries a bound and a route"
+  - check: command_exit_zero
+    command: "python probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck rollback-per-change"
+    text: "rollback names the state-changing command or says nothing to undo, with a safe-abort"
+  - check: command_exit_zero
+    command: "python probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck escalation-reachable"
+    text: "an escalation row names a pager or channel and one carries a time-box"
+  - check: command_exit_zero
+    command: "python probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck triage-routes"
+    text: "triage routes at least two outcomes"
+  - check: command_exit_zero
+    command: "python probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck evidence-labels"
+    text: "the runbook carries evidence labels"
+  - check: command_exit_zero
+    command: "python probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck no-template-literals"
+    text: "no template placeholder was left in"
