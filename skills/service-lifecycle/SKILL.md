@@ -12,11 +12,10 @@ argument-hint: "[audit|onboard|retire] <service> [environment]"
 
 # Service lifecycle
 
-Audit what exists, onboard what is new or materially changed, retire what is done. Every mode reads
-evidence and produces a checklist with owners; a human release owner or separately approved
-protected automation executes every live step under `production-change-gate` and returns its
-receipt. This skill changes nothing live and never requests a credential-bearing read; a prohibited
-read is recorded as a gap.
+Every mode reads evidence and produces a checklist with owners; a human release owner or separately
+approved protected automation executes every live step under `production-change-gate` and returns
+its receipt. This skill changes nothing live and never requests a credential-bearing read; a
+prohibited read is recorded as a gap.
 
 ## Pick the mode
 
@@ -68,20 +67,20 @@ record exists at all.
 
 Onboard and retire both end with an evidence-bound handoff to `scribe` for the service card, alert
 cards, index entry, and any missing or stale runbook, carrying the authorizing record, the exact
-repository revision, the execution receipts, and what was not done. Audit findings travel the same
-route. This skill never loads `operational-learning` or authors a record. When no service card or
-index entry exists, the audit's handoff asks `scribe` to create them from `operational-learning`'s
-templates.
+repository revision, the caller's `[verified]` checkout binding (full SHA), the execution receipts,
+every evidence label as received, and what was not done. Audit findings travel the same route. This
+skill never loads `operational-learning` or authors a record. When no service card or index entry
+exists, the audit's handoff asks `scribe` to create them from `operational-learning`'s templates.
 
 ## Return
 
-Date the conclusion in UTC with the age of the oldest load-bearing evidence. Then, by mode:
-**audit** returns up to three validated fixes in priority order, severity-ranked findings with
-evidence and owner, checks that passed, gaps and prohibited reads not run, and a plain statement
-that nothing was changed; **onboard** and **retire** return each surface's row with its result or
-`UNKNOWN`, every gate verdict and receipt, unresolved dependencies, the `scribe` handoff, and what
-was not done. Never report an effect complete while any surface is `BLOCKED`, `UNKNOWN`, or merely
-planned, and close an onboarding by recommending its own audit as owed verification.
+Lead with the conclusion, dated in UTC, with the age of the oldest load-bearing evidence. Then, by
+mode: **audit** returns up to three validated fixes in priority order, severity-ranked findings
+with evidence and owner, checks that passed, gaps and prohibited reads not run, and a plain
+statement that nothing was changed; **onboard** and **retire** return each surface's row with its
+result or `UNKNOWN`, every gate verdict and receipt, unresolved dependencies, the `scribe` handoff,
+and what was not done. Never report an effect complete while any surface is `BLOCKED`, `UNKNOWN`,
+or merely planned, and close an onboarding by recommending its own audit as owed verification.
 
 ## Optional resolved context
 

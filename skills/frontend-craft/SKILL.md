@@ -36,7 +36,7 @@ default below.
 | State | Server state lives in the query/cache layer (TanStack Query in the greenfield stack); UI state stays local — no global store until two distant components genuinely share state. |
 | API client | A typed API client generated from the OpenAPI contract; CI fails on drift. |
 | Forms | `react-hook-form` or `@mantine/form` in React; `v-model` plus the repo's validation layer in Vue; the server is the validation truth. |
-| Charts | Recharts v3 by default in React, visx for a bespoke one-off, uPlot for dense real-time series; never `@mantine/charts`; charts read theme tokens; give every chart a text or data-table alternative. |
+| Charts | Recharts v3 by default in React, visx for a bespoke one-off, uPlot for dense real-time series; streamed series batch or throttle redraws per frame and keep a rolling window; never `@mantine/charts`; charts read theme tokens; give every chart a text or data-table alternative. |
 | Tables | TanStack Table, virtualised past a few hundred rows, sort/filter/page in the URL. |
 | Auth | OIDC Authorization Code + PKCE against corp SSO; BFF or httpOnly-cookie session; access token in memory, never `localStorage`; one fetch wrapper does 401 → refresh once → retry; a `reviewer` pass for sensitive flows. |
 | Live data | SSE for one-way live data via the query cache. |

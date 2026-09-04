@@ -131,7 +131,7 @@ an isolated, networkless runner and preserve the exact evidence.
 > **Verified**: staging synthetic burn trips the rule in 4m [verified: alert-history link], at
 > `git rev-parse HEAD` = `<40-hex SHA>`.
 > **UNKNOWN**: the dashboard PUT timed out after dispatch — not a failed write; reconcile from a
-> fresh read back and version history, owner named.
+> fresh read back and version history. Reconciliation owner: the on-call platform engineer.
 
 ## Handoffs
 
