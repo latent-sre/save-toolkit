@@ -38,7 +38,12 @@ kubectl, helm, terraform, shells, and SQL), bound to its step by number and carr
 command or an explicit disposition, plus a safe-abort that says something; an escalation row
 that is time-boxed and names a pager or channel on the same row; a triage tree of at least two
 conditional branches; an evidence label in every step that runs a command; no template literal
-left in, a list a unit test holds to the template. That is the checker after four review rounds; the trials ran under its first version,
+left in, a list a unit test holds to the template. The checker ships inside the scenario's
+`writes:` block, so its 284 lines sit outside the evals ceiling the weight gate counts; that is
+an accounting gap, named here rather than fixed with more structure. Review rounds after the
+first added most of those lines to make the grader more precise than the trim decision needs;
+later oracles get one review round after their red/green proof, then ship. That is the checker
+after four review rounds; the trials ran under its first version,
 and the re-scored table below is under the current one. Proven before any trial and again after
 each tightening: 0 of 11 on a thin hand-written runbook, 11 of 11 on a complete one `[verified:
 this host]`. The skill's own exemplar scores 9 of 11 under the current checker, the two misses by
