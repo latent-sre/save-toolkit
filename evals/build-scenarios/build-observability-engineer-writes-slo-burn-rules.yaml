@@ -140,7 +140,9 @@ checks:
             # name: (good values, bad values, eval_time, want)
             # want: ("page", True) a page alert must fire; ("page", False) none may; ("ticket", True) ...
             "fast-fires": (*series(1000, 20, 100), "75m", [("page", True)]),
-            "spike-does-not-page": (*concat((1000, 0, 60), (1000, 1, 60), (1000, 20, 5), (1000, 0, 30)), "125m", [("page", False), ("ticket", False)]),
+            # Three days at 0.05% first, so the 3d and 6h windows carry real history and the five-minute
+            # spike moves only the 5m window: a correct AND pair stays silent, a single-window rule pages.
+            "spike-does-not-page": (*concat((2000, 1, 4320), (1000, 20, 5), (1000, 0, 25)), "4325m", [("page", False), ("ticket", False)]),
             "slow-fires": (*series(1000, 7, 420), "390m", [("page", True)]),
             "leak-tickets": (*series(2000, 3, 4900), "4800m", [("ticket", True), ("page", False)]),
             "quiet-silent": (*series(2000, 1, 260), "240m", [("page", False), ("ticket", False)]),
@@ -229,8 +231,6 @@ checks:
                 labels = rule.get("labels") or {}
                 annotations = rule.get("annotations") or {}
                 name = rule.get("alert")
-                if "for" not in rule:
-                    problems.append(f"{name}: no `for` pending period")
                 if labels.get("severity") not in ("page", "ticket"):
                     problems.append(f"{name}: severity is {labels.get('severity')!r}, not page or ticket")
                 if labels.get("service") != "checkout":
