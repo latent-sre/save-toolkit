@@ -9,19 +9,18 @@ infrastructure, runtime, or identity recommendations. The authority and safety c
 
 ## Preconditions and design
 
-- Use a self-hosted runner in an approved runner group with network access to the foundation. Use a
+- A self-hosted runner in an approved runner group with network access to the foundation, and a
   pinned cf CLI v8 installation from an approved, checksum-verified source.
-- Target a protected GitHub environment with required reviewers and environment-scoped
-  credentials. This team uses a least-privilege PCF service account from environment secrets; it
-  does not have a GitHub-OIDC-to-CredHub exchange.
-- Download the exact artifact produced by the trusted build job. Do not rebuild during deployment.
-- Keep shell tracing off. `cf auth` with no arguments reads `CF_USERNAME` and `CF_PASSWORD` from the
+- A protected GitHub environment with required reviewers and environment-scoped credentials for a
+  least-privilege PCF service account. There is no GitHub-OIDC-to-CredHub exchange.
+- The exact artifact produced by the trusted build job, downloaded, never rebuilt.
+- Shell tracing off. `cf auth` with no arguments reads `CF_USERNAME` and `CF_PASSWORD` from the
   environment; never put them in argv. *[sourced: cf CLI `command/v7/auth_command.go` help text]*
-- Require a reviewed manifest, health check, rollback job or commands, release-readiness evidence,
-  and current human approval naming the exact artifact, target, action, verification, and rollback.
+- A reviewed manifest, health check, rollback job or commands, release-readiness evidence, and
+  current human approval naming the exact artifact, target, action, verification, and rollback.
   This skill does not load, run, or approve either gate.
-- Use stable deployment concurrency with `cancel-in-progress: false`. Never interrupt a production
-  deployment merely because a newer commit exists.
+- Stable deployment concurrency with `cancel-in-progress: false`; a newer commit never interrupts a
+  production deployment.
 
 ## Planning skeleton
 

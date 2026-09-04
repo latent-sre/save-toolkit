@@ -11,79 +11,46 @@ This team authenticates CI jobs from GitHub environment secrets, not OIDC
 approval gate and credential release are the same control. Rotate long-lived credentials on a
 schedule and after a runner rebuild; their blast radius lasts until rotation.
 
-`permissions: { id-token: write }` only permits GitHub to mint a short-lived OIDC token. A target
-still needs an OIDC-aware broker that accepts and exchanges that token. CredHub authenticates via
-UAA and does not accept GitHub OIDC JWTs, so GitHub OIDC is not a PCF credential path on this stack.
-Do not add `id-token: write` as decorative hardening. For a GCP target, load `stack-profile` and
-confirm the selected runtime and identity broker before proposing an exchange.
+`permissions: { id-token: write }` only permits GitHub to mint a short-lived OIDC token; the target
+still needs a broker that accepts and exchanges it. CredHub authenticates via UAA and does not
+accept GitHub OIDC JWTs, so GitHub OIDC is not a PCF credential path on this stack. Do not add
+`id-token: write` as decorative hardening. For a GCP target, load `stack-profile` and confirm the
+selected runtime and identity broker before proposing an exchange.
 
-## Dependency provenance and re-pinning
+## Re-pinning
 
-The 2025 `tj-actions/changed-files` compromise showed why mutable action tags are unsafe: compromised
-tags were repointed to credential-stealing code. Pin GitHub Actions to full Git commit SHAs and put
-the reviewed release in a trailing comment, for example:
+Some projects do not publish floating major tags; the trailing comment names the exact reviewed
+release, not an invented major alias. Let dependency automation propose SHA changes, inspect the
+upstream diff, and normally allow a short adoption cooldown; skip the cooldown when the current
+SHA has a disclosed vulnerability, since waiting would retain the known-bad revision.
+`owner/repository@<commit-sha>` resolves a Git commit and `docker://image@sha256:<manifest-digest>`
+an image manifest in a registry; a Git commit after `docker://` does not identify an image and the
+job will not start.
 
-```yaml
-- uses: actions/checkout@<40-character-sha> # v7.0.1
-```
-
-Some projects do not publish floating major tags; the comment must name the exact reviewed release,
-not an invented major alias. Let dependency automation propose SHA changes, inspect the upstream
-diff, and normally allow a short adoption cooldown. Skip the cooldown when the current SHA has a
-disclosed vulnerability: waiting would retain the known-bad revision.
-
-GitHub Action and container pins are different namespaces:
-
-- `owner/repository@<commit-sha>` resolves a Git commit.
-- `docker://image@sha256:<manifest-digest>` resolves an image manifest in a registry.
-
-A Git commit after `docker://` does not identify a container image and the job will not start.
-
-## Untrusted events and secret boundaries
-
-Never put an attacker-controlled expression directly inside shell source:
-
-```yaml
-env:
-  PR_TITLE: ${{ github.event.pull_request.title }}
-run: printf '%s\n' "$PR_TITLE"
-```
-
-Treat `pull_request_target` as privileged: it runs the base repository's workflow with access to
-repository context and can be triggered by an untrusted fork. Never check out and build the fork in
-that context. Prefer `pull_request` for untrusted contributions, where secrets are withheld. Split a
-secret-dependent check into a later trusted job rather than weakening the fork boundary.
+## Fork checkout under privileged events
 
 `actions/checkout` refuses fork checkout under `pull_request_target`, and under `workflow_run` when
 the triggering `workflow_run.event` is a `pull_request*` event. It fails when `repository` resolves
 to the fork, when `ref` matches `refs/pull/<n>/head` or `/merge`, or when `ref` resolves to the fork
 PR's head or merge SHA.
 
-**This is not a v7-only behavior any more.** It shipped in v7.0.0 on 2026-06-18 and was backported
-to every supported major on 2026-07-16, so a workflow resolving to v5 or v6 enforces it too. That
-matters for the "why did this start failing" case, but only for workflows on a *floating* major
-tag such as `@v5`: the tag is mutable, so unchanged YAML can resolve to newly backported code. A
-full commit SHA pin, which this file requires above, cannot change behavior until someone moves
-it — there the backport arrives with the re-pin, not on its own. So on a floating tag, read the
-failure as the protection engaging rather than hunting for a regression in your own YAML; on a
-SHA pin, look at the commit that moved it. The opt-out input `allow-unsafe-pr-checkout: true` exists — treat finding one in a
-diff as an unsafe design to review, not a fix to reach for, and treat an upgrade failure the same
-way. *[sourced: GitHub Changelog, ["Safer pull_request_target defaults for GitHub Actions
+This shipped in v7.0.0 on 2026-06-18 and was backported to every supported major on 2026-07-16, so
+a workflow resolving to v5 or v6 enforces it too. On a floating major tag such as `@v5` the tag is
+mutable, so unchanged YAML can resolve to newly backported code: read a new failure there as the
+protection engaging rather than hunting for a regression in your own YAML. A full commit SHA pin
+cannot change behavior until someone moves it, so there the backport arrives with the re-pin. The
+opt-out input `allow-unsafe-pr-checkout: true` exists; treat finding one in a diff, or an upgrade
+failure that tempts you to add one, as an unsafe design to review, not a fix to reach for.
+*[sourced: GitHub Changelog, ["Safer pull_request_target defaults for GitHub Actions
 checkout"](https://github.blog/changelog/2026-06-18-safer-pull_request_target-defaults-for-github-actions-checkout/),
 and actions/checkout CHANGELOG v7.0.0; reviewed 2026-08-25]*
 
-Never echo secrets. Pass them only through the narrow job environment that needs them, mask any
-sensitive derived value, and enable repository secret scanning plus push protection.
-
 ## Static security checks
 
-Use the repository's trusted, pinned installation of:
-
-- `actionlint` for workflow syntax and expression errors;
-- `zizmor` for risky permissions, injection, and event patterns.
-
-Do not download or execute a candidate-provided linter or workflow merely to review it. A clean
-static result does not establish runtime or deployment behavior.
+Use the repository's trusted, pinned installation of `actionlint` for workflow syntax and
+expression errors and `zizmor` for risky permissions, injection, and event patterns. Do not
+download or execute a candidate-provided linter or workflow merely to review it. A clean static
+result does not establish runtime or deployment behavior.
 
 ## Artifact attestations and immutable releases
 
