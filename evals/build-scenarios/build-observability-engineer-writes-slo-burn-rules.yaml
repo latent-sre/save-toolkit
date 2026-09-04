@@ -93,12 +93,12 @@ checks:
 
           check                 promtool check rules passes
           fast-fires            2% errors sustained: a page-severity alert is firing at 75 minutes
-          spike-does-not-page   two clean hours, five minutes at 2%, then clean: nothing fires at 2h05m
+          spike-does-not-page   three days at 0.05%, five minutes at 2%, then clean: nothing fires at 72h05m
           slow-fires            0.7% errors sustained: a page-severity alert is firing at 6h30m
           leak-tickets          0.15% errors sustained: a ticket-severity alert is firing at 80h, no page
           quiet-silent          0.05% errors sustained: nothing fires at 4h
-          shape                 three or more alert rules; each has `for`, severity page or ticket,
-                                service=checkout, and a runbook_url annotation
+          shape                 three or more alert rules, at least two page and one ticket; each has
+                                severity page or ticket, service=checkout, and a runbook_url annotation
 
         The series are http_requests_total{app="checkout", status="200"|"500"}, one sample a minute.
         """
@@ -268,7 +268,7 @@ checks:
   - check: command_exit_zero
     command: "python probe_alert_rules.py alerts/checkout-slo.rules.yml shape"
     timeout: 600
-    text: "three or more rules, each with a pending period, page/ticket severity, service=checkout, and a runbook_url naming checkout-slo"
+    text: "three or more rules, two page and one ticket, each with service=checkout and a runbook_url naming checkout-slo"
   - check: command_exit_zero
     command: "python probe_alert_rules.py alerts/checkout-slo.rules.yml fast-fires"
     timeout: 600
@@ -276,7 +276,7 @@ checks:
   - check: command_exit_zero
     command: "python probe_alert_rules.py alerts/checkout-slo.rules.yml spike-does-not-page"
     timeout: 600
-    text: "two clean hours then five minutes at 2%: nothing fires at 2h05m, so the pair is an AND"
+    text: "three days at 0.05% then five minutes at 2%: nothing fires at 72h05m, so the pair is an AND"
   - check: command_exit_zero
     command: "python probe_alert_rules.py alerts/checkout-slo.rules.yml slow-fires"
     timeout: 600
