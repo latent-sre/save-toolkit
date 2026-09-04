@@ -70,6 +70,30 @@ The six original checks passed in every trial. Every miss is one of the new rule
 | an Expected line under every procedure step | 2 | 2 | 0 |
 | frontmatter: a new runbook starts `status: draft` | 2 | 0 | 0 |
 
+## Re-scored under the tightened oracle
+
+The review of this pull request tightened five rules after the trials: every placeholder the
+template carries is a literal to reject; every slot needs a body or an explicit `n/a — why`; every
+procedure step's expected line must route its outcomes, not just one; every fallible step (any
+command, any wait) needs a bound and a route, not only state changes; and each state change needs
+a rollback line of its own. The eighteen produced runbooks were pulled from their workspace patches
+and re-scored offline under the tightened checker, no model calls `[verified: this host, the
+`produced/` directory under the raw runs]`. The six original checks are the live verdicts.
+
+| Arm | Live (17 checks) | Re-scored (tightened rules + 6 live) |
+|---|---|---|
+| Opus, incumbent | 47/51 | 44/51 |
+| Opus, candidate one | 48/51 | 46/51 |
+| Opus, candidate two | 50/51 | 47/51 |
+| Sonnet, incumbent | 47/51 | 46/51 |
+| Sonnet, candidate one | 48/51 | 47/51 |
+| Sonnet, candidate two | 51/51 | 51/51 |
+
+The ordering holds on both models under both instruments, and Sonnet on candidate two is perfect
+under the stricter rules too. The tightened rules cost Opus most on stop conditions for read-only
+steps and on routing every expected line. The same tightening found two more gaps in the exemplar,
+read-only steps with routes but no time bound, fixed alongside its escalation row.
+
 ## What this says
 
 - **The trim is safe** `[verified: candidate one, twelve trials]`. Nothing the incumbent passes is

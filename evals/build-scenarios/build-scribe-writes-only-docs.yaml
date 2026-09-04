@@ -76,11 +76,12 @@ checks:
 
         Usage: python probe_runbook_slots.py <runbook.md> <alert-name> <rule>
         Exit 0 when the rule holds, 1 with a reason when it does not. The rules are the skill's own
-        authoring rules, made mechanical: the shape the template requires, an expected-output line under
-        every procedure step, a source for every placeholder, a stop condition on every step that can
-        fail, a rollback or an explicit "nothing to undo" for every state change, a reachable escalation
-        row with a time-box, a routed triage tree, frontmatter in the import-safe initial state, evidence
-        labels, and no template placeholder left behind.
+        authoring rules, made mechanical: the shape the template requires with every slot filled or marked
+        `n/a — why`, an expected-output line under every procedure step that routes its outcomes, a source
+        for every placeholder, a stop condition on every fallible step (any command, any wait), a rollback
+        line or an explicit nothing-to-undo per state change plus a safe-abort, a reachable escalation row
+        with a time-box, a routed triage tree, frontmatter in the import-safe initial state, evidence
+        labels, and none of the template's placeholders left behind.
         """
         import re
         import sys
@@ -90,14 +91,31 @@ checks:
         FRONTMATTER_KEYS = ("schema_version", "runbook_id", "service_id", "status", "alert_names", "owner",
                             "severity", "source_revision", "last_reviewed", "last_verified",
                             "verification_evidence", "version")
-        TEMPLATE_LITERALS = ("<stable-runbook-slug>", "<stable-service-slug>", "<…>", "<YYYY-MM-DD>",
-                             "<concise title", "<team/role>", "<imperative step>", "<command>",
-                             "<what you should see>", "<next step>")
+        # Every placeholder the template carries (assets/runbook-template.md), so a copied slot left
+        # unfilled is caught whichever one it is.
+        TEMPLATE_LITERALS = (
+            "<Apps Manager view, Splunk search, or Wavefront chart>",
+            "<Apps Manager, Splunk, Wavefront or PCF App Metrics; cf CLI v8 only if installed>",
+            "<N min or N attempts>", "<P1|P2|P3|P4 / page | ticket>", "<PR, evidence link, prepared, or proposed>",
+            "<PR, target revision, and evidence references>", "<YYYY-MM-DD>",
+            "<alert name + condition, or observed symptom>", "<channel / stakeholders>",
+            "<command/dashboard + expected healthy state>", "<command>", "<concise title / the alert this answers>",
+            "<condition A>", "<condition B>", "<dashboard, saved search, prior postmortem>",
+            "<e.g. not resolved in 15 min, or blast radius growing>",
+            "<e.g. step 4 output differed; no rollback for step 5>", "<e.g. steps 1–3>", "<exact steps>",
+            "<how to stop mid-procedure without making it worse>", "<imperative step>", "<link>", "<next step>",
+            "<other runbook>", "<pager / channel>", "<platform-side signal: many apps / failing cells>",
+            "<postmortem or drill link>", "<repository@full-sha or reviewed release identifier>", "<role/team>",
+            "<role>", "<roles, Apps Manager org/space, VPN, tools>", "<stable-runbook-slug>",
+            "<stable-service-slug>", "<team/role>", "<the incident's agreed update interval>",
+            "<the step or escalation row to go to>", "<what you should see>", "<…>",
+        )
         STATE_CHANGE = re.compile(r"\b(restart|rollout|scale|delete|truncate|kill|drain|failover|apply|patch)\b", re.I)
         BOUND = re.compile(r"\b\d+\s*(?:s|sec|seconds?|m|min|minutes?|h|hours?|times|attempts?|retries)\b", re.I)
         ROUTE = re.compile(r"(→|->|go to|escalate|stop here|this runbook ends|switch to|see `)", re.I)
         SOURCE = re.compile(r"\b(from step|from triage|printed by|output of|the row|the table|field|panel|shows|"
                             r"lists|returned by|value from|take it from|comes from|found in|listed by|in step)\b", re.I)
+        NA = re.compile(r"\bn/a\s*[—-]", re.I)
 
 
         def section(text: str, name: str) -> str:
@@ -110,6 +128,11 @@ checks:
             """Numbered steps of a section, each with its indented continuation lines."""
             parts = re.split(r"^(?=\d+\.\s)", body, flags=re.M)
             return [p for p in parts if re.match(r"\d+\.\s", p)]
+
+
+        def commands(step: str) -> str:
+            """The fenced command blocks of a step, so prose like "do not restart" is not a state change."""
+            return "\n".join(re.findall(r"```[^\n]*\n(.*?)```", step, re.S))
 
 
         def frontmatter(text: str) -> dict:
@@ -141,7 +164,15 @@ checks:
 
         def rule_slots(text: str, alert: str) -> str | None:
             missing = [s for s in SLOTS if not re.search(r"^## " + re.escape(s), text, re.M)]
-            return ("missing sections: " + ", ".join(missing)) if missing else None
+            if missing:
+                return "missing sections: " + ", ".join(missing)
+            empty = []
+            for s in SLOTS:
+                body = section(text, s)
+                lines = [l for l in body.splitlines() if l.strip() and not l.strip().startswith(">")]
+                if not lines or (len(lines) == 1 and re.fullmatch(r"\W*n/a\W*", lines[0], re.I) and not NA.search(lines[0])):
+                    empty.append(s)
+            return ("sections with no body and no `n/a — why`: " + ", ".join(empty)) if empty else None
 
 
         def rule_expected_per_step(text: str, alert: str) -> str | None:
@@ -153,10 +184,12 @@ checks:
 
 
         def rule_expected_distinguishes(text: str, alert: str) -> str | None:
-            """An expected-output line earns its place when it routes partly-worked and failed somewhere."""
+            """Every expected-output line earns its place by routing partly-worked and failed somewhere."""
             procedure = steps(section(text, "Procedure"))
-            routed = [s for s in procedure if re.search(r"expected\s*:", s, re.I) and ROUTE.search(s)]
-            return None if routed else "no procedure step's expected output routes a partial or failed outcome anywhere"
+            if not procedure:
+                return "no numbered procedure steps"
+            unrouted = [s.split("\n", 1)[0][:60] for s in procedure if not ROUTE.search(s)]
+            return ("procedure steps whose expected output routes nowhere: " + " | ".join(unrouted)) if unrouted else None
 
 
         def rule_placeholders_sourced(text: str, alert: str) -> str | None:
@@ -168,17 +201,14 @@ checks:
             return ("placeholders with no source: " + " | ".join(unsourced)) if unsourced else None
 
 
-        def commands(step: str) -> str:
-            """The fenced command blocks of a step, so prose like "do not restart" is not a state change."""
-            return "\n".join(re.findall(r"```[^\n]*\n(.*?)```", step, re.S))
-
-
         def rule_stop_conditions(text: str, alert: str) -> str | None:
+            """Any step that runs a command or waits can fail; each needs how long, and where to go."""
             unbounded = []
             for s in steps(section(text, "Procedure")):
-                if STATE_CHANGE.search(commands(s)) and not (BOUND.search(s) and ROUTE.search(s)):
+                fallible = bool(commands(s).strip()) or re.search(r"\bwait\b", s, re.I)
+                if fallible and not (BOUND.search(s) and ROUTE.search(s)):
                     unbounded.append(s.split("\n", 1)[0][:60])
-            return ("state-changing steps with no bound and route: " + " | ".join(unbounded)) if unbounded else None
+            return ("fallible steps with no bound and route: " + " | ".join(unbounded)) if unbounded else None
 
 
         def rule_rollback_per_change(text: str, alert: str) -> str | None:
@@ -187,10 +217,18 @@ checks:
                 return "no Rollback / cleanup section body"
             if not re.search(r"safe-abort", rollback, re.I):
                 return "no Safe-abort line"
-            changing = [s for s in steps(section(text, "Procedure")) if STATE_CHANGE.search(commands(s))]
-            if changing and not (STATE_CHANGE.search(rollback) or re.search(r"nothing to undo|no rollback|one-way", rollback, re.I)):
-                return "rollback names no state-changing command and does not say nothing to undo"
-            return None
+            uncovered = []
+            for s in steps(section(text, "Procedure")):
+                cmd = commands(s)
+                verb = STATE_CHANGE.search(cmd)
+                if not verb:
+                    continue
+                number = re.match(r"(\d+)\.", s).group(1)
+                covered = (re.search(rf"\bstep\s*{number}\b", rollback, re.I)
+                           or re.search(rf"\b{re.escape(verb.group(1))}\b", rollback, re.I))
+                if not covered:
+                    uncovered.append(f"step {number} ({verb.group(1)})")
+            return ("state changes with no rollback line of their own: " + ", ".join(uncovered)) if uncovered else None
 
 
         def rule_escalation_reachable(text: str, alert: str) -> str | None:

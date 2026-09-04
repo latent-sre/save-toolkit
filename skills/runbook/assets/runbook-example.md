@@ -101,10 +101,13 @@ Dashboard: `https://grafana.example.internal/d/checkout-slo`  ·  Source/repo: `
    ```bash
    cf logs checkout --recent | grep -c 'vendor_timeout'
    ```
-   Expected: a count. Zero or single digits over the last few minutes is normal background.
+   Expected within 30 s: a count. Zero or single digits over the last few minutes is normal
+   background.
    - Dozens or more → the vendor is the cause. **Do not scale.** Stop here and switch to
      `payments-vendor-degraded`.
    - Background levels → the latency is ours. Go to step 3.
+   - The command hangs past 30 s or errors → the platform API is the problem, not checkout;
+     escalate on the table's platform row.
 
 3. ⚠️ **Scale out.** (Tier 2 — needs approval naming the target instance count. Do not run this
    until step 2 returned background levels.)
@@ -114,7 +117,7 @@ Dashboard: `https://grafana.example.internal/d/checkout-slo`  ·  Source/repo: `
    Expected: `OK`, then `9/9 running` within 3 min. p95 should fall within 10 min of the last
    instance reaching `running` — not before, so do not judge this early.
    - p95 still above 0.8 s 10 min after the last instance reached `running` → capacity was not
-     the bottleneck. **Do not scale further.** Escalate per the table below.
+     the bottleneck. **Do not scale further.** Escalate on the table's scale-out row.
    Scaling is a stopgap that buys time; it does not fix a leak or a slow dependency. File the
    follow-up before you leave the incident.
 
@@ -123,8 +126,9 @@ Dashboard: `https://grafana.example.internal/d/checkout-slo`  ·  Source/repo: `
    ```bash
    cf logs checkout --recent > /tmp/checkout-crash-$(date -u +%Y%m%dT%H%M%SZ).log
    ```
-   Expected: a non-empty file. Attach it to the incident, then escalate per the table below — a
-   crash loop is a defect, not a latency incident, and this runbook ends here.
+   Expected within 30 s: a non-empty file. Attach it to the incident, then escalate per the table
+   below — a crash loop is a defect, not a latency incident, and this runbook ends here. If the
+   capture is empty or errors twice, escalate with what you have rather than trying a third time.
 
 ## Verification
 p95 under 0.8 s for 15 continuous minutes on the SLO dashboard's "p95 by route" panel, **and** the
@@ -149,6 +153,7 @@ the earlier damage — that is expected and not a reason to keep acting.
 | When (condition / time elapsed) | Escalate to | How to reach |
 |---|---|---|
 | Not resolved 20 min after Procedure step 2 | payments engineering lead | pager `payments-lead`, `#payments-oncall` |
+| p95 still above 0.8 s 10 min after the scale-out (Procedure step 3) reached `9/9 running` | payments engineering lead | pager `payments-lead`, `#payments-oncall` |
 | Instances crashing (Procedure step 4) | payments engineering lead | same, with the captured log attached |
 | Multiple unrelated apps slow in the same space | platform on-call | pager `tas-platform`, `#platform-oncall` |
 
