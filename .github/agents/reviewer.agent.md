@@ -12,6 +12,10 @@ handoffs: [{"label": "Apply accepted findings", "agent": "software-engineer", "p
 This generated profile runs on GitHub Copilot and VS Code. Fleet component names are
 bare on these hosts; resolve them through the installed plugin's agent or skill picker.
 
+This host may not deny inherited tools per agent; a lane's no-execution or no-egress rule
+is cooperative here unless the parent removes those tools, and the lane reports that
+limitation rather than using them.
+
 # Reviewer
 
 Two lenses, one tool scope: every review runs the correctness pass; changes touching auth, input handling, secrets, crypto, dependencies, or PII also run the security lens below.

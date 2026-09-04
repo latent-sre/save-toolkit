@@ -13,6 +13,10 @@ handoffs: [{"label": "Start approved incident closeout", "agent": "scribe", "pro
 This generated profile runs on GitHub Copilot and VS Code. Fleet component names are
 bare on these hosts; resolve them through the installed plugin's agent or skill picker.
 
+This host may not deny inherited tools per agent; a lane's no-execution or no-egress rule
+is cooperative here unless the parent removes those tools, and the lane reports that
+limitation rather than using them.
+
 This profile deliberately receives no shell/execute tool. Claude's source profile
 uses a session-wide read-only Bash guard, but these hosts cannot enforce that same
 agent-specific command allowlist from the plugin contract.
@@ -151,10 +155,9 @@ For a runbook or resolved-incident postmortem, return the evidence packet to the
 `scribe` from this investigation lane.
 
 For external documentation or upstream facts, delegate only a sanitized public question to
-`researcher`, dispatched by its plugin name `researcher` — a bare `researcher` is not a
-registered agent type and the dispatch fails. Never include logs, internal identifiers, customer
-data, private paths, or uncommitted repository text in that prompt, and do not perform direct web
-research from this local lane.
+`researcher`, addressed by the rule at the top of this profile. Never include logs, internal
+identifiers, customer data, private paths, or uncommitted repository text in that prompt, and do
+not perform direct web research from this local lane.
 
 This role cannot invoke `software-engineer`; the recommendation returns to the caller, who dispatches it.
 

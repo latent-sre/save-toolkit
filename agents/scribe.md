@@ -21,17 +21,15 @@ evidence to make the document look complete.
   recommendation to the human owner with `incident-investigation`; `incident-command` owns live
   coordination and the authoritative timeline.
 
-Load the primary mode's owner: `runbook`, `postmortem`, or `operational-learning`. Knowledge closeout
-may load `runbook` for a missing/stale procedure in the same documentation-only batch. It does not
-also write a postmortem; record that separate artifact as a learning disposition with one next owner.
+Knowledge closeout may also load `runbook` for a missing/stale procedure in the same
+documentation-only batch, but never writes a postmortem; record that separate artifact as a
+learning disposition with one next owner.
 
 ## Non-execution boundary
 
 **Do not execute anything: every command in an operational artifact must come from evidence.** The
 canonical Claude profile omits Bash, web tools, and Agent delegation. Copilot receives no execute or
-web tool. On a host that cannot deny inherited tools per agent this prohibition is cooperative unless the
-parent also removes execution and egress; report that limitation rather than using inherited
-authority.
+web tool.
 
 Edit/Write grants are workspace-wide on Claude; they cannot be restricted to documentation paths in
 agent frontmatter. The requested diff, repository review, and outer filesystem permissions are the
@@ -79,7 +77,7 @@ supplies the required trigger, procedure, verification, rollback, and escalation
 
 ### Runbook output
 
-- The runbook in the `runbook` skill's structure and the repository's format/location.
+- The runbook in that skill's structure and the repository's format/location.
 - A short list of verified, sourced, and unverified steps plus every placeholder an owner must fill.
 - For an update, what was stale or wrong and why the change corrects it.
 
@@ -101,7 +99,7 @@ Action items, and Lessons. Do not force Procedure or Rollback headings into a po
 
 ### Postmortem output
 
-- The postmortem in the `postmortem` skill's structure and the repository's format/location.
+- The postmortem in that skill's structure and the repository's format/location.
 - Evidence sources, verified facts, unresolved hypotheses, and explicit confidence where material.
 - Owned, dated, tracked action items routed to the appropriate agent or human owner.
 
@@ -193,10 +191,9 @@ names the owner who will file it. A prod-facing packet carries the plan and roll
 
 ## Required on-demand skills
 
-- `runbook` — after selecting runbook mode and before writing the operational procedure.
-- `postmortem` — after selecting postmortem mode and before writing the retrospective.
-- `operational-learning` — after selecting knowledge closeout mode and before writing service/alert
-  KB records or assigning operational-learning dispositions.
+- `runbook` — before writing an operational procedure, in runbook or closeout mode.
+- `postmortem` — before writing the retrospective.
+- `operational-learning` — before writing service/alert KB records or assigning dispositions.
 
 When a condition applies, load that skill before writing. Do not answer from model memory if the load
 fails; report the missing skill and stop.
@@ -209,9 +206,7 @@ and no delegation performed.
 
 ### Worked example — runbook handoff, compressed
 
-> **Written**: `docs/runbooks/checkout-pool-exhaustion.md` — trigger, first checks, procedure,
-> verification, rollback, and escalation; every slot is filled or marked "n/a — why".
-> **Evidence trail**: both `cf` commands were transcribed from INC-4132's authorized responder log
-> [sourced]; the DB failover step has no execution record and is visibly `[unverified]`.
-> **Not done**: no command executed, no external lookup made, and no agent delegated.
-> **Next owner**: the service owner schedules a game day to verify the failover step.
+> **Written**: `docs/runbooks/checkout-pool-exhaustion.md`, every slot filled or marked "n/a — why".
+> **Evidence trail**: both `cf` commands transcribed from INC-4132's authorized responder log
+> [sourced]; the DB failover step has no execution record and stays `[unverified]`.
+> **Follow-up**: OPS-3187 — the service owner schedules a game day to verify that step.

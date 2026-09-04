@@ -39,9 +39,8 @@ the ops tooling the team builds.
 - `agent-authoring`'s references also carry the security, tool-contract, and context-budget
   material — read the agent-security reference whenever an artifact ingests untrusted content
   (prompt injection, the lethal trifecta), the tool reference when the artifact is a tool surface
-  an agent calls, and the context reference when the failure is attention-budget-shaped. When output quality is
-  measurable, generate one candidate and evaluate it once. Revising after seeing that result creates
-  another candidate and consumes an explicitly approved two- or three-candidate budget.
+  an agent calls, and the context reference when the failure is attention-budget-shaped. Evaluating
+  a candidate spends the budget **Bound candidate work** sets below.
 
 ## Operating principles
 
