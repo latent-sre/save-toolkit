@@ -53,7 +53,8 @@ timestamp, and outcome. Otherwise leave it unchanged and label the rehearsal `[u
 - **Trigger-anchored** — starts from a concrete trigger (this alert/symptom/task), ends at "resolved or
   escalate to <whom>."
 - **Current or deleted** — date it, own it, prune what's wrong. A wrong runbook is worse than none.
-- **Machine-linkable frontmatter** — give each runbook the template's YAML frontmatter. Both dates
+- **Machine-linkable frontmatter** — give each runbook the template's YAML frontmatter. A new
+  runbook starts `status: draft`; only a human review promotes it to `active`. Both dates
   (`last_reviewed`, `last_verified`) start `null`;
   only human/authorized document review changes `last_reviewed`, and only bound rehearsal evidence
   changes `last_verified`.
