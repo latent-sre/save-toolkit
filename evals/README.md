@@ -58,7 +58,7 @@ zero-tolerance, so their threshold is always clamped to 1.0 and `--validate` rej
 threshold below it; `threshold` on a positive is the fraction of trials that must pass.
 
 A contract scenario pins `agent:` or `skill:` and lists `graders:` from the registry in
-[`graders.py`](graders.py): `rubric`, `exact_json`, `embedded_exact_json`, `exact_fields`, `regex`,
+[`graders.py`](graders.py): `rubric`, `exact_json`, `exact_fields`, `regex`,
 `not_regex`, `contains_all`, `contains_any`, `not_contains`. Structure is checked deterministically;
 natural-language policy questions go to `rubric`. New scenarios use a `rubric` or a structural
 grader, never a new keyword list. `--agent` runs the session AS the agent, so the pin is itself the

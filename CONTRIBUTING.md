@@ -43,6 +43,10 @@ it from the record that relies on it or delete it in the same change.
 | Read-only guard or hook wiring | `python -m pytest scripts/test_readonly_guard.py scripts/test_hook_wiring.py`; exit codes stay 42 allow, 43 deny, 44 indeterminate |
 | Canonical task-path file or `description:` field | `python scripts/check_context_cost.py`; it fails when a task or the always-loaded description total exceeds its byte budget |
 
+When the acting lane already has Bash, a check may run inside an official pinned Docker image rather
+than against a substitute or missing host binary, under
+[the Docker-backed verification contract](docs/docker-verification.md).
+
 Live evals run from `evals/build_probe.py` in a manual clean room, not CI. Raw traces and the batch
 summary stay private under `.eval-runs/`; quote the numbers you rely on into the PR or review that
 uses them.

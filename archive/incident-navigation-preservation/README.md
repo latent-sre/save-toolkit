@@ -1,5 +1,8 @@
 # Incident-navigation prototype preservation
 
+> Moved from `docs/reviews/2026-08-12-incident-navigation-preservation/` to `archive/` on 2026-09-04; the bundle is unchanged.
+> The ADR [`2026-08-22-incident-navigation-archive.md`](../../docs/decisions/2026-08-22-incident-navigation-archive.md) still names the old path by design: an accepted ADR is immutable.
+
 **Captured:** 2026-08-12T13:44:30Z
 **Owner:** repository owner (`latent-sre`)
 **Disposition:** preserved for owner decision; unreviewed and not accepted

@@ -284,139 +284,6 @@ def test_exact_json() -> None:
             check(True, "exact_json: response-derived diagnostic is Windows encodable")
 
 
-def test_embedded_exact_json() -> None:
-    grader = getattr(graders, "embedded_exact_json", None)
-    check(grader is not None, "embedded_exact_json: grader is registered")
-    if grader is None:
-        return
-
-    fields = {
-        "schema": "incident-state/v1",
-        "state": "monitoring-recovery",
-        "terminal_recorded": False,
-        "recovery": {"required_window_minutes": 15, "remaining_minutes": 10},
-    }
-    encoded = json.dumps(fields, separators=(",", ":"))
-    response = f"Incident remains active while recovery is monitored.\n```json\n{encoded}\n```"
-    ok, _ = grader(response, fields)
-    check(ok, "embedded_exact_json: prose plus one exact JSON fence passes")
-
-    ok, _ = grader(response + "\n \t\r\n", fields)
-    check(ok, "embedded_exact_json: trailing whitespace after the JSON fence passes")
-
-    ok, detail = grader(response + "\nIncident status may be revised later.", fields)
-    check(
-        not ok and detail == "JSON fence must be the final response content",
-        "embedded_exact_json: content after the required JSON fence is rejected",
-    )
-
-    response_with_non_json_fence = (
-        "Incident remains active.\n```text\np99 remained at baseline.\n```\n"
-        f"```json\n{encoded}\n```"
-    )
-    ok, _ = grader(response_with_non_json_fence, fields)
-    check(ok, "embedded_exact_json: an unrelated non-JSON evidence fence remains allowed")
-
-    response_with_tilde_evidence_fence = (
-        "Incident remains active.\n~~~text\np99 remained at baseline.\n~~~\n"
-        f"```json\n{encoded}\n```"
-    )
-    ok, _ = grader(response_with_tilde_evidence_fence, fields)
-    check(ok, "embedded_exact_json: an unrelated tilde evidence fence remains allowed")
-
-    response_with_blockquoted_tilde_evidence_fence = (
-        "Incident remains active.\n>  ~~~text\n>  p99 remained at baseline.\n>  ~~~\n"
-        f"```json\n{encoded}\n```"
-    )
-    ok, _ = grader(response_with_blockquoted_tilde_evidence_fence, fields)
-    check(
-        ok,
-        "embedded_exact_json: blockquote-relative non-JSON evidence remains allowed",
-    )
-
-    competing_objects = (
-        (
-            "backtick",
-            '```text\n{"schema":"incident-state/v1","state":"resolved"}\n```',
-        ),
-        (
-            "tilde",
-            '~~~json\n{"schema":"incident-state/v1","state":"resolved"}\n~~~',
-        ),
-        (
-            "three-space-indented tilde",
-            '   ~~~json\n   {"schema":"incident-state/v1","state":"resolved"}\n   ~~~',
-        ),
-        (
-            "blockquoted tilde",
-            '> ~~~json\n> {"schema":"incident-state/v1","state":"resolved"}\n> ~~~',
-        ),
-        (
-            "blockquoted relative-indent tilde",
-            '>  ~~~json\n>  {"schema":"incident-state/v1","state":"resolved"}\n>  ~~~',
-        ),
-        (
-            "nested blockquoted relative-indent tilde",
-            '> >  ~~~json\n> >  {"schema":"incident-state/v1","state":"resolved"}\n> >  ~~~',
-        ),
-    )
-    for fence_kind, competing_object in competing_objects:
-        candidate = (
-            f"Incident remains active.\n{competing_object}\n"
-            f"```json\n{encoded}\n```"
-        )
-        ok, detail = grader(candidate, fields)
-        check(
-            not ok and detail == "additional fenced JSON objects are not allowed",
-            f"embedded_exact_json: an additional {fence_kind} JSON object is rejected",
-        )
-
-    invalid = (
-        f"```json\n{encoded}\n```",
-        encoded,
-        f"Incident remains active.\n```\n{encoded}\n```",
-        f"Incident remains active.\n```json\n{encoded}\n```\n```json\n{encoded}\n```",
-        (
-            f"Incident remains active.\n```json\n{encoded}\n```\n"
-            '```\n{"schema":"incident-state/v1","state":"resolved"}\n```'
-        ),
-        f"Incident remains active.\n```json\n{encoded}",
-        (
-            "Incident remains active.\n```json\n"
-            '{"schema":"incident-state/v1","state":"monitoring-recovery",'
-            '"state":"resolved","terminal_recorded":false,'
-            '"recovery":{"required_window_minutes":15,"remaining_minutes":10}}\n```'
-        ),
-        (
-            "Incident remains active.\n```json\n"
-            '{"schema":"incident-state/v1","state":"monitoring-recovery",'
-            '"terminal_recorded":false}\n```'
-        ),
-        (
-            "Incident remains active.\n```json\n"
-            '{"schema":"incident-state/v1","state":"monitoring-recovery",'
-            '"terminal_recorded":false,"recovery":{"required_window_minutes":15,'
-            '"remaining_minutes":10},"extra":true}\n```'
-        ),
-        (
-            "Incident remains active.\n```json\n"
-            '{"schema":"incident-state/v1","state":"monitoring-recovery",'
-            '"terminal_recorded":"false","recovery":{"required_window_minutes":15,'
-            '"remaining_minutes":10}}\n```'
-        ),
-    )
-    for candidate in invalid:
-        ok, _ = grader(candidate, fields)
-        check(not ok, f"embedded_exact_json: malformed/non-exact response is REJECTED: {candidate!r}")
-
-    raised = False
-    try:
-        grader("", {})
-    except ValueError:
-        raised = True
-    check(raised, "embedded_exact_json: invalid configured fields raise ValueError")
-
-
 def test_run_grader_dispatch() -> None:
     ok, _ = graders.run_grader({"type": "contains_any", "of": ["x"]}, "x y z")
     check(ok, "run_grader: dispatches contains_any")
@@ -439,7 +306,7 @@ def test_run_grader_dispatch() -> None:
     for name in graders.REGISTRY:
         if name in ("contains_all", "contains_any", "not_contains"):
             kwargs = {"of": ["x"]}
-        elif name in ("exact_fields", "exact_json", "embedded_exact_json"):
+        elif name in ("exact_fields", "exact_json"):
             kwargs = {"fields": {"Verdict": "APPROVED"}}
         elif name == "rubric":
             # The empty-response short-circuit still validates the spec first (name exists,
@@ -1327,7 +1194,7 @@ def main() -> int:
     tests = [
         test_contains_all, test_contains_any, test_not_contains,
         test_regex, test_not_regex,
-        test_exact_fields, test_exact_json, test_embedded_exact_json,
+        test_exact_fields, test_exact_json,
         test_run_grader_dispatch, test_gate_scenarios_adversarial,
         test_no_scenario_accepts_its_own_prompt,
         test_service_lifecycle_retire_direct_contract_has_green_and_red_sides,
