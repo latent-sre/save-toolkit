@@ -103,8 +103,8 @@ lane, turn repository values into trusted target evidence, or authorize a state-
 | Question | Apps Manager | `cf` |
 |---|---|---|
 | GUID and processes | **Overview** | `cf app <app> --guid` |
-| Per-instance state/CPU/mem/disk | **Overview** instances | *human* `cf curl /v3/processes/<guid>/stats` |
-| Process detail | **Overview** | *human* `cf curl /v3/apps/<guid>/processes` |
+| Per-instance state/CPU/mem/disk | **Overview** instances | *human* `cf curl /v3/apps/<guid>/processes/web/stats` |
+| Process detail | **Overview** | *human* `cf curl /v3/apps/<guid>/processes` — types and process guids |
 | Routes | **Routes** tab | `cf routes` |
 | Services and plan | **Services** tab | `cf services`; *human* `cf service <name>` |
 

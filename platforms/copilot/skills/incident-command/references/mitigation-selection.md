@@ -40,12 +40,12 @@ rollback.
    then either capture it or record it as knowingly traded for speed with the deciding human
    named. When the action is instance-scoped, holding one instance back unrestarted preserves
    the evidence for the cost of one instance's recovery.
-3. **One change at a time.** The responder, or a dispatched `sre-assistant` read, watches the
-   golden signals for 1–2 minutes before another action, so the response can attribute it.
+3. **One change at a time.** The responder, or another authorized human, watches the golden
+   signals for 1–2 minutes before the next action, so the response can attribute it. A
+   dispatched `sre-assistant` read covers only `cf app`, `cf events`, `cf logs --recent`.
 4. **Restart is not root-cause closure.** If restart restores service, preserve the leak, poison
    input, or dependency hypothesis and continue investigation with the human on-call, advised by
-   `incident-investigation` (dispatching the typed `sre-assistant` agent for a bounded read-only
-   slice).
+   `incident-investigation`.
 5. **Record every decision and result in UTC** in the IC-owned timeline.
 6. **Confirm before executing.** The packet names the exact target, change, command, blast radius,
    verification window, rollback, human executor, and approving decider. It also records the

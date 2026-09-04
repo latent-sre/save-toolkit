@@ -31,8 +31,12 @@ CODE_PATH_RE = re.compile(
 # runnable command wants `${CLAUDE_PLUGIN_ROOT}/skills/<name>/...`, the runtime root already used
 # by hooks/hooks.json. Fences and code spans are in scope on purpose: a command line is exactly
 # where this defect lands, and three bundles shipped one through every green gate.
+#
+# `$env:CLAUDE_PLUGIN_ROOT/` is the same root spelled for PowerShell: inside a `powershell` fence
+# `${CLAUDE_PLUGIN_ROOT}` is a POWERSHELL variable, unset, so the path collapses to `/skills/...`.
+# Both spellings are the fix, so both are passed over here.
 SELF_SKILL_PATH_RE = re.compile(
-    r"(?<![A-Za-z0-9._/-])(?P<root>\$\{CLAUDE_PLUGIN_ROOT\}/)?"
+    r"(?<![A-Za-z0-9._/-])(?P<root>\$(?:\{CLAUDE_PLUGIN_ROOT\}|env:CLAUDE_PLUGIN_ROOT)/)?"
     r"skills/(?P<name>[a-z0-9-]+)/"
     r"(?:SKILL\.md|(?:scripts|references|assets)/[A-Za-z0-9._/-]+)"
 )
@@ -371,25 +375,32 @@ def _relative_target(raw: str) -> str | None:
     return target.split("#", 1)[0].split("?", 1)[0]
 
 
-def _check_self_skill_pointer(path: Path, text: str, skill_name: str) -> list[str]:
+def _check_self_skill_pointer(path: Path, text: str, skill_root: Path) -> list[str]:
     """Reject a file naming its own bundle -- SKILL.md, scripts/, references/, assets/ -- by
     repo-rooted path.
 
     Only the self-pointer is rejected, and only inside that skill's own bundle. A file may
     legitimately name a *sibling* skill's file to describe ownership, and drill scenario assets
     quote paths from systems that are not this repository at all -- neither is a broken pointer.
-    A `${CLAUDE_PLUGIN_ROOT}/` prefix is the fix, not the defect, so it is passed over.
+    A `${CLAUDE_PLUGIN_ROOT}/` prefix (or its PowerShell spelling) is the fix, so it is passed over.
+
+    The prose fix is computed per match, never prescribed: `../SKILL.md` is right only from
+    references/ to SKILL.md. From SKILL.md itself it resolves to `skills/SKILL.md`, and for a
+    `scripts/` or `assets/` tail it names a different resource entirely, so a message that always
+    says `../SKILL.md` sends the repair the wrong way.
     """
     failures = []
     for match in SELF_SKILL_PATH_RE.finditer(text):
-        if match.group("name") != skill_name or match.group("root"):
+        if match.group("name") != skill_root.name or match.group("root"):
             continue
         line = text[: match.start()].count("\n") + 1
+        tail = match.group(0).split("/", 2)[2]
+        relative = os.path.relpath(skill_root / tail, path.parent).replace(os.sep, "/")
         failures.append(
             f"{path.as_posix()}:{line}: points at its own skill by repo-rooted path "
             f"'{match.group(0)}'; a command takes "
             f"'${{CLAUDE_PLUGIN_ROOT}}/{match.group(0)}', prose takes a relative link "
-            "('../SKILL.md') -- both resolve in the canonical tree, in "
+            f"('{relative}') -- both resolve in the canonical tree, in "
             "platforms/copilot/skills/, and from an installed plugin"
         )
     return failures
@@ -526,28 +537,32 @@ def check(root: Path = ROOT) -> list[str]:
             failures.extend(frontmatter_failures)
             failures.extend(_check_markdown(skill_path, body, skill_path.parent))
             failures.extend(
-                _check_self_skill_pointer(skill_path, body, skill_path.parent.name)
+                _check_self_skill_pointer(skill_path, body, skill_path.parent)
             )
             failures.extend(_check_direct_bundle_links(skill_path, body))
+            # The self-pointer check covers EVERY Markdown file in the bundle, not just
+            # references/: a repo-rooted self-command in assets/ (a runbook example, a template) is
+            # read and copied exactly like one in references/ and shipped unchecked. Link
+            # resolution stays scoped to references/, where relative links are the contract; assets
+            # legitimately quote paths from systems that are not this repository.
             references = skill_path.parent / "references"
-            if references.is_dir():
-                for reference in sorted(references.rglob("*.md")):
-                    try:
-                        reference_text = reference.read_text(encoding="utf-8")
-                        failures.extend(
-                            _check_markdown(
-                                reference,
-                                reference_text,
-                                skill_path.parent,
-                            )
-                        )
-                        failures.extend(
-                            _check_self_skill_pointer(
-                                reference, reference_text, skill_path.parent.name
-                            )
-                        )
-                    except (OSError, UnicodeError) as exc:
-                        failures.append(f"{reference.as_posix()}: cannot read UTF-8: {exc}")
+            for document in sorted(skill_path.parent.rglob("*.md")):
+                if document == skill_path or "__pycache__" in document.parts:
+                    continue
+                try:
+                    document_text = document.read_text(encoding="utf-8")
+                except (OSError, UnicodeError) as exc:
+                    failures.append(f"{document.as_posix()}: cannot read UTF-8: {exc}")
+                    continue
+                if references in document.parents:
+                    failures.extend(
+                        _check_markdown(document, document_text, skill_path.parent)
+                    )
+                failures.extend(
+                    _check_self_skill_pointer(
+                        document, document_text, skill_path.parent
+                    )
+                )
     # Root guides and docs/. These were unchecked -- ~44 markdown files, including every citation in
     # the rules index, which exists precisely to point a reader at a primary source. A dead pointer
     # there sends someone looking for authority to a file that is not there.

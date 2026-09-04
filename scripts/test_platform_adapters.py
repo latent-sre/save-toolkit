@@ -583,5 +583,16 @@ class PlatformAdapterTests(unittest.TestCase):
         # A bundled script is invoked on a command line, so its projection stays a runnable path.
         self.assertEqual("skills/runbook/scripts/y.py", describe("skills/runbook/scripts/y.py"))
 
+    def test_the_powershell_spelling_of_the_plugin_root_is_rewritten_too(self) -> None:
+        """`$env:CLAUDE_PLUGIN_ROOT` is the same runtime root inside a `powershell` fence, where
+        the braced form is a shell variable rather than the environment. A spelling PLUGIN_PATH_RE
+        misses survives into the Copilot projection as a Claude-only token."""
+        adapted = adapters.adapt_text(
+            'py -3 "$env:CLAUDE_PLUGIN_ROOT/skills/runbook/scripts/y.py" --slo 99.9\n',
+            "copilot",
+        )
+        self.assertNotIn("CLAUDE_PLUGIN_ROOT", adapted)
+        self.assertIn("skills/runbook/scripts/y.py", adapted)
+
 if __name__ == "__main__":
     unittest.main()
