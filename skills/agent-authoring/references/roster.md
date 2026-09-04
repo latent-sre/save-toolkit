@@ -8,14 +8,11 @@ context payload on a graph edge; durable learning is accepted loop output, not a
 ## Contents
 
 - Four-theme decision rule
-- Should this be multi-agent at all?
 - Agent vs. skill
 - The loop inside each lane
-- Orchestration shapes
 - Handoffs between contexts
 - Design principles this fleet enforces
 - Deliverable
-- When it pays; right-sizing
 - Learning as repository state
 - Wrapper-layer failures
 
@@ -33,16 +30,9 @@ Apply all four to the same work unit.
 Skills deepen a node; agents change ownership. Keep work in one agent and load a skill when the
 owner and authority remain correct; add or traverse an agent edge only when ownership, authority
 isolation, independent verification, parallel breadth, or additional context capacity justifies
-the transition.
-
-## Should this be multi-agent at all?
-
-Start with one agent or a deterministic workflow. Add an agent only when evaluation shows one of
-these pays for the coordination, tokens, latency, and handoff loss it costs: ownership transfer,
-context or authority isolation, independent verification, parallel breadth, additional context
-capacity. Otherwise recommend the simpler design and say why. Budget per lane from this fleet's
-measurements, not a vendor multiplier. A graph edge never substitutes for a missing verifier; a
-larger prompt never substitutes for a required authority boundary.
+the transition — and budget each lane from this fleet's measurements, not a vendor multiplier. A
+graph edge never substitutes for a missing verifier; a larger prompt never substitutes for a
+required authority boundary.
 
 ## Agent vs. skill
 
@@ -54,10 +44,12 @@ larger prompt never substitutes for a required authority boundary.
 
 Seniority tiers are ladder skills, not cloned agents. Routing and live coordination stay in the
 main session; a coordinator subagent adds a round-trip for a low-context decision (a reasoned
-default, not A/B-tested). Fleet example: `repository-investigator` (local `Read`/`Grep`/`Glob`
-only) and `researcher` (external web, Context7, GitHits only) are two agents because one prompt
-would join sensitive data, untrusted content, and egress; the caller orchestrates a mixed question
-with a sanitized public handoff.
+default, not A/B-tested). When multi-agent is justified, the fleet default is orchestrator–workers:
+the main session owns plan and synthesis, and workers get bounded mandates and isolated context.
+Fleet example: `repository-investigator` (local `Read`/`Grep`/`Glob` only) and `researcher`
+(external web, Context7, GitHits only) are two agents because one prompt would join sensitive data,
+untrusted content, and egress; the caller orchestrates a mixed question with a sanitized public
+handoff.
 
 ## The loop inside each lane
 
@@ -75,24 +67,10 @@ An agent whose loop has no verifier can only emit [unverified] claims. Gather th
 a pinned file:line), not the corpus. The verifier defines success: a model upgrade improves an
 attempt; it does not replace outcome evidence. This fleet carries no `model:` pins today.
 
-## Orchestration shapes
-
-| Shape | Use |
-|---|---|
-| Orchestrator–workers | The fleet default when multi-agent is justified: the main session owns plan and synthesis; workers get bounded mandates and isolated context |
-| Pipeline | Stages with no barrier; wall-clock is the slowest single-item chain |
-| Fan-out with barrier | Only when a stage needs all prior results at once; a barrier idles the fast workers — justify each |
-| Judge panel / adversarial verification | High-stakes review; a finding survives only if skeptics prompted to refute it fail |
-| Loop-until-dry | Unknown-size discovery; choose K and a hard maximum before starting |
-
-Decompose by **context boundary — what each lane may see — not by job title**: `reviewer` reads the
-local checkout with no web, shell, or delegation; `researcher` holds only the public web. The
-single-lane default stands until breadth, isolation, or adversarial verification pays for the split.
-
 ## Handoffs between contexts
 
 The explicit packet is the only portable handoff contract; runtimes differ on whether a worker
-thread is retained.
+thread is retained. Build each worker's slice with [context guidance](./context.md).
 
 | Packet rule | Failure it prevents |
 |---|---|
@@ -106,12 +84,7 @@ thread is retained.
 
 - **Tools are authority.** The `tools:` list encodes the mandate; enforce roles at the tool layer,
   not with prose.
-- **The final message is the interface.** Specify each agent's return contract; construct each
-  worker's context — intent, state, success criteria, inputs, source trust, unknowns, return schema
-  — rather than assuming inheritance.
-- **Budget the fan-out.** One agent for a lookup, 2–4 for a comparison or multi-lens review, more
-  only for genuinely decomposable work; decide the failure path (garbage, nothing, half the
-  contract, untrusted content) before launching.
+- **Decompose by context boundary** — what each lane may see — not by job title.
 
 ## Deliverable
 
@@ -122,28 +95,12 @@ budget, failure handling. Model tiering:
 |---|---|
 | Default | Agents inherit the session model; none pins one today |
 | Allowed pin | A generation alias (`haiku`/`sonnet`/`opus`/`fable`/`inherit`) where a lane's cost or latency profile justifies it; `validate_fleet.py` rejects a full model ID |
-| Tier down | High-volume, mechanical lanes |
+| Tier down | High-volume, mechanical lanes — mechanical executors, graders, routing trials |
 | Keep inheriting | Judgment-heavy lanes — review, root cause, authority decisions |
+| Per strand | A spawned agent inherits the session model unless the call names one; a fork cannot be tiered down |
 | A pin is a claim about difficulty | State why in the same change; drop it when the reason stops holding; Copilot adapters carry no model concept |
 
-Hand single-artifact wording to [artifact guidance](./artifact.md), approved implementation to the
-typed `software-engineer` agent, independent findings to the typed `reviewer` agent, and
-authorization to the human release owner with existing approval evidence naming the exact target,
-action, and rollback.
-
-## When it pays; right-sizing
-
-- Parallelize genuinely independent strands — research across sources, a multi-lens review,
-  sweeping many files or foundations, distinct hypotheses. Keep tightly coupled work sequential;
-  decide by the dependency graph and evals.
-- Measure this fleet's token, latency, and outcome delta before generalizing a fan-out to another
-  lane.
-- Each strand: isolated context, bounded mandate, a short summary back (see
-  [context guidance](./context.md)); combine with a merge pass, not concatenation.
-- Set the tier per strand. A spawned agent inherits the session model unless the call names one:
-  `sonnet` for mechanical executors, graders, and routing trials; `opus` for judgment-heavy review;
-  the session's top tier only for work the human has priced. State tier and rough token cost before
-  launching more than a handful of strands; a fork cannot be tiered down.
+Single-artifact wording is [artifact guidance](./artifact.md)'s, not a roster change.
 
 ## Learning as repository state
 
