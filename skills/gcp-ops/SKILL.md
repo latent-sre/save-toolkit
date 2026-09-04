@@ -18,31 +18,26 @@ belong to a human release owner with exact approval evidence. The read-only guar
 specific gcloud reads below; anything else you *recommend* with the exact command and expected
 output for a human to run.
 
-> **Cloud Run startup/rollback answer shape — fill all four slots when the task combines failure
-> investigation and rollback:**
->
-> 1. **Evidence.** Keep causal claims `[unverified]` until outputs exist and preserve the caller's
->    requested output shape. Never add a fenced block the caller did not permit. Substitute the
->    caller's exact service, region, and project in these read-only commands:
->    - `gcloud config list`
->    - `gcloud run services describe <service> --region <region> --project <project>`
->    - `gcloud run revisions list --service <service> --region <region> --project <project>`
->    - `gcloud run services logs read <service> --limit=100 --region <region> --project <project>`
-> 2. **Diagnosis.** Explicitly contrast listening on `0.0.0.0:$PORT` with binding only to
->    `127.0.0.1` loopback.
-> 3. **Authority.** Label traffic rollback **Tier 2**, name the **human release owner** as executor,
->    and make **error rate** the post-change verification signal.
-> 4. **Rollback.** Preserve every exact value and output shape the caller requested for the forward
->    and inverse traffic commands; recommend them, never run them or claim that traffic moved.
->
-> The service describe, revision list, and service-log forms above are *[sourced:
-> docs.cloud.google.com/sdk/gcloud/reference/run/services/describe;
-> docs.cloud.google.com/sdk/gcloud/reference/run/revisions/list;
-> docs.cloud.google.com/sdk/gcloud/reference/run/services/logs/read]*. Use `gcloud run services list`
-> only when the service name itself is unknown.
->
-> Record our projects, regions, and service inventory in
-> [references/projects.md](./references/projects.md).
+Read-only first look, substituting the caller's service, region, and project:
+
+```
+gcloud config list
+gcloud run services describe <service> --region <region> --project <project>
+gcloud run revisions list --service <service> --region <region> --project <project>
+gcloud run services logs read <service> --limit=100 --region <region> --project <project>
+```
+
+The service describe, revision list, and service-log forms above are *[sourced:
+docs.cloud.google.com/sdk/gcloud/reference/run/services/describe;
+docs.cloud.google.com/sdk/gcloud/reference/run/revisions/list;
+docs.cloud.google.com/sdk/gcloud/reference/run/services/logs/read]*. Use `gcloud run services list`
+only when the service name itself is unknown.
+
+A failing container listening on `127.0.0.1` instead of `0.0.0.0:$PORT` is a common startup cause.
+A traffic rollback is Tier 2: the human release owner executes it, verified by error rate.
+
+Record our projects, regions, and service inventory in
+[references/projects.md](./references/projects.md).
 
 ## The revision model — "what changed?" is one command
 

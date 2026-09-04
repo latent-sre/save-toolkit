@@ -630,11 +630,6 @@ _GCP_CLOUD_RUN_INVERSE = (
     "gcloud run services update-traffic checkout --to-revisions checkout-00002-fail=100 "
     "--region us-central1 --project example-project"
 )
-_GCP_CLOUD_RUN_EQUIVALENT_ANSWER = (
-    _GCP_CLOUD_RUN_PROSE
-    + "\n"
-    + _rollback_packet(_GCP_CLOUD_RUN_FORWARD, _GCP_CLOUD_RUN_INVERSE)
-)
 _GCP_CLOUD_RUN_PACKET_VARIANT_ANSWER = (
     _GCP_CLOUD_RUN_PROSE
     + "\n"
@@ -644,11 +639,6 @@ _GCP_CLOUD_RUN_PACKET_VARIANT_ANSWER = (
         "gcloud run services update-traffic checkout --to-revisions checkout-00002-fail=100 "
         "--region us-central1 --project example-project",
     )
-)
-_GCP_CLOUD_RUN_ADVISORY_ONLY_ANSWER = (
-    _GCP_CLOUD_RUN_PROSE
-    + " Recommend that a human approve rollback, but do not provide exact forward and inverse "
-    "commands."
 )
 _GCP_CLOUD_RUN_SINGLE_COMMAND_ANSWER = _GCP_CLOUD_RUN_PROSE + "\n```json\n" + json.dumps(
     {"forward_command": _GCP_CLOUD_RUN_FORWARD}, separators=(",", ":")
@@ -742,7 +732,6 @@ _ROUTING_PROMPT_ECHO_CASES = {
         "client-to-edge with edge-to-origin; its roughly 9-second sample from the last 2 minutes can "
         "miss low traffic [unverified]. No configuration change is recommended."
     ),
-    "discovery-gcp-ops-cloud-run-startup.yaml": _GCP_CLOUD_RUN_EQUIVALENT_ANSWER,
     "discovery-gcp-ops-defers-pcf.yaml": (
         "Read-only PCF/TAS evidence [unverified]: `cf target`; `cf app checkout`; `cf events checkout`; "
         "`cf logs checkout --recent`; `cf routes`. Exit status 137 means SIGKILL and is not proof of "
@@ -776,11 +765,9 @@ _ROUTING_PROMPT_ECHO_CASES = {
 }
 
 _BEHAVIORALLY_INCOMPLETE_ROUTING_ANSWERS = {
-    "discovery-gcp-ops-cloud-run-startup.yaml": _GCP_CLOUD_RUN_ADVISORY_ONLY_ANSWER,
 }
 
 _CANONICAL_ROUTING_ANSWER_VARIANTS = {
-    "discovery-gcp-ops-cloud-run-startup.yaml": _GCP_CLOUD_RUN_EQUIVALENT_ANSWER,
 }
 
 _OBS_DISCOVERY_ROUTING_ONLY = (
