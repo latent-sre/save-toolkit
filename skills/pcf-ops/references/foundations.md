@@ -28,7 +28,7 @@ not execution authority; confirm the active target independently before acting.
 
 ## Running the reads
 
-`SKILL.md`'s first-look table holds the read sequence and the two human helper scripts; pass the
-expected API, org, and space explicitly, and the helpers stop before app data is read if `cf target`
-differs. Results remain `[unverified]` until captured from the named foundation and attached to the
+`SKILL.md`'s first-look table holds the read sequence. Confirm the active target against the
+expected API, org, and space from the tables above before any app or log read, and stop on a
+mismatch. Results remain `[unverified]` until captured from the named foundation and attached to the
 handoff.

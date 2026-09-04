@@ -12,13 +12,15 @@ action.
 >
 > **Target**: `checkout` app, `prod` space, foundation `pcf-east`.
 > **Change**: scale from 4 -> 6 instances to absorb the 502 burst while the root cause is investigated.
-> **Exact command**: `cf scale checkout -i 6`
+> **Exact command**: Apps Manager -> the `checkout` app's **Overview** page -> **Scale**, instances
+> 4 -> 6 (`cf scale checkout -i 6` where the CLI is installed).
 > **Valid until**: `<UTC>` — after this deadline the change re-enters approval.
 > **Blast radius**: no restart of existing instances (`-i` only adds); ~40s until new instances pass
 > health checks. No config or code changes.
-> **Verification**: `cf app checkout` shows `6/6 running`; 502 rate in the dashboard drops within 5 min.
-> **Rollback**: `cf scale checkout -i 4` — this restores the desired instance count; it does not
-> reverse in-flight requests, external effects, or transient rebalancing.
+> **Verification**: the **Overview** instance table shows 6 running (`cf app checkout` shows
+> `6/6 running`); 502 rate in the dashboard drops within 5 min.
+> **Rollback**: **Scale** back to 4 instances (`cf scale checkout -i 4`) — this restores the desired
+> instance count; it does not reverse in-flight requests, external effects, or transient rebalancing.
 >
 > This is Tier 2 (reversible live change), so a human release owner needs explicit approval for this
 > specific apply. Immediately before execution, that owner rechecks the target, command, actor, and
