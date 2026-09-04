@@ -31,13 +31,9 @@ Rules:
 - If supplied evidence is insufficient to establish that a command works (service not running, no
   access), mark it `[unverified]` rather than presenting it as tested.
 
-## Runbook vs playbook vs SOP
-- **Runbook** — steps to handle *one* alert/task/failure mode (this template).
-- **Playbook** — a broader response *strategy* orchestrating multiple runbooks (e.g. a major-incident
-  playbook).
-- **SOP** — a fixed procedure for routine operations (not incident-driven).
-
-Keep them current through evidence-backed rehearsal. A named human or service owner runs game days
+## Keep it current through rehearsal
+A runbook answers one alert, task, or failure mode; a broader response strategy that orchestrates
+several is a playbook and is not this template. Keep runbooks current through evidence-backed rehearsal. A named human or service owner runs game days
 or drills under approved, realistic conditions; `scribe` only records the supplied results. Preserve
 `last_verified` only when incoming evidence binds the exact artifact/version, target, actor,
 timestamp, and outcome. Otherwise leave it unchanged and label the rehearsal `[unverified]`.
@@ -52,7 +48,8 @@ timestamp, and outcome. Otherwise leave it unchanged and label the rehearsal `[u
 - **Trigger-anchored** — starts from a concrete trigger (this alert/symptom/task), ends at "resolved or
   escalate to <whom>."
 - **Current or deleted** — date it, own it, prune what's wrong. A wrong runbook is worse than none.
-- **Machine-linkable frontmatter** — give each runbook the template's YAML frontmatter. Both dates
+- **Machine-linkable frontmatter** — give each runbook the template's YAML frontmatter. A new
+  runbook starts `status: draft`; only a human review promotes it to `active`. Both dates
   (`last_reviewed`, `last_verified`) start `null`;
   only human/authorized document review changes `last_reviewed`, and only bound rehearsal evidence
   changes `last_verified`.
@@ -60,9 +57,13 @@ timestamp, and outcome. Otherwise leave it unchanged and label the rehearsal `[u
   for command claims. If that evidence is absent, mark the command `[unverified]`; never execute from
   this documentation lane, including a read-only command, merely to confirm syntax or output.
 
-Writing the Procedure or Triage steps? The specific ways a correct-looking step produces a wrong
-action under pressure — ambient targets, success-only expected output, non-idempotent rollbacks,
-unbounded retries, placeholders with no source — are in [step craft](./references/step-craft.md).
+Writing the Procedure or Triage steps, check each against the ways a correct-looking step fails
+at 3 a.m.: it ran against an ambient target the reader was not in; its expected output describes
+only success; a reader who jumped to it inherits side effects it assumes; its rollback is not
+idempotent; it destroys without a way to look first; it has no stop condition; its placeholder
+says nothing about where the value comes from; it quietly absorbs a second failure mode instead
+of routing to another runbook. The [worked exemplar](./assets/runbook-example.md) shows each
+avoided in place.
 
 ## Before you publish — read it back as the responder
 

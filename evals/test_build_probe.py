@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -92,6 +93,16 @@ class ScenarioSpecTests(unittest.TestCase):
         del bad["prompt"]
         self.assertTrue(any("missing key 'prompt'" in p for p in build_probe.validate_scenario(bad)))
         self.assertEqual([], build_probe.validate_scenario(TINY_SPEC))
+
+    def test_runbook_probe_oracle_rejects_every_template_placeholder(self) -> None:
+        # The scribe runbook probe ships its oracle through `writes:`; its literal list must be the
+        # runbook template's placeholder set, or a copied slot left unfilled earns the point.
+        spec = build_probe.load_scenario(build_probe.SCENARIO_DIR / "build-scribe-writes-only-docs.yaml")
+        script = next(c["writes"]["probe_runbook_slots.py"] for c in spec["checks"] if c.get("writes"))
+        namespace: dict = {"__name__": "probe_runbook_slots"}
+        exec(compile(script, "probe_runbook_slots.py", "exec"), namespace)
+        template = (ROOT / "skills" / "runbook" / "assets" / "runbook-template.md").read_text(encoding="utf-8")
+        self.assertEqual(set(re.findall(r"<[^<>\n]*>", template)), set(namespace["TEMPLATE_LITERALS"]))
 
 
 class WorkspaceAndCheckTests(unittest.TestCase):

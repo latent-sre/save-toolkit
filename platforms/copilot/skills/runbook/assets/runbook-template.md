@@ -42,8 +42,10 @@ Dashboard: <link>  ·  Source/repo: <link>
    ```bash
    <command>
    ```
-   Expected: <what you should see>
-2. <next step> …
+   Expected: <what you should see>, sorted into worked / partly worked / failed, each with where to go
+   If not within <N min or N attempts>: → <the step or escalation row to go to> (every step that
+   changes state or might not work carries this line; it is the step's own exit)
+2. <next step> — every step gets its Expected line, including waits and evidence captures …
 
 ## Verification
 How to confirm the issue is resolved: <command/dashboard + expected healthy state>
