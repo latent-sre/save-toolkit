@@ -14,10 +14,19 @@ human-run command, shown so the human knows exactly what to run.
 Export the rendered `view` HTML of the page (REST API v2 with `body-format=view`, or the space's
 HTML export), not the storage format: storage is XHTML with `<ac:...>`/`<ri:...>` macro elements
 that a generic converter drops or mangles silently, and the converter below counts those losses
-only when it can see them. Three team rules travel with the export: the API token goes in at
-curl's password prompt, never on the command line where it can be visible; the extraction is
-chained on the request succeeding, so a failed or empty page body cannot look like a converted
-one; and the converted Markdown is diffed against the rendered page before anything trusts it.
+only when it can see them. The single-page path, with the three team rules built in:
+
+```bash
+curl --fail-with-body --user "user@example.com" --output page.json \
+  "https://<site>.atlassian.net/wiki/api/v2/pages/<page-id>?body-format=view" &&
+jq --exit-status --raw-output '.body.view.value' page.json > page.html
+```
+
+Given only the account email, curl prompts for the API token at its password prompt, so the
+token never sits on a command line where it can be visible; `--fail-with-body` and the `&&`
+chain the extraction on the request succeeding, and jq's `--exit-status` makes a missing page
+body fail instead of looking converted; and the converted Markdown is diffed against the
+rendered page before anything trusts it.
 A copy-paste of the rendered page is acceptable for one short page, and its lost macros and
 attachment links are recorded in the provenance note. *[sourced: Atlassian Confluence REST v2
 page API and storage-format reference; curl manual on `--user`; reviewed 2026-08-19]*
