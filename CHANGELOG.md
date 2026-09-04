@@ -99,6 +99,19 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   version demanded a pending period the skill never requires and gave the spike case too little
   history; the trials found both, and the review round found four more ways a wrong file could
   pass, all fixed and re-proven the same way.
+- `ci-actions`: 22,271 B to 19,307 B, the entrypoint 8,779 B to 7,710 B, under the screen. The
+  rationale under the pin, injection, fork, and cancellation rules, the tj-actions story, the
+  injection example, the `pull_request_target` explanation, the matrix and concurrency examples,
+  and the reusable-versus-composite prose went, on a tools-off probe showing both models carry
+  them; the 2026 fork-checkout refusal, the setup-uv v10 cache rule, the immutable-release field,
+  the CredHub fact, the Node 24 boundary, and every team convention stayed. Measured on a new
+  software-engineer PCF deploy-job probe: the candidate 23/23 in every trial on Sonnet and Opus,
+  the incumbent 23/23 in three of four, its fourth job lacking a rollback path; see
+  [the ci-actions trim evidence](docs/reviews/2026-09-04-ci-actions-trim-evidence.md).
+- The software-engineer deploy-job probe grades the authored workflow by what it is: the pinned
+  actionlint 1.7.12 accepts it, and a probe-owned oracle checks the deploy job's shape against
+  thirteen sentences of the skill's contract (13/13 on a hand-written job, 2/13 on a naive one, red
+  on each of twenty-one files built to dodge one finding).
 - The eval runner no longer voids a routing verdict for a runtime refusal inside the subagent the
   main session dispatched: the verdict is the dispatch, which had already happened. The rule lives
   in `runtime_blocked_tools`, a regrade re-derives it from the raw trace, and the evals ceiling
