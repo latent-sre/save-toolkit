@@ -71,6 +71,7 @@ import clean_room  # noqa: E402
 import graders as fleet_graders  # noqa: E402
 
 SCENARIO_DIR = ROOT / "evals" / "build-scenarios"
+ORACLE_DIR = (ROOT / "evals" / "oracles").resolve()
 CONTRACT_SCENARIO_DIR = ROOT / "evals" / "scenarios"
 BUILD_TOOLS = ("Read", "Edit", "Write", "Grep", "Glob", "Bash", "Skill", "Task")
 DEFAULT_TIMEOUT = 900
@@ -296,6 +297,11 @@ def validate_scenario(spec: object, *, where: str = "scenario") -> list[str]:
             for i, check in enumerate(checks):
                 if not isinstance(check, dict) or check.get("check") not in CHECKS:
                     problems.append(f"{where}: checks[{i}] names an unknown check {check!r}"[:200])
+                    continue
+                for rel in (check.get("writes_from") or {}).values():
+                    source = (ROOT / str(rel)).resolve()
+                    if not source.is_file() or ORACLE_DIR not in source.parents:
+                        problems.append(f"{where}: checks[{i}] writes_from {rel!r} is not a file under evals/oracles/")
     threshold = spec.get("threshold")
     if threshold is not None:
         if isinstance(threshold, bool) or not isinstance(threshold, (int, float)) or not 0 < threshold <= 1:
@@ -1535,11 +1541,30 @@ def check_file_contains(ctx: Context, p: dict) -> tuple[bool, str]:
     return ok, f"{p['needle']!r} {'found' if ok else 'absent'} in {p['path']}"
 
 
-def check_command_exit_zero(ctx: Context, p: dict) -> tuple[bool, str]:
-    for name, content in (p.get("writes") or {}).items():
+def _stage_writes(ctx: Context, p: dict) -> str | None:
+    """Put the check's probe-owned files in the workspace; the reason it could not, or None.
+
+    `writes:` carries the content inline. `writes_from:` names a file under `evals/oracles/`
+    instead, so an oracle long enough to be a program lives on disk -- reviewable, runnable, and
+    counted by the evals line ceiling -- rather than as a YAML block scalar that escapes both.
+    """
+    staged = dict(p.get("writes") or {})
+    for name, rel in (p.get("writes_from") or {}).items():
+        source = (ROOT / rel).resolve()
+        if not source.is_file() or ORACLE_DIR not in source.parents:
+            return f"writes_from source {rel!r} must be a file under evals/oracles/"
+        staged[name] = source.read_text(encoding="utf-8")
+    for name, content in staged.items():
         if Path(name).is_absolute() or ".." in Path(name).parts:
-            return False, f"writes path {name!r} must stay inside the repo"
+            return f"writes path {name!r} must stay inside the repo"
         (ctx.ws.repo / name).write_text(content, encoding="utf-8")
+    return None
+
+
+def check_command_exit_zero(ctx: Context, p: dict) -> tuple[bool, str]:
+    problem = _stage_writes(ctx, p)
+    if problem:
+        return False, problem
     try:
         proc = _run(ctx, p["command"], timeout=int(p.get("timeout", 180)))
     except subprocess.TimeoutExpired:
@@ -1555,10 +1580,9 @@ def check_command_output_regex(ctx: Context, p: dict) -> tuple[bool, str]:
     runs it proves only that the two agree with each other; this check pins the behaviour to an
     input and answer the model never saw.
     """
-    for name, content in (p.get("writes") or {}).items():
-        if Path(name).is_absolute() or ".." in Path(name).parts:
-            return False, f"writes path {name!r} must stay inside the repo"
-        (ctx.ws.repo / name).write_text(content, encoding="utf-8")
+    problem = _stage_writes(ctx, p)
+    if problem:
+        return False, problem
     try:
         proc = _run(ctx, p["command"], timeout=int(p.get("timeout", 180)))
     except subprocess.TimeoutExpired:

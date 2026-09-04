@@ -61,13 +61,12 @@ worked procedure unconditionally.
 
 | Task predicate | Load |
 |---|---|
-| The plan creates or changes a manifest, uses parallel blue-green apps/routes, or needs stable-name rotation and route rollback | [`references/blue-green-and-manifest.md`](./references/blue-green-and-manifest.md) |
+| The plan creates or changes a manifest (its declarative example is the starter when the repository owns none), uses parallel blue-green apps/routes, or needs stable-name rotation and route rollback | [`references/blue-green-and-manifest.md`](./references/blue-green-and-manifest.md) |
 | The plan uses rolling/canary deployment, instance steps, max-in-flight, app revisions, `cf rollback`, or `cf cancel-deployment` | [`references/rolling-canary-and-revisions.md`](./references/rolling-canary-and-revisions.md) |
 | The plan changes environment variables, chooses restart versus restage, or changes instance/memory/disk scale | [`references/configuration-and-scaling.md`](./references/configuration-and-scaling.md) |
-| A new manifest is required **and** the repository has no project-owned manifest or starter to adapt | [`assets/manifest.yml`](./assets/manifest.yml) |
 | The plan recommends a runtime, buildpack policy, credential service, runner placement, foundation, or platform change | Load `stack-profile` first; do not cross its platform boundary |
 
-Do not copy the bundled manifest when the repository already owns one. Inspect and modify the
+Do not copy the example manifest when the repository already owns one. Inspect and modify the
 project-owned manifest narrowly instead.
 
 ## Choose the strategy before writing commands

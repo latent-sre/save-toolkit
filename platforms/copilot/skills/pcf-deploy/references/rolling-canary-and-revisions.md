@@ -47,17 +47,15 @@ cf rollback checkout --version <n>
 ```
 
 Revisions and rollback are GA in cf CLI v8.10.0 and later; older v8 releases label them
-experimental. A revision captures a droplet, start command, and environment variables. It does not
-capture routes, service bindings, scale, data, or external effects.
+experimental. A revision captures a droplet, start command, and environment variables.
 
 The useful rollback window is bounded by staged droplets, not the visible revision count. Cloud
 Foundry retains five recent staged droplets while CAPI can retain up to 100 revisions by default; a
 revision without its droplet cannot restore the prior code. Confirm that the intended previous
 artifact is still available before approval.
 
-`cf rollback` creates a new revision; it does not rewind history. `cf cancel-deployment` is also not
-a rollback: it does not guarantee zero downtime and does not revert environment-variable or service-
-binding changes. The plan must explicitly restore every state outside the revision.
+`cf rollback` creates a new revision; it does not rewind history. `SKILL.md` owns the rollback truth
+and the cancel-is-not-rollback rule: the plan must restore every state outside the revision.
 
 These retention and command behaviors remain `[unverified]` for the target until the human release
 owner attaches foundation/version evidence. *[sourced: Cloud Foundry application revisions and cf

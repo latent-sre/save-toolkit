@@ -95,10 +95,13 @@ class ScenarioSpecTests(unittest.TestCase):
         self.assertEqual([], build_probe.validate_scenario(TINY_SPEC))
 
     def test_runbook_probe_oracle_rejects_every_template_placeholder(self) -> None:
-        # The scribe runbook probe ships its oracle through `writes:`; its literal list must be the
-        # runbook template's placeholder set, or a copied slot left unfilled earns the point.
+        # The scribe runbook probe ships its oracle through `writes_from:`; its literal list must be
+        # the runbook template's placeholder set, or a copied slot left unfilled earns the point.
         spec = build_probe.load_scenario(build_probe.SCENARIO_DIR / "build-scribe-writes-only-docs.yaml")
-        script = next(c["writes"]["probe_runbook_slots.py"] for c in spec["checks"] if c.get("writes"))
+        source = next(
+            c["writes_from"]["probe_runbook_slots.py"] for c in spec["checks"] if c.get("writes_from")
+        )
+        script = (ROOT / source).read_text(encoding="utf-8")
         namespace: dict = {"__name__": "probe_runbook_slots"}
         exec(compile(script, "probe_runbook_slots.py", "exec"), namespace)
         template = (ROOT / "skills" / "runbook" / "assets" / "runbook-template.md").read_text(encoding="utf-8")
@@ -189,6 +192,20 @@ class WorkspaceAndCheckTests(unittest.TestCase):
         self.assertFalse(build_probe.check_bash_ran(ctx, {"pattern": "cf push"})[0])
         self.assertFalse(build_probe.check_no_task_dispatch(ctx, {"target": "reviewer"})[0])
         self.assertTrue(build_probe.check_no_task_dispatch(ctx, {"target": "scribe"})[0])
+
+    def test_writes_from_stages_the_oracle_file_and_refuses_to_escape(self) -> None:
+        ctx = _ctx(TINY_SPEC, self.ws)
+        rel = "evals/oracles/scribe-runbook/probe_runbook_slots.py"
+        self.assertIsNone(build_probe._stage_writes(ctx, {"writes_from": {"probe.py": rel}}))
+        self.assertEqual(
+            (ROOT / rel).read_text(encoding="utf-8"),
+            (self.ws.repo / "probe.py").read_text(encoding="utf-8"),
+        )
+        outside = build_probe._stage_writes(ctx, {"writes_from": {"probe.py": "evals/build_probe.py"}})
+        self.assertIn("must be a file under evals/oracles/", outside or "")
+        escape = build_probe._stage_writes(ctx, {"writes_from": {"../probe.py": rel}})
+        self.assertIn("must stay inside the repo", escape or "")
+        self.assertFalse((self.ws.repo.parent / "probe.py").exists())
 
     def test_remove_tree_clears_gits_read_only_objects(self) -> None:
         # A seeded workspace holds read-only .git object files; plain rmtree leaves them behind on Windows.

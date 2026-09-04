@@ -37,23 +37,21 @@ flip). Two things stay on the full gate even at P1:
 - **Blast radius and verification**, a sentence each.
 - **A backout plan** — prefer the reversible mitigations in the `incident-command` skill's table.
 - **Who made the call**, recorded in the incident timeline (UTC).
-- **Effect result**, recorded by the human executor after every attempt as `executed`, `not executed`,
-  or `UNKNOWN`. An ambiguous dispatch carries a named reconciliation owner and read-after-write query
-  and is never retried or re-issued until resolved.
+- **Effect result**, recorded by the human executor after every attempt; `SKILL.md`'s UNKNOWN rule
+  (reconciliation owner, read-after-write query, no retry until resolved) applies unchanged.
 
 ## Deferred to post-incident reconciliation
 
 Effect-outcome reconciliation is never deferred: an `UNKNOWN` dispatch is an active incident state,
-not paperwork, and remains visible until the named owner resolves it or explicitly carries it as
-`UNKNOWN`. These administrative records never delay a covered mitigation:
+not paperwork. These administrative records never delay a covered mitigation:
 
 - Readiness evidence and artifact records **for the covered actions only** — a rollback reuses the
   previously live artifact's existing records. A new artifact is out of scope and keeps them.
 - Production execution-boundary evidence. A deployment-control or credential/role API call must never
   sit on the rollback path; a control-plane outage cannot be allowed to block recovery.
-- Timing/freeze documentation, Moogsoft suppression records, and the formal change record. This team
-  keeps change records in **both BMC Remedy and Jira** *[sourced: operator statement 2026-08-21]*, so
-  name the system and record ID rather than writing "the change record".
+- Timing/freeze documentation, Moogsoft suppression records, and the formal change record: name the
+  system (`stack-profile` owns the Remedy/Jira fact) and the record ID, never just "the change
+  record".
 - Pre-change stakeholder notification — the incident comms cadence covers stakeholders, and the IC
   roles satisfy monitoring and comms.
 

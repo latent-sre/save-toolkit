@@ -21,6 +21,6 @@ action.
 > This is Tier 2 (reversible live change), so a human release owner needs explicit approval for this
 > specific apply. Immediately before execution, that owner rechecks the target, command, actor, and
 > current configuration identity against the approval. After the attempt, the owner returns an
-> `executed`, `not executed`, or `UNKNOWN` receipt; an `UNKNOWN` result is reconciled before retry.
+> `executed`, `not executed`, or `UNKNOWN` receipt.
 > I do not apply live changes or perform the reconciliation query.
 > Meanwhile I'll continue the Tier 0 investigation of what changed, which needs no approval.

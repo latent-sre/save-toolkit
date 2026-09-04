@@ -87,12 +87,11 @@ out of lane.
 
 ## The platform boundary
 We own our apps up to the platform edge; we do not operate the platform. On PCF: BOSH, Ops Manager,
-Diego cells, Gorouter, CredHub/UAA, and foundation upgrades belong to the platform team. When a
-problem is platform-side (many apps failing at once, failing cells, Gorouter-wide 5xx), recognize it
-and escalate with evidence — timestamps, blast radius, `cf` output showing our app healthy — do not
-operate BOSH. On GCP the boundary moves and is **not yet ratified**: the team owns more (service
-config, revisions, project-scoped observability), while org policy, folder/project structure,
-shared networking, and IAM beyond project scope sit with the cloud platform owner. Treat that split
+Diego cells, Gorouter, CredHub/UAA, and foundation upgrades belong to the platform team; `pcf-ops`
+owns which symptoms are platform-side and the evidence to escalate with. On GCP the boundary moves
+and is **not yet ratified**: the team owns more (service config, revisions, project-scoped
+observability), while org policy, folder/project structure, shared networking, and IAM beyond
+project scope sit with the cloud platform owner. Treat that split
 as [unverified] until recorded here; the `gcp-ops` skill carries the working boundary rules. Akamai
 delivery and WAF config is team-owned change-managed work (see the `akamai-edge` skill); Akamai the
 platform — the edge network itself — is Akamai's.

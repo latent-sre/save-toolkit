@@ -65,6 +65,12 @@ grader, never a new keyword list. `--agent` runs the session AS the agent, so th
 invocation; a `skill:` instruction can be ignored, so a skill-pinned trial additionally asserts the
 skill completed.
 
+A build check that grades with a probe-owned oracle stages the oracle into the workspace before it
+runs the command: `writes:` carries a line or two of data inline, while `writes_from:` maps the
+workspace filename to a file under [`oracles/`](oracles) so an oracle long enough to be a program
+stays reviewable, runnable, and inside the `evals_python_lines` ceiling — which now counts the four
+Python oracles there, but not the TSX one, since it counts `*.py` only.
+
 **The standing regression** is the ten build probes plus the eleven contract scenarios carrying
 `split: regression`. A skill's routing positive is a **description-change check** — run it when that
 skill's own description changes. `--split` is not wired into the runner's selection; use

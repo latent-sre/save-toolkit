@@ -26,18 +26,9 @@ not execution authority; confirm the active target independently before acting.
 |---|---|---|---|---|
 | `<app>` | `<org>/<space>` | `<app>.apps.example.com` | `<team>` | `runbooks/<file>.md` |
 
-## Handy read-only one-liners (fill in real names)
+## Running the reads
 
-The four reads below ARE the triage sequence—run them directly; [triage.sh](../scripts/triage.sh) /
-[triage.ps1](../scripts/triage.ps1) are for humans and just run these same four commands. Pass the
-expected API, org, and space explicitly; the helpers stop before app data is read if `cf target` differs.
-
-```bash
-cf target
-cf app <app>
-cf events <app> | head -n 25
-cf logs <app> --recent | tail -n 120
-cf apps
-```
-
-Results remain `[unverified]` until captured from the named foundation and attached to the handoff.
+`SKILL.md`'s first-look table holds the read sequence and the two human helper scripts; pass the
+expected API, org, and space explicitly, and the helpers stop before app data is read if `cf target`
+differs. Results remain `[unverified]` until captured from the named foundation and attached to the
+handoff.

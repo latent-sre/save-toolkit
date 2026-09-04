@@ -8,16 +8,16 @@ authority and safety contract in `SKILL.md` still applies.
 
 ## Credentials and identity
 
-This team authenticates CI jobs from GitHub environment secrets, not OIDC
-*[sourced: operator statement 2026-08-21]*. Scope each secret to a protected environment so the
-approval gate and credential release are the same control. Rotate long-lived credentials on a
-schedule and after a runner rebuild; their blast radius lasts until rotation.
+`SKILL.md` owns the environment-secrets-not-OIDC default *[sourced: operator statement
+2026-08-21]*. Scope each secret to a protected environment so the approval gate and credential
+release are the same control. Rotate long-lived credentials on a schedule and after a runner
+rebuild; their blast radius lasts until rotation.
 
 `permissions: { id-token: write }` only permits GitHub to mint a short-lived OIDC token; the target
 still needs a broker that accepts and exchanges it. CredHub authenticates via UAA and does not
-accept GitHub OIDC JWTs, so GitHub OIDC is not a PCF credential path on this stack. Do not add
-`id-token: write` as decorative hardening. For a GCP target, load `stack-profile` and confirm the
-selected runtime and identity broker before proposing an exchange.
+accept GitHub OIDC JWTs, so do not add `id-token: write` as decorative hardening. For a GCP target,
+load `stack-profile` and confirm the selected runtime and identity broker before proposing an
+exchange.
 
 ## Re-pinning
 
@@ -60,8 +60,6 @@ For releasable artifacts, use pinned `actions/attest-build-provenance` and `acti
 steps, then verify the result downstream with `gh attestation verify`. The attestation connects an
 artifact to its source and workflow; it does not replace review of the workflow that produced it.
 
-When immutable GitHub Releases are enabled, published assets cannot be modified or deleted and the
-tag is locked to its commit while the release exists. Build the release as a draft, attach and check
-every asset, then publish. A bad release requires a new release; deleting it does not make the same
-tag reusable. Downstream checks should inspect the API's `immutable: true` value, not merely the
-existence of a tag. *[sourced: GitHub Docs, immutable releases; reviewed 2026-08-21]*
+Build a release as a draft, attach and check every asset, then publish: with immutable releases on,
+a bad release requires a new one. The `production-change-gate` skill owns the immutable-release
+evidence contract and the API reads that prove it.
