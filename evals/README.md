@@ -58,12 +58,18 @@ zero-tolerance, so their threshold is always clamped to 1.0 and `--validate` rej
 threshold below it; `threshold` on a positive is the fraction of trials that must pass.
 
 A contract scenario pins `agent:` or `skill:` and lists `graders:` from the registry in
-[`graders.py`](graders.py): `rubric`, `exact_json`, `embedded_exact_json`, `exact_fields`, `regex`,
+[`graders.py`](graders.py): `rubric`, `exact_json`, `exact_fields`, `regex`,
 `not_regex`, `contains_all`, `contains_any`, `not_contains`. Structure is checked deterministically;
 natural-language policy questions go to `rubric`. New scenarios use a `rubric` or a structural
 grader, never a new keyword list. `--agent` runs the session AS the agent, so the pin is itself the
 invocation; a `skill:` instruction can be ignored, so a skill-pinned trial additionally asserts the
 skill completed.
+
+A build check that grades with a probe-owned oracle stages the oracle into the workspace before it
+runs the command: `writes:` carries a line or two of data inline, while `writes_from:` maps the
+workspace filename to a file under [`oracles/`](oracles) so an oracle long enough to be a program
+stays reviewable, runnable, and inside the `evals_python_lines` ceiling — which now counts the four
+Python oracles there, but not the TSX one, since it counts `*.py` only.
 
 **The standing regression** is the ten build probes plus the eleven contract scenarios carrying
 `split: regression`. A skill's routing positive is a **description-change check** — run it when that

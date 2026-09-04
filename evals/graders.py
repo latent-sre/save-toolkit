@@ -260,67 +260,6 @@ def exact_json(response: str, fields: dict) -> tuple[bool, str]:
     )
 
 
-_JSON_FENCE_OPEN_RE = re.compile(r"(?im)^```json[ \t]*\r?$")
-_JSON_FENCE_RE = re.compile(
-    r"(?ims)^```json[ \t]*\r?\n(?P<body>.*?)\r?\n```[ \t]*\r?$"
-)
-_ANY_FENCE_RE = re.compile(
-    r"(?ims)^(?P<quote>[ ]{0,3}(?:(?:>[ ]?)+)|)(?P<indent>[ ]{0,3})"
-    r"(?P<fence>```|~~~)(?P<info>[^\r\n]*)\r?\n"
-    r"(?P<body>.*?)\r?\n(?P=quote)[ ]{0,3}(?P=fence)[ \t]*\r?$"
-)
-_FENCE_MARKER_RE = re.compile(
-    r"(?m)^(?:[ ]{0,3}(?:>[ ]?)+[ ]{0,3}|[ ]{0,3})(?:```|~~~)[^\r\n]*\r?$"
-)
-_BLOCKQUOTE_PREFIX_RE = re.compile(r"(?m)^[ ]{0,3}(?:>[ ]?)+[ ]{0,3}")
-
-
-def embedded_exact_json(response: str, fields: dict) -> tuple[bool, str]:
-    """Require operator prose plus exactly one fenced strict JSON object.
-
-    The JSON block is the machine-consumed relationship contract; prose remains available for a
-    human operator. The block uses the same recursive exact-key, exact-type, and exact-value
-    comparison as ``exact_json``. The required backtick JSON block is the final response content
-    except for whitespace. Duplicate or malformed JSON records fail closed, including competing
-    objects in backtick or tilde fences; unrelated fenced operator evidence remains allowed.
-    """
-    _validate_exact_json_fields(fields, "embedded_exact_json")
-    openings = list(_JSON_FENCE_OPEN_RE.finditer(response))
-    blocks = list(_JSON_FENCE_RE.finditer(response))
-    if len(openings) != 1 or len(blocks) != 1:
-        return False, "expected exactly one closed JSON fence"
-
-    block = blocks[0]
-    if response[block.end() :].strip():
-        return False, "JSON fence must be the final response content"
-
-    all_fences = list(_ANY_FENCE_RE.finditer(response))
-    if len(_FENCE_MARKER_RE.findall(response)) != 2 * len(all_fences):
-        return False, "response contains a malformed fenced block"
-    for other in all_fences:
-        if other.span() == block.span():
-            continue
-        body = other.group("body")
-        if other.group("quote"):
-            body = _BLOCKQUOTE_PREFIX_RE.sub("", body)
-        try:
-            competing_record = json.loads(body)
-        except (json.JSONDecodeError, ValueError, RecursionError):
-            continue
-        if isinstance(competing_record, dict):
-            return False, "additional fenced JSON objects are not allowed"
-
-    prose = _ANY_FENCE_RE.sub("", response)
-    if re.search(r"[A-Za-z]{2}", prose) is None:
-        return False, "operator prose is required outside the JSON fence"
-
-    passed, detail = exact_json(block.group("body"), fields)
-    return (
-        passed,
-        "embedded JSON fields matched with operator prose" if passed else detail,
-    )
-
-
 def rubric(response: str, name: str, params: dict | None = None) -> tuple[bool, str]:
     """Delegate a natural-language policy judgment to the calibrated LLM judge (evals/judge.py).
 
@@ -350,7 +289,6 @@ REGISTRY: dict[str, Callable[..., tuple[bool, str]]] = {
     "not_regex": not_regex,
     "exact_fields": exact_fields,
     "exact_json": exact_json,
-    "embedded_exact_json": embedded_exact_json,
     "rubric": rubric,
 }
 

@@ -33,8 +33,7 @@ the variable. Identify the exact application/buildpack consumer before choosing.
 classification as `[unverified]` until repository or buildpack evidence supports it.
 
 `cf env` can display the new value before existing containers receive it; values are injected when
-containers start. It is also credential-bearing and remains a human-only read. A pasted, sanitized
-excerpt may be used as evidence, but the agent never requests or handles raw secret output.
+containers start. It is also a human-only credential-bearing read — `pcf-ops` owns that rule.
 
 ## Scale effects and rollback
 

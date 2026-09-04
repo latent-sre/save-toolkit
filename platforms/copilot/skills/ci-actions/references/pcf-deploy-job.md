@@ -12,15 +12,13 @@ infrastructure, runtime, or identity recommendations. The authority and safety c
 - A self-hosted runner in an approved runner group with network access to the foundation, and a
   pinned cf CLI v8 installation from an approved, checksum-verified source.
 - A protected GitHub environment with required reviewers and environment-scoped credentials for a
-  least-privilege PCF service account. There is no GitHub-OIDC-to-CredHub exchange.
+  least-privilege PCF service account.
 - The exact artifact produced by the trusted build job, downloaded, never rebuilt.
 - Shell tracing off. `cf auth` with no arguments reads `CF_USERNAME` and `CF_PASSWORD` from the
   environment; never put them in argv. *[sourced: cf CLI `command/v7/auth_command.go` help text]*
 - A reviewed manifest, health check, rollback job or commands, release-readiness evidence, and
   current human approval naming the exact artifact, target, action, verification, and rollback.
   This skill does not load, run, or approve either gate.
-- Stable deployment concurrency with `cancel-in-progress: false`; a newer commit never interrupts a
-  production deployment.
 
 ## Planning skeleton
 
@@ -30,7 +28,7 @@ Pin every `uses:` to a reviewed full commit SHA before committing this example.
 deploy-prod:
   runs-on: [self-hosted, pcf]          # runner group with foundation network access
   environment: production               # required reviewers approve before this runs
-  concurrency: { group: deploy-prod, cancel-in-progress: false }   # never cancel a deploy; no workflow-level group may cancel this run
+  concurrency: { group: deploy-prod, cancel-in-progress: false }   # SKILL.md: never cancel a deploy
   steps:
     - uses: actions/checkout@<pin-to-sha>
     - uses: actions/download-artifact@<pin-to-sha>   # promote the SAME artifact built earlier

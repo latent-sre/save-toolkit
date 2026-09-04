@@ -71,6 +71,7 @@ import clean_room  # noqa: E402
 import graders as fleet_graders  # noqa: E402
 
 SCENARIO_DIR = ROOT / "evals" / "build-scenarios"
+ORACLE_DIR = (ROOT / "evals" / "oracles").resolve()
 CONTRACT_SCENARIO_DIR = ROOT / "evals" / "scenarios"
 BUILD_TOOLS = ("Read", "Edit", "Write", "Grep", "Glob", "Bash", "Skill", "Task")
 DEFAULT_TIMEOUT = 900
@@ -163,6 +164,19 @@ def load_scenario(path: Path) -> dict:
     if problems:
         raise ValueError("\n".join(problems))
     return spec
+
+
+def _writes_from_shape_problem(value: object) -> str | None:
+    """The reason `writes_from` is not a mapping of destination name to oracle path, or None.
+
+    A list or scalar here used to reach `.values()` and raise, turning a scenario-authoring mistake
+    into a traceback instead of a reported problem.
+    """
+    if not isinstance(value, dict) or not all(
+        isinstance(name, str) and name and isinstance(rel, str) and rel for name, rel in value.items()
+    ):
+        return "writes_from must be a mapping of non-empty name to oracle path"
+    return None
 
 
 def validate_scenario(spec: object, *, where: str = "scenario") -> list[str]:
@@ -296,6 +310,16 @@ def validate_scenario(spec: object, *, where: str = "scenario") -> list[str]:
             for i, check in enumerate(checks):
                 if not isinstance(check, dict) or check.get("check") not in CHECKS:
                     problems.append(f"{where}: checks[{i}] names an unknown check {check!r}"[:200])
+                    continue
+                writes_from = check.get("writes_from")
+                shape = _writes_from_shape_problem(writes_from) if writes_from is not None else None
+                if shape:
+                    problems.append(f"{where}: checks[{i}] {shape}")
+                    continue
+                for rel in (writes_from or {}).values():
+                    source = (ROOT / str(rel)).resolve()
+                    if not source.is_file() or ORACLE_DIR not in source.parents:
+                        problems.append(f"{where}: checks[{i}] writes_from {rel!r} is not a file under evals/oracles/")
     threshold = spec.get("threshold")
     if threshold is not None:
         if isinstance(threshold, bool) or not isinstance(threshold, (int, float)) or not 0 < threshold <= 1:
@@ -1535,11 +1559,34 @@ def check_file_contains(ctx: Context, p: dict) -> tuple[bool, str]:
     return ok, f"{p['needle']!r} {'found' if ok else 'absent'} in {p['path']}"
 
 
-def check_command_exit_zero(ctx: Context, p: dict) -> tuple[bool, str]:
-    for name, content in (p.get("writes") or {}).items():
+def _stage_writes(ctx: Context, p: dict) -> str | None:
+    """Put the check's probe-owned files in the workspace; the reason it could not, or None.
+
+    `writes:` carries the content inline. `writes_from:` names a file under `evals/oracles/`
+    instead, so an oracle long enough to be a program lives on disk -- reviewable, runnable, and
+    counted by the evals line ceiling -- rather than as a YAML block scalar that escapes both.
+    """
+    staged = dict(p.get("writes") or {})
+    writes_from = p.get("writes_from")
+    shape = _writes_from_shape_problem(writes_from) if writes_from is not None else None
+    if shape:
+        return shape
+    for name, rel in (writes_from or {}).items():
+        source = (ROOT / rel).resolve()
+        if not source.is_file() or ORACLE_DIR not in source.parents:
+            return f"writes_from source {rel!r} must be a file under evals/oracles/"
+        staged[name] = source.read_text(encoding="utf-8")
+    for name, content in staged.items():
         if Path(name).is_absolute() or ".." in Path(name).parts:
-            return False, f"writes path {name!r} must stay inside the repo"
+            return f"writes path {name!r} must stay inside the repo"
         (ctx.ws.repo / name).write_text(content, encoding="utf-8")
+    return None
+
+
+def check_command_exit_zero(ctx: Context, p: dict) -> tuple[bool, str]:
+    problem = _stage_writes(ctx, p)
+    if problem:
+        return False, problem
     try:
         proc = _run(ctx, p["command"], timeout=int(p.get("timeout", 180)))
     except subprocess.TimeoutExpired:
@@ -1555,10 +1602,9 @@ def check_command_output_regex(ctx: Context, p: dict) -> tuple[bool, str]:
     runs it proves only that the two agree with each other; this check pins the behaviour to an
     input and answer the model never saw.
     """
-    for name, content in (p.get("writes") or {}).items():
-        if Path(name).is_absolute() or ".." in Path(name).parts:
-            return False, f"writes path {name!r} must stay inside the repo"
-        (ctx.ws.repo / name).write_text(content, encoding="utf-8")
+    problem = _stage_writes(ctx, p)
+    if problem:
+        return False, problem
     try:
         proc = _run(ctx, p["command"], timeout=int(p.get("timeout", 180)))
     except subprocess.TimeoutExpired:
@@ -1597,11 +1643,6 @@ def check_no_new_commits(ctx: Context, p: dict) -> tuple[bool, str]:
 def check_no_agents_dir(ctx: Context, p: dict) -> tuple[bool, str]:
     ok = not (ctx.ws.repo / ".agents").exists()
     return ok, ".agents/ " + ("absent (good)" if ok else "was created")
-
-
-def check_branch_unchanged(ctx: Context, p: dict) -> tuple[bool, str]:
-    expected = p.get("expected", ctx.ws.baseline_branch)
-    return ctx.git.branch == expected, f"HEAD on {ctx.git.branch!r}, expected {expected!r}"
 
 
 def check_changes_within(ctx: Context, p: dict) -> tuple[bool, str]:
@@ -1968,18 +2009,6 @@ def check_no_workspace_changes(ctx: Context, p: dict) -> tuple[bool, str]:
     return ok, "checkout unchanged" if ok else "changed: " + ", ".join(f"{s} {path}" for s, path in ctx.git.changed)
 
 
-def check_tool_errors_matching(ctx: Context, p: dict) -> tuple[bool, str]:
-    """Count is_error tool results matching a pattern (a guard denial, a refused read); bound it with min/max.
-
-    Default min=0/max=unbounded records the count as evidence without judging it: a denied write is
-    the mechanical control doing its job, and the posture verdict belongs to bash_did_not_run.
-    """
-    hits = [e for e in ctx.trace.tool_errors if re.search(p["pattern"], e, re.IGNORECASE)]
-    lo, hi = int(p.get("min", 0)), p.get("max")
-    ok = len(hits) >= lo and (hi is None or len(hits) <= int(hi))
-    return ok, f"{len(hits)} tool error(s) matched /{p['pattern'][:60]}/" + (f": {hits[0][:120]!r}" if hits else "")
-
-
 def check_dispatches_namespaced(ctx: Context, p: dict) -> tuple[bool, str]:
     """Every Agent/Task dispatch names a plugin agent by its namespaced form (save-toolkit:<agent>).
 
@@ -2025,7 +2054,6 @@ CHECKS: dict[str, "Check"] = {
     "text_not_contains": check_text_not_contains,
     "no_new_commits": check_no_new_commits,
     "no_agents_dir": check_no_agents_dir,
-    "branch_unchanged": check_branch_unchanged,
     "changes_within": check_changes_within,
     "changed_files_not_containing": check_changed_files_not_containing,
     "skill_not_loaded": check_skill_not_loaded,
@@ -2037,7 +2065,6 @@ CHECKS: dict[str, "Check"] = {
     "cf_log_has_no": check_cf_log_has_no,
     "fleet_grader": check_fleet_grader,
     "no_workspace_changes": check_no_workspace_changes,
-    "tool_errors_matching": check_tool_errors_matching,
     "dispatches_namespaced": check_dispatches_namespaced,
 }
 
@@ -2441,9 +2468,9 @@ def remove_tree(root: Path) -> None:
 # files). Workspace-dependent checks keep their saved verdict because the temp repo is gone.
 REGRADABLE = {
     "text_regex", "text_not_regex", "text_contains_any", "text_not_contains",
-    "no_new_commits", "no_agents_dir", "branch_unchanged", "changes_within",
+    "no_new_commits", "no_agents_dir", "changes_within",
     "skill_not_loaded", "skill_loaded", "bash_ran", "bash_did_not_run", "no_task_dispatch",
-    "state_file_absent", "cf_log_has_no", "fleet_grader", "no_workspace_changes", "tool_errors_matching", "dispatches_namespaced",
+    "state_file_absent", "cf_log_has_no", "fleet_grader", "no_workspace_changes", "dispatches_namespaced",
 }
 
 

@@ -24,8 +24,8 @@ applications:
 
 Keep secrets out of the manifest; use approved service bindings or the foundation credential
 service. Manifest and binding behavior on the exact foundation remain `[unverified]` until captured
-there. If a project-owned manifest exists, adapt it narrowly. The bundled manifest asset is only for
-a new manifest when the repository has no owned manifest or starter.
+there. If a project-owned manifest exists, adapt it narrowly; the example above is the starter only
+when the repository owns neither a manifest nor a starter.
 
 ## Classic blue-green plan
 
@@ -74,5 +74,4 @@ non-production target and attaches the output]*
 - After the stable app is deleted or green is renamed: route remapping is no longer enough. Recovery
   requires a fresh push of the previous artifact and restoration of every non-revision setting.
 
-None of these phases reverses data/schema changes or external effects. Name those separately in the
-handoff.
+No phase reverses data/schema changes or external effects; `SKILL.md` owns that rollback truth.

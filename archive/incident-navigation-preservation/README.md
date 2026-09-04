@@ -1,5 +1,8 @@
 # Incident-navigation prototype preservation
 
+> Moved from `docs/reviews/2026-08-12-incident-navigation-preservation/` to `archive/` on 2026-09-04; the bundle is unchanged.
+> The move is recorded in [`2026-09-04-parked-machinery-lives-in-archive.md`](../../docs/decisions/2026-09-04-parked-machinery-lives-in-archive.md), which supersedes the path clause of the immutable [`2026-08-22-incident-navigation-archive.md`](../../docs/decisions/2026-08-22-incident-navigation-archive.md) and leaves every other clause of it standing.
+
 **Captured:** 2026-08-12T13:44:30Z
 **Owner:** repository owner (`latent-sre`)
 **Disposition:** preserved for owner decision; unreviewed and not accepted

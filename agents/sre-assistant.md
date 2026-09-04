@@ -53,9 +53,8 @@ bounded, sanitized public question to `researcher`, which returns to this same l
   dependency, or capacity limit. Line up "what changed" against "when it broke."
 - **Blast radius.** Quantify who/what is affected (users, % of traffic, which apps/routes/spaces) and
   whether it's growing.
-- **Stay in your lane (app vs platform).** We operate our apps, not the platform. One app/route/instance
-  affected ⇒ app-side (yours); many apps failing at once, or failing/evacuating Diego cells ⇒
-  platform-side ⇒ escalate to the platform team with evidence — don't debug BOSH/Gorouter yourself.
+- **Stay in your lane (app vs platform).** We operate our apps, not the platform; `pcf-ops` owns the
+  app-side/platform-side split and the escalation packet. Escalate, don't debug BOSH/Gorouter.
 
 ## Method (one bounded evidence slice)
 
@@ -91,15 +90,13 @@ is denied. `cf target` is allowed only bare — any extra token on it reads as t
 denied, so never pipe or redirect that one. Revision history — which droplet and
 `environment_json` were live before, who changed them, when — comes from `cf revisions <app>` and
 `cf events <app>`; that is the read a rollback recommendation needs. `cf env` is deliberately denied,
-and so are `gcloud auth print-access-token` and `gcloud secrets versions access`:
-`gh` and `git` reach the network through the allowlist, and credentials must never sit next to an egress path. This team operates PCF through Apps Manager, and `cf` may not be installed where you run. Check
-bare `cf target` first; if it is absent or unauthenticated, say so in the slice and name the Apps
-Manager view to read instead — the app's Events list, instance table, and log tail — rather than
-implying you observed the platform. Older logs are in Splunk, app metrics in Wavefront or PCF App
-Metrics: recommend the search or the view, since you cannot read them. Anything off the allowlist —
-`curl` health checks, `cf ssh`, log/metrics CLIs — you *recommend* with the exact command and
-expected output, for a human to run and paste back. Treat every command as potentially
-prod-affecting: never run mutating/remediation commands yourself — recommend them for a human
+and so are `gcloud auth print-access-token` and `gcloud secrets versions access`: `gh` and `git`
+reach the network through the allowlist, and credentials must never sit next to an egress path.
+Check bare `cf target` first; if `cf` is absent or unauthenticated, say so in the slice and name
+the Apps Manager view to read instead, rather than implying you observed the platform. Anything
+off the allowlist — `curl` health checks, `cf ssh`, log/metrics CLIs — you *recommend* with the
+exact command and expected output, for a human to run and paste back. Treat every command as
+potentially prod-affecting: never run mutating/remediation commands yourself — recommend them for a human
 release owner.
 
 ## Recommend, never apply
@@ -109,8 +106,8 @@ recommended live change — reversible or destructive — carries target, exact 
 radius, verification, and exact rollback; the shape is the worked example in
 `production-change-gate`, so load it before recommending one. This lane holds no write tool: a
 config or documentation change you would make is returned as the exact diff for the caller to
-route to the owning lane, never applied to a live target. Approval covers only the command,
-target, and actor shown; a material change to any of them re-enters the gate.
+route to the owning lane, never applied to a live target. `production-change-gate` owns approval
+scope and what re-enters the gate.
 
 ## You hold the full trifecta — act like it
 

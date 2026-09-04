@@ -63,6 +63,35 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Twenty-four P2 rows of the 2026-09-04 fleet rescan, in six commits. Agent bodies: the fenced
+  handoff-packet template and six-bullet Rules list in four bodies become the paragraph form
+  `sre-assistant` already used (the two delegating lanes keep a byte-identical `## Rules`
+  paragraph); approval scope, the review/fix loop budget, the progress-file marker, the eng-ladder
+  escalation, the learning-loop promotion review, the sandbox-only "Mission block", and the
+  retired-host no-execution essay are each stated once or not at all (113,614 B to 105,204 B).
+  Skills: `gcp-ops` drops its grader-shaped answer template; `pcf-deploy` drops its second starter
+  manifest; eleven facts stated across several files (the app-vs-platform split, credential-bearing
+  reads, the escalation packet, rollback truth, no-OIDC, never-cancel, immutable releases, the
+  UNKNOWN rule, Remedy/Jira, "agents never execute deployment", the cf reads) now have one owner
+  each (569,802 B to 566,955 B). Harness: the five YAML-embedded build-probe oracles move
+  byte-for-byte to `evals/oracles/` behind a new `writes_from:` key, so the evals line ceiling
+  counts them (raised to 9,900); 355 lines of routing fixtures no test read, the unused
+  `embedded_exact_json` grader, two unused build checks, and a link-gate glob naming a missing
+  directory are deleted; eight agent-target calibration routing specs go (54 specs remain, the
+  three incident-lane calibration specs kept); the readonly-triage scenario's commitment regexes
+  become rubric calibration cases, while the recommend-only scenario keeps its regex graders
+  because deleting them flipped seven proven red fixtures green. Docs: the roadmap states the
+  architecture without a phantom ADR, measures the SKILL-001 slices, parks eleven items in one
+  table; `docs/decisions/README.md` indexes the records; the incident-navigation patch bundle moves
+  to `archive/`; `docker-verification.md` is linked from CONTRIBUTING. `agent-authoring`'s frontmatter
+  reference keeps what the fleet probed or decided and drops the restated documentation (10,859 B to
+  7,364 B); its roster reference keeps the four-theme rule, agent-vs-skill, the enforced principle,
+  the deliverable, and the wrapper-layer failures (9,598 B to 7,062 B). One Codex review round on
+  each PR: successor ADRs for the archive move and the eight-grader registry, `writes_from` shape
+  validation, the GCP escalation packet and the loop budgets and learning-loop gate restored in
+  compact form; the PowerShell spelling of the plugin root, the self-pointer check over every
+  bundled Markdown file with a computed relative fix, the app-scoped stats endpoint, the
+  golden-signal watch left with a human, and obs-pipeline's trigger narrowed to Loki or Grafana.
 - Fixed the seventeen P1 rows of the 2026-09-04 fleet rescan, each a verified contradiction or
   dead pointer a responder or contributor would act on: bundled-script invocations now use
   `${CLAUDE_PLUGIN_ROOT}/skills/...` (three files resolved only from the repository root) and
