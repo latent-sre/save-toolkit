@@ -179,6 +179,28 @@ class PlatformAdapterTests(unittest.TestCase):
             self.assertNotIn("save-toolkit:", description, source.name)
         self.assertIn("eng-ladder", adapters.render_copilot_agent(ROOT / "agents/software-engineer.md"))
 
+    def test_copilot_agents_carry_the_inherited_tool_caveat_from_the_preface(self) -> None:
+        """The per-host hedge belongs to the generated preface, not to each canonical body.
+
+        `scribe`, `researcher`, and `repository-investigator` each carried their own copy of it,
+        which is three places to edit when the host contract changes. Rendering it once means a
+        body that drops the sentence loses nothing on this host — and this test fails if the
+        preface line goes with it.
+        """
+        caveat = (
+            "This host may not deny inherited tools per agent; a lane's no-execution or "
+            "no-egress rule is cooperative here unless the parent removes those tools, and the "
+            "lane reports that limitation rather than using them."
+        )
+        for source in sorted((ROOT / "agents").glob("*.md")):
+            rendered = " ".join(adapters.render_copilot_agent(source).split())
+            with self.subTest(agent=source.stem):
+                self.assertIn(caveat, rendered)
+        for source in sorted((ROOT / "agents").glob("*.md")):
+            body = " ".join(source.read_text(encoding="utf-8").split())
+            with self.subTest(canonical=source.stem):
+                self.assertNotIn("deny inherited tools per agent", body)
+
     def test_copilot_agent_prompt_over_30000_characters_is_rejected(self) -> None:
         agent = (
             "---\n"

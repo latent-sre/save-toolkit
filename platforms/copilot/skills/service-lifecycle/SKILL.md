@@ -17,12 +17,10 @@ argument-hint: "[audit|onboard|retire] <service> [environment]"
 
 # Service lifecycle
 
-One service, three moments: audit what exists, onboard what is new or materially changed, retire
-what is done. Every mode reads evidence and produces a checklist with owners; a human release owner
-or separately approved protected automation executes every live step under
-`production-change-gate` and returns its receipt. This skill changes nothing live, never writes
-operational knowledge itself, and never requests a credential-bearing read; a prohibited read is
-recorded as a gap.
+Every mode reads evidence and produces a checklist with owners; a human release owner or separately
+approved protected automation executes every live step under `production-change-gate` and returns
+its receipt. This skill changes nothing live and never requests a credential-bearing read; a
+prohibited read is recorded as a gap.
 
 ## Pick the mode
 
@@ -33,10 +31,9 @@ recorded as a gap.
 | **Retire** | The request names an approved retirement plan and change record, the exact service and environment, the source commit, known consumers and dependencies, data-retention obligations, a recovery plan, the executor, and the approval expiry | Stop and name what is missing; inventory nothing. Missing ownership, an unknown consumer, an unclassified datastore, or an unproven recovery path is `BLOCKED` |
 
 Load `stack-profile` before interpreting platform, runtime, or backend evidence. Load an owning
-skill from the table below only for the surface you are on; loading it supplies expected evidence
-and never expands this skill's authority. Before any production-facing step in onboard or retire,
-load `production-change-gate` and re-enter it with the exact target, command or diff, applying
-actor, approval, verification, and backout.
+skill from the table below only for the surface you are on; it supplies expected evidence, not
+authority. Before any production-facing step in onboard or retire, enter `production-change-gate`
+with the exact target and change.
 
 ## The surfaces
 
@@ -66,21 +63,19 @@ passed and before dispositioning any surface.
 - **P2** a material gap with a workaround or limited blast radius.
 - **P3** hygiene, maintainability, or evidence freshness.
 
-A finding needs a cited file, record, or the minimal sanitized command output that shows it; causal
-claims stay `[unverified]` until the evidence supports them. A control that exists but is absent
-from the service's record is a documentation gap; one absent from both is a readiness gap. Report
-them separately, and report onboarding as unverified when no record exists at all.
+A finding needs a cited file, record, or minimal sanitized output; causal claims stay `[unverified]`.
+A control that exists but is absent from the service's record is a documentation gap; one absent
+from both is a readiness gap. Report them separately, and report onboarding as unverified when no
+record exists at all.
 
 ## Knowledge closeout
 
 Onboard and retire both end with an evidence-bound handoff to `scribe` for the service card, alert
-cards, index entry, and any missing or stale runbook: the authorizing record, exact repository
-revision and checkout binding, execution receipts, retained evidence labels, what was not done, and
-one recommended course of action. Audit findings travel the same route as closeout-eligible
-evidence. This skill never loads `operational-learning` or authors a record. When no service card or
-index entry exists, the audit's handoff asks `scribe` to create them from the templates in
-`operational-learning`'s assets, so the next incident on this service has an owner and an escalation
-path to read.
+cards, index entry, and any missing or stale runbook, carrying the authorizing record, the exact
+repository revision, the caller's `[verified]` checkout binding (full SHA), the execution receipts,
+every evidence label as received, and what was not done. Audit findings travel the same route. This
+skill never loads `operational-learning` or authors a record. When no service card or index entry
+exists, the audit's handoff asks `scribe` to create them from `operational-learning`'s templates.
 
 ## Return
 
@@ -94,8 +89,7 @@ or merely planned, and close an onboarding by recommending its own audit as owed
 
 ## Optional resolved context
 
-When a compatible resolver implementing `sre-context-resolver/v1alpha1.4` is available, a caller
-may resolve [this skill's context requirements](./context-requirements.yaml) for an explicit team,
-service, and environment. Resolved context is routing input only: it tells you whether the service
-is new or a change, never supplies a plan, an approval, or a credential, and missing context is a
-gap, not a guess.
+A caller with a compatible resolver may resolve [this skill's context
+requirements](./context-requirements.yaml) under the SRE operational-context contract ADR. Resolved
+context is routing input only: it never supplies a plan, an approval, or a credential, and missing
+context is a gap, not a guess.

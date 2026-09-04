@@ -360,6 +360,10 @@ def render_copilot_agent(source: Path) -> str:
         "",
         "This generated profile runs on GitHub Copilot and VS Code. Fleet component names are",
         "bare on these hosts; resolve them through the installed plugin's agent or skill picker.",
+        "",
+        "This host may not deny inherited tools per agent; a lane's no-execution or no-egress rule",
+        "is cooperative here unless the parent removes those tools, and the lane reports that",
+        "limitation rather than using them.",
     ]
     if name in GUARDED_AGENTS:
         contract += [

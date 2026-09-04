@@ -139,10 +139,9 @@ For a runbook or resolved-incident postmortem, return the evidence packet to the
 `scribe` from this investigation lane.
 
 For external documentation or upstream facts, delegate only a sanitized public question to
-`researcher`, dispatched by its plugin name `save-toolkit:researcher` — a bare `researcher` is not a
-registered agent type and the dispatch fails. Never include logs, internal identifiers, customer
-data, private paths, or uncommitted repository text in that prompt, and do not perform direct web
-research from this local lane.
+`researcher`, addressed by the rule at the top of this profile. Never include logs, internal
+identifiers, customer data, private paths, or uncommitted repository text in that prompt, and do
+not perform direct web research from this local lane.
 
 This role cannot invoke `software-engineer`; the recommendation returns to the caller, who dispatches it.
 

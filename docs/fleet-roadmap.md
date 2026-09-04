@@ -57,16 +57,17 @@ skill per slice, probe-before-routing.
 **Outcome:** No skill spends a caller's context on detail the call did not need, or on what the
 fleet's models already produce unprompted. Each screened entrypoint gets one probe-then-checkpoint
 disposition; a committed component contract outranks both the byte screen and the probe.
-**Next action:** The four slices this item last named — `obs-dashboards`, `backend-craft`, `runbook`,
-`obs-alerting` — have all landed; `CHANGELOG.md` records each. Re-screen before picking the next:
-`wc -c skills/*/SKILL.md | sort -n | awk '$1>7800'` on 2026-09-04 leaves five entrypoints at or above
-the 7,800-byte screen — `incident-investigation` (13,703 B), `runbook` (9,783 B), `agent-authoring`
-(9,335 B), `service-lifecycle` (8,313 B), `pcf-ops` (7,822 B). `runbook` and `incident-investigation`
-were both reshaped on 2026-09-03 (the runbook trim and the incident-lane fold) and stayed above the
-screen, so the next slices are `agent-authoring`, `service-lifecycle`, and `pcf-ops`, largest first,
-unless a fresh measurement says otherwise. The prose-pinning test suites were removed
-on 2026-09-01; after a cut, run `python scripts/check_links.py` (link containment and explicit-only
-frontmatter) and the skill's eval scenarios.
+**Next action:** The four slices this item last named — `obs-dashboards`, `backend-craft`,
+`runbook`, `obs-alerting` — have all landed; `CHANGELOG.md` records each. Re-screen before picking
+the next: `wc -c skills/*/SKILL.md | sort -n | awk '$1>7800'` on 2026-09-04 leaves three
+entrypoints above the 7,800-byte screen — `incident-investigation` (13,735 B), `runbook` (9,783 B),
+and `agent-authoring` (9,335 B). `service-lifecycle` (7,779 B) and `pcf-ops` (7,113 B) have since
+come under it and are no longer slices. `runbook` and `incident-investigation` were both reshaped
+on 2026-09-03 (the runbook trim and the incident-lane fold) and stayed above the screen, so the
+next slice is `agent-authoring`, then those two in turn, unless a fresh measurement says otherwise.
+The prose-pinning test suites were removed on 2026-09-01; after a cut, run `python
+scripts/check_links.py` (link containment and explicit-only frontmatter) and the skill's eval
+scenarios.
 **Evidence:** `docs/reviews/2026-08-30-skill-001-7800-screen.md` (removed 2026-09-02)
 **SRE task:** An SRE gets a faster, cheaper answer, because a skill only loads the routing detail the
 call actually needed instead of every branch's reference material.
