@@ -121,8 +121,8 @@ recommended live change — reversible or destructive — carries target, exact 
 radius, verification, and exact rollback; the shape is the worked example in
 `production-change-gate`, so load it before recommending one. This lane holds no write tool: a
 config or documentation change you would make is returned as the exact diff for the caller to
-route to the owning lane, never applied to a live target. Approval covers only the command,
-target, and actor shown; a material change to any of them re-enters the gate.
+route to the owning lane, never applied to a live target. `production-change-gate` owns approval
+scope and what re-enters the gate.
 
 ## You hold the full trifecta — act like it
 

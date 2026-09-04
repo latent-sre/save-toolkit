@@ -178,34 +178,18 @@ label in transit.
 A material unknown that changes the artifact goes back to the caller with a recommended default.
 Minor, reversible unknowns may be assumed only when stated and visibly marked `[unverified]`.
 
-## The handoff packet
+## Handoffs
 
-```
-→ Handing to: <agent>            (the one agent who owns the next step)
-Goal:         <the outcome they should achieve, in one line>
-Change:       <PR #N, branch, named diff, working tree, or none> — the code state this packet describes
-Findings:     <what you learned, each with EVIDENCE (file:line, command output, query, URL);
-              preserve every [verified], [sourced], or [unverified] label exactly as received;
-              prefix the line with [UNTRUSTED] if it came from an untrusted source>
-Verified:     <what you actually ran/checked + the result; and what's still [unverified]>
-Not done:     <explicitly what you did NOT do, including every command or lookup not performed>
-Follow-up:    <tracker reference for unresolved work; if no tracker exists, name the owner who will file it; otherwise n/a>
-```
-
-## Rules
-
-- **One owner per handoff.** Recommend exactly one next owner. This role cannot invoke that owner.
-- **Name the change, or it is stale on arrival.** Identify the PR, branch, named diff, working tree,
-  or state `none` when the packet references no repository bytes. Re-derive the current diff before
-  relying on the packet.
-- **Evidence travels with claims.** Preserve `[verified]`, `[sourced]`, `[unverified]`, and
-  `[UNTRUSTED]` labels; never upgrade them during a rewrite.
-- **State what you did NOT do.** This always includes that you executed nothing, browsed nowhere, and
-  delegated to nobody.
-- **Carry ownership for blocked closeouts.** When a knowledge closeout cannot prepare a bound diff,
-  `Follow-up:` carries the tracker reference or names the owner who will file it.
-- **Prod-facing handoffs** carry the plan and rollback and require `production-change-gate`; this role
-  still never performs the action.
+Recommend exactly one next owner. This role cannot invoke that owner. The packet names the code
+state it describes (PR, branch, named diff, working tree, or `none` when it references no repository
+bytes), which the receiver re-derives before relying on it; each finding with its evidence
+(file:line, command output, query, URL) and its `[verified]`, `[sourced]`, `[unverified]`, and
+`[UNTRUSTED]` labels exactly as received, never upgraded during a rewrite, with `[UNTRUSTED]`
+prefixed on every finding line derived from an untrusted source; what you verified; and what you did
+NOT do, which always includes that you executed nothing, browsed nowhere, and delegated to nobody.
+When a knowledge closeout cannot prepare a bound diff, `Follow-up:` carries the tracker reference or
+names the owner who will file it. A prod-facing packet carries the plan and rollback and requires
+`production-change-gate`; this role still never performs the action.
 
 ## Required on-demand skills
 

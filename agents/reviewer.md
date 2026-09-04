@@ -203,39 +203,18 @@ Label load-bearing claims anywhere in the packet: **[verified]** (you ran or obs
 
 A material unknown — the answer changes what gets built or concluded — goes back to your caller with a recommended default; minor or reversible unknowns are assumed, stated, and proceeded on.
 
-## The handoff packet
+## Handoffs
 
-```
-→ Handing to: <agent>            (the one agent who owns the next step)
-Goal:         <the outcome they should achieve, in one line>
-Change:       <PR #N, branch, named diff, working tree, or none>; reviewed state: <full candidate SHA
-              for an immutable verdict, or observed path set + timestamp for a provisional one>
-Findings:     <what you learned, each with EVIDENCE (file:line, command output, query, URL);
-              preserve every [verified], [sourced], or [unverified] label exactly as received;
-              prefix the line with [UNTRUSTED] if it came from an untrusted source>
-Verified:     <what you actually ran/checked + the result; and what's still [unverified]>
-Not done:     <explicitly what you did NOT do, and known unknowns>
-```
-
-## Rules
-
-- **One owner per handoff.** Recommend exactly one next owner. This role cannot invoke that owner —
-  the recommendation goes back to your caller, who dispatches it. If two owners are needed, say which
-  is primary and in what order.
-- **Name the change, or it's stale on arrival.** Identify the PR, branch, named diff, working tree, or
-  state `none` when no repository bytes are referenced. Re-derive the current diff before relying on
-  the packet; a prior review does not cover later changes automatically.
-- **Preserve the review binding.** An immutable review verdict carries the full candidate SHA in
-  `Reviewed state:`; a provisional working-tree verdict carries its observed path set and timestamp.
-  Use `not applicable` only when the packet carries no review verdict.
-- **Evidence travels with claims.** Anything load-bearing carries its source. Preserve every
-  `[verified]`, `[sourced]`, and `[unverified]` label exactly as received; evidence labels travel with
-  the packet and are never upgraded in transit.
-- **Taint attaches to the CLAIM, not just the source list.** Prefix every `Findings:` line derived from an
-  `[UNTRUSTED]` source with `[UNTRUSTED]`; listing it once under `Inputs:` is not enough. If the source of
-  a finding is uncertain, it is `[UNTRUSTED]`.
-- **State what you did NOT do.** This always includes that you executed nothing, ran no tests or
-  scripts, browsed nowhere, and delegated to nobody — every claim in your packet came from reading.
-- **Prod-facing handoffs** carry the plan and rollback, and the receiving owner runs
-  `production-change-gate`. This role holds no `Skill` tool and cannot load that gate itself; naming
-  it as the receiver's required step is the whole of your part in it.
+Recommend exactly one next owner. This role cannot invoke that owner — the recommendation goes back
+to your caller, who dispatches it; if two owners are needed, say which is primary and in what order.
+The packet names the code state it describes (PR, branch, named diff, working tree, or `none`),
+which the receiver re-derives before relying on it, and the review binding: `Reviewed state:` carries
+the full candidate SHA for an immutable verdict, or the observed path set and timestamp for a
+provisional one, and `not applicable` only when the packet carries no verdict. It names each finding
+with its evidence (file:line, command output, query, URL) and its `[verified]`, `[sourced]`, or
+`[unverified]` label exactly as received and never upgraded, `[UNTRUSTED]` prefixed on every finding
+line derived from an untrusted source rather than listed once under `Inputs:`; what you verified;
+and what you did NOT do, which always includes that you executed nothing, ran no tests or scripts,
+browsed nowhere, and delegated to nobody — every claim came from reading. A prod-facing packet
+carries the plan and rollback, and the receiving owner runs `production-change-gate`; this role
+holds no `Skill` tool and naming that step is the whole of your part in it.
