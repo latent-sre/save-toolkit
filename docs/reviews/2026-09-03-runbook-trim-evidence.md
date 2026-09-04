@@ -29,14 +29,16 @@ the importer stay.
 `probe_runbook_slots.py`, shipped by the scribe probe through `writes:` and run after the agent has
 finished, makes eleven of the skill's authoring rules mechanical: frontmatter that parses as YAML
 with the template's key set, every value filled and typed, `status: draft` and both dates null;
-every section present with a body or an explicit `n/a — why`; an Expected line under every
-procedure step followed by at least two routed outcome branches; a source in the sentence that
-mentions each placeholder, upper- or lowercase; a bound and a route on every fallible step (any
-command, any wait); a rollback entry per state change, bound to its step by number and carrying an
-undo command or an explicit disposition, plus a safe-abort that says something; an escalation row
+every section present with a body or an explicit `n/a — why` and no TBD; an Expected line under
+every procedure step followed by at least two routed outcome branches; a source in the sentence
+that mentions each placeholder, upper- or lowercase; a bound and a route in the outcome lines of
+every fallible step (any command, any wait), where a command is a fence before the Expected line
+that is not shown output; a rollback entry per state change (a mutation verb list across cf,
+kubectl, helm, terraform, shells, and SQL), bound to its step by number and carrying an undo
+command or an explicit disposition, plus a safe-abort that says something; an escalation row
 that is time-boxed and names a pager or channel on the same row; a triage tree of at least two
 conditional branches; an evidence label in every step that runs a command; no template literal
-left in. That is the checker after three review rounds; the trials ran under its first version,
+left in, a list a unit test holds to the template. That is the checker after four review rounds; the trials ran under its first version,
 and the re-scored table below is under the current one. Proven before any trial and again after
 each tightening: 0 of 11 on a thin hand-written runbook, 11 of 11 on a complete one `[verified:
 this host]`. The skill's own exemplar scores 9 of 11 under the current checker, the two misses by
@@ -93,13 +95,17 @@ label. Round three: the frontmatter must parse as YAML with typed values; an exp
 least two routed outcome branches, so a bare success line with one failure route does not pass for
 worked, partly worked, and failed; a placeholder's source must sit in a sentence that mentions it;
 a rollback entry must carry an undo command or an explicit disposition, and the safe-abort must
-say something. The eighteen produced runbooks were pulled from their workspace patches and
+say something. Round four: the mutation verb list covers the platforms the fleet operates, not
+ten verbs; the bound must sit in the step's outcome lines, so a log lookback in the command does
+not count; a section body of TBD or TODO is unfinished; the template's `<n>` joins the literal
+list and a unit test holds the list to the template; fences after the Expected line and
+output-format fences are not commands. The eighteen produced runbooks were pulled from their workspace patches and
 re-scored offline under the current checker, no model calls `[verified: this host, the `produced/`
 directory under the raw runs]`. The six original checks are the live verdicts.
 
 | Arm | Live (17 checks) | Re-scored (current oracle + 6 live) |
 |---|---|---|
-| Opus, incumbent | 47/51 | 43/51 |
+| Opus, incumbent | 47/51 | 42/51 |
 | Opus, candidate one | 48/51 | 41/51 |
 | Opus, candidate two | 50/51 | 46/51 |
 | Sonnet, incumbent | 47/51 | 43/51 |
@@ -108,8 +114,8 @@ directory under the raw runs]`. The six original checks are the live verdicts.
 
 Candidate two, the one shipping, is best on both models under every version of the instrument.
 Candidate one, the trim alone, rises by one point on each model under the live checks and falls
-two and one points below the incumbent under the current oracle: one rule on one or two trials of
-three, within what three trials can resolve, so the trim alone is read as neutral, not as better.
+one point below the incumbent on each under the current oracle: one rule on one trial of three,
+within what three trials can resolve, so the trim alone is read as neutral, not as better.
 The round-three rules cost every arm the same two ways: frontmatter values that carry prose
 evidence notes and so no longer parse as YAML (four trials), and steps whose only routed branch is
 the failure, the worked path left implicit (every arm, most steps). Both are real gaps in what the
@@ -118,8 +124,8 @@ models write from this skill, and neither is on the candidate's side of the ledg
 ## What this says
 
 - **The trim alone is neutral** `[verified: candidate one, twelve trials]`. With 6.5 KB of craft
-  prose removed the live totals rise by one on each model and the re-scored totals sit one to two
-  points below the incumbent, inside three-trial noise; what ships is candidate two, above the
+  prose removed the live totals rise by one on each model and the re-scored totals sit one point
+  below the incumbent, inside three-trial noise; what ships is candidate two, above the
   incumbent on both models under every instrument.
 - **One sentence landed six of six.** The body never said which status a fresh runbook takes;
   both models wrote `active` once in the baseline and never after the sentence was added.

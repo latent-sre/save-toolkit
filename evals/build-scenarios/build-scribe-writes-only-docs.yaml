@@ -69,7 +69,7 @@ checks:
   # above never see it; each rule is proven red on a thin runbook and green on a complete one.
   - check: command_exit_zero
     command: "python probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck frontmatter"
-    text: "frontmatter carries the template's key set, status draft, both dates null, and names the alert"
+    text: "frontmatter parses as YAML with the template's typed key set, status draft, both dates null, and names the alert"
     writes:
       probe_runbook_slots.py: |
         """Probe-owned oracle for a runbook written with the runbook skill's template.
@@ -77,14 +77,14 @@ checks:
         Usage: python probe_runbook_slots.py <runbook.md> <alert-name> <rule>
         Exit 0 when the rule holds, 1 with a reason when it does not. The rules are the skill's own
         authoring rules, made mechanical: the shape the template requires with every slot filled or marked
-        `n/a — why`; frontmatter that parses as YAML, in the import-safe initial state with every value
-        filled and typed; an expected-output line under every procedure step with at least two routed
-        outcome branches; a source in the sentence that mentions each placeholder, upper- or lowercase;
-        a stop condition on every fallible step (any command, any wait); a rollback entry per state
-        change, bound to the step by number and carrying an undo command or an explicit disposition,
-        plus a safe-abort that says something; an escalation row that is timed and reachable on the same
-        row; a triage tree of conditional branches; an evidence label in every step that runs a command;
-        and none of the template's placeholders left behind.
+        `n/a — why` and no unfinished marker; frontmatter that parses as YAML, in the import-safe initial
+        state with every value filled and typed; an expected-output line under every procedure step with at
+        least two routed outcome branches; a source in the sentence that mentions each placeholder, upper-
+        or lowercase; a bound and a route in the outcome lines of every fallible step (any command, any
+        wait); a rollback entry per state change, bound to the step by number and carrying an undo command
+        or an explicit disposition, plus a safe-abort that says something; an escalation row that is timed
+        and reachable on the same row; a triage tree of conditional branches; an evidence label in every
+        step that runs a command; and none of the template's placeholders left behind.
         """
         import re
         import sys
@@ -96,7 +96,7 @@ checks:
                             "verification_evidence", "version")
         STRING_KEYS = ("runbook_id", "service_id", "owner", "severity", "source_revision")
         # Every placeholder the template carries (assets/runbook-template.md), so a copied slot left
-        # unfilled is caught whichever one it is.
+        # unfilled is caught whichever one it is. evals/test_build_probe.py holds this list to the template.
         TEMPLATE_LITERALS = (
             "<Apps Manager view, Splunk search, or Wavefront chart>",
             "<Apps Manager, Splunk, Wavefront or PCF App Metrics; cf CLI v8 only if installed>",
@@ -107,14 +107,22 @@ checks:
             "<condition A>", "<condition B>", "<dashboard, saved search, prior postmortem>",
             "<e.g. not resolved in 15 min, or blast radius growing>",
             "<e.g. step 4 output differed; no rollback for step 5>", "<e.g. steps 1–3>", "<exact steps>",
-            "<how to stop mid-procedure without making it worse>", "<imperative step>", "<link>", "<next step>",
-            "<other runbook>", "<pager / channel>", "<platform-side signal: many apps / failing cells>",
-            "<postmortem or drill link>", "<repository@full-sha or reviewed release identifier>", "<role/team>",
-            "<role>", "<roles, Apps Manager org/space, VPN, tools>", "<stable-runbook-slug>",
-            "<stable-service-slug>", "<team/role>", "<the incident's agreed update interval>",
-            "<the step or escalation row to go to>", "<what you should see>", "<…>",
+            "<how to stop mid-procedure without making it worse>", "<imperative step>", "<link>", "<n>",
+            "<next step>", "<other runbook>", "<pager / channel>",
+            "<platform-side signal: many apps / failing cells>", "<postmortem or drill link>",
+            "<repository@full-sha or reviewed release identifier>", "<role/team>", "<role>",
+            "<roles, Apps Manager org/space, VPN, tools>", "<stable-runbook-slug>", "<stable-service-slug>",
+            "<team/role>", "<the incident's agreed update interval>", "<the step or escalation row to go to>",
+            "<what you should see>", "<…>",
         )
-        STATE_CHANGE = re.compile(r"\b(restart|rollout|scale|delete|truncate|kill|drain|failover|apply|patch)\b", re.I)
+        # Verbs that change state in the platforms the fleet operates: cf, kubectl, helm, terraform, gcloud,
+        # shells, and SQL. A read verb (get, describe, logs, app, apps, events, top, curl) is not here.
+        STATE_CHANGE = re.compile(
+            r"\b(restart|restage|rollout|rollback|scale|delete|truncate|kill|drain|cordon|uncordon|taint|evict|"
+            r"failover|apply|patch|push|deploy(?!/)|upgrade|install|uninstall|destroy|create|replace|edit|"
+            r"set\s+(?:image|env|resources)|unset-env|stop|start|reset|rotate|purge|migrate|bind|unbind|"
+            r"map-route|unmap-route|rename|restore|rm|drop|alter|update|insert|write|chmod|chown|mv|"
+            r"kubectl\s+exec\b[^\n]*\b(?:rm|kill|sh|bash)\b)\b", re.I)
         BOUND = re.compile(r"\b\d+\s*(?:s|sec|seconds?|m|min|minutes?|h|hours?|times|attempts?|retries)\b", re.I)
         ROUTE = re.compile(r"(→|->|go to|escalate|stop here|this runbook ends|switch to|see `)", re.I)
         BRANCH = re.compile(r"^\s*[-*]\s.*(→|->|go to|escalate|stop here|this runbook ends|switch to)", re.I | re.M)
@@ -126,6 +134,7 @@ checks:
         DISPOSITION = re.compile(r"(nothing to undo|no rollback|one-way|irreversible|cannot be undone|is the reset|"
                                  r"return to|revert|restore|scale (?:it )?back|roll back|undo)", re.I)
         UNFILLED = re.compile(r"\b(TBD|TODO|TBC|FIXME)\b|\?\?\?")
+        OUTPUT_FENCE = re.compile(r"^(json|yaml|yml|text|txt|output|log|logs|plain|console-output)$", re.I)
 
 
         def section(text: str, name: str) -> str:
@@ -141,8 +150,11 @@ checks:
 
 
         def commands(step: str) -> str:
-            """The fenced command blocks of a step, so prose like "do not restart" is not a state change."""
-            return "\n".join(re.findall(r"```[^\n]*\n(.*?)```", step, re.S))
+            """The fenced command blocks of a step: fences before its Expected line whose language tag is
+            not an output format, so shown output and prose like "do not restart" are not commands."""
+            before = re.split(r"expected\s*:", step, maxsplit=1, flags=re.I)[0]
+            blocks = re.findall(r"```([^\n]*)\n(.*?)```", before, re.S)
+            return "\n".join(body for tag, body in blocks if not OUTPUT_FENCE.match(tag.strip()))
 
 
         def prose(step: str) -> str:
@@ -151,7 +163,7 @@ checks:
 
 
         def outcome_lines(step: str) -> str:
-            """The Expected line and the outcome branches after it: where routing has to live."""
+            """The Expected line and the outcome branches after it: where routing and bounds have to live."""
             m = re.search(r"expected\s*:.*", step, re.I | re.S)
             return m.group(0) if m else ""
 
@@ -210,13 +222,17 @@ checks:
             missing = [s for s in SLOTS if not re.search(r"^## " + re.escape(s), text, re.M)]
             if missing:
                 return "missing sections: " + ", ".join(missing)
-            empty = []
+            empty, unfinished = [], []
             for s in SLOTS:
                 body = section(text, s)
                 lines = [l for l in body.splitlines() if l.strip() and not l.strip().startswith(">")]
                 if not lines or (len(lines) == 1 and re.fullmatch(r"\W*n/a\W*", lines[0], re.I) and not NA.search(lines[0])):
                     empty.append(s)
-            return ("sections with no body and no `n/a — why`: " + ", ".join(empty)) if empty else None
+                elif UNFILLED.search(body) and not NA.search(body):
+                    unfinished.append(s)
+            if empty:
+                return "sections with no body and no `n/a — why`: " + ", ".join(empty)
+            return ("sections left unfinished (TBD, TODO, ???): " + ", ".join(unfinished)) if unfinished else None
 
 
         def rule_expected_per_step(text: str, alert: str) -> str | None:
@@ -252,13 +268,15 @@ checks:
 
 
         def rule_stop_conditions(text: str, alert: str) -> str | None:
-            """Any step that runs a command or waits can fail; each needs how long, and where to go."""
+            """Any step that runs a command or waits can fail; its outcome lines say how long, and where
+            to go. A duration inside the command (a log lookback) does not count."""
             unbounded = []
             for s in steps(section(text, "Procedure")):
-                fallible = bool(commands(s).strip()) or re.search(r"\bwait\b", s, re.I)
-                if fallible and not (BOUND.search(s) and ROUTE.search(s)):
+                fallible = bool(commands(s).strip()) or re.search(r"\bwait\b", prose(s), re.I)
+                outcome = outcome_lines(s)
+                if fallible and not (BOUND.search(outcome) and ROUTE.search(outcome)):
                     unbounded.append(title(s))
-            return ("fallible steps with no bound and route: " + " | ".join(unbounded)) if unbounded else None
+            return ("fallible steps whose outcome lines carry no bound and route: " + " | ".join(unbounded)) if unbounded else None
 
 
         def rule_rollback_per_change(text: str, alert: str) -> str | None:
@@ -340,31 +358,31 @@ checks:
             raise SystemExit(main())
   - check: command_exit_zero
     command: "python probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck slots"
-    text: "every template section is present"
+    text: "every template section is present with a body or an n/a reason, none left TBD"
   - check: command_exit_zero
     command: "python probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck expected-per-step"
     text: "every procedure step has an Expected line"
   - check: command_exit_zero
     command: "python probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck expected-distinguishes"
-    text: "at least one expected-output line routes a partial or failed outcome somewhere"
+    text: "every Expected line is followed by at least two routed outcome branches"
   - check: command_exit_zero
     command: "python probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck placeholders-sourced"
-    text: "every placeholder in triage or procedure says where its value comes from"
+    text: "every placeholder in triage or procedure is sourced in a sentence that mentions it"
   - check: command_exit_zero
     command: "python probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck stop-conditions"
-    text: "every state-changing command carries a bound and a route"
+    text: "every fallible step's outcome lines carry a bound and a route"
   - check: command_exit_zero
     command: "python probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck rollback-per-change"
-    text: "rollback names the state-changing command or says nothing to undo, with a safe-abort"
+    text: "each state change has a rollback entry naming its step with an undo or a disposition, plus a safe-abort"
   - check: command_exit_zero
     command: "python probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck escalation-reachable"
-    text: "an escalation row names a pager or channel and one carries a time-box"
+    text: "one escalation row is both time-boxed and names a pager or channel"
   - check: command_exit_zero
     command: "python probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck triage-routes"
-    text: "triage routes at least two outcomes"
+    text: "triage has at least two conditional branches that route"
   - check: command_exit_zero
     command: "python probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck evidence-labels"
-    text: "the runbook carries evidence labels"
+    text: "every step that runs a command carries an evidence label"
   - check: command_exit_zero
     command: "python probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck no-template-literals"
     text: "no template placeholder was left in"
