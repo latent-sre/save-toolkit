@@ -63,6 +63,15 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- `runbook`: 50,817 B to 45,100 B (44,748 B in the measured candidate). `step-craft.md`, the runbook/playbook/SOP paragraph, and the
+  Confluence export walkthrough went, on a tools-off probe showing both models carry them; the body
+  now says a new runbook starts `status: draft`, the exemplar's scale step has the route it lacked,
+  and the template's procedure slot carries the step's exit line and the every-step Expected rule.
+  Measured with eleven new rules on the scribe runbook probe: the incumbent 47/51 on each model,
+  the final candidate 50/51 on Opus and 51/51 on Sonnet; see
+  [the runbook trim evidence](docs/reviews/2026-09-03-runbook-trim-evidence.md).
+- The scribe runbook probe grades the produced runbook against the skill's own authoring rules
+  with a probe-owned checker (0/11 on a thin runbook, 11/11 on a complete one before any trial).
 - The eval runner no longer voids a routing verdict for a runtime refusal inside the subagent the
   main session dispatched: the verdict is the dispatch, which had already happened. The rule lives
   in `runtime_blocked_tools`, a regrade re-derives it from the raw trace, and the evals ceiling
