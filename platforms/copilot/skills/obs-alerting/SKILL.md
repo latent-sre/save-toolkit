@@ -78,6 +78,14 @@ An alert that has never fired is written, not verified. Before handing it off:
 This evidence is the "test evidence" the handoff below requires; anything unforced or unobserved
 stays labeled `[unverified]`.
 
+## The bar for asserting cause
+
+Correlation, time order, and a path difference rank hypotheses; they do not prove cause. Promote
+one only with a mechanism stated concretely enough to be disproved, corroboration from an
+independent signal class, a disconfirmation test of what should be true if the hypothesis is false,
+and, for a network path, the blast radius: which agents, sites, or users are affected and which are
+healthy. Below that bar, call it a leading hypothesis and keep the alternatives open.
+
 ## Don't
 
 - Don't choose extra nines because they sound reliable; every nine raises operating cost. Match the

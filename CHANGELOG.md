@@ -84,6 +84,21 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 - The scribe runbook probe grades the produced runbook against the skill's own authoring rules
   with a probe-owned checker (0/11 on a thin runbook, 11/11 on a complete one before any trial),
   tightened over four review rounds; a unit test holds its template-literal list to the template.
+- `obs-alerting`: 45,635 B to 36,223 B, and the `obs-metrics` PromQL reference 10,368 B to 5,570 B.
+  The Workbook pairs, the Grafana evaluation lifecycle, Splunk's saved-search keys, the ThousandEyes
+  views, and the PromQL shapes went from explanation to one table or line each, on a tools-off probe
+  showing both models carry them; the file-provisioning spellings, the webhook allowlist default,
+  the Moogsoft release, the Mimir 3.2.0 defaults, and every team inventory table stayed, and the
+  router states the bar for asserting cause once instead of once per vendor reference. Measured by
+  promtool on a new observability-engineer burn-rate probe: every produced rules file from either
+  bundle, on either model, is a correct three-pair AND set; see
+  [the obs-alerting trim evidence](docs/reviews/2026-09-04-obs-alerting-trim-evidence.md).
+- The observability-engineer burn-rate probe grades the rules file by what it does: the pinned
+  promtool 3.14 evaluates it over synthetic series in eleven probe-owned cases (11/11 on a
+  hand-written three-pair file, red on each of seven files built to dodge one case). Its first
+  version demanded a pending period the skill never requires and gave the spike case too little
+  history; the trials found both, and the review round found four more ways a wrong file could
+  pass, all fixed and re-proven the same way.
 - The eval runner no longer voids a routing verdict for a runtime refusal inside the subagent the
   main session dispatched: the verdict is the dispatch, which had already happened. The rule lives
   in `runtime_blocked_tools`, a regrade re-derives it from the raw trace, and the evals ceiling

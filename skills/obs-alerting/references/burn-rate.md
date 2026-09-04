@@ -1,14 +1,12 @@
 # Multi-window error-budget burn rate
 
-Use this method to turn a user-facing SLI into an actionable page or ticket. It does not define the
-backend query: carry the reviewed numerator/denominator query and its result into the alert definition.
+Turn a user-facing SLI into an actionable page or ticket. This method does not define the backend
+query: carry the reviewed numerator/denominator query and its result into the alert definition.
 
-## Primary method
+## The pairs
 
-`[sourced]` Google's SRE Workbook chapter
-[Alerting on SLOs](https://sre.google/workbook/alerting-on-slos/) defines burn rate as error-budget
-consumption relative to the SLO, recommends multi-window/multi-burn-rate alerting, and in Table 5-8
-binds these three starting-point pairs for a 99.9% SLO:
+`[sourced]` Google's SRE Workbook, [Alerting on SLOs](https://sre.google/workbook/alerting-on-slos/),
+Table 5-8, for a 99.9% SLO:
 
 | Long window | Short window | Threshold | Budget consumed at threshold | Action |
 |---|---|---|---|---|
@@ -16,43 +14,24 @@ binds these three starting-point pairs for a 99.9% SLO:
 | 6h | 30m | 6.0x | 5% in 6h | PAGE (slow burn) |
 | 3d | 6h | 1.0x | 10% in 3d | TICKET (slow leak) |
 
-The pairs are one unit: both windows must meet the pair's one threshold. Do not mix a long window from
-one row with a short window from another, apply one row's threshold to another pair, or weaken the
-condition from AND to OR. Low-traffic services require separate judgment because a tiny denominator
-can turn one failure into an extreme burn.
-
-## Calculation
-
-For an availability SLO expressed as a percentage:
-
-```text
-allowed bad fraction = 1 − (SLO / 100)
-observed bad fraction = 1 − (SLI / 100)
-burn rate             = observed bad fraction / allowed bad fraction
-```
-
-The SLI unit still matters:
-
-- Request-based status uses failed requests and total valid requests; its budget is a count of bad
-  requests.
-- Time-based status uses bad minutes over a time window; its budget is minutes.
-- Never translate a request-based budget to downtime minutes by assuming uniform traffic.
+A pair is one unit: both windows must exceed the pair's one threshold (AND, never OR), and no row
+lends its window or threshold to another. Low-traffic services need separate judgment: a tiny
+denominator turns one failure into an extreme burn.
 
 ## Verdict boundary
 
-- If both windows meet the selected threshold, emit that pair's page/ticket action.
-- If only the long window meets it, do not page: the short window has recovered. State explicitly that
-  budget may already be spent and calculate budget status separately.
-- If only the short window meets it, do not page: treat it as an unconfirmed spike and re-check.
-- If neither meets it, state only that the pair is below its alert threshold. That does not prove that
-  the service is within budget; alert state and consumed-budget status answer different questions.
+- Both windows over the threshold: emit that pair's page or ticket.
+- Only the long window over: do not page; the short window has recovered. Say that budget may
+  already be spent and calculate budget status separately.
+- Only the short window over: do not page; treat it as an unconfirmed spike and re-check.
+- Neither over: say only that the pair is below its threshold. That does not prove the service is
+  within budget; alert state and consumed-budget status answer different questions.
 
 ## Calculator
 
-The bundled [error_budget.py](../scripts/error_budget.py) is pure stdlib and supports budget-status
-and burn-rate modes. A human (or an unguarded lane) runs it and pastes the output — the fleet's
-read-only guard deliberately denies script execution. These examples exercise its three admitted
-pair behaviors:
+[error_budget.py](../scripts/error_budget.py) is pure stdlib with budget-status and burn-rate modes.
+A human or an unguarded lane runs it and pastes the output; the read-only guard denies script
+execution by design. The three admitted pair behaviours:
 
 ```powershell
 py -3 skills/obs-alerting/scripts/error_budget.py --slo 99.9 --sli-long 99.45 --sli-short 99.95

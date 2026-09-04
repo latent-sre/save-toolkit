@@ -2,21 +2,17 @@
 
 # Splunk saved-search alerting
 
-Sources reviewed 2026-08-07: official `help.splunk.com` Alerting Manual and
-`savedsearches.conf`/`alert_actions.conf` reference pages, via indirect retrieval — search
-extraction and indexed snapshots, not byte-level fetches. Exact behavior on the target Splunk
-version and license remains `[unverified]` until validated there. The parent skill's rules apply
-unchanged: page on symptoms, every alert links a runbook, and an alert that has never been forced
-to fire and resolve is unverified.
+Sources reviewed 2026-08-07: the official Alerting Manual and the `savedsearches.conf` and
+`alert_actions.conf` references, through indirect retrieval. Exact behaviour on the target Splunk
+version and licence is `[unverified]` until validated there. The parent skill's rules apply
+unchanged: page on symptoms, every alert links a runbook, and an alert never forced to fire and
+resolve is unverified.
 
-## Scheduled beats real-time — Splunk's own words
+## The scheduled-alert contract
 
-"Real-time alerts can be costly in terms of computing resources, so consider using a scheduled
-alert when possible" *[sourced: Alerting Manual, alert types]*. A real-time alert holds a search
-process open indefinitely; a scheduled search costs one dispatch per interval. Reach for real-time
-only when seconds of latency genuinely change the response, and say why in the alert's review.
-
-## The scheduled-alert contract (savedsearches.conf)
+Prefer scheduled over real-time: a real-time alert holds a search process open indefinitely, and
+Splunk's own manual says to use a scheduled alert when possible *[sourced: Alerting Manual, alert
+types]*. Reach for real-time only when seconds change the response, and say why in the review.
 
 ```ini
 # run every 5 minutes over the last 5 minutes — window matches cadence
@@ -25,23 +21,18 @@ dispatch.earliest_time = -5m
 dispatch.latest_time = now
 ```
 
-*[sourced: Alerting Manual savedsearches.conf configuration page (shape); the 5-field cron syntax
-and examples from the cron-expressions page)]*
-
-- **Window matches cadence, deliberately.** A 5-minute cron over a 1-hour window re-alerts on the
-  same events eleven times; a 15-minute cron over a 5-minute window never sees two-thirds of the
-  data. Mismatch is the most common silent defect in inherited alerts — check it first.
-- **Timezone**: Splunk Cloud evaluates cron in UTC; Splunk Enterprise uses the search head's
+- **Window matches cadence.** A 5-minute cron over a 1-hour window re-alerts on the same events
+  eleven times; a 15-minute cron over a 5-minute window never sees two-thirds of the data. This is
+  the most common silent defect in inherited alerts; check it first.
+- **Timezone:** Splunk Cloud evaluates cron in UTC; Splunk Enterprise uses the search head's
   timezone *[sourced: cron-expressions page]*. Record which applies next to every schedule.
-- Trigger conditions in `savedsearches.conf`: `counttype` (number of events/hosts/sources, or
-  `always`) with `relation` + `quantity`; or `alert_condition` — a secondary search over the
-  results that, when set, replaces the counttype trio. `alert_type`/`alert_comparator`/
-  `alert_threshold` are the **REST API's** names for these settings, not .conf keys — using them
-  in the file silently configures nothing *[sourced: Alerting Manual "Configure alerts in
-  savedsearches.conf"; key-absence cross-checked against a spec mirror, official spec page blocks
-  retrieval]*. `alert.digest_mode` decides whole-result-set vs per-result actions.
+- Trigger conditions are `counttype` with `relation` and `quantity`, or `alert_condition`, a
+  secondary search that replaces the trio when set; `alert_type`, `alert_comparator`, and
+  `alert_threshold` are the REST API's names and configure nothing in the file *[sourced: Alerting
+  Manual; official spec page blocks retrieval]*. `alert.digest_mode` decides whole-result-set
+  versus per-result actions.
 
-## Throttling — suppression is part of the design, not a mute button
+## Throttling is part of the design
 
 ```ini
 alert.suppress = 1
@@ -49,43 +40,35 @@ alert.suppress.period = 30m
 alert.suppress.fields = service,alert_type   # required for per-result throttling
 ```
 
-*[sourced: savedsearches.conf reference]* — `alert.suppress.fields` scopes the suppression key so
-one noisy service doesn't mute the alert for every service; `alert.suppress.group_name` extends
-suppression across similar alerts. A suppression period longer than the runbook's escalation
-time-box hides a still-burning condition — check the pair together.
+*[sourced: savedsearches.conf reference]* `alert.suppress.fields` scopes the suppression key so one
+noisy service does not mute the alert for every service; `alert.suppress.group_name` extends it
+across similar alerts. A suppression period longer than the runbook's escalation time-box hides a
+still-burning condition; check the pair together.
 
-## Actions
+## Actions carry results outward
 
-- **Webhook**: generic HTTP POST of the result payload. `alert_actions.conf` ships with
-  `enable_allowlist = false` and the official docs caution that without an allowlist the webhook
-  can post to any endpoint, including malicious external ones — mechanism and default `[sourced]`
-  (re-checked 2026-08-19); the exact caution wording is `[unverified]`, docs.splunk.com blocks
-  direct retrieval *[sourced: use-a-webhook-alert-action; alert_actions.conf]* — turning the allowlist on with the
-  Moogsoft/receiver URLs enumerated is part of the alert's review checklist here, not optional
-  hardening.
-- **Email**: restrict allowed recipient domains (the Email Domains setting exists precisely
-  because results-by-email is an exfiltration surface) *[sourced: email-notification-action]*.
-- Alert actions carry query results outward — apply the fleet's redaction rules to what the search
-  returns, not just to where it posts.
+- **Webhook:** `alert_actions.conf` ships with `enable_allowlist = false`, so without an allowlist the
+  action can post the result payload to any endpoint *[sourced: use-a-webhook-alert-action and
+  alert_actions.conf, re-checked 2026-08-19; exact caution wording unverified]*. Turning the
+  allowlist on with the Moogsoft and receiver URLs enumerated is part of the alert's review here.
+- **Email:** restrict allowed recipient domains; results by email is an exfiltration surface
+  *[sourced: email-notification-action]*.
+- Apply the fleet's redaction rules to what the search returns, not only to where it posts.
 
-## Data-driving the runbook link
+## The runbook link
 
-The parent skill requires every alert to link a runbook; in Splunk the mechanism is a lookup at
-the end of the alert search:
+The parent skill requires every alert to link a runbook; in Splunk the mechanism is a lookup at the
+end of the alert search, a derived pattern rather than an official example:
 
 ```spl
 ... | lookup instructions_lookup alert_type OUTPUT runbook_url
 ```
 
-The lookup mechanism (CSV/KV-store, `| lookup … OUTPUT …`) is documented *[sourced: Search Manual
-lookup pages]*; this specific runbook-column pattern is a **derived pattern, not an official
-example** — maintain `instructions_lookup` under version control with the runbook inventory so a
-renamed runbook updates every alert at once, and remember the `obs-alerting` rule: a dead
-`runbook_url` at 3 a.m. is a design defect.
+Keep `instructions_lookup` under version control with the runbook inventory so a renamed runbook
+updates every alert at once.
 
 ## Verification, Splunk-shaped
 
-Force the condition with a test search or fixture events and observe trigger + throttle + action
-delivery end to end; a green "search ran" is not delivery evidence. For the noise review, the
-correlation lane stays with Moogsoft (its reference in this skill) — Splunk-side throttling is per
-alert, Moogsoft owns cross-alert dedup/correlation; don't build both for the same storm.
+Force the condition with a test search or fixture events and observe trigger, throttle, and action
+delivery end to end; a green "search ran" is not delivery evidence. Splunk-side throttling is per
+alert; Moogsoft owns cross-alert dedup and correlation, so do not build both for the same storm.
