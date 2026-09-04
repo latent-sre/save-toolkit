@@ -119,8 +119,9 @@ above project scope sit with the cloud platform owner — Google's shared-respon
 IAM configuration and hierarchy explicitly customer-owned work *[sourced:
 cloud.google.com/architecture/framework/security/shared-responsibility-shared-fate]*, and our
 internal split of that customer side is **not yet ratified** (`stack-profile` carries the current
-state). Escalate with the same escalation packet `pcf-ops` owns, scoping blast radius across
-services and projects.
+state). Escalate with the same escalation packet `pcf-ops` owns: symptom with UTC onset and trend, blast
+radius across services and projects, evidence our service is healthy, what was ruled out app-side,
+the platform-level signal that points past us, and `[unverified]` on every causal claim.
 
 ## Cloud Foundry → Cloud Run mapping
 

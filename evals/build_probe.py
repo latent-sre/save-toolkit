@@ -166,6 +166,19 @@ def load_scenario(path: Path) -> dict:
     return spec
 
 
+def _writes_from_shape_problem(value: object) -> str | None:
+    """The reason `writes_from` is not a mapping of destination name to oracle path, or None.
+
+    A list or scalar here used to reach `.values()` and raise, turning a scenario-authoring mistake
+    into a traceback instead of a reported problem.
+    """
+    if not isinstance(value, dict) or not all(
+        isinstance(name, str) and name and isinstance(rel, str) and rel for name, rel in value.items()
+    ):
+        return "writes_from must be a mapping of non-empty name to oracle path"
+    return None
+
+
 def validate_scenario(spec: object, *, where: str = "scenario") -> list[str]:
     problems: list[str] = []
     if not isinstance(spec, dict):
@@ -298,7 +311,12 @@ def validate_scenario(spec: object, *, where: str = "scenario") -> list[str]:
                 if not isinstance(check, dict) or check.get("check") not in CHECKS:
                     problems.append(f"{where}: checks[{i}] names an unknown check {check!r}"[:200])
                     continue
-                for rel in (check.get("writes_from") or {}).values():
+                writes_from = check.get("writes_from")
+                shape = _writes_from_shape_problem(writes_from) if writes_from is not None else None
+                if shape:
+                    problems.append(f"{where}: checks[{i}] {shape}")
+                    continue
+                for rel in (writes_from or {}).values():
                     source = (ROOT / str(rel)).resolve()
                     if not source.is_file() or ORACLE_DIR not in source.parents:
                         problems.append(f"{where}: checks[{i}] writes_from {rel!r} is not a file under evals/oracles/")
@@ -1549,7 +1567,11 @@ def _stage_writes(ctx: Context, p: dict) -> str | None:
     counted by the evals line ceiling -- rather than as a YAML block scalar that escapes both.
     """
     staged = dict(p.get("writes") or {})
-    for name, rel in (p.get("writes_from") or {}).items():
+    writes_from = p.get("writes_from")
+    shape = _writes_from_shape_problem(writes_from) if writes_from is not None else None
+    if shape:
+        return shape
+    for name, rel in (writes_from or {}).items():
         source = (ROOT / rel).resolve()
         if not source.is_file() or ORACLE_DIR not in source.parents:
             return f"writes_from source {rel!r} must be a file under evals/oracles/"

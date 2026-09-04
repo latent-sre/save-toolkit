@@ -13,7 +13,7 @@ ADR lands — it adds no decision of its own.
 | 2026-08-11 | [Exact-SHA immutable release promotion](2026-08-11-immutable-release-promotion.md) | Superseded 2026-08-23; implementation retired before live activation | other ADRs only |
 | 2026-08-21 | [Take `observability-engineer` off the read-only Bash guard](2026-08-21-observability-engineer-unguarded-bash.md) | Accepted | `agents/observability-engineer.md`, `scripts/readonly-guard.py`, `scripts/test_readonly_guard.py`, the Copilot adapter |
 | 2026-08-22 | [Agent discovery is model-labelled calibration](2026-08-22-agent-discovery-calibration.md) | accepted 2026-08-22; disposes `EVAL-002` | `evals/README.md`, other ADRs |
-| 2026-08-22 | [Incident-navigation archive](2026-08-22-incident-navigation-archive.md) | accepted 2026-08-22; disposes `NAV-001` | cited by nothing (it points at `docs/reviews/2026-08-12-incident-navigation-preservation/`, moved to `archive/` on 2026-09-04) |
+| 2026-08-22 | [Incident-navigation archive](2026-08-22-incident-navigation-archive.md) | accepted 2026-08-22; disposes `NAV-001`; path clause superseded by [2026-09-04-parked-machinery-lives-in-archive](2026-09-04-parked-machinery-lives-in-archive.md) | cited by nothing (it points at `docs/reviews/2026-08-12-incident-navigation-preservation/`, moved to `archive/` on 2026-09-04) |
 | 2026-08-22 | [Production-only exact-SHA review boundary](2026-08-22-production-review-boundary.md) | accepted 2026-08-22; disposes `REVIEW-001` | cited by nothing |
 | 2026-08-23 | [Allow a per-agent model generation alias; keep the ban on full model IDs](2026-08-23-allow-model-aliases.md) | Accepted | cited by nothing |
 | 2026-08-23 | [Allow third-party dependencies everywhere, pinned in `requirements-dev.txt`](2026-08-23-allow-third-party-dependencies.md) | Accepted | `requirements-dev.txt` |
@@ -25,7 +25,9 @@ ADR lands — it adds no decision of its own.
 | 2026-08-26 | [Multi-engine evaluation without restoring Codex distribution](2026-08-26-multi-engine-evaluation-contract.md) | Superseded 2026-09-01 by the rubric-judge contract | other ADRs only |
 | 2026-09-01 | [One Claude engine, deterministic structure graders, and a calibrated rubric judge](2026-09-01-rubric-judge-evaluation-contract.md) | Accepted 2026-09-01 | `CHANGELOG.md`, `evals/README.md`, other ADRs |
 | 2026-09-03 | [The incident lane is an advisor and a pair of hands](2026-09-03-incident-lane-advisor-and-hands.md) | Accepted 2026-09-03 | `CHANGELOG.md`, `docs/reviews/2026-09-03-incident-lane-fold-evidence.md` |
-| 2026-09-03 | [One eval runner, three scenario kinds](2026-09-03-one-eval-runner.md) | Accepted 2026-09-03 | cited by nothing |
+| 2026-09-03 | [One eval runner, three scenario kinds](2026-09-03-one-eval-runner.md) | Accepted 2026-09-03; registry list superseded by [2026-09-04-eight-grader-registry](2026-09-04-eight-grader-registry.md) | cited by nothing |
+| 2026-09-04 | [The grader registry is eight graders](2026-09-04-eight-grader-registry.md) | Accepted 2026-09-04 | other ADRs only |
+| 2026-09-04 | [Parked machinery lives under `archive/`](2026-09-04-parked-machinery-lives-in-archive.md) | Accepted 2026-09-04 | `archive/incident-navigation-preservation/README.md` |
 
 No ADR records the one-canonical-plugin-plus-generated-adapters architecture itself; the records
 above assume it.

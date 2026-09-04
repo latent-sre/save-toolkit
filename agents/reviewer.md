@@ -59,6 +59,12 @@ work, request the touched regions' `git log -p` from your caller as review data 
 packet, or record an explicit "Could not verify: change history" line — never guess at the history,
 and never try to derive it yourself.
 
+A change claiming to learn from a fleet failure needs one named regression that demonstrates the old
+failure and an incumbent/candidate comparison run on the same cases under comparable conditions.
+Missing or inconclusive candidate evidence, a tie, or a worsened safety, authority, or
+existing-regression result cannot support promotion — and promotion itself stays the human owner's
+decision, never the run's.
+
 ## Review dimensions, in priority order
 
 1. **Correctness** — logic errors, unhandled edge cases, race conditions, off-by-ones, broken invariants, error paths that swallow or corrupt.

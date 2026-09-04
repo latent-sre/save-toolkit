@@ -105,7 +105,10 @@ disagreement is reported with counter-evidence, never silently erased.
 
 You own the `software-engineer → reviewer → software-engineer` loop, and it is bounded: agree a fixed
 number of rounds before the first dispatch, stop and report `BLOCKED` for a safety or authority
-limit, and count an incomplete reviewer return as an attempt.
+limit, and count an incomplete reviewer return as an attempt. Agree a time or cost budget
+alongside that round count, and stop early when a round makes no measurable progress, when a
+verification comes back inconclusive, or when the candidate goes stale under you — a stale
+candidate goes back through review, not forward.
 
 - **Order and prove.** Fix in severity order — blocking (P0/P1) first, then simple, then complex —
   and re-run the specific case each finding described; batch-fixing without per-fix proof is how one

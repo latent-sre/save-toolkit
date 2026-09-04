@@ -207,6 +207,20 @@ class WorkspaceAndCheckTests(unittest.TestCase):
         self.assertIn("must stay inside the repo", escape or "")
         self.assertFalse((self.ws.repo.parent / "probe.py").exists())
 
+    def test_list_shaped_writes_from_is_a_problem_not_a_traceback(self) -> None:
+        spec = {
+            "id": "shape",
+            "prompt": "p",
+            "agent": "software-engineer",
+            "fixture": "incidents-api",
+            "checks": [{"check": "command_exit_zero", "writes_from": ["evals/oracles/incidents-api/probe_checks.py"]}],
+        }
+        problems = build_probe.validate_scenario(spec)
+        self.assertTrue(any("writes_from must be a mapping" in p for p in problems), problems)
+        ctx = _ctx(TINY_SPEC, self.ws)
+        staged = build_probe._stage_writes(ctx, {"writes_from": ["evals/oracles/incidents-api/probe_checks.py"]})
+        self.assertIn("writes_from must be a mapping", staged or "")
+
     def test_remove_tree_clears_gits_read_only_objects(self) -> None:
         # A seeded workspace holds read-only .git object files; plain rmtree leaves them behind on Windows.
         target = self.root / "victim"
