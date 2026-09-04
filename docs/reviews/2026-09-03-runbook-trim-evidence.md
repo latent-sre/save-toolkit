@@ -1,9 +1,9 @@
 # runbook trim: before/after evidence (2026-09-03)
 
 The `runbook` skill was cut from 50,817 B to 44,748 B in the candidate the trials ran, and stands
-at 45,544 B in the final tree after the import test's pinned export command was restored and the
-review's exemplar fixes landed (not re-measured); more to the point, it was measured for the first time against its own authoring
-rules. A tools-off probe of Sonnet and Opus set the cut line;
+at 45,601 B in the final tree after the import test's pinned export command was restored and the
+review's exemplar fixes landed (measured on this host); more to the point, it was measured for the
+first time against its own authoring rules. A tools-off probe of Sonnet and Opus set the cut line;
 a probe-owned oracle of eleven rules, added to the existing scribe build probe, graded every trial;
 and two candidates were run, the trim alone and the trim plus two template lines, because the
 baseline showed two rules that the skill states in prose were not landing. Measured on the
@@ -28,15 +28,21 @@ the importer stay.
 
 `probe_runbook_slots.py`, shipped by the scribe probe through `writes:` and run after the agent has
 finished, makes eleven of the skill's authoring rules mechanical: the template's frontmatter key
-set with `status: draft` and both dates null; every section present; an Expected line under every
-procedure step and at least one that routes a partial outcome; a source for every placeholder; a
-bound and a route on every state-changing command; a rollback or an explicit nothing-to-undo with
-a safe-abort; an escalation row naming a pager or channel and one carrying a time-box; a triage
-tree with two routes; evidence labels; no template literal left in. Proven before any trial: 0 of
-11 on a thin hand-written runbook, 11 of 11 on a complete one `[verified: this host]`. The skill's
-own exemplar scored 8 of 11: two by design (a matured runbook is `active` and carries no
-fresh-evidence labels) and one a real gap, its scale step had time bounds but no route when latency
-does not fall, fixed in the candidate.
+set with every value filled, `status: draft` and both dates null; every section present with a
+body or an explicit `n/a — why`; an Expected line under every procedure step whose outcome branches
+route somewhere; a source for every placeholder, upper- or lowercase; a bound and a route on every
+fallible step (any command, any wait); a rollback line per state change, bound to its step by
+number, plus a safe-abort; an escalation row that is time-boxed and names a pager or channel on the
+same row; a triage tree of at least two conditional branches; an evidence label in every step that
+runs a command; no template literal left in. That is the checker after two review rounds; the
+trials ran under its first version, and the re-scored table below is under the current one. Proven
+before any trial and again after each tightening: 0 of 11 on a thin hand-written runbook, 11 of 11
+on a complete one `[verified: this host]`. The skill's own exemplar scores 9 of 11 under the current
+checker, the two misses by design (a matured runbook is `active` and carries no fresh-evidence
+labels). Each tightening found real defects in the exemplar first: a scale step with bounds but no
+route, read-only steps with routes but no bound, two steps whose expected line did not take the
+template's `Expected:` shape, and a rollback section that numbered the scale-out as step 2 when it
+is step 3, all fixed in this pull request.
 
 ## Provenance
 
@@ -45,7 +51,7 @@ does not fall, fixed in the candidate.
 | Probe | `evals/build-scenarios/build-scribe-writes-only-docs.yaml`: scribe writes the runbook for a resolved incident from supplied evidence, in a fixture repo with real code beside `docs/`; 6 original checks plus the 11 rules above, 17 in all |
 | Incumbent plugin root | this checkout at `b3ec12ff`, bundle 50,817 B |
 | Candidate one | worktree at `322ba4c7` (`ea716ef4` + `82bc03ec` here), digest `e972b230ee8a`: `step-craft.md` deleted with its list kept in one body sentence, the runbook/playbook/SOP paragraph dropped, the Confluence export walkthrough compressed to its three team rules, the exemplar's scale step given its route, and one added sentence: a new runbook starts `status: draft`. Bundle 44,338 B |
-| Candidate two | worktree at `d1aae6d8` (`30702179` here), digest `514082266fc4`: candidate one plus two lines in the template's procedure slot, the step's exit line and a note that every step carries an Expected line. Bundle 44,748 B; the final tree is 45,544 B after `77cdf135` restored the pinned export command and `7a9b1c21` fixed the exemplar, not re-measured |
+| Candidate two | worktree at `d1aae6d8` (`30702179` here), digest `514082266fc4`: candidate one plus two lines in the template's procedure slot, the step's exit line and a note that every step carries an Expected line. Bundle 44,748 B; the final tree is 45,601 B after `77cdf135` restored the pinned export command and the review's exemplar fixes landed, measured on this host |
 | Models | `claude-sonnet-5` and `claude-opus-5`, three trials per arm |
 | Raw runs | `.eval-runs/build/runbook-2026-09-03/` (gitignored, private) |
 
@@ -72,32 +78,38 @@ The six original checks passed in every trial. Every miss is one of the new rule
 
 ## Re-scored under the tightened oracle
 
-The review of this pull request tightened five rules after the trials: every placeholder the
-template carries is a literal to reject; every slot needs a body or an explicit `n/a — why`; every
-procedure step's expected line must route its outcomes, not just one; every fallible step (any
-command, any wait) needs a bound and a route, not only state changes; and each state change needs
-a rollback line of its own. The eighteen produced runbooks were pulled from their workspace patches
-and re-scored offline under the tightened checker, no model calls `[verified: this host, the
-`produced/` directory under the raw runs]`. The six original checks are the live verdicts.
+The review of this pull request tightened the oracle twice after the trials. Round one: every
+placeholder the template carries is a literal to reject; every slot needs a body or an explicit
+`n/a — why`; every procedure step's expected line must route its outcomes; every fallible step (any
+command, any wait) needs a bound and a route; each state change needs a rollback line of its own.
+Round two: frontmatter values may not be blank; routing counts only on the Expected line and its
+outcome branches; uppercase placeholders count; a rollback entry binds to its step by number; the
+time-box and the reachable contact must sit on the same escalation row; a triage tree is
+conditional branches, not route phrases in prose; every command step carries its own evidence
+label. The eighteen produced runbooks were pulled from their workspace patches and re-scored
+offline under the current checker, no model calls `[verified: this host, the `produced/` directory
+under the raw runs]`. The six original checks are the live verdicts.
 
-| Arm | Live (17 checks) | Re-scored (tightened rules + 6 live) |
+| Arm | Live (17 checks) | Re-scored (current oracle + 6 live) |
 |---|---|---|
-| Opus, incumbent | 47/51 | 44/51 |
-| Opus, candidate one | 48/51 | 46/51 |
-| Opus, candidate two | 50/51 | 47/51 |
+| Opus, incumbent | 47/51 | 43/51 |
+| Opus, candidate one | 48/51 | 43/51 |
+| Opus, candidate two | 50/51 | 46/51 |
 | Sonnet, incumbent | 47/51 | 46/51 |
-| Sonnet, candidate one | 48/51 | 47/51 |
+| Sonnet, candidate one | 48/51 | 46/51 |
 | Sonnet, candidate two | 51/51 | 51/51 |
 
-The ordering holds on both models under both instruments, and Sonnet on candidate two is perfect
-under the stricter rules too. The tightened rules cost Opus most on stop conditions for read-only
-steps and on routing every expected line. The same tightening found two more gaps in the exemplar,
-read-only steps with routes but no time bound, fixed alongside its escalation row.
+The ordering holds on both models under both instruments: candidate two is best on each, candidate
+one never scores below the incumbent, and Sonnet on candidate two is perfect under the stricter
+rules too. The tightened rules cost Opus most on stop conditions for read-only steps and on
+routing every expected line; candidate one's two rollback misses on Opus are entries that describe
+the change without naming its step.
 
 ## What this says
 
-- **The trim is safe** `[verified: candidate one, twelve trials]`. Nothing the incumbent passes is
-  failed with 6.5 KB of craft prose removed, on either model.
+- **The trim is safe** `[verified: candidate one, twelve trials]`. With 6.5 KB of craft prose
+  removed the live totals rise and the re-scored totals are equal on both models; the misses move
+  between rules rather than accumulate.
 - **One sentence landed six of six.** The body never said which status a fresh runbook takes;
   both models wrote `active` once in the baseline and never after the sentence was added.
 - **Prose did not land two rules; the template did** `[verified: candidate two, six trials]`. The

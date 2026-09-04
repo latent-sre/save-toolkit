@@ -99,15 +99,15 @@ Dashboard: `https://grafana.example.internal/d/checkout-slo`  ·  Source/repo: `
    gates step 3: scaling checkout against a slow vendor only queues more work at the same
    bottleneck, so rule the vendor out *before* changing the instance count.
    ```bash
-   cf logs checkout --recent | grep -c 'vendor_timeout'
+   cf logs checkout --recent | awk '/vendor_timeout/ {n++} END {print n+0}'
    ```
-   Expected within 30 s: a count. Zero or single digits over the last few minutes is normal
+   Expected: a count, within 30 s. Zero or single digits over the last few minutes is normal
    background.
    - Dozens or more → the vendor is the cause. **Do not scale.** Stop here and switch to
      `payments-vendor-degraded`.
    - Background levels → the latency is ours. Go to step 3.
-   - The command hangs past 30 s or errors → the platform API is the problem, not checkout;
-     escalate on the table's platform row.
+   - `cf logs` itself hangs past 30 s or errors (awk always prints a count, so an error here is
+     the platform API, not a zero) → escalate on the table's platform row.
 
 3. ⚠️ **Scale out.** (Tier 2 — needs approval naming the target instance count. Do not run this
    until step 2 returned background levels.)
@@ -126,7 +126,7 @@ Dashboard: `https://grafana.example.internal/d/checkout-slo`  ·  Source/repo: `
    ```bash
    cf logs checkout --recent > /tmp/checkout-crash-$(date -u +%Y%m%dT%H%M%SZ).log
    ```
-   Expected within 30 s: a non-empty file. Attach it to the incident, then escalate per the table
+   Expected: a non-empty file within 30 s. Attach it to the incident, then escalate per the table
    below — a crash loop is a defect, not a latency incident, and this runbook ends here. If the
    capture is empty or errors twice, escalate with what you have rather than trying a third time.
 
@@ -140,14 +140,14 @@ the earlier damage — that is expected and not a reason to keep acting.
 ## Rollback / cleanup
 - Step 1 (restart one instance): nothing to undo — the restart *is* the reset. Running it twice on
   the same index is safe but pointless; see the step's own stop condition.
-- Step 2 (scale out): return to the baseline count once p95 has been healthy for 30 min.
+- Step 3 (scale out): return to the baseline count once p95 has been healthy for 30 min.
   ```bash
   cf scale checkout -i 6
   ```
   Expected: `6/6 running`. Watch p95 for 10 min after; if it climbs again, scale back to 9 and treat
   the underlying cause as unresolved.
 - Safe-abort: stopping between any two steps leaves checkout serving. The only state this runbook
-  changes is instance count, and step 2's rollback is the single command above.
+  changes is instance count, and step 3's rollback is the single command above.
 
 ## Escalation
 | When (condition / time elapsed) | Escalate to | How to reach |
