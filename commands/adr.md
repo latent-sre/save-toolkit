@@ -7,8 +7,8 @@ disable-model-invocation: true
 
 Before parsing arguments, deriving a filename, or taking any write-capable step, inspect the current selected agent and its effective tool scope.
 
-1. Continue only when the selected agent is exactly `software-engineer` and its effective tool scope already includes edit/write.
-2. If either condition is false or cannot be established, create nothing, make no mutation, and respond: "Please select `software-engineer` with its existing edit/write scope, then invoke this command again."
+1. Where the host has a selected agent (VS Code, Copilot), continue only when it is exactly `software-engineer` and its effective tool scope already includes edit/write. In a Claude Code session, which has no selected agent, continue when the session's own tool scope already includes edit/write.
+2. If the applicable condition is false or cannot be established, create nothing, make no mutation, and respond: "Please invoke this command with edit/write scope already in effect — on a host with agent selection, select `software-engineer`."
 3. Do not request, grant, add, or widen tools through command metadata or during this workflow.
 
 ## Accepted argument grammar
@@ -66,6 +66,4 @@ drivers, and the options on the table. State facts, not opinions.>
 and what this commits us to. What we'd watch to learn this decision was wrong.>
 
 <!-- ADRs are append-only and immutable once accepted. To change a decision, write a new ADR and mark
-     this one "superseded by <YYYY-MM-DD>-<slug>".
-     The repository's structural plan-status check reads the Status field above from the first 14
-     lines and wants it as "Status: value"; keep that form or the gate reports no status. -->
+     this one "superseded by <YYYY-MM-DD>-<slug>". -->

@@ -85,6 +85,69 @@ class LinkCheckerTests(Fixture):
         )
         self.assertEqual([], check_links.check(self.root))
 
+    def test_a_fenced_command_running_its_own_bundled_script_is_flagged(self):
+        """The same defect in the one place it actually runs: a command line inside a fence.
+
+        `python skills/<own>/scripts/x.py` resolves only from the repository root -- not from
+        platforms/copilot/skills/, and not from a user's project, where the plugin is installed
+        outside this repository. `${CLAUDE_PLUGIN_ROOT}/`, the runtime root hooks/hooks.json
+        already uses, is the fix and must not itself be flagged.
+        """
+        self.skill("# Probe\n\nRead [notes](./references/notes.md).\n")
+        self.write(
+            "skills/probe-skill/references/notes.md",
+            "# Notes\n\n```bash\npython skills/probe-skill/scripts/x.py\n```\n",
+        )
+        failures = check_links.check(self.root)
+        self.assertTrue(
+            any("points at its own skill by repo-rooted path" in f for f in failures),
+            failures,
+        )
+        # The prose fix is computed, not prescribed. A `scripts/` tail seen from references/ is
+        # repaired by `../scripts/x.py`; the message used to say `../SKILL.md` for every match,
+        # which from here names a different resource and from SKILL.md resolves to skills/SKILL.md.
+        self.assertTrue(
+            any("('../scripts/x.py')" in f for f in failures), failures
+        )
+        self.write(
+            "skills/probe-skill/references/notes.md",
+            "# Notes\n\n```bash\npython ${CLAUDE_PLUGIN_ROOT}"
+            "/skills/probe-skill/scripts/x.py\n```\n",
+        )
+        self.assertEqual([], check_links.check(self.root))
+        # PowerShell spells the same runtime root `$env:`; inside a `powershell` fence the braced
+        # form is a shell variable, unset, and the path collapses to `/skills/...`.
+        self.write(
+            "skills/probe-skill/references/notes.md",
+            "# Notes\n\n```powershell\npy -3 \"$env:CLAUDE_PLUGIN_ROOT"
+            "/skills/probe-skill/scripts/x.py\"\n```\n",
+        )
+        self.assertEqual([], check_links.check(self.root))
+
+    def test_a_repo_rooted_self_command_in_an_asset_is_flagged(self):
+        """assets/ ships the same defect: a runbook example or template carrying
+        `skills/<own>/scripts/x.py` is copied by a reader exactly like a references/ command, and
+        the check ran only on SKILL.md and references/**."""
+        self.skill(
+            "# Probe\n\nRead [notes](./references/notes.md) and "
+            "[example](./assets/example.md).\n"
+        )
+        self.write("skills/probe-skill/references/notes.md", "# Notes\n")
+        self.write(
+            "skills/probe-skill/assets/example.md",
+            "# Example\n\n```bash\npython skills/probe-skill/scripts/x.py\n```\n",
+        )
+        failures = check_links.check(self.root)
+        self.assertTrue(
+            any(
+                "assets/example.md" in f
+                and "points at its own skill by repo-rooted path" in f
+                and "('../scripts/x.py')" in f
+                for f in failures
+            ),
+            failures,
+        )
+
     def test_top_level_frontmatter_comment_is_allowed(self):
         frontmatter = CLEAN_FRONTMATTER.replace(
             'argument-hint: "[the probe]"',

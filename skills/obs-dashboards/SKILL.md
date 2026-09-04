@@ -34,7 +34,7 @@ scripted dashboards by default. Version- and upgrade-specific details live in
    [json-model](./references/json-model.md) for Classic/V1/V2 shapes, `status` stripping, variables,
    and panel fields.
 5. **Validate the right baseline.** Run
-   `python skills/obs-dashboards/scripts/dashboard_hygiene.py <file>`, then
+   `python ${CLAUDE_PLUGIN_ROOT}/skills/obs-dashboards/scripts/dashboard_hygiene.py <file>`, then
    `dashboard-linter lint --strict` when installed. On an edit, check the live model first; only
    violations introduced by this diff block the write. Report pre-existing findings without
    silently expanding scope.

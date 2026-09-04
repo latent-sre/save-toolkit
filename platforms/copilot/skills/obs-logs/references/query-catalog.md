@@ -46,8 +46,7 @@ that contract reaches real-team onboarding, instead of being rewritten.
 ## Contribute an entry
 
 Copy this template, fill every field, open a PR. No skill file changes are needed — the catalog is
-data, and the query-catalog validator on the Gate A path checks the shape and the safety rules on
-every push.
+data, and the PR review checks the shape and the safety rules.
 
 ````markdown
 ### <the question, phrased as a responder would ask it>

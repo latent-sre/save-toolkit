@@ -31,7 +31,7 @@ The built-in dimensions (browser, OS, device, network, geography, ISP) are the t
 — **our synthesis, not a quoted doc claim** `[unverified]`:
 
 1. **Back-End Time moved, Front-End flat** → network/edge/origin side. Correlate with Akamai
-   activations (property-config reference), offload changes (Traffic report), and origin latency
+   activations (property-config reference), offload changes (Traffic by Hostname), and origin latency
    (`turnAroundTimeMSec` in DataStream 2). Localized to one geography/ISP → network-shaped;
    uniform everywhere → origin-shaped.
 2. **Front-End Time moved, Back-End flat** → app-side (new JS, third-party tag, render change).

@@ -182,8 +182,12 @@ PLUGIN_BANNER_RE = re.compile(
     r"^> \*\*Plugin addressing:\*\*(?:.*\n)+?\n", re.MULTILINE
 )
 PLUGIN_TOKEN_RE = re.compile(r"(?<![A-Za-z0-9_-])save-toolkit:(?=[a-z0-9])")
+# Both spellings of the runtime root: `${CLAUDE_PLUGIN_ROOT}` for POSIX shells, and
+# `$env:CLAUDE_PLUGIN_ROOT` for PowerShell fences, where the braced form is a shell variable rather
+# than the process environment. A spelling missed here survives into the Copilot projection as a
+# Claude-only token pointing outside the installed bundle.
 PLUGIN_PATH_RE = re.compile(
-    r"`?\$\{CLAUDE_PLUGIN_ROOT\}/(?P<kind>skills|agents)/"
+    r"`?\$(?:\{CLAUDE_PLUGIN_ROOT\}|env:CLAUDE_PLUGIN_ROOT)/(?P<kind>skills|agents)/"
     r"(?P<name>[a-z0-9]+(?:-[a-z0-9]+)*)(?P<tail>/[^`\s]+|\.md)?`?"
 )
 RUNTIME_SUFFIXES = {".pyc", ".pyo"}
@@ -307,6 +311,12 @@ def _installed_resource(match: re.Match[str]) -> str:
         return f"the installed `{name}` agent definition"
     if not tail or tail == "/SKILL.md":
         return f"the installed `{name}` skill"
+    if tail.startswith("/scripts/"):
+        # A command line, not a prose pointer: keep a runnable path. `python the installed
+        # `x` skill's `scripts/y.py` resource` is prose inside a fence, which no host can run.
+        path = f"skills/{name}{tail}"
+        whole = match.group(0)
+        return f"`{path}`" if whole.startswith("`") and whole.endswith("`") else path
     return f"the installed `{name}` skill's `{tail.lstrip('/')}` resource"
 
 

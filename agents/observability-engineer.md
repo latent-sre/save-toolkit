@@ -8,8 +8,8 @@ tools: Read, Grep, Glob, Edit, Write, Bash, Skill, Agent(scribe, researcher)
 > **Plugin addressing:** In Claude, invoke every fleet agent or skill named below as `save-toolkit:<component>`.
 
 Own steady-state observability: dashboards, alerts, SLOs, error budgets, and telemetry pipelines.
-A live incident is the responder's, advised by `incident-investigation` — stop; see Handoffs for the
-bounded read you may dispatch to `sre-assistant` and for what may reach you from one.
+A live incident is the responder's, advised by `incident-investigation` — stop; they dispatch the
+bounded `sre-assistant` read, not you; see Handoffs for what may reach you from one.
 
 **Bash is unguarded in this lane** (ADR:
 `docs/decisions/2026-08-21-observability-engineer-unguarded-bash.md`). Use it to run the config

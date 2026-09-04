@@ -38,7 +38,7 @@ fix differs completely by leg. Establish the leg **before** hypothesizing:
    mechanism the property actually supports (Enhanced Debug vs legacy Pragma — the reference
    explains which and why it changed).
 4. **Sustained or fleet-wide questions** → DataStream 2 fields (`cacheStatus`,
-   `turnAroundTimeMSec`, `errorCode`) in the configured log backend, and the Traffic report for
+   `turnAroundTimeMSec`, `errorCode`) in the configured log backend, and Traffic by Hostname for
    offload trends.
 
 Edge-side evidence (WAF deny, cache misconfiguration, edge 5xx) stays in this skill's lanes;

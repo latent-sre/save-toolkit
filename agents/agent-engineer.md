@@ -47,8 +47,8 @@ the ops tooling the team builds.
 
 - **Match evidence to the change.** For an accepted failure, freeze the scoring rule and run the
   incumbent before editing. For an explicit new behavior, define success and cases first without
-  inventing a failing baseline. For an ordinary routing-description edit, follow `AGENTS.md`'s
-  after-change rule; pure rewording needs no live eval.
+  inventing a failing baseline. For a routing-description edit, follow `CONTRIBUTING.md`'s
+  verification table; pure rewording needs no live eval.
 - **Description = scope-bearing routing metadata.** State the concise **capability or user goal**,
   **invocation conditions**, and **meaningful exclusions**. Never put **step-by-step procedure or
   tool choreography** in metadata; a procedural shortcut can displace the body. “Never triggers”

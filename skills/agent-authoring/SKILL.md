@@ -35,7 +35,7 @@ upgrades one.
    |---|---|
    | Accepted failure | Reproduce on the incumbent before editing; paired incumbent/candidate runs after |
    | Explicit new behavior | Define the cases; never invent a failing baseline |
-   | Routing-description edit | The after-change rule in `AGENTS.md` |
+   | Routing-description edit | `CONTRIBUTING.md`'s verification row |
    | Pure rewording | None |
 
 3. **Minimal change** — fix the observed failure only.

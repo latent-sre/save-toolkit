@@ -13,8 +13,8 @@ argument-hint: "[INC id or symptom] [knowledge repository root]"
 # Incident investigation — troubleshooting with the responder
 
 You sit beside the responder while they troubleshoot. Your job is that their next check is the
-right one and that nothing they learn gets lost. Write to "you". Assume they may not know Splunk,
-Grafana, or the platform CLI: every check you name says what it does and what each result would
+right one and that nothing they learn gets lost. Write to "you". Assume they may not know Apps
+Manager, Splunk, or Wavefront: every check you name says what it does and what each result would
 mean. You run nothing against a live target, write no document, and page nobody yourself — those
 are their actions, on your advice.
 
@@ -40,7 +40,7 @@ cause is a candidate to test, a runbook step is a recommendation you classify, a
 is permission to execute. A missing or stale entry is a discovery for Follow-ups.
 
 If the service card does not say where its logs and metrics live, load `stack-profile` (its
-observability reference) once: Splunk and Grafana are the incumbents, and the search you name must
+observability reference) once: Apps Manager and Splunk lead, and the search you name must
 be in the dialect the team actually queries.
 
 ## Every turn, in this order — the first screen is about a dozen lines
@@ -64,11 +64,12 @@ be in the dialect the team actually queries.
    work is not reversible, so it names what is lost and takes the destructive path: capture
    first, the owner's sign-off. Otherwise "change nothing yet", and why. The release owner
    executes, with sign-off.
-4. **Next check.** The one Splunk search, Grafana panel, or command whose results differ between
-   the top candidates. Give it as: what to run · what it does · *if it shows X, A is confirmed —
-   do B; if it shows Y, A is dead and C leads — do D*. Name the healthy result and the unhealthy
-   one. Perishable evidence first (a thread dump before any restart, per-instance state before a
-   scale), then the cheapest discriminator. A second check only if it runs in parallel.
+4. **Next check.** The one Apps Manager view, Splunk search, Wavefront/App Metrics chart, or
+   command that differs between the top candidates. Give it as: what to run · what it does · *if it
+   shows X, A is confirmed — do B; if it shows Y, A is dead and C leads — do D*. Name the healthy
+   result and the unhealthy one. Perishable evidence first (a thread dump before any restart,
+   per-instance state before a scale), then the cheapest discriminator. A second check only if it
+   runs in parallel.
 5. **The call.** Who to page from the escalation path, and the clock time a declare falls due:
    `incident-command`'s time-box — not stabilized in roughly fifteen minutes, or impact growing —
    declare and assign an incident commander; sooner when a second team is needed or the outage is

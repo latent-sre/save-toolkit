@@ -63,6 +63,25 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Fixed the seventeen P1 rows of the 2026-09-04 fleet rescan, each a verified contradiction or
+  dead pointer a responder or contributor would act on: bundled-script invocations now use
+  `${CLAUDE_PLUGIN_ROOT}/skills/...` (three files resolved only from the repository root) and
+  `check_links` rejects a repo-rooted self-pointer inside fences and code spans; the advisor names
+  Apps Manager, Splunk, and Wavefront in the stack's order instead of Splunk and Grafana;
+  `observability-engineer` no longer claims a dispatch its grant forbids and `software-engineer`
+  names the two lanes it cannot invoke; the mitigation reference puts the responder, not
+  `observability-engineer`, on the live incident and the advisor, not the agent, on the
+  recommendation; `pcf-ops` shows its drill-in reads as question / Apps Manager view / `cf`
+  command with the guard-denied forms marked human-run, and agrees with `pcf-deploy` that the
+  human release owner executes; the README lists both manual commands; `/save-toolkit:adr` drops
+  the dead plan-status gate and scopes its selected-agent preflight to hosts that have one;
+  imported runbooks land in `docs/runbooks/` where the advisor reads; two "AGENTS.md after-change
+  rule" pointers now name `CONTRIBUTING.md`; the query catalog no longer promises a deleted
+  validator; `obs-pipeline` no longer advertises Splunk and Wavefront routes it lacks (a routing
+  run is owed for the description) and labels the Prometheus exporter as the Mimir path;
+  `akamai-edge` sends the SRE to Traffic by Hostname; the exemplar runbook's history row cites the
+  right step. The Copilot generator keeps a runnable path for `scripts/` tails.
+
 - `obs-dashboards`: `http-api.md` and `json-model.md` cut from 25,814 B to 17,142 B (15,422 B in the
   measured candidate; the review restored labels and four sentences afterwards), keeping every
   QA-measured Grafana 13 behavior and dropping the transport boilerplate and what a tools-off probe

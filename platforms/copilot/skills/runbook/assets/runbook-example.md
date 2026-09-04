@@ -188,7 +188,7 @@ Hand over: trigger, evidence, attempted steps, current state, and the current ow
 |---|---|---|---|---|---|
 | 2026-02-11 | drill-2026-02-11-checkout-restart | 3 | Triage 1–3, Procedure 1 | — | `prepared` — added the zero-based `<idx>` note after the responder guessed wrong twice |
 | 2026-01-19 | postmortem 2026-01-19-checkout-pool | 2 | Triage 1–2 | Procedure 2 had no rollback; responder left checkout at 9 instances for six days | PR #412 — added the Rollback entry and the 30-min wait |
-| 2025-12-03 | INC-8841 | 1 | Triage 1 | No vendor check existed; 40 min spent scaling against a slow vendor | PR #388 — added Procedure step 3 |
+| 2025-12-03 | INC-8841 | 1 | Triage 1 | No vendor check existed; 40 min spent scaling against a slow vendor | PR #388 — added Procedure step 2 |
 
 ## References
 - Related runbooks: `checkout-error-rate`, `payments-vendor-degraded`, `platform-router-latency`
