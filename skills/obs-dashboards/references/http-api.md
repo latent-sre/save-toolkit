@@ -89,12 +89,9 @@ concurrency token and a save message, which cannot be added later:
 
 `overwrite: true` silently defeated the legacy token and discarded the concurrent save in QA.
 Re-applying byte-identical content created no new version, so the write is idempotent-by-target
-only for the same uid and desired bytes, not retry-safe.
-
-A timeout, dropped response, or crash after dispatch is **UNKNOWN**. Before any redispatch, read back
-and inspect version history for the save message: desired bytes and the message mean executed;
-prior bytes and no message mean not executed; a conflict, permission failure, or incomplete
-observation stays UNKNOWN, stops, and names a reconciliation owner.
+only for the same uid and desired bytes, not retry-safe: a timeout, dropped response, or crash after
+dispatch is **UNKNOWN** and is reconciled by step 6 of the loop in [SKILL.md](../SKILL.md) before any
+redispatch.
 
 ## Verify, then record
 

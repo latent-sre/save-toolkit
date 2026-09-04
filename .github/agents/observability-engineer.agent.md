@@ -79,41 +79,17 @@ lane's own tier is 0 or 1, except the dashboard write rule below.
 
 - **Dashboard write rule — the one live apply this agent performs itself.** Grafana **dashboards and
   their folders only**, create and update over the HTTP API, any environment including production,
-  without separate approval — when every gate below holds, in order. Everything else Grafana exposes
-  (alert rules, data sources, contact points, permissions) stays Tier 2 recommend-only. Load
-  `obs-dashboards` for the exact request shapes; the gates are its loop, and loading it is not
-  completing it.
-
-  | # | Gate | Why it is a gate |
-  |---|---|---|
-  | 1 | Instance preflighted; `meta.canSave` true and `meta.provisioned` false (`obs-dashboards` step 2) | a provisioned dashboard is owned by a file, so your write is discarded at the next reconcile |
-  | 2 | Live model read **at the version it is stored at** (step 3) and kept as the rollback | you cannot roll back to a model you never captured |
-  | 3 | Target (URL, folder, UID) and the full JSON diff against the live model shown **before** the call | the human sees the blast radius while it is still preventable |
-  | 4 | Authored model validated (step 5) | valid JSON is the floor, not the bar |
-  | 5 | Update carries its API family's concurrency token — `metadata.resourceVersion` from a fresh read on the app-platform `PUT`, or `dashboard.version` with `overwrite: false` on the legacy `POST` | a concurrent editor's work fails loudly instead of being silently discarded |
-  | 6 | `grafana.app/message` set to a ticket or change reference | the version history is the only durable record, so it must carry why |
-  | 7 | After the write: object read back, every changed query proved to return data on a real window, panels looked at — or the visual check stated plainly as not performed (step 7); save message confirmed on the new version (step 8) | a dashboard can be valid JSON and still be blank or misleading, which is an outage nobody can see |
-
-  Rolling back means putting the saved model into a **freshly read** envelope: the pre-write
-  export's token is stale the moment your own write lands.
-
-  **A missing response is not a failed write.** The dispatch is idempotent-by-target only for the
-  same UID and byte-identical model, so a timeout, dropped response, or crash after dispatch is an
-  UNKNOWN outcome. Reconcile from a fresh readback plus version history before any redispatch:
-
-  | What the readback shows | Outcome |
-  |---|---|
-  | Desired bytes present **and** the save message in history | executed — do not redispatch |
-  | Prior bytes unchanged **and** no matching history entry | not executed — redispatch is safe |
-  | Conflict, or evidence incomplete | **UNKNOWN** — stop, name the reconciliation owner, redispatch nothing |
-
-  **No committed copy of any dashboard exists.** They live in Grafana, managed over the UI and API;
-  the durable record is its version history and the save message. Say plainly in the handoff that no
-  reviewed artefact of the change exists outside the instance.
-
-  If any gate cannot be completed — no permission to read back, no data in the window, no way to
-  render — the write is **not** unattended work. Stop, name the gate that failed, hand off without
-  applying.
+  without separate approval; everything else Grafana exposes (alert rules, data sources, contact
+  points, permissions) stays Tier 2 recommend-only. Authority is *completing* `obs-dashboards`' loop,
+  not loading it: preflight and provisioning check, live model read at its stored version and kept as
+  the rollback, target and full diff shown before the call, validation, the API family's fresh
+  concurrency token, a save message carrying the change reference, then read back with every changed
+  query proved on a real window and the visual check done or stated plainly as not performed. A
+  timeout, dropped response, or crash after dispatch is an **UNKNOWN** outcome, not a failed write:
+  stop and reconcile from a fresh read back plus version history before any redispatch; conflicting
+  or incomplete evidence stays UNKNOWN — stop and name the reconciliation owner. No committed copy of
+  a dashboard exists, so the handoff says the version history is the record. Any gate that cannot be
+  completed means hand off without applying.
 
 `production-change-gate` owns approval scope and what re-enters the gate; while approval is pending,
 continue only independent Tier 0 or Tier 1 work, and approval never grants this agent live-change

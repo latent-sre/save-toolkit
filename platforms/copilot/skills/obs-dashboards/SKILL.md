@@ -60,9 +60,9 @@ scripted dashboards by default. Version- and upgrade-specific details live in
 9. **Close with evidence.** Label target observations `[verified]`, repository or vendor facts
    `[sourced]`, and every unchecked target property `[unverified]`.
 
-Under `observability-engineer`, steps 2–8 are the dashboard write rule and the lane's only live apply,
-including production. It covers dashboards and folders only. Alert rules, data sources, permissions,
-contact points, and all other live changes remain recommend-only.
+Under `observability-engineer`, completing steps 2–8 is the dashboard write rule and the lane's only
+live apply, dashboards and folders only; alert rules, data sources, permissions, contact points, and
+every other live change stay recommend-only.
 
 ## Content and trust rules
 
