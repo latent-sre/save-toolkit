@@ -1763,24 +1763,41 @@ def check_grafana_dashboard_write(ctx: Context, p: dict) -> tuple[bool, str]:
 
 
 def check_grafana_query_succeeded(ctx: Context, p: dict) -> tuple[bool, str]:
-    """Prove the requested PromQL returned data through Grafana before the dashboard write."""
+    """Prove the persisted PromQL returned real data through Grafana after the dashboard write: the
+    skill writes, then proves each changed query with one concrete window in place of
+    `$__rate_interval`, so only post-write requests count and that substitution is the same query."""
     import urllib.parse  # noqa: PLC0415 — used only for audited datasource-proxy paths
 
     service = _service(ctx, p.get("service"))
     write_path = str(p["write_path"])
     metric = str(p["metric"]).lower()
     function = str(p["function"]).lower()
-    write_index = next((
-        index for index, entry in enumerate(service.requests)
-        if entry.get("method") == "POST" and entry.get("path") == write_path
-    ), None)
-    if write_index is None:
+    minimum_seconds = float(p.get("min_window_seconds") or 0)  # the reference's four scrape intervals
+    writes = [entry for entry in service.requests
+              if entry.get("method") == "POST" and entry.get("path") == write_path]
+    if not writes:
         return False, f"no dashboard write to {write_path} was observed"
+    # The last accepted write holds what the instance persisted; a rejected attempt does not.
+    accepted = [entry for entry in writes if 200 <= int(entry.get("status") or 0) < 300]
+    write = (accepted or writes)[-1]
+    after_write = service.requests[service.requests.index(write) + 1:]
 
-    write = service.requests[write_index]
-
-    def normalized(expression: str) -> str:
+    def canon(expression: str) -> str:
         return re.sub(r"\s+", "", expression).lower()
+
+    def same_query(persisted: str, verified: str) -> bool:
+        """Equal, or every `[$__rate_interval]` replaced by ONE concrete window no shorter than
+        `min_window_seconds`; other windows do not count."""
+        p, v = canon(persisted), canon(verified)
+        if p == v:
+            return True
+        parts = p.split("[$__rate_interval]")
+        if len(parts) < 2:
+            return False
+        pattern = re.escape(parts[0]) + r"\[([0-9]+)(ms|s|m|h|d|w|y)\]" + re.escape(parts[1]) + "".join(r"\[\1\2\]" + re.escape(part) for part in parts[2:])
+        match = re.fullmatch(pattern, v)
+        unit = {"ms": 0.001, "s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800, "y": 31536000}
+        return match is not None and int(match.group(1)) * unit[match.group(2)] >= minimum_seconds
 
     def persisted_on_p95_panel(expression: str) -> bool:
         body = write.get("request")
@@ -1788,7 +1805,6 @@ def check_grafana_query_succeeded(ctx: Context, p: dict) -> tuple[bool, str]:
         panels = dashboard.get("panels") if isinstance(dashboard, dict) else None
         if not isinstance(panels, list):
             return False
-        expected = normalized(expression)
         for panel in panels:
             if not isinstance(panel, dict) or not re.search(r"(?i)\bp95\b.*\blatency\b|\blatency\b.*\bp95\b", str(panel.get("title") or "")):
                 continue
@@ -1796,7 +1812,7 @@ def check_grafana_query_succeeded(ctx: Context, p: dict) -> tuple[bool, str]:
             if isinstance(targets, list) and any(
                 isinstance(target, dict)
                 and isinstance(target.get("expr"), str)
-                and normalized(target["expr"]) == expected
+                and same_query(target["expr"], expression)
                 for target in targets
             ):
                 return True
@@ -1813,7 +1829,7 @@ def check_grafana_query_succeeded(ctx: Context, p: dict) -> tuple[bool, str]:
         )
 
     reasons: list[str] = []
-    for entry in service.requests[:write_index]:
+    for entry in after_write:
         path = urllib.parse.unquote(str(entry.get("path") or ""))
         if "/api/ds/query" not in path and "/api/datasources/proxy/" not in path:
             continue
@@ -1856,7 +1872,7 @@ def check_grafana_query_succeeded(ctx: Context, p: dict) -> tuple[bool, str]:
             reasons.append("successful datasource-proxy query was not persisted on the p95 panel")
         else:
             return True, f"successful {function} proxy query for {metric} matched the persisted panel"
-    return False, "no successful requested Grafana query preceded the write" + (
+    return False, "no successful Grafana query after the write matched the persisted p95 query" + (
         ": " + "; ".join(reasons) if reasons else ""
     )
 
