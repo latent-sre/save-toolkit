@@ -21,7 +21,7 @@ Correlation ranks related evidence; it does not prove cause.
 
 1. Start with the Situation and its scope, not every raw event.
 2. Order alerts by event time and ingestion time. The first alert is a ranked hypothesis, not the
-   cause: polling cadence, delivery delay, and clock skew reorder the list.
+   cause: polling cadence, delivery delay, and clock skew can reorder the list.
 3. If the local instance merges or supersedes Situations, follow the live one and record every
    absorbed or superseded ID.
 4. Record alternate hypotheses, which service or region is affected, and which signals share a source.

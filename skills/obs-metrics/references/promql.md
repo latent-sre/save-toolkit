@@ -83,7 +83,9 @@ the deployed Prometheus and Mimir versions]*
   (`-query-frontend.parallelize-shardable-queries=false` disables it), so a query whose cost or
   result shape changed after the upgrade may be sharded now; ingester request hedging is off
   (`-querier.minimize-ingester-requests-hedging-delay=3s` restores it), so one slow ingester shows as
-  tail latency it previously hid. The deployed Mimir version is `[unverified]`.
+  tail latency it previously hid; and query-planning metrics moved from `component="querier"` to
+  `engine="querier"`, so a borrowed self-monitoring dashboard on the old label goes empty. The
+  deployed Mimir version is `[unverified]`.
 
 ## Mimir per-tenant limits
 
@@ -100,4 +102,5 @@ deployed runtime configuration; never quote upstream defaults as the tenant's li
 
 Prometheus marks a series stale when it stops being exported or its target disappears, and selectors
 stop returning it after the lookback and staleness behaviour. Record the target's scrape and rule
-intervals and test its no-data path separately from any threshold.
+intervals and test its no-data path separately from any threshold *[sourced: Prometheus querying
+basics; unverified for the target's configuration]*.

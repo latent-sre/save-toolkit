@@ -88,8 +88,8 @@ rollback before any controlled apply. Record the routes:
 | `<service, severity>` | `<name>` | `<group_by / intervals>` | `<Moogsoft integration>` | `<owner / test record>` |
 
 Test the full path with a controlled non-production rule: evaluation, firing, policy match, contact
-point, correlation, acknowledgement, resolution, and runbook link. A green rule preview proves no
-delivery.
+point, correlation, acknowledgement, resolution, and runbook link. A green rule preview alone does
+not prove notification delivery.
 
 ## Review and rollback
 

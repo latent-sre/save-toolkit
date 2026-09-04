@@ -94,10 +94,11 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   bundle, on either model, is a correct three-pair AND set; see
   [the obs-alerting trim evidence](docs/reviews/2026-09-04-obs-alerting-trim-evidence.md).
 - The observability-engineer burn-rate probe grades the rules file by what it does: the pinned
-  promtool 3.14 evaluates it over synthetic series in seven probe-owned cases (7/7 on a hand-written
-  three-pair file and 3/7 on a single-window rule before any trial). Its first version demanded a
-  pending period the skill never requires and gave the spike case too little history; both were
-  fixed after the first trials and the fix is re-proven the same way.
+  promtool 3.14 evaluates it over synthetic series in eleven probe-owned cases (11/11 on a
+  hand-written three-pair file, red on each of seven files built to dodge one case). Its first
+  version demanded a pending period the skill never requires and gave the spike case too little
+  history; the trials found both, and the review round found four more ways a wrong file could
+  pass, all fixed and re-proven the same way.
 - The eval runner no longer voids a routing verdict for a runtime refusal inside the subagent the
   main session dispatched: the verdict is the dispatch, which had already happened. The rule lives
   in `runtime_blocked_tools`, a regrade re-derives it from the raw trace, and the evals ceiling
