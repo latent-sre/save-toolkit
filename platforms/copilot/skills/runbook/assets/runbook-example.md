@@ -114,6 +114,8 @@ Dashboard: `https://grafana.example.internal/d/checkout-slo`  ·  Source/repo: `
    ```
    Expected: `OK`, then `9/9 running` within 3 min. p95 should fall within 10 min of the last
    instance reaching `running` — not before, so do not judge this early.
+   - p95 still above 0.8 s 10 min after the last instance reached `running` → capacity was not
+     the bottleneck. **Do not scale further.** Escalate per the table below.
    Scaling is a stopgap that buys time; it does not fix a leak or a slow dependency. File the
    follow-up before you leave the incident.
 

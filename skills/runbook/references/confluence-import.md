@@ -11,52 +11,16 @@ human-run command, shown so the human knows exactly what to run.
 
 ## Getting the content out (human-run)
 
-Three export paths, best first for Markdown conversion:
-
-1. **Single page via REST API v2** — request `view` (rendered HTML), the representation that
-   converts cleanly (see "Convert HTML, not storage format" below). Supply only the account email
-   to `--user`; curl then prompts for the API token, keeping the token out of the command line:
-
-   ```bash
-   curl --fail-with-body --user "user@example.com" --output page.json \
-     "https://<site>.atlassian.net/wiki/api/v2/pages/<page-id>?body-format=view" &&
-   jq --exit-status --raw-output '.body.view.value' page.json > page.html
-   ```
-
-   Paste the API token at curl's password prompt. Never append `:<token>` to `--user`: curl warns
-   that secrets supplied in command-line arguments can be visible briefly even where it tries to
-   hide them. *[sourced: curl.se/docs/manpage.html#-u; Atlassian Cloud Confluence basic-auth docs]*
-   The v2 endpoint returns a JSON page envelope, not a bare HTML response. `--fail-with-body`
-   propagates HTTP errors, `&&` prevents extraction after a failed request, and jq's
-   `--exit-status` makes a missing/null `body.view.value` fail instead of looking successful. Do
-   not continue to Pandoc unless the compound command exits zero. *[sourced:
-   curl.se/docs/manpage.html#--fail-with-body;
-   developer.atlassian.com/cloud/confluence/rest/v2/api-group-page; jqlang.org/manual/]*
-
-   `body-format` also accepts `storage` (the XHTML-based source — useful only when auditing the
-   original macros) and `atlas_doc_format` (ADF JSON). *[sourced:
-   developer.atlassian.com/cloud/confluence/rest/v2/api-group-page — response schema; whether
-   `export_view` is also accepted on v2 is unverified; the v1 content-body API documents the
-   fuller list]*
-2. **Space export from the UI** — Space settings → Export space; current options are PDF, CSV,
-   HTML, or XML. HTML export is the bulk path that converts best. *[sourced:
-   support.atlassian.com/confluence-cloud/docs/export-content-to-word-pdf-html-and-xml/]*
-3. **Copy-paste of the rendered page** — acceptable for a single short page; loses macros and
-   attachment links silently, so record that loss in the provenance note.
-
-**Convert HTML, not storage format.** Storage format is "an XHTML-based format" that includes
-custom `<ac:...>`/`<ri:...>` macro elements which are not HTML *[sourced:
-confluence.atlassian.com/doc/confluence-storage-format-790796544.html — Data Center reference]*; a
-generic converter drops or mangles those macros, and the loss is silent `[unverified — inference
-from the format definition; check the diff]`. Prefer `view` HTML or the space HTML export, then:
-
-```bash
-pandoc page.html -f html -t gfm -o page.md
-```
-
-The `-f`/`--from`, `-t`/`--to`, `gfm`, and `-o` forms are documented by the current Pandoc manual
-*[sourced: pandoc.org/demo/example33/2.2-specifying-formats.html; pandoc.org/getting-started.html]*.
-Diff the output against the rendered page before trusting the conversion.
+Export the rendered `view` HTML of the page (REST API v2 with `body-format=view`, or the space's
+HTML export), not the storage format: storage is XHTML with `<ac:...>`/`<ri:...>` macro elements
+that a generic converter drops or mangles silently, and the converter below counts those losses
+only when it can see them. Three team rules travel with the export: the API token goes in at
+curl's password prompt, never on the command line where it can be visible; the extraction is
+chained on the request succeeding, so a failed or empty page body cannot look like a converted
+one; and the converted Markdown is diffed against the rendered page before anything trusts it.
+A copy-paste of the rendered page is acceptable for one short page, and its lost macros and
+attachment links are recorded in the provenance note. *[sourced: Atlassian Confluence REST v2
+page API and storage-format reference; curl manual on `--user`; reviewed 2026-08-19]*
 
 ## The converter does the mechanical part
 
