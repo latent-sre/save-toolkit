@@ -49,8 +49,9 @@ gate production with protected environments.
 - Do not execute an imported or candidate workflow locally. Inspect it statically and use only
   existing trusted CI evidence; an agent observes an approved run and never creates, approves, or
   dispatches one.
-- Never cancel a production deployment mid-flight. The deploy job promotes the already-built
-  artifact and carries an explicit rollback path.
+- Never cancel a production deployment mid-flight: a workflow-level `cancel-in-progress` group
+  cancels the whole run, deploy job included, so validation keeps its cancelling group on its own
+  job. The deploy job promotes the already-built artifact and carries an explicit rollback path.
 - A check that is not required blocks nothing. Say whether each check is required on the
   protected branch, and read the branch ruleset rather than assuming it.
 - A push- or pull-request-only gate that is switched off stops running, which looks identical to
@@ -76,8 +77,8 @@ predicates also matches.
 ## Choose the smallest workflow shape
 
 A reusable workflow (`on: workflow_call`, typed `inputs` and declared `secrets`) when several
-repositories or entry workflows need the same jobs. A composite action (`action.yml`) only for
-repeated steps within jobs; it is not a substitute for job-level permissions, environments, runners,
+repositories or entry workflows need the same jobs. A composite action only for repeated steps
+within jobs; it is not a substitute for job-level permissions, environments, runners,
 or services. A protected environment for deployment: required reviewers, wait rules, and
 environment-scoped secrets sit on the target environment, and the job names that environment and
 pauses for the human gate.
@@ -99,7 +100,7 @@ pauses for the human gate.
    upgrades or formatting churn, and each dependency re-pin gets its own provenance review.
 6. **Verify in layers.** Run repository-established static validation and focused tests; for a new
    deterministic check, show a safe red-to-green regression; then use a trusted non-deploy CI run
-   for runtime evidence. Deployment remains human-only even when every check passes.
+   for runtime evidence.
 
 ## Handoff
 

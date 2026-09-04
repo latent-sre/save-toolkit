@@ -28,7 +28,7 @@ Pin every `uses:` to a reviewed full commit SHA before committing this example.
 deploy-prod:
   runs-on: [self-hosted, pcf]          # runner group with foundation network access
   environment: production               # required reviewers approve before this runs
-  concurrency: { group: deploy-prod, cancel-in-progress: false }   # never cancel a deploy
+  concurrency: { group: deploy-prod, cancel-in-progress: false }   # never cancel a deploy; no workflow-level group may cancel this run
   steps:
     - uses: actions/checkout@<pin-to-sha>
     - uses: actions/download-artifact@<pin-to-sha>   # promote the SAME artifact built earlier

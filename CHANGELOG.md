@@ -105,13 +105,17 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   and the reusable-versus-composite prose went, on a tools-off probe showing both models carry
   them; the 2026 fork-checkout refusal, the setup-uv v10 cache rule, the immutable-release field,
   the CredHub fact, the Node 24 boundary, and every team convention stayed. Measured on a new
-  software-engineer PCF deploy-job probe: the candidate 23/23 in every trial on Sonnet and Opus,
-  the incumbent 23/23 in three of four, its fourth job lacking a rollback path; see
+  software-engineer PCF deploy-job probe: on the oracle the trials ran, the candidate 23/23 in
+  every trial on Sonnet and Opus and the incumbent in three of four; on the review round's oracle,
+  five of eight produced jobs are complete, the misses being a workflow-level cancelling group left
+  in place (two candidate files) and no rollback command (one incumbent file), so the contract and
+  the PCF skeleton now say that a workflow-level group cancels the deploy too; see
   [the ci-actions trim evidence](docs/reviews/2026-09-04-ci-actions-trim-evidence.md).
 - The software-engineer deploy-job probe grades the authored workflow by what it is: the pinned
   actionlint 1.7.12 accepts it, and a probe-owned oracle checks the deploy job's shape against
-  thirteen sentences of the skill's contract (13/13 on a hand-written job, 2/13 on a naive one, red
-  on each of twenty-one files built to dodge one finding).
+  fifteen sentences of the skill's contract (15/15 on a hand-written job, 4/15 on a naive one, red
+  on each of thirty-seven files built to dodge one finding, green on five positive controls). Its
+  one review round found eleven ways a wrong workflow could pass the first version, all closed.
 - The eval runner no longer voids a routing verdict for a runtime refusal inside the subagent the
   main session dispatched: the verdict is the dispatch, which had already happened. The rule lives
   in `runtime_blocked_tools`, a regrade re-derives it from the raw trace, and the evals ceiling
