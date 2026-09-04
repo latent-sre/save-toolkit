@@ -69,11 +69,12 @@ be in the dialect the team actually queries.
    work is not reversible, so it names what is lost and takes the destructive path: capture
    first, the owner's sign-off. Otherwise "change nothing yet", and why. The release owner
    executes, with sign-off.
-4. **Next check.** The one Apps Manager view, Splunk search, or command that differs between
-   the top candidates. Give it as: what to run · what it does · *if it shows X, A is confirmed —
-   do B; if it shows Y, A is dead and C leads — do D*. Name the healthy result and the unhealthy
-   one. Perishable evidence first (a thread dump before any restart, per-instance state before a
-   scale), then the cheapest discriminator. A second check only if it runs in parallel.
+4. **Next check.** The one Apps Manager view, Splunk search, Wavefront/App Metrics chart, or
+   command that differs between the top candidates. Give it as: what to run · what it does · *if it
+   shows X, A is confirmed — do B; if it shows Y, A is dead and C leads — do D*. Name the healthy
+   result and the unhealthy one. Perishable evidence first (a thread dump before any restart,
+   per-instance state before a scale), then the cheapest discriminator. A second check only if it
+   runs in parallel.
 5. **The call.** Who to page from the escalation path, and the clock time a declare falls due:
    `incident-command`'s time-box — not stabilized in roughly fifteen minutes, or impact growing —
    declare and assign an incident commander; sooner when a second team is needed or the outage is
