@@ -8,13 +8,10 @@ skill. Sources reviewed 2026-08-19 against live official pages on `docs.cloud.go
 
 ## Where trace data goes now (this changed recently)
 
-- **Ingest is OTLP via the Telemetry API** — `telemetry.googleapis.com` "implements the
-  OpenTelemetry OTLP API" and is the recommended path for new **and existing** users. It is
-  all-signal — `/v1/traces`, `/v1/metrics`, `/v1/logs` — not trace-only. The older proprietary
-  Cloud Trace API is *not* retired: it is absent from the deprecations page, and the docs prefer
-  the Telemetry API over it for its higher ingestion quotas *[sourced:
-  docs.cloud.google.com/stackdriver/docs/reference/telemetry/overview;
-  docs.cloud.google.com/stackdriver/docs/otlp/overview;
+- **The OTLP-to-Telemetry-API ingest fact (endpoint, all three signals, Pre-GA logs) is owned by
+  `obs-pipeline`.** The older proprietary Cloud Trace API is *not* retired: it is absent from the
+  deprecations page, and the docs prefer the Telemetry API over it for its higher ingestion quotas
+  *[sourced: docs.cloud.google.com/stackdriver/docs/reference/telemetry/overview;
   cloud.google.com/blog "OpenTelemetry now in Google Cloud Observability", 2025-09]*.
 - Cloud Trace's internal storage now uses the **OpenTelemetry data model natively** *[sourced:
   cloud.google.com/blog "OpenTelemetry now in Google Cloud Observability", 2025-09]*, and the

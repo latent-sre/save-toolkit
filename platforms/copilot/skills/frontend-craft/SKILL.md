@@ -41,7 +41,7 @@ default below.
 | State | Server state lives in the query/cache layer (TanStack Query in the greenfield stack); UI state stays local — no global store until two distant components genuinely share state. |
 | API client | A typed API client generated from the OpenAPI contract; CI fails on drift. |
 | Forms | `react-hook-form` or `@mantine/form` in React; `v-model` plus the repo's validation layer in Vue; the server is the validation truth. |
-| Charts | Recharts v3 by default in React, visx for a bespoke one-off, uPlot for dense real-time series; never `@mantine/charts`; charts read theme tokens. |
+| Charts | Recharts v3 by default in React, visx for a bespoke one-off, uPlot for dense real-time series; never `@mantine/charts`; charts read theme tokens; give every chart a text or data-table alternative. |
 | Tables | TanStack Table, virtualised past a few hundred rows, sort/filter/page in the URL. |
 | Auth | OIDC Authorization Code + PKCE against corp SSO; BFF or httpOnly-cookie session; access token in memory, never `localStorage`; one fetch wrapper does 401 → refresh once → retry; a `reviewer` pass for sensitive flows. |
 | Live data | SSE for one-way live data via the query cache. |
@@ -60,6 +60,6 @@ packet. A UI that was never rendered is written, not verified.
 |---|---|
 | a greenfield or unbranded UI — nothing to match | [design language](./references/design-language.md) |
 | choosing a stack for a greenfield UI, or serving a SPA on PCF | Load `stack-profile` first, then [stack](./references/stack.md) |
-| a chart, graph, or metric visualization | [data visualization](./references/data-viz.md) |
+| a chart, graph, or metric visualization | the Charts row in the decisions table above |
 
 Trips two predicates? Read both. Trips none? The core above is the whole job.

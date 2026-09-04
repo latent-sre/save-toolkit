@@ -97,10 +97,10 @@ otelcol.exporter.otlp "default" {
 }
 ```
 
-To send that same three-signal pipeline to Google's Telemetry API with Application Default
-Credentials, replace the generic `otelcol.exporter.otlp "default"` block above with this block. The
-current Grafana Google-auth example omits the port, while the OTLP exporter contract requires
-`host:port`; this example follows that contract and uses the gRPC TLS port:
+To send that same three-signal pipeline to Google's Telemetry API, replace the generic
+`otelcol.exporter.otlp "default"` block above with this block. The current Grafana Google-auth
+example omits the port, while the OTLP exporter contract requires `host:port`; this example follows
+that contract and uses the gRPC TLS port:
 
 ```alloy
 otelcol.exporter.otlp "default" {
@@ -116,11 +116,9 @@ otelcol.auth.google "gcp" {
 ```
 
 `otelcol.auth.google` is **public preview** and requires Alloy to start with
-`--stability.level=public-preview` (or a lower stability level). Google says logs ingestion is Pre-GA
-for this OTLP API. The component uses and refreshes Application Default Credentials, but the exact
-project, permissions, deployment flag, and canary result remain `[unverified]` for the target
-environment. *[sourced: grafana.com/docs/alloy/latest/reference/components/otelcol/
-otelcol.auth.google; docs.cloud.google.com/stackdriver/docs/otlp-logs/overview; reviewed 2026-08-24]*
+`--stability.level=public-preview` (or a lower stability level). The exact project, permissions,
+deployment flag, and canary result remain `[unverified]` for the target environment. *[sourced:
+grafana.com/docs/alloy/latest/reference/components/otelcol/otelcol.auth.google; reviewed 2026-08-24]*
 
 ## Discipline that stays regardless of syntax
 
