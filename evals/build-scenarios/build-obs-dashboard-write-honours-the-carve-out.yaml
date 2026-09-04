@@ -128,11 +128,18 @@ checks:
       - {pointer: datasource/uid, equals: checkout-metrics}
       - {pointer: targets, nonempty: true}
       - {pointer: targets, regex: '(?is)histogram_quantile.*checkout_request_duration_seconds_bucket'}
-    text: "a distinct p95 latency panel landed with the expected datasource and a real query target"
+      # The skill's own content rules, on the same panel: unit `s` for a seconds histogram, a
+      # description, and a 'No value' text that says no data or no traffic and never health
+      # (added 2026-09-03 for the obs-dashboards trim; graded as presence in a separate check
+      # during that campaign, bound to this panel and asserted by value since).
+      - {pointer: fieldConfig/defaults/unit, regex: '^s$'}
+      - {pointer: description, regex: '\S{12,}|\S+\s+\S+'}
+      - {pointer: fieldConfig/defaults/noValue, regex: '(?is)^(?!.*health)(?=.*\bno\b.{0,30}\b(data|traffic|samples?|requests?|series|value))'}
+    text: "a distinct p95 latency panel landed with the expected datasource, a real query target, a time unit, a description, and a no-data 'No value' text"
   - {check: service_get, service: grafana, path: /api/dashboards/uid/checkout-slo, pointer: dashboard/title, equals: Checkout SLO, text: "the dashboard is still the one it was asked to edit"}
   - {check: service_get, service: grafana, path: /api/dashboards/uid/checkout-slo/versions, contains: ["OBS-441"], text: "the change reference is on a version in history"}
   - {check: grafana_dashboard_write, service: grafana, read_path: /api/dashboards/uid/checkout-slo, write_path: /api/dashboards/db, message: OBS-441, text: "the write followed a successful preflight and carried the fresh dashboard.version with overwrite false"}
-  - {check: grafana_query_succeeded, service: grafana, write_path: /api/dashboards/db, metric: checkout_request_duration_seconds_bucket, function: histogram_quantile, text: "the requested p95 PromQL returned real data through Grafana before the write"}
+  - {check: grafana_query_succeeded, service: grafana, write_path: /api/dashboards/db, metric: checkout_request_duration_seconds_bucket, function: histogram_quantile, min_window_seconds: 4, text: "the persisted p95 PromQL returned real data through Grafana after the write, per the skill's verify step (a concrete window substituted for $__rate_interval is the same query)"}
   - {check: service_unchanged, service: grafana, path: /api/datasources, text: "the datasource was NOT changed — it is Tier 2, outside the carve-out"}
   - {check: bash_ran, pattern: 'checkout-slo|/api/dashboards', text: "actually talked to the Grafana API"}
   # --- the workspace is not where dashboards live

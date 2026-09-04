@@ -63,6 +63,17 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- `obs-dashboards`: `http-api.md` and `json-model.md` cut from 25,814 B to 17,142 B (15,422 B in the
+  measured candidate; the review restored labels and four sentences afterwards), keeping every
+  QA-measured Grafana 13 behavior and dropping the transport boilerplate and what a tools-off probe
+  showed both models already carry. The measured candidate scored 15/15 on the comparable checks in
+  every trial on Sonnet and Opus with 15 to 18 percent fewer tokens; see
+  [the obs-dashboards trim evidence](docs/reviews/2026-09-03-obs-dashboards-trim-evidence.md).
+- Two graders were stricter than the contract they grade and are fixed: the dashboard query-proof
+  check requires the proof after the write, as the skill's verify step does, and treats a concrete
+  window substituted for `$__rate_interval` as the same query; the `no_inline_deploy_commitment` rubric names the observability-engineer's dashboard
+  write as that lane's permitted apply (29/29 on calibration). The carve-out probe also grades the
+  new panel's unit, description, and `noValue` text.
 - `runbook`: 50,817 B to 45,955 B (44,748 B in the measured candidate). `step-craft.md`, the runbook/playbook/SOP paragraph, and the
   Confluence export walkthrough went, on a tools-off probe showing both models carry them; the body
   now says a new runbook starts `status: draft`, the exemplar's scale step has the route it lacked,
