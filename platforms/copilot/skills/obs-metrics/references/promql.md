@@ -3,101 +3,32 @@
 # PromQL dialect for metric investigation
 
 Use this reference for Prometheus-compatible queries in Mimir or Prometheus after applying the parent
-skill's investigation shape. Syntax is sourced from current Prometheus documentation; confirm Mimir's
-deployed version, tenancy, metric names, labels, scrape cadence, rule evaluation, and retention.
+skill's investigation shape. Confirm Mimir's deployed version, tenancy, metric names, labels, scrape
+cadence, rule evaluation, and retention.
 
-Primary references:
+Primary references: [querying basics](https://prometheus.io/docs/prometheus/latest/querying/basics/),
+[operators](https://prometheus.io/docs/prometheus/latest/querying/operators/),
+[functions](https://prometheus.io/docs/prometheus/latest/querying/functions/),
+[histogram practices](https://prometheus.io/docs/practices/histograms/),
+[Grafana Mimir HTTP API](https://grafana.com/docs/mimir/latest/references/http-api/).
 
-- [querying basics](https://prometheus.io/docs/prometheus/latest/querying/basics/)
-- [operators](https://prometheus.io/docs/prometheus/latest/querying/operators/)
-- [functions](https://prometheus.io/docs/prometheus/latest/querying/functions/)
-- [histogram practices](https://prometheus.io/docs/practices/histograms/)
-- [Grafana Mimir HTTP API](https://grafana.com/docs/mimir/latest/references/http-api/)
+`[verified 2026-08-22]` Every query block below parsed and executed against a live Prometheus
+behind a non-production Grafana 13.1.4; the example labels are illustrative and return zero series.
+Semantics against your metric names, and Mimir's deployed version and tenancy, remain `[unverified]`.
 
-**Syntax verification — `[verified 2026-08-22]`.** Every query block in this file was executed against
-a live Prometheus (a non-production Grafana 13.1.4 instance's Prometheus source, 3,283 metric
-names) through `POST /api/ds/query`. All 8 parse and execute; the example labels are illustrative, so
-they return zero series rather than data. The harness was proved to fire first: an unbalanced
-grouping paren, a missing `histogram_quantile` comma, and a truncated range selector were each
-rejected with a specific parse error, so "all valid" is a measurement rather than an assumption. The
-same shapes re-pointed at real metric names returned data — `sum(rate(...))`, `sum by (job) (rate(...))`,
-and `histogram_quantile(0.95, sum by (le) (rate(..._bucket[5m])))` all produced 31 points over 30
-minutes. Semantics against *your* metric names, and Mimir's deployed version and tenancy, remain
-`[unverified]`.
+## The shapes alerts and dashboards copy
 
-## Contents
-
-- Selectors and label matchers
-- Counters — rate before aggregation
-- Aggregate with real `by` and `without`
-- Error ratio and burn-rate shape
-- Histogram p95
-- Recording rules, native histograms, remote_write — the parts around the query
-- Mimir per-tenant limits — typed `err-mimir-*` errors
-- Missing data and staleness
-
-## Selectors and label matchers
-
-Use a metric selector with the narrowest stable labels that answer the question. PromQL supports exact,
-negative, regular-expression, and negative-regular-expression matchers: `=`, `!=`, `=~`, and `!~`.
-
-*[sourced: Prometheus querying basics; unverified for target metric and labels]*
-
-```promql
-http_requests_total{app="checkout", env="prod", method=~"GET|POST"}
-```
-
-An empty selector result can reflect a stale series, wrong label, wrong tenant, or absent telemetry; it
-is not automatically a zero.
-
-## Counters — rate before aggregation
-
-For counters, **`rate()` before `sum()`, never `sum()` before `rate()`**. Apply `rate()` to each source
-series so counter resets remain detectable, then aggregate the rates. `increase()` is the range-window
-increase derived from the counter's rate behavior.
-
-*[sourced: Prometheus `rate()`/`increase()` documentation; unverified for target metric/window]*
-
-```promql
-sum(rate(http_requests_total{app="checkout"}[5m]))
-```
-
-*[sourced: Prometheus `rate()` and aggregation operators; unverified for target labels/window]*
+Apply `rate()` to each source series before aggregating, so counter resets stay visible; never
+`sum()` a counter first. An empty selector result can be a stale series, wrong label, wrong tenant,
+or absent telemetry; it is not a zero.
 
 ```promql
 sum by (app) (rate(http_requests_total{env="prod"}[5m]))
 ```
 
-*[sourced: Prometheus `increase()` and aggregation operators; unverified for target labels/window]*
-
-```promql
-sum by (app) (increase(http_requests_total{env="prod"}[1h]))
-```
-
-Use these only for counters. Applying counter functions to gauges can return syntactically valid but
-meaningless results.
-
-## Aggregate with real `by` and `without`
-
-PromQL aggregation operators support `by` to retain named labels and `without` to remove named labels.
-
-*[sourced: Prometheus aggregation operators; unverified for target labels]*
-
-```promql
-sum without (instance) (rate(http_requests_total{env="prod"}[5m]))
-```
-
-```promql
-sum by (app, status) (rate(http_requests_total{env="prod"}[5m]))
-```
-
-## Error ratio and burn-rate shape
-
-The numerator and denominator must describe the same request population and window. The illustrative
-expression below divides observed error ratio by an allowed error fraction of `1 - 0.999`.
-
-*[sourced: PromQL selector, `rate()`, aggregation, and arithmetic syntax; unverified metric, labels,
-window, SLO target, and target no-traffic behavior]*
+Error ratio and burn rate: numerator and denominator over the same population and window, divided
+by the allowed error fraction. Do not coerce a missing or zero denominator to a healthy value
+without an explicit, verified no-traffic policy.
 
 ```promql
 (
@@ -107,16 +38,8 @@ window, SLO target, and target no-traffic behavior]*
 ) / (1 - 0.999)
 ```
 
-Do not coerce a missing or zero denominator to a healthy value without an explicit, verified no-traffic
-policy.
-
-## Histogram p95
-
-For a classic histogram, rate each `_bucket` counter, aggregate while retaining `le`, and then apply
-`histogram_quantile`. This calculates a percentile from the combined bucket distribution.
-
-*[sourced: Prometheus `histogram_quantile()` documentation and histogram practices; unverified target
-histogram name, labels, bucket design, and window]*
+Classic-histogram p95: rate each `_bucket`, aggregate keeping `le`, then `histogram_quantile`. Never
+average summary quantiles across instances; a summary has already discarded the distribution.
 
 ```promql
 histogram_quantile(
@@ -127,78 +50,56 @@ histogram_quantile(
 )
 ```
 
-Do not average summary quantiles across instances; summaries have already discarded the distribution
-needed to reconstruct an aggregate percentile. *[sourced: Prometheus histogram and summary practices]*
+## Around the query: version-gated facts
 
-## Recording rules, native histograms, remote_write — the parts around the query
+*[sourced: prometheus.io practices and configuration reference, the prometheus/prometheus
+CHANGELOG, and the Mimir 3.2.0 release notes; reviewed 2026-08-07 to 2026-08-21; unverified for
+the deployed Prometheus and Mimir versions]*
 
-*[sourced: prometheus.io practices/rules, specs/native_histograms, practices/remote_write, and the
-configuration reference; reviewed 2026-08-07, re-verified 2026-08-19 against prometheus.io and the
-prometheus/prometheus CHANGELOG; unverified for the deployed Prometheus/Mimir versions]*
-
-- **Recording-rule naming is `level:metric:operations`** — aggregation level and labels of the
-  output, the metric name (strip `_total` when rating a counter), then operations newest-first;
-  always aggregate with an explicit `without (…)` so labels like `job` survive:
+- **Recording-rule names are `level:metric:operations`**, aggregating with an explicit
+  `without (…)` so labels like `job` survive:
 
   ```yaml
   - record: job_instance_mode:node_cpu_seconds:avg_rate5m
     expr: avg without (cpu) (rate(node_cpu_seconds_total[5m]))
   ```
 
-  A recording rule that pre-aggregates away the label an alert later needs is a quiet way to make
-  the alert unwritable — check consumers before choosing `level`.
-- **Native histograms are stable but optional** (v3.8+; the old feature flag is a no-op from v3.9 —
-  scraping is enabled via `scrape_native_histograms`). Whether the deployed
-  Prometheus/Alloy/Mimir chain has them on is `[unverified]` per target; a `histogram_quantile`
-  over a native histogram doesn't use `_bucket`/`le`, so the classic p95 shape above silently
-  matches nothing against a native-only metric — check which representation the target scrapes
-  before declaring "no data".
-- **Newer PromQL surface is version-gated**: duration arithmetic began in v3.4; later duration
-  helpers remained experimental/flag-gated through v3.13 and are enabled by default from v3.14.
-  Extended range selectors (`promql-extended-range-selectors`; anchored/smoothed variants that
-  change `rate()` extrapolation when enabled) began in v3.7 and remain experimental in v3.14. Keep
-  both out of shared rules until the deployed Prometheus/Mimir version and flags are confirmed.
-  *[sourced: prometheus/prometheus CHANGELOG 3.4.0, 3.7.0, and 3.12.0–3.14.0; v3.13/v3.14
-  feature-flag registration]*
-- **remote_write tuning knobs that matter** (`queue_config`): `capacity` (default 10000),
-  `max_shards` (50), `max_samples_per_send` (2000), `batch_send_deadline` (5s); guidance:
-  capacity ≈ 3–10× max_samples_per_send, and remote write adds roughly 25% memory overhead.
-  Sustained `prometheus_remote_storage_*` failures/shard saturation mean the query you're running
-  may be missing recent samples at the receiving end — a pipeline finding for the
+  A recording rule that aggregates away the label an alert later needs makes the alert unwritable;
+  check consumers before choosing `level`.
+- **Native histograms are stable but optional** from v3.8 (the old feature flag is a no-op from
+  v3.9; scraping is enabled per job via `scrape_native_histograms`). Whether the deployed chain has
+  them on is `[unverified]` per target, and `histogram_quantile` over a native histogram uses no
+  `_bucket` series or `le` label, so the classic p95 shape silently matches nothing against a
+  native-only metric. Check which representation the target scrapes before declaring no data.
+- **Newer PromQL surface is version-gated**: duration arithmetic from v3.4; later duration helpers
+  flag-gated through v3.13 and default-on from v3.14; extended range selectors
+  (`promql-extended-range-selectors`, which change `rate()` extrapolation) from v3.7 and still
+  experimental in v3.14. Keep both out of shared rules until the deployed version and flags are
+  confirmed.
+- **remote_write `queue_config` defaults**: `capacity` 10000, `max_shards` 50,
+  `max_samples_per_send` 2000, `batch_send_deadline` 5s; sustained `prometheus_remote_storage_*`
+  failures mean the query may be missing recent samples at the receiving end, a finding for the
   `obs-pipeline` skill, not a query rewrite.
+- **Mimir 3.2.0 changed query-path defaults**: remote execution is on by default and every querier
+  must be on 3.1 before the upgrade; query sharding is on by default
+  (`-query-frontend.parallelize-shardable-queries=false` disables it), so a query whose cost or
+  result shape changed after the upgrade may be sharded now; ingester request hedging is off
+  (`-querier.minimize-ingester-requests-hedging-delay=3s` restores it), so one slow ingester shows as
+  tail latency it previously hid. The deployed Mimir version is `[unverified]`.
 
-**Mimir 3.2.0 changes query-path defaults — `[sourced]` (reviewed 2026-08-21).** Three behaviors a
-query author feels, from the 3.2.0 release notes: *"Remote execution enabled by default. You must
-ensure all queriers are on Mimir 3.1 before upgrading"* (the old
-`-query-frontend.enable-multiple-node-remote-execution-requests` flag is removed, so the upgrade
-**order** is the control); *"Enable query sharding by default. Disable it with
-`-query-frontend.parallelize-shardable-queries=false`"* — a query that changed cost or result shape
-after the upgrade may be sharded now when it was not before; and ingester request hedging is now
-**off** by default (restore with `-querier.minimize-ingester-requests-hedging-delay=3s`), so a
-single slow ingester shows up as tail latency it previously hid. Query-planning metrics moved from
-`component="querier"` to `engine="querier"` — no fleet query keys on it, but a borrowed
-self-monitoring dashboard might. The deployed Mimir version is `[unverified]`.
+## Mimir per-tenant limits
 
-## Mimir per-tenant limits — typed `err-mimir-*` errors
-
-Mimir enforces per-tenant limits and rejects with typed error IDs; record the ID verbatim — it
-distinguishes "data absent" from "a guardrail fired", and the Mimir runbooks page
-(`docs/sources/mimir/manage/mimir-runbooks/` upstream) is the canonical lookup. *[sourced:
-grafana/mimir@a9cc6fc runbooks and configuration reference]*
-
-- Write-side — a pipeline finding for the `obs-pipeline` skill, not a query rewrite:
-  `err-mimir-max-series-per-user` (`-ingester.max-global-series-per-user`),
-  `err-mimir-max-series-per-metric` (built to catch instrumentation mistakes such as a timestamp
-  label), `err-mimir-max-active-series`, and `err-mimir-tenant-max-ingestion-rate` (token bucket;
-  upstream defaults `ingestion_rate` 10000 samples/s, `ingestion_burst_size` 200000).
-- Query-side — narrow the query (tighter selectors, shorter range, aggregate) rather than asking
-  for a mid-incident limit raise: `err-mimir-max-chunks-per-query` and its siblings.
-- Which limits bind this tenant is `[unverified]` until read from the deployed runtime
-  configuration; never quote upstream defaults as the tenant's limits.
+Mimir rejects over-limit requests with typed `err-mimir-*` IDs; record the ID verbatim, it
+distinguishes data absent from a guardrail firing, and the upstream Mimir runbooks page is the
+lookup *[sourced: grafana/mimir runbooks and configuration reference]*. Write-side IDs
+(`err-mimir-max-series-per-user`, `err-mimir-max-series-per-metric`, `err-mimir-max-active-series`,
+`err-mimir-tenant-max-ingestion-rate`) are pipeline findings for `obs-pipeline`; query-side IDs
+(`err-mimir-max-chunks-per-query` and siblings) mean narrow the query rather than ask for a
+mid-incident limit raise. Which limits bind this tenant is `[unverified]` until read from the
+deployed runtime configuration; never quote upstream defaults as the tenant's limits.
 
 ## Missing data and staleness
 
-Prometheus marks series stale when they stop being exported or a target disappears; selectors then stop
-returning the series after the applicable lookback/staleness behavior. Record the target's scrape and
-rule intervals and test its no-data path separately from a threshold. *[sourced: Prometheus querying
-basics; unverified for target configuration]*
+Prometheus marks a series stale when it stops being exported or its target disappears, and selectors
+stop returning it after the lookback and staleness behaviour. Record the target's scrape and rule
+intervals and test its no-data path separately from any threshold.

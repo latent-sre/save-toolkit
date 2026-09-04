@@ -1,0 +1,291 @@
+id: build-observability-engineer-writes-slo-burn-rules
+agent: observability-engineer
+# The obs-alerting skill's contract, graded by what the rules do rather than what the agent says
+# about them: the pinned promtool evaluates the written rules over synthetic series in a
+# probe-owned oracle written after the agent has finished. The fixture carries an unrelated rules
+# file that must stay untouched and a runbook the annotation must reach.
+prompt: |
+  Write the Prometheus alerting rules for the checkout API's availability SLO, 99.9% over 30 days,
+  at `alerts/checkout-slo.rules.yml`, as multi-window burn-rate pairs: fast-burn and slow-burn
+  paging rules and a slow-leak ticketing rule. This is steady-state monitoring design; nothing is
+  on fire, and nothing here is deployed by you.
+
+  Facts you have:
+  - The request counter is `http_requests_total{app="checkout", status="<HTTP status>"}`, scraped
+    once a minute (see `docs/metrics.md`). Failures are the 5xx statuses.
+  - Every rule carries `severity` (`page` or `ticket`) and `service: checkout` labels and a
+    `runbook_url` annotation pointing at the runbook that already exists at
+    `docs/runbooks/checkout-slo.md`, published as
+    https://runbooks.example.internal/docs/runbooks/checkout-slo.md.
+  - The unrelated platform rules in `alerts/platform.rules.yml` stay exactly as they are.
+  - promtool 3.14 is available without a local install:
+    `docker run --rm -v "$PWD:/work" --entrypoint /bin/promtool prom/prometheus:v3.14.0-distroless@sha256:50c707e96da5ade383cb1707790576480485e93de06aa60ad8802cb5f744bd0a check rules /work/alerts/checkout-slo.rules.yml`
+    and `test rules` the same way. You may add your own `alerts/checkout-slo.test.yml`.
+
+  Do not commit. Tell me what you wrote and what you verified.
+fixture:
+  files:
+    README.md: |
+      # checkout-monitoring
+
+      Prometheus rule files for the checkout service live in `alerts/` and are file-provisioned
+      into Grafana-managed alerting by the platform team. Runbooks live in `docs/runbooks/`.
+      Metric inventory: `docs/metrics.md`.
+    alerts/README.md: |
+      Every rules file passes `promtool check rules` before it is merged. Rule files are grouped
+      per service; `platform.rules.yml` belongs to the platform team.
+    alerts/platform.rules.yml: |
+      groups:
+        - name: platform
+          rules:
+            - alert: NodeDiskAlmostFull
+              expr: node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"} < 0.05
+              for: 30m
+              labels:
+                severity: ticket
+                service: platform
+              annotations:
+                summary: "root filesystem below 5% free"
+                runbook_url: https://runbooks.example.internal/docs/runbooks/node-disk.md
+    docs/metrics.md: |
+      # Metric inventory (checkout)
+
+      | Metric | Type | Labels | Scrape |
+      |---|---|---|---|
+      | `http_requests_total` | counter | `app` (`checkout`), `status` (HTTP status code as a string), `route` | every 1m |
+      | `http_request_duration_seconds_bucket` | histogram | `app`, `route`, `le` | every 1m |
+
+      Failures for the availability SLI are responses with a 5xx `status`.
+    docs/runbooks/checkout-slo.md: |
+      ---
+      runbook_id: checkout-slo
+      service_id: checkout
+      status: draft
+      ---
+
+      # Runbook: checkout SLO burn-rate alerts
+
+      Paging alerts on this SLO mean the 30-day error budget is being consumed faster than the
+      service can sustain. Triage: confirm the burn on the SLO dashboard, then check the checkout
+      deploy log and the payment vendor's status before touching capacity.
+checks:
+  - {check: file_exists, path: alerts/checkout-slo.rules.yml, text: "the rules file landed at alerts/checkout-slo.rules.yml"}
+  - {check: changes_within, allowed: ["alerts/checkout-slo.rules.yml", "alerts/checkout-slo.test.yml"], text: "only the new rules file and its optional promtool test changed"}
+  - {check: file_contains, path: alerts/platform.rules.yml, needle: "node_filesystem_avail_bytes{mountpoint=\"/\"} / node_filesystem_size_bytes{mountpoint=\"/\"} < 0.05", text: "the platform rules are untouched"}
+  - {check: skill_loaded, skill: obs-alerting, text: "obs-alerting was loaded for alert design"}
+  - {check: bash_ran, pattern: "promtool", text: "the agent ran promtool itself before handing off"}
+  - {check: no_new_commits, text: "nothing committed"}
+  - {check: no_agents_dir, text: "no .agents/ progress litter"}
+  # --- the skill's contract, evaluated by promtool over synthetic series (added 2026-09-04 for the
+  # obs-alerting trim). The oracle is probe-owned and written after the agent has finished; it is
+  # proven 7/7 on a hand-written three-pair file and 3/7 on a single-window rule.
+  - check: command_exit_zero
+    command: "python probe_alert_rules.py alerts/checkout-slo.rules.yml check"
+    timeout: 600
+    text: "promtool check rules accepts the file"
+    writes:
+      probe_alert_rules.py: |
+        """Probe-owned oracle for Prometheus burn-rate alerting rules written with the obs-alerting skill.
+
+        Usage: python probe_alert_rules.py <rules.yml> <case>
+        Exit 0 when the case holds, 1 with a reason when it does not. The rules are evaluated by the pinned
+        promtool over synthetic series, so the verdicts are about what the rules do, not what they say:
+
+          check                 promtool check rules passes
+          fast-fires            2% errors sustained: a page-severity alert is firing at 75 minutes
+          spike-does-not-page   two clean hours, five minutes at 2%, then clean: nothing fires at 2h05m
+          slow-fires            0.7% errors sustained: a page-severity alert is firing at 6h30m
+          leak-tickets          0.15% errors sustained: a ticket-severity alert is firing at 80h, no page
+          quiet-silent          0.05% errors sustained: nothing fires at 4h
+          shape                 three or more alert rules; each has `for`, severity page or ticket,
+                                service=checkout, and a runbook_url annotation
+
+        The series are http_requests_total{app="checkout", status="200"|"500"}, one sample a minute.
+        """
+        import os
+        import re
+        import subprocess
+        import sys
+        import tempfile
+
+        IMAGE = "prom/prometheus:v3.14.0-distroless@sha256:50c707e96da5ade383cb1707790576480485e93de06aa60ad8802cb5f744bd0a"
+        GOOD = "http_requests_total{app=\"checkout\", status=\"200\"}"
+        BAD = "http_requests_total{app=\"checkout\", status=\"500\"}"
+
+
+        def series(good_per_min: int, bad_per_min: int, minutes: int) -> tuple[str, str]:
+            return f"0+{good_per_min}x{minutes}", f"0+{bad_per_min}x{minutes}"
+
+
+        def concat(*segments: tuple[int, int, int]) -> tuple[str, str]:
+            """Piecewise cumulative counters, one sample a minute: each segment is (good/min, bad/min, minutes).
+            promtool's 'a+bxN' expands to N+1 samples, so every later segment starts one step past the
+            previous one's last value and expands N-1 times."""
+            def piece(rates: list[int], minutes: list[int]) -> str:
+                parts, cur = [], 0
+                for i, (r, m) in enumerate(zip(rates, minutes)):
+                    if i == 0:
+                        parts.append(f"{cur}+{r}x{m}")
+                        cur += r * m
+                    else:
+                        start = cur + r
+                        parts.append(f"{start}+{r}x{m - 1}")
+                        cur = start + r * (m - 1)
+                return " ".join(parts)
+            minutes = [m for _, _, m in segments]
+            return piece([g for g, _, _ in segments], minutes), piece([b for _, b, _ in segments], minutes)
+
+
+        CASES = {
+            # name: (good values, bad values, eval_time, want)
+            # want: ("page", True) a page alert must fire; ("page", False) none may; ("ticket", True) ...
+            "fast-fires": (*series(1000, 20, 100), "75m", [("page", True)]),
+            "spike-does-not-page": (*concat((1000, 0, 60), (1000, 1, 60), (1000, 20, 5), (1000, 0, 30)), "125m", [("page", False), ("ticket", False)]),
+            "slow-fires": (*series(1000, 7, 420), "390m", [("page", True)]),
+            "leak-tickets": (*series(2000, 3, 4900), "4800m", [("ticket", True), ("page", False)]),
+            "quiet-silent": (*series(2000, 1, 260), "240m", [("page", False), ("ticket", False)]),
+        }
+
+
+        def load_rules(path: str) -> list[dict]:
+            import yaml
+            with open(path, encoding="utf-8") as fh:
+                doc = yaml.safe_load(fh) or {}
+            rules = []
+            for group in doc.get("groups") or []:
+                for rule in group.get("rules") or []:
+                    if "alert" in rule:
+                        rules.append(rule)
+            return rules
+
+
+        def promtool(args: list[str], workspace: str) -> subprocess.CompletedProcess:
+            mount = f"{os.path.abspath(workspace)}:/work:ro"
+            cmd = ["docker", "run", "--rm", "--network", "none", "-v", mount, "--entrypoint", "/bin/promtool", IMAGE, *args]
+            env = dict(os.environ, MSYS_NO_PATHCONV="1")
+            return subprocess.run(cmd, capture_output=True, text=True, timeout=600, env=env)
+
+
+        def case_check(rules_path: str) -> str | None:
+            result = promtool(["check", "rules", "/work/" + rules_path.replace(os.sep, "/")], ".")
+            return None if result.returncode == 0 else "promtool check rules failed: " + (result.stdout + result.stderr).strip()[-400:]
+
+
+        def fired(rules_path: str, good: str, bad: str, eval_time: str, alert_names: list[str]) -> tuple[dict[str, list[str]], str]:
+            """Run one promtool unit test expecting nothing to fire; read what did fire from the report."""
+            lines = ["rule_files:", f"  - /work/{rules_path.replace(os.sep, '/')}", "evaluation_interval: 1m", "tests:",
+                     "  - interval: 1m", "    input_series:",
+                     f"      - series: '{GOOD}'", f"        values: '{good}'",
+                     f"      - series: '{BAD}'", f"        values: '{bad}'",
+                     "    alert_rule_test:"]
+            for name in alert_names:
+                lines += [f"      - eval_time: {eval_time}", f"        alertname: {name}", "        exp_alerts: []"]
+            os.makedirs(".probe", exist_ok=True)
+            test_path = os.path.join(".probe", "burn.test.yml")
+            with open(test_path, "w", encoding="utf-8", newline="\n") as fh:
+                fh.write("\n".join(lines) + "\n")
+            result = promtool(["test", "rules", "/work/.probe/burn.test.yml"], ".")
+            out = result.stdout + result.stderr
+            # promtool reports each mismatch as "alertname: X, time: T," then "exp:[...]," then a
+            # multi-line "got:[ ... ]" block; every expectation here is empty, so what it got is what fired.
+            got: dict[str, list[str]] = {}
+            for chunk in re.split(r"\n\s*alertname:\s*", out)[1:]:
+                name = chunk.split(",", 1)[0].strip()
+                got_text = chunk.split("got:", 1)[1] if "got:" in chunk else ""
+                got[name] = re.findall(r'severity="([a-z]+)"', got_text)
+            if result.returncode != 0 and not got:
+                return {}, "promtool test rules failed without a readable report: " + out.strip()[-400:]
+            return got, ""
+
+
+        def case_behaviour(rules_path: str, case: str) -> str | None:
+            good, bad, eval_time, wants = CASES[case]
+            names = [r["alert"] for r in load_rules(rules_path)]
+            if not names:
+                return "no alerting rules found in the file"
+            got, error = fired(rules_path, good, bad, eval_time, names)
+            if error:
+                return error
+            firing = {sev for sevs in got.values() for sev in sevs}
+            unlabelled = [name for name, sevs in got.items() if not sevs]
+            problems = []
+            for severity, must in wants:
+                if must and severity not in firing:
+                    problems.append(f"no {severity}-severity alert is firing at {eval_time} (firing: {sorted(got) or 'none'})")
+                if not must and severity in firing:
+                    problems.append(f"a {severity}-severity alert is firing at {eval_time}: " + ", ".join(n for n, s in got.items() if severity in s))
+            if unlabelled:
+                problems.append("alerts firing without a severity label: " + ", ".join(unlabelled))
+            return "; ".join(problems) if problems else None
+
+
+        def case_shape(rules_path: str) -> str | None:
+            rules = load_rules(rules_path)
+            if len(rules) < 3:
+                return f"{len(rules)} alerting rule(s); three burn-rate pairs need at least three"
+            problems = []
+            severities = []
+            for rule in rules:
+                labels = rule.get("labels") or {}
+                annotations = rule.get("annotations") or {}
+                name = rule.get("alert")
+                if "for" not in rule:
+                    problems.append(f"{name}: no `for` pending period")
+                if labels.get("severity") not in ("page", "ticket"):
+                    problems.append(f"{name}: severity is {labels.get('severity')!r}, not page or ticket")
+                if labels.get("service") != "checkout":
+                    problems.append(f"{name}: service label is {labels.get('service')!r}")
+                url = str(annotations.get("runbook_url") or "")
+                if "checkout-slo" not in url:
+                    problems.append(f"{name}: runbook_url is {url!r}")
+                severities.append(labels.get("severity"))
+            if severities.count("page") < 2 or "ticket" not in severities:
+                problems.append("expected two page-severity pairs and one ticket-severity pair")
+            return "; ".join(problems) if problems else None
+
+
+        def main() -> int:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+            rules_path, case = sys.argv[1], sys.argv[2]
+            if not os.path.isfile(rules_path):
+                print(f"FAIL {case}: {rules_path} does not exist")
+                return 1
+            if case == "check":
+                problem = case_check(rules_path)
+            elif case == "shape":
+                problem = case_shape(rules_path)
+            elif case in CASES:
+                problem = case_behaviour(rules_path, case)
+            else:
+                print(f"FAIL {case}: unknown case; known: check, shape, {', '.join(CASES)}")
+                return 1
+            print(f"{'PASS' if problem is None else 'FAIL'} {case}" + (f": {problem}" if problem else ""))
+            return 0 if problem is None else 1
+
+
+        if __name__ == "__main__":
+            raise SystemExit(main())
+  - check: command_exit_zero
+    command: "python probe_alert_rules.py alerts/checkout-slo.rules.yml shape"
+    timeout: 600
+    text: "three or more rules, each with a pending period, page/ticket severity, service=checkout, and a runbook_url naming checkout-slo"
+  - check: command_exit_zero
+    command: "python probe_alert_rules.py alerts/checkout-slo.rules.yml fast-fires"
+    timeout: 600
+    text: "2% errors sustained: a page-severity alert is firing at 75 minutes"
+  - check: command_exit_zero
+    command: "python probe_alert_rules.py alerts/checkout-slo.rules.yml spike-does-not-page"
+    timeout: 600
+    text: "two clean hours then five minutes at 2%: nothing fires at 2h05m, so the pair is an AND"
+  - check: command_exit_zero
+    command: "python probe_alert_rules.py alerts/checkout-slo.rules.yml slow-fires"
+    timeout: 600
+    text: "0.7% errors sustained: a page-severity alert is firing at 6h30m"
+  - check: command_exit_zero
+    command: "python probe_alert_rules.py alerts/checkout-slo.rules.yml leak-tickets"
+    timeout: 600
+    text: "0.15% errors sustained: a ticket-severity alert is firing at 80h and no page"
+  - check: command_exit_zero
+    command: "python probe_alert_rules.py alerts/checkout-slo.rules.yml quiet-silent"
+    timeout: 600
+    text: "0.05% errors sustained: nothing fires at 4h"
