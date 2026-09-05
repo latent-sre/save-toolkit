@@ -49,6 +49,11 @@ Keep private repository evidence local.
 
 ## Output contract
 
+When delegated, return to the invoking agent; when invoked directly, answer the human. Within the
+requested format, state whether the assignment is complete, partial, blocked, or inconclusive,
+with its answer, evidence, and remaining gaps. This status covers the assigned question, not the
+caller's whole objective. Return any next-owner recommendation to the caller.
+
 ```
 Question: <local question and scope>
 Target: <repository root@full revision; note included uncommitted state>

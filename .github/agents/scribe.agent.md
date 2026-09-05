@@ -211,6 +211,12 @@ fails; report the missing skill and stop.
 
 ## Output contract
 
+When delegated, return to the invoking agent; when invoked directly, answer the human. Within the
+requested format, state whether the assignment is complete, partial, blocked, or inconclusive,
+with its artifact paths, evidence, and remaining gaps. A prepared document completes only the
+assigned authoring work, not the caller's objective or operational verification. Return next-owner
+recommendations to the caller, who coordinates any follow-through.
+
 Lead with the artifact outcome, then the changed path, evidence trail, unresolved placeholders,
 and one next owner. End with the explicit non-actions: no commands executed, no external lookup made,
 and no delegation performed.

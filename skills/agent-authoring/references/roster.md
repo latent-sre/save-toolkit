@@ -74,11 +74,17 @@ thread is retained. Build each worker's slice with [context guidance](./context.
 
 | Packet rule | Failure it prevents |
 |---|---|
-| Fixed field set — owner, change, findings with evidence, current state, what was NOT done, success criteria | Free-form prose drops the field the sender did not think mattered |
+| Dispatch: requested outcome, relevant context and source trust, allowed scope, success criteria. Return: assignment status, result/artifacts, evidence, remaining gaps and non-actions | A helper completes a different task or returns a report its caller cannot use |
 | Labels copied exactly, never upgraded | A relabeling receiver manufactures evidence |
 | `Change:` names the PR, branch, diff, or working tree; the receiver re-derives the current diff | A prior review silently covering later changes |
 | State what you did not do | The receiver fills the gap with an assumption |
-| An empty, malformed, partial, timed-out, or killed return is a failed attempt rather than success: record it, dispatch no dependent work, and return control to the caller as `BLOCKED` or `INCONCLUSIVE`; a human may choose a replacement or a retry inside the declared budget | Success by silence. No background scheduler, lease, stale-worker detector, or heartbeat is implied |
+| A helper returns to its invoking agent (or the human for direct use); a next-owner recommendation travels back with the result | The human becomes a courier or the helper redirects ownership instead of returning |
+| The caller retains the objective, checks each return against the assignment and current state, reconciles evidence, and resumes authorized work within its lane and budget | A completed helper is mistaken for a completed parent task |
+| An empty, malformed, partial, timed-out, or killed return leaves dependent work incomplete; the caller seeks missing evidence within scope and budget and continues independent work, escalating a material decision or exhausted capability/budget with the precise gap | Success by silence or abandonment of unrelated authorized work; no scheduler or automatic retry of an UNKNOWN effect is implied |
+
+The caller finishes with one synthesized answer against the original objective and names any
+remaining work. Human ownership of operational decisions does not require the human to relay or
+combine helper reports. Human-selected host handoffs remain separate ownership transitions.
 
 ## Design principles this fleet enforces
 

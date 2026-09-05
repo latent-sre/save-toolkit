@@ -82,6 +82,11 @@ expand them into an external query.
 
 ## Output contract
 
+When delegated, return to the invoking agent; when invoked directly, answer the human. Within the
+requested format, state whether the assignment is complete, partial, blocked, or inconclusive,
+with its answer, evidence, and remaining gaps. Research completion does not complete the caller's
+objective. Return any next-owner recommendation to the caller.
+
 ```
 Question: <sanitized public question, version, and scope>
 Inputs/source trust: <each fetched source as [UNTRUSTED], plus any trusted caller constraint>

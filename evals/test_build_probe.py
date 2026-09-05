@@ -193,6 +193,41 @@ class WorkspaceAndCheckTests(unittest.TestCase):
         self.assertFalse(build_probe.check_no_task_dispatch(ctx, {"target": "reviewer"})[0])
         self.assertTrue(build_probe.check_no_task_dispatch(ctx, {"target": "scribe"})[0])
 
+    def test_task_completed_requires_exact_successful_target(self) -> None:
+        check = {"check": "task_completed", "target": "scribe"}
+        for completed, attempted, failed, expected in (
+            ([], [], [], False),
+            ([], ["save-toolkit:scribe"], [], False),
+            ([], ["save-toolkit:scribe"], ["save-toolkit:scribe"], False),
+            (["other:scribe"], [], [], False),
+            (["save-toolkit:other-scribe"], [], [], False),
+            (["scribe"], [], [], False),
+            (["save-toolkit:scribe"], ["save-toolkit:scribe"], [], True),
+        ):
+            with self.subTest(completed=completed, attempted=attempted, failed=failed):
+                ctx = _ctx(TINY_SPEC, self.ws, dispatches=attempted)
+                ctx.trace.agents = completed
+                ctx.trace.agents_failed = failed
+                self.assertEqual(expected, build_probe.CHECKS["task_completed"](ctx, check)[0])
+        ctx.trace.runtime_plugins = [{"name": "alternate"}]
+        ctx.trace.agents = ["alternate:scribe"]
+        self.assertTrue(build_probe.CHECKS["task_completed"](ctx, check)[0])
+        self.assertTrue(build_probe.is_regradable(check))
+
+    def test_return_resume_link_check_requires_link_and_existing_target(self) -> None:
+        spec = build_probe.load_scenario(build_probe.SCENARIO_DIR / "build-software-engineer-resumes-after-scribe.yaml")
+        check = next(c for c in spec["checks"] if c["check"] == "command_exit_zero")
+        ctx = _ctx(spec, self.ws)
+        index = self.ws.repo / "README.md"
+        index.write_text("[Check](docs/runbooks/check.md)\n", encoding="utf-8")
+        self.assertFalse(build_probe.check_command_exit_zero(ctx, check)[0])
+        target = self.ws.repo / "docs/runbooks/check.md"
+        target.parent.mkdir(parents=True)
+        target.write_text("# Check\n", encoding="utf-8")
+        self.assertTrue(build_probe.check_command_exit_zero(ctx, check)[0])
+        index.write_text("docs/runbooks/check.md\n[Other](docs/runbooks/missing.md)\n", encoding="utf-8")
+        self.assertFalse(build_probe.check_command_exit_zero(ctx, check)[0])
+
     def test_writes_from_stages_the_oracle_file_and_refuses_to_escape(self) -> None:
         ctx = _ctx(TINY_SPEC, self.ws)
         rel = "evals/oracles/scribe-runbook/probe_runbook_slots.py"

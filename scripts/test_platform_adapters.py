@@ -114,6 +114,19 @@ class PlatformAdapterTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "explicit target allowlist"):
                 adapters.render_copilot_agent(source)
 
+    def test_delegation_requires_exact_plugin_namespace(self) -> None:
+        source = ROOT / "agents/software-engineer.md"
+        for spec in ("Agent(reviewer)", "Agent(other:reviewer)", "Agent(save-toolkit:*)",
+                     "Agent(save-toolkit:reviewer,)", "Agent(save-toolkit:reviewer:extra)",
+                     "Agent(save-toolkit:reviewer, save-toolkit:reviewer)"):
+            with self.subTest(spec=spec), self.assertRaises(ValueError):
+                adapters._delegation_targets([spec], source)
+        self.assertEqual(
+            ["reviewer", "scribe", "researcher"],
+            adapters._delegation_targets(
+                ["Agent(save-toolkit:reviewer, save-toolkit:scribe, save-toolkit:researcher)"], source),
+        )
+
     def test_copilot_agents_offer_the_current_roster_handoff_graph(self) -> None:
         expected_targets = {
             "agent-engineer": [],

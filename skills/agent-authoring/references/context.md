@@ -23,9 +23,10 @@ easiest places to silently upgrade a label.
 Thin agent bodies, on-demand detail, isolated bounded work, and compact evidence packets keep
 context deliberate; apply them before reaching for a bigger model or a longer prompt. A cold-start
 packet contains intent, exact source/SHA or state, success criteria, allowed scope, source trust,
-open unknowns, and the requested return schema. It returns findings with evidence, source trust,
-current state, open unknowns, and retained [verified], [sourced], [unverified], and [UNTRUSTED]
-markers.
+open unknowns, and the requested return shape. The helper returns assignment status, result or
+artifact paths, evidence, source trust, current state, remaining gaps, and retained [verified],
+[sourced], [unverified], and [UNTRUSTED] markers to its caller. The caller retains the original
+objective and pending work outside that slice, assesses the return, and resumes within its authority.
 
 ## Handoffs
 

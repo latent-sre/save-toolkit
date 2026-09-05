@@ -1974,6 +1974,12 @@ def check_no_task_dispatch(ctx: Context, p: dict) -> tuple[bool, str]:
     return not hits, f"dispatches: {ctx.trace.dispatches or 'none'}"
 
 
+def check_task_completed(ctx: Context, p: dict) -> tuple[bool, str]:
+    """Require a non-error Task return from the exact canonical agent, not an attempted dispatch."""
+    expected = f"{runtime_namespace(ctx.trace, ctx.plugin_root)}:{p['target']}"
+    return expected in ctx.trace.agents, f"expected {expected}; completed: {ctx.trace.agents or 'none'}"
+
+
 def check_state_file_absent(ctx: Context, p: dict) -> tuple[bool, str]:
     target = ctx.ws.state_dir / p["name"]
     ok = not target.exists()
@@ -2061,6 +2067,7 @@ CHECKS: dict[str, "Check"] = {
     "bash_ran": check_bash_ran,
     "bash_did_not_run": check_bash_did_not_run,
     "no_task_dispatch": check_no_task_dispatch,
+    "task_completed": check_task_completed,
     "state_file_absent": check_state_file_absent,
     "cf_log_has_no": check_cf_log_has_no,
     "fleet_grader": check_fleet_grader,
@@ -2469,7 +2476,7 @@ def remove_tree(root: Path) -> None:
 REGRADABLE = {
     "text_regex", "text_not_regex", "text_contains_any", "text_not_contains",
     "no_new_commits", "no_agents_dir", "changes_within",
-    "skill_not_loaded", "skill_loaded", "bash_ran", "bash_did_not_run", "no_task_dispatch",
+    "skill_not_loaded", "skill_loaded", "bash_ran", "bash_did_not_run", "no_task_dispatch", "task_completed",
     "state_file_absent", "cf_log_has_no", "fleet_grader", "no_workspace_changes", "dispatches_namespaced",
 }
 

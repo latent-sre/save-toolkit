@@ -1,0 +1,44 @@
+id: build-software-engineer-resumes-after-scribe
+agent: software-engineer
+prompt: |
+  Add a health-check runbook and make it discoverable from README.md in this reviewed,
+  team-authored repository. Delegate only docs/runbooks/check.md to scribe, using the evidence
+  below and the runbook template. Scribe must not edit README.md. When the helper returns,
+  integrate its returned runbook path into README.md yourself and verify the relative link
+  resolves. Finish both parts; do not commit. Keep changes inside README.md and docs/.
+
+  This is fictional, resolved-incident documentation. No live system or network access is
+  needed. Supplied observation OBS-17: the service owner ran `python app/check.py` at
+  2026-09-04 09:45 UTC from the repository root. It exited 0 and printed `status=ready`.
+  The command only reads local application readiness and has no state-changing effects.
+  A different output or nonzero exit means readiness is unknown: stop this check and ask the
+  service owner to investigate; no restart or other mitigation is established by this packet.
+  Owner: fictional service on-call role. User impact and escalation contact are not supplied;
+  record those gaps. Supply this evidence and your bounded assignment to the helper.
+  You may use local file reads and local Python checks to validate the documentation/link.
+  Leave application code untouched. Do not install dependencies or run cloud, deployment,
+  network, or service-management commands.
+fixture:
+  files:
+    README.md: |
+      # Sample readiness check
+
+      Application source lives in app/. Operational documentation belongs in docs/.
+    app/check.py: |
+      """Local readiness fixture; no external effects."""
+      print("status=ready")
+    docs/README.md: |
+      # Operations
+
+      Runbooks belong in runbooks/.
+checks:
+  - {check: task_completed, target: scribe, text: "scribe returned a completed non-error Task result"}
+  - {check: file_exists, path: docs/runbooks/check.md, text: "the delegated runbook exists"}
+  - {check: file_contains, path: docs/runbooks/check.md, needle: "python app/check.py", text: "the runbook carries the supplied read command"}
+  - {check: file_contains, path: docs/runbooks/check.md, needle: "status=ready", text: "the runbook carries the observed success output"}
+  - {check: changes_within, allowed: ["README.md", "docs/"], text: "application code remained unchanged"}
+  - {check: no_new_commits, text: "nothing committed"}
+  - check: command_exit_zero
+    command: >-
+      python -c "import pathlib,re; p=pathlib.Path('README.md'); links=re.findall(r'\]\(([^)]+)\)',p.read_text(encoding='utf-8')); target=pathlib.Path('docs/runbooks/check.md'); assert any((p.parent/x).resolve()==target.resolve() and (p.parent/x).is_file() for x in links)"
+    text: "the parent-facing README contains a resolving Markdown link to the delegated runbook"

@@ -63,6 +63,14 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Clarified delegated work as a return-and-resume loop: helpers report assignment status, results,
+  evidence, and gaps to their caller; callers assess and combine returns, retain the original
+  objective, and continue authorized work. The incident advisor resumes after a bounded evidence
+  slice; the human retains operational decisions. Partial returns leave dependent work incomplete
+  without stopping independent work. Qualified the existing Claude delegation targets with the
+  plugin namespace after a live probe found bare grants admitted no child on CLI 2.1.261; the
+  allowed graph and human-selected host handoffs are unchanged. Verification is recorded in
+  [the return-loop evidence](docs/reviews/2026-09-04-delegation-return-loop.md).
 - Twenty-four P2 rows of the 2026-09-04 fleet rescan, in six commits. Agent bodies: the fenced
   handoff-packet template and six-bullet Rules list in four bodies become the paragraph form
   `sre-assistant` already used (the two delegating lanes keep a byte-identical `## Rules`

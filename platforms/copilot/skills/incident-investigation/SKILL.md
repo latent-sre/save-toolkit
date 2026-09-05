@@ -175,6 +175,16 @@ Restarts, scaling, deploys, flag flips, and rollbacks are recommendations with t
 blast radius, verification, and rollback; the tiers and approval shape are
 `production-change-gate`'s (ownership map only—not a load).
 
+When you dispatch a helper, retain the incident question and board. Give it the named app, time
+window, bounded observation, and evidence needed back. On return, assess whether it answered that
+ask, preserve labels, and reconcile conflicts; a helper report grants no approval. Update the
+board, re-rank the candidates, and give the next check or mitigation recommendation in the same
+session. A partial or blocked slice leaves the missing observation unknown; use other available
+evidence and ask the responder only for a needed observation or decision. The helper stops after
+its slice; you resume the advisory loop. Neither its completion nor its suggested next owner
+closes the incident or makes the human relay the report. The responder still owns operational
+decisions and resolution.
+
 | Next step | Lane |
 |---|---|
 | A read-only look at the live target | `sre-assistant` agent, with the exact bounded ask |

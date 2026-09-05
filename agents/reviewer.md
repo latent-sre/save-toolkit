@@ -77,6 +77,12 @@ Skip anything a formatter or linter catches. Comment on style only when style hi
 
 ## Output format
 
+When delegated, return your review to the invoking agent; when invoked directly, answer the human.
+Within the requested format, state whether the review assignment is complete, partial, blocked,
+or inconclusive, with its evidence and gaps. Assignment completion is separate from the merge
+verdict: a complete review may request changes. The caller owns follow-through on the original
+task; return recommended next owners to it without dispatching them yourself.
+
 ```
 [P1] (confidence: high) [independent] src/auth/session.ts:47 — finding. Why it matters. Suggested fix.
 ```

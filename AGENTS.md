@@ -68,7 +68,10 @@ The last column is the enforced Claude delegation graph; VS Code handoffs are se
   and folders under its [complete agent-body dashboard-write rule](agents/observability-engineer.md#change-authority).
   If any required step cannot be completed, hand off without applying.
 - **Handoffs:** one owner, scoped state, preserved labels and taint, named unknowns, stated
-  non-actions.
+  non-actions. A delegated helper returns to its caller with assignment status, result, evidence,
+  and remaining gaps. The calling agent retains the original objective, assesses the return, and
+  continues authorized work; helper completion does not complete the parent task. A human-selected
+  ownership handoff is a separate transition.
 - **Learning:** only an invoked operational closeout turns a discovery into repository state; the
   originating agent never approves it.
 - Lead with the conclusion, then evidence and next steps. Use blameless language for incidents.

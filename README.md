@@ -92,7 +92,9 @@ agents/ + skills/ (canonical)
 - An **agent** owns a lane with a distinct prompt, tool posture, and return contract.
 - A **skill** adds a method or checklist without changing the current owner.
 - **Model delegation** uses the host's subagent tool to give a bounded task to a named child, which
-  returns its result to the caller. Canonical Claude `Agent(target, ...)` grants become VS Code's
+  returns its result to the caller. The calling agent checks that result against the assignment,
+  combines the evidence, and continues the original task within its authority; the human need not
+  relay reports between helpers. Canonical Claude `Agent(save-toolkit:target, ...)` grants become VS Code's
   `agent` tool plus the parent's `agents:` allowlist.
 - A VS Code **handoff** is a separate human-selected ownership transition from `handoffs:`. It keeps
   relevant conversation context but does not grant approval or model-delegation authority.

@@ -20,6 +20,7 @@ from pathlib import Path
 import fleet_frontmatter
 
 
+PLUGIN_NAME = "save-toolkit"
 COPILOT_AGENTS = Path(".github/agents")
 COPILOT_SKILLS = Path("platforms/copilot/skills")
 GENERATED_ROOTS = (COPILOT_AGENTS, COPILOT_SKILLS)
@@ -181,7 +182,7 @@ IDENTITY_FIELDS = (
 PLUGIN_BANNER_RE = re.compile(
     r"^> \*\*Plugin addressing:\*\*(?:.*\n)+?\n", re.MULTILINE
 )
-PLUGIN_TOKEN_RE = re.compile(r"(?<![A-Za-z0-9_-])save-toolkit:(?=[a-z0-9])")
+PLUGIN_TOKEN_RE = re.compile(rf"(?<![A-Za-z0-9_-]){re.escape(PLUGIN_NAME)}:(?=[a-z0-9])")
 # Both spellings of the runtime root: `${CLAUDE_PLUGIN_ROOT}` for POSIX shells, and
 # `$env:CLAUDE_PLUGIN_ROOT` for PowerShell fences, where the braced form is a shell variable rather
 # than the process environment. A spelling missed here survives into the Copilot projection as a
@@ -266,7 +267,7 @@ def _tool_base(spec: str) -> str:
 
 
 def _delegation_targets(specs: list[str], source: Path) -> list[str] | None:
-    """Translate canonical ``Agent(target, ...)`` grants into a Copilot allowlist.
+    """Translate exact plugin-qualified ``Agent(plugin:target, ...)`` grants to bare Copilot names.
 
     Omitting Copilot's ``agents:`` field allows every eligible subagent, so a canonical Agent
     grant must never degrade to an unscoped ``agent`` tool. Canonical validation independently
@@ -283,8 +284,9 @@ def _delegation_targets(specs: list[str], source: Path) -> list[str] | None:
         if match is None:
             raise ValueError(f"{source}: Agent tool must declare an explicit target allowlist")
         for target in (item.strip() for item in match.group(1).split(",")):
-            if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", target):
+            if not re.fullmatch(rf"{re.escape(PLUGIN_NAME)}:[a-z0-9]+(?:-[a-z0-9]+)*", target):
                 raise ValueError(f"{source}: invalid Agent target {target!r}")
+            target = target.removeprefix(f"{PLUGIN_NAME}:")
             if target in targets:
                 raise ValueError(f"{source}: duplicate Agent target {target!r}")
             targets.append(target)
@@ -594,6 +596,8 @@ def validate_platform_contracts(root: Path) -> list[str]:
             failures.append(str(exc))
     if len(manifests) == len(paths):
         claude, copilot = manifests
+        if claude.get("name") != PLUGIN_NAME:
+            failures.append(f"{paths[0]}: name must match adapter PLUGIN_NAME {PLUGIN_NAME!r}")
         if "$schema" in copilot:
             failures.append(
                 "plugin.json: selector-based Copilot format must not declare $schema without "

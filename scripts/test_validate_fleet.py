@@ -386,7 +386,7 @@ class FleetValidatorTests(unittest.TestCase):
                 if source.name == "scribe.md":
                     text = text.replace(
                         "tools: Read, Grep, Glob, Edit, Write, Skill",
-                        "tools: Read, Grep, Glob, Edit, Write, Skill, Bash, WebSearch, Agent(researcher)",
+                        "tools: Read, Grep, Glob, Edit, Write, Skill, Bash, WebSearch, Agent(save-toolkit:researcher)",
                     )
                 (root / "agents" / source.name).write_text(text, encoding="utf-8")
             _, failures = validate_fleet.validate_agents(root)
@@ -452,7 +452,7 @@ class FleetValidatorTests(unittest.TestCase):
                 text = source.read_text(encoding="utf-8")
                 if source.name == "software-engineer.md":
                     text = text.replace(
-                        "Agent(reviewer, scribe, researcher)", "Agent(does-not-exist)"
+                        "Agent(save-toolkit:reviewer, save-toolkit:scribe, save-toolkit:researcher)", "Agent(save-toolkit:does-not-exist)"
                     )
                 (root / "agents" / source.name).write_text(text, encoding="utf-8")
             _, failures = validate_fleet.validate_agents(root)
@@ -502,7 +502,7 @@ class FleetValidatorTests(unittest.TestCase):
                 text = source.read_text(encoding="utf-8")
                 if source.name == "software-engineer.md":
                     text = text.replace(
-                        "Agent(reviewer, scribe, researcher)", "Agent(reviewer)"
+                        "Agent(save-toolkit:reviewer, save-toolkit:scribe, save-toolkit:researcher)", "Agent(save-toolkit:reviewer)"
                     )
                 (root / "agents" / source.name).write_text(text, encoding="utf-8")
             _, failures = validate_fleet.validate_agents(root)
@@ -511,10 +511,16 @@ class FleetValidatorTests(unittest.TestCase):
     def test_sre_postincident_delegation_edges_are_rejected(self) -> None:
         failures = self._agents_with_mutation(
             "sre-assistant.md",
-            "Agent(researcher)",
-            "Agent(observability-engineer, scribe, researcher)",
+            "Agent(save-toolkit:researcher)",
+            "Agent(save-toolkit:observability-engineer, save-toolkit:scribe, save-toolkit:researcher)",
         )
         self.assertIn("delegation mismatch", "\n".join(failures))
+
+    def test_bare_plugin_delegation_is_rejected(self) -> None:
+        failures = self._agents_with_mutation(
+            "sre-assistant.md", "Agent(save-toolkit:researcher)", "Agent(researcher)",
+        )
+        self.assertIn("invalid Agent target 'researcher'", "\n".join(failures))
 
     def _agents_with_mutation(self, filename: str, before: str, after: str) -> list[str]:
         """Copy the agent tree, apply one substitution to one file, return failures."""

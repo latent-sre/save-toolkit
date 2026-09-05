@@ -71,10 +71,17 @@ workspace filename to a file under [`oracles/`](oracles) so an oracle long enoug
 stays reviewable, runnable, and inside the `evals_python_lines` ceiling — which now counts the four
 Python oracles there, but not the TSX one, since it counts `*.py` only.
 
-**The standing regression** is the ten build probes plus the eleven contract scenarios carrying
+**The standing regression** comprises the build probes and the contract scenarios carrying
 `split: regression`. A skill's routing positive is a **description-change check** — run it when that
 skill's own description changes. `--split` is not wired into the runner's selection; use
 `--scenario <id>` or run everything.
+
+The return-and-resume cases separate two boundaries: the `agent-direct-...helper-return` and
+`agent-direct-...partial-slice-to-caller` scenarios grade supplied-state decisions; the
+[`scribe return build probe`](build-scenarios/build-software-engineer-resumes-after-scribe.yaml)
+requires a completed child call and the integrated runbook/README artifacts. Its automated checks
+do not identify who edited the README or when; inspect the raw trace before claiming that the
+parent resumed after the child returned.
 
 Agent-target routing is **calibration-only**: main-session dispatch is a model and host propensity,
 not a fleet contract (on 2026-08-22 Opus 5 dispatched 0/3 where Sonnet did 3/3). Record the model
