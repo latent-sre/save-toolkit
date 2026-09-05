@@ -36,6 +36,16 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertEqual(sorted(validate_fleet.EXPECTED_AUTHORITY), sorted(names))
         self.assertEqual([], failures)
 
+    def test_agent_return_templates_keep_recipient_status_and_parent_separate(self) -> None:
+        """Catch removal of return slots, not just loss of prose mentioning them."""
+        slots = ("Returning to", "Assignment", "Parent objective", "Caller next step")
+        for name in validate_fleet.EXPECTED_AUTHORITY:
+            body = (ROOT / "agents" / f"{name}.md").read_text(encoding="utf-8")
+            templates = "\n".join(re.findall(r"```[^\n]*\n(.*?)```", body, re.DOTALL))
+            for slot in (*slots, "Human operational owner" if name == "sre-assistant" else "Human owner"):
+                with self.subTest(agent=name, slot=slot):
+                    self.assertRegex(templates, rf"(?m)^{re.escape(slot)}: <[^\n]+>")
+
     def test_builder_agent_uses_software_engineer_identity(self) -> None:
         path = ROOT / "agents/software-engineer.md"
         self.assertTrue(path.is_file())
@@ -386,7 +396,7 @@ class FleetValidatorTests(unittest.TestCase):
                 if source.name == "scribe.md":
                     text = text.replace(
                         "tools: Read, Grep, Glob, Edit, Write, Skill",
-                        "tools: Read, Grep, Glob, Edit, Write, Skill, Bash, WebSearch, Agent(researcher)",
+                        "tools: Read, Grep, Glob, Edit, Write, Skill, Bash, WebSearch, Agent(save-toolkit:researcher)",
                     )
                 (root / "agents" / source.name).write_text(text, encoding="utf-8")
             _, failures = validate_fleet.validate_agents(root)
@@ -394,13 +404,15 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertIn("forbidden tool(s): Agent, Bash, WebSearch", rendered)
         self.assertIn("delegation mismatch", rendered)
 
-    def test_scribe_returns_runbook_link_to_observability_owner(self) -> None:
+    def test_scribe_returns_runbook_link_to_caller_and_preserves_alert_owner(self) -> None:
         _, body, _ = validate_fleet.adapters.parse_frontmatter(ROOT / "agents/scribe.md")
         self.assertNotIn("and link it from the alert", body)
         self.assertIn(
-            "Return the exact runbook path or URL and alert name to `observability-engineer`",
+            "Return the exact runbook path or URL and any alert name to the invoking caller",
             body,
         )
+        self.assertIn("recommend `observability-engineer` to that caller", body)
+        self.assertIn("only that owner updates the definition", body)
 
     def test_runbook_template_does_not_upgrade_last_verified_without_evidence(self) -> None:
         template = (ROOT / "skills/runbook/assets/runbook-template.md").read_text(
@@ -452,7 +464,7 @@ class FleetValidatorTests(unittest.TestCase):
                 text = source.read_text(encoding="utf-8")
                 if source.name == "software-engineer.md":
                     text = text.replace(
-                        "Agent(reviewer, scribe, researcher)", "Agent(does-not-exist)"
+                        "Agent(save-toolkit:reviewer, save-toolkit:scribe, save-toolkit:researcher)", "Agent(save-toolkit:does-not-exist)"
                     )
                 (root / "agents" / source.name).write_text(text, encoding="utf-8")
             _, failures = validate_fleet.validate_agents(root)
@@ -502,7 +514,7 @@ class FleetValidatorTests(unittest.TestCase):
                 text = source.read_text(encoding="utf-8")
                 if source.name == "software-engineer.md":
                     text = text.replace(
-                        "Agent(reviewer, scribe, researcher)", "Agent(reviewer)"
+                        "Agent(save-toolkit:reviewer, save-toolkit:scribe, save-toolkit:researcher)", "Agent(save-toolkit:reviewer)"
                     )
                 (root / "agents" / source.name).write_text(text, encoding="utf-8")
             _, failures = validate_fleet.validate_agents(root)
@@ -511,10 +523,16 @@ class FleetValidatorTests(unittest.TestCase):
     def test_sre_postincident_delegation_edges_are_rejected(self) -> None:
         failures = self._agents_with_mutation(
             "sre-assistant.md",
-            "Agent(researcher)",
-            "Agent(observability-engineer, scribe, researcher)",
+            "Agent(save-toolkit:researcher)",
+            "Agent(save-toolkit:observability-engineer, save-toolkit:scribe, save-toolkit:researcher)",
         )
         self.assertIn("delegation mismatch", "\n".join(failures))
+
+    def test_bare_plugin_delegation_is_rejected(self) -> None:
+        failures = self._agents_with_mutation(
+            "sre-assistant.md", "Agent(save-toolkit:researcher)", "Agent(researcher)",
+        )
+        self.assertIn("invalid Agent target 'researcher'", "\n".join(failures))
 
     def _agents_with_mutation(self, filename: str, before: str, after: str) -> list[str]:
         """Copy the agent tree, apply one substitution to one file, return failures."""

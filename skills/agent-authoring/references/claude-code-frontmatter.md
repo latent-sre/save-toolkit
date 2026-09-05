@@ -25,6 +25,11 @@ either inert in a plugin or decided against below.
 | `hooks`, `mcpServers`, `permissionMode` | Plugin-packaged agents **ignore** all three (probed). The fleet ships `hooks/hooks.json` session-wide, self-scoped to exact guarded `agent_type` values; canonical frontmatter containing `hooks` fails validation |
 | `disallowedTools`, `skills`, `maxTurns`, `memory`, `background`, `effort`, `isolation`, `color`, `initialPrompt` | Real on the platform, unused here. `skills:` preloads full skill content at startup — prefer it over `Skill` in `tools` if an agent ever needs a skill every run, and never list a `disable-model-invocation: true` skill. `maxTurns` and `memory` are decided against below |
 
+Canonical plugin delegation grants use full names: `Agent(save-toolkit:reviewer, save-toolkit:scribe)`.
+Bare targets do not match plugin agent identities on the probed Claude Code 2.1.261 host; the
+generator projects the same targets to bare Copilot names. The delegation-graph reference owns the
+probe boundary and the validator rejects unqualified or foreign-plugin grants.
+
 ## Skills
 
 Precedence for same-named non-namespaced skills is the **reverse** of agents — a personal skill

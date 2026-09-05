@@ -22,10 +22,11 @@ easiest places to silently upgrade a label.
 
 Thin agent bodies, on-demand detail, isolated bounded work, and compact evidence packets keep
 context deliberate; apply them before reaching for a bigger model or a longer prompt. A cold-start
-packet contains intent, exact source/SHA or state, success criteria, allowed scope, source trust,
-open unknowns, and the requested return schema. It returns findings with evidence, source trust,
-current state, open unknowns, and retained [verified], [sourced], [unverified], and [UNTRUSTED]
-markers.
+packet names the invoking caller and human owner separately, intent, source/state, success criteria,
+scope, source trust, unknowns and [return fields](./roster.md#handoffs-between-contexts). Preserve
+targets, windows, observed values and [verified], [sourced], [unverified], [UNTRUSTED] markers.
+Missing chronology or current state stays unknown. The caller retains pending work, checks the
+return against its evidence, and resumes within its authority.
 
 ## Handoffs
 

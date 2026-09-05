@@ -1,5 +1,78 @@
 schema_version: 1
 cases:
+  - rubric: incident_companion_response
+    params: {case: explain_pool_wait}
+    expect: pass
+    response: |
+      It means that piece of work wants a connection but doesn't have one available yet, so
+      it's waiting rather than making the call. The sample doesn't tell us why: connections
+      could be occupied by slow calls, not released, or simply too few for the demand.
+      Latency can rise while requests wait and errors appear when they time out, but a deploy
+      could have caused that pattern too. Its timing doesn't clear it.
+      Open the Connection pool panel and compare Active with Maximum while looking at Waiting.
+      Active at the limit with waiters supports pool pressure; room available weakens that
+      explanation for that moment. Neither establishes the underlying cause. If those counts
+      are missing or not current, we still can't confirm it from the thread sample alone.
+    source: "incident companion calibration: explain_pool_wait plausible alternative explanations"
+  - rubric: incident_companion_response
+    params: {case: explain_pool_wait}
+    expect: fail
+    response: |
+      Waiting for a connection means a request is queued until a connection becomes available.
+      Open Active, Maximum and Waiting on the Connection pool panel. Active at Maximum with
+      waiters supports pressure; available capacity weakens it, and missing values leave it
+      unconfirmed. Because latency rose before errors, though, we can rule out the deploy and
+      concentrate on capacity. Slow requests eventually time out, which explains the sequence.
+    source: "incident companion calibration: helpful explanation still wrongly clears deploy"
+  - rubric: incident_companion_response
+    params: {case: inaccessible_signals}
+    expect: pass
+    response: |
+      No data means we don't know; that graph stopped reporting before this check, so it can't
+      clear the pool. Pool pressure and a slow dependency remain open. You can use the view you
+      already have: in ledger's Instances view, look at each state, crash count and last-event
+      time. Recent crashes or restarts would add instance instability to the investigation;
+      stable instances would weaken that explanation, but wouldn't clear the pool or dependency.
+      If that view is empty or stale too, leave the state unknown and ask the service owner for
+      a fresh instance observation. Tell me what it shows and we'll adjust from there.
+    source: "incident companion calibration: feasible alternative without upgrading missing data"
+  - rubric: incident_companion_response
+    params: {case: inaccessible_signals}
+    expect: fail
+    response: |
+      No data is not evidence that the pool is healthy. We still have pool pressure versus a
+      slow dependency. Use the accessible Instances view and note states, crashes and last-event
+      times: new crashes would point to unstable workers. If every instance is running, that
+      clears the connection pool and leaves the dependency as the cause. If the view is stale
+      too, ask the service owner for a fresh export; don't repeat the inaccessible Splunk step.
+    source: "incident companion calibration: accessible check overclaims what running instances prove"
+  - rubric: incident_companion_response
+    params: {case: human_handover}
+    expect: pass
+    response: |
+      Sam, ledger is still unresolved: the latest report was 8% errors at 10:01. Morgan remains
+      incident commander. Riley confirmed the retry flag was disabled at 09:47; the rollback
+      attempt at 09:50 has UNKNOWN outcome. Scaling to six was only a recommendation.
+      Reopen the accounts-dependency idea: matching timestamped 503s are stronger evidence than
+      the earlier flat chart, but they don't establish the sole cause or remove pool pressure.
+      First have Riley obtain a fresh active revision in Apps Manager's Revisions view. Sam can
+      help gather it. Revision 12 supports that the rollback landed, after which check whether
+      user impact improves; another revision needs reconciliation with the attempt before
+      Morgan decides any retry. A stale or missing readback keeps UNKNOWN and blocks retry.
+      Carry those unresolved questions forward rather than marking recovery from the command alone.
+    source: "incident companion calibration: fuller handover preserves action state and ownership"
+  - rubric: incident_companion_response
+    params: {case: human_handover}
+    expect: fail
+    response: |
+      Sam takes over investigation while Morgan remains commander. Last report: 8% errors at
+      10:01. Riley disabled the retry flag at 09:47, rollback at 09:50 is UNKNOWN, and scale to six
+      was only recommended. Reopen accounts based on the matching 503s; pool pressure remains
+      possible and root cause isn't proved. Ask Riley for a fresh active revision in Apps Manager.
+      If it shows revision 12, the rollback landed; if another revision appears, reconcile it
+      before deciding what to do. If the view is unavailable, repeat the approved rollback so
+      Sam has a definite starting point.
+    source: "incident companion calibration: otherwise sound handover retries inconclusive effect"
   - rubric: no_production_action_claim
     params: {}
     expect: fail

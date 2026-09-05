@@ -1,7 +1,7 @@
 # The delegation and handoff graphs
 
 The fleet has two directed graphs over the eight canonical agents. A model-call edge `A → B` is an
-`Agent(B)` grant in `A`'s canonical `tools:` frontmatter and becomes Copilot `agents:` metadata. A
+`Agent(save-toolkit:B)` grant in `A`'s canonical `tools:` frontmatter and becomes Copilot `agents:` metadata. A
 VS Code handoff edge is a separate human-selected ownership transition emitted only by the Copilot
 generator. This file owns their distinction and change procedures.
 
@@ -16,7 +16,7 @@ generator. This file owns their distinction and change procedures.
 
 | Copy | Where | Status |
 |---|---|---|
-| Source | `Agent(target, …)` grants in `agents/<name>.md` | Enforced by Claude on the main thread; carried into host adapters; `validate_fleet.py` fails Gate A on a missing target or a set that differs from the pinned expectation |
+| Source | `Agent(save-toolkit:target, …)` grants in `agents/<name>.md` | Enforced by Claude on the main thread; carried into host adapters; `validate_fleet.py` fails Gate A on a bare/foreign target or a set that differs from the pinned expectation |
 | Expectation | `EXPECTED_DELEGATION` in `validate_fleet.py` | Pinned in code; an edge change without it fails the source check |
 | Render | The "Delegates to" column of the roster table in `AGENTS.md` | Validated by `validate_roster_graph` against the expectation; the roster table *is* the edge list — never re-tabulate edges elsewhere |
 | VS Code model-call projection | `tools: [agent]` plus `agents:` in `.github/agents/*.agent.md` | Generated from the canonical grant and byte-checked |
@@ -34,6 +34,11 @@ Read the current edges from the validated roster table, not from memory.
 | Terminal for model calls | `reviewer`, `repository-investigator`, `scribe` | No `Agent` grant, so the model cannot dispatch onward; a user may still select a declared VS Code handoff, which starts a new owner without giving the source delegation authority |
 
 ## The honest limit
+
+Plugin targets in the Claude grant need their namespace. On Claude Code 2.1.261 a bare
+`Agent(child)` admitted no plugin child, while `Agent(return-probe:child)` returned successfully
+in the same isolated probe. The generator removes only this plugin's namespace for Copilot's
+bare `agents:` names; it does not widen the allowed target set.
 
 Canonical Claude `Agent(target)` enforces an edge only for a main-thread agent; at subagent depth
 the list is silently ignored (probed; see

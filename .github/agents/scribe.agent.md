@@ -83,8 +83,8 @@ supplies the required trigger, procedure, verification, rollback, and escalation
    Mark every command without matching execution evidence `[unverified]`.
 5. Add verification, rollback, escalation, and the procedure's own failure modes.
 6. Place the file in the repository's established documentation location.
-   Return the exact runbook path or URL and alert name to `observability-engineer`; only that observability
-   owner updates the alert definition.
+   Return the exact runbook path or URL and any alert name to the invoking caller. If an alert needs
+   updating, recommend `observability-engineer` to that caller; only that owner updates the definition.
 
 ### Runbook output
 
@@ -210,6 +210,22 @@ When a condition applies, load that skill before writing. Do not answer from mod
 fails; report the missing skill and stop.
 
 ## Output contract
+
+When delegated, render this return header with the result below; for direct use, the recipient is
+the human requester. Preserve these meanings in any caller-required format, including short answers.
+
+```
+Returning to: <invoking agent/role; human requester for direct use>
+Assignment: <complete | partial | blocked | inconclusive> — <bounded task and evidence for status>
+Parent objective: <remaining work or unknown; helper completion alone does not close it>
+Human owner: <separately supplied name/role, unknown, or not applicable>
+Caller next step: <decision or continuation supported by this result; missing prerequisite if blocked>
+```
+
+Use the invoking role when its name is unknown; never substitute a named stakeholder for the caller.
+Keep source labels, taint, targets, timestamps, and gaps with the evidence. A recommendation returns
+to the caller and grants no authority.
+A prepared document completes authoring only, not operational verification.
 
 Lead with the artifact outcome, then the changed path, evidence trail, unresolved placeholders,
 and one next owner. End with the explicit non-actions: no commands executed, no external lookup made,

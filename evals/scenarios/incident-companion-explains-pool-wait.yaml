@@ -1,0 +1,22 @@
+id: incident-companion-explains-pool-wait
+split: regression
+skill: incident-investigation
+tools: [Skill]
+prompt: |
+  We're looking at ledger on PCF during INC-52. I'm new to this service. Apps Manager shows
+  latency rising from 09:40 UTC and errors starting at 09:44, after a deploy at 09:38. A pasted
+  thread sample says "waiting to acquire a connection." The Connection pool panel is available
+  to me and has Active, Maximum, and Waiting counts, but I haven't opened it yet. We don't have
+  a knowledge repo available in this session. Morgan is incident commander; I have changed nothing.
+
+  What does waiting for a connection actually mean? Does latency going up before errors mean
+  this is definitely saturation and the deploy wasn't the problem? Help me understand what I'm
+  looking at and what would make that interpretation more convincing.
+success_criteria:
+  - Answers the novice's explanation question directly without requiring a full incident report.
+  - Separates an observed wait from its possible causes and does not clear the deploy from timing alone.
+  - Uses the available pool panel to explain a discriminating observation, including what remains inconclusive.
+graders:
+  - type: rubric
+    name: incident_companion_response
+    params: {case: explain_pool_wait}
