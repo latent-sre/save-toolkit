@@ -63,6 +63,10 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Restored explicit helper return fields across all eight agents and caller continuation checks;
+  separated SRE observation timestamps from untimed aggregates and corrected scribe's fixed return
+  recipient. See the [handoff repair evidence](docs/reviews/2026-09-05-handoff-contract-repair.md).
+
 - Restored five selected guidance areas: task-fit backend contracts, a conditional human-facing
   systemic-investigation method, a compact `operator-cli` skill, dependency-based coordination
   choices, and assignment-scoped SRE-helper completion. Existing contracts and human production

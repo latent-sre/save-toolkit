@@ -36,6 +36,16 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertEqual(sorted(validate_fleet.EXPECTED_AUTHORITY), sorted(names))
         self.assertEqual([], failures)
 
+    def test_agent_return_templates_keep_recipient_status_and_parent_separate(self) -> None:
+        """Catch removal of return slots, not just loss of prose mentioning them."""
+        slots = ("Returning to", "Assignment", "Parent objective", "Caller next step")
+        for name in validate_fleet.EXPECTED_AUTHORITY:
+            body = (ROOT / "agents" / f"{name}.md").read_text(encoding="utf-8")
+            templates = "\n".join(re.findall(r"```[^\n]*\n(.*?)```", body, re.DOTALL))
+            for slot in (*slots, "Human operational owner" if name == "sre-assistant" else "Human owner"):
+                with self.subTest(agent=name, slot=slot):
+                    self.assertRegex(templates, rf"(?m)^{re.escape(slot)}: <[^\n]+>")
+
     def test_builder_agent_uses_software_engineer_identity(self) -> None:
         path = ROOT / "agents/software-engineer.md"
         self.assertTrue(path.is_file())
@@ -394,13 +404,15 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertIn("forbidden tool(s): Agent, Bash, WebSearch", rendered)
         self.assertIn("delegation mismatch", rendered)
 
-    def test_scribe_returns_runbook_link_to_observability_owner(self) -> None:
+    def test_scribe_returns_runbook_link_to_caller_and_preserves_alert_owner(self) -> None:
         _, body, _ = validate_fleet.adapters.parse_frontmatter(ROOT / "agents/scribe.md")
         self.assertNotIn("and link it from the alert", body)
         self.assertIn(
-            "Return the exact runbook path or URL and alert name to `observability-engineer`",
+            "Return the exact runbook path or URL and any alert name to the invoking caller",
             body,
         )
+        self.assertIn("recommend `observability-engineer` to that caller", body)
+        self.assertIn("only that owner updates the definition", body)
 
     def test_runbook_template_does_not_upgrade_last_verified_without_evidence(self) -> None:
         template = (ROOT / "skills/runbook/assets/runbook-template.md").read_text(

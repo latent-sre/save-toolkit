@@ -80,7 +80,7 @@ The contract fields are `../SKILL.md` rule 5. Name the verifier before the work:
 |---|---|
 | `software-engineer` | A failing test or fixture |
 | `reviewer` | The two-lens packet |
-| `sre-assistant` | Requested target/window evidence returned to the invoking advisor; complete if the assignment is fulfilled, partial only for missing requested work—not ongoing incident impact |
+| `sre-assistant` | Requested target/window evidence returned to its caller; complete when the slice is fulfilled, partial for missing requested work, independent of incident status |
 | `observability-engineer` | Golden-signal recovery evidence |
 | A changed fleet contract | One focused red-first test, plus Gate A once before push |
 
@@ -93,22 +93,33 @@ attempt; it does not replace outcome evidence. This fleet carries no `model:` pi
 
 ## Handoffs between contexts
 
-The explicit packet is the only portable handoff contract; runtimes differ on whether a worker
-thread is retained. Build each worker's slice with [context guidance](./context.md).
+Dispatch: invoking caller, separate human owner, outcome, context/trust, scope, completion evidence,
+return fields. Retain pending work; use [context guidance](./context.md).
 
-| Packet rule | Failure it prevents |
-|---|---|
-| Dispatch: requested outcome, relevant context and source trust, allowed scope, success criteria. Return: assignment status, result/artifacts, evidence, remaining gaps and non-actions | A helper completes a different task or returns a report its caller cannot use |
-| Labels copied exactly, never upgraded | A relabeling receiver manufactures evidence |
-| `Change:` names the PR, branch, diff, or working tree; the receiver re-derives the current diff | A prior review silently covering later changes |
-| State what you did not do | The receiver fills the gap with an assumption |
-| A helper returns to its invoking agent (or the human for direct use); a next-owner recommendation travels back with the result | The human becomes a courier or the helper redirects ownership instead of returning |
-| The caller retains the objective, checks each return against the assignment and current state, reconciles evidence, and resumes authorized work within its lane and budget | A completed helper is mistaken for a completed parent task |
-| An empty, malformed, partial, timed-out, or killed return leaves dependent work incomplete; the caller seeks missing evidence within scope and budget and continues independent work, escalating a material decision or exhausted capability/budget with the precise gap | Success by silence or abandonment of unrelated authorized work; no scheduler or automatic retry of an UNKNOWN effect is implied |
+Keep these fields in the requested format, including short returns:
 
-The caller finishes with one synthesized answer against the original objective and names any
-remaining work. Human ownership of operational decisions does not require the human to relay or
-combine helper reports. Human-selected host handoffs remain separate ownership transitions.
+```text
+Returning to: <invoking agent/role; human requester for direct use>
+Assignment: <complete | partial | blocked | inconclusive> — <bounded task and status evidence>
+Result/evidence: <answer or artifact paths; labels, taint, target, window and observed values>
+Gaps/non-actions: <missing requested evidence, conflicts, actions not performed>
+Parent objective: <remaining work or unknown; helper completion alone does not close it>
+Human owner: <separately supplied name/role, unknown, or not applicable>
+Caller next step: <supported continuation or decision; prerequisite gap if blocked>
+```
+
+An unnamed caller retains its invoking role; do not substitute a stakeholder.
+Complete concerns the assigned slice. A recommendation returns to the caller without transferring
+ownership or approval. Preserve labels and taint; absent timestamps, current state and causality
+remain unknown. `Change:` names the PR, branch, diff or working tree; the receiver re-derives it.
+
+On receipt, the caller checks the assignment and current state, reconciles conflicts against cited
+observations, then states what the result establishes, what remains, and its next authorized step.
+Take that step within lane and budget. Empty, malformed, partial, timed-out or killed returns leave
+dependent work incomplete; seek missing evidence and continue independent work. Escalate a material
+decision, unavailable capability or exhausted budget with the precise gap. UNKNOWN effects require
+reconciliation before retry. Finish with one synthesized answer against the original objective.
+Human-selected host handoffs are separate ownership transitions; humans need not relay reports.
 
 ## Design principles this fleet enforces
 

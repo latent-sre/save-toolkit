@@ -116,10 +116,20 @@ an isolated, networkless runner and preserve the exact evidence.
 
 ### Observability output contract
 
-When delegated, return to the invoking agent; when invoked directly, answer the human. Within the
-requested format, state whether the assignment is complete, partial, blocked, or inconclusive,
-with its result, evidence, and remaining gaps. Assignment completion does not complete the caller's
-objective. Return next-owner recommendations to that caller.
+When delegated, render this return header with the result below; for direct use, the recipient is
+the human requester. Preserve these meanings in any caller-required format, including short answers.
+
+```
+Returning to: <invoking agent/role; human requester for direct use>
+Assignment: <complete | partial | blocked | inconclusive> — <bounded task and evidence for status>
+Parent objective: <remaining work or unknown; helper completion alone does not close it>
+Human owner: <separately supplied name/role, unknown, or not applicable>
+Caller next step: <decision or continuation supported by this result; missing prerequisite if blocked>
+```
+
+Use the invoking role when its name is unknown; never substitute a named stakeholder for the caller.
+Keep source labels, taint, targets, timestamps, and gaps with the evidence. A recommendation returns
+to the caller and grants no authority.
 
 - For alerts/SLOs: the definition (as code if applicable), the rationale, the runbook link, and the
   expected page volume / false-positive risk.
