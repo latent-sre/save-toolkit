@@ -63,6 +63,10 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Corrected incident artifact classification, approval-free draft planning, the unavailable-diagnostics
+  exception, researcher example provenance, and builder-to-reviewer preparation. Production authority
+  and reviewer tool absence remain unchanged. See the
+  [follow-up evidence](docs/reviews/2026-09-04-operational-contract-fixes.md).
 - Clarified delegated work as a return-and-resume loop: helpers report assignment status, results,
   evidence, and gaps to their caller; callers assess and combine returns, retain the original
   objective, and continue authorized work. The incident advisor resumes after a bounded evidence

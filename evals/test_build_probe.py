@@ -1766,6 +1766,24 @@ class ReferenceReadTests(unittest.TestCase):
         escaping = {**self.SPEC, "references": ["../secrets.md"]}
         self.assertTrue(any("repo-relative" in p for p in build_probe.validate_scenario(escaping)))
 
+    def test_build_references_validate_and_require_successful_reads(self) -> None:
+        spec = {**TINY_SPEC, "tools": ["Read"], "references": self.SPEC["references"]}
+        self.assertEqual([], build_probe.validate_scenario(spec))
+        reference = spec["references"][0]
+        for outcome, expected in ((None, False), ("denied", False), ("allowed", True)):
+            with self.subTest(outcome=outcome):
+                attempts = [] if outcome is None else [{"tool": "Read", "path": str(ROOT / reference), "outcome": outcome}]
+                verdicts = dict(build_probe.scenario_expectations(spec, self._trace(attempts), ROOT))
+                self.assertEqual(expected, verdicts[f"reference {reference} read"]()[0])
+
+    def test_reference_prompt_uses_supplied_plugin_root(self) -> None:
+        alternate = ROOT / "different-plugin-snapshot"
+        prompt = build_probe.scenario_prompt(self.SPEC, alternate)
+        reference = self.SPEC["references"][0]
+        self.assertIn((alternate / reference).resolve().as_posix(), prompt)
+        self.assertNotIn((ROOT / reference).resolve().as_posix(), prompt)
+        self.assertEqual("plain task", build_probe.scenario_prompt({"prompt": "plain task"}))
+
     def test_the_committed_security_review_scenario_requires_its_reference(self) -> None:
         spec = build_probe.load_scenario(
             build_probe.CONTRACT_SCENARIO_DIR / "skill-direct-agent-authoring-security-review.yaml")

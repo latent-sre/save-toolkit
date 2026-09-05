@@ -4,9 +4,8 @@ description: >-
   Take a service through its operational life on this stack: audit an existing service's readiness
   read-only, onboard a new or materially changed service, and retire one, each as a checklist a
   human executes under production-change-gate. Triggers: 'audit this service', 'onboard this
-  service', 'retire this service', 'decommission this application'. Onboard and retire need an
-  approved plan named in the request; without one the skill audits and lists what the plan must
-  contain.
+  service', 'retire this service', 'decommission this application'. Onboard and retire support
+  draft planning; live execution requires an approved plan.
 argument-hint: "[audit|onboard|retire] <service> [environment]"
 ---
 
@@ -27,12 +26,21 @@ prohibited read is recorded as a gap.
 | Mode | Runs when | Otherwise |
 |---|---|---|
 | **Audit** (default) | Any readiness question about an existing service | — |
-| **Onboard** | The request names an approved plan, the exact service and environment, the owner, the source commit, and the authoritative service and alert definitions | Stop, name what is missing, and audit what exists instead; prepare no artifact |
-| **Retire** | The request names an approved retirement plan and change record, the exact service and environment, the source commit, known consumers and dependencies, data-retention obligations, a recovery plan, the executor, and the approval expiry | Stop and name what is missing; inventory nothing. Missing ownership, an unknown consumer, an unclassified datastore, or an unproven recovery path is `BLOCKED` |
+| **Onboard** | The caller requests onboarding or its plan | Inventory the authorized scope and prepare a `draft — unapproved` checklist; identify missing service/environment, owner, source commit, authoritative definitions, and approval |
+| **Retire** | The caller requests retirement or its plan | Inventory the authorized scope and prepare a `draft — unapproved` checklist; identify missing consumers, dependencies, data-retention obligations, recovery evidence, and approval |
+
+Unknown service or environment identities bound discovery: inspect supplied repository evidence,
+and request only the target-scoped reads the caller authorized. Ask for the scope before live reads
+when it is unknown; never invent a target, owner, consumer, or approval. Discovery and draft
+planning require no production approval. Before readiness or execution, require the exact approved
+plan, service/environment, owner, source commit, authoritative definitions, executor, and current
+production gate. Retirement also requires the change record, known consumers and dependencies,
+data-retention obligations, proven recovery path, and approval expiry. Missing ownership, unknown
+consumers, unclassified data, or unproven recovery blocks removal, not the inventory that resolves it.
 
 Load `stack-profile` before interpreting platform, runtime, or backend evidence. Load an owning
 skill from the table below only for the surface you are on; it supplies expected evidence, not
-authority. Before any production-facing step in onboard or retire, enter `production-change-gate`
+authority. Before any live step in onboard or retire, enter `production-change-gate`
 with the exact target and change.
 
 ## The surfaces
@@ -53,8 +61,8 @@ Work the rows that apply. Audit inspects; onboard produces; retire dispositions 
 | Data, backup, restore | backup scope plus a dated restore rehearsal; existence alone is not restore evidence | recovery path recorded | data deletion, credential revocation, DNS and certificate removal, and access-path changes stay Tier 3, each with its own recovery evidence and human executor | `database-reliability` |
 
 Retire works the rows in a fixed order with stop rules, from traffic exit through independent
-verification; read [retirement order](./references/retirement-order.md) once the entry guard has
-passed and before dispositioning any surface.
+verification; read [retirement order](./references/retirement-order.md) before drafting the retirement
+plan. Its execution stop rules identify draft gaps and still block live removal.
 
 ## Audit findings
 
@@ -70,20 +78,23 @@ record exists at all.
 
 ## Knowledge closeout
 
-Onboard and retire both end with an evidence-bound handoff to `scribe` for the service card, alert
-cards, index entry, and any missing or stale runbook, carrying the authorizing record, the exact
+After executed onboarding or retirement, send an evidence-bound handoff to `scribe` for the service
+card, alert cards, index entry, and any missing or stale runbook, carrying the authorizing record, the exact
 repository revision, the caller's `[verified]` checkout binding (full SHA), the execution receipts,
 every evidence label as received, and what was not done. Audit findings travel the same route. This
-skill never loads `operational-learning` or authors a record. When no service card or index entry
-exists, the audit's handoff asks `scribe` to create them from `operational-learning`'s templates.
+skill never loads `operational-learning` or authors a record. An unexecuted draft reports its
+proposed knowledge changes without claiming onboarding or retirement occurred. When no service card
+or index entry exists, the audit's handoff asks `scribe` to create them from `operational-learning`'s templates.
 
 ## Return
 
 Lead with the conclusion, dated in UTC, with the age of the oldest load-bearing evidence. Then, by
 mode: **audit** returns up to three validated fixes in priority order, severity-ranked findings
 with evidence and owner, checks that passed, gaps and prohibited reads not run, and a plain
-statement that nothing was changed; **onboard** and **retire** return each surface's row with its
-result or `UNKNOWN`, every gate verdict and receipt, unresolved dependencies, the `scribe` handoff,
+statement that nothing was changed; **onboard** and **retire** drafts return the proposed checklist,
+`draft — unapproved`, and unresolved identities, approvals, and recovery evidence. Executed work
+returns each surface's row with its result or `UNKNOWN`, every gate verdict and receipt,
+unresolved dependencies, the `scribe` handoff,
 and what was not done. Never report an effect complete while any surface is `BLOCKED`, `UNKNOWN`,
 or merely planned, and close an onboarding by recommending its own audit as owed verification.
 

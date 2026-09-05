@@ -21,7 +21,11 @@ the exact approved command and supplies any secret through the approved credenti
 Choose based on who consumes the variable:
 
 - `cf restart` is sufficient when only the application reads the value at process start, such as a
-  runtime feature flag or endpoint. Restart reuses the staged droplet.
+  runtime feature flag or endpoint. An unstaged most-recent package makes restart stage and run
+  that package; otherwise it runs the current droplet.
+  Confirm existing-droplet reuse and no artifact build before fast-path classification; unknown
+  package/droplet state blocks that classification. A restart that stages needs the full release
+  and production gates. *[sourced: cloudfoundry/cli `command/v7/restart_command.go`]*
 - `cf restage` is required when a buildpack consumes the value during staging because the value
   changes the droplet. Examples include `JBP_CONFIG_*`, `BP_*`, `PIP_INDEX_URL`, and build-time use
   of `NODE_ENV`.

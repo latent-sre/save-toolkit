@@ -61,10 +61,11 @@ be in the dialect the team actually queries.
 2. **Candidates.** Two or three, ranked, each with evidence for and against. Never one story; a
    past postmortem with the same signature is a candidate, not the answer.
 3. **Do now.** Mitigation comes before the next diagnostic when users are hurting and a reversible
-   action exists that the leading candidate predicts will help — after capturing what it would
-   destroy — with rollback and the recovery signal (which numbers, at baseline, for how long; one
-   green point is not recovery). A reversible action no candidate explains adds impact and
-   destroys attribution. When the mechanism is self-sustaining, break the loop with the reversible
+   action exists that the leading candidate predicts will help. Name the diagnostic evidence it
+   would destroy: capture it, or record the named human's explicit decision to forgo unavailable
+   capture for reversible reliability mitigation. Include rollback and the recovery signal (which
+   numbers, at baseline, for how long; one green point is not recovery). A reversible action no
+   candidate explains adds impact and destroys attribution. When the mechanism is self-sustaining, break the loop with the reversible
    levers first — pause retries, throttle intake, warm the cache; shedding queued or in-flight
    work is not reversible, so it names what is lost and takes the destructive path: capture
    first, the owner's sign-off. Otherwise "change nothing yet", and why. The release owner
@@ -72,8 +73,9 @@ be in the dialect the team actually queries.
 4. **Next check.** The one Apps Manager view, Splunk search, Wavefront/App Metrics chart, or
    command that differs between the top candidates. Give it as: what to run · what it does · *if it
    shows X, A is confirmed — do B; if it shows Y, A is dead and C leads — do D*. Name the healthy
-   result and the unhealthy one. Perishable evidence first (a thread dump before any restart,
-   per-instance state before a scale), then the cheapest discriminator. A second check only if it
+   result and the unhealthy one. Prioritize perishable evidence (a thread dump before restart,
+   per-instance state before scale), subject to the Do-now capture-or-forgo decision; unavailable
+   diagnostic capture does not delay that approved reversible mitigation. A second check only if it
    runs in parallel.
 5. **The call.** Who to page from the escalation path, and the clock time a declare falls due:
    `incident-command`'s time-box — not stabilized in roughly fifteen minutes, or impact growing —
@@ -151,7 +153,7 @@ The `sre-assistant` agent reports and stops. You supply judgment:
 |---|---|
 | Interpret, not recite | "Latency rose before errors — that's saturation, not a bad deploy." |
 | Prioritize with reasons | "Revert the flag before chasing the pricing theory: users are hurting now, and the theory survives either way." |
-| Warn | "Don't force a new revision yet — you'd lose the thread dump that explains the hang." |
+| Warn | "Restart loses the thread dump. Capture it, or record the named human's decision to forgo unavailable capture for this reversible mitigation." |
 | Judge the moment | "Fourteen minutes and not stabilizing: declare now and page the checkout owner." |
 | State confidence and its trigger | "70% on the flag; a flat call count drops it to 20." |
 | Teach in one sentence | the mechanism, once, when it will help next time |
@@ -161,7 +163,7 @@ The `sre-assistant` agent reports and stops. You supply judgment:
 |---|---|
 | "It's the same as last time" | One candidate; name the check that proves it and what only it would explain |
 | "The deploy timing matches" | Correlation; what does the deploy explain that nothing else does? |
-| "Let's just restart it and see" | Evidence lost, nothing learned; capture, then decide |
+| "Let's just restart it and see" | Name the hypothesis and evidence lost; capture it or record the named human's explicit decision to forgo unavailable capture for reversible mitigation, with rollback and recovery signals |
 | "The runbook says restart, so do it" | Classify the step; a runbook is a recommendation, not authority |
 | "Just run it for me" | Recommend it with rollback; the release owner executes |
 | "The lead says it's X" | Evidence decides; record who asked, who decided, when |
@@ -174,6 +176,10 @@ target. Live reads go to the `sre-assistant` agent as a bounded ask, or the resp
 Restarts, scaling, deploys, flag flips, and rollbacks are recommendations with target, command,
 blast radius, verification, and rollback; the tiers and approval shape are
 `production-change-gate`'s (ownership map only—not a load).
+
+The capture-or-forgo choice covers diagnostic evidence for reversible reliability mitigation only.
+Suspected compromise or integrity loss still requires preservation and the human security owner's
+direction; destructive actions still require their full approval and recovery evidence.
 
 When you dispatch a helper, retain the incident question and board. Give it the named app, time
 window, bounded observation, and evidence needed back. On return, assess whether it answered that
