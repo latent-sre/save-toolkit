@@ -63,6 +63,16 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Drafted a human-first `incident-investigation` response loop: calibrated explanations,
+  feasible checks with inconclusive outcomes, contextual checkpoints, and explicit action states
+  in handover and closeout. Initial candidates remained inconsistent despite automated passes.
+  The approved follow-up reorganizes the skill into Explain / Investigate / Recap, aligns its
+  description with human support, and consolidates evidence reasoning and unchanged operational
+  authority. Actual three-turn conversations show clearer responses and better rollback-history
+  handling, with remaining scope/fallback caveats. Five routing cases pass and one times out;
+  all structural checks pass within the original size cap. Graders are unchanged. Exact revisions,
+  limitations, and prior failures remain in [the companion evaluation](docs/reviews/2026-09-05-incident-human-companion.md);
+  evaluation does not accept or publish the candidate.
 - Corrected incident artifact classification, approval-free draft planning, the unavailable-diagnostics
   exception, researcher example provenance, and builder-to-reviewer preparation. Production authority
   and reviewer tool absence remain unchanged. See the

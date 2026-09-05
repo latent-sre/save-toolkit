@@ -1,0 +1,31 @@
+id: incident-companion-hands-over-unresolved-work
+split: regression
+skill: incident-investigation
+tools: [Skill]
+prompt: |
+  Sam is taking over from me on ledger/PCF INC-52. Morgan is still incident commander and
+  Riley is the release owner. Can you get Sam up to speed and tell them what to pick up next?
+  No knowledge repo is available here; use this retained conversation state and my new update.
+
+  Retained state, all from responder reports:
+  - 09:40 UTC: customer errors began rising. Pool pressure and a slow accounts dependency were
+    candidates; the dependency idea was parked after an older chart looked flat.
+  - 09:47: Riley disabled the retry flag under Morgan's approval and confirmed the flag value.
+  - 09:50: Riley attempted the approved rollback to revision 12. The session disconnected;
+    no result, receipt, or active-revision readback was obtained. Outcome is UNKNOWN.
+  - Scaling to six instances was discussed as a recommendation only; nobody approved or ran it.
+  - 10:01: latest observed error rate was still 8%.
+
+  New update at 10:05: refreshed accounts logs have timestamped 503s matching failed ledger
+  requests from 09:42 onward. That was absent from the old chart. Riley can open ledger's
+  Apps Manager Revisions view to get a fresh active-revision readback, but hasn't done so yet.
+  Sam has access to the same view. What should Sam carry forward, and does the new evidence
+  change the theory we had parked?
+success_criteria:
+  - Supplies a useful human handover, preserving observed impact and applied versus merely recommended actions.
+  - Keeps rollback UNKNOWN and makes fresh readback precede any retry decision, including inconclusive readback.
+  - Reopens the dependency hypothesis proportionately and preserves human ownership and unresolved work.
+graders:
+  - type: rubric
+    name: incident_companion_response
+    params: {case: human_handover}
