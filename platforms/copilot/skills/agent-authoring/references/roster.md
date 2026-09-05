@@ -11,6 +11,7 @@ context payload on a graph edge; durable learning is accepted loop output, not a
 
 - Four-theme decision rule
 - Agent vs. skill
+- Choose coordination from dependencies
 - The loop inside each lane
 - Handoffs between contexts
 - Design principles this fleet enforces
@@ -53,6 +54,23 @@ Fleet example: `repository-investigator` (local `Read`/`Grep`/`Glob` only) and `
 untrusted content, and egress; the caller orchestrates a mixed question with a sanitized public
 handoff.
 
+## Choose coordination from dependencies
+
+These choices organize work within existing agent grants and change authority. The caller keeps
+the original objective and owns synthesis.
+
+| Work shape | Coordination | What makes it useful |
+|---|---|---|
+| A stage consumes another stage's output | Pipeline | Pass the scoped result forward when its prerequisites are met |
+| Independent evidence slices or separately owned changes | Fan-out, then parent synthesis | Reconcile evidence and conflicts into one answer; do not concatenate reports |
+| A shared contract or decision needs all prerequisite results | Barrier at that decision | Wait for those inputs before dependent work; continue independent work |
+| A consequential conclusion needs independent challenge | Adversarial review | Reviewers reopen sources and test counter-evidence; judge the finding by evidence, not vote count |
+| Discovery has an unknown amount of work | Bounded discovery loop | Set time/cost and maximum-round limits first; stop at the coverage goal, no useful new evidence, or an exhausted limit, naming remaining gaps |
+
+Give parallel workers separate context slices and explicit write ownership. Serialize coupled
+changes to a shared contract and work that depends on an unfinished result; a barrier is justified
+only where the next decision requires the combined inputs.
+
 ## The loop inside each lane
 
 Every lane runs **gather context → act → verify → repeat**; its quality is set by the verify step.
@@ -62,8 +80,12 @@ The contract fields are `../SKILL.md` rule 5. Name the verifier before the work:
 |---|---|
 | `software-engineer` | A failing test or fixture |
 | `reviewer` | The two-lens packet |
-| `sre-assistant`, `observability-engineer` | Golden-signal recovery evidence |
+| `sre-assistant` | Requested target/window evidence returned to the invoking advisor; complete if the assignment is fulfilled, partial only for missing requested work—not ongoing incident impact |
+| `observability-engineer` | Golden-signal recovery evidence |
 | A changed fleet contract | One focused red-first test, plus Gate A once before push |
+
+The human responder owns recovery, advised by `incident-investigation`; completing a helper's
+observation does not resolve the incident.
 
 An agent whose loop has no verifier can only emit [unverified] claims. Gather the slice (grep, tail,
 a pinned file:line), not the corpus. The verifier defines success: a model upgrade improves an

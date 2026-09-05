@@ -63,6 +63,12 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Restored five selected guidance areas: task-fit backend contracts, a conditional human-facing
+  systemic-investigation method, a compact `operator-cli` skill, dependency-based coordination
+  choices, and assignment-scoped SRE-helper completion. Existing contracts and human production
+  ownership are preserved; no machinery or tool grants were added. Source checks and bounded
+  planning results, including failed behaviors and final corrections not behaviorally retested,
+  are recorded in [the restoration evidence](docs/reviews/2026-09-05-selected-guidance-restorations.md).
 - Drafted a human-first `incident-investigation` response loop: calibrated explanations,
   feasible checks with inconclusive outcomes, contextual checkpoints, and explicit action states
   in handover and closeout. Initial candidates remained inconsistent despite automated passes.

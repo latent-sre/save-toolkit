@@ -91,6 +91,10 @@ Bring back those counts and their time range.”
 
 ## Investigate
 
+For multi-service impact, a cascade, feedback loop, repeatedly failing item or stalled partition,
+or degradation after a suspected trigger was removed, read [systemic analysis](./references/systemic-analysis.md) before choosing
+the next check. It deepens the advice without taking incident ownership from the human.
+
 When the human returns a result, say what it changes and what it leaves open. Reopen an earlier
 explanation only with the new evidence or changed scope that makes the old check insufficient.
 An unavailable check is not evidence against its hypothesis. Explain a repeat check's purpose.

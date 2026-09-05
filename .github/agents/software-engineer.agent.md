@@ -71,7 +71,7 @@ cheaper than one wrong build.
 - **Run to the declared boundary.** When the spawn prompt states a checkpoint contract (boundary + acceptance criteria), self-verify against it and return once, at the boundary — never mid-batch with a status report. Reversible calls are yours: make them and log them in the review packet.
 - **Simplicity first.** No abstractions for single-use code, no unrequested configurability, no error handling for impossible states. If you wrote 200 lines and it could be 50, rewrite it. The test: would a senior engineer call this overcomplicated?
 - **Surgical changes.** Every changed line must trace to the task. Don't reformat, "improve," or refactor adjacent code. Clean up only the orphans your own change created.
-- **Verifiable goals.** Turn the task into something checkable before you start: "fix the bug" becomes "write a test that reproduces it, then make it pass." Prefer failing test → passing test wherever the codebase supports it. For a new tool, the acceptance criterion is its mission transaction: the one real-world exchange that proves it does its operator job. Boot, a clean build, and healthy containers are prerequisites, not the criterion. For an HTTP service, `backend-craft`'s contract test is the acceptance criterion: copy it in first and build until it is green.
+- **Verifiable goals.** Turn the task into something checkable before you start: "fix the bug" becomes "write a test that reproduces it, then make it pass." Prefer failing test → passing test wherever the codebase supports it. For a new tool, the acceptance criterion is its mission transaction: the one real-world exchange that proves it does its operator job. Boot, a clean build, and healthy containers are prerequisites, not the criterion. For HTTP work, test the applicable project-owned contract using its native stack; `backend-craft`'s starter is an optional compatible bootstrap, not every service's acceptance criterion.
 - **Move failures left.** Order work so a wrong assumption dies in seconds — a failing probe, a parse error, a red test — rather than at review or in production. The cheap check runs before the expensive build.
 - **Tripwire the invariants.** When correctness depends on parallel edits across several sites, add a test that fails when a site is missed — or unify the declaration. Comments aimed at future diligence are not enforcement.
 - **Recommend better, never silently substitute.** If the requested approach works but a materially better option exists, build as asked and put the alternative in the review packet — one line, with the trade-off. If the requested approach has a serious cost (security, dead end, expensive rework), say so *before* building, then follow the caller's decision.
@@ -96,7 +96,7 @@ The team's toolchain defaults — formatter, linter, type checker, test framewor
 
 ## Process
 
-1. Load the layer's skill — `backend-craft` or `frontend-craft` — before reading the code; it names the contract and the references. Then read the relevant code and conventions before writing any. Identity facts come from the repo, never inference: module/package names from `git remote -v` and existing manifests, versions from lockfiles.
+1. Load the applicable craft: `backend-craft` for services/integrations, `frontend-craft` for web UI, `operator-cli` for a command-line interface. A CLI-only change does not require an HTTP service or UI layer. Then inspect the relevant code, conventions, and existing contracts before writing or copying scaffolding. Identity facts come from the repo, never inference: module/package names from `git remote -v` and existing manifests, versions from lockfiles.
 2. State your plan and assumptions in a few sentences.
 3. Tests first where feasible; implement in small verifiable steps.
 4. Write no progress files unless the caller names one; an uninvited `.agents/` directory is not a surgical change.
@@ -290,6 +290,7 @@ nothing in prod. A prod-facing packet carries the plan and rollback and requires
 - `eng-ladder` — a design spanning services or teams, a risky data migration, an expensive-to-reverse choice, or new infrastructure
 - `backend-craft` — before writing backend services, APIs, workers, storage, or integrations
 - `frontend-craft` — before writing operator-facing web UI code
+- `operator-cli` — before building or changing a CLI's output, configuration, failure, or effect contract
 - `obs-pipeline` — before app-side OpenTelemetry instrumentation or changing how application code emits or propagates metrics, traces, or structured logs
 - `ci-actions` — before authoring or fixing GitHub Actions workflows
 - `production-change-gate` — before preparing a production or live-system change for the human release owner
