@@ -38,8 +38,9 @@ scripted dashboards by default. Version- and upgrade-specific details live in
 4. **Author only the requested change.** Preserve unknown fields and the existing schema; use
    [json-model](./references/json-model.md) for Classic/V1/V2 shapes, `status` stripping, variables,
    and panel fields.
-5. **Validate the right baseline.** Run
-   `python skills/obs-dashboards/scripts/dashboard_hygiene.py <file>`, then
+5. **Validate the right baseline.** Resolve the linked
+   [hygiene helper](./scripts/dashboard_hygiene.py) to its absolute path in this installed skill.
+   Run `python "<resolved helper path>" <file>`, then
    `dashboard-linter lint --strict` when installed. On an edit, check the live model first; only
    violations introduced by this diff block the write. Report pre-existing findings without
    silently expanding scope.

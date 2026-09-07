@@ -8,19 +8,9 @@ The script never fetches anything: its input is a file the human already exporte
 HTML converts best; storage-format XHTML is handled best-effort, with its macro elements counted
 as losses rather than mangled).
 
-What the draft guarantees, matching the import reference's provenance rules:
-
-  * frontmatter carries exactly the runbook-frontmatter-v1 key set, with the import invariants:
-    status draft, version 1, both dates null, empty verification evidence — an import is never a
-    review or a rehearsal;
-  * recognizable source headings land in the matching template slot; everything unrecognized lands
-    under "Imported content (unmapped)" — nothing is silently dropped;
-  * every imported fenced command block is marked [unverified] until rehearsed on the target;
-  * Confluence macro elements (<ac:...>/<ri:...>) are suppressed from the prose, COUNTED, and
-    reported as conversion losses in the draft's provenance and on stdout.
-
-Covered by scripts/test_confluence_import.py (pure stdlib; run directly when this converter or its
-import contract changes). Gate A does not run component tests.
+The draft retains source sections, links and image references, marks commands unverified, and
+reports unsupported content and uncopied attachments. It never fetches linked resources or turns
+an import into verification. Covered by scripts/test_confluence_import.py.
 """
 
 from __future__ import annotations
@@ -32,6 +22,7 @@ import re
 import sys
 from html.parser import HTMLParser
 from pathlib import Path
+from urllib.parse import quote, urlsplit
 
 # Template slot order mirrors assets/runbook-template.md; headings must match it byte-for-byte so
 # a converted draft diffs cleanly against a hand-copied template.
@@ -82,14 +73,43 @@ class _Extractor(HTMLParser):
         self.title = ""
         self.sections: list[tuple[str, list[tuple[str, str]]]] = [("", [])]
         self.macro_count = 0
+        self.image_count = 0
+        self.media_count = 0
+        self.unusable_destinations = 0
         self._ac_depth = 0
         self._in_title = False
         self._heading: str | None = None
         self._pre: list[str] | None = None
         self._text: list[str] = []
         self._list_stack: list[str] = []
+        self._link: tuple[int, str] | None = None
+
+    def _destination(self, value: str | None) -> str:
+        value = (value or "").strip()
+        try:
+            valid = bool(value) and not any(ord(c) < 32 for c in value)
+            valid = valid and urlsplit(value).scheme.lower() in {"", "http", "https", "mailto"}
+        except ValueError:
+            valid = False
+        if not valid:
+            self.unusable_destinations += 1
+            return ""
+        return quote(value, safe="/:#?&=%@+;,-._~")
+
+    @staticmethod
+    def _reference(label: str, destination: str) -> str:
+        label = label.replace("\\", "\\\\").replace("[", "\\[").replace("]", "\\]")
+        return f"[{label}](<{destination}>)" if destination else label
+
+    def _finish_link(self) -> None:
+        if self._link is not None:
+            start, destination = self._link
+            label = " ".join(self._text[start:]).strip() or destination
+            self._text[start:] = [self._reference(label, destination)]
+            self._link = None
 
     def _flush_text(self) -> None:
+        self._finish_link()
         text = " ".join(part for part in self._text if part).strip()
         self._text = []
         if not text:
@@ -105,6 +125,18 @@ class _Extractor(HTMLParser):
             return
         if self._ac_depth:
             return
+        if tag == "a" and self._pre is None and self._heading is None and not self._in_title:
+            self._finish_link()
+            if "href" in dict(attrs):
+                self._link = (len(self._text), self._destination(dict(attrs)["href"]))
+        elif tag == "img":
+            self.image_count += 1
+            attributes = dict(attrs)
+            self._text.append("Image: " + self._reference(
+                attributes.get("alt") or "image", self._destination(attributes.get("src"))
+            ))
+        elif tag in {"iframe", "object", "embed", "video", "audio", "svg"}:
+            self.media_count += 1
         if tag == "title":
             self._in_title = True
         elif tag in {"h1", "h2", "h3", "h4", "h5", "h6"}:
@@ -125,15 +157,17 @@ class _Extractor(HTMLParser):
             return
         if self._ac_depth:
             return
+        if tag == "a":
+            self._finish_link()
         if tag == "title":
             self._in_title = False
         elif tag in {"h1", "h2", "h3", "h4", "h5", "h6"}:
             heading = (self._heading or "").strip()
             self._heading = None
-            if heading and heading != self.title:
-                self.sections.append((heading, []))
-            elif heading and not self.title:
+            if tag == "h1" and heading and not self.title:
                 self.title = heading
+            elif heading and heading != self.title:
+                self.sections.append((heading, []))
         elif tag == "pre" and self._pre is not None:
             code = "".join(self._pre).strip("\n")
             self._pre = None
@@ -227,8 +261,13 @@ def convert(source: Path, source_url: str | None, service_id: str, owner: str) -
             report.append(f"  unmapped “{heading}” -> Imported content (unmapped)")
 
     today = datetime.date.today().isoformat()
-    losses = [f"Confluence macros dropped (not convertible): {parser.macro_count}"]
-    report.append(f"  losses: {losses[0]}")
+    losses = [
+        f"Confluence macros dropped (not convertible): {parser.macro_count}",
+        f"Image attachments not copied: {parser.image_count} (references retained where usable)",
+        f"Unsupported media dropped: {parser.media_count}",
+        f"Unusable link or image destinations: {parser.unusable_destinations}",
+    ]
+    report.extend(f"  losses: {loss}" for loss in losses)
 
     lines = [
         "---",

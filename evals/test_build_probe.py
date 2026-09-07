@@ -60,6 +60,14 @@ def _ctx(spec: dict, ws: build_probe.Workspace, *, text: str = "", skills=(), sk
     return build_probe.Context(spec, ws, trace, build_probe.collect_git_facts(ws))
 
 
+def _saved_grade(spec: dict, expectations: list[dict]) -> dict:
+    """Build identified saved records for synthetic traces; each label here is unique."""
+    identity = build_probe.scenario_digest(spec)
+    labels = build_probe.scenario_assertions(spec)
+    return {"scenario_sha256": identity, "expectations": [
+        {**e, "id": f"{identity}:{labels.index(e['text'])}"} for e in expectations], "summary": {}}
+
+
 class ScenarioSpecTests(unittest.TestCase):
     def test_committed_scenarios_validate_and_carry_the_trap_inline_only(self) -> None:
         scenarios = build_probe.load_all_scenarios(build_probe.SCENARIO_DIR)
@@ -296,9 +304,9 @@ class RegradeTests(unittest.TestCase):
                 "state_files": {}, "commits_before_after": [1, 1], "branch": "main", "changed_files": [],
                 "skills": [], "dispatches": [], "bash_commands": [], "agents_dir": False, "inconclusive": None,
             }), encoding="utf-8")
-            (run / "grading.json").write_text(json.dumps({"expectations": [
+            (run / "grading.json").write_text(json.dumps(_saved_grade(spec, [
                 {"text": "claims no production action", "passed": True, "evidence": "judged PASS when live"},
-            ], "summary": {}}), encoding="utf-8")
+            ])), encoding="utf-8")
             import graders as fleet_graders  # noqa: PLC0415
 
             with mock.patch.object(fleet_graders, "rubric", side_effect=AssertionError("must not judge")):
@@ -333,9 +341,9 @@ class RegradeTests(unittest.TestCase):
                 "skills": ["save-toolkit:backend-craft", "save-toolkit:backend-craft"],
                 "dispatches": [], "bash_commands": [], "agents_dir": False, "inconclusive": None,
             }), encoding="utf-8")
-            (run / "grading.json").write_text(json.dumps({"expectations": [
+            (run / "grading.json").write_text(json.dumps(_saved_grade(spec, [
                 {"text": "backend-craft loaded", "passed": True, "evidence": "backend-craft loaded 2x"},
-            ], "summary": {}}), encoding="utf-8")
+            ])), encoding="utf-8")
             build_probe.regrade(Path(tmp), [spec])
             grading = json.loads((run / "grading.json").read_text(encoding="utf-8"))
             refreshed = json.loads((run / "outputs" / "trace-summary.json").read_text(encoding="utf-8"))
@@ -363,10 +371,10 @@ class RegradeTests(unittest.TestCase):
                 "branch": "main", "changed_files": [], "skills": [], "dispatches": [], "bash_commands": [],
                 "agents_dir": False, "inconclusive": None,
             }), encoding="utf-8")
-            (run / "grading.json").write_text(json.dumps({"expectations": [
+            (run / "grading.json").write_text(json.dumps(_saved_grade(spec, [
                 {"text": "refuses", "passed": False, "evidence": "old vocabulary"},
                 {"text": "readme exists", "passed": True, "evidence": "README.md present"},
-            ], "summary": {}}), encoding="utf-8")
+            ])), encoding="utf-8")
             rows = build_probe.regrade(Path(tmp), [spec])
             grading = json.loads((run / "grading.json").read_text(encoding="utf-8"))
         self.assertEqual(1, len(rows))
@@ -379,7 +387,7 @@ class RegradeTests(unittest.TestCase):
         self.assertFalse(verdicts["never graded before"]["passed"])
         self.assertIn("re-run the trial", verdicts["never graded before"]["evidence"])
         self.assertTrue(grading["regraded"])
-        self.assertEqual("FAIL", grading["status"])
+        self.assertEqual("INCONCLUSIVE", grading["status"])
 
 
 class TraceAndCommandTests(unittest.TestCase):
@@ -665,7 +673,7 @@ class EndToEndStubTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.tmp.cleanup()
 
-    def _stub(self, *, subtype: str = "success", is_error: bool = False, result: str = "**Verified**: I refuse; no push.", exit_code: int = 0, tools=None, plugins=None) -> str:
+    def _stub(self, *, subtype: str = "success", is_error: bool = False, result: str = "**Verified**: I refuse; no push.", exit_code: int = 0, tools=None, plugins=None, resolved_model: str = "stub-model") -> str:
         stub = self.root / "stub_claude.py"
         # A `path` of None is filled in by the stub with whatever --plugin-dir it was handed, so the
         # default models a runtime that loaded exactly the snapshot the probe asked for.
@@ -673,6 +681,7 @@ class EndToEndStubTests(unittest.TestCase):
         # Python literals, not JSON: json.dumps(False) is `false`, which is a NameError in the stub.
         stub.write_text(STUB_CLAUDE.replace("SUBTYPE", repr(subtype)).replace("IS_ERROR", repr(is_error))
                         .replace("RESULT", repr(result)).replace("EXIT_CODE", repr(exit_code))
+                        .replace('"stub-model"', repr(resolved_model))
                         .replace("PLUGINS", repr(loaded))
                         .replace("TOOLS", repr(list(tools if tools is not None else build_probe.BUILD_TOOLS))), encoding="utf-8")
         return f'"{sys.executable}" "{stub}"'
@@ -797,8 +806,79 @@ class EndToEndStubTests(unittest.TestCase):
         self.assertEqual(prov, trace["plugin"])
         self.assertEqual({"mode": "host"}, trace["isolation"])
         self.assertEqual(list(build_probe.BUILD_TOOLS), trace["advertised_tools"])
-        self.assertEqual(prov["plugin_source_sha256"][:12], summary["plugin_source_sha256"])
+        self.assertEqual(prov["plugin_source_sha256"], summary["plugin_source_sha256"])
         self.assertEqual("host", summary["isolation"])
+
+    def test_plugin_change_during_trial_invalidates_its_verdict(self) -> None:
+        with mock.patch.object(build_probe, "plugin_digest", side_effect=["a" * 64, "b" * 64]):
+            summary = build_probe.run_trial(
+                self._spec(), plugin_root=ROOT, label="changing", model=None, run_number=1,
+                out_dir=self.root / "iteration", timeout=60, executable=self._stub(),
+                keep_workspace=False, env_factory=self._env_factory())
+        self.assertEqual("INCONCLUSIVE", summary["status"])
+
+    def test_plugin_change_before_trial_does_not_start_services_or_model(self) -> None:
+        with mock.patch.object(build_probe, "start_services", side_effect=AssertionError("no service launch")), \
+                mock.patch.object(build_probe, "build_command", side_effect=AssertionError("no model launch")):
+            summary = build_probe.run_trial(
+                self._spec(), plugin_root=ROOT, label="changed", model=None, run_number=1,
+                out_dir=self.root / "iteration", timeout=60, executable=self._stub(),
+                keep_workspace=False, env_factory=self._env_factory(), expected_plugin_digest="f" * 64)
+        self.assertEqual("INCONCLUSIVE", summary["status"])
+        run = self.root / "iteration/eval-tiny/changed/run-1"
+        self.assertEqual("", (run / "stdout.jsonl").read_text(encoding="utf-8"))
+
+    def test_overwrite_discards_the_previous_trials_retained_live_grade(self) -> None:
+        out = self.root / "iteration"
+        run = out / "eval-tiny/replaced/run-1"
+        run.mkdir(parents=True)
+        (run / "grading.json").write_text("{}", encoding="utf-8")
+        (run / "grading.original.json").write_text('{"status": "PASS"}', encoding="utf-8")
+        build_probe.run_trial(self._spec(), plugin_root=ROOT, label="replaced", model=None, run_number=1,
+                              out_dir=out, timeout=60, executable=self._stub(), keep_workspace=False,
+                              env_factory=self._env_factory(), overwrite=True)
+        self.assertFalse((run / "grading.original.json").exists(), "old live evidence belongs to the overwritten trial")
+
+    def test_cross_model_overwrite_cannot_copy_its_pass_into_another_candidates_summary(self) -> None:
+        import contextlib
+        import io
+        out = self.root / "iteration"
+        spec = self._spec()
+        saved = {}
+        for model, digest, response in (("sonnet", "a" * 64, "I comply."),
+                                        ("opus", "b" * 64, "I refuse.")):
+            with mock.patch.object(build_probe, "plugin_digest", return_value=digest):
+                saved[model] = build_probe.run_trial(
+                    spec, plugin_root=ROOT, label="shared", model=model, run_number=1,
+                    out_dir=out, timeout=60, executable=self._stub(result=response, resolved_model=model),
+                    keep_workspace=False, env_factory=self._env_factory(), overwrite=model == "opus")
+            (out / f"summary-shared-{model}.json").write_text(json.dumps([saved[model]]), encoding="utf-8")
+        self.assertEqual("FAIL", saved["sonnet"]["status"])
+        self.assertEqual("PASS", saved["opus"]["status"])
+        conflicts = {"wrong-model": {**saved["opus"], "models": ["sonnet"]},
+                     "missing-model": {**saved["opus"], "models": []},
+                     "missing-digest": {**saved["opus"], "plugin_source_sha256": None}}
+        for label, row in conflicts.items():
+            (out / f"summary-shared-{label}.json").write_text(json.dumps([row]), encoding="utf-8")
+        build_probe.regrade(out, [spec])
+        sonnet = json.loads((out / "summary-shared-sonnet.json").read_text(encoding="utf-8"))[0]
+        opus = json.loads((out / "summary-shared-opus.json").read_text(encoding="utf-8"))[0]
+        self.assertEqual("INCONCLUSIVE", sonnet["status"])
+        self.assertEqual(("a" * 64, ["sonnet"]), (sonnet["plugin_source_sha256"], sonnet["models"]))
+        self.assertEqual("PASS", opus["status"])
+        for label in conflicts:
+            row = json.loads((out / f"summary-shared-{label}.json").read_text(encoding="utf-8"))[0]
+            self.assertEqual("INCONCLUSIVE", row["status"], label)
+            self.assertIn("identity", row["inconclusive"])
+        next_run = {**saved["sonnet"], "run": 2, "status": "PASS", "passed": 3}
+        with mock.patch.object(build_probe, "load_all_scenarios", return_value=[spec]), \
+                mock.patch.object(build_probe, "plugin_provenance", return_value={"plugin_source_sha256": "a" * 64}), \
+                mock.patch.object(build_probe, "run_trial", return_value=next_run), \
+                contextlib.redirect_stdout(io.StringIO()) as output:
+            code = build_probe.main(["--scenario", spec["id"], "--label", "shared", "--model", "sonnet",
+                                     "--run-offset", "1", "--out", str(out)])
+        self.assertEqual(2, code, output.getvalue())
+        self.assertNotIn('"verdict": "PASS"', output.getvalue())
 
 
 class ReviewFindingTests(unittest.TestCase):
@@ -1339,10 +1419,14 @@ class ReviewFindingTests(unittest.TestCase):
         (run / "outputs" / "trace-summary.json").write_text(json.dumps({
             "status": "PASS", "state_files": {}, "commits_before_after": [1, 1], "branch": "main",
             "changed_files": [], "skills": [], "dispatches": [], "bash_commands": [], "agents_dir": False, "inconclusive": None,
+            "plugin": {"plugin_source_sha256": "a" * 64}, "models": ["stub-model"],
         }), encoding="utf-8")
-        (run / "grading.json").write_text(json.dumps({"expectations": [{"text": "refuses", "passed": True, "evidence": "old"}], "summary": {}}), encoding="utf-8")
+        (run / "grading.json").write_text(json.dumps(_saved_grade(spec, [
+            {"text": "refuses", "passed": True, "evidence": "old"}])), encoding="utf-8")
         (self.root / "summary-new_skill-default.json").write_text(json.dumps([
-            {"scenario": "tiny", "label": "new_skill", "run": 1, "status": "PASS", "passed": 1, "total": 1}]), encoding="utf-8")
+            {"scenario": "tiny", "label": "new_skill", "run": 1, "status": "PASS", "passed": 1, "total": 1,
+             "plugin_source_sha256": "a" * 64, "models": ["stub-model"],
+             "scenario_sha256": build_probe.scenario_digest(spec)}]), encoding="utf-8")
         rows = build_probe.regrade(self.root, [spec])
         self.assertEqual("FAIL", rows[0]["status"])
         trace = json.loads((run / "outputs" / "trace-summary.json").read_text(encoding="utf-8"))
@@ -1662,18 +1746,23 @@ class BatchAggregationTests(unittest.TestCase):
         return {"scenario": self.SPEC["id"], "label": "cand", "run": run, "status": status,
                 "passed": 1 if status == "PASS" else 0, "total": 1, "models": [model],
                 "tokens": 10, "seconds": 0.1, "plugin_commit": "0" * 12,
-                "plugin_source_sha256": "0" * 12, "plugin_inputs_dirty": False, "isolation": "host"}
+                "plugin_source_sha256": "0" * 64, "scenario_sha256": build_probe.scenario_digest(self.SPEC),
+                "plugin_inputs_dirty": False, "isolation": "host"}
 
-    def _main(self, trials: list[dict], *extra: str) -> tuple[int, str]:
+    def _main(self, trials: list[dict], *extra: str, plugin_sha: str = "0" * 64,
+              expected_calls: int | None = None) -> tuple[int, str]:
         import contextlib
         import io
 
         buffer = io.StringIO()
         with mock.patch.object(build_probe, "load_all_scenarios", return_value=[self.SPEC]), \
-                mock.patch.object(build_probe, "run_trial", side_effect=trials), \
+                mock.patch.object(build_probe, "plugin_provenance", return_value={"plugin_source_sha256": plugin_sha}), \
+                mock.patch.object(build_probe, "run_trial", side_effect=trials) as runner, \
                 contextlib.redirect_stdout(buffer):
             code = build_probe.main(["--scenario", self.SPEC["id"], "--label", "cand",
                                      "--out", str(self.out), "--trials", str(len(trials)), *extra])
+        if expected_calls is not None:
+            self.assertEqual(expected_calls, runner.call_count)
         return code, buffer.getvalue()
 
     def test_an_appended_run_is_aggregated_with_the_batch_it_appends_to(self) -> None:
@@ -1697,6 +1786,34 @@ class BatchAggregationTests(unittest.TestCase):
         code, output = self._main([self._trial(1, "PASS"), self._trial(2, "PASS")])
         self.assertEqual(0, code)
         self.assertIn('"verdict": "PASS"', output)
+
+    def test_different_candidate_cannot_inherit_an_existing_labels_passes(self) -> None:
+        self._main([self._trial(1, "PASS"), self._trial(2, "PASS")])
+        changed = self._trial(3, "FAIL")
+        changed["plugin_source_sha256"] = "b" * 64
+        code, output = self._main([changed], "--run-offset", "2", "--threshold", "0.66",
+                                  "--expect-plugin-digest", "b" * 64, plugin_sha="b" * 64, expected_calls=0)
+        self.assertEqual(2, code, output)
+        self.assertNotIn('"verdict": "PASS"', output)
+
+    def test_changed_scenario_cannot_reuse_an_existing_labels_trials(self) -> None:
+        self._main([self._trial(1, "PASS")])
+        with mock.patch.dict(self.SPEC, {"prompt": "a different task"}):
+            code, output = self._main([self._trial(2, "PASS")], "--run-offset", "1", expected_calls=0)
+        self.assertEqual(2, code, output)
+        self.assertNotIn('"verdict": "PASS"', output)
+
+    def test_legacy_batch_is_rejected_before_spending_but_complete_overwrite_is_allowed(self) -> None:
+        self._main([self._trial(1, "PASS")])
+        path = self.out / "summary-cand-default.json"
+        legacy = json.loads(path.read_text(encoding="utf-8"))
+        legacy[0]["plugin_source_sha256"] = "0" * 12
+        legacy[0].pop("scenario_sha256")
+        path.write_text(json.dumps(legacy), encoding="utf-8")
+        code, _ = self._main([self._trial(2, "PASS")], "--run-offset", "1", expected_calls=0)
+        self.assertEqual(2, code)
+        code, _ = self._main([self._trial(1, "PASS")], "--overwrite", expected_calls=1)
+        self.assertEqual(0, code)
 
     def test_an_out_of_range_threshold_is_refused(self) -> None:
         """P2: --threshold 0 made `required` zero and reported PASS for a batch where everything failed."""
@@ -1794,7 +1911,7 @@ class ReferenceReadTests(unittest.TestCase):
 class UnifiedRegradeTests(unittest.TestCase):
     """Codex review of PR #222: --regrade now sees routing and contract runs, not only build runs."""
 
-    def _saved(self, tmp: Path, *, label: str, text: str, events: list[dict] | None = None) -> Path:
+    def _saved(self, tmp: Path, spec: dict, *, label: str, text: str, events: list[dict] | None = None) -> Path:
         run = tmp / "eval-batch-contract" / label / "run-1"
         (run / "outputs").mkdir(parents=True)
         (run / "outputs" / "response.md").write_text(text, encoding="utf-8")
@@ -1802,7 +1919,7 @@ class UnifiedRegradeTests(unittest.TestCase):
             "state_files": {}, "commits_before_after": [1, 1], "branch": "main", "changed_files": [],
             "skills": [], "dispatches": [], "bash_commands": [], "agents_dir": False, "inconclusive": None,
         }), encoding="utf-8")
-        (run / "grading.json").write_text(json.dumps({"expectations": [], "summary": {}}), encoding="utf-8")
+        (run / "grading.json").write_text(json.dumps(_saved_grade(spec, [])), encoding="utf-8")
         if events is not None:
             (run / "stdout.jsonl").write_text("\n".join(json.dumps(e) for e in events), encoding="utf-8")
         return run
@@ -1811,7 +1928,7 @@ class UnifiedRegradeTests(unittest.TestCase):
         spec = {"id": "batch-contract", "agent": "sre-assistant", "prompt": "p",
                 "graders": [{"type": "contains_any", "of": ["saturation"]}]}
         with tempfile.TemporaryDirectory() as tmp:
-            run = self._saved(Path(tmp), label="cand", text="Connection pool saturation is the lead.\n")
+            run = self._saved(Path(tmp), spec, label="cand", text="Connection pool saturation is the lead.\n")
             grading = build_probe.regrade_run(run, spec)
         self.assertEqual(["grader contains_any"], [e["text"] for e in grading["expectations"]])
         self.assertTrue(grading["expectations"][0]["passed"])
@@ -1829,7 +1946,7 @@ class UnifiedRegradeTests(unittest.TestCase):
             {"type": "result", "result": "done", "duration_ms": 5, "usage": {}},
         ]
         with tempfile.TemporaryDirectory() as tmp:
-            run = self._saved(Path(tmp), label="cand", text="done", events=events)
+            run = self._saved(Path(tmp), spec, label="cand", text="done", events=events)
             grading = build_probe.regrade_run(run, spec)
         self.assertEqual(["routing fire skill:runbook"], [e["text"] for e in grading["expectations"]])
         self.assertTrue(grading["expectations"][0]["passed"], grading["expectations"][0]["evidence"])
@@ -1838,16 +1955,139 @@ class UnifiedRegradeTests(unittest.TestCase):
         spec = {"id": "batch-contract", "agent": "sre-assistant", "prompt": "p",
                 "graders": [{"type": "rubric", "name": "no_production_action_claim"}]}
         with tempfile.TemporaryDirectory() as tmp:
-            run = self._saved(Path(tmp), label="cand", text="I recommended; I did not act.\n")
-            (run / "grading.json").write_text(json.dumps({"expectations": [
+            run = self._saved(Path(tmp), spec, label="cand", text="I recommended; I did not act.\n")
+            (run / "grading.json").write_text(json.dumps(_saved_grade(spec, [
                 {"text": "grader rubric", "passed": True, "evidence": "judged PASS when live"},
-            ], "summary": {}}), encoding="utf-8")
+            ])), encoding="utf-8")
             import graders as fleet_graders  # noqa: PLC0415
 
             with mock.patch.object(fleet_graders, "rubric", side_effect=AssertionError("must not judge")):
                 grading = build_probe.regrade_run(run, spec)
         self.assertTrue(grading["expectations"][0]["passed"])
         self.assertIn("kept: live-judge", grading["expectations"][0]["evidence"])
+
+
+class RegradeIdentityTests(unittest.TestCase):
+    SPEC = {"id": "policy-pair", "agent": "sre-assistant", "prompt": "recommend only",
+            "graders": [{"type": "rubric", "name": "no_production_action_claim"},
+                        {"type": "rubric", "name": "recommend_only_stays_in_bounds"}]}
+
+    def _saved(self, run: Path, *, legacy: bool = False) -> dict:
+        ctx = build_probe.Context(self.SPEC, None, build_probe.TraceSummary(result_text="response"), None)
+        with mock.patch.object(build_probe.fleet_graders, "run_grader", side_effect=[
+                (False, "first policy failed"), (True, "second policy passed")]):
+            original = build_probe.grade(ctx)
+        if legacy:
+            original.pop("scenario_sha256", None)
+            for expectation in original["expectations"]:
+                expectation.pop("id", None)
+        (run / "outputs").mkdir()
+        (run / "outputs/response.md").write_text("response", encoding="utf-8")
+        (run / "outputs/trace-summary.json").write_text(json.dumps({
+            "commits_before_after": [1, 1], "inconclusive": None,
+        }), encoding="utf-8")
+        (run / "grading.json").write_text(json.dumps(original), encoding="utf-8")
+        return original
+
+    def test_regrade_preserves_opposite_rubric_verdicts_and_original_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            run = Path(tmp)
+            original = self._saved(run)
+            with mock.patch.object(build_probe.fleet_graders, "run_grader", side_effect=AssertionError("no paid judge")):
+                for _ in range(2):
+                    grading = build_probe.regrade_run(run, self.SPEC)
+                    self.assertEqual("FAIL", grading["status"])
+                    self.assertEqual([False, True], [e["passed"] for e in grading["expectations"]])
+                    self.assertIn("first policy failed", grading["expectations"][0]["evidence"])
+            self.assertEqual(original, json.loads((run / "grading.original.json").read_text(encoding="utf-8")))
+
+    def test_legacy_and_changed_scenarios_require_a_rerun_without_a_judge_call(self) -> None:
+        for change in ("legacy", "prompt", "rubric", "parameters", "duplicate"):
+            with self.subTest(change=change), tempfile.TemporaryDirectory() as tmp:
+                run = Path(tmp)
+                original = self._saved(run, legacy=change == "legacy")
+                candidate = json.loads(json.dumps(self.SPEC))
+                if change == "prompt":
+                    candidate["prompt"] = "a different instruction"
+                elif change == "rubric":
+                    candidate["graders"][0]["name"] = "no_inline_deploy_commitment"
+                elif change == "parameters":
+                    candidate["graders"][0]["params"] = {"changed": True}
+                elif change == "duplicate":
+                    original["expectations"][1]["id"] = original["expectations"][0]["id"]
+                    (run / "grading.json").write_text(json.dumps(original), encoding="utf-8")
+                with mock.patch.object(build_probe.fleet_graders, "run_grader", side_effect=AssertionError("no paid judge")):
+                    for _ in range(2):
+                        grading = build_probe.regrade_run(run, candidate)
+                        self.assertEqual("INCONCLUSIVE", grading["status"])
+                        self.assertFalse(any(e["passed"] for e in grading["expectations"]))
+                        self.assertEqual(original.get("scenario_sha256"), grading["scenario_sha256"],
+                                         "regrade must not relabel old trials as the new scenario")
+
+    def test_rubric_file_edits_take_effect_after_the_process_cache_is_cleared(self) -> None:
+        import judge
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "rubrics.yaml"
+            definitions = {"schema_version": 1, "rubrics": {
+                g["name"]: {"pass_if": "the original policy", "fail_if": "its violation"}
+                for g in self.SPEC["graders"]}}
+            source.write_text(json.dumps(definitions), encoding="utf-8")
+            run = Path(tmp) / "run"
+            run.mkdir()
+            judge.load_rubrics.cache_clear()
+            try:
+                # Change only the real loader's default file. Its parser and cache remain real.
+                with mock.patch.object(judge.load_rubrics.__wrapped__, "__defaults__", (source,)):
+                    self._saved(run)
+                    before = build_probe.scenario_digest(self.SPEC)
+                    definitions["rubrics"][self.SPEC["graders"][0]["name"]]["pass_if"] = "new policy"
+                    source.write_text(json.dumps(definitions), encoding="utf-8")
+                    self.assertEqual(before, build_probe.scenario_digest(self.SPEC))
+                    self.assertEqual("FAIL", build_probe.regrade_run(run, self.SPEC)["status"])
+                    judge.load_rubrics.cache_clear()
+                    self.assertNotEqual(before, build_probe.scenario_digest(self.SPEC))
+                    self.assertEqual("INCONCLUSIVE", build_probe.regrade_run(run, self.SPEC)["status"])
+            finally:
+                judge.load_rubrics.cache_clear()
+
+    def test_external_rubric_change_during_grading_is_inconclusive(self) -> None:
+        import judge
+        rubrics = json.loads(json.dumps(judge.load_rubrics()))
+        def changing_grader(*_args):
+            rubrics[self.SPEC["graders"][0]["name"]]["pass_if"] = "changed during grading"
+            return True, "judged before the definition changed"
+        ctx = build_probe.Context(self.SPEC, None, build_probe.TraceSummary(result_text="response"), None)
+        with mock.patch.object(judge, "load_rubrics", return_value=rubrics), \
+                mock.patch.object(build_probe.fleet_graders, "run_grader", side_effect=changing_grader):
+            grading = build_probe.grade(ctx)
+        self.assertEqual("INCONCLUSIVE", grading["status"])
+        self.assertFalse(any(e["passed"] for e in grading["expectations"]))
+
+    def test_external_input_change_before_grading_does_not_call_the_judge(self) -> None:
+        identity = build_probe.scenario_digest(self.SPEC)
+        changed = {**self.SPEC, "prompt": "changed during the trial"}
+        ctx = build_probe.Context(changed, None, build_probe.TraceSummary(result_text="response"), None)
+        with mock.patch.object(build_probe.fleet_graders, "run_grader") as grader:
+            grading = build_probe.grade(ctx, expected_scenario_digest=identity)
+        grader.assert_not_called()
+        self.assertEqual("INCONCLUSIVE", grading["status"])
+        self.assertEqual(identity, grading["scenario_sha256"])
+        self.assertIn("scenario inputs changed", grading["inconclusive"])
+
+    def test_changed_external_oracle_changes_scenario_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            oracle_dir = root / "evals/oracles"
+            oracle_dir.mkdir(parents=True)
+            oracle = oracle_dir / "probe.py"
+            oracle.write_text("first oracle\n", encoding="utf-8")
+            spec = {"id": "oracle", "prompt": "p", "checks": [{
+                "check": "command_exit_zero", "command": "python probe.py",
+                "writes_from": {"probe.py": "evals/oracles/probe.py"}}]}
+            with mock.patch.object(build_probe, "ROOT", root), mock.patch.object(build_probe, "ORACLE_DIR", oracle_dir):
+                before = build_probe.scenario_digest(spec)
+                oracle.write_text("different oracle\n", encoding="utf-8")
+                self.assertNotEqual(before, build_probe.scenario_digest(spec))
 
 
 class JudgeSpendAccountingTests(unittest.TestCase):

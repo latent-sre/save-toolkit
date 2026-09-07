@@ -269,6 +269,41 @@ class ConfluenceImportTest(unittest.TestCase):
             self.assertFalse(out.exists(), "no draft may be written on failure")
 
 
+class ConfluenceContentTest(unittest.TestCase):
+    def test_rendered_links_and_image_references_survive_with_loss_accounting(self) -> None:
+        proc, draft = run_converter(
+            '<title>Recovery</title><h2>Procedure</h2><p>Open '
+            '<a href="https://example.com/recovery">recovery <em>console</em></a>.</p>'
+            '<img src="diagram.png" alt="failure isolation diagram">'
+            '<iframe src="https://example.com/embed"></iframe>'
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn('[recovery console](<https://example.com/recovery>)', draft)
+        self.assertIn('[failure isolation diagram](<diagram.png>)', draft)
+        for output in (draft, proc.stdout):
+            self.assertIn('Image attachments not copied: 1', output)
+            self.assertIn('Unsupported media dropped: 1', output)
+
+    def test_unsafe_link_destinations_are_reported_without_becoming_active_links(self) -> None:
+        proc, draft = run_converter(
+            '<title>Recovery</title><p><a href="javascript:alert(1)">console</a></p>'
+            '<img src="data:text/html,unsafe" alt="diagram">'
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn('console', draft)
+        self.assertIn('diagram', draft)
+        self.assertNotIn('javascript:', draft)
+        self.assertNotIn('data:text/html', draft)
+        for output in (draft, proc.stdout):
+            self.assertIn('Unusable link or image destinations: 2', output)
+
+    def test_h1_supplies_the_title_when_the_export_has_no_title_element(self) -> None:
+        proc, draft = run_converter('<h1>Restart payments</h1><p>Read the runbook.</p>')
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn('# Runbook: Restart payments', draft)
+        self.assertEqual(frontmatter_fields(draft)['runbook_id'], 'restart-payments')
+
+
 class ConfluenceImportReferenceTest(unittest.TestCase):
     def test_export_example_prompts_for_token_instead_of_putting_it_in_argv(self) -> None:
         reference = IMPORT_REFERENCE.read_text(encoding="utf-8")

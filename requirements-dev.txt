@@ -3,9 +3,13 @@
 #
 #   python -m pip install -r requirements-dev.txt
 #
+# This full development set also serves as the canonical constraints for requirements-test.txt,
+# which selects only pytest and PyYAML for ordinary fleet tests and CI. Sandbox/build-probe users
+# retain the full install command above; selecting core tests does not install their frameworks.
+#
 # The behavioral eval harness and repository-owned sandboxes import these; Gate A still runs on a
 # bare Python. The change that first makes a gate-path script import a
-# third-party package adds the install step to both CI validate jobs in the same PR.
+# third-party package adds its dependency install to the Gate A job before the gate step.
 #
 # Tests run under `python -m pytest` (see pytest.ini). pytest is a test RUNNER, not a Gate A-path
 # import: scripts/readonly-guard.py stays standard-library-only under `python -I -S`, permanently.

@@ -1,7 +1,8 @@
 # Save Toolkit
 
 A Claude Code plugin that helps a human SRE do their job on this team's stack: PCF (through Apps
-Manager), Cloud Run, Splunk, Wavefront and PCF App Metrics, Grafana, Akamai. It fits together in
+Manager), Splunk, Wavefront and PCF App Metrics, Grafana, Akamai, with Cloud Run migration guidance.
+The GCP landing runtime remains undecided in `stack-profile`. It fits together in
 three layers. **You own the work**: the incident, the change, the runbook. **An advisor thinks with
 you**: `incident-investigation` asks what to check next, says what each result means, and tells you
 when to mitigate. **Agents are your helpers**, dispatched for bounded jobs: the `sre-assistant` agent gathers
@@ -44,7 +45,7 @@ ordinary use. A direct request for specific counts or logs stays a bounded helpe
 advisor to use a helper keeps the original incident question with the advisor and you.
 
 **Before first use:** the canonical [`stack-profile` skill bundle](skills/stack-profile/) declares
-*this* team's stack (PCF, GCP Cloud Run, DX OpenExplore, Splunk, Akamai). Every platform-touching skill
+*this* team's stack and pending migration decisions. Every platform-touching skill
 routes through it — if that is not your stack, update its entrypoint and matching references first
 or the fleet will confidently recommend someone else's tools.
 
@@ -65,7 +66,7 @@ will offer it).
 | `reviewer` *(for maintainers and builders)* | Read-only correctness, quality, and security review | Reports findings; hands approved fixes to `software-engineer`; terminal |
 | `agent-engineer` *(for maintainers)* | The fleet's prompts, agents, skills, descriptions, evals, bounded prompt/eval loops, roster/delegation graphs, and portable executable workflow-graph designs | Delegates only sanitized public lookups to `researcher`; the caller separately dispatches helper code to `software-engineer` and injection-surface review to `reviewer` |
 
-The 25 skills, by area (each `skills/<name>/SKILL.md` carries its own description and triggers):
+The skills, by area (each `skills/<name>/SKILL.md` carries its own description and triggers):
 
 - **Incident and operations** — `incident-investigation`, `root-cause`, `incident-command`, `postmortem`, `runbook`,
   `operational-learning`, `service-lifecycle` (audit, onboard, and retire modes)
@@ -147,9 +148,9 @@ Open a neutral test workspace for that plugin check; opening this repository its
 `.github/agents/` as workspace agents and can hide duplicate-install mistakes. Opening the repository
 without installing the plugin remains a checkout-only development path:
 [`.vscode/settings.json`](.vscode/settings.json) registers the generated skill projection.
-The exact beta discovery and agent-to-agent procedure is the
-`HOST-002` VS Code plugin probe, whose procedure was removed in the 2026-09-02 retention pass;
-recover it with `git show e77fc672^:docs/probes/host-002-vscode-agent-delegation.md`.
+Use the maintained [VS Code plugin acceptance procedure](docs/vscode-plugin-acceptance.md) for
+discovery, installed helpers, delegation, return/resume, and disable/uninstall checks. Its release
+section names the immutable-artifact and rollback evidence still required for supported use.
 
 **Codex:** the fleet is not distributed to Codex. Codex working *in* this repository picks up the
 root [`AGENTS.md`](AGENTS.md) automatically, which is all it needs

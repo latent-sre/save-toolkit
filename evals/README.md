@@ -33,8 +33,9 @@ roadmap item names another tier: it is the tier the existing routing evidence wa
 a different tier is a different baseline — record it and never average it with a Sonnet run.
 
 Compare an incumbent with `--plugin-root <worktree> --label incumbent`; `--expect-plugin-digest`
-refuses any other bytes. `--overwrite` replaces a label's runs, `--regrade` re-grades saved traces
-offline, and `--container IMAGE@sha256:…` runs every shell call inside a pinned, network-less
+refuses any other bytes. `--overwrite` replaces the selected run slots; use a new label when changing
+the candidate or scenario. `--regrade` re-grades saved traces offline only when the original scenario
+identity matches, and `--container IMAGE@sha256:…` runs every shell call inside a pinned, network-less
 container for a candidate that is not team-authored.
 
 ## Scenario contract
@@ -114,14 +115,33 @@ trials, timeout, per-trial duration, cost, and the exact argv. Identity hashes s
 the same plugin; they do not say the runs measured it the same way — **pin `--model` and `--timeout`
 for any numbers you intend to diff.**
 
+Machine records retain the complete candidate digest and a scenario digest covering the spec, its
+referenced oracle files, and the rubric definitions the judge actually consumes. The judge caches
+rubrics on first load for the process; file edits take effect in a new process. The digest uses those
+same cached definitions. Appending requires candidate and scenario identities to match the existing
+batch before any model call. Scenario inputs are checked again before and after grading;
+a change in the effective definitions or oracle bytes invalidates the trial. Regrade identifies each assertion by its scenario digest and
+position and retains live-judge/workspace verdicts from `grading.original.json`; duplicate display
+labels cannot substitute one verdict for another. Legacy records without identities, changed
+scenarios, and missing original assertions are INCONCLUSIVE and require a fresh trial. Regrade does
+not call a judge or recover workspace evidence that was never recorded.
+
+Run slots are shared across models under each label. Regrade copies a verdict into a summary only
+when its full candidate digest, scenario identity, and resolved model identity match the saved run.
+An overwritten slot or missing identity makes the conflicting summary row INCONCLUSIVE; it never
+acquires the replacement run's PASS. Prefer separate labels for separate model/candidate comparisons.
+
 ## Clean-room boundary
 
 Every trial points `CLAUDE_CONFIG_DIR` at a temporary directory holding only the selected Claude
 credential, rebuilds the child environment from an allowlist so unrelated host tokens cannot reach
 model-invoked tools, and runs from a temporary git root outside this repository so the repo's own
 `AGENTS.md`, `CLAUDE.md`, and local settings cannot teach a routing trial the answer. `--plugin-dir`
-loads a stable copy of the plugin created once per batch, and strict MCP mode supplies an explicit
-empty server set. Runtime init must report exactly one plugin with the snapshot's identity and
+loads the supplied checkout directly. The runner checks its digest before and after each trial;
+a change makes the trial INCONCLUSIVE, and a mismatch with the batch digest prevents the model call.
+These checks detect persistent changes, not a transient edit restored between checks; keep the
+candidate checkout stable for the batch. Strict MCP mode supplies an explicit empty server set.
+Runtime init must report exactly one plugin with that checkout's identity and
 exactly the requested tool inventory; a missing or foreign tool, an MCP server, an error result, a
 nonzero exit, or — where reads were granted — a successful read outside the workspace and plugin
 snapshot makes the trial **INCONCLUSIVE**, never a verdict. An auth failure aborts the batch.

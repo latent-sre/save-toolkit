@@ -33,12 +33,14 @@ denominator turns one failure into an extreme burn.
 
 [error_budget.py](../scripts/error_budget.py) is pure stdlib with budget-status and burn-rate modes.
 A human or an unguarded lane runs it and pastes the output; the read-only guard denies script
-execution by design. The three admitted pair behaviours:
+execution by design. Resolve the linked calculator to its absolute path in this installed skill;
+substitute that path below. The three admitted pair behaviours:
 
 ```powershell
-py -3 "skills/obs-alerting/scripts/error_budget.py" --slo 99.9 --sli-long 99.45 --sli-short 99.95
-py -3 "skills/obs-alerting/scripts/error_budget.py" --slo 99.9 --sli-long 99.45 --sli-short 99.8 --long-window 3d --short-window 6h
-py -3 "skills/obs-alerting/scripts/error_budget.py" --slo 99.9 --long-window 3d --short-window 5m
+$budgetScript = '<resolved calculator path>'
+py -3 $budgetScript --slo 99.9 --sli-long 99.45 --sli-short 99.95
+py -3 $budgetScript --slo 99.9 --sli-long 99.45 --sli-short 99.8 --long-window 3d --short-window 6h
+py -3 $budgetScript --slo 99.9 --long-window 3d --short-window 5m
 ```
 
 The third command is deliberately invalid and must exit 2 with the exact allowed-pair list.

@@ -33,18 +33,20 @@ page API and storage-format reference; curl manual on `--user`; reviewed 2026-08
 
 ## The converter does the mechanical part
 
-[`confluence_to_runbook.py`](../scripts/confluence_to_runbook.py) (stdlib-only, human- or
-`software-engineer`-run) turns one exported page into a draft:
+The linked [converter](../scripts/confluence_to_runbook.py) is stdlib-only and runs under the human
+or `software-engineer`. Resolve its absolute path in this installed skill before running:
 
 ```bash
-python ${CLAUDE_PLUGIN_ROOT}/skills/runbook/scripts/confluence_to_runbook.py page.html -o docs/runbooks/<slug>.md \
+python "<resolved converter path>" page.html -o docs/runbooks/<slug>.md \
   --source-url "https://<site>.atlassian.net/wiki/pages/<id>" --service-id <service>
 ```
 
 It pre-fills schema-valid frontmatter (`status: draft`, `version: 1`, dates `null`), maps
 recognizable headings into the slot table below, keeps everything unrecognized under an explicit
 *Imported content (unmapped)* section, marks every imported command block `[unverified]`, and
-counts dropped Confluence macros into the provenance instead of mangling them. The draft is a
+preserves links and image references, and reports dropped macros/media, unusable destinations,
+and uncopied image attachments. Relative destinations retain the export's layout; transfer the
+referenced files or repair their destinations when moving the draft. The draft is a
 starting point for `scribe`'s conversion work, not a finished runbook — every slot still gets
 filled or marked `n/a — why`, and the provenance rules below still apply.
 
