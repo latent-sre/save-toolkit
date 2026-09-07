@@ -50,21 +50,22 @@ alert, SLO, and dashboard design stays with `observability-engineer`; code or au
    An active incident permits only
    `proposed` or `blocked` outcomes and returns to the human responder, who troubleshoots it with
    `incident-investigation`.
-2. **Inventory before creating.** Read existing service cards, alert cards, indexes, runbooks,
-   postmortems, alert definitions, and ownership conventions. Update stable IDs and links instead of
-   forking duplicates.
+2. **Inventory before creating.** Find the existing owning artifact and its affected links in the
+   service cards, alert cards, indexes, runbooks, postmortems, and alert definitions. Follow ownership
+   conventions; update stable IDs and links instead of forking duplicates.
 3. **Bind every claim to evidence.** Preserve `[verified]`, `[sourced]`, and `[unverified]`
    labels. The discovery takes its weakest supporting label; disagreement remains `[unverified]`.
    Approved and resolved states require the supplied approval or resolution evidence.
-4. **Disposition every consequence.** For runbook, postmortem, service card, alert card, knowledge
-   index, observability, automation, code, and accepted risk, choose `prepared`, `proposed`,
-   `blocked`, `duplicate`, or `not_applicable`. Silence is not a disposition.
+4. **Disposition every consequence.** Internally check runbook, postmortem, service card, alert card,
+   knowledge index, observability, automation, code, and accepted risk. For affected artifacts choose
+   `prepared`, `proposed`, `blocked`, or `duplicate`; group unaffected categories as `not_applicable`
+   with a shared reason. The check is complete without nine visible rows or work invented for each.
 5. **Prepare the smallest coherent documentation diff.** A service or alert closeout may update its
    cards, index links, and a missing or stale runbook. Load `runbook` before writing a procedure.
    A postmortem remains its own primary artifact.
 6. **Return the result for review.** Lead with changed paths or the owned handoff, then evidence,
-   every disposition, unresolved gaps, recommended next action, and explicit non-actions. Human PR
-   review remains load-bearing.
+   affected dispositions, grouped non-actions, gaps, and next action. A stale-contact correction
+   stays a contact/link diff when no operational behavior changed. Human PR review remains required.
 
 ## Required invariants
 
@@ -96,7 +97,7 @@ Lead with the discovery and recommended course of action. Then provide:
 
 1. target, target revision, the `[verified]` checkout binding or its absence, trigger, and owner;
 2. evidence with retained labels and conflicts;
-3. every affected artifact's disposition and owner;
+3. every affected artifact's disposition and owner, plus justified grouped `not_applicable` categories;
 4. changed paths and links, or the exact reason each remains proposed or blocked;
 5. limitations and one tracked next action;
 6. explicit non-actions: no execution, external lookup, delegation, approval, or verification inferred.

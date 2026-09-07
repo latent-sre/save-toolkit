@@ -35,19 +35,23 @@ foundation capacity) is the platform team's. Fix app-side problems; **recognize 
 evidence** when symptoms are platform-wide—do not try to operate BOSH.
 
 - **One app / route / instance affected ⇒ likely app-side** (ours to investigate).
-- **Many apps failing at once, or failing/evacuating cells ⇒ platform-side**—escalate with evidence;
-  do not keep digging in one app.
+- **Many apps failing at once, or failing/evacuating cells ⇒ broaden and escalate**—bring in the
+  platform and relevant dependency owners. Shared databases, networks, or releases can affect many
+  apps; broad impact alone does not establish platform fault.
 
 **Escalation packet (a case the platform team can act on, not a hunch):**
 
-- **Symptom + start time** (UTC) and **trend** (growing / steady / recovering).
+- **Symptom + observed window** (UTC) and **trend** (growing / steady / recovering); distinguish
+  confirmed onset from the first available observation.
 - **Blast radius** showing it is not just our app: affected apps/routes/orgs/spaces and the common
   symptom, with timestamps.
-- **Evidence our app is healthy:** `cf app <app>` (instances up), recent `cf events` (no crashes/OOM),
-  `cf logs --recent` (clean), and no recent app-side deploy/config change.
-- **What was ruled out** app-side (deploy, config, dependency, capacity).
-- **The platform signal:** evacuating/failing Diego cells, foundation-wide 502s, cert/NTP symptoms,
-  or `cf ssh`-to-`2222` timeouts. Label unconfirmed causal claims `[unverified]`.
+- **App-side observations and limits:** instance states, events, captured log window, and known
+  deploy/config changes. Running instances and clean logs do not establish successful user requests.
+- **Hypotheses checked and still open:** deploy, config, shared dependency, and capacity; name the
+  evidence that narrows each, not a blanket app-health clearance.
+- **Platform signals, if available:** evacuating/failing Diego cells, foundation-wide 502s,
+  cert/NTP symptoms, or `cf ssh`-to-`2222` timeouts. Name the missing observation the receiving owner
+  can supply; lack of a confirmed cause does not block escalation. Label causal gaps `[unverified]`.
 
 ## Orient
 

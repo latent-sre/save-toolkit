@@ -19,8 +19,8 @@ five-line quota; a branching incident may need a fault tree, causal graph, or an
 preserves multiple contributing paths. Name the method and do not force uncertain facts into a
 single linear story.
 
-The goal is **learning, not blame**: find the systemic reasons a competent team still hit this, and fix
-them so the failure class can't recur. Describe systems and decisions, never people.
+The goal is **learning, not blame**: explain how a competent team still hit this and reduce its
+recurrence or impact. Describe systems and decisions, never people; do not promise zero recurrence.
 
 ## Blameless stance
 
@@ -34,16 +34,16 @@ Two claims that need evidence, not silence:
 
 - **"No data loss" is a claim that needs evidence, not an assumption of silence** — state explicitly
   what was checked (row counts, checksums, replay of the write path) or mark it `[unverified]`.
-- **Name the detection source.** A *person* noticing is a detection gap, and the gap is a finding —
-  it belongs in Detection and usually seeds a preventative action item. Ask directly: could typed
-  `observability-engineer` evidence have paged sooner?
+- **Assess detection, not who detected it.** Name the source, delay, available signals, and noise.
+  Human detection is not automatically a gap. Propose `observability-engineer` follow-up when
+  evidence supports an actionable, earlier signal worth its paging cost.
 
-## Action items that actually prevent recurrence
+## Action items that reduce risk
 
 - Prefer **systemic** fixes (a gate, an alert, a guardrail, an automated check) over "be more careful."
-- **Tag every item mitigative vs preventative** — *mitigative* fixes this specific gap; *preventative*
-  eliminates the whole failure class. A postmortem with no preventative item rarely stops a recurrence.
-  Track them in the template's Action items table so none is lost.
+- **Tag every item mitigative vs preventative** — *mitigative* reduces impact or recovery time;
+  *preventative* reduces recurrence likelihood. Name the risk reduced and remaining limits; an
+  action need not eliminate the whole failure class. Track justified items, not a category quota.
 - Every action names the **artifact** it becomes — a runbook line, an alert, a drill, a validator
   rule — plus a **proof-of-done** check. An action with no artifact will not happen.
 - Every action names its **instrumentation prerequisite**: the signal, exporter, instrumented code,
@@ -53,16 +53,15 @@ Two claims that need evidence, not silence:
   resilience/code → typed `software-engineer` agent; detection/SLO → typed `observability-engineer` agent; investigation follow-up →
   the responder with `incident-investigation`; deploy/rollback safety → human release owner; operating documentation → typed `scribe`
   agent.
-- Be honest about what you don't know; mark unconfirmed causes `[unverified]` and state how to confirm them.
+- Resolved impact does not require a known cause. Mark unconfirmed causes `[unverified]` and give
+  unresolved causal questions an owner and next check; do not block the write-up on certainty.
 
 ## Operational learning closeout
 
-A postmortem is incomplete until every new operational fact has a **learning disposition**. Apply the
-`operational-learning` policy after the primary postmortem is written: prepare or propose updates for
-runbook, service card, alert card, knowledge index, observability, automation, code, and accepted
-risk. Each outcome is `prepared`, `proposed`, `blocked`, `duplicate`, or `not_applicable`, with evidence
-and one owner. The typed `scribe` agent may prepare documentation only; other lanes receive handoffs.
-No action item may end as chat-only advice.
+After the primary write-up, apply `operational-learning` to every new operational fact. Disposition
+affected runbook, card, index, observability, automation, code, and accepted-risk work with evidence
+and one owner; group justified `not_applicable` categories instead of inventing work. The typed
+`scribe` agent prepares documentation only; other lanes receive tracked handoffs, not chat-only advice.
 
 ## Lessons — include "where we got lucky"
 

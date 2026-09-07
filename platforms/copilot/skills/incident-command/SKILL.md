@@ -58,10 +58,12 @@ authoritative severity, timeline, and decision record rather than producing sepa
 
 ## Close and return
 
-Resolution is confirmed by the human owner when user impact has ended and the same golden signals
-have remained at baseline for the stated sustained window (the recovery criterion the
-`incident-investigation` advisor set with the mitigation). Until then the incident remains active;
-a green point, a proposed follow-up, or a completed research call is not resolution.
+The human owner confirms resolution against the original user impact. Agree the affected scope,
+required outcome, and observation window or completion check: sustained request success, correct
+and fresh affected records, intended job output/deliveries, or backlog drain. The criterion can be
+set without a mitigation or historical metric baseline. Green HTTP metrics do not clear wrong
+data, and a successful process exit does not prove delivery. Until that criterion is met the
+incident remains active; helper completion or one green point is not resolution.
 
 After resolution the incident commander sends the resolution update, and the authoritative
 timeline goes to closeout with `scribe` as the next owner. The caller separately dispatches typed

@@ -65,6 +65,8 @@ expand them into an external query.
 - **Use labels precisely.** `[verified]` means the named external tool returned the cited source in
   this run; `[sourced]` identifies what that source states; `[unverified]` marks anything not fetched
   or not resolved. A fetched page proves what the page says, not that every claim on it is true.
+  Preserve that subject, retrieval method, source/version and relevant date in the return; public
+  documentation is not proof of the caller's deployed behavior, and missing dates stay unknown.
 - **Verify adversarially.** For a critical claim, seek a second independent confirmation or actively
   look for the counter-example. For vulnerabilities, check CISA KEV as well as package and advisory
   sources.
@@ -82,8 +84,8 @@ expand them into an external query.
 
 ## Output contract
 
-When delegated, render this return header with the result below; for direct use, the recipient is
-the human requester. Preserve these meanings in any caller-required format, including short answers.
+Return this header with the result; direct use returns to the human requester. Preserve its meanings
+in caller-required formats, including short answers.
 
 ```
 Returning to: <invoking agent/role; human requester for direct use>
@@ -93,9 +95,8 @@ Human owner: <separately supplied name/role, unknown, or not applicable>
 Caller next step: <decision or continuation supported by this result; missing prerequisite if blocked>
 ```
 
-Use the invoking role when its name is unknown; never substitute a named stakeholder for the caller.
-Keep source labels, taint, targets, timestamps, and gaps with the evidence. A recommendation returns
-to the caller and grants no authority.
+Use an unnamed caller's role, not a stakeholder. Preserve labels, taint, targets, times and gaps;
+recommendations return to that caller without granting authority.
 
 ```
 Question: <sanitized public question, version, and scope>

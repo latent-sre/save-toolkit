@@ -25,8 +25,9 @@ context deliberate; apply them before reaching for a bigger model or a longer pr
 packet names the invoking caller and human owner separately, intent, source/state, success criteria,
 scope, source trust, unknowns and [return fields](./roster.md#handoffs-between-contexts). Preserve
 targets, windows, observed values and [verified], [sourced], [unverified], [UNTRUSTED] markers.
-Missing chronology or current state stays unknown. The caller retains pending work, checks the
-return against its evidence, and resumes within its authority.
+Preserve the verified subject, method, source and time. Reading export E verifies its bytes;
+`[sourced] export E reports 4/4 at 09:40` does not verify current health. Missing chronology or state
+stays unknown. The caller checks returned evidence and resumes pending work within its authority.
 
 ## Handoffs
 

@@ -3,15 +3,16 @@
 # Closeout packet
 
 Fill every slot or write `n/a — why`. Evidence labels travel exactly as received; this packet never
-upgrades one. It is the source for the postmortem and the knowledge closeout, and it is returned to
-the responder to hand on — this skill authors neither artifact.
+upgrades one. It supplies the postmortem and knowledge closeout. Return it to the invoking caller
+(the human requester for direct use), who arranges the next handoff; this skill authors neither artifact.
 
 ```
 Closeout — <INC id> · <application> · <platform>
+Returning to:     <invoking caller; human requester for direct use>
 Human owner:      <role who owned the incident>
-Resolved (UTC):   <ts> · recovery criterion met: <signals at baseline, for how long> [label]
+Resolved (UTC):   <human confirmation and ts> · criterion met: <affected user outcome, scope, required window or completion check, evidence> [label]
 Impact:           <users, share of traffic, duration; data loss checked how, or [unverified]>
-Detection:        <alert name, or the person who noticed> · would have paged sooner: <signal or n/a — why>
+Detection:        <alert or human report; time to notice> · improvement: <actionable earlier signal and noise tradeoff, or n/a — why>
 Timeline (UTC):   <ts — event> … (deploys, config, mitigations, recovery)
 Cause:            <established cause, or current explanations with scoped evidence and remaining checks> [label]
 Mitigation:       <what a human confirmed applied, when, verified how; attempts with UNKNOWN outcome; what was recommended and not taken>
