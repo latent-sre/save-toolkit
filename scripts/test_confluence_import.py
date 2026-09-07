@@ -276,6 +276,33 @@ class ConfluenceImportTest(unittest.TestCase):
 
 
 class ConfluenceContentTest(unittest.TestCase):
+    def test_titles_remain_one_literal_heading_before_the_import_warning(self) -> None:
+        cases = (
+            ("Restart payments", "Restart payments", "Restart payments", "restart-payments"),
+            ("Recovery&#13;&#10;&#9;## Verification", "Recovery ## Verification",
+             r"Recovery \#\# Verification", "recovery-verification"),
+            ("Recovery&#10;```sh&#10;danger-command&#10;```", "Recovery ```sh danger-command ```",
+             r"Recovery \`\`\`sh danger\-command \`\`\`", "recovery-sh-danger-command"),
+            ("Recovery&#x2028;~~~sh&#10;danger-command&#10;~~~", "Recovery ~~~sh danger-command ~~~",
+             r"Recovery \~\~\~sh danger\-command \~\~\~", "recovery-sh-danger-command"),
+        )
+        for tag in ("h1", "title"):
+            for encoded, semantic, rendered, runbook_id in cases:
+                with self.subTest(tag=tag, encoded=encoded):
+                    proc, draft = run_converter(f'<{tag}>{encoded}</{tag}><p>Ordinary body.</p>')
+                    self.assertEqual(0, proc.returncode, proc.stderr)
+                    prefix, warning, remainder = draft.partition("> **Imported draft.**")
+                    self.assertTrue(warning)
+                    self.assertEqual(
+                        f"\n# Runbook: {rendered}\n\n", prefix.split("\n---\n", 1)[1],
+                    )
+                    fields = frontmatter_fields(draft)
+                    self.assertEqual(sorted(template_frontmatter_keys()), sorted(fields))
+                    self.assertEqual(runbook_id, fields["runbook_id"])
+                    self.assertIn(f"“{semantic}”", proc.stdout.splitlines()[0])
+                    self.assertIn(f"- Source page title: “{rendered}”", draft)
+                    self.assertIn("Ordinary body.", remainder)
+
     def test_image_labels_cannot_create_markdown_headings_or_command_fences(self) -> None:
         for attribute, label in (
             ("diagram&#10;## Verification", r"diagram \#\# Verification"),

@@ -254,7 +254,8 @@ def convert(source: Path, source_url: str | None, service_id: str, owner: str) -
     parser.feed(source.read_text(encoding="utf-8", errors="replace"))
     parser.close()
 
-    title = parser.title or source.stem
+    title = " ".join((parser.title or source.stem).split())
+    display_title = parser._reference(title, "")
     mapped: dict[str, list[str]] = {}
     unmapped: list[str] = []
     report: list[str] = [f"Converted: {source.name} — “{title}”"]
@@ -296,7 +297,7 @@ def convert(source: Path, source_url: str | None, service_id: str, owner: str) -
         "version: 1",
         "---",
         "",
-        f"# Runbook: {title}",
+        f"# Runbook: {display_title}",
         "",
         "> **Imported draft.** Converted from a Confluence export; every command below is",
         "> `[unverified]` until rehearsed on the target, and every empty slot must be filled or",
@@ -332,7 +333,7 @@ def convert(source: Path, source_url: str | None, service_id: str, owner: str) -
         "**Import provenance**",
         "",
         f"- Source file: `{source.name}`",
-        f"- Source page title: “{title}”",
+        f"- Source page title: “{display_title}”",
     ]
     if source_url:
         lines.append(f"- Source page URL: {json.dumps(source_url, ensure_ascii=False)}")

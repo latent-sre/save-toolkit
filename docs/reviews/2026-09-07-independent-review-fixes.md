@@ -108,3 +108,8 @@ and package-form imports could hide a helper's third-party dependency from the w
 The label formatter now normalizes whitespace and escapes Markdown punctuation; dependency
 collection follows the reported package and alias forms. Both defects have focused red/green
 regressions. The final allowed review request follows fresh integration and hosted CI evidence.
+
+The third review reported no major code issues but found a title-rendering injection path. Both
+inferred h1 and explicit title values now use normalized semantic text for identifiers and escaped
+text for Markdown display. Final verification covers that correction; the human's three-request
+limit prevents another hosted review of the resulting commit.
