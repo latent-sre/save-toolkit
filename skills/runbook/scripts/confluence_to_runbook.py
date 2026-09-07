@@ -238,7 +238,7 @@ def convert(source: Path, source_url: str | None, service_id: str, owner: str) -
         "alert_names: []",
         f"owner: {json.dumps(owner, ensure_ascii=False)}",
         "severity: <P1|P2|P3|P4 / page | ticket>",
-        "source_revision: <repository@full-sha or reviewed release identifier>",
+        "source_revision: <repository@short-commit or reviewed release identifier>",
         "last_reviewed: null",
         "last_verified: null",
         "verification_evidence: []",

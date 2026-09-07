@@ -125,6 +125,12 @@ def frontmatter_fields(draft: str) -> dict[str, str]:
 
 
 class ConfluenceImportTest(unittest.TestCase):
+    def test_draft_revision_slot_accepts_short_commit_ids(self) -> None:
+        self.assertEqual(
+            frontmatter_fields(self.draft)["source_revision"],
+            "<repository@short-commit or reviewed release identifier>",
+        )
+
     def setUp(self) -> None:
         self.proc, self.draft = run_converter(
             VIEW_HTML, "--source-url", "https://example.atlassian.net/wiki/pages/123"

@@ -320,10 +320,30 @@ class FleetValidatorTests(unittest.TestCase):
                 (ROOT / relative).read_text(encoding="utf-8").lower(),
             )
             with self.subTest(contract=relative.as_posix()):
-                self.assertIn("mounted checkout's current full sha equals the target revision", text)
+                self.assertIn("mounted checkout's current commit matches the target revision", text)
                 self.assertIn("`[verified]` checkout binding", text)
                 self.assertIn("`proposed`", text)
                 self.assertIn("`blocked`", text)
+
+    def test_closeout_accepts_short_ids_without_guessing_checkout_identity(self) -> None:
+        text = _markdown_section(Path("skills/operational-learning/SKILL.md"), "## Close the loop")
+        for phrase in (
+            "`git rev-parse --short=8 head`",
+            "uniqueness",
+            "full ids",
+            "ambiguous",
+            "`[unverified]`",
+            "`proposed` or `blocked`",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, text)
+
+    def test_investigator_target_slot_accepts_short_ids_and_unknown_revision(self) -> None:
+        text = _markdown_section(Path("agents/repository-investigator.md"), "## Output contract")
+        self.assertIn(
+            "target: <repository root@short commit id or unknown; note included uncommitted state>",
+            text,
+        )
 
     def test_closeout_contracts_bind_sender_roots_and_disposition_homes(self) -> None:
         expectations = {
@@ -347,10 +367,10 @@ class FleetValidatorTests(unittest.TestCase):
                 "| exact alert name | status | service |",
             ),
             Path("agents/observability-engineer.md"): (
-                "`git rev-parse head` output on the `verified:` line",
+                "`git rev-parse --short=8 head` output on the `verified:` line",
             ),
             Path("agents/software-engineer.md"): (
-                "`git rev-parse head` output on the `verified:` line",
+                "`git rev-parse --short=8 head` output on the `verified:` line",
             ),
             Path("agents/scribe.md"): (
                 "summary, owner, urgency, change tier, approval need, verification",

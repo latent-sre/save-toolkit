@@ -136,14 +136,15 @@ recommendations return to that caller without granting authority.
 - Always name coverage gaps you noticed (journeys with no SLI, alerts with no runbook).
 - For every approved alert addition/change: the learning disposition for alert card, service card,
   knowledge index, and runbook, including one recommended course of action and next owner, plus the
-  mounted checkout's current full SHA as `git rev-parse HEAD` output on the `Verified:` line when a
-  documentation diff is authorized.
+  mounted checkout's short commit ID as `git rev-parse --short=8 HEAD` output on the `Verified:` line
+  when a documentation diff is authorized, after resolving the target to that same commit. Git
+  extends the ID for uniqueness.
 
 #### Worked example — slots the contract cannot show as shapes
 
 > **Changed**: `alerts/checkout-5xx-burn.yaml` (short window 2x → 6x) — provisioning PR #91.
 > **Verified**: staging synthetic burn trips the rule in 4m [verified: alert-history link], at
-> `git rev-parse HEAD` = `<40-hex SHA>`.
+> `git rev-parse --short=8 HEAD` = `<unique short commit ID matching the target>`.
 > **UNKNOWN**: the dashboard PUT timed out after dispatch — not a failed write; reconcile from a
 > fresh read back and version history. Reconciliation owner: the on-call platform engineer.
 

@@ -80,7 +80,7 @@ record exists at all.
 
 After executed onboarding or retirement, send an evidence-bound handoff to `scribe` for the service
 card, alert cards, index entry, and any missing or stale runbook, carrying the authorizing record, the exact
-repository revision, the caller's `[verified]` checkout binding (full SHA), the execution receipts,
+repository revision, the caller's `[verified]` checkout binding (unique short commit ID), the execution receipts,
 every evidence label as received, and what was not done. Audit findings travel the same route. This
 skill never loads `operational-learning` or authors a record. An unexecuted draft reports its
 proposed knowledge changes without claiming onboarding or retirement occurred. When no service card

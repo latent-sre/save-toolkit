@@ -5,7 +5,7 @@ name: <human-readable service name>
 lifecycle: proposed | active | deprecated | retired
 owner: <team/role>
 criticality: <critical | high | medium | low>
-source_revision: <repository@full-sha or reviewed release identifier>
+source_revision: <repository@short-commit or reviewed release identifier>
 last_reviewed: null
 evidence_status: sourced | unverified
 ---
@@ -29,7 +29,7 @@ evidence_status: sourced | unverified
 
 ## Runtime and boundaries
 
-- Repository and revision: <link + full SHA>
+- Repository and revision: <link + unique short commit ID>
 - Runtime: <PCF foundation/org/space and app names, without credentials>
 - Routes/endpoints: <access-controlled links; no secrets>
 - Deployment source: <manifest/workflow link>
