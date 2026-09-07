@@ -60,7 +60,7 @@ review-ready status, structural checks and publication are not that decision.
 and its comparison baselines: [symptom guidance](reviews/2026-09-06-general-incident-help.md) and
 [first repair pass](reviews/2026-09-06-sre-decision-quality-repairs.md), including their failures.
 The [operational-contract measurements](reviews/2026-09-04-operational-contract-fixes.md) also remain:
-open [PR #237](https://github.com/latent-sre/save-toolkit/pull/237) relies on their record provenance
+[PR #237](https://github.com/latent-sre/save-toolkit/pull/237) relies on their record provenance
 when assessing compatibility of historical evaluation results.
 **SRE task:** The responder gets a useful next check or closeout without mistaking a job status,
 missing history, aggregate signal, or recipient readback time for evidence of a different claim.
