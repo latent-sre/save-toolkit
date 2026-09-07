@@ -276,6 +276,43 @@ class ConfluenceImportTest(unittest.TestCase):
 
 
 class ConfluenceContentTest(unittest.TestCase):
+    def test_image_labels_cannot_create_markdown_headings_or_command_fences(self) -> None:
+        for attribute, label in (
+            ("diagram&#10;## Verification", r"diagram \#\# Verification"),
+            ("diagram&#13;&#10;&#9;&#x2028;## Verification", r"diagram \#\# Verification"),
+            ("diagram&#10;```sh&#10;danger-command&#10;```",
+             r"diagram \`\`\`sh danger\-command \`\`\`"),
+            ("diagram&#10;~~~sh&#10;danger-command&#10;~~~",
+             r"diagram \~\~\~sh danger\-command \~\~\~"),
+        ):
+            with self.subTest(attribute=attribute):
+                proc, draft = run_converter(
+                    '<p>Before.</p><img src="diagram.png" alt="' + attribute + '">'
+                    '<p>Ordinary following content.</p>'
+                )
+                self.assertEqual(0, proc.returncode, proc.stderr)
+                body = draft.split("## Purpose & scope\n\n", 1)[1].split("\n## Trigger", 1)[0]
+                self.assertEqual(
+                    f"Before.\n\nImage: [{label}](<diagram.png>)\n\nOrdinary following content.\n",
+                    body,
+                )
+                self.assertIn("Image attachments not copied: 1", proc.stdout)
+
+    def test_reference_labels_preserve_text_and_destinations_as_literal_markdown(self) -> None:
+        proc, draft = run_converter(
+            '<p><a href="https://example.com/console?q=1&amp;b=2">'
+            'Ops [primary] *console* _status_ `check` &lt;b&gt;</a> ordinary following text.</p>'
+            '<img src="../diagram v1.png" alt="  plain&#9;diagram&#13;&#10;label  ">'
+        )
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        self.assertIn(
+            r'[Ops \[primary\] \*console\* \_status\_ \`check\` \<b\>](<https://example.com/console?q=1&b=2>)'
+            ' ordinary following text.',
+            draft,
+        )
+        self.assertIn('[plain diagram label](<../diagram%20v1.png>)', draft)
+        self.assertIn("Unusable link or image destinations: 0", proc.stdout)
+
     def test_unsupported_media_suppresses_descendants_and_resumes_afterward(self) -> None:
         # iframe is raw text: its first </iframe> closes it, so it cannot nest another iframe.
         for tag, child, count in (

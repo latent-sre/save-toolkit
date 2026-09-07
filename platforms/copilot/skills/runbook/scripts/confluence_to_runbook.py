@@ -99,7 +99,8 @@ class _Extractor(HTMLParser):
 
     @staticmethod
     def _reference(label: str, destination: str) -> str:
-        label = label.replace("\\", "\\\\").replace("[", "\\[").replace("]", "\\]")
+        label = " ".join(label.split())
+        label = re.sub(r"([\\`*_\[\]{}()#+.!|<>~-])", r"\\\1", label)
         return f"[{label}](<{destination}>)" if destination else label
 
     def _finish_link(self) -> None:

@@ -72,10 +72,12 @@ class ValidateWorkflowTests(unittest.TestCase):
         for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
             names: list[str] = []
             if isinstance(node, ast.Import):
-                names = [alias.name.split(".")[0] for alias in node.names]
+                names = [alias.name for alias in node.names]
             elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
-                names = [node.module.split(".")[0]]
-            found.update(names)
+                names = [node.module]
+                if node.module == "scripts":
+                    names.extend(alias.name for alias in node.names if alias.name != "*")
+            found.update(name.removeprefix("scripts.").split(".")[0] for name in names)
         return found
 
     @classmethod
@@ -93,15 +95,20 @@ class ValidateWorkflowTests(unittest.TestCase):
             "    steps:\n"
             "      - run: python -m pip install -r requirements-dev.txt\n"
         )
-        for indirect in (False, True):
-            with self.subTest(indirect=indirect), tempfile.TemporaryDirectory() as temporary:
+        for statement in (
+            "import yaml", "import fleet_frontmatter", "from scripts import fleet_frontmatter",
+            "from scripts import fleet_frontmatter as frontmatter",
+            "import scripts.fleet_frontmatter as frontmatter",
+            "from scripts.fleet_frontmatter import yaml",
+        ):
+            with self.subTest(statement=statement), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 (root / "scripts").mkdir()
                 (root / "scripts/gate_a.py").write_text(
                     'STEPS = ["scripts/validate_fleet.py"]\n', encoding="utf-8",
                 )
                 (root / "scripts/validate_fleet.py").write_text(
-                    "import fleet_frontmatter\n" if indirect else "import yaml\n", encoding="utf-8",
+                    statement + "\n", encoding="utf-8",
                 )
                 (root / "scripts/fleet_frontmatter.py").write_text("import yaml\n", encoding="utf-8")
                 workflow_path = root / "validate.yml"

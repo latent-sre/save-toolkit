@@ -102,3 +102,9 @@ documented in the [evaluator contract](../../evals/README.md#provenance).
 Focused regressions reproduced these defects before their fixes. The PR record carries the final
 commit, integrated test results, individual thread dispositions, and bounded review requests.
 Earlier approval and test counts above describe their named snapshots, not these later changes.
+
+The second hosted review found encoded whitespace in image labels could inject Markdown structure,
+and package-form imports could hide a helper's third-party dependency from the workflow test.
+The label formatter now normalizes whitespace and escapes Markdown punctuation; dependency
+collection follows the reported package and alias forms. Both defects have focused red/green
+regressions. The final allowed review request follows fresh integration and hosted CI evidence.
