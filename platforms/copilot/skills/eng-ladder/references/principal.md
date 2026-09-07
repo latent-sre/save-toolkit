@@ -48,4 +48,6 @@ spawned agent instead reports the decision needed to its caller — it never sel
 - Org-wide pattern, build-vs-buy, or a decision everything else must live with → the
   distinguished altitude.
 - Execution of the settled design → the builder altitude (or the `software-engineer` agent).
-- New operational steps → the `observability-engineer` agent; deployment execution → the human release owner.
+- New operating procedures → `scribe`; alerts, dashboards, SLOs or telemetry →
+  `observability-engineer`; deployment execution → the human release owner. The caller arranges
+  any handoff the current lane cannot invoke.

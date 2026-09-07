@@ -48,6 +48,9 @@ recovery as regressions. Any next source candidate needs a new bounded decision.
 The approved [task-sized output changes](reviews/2026-09-07-task-sized-skill-outputs.md) are
 implemented and source-reviewed; their separate six-pair Sonnet check awaits the human's decision.
 That narrower work does not close the native selection or evidence-quality failures above.
+The same record now carries the approved rescan items 3/4: task-sized log/metric/runbook/telemetry
+guidance and owner/rollback alignment. Local/source verification does not establish model behavior
+on those new bytes or clear the acceptance hold.
 The approved [helper-exchange candidate](reviews/2026-09-07-incident-helper-exchange.md) replaces
 one-sided examples with dispatch and parent claim reconciliation; source review and local checks pass.
 Its separate three-pair Sonnet decision is outstanding; native entry/return remains unverified.

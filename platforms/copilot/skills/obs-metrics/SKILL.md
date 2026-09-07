@@ -15,8 +15,8 @@ argument-hint: "[service, metric question, or query goal]"
 
 # Metrics — the investigation shape
 
-Start with the operational question, the population it concerns, and the time window. Do not choose a
-backend expression until you have selected and read the matching dialect reference.
+Match the question, population and time window. Supplied-metric interpretation needs no new query or
+baseline; apply investigation steps only when requested. Read the dialect before writing an expression.
 
 ## Percentile latency is a distribution question
 
@@ -30,7 +30,7 @@ precomputed quantiles exist, report the limitation instead of relabeling the res
 
 ## Error ratio starts with counter semantics
 
-Define numerator and denominator over the same population and evaluation window. Determine whether the
+For ratio calculation or query design, bind numerator and denominator to the same population/window. Determine whether the
 source is cumulative, delta-per-interval, or a gauge before applying any rate. For cumulative counters,
 derive each series' change or rate before aggregating so an instance reset remains visible to the
 backend's reset handling.
@@ -43,18 +43,18 @@ is not automatically a healthy zero.
 
 Distinguish four cases: an expected point arrived with value zero; one point is late; a previously known
 series stopped; or the selector has never matched a series. Filling a short gap can be appropriate for
-display, but it can also hide collection loss. Record the reporting interval, lookback behavior, and
-alert no-data policy with the query.
+display, but can hide collection loss. Query work records reporting interval, lookback and applicable
+alert no-data policy; supplied evidence with missing metadata retains that gap.
 
 ## Investigate, then narrow
 
-Begin with the service aggregate and break it down by one stable dimension such as instance, host,
-route, or status. Overlay the exact deploy time and compare equal windows. A step change near a deploy
-is correlation evidence, not by itself proof that the deploy caused the change.
+For investigation, break the service aggregate down by one stable instance/host/route/status dimension.
+For deploy comparisons, use exact deploy time and equal windows. A nearby step change is correlation,
+not proof of cause.
 
-Confirm unusual functions against the current official backend documentation and retain the URL,
-retrieval date, and evidence label. Hand the `observability-engineer` agent the exact query, evaluation window,
-threshold, current value, and missing-data behavior so it can author the alert/SLO follow-up.
+For unusual query functions, confirm official backend documentation and retain URL, retrieval date
+and evidence label. For alert/SLO follow-up, hand `observability-engineer` the exact query, window,
+threshold, current value and missing-data behavior.
 
 ## Treat copied identifiers as untrusted
 
@@ -67,9 +67,10 @@ broadening the match.
 
 ## Build the evidence packet
 
-Return the metric meaning and type, exact selector/query, absolute UTC window, step/evaluation cadence,
-result or artifact link, grouping dimensions, missing-data interpretation, and confidence label.
-Separate observed values from hypotheses and note every placeholder that still needs target validation.
+Bounded interpretation: answer, supplied source/target/window, limits and a useful next check if needed;
+missing metadata stays unknown. Query/investigation: metric meaning/type, population, dialect/query,
+UTC window, cadence, result/source link, grouping, missing-data interpretation and confidence label.
+Separate observations from hypotheses; name placeholders needing target validation.
 
 Minimize copied telemetry. Redact credentials, tokens, secrets, personal data, authentication or session
 values, user identifiers, and sensitive label or tag values. Prefer an access-controlled source link plus

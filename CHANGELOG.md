@@ -68,6 +68,12 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Kept contact-only runbook corrections, supplied log/metric explanations, and bounded telemetry
+  repairs scoped to their tasks while retaining full-workflow checks when requested. Aligned design
+  consultation and operating-document routing with existing owners, and made rollback versus
+  evidence-backed recovery consistent without changing tool grants or human execution authority.
+  See the [scope and owner follow-up](docs/reviews/2026-09-07-task-sized-skill-outputs.md).
+
 - Addressed PR #236's restart-headroom, recovery/confirmation, unknown-severity and bounded
   mitigation-stance comments. The unsupported restart branch escalates; nullable postmortem
   metadata retains distinct impact-end and human-confirmation times. Adoption remains on hold.

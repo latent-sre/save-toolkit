@@ -19,11 +19,16 @@ argument-hint: "[service or tool]"
 Write for the tired responder: terse, copy-pasteable, unambiguous. Read actual config, compose/unit
 files, and existing docs before drafting; memory is not configuration evidence.
 
-## Required structure (every slot filled or marked "n/a — why")
+## Match the edit
 
-Copy the [runbook template](./assets/runbook-template.md). For your first runbook or a thin draft,
-read the [worked exemplar](./assets/runbook-example.md): branching checks, partial/failed outcomes,
-recovery, and incident history. Its fictional service, dates, and evidence ids bind nothing.
+For a contact, link, or wording-only correction, patch affected text and links from supplied evidence;
+preserve the existing structure, IDs, status and history. Report unrelated gaps without rewriting them.
+Review and rehearsal dates follow their evidence rules below; a small edit proves no operational step.
+Changes to actions or decision branches use the procedure-revision path.
+
+For a new runbook or substantial procedure revision, use the [runbook template](./assets/runbook-template.md),
+filling applicable slots or marking `n/a — why`. For a first runbook or thin draft, read the
+[worked exemplar](./assets/runbook-example.md); its service, dates and evidence IDs are fictional.
 
 "Common failures" lists only observed or clearly plausible service failures, without padding.
 
@@ -45,7 +50,7 @@ and outcome. Otherwise leave it unchanged and label the rehearsal `[unverified]`
 - **Trigger-anchored** — starts from a concrete trigger (this alert/symptom/task), ends at "resolved or
   escalate to <whom>."
 - **Current or deleted** — date it, own it, prune what's wrong. A wrong runbook is worse than none.
-- **Machine-linkable frontmatter** — give each runbook the template's YAML frontmatter. A new
+- **Machine-linkable frontmatter** — new runbooks use the template's YAML frontmatter. A new
   runbook starts `status: draft`; only a human review promotes it to `active`. Both dates
   (`last_reviewed`, `last_verified`) start `null`;
   only human/authorized document review changes `last_reviewed`, and only bound rehearsal evidence
@@ -54,15 +59,15 @@ and outcome. Otherwise leave it unchanged and label the rehearsal `[unverified]`
   for command claims. If that evidence is absent, mark the command `[unverified]`; never execute from
   this documentation lane, including a read-only command, merely to confirm syntax or output.
 
-For each Procedure/Triage step, check target binding, partial/failed outcomes, inherited side
+For Procedure/Triage steps added or changed, check target binding, partial/failed outcomes, inherited side
 effects when entered directly, repeat-safe rollback, inspection before destruction, stop condition,
 placeholder source, and routing of other failure modes. The
 [worked exemplar](./assets/runbook-example.md) demonstrates these checks.
 
 ## Before you publish — read it back as the responder
 
-Read as a responder who has never seen this service. Walk the procedure in order; the first
-decision its evidence and branches cannot support is a finding.
+Read as a responder new to this service. For a procedure change, walk its affected branches in order;
+the first unsupported decision is a finding. For a bounded correction, check the changed claim and links.
 
 Four questions that surface most of them:
 
@@ -71,7 +76,7 @@ Four questions that surface most of them:
 - **When do you stop?** Bound time/attempts and name the escalation or alternate path.
 - **Who answers at 3 a.m.?** Confirm the escalation contact is staffed, not an unmonitored alias.
 
-For an inapplicable slot use `n/a — why`; missing evidence stays `[unverified]`, never invented.
+Missing evidence stays `[unverified]`, never invented.
 
 ## Living runbooks — every incident leaves the runbook better
 

@@ -2,18 +2,20 @@
 
 # OTel SDK instrumentation method
 
-The command blocks in this file (installs, agent flags, app launches) are service build/deploy-owner
-steps — the `software-engineer` lane or a human runs them; the fleet's read-only guard deliberately denies
-installs and app execution in the `sre-assistant` lane, and `observability-engineer` does not own service
-builds even though its Bash is unguarded.
+Installs, agent flags and app launches belong to `software-engineer` or the human build/deploy owner.
+The guard denies installs/app execution for `sre-assistant`; unguarded Bash does not give
+`observability-engineer` ownership of service builds.
 
-Concrete commands below are `[sourced]` to opentelemetry.io docs, reviewed 2026-08-07 via indirect
-retrieval of the doc sources; behavior on the exact target runtime remains `[unverified]` until a
-canary run proves it.
+Commands are `[sourced]` to opentelemetry.io docs (indirect retrieval, 2026-08-07); exact-target behavior
+remains `[unverified]` until a canary proves it.
 
 ## Steps
-1. **Map** users, critical journeys, entry points, dependencies, and constrained resources.
-2. **Auto-instrument first** with the OpenTelemetry SDK; then add **manual** spans for business-critical
+
+Scoped fixes apply only steps affecting the changed path in the existing setup; service-wide
+instrumentation uses the full method.
+
+1. **For service-wide design, map** users, journeys, entry points, dependencies, and constrained resources.
+2. **For service-wide instrumentation, auto-instrument first** with the SDK; then add **manual** spans for critical
    operations. The zero-code entry points *[sourced: opentelemetry.io/docs/zero-code/]*:
 
    ```sh
@@ -67,8 +69,9 @@ canary run proves it.
    — split **success vs error** latency. Bounded labels only (method, route template, status class).
 5. **USE per resource** (pools/queues/CPU/memory): utilization, saturation, errors — this is what catches
    the saturation → latency → errors cascade.
-6. **Traces** — propagate W3C trace context across services. Use a **Collector tail-sampling processor**
-   with explicit policies (status=error, latency threshold) to **prioritize** error and slow traces.
+6. **Traces** — propagate W3C context across services. Change sampling policy/topology only when in scope.
+   Where **Collector tail sampling** is used, explicit policies (status=error, latency threshold)
+   **prioritize** error/slow traces, subject to every constraint below:
    > ⚠️ **Tail sampling does NOT guarantee you keep all error traces.** It is best-effort under capacity
    > limits, and it fails *silently*. Three things must hold, and none is automatic:
    > - **Routing:** *all spans of a trace MUST reach the same collector instance*, or policies evaluate
@@ -89,5 +92,8 @@ canary run proves it.
 8. **Correlate** — verify metric→trace (exemplars) and trace→log (shared IDs) actually link.
 
 ## Done
-Every critical journey emits RED; every constrained resource emits USE; traces propagate and correlate to
-logs; **no unbounded metric label exists**; at least one SLI is computable from what you emit.
+
+Scoped fix: bounded test/canary proof of the changed boundary, with target limits and untested stages.
+This proves no service-wide coverage.
+Service-wide design: RED on critical request journeys, USE on constrained resources, propagated
+traces correlated to logs, **no unbounded metric label**, and an SLI computable from emitted signals.

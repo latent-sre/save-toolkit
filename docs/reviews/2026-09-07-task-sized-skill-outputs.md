@@ -100,3 +100,54 @@ Candidate frozen at 2026-09-07 04:58:25 UTC, plugin SHA-256
 11-source snapshot `6eb7df117ad8e61ad1b1b0b3c943ef5eeaa681f158c984b8d5f950a5e4c19e6c`.
 All eight reviewed hashes, eleven selected sources, cases and criteria matched at freeze. This
 identifies uncommitted canonical changes over the baseline, not an accepted or published revision.
+
+## Rescan follow-up — task scope and owner alignment
+
+The human approved rescan items **3 (small requests inheriting large workflows)** and **4 (owner
+and rollback instruction mismatches)**. Baseline: `941dc286c1e6ff88f89f3ede475d896f1c3901b2`.
+The source contradictions were observed in the rescan; no model failure or improvement delta is
+claimed for this follow-up. The audience remains a human SRE from first day through veteran:
+bounded means relevant guidance, not missing explanations or lost evidence.
+
+### Acceptance and implementation
+
+| Named task / control | Required behavior and changed source |
+|---|---|
+| Correct a stale contact / create or revise a procedure | `runbook` and `scribe` preserve existing structure, IDs, status, history and evidence-governed dates for a bounded correction. Action/branch changes use the procedure path; new runbooks retain the full template, draft state, null dates, evidence, expected outcomes and safety checks. |
+| Explain one supplied log / investigate a post-deploy error change | `obs-logs` permits a direct scoped explanation without requiring a new query or baseline. Requested query/investigation retains dialect selection, exact scope/window, query evidence, comparisons and privacy. |
+| Interpret supplied metric values / construct a counter-ratio query | `obs-metrics` answers with meaning and evidence limits; missing values/time stay unknown. Query work retains type, population, reset handling, units, dialect, cadence and no-data behavior. |
+| Repair one propagation boundary / design service-wide telemetry | `obs-pipeline` and its SDK reference scope verification to the affected path for a bounded fix. Full service design retains RED/USE, bounded labels, propagation/correlation and SLI checks; sampling policy/topology guidance applies when sampling is selected or changed. |
+| Resolve an undecided design fork / review a proposed decision change | `eng-ladder` retains builder ownership and required senior consultation for the material fork. The caller/human senior handles the undecided choice; `reviewer` receives an actual proposal, trusted-base context, base/candidate identities and diff. No reviewer shell or Skill authority is added. |
+| Document an operating procedure / change monitoring | The principal reference routes procedures to `scribe` and observability artifacts to `observability-engineer`; the caller arranges unavailable handoffs. Production execution stays with the human owner. |
+| Recommend reversible change / recommend an action with irreversible effects | `sre-assistant` and the production gate agree on exact rollback where feasible, otherwise explicit non-reversibility and evidenced recovery/stop conditions. Missing recovery evidence blocks approval; recovery does not lower the tier or authorize execution. |
+
+No descriptions, invocation policies, tool grants, encoded delegation edges, grader rules,
+dependencies or runtime code changed. The Tier 0/1 actor-template issue is not part of this patch.
+The rescan's diagnostic-example corrections, console-path additions and broader incident evidence
+failures remain separate; this follow-up does not clear the incident acceptance hold.
+
+### Verification boundary
+
+Independent source review and the existing repository checks assess this patch. No prose-matching
+test, new evaluator, paid judge, or model campaign is added. Behavioral response size, experience
+adaptation and native routing on these new bytes remain unverified until separately authorized.
+
+[verified] Final integrated checks: `python -m pytest scripts evals -q` reported **466 passed,
+5 skipped, 923 subtests passed** (56.32s). The focused asset, runbook, agent-scope, adapter and
+frontmatter suites reported **56 passed, 2 skipped, 134 subtests passed**. Regeneration and Gate A
+passed; the probe validator accepted **65 scenarios / 324 expectations**; `git diff --check` passed.
+
+[sourced] Two independent source reviews covered all ten changed canonical files, including the
+scribe/gate consumers and the full-task controls. No material contradiction was found; all ten
+reviewed hashes matched the integrated files. This is not a native execution or merge verdict.
+
+[verified] All seven task-context budgets and three corpus ceilings pass without raising a limit.
+Skills total **575,943 bytes** (+22 versus this follow-up's baseline); agents **114,474 bytes** (+231).
+The initial combined draft exceeded the skill ceiling; redundant routing prose in the changed
+`eng-ladder` section was compacted before final review. No substantial context/output saving is
+claimed from these source sizes.
+
+Final plugin-source SHA-256:
+`d4fe59c06638fde289cb16d26b74a78d774101bd28fe853e826838d5cd6985f3`.
+This identifies the uncommitted canonical patch over `941dc286`, not an accepted revision.
+No model calls, commit, push, PR update, installation or live action were performed in this follow-up.

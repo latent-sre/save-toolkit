@@ -60,7 +60,10 @@ documentation are the only operational effects in this lane.
 ## Runbook mode
 
 Use for one concrete alert, task, failure mode, or routine operational procedure. The `runbook` skill
-supplies the required trigger, procedure, verification, rollback, and escalation sections.
+selects the edit size. A contact/link/wording-only correction changes only affected text and links from
+evidence, preserving structure, IDs, status and history; retain review/rehearsal dates unless their
+evidence rules permit an update. Report unrelated gaps separately. For a new runbook or substantial
+procedure revision:
 
 1. Gather source material: diagnosis from the incident record (the advisor's board and closeout packet,
    any `sre-assistant` slices), deploy/rollback evidence from the authorized actor,
@@ -77,9 +80,8 @@ supplies the required trigger, procedure, verification, rollback, and escalation
 
 ### Runbook output
 
-- The runbook in that skill's structure and the repository's format/location.
-- A short list of verified, sourced, and unverified steps plus every placeholder an owner must fill.
-- For an update, what was stale or wrong and why the change corrects it.
+- The new or updated runbook at its repository location; bounded corrections keep the existing format.
+- Evidence and gaps for the changed text/steps, with labels; what an update corrected and why.
 
 ## Postmortem mode
 

@@ -25,11 +25,27 @@ selected tier's escalation rule requires it.
 
 ## Mode 1 — Route a task
 
-Match the task to the lowest rung whose core question it raises. Signals it needs principal: multiple services or teams, a migration, a hard-to-reverse choice, "design" or "how should we" phrasing. Signals it needs distinguished: build-vs-buy, platform consolidation, anything measured in years. When in doubt, route DOWN — a lower rung that recognizes its limit and escalates is cheaper than ceremony, and the agents are prompted to escalate.
+Match the lowest rung whose core question fits. Cross-service/team work, migrations and hard-to-reverse
+design choices need principal reasoning; build-vs-buy, platform consolidation or multi-year choices
+need distinguished. When unsure, start lower and escalate when its bar is insufficient.
 
-Ownership and consult are distinct outputs, and collapsing them miscalibrates in both directions (field-observed: the same task read as "mandatory principal ownership" blind and "optional escalation" in dispatch, when the accurate call was builder-owned with a required consult). The recurring shape is builder-owned work with **one** embedded higher-altitude decision — an operational change carrying a single choice that creates a standing obligation or is inherited by future services. That work stays with its builder (the `software-engineer` agent, or the current context at builder altitude); route it as "builder-owned; senior consult **required** on `<the named decision>`," never by re-owning the whole item. This roster has no principal or architect agent: the consult target is a human senior engineer, or the `reviewer` lane reading the matching altitude reference for the one decision. The builder emits a scoped consult request when it hits the fork; the consult returns one decision record and declines ownership. "Optional" is the wrong label whenever the embedded decision is hard to reverse — a consult that would catch a shipped defect is required, not optional.
+Keep implementation ownership separate from consultation. A builder-owned change can contain one
+higher-altitude choice that creates a standing obligation or a pattern future services inherit.
+Route it as "builder-owned; senior consult **required** on `<the named decision>`"; a hard-to-reverse
+fork requires that consult, not optional escalation. The builder returns the undecided fork to its
+caller or a human senior engineer at the matching altitude. The consult returns one decision record
+without taking implementation ownership; this roster has no principal or architect agent.
 
-Routing includes routing to yourself. Work stays in the current context when it fits the conversation you're already in; hand work to the `software-engineer` agent when it needs fresh context or runs alongside other work. For in-context work, load the matching altitude reference and work its method: [builder](./references/builder.md), [principal](./references/principal.md), or [distinguished](./references/distinguished.md). Load **only** the tier that matches, and move up the moment it isn't enough — moving up means loading the next reference; a delegated agent reports a material fork to its caller instead of silently changing altitude. Each rung's reference file is its full bar.
+Use `reviewer` only to assess an actual proposed decision artifact/change, with caller-supplied
+trusted-base altitude context, base/candidate identities and diff. It reviews the proposal, not an
+undecided design choice; it neither loads candidate skills nor gains shell or Skill authority.
+The caller arranges any invocation the current lane cannot make.
+
+Keep work in the current context when it fits; use `software-engineer` for implementation needing
+fresh context or parallel work. Read only the matching bar: [builder](./references/builder.md),
+[principal](./references/principal.md), or [distinguished](./references/distinguished.md). If it is
+insufficient, the main context loads the next tier; a delegated agent returns the fork to its caller
+instead of changing altitude.
 
 This table is the source of truth for routing — on any conflict over which rung a task belongs to, the table wins; fix the paraphrase, not the table.
 
