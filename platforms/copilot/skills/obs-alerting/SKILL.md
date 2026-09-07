@@ -19,20 +19,22 @@ Page on user-visible symptoms that require action now. Use an SLI and error budg
 significant sustained burn from a transient component signal; use correlation and synthetics to rank
 where responders should look, never to manufacture a root cause. Every alert links a runbook.
 
+For a bounded check or explanation, answer from the supplied rule and evidence; name its limits.
+Design and verification steps below apply only to the artifact or readiness work requested.
+
 ## SLI, SLO, and burn rate
 
-For every SLI, name the user journey and define **good events / valid events**: numerator,
-denominator, exclusions, and whether its unit is requests or time. Preserve the exact metric or log
-query with backend, target, time range, and result. A formula without a reproducible query is a
-proposal, not a verified SLI.
+When defining an SLI, name the journey, **good events / valid events**, exclusions, and request/time
+unit. Retain the exact query, backend, target, time range and result. Without reproducible query
+evidence, the SLI is proposed, not verified.
 
 **Burn rate = observed bad-event fraction / the SLO's allowed bad-event fraction.** Keep request- and
 time-based budgets in their own units; never translate a request-ratio budget to downtime minutes.
-Record consumed-budget status separately from the current alert verdict. The human service owner
+For budget work, separate consumed-budget status from the current alert verdict. The human service owner
 uses the budget to balance feature risk and reliability work.
 
-Load the burn-rate method below for its long/short pairs, low-traffic judgment, and guard-safe
-calculator. Treat a pair as one unit: both windows must meet its threshold. A one-window spike or
+For burn-rate work, load the method below for its pairs, low-traffic judgment, and guard-safe
+calculator. Both windows must meet the pair's threshold. A one-window spike or
 recovered short window is not a page, but neither proves the service is in budget.
 
 Read only the row needed for the task:
@@ -48,17 +50,15 @@ Read only the row needed for the task:
 
 ## Scheduled work — alert on staleness, not errors
 
-Burn-rate machinery covers request-driven SLIs; a backup, sync, or scheduled job has no request
-stream to burn, so it needs a freshness signal instead. Have every such job emit
-`*_last_success_timestamp_seconds` and alert on "hasn't succeeded in N hours." That catches the
-silent failures no error rate ever shows, because a job that never ran emits no errors. Set N from
-the job's schedule plus a defensible grace period, and design the no-data case deliberately: a
-missing timestamp is the same silence as a stale one, never an all-clear. This complements the
-burn-rate table above; it does not replace it for request-driven journeys.
+For a backup, sync, or scheduled-job alert, use freshness rather than a request burn pair. Design
+`*_last_success_timestamp_seconds` and an age threshold from the schedule plus a defensible grace
+period. Define no-data behavior: a missing timestamp is silence, never an all-clear. A job that never
+runs emits no errors. Freshness complements request-driven SLIs; it does not replace them.
 
 ## Verify before calling it done
 
-An alert that has never fired is written, not verified. Before handing it off:
+To claim an alert implementation verified, supply actual evidence for these checks. A design or
+review may be handed off with the missing proof explicitly `[unverified]`:
 
 - Validate before any reload: rule and config syntax pass their checkers (for Prometheus-format
   sources, `promtool check rules` / `promtool check config`) so a bad file never reaches the
@@ -75,9 +75,6 @@ An alert that has never fired is written, not verified. Before handing it off:
 - The runbook link in the alert resolves to a runbook that exists — a dead link at 3 a.m. is a
   design defect, not a docs chore.
 
-This evidence is the "test evidence" the handoff below requires; anything unforced or unobserved
-stays labeled `[unverified]`.
-
 ## The bar for asserting cause
 
 Correlation, time order, and a path difference rank hypotheses; they do not prove cause. Promote
@@ -90,15 +87,21 @@ healthy. Below that bar, call it a leading hypothesis and keep the alternatives 
 
 - Don't choose extra nines because they sound reliable; every nine raises operating cost. Match the
   target to user need and what the team can actually defend.
-- Don't create an alert without an owner, tested notification route, actionable summary, and runbook.
+- Don't call an alert ready without an owner, tested notification route, actionable summary, and runbook.
 
 ## Handoff
 
-Hand the reviewed alert definition and target-validation gaps to the `observability-engineer` agent. Include the SLI
-formula and exact query evidence, target/window, selected long/short pair, both measured burns, rule
-source and UID, labels, notification route, runbook URL, no-data/error behavior, test evidence, and
-every remaining `[unverified]` item. If a signal represents current user impact or unknown cause, hand
-the time-bounded evidence to the responder with `incident-investigation` (dispatching `sre-assistant`
-only for a bounded read); alert design does not investigate the live incident.
+Bounded question: answer, supplied scope/evidence, relevant gap or next step.
+Design/change to `observability-engineer`: proposed definition, target/window, query evidence,
+rule source/UID, labels, owner, notification route, runbook, no-data/error behavior, actual tests
+and `[unverified]` gaps.
+
+- SLI: journey, good/valid events, units. Burn only: selected pair and both measured burns.
+- Freshness only: success signal, schedule, threshold and grace period.
+- Correlation tuning only: replay, false-merge/missed-cluster examples, rollback criteria.
+
+For current user impact or an unexplained live failure, hand time-bounded evidence to the responder
+with `incident-investigation` (`sre-assistant` only for a dispatched bounded read). Alert design does
+not investigate the live incident.
 Redact sensitive label and tag values from query evidence before it enters the packet; prefer an
 access-controlled link plus the smallest necessary excerpt.

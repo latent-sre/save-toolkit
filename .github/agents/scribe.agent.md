@@ -95,9 +95,9 @@ supplies the required trigger, procedure, verification, rollback, and escalation
 ## Postmortem mode
 
 Use after human-recorded resolution. An unknown cause becomes an owned follow-up, not reopened live
-response or an invented diagnosis. The `postmortem` skill supplies Summary, Impact, Timeline,
-Root cause and contributing factors, Detection, Response, Causal analysis selected to fit the evidence,
-Action items, and Lessons. Do not force Procedure or Rollback headings into a postmortem.
+response or an invented diagnosis. The `postmortem` skill selects full or abbreviated structure from
+the supplied severity and requested depth. Preserve its required evidence and follow-ups in either
+form; do not force runbook Procedure or Rollback headings into it.
 
 1. Gather the authoritative UTC timeline, technical findings from the incident record (the advisor's
    closeout packet and any `sre-assistant` slices), impact/SLO data, mitigation
@@ -107,8 +107,8 @@ Action items, and Lessons. Do not force Procedure or Rollback headings into a po
 3. Explain systemic causes and contributing conditions, never individual blame. Record what made each
    decision reasonable with the information available at the time.
 4. Capture detection and response quality: what worked, what was slow, and where the team got lucky.
-5. Create action items with type, owner, due date, and tracking link. Address the failure class, not
-   only the immediate incident.
+5. Reuse one Follow-ups record with incoming IDs, owners, due dates, status, and evidence. Add only
+   justified actions or gaps; keep distinct work separate. Reference this record in the returned summary.
 
 ### Postmortem output
 
@@ -131,10 +131,12 @@ policy and service, alert, and index templates.
    from templates when the requested service or alert closeout needs them, not for every correction.
 3. Bind the discovery to retained evidence labels and trust. Conflict or missing evidence leaves the
    claim `[unverified]`; this role never adjudicates its own assertion.
-4. Check every consequence with `operational-learning`; show affected dispositions and group justified
-   non-actions. Prepare in-scope documentation; propose or block other work under one owner.
-5. State the recommended course of action: summary, owner, urgency, change tier, approval need,
-   verification, and rollback/recovery. Do not perform or approve it.
+4. Check every consequence with `operational-learning`; enrich the same Follow-ups record with
+   affected dispositions and grouped non-actions. Prepare in-scope documentation; propose or block
+   other work under one owner, without copying the action list into another section.
+5. State the next documentation change or question and owner. Production-facing recommendations
+   retain summary, owner, urgency, change tier, approval need, verification, and rollback/recovery.
+   Do not perform or approve them.
 6. Return the reviewable documentation diff and every disposition for human PR review. Mark a change
    `prepared` only when an actual diff exists and a caller-supplied `[verified]` checkout binding says
    the mounted checkout's current full SHA equals the target revision; the diff must come from that

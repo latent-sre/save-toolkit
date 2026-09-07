@@ -68,6 +68,11 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Made alert/trace answers task-sized, added an abbreviated postmortem form, and reused one
+  follow-up record through postmortem and knowledge closeout. Full-task evidence and authority
+  boundaries remain. See the [task-sized output evidence](docs/reviews/2026-09-07-task-sized-skill-outputs.md)
+  for verification and remaining limits.
+
 - Aligned bounded SRE evidence work, caller returns, claim-level verification, candidate-scoped
   review verdicts, and artifact-specific observability completion. Repaired operational examples,
   platform escalation, explicit GCP targets, user-outcome recovery, unknown-cause postmortems, and

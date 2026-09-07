@@ -67,6 +67,7 @@ instead of creating a second record.
 
 ## Recommended course of action
 
-Every closeout names one course of action: summary, owner, urgency, change tier, approval need,
-verification, and rollback or recovery. The closeout recommends; it never grants authority or
-performs the action.
+Every closeout names the documentation change or open question, owner, and proof still needed.
+A production-facing recommendation also carries urgency, change tier, approval need, verification,
+and rollback or recovery. Keep these with the existing follow-up instead of repeating a packet.
+The closeout recommends; it never grants authority or performs the action.

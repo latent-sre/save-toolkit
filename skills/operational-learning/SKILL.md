@@ -54,7 +54,9 @@ alert, SLO, and dashboard design stays with `observability-engineer`; code or au
 4. **Disposition every consequence.** Internally check runbook, postmortem, service card, alert card,
    knowledge index, observability, automation, code, and accepted risk. For affected artifacts choose
    `prepared`, `proposed`, `blocked`, or `duplicate`; group unaffected categories as `not_applicable`
-   with a shared reason. The check is complete without nine visible rows or work invented for each.
+   with a shared reason. Enrich the existing Follow-ups record using its IDs; consolidate repeated
+   copies, preserving distinct scope, owners, status, prerequisites, and evidence. No parallel action
+   list, nine-row quota, or work invented for unaffected categories.
 5. **Prepare the smallest coherent documentation diff.** A service or alert closeout may update its
    cards, index links, and a missing or stale runbook. Load `runbook` before writing a procedure.
    A postmortem remains its own primary artifact.
@@ -88,7 +90,8 @@ alert, SLO, and dashboard design stays with `observability-engineer`; code or au
 
 ## Output contract
 
-Lead with the discovery and recommended course of action. Then provide:
+Lead with the discovery and recommended course of action. Reuse the existing Follow-ups record;
+link it when the recipient can access it, otherwise include the needed rows. Then provide:
 
 1. target, target revision, the `[verified]` checkout binding or its absence, trigger, and owner;
 2. evidence with retained labels and conflicts;

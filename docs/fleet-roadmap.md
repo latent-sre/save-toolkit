@@ -45,6 +45,9 @@ campaign is complete. Keep candidate plugin digest
 `10dac4f5d1db7414a513bfdb686153e1dece7080a7153f4a2a7c459b82ec5a62` on
 `work/delegation-return-loop` unpromoted; preserve real return/resume and sufficient-evidence
 recovery as regressions. Any next source candidate needs a new bounded decision.
+The approved [task-sized output changes](reviews/2026-09-07-task-sized-skill-outputs.md) are
+implemented and source-reviewed; their separate six-pair Sonnet check awaits the human's decision.
+That narrower work does not close the native selection or evidence-quality failures above.
 **Evidence:** [Second bounded decision-quality pass](reviews/2026-09-07-incident-quality-second-pass.md)
 **SRE task:** The responder gets a useful next check or closeout without mistaking a job status,
 missing history, aggregate signal, or recipient readback time for evidence of a different claim.

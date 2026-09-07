@@ -16,24 +16,22 @@ argument-hint: "[the resolved incident]"
 
 # Blameless postmortem
 
-Start from the [postmortem template](./assets/postmortem-template.md). Fill every slot or mark it
-`n/a — why`; preserve evidence sources rather than reconstructing the timeline from memory.
+Use the [postmortem template](./assets/postmortem-template.md): full for P1/P2 or an explicit full
+review; abbreviated for P3/near-misses unless policy or the owner requires full depth. Keep unknown
+severity unknown and confirm required depth before finalizing. A summary/explanation request gets
+only that answer, not a completed postmortem by implication.
 
-Use the causal-analysis method that fits the evidence. Five Whys is one option, not a required
-five-line quota; a branching incident may need a fault tree, causal graph, or another method that
-preserves multiple contributing paths. Name the method and do not force uncertain facts into a
-single linear story.
+Fill the selected form's required facts from evidence, marking missing facts `[unverified]` and
+genuinely inapplicable requirements `n/a — why`. Omit the unselected form and optional empty sections.
 
-The goal is **learning, not blame**: explain how a competent team still hit this and reduce its
-recurrence or impact. Describe systems and decisions, never people; do not promise zero recurrence.
+For full causal analysis, fit the evidence: Five Whys, a fault tree, causal graph, or another method.
+Name it, preserving branches and uncertainty rather than forcing a line count or linear story.
 
 ## Blameless stance
 
-- Assume everyone acted reasonably with the information they had. Ask "what made this action make sense?"
-  not "who messed up?".
-- Treat human error as a **symptom** of a system that allowed it (missing guardrail, gate, alert, or
-  unclear runbook) — fix the system.
-- Separate the **trigger** (what set it off) from the **cause** (why our defenses didn't prevent/catch it).
+Explain decisions from the information available then. Human error is not the root cause; identify
+system conditions. Separate trigger from mechanism and failed defenses; aim to reduce recurrence
+or impact, never promise zero recurrence.
 
 Two claims that need evidence, not silence:
 
@@ -45,40 +43,30 @@ Two claims that need evidence, not silence:
 
 ## Action items that reduce risk
 
-- Prefer **systemic** fixes (a gate, an alert, a guardrail, an automated check) over "be more careful."
-- **Tag every item mitigative vs preventative** — *mitigative* reduces impact or recovery time;
-  *preventative* reduces recurrence likelihood. Name the risk reduced and remaining limits; an
-  action need not eliminate the whole failure class. Track justified items, not a category quota.
-- Every action names the **artifact** it becomes — a runbook line, an alert, a drill, a validator
-  rule — plus a **proof-of-done** check. An action with no artifact will not happen.
-- Every action names its **instrumentation prerequisite**: the signal, exporter, instrumented code,
-  or pipeline/config change its proof depends on. Use `none` only when the proof is independent of
-  missing telemetry; otherwise the dependent action remains blocked until this prerequisite lands.
-- Each item is **owned, dated, tracked** — an un-owned action item is a wish. Use typed handoffs:
-  resilience/code → typed `software-engineer` agent; detection/SLO → typed `observability-engineer` agent; investigation follow-up →
-  the responder with `incident-investigation`; deploy/rollback safety → human release owner; operating documentation → typed `scribe`
-  agent.
+- Prefer systemic risk reduction over "be more careful." Tag actions **mitigative** (impact/recovery)
+  or **preventative** (recurrence), with the risk reduced and remaining limits; no category quota.
+- Every action has an artifact and proof-of-done check, owner, due date, and tracking link.
+- When proof depends on missing instrumentation, include that prerequisite with the action and keep
+  it blocked until the signal, exporter, code, or pipeline/config change lands. Unrelated actions
+  need no instrumentation field.
+- Route code/resilience to `software-engineer`, detection/SLO to `observability-engineer`, causal
+  follow-up to the responder with `incident-investigation`, deploy/rollback safety to the human
+  release owner, and operating documents to `scribe`.
 - Resolved impact does not require a known cause. Mark unconfirmed causes `[unverified]` and give
   unresolved causal questions an owner and next check; do not block the write-up on certainty.
 
 ## Operational learning closeout
 
-After the primary write-up, apply `operational-learning` to every new operational fact. Disposition
-affected runbook, card, index, observability, automation, code, and accepted-risk work with evidence
-and one owner; group justified `not_applicable` categories instead of inventing work. The typed
-`scribe` agent prepares documentation only; other lanes receive tracked handoffs, not chat-only advice.
+Keep one Follow-ups record with incoming IDs for actions, questions, and artifact dispositions.
+Consolidate repeated copies, not distinct targets/owners/status/evidence. After the write-up,
+`operational-learning` enriches these rows; group justified `not_applicable` categories, not new work.
+`scribe` prepares documentation only; other lanes receive tracked handoffs. Unsupported `prepared`
+claims stay proposed/blocked with the missing checkout binding or diff noted.
 
 ## Lessons — include "where we got lucky"
 
-Capture three things, not just what broke: **what went well** (keep doing it), **what went wrong** (the
-gaps), and **where we got lucky** — latent risks this incident *revealed* that didn't bite us this time
-(an untested backup that happened to work, an alert that fired by coincidence, a key person who happened
-to be online). Luck is a preventative action item waiting to be written.
-
-## Near-misses
-
-A near-miss earns the same write-up at half the length: the incident that almost happened is the
-cheapest one to learn from. Same structure, same owned action items, less prose.
+Use evidenced successes, gaps, and narrowly avoided failures. A revealed risk warrants a justified
+follow-up or explicit accepted risk, not an invented action to fill the template.
 
 ## Tip
 
