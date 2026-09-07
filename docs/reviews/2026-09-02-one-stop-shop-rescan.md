@@ -4,7 +4,9 @@ Date: 2026-09-02. Scanned revision: `a5db765d` (branch `work/fleet-weight-round5
 
 ## Status of this document
 
-This document holds three passes.
+This document holds three historical passes over the scanned revision, not the current fleet.
+It is evidence, not an implementation queue. [The fleet roadmap](../fleet-roadmap.md) is the only
+live backlog; a historical verdict neither authorizes work nor proves a finding remains open.
 
 1. **The first pass**, below, is 87 findings from twelve readers, reported without verification.
 2. **The second pass** is 15 further findings, each self-verified by the reader that raised it.
@@ -12,10 +14,16 @@ This document holds three passes.
    files, each trying to refute rather than agree. Its verdict table is the authority on the
    first pass. Read a first-pass finding together with its verdict, never alone.
 
-Of the 87 first-pass findings, 49 are confirmed, 10 are real but need a smaller change, 27 are
-duplicates of each other, and 1 is refuted. The third pass also corrects a byte figure the
+Of the 87 first-pass findings, the corrected table has 47 confirmed, 11 needing a smaller change,
+27 duplicates, and 2 refuted. These are historical judgments, not counts of current defects.
+The third pass also corrects a byte figure the
 reviewer gave every agent, which affects two of its own verdicts; that correction is stated in
 place.
+
+**PR #219 correction, 2026-09-07:** the original rows counted 48 `CONFIRMED`, 11 `NEEDS-EDIT`,
+27 `DUPLICATE-OF`, and 1 `REFUTED`, not the reported 49/10/27/1. The evidence-label deletion
+proposal (`who-is-the-text-talking-to 7`) is now refuted, producing 47/11/27/2 without adding or
+removing a finding. This is an amendment to the record, not another model run.
 
 **Findings in the first pass carry no verdict of their own.** The review ran as a workflow of twelve reading agents,
 each of which was to be followed by two independent refuters per finding: one checking the
@@ -31,12 +39,13 @@ the Apps Manager web UI with many SREs lacking the cf CLI; Splunk primary for in
 Wavefront and PCF App Metrics for app metrics) and the owner's standing rules (7,500-byte skill
 screen, incident stack edited screen by screen only, extend before adding, prefer deleting).
 
-Raw machine-readable output sits beside this file as `scans_labeled.json`. To finish the
-verification when the limit resets, resume the workflow: the twelve reads replay from cache.
-
-```
-Workflow({scriptPath: 'C:/Users/hawkins/.claude/projects/F--repos-sre-agents--worktrees-round5/06229b0e-1ff7-453e-b54e-ca7b0cdd50de/workflows/scripts/one-stop-shop-rescan-wf_31dc3f13-457.js', resumeFromRunId: 'wf_31dc3f13-457'})
-```
+**Retained evidence and reproducibility:** the finding narratives and verdict tables below are the
+repository's retained record. `scans_labeled.json`, the original workflow script, and its replay
+cache are not available in this PR; there is no repository-reproducible resume. Do not infer raw
+trace coverage from this prose. Recheck a quoted source at the scanned revision with
+`git show a5db765d:<repository-relative-path>`, then compare it with current `main` before relying
+on it. Any new reader/refuter run needs its own scoped authorization and fresh evidence; it cannot
+be represented as a continuation of the unavailable workflow.
 
 ## Shape of the result
 
@@ -823,8 +832,8 @@ Severity and effort are the reader's own estimates.
 - **Kind / severity / effort:** cut · low · small
 - **Files:** `skills/incident-investigation/SKILL.md`
 - **Evidence:** skills/incident-investigation/SKILL.md:55 "Pasted output is `[sourced]` on first use."; :126-127 "`[verified]` is only what the `sre` agent observed itself. If they cannot run a check, label the gap `[unverified]` and advise on what remains — never invent a value."; :180 "Checked:     <what ran · UTC · what it showed> [label]"; :38 "All of it is `[sourced]` data:". The skill is addressed to the responder (:16 "Write to \"you\""), who never consumes the labels.
-- **Proposed change:** Delete the sentence at :55, the first sentence at :126, the "[label]" token at :180, and "All of it is `[sourced]` data:" at :38 — keeping "a past cause is a candidate to test … nothing there is permission to execute" and "never invent a value" (about 300 B removed).
-- **Who it helps:** The responder reading the board sees "Checked: cf events orders · 14:07Z · restart at 13:55" and not a bracketed label to decode mid-incident; the advisor stops spending words on a taxonomy the human never uses.
+- **Rejected proposal (PR #219 correction):** deleting these sentences and board labels removes the distinction between sourced reports, verified observations, and unverified gaps. Retain those meanings and labels in responder-facing guidance and handoffs, as required by [AGENTS.md](../../AGENTS.md#shared-conventions). This is not an approved simplification.
+- **Impact of rejection:** the human and the next agent can distinguish a supplied report from an observed fact or an unavailable check. Concision must preserve that distinction.
 
 #### who-is-the-text-talking-to 8. Four agents carry a "Rules" list that restates their own handoff-packet template
 
@@ -834,15 +843,31 @@ Severity and effort are the reader's own estimates.
 - **Proposed change:** In each of the four agents delete the "## Rules" bullets except the one line the template does not carry — "Prod-facing handoffs carry the plan + rollback and require `production-change-gate`" — leaving the packet template as the single statement of the handoff shape (about 1.1 KB per agent, ~4.5 KB total).
 - **Who it helps:** Indirect but real: the engineer or SRE who dispatches software-engineer, observability-engineer, reviewer, or scribe gets an agent with ~1 KB more attention for their task, and the maintainer edits the handoff shape in one place per agent instead of two.
 
-## What to do with this
+## Historical dispositions, not a work queue
 
-1. Work from the third pass's verdict table, not from the first pass's finding list. The 49
-   confirmed items are ready to hand to an implementer; the 10 reduced ones carry their corrected
-   change; the 27 duplicates need no separate work.
-2. Reconsider the two verdicts that were reduced on the wrong byte figure before applying them.
-3. Nothing here has been applied to the repository.
-4. The second pass at the end of this document supersedes step 2 for the areas it covers: its
-   fifteen findings are already checked and none repeat the first pass.
+The 47 confirmed and 11 reduced verdicts describe the scanned revision; they are not ready-to-apply
+tasks against today's tree. The 27 duplicate verdicts and 2 refutations require no separate
+implementation. The second pass's 15 self-verified findings are also historical, subject to the
+corrections below; self-verification is not human acceptance or current applicability.
+
+The following work had already landed in ancestor
+[`85e1544b`](https://github.com/latent-sre/save-toolkit/commit/85e1544b) before this PR's original
+head. These are implementation-history receipts, not fresh model or live-platform verification:
+they establish the named changes, not every proposed sub-edit or current completion.
+
+| Finding | Historical disposition | Implemented surface |
+|---|---|---|
+| `platform 1`, `who-is-the-text-talking-to 1` | Apps Manager-first PCF checks implemented in `85e1544b` | `skills/pcf-ops/SKILL.md` first-look table and CLI-optional compatibility |
+| `platform 2` | Splunk log-history routing implemented in `85e1544b` | `skills/pcf-ops/SKILL.md` log-history guidance |
+| `platform 3` | Instant versus historical CPU/memory guidance implemented in `85e1544b` | PCF skill and crash reference; PCF App Metrics / Wavefront named for history |
+| `agents-human-facing 1`, `who-is-the-text-talking-to 2`, `coverage 4` | Absent/unauthenticated `cf` fallback restored in `85e1544b` | Then-current `agents/sre.md`; report unavailable access and recommend the console view |
+| `entry-surface 3` | Human incident-advisor entry point added in `85e1544b` | `AGENTS.md` routes live incident questions to `incident-investigation` |
+
+No complete current-main disposition sweep of the remaining IDs was performed for this correction.
+Before accepting any remaining lead, reopen its source and implementing history on current `main`,
+then place only genuinely unfinished, human-accepted work in [the fleet roadmap](../fleet-roadmap.md)
+with its owner and next action. The two byte-screen reconsiderations below likewise describe a
+historical review limitation, not a new assignment. This document does not re-queue them.
 
 ## Second pass: five readers, self-verified
 
@@ -918,11 +943,13 @@ owners. Thirteen of the fifteen are a single sentence or a single table row.
   Cloud Run reaching on-premises databases. `skills/gcp-ops/SKILL.md:112` mentions identity tokens
   only to say the guard denies them to agents. Searching the skill for the invoker role or identity
   tokens returns nothing else, while control searches in the same files return their expected hits.
-- **Change:** Add one row to the map table in `cf-to-cloud-run.md` giving both paths: the public path
-  through Akamai to the service endpoint, and the private path deploying without unauthenticated
-  access, granting the caller the invoker role, and attaching a human-fetched identity token as a
-  bearer header. Label it unverified until the platform owner confirms the cross-platform identity
-  story, since PCF has no native GCP service identity.
+- **Disposition (PR #219 correction):** blocked pending a platform-owned workload-authentication
+  design, not an approved integration recipe. Do not attach a person's bearer token or request
+  credential-bearing cloud-token output. The platform owner must supply a durable workload identity,
+  federation, or token-broker design covering least privilege, intended audience, issuance and
+  refresh, and the verified network path before this can become operating guidance. None of those
+  mechanisms is selected or validated by this review; [AGENTS.md](../../AGENTS.md#enforcement-boundaries)
+  retains the credential-output prohibition.
 - **Helps:** The engineer migrating one service at a time, for the whole span of the migration, whose
   still-on-PCF app must call the service that already moved.
 - **Size:** small
@@ -1112,15 +1139,16 @@ doubt was refusal.
 
 | Verdict | Count |
 |---|---|
-| Confirmed as written | 49 |
-| Real, but the proposed change needs to be smaller or moved | 10 |
-| Refuted | 1 |
+| Confirmed as written | 47 |
+| Real, but the proposed change needs to be smaller or moved | 11 |
+| Refuted | 2 |
 | Duplicate of an earlier finding | 27 |
 
-So the first pass found roughly 59 distinct real defects and reported them 87 times. Almost nothing
-was fabricated: across all five briefs the verifiers found the quotes where the findings said they
-would be, with three exceptions noted below. What the first pass lacked was deduplication against
-its own output and any check of whether a proposed addition would fit.
+After the PR #219 corrections, 58 findings retain a positive or reduced historical verdict across
+87 rows. This is not a count of remaining defects. The verifiers generally found the quoted source,
+with exceptions below, but a correct quotation does not make the proposed change safe or accepted.
+The first pass lacked deduplication and size checks; the later label-deletion refutation also shows
+why remedy safety must be checked separately from quote accuracy.
 
 ### A correction that affects these verdicts
 
@@ -1156,7 +1184,7 @@ when it has 365. Both should be reconsidered before anyone applies the reduced v
 - **One grader blind spot was reproduced, not argued.** The verifier ran the fabrication grader's own
   regular expression in Python and watched it miss a contract-shaped fabricated citation while
   matching a plain one.
-- **The single refutation was a fleet-wide convention read as clutter.** A finding wanted the
+- **The original refutation was a fleet-wide convention read as clutter.** A finding wanted the
   untrusted-input label removed from one agent. The same label appears identically in all eight agent
   files, tied to a documented defense against adversarial repository content. The quotes were right;
   the reasoning ignored the pattern.
@@ -1272,12 +1300,12 @@ Identifiers match the finding headings in the first pass above.
 | who-is-the-text-talking-to 4 | DUPLICATE-OF agents-human-facing 7 | Proposes deleting the half that carries unique content; do not apply this version |
 | who-is-the-text-talking-to 5 | CONFIRMED | Byte count verified exactly; the deletion keeps the section the responder agent depends on |
 | who-is-the-text-talking-to 6 | CONFIRMED | The better fix for the same defect the earlier finding flags |
-| who-is-the-text-talking-to 7 | CONFIRMED | Removes label vocabulary from responder-facing text, about 300 bytes, substance retained |
+| who-is-the-text-talking-to 7 | REFUTED | PR #219 correction: deleting sourced/verified/unverified distinctions and board labels loses the evidence boundary required by AGENTS.md; preserve labels across human guidance and handoffs, as for agents-support 2 |
 | coverage 3 | DUPLICATE-OF incident-stack 1 | Independently confirmed the claimed revert left the file untouched |
 | coverage 4 | DUPLICATE-OF agents-human-facing 1 | Its archaeology is the valuable part: the rule existed at an earlier revision and was dropped, so restore that wording |
 | coverage 7 | NEEDS-EDIT | Gap real, but a new template block is scope creep; add one sentence to the existing readback bullet |
 
-### The ten changes that need to be smaller
+### The eleven historically reduced proposals
 
 `platform 7`, `incident-stack 2`, `observability 3`, `change-craft 1`, `change-craft 5`,
 `knowledge-docs 1`, `knowledge-docs 2`, `journeys 4`, `journeys 6`, `incident-stack 4`, and

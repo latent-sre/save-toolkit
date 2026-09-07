@@ -7,6 +7,10 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Added
 
+- Retained the [historical one-stop-shop rescan](docs/reviews/2026-09-02-one-stop-shop-rescan.md)
+  behind PR #217, with corrected verdict totals, recorded prior implementations, explicit missing
+  raw evidence, and rejection of unsafe token and evidence-label proposals. It is not a live backlog.
+
 - Added conditional symptom comparisons to the human incident advisor for login failures,
   intermittent errors, slow requests, stale/wrong data, and missed jobs with limited telemetry.
   See the [general incident help evidence](docs/reviews/2026-09-06-general-incident-help.md) for
