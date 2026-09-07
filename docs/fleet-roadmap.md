@@ -6,8 +6,7 @@
 > rationale; they do not independently add work to this queue.
 
 The architecture is one canonical Claude plugin under `agents/`, `skills/`, and `commands/`, with
-generated host-native adapters for Copilot/VS Code. No accepted ADR establishes it; the records that
-assume it are the two rename ADRs and the Codex retirement, indexed in
+generated host-native adapters for Copilot/VS Code. The retained contracts are indexed in
 [`docs/decisions/README.md`](decisions/README.md). Codex was retired as a distribution target on 2026-08-23
 ([ADR](decisions/2026-08-23-retire-codex-distribution-target.md)); it remains a supported way to
 work in this repository, reading the root `AGENTS.md` like any other agent.
@@ -58,6 +57,11 @@ PR #236's [technical review corrections](reviews/2026-09-07-incident-helper-exch
 do not clear the adoption hold. Exact-revision human acceptance remains required before merge;
 review-ready status, structural checks and publication are not that decision.
 **Evidence:** [Second bounded decision-quality pass](reviews/2026-09-07-incident-quality-second-pass.md)
+and its comparison baselines: [symptom guidance](reviews/2026-09-06-general-incident-help.md) and
+[first repair pass](reviews/2026-09-06-sre-decision-quality-repairs.md), including their failures.
+The [operational-contract measurements](reviews/2026-09-04-operational-contract-fixes.md) also remain:
+open [PR #237](https://github.com/latent-sre/save-toolkit/pull/237) relies on their record provenance
+when assessing compatibility of historical evaluation results.
 **SRE task:** The responder gets a useful next check or closeout without mistaking a job status,
 missing history, aggregate signal, or recipient readback time for evidence of a different claim.
 
@@ -89,7 +93,7 @@ skill per slice, probe-before-routing.
 fleet's models already produce unprompted. Each screened entrypoint gets one probe-then-checkpoint
 disposition; a committed component contract outranks both the byte screen and the probe.
 **Next action:** The four slices this item last named — `obs-dashboards`, `backend-craft`,
-`runbook`, `obs-alerting` — have all landed; `CHANGELOG.md` records each. Re-screen before picking
+`runbook`, `obs-alerting` — have all landed. Re-screen before picking
 the next: `wc -c skills/*/SKILL.md | sort -n | awk '$1>7800'` on 2026-09-04 leaves three
 entrypoints above the 7,800-byte screen — `incident-investigation` (13,735 B), `runbook` (9,783 B),
 and `agent-authoring` (9,335 B). `service-lifecycle` (7,779 B) and `pcf-ops` (7,113 B) have since

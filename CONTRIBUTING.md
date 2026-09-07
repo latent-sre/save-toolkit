@@ -30,9 +30,12 @@ standard-library-only under `python -I -S`. On Windows use `python` or `py -3`, 
 Run the smallest check that exercises the changed behavior. A new contract needs one focused test
 that fails for the named break and passes after the fix. A new mechanism needs the measured failure
 it prevents and its weight in Gate A's totals, stated in the PR; the default response to a finding
-is a deletion or a one-line rule. An evidence packet under `docs/reviews/` is kept only while a test
-or a live document cites it by path; an uncited one fails `scripts/check_links.py` in Gate A, so cite
-it from the record that relies on it or delete it in the same change.
+is a deletion or a one-line rule. Keep evidence under `docs/reviews/` while an unresolved roadmap
+decision or a current regression depends on its measurements, including failed results. A changelog
+entry or a comment recording when a test first ran is not a retention reason. Remove completed
+reports, retired eval fixtures, and restoration bundles once their current dependency is gone;
+Git retains the historical bytes. Update their live references in the same change. Gate A rejects
+uncited review packets; citation alone does not establish that a packet is still needed.
 
 | Change | Evidence |
 |---|---|

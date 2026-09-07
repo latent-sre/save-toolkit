@@ -194,8 +194,8 @@ The ownership split is: Save Toolkit maintainers for schema/contract acceptance,
 consumer-requirement semantics, and `sde` for resolver and validator implementation. A real team's
 owner becomes relevant only when that team separately authorizes onboarding.
 Current names: `agent-engineer` and `software-engineer` respectively
-([`2026-08-26-agent-engineer-rename.md`](2026-08-26-agent-engineer-rename.md),
-[`2026-08-25-software-engineer-rename.md`](2026-08-25-software-engineer-rename.md)).
+([`2026-08-26-agent-engineer-rename.md`](https://github.com/latent-sre/save-toolkit/blob/e6702ee04ca03f87e71595fb4dbf89a722df9fe9/docs/decisions/2026-08-26-agent-engineer-rename.md),
+[`2026-08-25-software-engineer-rename.md`](https://github.com/latent-sre/save-toolkit/blob/e6702ee04ca03f87e71595fb4dbf89a722df9fe9/docs/decisions/2026-08-25-software-engineer-rename.md)).
 
 ## Consequences
 
