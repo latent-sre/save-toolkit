@@ -1,6 +1,6 @@
 # Independent-review fixes
 
-Candidate from main at `e6702ee0`, on `work/address-independent-review-20260907`.
+Initial candidate from main at `e6702ee0`, developed on `work/address-independent-review-20260907`.
 The human authorized remediation of the independent review's findings. This record describes
 source fixes; it does not accept a release or claim installed-host/model behavior.
 
@@ -76,4 +76,14 @@ Claude Code 2.1.263 validates the marketplace with `claude plugin validate . --s
 plugin validation of `.claude-plugin/plugin.json` passes with the existing warning that root
 `CLAUDE.md` is development context and is not loaded from an installed plugin. The explicit plugin
 check with `--strict` therefore does not pass; do not confuse the marketplace result with it.
-No hosted CI run or new release is claimed for this uncommitted candidate.
+Those initial source checks claimed no hosted CI run or release.
+
+## PR #237 integration
+
+The human requested adding these fixes to the existing short-commit-ID PR. Commit `b4828007`
+preserves the reviewed remediation; its integration with PR #237's `f7180d3c` preserves the
+short-ID convention in routine handoffs, templates, and the importer. Machine evaluation digests
+remain complete. Canonical sources merged without conflicts and the adapters were regenerated.
+The [PR record](https://github.com/latent-sre/save-toolkit/pull/237) carries verification for the
+combined head. The earlier numbers above remain evidence for the remediation before integration.
+Publication does not close the installed-host/model or release acceptance items.

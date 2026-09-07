@@ -17,6 +17,22 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class SkillAssetTests(unittest.TestCase):
+    def test_operational_template_revision_slots_use_short_commit_ids(self) -> None:
+        for name, field, expected in (
+            ("runbook/assets/runbook-template.md", "source_revision",
+             "<repository@short-commit or reviewed release identifier>"),
+            ("postmortem/assets/postmortem-template.md", "source_revision",
+             "<repository@short-commit or reviewed release identifier>"),
+            ("operational-learning/assets/service-card-template.md", "source_revision",
+             "<repository@short-commit or reviewed release identifier>"),
+            ("operational-learning/assets/alert-card-template.md", "source_definition",
+             "<repository path + unique short commit ID>"),
+        ):
+            with self.subTest(template=name):
+                text = (ROOT / "skills" / name).read_text(encoding="utf-8")
+                metadata = yaml.safe_load(text.split("---", 2)[1])
+                self.assertEqual(metadata[field], expected)
+
     def test_postmortem_template_keeps_unknown_metadata_nullable(self) -> None:
         text = (ROOT / "skills/postmortem/assets/postmortem-template.md").read_text(encoding="utf-8")
         metadata = yaml.safe_load(text.split("---", 2)[1])

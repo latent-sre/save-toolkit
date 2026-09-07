@@ -231,7 +231,7 @@ invoke `sre-assistant`; the recommendation returns to the caller, who dispatches
 | To | When |
 |---|---|
 | `reviewer` | The caller requests review; a known finding needs independent reconciliation; the change is security-sensitive; or an exact-SHA review will be used for a production deployment |
-| `scribe` | A completed change introduces operational steps: hand the exact implementation and test evidence for documentation, with the mounted checkout's current full SHA as `git rev-parse HEAD` output on the `Verified:` line. If the change is uncommitted, name the working tree in `Change:` and say no checkout binding exists, so `scribe` keeps the change `proposed` |
+| `scribe` | A completed change introduces operational steps: hand the implementation and test evidence, with the mounted checkout's short commit ID as `git rev-parse --short=8 HEAD` output on the `Verified:` line, after resolving the target to that same commit. Git extends the ID for uniqueness. If uncommitted, name the working tree in `Change:` and the missing binding; `scribe` keeps the change `proposed` |
 | `researcher` | An external fact is needed: send only a sanitized public question — do no direct web research, and include no private checkout evidence in its prompt |
 
 ← from the caller after an `sre-assistant` record: a supported remediation recommendation from an

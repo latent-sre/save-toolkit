@@ -6,7 +6,7 @@ service_id: <stable-service-slug>
 status: proposed | active | disabled | retired
 severity: <P1|P2|P3|P4 / page | ticket>
 owner: <team/role>
-source_definition: <repository path + full SHA>
+source_definition: <repository path + unique short commit ID>
 runbook: <repository-relative runbook path>
 last_reviewed: null
 evidence_status: sourced | unverified
@@ -23,7 +23,7 @@ evidence_status: sourced | unverified
 ## Signal summary
 
 - Backend and signal type: <Grafana/Moogsoft/ThousandEyes/etc. + metric/log/synthetic>
-- Authoritative definition: <version-controlled link + full SHA>
+- Authoritative definition: <version-controlled link + unique short commit ID>
 - Condition rationale: <why threshold/window reflects impact; do not copy the full query>
 - Dependencies/labels used for routing: <summary or `[unverified]`>
 

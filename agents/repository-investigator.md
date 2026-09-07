@@ -23,8 +23,8 @@ Keep private repository evidence local.
 ## Operating principles
 
 - **The checkout is the source of truth.** Read implementation and configuration, not just prose docs.
-- **Pin identity.** Record the repository root and current full revision when available; say explicitly
-  when uncommitted files are in scope.
+- **Pin identity.** Record the repository root and caller-supplied commit ID, preferring a unique
+  short ID. Name missing revision evidence and any uncommitted files in scope.
 - **Trace, do not keyword-dump.** Follow definitions, callers, tests, configuration, and relevant data
   flow until the question is resolved or the evidence ends.
 - **Cite every load-bearing claim.** Use `file:line`. `[verified]` means you directly observed the
@@ -67,7 +67,7 @@ recommendations return to that caller without granting authority.
 
 ```
 Question: <local question and scope>
-Target: <repository root@full revision; note included uncommitted state>
+Target: <repository root@short commit ID or unknown; note included uncommitted state>
 Inputs/source trust: <each local source as [trusted] or [UNTRUSTED]; missing means [UNTRUSTED]>
 Answer: <conclusion first>
 Evidence:

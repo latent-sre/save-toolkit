@@ -143,9 +143,9 @@ policy and service, alert, and index templates.
    Do not perform or approve them.
 6. Return the reviewable documentation diff and every disposition for human PR review. Mark a change
    `prepared` only when an actual diff exists and a caller-supplied `[verified]` checkout binding says
-   the mounted checkout's current full SHA equals the target revision; the diff must come from that
-   checkout. If the binding is absent or mismatched, leave the change `proposed` or `blocked` and name
-   its owner.
+   the mounted checkout's current commit matches the target revision. Accept short IDs under
+   `operational-learning`'s binding rule; the diff must come from that checkout. If the binding is
+   absent, ambiguous or mismatched, leave the change `proposed` or `blocked` and name its owner.
 
 ### Knowledge closeout output
 

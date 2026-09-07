@@ -36,7 +36,7 @@ TEMPLATE_LITERALS = (
     "<how to stop mid-procedure without making it worse>", "<imperative step>", "<link>", "<n>",
     "<next step>", "<other runbook>", "<pager / channel>",
     "<platform-side signal: many apps / failing cells>", "<postmortem or drill link>",
-    "<repository@full-sha or reviewed release identifier>", "<role/team>", "<role>",
+    "<repository@short-commit or reviewed release identifier>", "<role/team>", "<role>",
     "<roles, Apps Manager org/space, VPN, tools>", "<stable-runbook-slug>", "<stable-service-slug>",
     "<team/role>", "<the incident's agreed update interval>", "<the step or escalation row to go to>",
     "<what you should see>", "<…>",

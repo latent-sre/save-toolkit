@@ -78,6 +78,11 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Routine documentation handoffs and operational templates now use unique short commit IDs
+  (8 characters, extended by Git when needed). Checkout evidence and approval requirements remain;
+  full IDs are still accepted. Immutable-review identities, dependency pins and eval digests are
+  unchanged.
+
 - Kept contact-only runbook corrections, supplied log/metric explanations, and bounded telemetry
   repairs scoped to their tasks while retaining full-workflow checks when requested. Aligned design
   consultation and operating-document routing with existing owners, and made rollback versus
