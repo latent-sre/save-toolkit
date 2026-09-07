@@ -5,7 +5,7 @@
 - **Decision owner:** Save Toolkit maintainers
 - **Roadmap item:** fleet weight review steps G3 and G4
 - **Supersedes:**
-  [`2026-08-26-multi-engine-evaluation-contract.md`](https://github.com/latent-sre/save-toolkit/blob/e6702ee04ca03f87e71595fb4dbf89a722df9fe9/docs/decisions/2026-08-26-multi-engine-evaluation-contract.md)
+  [`2026-08-26-multi-engine-evaluation-contract.md`](2026-08-26-multi-engine-evaluation-contract.md)
 - **Does not supersede:**
   [`2026-08-23-retire-codex-distribution-target.md`](2026-08-23-retire-codex-distribution-target.md)
   (Codex remains a way to work in this checkout and not a distribution target) or

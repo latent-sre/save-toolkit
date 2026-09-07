@@ -18,13 +18,13 @@
 
   Deliberately **not** superseded: the rename ADRs
   ([`2026-08-04`](2026-08-04-observability-engineer-rename.md),
-  [`2026-08-05`](https://github.com/latent-sre/save-toolkit/blob/e6702ee04ca03f87e71595fb4dbf89a722df9fe9/docs/decisions/2026-08-05-language-idiom-rename.md),
+  [`2026-08-05`](2026-08-05-language-idiom-rename.md),
   [`2026-08-05-save-toolkit-rename.md`](2026-08-05-save-toolkit-rename.md)) mention Codex only as
   dated evidence of what those renames touched, and `docs/rules.md` requires leaving such records
   under their old vocabulary rather than rewriting recorded results.
   The local Sol conformance and Codex/Terra routing decisions (retained in Git history) already
   record their evaluator paths as superseded or retired, and
-  [`2026-08-11-immutable-release-promotion.md`](https://github.com/latent-sre/save-toolkit/blob/e6702ee04ca03f87e71595fb4dbf89a722df9fe9/docs/decisions/2026-08-11-immutable-release-promotion.md) governs
+  [`2026-08-11-immutable-release-promotion.md`](2026-08-11-immutable-release-promotion.md) governs
   release machinery that `main` retired independently in `1d9d8f7`.
 
 ## Decision

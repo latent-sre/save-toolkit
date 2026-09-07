@@ -2,12 +2,14 @@
 
 Retained contracts for the current fleet and unresolved roadmap work. Completed renames,
 retired release and evaluation designs, and archive-location records are kept in Git history.
-Accepted decision text stays unchanged; citations to removed files point to their committed versions.
+Accepted ADRs stay byte-for-byte unchanged, including citations to historical paths. References
+removed by this cleanup are in the [pre-cleanup snapshot](https://github.com/latent-sre/save-toolkit/tree/e6702ee04ca03f87e71595fb4dbf89a722df9fe9/docs/decisions);
+earlier missing references require their own historical revision.
 Change a decision through a successor as described in [`commands/adr.md`](../../commands/adr.md).
 
-The 2026-09-07 documentation cleanup removes restoration bundles from the working tree. Their
-historical preservation instructions do not require a second copy here or reactivate the prototypes.
-The cleanup does not change branch dispositions, current tool authority, or acceptance holds.
+The [retention successor](2026-09-07-historical-artifact-retention.md) explicitly replaces the
+incident-navigation and incident-autonomy bundle-preservation requirements when maintainers merge
+PR #238. It preserves branch dispositions, current tool authority, and acceptance holds.
 
 | Date | Decision | Status |
 |---|---|---|
@@ -20,6 +22,7 @@ The cleanup does not change branch dispositions, current tool authority, or acce
 | 2026-08-24 | [Establish a source-independent SRE operational-context contract](2026-08-24-sre-operational-context-contract.md) | Accepted |
 | 2026-08-26 | [Use a consumer-specific Docker Compose sandbox for GRAPH-002](2026-08-26-graph-002-docker-sandbox-runtime.md) | Accepted |
 | 2026-09-01 | [One Claude engine, deterministic structure graders, and a calibrated rubric judge](2026-09-01-rubric-judge-evaluation-contract.md) | Accepted 2026-09-01 |
-| 2026-09-03 | [The incident lane is an advisor and a pair of hands](2026-09-03-incident-lane-advisor-and-hands.md) | Accepted 2026-09-03 |
+| 2026-09-03 | [The incident lane is an advisor and a pair of hands](2026-09-03-incident-lane-advisor-and-hands.md) | Accepted 2026-09-03; bundle-retention clause superseded upon acceptance of the retention successor |
 | 2026-09-03 | [One eval runner, three scenario kinds](2026-09-03-one-eval-runner.md) | Accepted 2026-09-03; registry list superseded by [2026-09-04-eight-grader-registry](2026-09-04-eight-grader-registry.md) |
 | 2026-09-04 | [The grader registry is eight graders](2026-09-04-eight-grader-registry.md) | Accepted 2026-09-04 |
+| 2026-09-07 | [Keep retired artifacts in Git history](2026-09-07-historical-artifact-retention.md) | Proposed; effective on maintainer merge of PR #238 |

@@ -23,9 +23,15 @@ Every live item carries seven fields: **ID** (stable identifier), **Status** (`a
 one or two sentences), **Next action** (the next concrete step and who takes it), **Evidence**
 (one link to the record that proves current state, or `none yet`), and **SRE task** (the task a
 human SRE does differently when this lands; an item that cannot name one is `deferred`). An item
-leaves this file only when its Outcome is met and merged, or an owner disposition is committed — and
-once it leaves, the commit that removed it and its CHANGELOG entry are its record. Neither re-queues
-work.
+leaves this file only when its Outcome is met and merged, or an owner disposition is committed.
+Its removal commit is the closure record: name the ID, disposition, and supporting evidence in the
+commit message or patch. The changelog is a recent summary, not a permanent closure register.
+
+Find an older item's disposition with
+`git log --first-parent -m -p -G '<ID>' -- docs/fleet-roadmap.md docs/roadmap-closed.md CHANGELOG.md`.
+Inspect the removal patch; read an older closure entry with `git show <commit>:CHANGELOG.md`.
+This also covers items recorded before the closed register and changelog were trimmed. Historical
+records do not re-queue work.
 
 ## Repository work
 

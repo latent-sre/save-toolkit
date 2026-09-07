@@ -34,8 +34,10 @@ is a deletion or a one-line rule. Keep evidence under `docs/reviews/` while an u
 decision or a current regression depends on its measurements, including failed results. A changelog
 entry or a comment recording when a test first ran is not a retention reason. Remove completed
 reports, retired eval fixtures, and restoration bundles once their current dependency is gone;
-Git retains the historical bytes. Update their live references in the same change. Gate A rejects
-uncited review packets; citation alone does not establish that a packet is still needed.
+an explicit preservation decision requires a successor or owner disposition, as in the
+[retention decision](docs/decisions/2026-09-07-historical-artifact-retention.md). Git retains the
+historical bytes; accepted ADRs remain immutable. Update live references in the same change.
+Gate A rejects uncited review packets; citation alone does not establish that a packet is still needed.
 
 | Change | Evidence |
 |---|---|

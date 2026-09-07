@@ -5,7 +5,7 @@
 - **Decision owner:** Save Toolkit maintainers
 - **Roadmap item:** closes ROUTE-005 (the incumbent it asked the owner to decide on is archived)
 - **Supersedes:** the sustained-response design in `agents/sre.md` and the `investigation-depth`
-  mode ladder, both parked under [`archive/incident-autonomy/`](https://github.com/latent-sre/save-toolkit/blob/e6702ee04ca03f87e71595fb4dbf89a722df9fe9/archive/incident-autonomy/README.md)
+  mode ladder, both parked under [`archive/incident-autonomy/`](../../archive/incident-autonomy/README.md)
 - **Does not supersede:**
   [`2026-08-24-sre-operational-context-contract.md`](2026-08-24-sre-operational-context-contract.md)
   (the evidence-label and operational-context rules stand; the agent that carries them is now
@@ -47,7 +47,7 @@ signals in Splunk, Wavefront, Grafana, or Apps Manager.
 
 ## Consequences
 
-- Measured in [`2026-09-03-incident-lane-fold-evidence.md`](https://github.com/latent-sre/save-toolkit/blob/e6702ee04ca03f87e71595fb4dbf89a722df9fe9/docs/reviews/2026-09-03-incident-lane-fold-evidence.md):
+- Measured in [`2026-09-03-incident-lane-fold-evidence.md`](../reviews/2026-09-03-incident-lane-fold-evidence.md):
   the trimmed agent passes the guarded-triage probe 17/17 in three trials with a third fewer tokens
   than the incumbent's 18/18, and on Sonnet the four incident routing scenarios pass 3/3 each.
 - A restore needs what the archive README states: a trigger loop, read paths to the signals, and a
