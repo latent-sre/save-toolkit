@@ -17,6 +17,14 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class SkillAssetTests(unittest.TestCase):
+    def test_postmortem_template_keeps_unknown_metadata_nullable(self) -> None:
+        text = (ROOT / "skills/postmortem/assets/postmortem-template.md").read_text(encoding="utf-8")
+        metadata = yaml.safe_load(text.split("---", 2)[1])
+        for field in ("severity", "started_at", "resolved_at", "resolution_confirmed_at"):
+            with self.subTest(field=field):
+                self.assertIn(field, metadata)
+                self.assertIsNone(metadata[field], "unknown facts must not acquire a default value")
+
     def test_gcp_triage_commands_bind_the_supplied_target(self) -> None:
         text = (ROOT / "skills/gcp-ops/SKILL.md").read_text(encoding="utf-8")
         commands = re.findall(r"`(gcloud run [^`\n]+)`|^(gcloud run .+)$", text, re.MULTILINE)

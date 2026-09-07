@@ -86,3 +86,41 @@ Native selection, successful symptom-reference read, real dispatch identities, r
 and parent continuation are separate acceptance checks, all unrun here. Written examples and
 source-only comparisons cannot prove them. Existing behavioral adoption holds remain open; no
 commit, push, merge, installation, production change or candidate promotion is included in this task.
+
+## PR #236 review follow-up
+
+The preceding sections bind the initial helper-exchange candidate. The human subsequently asked
+to address Codex's five comments on `8b80eacc3296f7619a4a896c9e0dd91134f80f02`.
+
+- Restart headroom: the exemplar has no serving-headroom check, so its restart branch now goes
+  directly to the named engineering lead, with missing proof and a no-restart outcome. The short
+  example, escalation and cleanup references agree; no fictional safety threshold was invented.
+- Recovery versus confirmation: closeout, postmortem and scribe preserve the evidenced impact-end
+  time separately from the human's resolution call. `resolved_at` remains the impact endpoint;
+  `resolution_confirmed_at` is additive. Missing times remain unknown, not invented from the call.
+- Unknown severity: the postmortem template supports YAML `null` for unknown/unassigned severity
+  and unknown times. Known P1-P4 values remain supported. No local timestamp arithmetic or
+  postmortem-schema consumer was found; external consumers were not inspected.
+- Bounded mitigation stance: Result distinguishes `not assessed` with its reason, assessed with
+  none supported, and a supported recommendation. A numbers-only ask still needs no full diagnosis
+  or mitigation plan; it does not imply that mitigation was assessed.
+
+The new parsed-template test failed against the incumbent for unknown severity/start/end values
+and the absent confirmation field (four subtest failures), then passed after the fix. It proves
+the shipped field/default shape, not model interpretation. Static acceptance examples keep 10:15
+recovery separate from 10:30 confirmation, and leave recovery/duration unknown when only the call
+is supplied. No new model campaign, paid judge or runtime mechanism is part of this review repair.
+
+**Adoption remains on hold.** The P1 identifies a valid merge/adoption decision, not proof that
+canonical paths on an unmerged candidate branch have already been promoted. CONTRIBUTING requires
+canonical edits and generated projections, while normal installations track `main`; deliberate
+checkout loading remains possible, so the branch is not an enforced quarantine. Do not infer
+acceptance from review-ready status, green checks, commit/push permission or these four fixes.
+The final exact-revision acceptance decision remains with the human; the P1 thread stays open.
+
+Final review-repair verification: [verified] `python -m pytest scripts evals -q` reported
+**466 passed, 5 skipped, 923 subtests passed**. Adapters match, Gate A passes 4/4, all context and
+weight limits pass, and `git diff --check` is clean. Skill bytes are 575,921/576,000; agent bytes
+114,243/115,000; no limits changed. [sourced] Independent static review found no material issue
+in the four targeted fixes. Model/native behavior remains [unverified]. Final plugin digest:
+`ed5f99592fac39992f57c3b69a6c0142669dbdb9aac859ecf6a3e1f7809bfcc0`.

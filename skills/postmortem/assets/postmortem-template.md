@@ -2,10 +2,11 @@
 schema_version: 1
 incident_id: <stable incident/ticket ID>
 status: draft | final
-severity: <P1|P2|P3|P4>
+severity: null # P1 | P2 | P3 | P4; null when unknown/unassigned
 service_ids: []
-started_at: <RFC3339 UTC>
-resolved_at: <RFC3339 UTC>
+started_at: null # evidenced start of impact
+resolved_at: null # evidenced end of impact, not the resolution call
+resolution_confirmed_at: null # when the human confirmed resolution
 owner: <team/role>
 source_revision: <repository@full-sha or reviewed release identifier>
 last_reviewed: null
@@ -18,10 +19,15 @@ Only the full form adds the Full analysis sections. Omit these selection instruc
 Repository files keep the frontmatter; ticket drafts name the incident/service, severity, owner, and
 times in prose, without repository-only metadata.
 
+Known times: quoted RFC3339 UTC; unknowns: `null`. Put bounds/estimates in the timeline.
+Duration uses `started_at`/`resolved_at`, never confirmation. Missing endpoints leave duration
+unknown, not the human-confirmed incident reopened.
+
 ## Summary
 
-<Affected services/user outcome, scope and impact interval; detection and response; human recovery
-confirmation/time/evidence. State data-integrity evidence or uncertainty, never assume no loss.>
+<Affected services/user outcome, scope and impact interval; detection and response; recovery
+evidence/time and separate human resolution confirmation/time. State data-integrity evidence or
+uncertainty, never assume no loss.>
 
 ## Timeline (UTC, from evidence)
 

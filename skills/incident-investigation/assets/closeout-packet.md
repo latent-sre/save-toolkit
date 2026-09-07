@@ -8,8 +8,9 @@ labels travel unchanged. This supplies the postmortem and knowledge closeout. Re
 Closeout — <INC id> · <application> · <platform>
 Returning to:     <invoking caller; human requester for direct use>
 Human owner:      <role who owned the incident>
-Resolved (UTC):   <human confirmation and ts> · criterion met: <affected user outcome, scope, required window or completion check, evidence> [label]
-Impact:           <users, share of traffic, duration; data loss checked how, or [unverified]>
+Impact ended (UTC): <evidenced end or unknown; user outcome, scope, required window/completion check, evidence> [label]
+Resolution call (UTC): <confirming human; call time or unknown> [label]
+Impact:           <users, traffic share, duration from impact endpoints, not the call; data loss evidence or [unverified]>
 Detection:        <alert or human report; time to notice> · improvement: <actionable earlier signal and noise tradeoff, or n/a — why>
 Timeline (UTC):   <ts — event> … (deploys, config, mitigations, recovery)
 Cause:            <established cause, or current explanations with scoped evidence and remaining checks> [label]

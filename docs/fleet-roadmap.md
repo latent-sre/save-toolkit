@@ -51,6 +51,9 @@ That narrower work does not close the native selection or evidence-quality failu
 The approved [helper-exchange candidate](reviews/2026-09-07-incident-helper-exchange.md) replaces
 one-sided examples with dispatch and parent claim reconciliation; source review and local checks pass.
 Its separate three-pair Sonnet decision is outstanding; native entry/return remains unverified.
+PR #236's [technical review corrections](reviews/2026-09-07-incident-helper-exchange.md#pr-236-review-follow-up)
+do not clear the adoption hold. Exact-revision human acceptance remains required before merge;
+review-ready status, structural checks and publication are not that decision.
 **Evidence:** [Second bounded decision-quality pass](reviews/2026-09-07-incident-quality-second-pass.md)
 **SRE task:** The responder gets a useful next check or closeout without mistaking a job status,
 missing history, aggregate signal, or recipient readback time for evidence of a different claim.

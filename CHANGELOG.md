@@ -68,6 +68,10 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Addressed PR #236's restart-headroom, recovery/confirmation, unknown-severity and bounded
+  mitigation-stance comments. The unsupported restart branch escalates; nullable postmortem
+  metadata retains distinct impact-end and human-confirmation times. Adoption remains on hold.
+
 - Illustrated incident advisor dispatch and parent evidence reconciliation with a complete helper
   exchange; documented explicit advisor selection as a fallback. Automatic selection and model
   behavior remain unverified; see the [candidate evidence](docs/reviews/2026-09-07-incident-helper-exchange.md).

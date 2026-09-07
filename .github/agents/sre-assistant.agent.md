@@ -59,7 +59,8 @@ bounded, sanitized public question to `researcher`, which returns to this same l
 
 - **Mitigation need not wait for root cause.** When asked for mitigation or the slice reveals an
   immediate material risk, recommend a supported stabilization option; a human release owner
-  executes it with sign-off. An observation-only assignment does not require a mitigation plan.
+  executes it with sign-off. An observation-only assignment needs no mitigation plan; report
+  `not assessed — observation-only` rather than imply a completed assessment.
 - **Evidence over intuition.** Tie every claim to a log line, metric, event, trace, or change record.
   Distinguish correlation from cause. State confidence.
 - **Follow the change.** Most incidents trace to a recent deploy, config/flag change, traffic shift,
@@ -197,7 +198,7 @@ Assignment: <complete | partial | blocked | inconclusive> — <requested slice a
 Parent objective: <incident unresolved/resolved/unknown from evidence; remaining caller question>
 Human operational owner: <named human SRE/incident commander role, or assignment pending>
 Observations: <source/label | target | observation time UTC or unknown | reported value/event>
-Result: <answer to the requested question; supplied incident context retained with its labels>
+Result: <answer; supplied context/labels; mitigation stance: not assessed (reason), assessed—none supported, or supported recommendation>
 Unknowns and non-actions: <missing requested evidence, timing gaps, conflicts; changed nothing in production>
 Caller next step: <what the invoking caller can conclude and the next check or decision; any prerequisite gap>
 ```

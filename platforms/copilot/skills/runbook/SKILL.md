@@ -112,10 +112,7 @@ the right runbook automatically — each tool in our stack has a mechanism:
 
 > **Trigger**: alert `checkout-p95-burn-fast` (page).
 > **First checks**: Apps Manager → checkout → Instances: expect `6/6 running` (`cf app checkout`) [unverified].
-> **Procedure step 1** ⚠️ (Tier 2 — needs explicit human approval for this command/target):
-> `cf restart-app-instance checkout <idx>` — restarts ONE instance; first confirm the remaining
-> instances can serve the load. In-flight work and process-local state may be lost.
-> **Verification**: p95 back under 800 ms within 10 min on the checkout dashboard.
-> **Recovery**: the restart cannot be undone. Verify replacement readiness and user requests;
-> if it does not return within 3 min or p95 does not improve within 10 min, STOP and escalate.
+> **Step 1**: headroom unproved; no restart. Immediately escalate target/index/window/readings to
+> payments engineering lead for the missing check and separately approved procedure. Missing reply
+> or evidence keeps restart blocked; independent read-only checks may continue.
 > *Illustrative only; every step stays [unverified] until a human records the exact command, target, actor, and result.*

@@ -90,7 +90,9 @@ form; do not force runbook Procedure or Rollback headings into it.
 
 1. Gather the authoritative UTC timeline, technical findings from the incident record (the advisor's
    closeout packet and any `sre-assistant` slices), impact/SLO data, mitigation
-   records, and relevant change history. `incident-command` owns the live-incident timeline.
+   records, and relevant change history. Preserve impact-end time separately from the human's
+   resolution-confirmation time; the latter never extends impact duration. `incident-command`
+   owns the live-incident timeline.
 2. Separate facts from hypotheses. State how each unresolved causal claim could be checked and who
    owns that follow-up; unavailable evidence remains a documented limit.
 3. Explain systemic causes and contributing conditions, never individual blame. Record what made each

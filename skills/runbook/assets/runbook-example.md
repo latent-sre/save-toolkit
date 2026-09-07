@@ -66,8 +66,7 @@ Dashboard: `https://grafana.example.internal/d/checkout-slo`  ·  Source/repo: `
    cf app checkout | tail -n +6
    ```
    Expected: a per-instance table. Compare the `cpu` and `memory` columns.
-   - One instance higher → compare request latency/errors and load in the same window. Only a
-     corroborated single-instance problem leads to Procedure step 1.
+   - One instance higher → Procedure step 1; this snapshot alone cannot justify a restart.
    - All instances similar → neither saturation nor health is established. Procedure step 2.
    - Missing evidence → inconclusive; Procedure step 2 or escalate if unavailable. A CPU/memory
      snapshot alone does not justify restart.
@@ -77,21 +76,11 @@ Dashboard: `https://grafana.example.internal/d/checkout-slo`  ·  Source/repo: `
 > Mark destructive steps ⚠️. Tier 2/3: record explicit human approval for the exact command/target
 > plus rollback or recovery evidence before execution.
 
-1. ⚠️ **Restart the single degraded instance.** (Tier 2 — needs explicit human approval naming
-   `checkout` and the instance index.)
-   ```bash
-   cf restart-app-instance checkout <idx>
-   ```
-   `<idx>` is the instance index in step 3's table, zero-based. Capacity drops to 5/6 until it
-   returns (~90 s). Before approval, confirm the other five serve requests with headroom over the
-   impact window; CPU below ~70% alone does not establish that. If their capacity or readiness is
-   uncertain, skip to step 2 rather than removing capacity. The restart can interrupt in-flight
-   work and discard process-local state; it cannot be undone.
-   Expected: the command returns `OK` within ~5 s, and `cf app checkout` shows that index
-   `starting` then `running` within 90 s.
-   - Still `starting` after 3 min → it is not coming back cleanly. Go to step 4.
-   - Returns to `running` but p95 does not improve within 10 min → the restart did not restore
-     latency; cause remains open. **Do not restart it again.** Go to step 2 before any scaling.
+1. **Escalate the restart decision.** No serving-headroom check for the remaining five is supplied.
+   **Do not restart.** Use the immediate Escalation row with triage 3's index, target/window,
+   CPU/memory and unknown readiness/capacity. Expected: the payments engineering lead obtains the
+   check and owns a separately approved procedure. No reply or incomplete evidence keeps restart
+   blocked; continue only read-only step 2. Approval does not replace evidence.
 
 2. **Check the downstream payment path before scaling.** Extra app instances can increase
    pressure on a constrained dependency; this read checks for that risk, not just timeout counts.
@@ -126,7 +115,7 @@ Dashboard: `https://grafana.example.internal/d/checkout-slo`  ·  Source/repo: `
    Scaling is a stopgap that buys time; it does not fix a leak or a slow dependency. File the
    follow-up before you leave the incident.
 
-4. **Instances are missing, starting, or crashing (from triage step 2 or step 1).** Do not restart.
+4. **Instances are missing, starting, or crashing (from triage step 2).** Do not restart.
    Capture evidence before process replacement loses transient state:
    ```bash
    cf logs checkout --recent > /tmp/checkout-crash-$(date -u +%Y%m%dT%H%M%SZ).log
@@ -145,8 +134,9 @@ If p95 is healthy but the burn-rate panel is still above 1.0, the budget is stil
 the earlier damage — that is expected and not a reason to keep acting.
 
 ## Rollback / cleanup
-- Step 1 (restart): no rollback restores the old process or interrupted work. Verify replacement
-  readiness and affected requests; follow step 1's stop/escalation conditions, not another restart.
+- Step 1 requests escalation only. If a human already restarted outside this procedure, no rollback
+  restores the old process or interrupted work; report observed readiness/requests and escalate.
+  Missing/starting/crashing instances go to step 4, not another restart.
 - Step 3 (scale out): return to the baseline count once p95 has been healthy for 30 min.
   ```bash
   cf scale checkout -i 6
@@ -160,6 +150,7 @@ the earlier damage — that is expected and not a reason to keep acting.
 ## Escalation
 | When (condition / time elapsed) | Escalate to | How to reach |
 |---|---|---|
+| Restart headroom unknown (step 1): immediately | payments engineering lead | pager `payments-lead`, `#payments-oncall` |
 | Not resolved 20 min after Procedure step 2 | payments engineering lead | pager `payments-lead`, `#payments-oncall` |
 | Scale-out has not reached `9/9 running` after 3 min, or p95 is still above 0.8 s 10 min after reaching it | payments engineering lead | pager `payments-lead`, `#payments-oncall` |
 | Instances missing/starting/crashing, or observation unavailable (Procedure step 4) | payments engineering lead | same, with captured evidence and gaps |

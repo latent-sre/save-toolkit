@@ -13,11 +13,12 @@ argument-hint: "[the resolved incident]"
 
 Use the [postmortem template](./assets/postmortem-template.md): full for P1/P2 or an explicit full
 review; abbreviated for P3/near-misses unless policy or the owner requires full depth. Keep unknown
-severity unknown and confirm required depth before finalizing. A summary/explanation request gets
+severity as YAML `null` and confirm required depth before finalizing. A summary/explanation request gets
 only that answer, not a completed postmortem by implication.
 
 Fill the selected form's required facts from evidence, marking missing facts `[unverified]` and
 genuinely inapplicable requirements `n/a — why`. Omit the unselected form and optional empty sections.
+Use the template's nullable times; preserve impact end separately from human resolution confirmation.
 
 For full causal analysis, fit the evidence: Five Whys, a fault tree, causal graph, or another method.
 Name it, preserving branches and uncertainty rather than forcing a line count or linear story.
