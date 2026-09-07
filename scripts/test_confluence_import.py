@@ -276,6 +276,57 @@ class ConfluenceImportTest(unittest.TestCase):
 
 
 class ConfluenceContentTest(unittest.TestCase):
+    def test_unsupported_media_suppresses_descendants_and_resumes_afterward(self) -> None:
+        for tag in ("svg", "video", "audio", "iframe", "object"):
+            with self.subTest(tag=tag):
+                proc, draft = run_converter(
+                    f'<p>Visible before.</p><{tag}><{tag}>nested-hidden</{tag}>'
+                    '<div><br><img src="hidden.png">fallback-hidden '
+                    '<a href="https://example.com/hidden">link-hidden</a></div>'
+                    '<ac:structured-macro><ac:parameter>macro-hidden</ac:parameter>'
+                    f'</ac:structured-macro></{tag}><p>Visible after.</p>'
+                )
+                self.assertEqual(0, proc.returncode, proc.stderr)
+                self.assertIn("Visible before.", draft)
+                self.assertIn("Visible after.", draft)
+                self.assertNotIn("hidden", draft)
+                for output in (draft, proc.stdout):
+                    self.assertIn("Unsupported media dropped: 2", output)
+
+    def test_void_and_self_closing_media_do_not_suppress_following_content(self) -> None:
+        for media, count in (
+            ("<embed>", 1), ("<embed/>", 1), ("<svg/>", 1), ("<video/>", 1),
+            ("<svg><g/><text>hidden</text></svg>", 1),
+            ("<video><embed><svg/><source>hidden</video>", 3),
+        ):
+            with self.subTest(media=media):
+                proc, draft = run_converter(media + '<p>Retained afterward.</p>')
+                self.assertEqual(0, proc.returncode, proc.stderr)
+                self.assertIn("Retained afterward.", draft)
+                self.assertNotIn("hidden", draft)
+                self.assertIn(f"Unsupported media dropped: {count}", proc.stdout)
+
+    def test_anchor_line_breaks_preserve_one_destination_without_link_bleed(self) -> None:
+        proc, draft = run_converter(
+            '<p>Open <a href="https://example.com/recovery">recovery<br>'
+            '<em>console</em><br/>guide</a> outside-first. '
+            '<a href="#next">next<br>step</a> outside-second.</p><p>Following paragraph.</p>'
+        )
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        self.assertIn('[recovery console guide](<https://example.com/recovery>) outside-first.', draft)
+        self.assertIn('[next step](<#next>) outside-second.', draft)
+        self.assertIn("Following paragraph.", draft)
+        self.assertEqual(1, draft.count("https://example.com/recovery"))
+
+    def test_line_breaks_do_not_activate_an_unsafe_anchor_destination(self) -> None:
+        proc, draft = run_converter(
+            '<p><a href="javascript:alert(1)">unsafe<br>label</a> ordinary text.</p>'
+        )
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        self.assertIn("unsafe label ordinary text.", draft)
+        self.assertNotIn("javascript:", draft)
+        self.assertIn("Unusable link or image destinations: 1", proc.stdout)
+
     def test_rendered_links_and_image_references_survive_with_loss_accounting(self) -> None:
         proc, draft = run_converter(
             '<title>Recovery</title><h2>Procedure</h2><p>Open '

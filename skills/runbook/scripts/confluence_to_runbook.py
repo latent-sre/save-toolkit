@@ -61,10 +61,10 @@ class _Extractor(HTMLParser):
     """Flatten the export into (heading, blocks) sections.
 
     Blocks are ("text", str) paragraphs/list items or ("code", str) literal blocks. Content inside
-    Confluence namespace elements (<ac:...>/<ri:...>) is suppressed and counted: a macro's innards
-    are parameters, not prose, and half-copied parameters masquerading as instructions are worse
-    than a reported loss. Unclosed namespaced tags can leave the depth counter high; the failure
-    direction is suppressing too much into the loss count, never inventing content.
+    Confluence namespace elements (<ac:...>/<ri:...>) or unsupported media is suppressed and counted:
+    a macro's innards are parameters, not prose, and half-copied parameters masquerading as
+    instructions are worse than a reported loss. Unclosed suppressed tags can leave suppression
+    active; the failure direction is suppressing too much into the loss count, never inventing content.
     """
 
     def __init__(self) -> None:
@@ -76,6 +76,7 @@ class _Extractor(HTMLParser):
         self.media_count = 0
         self.unusable_destinations = 0
         self._ac_depth = 0
+        self._media: list[str] = []
         self._in_title = False
         self._heading: str | None = None
         self._pre: list[str] | None = None
@@ -117,6 +118,13 @@ class _Extractor(HTMLParser):
         self.sections[-1][1].append(("text", prefix + text))
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag in {"iframe", "object", "embed", "video", "audio", "svg"} and not self._ac_depth:
+            self.media_count += 1
+            if tag != "embed":  # Void media has no descendants to suppress.
+                self._media.append(tag)
+            return
+        if self._media:
+            return
         if ":" in tag:  # ac:/ri: namespace — Confluence macro machinery, not content
             if self._ac_depth == 0:
                 self.macro_count += 1
@@ -134,8 +142,6 @@ class _Extractor(HTMLParser):
             self._text.append("Image: " + self._reference(
                 attributes.get("alt") or "image", self._destination(attributes.get("src"))
             ))
-        elif tag in {"iframe", "object", "embed", "video", "audio", "svg"}:
-            self.media_count += 1
         if tag == "title":
             self._in_title = True
         elif tag in {"h1", "h2", "h3", "h4", "h5", "h6"}:
@@ -148,9 +154,14 @@ class _Extractor(HTMLParser):
             self._flush_text()
             self._list_stack.append(tag)
         elif tag in {"p", "li", "tr", "br"}:
-            self._flush_text()
+            if tag != "br" or self._link is None:
+                self._flush_text()
 
     def handle_endtag(self, tag: str) -> None:
+        if self._media:
+            if tag == self._media[-1]:
+                self._media.pop()
+            return
         if ":" in tag:
             self._ac_depth = max(0, self._ac_depth - 1)
             return
@@ -179,7 +190,7 @@ class _Extractor(HTMLParser):
             self._flush_text()
 
     def handle_data(self, data: str) -> None:
-        if self._ac_depth:
+        if self._ac_depth or self._media:
             return
         if self._in_title:
             self.title += data.strip()
