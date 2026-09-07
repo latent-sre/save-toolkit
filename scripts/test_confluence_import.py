@@ -277,10 +277,14 @@ class ConfluenceImportTest(unittest.TestCase):
 
 class ConfluenceContentTest(unittest.TestCase):
     def test_unsupported_media_suppresses_descendants_and_resumes_afterward(self) -> None:
-        for tag in ("svg", "video", "audio", "iframe", "object"):
+        # iframe is raw text: its first </iframe> closes it, so it cannot nest another iframe.
+        for tag, child, count in (
+            ("svg", "svg", 2), ("video", "video", 2), ("audio", "audio", 2),
+            ("iframe", "div", 1), ("object", "object", 2),
+        ):
             with self.subTest(tag=tag):
                 proc, draft = run_converter(
-                    f'<p>Visible before.</p><{tag}><{tag}>nested-hidden</{tag}>'
+                    f'<p>Visible before.</p><{tag}><{child}>nested-hidden</{child}>'
                     '<div><br><img src="hidden.png">fallback-hidden '
                     '<a href="https://example.com/hidden">link-hidden</a></div>'
                     '<ac:structured-macro><ac:parameter>macro-hidden</ac:parameter>'
@@ -291,7 +295,7 @@ class ConfluenceContentTest(unittest.TestCase):
                 self.assertIn("Visible after.", draft)
                 self.assertNotIn("hidden", draft)
                 for output in (draft, proc.stdout):
-                    self.assertIn("Unsupported media dropped: 2", output)
+                    self.assertIn(f"Unsupported media dropped: {count}", output)
 
     def test_void_and_self_closing_media_do_not_suppress_following_content(self) -> None:
         for media, count in (
