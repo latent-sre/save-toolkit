@@ -863,40 +863,56 @@ class EndToEndStubTests(unittest.TestCase):
                         raise OSError("publication failed")
                     return rename(path, destination)
                 remove = build_probe.remove_tree
-                def failing_cleanup(path):
-                    remove(path)
-                    raise RuntimeError("cleanup failed after removing its temporary tree")
+                retained = []
+                def failing_cleanup(path, **_kwargs):
+                    retained.append(Path(path))  # simulate rmtree returning with an undeletable tree
                 patcher = (mock.patch.object(Path, "rename", failing_publish) if failure == "publish" else
-                           mock.patch.object(build_probe, "remove_tree", side_effect=failing_cleanup) if failure == "cleanup" else
+                           mock.patch.object(build_probe.shutil, "rmtree", side_effect=failing_cleanup) if failure == "cleanup" else
                            mock.patch.object(build_probe, {"provenance": "plugin_provenance", "seed": "seed_workspace",
                                                           "parse": "parse_trace"}[failure],
                                              side_effect=RuntimeError(failure)))
-                with patcher, self.assertRaises((RuntimeError, OSError)):
-                    build_probe.run_trial(self._spec(), plugin_root=ROOT, label="replaced", model=None,
-                                          run_number=1, out_dir=out, timeout=60, executable=self._stub(),
-                                          keep_workspace=False, env_factory=self._env_factory(), overwrite=True)
-                self.assertEqual(original, {p.relative_to(run).as_posix(): p.read_bytes()
-                                            for p in run.rglob("*") if p.is_file()})
+                try:
+                    with patcher, mock.patch.object(build_probe.time, "sleep"), self.assertRaises((RuntimeError, OSError)):
+                        build_probe.run_trial(self._spec(), plugin_root=ROOT, label="replaced", model=None,
+                                              run_number=1, out_dir=out, timeout=60, executable=self._stub(),
+                                              keep_workspace=False, env_factory=self._env_factory(), overwrite=True)
+                    self.assertEqual(original, {p.relative_to(run).as_posix(): p.read_bytes()
+                                                for p in run.rglob("*") if p.is_file()})
+                    if failure == "cleanup":
+                        self.assertTrue(retained)
+                        self.assertTrue(all(retained.count(path) == 3 for path in set(retained)))
+                finally:
+                    for path in set(retained):
+                        if path.exists():
+                            remove(path)
+                        self.assertFalse(path.exists())
 
     def test_published_overwrite_reports_success_if_only_backup_cleanup_fails(self) -> None:
         out = self.root / "iteration"
         run = out / "eval-tiny/replaced/run-1"
         run.mkdir(parents=True)
         (run / "grading.original.json").write_text("old original", encoding="utf-8")
-        remove = build_probe.remove_tree
-        def cleanup(path):
-            if "-previous-" in path.name:
-                raise OSError("backup is busy")
-            remove(path)
-        with mock.patch.object(build_probe, "remove_tree", side_effect=cleanup):
-            summary = build_probe.run_trial(
-                self._spec(), plugin_root=ROOT, label="replaced", model=None, run_number=1,
-                out_dir=out, timeout=60, executable=self._stub(), keep_workspace=False,
-                env_factory=self._env_factory(), overwrite=True)
-        self.assertEqual("PASS", summary["status"])
-        self.assertTrue((run / "grading.json").is_file())
-        backups = list(run.parent.glob(".run-1-previous-*/grading.original.json"))
-        self.assertEqual(["old original"], [p.read_text(encoding="utf-8") for p in backups])
+        rmtree = build_probe.shutil.rmtree
+        retained = []
+        def cleanup(path, **kwargs):
+            if "-previous-" in Path(path).name:
+                retained.append(Path(path))
+                return
+            rmtree(path, **kwargs)
+        try:
+            with mock.patch.object(build_probe.shutil, "rmtree", side_effect=cleanup), mock.patch.object(build_probe.time, "sleep"):
+                summary = build_probe.run_trial(
+                    self._spec(), plugin_root=ROOT, label="replaced", model=None, run_number=1,
+                    out_dir=out, timeout=60, executable=self._stub(), keep_workspace=False,
+                    env_factory=self._env_factory(), overwrite=True)
+            self.assertEqual("PASS", summary["status"])
+            self.assertTrue((run / "grading.json").is_file())
+            self.assertEqual(3, len(retained))
+            backups = list(run.parent.glob(".run-1-previous-*/grading.original.json"))
+            self.assertEqual(["old original"], [p.read_text(encoding="utf-8") for p in backups])
+        finally:
+            for path in set(retained):
+                build_probe.remove_tree(path)
 
     def test_plugin_change_before_trial_does_not_start_services_or_model(self) -> None:
         with mock.patch.object(build_probe, "start_services", side_effect=AssertionError("no service launch")), \

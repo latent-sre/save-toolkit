@@ -2590,7 +2590,7 @@ def remove_tree(root: Path) -> None:
         if not root.exists():
             return
         time.sleep(0.5 * (attempt + 1))
-    print(f"warning: could not remove workspace {root}", file=sys.stderr, flush=True)
+    raise OSError(f"could not remove workspace {root} after 3 attempts")
 
 
 # --------------------------------------------------------------------------- regrade
