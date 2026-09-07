@@ -66,16 +66,21 @@ or an untimed aggregate for evidence of incident recovery or cause.
 `software-engineer` owns producer/resolver implementation.
 **Outcome:** Explicit team, service, environment, and deployment selectors produce the smallest
 schema-valid context projection. Missing or ambiguous context fails closed and grants no authority.
-**Next action:** Reconcile current consumer/producer contracts before acceptance. The consumer
-sidecar is `v1alpha2`; the unmerged producer follow-up at `458f39c` still mirrors `v1alpha1`.
-No PR exists for that producer branch. The old consumer branch is absent and `96e1784` adds prose
-assertions to a retired test module; do not replay it as proof of current coverage. Prepare the
-compatible producer follow-up first, then verify the current consumer mirror and condition-7
-production-gate boundary together. Fixture-only proof does not authorize live adoption or real-team onboarding.
-**Evidence:** [Accepted scope](decisions/2026-08-24-sre-operational-context-contract.md), current
-[consumer sidecar](../skills/service-lifecycle/context-requirements.yaml) and
-[asset test](../scripts/test_skill_assets.py), and the
-[producer follow-up](https://github.com/latent-sre/sre-context/commit/458f39c24c5523d2f159c373786e05e9072a5b3b).
+**Next action:** Prepare a compatible producer follow-up first, then verify the current consumer
+mirror and condition-7 production-gate boundary together. Do not replay the old consumer patch as
+proof of current coverage. Fixture-only proof does not authorize live adoption or real-team onboarding.
+**Evidence:** Checked 2026-09-07; the [accepted scope](decisions/2026-08-24-sre-operational-context-contract.md)
+governs acceptance. Current-state claims have separate provenance:
+
+- [verified] Local source at `ed321035`: the [consumer sidecar](../skills/service-lifecycle/context-requirements.yaml)
+  declares `v1alpha2`; the current authority-path checks are in the [asset test](../scripts/test_skill_assets.py).
+- [sourced] GitHub reports the [producer follow-up](https://github.com/latent-sre/sre-context/commit/458f39c24c5523d2f159c373786e05e9072a5b3b)
+  at `458f39c` one commit ahead of producer main; that snapshot mirrors `v1alpha1`. The all-state PR
+  query for `work/context-001-lifecycle-contract` returned no PR.
+- [verified] `git ls-remote` found no `work/context-001-close-contract-gap` branch in Save Toolkit.
+- [verified] Local Git inspection: `96e1784` adds prose assertions to
+  `scripts/test_skill_asset_contracts.py`, which is absent at `ed321035`.
+
 **SRE task:** State team, service, environment, and deployment once instead of repeating context.
 
 ### SKILL-001 — make confirmed oversized skills conditional routers
