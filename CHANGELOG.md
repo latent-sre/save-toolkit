@@ -68,6 +68,10 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Illustrated incident advisor dispatch and parent evidence reconciliation with a complete helper
+  exchange; documented explicit advisor selection as a fallback. Automatic selection and model
+  behavior remain unverified; see the [candidate evidence](docs/reviews/2026-09-07-incident-helper-exchange.md).
+
 - Made alert/trace answers task-sized, added an abbreviated postmortem form, and reused one
   follow-up record through postmortem and knowledge closeout. Full-task evidence and authority
   boundaries remain. See the [task-sized output evidence](docs/reviews/2026-09-07-task-sized-skill-outputs.md)

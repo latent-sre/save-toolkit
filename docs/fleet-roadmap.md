@@ -48,6 +48,9 @@ recovery as regressions. Any next source candidate needs a new bounded decision.
 The approved [task-sized output changes](reviews/2026-09-07-task-sized-skill-outputs.md) are
 implemented and source-reviewed; their separate six-pair Sonnet check awaits the human's decision.
 That narrower work does not close the native selection or evidence-quality failures above.
+The approved [helper-exchange candidate](reviews/2026-09-07-incident-helper-exchange.md) replaces
+one-sided examples with dispatch and parent claim reconciliation; source review and local checks pass.
+Its separate three-pair Sonnet decision is outstanding; native entry/return remains unverified.
 **Evidence:** [Second bounded decision-quality pass](reviews/2026-09-07-incident-quality-second-pass.md)
 **SRE task:** The responder gets a useful next check or closeout without mistaking a job status,
 missing history, aggregate signal, or recipient readback time for evidence of a different claim.

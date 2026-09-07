@@ -38,6 +38,11 @@ Routing is by description; there are no commands to memorize.
   disposition of any known blocking findings; independent exact-SHA review is reserved for
   production deployments.
 
+To select the advisor explicitly, start with `/save-toolkit:incident-investigation INC-4132` and
+describe the symptom. This is a fallback when automatic selection misses, not a requirement for
+ordinary use. A direct request for specific counts or logs stays a bounded helper job; asking the
+advisor to use a helper keeps the original incident question with the advisor and you.
+
 **Before first use:** the canonical [`stack-profile` skill bundle](skills/stack-profile/) declares
 *this* team's stack (PCF, GCP Cloud Run, DX OpenExplore, Splunk, Akamai). Every platform-touching skill
 routes through it — if that is not your stack, update its entrypoint and matching references first
