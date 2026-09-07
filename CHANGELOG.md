@@ -5,6 +5,16 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ## [Unreleased]
 
+### Fixed
+
+- Corrected evaluation assertion identity, candidate aggregation and trial-input attribution;
+  removed ineffective retired policy tests and scoped CI dependency checks to the actual job.
+- Resolved portable helpers from their installed skill, qualified Claude-only guard claims,
+  preserved Confluence link/image references with conversion-loss accounting, and repaired the
+  authoring and human-console guidance. Ordinary CI selects only its two test dependencies from
+  the existing version pins. See the [review-fix evidence](docs/reviews/2026-09-07-independent-review-fixes.md)
+  for focused regressions, measured weight and remaining host/model verification.
+
 ### Added
 
 - Retained the [historical one-stop-shop rescan](docs/reviews/2026-09-02-one-stop-shop-rescan.md)
@@ -71,6 +81,11 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   requirement red before green.
 
 ### Changed
+
+- Routine documentation handoffs and operational templates now use unique short commit IDs
+  (8 characters, extended by Git when needed). Checkout evidence and approval requirements remain;
+  full IDs are still accepted. Immutable-review identities, dependency pins and eval digests are
+  unchanged.
 
 - Kept contact-only runbook corrections, supplied log/metric explanations, and bounded telemetry
   repairs scoped to their tasks while retaining full-workflow checks when requested. Aligned design

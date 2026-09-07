@@ -21,9 +21,9 @@ disposition-state definitions, default paths, and the evidence rules.
 
 ## One-time disposition states
 
-`prepared` and `duplicate` are fully defined by `../SKILL.md`'s required invariants; the
-load-bearing gate on `prepared` is the caller-supplied `[verified]` checkout binding saying the
-mounted checkout's current full SHA equals the target revision. The rest:
+`prepared` and `duplicate` follow `../SKILL.md`: a caller-supplied `[verified]` checkout binding
+confirms the mounted checkout's current commit matches the target revision. Its short-ID and
+ambiguity rules apply. The rest:
 
 - `proposed` — the owner and next action are named, but no reviewable artifact change exists.
 - `blocked` — the missing evidence, authority, dependency, or owner is named.

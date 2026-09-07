@@ -1,0 +1,5 @@
+# Ordinary fleet tests; exact versions come from the canonical development pin set.
+# Constraints limit versions without installing the other development dependencies.
+-c requirements-dev.txt
+pytest
+pyyaml

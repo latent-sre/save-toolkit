@@ -8,19 +8,9 @@ The script never fetches anything: its input is a file the human already exporte
 HTML converts best; storage-format XHTML is handled best-effort, with its macro elements counted
 as losses rather than mangled).
 
-What the draft guarantees, matching the import reference's provenance rules:
-
-  * frontmatter carries exactly the runbook-frontmatter-v1 key set, with the import invariants:
-    status draft, version 1, both dates null, empty verification evidence — an import is never a
-    review or a rehearsal;
-  * recognizable source headings land in the matching template slot; everything unrecognized lands
-    under "Imported content (unmapped)" — nothing is silently dropped;
-  * every imported fenced command block is marked [unverified] until rehearsed on the target;
-  * Confluence macro elements (<ac:...>/<ri:...>) are suppressed from the prose, COUNTED, and
-    reported as conversion losses in the draft's provenance and on stdout.
-
-Covered by scripts/test_confluence_import.py (pure stdlib; run directly when this converter or its
-import contract changes). Gate A does not run component tests.
+The draft retains source sections, links and image references, marks commands unverified, and
+reports unsupported content and uncopied attachments. It never fetches linked resources or turns
+an import into verification. Covered by scripts/test_confluence_import.py.
 """
 
 from __future__ import annotations
@@ -32,6 +22,7 @@ import re
 import sys
 from html.parser import HTMLParser
 from pathlib import Path
+from urllib.parse import quote, urlsplit
 
 # Template slot order mirrors assets/runbook-template.md; headings must match it byte-for-byte so
 # a converted draft diffs cleanly against a hand-copied template.
@@ -71,10 +62,10 @@ class _Extractor(HTMLParser):
     """Flatten the export into (heading, blocks) sections.
 
     Blocks are ("text", str) paragraphs/list items or ("code", str) literal blocks. Content inside
-    Confluence namespace elements (<ac:...>/<ri:...>) is suppressed and counted: a macro's innards
-    are parameters, not prose, and half-copied parameters masquerading as instructions are worse
-    than a reported loss. Unclosed namespaced tags can leave the depth counter high; the failure
-    direction is suppressing too much into the loss count, never inventing content.
+    Confluence namespace elements (<ac:...>/<ri:...>) or unsupported media is suppressed and counted:
+    a macro's innards are parameters, not prose, and half-copied parameters masquerading as
+    instructions are worse than a reported loss. Unclosed suppressed tags can leave suppression
+    active; the failure direction is suppressing too much into the loss count, never inventing content.
     """
 
     def __init__(self) -> None:
@@ -82,14 +73,45 @@ class _Extractor(HTMLParser):
         self.title = ""
         self.sections: list[tuple[str, list[tuple[str, str]]]] = [("", [])]
         self.macro_count = 0
+        self.image_count = 0
+        self.media_count = 0
+        self.unusable_destinations = 0
         self._ac_depth = 0
+        self._media: list[str] = []
         self._in_title = False
         self._heading: str | None = None
         self._pre: list[str] | None = None
         self._text: list[str] = []
         self._list_stack: list[str] = []
+        self._link: tuple[int, str] | None = None
+
+    def _destination(self, value: str | None) -> str:
+        value = (value or "").strip()
+        try:
+            valid = bool(value) and not any(ord(c) < 32 for c in value)
+            valid = valid and urlsplit(value).scheme.lower() in {"", "http", "https", "mailto"}
+        except ValueError:
+            valid = False
+        if not valid:
+            self.unusable_destinations += 1
+            return ""
+        return quote(value, safe="/:#?&=%@+;,-._~")
+
+    @staticmethod
+    def _reference(label: str, destination: str) -> str:
+        label = " ".join(label.split())
+        label = re.sub(r"([\\`*_\[\]{}()#+.!|<>~-])", r"\\\1", label)
+        return f"[{label}](<{destination}>)" if destination else label
+
+    def _finish_link(self) -> None:
+        if self._link is not None:
+            start, destination = self._link
+            label = " ".join(self._text[start:]).strip() or destination
+            self._text[start:] = [self._reference(label, destination)]
+            self._link = None
 
     def _flush_text(self) -> None:
+        self._finish_link()
         text = " ".join(part for part in self._text if part).strip()
         self._text = []
         if not text:
@@ -98,6 +120,13 @@ class _Extractor(HTMLParser):
         self.sections[-1][1].append(("text", prefix + text))
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag in {"iframe", "object", "embed", "video", "audio", "svg"} and not self._ac_depth:
+            self.media_count += 1
+            if tag != "embed":  # Void media has no descendants to suppress.
+                self._media.append(tag)
+            return
+        if self._media:
+            return
         if ":" in tag:  # ac:/ri: namespace — Confluence macro machinery, not content
             if self._ac_depth == 0:
                 self.macro_count += 1
@@ -105,6 +134,16 @@ class _Extractor(HTMLParser):
             return
         if self._ac_depth:
             return
+        if tag == "a" and self._pre is None and self._heading is None and not self._in_title:
+            self._finish_link()
+            if "href" in dict(attrs):
+                self._link = (len(self._text), self._destination(dict(attrs)["href"]))
+        elif tag == "img":
+            self.image_count += 1
+            attributes = dict(attrs)
+            self._text.append("Image: " + self._reference(
+                attributes.get("alt") or "image", self._destination(attributes.get("src"))
+            ))
         if tag == "title":
             self._in_title = True
         elif tag in {"h1", "h2", "h3", "h4", "h5", "h6"}:
@@ -117,23 +156,30 @@ class _Extractor(HTMLParser):
             self._flush_text()
             self._list_stack.append(tag)
         elif tag in {"p", "li", "tr", "br"}:
-            self._flush_text()
+            if tag != "br" or self._link is None:
+                self._flush_text()
 
     def handle_endtag(self, tag: str) -> None:
+        if self._media:
+            if tag == self._media[-1]:
+                self._media.pop()
+            return
         if ":" in tag:
             self._ac_depth = max(0, self._ac_depth - 1)
             return
         if self._ac_depth:
             return
+        if tag == "a":
+            self._finish_link()
         if tag == "title":
             self._in_title = False
         elif tag in {"h1", "h2", "h3", "h4", "h5", "h6"}:
             heading = (self._heading or "").strip()
             self._heading = None
-            if heading and heading != self.title:
-                self.sections.append((heading, []))
-            elif heading and not self.title:
+            if tag == "h1" and heading and not self.title:
                 self.title = heading
+            elif heading and heading != self.title:
+                self.sections.append((heading, []))
         elif tag == "pre" and self._pre is not None:
             code = "".join(self._pre).strip("\n")
             self._pre = None
@@ -146,7 +192,7 @@ class _Extractor(HTMLParser):
             self._flush_text()
 
     def handle_data(self, data: str) -> None:
-        if self._ac_depth:
+        if self._ac_depth or self._media:
             return
         if self._in_title:
             self.title += data.strip()
@@ -209,7 +255,8 @@ def convert(source: Path, source_url: str | None, service_id: str, owner: str) -
     parser.feed(source.read_text(encoding="utf-8", errors="replace"))
     parser.close()
 
-    title = parser.title or source.stem
+    title = " ".join((parser.title or source.stem).split())
+    display_title = parser._reference(title, "")
     mapped: dict[str, list[str]] = {}
     unmapped: list[str] = []
     report: list[str] = [f"Converted: {source.name} — “{title}”"]
@@ -227,8 +274,13 @@ def convert(source: Path, source_url: str | None, service_id: str, owner: str) -
             report.append(f"  unmapped “{heading}” -> Imported content (unmapped)")
 
     today = datetime.date.today().isoformat()
-    losses = [f"Confluence macros dropped (not convertible): {parser.macro_count}"]
-    report.append(f"  losses: {losses[0]}")
+    losses = [
+        f"Confluence macros dropped (not convertible): {parser.macro_count}",
+        f"Image attachments not copied: {parser.image_count} (references retained where usable)",
+        f"Unsupported media dropped: {parser.media_count}",
+        f"Unusable link or image destinations: {parser.unusable_destinations}",
+    ]
+    report.extend(f"  losses: {loss}" for loss in losses)
 
     lines = [
         "---",
@@ -239,14 +291,14 @@ def convert(source: Path, source_url: str | None, service_id: str, owner: str) -
         "alert_names: []",
         f"owner: {json.dumps(owner, ensure_ascii=False)}",
         "severity: <P1|P2|P3|P4 / page | ticket>",
-        "source_revision: <repository@full-sha or reviewed release identifier>",
+        "source_revision: <repository@short-commit or reviewed release identifier>",
         "last_reviewed: null",
         "last_verified: null",
         "verification_evidence: []",
         "version: 1",
         "---",
         "",
-        f"# Runbook: {title}",
+        f"# Runbook: {display_title}",
         "",
         "> **Imported draft.** Converted from a Confluence export; every command below is",
         "> `[unverified]` until rehearsed on the target, and every empty slot must be filled or",
@@ -282,7 +334,7 @@ def convert(source: Path, source_url: str | None, service_id: str, owner: str) -
         "**Import provenance**",
         "",
         f"- Source file: `{source.name}`",
-        f"- Source page title: “{title}”",
+        f"- Source page title: “{display_title}”",
     ]
     if source_url:
         lines.append(f"- Source page URL: {json.dumps(source_url, ensure_ascii=False)}")

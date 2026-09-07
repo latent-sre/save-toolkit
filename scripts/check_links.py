@@ -28,13 +28,14 @@ CODE_PATH_RE = re.compile(
 # It reads correct and is wrong everywhere it is read: not from the file's own directory, not in
 # platforms/copilot/skills/, where the bundle sits under a different prefix, and not from a user's
 # project, where the plugin is installed outside this repository. Prose wants `../SKILL.md`; a
-# runnable command wants `${CLAUDE_PLUGIN_ROOT}/skills/<name>/...`, the runtime root already used
-# by hooks/hooks.json. Fences and code spans are in scope on purpose: a command line is exactly
+# runnable command uses the absolute path resolved from a skill-relative Markdown link.
+# Fences and code spans are in scope on purpose: a command line is exactly
 # where this defect lands, and three bundles shipped one through every green gate.
 #
 # `$env:CLAUDE_PLUGIN_ROOT/` is the same root spelled for PowerShell: inside a `powershell` fence
 # `${CLAUDE_PLUGIN_ROOT}` is a POWERSHELL variable, unset, so the path collapses to `/skills/...`.
-# Both spellings are the fix, so both are passed over here.
+# These Claude-only spellings pass this local link check; the adapter generator separately
+# rejects them for portable helper commands and requires installed-resource resolution.
 SELF_SKILL_PATH_RE = re.compile(
     r"(?<![A-Za-z0-9._/-])(?P<root>\$(?:\{CLAUDE_PLUGIN_ROOT\}|env:CLAUDE_PLUGIN_ROOT)/)?"
     r"skills/(?P<name>[a-z0-9-]+)/"
@@ -382,7 +383,7 @@ def _check_self_skill_pointer(path: Path, text: str, skill_root: Path) -> list[s
     Only the self-pointer is rejected, and only inside that skill's own bundle. A file may
     legitimately name a *sibling* skill's file to describe ownership, and drill scenario assets
     quote paths from systems that are not this repository at all -- neither is a broken pointer.
-    A `${CLAUDE_PLUGIN_ROOT}/` prefix (or its PowerShell spelling) is the fix, so it is passed over.
+    A Claude runtime prefix is passed over here; adapter portability is checked separately.
 
     The prose fix is computed per match, never prescribed: `../SKILL.md` is right only from
     references/ to SKILL.md. From SKILL.md itself it resolves to `skills/SKILL.md`, and for a
@@ -398,10 +399,8 @@ def _check_self_skill_pointer(path: Path, text: str, skill_root: Path) -> list[s
         relative = os.path.relpath(skill_root / tail, path.parent).replace(os.sep, "/")
         failures.append(
             f"{path.as_posix()}:{line}: points at its own skill by repo-rooted path "
-            f"'{match.group(0)}'; a command takes "
-            f"'${{CLAUDE_PLUGIN_ROOT}}/{match.group(0)}', prose takes a relative link "
-            f"('{relative}') -- both resolve in the canonical tree, in "
-            "platforms/copilot/skills/, and from an installed plugin"
+            f"'{match.group(0)}'; link the bundled resource with '{relative}', then resolve "
+            "that link to its absolute installed path before using it in a command"
         )
     return failures
 

@@ -17,9 +17,9 @@ on:
   schedule:
     - cron: '0 14 * * 1'  # Mondays 14:00 UTC
 
-# Whether these checks BLOCK a merge is a property of the branch ruleset, not of this file. As of
-# 2026-08-26 `Protect main` carries no required_status_checks rule, so every job here is advisory:
-# a red run does not stop a merge. Do not trust that sentence — it is the kind of fact that drifts.
+# Merge blocking belongs to the branch ruleset. Verified 2026-09-07: `validate` and both
+# `component-tests` matrix jobs are required; `claude-plugin-contract` is advisory. Recheck after
+# ruleset changes rather than treating this dated observation as enforcement by this file.
 # Check it: gh api repos/latent-sre/save-toolkit/rulesets --jq '.[].name'
 #           gh api repos/latent-sre/save-toolkit/rulesets/<id> --jq '.rules[].type'
 
@@ -80,8 +80,8 @@ jobs:
       # PyYAML is required, not optional: evals/test_graders.py is layered, and without the
       # dependency its layer-2 scenario checks SKIP while the run still reports green. Running
       # these tests without it is worse than not running them. pytest itself is pinned here too.
-      - name: Install pinned dev dependencies
-        run: python -m pip install -r requirements-dev.txt
+      - name: Install pinned fleet test dependencies
+        run: python -m pip install -r requirements-test.txt
 
       - name: Component tests
         run: python -m pytest -q

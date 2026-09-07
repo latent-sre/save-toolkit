@@ -8,7 +8,7 @@ started_at: null # evidenced start of impact
 resolved_at: null # evidenced end of impact, not the resolution call
 resolution_confirmed_at: null # when the human confirmed resolution
 owner: <team/role>
-source_revision: <repository@full-sha or reviewed release identifier>
+source_revision: <repository@short-commit or reviewed release identifier>
 last_reviewed: null
 ---
 

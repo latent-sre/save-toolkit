@@ -42,14 +42,14 @@ alert, SLO, and dashboard design stays with `observability-engineer`; code or au
    documented operations or docs tree — never `agents/`, `skills/`, `hooks/`, `.github/`,
    `.claude/`, or a fleet guide — and a root outside it is `blocked`; when the caller names none,
    the policy's default paths apply. Before any `prepared` disposition, require a caller-supplied
-   `[verified]` checkout binding showing that the mounted checkout's current full SHA equals the
-   target revision. That binding is retainable only when a Bash-holding caller or a human supplies
-   the `git rev-parse HEAD` command and its output on the handoff's `Verified:` line; a bare
-   assertion is `[unverified]`, and this lane never derives the binding from `.git/` contents.
-   A missing or mismatched binding permits only `proposed` or `blocked` outcomes.
-   An active incident permits only
-   `proposed` or `blocked` outcomes and returns to the human responder, who troubleshoots it with
-   `incident-investigation`.
+   `[verified]` checkout binding confirming the mounted checkout's current commit matches the target
+   revision. A Bash-holding caller or human resolves the target there and supplies
+   `git rev-parse --short=8 HEAD` with its output on `Verified:`. Git extends IDs for uniqueness;
+   full IDs (`git rev-parse HEAD`) remain valid. A bare assertion is `[unverified]`;
+   missing, unresolved, ambiguous or mismatched binding permits only `proposed` or `blocked`.
+   This lane never derives the binding from `.git/` contents.
+   Active incidents permit only `proposed` or `blocked`; return to the human responder
+   with `incident-investigation`.
 2. **Inventory before creating.** Find the existing owning artifact and its affected links in the
    service cards, alert cards, indexes, runbooks, postmortems, and alert definitions. Follow ownership
    conventions; update stable IDs and links instead of forking duplicates.

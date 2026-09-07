@@ -90,8 +90,7 @@ class LinkCheckerTests(Fixture):
 
         `python skills/<own>/scripts/x.py` resolves only from the repository root -- not from
         platforms/copilot/skills/, and not from a user's project, where the plugin is installed
-        outside this repository. `${CLAUDE_PLUGIN_ROOT}/`, the runtime root hooks/hooks.json
-        already uses, is the fix and must not itself be flagged.
+        outside this repository. The diagnostic must identify the linked script to resolve.
         """
         self.skill("# Probe\n\nRead [notes](./references/notes.md).\n")
         self.write(
@@ -107,7 +106,7 @@ class LinkCheckerTests(Fixture):
         # repaired by `../scripts/x.py`; the message used to say `../SKILL.md` for every match,
         # which from here names a different resource and from SKILL.md resolves to skills/SKILL.md.
         self.assertTrue(
-            any("('../scripts/x.py')" in f for f in failures), failures
+            any("../scripts/x.py" in f for f in failures), failures
         )
         self.write(
             "skills/probe-skill/references/notes.md",
@@ -142,7 +141,7 @@ class LinkCheckerTests(Fixture):
             any(
                 "assets/example.md" in f
                 and "points at its own skill by repo-rooted path" in f
-                and "('../scripts/x.py')" in f
+                and "../scripts/x.py" in f
                 for f in failures
             ),
             failures,

@@ -6,6 +6,8 @@ import os
 import re
 import json
 import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -615,19 +617,53 @@ class PlatformAdapterTests(unittest.TestCase):
         self.assertIn("`runbook` skill", bare)
         self.assertIn("references/x.md", nested)
         self.assertNotEqual(bare, nested)
-        # A bundled script is invoked on a command line, so its projection stays a runnable path.
-        self.assertEqual("skills/runbook/scripts/y.py", describe("skills/runbook/scripts/y.py"))
 
-    def test_the_powershell_spelling_of_the_plugin_root_is_rewritten_too(self) -> None:
-        """`$env:CLAUDE_PLUGIN_ROOT` is the same runtime root inside a `powershell` fence, where
-        the braced form is a shell variable rather than the environment. A spelling PLUGIN_PATH_RE
-        misses survives into the Copilot projection as a Claude-only token."""
-        adapted = adapters.adapt_text(
-            'py -3 "$env:CLAUDE_PLUGIN_ROOT/skills/runbook/scripts/y.py" --slo 99.9\n',
-            "copilot",
-        )
-        self.assertNotIn("CLAUDE_PLUGIN_ROOT", adapted)
-        self.assertIn("skills/runbook/scripts/y.py", adapted)
+    def test_plugin_root_script_commands_require_an_installed_resource_link(self) -> None:
+        for command in (
+            'python ${CLAUDE_PLUGIN_ROOT}/skills/runbook/scripts/y.py input.html',
+            'py -3 "$env:CLAUDE_PLUGIN_ROOT/skills/runbook/scripts/y.py" input.html',
+        ):
+            with self.subTest(command=command):
+                with self.assertRaisesRegex(ValueError, "relative Markdown link"):
+                    adapters.adapt_text(command, "copilot")
+
+    def test_installed_dashboard_helper_runs_outside_the_plugin_checkout(self) -> None:
+        outputs = adapters.expected_outputs(ROOT)
+        skill_relative = adapters.COPILOT_SKILLS / "obs-dashboards/SKILL.md"
+        script_relative = adapters.COPILOT_SKILLS / "obs-dashboards/scripts/dashboard_hygiene.py"
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            plugin = root / "installed plugin"
+            workspace = root / "user project"
+            workspace.mkdir()
+            for relative in (skill_relative, script_relative):
+                target = plugin / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(outputs[relative])
+            skill = plugin / skill_relative
+            skill_text = skill.read_text(encoding="utf-8")
+            self.assertNotIn("python skills/obs-dashboards/scripts/dashboard_hygiene.py", skill_text)
+            link = re.search(
+                r"\[[^\]\n]*dashboard_hygiene\.py[^\]\n]*\]\(([^)\n]+)\)",
+                skill_text,
+            )
+            self.assertIsNotNone(link, "the installed skill must link its bundled validator")
+            helper = (skill.parent / link[1]).resolve()
+            self.assertTrue(helper.is_relative_to(skill.parent))
+            shadow = workspace / "skills/obs-dashboards/scripts/dashboard_hygiene.py"
+            shadow.parent.mkdir(parents=True)
+            shadow.write_text("raise SystemExit('workspace shadow executed')\n", encoding="utf-8")
+            model = workspace / "dashboard.json"
+            model.write_text(
+                json.dumps({"title": "Installed helper probe", "panels": [], "tags": ["probe"]}),
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                [sys.executable, str(helper), model.name], cwd=workspace,
+                capture_output=True, text=True, timeout=20,
+            )
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+            self.assertIn("0 violation(s)", result.stdout)
 
 if __name__ == "__main__":
     unittest.main()

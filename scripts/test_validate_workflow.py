@@ -5,8 +5,12 @@ from __future__ import annotations
 import ast
 import re
 import sys
+import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
+
+import yaml
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -47,75 +51,103 @@ class ValidateWorkflowTests(unittest.TestCase):
             "the structural gate reads the checked-out tree; focused snapshot tests own history",
         )
 
-    # --- the dependency contract (ADR 2026-08-23-allow-third-party-dependencies) ---------------
-    #
-    # Third-party imports are allowed on the Gate A path, but only if CI installs them. Asserting
-    # "CI does not install deps" is wrong now, and asserting nothing is worse: the previous version
-    # of this test kept its name and checked only that a YAML partition existed, so a gate-path
-    # import landing without the install step would have stayed green here and failed both CI jobs
-    # with ImportError. The contract is conditional, so it is tested conditionally -- and exercised
-    # in BOTH directions below, since the live tree currently satisfies it vacuously.
-
-    @staticmethod
-    def _gate_path_scripts() -> list[Path]:
+    @classmethod
+    def _gate_path_scripts(cls) -> list[Path]:
         """Scripts Gate A runs, plus the modules they import from this repository."""
         gate = (ROOT / "scripts" / "gate_a.py").read_text(encoding="utf-8")
         named = {ROOT / name for name in re.findall(r'"(scripts/[a-z_]+\.py)"', gate)}
-        named |= {
-            ROOT / "scripts" / name
-            for name in ("gate_a.py", "validate_fleet.py", "generate_platform_adapters.py")
-        }
-        return sorted(path for path in named if path.is_file())
+        pending = [ROOT / "scripts/gate_a.py", *named]
+        visited: set[Path] = set()
+        while pending:
+            path = pending.pop()
+            if path in visited or not path.is_file():
+                continue
+            visited.add(path)
+            pending.extend(ROOT / "scripts" / f"{name}.py" for name in cls._imports(path))
+        return sorted(visited)
 
     @staticmethod
-    def _third_party_imports(path: Path) -> set[str]:
-        local = {module.stem for module in (ROOT / "scripts").glob("*.py")}
+    def _imports(path: Path) -> set[str]:
         found: set[str] = set()
         for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
             names: list[str] = []
             if isinstance(node, ast.Import):
-                names = [alias.name.split(".")[0] for alias in node.names]
+                names = [alias.name for alias in node.names]
             elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
-                names = [node.module.split(".")[0]]
-            for name in names:
-                if name not in sys.stdlib_module_names and name not in local and name != "scripts":
-                    found.add(name)
+                names = [node.module]
+                if node.module == "scripts":
+                    names.extend(alias.name for alias in node.names if alias.name != "*")
+            found.update(name.removeprefix("scripts.").split(".")[0] for name in names)
         return found
 
-    @staticmethod
-    def _contract_violation(*, imports_third_party: bool, ci_installs: bool) -> bool:
-        """The whole rule: importing without installing is the only failing combination."""
-        return imports_third_party and not ci_installs
+    @classmethod
+    def _third_party_imports(cls, path: Path) -> set[str]:
+        local = {module.stem for module in (ROOT / "scripts").glob("*.py")}
+        return cls._imports(path) - sys.stdlib_module_names - local - {"scripts"}
 
-    def test_dependency_contract_rejects_import_without_install(self) -> None:
-        """The case the old test could not see -- exercised directly, not hypothetically."""
-        self.assertTrue(
-            self._contract_violation(imports_third_party=True, ci_installs=False),
-            "a gate-path third-party import with no CI install step must be a violation",
+    def test_dependency_install_in_another_job_does_not_satisfy_gate_a(self) -> None:
+        workflow = (
+            "jobs:\n"
+            "  validate:\n"
+            "    steps:\n"
+            "      - run: python scripts/gate_a.py\n"
+            "  component-tests:\n"
+            "    steps:\n"
+            "      - run: python -m pip install -r requirements-dev.txt\n"
         )
-        for imports_third_party, ci_installs in ((True, True), (False, False), (False, True)):
-            with self.subTest(imports=imports_third_party, installs=ci_installs):
-                self.assertFalse(
-                    self._contract_violation(
-                        imports_third_party=imports_third_party, ci_installs=ci_installs
-                    )
+        for statement in (
+            "import yaml", "import fleet_frontmatter", "from scripts import fleet_frontmatter",
+            "from scripts import fleet_frontmatter as frontmatter",
+            "import scripts.fleet_frontmatter as frontmatter",
+            "from scripts.fleet_frontmatter import yaml",
+        ):
+            with self.subTest(statement=statement), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                (root / "scripts").mkdir()
+                (root / "scripts/gate_a.py").write_text(
+                    'STEPS = ["scripts/validate_fleet.py"]\n', encoding="utf-8",
                 )
+                (root / "scripts/validate_fleet.py").write_text(
+                    statement + "\n", encoding="utf-8",
+                )
+                (root / "scripts/fleet_frontmatter.py").write_text("import yaml\n", encoding="utf-8")
+                workflow_path = root / "validate.yml"
+                workflow_path.write_text(workflow, encoding="utf-8")
+                with mock.patch.multiple(sys.modules[__name__], ROOT=root, WORKFLOW=workflow_path):
+                    with self.assertRaisesRegex(AssertionError, "gate-path scripts import"):
+                        self.test_live_tree_satisfies_the_dependency_contract()
+                    workflow_path.write_text(
+                        workflow.replace(
+                            "      - run: python scripts/gate_a.py",
+                            "      - run: python -m pip install -r requirements-dev.txt\n"
+                            "      - run: python scripts/gate_a.py",
+                        ),
+                        encoding="utf-8",
+                    )
+                    self.test_live_tree_satisfies_the_dependency_contract()
 
     def test_live_tree_satisfies_the_dependency_contract(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
-        ci_installs = "requirements-dev.txt" in workflow
+        steps = yaml.safe_load(workflow)["jobs"]["validate"]["steps"]
+        gate_index = next(
+            index for index, step in enumerate(steps)
+            if "python scripts/gate_a.py" in step.get("run", "").splitlines()
+        )
+        ci_installs = any(
+            "python -m pip install -r requirements-dev.txt" in step.get("run", "").splitlines()
+            and "if" not in step
+            for step in steps[:gate_index]
+        )
         offenders = {
             path.relative_to(ROOT).as_posix(): sorted(self._third_party_imports(path))
             for path in self._gate_path_scripts()
             if self._third_party_imports(path)
         }
         self.assertFalse(
-            self._contract_violation(
-                imports_third_party=bool(offenders), ci_installs=ci_installs
-            ),
-            f"gate-path scripts import {offenders} but the validate workflow installs no "
-            "dependencies; add `pip install -r requirements-dev.txt` to BOTH validate jobs "
-            "(and update gate_a.py's docstring) in the same change",
+            offenders and not ci_installs,
+            f"gate-path scripts import {offenders} but the validate job installs no "
+            "dependencies before Gate A; add `python -m pip install -r requirements-dev.txt` "
+            "to that job (and update gate_a.py's docstring) in the same change",
         )
 
     def test_readonly_guard_is_standard_library_only(self) -> None:
@@ -157,7 +189,7 @@ class ValidateWorkflowTests(unittest.TestCase):
             "invoke `python`, never the Store-stub `python3`, so Windows resolves the real interpreter",
         )
         self.assertIn(
-            "run: python -m pip install -r requirements-dev.txt", job,
+            "run: python -m pip install -r requirements-test.txt", job,
             "PyYAML is required on both runners or layered grader checks silently SKIP",
         )
 

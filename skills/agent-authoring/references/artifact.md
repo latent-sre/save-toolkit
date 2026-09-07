@@ -24,7 +24,7 @@ Before the first iteration, write down every row:
 | Independent verifier | The named test/eval an agent did not author; the authoring agent never marks its own candidate passed |
 | Hard iteration budget | One candidate by default; an explicitly approved optimization may evaluate two or three total |
 | Hard time/cost budget | A fixed call or cost budget set with the candidate budget; reaching it stops the loop |
-| Success termination | The named regression passes on identical cases and conditions for incumbent and candidate |
+| Success termination | Failure repair: incumbent demonstrates the named failure and candidate passes on identical cases and conditions. New behavior: candidate meets the frozen criterion. Existing passing regressions stay green |
 | No-progress termination | A tie, or a missing or inconclusive candidate result, stops the loop; neither is success |
 | Safety/authority stop | Any safety, authority, or existing-regression regression stops the loop and retains the incumbent |
 | Promotion authority | Human acceptance of the exact candidate PR revision; never the loop itself |

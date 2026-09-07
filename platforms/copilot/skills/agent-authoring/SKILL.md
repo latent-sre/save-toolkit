@@ -28,8 +28,8 @@ upgrades one.
 | Input | Allowed |
 |---|---|
 | Imported or unreviewed artifact | Static inspection only |
-| Reviewed, team-authored input | Runtime evaluation in a disposable harness — no secrets, no egress, denied tools. Without that harness, report runtime behavior [unverified] |
-| Any repository-provided agent, skill, prompt, grader, hook, script, or tool definition | Never executed by the baseline or fresh-context steps below. Delegation is not isolation |
+| Reviewed, team-authored prompt text | Model input for baseline/candidate evaluation in a disposable harness — no secrets, no egress, denied tools. Without it, runtime behavior stays [unverified] |
+| Repository-provided executable code: scripts, hooks, graders, tool implementations | Never executed by these baseline/fresh-context steps. Reading prompt text grants no code execution; delegation is not isolation |
 
 ## Method
 

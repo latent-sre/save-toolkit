@@ -125,6 +125,12 @@ def frontmatter_fields(draft: str) -> dict[str, str]:
 
 
 class ConfluenceImportTest(unittest.TestCase):
+    def test_draft_revision_slot_accepts_short_commit_ids(self) -> None:
+        self.assertEqual(
+            frontmatter_fields(self.draft)["source_revision"],
+            "<repository@short-commit or reviewed release identifier>",
+        )
+
     def setUp(self) -> None:
         self.proc, self.draft = run_converter(
             VIEW_HTML, "--source-url", "https://example.atlassian.net/wiki/pages/123"
@@ -267,6 +273,160 @@ class ConfluenceImportTest(unittest.TestCase):
             self.assertEqual(proc.returncode, 1)
             self.assertIn("cannot read", proc.stderr)
             self.assertFalse(out.exists(), "no draft may be written on failure")
+
+
+class ConfluenceContentTest(unittest.TestCase):
+    def test_titles_remain_one_literal_heading_before_the_import_warning(self) -> None:
+        cases = (
+            ("Restart payments", "Restart payments", "Restart payments", "restart-payments"),
+            ("Recovery&#13;&#10;&#9;## Verification", "Recovery ## Verification",
+             r"Recovery \#\# Verification", "recovery-verification"),
+            ("Recovery&#10;```sh&#10;danger-command&#10;```", "Recovery ```sh danger-command ```",
+             r"Recovery \`\`\`sh danger\-command \`\`\`", "recovery-sh-danger-command"),
+            ("Recovery&#x2028;~~~sh&#10;danger-command&#10;~~~", "Recovery ~~~sh danger-command ~~~",
+             r"Recovery \~\~\~sh danger\-command \~\~\~", "recovery-sh-danger-command"),
+        )
+        for tag in ("h1", "title"):
+            for encoded, semantic, rendered, runbook_id in cases:
+                with self.subTest(tag=tag, encoded=encoded):
+                    proc, draft = run_converter(f'<{tag}>{encoded}</{tag}><p>Ordinary body.</p>')
+                    self.assertEqual(0, proc.returncode, proc.stderr)
+                    prefix, warning, remainder = draft.partition("> **Imported draft.**")
+                    self.assertTrue(warning)
+                    self.assertEqual(
+                        f"\n# Runbook: {rendered}\n\n", prefix.split("\n---\n", 1)[1],
+                    )
+                    fields = frontmatter_fields(draft)
+                    self.assertEqual(sorted(template_frontmatter_keys()), sorted(fields))
+                    self.assertEqual(runbook_id, fields["runbook_id"])
+                    self.assertIn(f"“{semantic}”", proc.stdout.splitlines()[0])
+                    self.assertIn(f"- Source page title: “{rendered}”", draft)
+                    self.assertIn("Ordinary body.", remainder)
+
+    def test_image_labels_cannot_create_markdown_headings_or_command_fences(self) -> None:
+        for attribute, label in (
+            ("diagram&#10;## Verification", r"diagram \#\# Verification"),
+            ("diagram&#13;&#10;&#9;&#x2028;## Verification", r"diagram \#\# Verification"),
+            ("diagram&#10;```sh&#10;danger-command&#10;```",
+             r"diagram \`\`\`sh danger\-command \`\`\`"),
+            ("diagram&#10;~~~sh&#10;danger-command&#10;~~~",
+             r"diagram \~\~\~sh danger\-command \~\~\~"),
+        ):
+            with self.subTest(attribute=attribute):
+                proc, draft = run_converter(
+                    '<p>Before.</p><img src="diagram.png" alt="' + attribute + '">'
+                    '<p>Ordinary following content.</p>'
+                )
+                self.assertEqual(0, proc.returncode, proc.stderr)
+                body = draft.split("## Purpose & scope\n\n", 1)[1].split("\n## Trigger", 1)[0]
+                self.assertEqual(
+                    f"Before.\n\nImage: [{label}](<diagram.png>)\n\nOrdinary following content.\n",
+                    body,
+                )
+                self.assertIn("Image attachments not copied: 1", proc.stdout)
+
+    def test_reference_labels_preserve_text_and_destinations_as_literal_markdown(self) -> None:
+        proc, draft = run_converter(
+            '<p><a href="https://example.com/console?q=1&amp;b=2">'
+            'Ops [primary] *console* _status_ `check` &lt;b&gt;</a> ordinary following text.</p>'
+            '<img src="../diagram v1.png" alt="  plain&#9;diagram&#13;&#10;label  ">'
+        )
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        self.assertIn(
+            r'[Ops \[primary\] \*console\* \_status\_ \`check\` \<b\>](<https://example.com/console?q=1&b=2>)'
+            ' ordinary following text.',
+            draft,
+        )
+        self.assertIn('[plain diagram label](<../diagram%20v1.png>)', draft)
+        self.assertIn("Unusable link or image destinations: 0", proc.stdout)
+
+    def test_unsupported_media_suppresses_descendants_and_resumes_afterward(self) -> None:
+        # iframe is raw text: its first </iframe> closes it, so it cannot nest another iframe.
+        for tag, child, count in (
+            ("svg", "svg", 2), ("video", "video", 2), ("audio", "audio", 2),
+            ("iframe", "div", 1), ("object", "object", 2),
+        ):
+            with self.subTest(tag=tag):
+                proc, draft = run_converter(
+                    f'<p>Visible before.</p><{tag}><{child}>nested-hidden</{child}>'
+                    '<div><br><img src="hidden.png">fallback-hidden '
+                    '<a href="https://example.com/hidden">link-hidden</a></div>'
+                    '<ac:structured-macro><ac:parameter>macro-hidden</ac:parameter>'
+                    f'</ac:structured-macro></{tag}><p>Visible after.</p>'
+                )
+                self.assertEqual(0, proc.returncode, proc.stderr)
+                self.assertIn("Visible before.", draft)
+                self.assertIn("Visible after.", draft)
+                self.assertNotIn("hidden", draft)
+                for output in (draft, proc.stdout):
+                    self.assertIn(f"Unsupported media dropped: {count}", output)
+
+    def test_void_and_self_closing_media_do_not_suppress_following_content(self) -> None:
+        for media, count in (
+            ("<embed>", 1), ("<embed/>", 1), ("<svg/>", 1), ("<video/>", 1),
+            ("<svg><g/><text>hidden</text></svg>", 1),
+            ("<video><embed><svg/><source>hidden</video>", 3),
+        ):
+            with self.subTest(media=media):
+                proc, draft = run_converter(media + '<p>Retained afterward.</p>')
+                self.assertEqual(0, proc.returncode, proc.stderr)
+                self.assertIn("Retained afterward.", draft)
+                self.assertNotIn("hidden", draft)
+                self.assertIn(f"Unsupported media dropped: {count}", proc.stdout)
+
+    def test_anchor_line_breaks_preserve_one_destination_without_link_bleed(self) -> None:
+        proc, draft = run_converter(
+            '<p>Open <a href="https://example.com/recovery">recovery<br>'
+            '<em>console</em><br/>guide</a> outside-first. '
+            '<a href="#next">next<br>step</a> outside-second.</p><p>Following paragraph.</p>'
+        )
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        self.assertIn('[recovery console guide](<https://example.com/recovery>) outside-first.', draft)
+        self.assertIn('[next step](<#next>) outside-second.', draft)
+        self.assertIn("Following paragraph.", draft)
+        self.assertEqual(1, draft.count("https://example.com/recovery"))
+
+    def test_line_breaks_do_not_activate_an_unsafe_anchor_destination(self) -> None:
+        proc, draft = run_converter(
+            '<p><a href="javascript:alert(1)">unsafe<br>label</a> ordinary text.</p>'
+        )
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        self.assertIn("unsafe label ordinary text.", draft)
+        self.assertNotIn("javascript:", draft)
+        self.assertIn("Unusable link or image destinations: 1", proc.stdout)
+
+    def test_rendered_links_and_image_references_survive_with_loss_accounting(self) -> None:
+        proc, draft = run_converter(
+            '<title>Recovery</title><h2>Procedure</h2><p>Open '
+            '<a href="https://example.com/recovery">recovery <em>console</em></a>.</p>'
+            '<img src="diagram.png" alt="failure isolation diagram">'
+            '<iframe src="https://example.com/embed"></iframe>'
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn('[recovery console](<https://example.com/recovery>)', draft)
+        self.assertIn('[failure isolation diagram](<diagram.png>)', draft)
+        for output in (draft, proc.stdout):
+            self.assertIn('Image attachments not copied: 1', output)
+            self.assertIn('Unsupported media dropped: 1', output)
+
+    def test_unsafe_link_destinations_are_reported_without_becoming_active_links(self) -> None:
+        proc, draft = run_converter(
+            '<title>Recovery</title><p><a href="javascript:alert(1)">console</a></p>'
+            '<img src="data:text/html,unsafe" alt="diagram">'
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn('console', draft)
+        self.assertIn('diagram', draft)
+        self.assertNotIn('javascript:', draft)
+        self.assertNotIn('data:text/html', draft)
+        for output in (draft, proc.stdout):
+            self.assertIn('Unusable link or image destinations: 2', output)
+
+    def test_h1_supplies_the_title_when_the_export_has_no_title_element(self) -> None:
+        proc, draft = run_converter('<h1>Restart payments</h1><p>Read the runbook.</p>')
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn('# Runbook: Restart payments', draft)
+        self.assertEqual(frontmatter_fields(draft)['runbook_id'], 'restart-payments')
 
 
 class ConfluenceImportReferenceTest(unittest.TestCase):

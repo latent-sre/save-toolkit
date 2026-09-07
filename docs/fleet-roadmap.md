@@ -30,6 +30,21 @@ work.
 
 ## Repository work
 
+### HOST-002 — verify the installed VS Code plugin before supported distribution
+
+**Status:** `active` (2026-09-07), reopened by the independent-review remediation request.
+**Owner:** Save Toolkit maintainers own host acceptance and release; `agent-engineer` owns
+the plugin contract and `software-engineer` owns helper/adapter repairs.
+**Outcome:** A human SRE can install one identifiable plugin, use its bundled helpers, receive
+accurate agent results, and roll back to the previously accepted artifact with tested host limits.
+**Next action:** Run the [maintained acceptance procedure](vscode-plugin-acceptance.md) on the
+candidate in a neutral workspace. Local adapter and guidance fixes do not prove model return
+quality or host enforcement; keep the Copilot hook empty pending its separate canary. Bind any
+supported release to an accepted immutable artifact and verified rollback.
+**Evidence:** [Independent-review fixes](reviews/2026-09-07-independent-review-fixes.md)
+**SRE task:** Install the toolkit into VS Code and get the documented helper, reporting, and
+permission behavior without relying on this repository being the open project.
+
 ### INCIDENT-QUALITY-001 — verify decision quality after the SRE contract repairs
 
 **Status:** `decision-needed` (2026-09-07)
@@ -147,7 +162,6 @@ starting with a named SRE task.
 | GRAPH-004 | Ship `fleet-atlas`, a deterministic static atlas answering fleet-artifact provenance with `path:line` citations and an exact revision. Do not merge, close, or rewrite the donor PR before GRAPH-006 reaches semantic parity. | [PR #205](https://github.com/latent-sre/save-toolkit/pull/205) |
 | GRAPH-005 | Prove, in a hardened offline two-container sandbox, that a Microsoft Agent Framework workflow can consume a real streamed A2A v1 task from an AutoGen GraphFlow worker behind exactly one human accept/reject. Resolve findings and rerun the pinned-image six-case lifecycle first. | `docs/reviews/2026-08-30-autogen-a2a-exact-revision-verification.md` (removed 2026-09-02) |
 | GRAPH-006 | Rebuild `fleet-atlas` around one typed, evidence-bound pipeline sharing a projection/provenance verifier across `build`/`check`/`query`. Next step is the compact v2 design and compatibility matrix for owner review. | [PR #205](https://github.com/latent-sre/save-toolkit/pull/205) |
-| HOST-002 | Rest the guarded roles' VS Code posture on observed host behavior. On the first installed build proven to contain upstream `d679b159`, rerun all six criteria in `docs/probes/host-002-vscode-agent-delegation.md` (removed 2026-09-02) plus the agent-scoped hook canary; do not populate `hooks/copilot-hooks.json` before that. | `docs/reviews/2026-08-30-vscode-subagent-handoff-enforcement.md` (removed 2026-09-02) |
 | ROUTE-003 | Give the two positive workflow-graph discovery routes left inconclusive by Batch 1 reproducible, model-labelled reliability evidence, or have the owner dispose the measurement. Neither consumed profile is reusable. | `docs/reviews/2026-09-01-decision-backlog-reconciliation.md` (removed 2026-09-02) |
 | ROUTE-004 | Decide whether the surviving Mantine positive — the only `frontend-craft` discovery case left after the 2026-09-02 corpus cut, already in the regression split at threshold 1.0 — is sufficient routing-reliability evidence or needs a replacement calibration case. | `docs/reviews/2026-08-31-grader-005-closure.md` (removed 2026-09-02) |
 | EVAL-005 | Seed the Grafana build probe with a datasource that returns real data, so `build-obs-dashboard-write-honours-the-carve-out` measures whether the write lands and not only that the Tier 2 boundary holds. Run the fixed packet once on the Windows Docker host, three Sonnet trials per side, no retries. | `docs/reviews/2026-08-31-eval-005-prometheus-probe-gate.md` (removed 2026-09-02) |
