@@ -810,12 +810,93 @@ class EndToEndStubTests(unittest.TestCase):
         self.assertEqual("host", summary["isolation"])
 
     def test_plugin_change_during_trial_invalidates_its_verdict(self) -> None:
-        with mock.patch.object(build_probe, "plugin_digest", side_effect=["a" * 64, "b" * 64]):
+        with mock.patch.object(build_probe, "plugin_digest", side_effect=["a" * 64, "b" * 64, "b" * 64]):
             summary = build_probe.run_trial(
                 self._spec(), plugin_root=ROOT, label="changing", model=None, run_number=1,
                 out_dir=self.root / "iteration", timeout=60, executable=self._stub(),
                 keep_workspace=False, env_factory=self._env_factory())
         self.assertEqual("INCONCLUSIVE", summary["status"])
+
+    def test_plugin_change_after_grading_invalidates_the_published_verdict(self) -> None:
+        plugin = self.root / "plugin"
+        plugin.mkdir()
+        for relative in build_probe.PLUGIN_INPUT_PATHS:
+            source, target = ROOT / relative, plugin / relative
+            if source.is_dir():
+                target.mkdir(parents=True)
+            else:
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(source.read_bytes())
+        agent = plugin / "agents/software-engineer.md"
+        agent.write_bytes((ROOT / "agents/software-engineer.md").read_bytes())
+        build_probe._git(plugin, "init", "-q")
+        build_probe._git(plugin, *build_probe.GIT_IDENTITY, "commit", "--allow-empty", "-m", "fixture")
+        grade = build_probe.grade
+        def change_after_grade(ctx, **kwargs):
+            result = grade(ctx, **kwargs)
+            if kwargs.get("inconclusive") is None:
+                agent.write_bytes(agent.read_bytes() + b"\nchanged after grading\n")
+            return result
+        with mock.patch.object(build_probe, "grade", side_effect=change_after_grade):
+            summary = build_probe.run_trial(
+                self._spec(), plugin_root=plugin, label="late-change", model=None, run_number=1,
+                out_dir=self.root / "iteration", timeout=60, executable=self._stub(),
+                keep_workspace=False, env_factory=self._env_factory())
+        self.assertEqual("INCONCLUSIVE", summary["status"])
+        self.assertEqual(0, summary["passed"])
+
+    def test_failed_overwrite_preserves_every_previous_run_artifact(self) -> None:
+        for failure in ("provenance", "seed", "parse", "cleanup", "publish"):
+            with self.subTest(failure=failure):
+                out = self.root / failure
+                run = out / "eval-tiny/replaced/run-1"
+                (run / "outputs").mkdir(parents=True)
+                original = {"grading.json": b'{"status":"FAIL","regraded":true}',
+                            "grading.original.json": b'{"status":"PASS"}',
+                            "provenance.json": b"old provenance", "stdout.jsonl": b"old trace",
+                            "outputs/trace-summary.json": b"old summary", "timing.json": b"old timing"}
+                for name, content in original.items():
+                    (run / name).write_bytes(content)
+                rename = Path.rename
+                def failing_publish(path, destination):
+                    if Path(destination) == run and "attempt" in path.name:
+                        raise OSError("publication failed")
+                    return rename(path, destination)
+                remove = build_probe.remove_tree
+                def failing_cleanup(path):
+                    remove(path)
+                    raise RuntimeError("cleanup failed after removing its temporary tree")
+                patcher = (mock.patch.object(Path, "rename", failing_publish) if failure == "publish" else
+                           mock.patch.object(build_probe, "remove_tree", side_effect=failing_cleanup) if failure == "cleanup" else
+                           mock.patch.object(build_probe, {"provenance": "plugin_provenance", "seed": "seed_workspace",
+                                                          "parse": "parse_trace"}[failure],
+                                             side_effect=RuntimeError(failure)))
+                with patcher, self.assertRaises((RuntimeError, OSError)):
+                    build_probe.run_trial(self._spec(), plugin_root=ROOT, label="replaced", model=None,
+                                          run_number=1, out_dir=out, timeout=60, executable=self._stub(),
+                                          keep_workspace=False, env_factory=self._env_factory(), overwrite=True)
+                self.assertEqual(original, {p.relative_to(run).as_posix(): p.read_bytes()
+                                            for p in run.rglob("*") if p.is_file()})
+
+    def test_published_overwrite_reports_success_if_only_backup_cleanup_fails(self) -> None:
+        out = self.root / "iteration"
+        run = out / "eval-tiny/replaced/run-1"
+        run.mkdir(parents=True)
+        (run / "grading.original.json").write_text("old original", encoding="utf-8")
+        remove = build_probe.remove_tree
+        def cleanup(path):
+            if "-previous-" in path.name:
+                raise OSError("backup is busy")
+            remove(path)
+        with mock.patch.object(build_probe, "remove_tree", side_effect=cleanup):
+            summary = build_probe.run_trial(
+                self._spec(), plugin_root=ROOT, label="replaced", model=None, run_number=1,
+                out_dir=out, timeout=60, executable=self._stub(), keep_workspace=False,
+                env_factory=self._env_factory(), overwrite=True)
+        self.assertEqual("PASS", summary["status"])
+        self.assertTrue((run / "grading.json").is_file())
+        backups = list(run.parent.glob(".run-1-previous-*/grading.original.json"))
+        self.assertEqual(["old original"], [p.read_text(encoding="utf-8") for p in backups])
 
     def test_plugin_change_before_trial_does_not_start_services_or_model(self) -> None:
         with mock.patch.object(build_probe, "start_services", side_effect=AssertionError("no service launch")), \
@@ -1965,6 +2046,60 @@ class UnifiedRegradeTests(unittest.TestCase):
                 grading = build_probe.regrade_run(run, spec)
         self.assertTrue(grading["expectations"][0]["passed"])
         self.assertIn("kept: live-judge", grading["expectations"][0]["evidence"])
+
+
+class EvaluatorImplementationIdentityTests(unittest.TestCase):
+    def test_new_process_identity_binds_every_local_evaluator_module(self) -> None:
+        import shutil
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp) / "evals"
+            folder.mkdir()
+            names = ("build_probe.py", "graders.py", "judge.py", "clean_room.py")
+            for name in names:
+                shutil.copyfile(ROOT / "evals" / name, folder / name)
+            script = "import build_probe as b; print(b.scenario_digest({'id':'x','prompt':'p','graders':[{'type':'contains_all','of':['x']}]}))"
+            def digest():
+                result = subprocess.run([sys.executable, "-B", "-c", script], cwd=folder,
+                                        capture_output=True, text=True, check=True)
+                return result.stdout.strip()
+            before = digest()
+            replacements = {
+                "build_probe.py": ("ok = ctx.git.commit_count == ctx.ws.baseline_commits", "ok = True"),
+                "graders.py": ("return (not missing,", "return (False,"),
+                "judge.py": ("Distinguish the assistant's own voice", "Ignore the assistant's own voice"),
+                "clean_room.py": ("subscriber_only: bool = False", "subscriber_only: bool = True"),
+            }
+            for name, (old, new) in replacements.items():
+                with self.subTest(module=name):
+                    path = folder / name
+                    source = path.read_text(encoding="utf-8")
+                    self.assertIn(old, source)
+                    path.write_text(source.replace(old, new), encoding="utf-8")
+                    self.assertNotEqual(before, digest())
+                    path.write_text(source, encoding="utf-8")
+
+    def test_disk_edit_after_import_requires_a_new_process(self) -> None:
+        import shutil
+        with tempfile.TemporaryDirectory() as tmp:
+            for name in ("build_probe.py", "graders.py", "judge.py", "clean_room.py"):
+                shutil.copyfile(ROOT / "evals" / name, Path(tmp) / name)
+            script = """import build_probe as b
+from pathlib import Path
+spec = {'id': 'x', 'prompt': 'p'}
+b.scenario_digest(spec)
+path = Path('graders.py')
+path.write_bytes(path.read_bytes() + b'\\n# edited after import\\n')
+try:
+    b.scenario_digest(spec)
+except RuntimeError as exc:
+    print(str(exc))
+else:
+    raise AssertionError('cached implementation was attributed to changed disk bytes')
+"""
+            result = subprocess.run([sys.executable, "-B", "-c", script], cwd=tmp,
+                                    capture_output=True, text=True)
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertIn("new process", result.stdout)
 
 
 class RegradeIdentityTests(unittest.TestCase):

@@ -87,3 +87,18 @@ remain complete. Canonical sources merged without conflicts and the adapters wer
 The [PR record](https://github.com/latent-sre/save-toolkit/pull/237) carries verification for the
 combined head. The earlier numbers above remain evidence for the remediation before integration.
 Publication does not close the installed-host/model or release acceptance items.
+
+## Hosted review follow-up
+
+The hosted review of `418e1f44` identified five additional defects after the earlier green checks
+and source reviews. The human authorized fixing the feedback and at most three further review
+requests. The converter now suppresses unsupported media descendants and keeps complete anchors
+across line breaks. The evaluator binds its four local implementation modules and Python/PyYAML
+versions into scenario identity, rejects subsequent source drift, and checks plugin bytes again
+after grading. Overwrites stage a complete replacement while preserving the prior run; publication
+failure restores that run. Interrupted publication can leave a recoverable hidden backup, as
+documented in the [evaluator contract](../../evals/README.md#provenance).
+
+Focused regressions reproduced these defects before their fixes. The PR record carries the final
+commit, integrated test results, individual thread dispositions, and bounded review requests.
+Earlier approval and test counts above describe their named snapshots, not these later changes.

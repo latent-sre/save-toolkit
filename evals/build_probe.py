@@ -69,6 +69,26 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "evals"))
 import clean_room  # noqa: E402
 import graders as fleet_graders  # noqa: E402
+import judge as rubric_judge  # noqa: E402 -- load the complete evaluator before binding its code
+
+HARNESS_FILES = tuple(Path(path).resolve() for path in (
+    __file__, fleet_graders.__file__, rubric_judge.__file__, clean_room.__file__,
+))
+
+
+def harness_source_digest() -> str:
+    digest = hashlib.sha256()
+    for path in HARNESS_FILES:
+        digest.update(path.name.encode("utf-8") + b"\0")
+        digest.update(path.read_bytes().replace(b"\r\n", b"\n") + b"\0")
+    return digest.hexdigest()
+
+
+# Loaded code is stable for this process. Changed disk bytes require a restart, never a new
+# identity assigned to functions that Python imported earlier. Dependencies are pinned by CI.
+HARNESS_SOURCE_SHA256 = harness_source_digest()
+HARNESS_IDENTITY = {"source_sha256": HARNESS_SOURCE_SHA256, "python": sys.version,
+                    "python_implementation": sys.implementation.name, "pyyaml": yaml.__version__}
 
 SCENARIO_DIR = ROOT / "evals" / "build-scenarios"
 ORACLE_DIR = (ROOT / "evals" / "oracles").resolve()
@@ -177,6 +197,8 @@ def scenario_digest(spec: dict) -> str:
     The judge loads rubrics once per process. A disk edit takes effect in a new process, so hash
     the same cached definitions it consumes rather than attributing a verdict to unconsumed bytes.
     """
+    if harness_source_digest() != HARNESS_SOURCE_SHA256:
+        raise RuntimeError("evaluator source changed after import; start a new process")
     rubrics, oracles = {}, {}
     available = None
     for definition in [*spec.get("graders", []), *spec.get("checks", [])]:
@@ -192,7 +214,8 @@ def scenario_digest(spec: dict) -> str:
             path = (ROOT / relative).resolve()
             oracles[relative] = (hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
                                  if path.is_relative_to(ORACLE_DIR) and path.is_file() else None)
-    payload = {"scenario": spec, "rubrics": rubrics, "oracles": oracles}
+    payload = {"scenario": spec, "rubrics": rubrics, "oracles": oracles,
+               "implementation": HARNESS_IDENTITY}
     return hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=True).encode("utf-8")).hexdigest()
 
 
@@ -1150,6 +1173,15 @@ def plugin_provenance(plugin_root: Path) -> dict:
         "plugin_inputs_dirty": bool(dirty),
         "plugin_source_sha256": plugin_digest(plugin_root),
     }
+
+
+def plugin_drift_problem(plugin_root: Path, expected: str) -> str | None:
+    try:
+        if plugin_digest(plugin_root) != expected:
+            return "plugin inputs changed during the trial; re-run with one candidate"
+    except (OSError, RuntimeError) as exc:
+        return f"plugin inputs could not be verified after the trial: {exc}"
+    return None
 
 
 def scenario_tools(spec: dict) -> tuple[str, ...]:
@@ -2284,7 +2316,7 @@ def judge_spend() -> dict:
     A rubric grader launches a second paid Claude process. Its cost and duration are in neither the
     graded trial's trace nor the elapsed time measured around it, so candidate-budget and
     incumbent/candidate comparisons understate every judged scenario until this is added back.
-    `judge` is imported lazily by the grader, so an unjudged batch never loads it at all.
+    The runner imports the judge to bind its implementation; unjudged batches record zero calls.
     """
     drain = getattr(sys.modules.get("judge"), "drain_spend", None)
     calls = list(drain()) if callable(drain) else []
@@ -2313,17 +2345,50 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
               out_dir: Path, timeout: int, executable: str, keep_workspace: bool,
               overwrite: bool = False, env_factory=None, container_image: str | None = None,
               docker: str = "docker", expected_plugin_digest: str | None = None) -> dict:
+    """Publish a complete attempt; a failed overwrite leaves the previous run intact."""
+    target = out_dir / f"eval-{spec['id']}" / label / f"run-{run_number}"
+    if target.exists() and not overwrite:
+        raise RuntimeError(f"{target} already exists; pass --overwrite or a --run-offset")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    attempt = Path(tempfile.mkdtemp(prefix=f".{target.name}-attempt-", dir=target.parent))
+    backup = None
+    try:
+        summary = _run_trial(spec, plugin_root=plugin_root, label=label, model=model,
+                             run_number=run_number, run_out=attempt, timeout=timeout,
+                             executable=executable, keep_workspace=keep_workspace, env_factory=env_factory,
+                             container_image=container_image, docker=docker,
+                             expected_plugin_digest=expected_plugin_digest)
+        if target.exists():
+            backup = target.with_name(f".{target.name}-previous-{secrets.token_hex(8)}")
+            target.rename(backup)
+        try:
+            attempt.rename(target)
+        except BaseException:
+            if backup is not None:
+                backup.rename(target)
+            raise
+        if backup is not None:
+            try:
+                remove_tree(backup)
+            except Exception as exc:
+                print(f"warning: published {target}; previous run retained at {backup}: {exc}", file=sys.stderr)
+        print(json.dumps(summary), flush=True)
+        return summary
+    finally:
+        if attempt.exists():
+            remove_tree(attempt)
+
+
+def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, run_number: int,
+               run_out: Path, timeout: int, executable: str, keep_workspace: bool,
+               env_factory=None, container_image: str | None = None, docker: str = "docker",
+               expected_plugin_digest: str | None = None) -> dict:
     if container_image and spec.get("fixture", {}).get("services"):
         raise ValueError(
             "service-backed build scenarios cannot run with --container: its shell uses "
             "--network none, so the service URL would be unreachable"
         )
     eval_name = spec["id"]
-    run_out = out_dir / f"eval-{eval_name}" / label / f"run-{run_number}"
-    if (run_out / "grading.json").exists() and not overwrite:
-        raise RuntimeError(f"{run_out} already holds a graded run; pass --overwrite or a --run-offset")
-    if overwrite:
-        (run_out / "grading.original.json").unlink(missing_ok=True)
     (run_out / "outputs").mkdir(parents=True, exist_ok=True)
     # Raw traces carry whole prompts, responses, session ids, and tool payloads, and the README
     # calls them owner-only. Real on POSIX; advisory on Windows/NTFS, the same caveat clean_room
@@ -2404,11 +2469,7 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
             trace_path.write_text("", encoding="utf-8")
             (run_out / "stderr.txt").write_text("", encoding="utf-8")
         elapsed = time.time() - started
-        try:
-            if plugin_digest(plugin_root) != provenance["plugin_source_sha256"]:
-                inconclusive = "plugin inputs changed during the trial; re-run with one candidate"
-        except (OSError, RuntimeError) as exc:
-            inconclusive = f"plugin inputs could not be verified after the trial: {exc}"
+        inconclusive = inconclusive or plugin_drift_problem(plugin_root, provenance["plugin_source_sha256"])
         trace = parse_trace(trace_path) if trace_path.exists() else TraceSummary()
         if inconclusive is None and not trace.has_result:
             inconclusive = f"no result event (claude exit {returncode})"
@@ -2452,6 +2513,9 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
                 grading = grade(ctx, inconclusive=inconclusive, expected_scenario_digest=scenario_identity)
             finally:
                 services = []
+        drift = plugin_drift_problem(plugin_root, provenance["plugin_source_sha256"])
+        if drift:
+            grading = grade(ctx, inconclusive=drift, expected_scenario_digest=scenario_identity)
         inconclusive = grading["inconclusive"]
         (run_out / "outputs" / "response.md").write_text(trace.result_text or "(no result)", encoding="utf-8")
         (run_out / "outputs" / "workspace.patch").write_text(git.patch or "(no changes)\n", encoding="utf-8")
@@ -2498,7 +2562,6 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
                    "scenario_sha256": grading["scenario_sha256"],
                    "plugin_inputs_dirty": provenance["plugin_inputs_dirty"],
                    "isolation": "container" if container_image else "host"}
-        print(json.dumps(summary), flush=True)
         return summary
     finally:
         active_error = sys.exc_info()[1]
