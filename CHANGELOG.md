@@ -7,6 +7,11 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Added
 
+- Added conditional symptom comparisons to the human incident advisor for login failures,
+  intermittent errors, slow requests, stale/wrong data, and missed jobs with limited telemetry.
+  See the [general incident help evidence](docs/reviews/2026-09-06-general-incident-help.md) for
+  evaluation and the explicit context/skill-size allocation.
+
 - Added `archive/incident-autonomy/`: byte-exact copies of the `sre` agent, its VS Code
   projection, `investigation-depth`, the two sustained-response scenarios, and the three rubrics
   with their 35 calibration cases, plus twelve restore patches and a README with the restore
