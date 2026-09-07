@@ -632,7 +632,7 @@ class PlatformAdapterTests(unittest.TestCase):
         skill_relative = adapters.COPILOT_SKILLS / "obs-dashboards/SKILL.md"
         script_relative = adapters.COPILOT_SKILLS / "obs-dashboards/scripts/dashboard_hygiene.py"
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve()
             plugin = root / "installed plugin"
             workspace = root / "user project"
             workspace.mkdir()

@@ -2076,7 +2076,7 @@ class RegradeIdentityTests(unittest.TestCase):
 
     def test_changed_external_oracle_changes_scenario_identity(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
+            root = Path(tmp).resolve()
             oracle_dir = root / "evals/oracles"
             oracle_dir.mkdir(parents=True)
             oracle = oracle_dir / "probe.py"
