@@ -6,8 +6,7 @@
 > rationale; they do not independently add work to this queue.
 
 The architecture is one canonical Claude plugin under `agents/`, `skills/`, and `commands/`, with
-generated host-native adapters for Copilot/VS Code. No accepted ADR establishes it; the records that
-assume it are the two rename ADRs and the Codex retirement, indexed in
+generated host-native adapters for Copilot/VS Code. The retained contracts are indexed in
 [`docs/decisions/README.md`](decisions/README.md). Codex was retired as a distribution target on 2026-08-23
 ([ADR](decisions/2026-08-23-retire-codex-distribution-target.md)); it remains a supported way to
 work in this repository, reading the root `AGENTS.md` like any other agent.
@@ -24,9 +23,15 @@ Every live item carries seven fields: **ID** (stable identifier), **Status** (`a
 one or two sentences), **Next action** (the next concrete step and who takes it), **Evidence**
 (one link to the record that proves current state, or `none yet`), and **SRE task** (the task a
 human SRE does differently when this lands; an item that cannot name one is `deferred`). An item
-leaves this file only when its Outcome is met and merged, or an owner disposition is committed — and
-once it leaves, the commit that removed it and its CHANGELOG entry are its record. Neither re-queues
-work.
+leaves this file only when its Outcome is met and merged, or an owner disposition is committed.
+Its removal commit is the closure record: name the ID, disposition, and supporting evidence in the
+commit message or patch. The changelog is a recent summary, not a permanent closure register.
+
+Find an older item's disposition with
+`git log --first-parent -m -p -G '<ID>' -- docs/fleet-roadmap.md docs/roadmap-closed.md CHANGELOG.md`.
+Inspect the removal patch; read an older closure entry with `git show <commit>:CHANGELOG.md`.
+This also covers items recorded before the closed register and changelog were trimmed. Historical
+records do not re-queue work.
 
 ## Repository work
 
@@ -73,6 +78,11 @@ PR #236's [technical review corrections](reviews/2026-09-07-incident-helper-exch
 do not clear the adoption hold. Exact-revision human acceptance remains required before merge;
 review-ready status, structural checks and publication are not that decision.
 **Evidence:** [Second bounded decision-quality pass](reviews/2026-09-07-incident-quality-second-pass.md)
+and its comparison baselines: [symptom guidance](reviews/2026-09-06-general-incident-help.md) and
+[first repair pass](reviews/2026-09-06-sre-decision-quality-repairs.md), including their failures.
+The [operational-contract measurements](reviews/2026-09-04-operational-contract-fixes.md) also remain:
+[PR #237](https://github.com/latent-sre/save-toolkit/pull/237) relies on their record provenance
+when assessing compatibility of historical evaluation results.
 **SRE task:** The responder gets a useful next check or closeout without mistaking a job status,
 missing history, aggregate signal, or recipient readback time for evidence of a different claim.
 
@@ -104,7 +114,7 @@ skill per slice, probe-before-routing.
 fleet's models already produce unprompted. Each screened entrypoint gets one probe-then-checkpoint
 disposition; a committed component contract outranks both the byte screen and the probe.
 **Next action:** The four slices this item last named — `obs-dashboards`, `backend-craft`,
-`runbook`, `obs-alerting` — have all landed; `CHANGELOG.md` records each. Re-screen before picking
+`runbook`, `obs-alerting` — have all landed. Re-screen before picking
 the next: `wc -c skills/*/SKILL.md | sort -n | awk '$1>7800'` on 2026-09-04 leaves three
 entrypoints above the 7,800-byte screen — `incident-investigation` (13,735 B), `runbook` (9,783 B),
 and `agent-authoring` (9,335 B). `service-lifecycle` (7,779 B) and `pcf-ops` (7,113 B) have since

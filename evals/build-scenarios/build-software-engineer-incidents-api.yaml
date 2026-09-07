@@ -7,9 +7,7 @@ agent: software-engineer
 # 404 and for a bad filter, an internal field that must not cross the boundary, the vendor owner
 # actually fetched, an outbound timeout proven against a vendor that sleeps 20 s, and /healthz
 # independent of that vendor. The fixture is stdlib plus fastapi/httpx, which requirements-dev.txt
-# pins and the host has installed; the agent adds no dependency. First measured 2026-09-02, five
-# Sonnet and five Opus trials per side of the backend-craft trim:
-# docs/reviews/2026-09-02-backend-craft-trim-evidence.md.
+# pins and the host has installed; the agent adds no dependency.
 prompt: |
   Add two endpoints to this FastAPI service, build them end to end in this repo, and tell me what
   you ran to verify it.
