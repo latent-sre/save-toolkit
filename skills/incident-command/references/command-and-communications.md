@@ -71,7 +71,8 @@ update goes out within the hour.
   “we are investigating,” and the next update time.
 - **Update:** What changed since the previous update, current state (`investigating`, `mitigating`,
   or `monitoring`), mitigation progress or ETA, and the next update time.
-- **Resolution:** When impact ended, root-cause summary or `[unverified] — under investigation`,
+- **Resolution:** When impact ended (or unknown), separately who confirmed resolution and when;
+  root-cause summary or `[unverified] — under investigation`,
   what was done, follow-ups with owners, and the required retrospective commitment: a full
   blameless postmortem for P1, a postmortem for P2, or an abbreviated postmortem for P3. P4 follows
   normal work-queue policy.
@@ -81,11 +82,10 @@ update goes out within the hour.
 Downgrade only when current impact, scope, and trend fit the lower tier; record why and notify the
 same audience that received the higher classification.
 
-Resolve only when the human owner confirms that user impact has ended and the same golden signals
-have remained at baseline for the stated sustained window (the recovery criterion the
-`incident-investigation` advisor set with the mitigation). A single green point is not enough for a
-metastable service. Keep the incident in `monitoring` until that evidence permits terminal
-resolution.
+Resolve only when the human owner confirms the workload-specific
+[recovery criterion](../SKILL.md#close-and-return): the affected user outcome, scope, and required
+window or completion check. Keep `monitoring` until that evidence arrives. A single green point
+does not establish sustained service recovery, nor does process success establish correct output.
 
 A declared incident that turns out to be a false alarm does not resolve. Resolving asserts that
 impact existed and ended, which falsifies the record. Close it as `no-incident` on the same terms

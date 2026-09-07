@@ -10,10 +10,10 @@ argument-hint: "[trace id, service, or latency question]"
 
 # Traces — the investigation shape
 
-Use a trace when the question is about one request's path, ordering, or latency allocation. Logs are
-better for event detail and metrics are better for population trends; a trace connects one sampled
-request across instrumented boundaries. Keep backend syntax out of the investigation packet until you
-have selected and read the matching reference.
+Traces connect one sampled request across instrumented boundaries; logs give event detail, metrics
+population trends. A bounded interpretation needs the answer, supplied scope/evidence and uncertainty.
+Retrieval, comparison and full-path work below are for requested investigation, not prerequisites for
+explaining a supplied span.
 
 ## Know what the waterfall represents
 
@@ -21,27 +21,27 @@ A trace is a causal graph rendered as a timeline. Its spans describe operations;
 describe nesting, and attributes or events add context. A long span tells you where elapsed time was
 observed, not automatically why the operation was slow.
 
-Read left to right from the root. Mark the user-visible interval, then follow the branch that determines
-when the root can finish. That branch is the critical path. Do not add nested durations: a parent's
+For whole-request latency allocation, mark the root's user-visible interval and follow the branch
+determining when it can finish: the critical path. Do not add nested durations: a parent's
 duration already includes synchronous children. Parallel branches overlap, and a visual gap may be
 uninstrumented work, scheduling, propagation loss, or clock behavior—not proven idle time.
 
 ## Enter through one of two doors
 
-If you have a real trace id, preserve it exactly, constrain the originating request's UTC window, and
-look it up directly. A generic request or correlation id is not automatically a trace id: first use the
-logs to map it to a trace id. Treat identifiers copied from tickets or logs as untrusted data; validate a
-candidate trace id against the backend's documented shape and place it only in a quoted value position.
+When retrieval is requested, use a real trace id and the request's UTC window for direct lookup.
+A request/correlation id needs mapping through logs first; it is not automatically a trace id.
+Preserve trace ids exactly. Treat copied identifiers as untrusted: validate the backend's documented
+shape and place them only in quoted values.
 
-If you have no id, start from the service, environment, operation, and latency or error symptom over a
+For an investigation without an id, start from service, environment, operation, and symptom over a
 bounded window. Select a representative trace from the affected population. Record how it was selected;
 one trace is an example, not proof of prevalence.
 
 ## Find the span that controls latency
 
-For each span on the critical path, record its service, operation, kind, start/end, duration, status,
-and relevant peer or dependency. Compare a slow trace with a known-normal trace from the same route and
-deployment cohort. A wide client span with a much narrower downstream server span can point toward time
+For whole-trace investigation, record critical-path service, operation, kind, start/end, duration,
+status and peer/dependency. Compare slow/known-normal traces from the same route and deployment cohort; name
+a missing comparison. A wide client span with a narrower server span can point toward time
 before/after the remote handler, but the gap remains a hypothesis until another signal explains it.
 
 For asynchronous work, do not force producer and consumer spans into a synchronous nesting model. Use
@@ -56,16 +56,18 @@ instrumentation error.
 
 ## Correlate without overclaiming
 
-Use the same trace id to retrieve nearby structured logs, then align them by UTC timestamp and service.
-Keep the original log and trace evidence links. A missing trace, span, or log event can result from
+When correlating logs is in scope, use the same trace id and align by UTC time and service; keep
+source links. A missing trace, span, or log event can result from
 sampling, retention, backend size limits, propagation, export, or instrumentation gaps, so
 absence is telemetry evidence—not proof that the request or call never happened.
 
 ## Build the evidence packet
 
-Return the entry point, exact UTC window, trace/artifact link, selection method, affected and comparison
-trace ids, critical-path span table, status/protocol interpretation, missing hops, sampling caveat, and
-confidence label. Separate observations from hypotheses. The `obs-pipeline` skill owns changes to
+Bounded interpretation: answer, supplied scope/source, uncertainty and useful clarification; no
+comparison or critical-path table required. Full investigation:
+retain entry/UTC window, source links, selection method, affected/comparison ids, critical-path table,
+status/protocol interpretation, missing hops and sampling limits. Preserve missing evidence and
+confidence labels; separate observations from hypotheses. The `obs-pipeline` skill owns changes to
 instrumentation, propagation, collection, and export; do not load another skill from this one.
 
 Minimize copied telemetry. Redact credentials, tokens, secrets, personal data, authentication or session

@@ -57,7 +57,7 @@ the gate. During a declared incident the incident commander may approve a bounde
 | Approved | An authorized human approved this exact target, command or diff, applying actor, and time, with a `Valid until` UTC deadline and the change record where the process requires one (name the system; `stack-profile` owns the Remedy/Jira fact). |
 | Binding current | Immediately before execution the executor confirms the approval has not expired and the current target, action, actor, and candidate or configuration identity match the approved record. Any mismatch is BLOCKED and re-enters. |
 | Blast radius | Affected apps, routes, spaces, users or traffic share, and the worst credible failure are recorded. |
-| Backout | An exact, reversible backout with verification and known-good recovery evidence, owned and executed by the human release owner; prefer route remaps and flag flips over irreversible actions. |
+| Backout / recovery | Exact rollback where feasible; otherwise state what cannot be undone and provide an evidence-backed recovery path, verification and stop conditions. The human release owner owns execution; unresolved recovery evidence blocks approval. Prefer reversible actions; recovery does not make an action reversible or lower its tier. |
 | Plan shown | Every command and the manifest or configuration diff are shown; approval covers no undisclosed side effect. |
 | Timing, monitoring, comms | Peak and freeze periods considered; a named human watches the golden signals with agreed abort criteria; stakeholders and on-call are told before and after. During an incident the commander's roles and comms cadence satisfy these; never delay a mitigation for a notification. |
 
@@ -70,7 +70,7 @@ Tier: <0|1|2|3 | not applicable>   Target: <exact target>   Actor: <human or pro
 Candidate commit ID: <exact commit | not applicable>   Artifact identity: <immutable digest or version | not applicable>
 Approved by: <human>   When: <UTC>   Valid until: <UTC | not applicable for Tier 0/1>
 Execution-time binding: <rechecked target/action/actor/identity at UTC | pending>
-Backout: <exact reversible steps>   Watching: <who, which signals>   Abort if: <criteria>
+Backout/recovery: <exact rollback, or non-reversible effects and evidenced recovery>   Watching: <who, which signals>   Abort if: <criteria>
 Production execution boundary: <protected environment or least-privilege executor evidence | missing>
 Blocking items: <the NOs, each with what clears it>   Waivers: <item, approving human, reason>
 ```

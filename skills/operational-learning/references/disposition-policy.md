@@ -10,7 +10,8 @@ disposition-state definitions, default paths, and the evidence rules.
 |---|---|
 | An application, service, worker, job, datastore, platform, or other component is approved or materially changes | Create or update its component card and knowledge index; propose missing alert, runbook, ownership, dependency, backup/restore, or SLO work. |
 | A component is decommissioned | Move its component card to `lifecycle: retired` and set its knowledge-index lifecycle cell to `retired` with it, dated and citing the authorizing record; move dependent alert cards to `status: retired` and their knowledge-index `Status` cells to `retired`, and its runbooks to `status: retired` rather than deleting any of them; name every artifact and dependent component still referencing it. Removing live alerts, telemetry, dashboards, or platform resources is a production change under the existing gate, never a documentation disposition. |
-| An audit finds a gap on an otherwise unchanged component | Disposition each finding against the component card, knowledge index, runbook, and alert card, and propose the missing alert, ownership, dependency, backup/restore, or SLO work under one owner. Record the dated verdict in the component card's open-gaps table and the index's recent-updates row. The verdict is document review — at most `[sourced]` to the dated audit record — and never moves `last_verified`; findings keep their incoming labels. |
+| An audit finds an operational gap on an otherwise unchanged component | Disposition affected cards, index and runbook; propose missing operational work under one owner. Record the dated verdict in the component card's open-gaps table and index's recent-updates row. This is document review, at most `[sourced]` to the audit, never moving `last_verified`; retain incoming finding labels. |
+| Only documentation is wrong, such as a stale contact found in an audit or drill | Correct the owning artifact and affected links from dated evidence; no unrelated cards, index rows, or operational work. Preserve evidence labels and `last_verified`. |
 | An alert is approved or materially changes | Create or update the alert card and the alert's knowledge-index row, including its `Status` cell; link its service card and authoritative alert definition; and require a valid runbook target before paging. |
 | An alert fires | Active event: route investigation to the responder with `incident-investigation` (`sre-assistant` only for a dispatched read); prepare no retrospective or KB change until resolution. |
 | A runbook is missing or contradicted by evidence | Create or update it through `scribe` plus `runbook`; retain unsupported commands as `[unverified]`. |
@@ -66,6 +67,7 @@ instead of creating a second record.
 
 ## Recommended course of action
 
-Every closeout names one course of action: summary, owner, urgency, change tier, approval need,
-verification, and rollback or recovery. The closeout recommends; it never grants authority or
-performs the action.
+Every closeout names the documentation change or open question, owner, and proof still needed.
+A production-facing recommendation also carries urgency, change tier, approval need, verification,
+and rollback or recovery. Keep these with the existing follow-up instead of repeating a packet.
+The closeout recommends; it never grants authority or performs the action.

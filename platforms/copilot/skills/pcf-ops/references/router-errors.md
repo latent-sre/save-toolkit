@@ -33,7 +33,8 @@ Status alone under-determines the cause. The documented shapes include:
   TLS certificate look not-yet-valid (`x509: certificate ... is not yet valid`), surfaced as
   `ExpiredOrNotYetValidCertFailure`. Escalate that NTP/time-sync evidence to the platform team rather
   than chasing it app-side. *[sourced: CF router error docs; Broadcom KB 297999]*
-- **503 Service Unavailable** — Gorouter has no backend to route to: all instances are down/crashed,
-  or the route is not registered yet during post-push registration lag.
+- **503 Service Unavailable** — inspect `X-Cf-RouterError`: `no_endpoints` and
+  `Connection Limit Reached` lead to different checks (backend availability versus connection
+  pressure). Without that evidence, status alone does not establish that all instances are down.
 - **One route/app affected while others are fine** points to the application lane; a foundation-wide
   pattern goes to the platform team with the parent skill's escalation packet.

@@ -30,6 +30,37 @@ work.
 
 ## Repository work
 
+### INCIDENT-QUALITY-001 — verify decision quality after the SRE contract repairs
+
+**Status:** `decision-needed` (2026-09-07)
+**Owner:** Save Toolkit maintainers accept the candidate and any further evaluation budget;
+`agent-engineer` owns the focused follow-up.
+**Outcome:** A human incident session loads relevant symptom guidance, receives an unambiguous
+helper return, and advances from supplied evidence without invented causal exclusions or timing.
+**Next action:** Decide whether to permit limited Terra source comparisons with unproved tool
+absence and injected host skills; zero Terra model calls have run. Review the failed second-pass
+Sonnet evidence before any further candidate: selection skipped the advisor, dispatch lost caller
+and human-owner context, and unsupported causal/timing claims remain. The 24-session Sonnet
+campaign is complete. Keep candidate plugin digest
+`10dac4f5d1db7414a513bfdb686153e1dece7080a7153f4a2a7c459b82ec5a62` on
+`work/delegation-return-loop` unpromoted; preserve real return/resume and sufficient-evidence
+recovery as regressions. Any next source candidate needs a new bounded decision.
+The approved [task-sized output changes](reviews/2026-09-07-task-sized-skill-outputs.md) are
+implemented and source-reviewed; their separate six-pair Sonnet check awaits the human's decision.
+That narrower work does not close the native selection or evidence-quality failures above.
+The same record now carries the approved rescan items 3/4: task-sized log/metric/runbook/telemetry
+guidance and owner/rollback alignment. Local/source verification does not establish model behavior
+on those new bytes or clear the acceptance hold.
+The approved [helper-exchange candidate](reviews/2026-09-07-incident-helper-exchange.md) replaces
+one-sided examples with dispatch and parent claim reconciliation; source review and local checks pass.
+Its separate three-pair Sonnet decision is outstanding; native entry/return remains unverified.
+PR #236's [technical review corrections](reviews/2026-09-07-incident-helper-exchange.md#pr-236-review-follow-up)
+do not clear the adoption hold. Exact-revision human acceptance remains required before merge;
+review-ready status, structural checks and publication are not that decision.
+**Evidence:** [Second bounded decision-quality pass](reviews/2026-09-07-incident-quality-second-pass.md)
+**SRE task:** The responder gets a useful next check or closeout without mistaking a job status,
+missing history, aggregate signal, or recipient readback time for evidence of a different claim.
+
 ### CONTEXT-001 — establish a generalized SRE operational-context contract
 
 **Status:** `active` (2026-08-30)

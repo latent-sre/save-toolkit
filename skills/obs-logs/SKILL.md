@@ -12,24 +12,21 @@ argument-hint: "[service, symptom, or log question]"
 
 # Logs — the investigation shape
 
-Find the signal fast, then read it over time and correlate. Keep product syntax out of the
-investigation packet until you have selected and read the matching dialect reference.
+Match the task: interpret supplied logs, write a query, or investigate. An explanation needs no new
+query or baseline; apply methods only to the requested question.
 
 ## Start narrow
 
-Constrain the environment, service, source, and time window before adding a symptom filter. A keyword
-such as `error` can drop structured access events whose status says failure but whose text does not.
-Confirm that every field used by the filter is actually extracted; a missing field is not evidence of
-an empty result.
+For queries, bind environment, service, source and window before symptom filters. `error` can miss
+failed structured access events. Confirm filter-field extraction; a missing field is not evidence of an empty result.
 
-Record the query boundary with the result: backend, tenant or index, source, absolute UTC window, and
-timezone. Widen one boundary at a time and say why.
+Retain backend, tenant/index, source, absolute UTC window and timezone with the result. Widen one
+boundary at a time and say why.
 
 ## Read it over time
 
-Turn matching events into a complete, fixed-width timeline before judging a spike. Count the failure
-condition inside each bucket so quiet buckets remain represented as zero; filtering failures first can
-erase those buckets and bias a baseline toward error-containing periods.
+For spike investigation, build a complete fixed-width timeline. Count failures inside each bucket;
+filtering failures first can erase quiet zero buckets and bias the baseline toward error periods.
 
 Mark the first anomalous bucket, the last known-normal bucket, and any deploy or configuration event.
 Keep the current bucket out of a trailing baseline so the spike cannot raise the threshold used to
@@ -37,13 +34,12 @@ judge itself.
 
 ## Find the top offenders
 
-Break the signal down by stable dimensions such as service, route, status, error type, or host. Avoid
-high-cardinality identifiers until you are following one request. Show both count and share of traffic;
-a raw-count increase during a traffic increase is not automatically a worsening error rate.
+When ranking offenders, group by stable service, route, status, error type or host. Keep high-cardinality
+IDs for one-request work. Show count and traffic share; traffic growth alone is not a worsening error rate.
 
 ## Correlate one request across services
 
-Start from a request, correlation, or trace id and follow it through a tight time window. Sort the
+When following one request, use its request/correlation/trace id within a tight window. Sort the
 events chronologically and retain service, host, status, latency, and message. If a hop emits no common
 identifier, record that as a telemetry gap and hand the evidence to the `software-engineer` agent.
 
@@ -54,15 +50,15 @@ for a sanitized identifier rather than broadening the search.
 
 ## Compare before vs after a deploy
 
-Compare **rates**, not raw counts — if traffic differs between the two phases (and after a deploy it
-usually does), a count comparison tells you about traffic, not about the deploy. Use equal-duration
-windows, keep the same query scope, and record the exact deploy time rather than relying on a visual
-annotation.
+For a deploy comparison, compare **rates**, not raw counts: differing traffic can explain counts.
+Use equal-duration windows and the same query scope; record exact deploy time, not a visual annotation.
 
 ## Build the evidence packet
 
-Return the exact query, absolute UTC window, result or artifact link, field-extraction assumptions,
-before/after boundary, and confidence label. Separate observed facts from interpretations. Hand
+Bounded interpretation: answer, supplied source/target/window, limits and a useful next check if needed;
+missing metadata stays unknown. Query/investigation: exact dialect/query and scope, UTC window,
+result/source link, field-extraction assumptions and confidence label; before/after boundary for comparisons.
+Separate observations from interpretations. Hand
 recurring-query or correlation evidence to the `observability-engineer` agent; do not load another skill from
 this one.
 

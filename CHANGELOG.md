@@ -7,6 +7,11 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Added
 
+- Added conditional symptom comparisons to the human incident advisor for login failures,
+  intermittent errors, slow requests, stale/wrong data, and missed jobs with limited telemetry.
+  See the [general incident help evidence](docs/reviews/2026-09-06-general-incident-help.md) for
+  evaluation and the explicit context/skill-size allocation.
+
 - Added `archive/incident-autonomy/`: byte-exact copies of the `sre` agent, its VS Code
   projection, `investigation-depth`, the two sustained-response scenarios, and the three rubrics
   with their 35 calibration cases, plus twelve restore patches and a README with the restore
@@ -62,6 +67,35 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
   requirement red before green.
 
 ### Changed
+
+- Kept contact-only runbook corrections, supplied log/metric explanations, and bounded telemetry
+  repairs scoped to their tasks while retaining full-workflow checks when requested. Aligned design
+  consultation and operating-document routing with existing owners, and made rollback versus
+  evidence-backed recovery consistent without changing tool grants or human execution authority.
+  See the [scope and owner follow-up](docs/reviews/2026-09-07-task-sized-skill-outputs.md).
+
+- Addressed PR #236's restart-headroom, recovery/confirmation, unknown-severity and bounded
+  mitigation-stance comments. The unsupported restart branch escalates; nullable postmortem
+  metadata retains distinct impact-end and human-confirmation times. Adoption remains on hold.
+
+- Illustrated incident advisor dispatch and parent evidence reconciliation with a complete helper
+  exchange; documented explicit advisor selection as a fallback. Automatic selection and model
+  behavior remain unverified; see the [candidate evidence](docs/reviews/2026-09-07-incident-helper-exchange.md).
+
+- Made alert/trace answers task-sized, added an abbreviated postmortem form, and reused one
+  follow-up record through postmortem and knowledge closeout. Full-task evidence and authority
+  boundaries remain. See the [task-sized output evidence](docs/reviews/2026-09-07-task-sized-skill-outputs.md)
+  for verification and remaining limits.
+
+- Aligned bounded SRE evidence work, caller returns, claim-level verification, candidate-scoped
+  review verdicts, and artifact-specific observability completion. Repaired operational examples,
+  platform escalation, explicit GCP targets, user-outcome recovery, unknown-cause postmortems, and
+  proportional learning closeout. Tool grants and size ceilings are unchanged. See the
+  [decision-quality repair evidence](docs/reviews/2026-09-06-sre-decision-quality-repairs.md) for
+  exact verification, behavioral limits, and adoption status.
+  A [second bounded pass](docs/reviews/2026-09-07-incident-quality-second-pass.md) targets actual
+  symptom-reference loading, single-caller returns, timing bounds, and clean review/provenance
+  examples; behavioral acceptance remains separate from implementation.
 
 - Restored explicit helper return fields across all eight agents and caller continuation checks;
   separated SRE observation timestamps from untimed aggregates and corrected scribe's fixed return

@@ -88,9 +88,9 @@ time series per value.
 
 ## Build the evidence packet
 
-Return, per boundary walked: the target, absolute UTC window, exact check run, and result, plus
-the canary's service and trace IDs, the deployed config revision, and a confidence label per
-claim. Separate observed counter values from interpretations. Minimize copied telemetry: redact
+Return per boundary checked: target, UTC window, exact check/result, canary service ID (trace ID for
+traces), config revision and claim confidence. Name missing proof without inventing checks or broader
+coverage. Separate observed counters from interpretations. Minimize copied telemetry: redact
 credentials, tokens, secrets, personal data, and sensitive attribute values before any payload
 excerpt enters the packet; prefer an access-controlled link plus the smallest necessary excerpt.
 Hand pipeline-config changes to the `observability-engineer` agent and app-side instrumentation

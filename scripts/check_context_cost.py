@@ -25,6 +25,7 @@ ROOT = Path(__file__).resolve().parents[1]
 TASK_FILES: dict[str, list[str]] = {
     "PCF incident, human path": [
         "skills/incident-investigation/SKILL.md",
+        "skills/incident-investigation/references/symptom-investigation.md",
         "skills/stack-profile/SKILL.md",
         "skills/stack-profile/references/observability-stack.md",
         "skills/incident-command/SKILL.md",
@@ -75,7 +76,7 @@ TASK_FILES: dict[str, list[str]] = {
     ],
 }
 TASK_BUDGETS: dict[str, int] = {
-    "PCF incident, human path": 64_000,
+    "PCF incident, human path": 73_000,
     "PCF incident, sre-assistant agent path": 76_000,
     "Noisy alert": 44_000,
     "Write a runbook": 41_000,

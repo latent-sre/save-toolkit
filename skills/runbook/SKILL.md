@@ -11,44 +11,41 @@ description: >-
 argument-hint: "[service or tool]"
 ---
 
-Runbooks are read at 3 a.m. by someone who is tired — usually future-you. Terse, copy-pasteable, zero ambiguity.
+Write for the tired responder: terse, copy-pasteable, unambiguous. Read actual config, compose/unit
+files, and existing docs before drafting; memory is not configuration evidence.
 
-Investigate before writing: read the actual config, compose/unit files, and any existing docs. A runbook written from memory documents the lab you *think* you have.
+## Match the edit
 
-## Required structure (every slot filled or marked "n/a — why")
+For a contact, link, or wording-only correction, patch affected text and links from supplied evidence;
+preserve the existing structure, IDs, status and history. Report unrelated gaps without rewriting them.
+Review and rehearsal dates follow their evidence rules below; a small edit proves no operational step.
+Changes to actions or decision branches use the procedure-revision path.
 
-Full fill-in template: [runbook template](./assets/runbook-template.md) — copy it to start; it
-carries every required slot. The blank template shows the slots; it cannot show what filling them
-well looks like, so read the [worked exemplar](./assets/runbook-example.md) before writing your
-first one, or when a draft has every section and still feels thin. It is a complete, matured
-runbook — decision branches that route *away* from the wrong action, expected output that separates
-partly-worked from failed, and an illustrative incident history showing the shape a runbook takes
-once incidents have revised it. Its service, dates, and evidence ids are invented and bind nothing.
+For a new runbook or substantial procedure revision, use the [runbook template](./assets/runbook-template.md),
+filling applicable slots or marking `n/a — why`. For a first runbook or thin draft, read the
+[worked exemplar](./assets/runbook-example.md); its service, dates and evidence IDs are fictional.
 
-Rules:
-- Every command copy-pasteable as written — real paths and real names. A `<placeholder>` is allowed only for truly variable values, and then say where to find the value.
-- "Common failures" lists only what has been observed or is clearly plausible for this service — no padding to make the section look complete.
-- If supplied evidence is insufficient to establish that a command works (service not running, no
-  access), mark it `[unverified]` rather than presenting it as tested.
+"Common failures" lists only observed or clearly plausible service failures, without padding.
 
 ## Keep it current through rehearsal
-A runbook answers one alert, task, or failure mode; a broader response strategy that orchestrates
-several is a playbook and is not this template. Keep runbooks current through evidence-backed rehearsal. A named human or service owner runs game days
-or drills under approved, realistic conditions; `scribe` only records the supplied results. Preserve
-`last_verified` only when incoming evidence binds the exact artifact/version, target, actor,
-timestamp, and outcome. Otherwise leave it unchanged and label the rehearsal `[unverified]`.
+A runbook answers one alert, task, or failure mode; orchestration of several belongs in a playbook.
+A named human/service owner runs approved, realistic drills; `scribe` records supplied results.
+Change `last_verified` only from evidence bound to exact artifact/version, target, actor, timestamp,
+and outcome. Otherwise leave it unchanged and label the rehearsal `[unverified]`.
 
 ## Authoring rules
-- **Numbered, imperative steps.** Copy-pasteable commands with real values or clearly templated
-  `<PLACEHOLDER>`s. No "obviously" or "just".
-- **Expected output per step** — so the reader knows it worked before moving on.
-- **Verify and roll back** — every state-changing action has "how to confirm it worked" and "how to undo
-  it." Mark destructive steps with a warning. Tier 2/3: record explicit human approval for the exact
-  command/target plus rollback evidence before execution.
+- **Numbered, imperative steps.** Copy-pasteable commands with real paths/names; placeholders only
+  for variable values, each naming its source. No "obviously" or "just".
+- **Expected output per step** — distinguish an observed result from a cause; give a next check
+  or escalation for inconclusive, missing, or failed observations.
+- **Verify and recover** — every state-changing action says how to confirm its effect and undo it,
+  or what cannot be undone and how to recover. Mark destructive steps with a warning. Tier 2/3:
+  record explicit human approval for the exact command/target plus rollback or recovery evidence
+  before execution.
 - **Trigger-anchored** — starts from a concrete trigger (this alert/symptom/task), ends at "resolved or
   escalate to <whom>."
 - **Current or deleted** — date it, own it, prune what's wrong. A wrong runbook is worse than none.
-- **Machine-linkable frontmatter** — give each runbook the template's YAML frontmatter. A new
+- **Machine-linkable frontmatter** — new runbooks use the template's YAML frontmatter. A new
   runbook starts `status: draft`; only a human review promotes it to `active`. Both dates
   (`last_reviewed`, `last_verified`) start `null`;
   only human/authorized document review changes `last_reviewed`, and only bound rehearsal evidence
@@ -57,36 +54,24 @@ timestamp, and outcome. Otherwise leave it unchanged and label the rehearsal `[u
   for command claims. If that evidence is absent, mark the command `[unverified]`; never execute from
   this documentation lane, including a read-only command, merely to confirm syntax or output.
 
-Writing the Procedure or Triage steps, check each against the ways a correct-looking step fails
-at 3 a.m.: it ran against an ambient target the reader was not in; its expected output describes
-only success; a reader who jumped to it inherits side effects it assumes; its rollback is not
-idempotent; it destroys without a way to look first; it has no stop condition; its placeholder
-says nothing about where the value comes from; it quietly absorbs a second failure mode instead
-of routing to another runbook. The [worked exemplar](./assets/runbook-example.md) shows each
-avoided in place.
+For Procedure/Triage steps added or changed, check target binding, partial/failed outcomes, inherited side
+effects when entered directly, repeat-safe rollback, inspection before destruction, stop condition,
+placeholder source, and routing of other failure modes. The
+[worked exemplar](./assets/runbook-example.md) demonstrates these checks.
 
 ## Before you publish — read it back as the responder
 
-You cannot see the gaps in your own runbook, because you hold the context the steps leave out. So
-stop being the author and read it as someone paged at 3 a.m. who has never seen this service. Walk
-the procedure top to bottom and stop at the first line where you would have to make a judgment call
-the runbook did not equip you for — that line is the finding, and it is usually the only one that
-matters.
+Read as a responder new to this service. For a procedure change, walk its affected branches in order;
+the first unsupported decision is a finding. For a bounded correction, check the changed claim and links.
 
 Four questions that surface most of them:
 
-- **Could you paste every command without editing it?** If one needs a value, does the runbook say
-  which command or panel produces that value?
-- **Does each expected-output line tell you what *partly worked* looks like**, and where to go from
-  there? Success-only expectations leave the reader stranded in the case they actually hit.
-- **Does every step that might not work have a stop condition** — how long, how many times, and
-  where to go instead? An unbounded "restart it" becomes forty minutes.
-- **Does the escalation row reach a human at 3 a.m.?** A team alias nobody watches overnight is a
-  dead end wearing an escalation path's clothes.
+- **Can you paste each command?** Every variable names its source command or panel.
+- **What partly worked?** Each expected-output line gives the next step for partial/failed results.
+- **When do you stop?** Bound time/attempts and name the escalation or alternate path.
+- **Who answers at 3 a.m.?** Confirm the escalation contact is staffed, not an unmonitored alias.
 
-A slot you cannot fill honestly is information, not a gap to paper over: mark it `n/a — why`, or
-`[unverified]` where evidence is missing. Both are more useful at 3 a.m. than a confident sentence
-nobody tested.
+Missing evidence stays `[unverified]`, never invented.
 
 ## Living runbooks — every incident leaves the runbook better
 
@@ -100,15 +85,11 @@ protocol and its sourced rationale (playbooks ≈ 3x MTTR improvement) are in
 
 ## Importing runbooks from Confluence
 
-Existing Confluence runbooks are imported into the repo — one direction, repo becomes the living
-copy. The conversion procedure, slot mapping, and provenance rules are in
-[Confluence import](./references/confluence-import.md), and
-[confluence_to_runbook.py](./scripts/confluence_to_runbook.py) does the mechanical part: a human
-(or the `software-engineer` agent) runs it on an exported page to produce a draft with frontmatter pre-filled,
-headings mapped to template slots, unmapped content kept visible, and macro losses counted. Two
-rules travel ahead of the detail: imported command claims arrive `[unverified]` no matter how
-authoritative the page looked, and the source page URL plus export date land in the runbook's
-References section so the paper trail survives the move.
+Import one-way: the repo becomes the living copy. Read
+[Confluence import](./references/confluence-import.md) for conversion, mapping, and provenance.
+A human or `software-engineer` runs [confluence_to_runbook.py](./scripts/confluence_to_runbook.py)
+on the export: draft frontmatter, mapped headings, visible unmapped content, counted macro losses.
+Imported command claims stay `[unverified]`; preserve source page URL and export date in References.
 
 ## Alert → runbook links and the Crawl → Walk → Run path
 
@@ -131,9 +112,7 @@ the right runbook automatically — each tool in our stack has a mechanism:
 
 > **Trigger**: alert `checkout-p95-burn-fast` (page).
 > **First checks**: Apps Manager → checkout → Instances: expect `6/6 running` (`cf app checkout`) [unverified].
-> **Procedure step 1** ⚠️ (Tier 2 — needs explicit human approval for this command/target):
-> `cf restart-app-instance checkout <idx>` — restarts ONE instance; the other five keep serving.
-> **Verification**: p95 back under 800 ms within 10 min on the checkout dashboard.
-> **Rollback**: none needed — the restart is the reset. If step 1 ran twice without effect, STOP:
-> restart is a stopgap, not a fix — escalate per the Escalation table.
+> **Step 1**: headroom unproved; no restart. Immediately escalate target/index/window/readings to
+> payments engineering lead for the missing check and separately approved procedure. Missing reply
+> or evidence keeps restart blocked; independent read-only checks may continue.
 > *Illustrative only; every step stays [unverified] until a human records the exact command, target, actor, and result.*

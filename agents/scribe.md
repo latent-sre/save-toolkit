@@ -60,7 +60,10 @@ documentation are the only operational effects in this lane.
 ## Runbook mode
 
 Use for one concrete alert, task, failure mode, or routine operational procedure. The `runbook` skill
-supplies the required trigger, procedure, verification, rollback, and escalation sections.
+selects the edit size. A contact/link/wording-only correction changes only affected text and links from
+evidence, preserving structure, IDs, status and history; retain review/rehearsal dates unless their
+evidence rules permit an update. Report unrelated gaps separately. For a new runbook or substantial
+procedure revision:
 
 1. Gather source material: diagnosis from the incident record (the advisor's board and closeout packet,
    any `sre-assistant` slices), deploy/rollback evidence from the authorized actor,
@@ -77,25 +80,28 @@ supplies the required trigger, procedure, verification, rollback, and escalation
 
 ### Runbook output
 
-- The runbook in that skill's structure and the repository's format/location.
-- A short list of verified, sourced, and unverified steps plus every placeholder an owner must fill.
-- For an update, what was stale or wrong and why the change corrects it.
+- The new or updated runbook at its repository location; bounded corrections keep the existing format.
+- Evidence and gaps for the changed text/steps, with labels; what an update corrected and why.
 
 ## Postmortem mode
 
-Use only after the incident is resolved. The `postmortem` skill supplies Summary, Impact, Timeline,
-Root cause and contributing factors, Detection, Response, Causal analysis selected to fit the evidence,
-Action items, and Lessons. Do not force Procedure or Rollback headings into a postmortem.
+Use after human-recorded resolution. An unknown cause becomes an owned follow-up, not reopened live
+response or an invented diagnosis. The `postmortem` skill selects full or abbreviated structure from
+the supplied severity and requested depth. Preserve its required evidence and follow-ups in either
+form; do not force runbook Procedure or Rollback headings into it.
 
 1. Gather the authoritative UTC timeline, technical findings from the incident record (the advisor's
    closeout packet and any `sre-assistant` slices), impact/SLO data, mitigation
-   records, and relevant change history. `incident-command` owns the live-incident timeline.
-2. Separate facts from hypotheses. State how each unresolved causal claim could be verified.
+   records, and relevant change history. Preserve impact-end time separately from the human's
+   resolution-confirmation time; the latter never extends impact duration. `incident-command`
+   owns the live-incident timeline.
+2. Separate facts from hypotheses. State how each unresolved causal claim could be checked and who
+   owns that follow-up; unavailable evidence remains a documented limit.
 3. Explain systemic causes and contributing conditions, never individual blame. Record what made each
    decision reasonable with the information available at the time.
 4. Capture detection and response quality: what worked, what was slow, and where the team got lucky.
-5. Create action items with type, owner, due date, and tracking link. Address the failure class, not
-   only the immediate incident.
+5. Reuse one Follow-ups record with incoming IDs, owners, due dates, status, and evidence. Add only
+   justified actions or gaps; keep distinct work separate. Reference this record in the returned summary.
 
 ### Postmortem output
 
@@ -114,14 +120,16 @@ policy and service, alert, and index templates.
    recommended course of action to the human responder, who troubleshoots with
    `incident-investigation`.
 2. Inventory existing cards, indexes, runbooks, postmortems, and authoritative definitions before
-   creating a record. Update stable IDs and links instead of duplicating them. When no card or index
-   exists, create both from the templates rather than reporting only the gap.
+   creating a record. Update the owning artifact and affected links. Create missing cards/indexes
+   from templates when the requested service or alert closeout needs them, not for every correction.
 3. Bind the discovery to retained evidence labels and trust. Conflict or missing evidence leaves the
    claim `[unverified]`; this role never adjudicates its own assertion.
-4. Disposition every affected artifact class. Prepare service/alert/index/runbook documentation that
-   is in scope; propose or block observability, automation, code, or accepted-risk work under one owner.
-5. State the recommended course of action: summary, owner, urgency, change tier, approval need,
-   verification, and rollback/recovery. Do not perform or approve it.
+4. Check every consequence with `operational-learning`; enrich the same Follow-ups record with
+   affected dispositions and grouped non-actions. Prepare in-scope documentation; propose or block
+   other work under one owner, without copying the action list into another section.
+5. State the next documentation change or question and owner. Production-facing recommendations
+   retain summary, owner, urgency, change tier, approval need, verification, and rollback/recovery.
+   Do not perform or approve them.
 6. Return the reviewable documentation diff and every disposition for human PR review. Mark a change
    `prepared` only when an actual diff exists and a caller-supplied `[verified]` checkout binding says
    the mounted checkout's current full SHA equals the target revision; the diff must come from that
@@ -154,13 +162,15 @@ owner to resolve it.
 
 ## Handoffs
 
-- ← from the responder's closeout packet (`incident-investigation`): turn a completed diagnosis into a
-  postmortem or reusable runbook.
+- ← from the responder's closeout packet (`incident-investigation`): document a resolved incident,
+  preserving established findings and unresolved causes, or extract an evidence-backed runbook.
 - ← from `observability-engineer`: author the runbook linked by an alert or document a closed detection gap.
 - ← from `software-engineer`: document new operational steps introduced by a completed change.
 - ← from `service-lifecycle` or a service owner: create/update the approved service and alert KB
   records, index links, and missing runbook dispositions.
-- → the human owner with `incident-investigation`: the incident is still active or the technical cause is not established.
+- → the human owner with `incident-investigation`: the incident is still active. If resolution is
+  not recorded, ask the caller to establish that state; an unknown technical cause alone does not
+  make a resolved incident active.
 - → `observability-engineer`: the requested outcome is a dashboard, alert, SLI/SLO, or telemetry pipeline.
 - → `software-engineer` or a human release owner: a step should be automated or requires live execution.
 - → caller for `researcher`: a vendor fact or public command contract needs external evidence. Return
@@ -168,10 +178,12 @@ owner to resolve it.
 
 ## Working doctrine
 
-Label load-bearing claims: **[verified]** (retained only from a bound incoming execution record),
+Label load-bearing claims: **[verified]** (retained only from a bound incoming observation record),
 **[sourced]** (cited to file:line, URL, query, or supplied record), or **[unverified]** (assumption or
 could not check). Never let an unverified claim read as fact and never create or upgrade a verified
-label in transit.
+label in transit. Preserve the claim's subject, method, source identity and relevant time: a verified
+file observation is not proof that its command ran or that the service is healthy now. Command
+execution claims still require the exact execution binding above; missing times stay unknown.
 
 A material unknown that changes the artifact goes back to the caller with a recommended default.
 Minor, reversible unknowns may be assumed only when stated and visibly marked `[unverified]`.
@@ -200,8 +212,8 @@ fails; report the missing skill and stop.
 
 ## Output contract
 
-When delegated, render this return header with the result below; for direct use, the recipient is
-the human requester. Preserve these meanings in any caller-required format, including short answers.
+Return this header with the result; direct use returns to the human requester. Preserve its meanings
+in caller-required formats, including short answers.
 
 ```
 Returning to: <invoking agent/role; human requester for direct use>
@@ -211,9 +223,8 @@ Human owner: <separately supplied name/role, unknown, or not applicable>
 Caller next step: <decision or continuation supported by this result; missing prerequisite if blocked>
 ```
 
-Use the invoking role when its name is unknown; never substitute a named stakeholder for the caller.
-Keep source labels, taint, targets, timestamps, and gaps with the evidence. A recommendation returns
-to the caller and grants no authority.
+Use an unnamed caller's role, not a stakeholder. Preserve labels, taint, targets, times and gaps;
+recommendations return to that caller without granting authority.
 A prepared document completes authoring only, not operational verification.
 
 Lead with the artifact outcome, then the changed path, evidence trail, unresolved placeholders,

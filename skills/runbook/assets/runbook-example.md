@@ -14,11 +14,8 @@ version: 4
 ---
 
 > **This is a teaching exemplar, not a live runbook.** `checkout` is a fictional service. The
-> frontmatter dates, evidence ids, and incident-history rows show the *shape* a mature runbook
-> reaches after real use — they bind nothing. A copy of this file starts over with
-> `last_reviewed: null`, `last_verified: null`, and an empty history. Read it for what the blank
-> [template](./runbook-template.md) cannot show: what "terse, copy-pasteable, zero ambiguity"
-> actually reads like once a runbook has survived a few incidents.
+> dates, evidence ids, and history illustrate the [template](./runbook-template.md); they bind
+> nothing. A copy starts with `last_reviewed: null`, `last_verified: null`, and an empty history.
 
 # Runbook: checkout p95 latency burning fast error budget
 
@@ -27,8 +24,7 @@ Handles `checkout-p95-burn-fast`: checkout p95 latency above the SLO with a burn
 the 30-day budget in under 6 hours.
 
 **Out of scope** (do NOT use this for): checkout returning 5xx (that is
-`checkout-error-rate`, a different runbook — latency and errors have different causes here);
-slow *upstream* payment-vendor calls with checkout itself healthy (see `payments-vendor-degraded`).
+`checkout-error-rate`); payment-path investigation (see `payments-vendor-degraded`).
 
 ## Trigger
 Alert `checkout-p95-burn-fast` fires: `p95(checkout_request_duration_seconds) > 0.8` sustained 10 min
@@ -46,93 +42,87 @@ Dashboard: `https://grafana.example.internal/d/checkout-slo`  ·  Source/repo: `
 
 ## Triage / first checks
 
-1. **Is this real user pain, or a probe artifact?** Open the SLO dashboard, panel "p95 by route".
-   - Elevated on `/checkout/submit` only → real; continue.
-   - Elevated across every route *including* `/healthz` → **not yet diagnostic.** A slow health
-     route is equally consistent with router latency and with whole-app saturation (CPU, event-loop
-     or GC pauses, connection-pool exhaustion). Corroborate before routing: if the router's own
-     latency panel on `platform-router-latency`'s dashboard is also elevated for other apps in the
-     `payments` org, it is the platform — go to `platform-router-latency`. If the router looks
-     healthy and only `checkout` is slow across all routes, it is this app saturating: continue to
-     triage step 2 and treat it as whole-app, not single-instance.
+1. **Which requests are slow?** Open the SLO dashboard, panel "p95 by route", for the reported
+   impact window. Confirm it includes affected user requests, not just probes.
+   - Elevated on `/checkout/submit` only → focus on that path; continue.
+   - Elevated across routes, including `/healthz` → compare the `platform-router-latency` panel
+     and other apps. A matching cross-app pattern merits platform escalation, not proven platform
+     fault; shared dependencies remain possible. With only checkout affected, continue app-side.
+   - Missing/stale data → impact and scope unknown. Ask for an affected request and timestamp;
+     escalate if unavailable, not a healthy-traffic conclusion.
 
 2. **Are all instances serving?**
    ```bash
    cf app checkout
    ```
    Expected: `instances: 6/6 running`.
-   - `6/6 running` → the app is up and slow. Go to step 3.
-   - Fewer than 6, or any `crashed`/`starting` → instances are cycling. **Do not restart anything**
-     — a restart hides the crash loop and resets the evidence. Go to Procedure step 4.
+   - `6/6 running` → processes are running, not proof that requests succeed. Go to step 3.
+   - Fewer than 6, or any `crashed`/`starting` → capacity/readiness differs from the expected state.
+     **Do not restart anything**; preserve events/logs and go to Procedure step 4.
+   - Failed or incomplete read → instance state is unknown; escalate with the failed observation.
 
 3. **Is one instance dragging the percentile, or all of them?**
    ```bash
    cf app checkout | tail -n +6
    ```
    Expected: a per-instance table. Compare the `cpu` and `memory` columns.
-   - One instance materially higher than the rest → single bad instance. Procedure step 1.
-   - All instances similar → whole-app saturation. Procedure step 2.
+   - One instance higher → Procedure step 1; this snapshot alone cannot justify a restart.
+   - All instances similar → neither saturation nor health is established. Procedure step 2.
+   - Missing evidence → inconclusive; Procedure step 2 or escalate if unavailable. A CPU/memory
+     snapshot alone does not justify restart.
 
 ## Procedure
 
 > Mark destructive steps ⚠️. Tier 2/3: record explicit human approval for the exact command/target
-> plus rollback evidence before execution.
+> plus rollback or recovery evidence before execution.
 
-1. ⚠️ **Restart the single degraded instance.** (Tier 2 — needs explicit human approval naming
-   `checkout` and the instance index.)
-   ```bash
-   cf restart-app-instance checkout <idx>
-   ```
-   `<idx>` is the row number from step 3's table, zero-based. This restarts **one** instance, so
-   capacity drops to 5/6 until it returns (~90 s) and the remaining five absorb its share of the
-   load. That is survivable only because triage step 3 established the other five are healthy;
-   confirm from that same table that none is above ~70% CPU before you restart. If they are all
-   loaded, this is whole-app saturation — skip to step 2 rather than removing an instance from a
-   pool that is already struggling.
-   Expected: the command returns `OK` within ~5 s, and `cf app checkout` shows that index
-   `starting` then `running` within 90 s.
-   - Still `starting` after 3 min → it is not coming back cleanly. Go to step 4.
-   - Returns to `running` but p95 does not improve within 10 min → the instance was a symptom, not
-     the cause. **Do not restart it again.** Go to step 2.  ← the vendor check, before any scaling.
+1. **Escalate the restart decision.** No serving-headroom check for the remaining five is supplied.
+   **Do not restart.** Use the immediate Escalation row with triage 3's index, target/window,
+   CPU/memory and unknown readiness/capacity. Expected: the payments engineering lead obtains the
+   check and owns a separately approved procedure. No reply or incomplete evidence keeps restart
+   blocked; continue only read-only step 2. Approval does not replace evidence.
 
-2. **Check the downstream payment vendor first.** This is read-only and takes seconds, and it
-   gates step 3: scaling checkout against a slow vendor only queues more work at the same
-   bottleneck, so rule the vendor out *before* changing the instance count.
+2. **Check the downstream payment path before scaling.** Extra app instances can increase
+   pressure on a constrained dependency; this read checks for that risk, not just timeout counts.
    ```bash
    cf logs checkout --recent > /tmp/checkout-recent.log &&
      awk '/vendor_timeout/ {n++} END {print n+0}' /tmp/checkout-recent.log
    ```
-   Expected: a count, within 30 s. Zero or single digits over the last few minutes is normal
-   background.
-   - Dozens or more → the vendor is the cause. **Do not scale.** Stop here and switch to
-     `payments-vendor-degraded`.
-   - Background levels → the latency is ours. Go to step 3.
-   - No count printed (the `&&` stops at a failed `cf logs`), an error, or a hang past 30 s → the
-     platform API is the problem, not checkout; escalate on the table's platform row.
+   Expected: a count within 30 s. Bind the captured log window and request volume; raw abundance
+   alone does not locate the delay, and this short buffer may omit the affected requests.
+   - Elevated timeouts → use `payments-vendor-degraded` to check client pool, network, and vendor.
+     **Do not scale** while dependency pressure remains plausible.
+   - Few or no timeouts → the vendor is not cleared. Compare dependency latency and app saturation
+     over the impact window; go to step 3 only when its prerequisites are established.
+   - No count, error, incomplete coverage, or a hang past 30 s → inconclusive observation, not
+     platform fault. Stop this check; use historical Splunk logs or escalate with the gap.
 
-3. ⚠️ **Scale out.** (Tier 2 — needs approval naming the target instance count. Do not run this
-   until step 2 returned background levels.)
+3. ⚠️ **Scale out.** (Tier 2 — needs approval naming the target instance count.) Proceed only with
+   evidence of app capacity pressure and dependency headroom over the impact window. Without those
+   observations, escalate rather than treating a low timeout count as permission to scale.
    ```bash
    cf scale checkout -i 9
    ```
    Expected: `OK`, then `9/9 running` within 3 min. p95 should fall within 10 min of the last
    instance reaching `running` — not before, so do not judge this early.
    - `9/9 running` and p95 under 0.8 s within that window → go to Verification.
-   - `9/9 running`, p95 lower but still above 0.8 s at 10 min → it partly worked: hold the
+   - `9/9 running`, p95 lower but still above 0.8 s at 10 min → partial recovery: hold the
      count, **do not scale further**, and escalate on the table's scale-out row with both readings.
-   - Not `9/9 running` after 3 min, or p95 unchanged at 10 min → capacity was not the
-     bottleneck. **Do not scale further.** Escalate on the table's scale-out row.
+   - Not `9/9 running` after 3 min → the intended capacity change was not established; its latency
+     effect is inconclusive. **Do not scale further.** Escalate with requested and observed counts.
+   - `9/9 running`, p95 unchanged at 10 min → this intervention did not restore latency; it does
+     not rule out every capacity constraint. **Do not scale further.** Escalate with both readings.
    Scaling is a stopgap that buys time; it does not fix a leak or a slow dependency. File the
    follow-up before you leave the incident.
 
-4. **Instances are crashing (from triage step 2 or step 1).** Do not restart. Capture the evidence
-   first, because a restart destroys it:
+4. **Instances are missing, starting, or crashing (from triage step 2).** Do not restart.
+   Capture evidence before process replacement loses transient state:
    ```bash
    cf logs checkout --recent > /tmp/checkout-crash-$(date -u +%Y%m%dT%H%M%SZ).log
    ```
    Expected: a non-empty file within 30 s.
-   - Non-empty → attach it to the incident and escalate per the table below; a crash loop is a
-     defect, not a latency incident, and this runbook ends here.
+   - Non-empty → inspect events/logs for the affected instances, attach them, and escalate per the
+     table below. A non-empty capture does not itself establish a crash loop; this runbook ends here.
    - Empty, or the capture errors twice → escalate with what you have rather than trying a
      third time.
 
@@ -144,23 +134,26 @@ If p95 is healthy but the burn-rate panel is still above 1.0, the budget is stil
 the earlier damage — that is expected and not a reason to keep acting.
 
 ## Rollback / cleanup
-- Step 1 (restart one instance): nothing to undo — the restart *is* the reset. Running it twice on
-  the same index is safe but pointless; see the step's own stop condition.
+- Step 1 requests escalation only. If a human already restarted outside this procedure, no rollback
+  restores the old process or interrupted work; report observed readiness/requests and escalate.
+  Missing/starting/crashing instances go to step 4, not another restart.
 - Step 3 (scale out): return to the baseline count once p95 has been healthy for 30 min.
   ```bash
   cf scale checkout -i 6
   ```
   Expected: `6/6 running`. Watch p95 for 10 min after; if it climbs again, scale back to 9 and treat
   the underlying cause as unresolved.
-- Safe-abort: stopping between any two steps leaves checkout serving. The only state this runbook
-  changes is instance count, and step 3's rollback is the single command above.
+- Abort: stop further changes and hand over observed instance states/count, requests, and completed
+  actions. A started restart or scale continues after you stop; service may remain degraded. Check
+  readiness and latency, and have the human owner choose recovery using the entries above.
 
 ## Escalation
 | When (condition / time elapsed) | Escalate to | How to reach |
 |---|---|---|
+| Restart headroom unknown (step 1): immediately | payments engineering lead | pager `payments-lead`, `#payments-oncall` |
 | Not resolved 20 min after Procedure step 2 | payments engineering lead | pager `payments-lead`, `#payments-oncall` |
-| p95 still above 0.8 s 10 min after the scale-out (Procedure step 3) reached `9/9 running` | payments engineering lead | pager `payments-lead`, `#payments-oncall` |
-| Instances crashing (Procedure step 4) | payments engineering lead | same, with the captured log attached |
+| Scale-out has not reached `9/9 running` after 3 min, or p95 is still above 0.8 s 10 min after reaching it | payments engineering lead | pager `payments-lead`, `#payments-oncall` |
+| Instances missing/starting/crashing, or observation unavailable (Procedure step 4) | payments engineering lead | same, with captured evidence and gaps |
 | Multiple unrelated apps slow in the same space | platform on-call | pager `tas-platform`, `#platform-oncall` |
 
 Hand over: trigger, evidence, attempted steps, current state, and the current owner.

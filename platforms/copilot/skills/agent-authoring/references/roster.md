@@ -81,7 +81,7 @@ The contract fields are `../SKILL.md` rule 5. Name the verifier before the work:
 | `software-engineer` | A failing test or fixture |
 | `reviewer` | The two-lens packet |
 | `sre-assistant` | Requested target/window evidence returned to its caller; complete when the slice is fulfilled, partial for missing requested work, independent of incident status |
-| `observability-engineer` | Golden-signal recovery evidence |
+| `observability-engineer` | Assigned artifact: alert bad/healthy replay, query/config validation, or authorized dashboard readback |
 | A changed fleet contract | One focused red-first test, plus Gate A once before push |
 
 The human responder owns recovery, advised by `incident-investigation`; completing a helper's
@@ -99,7 +99,7 @@ return fields. Retain pending work; use [context guidance](./context.md).
 Keep these fields in the requested format, including short returns:
 
 ```text
-Returning to: <invoking agent/role; human requester for direct use>
+Returning to: <one invoking caller>
 Assignment: <complete | partial | blocked | inconclusive> — <bounded task and status evidence>
 Result/evidence: <answer or artifact paths; labels, taint, target, window and observed values>
 Gaps/non-actions: <missing requested evidence, conflicts, actions not performed>
@@ -108,7 +108,7 @@ Human owner: <separately supplied name/role, unknown, or not applicable>
 Caller next step: <supported continuation or decision; prerequisite gap if blocked>
 ```
 
-An unnamed caller retains its invoking role; do not substitute a stakeholder.
+Select the invoking agent, or the human for a direct ask; use a role if unnamed, never a stakeholder.
 Complete concerns the assigned slice. A recommendation returns to the caller without transferring
 ownership or approval. Preserve labels and taint; absent timestamps, current state and causality
 remain unknown. `Change:` names the PR, branch, diff or working tree; the receiver re-derives it.

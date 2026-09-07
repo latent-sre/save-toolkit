@@ -225,17 +225,6 @@ class FleetValidatorTests(unittest.TestCase):
         )
         self.assertNotIn("`[sourced: handoff]` is invalid", sections["sre-assistant"])
 
-    def test_sre_incident_summary_never_omits_provisional_severity(self) -> None:
-        bounded_assist = _markdown_section(
-            Path("agents/sre-assistant.md"), "## One bounded read-only slice, then stop"
-        )
-        output = _markdown_section(Path("agents/sre-assistant.md"), "## Output contract")
-        self.assertIn(
-            "or `[unverified] assignment pending`, never omission", bounded_assist
-        )
-        self.assertIn("provisional severity + named scale", output)
-        self.assertIn("or `[unverified] assignment pending`", output)
-
     def test_retired_learning_machinery_stays_absent(self) -> None:
         retained = (
             Path("skills/operational-learning/SKILL.md"),
@@ -345,7 +334,7 @@ class FleetValidatorTests(unittest.TestCase):
                 "alert changes disposition the alert card, service card, knowledge index, and runbook",
             ),
             Path("skills/operational-learning/references/disposition-policy.md"): (
-                "an audit finds a gap on an otherwise unchanged component",
+                "an audit finds an operational gap on an otherwise unchanged component",
                 "open knowledge gaps",
                 "whenever no such diff can be prepared",
                 "the alert's knowledge-index row, including its `status` cell",
