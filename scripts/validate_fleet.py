@@ -140,13 +140,8 @@ def _tool_bases(raw: object) -> set[str]:
     return {spec.split("(", 1)[0] for spec in _tool_specs(raw)}
 
 
-def _delegates(raw: object) -> set[str]:
-    result: set[str] = set()
-    for spec in _tool_specs(raw):
-        match = TOOL_RE.fullmatch(spec)
-        if match and match.group(1) == "Agent" and match.group(2):
-            result.update(item.strip() for item in match.group(2).split(",") if item.strip())
-    return result
+def _delegates(raw: object, source: Path) -> set[str]:
+    return set(adapters._delegation_targets(_tool_specs(raw), source) or ())
 
 
 def _resolve_handoff_contract(root: Path, name: str, body: str) -> str | None:
@@ -268,7 +263,11 @@ def validate_agents(root: Path) -> tuple[list[str], list[str]]:
             failures.append(f"{path}: missing required tool(s): {', '.join(missing)}")
         if forbidden:
             failures.append(f"{path}: forbidden tool(s): {', '.join(forbidden)}")
-        delegates = _delegates(fields["tools"])
+        try:
+            delegates = _delegates(fields["tools"], path)
+        except ValueError as exc:
+            failures.append(str(exc))
+            delegates = set()
         expected_delegates = EXPECTED_DELEGATION[name]
         if delegates != expected_delegates:
             failures.append(

@@ -63,6 +63,38 @@ entry does not imply that a GitHub Release or immutable consumer selector exists
 
 ### Changed
 
+- Restored explicit helper return fields across all eight agents and caller continuation checks;
+  separated SRE observation timestamps from untimed aggregates and corrected scribe's fixed return
+  recipient. See the [handoff repair evidence](docs/reviews/2026-09-05-handoff-contract-repair.md).
+
+- Restored five selected guidance areas: task-fit backend contracts, a conditional human-facing
+  systemic-investigation method, a compact `operator-cli` skill, dependency-based coordination
+  choices, and assignment-scoped SRE-helper completion. Existing contracts and human production
+  ownership are preserved; no machinery or tool grants were added. Source checks and bounded
+  planning results, including failed behaviors and final corrections not behaviorally retested,
+  are recorded in [the restoration evidence](docs/reviews/2026-09-05-selected-guidance-restorations.md).
+- Drafted a human-first `incident-investigation` response loop: calibrated explanations,
+  feasible checks with inconclusive outcomes, contextual checkpoints, and explicit action states
+  in handover and closeout. Initial candidates remained inconsistent despite automated passes.
+  The approved follow-up reorganizes the skill into Explain / Investigate / Recap, aligns its
+  description with human support, and consolidates evidence reasoning and unchanged operational
+  authority. Actual three-turn conversations show clearer responses and better rollback-history
+  handling, with remaining scope/fallback caveats. Five routing cases pass and one times out;
+  all structural checks pass within the original size cap. Graders are unchanged. Exact revisions,
+  limitations, and prior failures remain in [the companion evaluation](docs/reviews/2026-09-05-incident-human-companion.md);
+  evaluation does not accept or publish the candidate.
+- Corrected incident artifact classification, approval-free draft planning, the unavailable-diagnostics
+  exception, researcher example provenance, and builder-to-reviewer preparation. Production authority
+  and reviewer tool absence remain unchanged. See the
+  [follow-up evidence](docs/reviews/2026-09-04-operational-contract-fixes.md).
+- Clarified delegated work as a return-and-resume loop: helpers report assignment status, results,
+  evidence, and gaps to their caller; callers assess and combine returns, retain the original
+  objective, and continue authorized work. The incident advisor resumes after a bounded evidence
+  slice; the human retains operational decisions. Partial returns leave dependent work incomplete
+  without stopping independent work. Qualified the existing Claude delegation targets with the
+  plugin namespace after a live probe found bare grants admitted no child on CLI 2.1.261; the
+  allowed graph and human-selected host handoffs are unchanged. Verification is recorded in
+  [the return-loop evidence](docs/reviews/2026-09-04-delegation-return-loop.md).
 - Twenty-four P2 rows of the 2026-09-04 fleet rescan, in six commits. Agent bodies: the fenced
   handoff-packet template and six-bullet Rules list in four bodies become the paragraph form
   `sre-assistant` already used (the two delegating lanes keep a byte-identical `## Rules`

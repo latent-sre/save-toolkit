@@ -1,0 +1,59 @@
+---
+name: operator-cli
+description: >-
+  Build or repair an operator-facing CLI that works interactively and in automation, including
+  partial failures, machine output, dry runs, and interruption. Triggers: 'build an operator CLI',
+  'make this command safe for automation', 'fix this CLI contract'. Not for running an existing
+  operational command, a web UI (frontend-craft), or the service behind a CLI (backend-craft).
+argument-hint: "[command or operator workflow]"
+---
+
+# Operator CLI craft
+
+Match existing language, framework, flags, exit codes, and consumers. Load `stack-profile` before
+new tooling choices; the caller retains authority.
+
+## Make the command composable
+
+- Results go to stdout; diagnostics/progress to stderr. Machine output (`--json` or the existing
+  format) parses even on partial failure. Human and machine views share result data. Preserve the
+  published schema or provide a versioned migration.
+- Report every item's outcome. Exit zero for complete success; nonzero if any item failed or
+  remains UNKNOWN. Document distinct usage and operational failure codes.
+- Expected errors name the failure and next step; tracebacks need debug mode. Check subprocess
+  and pipeline outcomes explicitly: strict mode/linting does not prove failure propagation.
+- Keep `--help` useful: one worked example, exit codes, configuration precedence, and side effects.
+  Match existing precedence; for a new contract use flags > environment > config file > defaults.
+  Debug output shows effective non-secret settings and where secrets came from, never their values.
+- Honor `NO_COLOR` and non-TTY output. Bound external calls, retries, pagination, and total work;
+  progress does not substitute for a timeout.
+
+## Make effects explicit
+
+- A state-changing command offers a real dry run: the same decision logic computes the plan,
+  while the effect boundary performs no writes. Show exact targets and blast radius before apply.
+- Destructive actions require explicit confirmation. Without a terminal, fail with a usage error
+  unless the established explicit confirmation flag was supplied; do not wait on an invisible
+  prompt. A confirmation flag is not production approval and cannot bypass an owner gate.
+- Re-running after partial failure must converge safely or refuse with a useful recovery step.
+  A disconnected or interrupted effect may have happened: retain UNKNOWN and reconcile target
+  state before retrying, rather than treating a missing response as proof of failure.
+  An error status alone does not prove no effect. Establish the API's effect and idempotency
+  contract or read back state before classifying the outcome or retrying.
+- On interruption, stop scheduling work, release owned locks/temp resources, and report completed,
+  failed, and unknown work with nonzero status. Cleanup does not undo completed external effects
+  or delete another process's resources.
+- Obtain secrets through the established environment, binding, or store—not command-line flags,
+  logs, tracebacks, or configuration dumps. Live production changes remain prepared for the human
+  release owner under `production-change-gate`; implementing the CLI grants no execution authority.
+
+## Verify the operator contract
+
+Use the repo's test runner at the command boundary, against disposable targets or controlled effects:
+
+| Case | Evidence needed |
+|---|---|
+| Help and success | Useful usage; documented precedence; machine output parses without diagnostic chatter |
+| Partial failure | Item outcomes preserved; nonzero exit; no blind replay of successful or UNKNOWN effects |
+| Dry run and non-TTY destructive request | Effect calls stay zero; missing explicit confirmation fails promptly |
+| Interrupt during work | Bounded termination; owned resources released; unresolved effects remain UNKNOWN |

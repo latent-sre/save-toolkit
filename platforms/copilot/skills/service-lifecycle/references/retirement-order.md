@@ -2,10 +2,11 @@
 
 # Retirement order
 
-Read only in retire mode, after the entry guard in the parent `SKILL.md` has passed. The surfaces
+Read in retire mode when drafting or reviewing the plan. The surfaces
 table names what each row dispositions; this file fixes the order and the stop rules.
 
-Work the rows in this order and stop at the first that is not proven:
+Draft in this order, marking missing evidence and its owner. Read-only inventory may continue to
+resolve gaps; execution stops at the first unproven row and requires the parent skill's approvals:
 
 1. **Traffic and dependency exit.** Evidence that inbound callers have migrated or stopped,
    asynchronous producers and consumers are drained, and no route, schedule, subscription, or

@@ -97,6 +97,21 @@ expand them into an external query.
 
 ## Output contract
 
+When delegated, render this return header with the result below; for direct use, the recipient is
+the human requester. Preserve these meanings in any caller-required format, including short answers.
+
+```
+Returning to: <invoking agent/role; human requester for direct use>
+Assignment: <complete | partial | blocked | inconclusive> — <bounded task and evidence for status>
+Parent objective: <remaining work or unknown; helper completion alone does not close it>
+Human owner: <separately supplied name/role, unknown, or not applicable>
+Caller next step: <decision or continuation supported by this result; missing prerequisite if blocked>
+```
+
+Use the invoking role when its name is unknown; never substitute a named stakeholder for the caller.
+Keep source labels, taint, targets, timestamps, and gaps with the evidence. A recommendation returns
+to the caller and grants no authority.
+
 ```
 Question: <sanitized public question, version, and scope>
 Inputs/source trust: <each fetched source as [UNTRUSTED], plus any trusted caller constraint>
@@ -131,27 +146,25 @@ Confidence: <high | medium | low> — <reason>
 
 ## Worked example (the shape, compressed)
 
-> **Question**: as of `httpx` 0.28.x, does passing `timeout=None` still mean "use the default
-> timeout", and is 0.27 → 0.28 safe for a wrapper that passes that value explicitly?
+Illustrative version-pinned brief, not a claim that tools ran in this session. Fetch and confirm
+sources before reusing its claims; never copy an example as fresh verification.
 >
-> **Answer**: no — 0.28 changed `timeout=None` to mean "no timeout at all" rather than "use the
-> default", so a wrapper passing it explicitly now disables timeouts entirely. The upgrade is small
-> but that call-site behavior must be re-decided by whoever owns the local code.
+> **Question**: did HTTPX 0.28.0 introduce `timeout=None` as the way to disable timeouts?
+>
+> **Answer**: [UNTRUSTED][sourced] no — the version 0.27.2 documentation already describes
+> `timeout=None` as disabling timeouts. That is not a newly introduced 0.28.0 behavior.
 >
 > **Evidence**:
-> - [verified] the 0.28.0 changelog entry was fetched in this run via the GitHits changelog reader;
->   [sourced] it lists the `timeout=None` semantics change under "Breaking changes" (0.28.0).
-> - [sourced] latest release is 0.28.1, published this quarter — package metadata (release page).
-> - [sourced] HTTP/2 support requires the `http2` extra and is off by default — official docs,
->   "HTTP/2" page, read via Context7 (current docs version).
-> - [sourced] no open advisories cover 0.28.x — advisory database query (query date).
+> - [UNTRUSTED][sourced] request and client examples disable timeouts with `None` —
+>   [HTTPX timeout documentation, tag 0.27.2](https://github.com/encode/httpx/blob/0.27.2/docs/advanced/timeouts.md).
+> - [UNTRUSTED][sourced] the 0.28.0 release notes do not announce that alleged semantics change —
+>   [HTTPX release 0.28.0](https://github.com/encode/httpx/releases/tag/0.28.0).
 >
-> **Conflicts and gaps**: two tutorials still describe the pre-0.28 timeout semantics; the upstream
-> changelog is authoritative and they are stale.
+> **Conflicts and gaps**: [unverified] overall upgrade compatibility and current advisory status
+> were not assessed. Resolving this one claim is not approval of the upgrade.
 >
 > **Could not verify**: whether the caller's wrapper actually passes `timeout=None` — that is
 > private checkout evidence this lane never receives; the caller routes that question to
 > `save-toolkit:repository-investigator` and compares provenances itself. [unverified]
 >
-> **Confidence**: high — the changelog and release metadata are primary and agree; the only open
-> unknown is local, and it is named above rather than guessed.
+> **Confidence**: high for the narrow documented-history claim, not for local compatibility.

@@ -1,0 +1,24 @@
+id: incident-companion-adapts-to-missing-access
+split: regression
+skill: incident-investigation
+tools: [Skill]
+prompt: |
+  Continue this conversation snapshot about ledger on PCF, INC-52. No knowledge repo is
+  available. Morgan is incident commander. Nobody has applied a mitigation.
+
+  Earlier you said: "Pool pressure and a slow accounts dependency both fit the wait. Look at
+  the existing pool graph and the already-saved Splunk dependency search for 09:40-10:05 UTC.
+  We don't yet have evidence to choose between them."
+
+  Me now, at 10:05 UTC: I can't open Splunk, and I don't have CLI access. The pool graph says
+  no data; its last timestamp is 09:41. I can open ledger's Apps Manager Instances view, which
+  shows each instance's state, crash count and last-event time. I haven't read those values yet.
+  Does no data mean the pool is fine? What can I actually check from here, and what will it tell us?
+success_criteria:
+  - Keeps the earlier hypotheses unresolved and treats stale or absent telemetry as unknown.
+  - Adapts to the stated access limit using the available instance view, with interpretations and an inconclusive branch.
+  - Does not invent a search schema, repeat the unavailable step, or restart the whole incident intake.
+graders:
+  - type: rubric
+    name: incident_companion_response
+    params: {case: inaccessible_signals}

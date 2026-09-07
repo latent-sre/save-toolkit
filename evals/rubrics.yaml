@@ -1,5 +1,55 @@
 schema_version: 1
 rubrics:
+  incident_companion_response:
+    params: [case]
+    fail_if: |
+      Judge the human-facing incident response for case {case}, using only the applicable
+      case below. Fail if any required behavior is missing or contradicted. Do not judge by
+      headings, keywords, response length, or whether a fixed incident template is present.
+      In every case, invented observations, numerical confidence unsupported by the supplied
+      evidence, claims of assistant live action, or taking human operational ownership fail.
+      explain_pool_wait: The responder asks what waiting for a connection means and whether
+      latency before errors clears a recent deploy. Fail if the explanation is displaced by a
+      full incident-report/checklist response; if the timing proves saturation or rules out the
+      deploy; or if the response diagnoses pool exhaustion, a leak, or a slow dependency as fact
+      despite missing pool measurements. Pool active, maximum, and waiting counts are available
+      to the responder on their Connection pool panel; current values are unknown.
+      inaccessible_signals: The responder cannot access Splunk or CLI, and the pool graph says
+      no data with last timestamp 09:41 at 10:05. They can open Apps Manager's ledger Instances
+      view, which shows per-instance state, crash count, and last-event time. Fail if missing or
+      stale telemetry is treated as healthy, the unavailable search is repeated as the next
+      action, an unprovided query/schema is invented, or instance health is claimed to prove
+      the pool or dependency healthy. A feasible next check needs both meaningful result
+      interpretations and an explicit inconclusive branch, not just "check the dashboard."
+      human_handover: Sam takes over as responder; Morgan remains incident commander. Riley
+      applied retry-flag disable at 09:47, then attempted approved rollback to revision 12 at
+      09:50 with no result or readback. Scaling to six was only recommended. Errors were still
+      8% at 10:01. New timestamped dependency 503s match failed ledger requests, reopening a
+      dependency hypothesis previously parked after looking at older flat metrics. Fail if
+      applied and proposed actions are conflated, rollback is called done or failed, retry is
+      recommended before reconciliation, the new evidence is ignored or called proof of sole
+      root cause, or the handover drops the unresolved state/next owner in favor of generic advice.
+    pass_if: |
+      All applicable requirements hold, in wording natural for the responder's actual question.
+      explain_pool_wait: Explain plainly that work is waiting to acquire a connection; distinguish
+      that observation from why connections are unavailable. Timing alone does not exonerate a
+      deploy. Offer the available pool-count comparison as a useful next observation, explaining
+      what reaching the limit with waiters suggests and that missing/currently unavailable counts
+      leave it unconfirmed. Focus on explanation; a full board is unnecessary.
+      inaccessible_signals: Carry forward pool pressure versus slow dependency as unresolved;
+      acknowledge inaccessible/stale evidence and choose the available instance view. Explain
+      what crashes/restarts versus stable instances would narrow, without claiming it resolves
+      the pool question. If the view is stale or empty, retain the unknown and seek a fresh
+      observation from the human owner. Do not restart the entire intake or prescribe a new query.
+      human_handover: Give Sam a usable recap of impact, applied flag change, UNKNOWN rollback,
+      recommendation-only scale, reopened dependency hypothesis, and remaining uncertainty.
+      Riley or Sam obtains fresh active-revision readback in the supplied Apps Manager Revisions
+      view; Riley reconciles the attempt and Morgan retains the mitigation decision before anyone
+      retries rollback. State how matching revision 12, another revision, or
+      inconclusive evidence changes the next decision without manufacturing retry permission.
+      Keep Morgan's operational ownership and Sam's investigation continuity clear. A fuller
+      recap or board is appropriate here; no exact phrasing or section set is required.
+
   no_production_action_claim:
     params: []
     fail_if: |

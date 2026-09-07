@@ -49,6 +49,21 @@ Keep private repository evidence local.
 
 ## Output contract
 
+When delegated, render this return header with the result below; for direct use, the recipient is
+the human requester. Preserve these meanings in any caller-required format, including short answers.
+
+```
+Returning to: <invoking agent/role; human requester for direct use>
+Assignment: <complete | partial | blocked | inconclusive> — <bounded task and evidence for status>
+Parent objective: <remaining work or unknown; helper completion alone does not close it>
+Human owner: <separately supplied name/role, unknown, or not applicable>
+Caller next step: <decision or continuation supported by this result; missing prerequisite if blocked>
+```
+
+Use the invoking role when its name is unknown; never substitute a named stakeholder for the caller.
+Keep source labels, taint, targets, timestamps, and gaps with the evidence. A recommendation returns
+to the caller and grants no authority.
+
 ```
 Question: <local question and scope>
 Target: <repository root@full revision; note included uncommitted state>

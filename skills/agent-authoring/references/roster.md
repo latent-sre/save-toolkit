@@ -9,6 +9,7 @@ context payload on a graph edge; durable learning is accepted loop output, not a
 
 - Four-theme decision rule
 - Agent vs. skill
+- Choose coordination from dependencies
 - The loop inside each lane
 - Handoffs between contexts
 - Design principles this fleet enforces
@@ -51,6 +52,23 @@ Fleet example: `repository-investigator` (local `Read`/`Grep`/`Glob` only) and `
 untrusted content, and egress; the caller orchestrates a mixed question with a sanitized public
 handoff.
 
+## Choose coordination from dependencies
+
+These choices organize work within existing agent grants and change authority. The caller keeps
+the original objective and owns synthesis.
+
+| Work shape | Coordination | What makes it useful |
+|---|---|---|
+| A stage consumes another stage's output | Pipeline | Pass the scoped result forward when its prerequisites are met |
+| Independent evidence slices or separately owned changes | Fan-out, then parent synthesis | Reconcile evidence and conflicts into one answer; do not concatenate reports |
+| A shared contract or decision needs all prerequisite results | Barrier at that decision | Wait for those inputs before dependent work; continue independent work |
+| A consequential conclusion needs independent challenge | Adversarial review | Reviewers reopen sources and test counter-evidence; judge the finding by evidence, not vote count |
+| Discovery has an unknown amount of work | Bounded discovery loop | Set time/cost and maximum-round limits first; stop at the coverage goal, no useful new evidence, or an exhausted limit, naming remaining gaps |
+
+Give parallel workers separate context slices and explicit write ownership. Serialize coupled
+changes to a shared contract and work that depends on an unfinished result; a barrier is justified
+only where the next decision requires the combined inputs.
+
 ## The loop inside each lane
 
 Every lane runs **gather context → act → verify → repeat**; its quality is set by the verify step.
@@ -60,8 +78,12 @@ The contract fields are `../SKILL.md` rule 5. Name the verifier before the work:
 |---|---|
 | `software-engineer` | A failing test or fixture |
 | `reviewer` | The two-lens packet |
-| `sre-assistant`, `observability-engineer` | Golden-signal recovery evidence |
+| `sre-assistant` | Requested target/window evidence returned to its caller; complete when the slice is fulfilled, partial for missing requested work, independent of incident status |
+| `observability-engineer` | Golden-signal recovery evidence |
 | A changed fleet contract | One focused red-first test, plus Gate A once before push |
+
+The human responder owns recovery, advised by `incident-investigation`; completing a helper's
+observation does not resolve the incident.
 
 An agent whose loop has no verifier can only emit [unverified] claims. Gather the slice (grep, tail,
 a pinned file:line), not the corpus. The verifier defines success: a model upgrade improves an
@@ -69,16 +91,33 @@ attempt; it does not replace outcome evidence. This fleet carries no `model:` pi
 
 ## Handoffs between contexts
 
-The explicit packet is the only portable handoff contract; runtimes differ on whether a worker
-thread is retained. Build each worker's slice with [context guidance](./context.md).
+Dispatch: invoking caller, separate human owner, outcome, context/trust, scope, completion evidence,
+return fields. Retain pending work; use [context guidance](./context.md).
 
-| Packet rule | Failure it prevents |
-|---|---|
-| Fixed field set — owner, change, findings with evidence, current state, what was NOT done, success criteria | Free-form prose drops the field the sender did not think mattered |
-| Labels copied exactly, never upgraded | A relabeling receiver manufactures evidence |
-| `Change:` names the PR, branch, diff, or working tree; the receiver re-derives the current diff | A prior review silently covering later changes |
-| State what you did not do | The receiver fills the gap with an assumption |
-| An empty, malformed, partial, timed-out, or killed return is a failed attempt rather than success: record it, dispatch no dependent work, and return control to the caller as `BLOCKED` or `INCONCLUSIVE`; a human may choose a replacement or a retry inside the declared budget | Success by silence. No background scheduler, lease, stale-worker detector, or heartbeat is implied |
+Keep these fields in the requested format, including short returns:
+
+```text
+Returning to: <invoking agent/role; human requester for direct use>
+Assignment: <complete | partial | blocked | inconclusive> — <bounded task and status evidence>
+Result/evidence: <answer or artifact paths; labels, taint, target, window and observed values>
+Gaps/non-actions: <missing requested evidence, conflicts, actions not performed>
+Parent objective: <remaining work or unknown; helper completion alone does not close it>
+Human owner: <separately supplied name/role, unknown, or not applicable>
+Caller next step: <supported continuation or decision; prerequisite gap if blocked>
+```
+
+An unnamed caller retains its invoking role; do not substitute a stakeholder.
+Complete concerns the assigned slice. A recommendation returns to the caller without transferring
+ownership or approval. Preserve labels and taint; absent timestamps, current state and causality
+remain unknown. `Change:` names the PR, branch, diff or working tree; the receiver re-derives it.
+
+On receipt, the caller checks the assignment and current state, reconciles conflicts against cited
+observations, then states what the result establishes, what remains, and its next authorized step.
+Take that step within lane and budget. Empty, malformed, partial, timed-out or killed returns leave
+dependent work incomplete; seek missing evidence and continue independent work. Escalate a material
+decision, unavailable capability or exhausted budget with the precise gap. UNKNOWN effects require
+reconciliation before retry. Finish with one synthesized answer against the original objective.
+Human-selected host handoffs are separate ownership transitions; humans need not relay reports.
 
 ## Design principles this fleet enforces
 
