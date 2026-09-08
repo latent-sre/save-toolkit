@@ -260,7 +260,7 @@ def exact_json(response: str, fields: dict) -> tuple[bool, str]:
     )
 
 
-def rubric(response: str, name: str, params: dict | None = None) -> tuple[bool, str]:
+def rubric(response: str, name: str, params: dict | None = None, *, judge_binding=None) -> tuple[bool, str]:
     """Delegate a natural-language policy judgment to the calibrated LLM judge (evals/judge.py).
 
     The nine graders this replaces tried to decide voice, authority, and ordering questions with
@@ -278,7 +278,8 @@ def rubric(response: str, name: str, params: dict | None = None) -> tuple[bool, 
     _judge.validate_params(name, rubrics, params)
     if not response:
         return False, "empty response"
-    return _judge.judge(response, name, params)
+    _judge.validate_binding(judge_binding, {name})
+    return _judge.judge(response, name, params, binding=judge_binding)
 
 
 REGISTRY: dict[str, Callable[..., tuple[bool, str]]] = {
@@ -293,11 +294,15 @@ REGISTRY: dict[str, Callable[..., tuple[bool, str]]] = {
 }
 
 
-def run_grader(spec: dict, response: str) -> tuple[bool, str]:
+def run_grader(spec: dict, response: str, *, judge_binding=None) -> tuple[bool, str]:
     """spec = {type: <name>, ...kwargs}. Dispatches to REGISTRY."""
     kind = spec.get("type")
     fn = REGISTRY.get(kind)
     if fn is None:
         raise ValueError(f"unknown grader type: {kind!r} (known: {', '.join(REGISTRY)})")
     kwargs = {k: v for k, v in spec.items() if k != "type"}
+    if "judge_binding" in kwargs:
+        raise ValueError("judge_binding is supplied by the runner, never by a scenario")
+    if kind == "rubric":
+        kwargs["judge_binding"] = judge_binding
     return fn(response, **kwargs)

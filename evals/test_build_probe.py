@@ -60,12 +60,18 @@ def _ctx(spec: dict, ws: build_probe.Workspace, *, text: str = "", skills=(), sk
     return build_probe.Context(spec, ws, trace, build_probe.collect_git_facts(ws))
 
 
-def _saved_grade(spec: dict, expectations: list[dict]) -> dict:
+def _saved_grade(spec: dict, expectations: list[dict], *, binding: dict | None = None, response: str = "") -> dict:
     """Build identified saved records for synthetic traces; each label here is unique."""
-    identity = build_probe.scenario_digest(spec)
+    identity = build_probe.scenario_digest(spec, binding)
     labels = build_probe.scenario_assertions(spec)
-    return {"scenario_sha256": identity, "expectations": [
+    return {"scenario_sha256": identity, "judge_binding": binding, "response_sha256": build_probe.rubric_judge._digest(response), "expectations": [
         {**e, "id": f"{identity}:{labels.index(e['text'])}"} for e in expectations], "summary": {}}
+
+
+def _test_judge_binding() -> dict:
+    from test_judge import calibration_receipt
+    with tempfile.TemporaryDirectory() as tmp:
+        return build_probe.rubric_judge.load_binding(calibration_receipt(Path(tmp)), {"no_production_action_claim"}).metadata
 
 
 class ScenarioSpecTests(unittest.TestCase):
@@ -306,7 +312,7 @@ class RegradeTests(unittest.TestCase):
             }), encoding="utf-8")
             (run / "grading.json").write_text(json.dumps(_saved_grade(spec, [
                 {"text": "claims no production action", "passed": True, "evidence": "judged PASS when live"},
-            ])), encoding="utf-8")
+            ], binding=_test_judge_binding(), response="I decline; I refuse to run it.\n")), encoding="utf-8")
             import graders as fleet_graders  # noqa: PLC0415
 
             with mock.patch.object(fleet_graders, "rubric", side_effect=AssertionError("must not judge")):
@@ -1083,6 +1089,27 @@ class EndToEndStubTests(unittest.TestCase):
         self.assertEqual(list(build_probe.BUILD_TOOLS), trace["advertised_tools"])
         self.assertEqual(prov["plugin_source_sha256"], summary["plugin_source_sha256"])
         self.assertEqual("host", summary["isolation"])
+
+    def test_bound_rubric_trial_retains_provenance_and_complete_call_records(self) -> None:
+        from test_judge import calibration_receipt, _envelope, _proc, _verdict
+        judge = build_probe.rubric_judge
+        binding = judge.load_binding(calibration_receipt(self.root), {"no_production_action_claim"})
+        spec = self._spec()
+        spec["checks"] = [{"check": "fleet_grader", "name": "rubric", "rubric_name": "no_production_action_claim"}]
+        judge.drain_spend()
+        with mock.patch.object(judge, "_run_judge_process", return_value=_proc(stdout=_envelope(_verdict("PASS")))):
+            summary = build_probe.run_trial(spec, plugin_root=ROOT, label="bound", model=None, run_number=1,
+                out_dir=self.root / "iteration", timeout=60, executable=self._stub(result="some response"),
+                keep_workspace=False, env_factory=self._env_factory(), judge_binding=binding)
+        self.assertEqual("PASS", summary["status"])
+        run = self.root / "iteration/eval-tiny/bound/run-1"
+        provenance = json.loads((run / "provenance.json").read_text(encoding="utf-8"))
+        grading = json.loads((run / "grading.json").read_text(encoding="utf-8"))
+        timing = json.loads((run / "timing.json").read_text(encoding="utf-8"))
+        self.assertEqual(binding.metadata, provenance["judge_binding"])
+        self.assertEqual(binding.metadata, grading["judge_binding"])
+        self.assertEqual(binding.metadata, timing["judge"]["records"][0]["judge_binding"])
+        self.assertEqual(summary["scenario_sha256"], build_probe.scenario_digest(spec, binding.metadata))
 
     def test_plugin_change_during_trial_invalidates_its_verdict(self) -> None:
         with mock.patch.object(build_probe, "plugin_digest", side_effect=["a" * 64, "b" * 64, "b" * 64]):
@@ -2330,7 +2357,7 @@ class UnifiedRegradeTests(unittest.TestCase):
             run = self._saved(Path(tmp), spec, label="cand", text="I recommended; I did not act.\n")
             (run / "grading.json").write_text(json.dumps(_saved_grade(spec, [
                 {"text": "grader rubric", "passed": True, "evidence": "judged PASS when live"},
-            ])), encoding="utf-8")
+            ], binding=_test_judge_binding(), response="I recommended; I did not act.\n")), encoding="utf-8")
             import graders as fleet_graders  # noqa: PLC0415
 
             with mock.patch.object(fleet_graders, "rubric", side_effect=AssertionError("must not judge")):
@@ -2398,11 +2425,13 @@ class RegradeIdentityTests(unittest.TestCase):
             "graders": [{"type": "rubric", "name": "no_production_action_claim"},
                         {"type": "rubric", "name": "recommend_only_stays_in_bounds"}]}
 
-    def _saved(self, run: Path, *, legacy: bool = False) -> dict:
-        ctx = build_probe.Context(self.SPEC, None, build_probe.TraceSummary(result_text="response"), None)
-        with mock.patch.object(build_probe.fleet_graders, "run_grader", side_effect=[
-                (False, "first policy failed"), (True, "second policy passed")]):
-            original = build_probe.grade(ctx)
+    def _saved(self, run: Path, *, legacy: bool = False, binding: dict | None = None) -> dict:
+        binding = binding or _test_judge_binding()
+        expectations = [{"text": "grader rubric", "passed": False, "evidence": "first policy failed"},
+                        {"text": "grader rubric", "passed": True, "evidence": "second policy passed"}]
+        original = {"judge_binding": binding, "response_sha256": build_probe.rubric_judge._digest("response"),
+                    "scenario_sha256": build_probe.stamp_assertions(build_probe.scenario_digest(self.SPEC, binding), expectations),
+                    "expectations": expectations, "summary": {}}
         if legacy:
             original.pop("scenario_sha256", None)
             for expectation in original["expectations"]:
@@ -2452,6 +2481,7 @@ class RegradeIdentityTests(unittest.TestCase):
 
     def test_rubric_file_edits_take_effect_after_the_process_cache_is_cleared(self) -> None:
         import judge
+        binding = _test_judge_binding()
         with tempfile.TemporaryDirectory() as tmp:
             source = Path(tmp) / "rubrics.yaml"
             definitions = {"schema_version": 1, "rubrics": {
@@ -2464,7 +2494,7 @@ class RegradeIdentityTests(unittest.TestCase):
             try:
                 # Change only the real loader's default file. Its parser and cache remain real.
                 with mock.patch.object(judge.load_rubrics.__wrapped__, "__defaults__", (source,)):
-                    self._saved(run)
+                    self._saved(run, binding=binding)
                     before = build_probe.scenario_digest(self.SPEC)
                     definitions["rubrics"][self.SPEC["graders"][0]["name"]]["pass_if"] = "new policy"
                     source.write_text(json.dumps(definitions), encoding="utf-8")
@@ -2478,11 +2508,12 @@ class RegradeIdentityTests(unittest.TestCase):
 
     def test_external_rubric_change_during_grading_is_inconclusive(self) -> None:
         import judge
+        binding = judge.JudgeBinding(json.dumps(_test_judge_binding()))
         rubrics = json.loads(json.dumps(judge.load_rubrics()))
-        def changing_grader(*_args):
+        def changing_grader(*_args, **_kwargs):
             rubrics[self.SPEC["graders"][0]["name"]]["pass_if"] = "changed during grading"
             return True, "judged before the definition changed"
-        ctx = build_probe.Context(self.SPEC, None, build_probe.TraceSummary(result_text="response"), None)
+        ctx = build_probe.Context(self.SPEC, None, build_probe.TraceSummary(result_text="response"), None, judge_binding=binding)
         with mock.patch.object(judge, "load_rubrics", return_value=rubrics), \
                 mock.patch.object(build_probe.fleet_graders, "run_grader", side_effect=changing_grader):
             grading = build_probe.grade(ctx)
@@ -2536,6 +2567,98 @@ class JudgeSpendAccountingTests(unittest.TestCase):
         with mock.patch.dict(sys.modules, {}, clear=False):
             sys.modules.pop("judge", None)
             self.assertEqual({"calls": 0, "cost_usd": 0.0, "seconds": 0.0}, build_probe.judge_spend())
+
+
+class NormalJudgeBindingTests(unittest.TestCase):
+    def test_run_trial_preflights_both_rubric_forms_before_agent_spend(self):
+        for field, definition in (("graders", {"type": "rubric", "name": "no_production_action_claim"}),
+                                  ("checks", {"check": "fleet_grader", "name": "rubric", "rubric_name": "no_production_action_claim"})):
+            with self.subTest(form=field), tempfile.TemporaryDirectory() as tmp, \
+                    mock.patch.object(build_probe, "_run_trial", side_effect=AssertionError("must not start trial")):
+                with self.assertRaisesRegex(build_probe.rubric_judge.JudgeUnavailable, "calibration"):
+                    build_probe.run_trial({**TINY_SPEC, field: [definition]}, plugin_root=ROOT, label="bound", model=None,
+                        run_number=1, out_dir=Path(tmp), timeout=60, executable="must-not-run", keep_workspace=False)
+
+    def test_both_normal_forms_bind_calls_and_keep_complete_structured_evidence(self):
+        from test_judge import calibration_receipt, _envelope, _proc, _verdict
+        judge = build_probe.rubric_judge
+        with tempfile.TemporaryDirectory() as tmp:
+            binding = judge.load_binding(calibration_receipt(Path(tmp)), {"no_production_action_claim"})
+            for field, definition in (("graders", {"type": "rubric", "name": "no_production_action_claim"}),
+                                      ("checks", {"check": "fleet_grader", "name": "rubric", "rubric_name": "no_production_action_claim"})):
+                for model in ("claude-sonnet-5", "wrong-model"):
+                    with self.subTest(form=field, model=model):
+                        spec = {"id": "bound", "prompt": "p", field: [definition]}
+                        ctx = build_probe.Context(spec, None, build_probe.TraceSummary(result_text="some response"), None, judge_binding=binding)
+                        judge.drain_spend()
+                        with mock.patch.object(judge, "_run_judge_process", return_value=_proc(stdout=_envelope(_verdict("PASS", reason="r" * 900), model=model))) as spawn:
+                            grade = build_probe.grade(ctx)
+                        self.assertEqual("PASS" if model == "claude-sonnet-5" else "INCONCLUSIVE", grade["status"])
+                        self.assertEqual("claude-sonnet-5", spawn.call_args.args[1])
+                        record = build_probe.judge_spend()["records"][0]
+                        self.assertEqual(binding.metadata, grade["judge_binding"])
+                        self.assertEqual(binding.metadata, record["judge_binding"])
+                        self.assertEqual(grade["response_sha256"], record["response_sha256"])
+                        if model == "claude-sonnet-5":
+                            self.assertGreater(len(record["detail"]), 900)
+                            self.assertLessEqual(len(grade["expectations"][0]["evidence"]), 600)
+
+    def test_lost_or_malformed_corpus_after_spend_retains_inconclusive_call(self):
+        from test_judge import calibration_receipt, _envelope, _proc, _verdict
+        judge = build_probe.rubric_judge
+        for damage in ("missing", "malformed"):
+            with self.subTest(damage=damage), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                binding = judge.load_binding(calibration_receipt(root), {"no_production_action_claim"})
+                corpus = root / "corpus.yaml"
+                corpus.write_bytes(judge.DEFAULT_CALIBRATION_PATH.read_bytes())
+                def complete_call(*_args, **_kwargs):
+                    if damage == "missing":
+                        corpus.unlink()
+                    else:
+                        corpus.write_text("cases: [", encoding="utf-8")
+                    return _proc(stdout=_envelope(_verdict("PASS"), cost=0.031))
+                spec = {"id": "bound", "prompt": "p", "graders": [{"type": "rubric", "name": "no_production_action_claim"}]}
+                ctx = build_probe.Context(spec, None, build_probe.TraceSummary(result_text="some response"), None, judge_binding=binding)
+                judge.drain_spend()
+                with mock.patch.object(judge, "DEFAULT_CALIBRATION_PATH", corpus), \
+                        mock.patch.object(judge, "_run_judge_process", side_effect=complete_call):
+                    grade = build_probe.grade(ctx)
+                record = build_probe.judge_spend()["records"][0]
+                self.assertEqual("INCONCLUSIVE", grade["status"])
+                self.assertTrue(record["inconclusive"])
+                self.assertFalse(record["passed"])
+                self.assertTrue(judge.is_inconclusive(record["detail"]))
+                self.assertEqual(0.031, record["cost_usd"])
+                self.assertEqual(binding.metadata, record["judge_binding"])
+                self.assertEqual(grade["response_sha256"], record["response_sha256"])
+                self.assertEqual("no_production_action_claim", record["rubric"])
+
+    def test_regrade_uses_saved_binding_without_receipt_and_refuses_changed_judged_response(self):
+        from test_judge import calibration_receipt, _envelope, _proc, _verdict
+        judge = build_probe.rubric_judge
+        spec = {"id": "saved-bound", "prompt": "p", "graders": [{"type": "rubric", "name": "no_production_action_claim"}]}
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            receipt = calibration_receipt(root)
+            binding = judge.load_binding(receipt, {"no_production_action_claim"})
+            ctx = build_probe.Context(spec, None, build_probe.TraceSummary(result_text="some response"), None, judge_binding=binding)
+            with mock.patch.object(judge, "_run_judge_process", return_value=_proc(stdout=_envelope(_verdict("PASS")))):
+                live = build_probe.grade(ctx)
+            judge.drain_spend()
+            run = root / "run"
+            (run / "outputs").mkdir(parents=True)
+            (run / "grading.json").write_text(json.dumps(live), encoding="utf-8")
+            (run / "outputs/trace-summary.json").write_text("{}", encoding="utf-8")
+            (run / "outputs/response.md").write_text("some response", encoding="utf-8")
+            (run / "stdout.jsonl").write_text(json.dumps({"type": "result", "result": "some response"}), encoding="utf-8")
+            receipt.unlink()
+            receipt.with_name("results.json").unlink()
+            with mock.patch.object(judge, "load_binding", side_effect=AssertionError("no current receipt")), \
+                    mock.patch.object(judge, "_run_judge_process", side_effect=AssertionError("must not spend")):
+                self.assertEqual("PASS", build_probe.regrade_run(run, spec)["status"])
+                (run / "stdout.jsonl").write_text(json.dumps({"type": "result", "result": "changed response"}), encoding="utf-8")
+                self.assertEqual("INCONCLUSIVE", build_probe.regrade_run(run, spec)["status"])
 
 
 if __name__ == "__main__":

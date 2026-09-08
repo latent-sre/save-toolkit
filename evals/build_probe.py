@@ -191,7 +191,12 @@ def load_scenario(path: Path) -> dict:
     return spec
 
 
-def scenario_digest(spec: dict) -> str:
+def required_rubrics(spec: dict) -> set[str]:
+    return ({g["name"] for g in spec.get("graders", []) if g.get("type") == "rubric"}
+            | {g["rubric_name"] for g in spec.get("checks", []) if g.get("check") == "fleet_grader" and g.get("name") == "rubric"})
+
+
+def scenario_digest(spec: dict, judge_binding: dict | None = None) -> str:
     """Bind the scenario, the judge's cached rubric definitions, and current oracle file bytes.
 
     The judge loads rubrics once per process. A disk edit takes effect in a new process, so hash
@@ -216,6 +221,8 @@ def scenario_digest(spec: dict) -> str:
                                  if path.is_relative_to(ORACLE_DIR) and path.is_file() else None)
     payload = {"scenario": spec, "rubrics": rubrics, "oracles": oracles,
                "implementation": HARNESS_IDENTITY}
+    if required_rubrics(spec):
+        payload["judge_binding"] = judge_binding
     return hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=True).encode("utf-8")).hexdigest()
 
 
@@ -1655,6 +1662,7 @@ class Context:
     container: ContainerMode | None = None
     services: list = field(default_factory=list)
     plugin_root: Path = ROOT
+    judge_binding: rubric_judge.JudgeBinding | None = None
 
 
 # --------------------------------------------------------------------------- checks
@@ -2186,7 +2194,7 @@ def check_fleet_grader(ctx: Context, p: dict) -> tuple[bool, str]:
         # the registered grader TYPE ("rubric"). Spell the rubric identity `rubric_name` here and
         # translate it to the `name` kwarg `graders.rubric()` expects.
         kwargs["name"] = kwargs.pop("rubric_name")
-    passed, detail = fleet_graders.run_grader({"type": name, **kwargs}, ctx.trace.result_text)
+    passed, detail = fleet_graders.run_grader({"type": name, **kwargs}, ctx.trace.result_text, judge_binding=ctx.judge_binding)
     return bool(passed), str(detail)
 
 
@@ -2315,7 +2323,7 @@ def reference_read(trace: TraceSummary, reference: str, plugin_root: Path | None
 
 
 def scenario_expectations(spec: dict, trace: TraceSummary,
-                          plugin_root: Path) -> list[tuple[str, object]]:
+                          plugin_root: Path, judge_binding=None) -> list[tuple[str, object]]:
     """Every trace-graded expectation as (text, thunk), in the order grade() evaluates them.
 
     The `checks` are not here: they need a live workspace, which regrade does not have. One list
@@ -2337,7 +2345,7 @@ def scenario_expectations(spec: dict, trace: TraceSummary,
                        lambda r=reference: reference_read(reference_trace, r, plugin_root if spec.get("followups") else None)))
     for grader in spec.get("graders") or []:
         graded.append((f"grader {grader.get('type')}",
-                       lambda g=grader: fleet_graders.run_grader(dict(g), trace.result_text)))
+                       lambda g=grader: fleet_graders.run_grader(dict(g), trace.result_text, judge_binding=judge_binding)))
     if spec.get("followups"):
         helper = f"{runtime_namespace(trace, plugin_root)}:{spec['helper']}"
         returns = trace.agent_returns
@@ -2374,12 +2382,18 @@ def _expectation(text: str, live, inconclusive: str | None) -> dict:
 
 def grade(ctx: Context, *, inconclusive: str | None = None,
           expected_scenario_digest: str | None = None) -> dict:
-    identity = expected_scenario_digest or scenario_digest(ctx.spec)
-    if scenario_digest(ctx.spec) != identity:
+    binding = ctx.judge_binding.metadata if ctx.judge_binding and required_rubrics(ctx.spec) else None
+    identity = expected_scenario_digest or scenario_digest(ctx.spec, binding)
+    if scenario_digest(ctx.spec, binding) != identity:
         inconclusive = "scenario inputs changed before grading; re-run the trial"
+    if not inconclusive:
+        try:
+            rubric_judge.validate_binding(ctx.judge_binding, required_rubrics(ctx.spec))
+        except rubric_judge.JudgeUnavailable as exc:
+            inconclusive = str(exc)
     expectations = []
     instrument_failure: str | None = None
-    for text, live in scenario_expectations(ctx.spec, ctx.trace, ctx.plugin_root):
+    for text, live in scenario_expectations(ctx.spec, ctx.trace, ctx.plugin_root, ctx.judge_binding):
         expectations.append(_expectation(text, live, inconclusive))
     for check in ctx.spec.get("checks") or []:
         if inconclusive:
@@ -2393,13 +2407,16 @@ def grade(ctx: Context, *, inconclusive: str | None = None,
             except Exception as exc:  # a grader crash is a red with its reason, never a silent pass
                 passed, evidence = False, f"grader error: {exc!r}"
         expectations.append({"text": describe(check), "passed": bool(passed), "evidence": str(evidence)[:600]})
-    if scenario_digest(ctx.spec) != identity:
+    if scenario_digest(ctx.spec, binding) != identity:
         inconclusive = "scenario inputs changed during grading; re-run the trial"
         for expectation in expectations:
             expectation.update(passed=False, evidence=f"INCONCLUSIVE: {inconclusive}")
     n_pass = sum(e["passed"] for e in expectations)
+    instrument_failure = instrument_failure or next((e["evidence"] for e in expectations if rubric_judge.is_inconclusive(e["evidence"])), None)
     return {
         "expectations": expectations,
+        "judge_binding": binding,
+        "response_sha256": rubric_judge._digest(ctx.trace.result_text),
         **native_assessment(ctx.spec),
         "scenario_sha256": stamp_assertions(identity, expectations),
         "inconclusive": inconclusive or instrument_failure,
@@ -2421,6 +2438,7 @@ def judge_spend() -> dict:
     calls = list(drain()) if callable(drain) else []
     return {
         "calls": len(calls),
+        **({"records": calls} if calls else {}),
         "cost_usd": round(sum(float(c.get("cost_usd") or 0.0) for c in calls), 6),
         "seconds": round(sum(float(c.get("seconds") or 0.0) for c in calls), 3),
     }
@@ -2509,12 +2527,14 @@ def invocation_problem(trace: TraceSummary, returncode: int | None, spec: dict,
 def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, run_number: int,
               out_dir: Path, timeout: int, executable: str, keep_workspace: bool,
               overwrite: bool = False, env_factory=None, container_image: str | None = None,
-              docker: str = "docker", expected_plugin_digest: str | None = None) -> dict:
+              docker: str = "docker", expected_plugin_digest: str | None = None,
+              judge_binding: rubric_judge.JudgeBinding | None = None) -> dict:
     """Publish a complete attempt; a failed overwrite leaves the previous run intact."""
     if "followups" in spec:
         problems = validate_scenario(spec)
         if problems or container_image:
             raise ValueError("; ".join(problems) if problems else "native conversations do not run in shell containers")
+    rubric_judge.validate_binding(judge_binding, required_rubrics(spec))
     target = out_dir / f"eval-{spec['id']}" / label / f"run-{run_number}"
     if target.exists() and not overwrite:
         raise RuntimeError(f"{target} already exists; pass --overwrite or a --run-offset")
@@ -2526,7 +2546,7 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
                              run_number=run_number, run_out=attempt, timeout=timeout,
                              executable=executable, keep_workspace=keep_workspace, env_factory=env_factory,
                              container_image=container_image, docker=docker,
-                             expected_plugin_digest=expected_plugin_digest)
+                             expected_plugin_digest=expected_plugin_digest, judge_binding=judge_binding)
         if target.exists():
             backup = target.with_name(f".{target.name}-previous-{secrets.token_hex(8)}")
             target.rename(backup)
@@ -2551,7 +2571,7 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
 def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, run_number: int,
                run_out: Path, timeout: int, executable: str, keep_workspace: bool,
                env_factory=None, container_image: str | None = None, docker: str = "docker",
-               expected_plugin_digest: str | None = None) -> dict:
+               expected_plugin_digest: str | None = None, judge_binding: rubric_judge.JudgeBinding | None = None) -> dict:
     if container_image and spec.get("fixture", {}).get("services"):
         raise ValueError(
             "service-backed build scenarios cannot run with --container: its shell uses "
@@ -2580,10 +2600,11 @@ def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, 
         if root.resolve().is_relative_to(ROOT.resolve()):
             raise RuntimeError(f"temp workspace {root} is inside the repository")
         provenance = plugin_provenance(plugin_root)
-        scenario_identity = scenario_digest(spec)
+        binding = judge_binding.metadata if judge_binding and required_rubrics(spec) else None
+        scenario_identity = scenario_digest(spec, binding)
         if expected_plugin_digest and provenance["plugin_source_sha256"] != expected_plugin_digest:
             inconclusive = "plugin inputs changed before the trial; re-run with one candidate"
-        (run_out / "provenance.json").write_text(json.dumps(provenance, indent=2), encoding="utf-8")
+        (run_out / "provenance.json").write_text(json.dumps({**provenance, **({"judge_binding": binding} if binding else {})}, indent=2), encoding="utf-8")
         # A routing or contract scenario has no fixture: it runs in an empty git root outside the
         # checkout, so the repo's own AGENTS.md/CLAUDE.md cannot teach it the routing answer.
         ws = seed_workspace(
@@ -2609,7 +2630,7 @@ def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, 
                 resume = None
                 for turn, prompt in enumerate([scenario_prompt(spec, plugin_root), *spec.get("followups", [])]):
                     inconclusive = plugin_drift_problem(plugin_root, provenance["plugin_source_sha256"])
-                    if scenario_digest(spec) != scenario_identity:
+                    if scenario_digest(spec, binding) != scenario_identity:
                         inconclusive = "scenario inputs changed before invocation; re-run the trial"
                     if inconclusive:
                         break
@@ -2649,7 +2670,7 @@ def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, 
         inconclusive = inconclusive or plugin_drift_problem(plugin_root, provenance["plugin_source_sha256"])
         trace = parse_trial_trace(run_out) if trace_path.exists() else TraceSummary()
         git = collect_git_facts(ws)
-        ctx = Context(spec, ws, trace, git, container, services, plugin_root)
+        ctx = Context(spec, ws, trace, git, container, services, plugin_root, judge_binding)
         grading = grade(ctx, inconclusive=inconclusive, expected_scenario_digest=scenario_identity)
         if services:
             try:
@@ -2685,7 +2706,7 @@ def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, 
             "tool_errors": trace.tool_errors, "denial_details": trace.denial_details,
             "commits_before_after": [ws.baseline_commits, git.commit_count], "branch": git.branch,
             "changed_files": ctx.git.changed, "state_files": state_files, "agents_dir": (ws.repo / ".agents").exists(),
-            "plugin": provenance,
+            "plugin": provenance, "judge_binding": binding,
             "scenario_sha256": grading["scenario_sha256"],
             "isolation": {"mode": "container", "image": container_image} if container_image else {"mode": "host"},
             "services": [{"name": s.name, "image": s.image, "base_url": s.base_url} for s in ctx.services],
@@ -2812,7 +2833,8 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
     original = run_dir / "grading.original.json"
     live_grade = json.loads(original.read_text(encoding="utf-8")) if original.exists() else old
     old_by_id = {e.get("id"): e for e in live_grade.get("expectations", [])}
-    identity = scenario_digest(spec)
+    saved_binding = live_grade.get("judge_binding")
+    identity = scenario_digest(spec, saved_binding)
     identity_matches = live_grade.get("scenario_sha256") == identity
     text = (run_dir / "outputs" / "response.md").read_text(encoding="utf-8")
     plugin_root = Path((summary.get("plugin") or {}).get("plugin_root") or ROOT)
@@ -2843,6 +2865,13 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
             (ws.repo / ".agents").mkdir(parents=True)
         ctx = Context(spec, ws, trace, git, plugin_root=plugin_root)
         inconclusive = live_grade.get("inconclusive", summary.get("inconclusive")) or native_problem
+        if required_rubrics(spec) and (not saved_binding or live_grade.get("response_sha256") != rubric_judge._digest(trace.result_text)):
+            inconclusive = "saved judge binding or judged response identity is missing or changed; re-run the trial"
+        elif required_rubrics(spec):
+            try:
+                rubric_judge.validate_binding(rubric_judge.JudgeBinding(json.dumps(saved_binding)), required_rubrics(spec), current=False)
+            except rubric_judge.JudgeUnavailable as exc:
+                inconclusive = str(exc)
         if reparsed is not None and str(inconclusive or "").startswith("build tools denied by the runtime"):
             # The denial rule is re-derived from the raw trace so a regrade applies the live rule
             # (a subagent's refusal no longer voids a routing verdict), not the one saved that day.
@@ -2881,13 +2910,14 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
             else:
                 expectations.append(keep(
                     label, "live-judge" if check["check"] in REGRADABLE else "workspace-dependent"))
-    if scenario_digest(spec) != identity:
+    if scenario_digest(spec, saved_binding) != identity:
         inconclusive = "scenario inputs changed during regrade; re-run the trial"
         for expectation in expectations:
             expectation.update(passed=False, evidence=f"INCONCLUSIVE: {inconclusive}")
     n_pass = sum(e["passed"] for e in expectations)
     grading = {
         **native_assessment(spec),
+        "judge_binding": saved_binding, "response_sha256": live_grade.get("response_sha256"),
         "expectations": expectations,
         "scenario_sha256": (stamp_assertions(identity, expectations) if identity_matches
                             else live_grade.get("scenario_sha256")),
@@ -2932,8 +2962,9 @@ def _merge_summary_entries(existing: list[dict], updates: list[dict]) -> list[di
     return kept + updates
 
 
-def batch_identity_problem(entries: list[dict], scenarios: list[dict], plugin_sha: str) -> str | None:
-    expected = {spec["id"]: scenario_digest(spec) for spec in scenarios}
+def batch_identity_problem(entries: list[dict], scenarios: list[dict], plugin_sha: str,
+                           judge_binding: rubric_judge.JudgeBinding | None = None) -> str | None:
+    expected = {spec["id"]: scenario_digest(spec, judge_binding.metadata if judge_binding else None) for spec in scenarios}
     for entry in entries:
         scenario = entry.get("scenario")
         if scenario not in expected:
@@ -3011,6 +3042,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--plugin-root", type=Path, default=ROOT, help="plugin root to load with --plugin-dir (a worktree for the incumbent)")
     parser.add_argument("--label", help="configuration label for the output layout, e.g. new_skill / old_skill (required to run)")
     parser.add_argument("--model", default=None, help="Claude model alias; resolved model is recorded from the trace")
+    parser.add_argument("--judge-calibration", type=Path, help="completed canonical calibration identity.json required by rubric-backed trials")
     parser.add_argument("--trials", type=int, default=1)
     parser.add_argument(
         "--threshold", type=_threshold, default=None,
@@ -3073,8 +3105,18 @@ def main(argv: list[str] | None = None) -> int:
             return 3
     if not args.label or not args.out:
         parser.error("--label and --out are required to run trials")
+    required = set().union(*(required_rubrics(spec) for spec in scenarios))
+    judge_binding = None
+    try:
+        if required:
+            if not args.judge_calibration:
+                raise rubric_judge.JudgeUnavailable("rubric-backed trials require --judge-calibration identity.json")
+            judge_binding = rubric_judge.load_binding(args.judge_calibration, required)
+    except rubric_judge.JudgeUnavailable as exc:
+        print(f"refusing to run: {exc}", file=sys.stderr)
+        return 3
     provenance = plugin_provenance(args.plugin_root.resolve())
-    print(json.dumps({"plugin": provenance}), flush=True)
+    print(json.dumps({"plugin": provenance, "judge_binding": judge_binding.metadata if judge_binding else None}), flush=True)
     if args.expect_plugin_digest and not provenance["plugin_source_sha256"].startswith(args.expect_plugin_digest):
         print(f"refusing to run: plugin source digest {provenance['plugin_source_sha256'][:12]}… does not match --expect-plugin-digest", file=sys.stderr)
         return 3
@@ -3085,7 +3127,7 @@ def main(argv: list[str] | None = None) -> int:
     replaced = {(s["id"], args.label, args.run_offset + i + 1) for s in scenarios for i in range(args.trials)}
     retained = [e for e in existing if not args.overwrite or
                 (e.get("scenario"), e.get("label"), e.get("run")) not in replaced]
-    problem = batch_identity_problem(retained, scenarios, provenance["plugin_source_sha256"])
+    problem = batch_identity_problem(retained, scenarios, provenance["plugin_source_sha256"], judge_binding)
     if problem:
         print(json.dumps({"batch": "INCONCLUSIVE", "reason": problem}), flush=True)
         return 2
@@ -3098,6 +3140,7 @@ def main(argv: list[str] | None = None) -> int:
                 executable=args.executable, keep_workspace=args.keep_workspace, overwrite=args.overwrite,
                 container_image=args.container, docker=args.docker,
                 expected_plugin_digest=provenance["plugin_source_sha256"],
+                judge_binding=judge_binding,
             ))
     merged = _merge_summary_entries(existing, results)
     summary_path.write_text(json.dumps(merged, indent=2), encoding="utf-8")
@@ -3105,7 +3148,7 @@ def main(argv: list[str] | None = None) -> int:
     # about this invocation: a final one-trial append must not report PASS over earlier failures.
     selected = {spec["id"] for spec in scenarios}
     batch = [entry for entry in merged if entry.get("scenario") in selected]
-    problem = batch_identity_problem(batch, scenarios, provenance["plugin_source_sha256"])
+    problem = batch_identity_problem(batch, scenarios, provenance["plugin_source_sha256"], judge_binding)
     if problem:
         print(json.dumps({"batch": "INCONCLUSIVE", "reason": problem}), flush=True)
         return 2
