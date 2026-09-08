@@ -62,10 +62,12 @@ def problem(
     if request_id:
         body["request_id"] = request_id
     body.update(extensions)
-    # JSONResponse supplies the new representation's headers; only protocol metadata carries over.
-    response_headers = {key: value for key, value in (headers or {}).items()
-                        if key.lower() in _PROTOCOL_HEADERS}
-    return JSONResponse(body, status_code=status, media_type=PROBLEM_MEDIA_TYPE, headers=response_headers)
+    # Rebuild body metadata; append protocol fields so repeated cookies/challenges survive.
+    response = JSONResponse(body, status_code=status, media_type=PROBLEM_MEDIA_TYPE)
+    for key, value in (headers or {}).items():
+        if key.lower() in _PROTOCOL_HEADERS:
+            response.headers.append(key, value)
+    return response
 
 
 def install_problem_handlers(app: FastAPI) -> None:

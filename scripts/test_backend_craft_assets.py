@@ -12,6 +12,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
 import pytest
+from starlette.datastructures import Headers
 import yaml
 
 
@@ -41,6 +42,15 @@ def client():
     @app.get("/limited")
     def limited():
         raise HTTPException(429, "Wait", headers={"Retry-After": "30"})
+
+    @app.get("/multi-auth")
+    def multi_auth():
+        raise HTTPException(401, "Sign in", headers=Headers(raw=[
+            (b"www-authenticate", b'Basic realm="test"'),
+            (b"www-authenticate", b"Bearer"),
+            (b"set-cookie", b"session=; Max-Age=0; Path=/"),
+            (b"set-cookie", b"refresh=; Max-Age=0; Path=/"),
+        ]))
 
     @app.get("/old-representation")
     def old_representation(compressed: bool = False):
@@ -78,6 +88,16 @@ def test_problem_keeps_protocol_headers(client, method, path, status, header, va
     assert response.headers["content-type"] == "application/problem+json"
     assert response.json()["status"] == status
     assert "headers" not in response.json()
+
+
+@pytest.mark.parametrize("header,values", [
+    ("www-authenticate", ['Basic realm="test"', "Bearer"]),
+    ("set-cookie", ["session=; Max-Age=0; Path=/", "refresh=; Max-Age=0; Path=/"]),
+])
+def test_problem_keeps_repeated_protocol_headers(client, header, values):
+    response = client.get("/multi-auth")
+    assert response.status_code == response.json()["status"] == 401
+    assert response.headers.get_list(header) == values
 
 
 @pytest.mark.parametrize("body,status", [('{"count":', 400), ('{"count":"wrong"}', 422)])
