@@ -1,10 +1,12 @@
 ---
 name: incident-investigation
 description: >-
-  Help the human SRE understand evidence and choose the next useful step during a live incident.
-  Triggers: 'walk me through this incident', 'help me understand what is going on with INC',
-  'what should I check next', 'what is this telling me'. Not for a dispatched read-only evidence
-  slice (sre-assistant agent) or incident command and communications (incident-command).
+  Help the human SRE understand evidence and choose the next useful step during a live incident,
+  including a first responder who does not know where to start, or explain what a graph, log, or
+  alert is telling them. Triggers: 'I just got paged, what do I do', 'customers are reporting
+  errors, where do I start', 'walk me through this incident', 'what should I check next'. Not for
+  a dispatched read-only evidence slice (sre-assistant agent) or incident command and
+  communications (incident-command).
 argument-hint: "[INC id or symptom] [knowledge repository root]"
 ---
 
