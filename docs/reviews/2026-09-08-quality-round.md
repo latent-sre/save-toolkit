@@ -181,10 +181,57 @@ number 28 — judge strictness on wording, the substance held.
 
 Review pages with iteration-2 outputs alongside: `.eval-runs/quality-20260908/review/iteration-3-{sonnet,opus}.html`.
 
+## After-runs on the remaining edits — pcf-ops, obs-logs, and the engineering lane
+
+Owner-asked ("did we test the other items"). Same method as iteration 2 (with-skill cells at
+`603236d3`, two runs per cell for the two skills with an iteration-1 baseline; both arms, one run
+per cell, for the engineering lane, which had no baseline). 24 + 24 cells plus one rerun after a
+copied OAuth token expired mid-run (a harness event, not a model result). Cost about
+USD 12 for cells and USD 21 for grading.
+
+| Target | Sonnet old → new (no skill) | Opus old → new (no skill) |
+|---|---|---|
+| pcf-ops | 0.55 → 0.62 (0.64) | 0.75 → 0.78 (0.62) |
+| obs-logs | 0.73 → 0.87 (0.60) | 0.93 → 0.97 (0.60) |
+
+| Engineering lane (iteration 1) | Sonnet with (no skill) | Opus with (no skill) |
+|---|---|---|
+| backend-craft: Spring problem-details 401 | 1.00 (0.80) | 1.00 (1.00) |
+| backend-craft: FastAPI bearer starters | 1.00 (0.60) | 1.00 (0.60) |
+| eng-ladder: IDOR fix, builder or escalate | 0.60 (0.40) | 0.80 (0.40) |
+| agent-authoring: skill body token budget | 1.00 (0.40) | 1.00 (0.60) |
+| ci-actions: reusable CI with uv | 1.00 (0.00) | 1.00 (0.50) |
+| reviewer agent: working-tree diff review | 1.00 (0.17) | 1.00 (0.33) |
+
+`[verified]` from the traces and grades:
+
+- pcf-ops: every with-skill run on the JVM and crash-loop prompts read the rewritten crash reference
+  (none did in iteration 1), and the JVM answers stayed correct (Metaspace ≠ heap 4/4). Sonnet's
+  crash-loop score rose 0.20 → 0.50 with the startup health-check timeout identified 4/4; the two
+  assertions that need the not-yet-written timeout case (rule out `$PORT`/memory/platform; tie to
+  the droplet and name the console views) stay 0/4.
+- obs-logs: "an empty result is a missing extraction" 0/2 → 4/4; both models 1.00 on the
+  top-offenders prompt; zero-traffic guard 1/2 → 4/4; two dips within noise (2/2 → 2/4, 2/2 → 3/4).
+- backend-craft: all four with-skill runs opened the changed files (spring-boot.md and
+  ProblemAdvice.java; the OpenAPI starter and the contract test). The skill-specific assertions
+  discriminate: 401 as problem+json 2/2 vs 0/2, the max-limit test 2/2 vs 0/2; the Spring "property
+  is a no-op" fact 2/2 vs 1/2.
+- reviewer: `Reviewed state:` and the non-execution line, the two slots the worked examples lacked,
+  appear 2/2 with the agent versus 0/2 without; findings form and single next owner 2/2 vs 0/2.
+- ci-actions: `timeout-minutes` on every job 2/2 vs 1/2; SHA pins and a pinned runner 2/2 vs 0/2.
+- agent-authoring: compaction re-attachment budget explained 2/2 vs 0/2.
+- eng-ladder: builder-owned with independent security review 2/2 vs 0/2; misses are the
+  fail-before/pass-after test wording (0/2 both arms) and naming the escalation counterfactual (1/2).
+
+Fleet-wide viewer totals (all 28 evals, both arms): iteration 1 Sonnet 70.5% vs 49.4%, Opus 81.9%
+vs 59.6%; iteration 2 (incident lane, pcf-ops, obs-logs on the changed bytes) Sonnet 76.0% vs
+49.3%, Opus 85.0% vs 57.2%. Pages: `.eval-runs/quality-20260908/review/iteration-{1,2,3}-{sonnet,opus}.html`.
+
 ## Not established
 
-- Behaviour on the changed bytes for the pcf-ops, obs-logs, and engineering-lane edits: no eval has run
-  on those since the edits; the incident lane has iterations 2 and 3 above.
+- The engineering lane has no old-skill arm (its eval sets were written after the edits), so its
+  numbers show new skill versus no skill, not the size of the fix.
+- The Spring prompt does not discriminate on Opus (1.00 both arms); it confirms no regression, not gain.
 - Apps Manager control semantics (per-instance restart, Redeploy) remain `[unverified]` and are
   labelled so in the text; the installed cf CLI version for the rolling-rollback default is
   `[unverified]`.
