@@ -2,12 +2,12 @@
 name: operational-learning
 description: >-
   Turn a resolved incident, drill, audit, or approved component or alert change into durable
-  knowledge (service cards, alert cards, the operations index, runbook dispositions), and answer
-  ownership questions from those records. Triggers: 'which team owns payments and how do I page
-  them', 'what depends on the ledger service', 'capture durable operational lessons', 'apply the
-  operational-learning closeout'. Direct KB writing belongs to scribe, which selects knowledge
-  closeout mode and applies this skill; active incidents route to incident-investigation and
-  alert design to observability-engineer.
+  knowledge (service and alert cards, runbook dispositions), and answer ownership questions from
+  those records. Triggers: 'which team owns payments and how do I page them', 'what depends on
+  ledger', 'capture durable operational lessons', 'apply the operational-learning closeout'.
+  Direct KB writing belongs to scribe, which selects closeout mode and applies this skill; active
+  incidents route to incident-investigation, alert design to observability-engineer, and fleet
+  prompt failures to agent-engineer.
 argument-hint: "[component, alert, incident, drill, or audit]"
 ---
 
@@ -76,7 +76,7 @@ alert, SLO, and dashboard design stays with `observability-engineer`; code or au
 "Who owns payments", "how do I page them", "what depends on ledger" are reads, not a closeout.
 Read `docs/operations/index.md` and `docs/operations/services/<app>.md` under the knowledge
 repository root; report the owner, escalation path, and dependencies as `[sourced]` with the file
-path and the card's `last_verified` date. If no card or index exists, say so and name the path a
+path and the card's `last_reviewed` date and `evidence_status`. If no card or index exists, say so and name the path a
 card would live at; never infer an owner from code paths, commit authors, or alert labels. During
 an active incident the same read belongs to `incident-investigation`.
 

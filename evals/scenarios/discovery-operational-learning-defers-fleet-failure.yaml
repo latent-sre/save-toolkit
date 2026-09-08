@@ -1,0 +1,24 @@
+id: discovery-operational-learning-defers-fleet-failure
+split: regression
+prompt: |
+  The save-toolkit:scribe agent wrote "verified" on a runbook step twice this week when the only
+  evidence was an unverified paste, and its runbook mode ignored the evidence-label rule both
+  times. I have the two transcript excerpts. Capture the lesson so this stops happening, and tell
+  me what should change.
+success_criteria:
+- Does not treat a fleet prompt or skill failure as an operational lesson for the knowledge base
+- Routes the misbehaviour to the agent-engineer lane with the transcript as the evidence
+target:
+  kind: skill
+  name: operational-learning
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: agent
+    name: agent-engineer
+tools:
+- Glob
+- Grep
+- Read
+- Skill
+- Task
