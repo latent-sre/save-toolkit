@@ -31,6 +31,12 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- The incident advisor's description now names the first responder and carries on-call trigger
+  phrasing ('I just got paged, what do I do', 'customers are reporting errors, where do I start').
+  A new unhinted first-page routing scenario fires it 3/3 on Sonnet and 3/3 on Opus, and the
+  existing advisor and helper routing scenarios still pass. The skill-byte ceiling rose by 200 bytes
+  for it. See the [advisor on-call trigger evidence](docs/reviews/2026-09-08-advisor-oncall-triggers.md).
+
 - Routine documentation handoffs and operational templates now use unique short commit IDs
   (8 characters, extended by Git when needed). Checkout evidence and approval requirements remain;
   full IDs are still accepted. Immutable-review identities, dependency pins and eval digests are
