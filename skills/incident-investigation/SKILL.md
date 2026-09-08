@@ -157,8 +157,10 @@ Next:    <the one useful check or the pending human decision, with what each out
 ```
 
 The strip is a view of the conversation, not a repository write; when incident-command is active its
-timeline is authoritative and the strip mirrors it. A standalone question with no incident being
-worked — Explain mode, "what does this mean?" — gets no strip. The strip adds to the answer above it;
+timeline is authoritative and the strip mirrors it. The test is whether an incident is being worked, not the
+shape of the question: an explanation asked while the impact is live still ends with the strip,
+because the responder still has to know what has been applied and what is next. Only a question
+with no live incident — a postmortem review, a learning question, a hypothetical — gets no strip. The strip adds to the answer above it;
 it does not replace the answer, and at a transition or handover the full checkpoint below is used
 instead of the strip.
 

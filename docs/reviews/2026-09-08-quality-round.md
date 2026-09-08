@@ -279,8 +279,69 @@ What changed in CLI 2.1.265 that moves advisor scores by that much is `[unverifi
 comparison needs both arms on the same CLI version, recorded in provenance (the runner already
 records `claude_version`).
 
+## The state strip — owner decision and iteration 6
+
+The advisor carried a "board" on every reply until 2026-09-05, when
+[PR #235](https://github.com/latent-sre/save-toolkit/pull/235) (`784211a7`) replaced it with an
+on-request "conversation checkpoint", because a one-line explanation question was getting a full
+report. The handover measurements in this round showed the cost of that trade: the rules the board's
+lines used to carry survived only as prose and stopped landing — owner per open item with a read-back
+0/4, no retry of an UNKNOWN restart 0/4, impact with a recovery criterion 1/4.
+
+The owner's decision (2026-09-08, from simulation experience) was a middle position: a compact
+three-line strip on every reply **once an incident is being worked**, none on a standalone question,
+the full checkpoint still taking over at a transition or handover. `d9df312d` adds it, plus a
+handover example carrying the action states, per-item owners, recovery criterion and read-back
+request. A later commit clarified the boundary (below).
+
+Baseline before the change: 0 of 24 with-skill incident replies carried Applied/Open/Next labels.
+
+**Does the strip appear where it should?** `[verified]` deterministic label check, three runs per
+model per prompt at `d9df312d`:
+
+| Prompt | strip present |
+|---|---|
+| First page, new responder | 6/6 |
+| External monitor Situation | 6/6 |
+| What to look at first | 6/6 |
+| Handover | Sonnet 3/3 strip; Opus 1/3 full checkpoint, 2/3 partial — both allowed, the rule sends a handover to the checkpoint |
+| Explanation asked mid-incident | 1/6 — **the boundary defect** |
+| Standalone learning question (no live incident) | 0/6 — correct |
+
+The mid-incident explanation exposed conflicting clauses in the new text: "once a live incident is
+being worked, every reply ends with the strip" against "a standalone question — Explain mode, 'what
+does this mean?' — gets no strip". Asked "what does 'waiting for a connection' mean here" while 500s
+were live, five of six runs read the question's shape and dropped the strip. The rule now says the
+test is whether an incident is being worked, not the shape of the question; only a postmortem
+review, a learning question or a hypothetical gets none. **That clarification is `[unverified]`** —
+the Fable judge ran out of usage credits before it could be measured.
+
+**Quality on the four incident prompts**, both arms on CLI 2.1.265 (pre-strip bytes `84ca1192`
+against strip bytes `d9df312d`), three runs per cell:
+
+| Prompt | Sonnet pre → strip | Opus pre → strip |
+|---|---|---|
+| First page | 0.43 → 0.50 | 0.43 → 0.54 |
+| External monitor | 0.58 → 0.67 | 1.00 → 0.95 |
+| What to look at first | 0.75 → 0.71 | 0.67 → 0.71 |
+| Handover | 0.42 → 0.62 | 0.67 → 0.76 |
+| mean | 0.54 → 0.64 | 0.69 → 0.73 |
+
+The handover moved most, which is where the board's loss had been measured. Assertions that rose
+(pooled, old n=4, new n=6): impact with an observation time and a recovery criterion 2/4 → 5/6; the
+incoming responder inherits the investigation, not command authority 1/4 → 4/6; gaps plus the next
+check with outcome meanings 3/4 → 6/6; no invented observations 3/4 → 5/6 on both incident prompts;
+no retry of the UNKNOWN restart until reconciled 0/4 → 1/6. Assertions that fell: owner per open item
+with a read-back 3/4 → 2/6; declare and route edge evidence 2/4 → 2/6; instance table plus a Splunk
+check named next 1/4 → 0/6.
+
+Cost: about USD 9 for cells and USD 14 for grading.
+
 ## Not established
 
+- The strip boundary clarification, the standalone-question control (eval 5), and the mid-incident
+  explanation control on pre-strip bytes are ungraded: the Fable judge exhausted its usage credits
+  mid-session. Their strip-presence numbers above are deterministic label counts, not judged grades.
 - The engineering lane has no old-skill arm (its eval sets were written after the edits), so its
   numbers show new skill versus no skill, not the size of the fix.
 - The Spring prompt does not discriminate on Opus (1.00 both arms); it confirms no regression, not gain.
