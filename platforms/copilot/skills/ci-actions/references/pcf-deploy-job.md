@@ -27,6 +27,7 @@ Pin every `uses:` to a reviewed full commit SHA before committing this example.
 ```yaml
 deploy-prod:
   runs-on: [self-hosted, pcf]          # runner group with foundation network access
+  timeout-minutes: 20                   # every job: a hang must not hold the runner to the platform cap
   environment: production               # required reviewers approve before this runs
   concurrency: { group: deploy-prod, cancel-in-progress: false }   # SKILL.md: never cancel a deploy
   steps:

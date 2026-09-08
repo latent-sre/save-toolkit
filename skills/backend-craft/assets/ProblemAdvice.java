@@ -18,9 +18,14 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 /**
  * One RFC 9457 shape everywhere.
  *
- * <p>Set {@code spring.mvc.problemdetails.enabled=true} as well, or the framework's own exceptions
- * (unknown route, unsupported media type) still render as the default error-attributes body
- * instead of problem+json.
+ * <p>Because this advice extends {@link ResponseEntityExceptionHandler}, Boot's own problem-details
+ * handler is not registered even with {@code spring.mvc.problemdetails.enabled=true}; the
+ * framework's exceptions (unknown route, unsupported media type) are already mapped here.
+ *
+ * <p>What this advice cannot reach: Spring Security's filter-chain 401/403 and anything that falls
+ * through to {@code /error} still render the error-attributes body — give the
+ * {@code AuthenticationEntryPoint} and {@code AccessDeniedHandler} the same {@code ProblemDetail}
+ * shape.
  */
 @RestControllerAdvice
 public class ProblemAdvice extends ResponseEntityExceptionHandler {

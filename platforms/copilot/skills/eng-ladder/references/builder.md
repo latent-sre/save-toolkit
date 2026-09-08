@@ -24,6 +24,9 @@ pattern → the principal altitude.
    actually hit in prod.
 5. Write/extend tests; run them and the linter/formatter.
 6. Self-review the diff as the reviewer would; clean up before it goes to the `reviewer` agent.
+7. Auth, input, secrets, or crypto: get independent security review (the `reviewer`, security lens)
+   before it ships; the fix stays at this altitude unless a trigger under *Escalate when* also
+   applies.
 
 ## Done means
 - Meets acceptance criteria; tests pass and actually prove the behavior.
@@ -45,7 +48,5 @@ agent instead reports the decision needed to its caller — it never self-promot
 - You need to change a signature/schema other code depends on → the principal altitude.
 - Competing options whose choice changes a shared contract or the cross-component design →
   principal (a purely local choice between two reasonable approaches stays at this altitude).
-- The surface is security-sensitive (auth, input, secrets, crypto) → flag it for a security
-  review before it ships.
 - A third failed fix means the diagnosis is wrong: stop patching, restate the leading hypothesis and
   its strongest alternative, then run the cheapest falsifier before changing code again.

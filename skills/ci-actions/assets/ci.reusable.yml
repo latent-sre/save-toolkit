@@ -17,6 +17,7 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-24.04   # pinned: ubuntu-latest migrates gradually and varies run-to-run mid-migration
+    timeout-minutes: 15   # every job: a hang must not hold the runner to the platform cap
     strategy:
       matrix: { python-version: ["3.11", "3.12"] }
     steps:

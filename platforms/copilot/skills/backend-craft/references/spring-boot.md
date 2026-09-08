@@ -30,8 +30,12 @@ The universal backend rules live in `../SKILL.md`. On any conflict, SKILL.md win
 - **Records are the DTOs**, one per direction per resource; a controller returns the response record,
   never the entity. **`@Valid` on every `@RequestBody`.**
 - **One `@RestControllerAdvice` extending `ResponseEntityExceptionHandler`** maps domain exceptions to
-  `ProblemDetail`, with `spring.mvc.problemdetails.enabled=true` so the framework's own exceptions
-  render as problem+json too.
+  `ProblemDetail` and inherits the framework's own exceptions (unknown route, unsupported media type),
+  so `spring.mvc.problemdetails.enabled=true` registers nothing extra: Boot's handler is
+  `@ConditionalOnMissingBean(ResponseEntityExceptionHandler.class)`. It cannot reach Spring Security's
+  filter-chain 401/403, handled by `ExceptionTranslationFilter` through the `AuthenticationEntryPoint`
+  and `AccessDeniedHandler` before any MVC handler runs *[sourced: Spring Security reference,
+  ExceptionTranslationFilter]*; give those and the `/error` fallthrough the same shape.
 - **Validation failures are `422`, not `400`** — the framework default is `400`, so the override
   passes `HttpStatus.UNPROCESSABLE_CONTENT` explicitly (older Framework versions spell it
   `UNPROCESSABLE_ENTITY`).

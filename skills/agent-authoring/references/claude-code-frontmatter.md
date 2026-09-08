@@ -66,12 +66,17 @@ fails **closed**.
 
 ### Discovery and invoked-content budgets are different contracts
 
-[verified against the installed CLI 2.1.241, 2026-08-24] Discovery listing (every model-invocable
-name and description together, 1% of context — 8,000 characters by default) and invoked bodies
-(5,000 tokens per skill, 25,000 total) are separate budgets, so moving conditional detail out of
-`SKILL.md` reduces invoked context, not discovery-listing cost: a body-size screen, a
-discovery-listing measurement, and a description-routing edit are three separate decisions with
-three verification rules.
+The discovery listing (every model-invocable name and description together, 1% of context — 8,000
+characters by default) `[verified against the installed CLI 2.1.241, 2026-08-24]` is one budget. An
+invoked skill body is a separate contract: it loads whole into the conversation as a single message
+and stays there across later turns. The 5,000-tokens-per-skill / 25,000-combined figures apply only
+when a summary compacts the conversation — Claude Code then re-attaches the most recent invocation
+of each skill, keeping only the first 5,000 tokens of each, with re-attached skills sharing a
+combined 25,000-token budget `[sourced: code.claude.com/docs/en/skills, 2026-09-08]`. So moving
+conditional detail out of `SKILL.md` reduces invoked context and what survives compaction, not
+discovery-listing cost — and there is no per-invocation truncation to design around: a body-size
+screen, a discovery-listing measurement, and a description-routing edit are three separate decisions
+with three verification rules.
 
 ## Fleet decisions on unused fields
 

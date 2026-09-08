@@ -97,6 +97,28 @@ No description, frontmatter, tool grant, or delegation edge changed. Generated a
 73,123). Size was explicitly out of scope for this round; these are the reviewed decisions the
 gate asks for, not a claim of fit.
 
+## Batch B change set — engineering lane
+
+The seven engineering-lane P2s, reconfirmed by content (the analyst's line numbers were off) and,
+for the two external claims, re-fetched: Spring Boot registers `ProblemDetailsExceptionHandler`
+only `@ConditionalOnMissingBean(ResponseEntityExceptionHandler.class)`; the Claude Code skills page
+describes 5,000/25,000 tokens as the post-compaction re-attachment budget and says an invoked body
+"enters the conversation as a single message".
+
+| Finding | Change | Where |
+|---|---|---|
+| `spring.mvc.problemdetails.enabled=true` presented as required beside a `ResponseEntityExceptionHandler` | The advice already maps the framework's exceptions; the property registers nothing extra; the real gap (Spring Security 401/403 and `/error` fallbacks) is named with the `AuthenticationEntryPoint`/`AccessDeniedHandler` fix | [`ProblemAdvice.java`](../../skills/backend-craft/assets/ProblemAdvice.java), [`spring-boot.md`](../../skills/backend-craft/references/spring-boot.md) |
+| Security-sensitive surface listed as an escalation trigger | Moved into "How you work": independent security review, the fix stays builder-owned unless another trigger applies | [`builder.md`](../../skills/eng-ladder/references/builder.md) |
+| 5,000/25,000 tokens presented as the invocation budget | Rewritten as the compaction re-attachment budget; an invoked body loads whole; no per-invocation truncation to design around | [`claude-code-frontmatter.md`](../../skills/agent-authoring/references/claude-code-frontmatter.md) |
+| Starter CI job and deploy skeleton without `timeout-minutes` | `timeout-minutes` on both, matching the skill's own rule | [`ci.reusable.yml`](../../skills/ci-actions/assets/ci.reusable.yml), [`pcf-deploy-job.md`](../../skills/ci-actions/references/pcf-deploy-job.md) |
+| OpenAPI starter requires bearer auth; contract test sends none and ships no fixture | An `auth_headers` fixture the project fills, passed on every protected request; the docstring says never to weaken auth to satisfy the starter | [`test_http_contract.py`](../../skills/backend-craft/assets/test_http_contract.py) |
+| No fleet-level rule for preparing a reviewer dispatch | One sentence in the Handoffs convention: base and candidate identity plus an inspectable diff the reviewer can Read | [`AGENTS.md`](../../AGENTS.md) |
+| Reviewer worked examples omit `Reviewed state:` and the non-execution line | Both examples carry every required slot | [`reviewer.md`](../../agents/reviewer.md) |
+
+### Ceilings after batch B
+
+`[verified]` LF blob totals: skills 612,873; agents 115,983 → 116,305. `scripts/weights.json` follows.
+
 ## Not established
 
 - Behaviour on the changed bytes: no eval has run since the edits (owner approval pending). The
@@ -104,5 +126,4 @@ gate asks for, not a claim of fit.
 - Apps Manager control semantics (per-instance restart, Redeploy) remain `[unverified]` and are
   labelled so in the text; the installed cf CLI version for the rolling-rollback default is
   `[unverified]`.
-- The remaining P2s (platform, observability, engineering lanes) are unchanged; the engineering lane
-  is the next batch.
+- The remaining P2s (platform and observability lanes) are unchanged; they are the next batch.
