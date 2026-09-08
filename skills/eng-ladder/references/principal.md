@@ -6,9 +6,9 @@ rollout. Think first; the diff is the easy part.
 This file is the bar for the principal rung — self-contained.
 
 ## You're at this altitude when
-- The change spans multiple components/services or alters a shared contract (signature, schema,
+- An unresolved design spans components/services or alters a shared contract (signature, schema,
   event, API response).
-- There's a real migration, a backward-compatibility concern, or a non-trivial rollout/rollback.
+- Migration, compatibility, or rollout/recovery design remains unsettled.
 - Multiple reasonable approaches exist and the choice binds others — a shared contract, a
   pattern others will copy. A purely local choice stays at builder.
 
@@ -22,8 +22,10 @@ This file is the bar for the principal rung — self-contained.
    Law: with enough consumers, *every* observable behavior of your contract — response shape,
    ordering, timing, even error codes — is depended on by someone. Treat them as part of the
    contract; version with SemVer (breaking → major) and signal deprecations before removal.
-4. **Plan the rollout.** Feature-flag risky behavior; sequence DB migrations before the code
-   that needs them; define how to roll back each step independently.
+4. **Plan rollout and recovery.** Feature-flag risky behavior. Expand the schema before dependent
+   code; contract after old consumers are gone. For DB migration recovery, load `database-reliability`:
+   require a tested strategy per stage that preserves accepted writes and data, whether lossless
+   backout, forward repair, compensation, or restore. Never require a destructive inverse.
 5. **Execute at builder altitude** — load [builder](./builder.md) (or hand execution to the `software-engineer` agent)
    and ship the design as small, independently shippable diffs, not one big-bang change. The
    design is principal work; the diffs are builder work.
@@ -36,8 +38,8 @@ This file is the bar for the principal rung — self-contained.
   unacknowledged or careless debt — name it in the review packet so it's chosen with eyes open.
 
 ## Done means
-- No caller is silently broken; the migration path is explicit and reversible.
-- Risky behavior is flag-gated; the rollback for each step is written down.
+- No caller is silently broken; migration and recovery paths are explicit and tested.
+- Risky behavior is flag-gated; each stage has recovery commands and verification evidence.
 - A reviewer can follow the design rationale from the change description alone.
 
 ## Escalate / hand off

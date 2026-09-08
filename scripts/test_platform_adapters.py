@@ -152,7 +152,9 @@ class PlatformAdapterTests(unittest.TestCase):
                     self.assertNotEqual("researcher", handoff["agent"])
                     if handoff["agent"] == "reviewer":
                         self.assertIn("[UNTRUSTED]", handoff["prompt"])
-                        self.assertIn("Re-derive the diff", handoff["prompt"])
+                        self.assertIn("supplied base/candidate diff", handoff["prompt"])
+                        self.assertIn("preparation gap", handoff["prompt"])
+                        self.assertNotIn("Re-derive the diff", handoff["prompt"])
                         self.assertIn("Do not modify files", handoff["prompt"])
                     if handoff["agent"] == "scribe":
                         self.assertIn("explicitly approved", handoff["prompt"])

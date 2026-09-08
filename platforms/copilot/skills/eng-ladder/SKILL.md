@@ -32,7 +32,9 @@ selected tier's escalation rule requires it.
 
 Match the lowest rung whose core question fits. Cross-service/team work, migrations and hard-to-reverse
 design choices need principal reasoning; build-vs-buy, platform consolidation or multi-year choices
-need distinguished. When unsure, start lower and escalate when its bar is insufficient.
+need distinguished. Implementing an accepted design stays builder-owned within its agreed scope
+and compatibility criteria; return unresolved consequential choices or required constraint changes
+for decision. When unsure, start lower and escalate when its bar is insufficient.
 
 Keep implementation ownership separate from consultation. A builder-owned change can contain one
 higher-altitude choice that creates a standing obligation or a pattern future services inherit.

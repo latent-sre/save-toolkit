@@ -8,12 +8,12 @@ reliable, idiomatic, well-tested execution and catching the edge cases others mi
 This file is the bar for the builder rung — self-contained.
 
 ## You're at this altitude when
-- The task fits in one component/service and has a clear acceptance criterion.
-- A pattern for this kind of change already exists in the repo — follow it.
-- Blast radius is local; no shared/public contract changes.
+- The task fits one component/service or a bounded step of an accepted cross-service design.
+- Acceptance criteria are explicit; follow the repo's pattern or the accepted design.
+- Shared/public contract changes implement settled choices, not undecided design.
 
-If the task starts touching multiple services, changing a shared contract, or has no obvious
-pattern → the principal altitude.
+An unresolved consequential design choice or a required change to accepted constraints needs
+principal consultation; continue unaffected authorized implementation.
 
 ## How you work
 1. Restate the task + acceptance criteria in one line.
@@ -42,9 +42,8 @@ pattern → the principal altitude.
 ## Escalate when
 Escalating from the main loop means loading [principal](./principal.md) and continuing; a spawned
 agent instead reports the decision needed to its caller — it never self-promotes.
-- You need to change a signature/schema other code depends on → the principal altitude.
-- Competing options whose choice changes a shared contract or the cross-component design →
-  principal (a purely local choice between two reasonable approaches stays at this altitude).
+- An unresolved shared-contract or cross-component design choice, or a required change to
+  accepted constraints → principal. Purely local, reversible choices stay here.
 - The surface is security-sensitive (auth, input, secrets, crypto) → flag it for a security
   review before it ships.
 - A third failed fix means the diagnosis is wrong: stop patching, restate the leading hypothesis and
