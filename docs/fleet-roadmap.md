@@ -43,10 +43,11 @@ in merged PR #237 do not prove installed-host enforcement, model behavior, or re
 the bounded follow-up.
 **Outcome:** The advisor loads relevant guidance, dispatches a bounded helper, reconciles its
 return, and advances without invented causes, timing, or current-state claims.
-**Next action:** Select one bounded follow-up for native advisor selection/dispatch and evidence
-quality. The completed 24-session Sonnet campaign failed behavioral acceptance; later source merges
-are not a fresh behavioral verdict. Preserve actual return/resume and sufficient-evidence recovery
-as regressions. Separate decisions remain for limited Terra comparisons (zero calls; tool absence
+**Next action:** Review the owner-selected native advisor/helper/return/resume candidate and its
+bounded comparison in the [selected-improvement record](reviews/2026-09-07-selected-sre-improvements.md).
+The completed 24-session Sonnet campaign failed behavioral acceptance; later source merges are not
+a fresh behavioral verdict. Preserve actual return/resume and sufficient-evidence recovery as
+regressions. Separate decisions remain for limited Terra comparisons (zero calls; tool absence
 unproved and host skills injected), six Sonnet pairs for task-sized outputs, and three pairs for
 helper exchanges. These are pending choices, not permission to run them.
 **Evidence:** [Second pass](reviews/2026-09-07-incident-quality-second-pass.md), its
@@ -66,20 +67,23 @@ or an untimed aggregate for evidence of incident recovery or cause.
 `software-engineer` owns producer/resolver implementation.
 **Outcome:** Explicit team, service, environment, and deployment selectors produce the smallest
 schema-valid context projection. Missing or ambiguous context fails closed and grants no authority.
-**Next action:** Prepare a compatible producer follow-up first, then verify the current consumer
-mirror and condition-7 production-gate boundary together. Do not replay the old consumer patch as
-proof of current coverage. Fixture-only proof does not authorize live adoption or real-team onboarding.
-**Evidence:** Checked 2026-09-07; the [accepted scope](decisions/2026-08-24-sre-operational-context-contract.md)
-governs acceptance. Current-state claims have separate provenance:
+**Next action:** Obtain the owner's selected critical service, environment, and approved record
+location, then prepare the smallest real-service slice through the existing contract. The newer
+producer passes the current consumer's fixture requirements; it still prohibits operational data
+and action selection. Verify real-service navigation, freshness/missing records, ownership, and
+handoff before claiming usability. Do not replay the old consumer patch as proof of current coverage.
+**Evidence:** Refreshed 2026-09-07 in the
+[selected-improvement record](reviews/2026-09-07-selected-sre-improvements.md); the
+[accepted scope](decisions/2026-08-24-sre-operational-context-contract.md) governs acceptance:
 
-- [verified] Local source at `ed321035`: the [consumer sidecar](../skills/service-lifecycle/context-requirements.yaml)
+- [verified] Local source at `0450ea58`: the [consumer sidecar](../skills/service-lifecycle/context-requirements.yaml)
   declares `v1alpha2`; the current authority-path checks are in the [asset test](../scripts/test_skill_assets.py).
-- [sourced] GitHub reports the [producer follow-up](https://github.com/latent-sre/sre-context/commit/458f39c24c5523d2f159c373786e05e9072a5b3b)
-  at `458f39c` one commit ahead of producer main; that snapshot mirrors `v1alpha1`. The all-state PR
-  query for `work/context-001-lifecycle-contract` returned no PR.
-- [verified] `git ls-remote` found no `work/context-001-close-contract-gap` branch in Save Toolkit.
-- [verified] Local Git inspection: `96e1784` adds prose assertions to
-  `scripts/test_skill_asset_contracts.py`, which is absent at `ed321035`.
+- [verified] Local producer branch `work/context-001-lifecycle-review` at `be29c942` is seven
+  commits ahead of refreshed producer main `903ac830`; its mirror is `v1alpha2`, superseding the old
+  `458f39c` compatibility assessment. Its 86 offline tests and an explicit fixture resolve against
+  this consumer passed. The all-state PR query for the newer branch returned none.
+- [unverified] No real service has been selected or made operational through that fixture-only
+  producer. Compatibility, producer merge, service onboarding, and live usability are distinct claims.
 
 **SRE task:** State team, service, environment, and deployment once instead of repeating context.
 
