@@ -81,20 +81,24 @@ index=<app_index> earliest=-60m
 
 ### Did error rate change across the deploy?
 
-- **Applies to:** a service with a known deploy timestamp
+- **Applies to:** a known deploy timestamp and a request-completion sourcetype with exactly one event per eligible request/attempt; mixed application logs are not the denominator
 - **Reads as:** failures divided by total requests for equal windows either side of the change — a rate, never a raw count, so a traffic shift cannot read as a regression
 - **Healthy looks like:** `error_rate` after within normal variation of before, whatever happened to `total`
 - **Owner:** `<service on-call>`
 - **Verified:** [unverified: target index, status field, and deploy-epoch substitution]
 
 ```spl
-index=<app_index> earliest=-2h
+index=<app_index> sourcetype=<request_completion_sourcetype> earliest=<before_start_epoch> latest=<after_end_epoch>
 | eval phase=if(_time < <deploy_epoch>, "before", "after")
-| stats count(eval(status>=500)) AS errors, count AS total by phase
-| eval error_rate = errors / total
+| eval status=if(match(status, "^[1-5][0-9]{2}$"), tonumber(status), null())
+| stats count(eval(status>=500 AND status<600)) AS errors, count AS total, count(status) AS classified by phase
+| eval error_rate=if(total>0 AND classified=total, errors/total, null())
 ```
 
-Keep the windows equal on both sides; `spl.md` owns the rate-not-count rule this entry follows.
+Set the start and end equally far from the deploy epoch. Confirm population and coverage in both
+windows and one three-digit HTTP status per completion event. Missing or invalid status, including
+`0`, `700`, or fractional codes, leaves the rate null; no traffic or a missing phase is not healthy
+zero. `spl.md` owns the per-error-class variant and its phase-wide denominator.
 
 ### Where did one request fail across services?
 
