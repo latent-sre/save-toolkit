@@ -89,22 +89,87 @@ not a fleet contract (on 2026-08-22 Opus 5 dispatched 0/3 where Sonnet did 3/3).
 and host with any such result. See the
 [accepted EVAL-002 decision](../docs/decisions/2026-08-22-agent-discovery-calibration.md).
 
+### Native incident conversation
+
+[`native-incident-helper-return-and-resume`](scenarios/native-incident-helper-return-and-resume.yaml)
+extends the same runner with exactly one `followups:` prompt. It runs the initial parent unpinned,
+keeps its clean environment and fixture workspace, then passes the actual session ID to `--resume`.
+There are at most two CLI invocations, each capped at `$0.75` and the selected `--timeout` (use
+`--timeout 240` for the frozen incident comparison: up to 240 seconds per invocation). Prompt
+suggestions are disabled; there is no automatic retry. This path grants only `Skill,Read,Task`,
+accepts fixture files only, and checks each invocation's plugin, advertised inventory, actual tool
+use (including child calls), read paths, and session identity before continuing. Optional
+`expected_model:` pins the concrete parent/init model identity on every invocation; the committed
+incident scenario requires `claude-sonnet-5`. Each turn retains expected and observed identities.
+Credential markers or missing, invalid, or over-`$0.75` cost records stop this path before a follow-up.
+`references:` are assertions only here: they do not add instructions to the prompt. The initial
+parent must finish reading the measured plugin's exact reference before its first helper dispatch;
+a helper read, a later parent read, or a reference first loaded on resume does not count. The summary
+retains the qualifying initial-parent read's tool ID and start/completion trace lines.
+The initial parent's advisor Skill invocation must also complete before helper dispatch; late or
+helper-only selection does not count.
+
+The parser distinguishes an asynchronous submission receipt from a matched completed task
+notification. The `helper:` assertion requires exactly one completed child and parent text after
+that return. A successful synchronous child result remains valid. Follow-up traces, responses, and
+invocation metadata live under `followup/`; the initial response is also retained as `response.md`.
+Regrade checks both original traces against each invocation's saved workspace, exit status, session,
+and model binding, applying the same runtime and credential boundaries after the fixture is gone.
+Missing or partial boundary evidence is INCONCLUSIVE. Timing totals count each invocation once even
+when its runtime emits repeated cumulative terminal results.
+
+**A native PASS is structural only.** Its grading and summary records explicitly carry
+`assessment_scope: structural_only` and `semantic_assessment: UNVERIFIED`. Read the initial dispatch,
+child response, parent continuation, and resumed response to judge the scenario's manual criteria:
+caller/owner preservation, evidence quality, feasible advice, corrected recovery, and causal/timing
+limits. Successfully reading the helper's supplied evidence file is also a manual check: a completed
+child alone does not establish that read. Parent text after a return proves continuation, not good synthesis. This scenario has not
+been behaviorally accepted merely because its schema or parser tests pass.
+
 ## The rubric judge
 
 `rubric` graders spawn one clean-room, tool-less `claude -p` turn against a named rubric in
 [`rubrics.yaml`](rubrics.yaml). It fails closed: a timeout, auth failure, malformed envelope,
 unknown verdict, a verdict from a model other than the pinned one, or evidence not quoted verbatim
-from the graded response all return FAIL with a `judge inconclusive:` detail.
+from the graded response all fail closed with a `judge inconclusive:` detail; the runner marks the
+trial INCONCLUSIVE. Normal build and contract rubric graders require one explicit completed
+calibration receipt before starting the evaluated agent:
+
+```bash
+python evals/build_probe.py --scenario <id> --label <label> --out <dir> --judge-calibration .eval-runs/judge-calibration/<run>/identity.json
+```
+
+The receipt must cover the current canonical corpus (currently 139 cases across nine rubrics, each
+with PASS and FAIL cases), match the loaded judge code, configuration, and rubric definitions, and
+meet the repository's 0.95 agreement threshold with no inconclusive cases. The loader recomputes
+agreement from `results.json`; a legacy, partial, custom-subset, or stale receipt cannot certify a
+normal trial. Both grader forms and direct `run_trial` calls enforce the same preflight. Scenario
+kwargs cannot supply the binding. `--validate`, empty-response spec validation, and direct judge
+spot checks stay offline or retain their explicit bootstrap behavior.
 
 ```bash
 python evals/judge.py --calibrate
 ```
 
 measures every rubric against [`rubrics-calibration.yaml`](rubrics-calibration.yaml) and exits
-non-zero below 0.95 agreement or on any inconclusive case. Run it after a rubric edit. Its cache
-lives under `.eval-runs/judge-calibration/` and is shared across runs, so re-checking after a rubric
-edit only pays for what changed. The contract is the
+non-zero below 0.95 agreement or on any inconclusive case. Calibration remains owner-triggered;
+the runner never starts it automatically. New judge code/configuration or rubric definitions need
+an applicable calibration before normal rubric trials. Its cache lives under
+`.eval-runs/judge-calibration/`; entries bind judge/clean-room source, Python/PyYAML, effective CLI
+arguments and timeout, prompt template, rendered rubric, response, and observed model. A rubric
+edit invalidates that rubric's entries; a judge source/configuration edit invalidates the affected
+execution cache. Label-only edits reuse judgments but recompute agreement, and cache-only
+calibration remains visibly marked. Cache eligibility does not depend on a calibration receipt,
+so bootstrap calibration has no circular dependency. The contract is the
 [rubric-judge evaluation ADR](../docs/decisions/2026-09-01-rubric-judge-evaluation-contract.md).
+
+The normal runner derives the concrete judge model from the receipt and freezes its executable,
+arguments, timeout, and optional `EVAL_JUDGE_CACHE` location. Later ambient `EVAL_JUDGE_MODEL`,
+`EVAL_JUDGE_CACHE`, or `CLAUDE_BIN` changes cannot redirect that binding. Every live judgment and
+cache hit checks the pinned model. Complete binding metadata is retained in provenance and grading;
+`timing.json` retains each call's response/rubric identities, full verdict detail, observed model,
+cache status, cost, and duration, including inconclusive calls. The 600-character display limit does
+not truncate those records. These are trusted local evidence records, not signed runtime attestation.
 
 ## Provenance
 
@@ -116,7 +181,7 @@ the same plugin; they do not say the runs measured it the same way — **pin `--
 for any numbers you intend to diff.**
 
 Machine records retain the complete candidate digest and a scenario digest covering the spec, its
-referenced oracle files, and the rubric definitions the judge actually consumes. The judge caches
+referenced oracle files, the explicit judge binding when used, and the rubric definitions the judge actually consumes. The judge caches
 rubrics on first load for the process; file edits take effect in a new process. The digest uses those
 same cached definitions. Appending requires candidate and scenario identities to match the existing
 batch before any model call. Scenario inputs are checked again before and after grading;
@@ -124,7 +189,9 @@ a change in the effective definitions or oracle bytes invalidates the trial. Reg
 position and retains live-judge/workspace verdicts from `grading.original.json`; duplicate display
 labels cannot substitute one verdict for another. Legacy records without identities, changed
 scenarios, and missing original assertions are INCONCLUSIVE and require a fresh trial. Regrade does
-not call a judge or recover workspace evidence that was never recorded.
+not call a judge or recover workspace evidence that was never recorded. Rubric regrades use the
+immutable binding embedded in the original live grade, without reopening a current receipt or
+recalibrating. Missing binding evidence or a changed judged response makes the regrade INCONCLUSIVE.
 
 The scenario digest also binds the evaluator implementation: `build_probe.py`, `graders.py`,
 `judge.py`, and `clean_room.py`, plus Python and PyYAML versions. Start the runner in a fresh process
