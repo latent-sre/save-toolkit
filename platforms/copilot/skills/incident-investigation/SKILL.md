@@ -129,10 +129,12 @@ A recommendation is neither approval nor execution.
 For an interrupted action, distinguish current state, attempt history, and post-change behavior.
 Get timestamped readback through the human or an authorized read-only lane. Reconcile the attempt
 with its human owner and available receipts/events before advising any retry. A readback shows the
-desired state now when the live revision's description names the intended version or the intended
-droplet is running; a successful rollback creates a new, higher revision number described
-`Rolled back to revision <n>`, so a number that differs from the target is not evidence of failure,
-and a matching state does not time the attempt
+desired state now only when the deployment has completed and every expected instance runs the
+intended droplet — the live revision's description names the intended version (a successful
+rollback creates a new, higher revision number described `Rolled back to revision <n>`, so a number
+that differs from the target is not evidence of failure). While a rolling rollback is still in
+progress both revisions serve, so a description or one converted instance settles nothing yet; and
+a matching final state does not time the attempt
 [sourced: https://docs.cloudfoundry.org/devguide/revisions.html]. Failed or inconclusive readback
 leaves UNKNOWN, not permission to retry. Assess recovery using observations from an established
 post-change interval.

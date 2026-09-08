@@ -129,6 +129,24 @@ and [knowledge-disposition rules](../skills/operational-learning/SKILL.md); end-
 of all four transitions remains unverified.
 **SRE task:** Know whether a service record still applies to the deployment being operated.
 
+### QUALITY-001 — close the remaining platform and observability quality findings
+
+**Status:** `decision-needed` (2026-09-08).
+**Owner:** Maintainers decide whether and when to run the batch; `agent-engineer` executes with
+independent review.
+**Outcome:** The fifteen platform and observability P2 findings from the 2026-09-08 quality round are
+fixed at source with their primary sources cited, or dispositioned, and the touched skills are
+re-measured against the round's iteration-1 baseline on Sonnet and Opus.
+**Next action:** Owner selects the batch (first two by behavioural evidence: the pcf-ops startup
+health-check timeout crash loop and the obs-alerting Splunk scheduled-alert window), then the same
+method as the merged batches: reconfirm each finding at source, implement from exact specs, review,
+after-run. No model run is authorized by this item.
+**Evidence:** [Quality round record](reviews/2026-09-08-quality-round.md) (analysis counts, the two
+behaviourally confirmed misses, and the open list); the lane reports are private under
+`.eval-runs/quality-20260908/analysis/`.
+**SRE task:** Get correct first checks for a PCF crash loop, a Splunk alert window, a Cloud Run 429, an
+Akamai purge, and a Wavefront alert from the skills instead of from memory.
+
 ## Deferred
 
 ### EFFECT-001 — effect-bound execution broker

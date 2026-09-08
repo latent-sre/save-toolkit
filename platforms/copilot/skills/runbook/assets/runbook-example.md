@@ -193,7 +193,8 @@ Hand over: trigger, evidence, attempted steps, current state, and the current ow
 
 | Date (UTC) | Incident / drill ref | Version used | Steps that held | Steps that failed / were missing | Follow-up (disposition / PR or evidence reference) |
 |---|---|---|---|---|---|
-| 2026-02-11 | drill-2026-02-11-checkout-restart | 3 | Triage 1–3, Procedure 1 | — | `prepared` — Procedure 1 rewritten to escalate instead of restart after the drill showed no serving-headroom check (version 4; not yet re-verified) |
+| 2026-02-18 | review — version 4 | 4 | — | Procedure 1 (restart) replaced by escalation because no serving-headroom check was available; the version-3 `<idx>` note went with it; `last_verified` cleared until a version-4 drill binds it | this revision |
+| 2026-02-11 | drill-2026-02-11-checkout-restart | 3 | Triage 1–3, Procedure 1 | — | `prepared` — added the zero-based `<idx>` note after the responder guessed wrong twice |
 | 2026-01-19 | postmortem 2026-01-19-checkout-pool | 2 | Triage 1–2 | Procedure 2 had no rollback; responder left checkout at 9 instances for six days | PR #412 — added the Rollback entry and the 30-min wait |
 | 2025-12-03 | INC-8841 | 1 | Triage 1 | No vendor check existed; 40 min spent scaling against a slow vendor | PR #388 — added Procedure step 2 |
 

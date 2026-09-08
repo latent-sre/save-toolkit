@@ -1,12 +1,15 @@
-# Fleet quality round — analysis, iteration-1 evidence, and batch-A fixes
+# Fleet quality round — analysis, fixes, and after-runs
 
 Date: 2026-09-08 · Branch `work/quality-round-20260908` from `main` at `c960727d` · Claude Code
 2.1.263, Windows host, `--plugin-dir F:/repos/sre-agents`.
 
 Scope set by the owner: quality of skills and agents, not size. Sonnet and Opus run every test cell;
-Fable plans, analyzes, and judges. This record covers the reading analysis, the first behavioural
-iteration on the unchanged fleet, and the first change set (the four P1s and the six incident-lane
-P2s). No eval has run on the changed bytes; that after-run waits for the owner's approval.
+Fable plans, analyzes, and judges. This record covers the reading analysis, the iteration-1 baseline on
+the unchanged fleet, two change sets (the four P1s with the six incident-lane P2s; the seven
+engineering-lane P2s), and the owner-approved after-runs: iterations 2 and 3 on the incident lane,
+iteration 2 on pcf-ops and obs-logs, and a first measurement of the engineering lane. The fifteen
+platform and observability P2s are unaddressed; whether to run them is tracked as QUALITY-001 in the
+roadmap, not decided here.
 
 ## Reading analysis
 
@@ -227,6 +230,21 @@ Fleet-wide viewer totals (all 28 evals, both arms): iteration 1 Sonnet 70.5% vs 
 vs 59.6%; iteration 2 (incident lane, pcf-ops, obs-logs on the changed bytes) Sonnet 76.0% vs
 49.3%, Opus 85.0% vs 57.2%. Pages: `.eval-runs/quality-20260908/review/iteration-{1,2,3}-{sonnet,opus}.html`.
 
+## Review round: Codex on PR #245
+
+Seven findings on `303d3d95` (three P1, four P2), each verified against the text it cites and fixed in
+the same PR; CI was green on all four checks at that commit.
+
+| Finding | Verified against | Fix |
+|---|---|---|
+| P1: the advisor's readback rule accepts a description or one converted instance while a rolling rollback is still in progress, so UNKNOWN can clear too early | `mitigation-selection.md`'s own paragraph: both revisions serve until completion | Readback shows the desired state only when the deployment has completed and every expected instance runs the intended droplet; mid-rollback, a description or one instance settles nothing |
+| P1: per-instance restart "preferred" without a serving-headroom condition; a single-instance app or saturated survivors have none | the runbook exemplar blocks restart when headroom is unknown | Preference conditioned on headroom for the restarted share; unknown headroom blocks any restart; the fast path covers per-instance or rolling restart only with confirmed headroom, and a single-instance restart is a classified outage |
+| P1: the record promised a "next batch" that the live roadmap did not carry | `docs/fleet-roadmap.md` is the only backlog | Roadmap item QUALITY-001 (`decision-needed`) holds the fifteen open P2s; the record points at it instead of promising |
+| P2: "an empty offenders result is a missing extraction" overclaims when `error_type` is set only on error events | the query's own `isnotnull(error_type)` filter | Empty is ambiguous (no errors, or no extraction); prove extraction over a window known to contain errors or against an event known to carry the field |
+| P2: the OOM knob mapping reads as universal | Oracle's list includes `Requested array size exceeds VM limit`; native-thread failures can be OS limits | Mapping scoped to the pool-exhaustion forms; array-size is a code defect, native-thread may be ulimit or cgroup pids; other reasons stay open |
+| P2: the record's intro still said no after-run had happened | the iteration tables below it | Title and intro rewritten to the completed scope |
+| P2: the runbook exemplar's 2026-02-11 history row was rewritten, against its own "never rewrite or delete" rule | `runbook/SKILL.md` history rules | Original row restored verbatim; a new newest-first row records the version-4 change and the cleared `last_verified` |
+
 ## Not established
 
 - The engineering lane has no old-skill arm (its eval sets were written after the edits), so its
@@ -235,4 +253,5 @@ vs 59.6%; iteration 2 (incident lane, pcf-ops, obs-logs on the changed bytes) So
 - Apps Manager control semantics (per-instance restart, Redeploy) remain `[unverified]` and are
   labelled so in the text; the installed cf CLI version for the rolling-rollback default is
   `[unverified]`.
-- The remaining P2s (platform and observability lanes) are unchanged; they are the next batch.
+- The remaining P2s (platform and observability lanes) are unchanged; QUALITY-001 in the roadmap holds
+  the owner's decision on them.

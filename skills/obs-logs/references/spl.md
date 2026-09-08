@@ -88,10 +88,12 @@ index=<app_index> sourcetype=<...> earliest=-1h latest=now
 | stats count by error_type, service
 | sort -count
 ```scope by index/sourcetype/time only — no `error` keyword (see above). Events without
-   `error_type` are omitted from `stats … by error_type`, so an EMPTY result is a missing
-   extraction, not a healthy service. Prove extraction first:
-   `| stats count(error_type) AS classified, count` — classified far below count means
-   the field is not extracted for most events.```
+   `error_type` are omitted from `stats … by error_type`, so an EMPTY result is ambiguous:
+   no errors in the window, or the field is not extracted. Never read it as healthy until
+   extraction is proven — run `| stats count(error_type) AS classified, count` over a
+   window known to contain errors (or against one event known to carry the field):
+   classified = 0 there means the field is not extracted; a low but non-zero ratio in a
+   normal window can simply be a low error rate.```
 ````
 
 `error_type` must be search-time-extracted; if it isn't, `rex` it first (see *Tips* below). Group by
