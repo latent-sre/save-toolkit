@@ -21,7 +21,7 @@ advisor, and the advisor's triggers gain on-call phrasing. The first landed on 2
 | Quoted triggers (`check_links` allows 2–4) | 'walk me through this incident', 'help me understand what is going on with INC', 'what should I check next', 'what is this telling me' | 'I just got paged, what do I do', 'customers are reporting errors, where do I start', 'walk me through this incident', 'what should I check next' |
 | Description bytes | 392 | 496 |
 | New scenario | — | [`discovery-incident-investigation-first-page`](../../evals/scenarios/discovery-incident-investigation-first-page.yaml): the review's unhinted new-SRE prompt, `expect: fire` |
-| `scripts/weights.json` `skills_bytes` | 579,000 (65 B headroom) | 579,200; tracked skills measure 579,039 |
+| `scripts/weights.json` `skills_bytes` | 579,000 (65 B headroom) at the measured candidate; 584,000 (4 B headroom) after PR #240 | 579,200 at `2b2dad80`; 584,200 on the merged head, where tracked skills measure 584,100 |
 
 The two dropped quoted phrases survive as prose ("understand evidence", "explain what … is telling
 them"); no routing scenario targets them, so that loss is `[unverified]` either way.
@@ -74,6 +74,22 @@ about USD 7.
   Sonnet first-page trial spent 478 s and USD 0.97 doing so. Routing was right; what the advisor
   does next in a session with no `Read`/`Glob` and no `docs/operations/` is decision quality, owned
   by INCIDENT-QUALITY-001.
+
+## Merged head versus measured candidate
+
+PR #240 merged to `main` (`ab01e54d`) while the trials ran. Merge commit `7ff70344` brings it into
+this branch; the only conflict was `scripts/weights.json`, resolved to #240's ceilings plus the
+200-byte allowance above, and the Copilot adapter was regenerated rather than hand-merged.
+
+- `[verified]` The advisor description on the merged head is byte-identical to the measured one.
+- `[verified]` The plugin source digest on the merged head is `f4f0543e…e2cd6`, not the measured
+  `3211d951…998d`. The difference is #240's content: six body lines in the advisor's
+  "Knowledge, evidence, and helper returns" section, its `symptom-investigation.md` reference,
+  `incident-command`'s mitigation-selection reference, two `obs-logs` references, and three agent
+  bodies. None of it is routing text.
+- `[unverified]` That routing on the merged head matches the table above. The routing function
+  (descriptions) is unchanged, so the result is expected to transfer; a maintainer who wants the
+  exact-revision proof re-runs the seven scenarios on the merge head.
 
 ## Not established
 
