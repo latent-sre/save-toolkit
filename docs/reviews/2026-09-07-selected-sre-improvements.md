@@ -28,6 +28,9 @@ outside the advertised set, advisor loading after dispatch, an explicitly backgr
 incomplete receipt metadata, and damaged per-invocation evidence during regrade. Both live and
 regrade paths apply the same native boundary checks. Missing, invalid, or over-$0.75 recorded cost
 stops continuation. These are tested instrument properties, not observed runtime escapes.
+The independent static recheck cleared those repairs at
+`52f00e9a628a20bccd18d95df3bb70574802ef6c`. It also cleared the private candidate driver's
+glossary cost/tool postconditions. Neither verdict substitutes for native semantic assessment.
 
 The frozen comparison uses two independent synthetic daily-statement incidents per arm, each
 with one helper and one owner correction, plus two fresh glossary controls per arm. The initial
@@ -68,8 +71,48 @@ not erased by a PASS. Two repetitions are bounded observations, not a reliabilit
 
 ### Candidate result
 
-Pending final source review and the reserved candidate invocations. Parser tests and a well-formed
-scenario do not complete this measurement or establish behavioral acceptance.
+[verified] **INCONCLUSIVE — authentication stopped the first candidate invocation.** The frozen
+plugin came from clean plugin inputs at `234bafaa319cd0a99ac7337398c6df7199f9d0cc`, with SHA-256
+`7e76dbc831b94b1928cae7f5ef18ef99cecd4ac4c72dcb14f5bf3472aadb0249`. Its private snapshot owns Git
+commit `cfe040ea41971f6b02dd8e70edbd0e40e16b5473`; it does not inherit the enclosing main checkout's
+HEAD. The outer manifest records both source and snapshot provenance.
+
+The candidate incident uses the integrated runner with the exact frozen JSON prompt, evidence,
+and correction strings. The incumbent used the retained sampler. Those instrument identities are
+recorded separately; this was not an isolated causal comparison of only the prompt change.
+`integrated-candidate-manifest.json` identifies the evaluator used for this attempt: its hashes
+cover the final worktree harness. The older `candidate-manifest.json` records the freezer's
+root-checkout harness inputs. These are different implementations and roots, not a line-ending
+discrepancy; both instrument manifests hash raw file bytes. Plugin digests separately normalize
+line endings. The consumed manifests and drivers remain unchanged.
+
+The initial candidate response is:
+
+> Failed to authenticate: OAuth session expired and could not be refreshed
+
+Raw evidence is retained in `native/candidate/1/initial/` and the matching `integrated/` run.
+It records zero model tokens, zero cost, no model-usage entries, and no tool calls or helper
+dispatches. The runner stopped before the follow-up and glossary controls. Across both arms,
+**seven parent invocations and two helpers** were initiated, with total CLI-reported cost
+**$0.8358384**. A synthetic error response is not a candidate behavioral result.
+
+[verified] Independent assessment of the retained initial trace, invocation metadata, and manifests
+confirmed authentication failure, zero model usage, and absence of helper/resume/control evidence.
+The assessor could not directly open the integrated run directory; the primary agent read its
+provenance, grading, timing, and trace, which likewise record `INCONCLUSIVE`, structural-only
+assessment, unverified semantics, and zero tokens/cost. The primary agent also verified byte-for-byte
+identity of the retained stdout, stderr, response, and invocation files against that directory.
+Neither assessment establishes candidate behavior.
+
+The ordinary CLI still reports a saved claude.ai login; that status does not establish that the
+isolated session can renew it. [sourced] The official [Claude Code error reference](https://code.claude.com/docs/en/errors#login-expired)
+identifies this headless renewal failure and requires re-authentication. No credential values were
+inspected or copied into this report.
+
+The owner was asked to re-authenticate and approve one replacement invocation: at most 17 total
+CLI/helper sessions, the same $6 cap and exact candidate bytes. That amendment is pending; the
+original no-retry contract remains in force. Native candidate selection, helper return, same-session
+recovery, and semantic acceptance therefore remain **unverified**. The failed attempt is preserved.
 
 ## Apps Manager mitigation planning
 
@@ -89,7 +132,10 @@ and [cancel-deployment reference](https://cli.cloudfoundry.org/en-US/v8/cancel-d
 bound cancellation and revision interpretation. A restage is not an existing-droplet restart;
 cancellation does not restore variables or service bindings. The process is preserved explicitly
 with `cf scale --process`, because the [CLI default is web](https://cli.cloudfoundry.org/en-US/v8/scale.html).
-Context7 independently returned the documented process-scaling command; no live operation was run.
+The selected-instance restart also preserves `--process`; its [default is likewise web](https://cli.cloudfoundry.org/en-US/v8/restart-app-instance.html).
+Whole-app restart is labeled separately. Context7 independently returned the documented
+process-scaling command; the exact instance-restart syntax required the CLI reference. No live
+operation was run.
 
 [unverified] Target-foundation controls, current deployment/package state, and target readback remain
 owner-supplied operational evidence. A matching current state does not time an interrupted action;
@@ -140,11 +186,24 @@ compatibility is verified; real-service onboarding and operational usability are
 
 ## Judge identity binding
 
-Implementation and focused verification are pending. The confirmed defect is that normal rubric
-graders do not supply the judge's optional expected-model pin, and normal scenario/cache provenance
-does not bind a calibrated judge configuration. Calibration's separate pin is insufficient evidence
-that an ordinary result came from that instrument. The selected repair will explicitly bind the
-normal path to an applicable calibration receipt and retain full structured judge identity.
+[verified] Implemented in `5debf2a9`. Both normal grader forms now require an explicit applicable
+calibration before starting the evaluated agent. The binding covers the canonical corpus and
+rubrics, recomputed agreement, concrete resolved judge model, executable arguments, timeout, and
+cache selection. Execution identity controls cache eligibility; the separate receipt identity
+controls run attribution. Ambient settings cannot redirect the bound call.
+
+Complete call records retain model, response/rubric identities, verdict detail, cache status,
+cost, and duration. Offline regrade keeps the original binding and judgment without reopening
+receipt files or calling a model. Independent review closed two additional gaps: a bound direct
+API could override the rubric text, and missing/malformed calibration inputs after a call could
+be mislabeled as candidate failure while losing complete call metadata. Both have red/green
+regressions and passed the independent static recheck.
+
+[unverified] No live judge or calibration calls were run. Legacy receipts do not contain the new
+execution/source evidence and cannot certify ordinary rubric trials. A fresh applicable calibration
+is an explicit future operation; the runner does not initiate it. Runtime model identity still
+relies on the CLI's existing `modelUsage` attribution. Frozen executable path/arguments/timeout
+are not binary or host attestation, and calibration does not promote a fleet candidate.
 
 ## SPL error-rate denominator
 
@@ -170,12 +229,32 @@ field extraction, single-status semantics, request population, and coverage need
 
 ## Verification and weight
 
-Final integrated verification and total allowance are pending. Native runner/grader verification
-passed 172 tests and 68 subtests before the final cost-cap predicate. The extra cost=0.76 control
-then reproduced a false PASS; after repair, the focused cost/regrade checks passed two tests and
-15 subtests. The native batch adds 470 evaluator lines (tests included) and 319 skill bytes. Its
-ceiling adjustment is 9,900 to 10,250 evaluator lines and 579,000 to 579,300 skill bytes; later
-selected changes receive their own measured allowance.
+[verified] Final repository checks on the implemented bytes passed **532 tests and 1,020 subtests**
+in 90.02 seconds. Four checks skipped: three Windows directory-symlink cases lacked permission,
+and one shell-requirement check is CI-only. Gate A passed **4/4** structural steps; scenario
+validation passed **66 scenarios / 329 expectations**; whitespace and generated-adapter checks
+passed. The test interpreter was Python 3.12.10 with pytest 9.1.1 and PyYAML 6.0.3, with Git Bash
+available on PATH. Raw output is in `.eval-runs/sre-improvements-20260907/full-pytest-final.txt`.
+
+Native runner/grader verification passed 172 tests and
+68 subtests before the final cost-cap predicate. The extra cost=0.76 control then reproduced a false
+PASS; after repair, the focused cost/regrade checks passed two tests and 15 subtests. Judge
+implementation checks passed 244 tests and 101 subtests before its two review repairs; the final
+focused repairs passed 22 tests and 12 subtests. These unit checks were offline with model calls
+mocked; the separately reported incumbent native conversations used the live CLI.
+
+[verified] Final measured allowances on this Windows checkout:
+
+| Total | Baseline | Candidate | Ceiling before → after |
+|---|---:|---:|---:|
+| Evaluator Python lines, including tests | 9,753 | 10,684 | 9,900 → 10,700 |
+| Canonical skill bytes | 578,906 | 583,715 | 579,000 → 584,000 |
+| Canonical agent bytes | 114,962 | 115,448 | 115,000 → 115,500 |
+
+The native contract adds 470 evaluator lines and 319 skill bytes; judge attribution adds 461
+evaluator lines, including 270 test lines. Apps Manager planning adds 2,579 skill bytes, SPL adds
+1,911, and the two agent-scope rules add 486 agent bytes. All seven existing context-cost profiles
+remain within budget. These are repository weight measurements, not measured runtime token savings.
 
 The evaluator extension adds regression coverage for false completion, ordering, session, and
 runtime-boundary credit; it does not justify deleting existing checks to fit a byte/line ceiling.

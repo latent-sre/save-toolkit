@@ -43,8 +43,11 @@ in merged PR #237 do not prove installed-host enforcement, model behavior, or re
 the bounded follow-up.
 **Outcome:** The advisor loads relevant guidance, dispatches a bounded helper, reconciles its
 return, and advances without invented causes, timing, or current-state claims.
-**Next action:** Review the owner-selected native advisor/helper/return/resume candidate and its
-bounded comparison in the [selected-improvement record](reviews/2026-09-07-selected-sre-improvements.md).
+**Next action:** Restore authentication for the isolated Claude run and obtain the owner's
+replacement-invocation decision before finishing the frozen native candidate. Its first invocation
+stopped before model usage, helper dispatch, or resume; code and structural checks passed, but
+candidate behavior remains unverified. See the
+[selected-improvement record](reviews/2026-09-07-selected-sre-improvements.md).
 The completed 24-session Sonnet campaign failed behavioral acceptance; later source merges are not
 a fresh behavioral verdict. Preserve actual return/resume and sufficient-evidence recovery as
 regressions. Separate decisions remain for limited Terra comparisons (zero calls; tool absence
