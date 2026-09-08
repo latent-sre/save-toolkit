@@ -157,10 +157,34 @@ ambiguous; that caution is reasonable and the mitigation table could say so.
 
 Review pages with iteration-1 outputs alongside: `.eval-runs/quality-20260908/review/iteration-2-{sonnet,opus}.html`.
 
+## Iteration 3 — incident-command after the follow-up edits
+
+Owner-approved. `75b67f4d` added three sentences to `mitigation-selection.md`: rule 3's attribution
+pause is not the recovery criterion (the agreed user-outcome signal over the agreed window is); the
+backout of a rollback is another rollback or a roll-forward through the full gate; the instance
+index is zero-based, confirm the row. Same 3 prompts, 17 assertions, two with-skill runs per cell on
+Sonnet and Opus (12 cells, 0 failed, about USD 3 cells and USD 5 grading); the iteration-1 no-skill
+baseline is reused.
+
+| incident-command | iteration 1 (old skill) | iteration 2 | iteration 3 | no skill |
+|---|---|---|---|---|
+| Sonnet | 0.63 | 0.76 | 0.83 | 0.36 |
+| Opus | 0.79 | 0.92 | 0.98 | 0.61 |
+
+`[verified]` per assertion, pooled over both models (iteration 2 → 3, n=4 each): recovery criterion as
+a windowed route-level rate 1/4 → 4/4; Apps Manager Revisions path with the CLI fallback 2/4 → 4/4;
+console-versus-CLI restart distinction 3/4 → 4/4; Priya as decider with a human executor 3/4 → 4/4;
+rolling deployment stated 2/4 → 3/4. One dip, 4/4 → 2/4 on "new revision (28) described rolled back
+to 26": both failing Sonnet runs said the rollback "redeploys revision 26's droplet as a new
+revision" and to confirm the description reads `Rolled back to revision 26`, but never wrote the
+number 28 — judge strictness on wording, the substance held.
+
+Review pages with iteration-2 outputs alongside: `.eval-runs/quality-20260908/review/iteration-3-{sonnet,opus}.html`.
+
 ## Not established
 
-- Behaviour on the changed bytes: no eval has run since the edits (owner approval pending). The
-  iteration-1 cells are the baseline for that after-run.
+- Behaviour on the changed bytes for the pcf-ops, obs-logs, and engineering-lane edits: no eval has run
+  on those since the edits; the incident lane has iterations 2 and 3 above.
 - Apps Manager control semantics (per-instance restart, Redeploy) remain `[unverified]` and are
   labelled so in the text; the installed cf CLI version for the rolling-rollback default is
   `[unverified]`.
