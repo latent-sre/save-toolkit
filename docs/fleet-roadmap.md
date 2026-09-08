@@ -38,18 +38,22 @@ in merged PR #237 do not prove installed-host enforcement, model behavior, or re
 
 ### INCIDENT-QUALITY-001 — verify decision quality after the SRE contract repairs
 
-**Status:** `decision-needed` (2026-09-07); behavioral acceptance remains on hold.
+**Status:** `decision-needed` (2026-09-08); behavioral acceptance remains on hold.
 **Owner:** Maintainers select the exact candidate and evaluation budget; `agent-engineer` owns
 the bounded follow-up.
 **Outcome:** The advisor loads relevant guidance, dispatches a bounded helper, reconciles its
 return, and advances without invented causes, timing, or current-state claims.
-**Next action:** Select one bounded follow-up for native advisor selection/dispatch and evidence
-quality. The completed 24-session Sonnet campaign failed behavioral acceptance; later source merges
-are not a fresh behavioral verdict. Preserve actual return/resume and sufficient-evidence recovery
-as regressions. Separate decisions remain for limited Terra comparisons (zero calls; tool absence
-unproved and host skills injected), six Sonnet pairs for task-sized outputs, and three pairs for
-helper exchanges. These are pending choices, not permission to run them.
-**Evidence:** [Second pass](reviews/2026-09-07-incident-quality-second-pass.md), its
+**Next action:** Resolve the [preflight's `doctor` catalogue exception](reviews/2026-09-08-incident-acceptance-preflight.md)
+before continuing the approved final-candidate check. Two isolation probes used 2 sessions and
+$0.0625748 in CLI estimates; 14 sessions and $3.9374252 remain under the original 16-session/$4
+ceiling. No incident cases ran. Preserve native advisor selection/dispatch, evidence quality,
+actual return/resume and sufficient-evidence recovery as separate acceptance checks. The completed
+24-session Sonnet campaign failed acceptance; later source merges are not a fresh behavioral
+verdict. Limited Terra comparisons (zero calls; tool absence unproved and host skills injected),
+six Sonnet pairs for task-sized outputs, and three paired helper-exchange comparisons remain
+separate pending choices; this final-candidate check measures no before/after delta.
+**Evidence:** [Isolation preflight](reviews/2026-09-08-incident-acceptance-preflight.md),
+[second pass](reviews/2026-09-07-incident-quality-second-pass.md), its
 [symptom-guidance](reviews/2026-09-06-general-incident-help.md) and
 [first-repair](reviews/2026-09-06-sre-decision-quality-repairs.md) baselines, plus
 [task-sized outputs](reviews/2026-09-07-task-sized-skill-outputs.md) and
