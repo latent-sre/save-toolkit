@@ -15,26 +15,36 @@ Stopping user pain comes before root cause. Prefer an action that can be undone 
 the decision explicit. The responder, advised by `incident-investigation`, recommends; `sre-assistant`
 reports evidence and stops; a human release owner executes.
 
-The commands below are planning examples, not current-foundation evidence. They remain
-`[unverified]` until the human release owner validates the exact target, capability, command, and
-rollback.
+Start in Apps Manager: open the app from its foundation, org, and space, and match that identity to
+the approved packet. The human paths below are conditional navigation from the TAS 2.12 guide;
+controls, permissions, and revision support on this foundation remain `[unverified]`. If a control
+is absent or its effect is unclear, give the release owner the same target, action, backout, and
+readback request for their approved pipeline or CLI. The responder need not install `cf`.
+
+UI actions and CLI commands are planning examples until the human release owner validates their
+exact target, capability, effect, and rollback. A restage control is not an existing-droplet restart.
 
 Before classifying `cf restart` as fast-path mitigation, confirm that it reuses the current staged
 droplet without building an artifact. An unstaged most-recent package can make restart stage new
 bytes; that requires the full release and production gates. Unknown package/droplet state blocks
 fast-path classification, not other confirmed already-live rollback options.
 
-| Situation | Mitigation | Planning example — human confirms first |
-|---|---|---|
-| Errors begin at a bad deploy and the previously live app still exists | Blue-green rollback by remapping the stable production route to the previous app | `cf map-route <previous-app> <domain> --hostname <app>` then `cf unmap-route <current-app> …`; blue and green are roles, not fixed names, so first identify the live app with `cf apps` |
-| Bad deploy with revisions enabled | Revision rollback | `cf revisions <app>` to identify the last good revision, then `cf rollback <app> --version <n>` |
-| Rolling or canary deployment is still in progress | Abort the active deployment | `cf cancel-deployment <app>` works only while a deployment is active; after completion use revision rollback instead |
-| Instances are hung, wedged, or leaking with no recent change | Restart as a time-buying stopgap | `cf restart <app>` or `cf restart-app-instance <app> <i>`; this discards the state that would explain the hang, so decision rule 2 applies |
-| Bad variable read only by the app at process start | Revert the value and restart with confirmed existing-droplet reuse | `cf set-env <app> KEY <old>` then `cf restart <app>`; confirm the variable's consumer and package/droplet state first |
-| Bad buildpack or staging-time configuration | Revert and restage through the full release and production gates | `cf set-env <app> KEY <old>` then `cf restage <app>` creates a new droplet; it is not fast-path rollback. If the consumer is unknown, establish it before choosing restart or restage |
-| Load or capacity saturation | Scale out | `cf scale <app> -i <more>` |
-| Bad behavior is feature-flag gated | Disable the flag | Use the owning flag system; no deploy is required |
-| Downstream dependency is failing | Fail over, degrade gracefully, or shed load | Follow the dependency's approved operating evidence |
+| Situation | Mitigation | Human path | CLI or pipeline fallback — release owner confirms first |
+|---|---|---|---|
+| Errors begin at a bad deploy and the previously live app still exists | Remap the production route to the previous app | Inspect both apps' **Routes**, including hostname, domain, path, and current mappings; use the confirmed map/unmap controls | `cf map-route <previous-app> <domain> --hostname <app>` then `cf unmap-route <current-app> …`; first identify the live and previous apps, not assumed blue/green names |
+| Bad deploy with revisions enabled | Revision rollback | Inspect **Revisions** and the last good row; use **Redeploy** only when the owner confirms it performs the intended rollback | `cf revisions <app>`, then `cf rollback <app> --version <n>`; check separately for variables or bindings the rollback does not restore |
+| Rolling or canary deployment is still in progress | Abort the active deployment | Have the release owner confirm the active deployment and its pipeline cancellation path; a revisions list alone does not prove deployment completion | `cf cancel-deployment <app>` only while active; after completion use revision rollback. Cancellation does not revert variables or service bindings |
+| Instances are hung, wedged, or leaking with no recent change | Restart as a time-buying stopgap | Inspect the affected process/instance on **Overview**; use a confirmed restart operation or ask the release owner. Do not substitute **Restage** | `cf restart <app>` for the whole app, or `cf restart-app-instance <app> <i> --process <process-type>` for the selected instance; confirm existing-droplet reuse and preserve or disposition diagnostic state under rule 2 |
+| Bad variable read only at process start | Revert and restart | Human executor uses **Settings** privately for the exact approved variable, then the confirmed restart path; carry no secret value into the incident packet | `cf set-env <app> KEY <old>` then `cf restart <app>`; first confirm the consumer and package/droplet state |
+| Bad buildpack or staging-time configuration | Revert and restage through the full release gates | Human executor uses the approved configuration/pipeline path; a **Restage** control creates new staged bytes | `cf set-env <app> KEY <old>` then `cf restage <app>`; unknown consumer blocks the restart/restage choice |
+| Load or capacity saturation | Scale out | On **Overview**, select the affected process's **Scale** control and approved **Instances** count, if exposed | `cf scale <app> --process <process-type> -i <approved-count>`; preserve the selected process because the CLI defaults to `web` |
+| Bad behavior is feature-flag gated | Disable the flag | Use the owning flag system's approved control | Follow that system's operating evidence; no deploy is required |
+| Downstream dependency is failing | Fail over, degrade gracefully, or shed load | Use the dependency owner's approved console or operating procedure | Follow the dependency's approved operating evidence; queued/in-flight work loss is destructive |
+
+After any attempt, the human supplies timestamped readback of the actual instances, route mappings,
+or revision and the affected-user recovery signal. A matching current state does not establish when
+an interrupted attempt applied. Missing/failed readback leaves its outcome UNKNOWN; reconcile with
+the executor before a retry.
 
 ## Decision rules
 
@@ -71,3 +81,10 @@ recovery window. The human on-call continues root-cause work with `incident-inve
 (dispatching the typed `sre-assistant` agent for a bounded read-only slice), the human release
 owner owns any fix-forward execution, and the responder owns recovery evidence; `observability-engineer`
 owns detection changes after resolution.
+
+Navigation source: VMware's [TAS 2.12 guide, pp. 1145–1157](https://manuals.plus/m/f716ea2ede1f52c2fb9c9496bd199abbede3c0aa1727dab518af606551e1b71f)
+(2023 manual; target-foundation UI unverified). Command semantics: Cloud Foundry
+[rolling deployments](https://docs.cloudfoundry.org/devguide/deploy-apps/rolling-deploy.html),
+[cancel-deployment](https://cli.cloudfoundry.org/en-US/v8/cancel-deployment.html), and
+[process scaling](https://cli.cloudfoundry.org/en-US/v8/scale.html).
+[Instance restart](https://cli.cloudfoundry.org/en-US/v8/restart-app-instance.html) also defaults to `web`.

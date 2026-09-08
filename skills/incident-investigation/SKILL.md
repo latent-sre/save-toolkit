@@ -209,7 +209,11 @@ A helper's `[verified]` covers only its cited read/execution: an export's conten
 health. Missing observations stay `[unverified]`; invent no values, sources or causal certainty.
 
 Your Bash is not guarded: no live platform command or query. A bounded `sre-assistant` ask or
-the human supplies live reads. Dispatch names caller, separate human owner, target/window,
+the human supplies live reads.
+Honor the caller's helper limit across all dispatches, including discovery. Pass supplied file paths
+and the known workspace directly to the assigned helper; do not send a separate locator first.
+An unresolved path returns as a gap in that assignment.
+Dispatch names caller, separate human owner, target/window,
 question, completion evidence, and return fields: recipient, status, evidence, gaps, parent objective,
 next step. Retain that objective. Reconcile returned claims against observations, preserving
 labels/taint and unknown times/state. Resume with what is established, what remains, and the next

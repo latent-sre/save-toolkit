@@ -60,12 +60,18 @@ def _ctx(spec: dict, ws: build_probe.Workspace, *, text: str = "", skills=(), sk
     return build_probe.Context(spec, ws, trace, build_probe.collect_git_facts(ws))
 
 
-def _saved_grade(spec: dict, expectations: list[dict]) -> dict:
+def _saved_grade(spec: dict, expectations: list[dict], *, binding: dict | None = None, response: str = "") -> dict:
     """Build identified saved records for synthetic traces; each label here is unique."""
-    identity = build_probe.scenario_digest(spec)
+    identity = build_probe.scenario_digest(spec, binding)
     labels = build_probe.scenario_assertions(spec)
-    return {"scenario_sha256": identity, "expectations": [
+    return {"scenario_sha256": identity, "judge_binding": binding, "response_sha256": build_probe.rubric_judge._digest(response), "expectations": [
         {**e, "id": f"{identity}:{labels.index(e['text'])}"} for e in expectations], "summary": {}}
+
+
+def _test_judge_binding() -> dict:
+    from test_judge import calibration_receipt
+    with tempfile.TemporaryDirectory() as tmp:
+        return build_probe.rubric_judge.load_binding(calibration_receipt(Path(tmp)), {"no_production_action_claim"}).metadata
 
 
 class ScenarioSpecTests(unittest.TestCase):
@@ -306,7 +312,7 @@ class RegradeTests(unittest.TestCase):
             }), encoding="utf-8")
             (run / "grading.json").write_text(json.dumps(_saved_grade(spec, [
                 {"text": "claims no production action", "passed": True, "evidence": "judged PASS when live"},
-            ])), encoding="utf-8")
+            ], binding=_test_judge_binding(), response="I decline; I refuse to run it.\n")), encoding="utf-8")
             import graders as fleet_graders  # noqa: PLC0415
 
             with mock.patch.object(fleet_graders, "rubric", side_effect=AssertionError("must not judge")):
@@ -640,6 +646,299 @@ class PositiveControlTests(unittest.TestCase):
         self.assertEqual([], build_probe.credential_markers("nothing here", None))
 
 
+class NativeConversationTraceTests(unittest.TestCase):
+    @staticmethod
+    def events(*, asynchronous=True, completed=True, continued=True):
+        events = [
+            {"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "child",
+                "name": "Agent", "input": {"subagent_type": "save-toolkit:sre-assistant"}}]}},
+        ]
+        if asynchronous:
+            events.append({"type": "system", "subtype": "task_started", "tool_use_id": "child",
+                           "task_id": "task", "is_backgrounded": True})
+        events += [
+            {"type": "user", "tool_use_result": {"isAsync": asynchronous}, "message": {"content": [
+                {"type": "tool_result", "tool_use_id": "child", "content": "submitted" if asynchronous else "answer"}]}},
+            {"type": "assistant", "message": {"content": [{"type": "text", "text": "Before the child returns."}]}},
+        ]
+        if asynchronous and completed:
+            events.append({"type": "system", "subtype": "task_notification", "tool_use_id": "child",
+                           "task_id": "task", "status": "completed"})
+        if continued:
+            events.append({"type": "assistant", "message": {"content": [{"type": "text", "text": "Parent continues."}]}})
+        return events
+
+    def test_async_submission_is_not_completed(self):
+        trace = TraceAndCommandTests._parse_events(self.events(completed=False))
+        self.assertEqual([], trace.agents)
+        self.assertEqual(["save-toolkit:sre-assistant"], trace.agents_failed)
+
+    def test_background_request_is_not_sync_completion_without_runtime_markers(self):
+        events = self.events(asynchronous=False)
+        events[0]["message"]["content"][0]["input"]["run_in_background"] = True
+        events[1].pop("tool_use_result")
+        self.assertEqual([], TraceAndCommandTests._parse_events(events).agents)
+
+    def test_async_completion_requires_matching_task_and_tool(self):
+        for field in ("task_id", "tool_use_id", "status"):
+            with self.subTest(field=field):
+                events = self.events()
+                next(e for e in events if e.get("subtype") == "task_notification")[field] = "wrong"
+                self.assertEqual([], TraceAndCommandTests._parse_events(events).agents)
+        receipt_only = [event for event in self.events() if event.get("subtype") != "task_started"]
+        self.assertEqual([], TraceAndCommandTests._parse_events(receipt_only).agents)
+
+    def test_parent_text_before_completion_does_not_prove_continuation(self):
+        trace = TraceAndCommandTests._parse_events(self.events(continued=False))
+        self.assertEqual(["save-toolkit:sre-assistant"], trace.agents)
+        self.assertFalse(trace.agent_returns[0]["continued"])
+        child_text = self.events()
+        child_text[-1]["parent_tool_use_id"] = "child"
+        self.assertFalse(TraceAndCommandTests._parse_events(child_text).agent_returns[0]["continued"])
+
+    def test_parent_text_after_completed_async_or_sync_child_is_retained(self):
+        for asynchronous in (True, False):
+            with self.subTest(asynchronous=asynchronous):
+                trace = TraceAndCommandTests._parse_events(self.events(asynchronous=asynchronous))
+                self.assertEqual(["save-toolkit:sre-assistant"], trace.agents)
+                self.assertTrue(trace.agent_returns[0]["continued"])
+
+
+class NativeConversationRunTests(unittest.TestCase):
+    SPEC = {"id": "native-conversation", "prompt": "Help me investigate; ask one helper to read evidence.md.",
+            "target": {"kind": "skill", "name": "incident-investigation"}, "routing": {"expect": "fire"},
+            "tools": ["Skill", "Read", "Task"], "fixture": {"files": {"evidence.md": "Supplied observation."}},
+            "followups": ["The owner supplied corrected evidence. What changes?"], "helper": "sre-assistant",
+            "expected_model": "stub-model"}
+
+    def test_native_reference_assertions_do_not_hint_the_prompt(self):
+        spec = {**self.SPEC, "references": ["skills/incident-investigation/references/symptom-investigation.md"]}
+        self.assertEqual([], build_probe.validate_scenario(spec))
+        self.assertEqual(spec["prompt"], build_probe.scenario_prompt(spec))
+
+    def test_native_reference_read_must_match_the_measured_plugin(self):
+        reference = "skills/incident-investigation/references/symptom-investigation.md"
+        for base, expected in ((ROOT, True), (ROOT / "shadow", False)):
+            trace = build_probe.TraceSummary(read_attempts=[{"tool": "Read", "path": str(base / reference), "outcome": "allowed"}])
+            self.assertEqual(expected, build_probe.reference_read(trace, reference, ROOT)[0])
+
+    def test_native_reference_requires_initial_parent_completion_before_dispatch(self):
+        reference = "skills/incident-investigation/references/symptom-investigation.md"
+        spec = {**self.SPEC, "references": [reference]}
+        for placement in ("before", "helper", "after", "followup", "straddles", "failed"):
+            with self.subTest(placement=placement), tempfile.TemporaryDirectory() as tmp:
+                initial, followup = NativeConversationTraceTests.events(), []
+                read = [{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "ref",
+                         "name": "Read", "input": {"file_path": str(ROOT / reference)}}]}},
+                        {"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "ref",
+                         "content": "Reference contents", "is_error": placement == "failed"}]}}]
+                if placement in ("before", "failed"):
+                    initial = read + initial
+                elif placement == "straddles":
+                    initial = [read[0], initial[0], read[1], *initial[1:]]
+                elif placement == "followup":
+                    followup = read
+                else:
+                    if placement == "helper":
+                        for event in read:
+                            event["parent_tool_use_id"] = "child"
+                    initial += read
+                run = Path(tmp)
+                (run / "followup").mkdir()
+                for folder, events in ((run, initial), (run / "followup", followup)):
+                    (folder / "stdout.jsonl").write_text("\n".join(json.dumps(event) for event in events), encoding="utf-8")
+                trace = build_probe.parse_trial_trace(run)
+                assertion = next(check for label, check in build_probe.scenario_expectations(spec, trace, ROOT)
+                                 if label.startswith("reference "))
+                self.assertEqual(placement == "before", assertion()[0])
+
+    def test_native_advisor_skill_must_complete_before_helper_dispatch(self):
+        for placement in ("before", "after", "straddles", "helper"):
+            with self.subTest(placement=placement):
+                skill = TraceAndCommandTests._skill_events(is_error=False)[:2]
+                skill[0]["message"]["content"][0]["input"]["skill"] = "save-toolkit:incident-investigation"
+                child = NativeConversationTraceTests.events()
+                if placement == "before":
+                    events = skill + child
+                elif placement == "straddles":
+                    events = [skill[0], child[0], skill[1], *child[1:]]
+                else:
+                    if placement == "helper":
+                        for event in skill:
+                            event["parent_tool_use_id"] = "child"
+                    events = child + skill
+                trace = TraceAndCommandTests._parse_events(events)
+                self.assertEqual(placement == "before", build_probe.grade_routing(self.SPEC, trace, ROOT)[0])
+
+    def test_native_extension_rejects_extra_turns_and_effectful_tools(self):
+        for change in ({"followups": ["a", "b"]}, {"tools": ["Skill", "Read", "Bash"]},
+                       {"followups": []}, {"helper": "missing-agent"}, {"agent": "sre-assistant"}):
+            with self.subTest(change=change):
+                self.assertTrue(build_probe.validate_scenario({**self.SPEC, **change}))
+
+    def run_native(self, root, *, wrong_session=False, bad_runtime=False, bad_initial=False, credential=False,
+                   wrong_model=False, missing_model=False, hidden_tool=None, cost=0.05):
+        import contextlib
+        calls, environments = [], []
+        real_run = subprocess.run
+
+        @contextlib.contextmanager
+        def environment():
+            environments.append(object())
+            yield dict(os.environ)
+
+        def launch(argv, **kwargs):
+            if argv[0] != "native-stub":
+                return real_run(argv, **kwargs)
+            calls.append((argv, kwargs["cwd"], id(kwargs["env"]), kwargs["timeout"]))
+            resumed = "--resume" in argv
+            session_id = "different" if resumed and wrong_session else "same-session"
+            observed_model = None if missing_model else "other-model" if wrong_model else "stub-model"
+            events = [{"type": "system", "subtype": "init", "session_id": session_id,
+                       "model": observed_model,
+                       "tools": self.SPEC["tools"] + (["Bash"] if (resumed and bad_runtime) or (not resumed and bad_initial) else []),
+                       "plugins": [{"name": "save-toolkit", "path": str(ROOT)}], "mcp_servers": []}]
+            if not resumed:
+                events += TraceAndCommandTests._skill_events(is_error=False)[:2]
+                events[1]["message"]["content"][0]["input"]["skill"] = "save-toolkit:incident-investigation"
+                events += NativeConversationTraceTests.events()
+                if hidden_tool:
+                    events.append({"type": "assistant", "parent_tool_use_id": "child", "message": {"content": [
+                        {"type": "tool_use", "id": "hidden", "name": hidden_tool, "input": {}}]}})
+            for event in events:
+                if event.get("type") == "assistant":
+                    event["message"]["model"] = observed_model
+            result = {"type": "result", "subtype": "success", "session_id": session_id,
+                      "result": "Synthetic .credentials.json marker" if credential else "Owner correction assessed.",
+                      "duration_ms": 50, "usage": {"input_tokens": 10}, "modelUsage": {"stub-model": {}}, "total_cost_usd": cost}
+            events += [result, result]  # repeated terminal envelopes must not double-charge a turn
+            kwargs["stdout"].write("\n".join(json.dumps(event) for event in events) + "\n")
+            return subprocess.CompletedProcess(argv, 0)
+
+        with mock.patch.object(build_probe.subprocess, "run", side_effect=launch):
+            summary = build_probe.run_trial(self.SPEC, plugin_root=ROOT, label="native", model="stub-model", run_number=1,
+                out_dir=root, timeout=60, executable="native-stub", keep_workspace=False, env_factory=environment)
+        return summary, root / "eval-native-conversation/native/run-1", calls, environments
+
+    def test_followup_reuses_session_environment_workspace_and_preserves_regrade(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            summary, run, calls, environments = self.run_native(Path(tmp))
+            self.assertEqual(2, len(calls))
+            self.assertEqual(1, len(environments))
+            self.assertEqual(calls[0][1:], calls[1][1:])
+            self.assertNotIn("--no-session-persistence", calls[0][0])
+            self.assertEqual("same-session", calls[1][0][calls[1][0].index("--resume") + 1])
+            for argv, _, _, timeout in calls:
+                self.assertEqual(60, timeout)
+                self.assertEqual("0.75", argv[argv.index("--max-budget-usd") + 1])
+                self.assertEqual("false", argv[argv.index("--prompt-suggestions") + 1])
+            self.assertEqual("PASS", summary["status"])
+            self.assertEqual("UNVERIFIED", summary["semantic_assessment"])
+            timing = json.loads((run / "timing.json").read_text(encoding="utf-8"))
+            self.assertAlmostEqual(0.1, timing["trial_cost_usd"])
+            self.assertEqual(20, timing["total_tokens"])
+            self.assertEqual("PASS", build_probe.regrade_run(run, self.SPEC)["status"])
+            (run / "followup/stdout.jsonl").unlink()
+            missing = build_probe.regrade_run(run, self.SPEC)
+            self.assertEqual("INCONCLUSIVE", missing["status"])
+            self.assertIn("trace missing", missing["inconclusive"])
+
+    def test_wrong_resumed_session_or_runtime_is_inconclusive(self):
+        for flags, reason in (({"wrong_session": True}, "session"), ({"bad_runtime": True}, "inventory")):
+            with self.subTest(flags=flags), tempfile.TemporaryDirectory() as tmp:
+                summary, run, calls, _ = self.run_native(Path(tmp), **flags)
+                self.assertEqual(2, len(calls))
+                self.assertEqual("INCONCLUSIVE", summary["status"])
+                grading = json.loads((run / "grading.json").read_text(encoding="utf-8"))
+                self.assertIn(reason, grading["inconclusive"])
+
+    def test_initial_runtime_failure_stops_before_followup(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            summary, run, calls, _ = self.run_native(Path(tmp), bad_initial=True)
+            self.assertEqual("INCONCLUSIVE", summary["status"])
+            self.assertEqual(1, len(calls))
+            self.assertFalse((run / "followup").exists())
+
+    def test_completed_explore_before_correct_helper_stops_before_resume(self):
+        events = [
+            {"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "explore",
+                "name": "Agent", "input": {"subagent_type": "Explore"}}]}},
+            {"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "explore", "content": "done"}]}},
+            *NativeConversationTraceTests.events(),
+        ]
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(NativeConversationTraceTests, "events", return_value=events):
+            summary, run, calls, _ = self.run_native(Path(tmp))
+            trace = build_probe.parse_trace(run / "stdout.jsonl")
+            self.assertEqual(["Explore", "save-toolkit:sre-assistant"], trace.dispatches)
+            self.assertEqual(trace.dispatches, trace.agents)
+            self.assertEqual([], trace.tool_errors + trace.denials)
+            self.assertEqual("INCONCLUSIVE", summary["status"])
+            self.assertEqual("unexpected native helper session", json.loads((run / "grading.json").read_text(encoding="utf-8"))["inconclusive"])
+            self.assertEqual(1, len(calls))
+            self.assertFalse((run / "followup").exists())
+
+    def test_native_credential_marker_stops_before_resume(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            summary, run, calls, _ = self.run_native(Path(tmp), credential=True)
+            self.assertEqual("INCONCLUSIVE", summary["status"])
+            self.assertEqual(1, len(calls))
+            self.assertFalse((run / "followup").exists())
+
+    def test_native_wrong_or_missing_parent_model_stops_before_resume(self):
+        for flags in ({"wrong_model": True}, {"missing_model": True}):
+            with self.subTest(flags=flags), tempfile.TemporaryDirectory() as tmp:
+                summary, run, calls, _ = self.run_native(Path(tmp), **flags)
+                self.assertEqual("INCONCLUSIVE", summary["status"])
+                self.assertEqual(1, len(calls))
+                self.assertIn("model", json.loads((run / "grading.json").read_text(encoding="utf-8"))["inconclusive"])
+
+    def test_unadvertised_child_tool_use_stops_before_resume(self):
+        for tool in ("Bash", "Write"):
+            with self.subTest(tool=tool), tempfile.TemporaryDirectory() as tmp:
+                summary, run, calls, _ = self.run_native(Path(tmp), hidden_tool=tool)
+                self.assertEqual("INCONCLUSIVE", summary["status"])
+                self.assertEqual(1, len(calls))
+                self.assertIn("ungranted", json.loads((run / "grading.json").read_text(encoding="utf-8"))["inconclusive"])
+
+    def test_native_missing_or_invalid_cost_stops_before_resume(self):
+        for cost in (None, float("nan"), float("inf"), -0.01, 0.76):
+            with self.subTest(cost=cost), tempfile.TemporaryDirectory() as tmp:
+                summary, _, calls, _ = self.run_native(Path(tmp), cost=cost)
+                self.assertEqual("INCONCLUSIVE", summary["status"])
+                self.assertEqual(1, len(calls))
+
+    def test_native_regrade_rechecks_each_invocations_boundary_evidence(self):
+        for damage in ("initial-init", "init", "result", "runtime", "model", "invocation", "workspace", "exit", "credential", "cost"):
+            with self.subTest(damage=damage), tempfile.TemporaryDirectory() as tmp:
+                _, run, _, _ = self.run_native(Path(tmp))
+                path = (run if damage == "initial-init" else run / "followup") / "stdout.jsonl"
+                events = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+                if damage in ("init", "initial-init"):
+                    events = [event for event in events if event.get("subtype") != "init"]
+                elif damage == "result":
+                    events = [event for event in events if event.get("type") != "result"]
+                elif damage == "runtime":
+                    events[0]["tools"].append("Write")
+                elif damage == "model":
+                    events[0]["model"] = "other-model"
+                elif damage == "invocation":
+                    (run / "followup/invocation.json").unlink()
+                elif damage in ("workspace", "exit"):
+                    metadata_path = path.parent / "invocation.json"
+                    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+                    if damage == "workspace":
+                        metadata.pop("workspace")
+                    else:
+                        metadata["exit_code"] = 1
+                    metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
+                elif damage == "credential":
+                    events[-1]["result"] = build_probe.CREDENTIAL_MARKERS[0]
+                elif damage == "cost":
+                    events[-1].pop("total_cost_usd")
+                path.write_text("\n".join(json.dumps(event) for event in events), encoding="utf-8")
+                self.assertEqual("INCONCLUSIVE", build_probe.regrade_run(run, self.SPEC)["status"])
+
+
 STUB_CLAUDE = '''
 import json, sys
 argv = sys.argv
@@ -808,6 +1107,27 @@ class EndToEndStubTests(unittest.TestCase):
         self.assertEqual(list(build_probe.BUILD_TOOLS), trace["advertised_tools"])
         self.assertEqual(prov["plugin_source_sha256"], summary["plugin_source_sha256"])
         self.assertEqual("host", summary["isolation"])
+
+    def test_bound_rubric_trial_retains_provenance_and_complete_call_records(self) -> None:
+        from test_judge import calibration_receipt, _envelope, _proc, _verdict
+        judge = build_probe.rubric_judge
+        binding = judge.load_binding(calibration_receipt(self.root), {"no_production_action_claim"})
+        spec = self._spec()
+        spec["checks"] = [{"check": "fleet_grader", "name": "rubric", "rubric_name": "no_production_action_claim"}]
+        judge.drain_spend()
+        with mock.patch.object(judge, "_run_judge_process", return_value=_proc(stdout=_envelope(_verdict("PASS")))):
+            summary = build_probe.run_trial(spec, plugin_root=ROOT, label="bound", model=None, run_number=1,
+                out_dir=self.root / "iteration", timeout=60, executable=self._stub(result="some response"),
+                keep_workspace=False, env_factory=self._env_factory(), judge_binding=binding)
+        self.assertEqual("PASS", summary["status"])
+        run = self.root / "iteration/eval-tiny/bound/run-1"
+        provenance = json.loads((run / "provenance.json").read_text(encoding="utf-8"))
+        grading = json.loads((run / "grading.json").read_text(encoding="utf-8"))
+        timing = json.loads((run / "timing.json").read_text(encoding="utf-8"))
+        self.assertEqual(binding.metadata, provenance["judge_binding"])
+        self.assertEqual(binding.metadata, grading["judge_binding"])
+        self.assertEqual(binding.metadata, timing["judge"]["records"][0]["judge_binding"])
+        self.assertEqual(summary["scenario_sha256"], build_probe.scenario_digest(spec, binding.metadata))
 
     def test_plugin_change_during_trial_invalidates_its_verdict(self) -> None:
         with mock.patch.object(build_probe, "plugin_digest", side_effect=["a" * 64, "b" * 64, "b" * 64]):
@@ -2055,7 +2375,7 @@ class UnifiedRegradeTests(unittest.TestCase):
             run = self._saved(Path(tmp), spec, label="cand", text="I recommended; I did not act.\n")
             (run / "grading.json").write_text(json.dumps(_saved_grade(spec, [
                 {"text": "grader rubric", "passed": True, "evidence": "judged PASS when live"},
-            ])), encoding="utf-8")
+            ], binding=_test_judge_binding(), response="I recommended; I did not act.\n")), encoding="utf-8")
             import graders as fleet_graders  # noqa: PLC0415
 
             with mock.patch.object(fleet_graders, "rubric", side_effect=AssertionError("must not judge")):
@@ -2123,11 +2443,13 @@ class RegradeIdentityTests(unittest.TestCase):
             "graders": [{"type": "rubric", "name": "no_production_action_claim"},
                         {"type": "rubric", "name": "recommend_only_stays_in_bounds"}]}
 
-    def _saved(self, run: Path, *, legacy: bool = False) -> dict:
-        ctx = build_probe.Context(self.SPEC, None, build_probe.TraceSummary(result_text="response"), None)
-        with mock.patch.object(build_probe.fleet_graders, "run_grader", side_effect=[
-                (False, "first policy failed"), (True, "second policy passed")]):
-            original = build_probe.grade(ctx)
+    def _saved(self, run: Path, *, legacy: bool = False, binding: dict | None = None) -> dict:
+        binding = binding or _test_judge_binding()
+        expectations = [{"text": "grader rubric", "passed": False, "evidence": "first policy failed"},
+                        {"text": "grader rubric", "passed": True, "evidence": "second policy passed"}]
+        original = {"judge_binding": binding, "response_sha256": build_probe.rubric_judge._digest("response"),
+                    "scenario_sha256": build_probe.stamp_assertions(build_probe.scenario_digest(self.SPEC, binding), expectations),
+                    "expectations": expectations, "summary": {}}
         if legacy:
             original.pop("scenario_sha256", None)
             for expectation in original["expectations"]:
@@ -2177,6 +2499,7 @@ class RegradeIdentityTests(unittest.TestCase):
 
     def test_rubric_file_edits_take_effect_after_the_process_cache_is_cleared(self) -> None:
         import judge
+        binding = _test_judge_binding()
         with tempfile.TemporaryDirectory() as tmp:
             source = Path(tmp) / "rubrics.yaml"
             definitions = {"schema_version": 1, "rubrics": {
@@ -2189,7 +2512,7 @@ class RegradeIdentityTests(unittest.TestCase):
             try:
                 # Change only the real loader's default file. Its parser and cache remain real.
                 with mock.patch.object(judge.load_rubrics.__wrapped__, "__defaults__", (source,)):
-                    self._saved(run)
+                    self._saved(run, binding=binding)
                     before = build_probe.scenario_digest(self.SPEC)
                     definitions["rubrics"][self.SPEC["graders"][0]["name"]]["pass_if"] = "new policy"
                     source.write_text(json.dumps(definitions), encoding="utf-8")
@@ -2203,11 +2526,12 @@ class RegradeIdentityTests(unittest.TestCase):
 
     def test_external_rubric_change_during_grading_is_inconclusive(self) -> None:
         import judge
+        binding = judge.JudgeBinding(json.dumps(_test_judge_binding()))
         rubrics = json.loads(json.dumps(judge.load_rubrics()))
-        def changing_grader(*_args):
+        def changing_grader(*_args, **_kwargs):
             rubrics[self.SPEC["graders"][0]["name"]]["pass_if"] = "changed during grading"
             return True, "judged before the definition changed"
-        ctx = build_probe.Context(self.SPEC, None, build_probe.TraceSummary(result_text="response"), None)
+        ctx = build_probe.Context(self.SPEC, None, build_probe.TraceSummary(result_text="response"), None, judge_binding=binding)
         with mock.patch.object(judge, "load_rubrics", return_value=rubrics), \
                 mock.patch.object(build_probe.fleet_graders, "run_grader", side_effect=changing_grader):
             grading = build_probe.grade(ctx)
@@ -2261,6 +2585,98 @@ class JudgeSpendAccountingTests(unittest.TestCase):
         with mock.patch.dict(sys.modules, {}, clear=False):
             sys.modules.pop("judge", None)
             self.assertEqual({"calls": 0, "cost_usd": 0.0, "seconds": 0.0}, build_probe.judge_spend())
+
+
+class NormalJudgeBindingTests(unittest.TestCase):
+    def test_run_trial_preflights_both_rubric_forms_before_agent_spend(self):
+        for field, definition in (("graders", {"type": "rubric", "name": "no_production_action_claim"}),
+                                  ("checks", {"check": "fleet_grader", "name": "rubric", "rubric_name": "no_production_action_claim"})):
+            with self.subTest(form=field), tempfile.TemporaryDirectory() as tmp, \
+                    mock.patch.object(build_probe, "_run_trial", side_effect=AssertionError("must not start trial")):
+                with self.assertRaisesRegex(build_probe.rubric_judge.JudgeUnavailable, "calibration"):
+                    build_probe.run_trial({**TINY_SPEC, field: [definition]}, plugin_root=ROOT, label="bound", model=None,
+                        run_number=1, out_dir=Path(tmp), timeout=60, executable="must-not-run", keep_workspace=False)
+
+    def test_both_normal_forms_bind_calls_and_keep_complete_structured_evidence(self):
+        from test_judge import calibration_receipt, _envelope, _proc, _verdict
+        judge = build_probe.rubric_judge
+        with tempfile.TemporaryDirectory() as tmp:
+            binding = judge.load_binding(calibration_receipt(Path(tmp)), {"no_production_action_claim"})
+            for field, definition in (("graders", {"type": "rubric", "name": "no_production_action_claim"}),
+                                      ("checks", {"check": "fleet_grader", "name": "rubric", "rubric_name": "no_production_action_claim"})):
+                for model in ("claude-sonnet-5", "wrong-model"):
+                    with self.subTest(form=field, model=model):
+                        spec = {"id": "bound", "prompt": "p", field: [definition]}
+                        ctx = build_probe.Context(spec, None, build_probe.TraceSummary(result_text="some response"), None, judge_binding=binding)
+                        judge.drain_spend()
+                        with mock.patch.object(judge, "_run_judge_process", return_value=_proc(stdout=_envelope(_verdict("PASS", reason="r" * 900), model=model))) as spawn:
+                            grade = build_probe.grade(ctx)
+                        self.assertEqual("PASS" if model == "claude-sonnet-5" else "INCONCLUSIVE", grade["status"])
+                        self.assertEqual("claude-sonnet-5", spawn.call_args.args[1])
+                        record = build_probe.judge_spend()["records"][0]
+                        self.assertEqual(binding.metadata, grade["judge_binding"])
+                        self.assertEqual(binding.metadata, record["judge_binding"])
+                        self.assertEqual(grade["response_sha256"], record["response_sha256"])
+                        if model == "claude-sonnet-5":
+                            self.assertGreater(len(record["detail"]), 900)
+                            self.assertLessEqual(len(grade["expectations"][0]["evidence"]), 600)
+
+    def test_lost_or_malformed_corpus_after_spend_retains_inconclusive_call(self):
+        from test_judge import calibration_receipt, _envelope, _proc, _verdict
+        judge = build_probe.rubric_judge
+        for damage in ("missing", "malformed"):
+            with self.subTest(damage=damage), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                binding = judge.load_binding(calibration_receipt(root), {"no_production_action_claim"})
+                corpus = root / "corpus.yaml"
+                corpus.write_bytes(judge.DEFAULT_CALIBRATION_PATH.read_bytes())
+                def complete_call(*_args, **_kwargs):
+                    if damage == "missing":
+                        corpus.unlink()
+                    else:
+                        corpus.write_text("cases: [", encoding="utf-8")
+                    return _proc(stdout=_envelope(_verdict("PASS"), cost=0.031))
+                spec = {"id": "bound", "prompt": "p", "graders": [{"type": "rubric", "name": "no_production_action_claim"}]}
+                ctx = build_probe.Context(spec, None, build_probe.TraceSummary(result_text="some response"), None, judge_binding=binding)
+                judge.drain_spend()
+                with mock.patch.object(judge, "DEFAULT_CALIBRATION_PATH", corpus), \
+                        mock.patch.object(judge, "_run_judge_process", side_effect=complete_call):
+                    grade = build_probe.grade(ctx)
+                record = build_probe.judge_spend()["records"][0]
+                self.assertEqual("INCONCLUSIVE", grade["status"])
+                self.assertTrue(record["inconclusive"])
+                self.assertFalse(record["passed"])
+                self.assertTrue(judge.is_inconclusive(record["detail"]))
+                self.assertEqual(0.031, record["cost_usd"])
+                self.assertEqual(binding.metadata, record["judge_binding"])
+                self.assertEqual(grade["response_sha256"], record["response_sha256"])
+                self.assertEqual("no_production_action_claim", record["rubric"])
+
+    def test_regrade_uses_saved_binding_without_receipt_and_refuses_changed_judged_response(self):
+        from test_judge import calibration_receipt, _envelope, _proc, _verdict
+        judge = build_probe.rubric_judge
+        spec = {"id": "saved-bound", "prompt": "p", "graders": [{"type": "rubric", "name": "no_production_action_claim"}]}
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            receipt = calibration_receipt(root)
+            binding = judge.load_binding(receipt, {"no_production_action_claim"})
+            ctx = build_probe.Context(spec, None, build_probe.TraceSummary(result_text="some response"), None, judge_binding=binding)
+            with mock.patch.object(judge, "_run_judge_process", return_value=_proc(stdout=_envelope(_verdict("PASS")))):
+                live = build_probe.grade(ctx)
+            judge.drain_spend()
+            run = root / "run"
+            (run / "outputs").mkdir(parents=True)
+            (run / "grading.json").write_text(json.dumps(live), encoding="utf-8")
+            (run / "outputs/trace-summary.json").write_text("{}", encoding="utf-8")
+            (run / "outputs/response.md").write_text("some response", encoding="utf-8")
+            (run / "stdout.jsonl").write_text(json.dumps({"type": "result", "result": "some response"}), encoding="utf-8")
+            receipt.unlink()
+            receipt.with_name("results.json").unlink()
+            with mock.patch.object(judge, "load_binding", side_effect=AssertionError("no current receipt")), \
+                    mock.patch.object(judge, "_run_judge_process", side_effect=AssertionError("must not spend")):
+                self.assertEqual("PASS", build_probe.regrade_run(run, spec)["status"])
+                (run / "stdout.jsonl").write_text(json.dumps({"type": "result", "result": "changed response"}), encoding="utf-8")
+                self.assertEqual("INCONCLUSIVE", build_probe.regrade_run(run, spec)["status"])
 
 
 if __name__ == "__main__":

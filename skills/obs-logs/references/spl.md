@@ -187,18 +187,30 @@ finding — recommend adding one through the `software-engineer` agent.
 
 ## Compare before vs after a deploy
 
-`../SKILL.md`'s rate-not-count rule and equal-window discipline govern the comparison; the SPL
-shape:
+Use equal, absolute windows around the deploy. Select a request-completion sourcetype with exactly
+one event per eligible request/attempt; an application index containing debug or lifecycle events
+is not a request denominator. Establish that population and coverage before interpreting a rate.
+The denominator below is all eligible requests in the phase, independent of error classification:
 
 *[sourced: Splunk `eval` and `stats` syntax; unverified for target fields and deploy epoch]*
 
 ````spl
-index=<app_index>
+index=<app_index> sourcetype=<request_completion_sourcetype> earliest=<before_start_epoch> latest=<after_end_epoch>
 | eval phase=if(_time < <deploy_epoch>, "before", "after")
-| stats count(eval(status>=500)) AS errors, count AS total by phase, error_type
-| eval error_rate = errors / total
-   ```did this error's RATE rise after the deploy — or did traffic just grow?```
+| eval status=if(match(status, "^[1-5][0-9]{2}$"), tonumber(status), null())
+| eventstats count AS total, count(status) AS classified by phase
+| stats count(eval(status>=500 AND status<600)) AS errors, max(total) AS total, max(classified) AS classified by phase, error_type
+| eval error_rate=if(total>0 AND classified=total, errors/total, null())
 ````
+
+For one error class, 1 failure among 100 eligible requests before and 10 among 100 after must
+produce 0.01 and 0.10. Counting the denominator inside `by phase, error_type` instead produces
+1/1 and 10/10 when that class exists only on failures, hiding the regression. Missing or invalid HTTP
+status (including `0`, `700`, or fractional codes) leaves the rate null. This assumes a single
+three-digit HTTP status per completion event; verify that source contract. A missing phase/class
+row is not a zero: confirm traffic, extraction,
+and window coverage. Successful requests without `error_type` still count in `eventstats` before
+the class grouping. Use the catalog's overall-rate query when no error classification is available.
 
 ## Extract fields ad hoc
 
