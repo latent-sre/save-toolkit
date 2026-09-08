@@ -57,8 +57,44 @@ Method as in PR #241's advisor on-call trigger record (not on this branch): deta
 `[verified]` The first tool call in all twelve trials was the target skill. Resolved model
 `claude-sonnet-5`. Total about USD 5.6.
 
+## Review round: Codex on PR #243
+
+Five findings on `e605d103`, all verified against the sources they cite and fixed in `6ec6541f`
+(plugin digest `8a188034…`), with the scenario correction in `1a14dfca`.
+
+| Finding | Verified against | Fix |
+|---|---|---|
+| P1: the glossary said blast radius keys the Tier 2/3 classification | `production-change-gate/SKILL.md:37-55` chooses the tier from the action's reversibility and access-path effects and records blast radius afterwards | Blast radius is "required impact evidence after the tier is chosen; a small blast radius never lowers a tier" |
+| P1: the reviewer lost its refusal for a worktree that auto-loads candidate instruction files | A trusted-base diff does not un-load a candidate `CLAUDE.md` the host already read | Refusal restored as a detectable condition: if the loaded instructions already match the candidate's version, refuse and ask for a trusted-base worktree. `agents_bytes` 115,800 → 116,100 (LF 115,983) |
+| P2: the owner lookup asked for `last_verified` | The service-card template defines `last_reviewed` and `evidence_status` | Lookup reports those two fields |
+| P2: the description dropped the `agent-engineer` exclusion | The skill's own invariant routes fleet prompt failures to `agent-engineer` | Exclusion restored within 600 bytes (593); a negative scenario guards it |
+| P2: the release owner was defined by the change record | `incident-fast-path.md:53-64` defers the formal change record while the role still executes | "The human assigned to execute … named on the change record where the process requires one" |
+
+### After-run on the restored exclusion (digest `8a188034…`, Sonnet, 3 trials)
+
+| Scenario | Batch | Verdict | Seconds | Cost (USD) |
+|---|---|---|---|---|
+| `discovery-operational-learning-owner-lookup` (positive) | `after2-sonnet` | PASS 3/3 | 167–322 | 0.57, 0.79, 0.73 |
+| `discovery-operational-learning-defers-fleet-failure` (negative, first prompt) | `after2-sonnet` | **FAIL 0/3**: no tool call in any trial | 11–18 | 0.11, 0.08, 0.08 |
+| same, prompt corrected in `1a14dfca` | `after3-sonnet` | **INCONCLUSIVE**: run 1 PASS, runs 2–3 INCONCLUSIVE | 195–225 | 0.41, 0.43, 0.47 |
+
+The first negative batch is a scenario defect, kept on record: the prompt said "I have the two
+transcript excerpts" without supplying them, and in all three trials Sonnet named
+`save-toolkit:agent-engineer` as the lane and asked for the paste before dispatching. A negative
+passes only when the alternative is invoked, so the corrected prompt carries both excerpts.
+
+`[verified]` from the traces of the corrected batch: all three trials dispatched
+`save-toolkit:agent-engineer` and none invoked `operational-learning`. The two INCONCLUSIVE
+verdicts come from what the dispatched agent did next: it tried to `Glob` and `Read` the scribe
+agent's file at the plugin root (denied, outside the workspace), and in run 3 it wrote a note
+into the trial's own auto-memory directory under the clean config dir, which the harness's
+out-of-workspace guard flags. That is the third scenario in this record family where a correct
+route ends INCONCLUSIVE because the routing harness grants `Read`/`Glob` but not the plugin root;
+the runner change stays a separate decision. The aggregate stands as INCONCLUSIVE.
+
 ## Not established
 
+- The negative's aggregate under this runner; only the trace-level claim above is verified.
 - Whether the dropped machinery triggers ('runbook mode selected', 'postmortem mode selected',
   'knowledge closeout mode selected') mattered: `scribe` loads these skills by name, and no
   scenario exercised the scribe-driven path.
