@@ -89,6 +89,43 @@ not a fleet contract (on 2026-08-22 Opus 5 dispatched 0/3 where Sonnet did 3/3).
 and host with any such result. See the
 [accepted EVAL-002 decision](../docs/decisions/2026-08-22-agent-discovery-calibration.md).
 
+### Native incident conversation
+
+[`native-incident-helper-return-and-resume`](scenarios/native-incident-helper-return-and-resume.yaml)
+extends the same runner with exactly one `followups:` prompt. It runs the initial parent unpinned,
+keeps its clean environment and fixture workspace, then passes the actual session ID to `--resume`.
+There are at most two CLI invocations, each capped at `$0.75` and the selected `--timeout` (use
+`--timeout 240` for the frozen incident comparison: up to 240 seconds per invocation). Prompt
+suggestions are disabled; there is no automatic retry. This path grants only `Skill,Read,Task`,
+accepts fixture files only, and checks each invocation's plugin, advertised inventory, actual tool
+use (including child calls), read paths, and session identity before continuing. Optional
+`expected_model:` pins the concrete parent/init model identity on every invocation; the committed
+incident scenario requires `claude-sonnet-5`. Each turn retains expected and observed identities.
+Credential markers or missing, invalid, or over-`$0.75` cost records stop this path before a follow-up.
+`references:` are assertions only here: they do not add instructions to the prompt. The initial
+parent must finish reading the measured plugin's exact reference before its first helper dispatch;
+a helper read, a later parent read, or a reference first loaded on resume does not count. The summary
+retains the qualifying initial-parent read's tool ID and start/completion trace lines.
+The initial parent's advisor Skill invocation must also complete before helper dispatch; late or
+helper-only selection does not count.
+
+The parser distinguishes an asynchronous submission receipt from a matched completed task
+notification. The `helper:` assertion requires exactly one completed child and parent text after
+that return. A successful synchronous child result remains valid. Follow-up traces, responses, and
+invocation metadata live under `followup/`; the initial response is also retained as `response.md`.
+Regrade checks both original traces against each invocation's saved workspace, exit status, session,
+and model binding, applying the same runtime and credential boundaries after the fixture is gone.
+Missing or partial boundary evidence is INCONCLUSIVE. Timing totals count each invocation once even
+when its runtime emits repeated cumulative terminal results.
+
+**A native PASS is structural only.** Its grading and summary records explicitly carry
+`assessment_scope: structural_only` and `semantic_assessment: UNVERIFIED`. Read the initial dispatch,
+child response, parent continuation, and resumed response to judge the scenario's manual criteria:
+caller/owner preservation, evidence quality, feasible advice, corrected recovery, and causal/timing
+limits. Successfully reading the helper's supplied evidence file is also a manual check: a completed
+child alone does not establish that read. Parent text after a return proves continuation, not good synthesis. This scenario has not
+been behaviorally accepted merely because its schema or parser tests pass.
+
 ## The rubric judge
 
 `rubric` graders spawn one clean-room, tool-less `claude -p` turn against a named rubric in

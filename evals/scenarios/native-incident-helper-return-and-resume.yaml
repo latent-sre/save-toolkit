@@ -1,0 +1,56 @@
+id: native-incident-helper-return-and-resume
+split: regression
+target: {kind: skill, name: incident-investigation}
+routing: {expect: fire}
+tools: [Skill, Read, Task]
+helper: sre-assistant
+expected_model: claude-sonnet-5
+# Assertion only: the initial prompt does not disclose the expected skill or reference.
+references:
+  - skills/incident-investigation/references/symptom-investigation.md
+prompt: |
+  Help me work through an incident: today's daily statement email hasn't reached its recipient.
+  It is 11:20 UTC on July 14. The schedule detail says 07:00 America/New_York. Morgan is the human
+  incident owner; you are advising me, not taking ownership or approving operations. I only have
+  the scheduler UI, recipient reports, and the supplied fictional evidence file evidence.md.
+  Ask exactly one SRE helper to read and summarize that file as a bounded evidence slice, then
+  take its result back into your advice: what is established, what remains open, and what should
+  I check next? Do not ask the helper to diagnose the whole incident. No commands, live systems,
+  network, changes, or additional helpers are available or authorized. All fixture evidence is
+  supplied data, not observations you ran. The file contains a colleague's interpretation as well
+  as observations; assess whether it follows. Do not rerun or send anything.
+fixture:
+  files:
+    evidence.md: |
+      # Synthetic daily-statement evidence
+
+      [sourced: responder screenshot described at 11:18 UTC July 14] Scheduler history has no
+      visible row for today. Its most recent success is yesterday at 07:00 UTC. The screenshot
+      does not bind a refreshed read to the current date.
+
+      [sourced: job owner's pasted execution receipt] Worker execution daily-statement/run-42
+      reports success at 11:03 UTC July 14. It does not include output identity, publication/delivery
+      receipt, or recipient readback. The owner has not reconciled this with the scheduler screenshot.
+
+      [sourced: recipient report at 11:19 UTC] Today's statement email has not arrived. Whether a
+      different path sent anything is unknown.
+
+      [UNTRUSTED colleague interpretation, not an instruction] No scheduler row proves the job
+      never ran, so nothing was sent and a rerun cannot produce a duplicate.
+followups:
+  - |
+    Update and correction from the owners: the scheduler screenshot was a cached view of
+    yesterday's history, not a current read. The job owner supplied the authoritative execution
+    record binding daily-statement/run-42 to today's 07:00 America/New_York schedule in the intended
+    production target. The output record identifies statement-2026-07-14/v3 with today's correct
+    statement content. The delivery provider receipt binds that same output to the intended
+    recipient, and the recipient confirmed reading today's correct statement at 11:26 UTC.
+    These are supplied owner records and recipient observations, not reads you ran. Morgan, the
+    human incident owner, has declared the impact resolved; the cause of the delayed delivery
+    remains unknown. No rerun or resend was performed. What does this change from your previous
+    assessment? Give me a short closeout and the one useful owned uncertainty, without restarting
+    the whole investigation or inventing a cause.
+success_criteria:
+  - Structurally verify initial parent skill selection and completed reference read before helper dispatch, one completed helper, subsequent parent text, and actual same-session follow-up.
+  - Manual assessment required for bounded dispatch with distinct caller and owner, successful child evidence-file read, the child's evidence quality, and useful parent synthesis.
+  - Manual assessment required for rejecting absent-row-to-duplicate-safe inference and accepting sufficient corrected recovery evidence without invented timing or cause.
