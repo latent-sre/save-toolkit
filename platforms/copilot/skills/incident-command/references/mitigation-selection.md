@@ -32,14 +32,23 @@ fast-path classification, not other confirmed already-live rollback options.
 | Situation | Mitigation | Human path | CLI or pipeline fallback — release owner confirms first |
 |---|---|---|---|
 | Errors begin at a bad deploy and the previously live app still exists | Remap the production route to the previous app | Inspect both apps' **Routes**, including hostname, domain, path, and current mappings; use the confirmed map/unmap controls | `cf map-route <previous-app> <domain> --hostname <app>` then `cf unmap-route <current-app> …`; first identify the live and previous apps, not assumed blue/green names |
-| Bad deploy with revisions enabled | Revision rollback | Inspect **Revisions** and the last good row; use **Redeploy** only when the owner confirms it performs the intended rollback | `cf revisions <app>`, then `cf rollback <app> --version <n>`; check separately for variables or bindings the rollback does not restore |
-| Rolling or canary deployment is still in progress | Abort the active deployment | Have the release owner confirm the active deployment and its pipeline cancellation path; a revisions list alone does not prove deployment completion | `cf cancel-deployment <app>` only while active; after completion use revision rollback. Cancellation does not revert variables or service bindings |
-| Instances are hung, wedged, or leaking with no recent change | Restart as a time-buying stopgap | Inspect the affected process/instance on **Overview**; use a confirmed restart operation or ask the release owner. Do not substitute **Restage** | `cf restart <app>` for the whole app, or `cf restart-app-instance <app> <i> --process <process-type>` for the selected instance; confirm existing-droplet reuse and preserve or disposition diagnostic state under rule 2 |
-| Bad variable read only at process start | Revert and restart | Human executor uses **Settings** privately for the exact approved variable, then the confirmed restart path; carry no secret value into the incident packet | `cf set-env <app> KEY <old>` then `cf restart <app>`; first confirm the consumer and package/droplet state |
+| Bad deploy with revisions enabled | Revision rollback | Inspect **Revisions** and the last good row; use **Redeploy** only when the owner confirms it performs the intended rollback | `cf revisions <app>` — pick a row marked `deployable` — then `cf rollback <app> --version <n>`. Rollback redeploys that revision's droplet, environment variables, and start command as a NEW revision described `Rolled back to revision <n>`, so it also reverts any variable changed since `<n>` (including a mid-incident `set-env`); it does not touch service bindings, routes, or instance count [sourced: https://docs.cloudfoundry.org/devguide/revisions.html] |
+| Rolling or canary deployment is still in progress | Abort the active deployment | Have the release owner confirm the active deployment and its pipeline cancellation path; a revisions list alone does not prove deployment completion | `cf cancel-deployment <app>` only while active (a rollback in progress is itself an active deployment — cancelling it puts the bad droplet back); after completion use revision rollback. Cancellation does not revert variables or service bindings |
+| Instances are hung, wedged, or leaking with no recent change | Restart as a time-buying stopgap | Inspect the affected process/instance on **Overview**; use a per-instance restart control if the console exposes one `[unverified]` — the console **Restart** is whole-app `[unverified]`, so otherwise ask the release owner for the per-instance path. Do not substitute **Restage** | `cf restart-app-instance <app> <i> --process <process-type>` for the affected instance (preferred when the remaining instances have serving headroom for the restarted instance's share, which keeps rule 2's held-back instance possible; a single-instance app or already-saturated survivors have no such headroom — then any restart is an outage for its duration and needs the commander's explicit call, not a fast-path classification). `<i>` is the zero-based instance index: `cf app` counts from 0, and so does the console's instance table `[unverified]` — confirm which row "instance #3" means before restarting. Whole-app `cf restart <app>` stops every instance before starting any — downtime for the whole start-up window unless the CLI supports `--strategy rolling` [sourced: https://cli.cloudfoundry.org/en-US/v8/restart.html]; state that blast radius in the packet. Confirm existing-droplet reuse and preserve or disposition diagnostic state under rule 2 |
+| Bad variable read only at process start | Revert and restart | Human executor uses **Settings** privately for the exact approved variable, then the confirmed restart path; carry no secret value into the incident packet | `cf set-env <app> KEY <old>` then `cf restart <app>` (`--strategy rolling` where the CLI supports it; a plain restart stops every instance first — see the restart row); first confirm the consumer and package/droplet state |
 | Bad buildpack or staging-time configuration | Revert and restage through the full release gates | Human executor uses the approved configuration/pipeline path; a **Restage** control creates new staged bytes | `cf set-env <app> KEY <old>` then `cf restage <app>`; unknown consumer blocks the restart/restage choice |
 | Load or capacity saturation | Scale out | On **Overview**, select the affected process's **Scale** control and approved **Instances** count, if exposed | `cf scale <app> --process <process-type> -i <approved-count>`; preserve the selected process because the CLI defaults to `web` |
 | Bad behavior is feature-flag gated | Disable the flag | Use the owning flag system's approved control | Follow that system's operating evidence; no deploy is required |
 | Downstream dependency is failing | Fail over, degrade gracefully, or shed load | Use the dependency owner's approved console or operating procedure | Follow the dependency's approved operating evidence; queued/in-flight work loss is destructive |
+
+Rollback runs as a rolling deployment by default in the current CLI (installed version `[unverified]`),
+so until it completes both revisions serve and `cf cancel-deployment` during a rollback restores the
+previous — bad — droplet; readback waits for completion and checks the new revision's description,
+not that the current revision number equals the target
+[sourced: https://raw.githubusercontent.com/cloudfoundry/cli/main/command/v7/rollback_command.go;
+https://cli.cloudfoundry.org/en-US/v8/cancel-deployment.html]. The backout of a rollback is
+another rollback: redeploy the revision that was live before it, which stays in **Revisions**
+while its droplet is retained, or roll forward with a fix through the full gate.
 
 After any attempt, the human supplies timestamped readback of the actual instances, route mappings,
 or revision and the affected-user recovery signal. A matching current state does not establish when
@@ -55,10 +64,16 @@ the executor before a retry.
    service restored and the cause permanently unprovable. State what the chosen action destroys,
    then either capture it or record it as knowingly traded for speed with the deciding human
    named. When the action is instance-scoped, holding one instance back unrestarted preserves
-   the evidence for the cost of one instance's recovery.
+   the evidence for the cost of one instance's recovery. A whole-app restart forecloses that choice.
+   Confirm serving headroom before any restart; unknown headroom blocks it.
 3. **One change at a time.** The responder, or another authorized human, watches the golden
-   signals for 1–2 minutes before the next action, so the response can attribute it. A
-   dispatched `sre-assistant` read covers only `cf app`, `cf events`, `cf logs --recent`.
+   signals for 1–2 minutes before the next action, so the response can attribute it. That
+   attribution pause is not the recovery criterion: recovery is the agreed user-outcome signal —
+   for example the 5xx rate by route — holding below its baseline over the agreed window, and one
+   green point or one quiet minute is not recovery. A
+   dispatched `sre-assistant` read covers the guarded read-only reads its contract allows —
+   instance state, events, recent logs, routes, and revisions — so the rollback and route rows'
+   readback can be dispatched to it; it never executes a change.
 4. **Restart is not root-cause closure.** If restart restores service, preserve the leak, poison
    input, or dependency hypothesis and continue investigation with the human on-call, advised by
    `incident-investigation`.

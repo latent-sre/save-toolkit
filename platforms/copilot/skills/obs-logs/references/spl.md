@@ -85,14 +85,21 @@ index=<app_index>
 *[sourced: Splunk `stats` and `sort`; unverified for the target index and field extraction]*
 
 ````spl
-index=<app_index> error
-| stats count by error_type, message
+index=<app_index> sourcetype=<...> earliest=-1h latest=now
+| where isnotnull(error_type)
+| stats count by error_type, service
 | sort -count
-```error_type must be indexed/extracted — if it isn't, `stats by error_type` buckets
-   everything into one empty group```
+```scope by index/sourcetype/time only — no `error` keyword (see above). Events without
+   `error_type` are omitted from `stats … by error_type`, so an EMPTY result is ambiguous:
+   no errors in the window, or the field is not extracted. Never read it as healthy until
+   extraction is proven — run `| stats count(error_type) AS classified, count` over a
+   window known to contain errors (or against one event known to carry the field):
+   classified = 0 there means the field is not extracted; a low but non-zero ratio in a
+   normal window can simply be a low error rate.```
 ````
 
-`error_type` must be search-time-extracted; if it isn't, `rex` it first (see *Tips* below).
+`error_type` must be search-time-extracted; if it isn't, `rex` it first (see *Tips* below). Group by
+stable fields (`error_type`, `service`, `route`); keep raw `message` out of the `by` clause.
 
 ## Spot a spike vs the baseline (anomaly detection)
 

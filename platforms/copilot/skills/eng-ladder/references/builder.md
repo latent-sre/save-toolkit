@@ -24,6 +24,9 @@ principal consultation; continue unaffected authorized implementation.
    actually hit in prod.
 5. Write/extend tests; run them and the linter/formatter.
 6. Self-review the diff as the reviewer would; clean up before it goes to the `reviewer` agent.
+7. Auth, input, secrets, or crypto: get independent security review (the `reviewer`, security lens)
+   before it ships; the fix stays at this altitude unless a trigger under *Escalate when* also
+   applies.
 
 ## Done means
 - Meets acceptance criteria; tests pass and actually prove the behavior.
@@ -44,7 +47,5 @@ Escalating from the main loop means loading [principal](./principal.md) and cont
 agent instead reports the decision needed to its caller — it never self-promotes.
 - An unresolved shared-contract or cross-component design choice, or a required change to
   accepted constraints → principal. Purely local, reversible choices stay here.
-- The surface is security-sensitive (auth, input, secrets, crypto) → flag it for a security
-  review before it ships.
 - A third failed fix means the diagnosis is wrong: stop patching, restate the leading hypothesis and
   its strongest alternative, then run the cheapest falsifier before changing code again.

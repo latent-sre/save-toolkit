@@ -12,15 +12,21 @@ execution.
 ## What this path covers
 
 Tier 0–2 operational mitigation and rollback to an already-live artifact — the reversible actions in
-the `incident-command` mitigation table (route remap, revision rollback, confirmed existing-droplet restart, scale, flag
-flip). Two things stay on the full gate even at P1:
+the `incident-command` mitigation table (route remap, revision rollback, confirmed existing-droplet
+per-instance or rolling restart with confirmed serving headroom, scale, flag flip). Two things stay
+on the full gate even at P1:
 
 - **A new artifact.** An incident hotfix is still a production deployment: independent review of the
   exact candidate commit ID, lower-environment evidence, migration safety, and rollback evidence are
   exactly what stop one incident from becoming two. Rolling *back* to the previously live artifact is
   covered; shipping new bytes is not. `cf restage` creates a new droplet and stays on the full
   release and production gates, even when reverting a configuration value. Restarting with the
-  existing droplet or rolling back to the previously live artifact remains covered. A bare
+  existing droplet or rolling back to the previously live artifact remains covered. A whole-app
+  `cf restart` stops every instance before any starts; the downtime it causes is not reversible, so
+  the covered restart is per-instance or `--strategy rolling`, and only when the remaining instances
+  can carry the load meanwhile; a single-instance app has no such path and its restart is a
+  classified outage, not a fast-path action
+  [sourced: https://cli.cloudfoundry.org/en-US/v8/restart.html]. A bare
   `cf restart` can stage the most recent package when it is unstaged: confirm existing-droplet reuse
   with no artifact build before classifying it under this fast path. Unknown package/droplet state
   leaves that classification blocked; a restart that stages belongs on the full gates.

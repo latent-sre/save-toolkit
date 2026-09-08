@@ -73,7 +73,10 @@ The last column is the enforced Claude delegation graph; VS Code handoffs are se
   identifies its recipient, assignment status, evidence/result, gaps, parent objective, and caller
   next step. The caller checks claims against supplied evidence, states what the result establishes
   and what remains, then continues authorized work; helper completion does not complete the parent task. A human-selected
-  ownership handoff is a separate transition.
+  ownership handoff is a separate transition. A review dispatch supplies the base and full candidate
+  identity and an inspectable diff the reviewer can Read (for example `gh pr diff <n>` or
+  `git diff <base>..<sha>` written to a file, plus untracked files in scope); the reviewer holds only
+  Read/Grep/Glob and returns to its caller.
 - **Learning:** only an invoked operational closeout turns a discovery into repository state; the
   originating agent never approves it.
 - Lead with the conclusion, then evidence and next steps. Use blameless language for incidents.
