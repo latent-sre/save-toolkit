@@ -17,7 +17,7 @@ selected tier's escalation rule requires it.
 
 | | Builder | Principal | Distinguished |
 |---|---|---|---|
-| **Scope** | a tool, feature, or service | a system across services/teams | platform or org, across years |
+| **Scope** | a tool, feature, service, or bounded implementation of an accepted cross-service design | unresolved shared-contract, cross-service/team, migration or hard-to-reverse design | unresolved build/buy, platform/org or multi-year strategy |
 | **Horizon** | this release | 6–18 months | 3–5 years |
 | **Core question** | does it work, and can it be operated? | is this the right design, and what's the blast radius? | is this the right problem, and will the solution survive the org? |
 | **Artifacts** | working, verified code + tests | design docs, decision records, phased plans | ADRs, north-star architecture, build/buy analyses |
@@ -25,11 +25,12 @@ selected tier's escalation rule requires it.
 
 ## Mode 1 — Route a task
 
-Match the lowest rung whose core question fits. Cross-service/team work, migrations and hard-to-reverse
-design choices need principal reasoning; build-vs-buy, platform consolidation or multi-year choices
-need distinguished. Implementing an accepted design stays builder-owned within its agreed scope
-and compatibility criteria; return unresolved consequential choices or required constraint changes
-for decision. When unsure, start lower and escalate when its bar is insufficient.
+Match the lowest rung for the decision still to be made. Unresolved shared-contract, cross-service,
+migration or hard-to-reverse design choices need principal reasoning; unresolved build-vs-buy,
+platform consolidation or multi-year strategy needs distinguished. Bounded implementation of an
+accepted design stays builder-owned across services within its agreed scope and compatibility
+criteria. Return consequential choices or required constraint changes for decision; when unsure,
+start lower and escalate when its bar is insufficient.
 
 Keep implementation ownership separate from consultation. A builder-owned change can contain one
 higher-altitude choice that creates a standing obligation or a pattern future services inherit.
