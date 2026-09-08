@@ -245,6 +245,40 @@ the same PR; CI was green on all four checks at that commit.
 | P2: the record's intro still said no after-run had happened | the iteration tables below it | Title and intro rewritten to the completed scope |
 | P2: the runbook exemplar's 2026-02-11 history row was rewritten, against its own "never rewrite or delete" rule | `runbook/SKILL.md` history rules | Original row restored verbatim; a new newest-first row records the version-4 change and the cleared `last_verified` |
 
+## Iteration 4 — after the Codex-round edits, with two controls
+
+Owner-approved. With-skill cells at `288df23c` for incident-command (3 prompts), incident-investigation
+(4), the pcf-ops JVM prompt, and the obs-logs top-offenders prompt; Sonnet and Opus, two runs per cell,
+36 cells, 0 failed, about USD 8 for cells and USD 16 for grading. **Confound:** Claude Code
+auto-updated from 2.1.263 to 2.1.265 between iteration 3 and iteration 4; every earlier number in this
+record is on 2.1.263.
+
+| Target | previous iteration → 4 (Sonnet) | previous → 4 (Opus) |
+|---|---|---|
+| incident-command (from iteration 3) | 0.83 → 0.78 | 0.98 → 0.91 |
+| incident-investigation (from iteration 2) | 0.67 → 0.53 | 0.76 → 0.63 |
+| pcf-ops JVM prompt (from iteration 2) | 0.86 → 0.79 | 0.93 → 0.86 |
+| obs-logs top offenders (from iteration 2) | 1.00 → 1.00 | 1.00 → 1.00 |
+
+Every fact assertion the round targeted stayed at 3/4 or 4/4; the incident-command dips were a missing
+`[unverified]` tag on the Redeploy control and one Sonnet run omitting the CLI fallback for an
+"Apps Manager only" user. The incident-investigation drop was broad (all four prompts), so two
+controls were run before drawing a conclusion:
+
+- **Judge drift:** the iteration-2 responses regraded by today's judge scored 0.74 / 0.67 against
+  0.76 / 0.67 originally (three single-assertion flips in 46 verdicts). Not the judge.
+- **Bytes versus environment:** the pre-Codex bytes (`8fb483e4`, which differ in this skill only by
+  the readback sentence) re-run on CLI 2.1.265 scored Sonnet 0.54, Opus 0.69 — against 0.67 / 0.76 for
+  the same bytes on 2.1.263, and 0.53 / 0.63 for the edited bytes on 2.1.265. Same bytes across the
+  CLI change: −0.12 / −0.07. Old versus edited bytes on the same CLI: −0.02 / −0.06, with per-prompt
+  moves in both directions (external monitor +0.17 Sonnet, −0.17 Opus).
+
+`[verified]` conclusion: the Codex-round edits are not a measurable regression; the iteration-4
+numbers sit on a different host baseline and must not be compared with iterations 1–3 directly.
+What changed in CLI 2.1.265 that moves advisor scores by that much is `[unverified]`. From here, any
+comparison needs both arms on the same CLI version, recorded in provenance (the runner already
+records `claude_version`).
+
 ## Not established
 
 - The engineering lane has no old-skill arm (its eval sets were written after the edits), so its
