@@ -1,0 +1,14 @@
+id: discovery-operational-learning-owner-lookup
+split: regression
+prompt: |
+  Which team owns the payments service, and how do I page them? Nothing is broken right now; I
+  just need the owner and the escalation path, and whatever depends on payments if that is
+  written down anywhere.
+success_criteria:
+- Routes an ownership and escalation lookup to the skill that reads the team's service cards
+- Reports what the records say with sources, or says plainly that no service card exists and where one would live, without inventing an owner
+target:
+  kind: skill
+  name: operational-learning
+routing:
+  expect: fire

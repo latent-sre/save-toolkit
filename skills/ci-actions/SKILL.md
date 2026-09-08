@@ -4,7 +4,8 @@ description: >-
   Author and fix GitHub Actions CI/CD for this team — reusable workflows, matrix builds,
   environments with deployment protection, OIDC, caching, concurrency, least-privilege
   permissions, self-hosted runners for on-prem/PCF. Triggers: 'set up CI', 'add a deploy job',
-  'why is this workflow failing', 'harden the pipeline'.
+  'why is this workflow failing', 'harden the pipeline'. Not for a failing application deploy
+  (pcf-ops, gcp-ops) or a runtime bug (root-cause).
 argument-hint: "[the workflow or CI problem]"
 ---
 

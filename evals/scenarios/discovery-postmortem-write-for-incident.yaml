@@ -1,0 +1,15 @@
+id: discovery-postmortem-write-for-incident
+split: regression
+prompt: |
+  INC-4210 is closed: checkout returned 502s for 40 minutes on Tuesday after the 14:02 deploy and
+  the rollback at 14:42 fixed it. Can you draft the retro for that checkout outage? I have the
+  timeline, the rollback record, and the on-call notes ready to paste, and I want the follow-ups
+  to end up with named owners.
+success_criteria:
+- Routes a resolved-incident retrospective request to the postmortem skill rather than the live-incident lanes
+- Asks for or uses the timeline and evidence instead of inventing causes
+target:
+  kind: skill
+  name: postmortem
+routing:
+  expect: fire
