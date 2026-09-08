@@ -43,11 +43,11 @@ in merged PR #237 do not prove installed-host enforcement, model behavior, or re
 the bounded follow-up.
 **Outcome:** The advisor loads relevant guidance, dispatches a bounded helper, reconciles its
 return, and advances without invented causes, timing, or current-state claims.
-**Next action:** Repair and verify helper-count and assignment-scope boundaries before finishing
-native resume/recovery testing. Authentication was restored, but the frozen candidate dispatched an
-extra `Explore` helper before the requested SRE helper; its missing-file read stopped continuation.
-The actual SRE return occurred, while same-session recovery remains unverified. Preserve both
-failed attempts and select the next bounded candidate explicitly. See the
+**Next action:** Address unsupported stage/timing/escalation conclusions and exact file resolution
+before the next bounded candidate. The helper-scope repair at `c53ed2b6` used one helper in both
+fresh samples; one completed the actual native return/resume sequence but failed semantic criteria
+4 and 6. The second read the fixture then tried an unnecessary missing path, stopping before resume.
+Preserve these failures; neither the source repair nor structural PASS establishes acceptance. See the
 [selected-improvement record](reviews/2026-09-07-selected-sre-improvements.md).
 The completed 24-session Sonnet campaign failed behavioral acceptance; later source merges are not
 a fresh behavioral verdict. Preserve actual return/resume and sufficient-evidence recovery as

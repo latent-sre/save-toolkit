@@ -172,6 +172,102 @@ a missing-file gap if necessary instead of creating a separate discovery helper.
 within its requested extraction scope, leaving assessment to the advisor. A fresh bounded candidate
 must demonstrate these boundaries before the interrupted resume/recovery checks can finish.
 
+### Helper-scope repair
+
+[verified: source] The owner requested continuation, and `c53ed2b67d526aad1b80cc1767b36ab0e44c82ea`
+repairs the two observed scope failures. The advisor counts discovery against the caller's helper
+limit and sends supplied file paths/workspace directly to that helper. For extraction-only work,
+the SRE helper returns the requested material and document gaps for the caller's assessment;
+it does not evaluate quoted claims or select new checks. Immediate material-risk reporting,
+human ownership, and tool/delegation permissions remain unchanged. Independent static review
+found no conflicting return requirement or removed risk-reporting duty.
+
+The new frozen plugin SHA-256 is
+`5ee522fe03636b6f12c98445d6af724790ac5a56077b2bfe78e1e7668f5dc68c`; its private snapshot commit is
+`8dce7a139bdde72d5532fc68cb4e9d1f09f1b546`. Exactly two model-input files differ from the previous
+candidate: `agents/sre-assistant.md` and `skills/incident-investigation/SKILL.md`.
+
+One new 18-line regression proves that an error-free completed `Explore` followed by a completed
+SRE helper is rejected before resume. Existing enforcement already did this; the test preserves
+the observed boundary independently of the previous trace's missing-file error. Native checks
+passed **19 tests / 41 subtests**; skill assets and generated adapters passed **42 tests /
+122 subtests**, with two Windows directory-symlink permission skips. Gate A passed **4/4**.
+
+`helper-scope-acceptance.md` freezes this continuation: one new candidate, the same scenario,
+case/evidence/correction/control strings, evaluator, CLI, model, and eight criteria. Two fresh
+incident conversations and two glossary controls reserve six parents and two helpers. Including
+the prior 12 sessions and `$1.125573`, the amended ceiling is 20 total sessions and the same $6
+cap, $0.75 per invocation and 240 seconds each. No further retry is reserved. The old freezer's
+16-session metadata is historical; the new acceptance record and run manifest govern this slice.
+The comparison measures the two-rule repair together, and the incomplete baseline establishes
+neither resumed behavior nor a reliability rate.
+
+[verified] Both fresh initial conversations dispatched exactly one SRE helper. Repetition 1
+completed selection, reference loading, actual helper return, and same-session resume: structural
+**PASS 5/5**. Its glossary control also remained bounded. Independent semantic review nevertheless
+failed criteria 4 and 6:
+
+- Initial raw line 70 treats other recipients missing output as evidence of a shared delivery-stage
+  failure. Recipient count establishes impact scope, not the failing processing/publication/delivery
+  stage.
+- Resumed raw line 15 treats one provider handoff timestamp as sufficient to localize the roughly
+  20-minute execution-to-read gap. Actual delivery time is absent. It also invents a normal delivery
+  path and certainty that a rerun would have duplicated delivery.
+
+The same-session transition is real: initial and resumed init/terminal events match, and the
+follow-up invocation explicitly resumes that ID. The parent accepted the corrected records and
+Morgan's recovery decision. The SRE helper's asynchronous launch acknowledgement was followed by
+a matching completed notification before parent synthesis. These mechanics passed independently
+of the semantic failures. Extraction-only behavior was **not exercised** in this repetition:
+the advisor explicitly asked its helper to assess the colleague's inference.
+
+[verified] Repetition 2 completed its initial SRE exchange but stopped before resume/control with
+`INCONCLUSIVE: native tool denial/error`. The advisor's raw line 25 asks the helper to check both
+the actual workspace and the plugin root. The helper reads the supplied file at lines 30–31,
+then tries the unnecessary plugin-root path at line 33; line 35 reports file-not-found. A single
+helper does not by itself prevent speculative extra reads. The skill does contain a rough
+fifteen-minute/impact-growth coordination heuristic, including sooner escalation for customer
+impact or another team's help. The initial answer strengthens that into a multiple-recipient
+cutoff and says coordination is not yet needed without establishing impact or criticality.
+Independent review therefore fails criterion 4. It confirms that extraction-only compliance was
+exercised and observed: dispatch line 25 forbids judging the colleague's inference, and return
+line 38 preserves the claim without evaluating it. Gap-closing evidence suggestions were explicitly
+allowed by the dispatch. The matched completion at line 41 precedes parent synthesis at line 66;
+the terminal result at line 68 contains no permission denials.
+
+Independent frozen-criterion results for the new candidate:
+
+| Criterion | Repetition 1 | Repetition 2 |
+|---|---|---|
+| 1. Advisor and reference before dispatch | PASS | PASS |
+| 2. One bounded helper; caller/owner preserved | PASS | PASS |
+| 3. Successful child read, actual return, parent continuation | PASS | PASS |
+| 4. Evidence handling and justified next steps | FAIL | FAIL |
+| 5. Same-session correction and human-confirmed recovery | PASS | NOT RUN |
+| 6. Recovery closeout and timing interpretation | FAIL | NOT RUN |
+| 7. Bounded glossary | PASS | NOT RUN |
+| 8. Tools, authority, helper count, identity | PASS | PASS |
+
+Raw paths are `native/candidate-helper-scope/<repetition>/<phase>/stdout.jsonl`:
+
+| Trace | SHA-256 |
+|---|---|
+| 1 / initial | `07c6589faca77e806cb2d5aa35d055e29b105e5a23bcb882f5095506ddf26dc3` |
+| 1 / resume | `d99deb03aba36c7145d468578d715afddd87a37a0cc2d69be30ebad9cdea63c1` |
+| 2 / initial | `64a543a7eed3a716e2f3d8836b1ea6b7a0be01146dc04a02730a1c8e72a37e2f` |
+
+The primary agent verified byte-for-byte identity of each retained initial/resume stdout, stderr,
+response, and invocation file against its integrated original. Source and snapshot still match the
+frozen plugin digest. This candidate used **four parent invocations and two helpers**, costing
+**$0.7414825**. Total campaign accounting, including the earlier failed attempts, is **12 parents
+and six helpers (18 sessions)** and **$1.8670555**. Repetition 2's resume and glossary did not run;
+no completion marker, further candidate, retry, or paid judge was produced.
+
+The observed helper-count defect is absent in these two new samples; the broader incident
+decision-quality criterion still fails. This is neither a reliability estimate nor acceptance of
+the candidate. Further work must address exact file resolution and the unsupported conclusions
+before treating another successful conversation structure as readiness.
+
 ## Apps Manager mitigation planning
 
 The mitigation table now pairs the human's console path with the release owner's CLI/pipeline
@@ -287,12 +383,14 @@ field extraction, single-status semantics, request population, and coverage need
 
 ## Verification and weight
 
-[verified] Final repository checks on the implemented bytes passed **532 tests and 1,020 subtests**
+[verified] Repository checks at `234bafaa` passed **532 tests and 1,020 subtests**
 in 90.02 seconds. Four checks skipped: three Windows directory-symlink cases lacked permission,
 and one shell-requirement check is CI-only. Gate A passed **4/4** structural steps; scenario
 validation passed **66 scenarios / 329 expectations**; whitespace and generated-adapter checks
 passed. The test interpreter was Python 3.12.10 with pytest 9.1.1 and PyYAML 6.0.3, with Git Bash
 available on PATH. Raw output is in `.eval-runs/sre-improvements-20260907/full-pytest-final.txt`.
+The subsequent helper-scope delta has the focused verification recorded above; the 532-test
+result is not represented as a fresh full-suite run on that later revision.
 
 Native runner/grader verification passed 172 tests and
 68 subtests before the final cost-cap predicate. The extra cost=0.76 control then reproduced a false
@@ -305,14 +403,15 @@ mocked; the separately reported incumbent native conversations used the live CLI
 
 | Total | Baseline | Candidate | Ceiling before → after |
 |---|---:|---:|---:|
-| Evaluator Python lines, including tests | 9,753 | 10,684 | 9,900 → 10,700 |
-| Canonical skill bytes | 578,906 | 583,715 | 579,000 → 584,000 |
-| Canonical agent bytes | 114,962 | 115,448 | 115,000 → 115,500 |
+| Evaluator Python lines, including tests | 9,753 | 10,702 | 9,900 → 10,720 |
+| Canonical skill bytes | 578,906 | 583,967 | 579,000 → 584,000 |
+| Canonical agent bytes | 114,962 | 115,672 | 115,000 → 115,700 |
 
 The native contract adds 470 evaluator lines and 319 skill bytes; judge attribution adds 461
 evaluator lines, including 270 test lines. Apps Manager planning adds 2,579 skill bytes, SPL adds
-1,911, and the two agent-scope rules add 486 agent bytes. All seven existing context-cost profiles
-remain within budget. These are repository weight measurements, not measured runtime token savings.
+1,911, and the two original agent-scope rules add 486 agent bytes. The helper-scope repair adds
+18 test lines, 252 skill bytes, and 224 agent bytes. All seven existing context-cost profiles remain
+within budget. These are repository weight measurements, not measured runtime token savings.
 
 The evaluator extension adds regression coverage for false completion, ordering, session, and
 runtime-boundary credit; it does not justify deleting existing checks to fit a byte/line ceiling.
