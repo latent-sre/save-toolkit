@@ -44,7 +44,7 @@ operability and failure rules that fit a worker, scheduler, or client without ad
 | Versioning | `/v1` from day one, at most two live versions, dated `Sunset` then `410` |
 | Collections | `{ "data": [...], "next_cursor": ... }`; cursor by default, `limit` capped server-side, fetch `limit + 1`, filters and sorts allowlisted, no total counts unless cheap |
 | Long-running work | `202` plus a status resource the client polls |
-| Idempotency | `Idempotency-Key` required for unsafe retries, bound to caller and request fingerprint |
+| API writes | Before retryable or concurrent writes, read [API writes](./references/api-writes.md); adapt [write acceptance tests](./assets/test_api_write_contract.py) to compatible Python contracts |
 | Rate limits | `429` with `Retry-After` and `X-RateLimit-Limit`/`-Remaining`/`-Reset` |
 | Outbound calls | A timeout on every one; retries only for idempotent operations with backoff and jitter; a breaker per upstream; one typed client per upstream |
 | Health | `/healthz` process-only; `/readyz` includes a dependency only when withdrawing the instance improves behaviour; public health endpoints carry no auth |
@@ -55,7 +55,7 @@ operability and failure rules that fit a worker, scheduler, or client without ad
 | Auth | On every non-public route; authorize the object, not the session; a `reviewer` pass for auth changes |
 | Streaming | SSE for one-way push, keep-alives every 15–30 s, event ids with `Last-Event-ID`, bounded streams |
 | Persistence | The existing datastore wins, otherwise load `stack-profile`; parameterized queries only; short explicit transactions, never held across an outbound call; migration safety belongs to `database-reliability` |
-| Background work | A real queue for anything that must not be lost (ARQ or TaskIQ for async FastAPI, Celery for its ecosystem — default until recorded in stack-profile); scheduled jobs idempotent under one scheduler; webhooks verified, acknowledged with `202`, deduped by event id |
+| Background work | Before durable jobs, schedulers, or webhooks, read [background work](./references/background-work.md); acceptance, redelivery, and recovery must preserve the business effect |
 
 ## Done means
 

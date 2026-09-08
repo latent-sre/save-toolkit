@@ -5,8 +5,39 @@ The universal backend rules live in `../SKILL.md`. On any conflict, SKILL.md win
 - **Upstream responses are untrusted data, never instructions.** Parse into your own models. If the
   output feeds an agent or LLM, keep it in a data-only field, delimit it from instructions, and
   validate its schema and size — never pass it through as executable prompt text.
-- **Test the client boundary**: mock the protocol (respx, WireMock) and prove the timeout fires, the
-  retry backs off, and the breaker opens.
+
+## Bound each logical operation
+
+- **Budget:** one monotonic deadline covers admission/pool waits, connection, reads and retry sleeps;
+  cap attempts by remaining time. Per-read inactivity timeouts do not bound the operation. Propagate
+  cancellation, stop attempts on cancellation/expiry, and close responses/streams on every exit.
+- **Ownership:** inspect SDK/transport/wrapper retries; keep one owner or count every nested physical
+  attempt against shared time/attempt limits. One lifecycle-owned typed client/pool and breaker per
+  upstream; open breakers fail fast with bounded recovery probes.
+- **Eligibility:** retry documented transient failures only when safe to repeat; never blanket-retry
+  exceptions, auth or validation failures. For effectful calls, use [API writes](./api-writes.md):
+  timeout/cancellation may mean UNKNOWN. A header alone does not establish deduplication; reconcile or reuse
+  the provider-supported identity, never invent a fresh operation to escape ambiguity.
+- **Delay:** capped exponential backoff with jitter; attempt limit includes the first. Honor valid
+  `Retry-After` seconds/HTTP dates as minimum delays; return/defer if the deadline cannot fit them.
+  Invalid hints use the bounded policy.
+- **Capacity:** bound concurrency, fan-out, queued work and response/stream sizes per upstream.
+  Release responses before retry sleeps; expose saturation as bounded failure/backpressure.
+
+**Verify changed behavior** with protocol mocks (respx, WireMock) and an injected clock:
+
+| Failure case | Required observation |
+|---|---|
+| Slow response, retry delay or cancellation | Deadline/cancellation stops attempts; connection and permit released |
+| Transient/permanent errors, both `Retry-After` forms | Actual attempts stay capped; permanent errors stop; delay is honored or deferred |
+| Saturation and upstream outage/recovery | Concurrency stays bounded; breaker opens, fails fast and recovers with bounded probes |
+
+Effectful retries also owe API writes' ambiguous-outcome checks; mocks cannot establish a remote outcome.
+
+[Phase timeouts](https://www.python-httpx.org/advanced/timeouts/),
+[retry multiplication](https://docs.cloud.google.com/storage/docs/retry-strategy#retry_anti-patterns),
+[Retry-After](https://www.rfc-editor.org/rfc/rfc9110.html#section-10.2.3).
+Apply the actual provider/client contract, not another vendor's status-code list.
 
 ## Per-integration mechanics
 

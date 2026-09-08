@@ -25,7 +25,7 @@ default below.
 | Rule | What it means here |
 |---|---|
 | Color through tokens | All colour through theme tokens; status never by colour alone (a dot plus text or an icon); AA contrast in every theme shipped. |
-| Theme without a flash | A persisted theme is applied by an inline `<head>` script before first paint. |
+| Theme without a flash | Apply the persisted theme before first paint using the project's CSP-compatible mechanism; allow an inline script with a matching hash or nonce, without weakening CSP. |
 | The URL is state | Search, filters, page, sort, and the open tab or detail live in the URL. |
 | Failure-first | Loading, error, and empty states are designed before the happy path; one failing panel shows an inline error in its own card. |
 | Every view is a composition | Never ship a mostly empty viewport. |
@@ -36,15 +36,17 @@ default below.
 
 | Area | Decision |
 |---|---|
-| Mantine | React targets never import `@mantine/core` or any styled Mantine component — its reset fights Tailwind's. |
+| Mantine | React targets never import `@mantine/core` or any styled Mantine component — a house styling policy that avoids another styled component system. Mantine can integrate with Tailwind through deliberate CSS setup; this policy is not a compatibility claim. |
 | Mantine hooks/form | `@mantine/hooks` and `@mantine/form` are fine in React; never recommended for Vue. |
 | State | Server state lives in the query/cache layer (TanStack Query in the greenfield stack); UI state stays local — no global store until two distant components genuinely share state. |
 | API client | A typed API client generated from the OpenAPI contract; CI fails on drift. |
 | Forms | `react-hook-form` or `@mantine/form` in React; `v-model` plus the repo's validation layer in Vue; the server is the validation truth. |
 | Charts | Recharts v3 by default in React, visx for a bespoke one-off, uPlot for dense real-time series; streamed series batch or throttle redraws per frame and keep a rolling window; never `@mantine/charts`; charts read theme tokens; give every chart a text or data-table alternative. |
 | Tables | TanStack Table, virtualised past a few hundred rows, sort/filter/page in the URL. |
-| Auth | OIDC Authorization Code + PKCE against corp SSO; BFF or httpOnly-cookie session; access token in memory, never `localStorage`; one fetch wrapper does 401 → refresh once → retry; a `reviewer` pass for sensitive flows. |
-| Live data | SSE for one-way live data via the query cache. |
+| Auth | Preserve the project's auth contract; for new corp SSO flows use OIDC Authorization Code + PKCE; a `reviewer` pass for sensitive flows. |
+| BFF and cookie sessions | A BFF keeps OAuth tokens on the backend. Use Secure, HttpOnly session cookies with SameSite set for the flow, and a CSRF defense for state-changing cookie-authenticated requests. |
+| Browser-held tokens | When browser JavaScript calls APIs with bearer tokens, keep access tokens in memory, never `localStorage`. Use the project's auth client for renewal; retry once after a refreshable auth failure only when replay is safe or the original operation was rejected before effects. Failed renewal returns to sign-in without a retry loop. |
+| Live data | SSE for one-way live data via the query cache; close subscriptions when their view or session ends, show stale/disconnected state, and resynchronize after gaps on reconnect. |
 
 ## Done means
 

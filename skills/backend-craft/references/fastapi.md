@@ -23,3 +23,6 @@ from the repository's `pyproject.toml`, never assumed.
 - **Integration tests drive the real app over ASGI** with
   `httpx.AsyncClient(transport=ASGITransport(app=...))`, against a real ephemeral database, with the
   fixture chain: fresh schema → `client` → `registered_user` → `auth_token` → `auth_client`.
+  `ASGITransport` does not run lifespan: manage startup/shutdown explicitly with the project's
+  lifespan fixture (for example `LifespanManager`), or use `with TestClient(app)` for sync tests.
+  Assert initialization and cleanup; an endpoint response alone does not prove either ran.

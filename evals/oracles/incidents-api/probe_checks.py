@@ -7,6 +7,11 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 
+# Keep the scenario seed larger than the accepted page cap so an uncapped API cannot pass.
+FIXTURE_COUNT = 501
+MAX_SANE_PAGE = 500
+
+
 class _Vendor(BaseHTTPRequestHandler):
     delay = 0.0
 
@@ -74,7 +79,7 @@ def check_pagination(client):
     if not isinstance(body, dict) or "data" not in body or "next_cursor" not in body:
         keys = sorted(body) if isinstance(body, dict) else type(body).__name__
         fail("list body is not {data, next_cursor}: %s" % keys)
-    if len(body["data"]) >= 250:
+    if len(body["data"]) >= FIXTURE_COUNT:
         fail("default page returned all %d incidents" % len(body["data"]))
     seen = []
     cursor = None
@@ -94,14 +99,27 @@ def check_pagination(client):
         cursor = page.get("next_cursor")
         if not cursor:
             break
-        if pages > 50:
+        if pages > FIXTURE_COUNT:
             fail("cursor never terminated")
-    if len(seen) != 250 or len(set(seen)) != 250:
-        fail("walked %d items, %d unique; expected 250" % (len(seen), len(set(seen))))
+    if len(seen) != FIXTURE_COUNT or len(set(seen)) != FIXTURE_COUNT:
+        fail("walked %d items, %d unique; expected %d" % (len(seen), len(set(seen)), FIXTURE_COUNT))
     r = client.get("/v1/incidents", params={"limit": 100000})
-    if r.status_code == 200 and len(r.json()["data"]) > 500:
-        fail("limit is not capped: %d items" % len(r.json()["data"]))
-    ok("cursor pagination walked 250 unique incidents in %d pages; limit capped" % pages)
+    if r.status_code == 200:
+        body = r.json()
+        items = body.get("data") if isinstance(body, dict) else None
+        if not isinstance(items, list) or not 0 < len(items) <= MAX_SANE_PAGE:
+            fail("oversized limit did not return a nonempty capped page")
+        ids = [item.get("id") if isinstance(item, dict) else None for item in items]
+        if ids != seen[:len(items)] or not body.get("next_cursor"):
+            fail("capped page lost the collection prefix or its continuation cursor")
+    elif r.status_code in (400, 422):
+        good, why = is_problem(r)
+        if not good:
+            fail("oversized limit is not problem+json: " + why)
+    else:
+        fail("oversized limit -> %d, expected a capped 200 or 400/422 problem+json" % r.status_code)
+    ok("cursor pagination walked %d unique incidents in %d pages; limit capped or rejected" %
+       (FIXTURE_COUNT, pages))
 
 
 def check_filter(client):

@@ -3,7 +3,7 @@ agent: software-engineer
 # The backend bar with real tools. The prompt asks only for two endpoints and tests; it never says
 # "paginate", "problem+json", "timeout", or "response model". Those are what backend-craft is for,
 # so the probe-owned oracle (probe_checks.py, written by the first check, never seen by the agent)
-# grades them on the running app: a cursor walk over 250 seeded incidents, one RFC 9457 shape for
+# grades them on the running app: a cursor walk over 501 seeded incidents, one RFC 9457 shape for
 # 404 and for a bad filter, an internal field that must not cross the boundary, the vendor owner
 # actually fetched, an outbound timeout proven against a vendor that sleeps 20 s, and /healthz
 # independent of that vendor. The fixture is stdlib plus fastapi/httpx, which requirements-dev.txt
@@ -71,7 +71,7 @@ fixture:
 
       def _seed() -> list[dict]:
           rows = []
-          for n in range(1, 251):
+          for n in range(1, 502):
               rows.append(
                   {
                       "id": f"inc-{n:04d}",
@@ -148,7 +148,7 @@ checks:
   - check: command_exit_zero
     command: "python probe_checks.py pagination"
     timeout: 120
-    text: "oracle: cursor pagination walks 250 unique incidents, default page is bounded, limit is capped"
+    text: "oracle: cursor pagination walks 501 unique incidents, default page is bounded, oversized limit is capped or rejected"
     writes_from: {probe_checks.py: evals/oracles/incidents-api/probe_checks.py}
   - {check: command_exit_zero, command: "python probe_checks.py filter", timeout: 120, text: "oracle: ?status= filters, and an invalid value is a 4xx problem+json, never 200"}
   - {check: command_exit_zero, command: "python probe_checks.py problem_json", timeout: 120, text: "oracle: unknown id is a 404 in the one RFC 9457 shape"}
