@@ -8,11 +8,12 @@
         install_problem_handlers(app)
         return app
 
-The media type is the part that gets forgotten: a JSON body with the right keys served as
-application/json is not problem+json, and a client cannot tell it from a success payload.
+Use application/problem+json and the protocol-header allowlist below. Adapt request_id to the app's
+correlation middleware; this starter echoes X-Request-ID supplied by a validating trusted ingress.
 """
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 from fastapi import FastAPI, Request
@@ -25,6 +26,13 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 PROBLEM_TYPE_BASE = "https://errors.example.internal"
 PROBLEM_MEDIA_TYPE = "application/problem+json"
 
+# Extend for the app's protocol contract, never stale representation or framing metadata.
+_PROTOCOL_HEADERS = {
+    "www-authenticate", "proxy-authenticate", "allow", "retry-after", "location",
+    "cache-control", "expires", "pragma", "vary", "set-cookie",
+    "x-ratelimit-limit", "x-ratelimit-remaining", "x-ratelimit-reset",
+}
+
 _TITLES = {
     400: "Malformed request", 401: "Unauthenticated", 403: "Forbidden", 404: "Not found",
     409: "Conflict", 422: "Validation failed", 429: "Too many requests",
@@ -36,7 +44,10 @@ def _slug(title: str) -> str:
     return "".join(c if c.isalnum() else "-" for c in title.lower()).strip("-")
 
 
-def problem(status: int, title: str, detail: str, request: Request, **extensions: Any) -> JSONResponse:
+def problem(
+    status: int, title: str, detail: str, request: Request,
+    *, headers: Mapping[str, str] | None = None, **extensions: Any,
+) -> JSONResponse:
     """One problem+json response. Call it directly when translating an upstream failure:
 
         return problem(503, "Paging vendor unavailable", "Timed out after 3s.", request)
@@ -52,7 +63,12 @@ def problem(status: int, title: str, detail: str, request: Request, **extensions
     if request_id:
         body["request_id"] = request_id
     body.update(extensions)
-    return JSONResponse(body, status_code=status, media_type=PROBLEM_MEDIA_TYPE)
+    # Rebuild body metadata; append protocol fields so repeated cookies/challenges survive.
+    response = JSONResponse(body, status_code=status, media_type=PROBLEM_MEDIA_TYPE)
+    for key, value in (headers or {}).items():
+        if key.lower() in _PROTOCOL_HEADERS:
+            response.headers.append(key, value)
+    return response
 
 
 def install_problem_handlers(app: FastAPI) -> None:
@@ -61,10 +77,12 @@ def install_problem_handlers(app: FastAPI) -> None:
     @app.exception_handler(StarletteHTTPException)
     async def _http_exception(request: Request, exc: StarletteHTTPException) -> JSONResponse:
         title = _TITLES.get(exc.status_code, "Request failed")
-        return problem(exc.status_code, title, str(exc.detail), request)
+        return problem(exc.status_code, title, str(exc.detail), request, headers=exc.headers)
 
     @app.exception_handler(RequestValidationError)
     async def _validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
+        if any(err.get("type") == "json_invalid" for err in exc.errors()):
+            return problem(400, "Malformed request", "The request body is not valid JSON.", request)
         errors = [
             {"loc": [str(part) for part in err.get("loc", ())], "msg": err.get("msg", "")}
             for err in exc.errors()

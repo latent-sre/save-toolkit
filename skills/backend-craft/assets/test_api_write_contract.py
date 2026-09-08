@@ -1,0 +1,110 @@
+"""Adaptable acceptance checks for one idempotent API write; supply write_case in conftest.py.
+
+The required fixture creates an empty, isolated test namespace for authorized scopes 'owner'
+and 'other'; payload and changed_payload are valid inputs with different business meaning.
+submit(key, payload, scope='owner') validates the native HTTP/schema/authorization contract,
+follows permitted bounded pending/retry handling, then returns {'outcome':
+'completed'|'conflict'|'pending', 'result_id': business_effect_id}; pending fails completion.
+effects(scope='owner') reads authoritative persisted business effects with workers stopped
+or running: detached records {'id': stable_effect_id, 'state': stable_business_fields}.
+Return independent copies with nonempty state mappings; exclude volatile observation metadata.
+Never infer effects from responses, replay caches, or deduplication. The adapter separately
+checks request-to-state correctness and native replay bodies/headers; these checks compare
+persisted identity and state across duplicates, conflicts, restarts, and authorized scopes.
+race(key, payload) submits overlapping server requests and resolves permitted pending/retry
+responses into two completed results. overlap_observed must come from independent server
+instrumentation: the second request reaches key arbitration while the first write transaction
+is still uncommitted. An undelivered response or client-start barrier alone is insufficient;
+do not require simultaneous critical-section entry.
+interrupt(phase, key, payload) returns True only after the requested server failpoint is
+acknowledged and its worker process is killed and confirmed exited. Record failpoint_observed
+as the phase and worker_terminated as True independently; an exception is not a process crash.
+Phases are 'before_commit' (mutation attempted, transaction uncommitted) and 'after_commit'
+(durable mutation committed, response withheld). restart() recreates workers and clients with
+the SAME storage. Preserve storage until assertions finish; clean it up afterward.
+Every fixture operation needs a bounded deadline and cleanup, including joins, probes, and
+retries. Keep keys inside their documented retention window. The adapter must fail, not skip,
+on missing instrumentation or unmet conditions. These checks impose no universal HTTP status.
+"""
+from copy import deepcopy
+
+
+def assert_completed(result, effect):
+    assert result.get('outcome') == 'completed', 'write did not complete'
+    assert result.get('result_id') == effect['id'], 'result does not identify the persisted effect'
+
+
+def only_effect(case, scope='owner'):
+    effects = case.effects(scope=scope)
+    assert len(effects) == 1, 'expected exactly one persisted business effect'
+    effect = effects[0]
+    assert effect.get('id') is not None, 'persisted effect needs a stable identity'
+    assert isinstance(effect.get('state'), dict) and effect['state'], 'effect needs business state'
+    return deepcopy(effect)
+
+
+def interrupt_and_confirm(case, phase):
+    assert case.interrupt(phase, 'retry-key', case.payload) is True, 'interruption incomplete'
+    assert case.failpoint_observed == phase, 'requested failpoint was not acknowledged'
+    assert case.worker_terminated is True, 'worker process termination was not confirmed'
+
+
+def test_concurrent_duplicates_have_one_effect(write_case):
+    case = write_case
+    assert case.effects() == [], 'fixture must start with no effects'
+    results = case.race('race-key', case.payload)
+    assert case.overlap_observed is True, 'server overlap was not independently observed'
+    assert len(results) == 2, 'both concurrent requests must produce a result'
+    effect = only_effect(case)
+    for result in results:
+        assert_completed(result, effect)
+
+
+def test_changed_payload_conflicts_without_another_effect(write_case):
+    case = write_case
+    assert case.effects() == [], 'fixture must start with no effects'
+    first = case.submit('same-key', case.payload)
+    effect = only_effect(case)
+    assert_completed(first, effect)
+    conflict = case.submit('same-key', case.changed_payload)
+    assert conflict.get('outcome') == 'conflict', 'changed payload must conflict'
+    assert case.effects() == [effect], 'conflict changed persisted business effects'
+    assert_completed(case.submit('same-key', case.payload), effect)
+    assert case.effects() == [effect], 'replay changed persisted business effects'
+
+
+def test_restart_before_commit_allows_one_retry_effect(write_case):
+    case = write_case
+    assert case.effects() == [], 'fixture must start with no effects'
+    interrupt_and_confirm(case, 'before_commit')
+    assert case.effects() == [], 'uncommitted effect survived termination'
+    case.restart()
+    assert case.effects() == [], 'restart introduced an uncommitted effect'
+    result = case.submit('retry-key', case.payload)
+    assert_completed(result, only_effect(case))
+
+
+def test_restart_after_commit_replays_the_committed_effect(write_case):
+    case = write_case
+    assert case.effects() == [], 'fixture must start with no effects'
+    interrupt_and_confirm(case, 'after_commit')
+    effect = only_effect(case)
+    case.restart()
+    assert case.effects() == [effect], 'restart changed the committed effect'
+    assert_completed(case.submit('retry-key', case.payload), effect)
+    assert case.effects() == [effect], 'post-commit retry duplicated or replaced the effect'
+
+
+def test_authorized_scopes_do_not_share_replay_state(write_case):
+    case = write_case
+    assert case.effects() == case.effects(scope='other') == [], 'scopes must start empty'
+    first = case.submit('shared-key', case.payload)
+    owner_effect = only_effect(case)
+    assert_completed(first, owner_effect)
+    other = case.submit('shared-key', case.changed_payload, scope='other')
+    other_effect = only_effect(case, scope='other')
+    assert_completed(other, other_effect)
+    assert case.effects() == [owner_effect], 'other scope changed owner effects'
+    assert_completed(case.submit('shared-key', case.payload), owner_effect)
+    assert case.effects() == [owner_effect], 'owner replay changed owner effects'
+    assert case.effects(scope='other') == [other_effect], 'owner replay changed other scope effects'
