@@ -29,7 +29,9 @@ TEMPLATE_LITERALS = (
     "<N min or N attempts>", "<P1|P2|P3|P4 / page | ticket>", "<PR, evidence link, prepared, or proposed>",
     "<PR, target revision, and evidence references>", "<YYYY-MM-DD>",
     "<alert name + condition, or observed symptom>", "<channel / stakeholders>",
-    "<command/dashboard + expected healthy state>", "<command>", "<concise title / the alert this answers>",
+    "<command/dashboard + expected healthy state>", "<concise title / the alert this answers>",
+    "<cf command — equivalent of the console action, for responders who have the CLI>",
+    "<org / space → app → view → control and value>",
     "<condition A>", "<condition B>", "<dashboard, saved search, prior postmortem>",
     "<e.g. not resolved in 15 min, or blast radius growing>",
     "<e.g. step 4 output differed; no rollback for step 5>", "<e.g. steps 1–3>", "<exact steps>",
@@ -39,7 +41,7 @@ TEMPLATE_LITERALS = (
     "<repository@short-commit or reviewed release identifier>", "<role/team>", "<role>",
     "<roles, Apps Manager org/space, VPN, tools>", "<stable-runbook-slug>", "<stable-service-slug>",
     "<team/role>", "<the incident's agreed update interval>", "<the step or escalation row to go to>",
-    "<what you should see>", "<…>",
+    "<what you should see, in console terms first>", "<…>",
 )
 # Verbs that change state in the platforms the fleet operates: cf, kubectl, helm, terraform, gcloud,
 # shells, and SQL. A read verb (get, describe, logs, app, apps, events, top, curl) is not here.
