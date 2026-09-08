@@ -119,6 +119,44 @@ describes 5,000/25,000 tokens as the post-compaction re-attachment budget and sa
 
 `[verified]` LF blob totals: skills 612,873; agents 115,983 → 116,305. `scripts/weights.json` follows.
 
+## Iteration 2 — incident-lane after-run on the changed bytes
+
+Owner-approved after batch A. Same 9 prompts and 45 assertions for `incident-command`,
+`incident-investigation`, and `runbook`; with-skill cells re-run at `31e2e89c` (clean tree) on
+Sonnet and Opus, two runs per cell (36 cells, 0 failed); the no-skill baseline is the iteration-1
+run, unchanged. Same Fable judge and assertion text, so the numbers compare directly. Cost about
+USD 9 for cells and USD 16 for grading.
+
+| Target | Sonnet old skill → new skill (no skill) | Opus old skill → new skill (no skill) |
+|---|---|---|
+| incident-command | 0.63 → 0.76 (0.36) | 0.79 → 0.92 (0.61) |
+| incident-investigation | 0.44 → 0.67 (0.36) | 0.61 → 0.76 (0.44) |
+| runbook | 0.92 → 1.00 (0.58) | 0.92 → 0.85 (0.67) |
+
+`[verified]` per assertion, pooled over both models (old with-skill n=2, new n=4):
+
+- Rollback restores env vars and start command: 0/2 → 4/4. New revision described `Rolled back to`,
+  readback by description: 0/2 → 4/4. Cancel during a rollback answered no: 1/2 → 4/4. Rollback is a
+  rolling deployment: 0/2 → 2/4; wait for completion before readback: 0/2 → 3/4.
+- Apps Manager Events named first: 1/2 → 4/4; what each Events result means next: 0/2 → 3/4; one
+  bounded attempt to find documentation: 1/2 → 3/4; declare and route edge evidence for an external
+  monitor page: 0/2 → 2/4; no invented observations (both incident prompts): 1/2 → 4/4.
+- Runbook steps console-first: 1/2 → 4/4; expected results in console terms: 1/2 → 4/4.
+
+Still failing in every run, not targeted by batch A: a Splunk 5xx rate with a denominator on the
+first page (0/4), a provisional severity with the fifteen-minute declare rule (0/4). Dips within
+noise at these sample sizes (2/2 → 3/4) on restart blast-radius wording, runbook invented specifics,
+and the minimal-change correction.
+
+Two skill-induced patterns the judge's evidence exposes, left for the next edit: the answers adopt
+decision rule 3's "watch 1–2 minutes" as the recovery criterion instead of a windowed, route-level
+rate (recovery-criterion assertion 1/2 → 1/4), and one Sonnet run refused to name redeploying
+revision 27 as the backout after reading the new cancel-deployment paragraph. One Opus run wrote
+`<index>` instead of `3` because cf instance indices are zero-based and "instance #3" is
+ambiguous; that caution is reasonable and the mitigation table could say so.
+
+Review pages with iteration-1 outputs alongside: `.eval-runs/quality-20260908/review/iteration-2-{sonnet,opus}.html`.
+
 ## Not established
 
 - Behaviour on the changed bytes: no eval has run since the edits (owner approval pending). The
