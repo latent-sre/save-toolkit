@@ -1,0 +1,16 @@
+id: discovery-incident-investigation-first-page
+split: regression
+prompt: |
+  I just got paged for the first time. The alert is CheckoutApiSloBurnRateFast for checkout-api
+  in production, it fired about ten minutes ago, and support says customers are seeing slow and
+  failed checkouts. I'm new to this team and I don't know where to start. What do I do?
+success_criteria:
+- Routes a first responder's "what do I do" ask to the human-facing incident-investigation skill
+  rather than dispatching an agent or answering from general knowledge
+- Gives the responder ranked candidates and one next check with what each result would mean
+- Keeps every live action with the responder
+target:
+  kind: skill
+  name: incident-investigation
+routing:
+  expect: fire
