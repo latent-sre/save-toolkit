@@ -50,9 +50,18 @@ parent skill and human execution.
   3. The staging log line `Loaded Classes: N, Threads: 300` is the calculator's input; tune
      `stack_threads` via `JBP_CONFIG_OPEN_JDK_JRE` rather than hand-setting `-Xss`.
 
-  A container memory kill (the platform's out-of-memory exit, no JVM stack trace) is total RSS over
-  the limit; a JVM `OutOfMemoryError` is heap exhaustion. They are diagnosed differently — the first
-  is usually native memory (threads, direct buffers, metaspace), not heap.
+  A container memory kill (`Exited with status 137 (out of memory)`, no JVM stack trace) is total RSS
+  over the limit. A JVM `OutOfMemoryError` names the exhausted pool in its message, and the message
+  picks the knob: `Java heap space` / `GC overhead limit exceeded` → heap (`-Xmx`, which the
+  calculator derives); `Metaspace` / `Compressed class space` → class metadata (the calculator's
+  class count, not heap); `unable to create native thread` → thread count or `-Xss`; `Direct buffer
+  memory` → `MaxDirectMemorySize`. Read the message before moving any knob: raising heap or container
+  memory does not fix a Metaspace or thread exhaustion. With the calculator's heap cap in place a
+  container kill is non-heap unless `-Xmx` was pinned by hand. *[sourced: Oracle JDK 17 troubleshooting guide
+  for the heap, GC-overhead, Metaspace, compressed-class, and native-allocation forms,
+  https://docs.oracle.com/en/java/javase/17/troubleshoot/troubleshooting-memory-leaks.html; the
+  native-thread and direct-buffer messages are JDK runtime strings whose exact text varies by JDK
+  version `[unverified]`]*
 - **The buildpack picks the JRE from its own config** (`JBP_CONFIG_OPEN_JDK_JRE`), not from the
   build file — check the two agree before blaming the code for a `ClassFormatError`. *[sourced:
   cloudfoundry/java-buildpack `docs/IMPLEMENTING_JRES.md`, `docs/jre-open_jdk_jre.md`,

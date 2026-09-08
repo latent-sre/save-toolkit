@@ -76,7 +76,7 @@ TASK_FILES: dict[str, list[str]] = {
     ],
 }
 TASK_BUDGETS: dict[str, int] = {
-    "PCF incident, human path": 73_000,
+    "PCF incident, human path": 77_000,
     "PCF incident, sre-assistant agent path": 76_000,
     "Noisy alert": 44_000,
     "Write a runbook": 41_000,

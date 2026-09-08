@@ -5,13 +5,16 @@ skill owns evidence, mitigation, escalation, and recovery rules.
 
 ## Choose a comparison
 
-Pick the impact's row. Start with an accessible ticket, safe excerpt, or console view.
+Pick the impact's row. For a known PCF app, the first read is Apps Manager → the app → Events for
+the impact window — what changed and when — before any comparison below. Start with an accessible
+ticket, safe excerpt, or console view.
 
 | What the person sees | A useful first distinction | What the result would change |
 |---|---|---|
 | "Users cannot log in" | Where does an affected attempt stop: reaching the login page, submitting credentials, returning from sign-in, or opening a protected action? Compare with a working attempt if one exists. | Failure to reach the page suggests a reachability check. Submission/MFA and callback failures need distinct checks; denial after successful sign-in focuses the permissions/session path. The stage or error wording alone does not prove a cause. |
 | "It fails sometimes" | Compare one failed and one successful attempt for the same operation and interval: user cohort, route, region, version, or request identifier, using only available fields. | Differences are leads to confirm; attributes shared by success and failure do not discriminate. No difference leaves the cause open. Green aggregates do not clear an affected minority. |
 | "Requests are slow" | Which operation is slow, for whom, and compared with what usual duration? Use available request timing to distinguish waiting before work, work itself, and downstream time. | A slow segment selects its next check; total duration alone does not locate the bottleneck. With no breakdown, obtain one affected sample through its owner before prescribing scaling. |
+| "An external monitor or correlation Situation says we are down" | Split the failing vantage points from the passing ones (which agents or regions fail, which pass), then compare with the platform's own view of the apps; read the Situation's scope and first-alert time once, as a hypothesis. | Failures only from outside with the in-network check passing point at the edge, DNS, or network path rather than the apps; running instances do not prove successful requests. Declare when the impact is multi-service or customer-visible and route the path evidence to the edge/network owners; a restart of healthy apps adds impact. |
 | "The data is old or wrong" | Compare one affected record's source value/version with the processing result and user-visible value; use timestamps only when their meanings and time zones are known. | The first differing stage narrows investigation to ingestion, processing, publication, or serving. A successful job does not prove fresh/correct data; missing stages and possible integrity loss remain explicit. |
 | "The job never finished" | Separate when the run is due (time zone), dated dispatch/start/progress, and required output/delivery. | Not yet due does not settle an earlier promised delivery. Missing history leaves execution unknown; a stalled run needs processing/dependency checks. A completion flag without a matching output leaves processing, publication, and delivery unconfirmed. Reconcile duplicate/partial effects before any rerun. |
 

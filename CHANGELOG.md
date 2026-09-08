@@ -8,6 +8,17 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- Corrected wrong PCF mitigation guidance: whole-app `cf restart` stops every instance, so the
+  covered restart is per-instance or rolling; a revision rollback restores the revision's env vars
+  and creates a new `Rolled back to revision <n>` entry, so readback checks the description; rollback
+  is a rolling deployment and cancelling it restores the bad droplet. Corrected the JVM
+  `OutOfMemoryError` guidance (the message names the exhausted pool) and the Splunk top-offenders
+  query (no `error` keyword; an empty result is a missing extraction). The incident advisor routes
+  external-monitor and Situation pages to `obs-alerting`, opens Apps Manager Events first, and never
+  searches for documentation; the runbook exemplar and template are console-first with
+  `last_verified` bound to the drilled version; the commander's evidence rules match the helper's
+  read contract. Ceilings rise to 610,565 skill bytes and a 77,000-byte human incident path. See the
+  [quality round record](docs/reviews/2026-09-08-quality-round.md).
 - Corrected evaluation assertion identity, candidate aggregation and trial-input attribution;
   removed ineffective retired policy tests and scoped CI dependency checks to the actual job.
 - Resolved portable helpers from their installed skill, qualified Claude-only guard claims,

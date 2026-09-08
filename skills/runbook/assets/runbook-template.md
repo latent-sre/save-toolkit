@@ -38,10 +38,11 @@ Dashboard: <link>  ·  Source/repo: <link>
 > Mark destructive steps ⚠️. Tier 2/3: record explicit human approval for the exact command/target plus rollback evidence before execution.
 
 1. <imperative step>
+   Apps Manager: <org / space → app → view → control and value>, or
    ```bash
-   <command>
+   <cf command — equivalent of the console action, for responders who have the CLI>
    ```
-   Expected: <what you should see>, sorted into worked / partly worked / failed, each with where to go
+   Expected: <what you should see, in console terms first>, sorted into worked / partly worked / failed, each with where to go
    If not within <N min or N attempts>: → <the step or escalation row to go to> (every step that
    changes state or might not work carries this line; it is the step's own exit)
 2. <next step> — every step gets its Expected line, including waits and evidence captures …
