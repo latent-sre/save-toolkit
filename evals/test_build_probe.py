@@ -859,6 +859,24 @@ class NativeConversationRunTests(unittest.TestCase):
             self.assertEqual(1, len(calls))
             self.assertFalse((run / "followup").exists())
 
+    def test_completed_explore_before_correct_helper_stops_before_resume(self):
+        events = [
+            {"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "explore",
+                "name": "Agent", "input": {"subagent_type": "Explore"}}]}},
+            {"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "explore", "content": "done"}]}},
+            *NativeConversationTraceTests.events(),
+        ]
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(NativeConversationTraceTests, "events", return_value=events):
+            summary, run, calls, _ = self.run_native(Path(tmp))
+            trace = build_probe.parse_trace(run / "stdout.jsonl")
+            self.assertEqual(["Explore", "save-toolkit:sre-assistant"], trace.dispatches)
+            self.assertEqual(trace.dispatches, trace.agents)
+            self.assertEqual([], trace.tool_errors + trace.denials)
+            self.assertEqual("INCONCLUSIVE", summary["status"])
+            self.assertEqual("unexpected native helper session", json.loads((run / "grading.json").read_text(encoding="utf-8"))["inconclusive"])
+            self.assertEqual(1, len(calls))
+            self.assertFalse((run / "followup").exists())
+
     def test_native_credential_marker_stops_before_resume(self):
         with tempfile.TemporaryDirectory() as tmp:
             summary, run, calls, _ = self.run_native(Path(tmp), credential=True)
