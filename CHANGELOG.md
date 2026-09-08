@@ -31,6 +31,15 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- The `runbook`, `postmortem`, and `operational-learning` descriptions lead with what a person
+  would say ("help me write a runbook for restarting pricing", "write a postmortem for INC-1234",
+  "which team owns payments and how do I page them"); `operational-learning` answers ownership and
+  dependency questions from the service cards; `ci-actions` excludes application deploys and
+  runtime bugs; a `stack-profile` reference defines blast radius, golden signals, and the human
+  roles. Four routing scenarios, two of them new, pass 3/3 on Sonnet. The reviewer's README row
+  and three agent bodies lose rules they could not act on. Ceilings rise to 587,200 skill bytes and
+  115,800 agent bytes. See the [quick-fix record](docs/reviews/2026-09-08-review-quick-fixes.md).
+
 - Routine documentation handoffs and operational templates now use unique short commit IDs
   (8 characters, extended by Git when needed). Checkout evidence and approval requirements remain;
   full IDs are still accepted. Immutable-review identities, dependency pins and eval digests are
