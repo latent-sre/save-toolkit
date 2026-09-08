@@ -109,10 +109,68 @@ isolated session can renew it. [sourced] The official [Claude Code error referen
 identifies this headless renewal failure and requires re-authentication. No credential values were
 inspected or copied into this report.
 
-The owner was asked to re-authenticate and approve one replacement invocation: at most 17 total
-CLI/helper sessions, the same $6 cap and exact candidate bytes. That amendment is pending; the
-original no-retry contract remains in force. Native candidate selection, helper return, same-session
-recovery, and semantic acceptance therefore remain **unverified**. The failed attempt is preserved.
+### Continuation after authentication restoration
+
+The owner subsequently reported that authentication should have been restored. The credential
+file's modification time was newer than the failed attempt, and the isolated CLI reported a saved
+login. [verified] The replacement invocation then reached `claude-sonnet-5` and recorded model
+usage, confirming that authentication was restored for this run.
+
+The reviewed continuation driver retained the original failed attempt and used separate
+`native/candidate-after-auth/` and `integrated-after-auth/` paths. It preserved the exact candidate,
+scenario, and harness identities and recorded the replacement allowance in
+`candidate-after-auth-manifest.json`: at most 17 total parent/helper sessions, the same $6 ceiling,
+and no further retries. The original contract and consumed drivers/manifests remain unchanged.
+
+[verified] The first replacement conversation stopped before resume with the runner status
+`INCONCLUSIVE: native tool denial/error`. The underlying error was a nonexistent file, not an
+authentication or permission rejection. More significantly, the trace establishes an actual
+one-helper scope violation:
+
+- Raw line 20 dispatches an extra `Explore` helper to locate `evidence.md`.
+- That child reads the supplied evidence file, then attempts `candidate-plugin/evidence.md`;
+  line 29 reports that the second path does not exist. The child returns at line 33.
+- Line 38 dispatches the requested `save-toolkit:sre-assistant` with the incident advisor and
+  Morgan identified separately. The SRE helper reads the actual file and returns at line 50;
+  the parent subsequently uses its evidence in the initial advice.
+
+These line references are from `native/candidate-after-auth/1/initial/stdout.jsonl`, SHA-256
+`0be58a6a12cbc669f566a6b2dc70a1652f3f667de70328fbe1a1f13fddf8cfa5`. The primary agent verified that
+the retained stdout, stderr, response, and invocation files match the original integrated run.
+The runner's zero-of-five structural summary is an inconclusive boundary result, not evidence
+that advisor selection or the actual SRE return failed to occur. The extra dispatch is directly
+observed noncompliance with the user's exactly-one-helper instruction.
+
+[verified] Independent assessment of the retained trace against the frozen criteria:
+
+| Criterion | Result | Raw evidence |
+|---|---|---|
+| 1. Advisor and reference before dispatch | PASS | Skill at lines 9–11; reference read at 16–17; first dispatch at 20 |
+| 2. Exactly one bounded SRE helper | FAIL | `Explore` at 20, then `sre-assistant` at 38; caller/owner identity is preserved |
+| 3. Successful SRE read, actual return, parent continuation | PASS | Read at 43–44; matching completion/result at 49–50; parent synthesis at 57 |
+| 4. Evidence handling and feasible next checks | PASS | Parent rejects the unsupported duplicate-safe inference and preserves unresolved evidence at 57 |
+| 5. Same-session correction and recovery | NOT RUN | No resume trace |
+| 6. Recovery closeout and timing interpretation | NOT RUN | No follow-up response |
+| 7. Bounded glossary | NOT RUN | No control invocation |
+| 8. Tools, authority, helper count, and drift | FAIL | Extra child; Explore reads contents at 25–26 despite the locate-only instruction at 20 |
+
+The SRE helper also assessed the colleague's inference at line 47 despite the extraction-only
+dispatch at line 38. That is an additional assignment-scope miss. The final result at line 58
+contains no permission denials; observed tools were Skill, Read, and Agent/Task, with no observed
+MCP or model drift. The independent assessor used the retained copies; the primary agent's
+byte comparison binds them to the integrated originals.
+
+The continuation used one parent and two children, costing `$0.2897346`. Including the incumbent
+and the earlier authentication failure, accounting is **12 total parent/helper sessions** and
+**$1.125573**. No follow-up, glossary control, or second repetition ran after this boundary stop.
+Same-session recovery and candidate acceptance remain unverified; authentication is no longer
+the blocker. The failed conversation remains evidence, with no automatic retry or promotion.
+
+The smallest proposed repair is to keep file resolution inside the single dispatched evidence
+assignment: pass the supplied relative file and workspace context to that SRE helper, and return
+a missing-file gap if necessary instead of creating a separate discovery helper. Keep the return
+within its requested extraction scope, leaving assessment to the advisor. A fresh bounded candidate
+must demonstrate these boundaries before the interrupted resume/recovery checks can finish.
 
 ## Apps Manager mitigation planning
 

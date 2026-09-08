@@ -43,10 +43,11 @@ in merged PR #237 do not prove installed-host enforcement, model behavior, or re
 the bounded follow-up.
 **Outcome:** The advisor loads relevant guidance, dispatches a bounded helper, reconciles its
 return, and advances without invented causes, timing, or current-state claims.
-**Next action:** Restore authentication for the isolated Claude run and obtain the owner's
-replacement-invocation decision before finishing the frozen native candidate. Its first invocation
-stopped before model usage, helper dispatch, or resume; code and structural checks passed, but
-candidate behavior remains unverified. See the
+**Next action:** Repair and verify helper-count and assignment-scope boundaries before finishing
+native resume/recovery testing. Authentication was restored, but the frozen candidate dispatched an
+extra `Explore` helper before the requested SRE helper; its missing-file read stopped continuation.
+The actual SRE return occurred, while same-session recovery remains unverified. Preserve both
+failed attempts and select the next bounded candidate explicitly. See the
 [selected-improvement record](reviews/2026-09-07-selected-sre-improvements.md).
 The completed 24-session Sonnet campaign failed behavioral acceptance; later source merges are not
 a fresh behavioral verdict. Preserve actual return/resume and sufficient-evidence recovery as
