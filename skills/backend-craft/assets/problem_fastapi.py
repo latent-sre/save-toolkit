@@ -7,7 +7,7 @@
         install_problem_handlers(app)
         return app
 
-Use application/problem+json and preserve protocol headers. Adapt request_id to the app's
+Use application/problem+json and the protocol-header allowlist below. Adapt request_id to the app's
 correlation middleware; this starter echoes X-Request-ID supplied by a validating trusted ingress.
 """
 from __future__ import annotations
@@ -24,6 +24,13 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 PROBLEM_TYPE_BASE = "https://errors.example.internal"
 PROBLEM_MEDIA_TYPE = "application/problem+json"
+
+# Extend for the app's protocol contract, never stale representation or framing metadata.
+_PROTOCOL_HEADERS = {
+    "www-authenticate", "proxy-authenticate", "allow", "retry-after", "location",
+    "cache-control", "expires", "pragma", "vary", "set-cookie",
+    "x-ratelimit-limit", "x-ratelimit-remaining", "x-ratelimit-reset",
+}
 
 _TITLES = {
     400: "Malformed request", 401: "Unauthenticated", 403: "Forbidden", 404: "Not found",
@@ -55,9 +62,9 @@ def problem(
     if request_id:
         body["request_id"] = request_id
     body.update(extensions)
-    # The new body needs its own media type and length, while challenges/retry hints survive.
+    # JSONResponse supplies the new representation's headers; only protocol metadata carries over.
     response_headers = {key: value for key, value in (headers or {}).items()
-                        if key.lower() not in {"content-type", "content-length"}}
+                        if key.lower() in _PROTOCOL_HEADERS}
     return JSONResponse(body, status_code=status, media_type=PROBLEM_MEDIA_TYPE, headers=response_headers)
 
 

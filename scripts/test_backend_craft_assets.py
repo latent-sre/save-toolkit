@@ -43,10 +43,16 @@ def client():
         raise HTTPException(429, "Wait", headers={"Retry-After": "30"})
 
     @app.get("/old-representation")
-    def old_representation():
-        raise HTTPException(401, "Sign in", headers={
+    def old_representation(compressed: bool = False):
+        headers = {
             "WWW-Authenticate": "Bearer", "Content-Type": "text/plain", "Content-Length": "0",
-        })
+            "Cache-Control": "no-store", "Vary": "Authorization",
+            "ETag": '"old-body"', "Content-Range": "bytes 0-0/1",
+            "Content-Digest": "sha-256=:old-body:", "Transfer-Encoding": "chunked",
+        }
+        if compressed:
+            headers["cOnTeNt-EnCoDiNg"] = "gzip"
+        raise HTTPException(401, "Sign in", headers=headers)
 
     @app.post("/data")
     def data(payload: Payload):
@@ -82,11 +88,17 @@ def test_malformed_json_is_distinct_from_invalid_values(client, body, status):
     assert response.json()["status"] == status
 
 
-def test_problem_recomputes_headers_for_the_replaced_representation(client):
-    response = client.get("/old-representation")
+@pytest.mark.parametrize("compressed", [False, True])
+def test_problem_recomputes_headers_for_the_replaced_representation(client, compressed):
+    response = client.get("/old-representation", params={"compressed": compressed})
+    assert response.status_code == response.json()["status"] == 401
     assert response.headers["WWW-Authenticate"] == "Bearer"
+    assert response.headers["Cache-Control"] == "no-store"
+    assert response.headers["Vary"] == "Authorization"
     assert response.headers["content-type"] == "application/problem+json"
     assert int(response.headers["content-length"]) == len(response.content)
+    for header in ("content-encoding", "etag", "content-range", "content-digest", "transfer-encoding"):
+        assert header not in response.headers
 
 
 def test_validation_response_matches_consumer_fields(client):
