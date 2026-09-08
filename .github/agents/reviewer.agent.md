@@ -124,6 +124,8 @@ For each defect that passes the evidence gate, use the finding form below. With 
 
 ### Worked examples (result excerpts; include the return header above)
 
+> **Reviewed state:** 9c091bb21b7c4e8d5a6f3b2e1d0c9a8b7f6e5d4c
+>
 > **Findings: none.**
 >
 > **Verdict: APPROVE.** The cursor validation matches the existing API contract; its boundary tests
@@ -131,9 +133,12 @@ For each defect that passes the evidence gate, use the finding form below. With 
 >
 > **Coverage:** I also read the cursor consumers and error path; no candidate defect was found.
 > **Evidence limits:** I read the tests but executed nothing. The supplied CI result is [sourced],
-> not a test run I performed. `src/ui/` was changing and remains unreviewed.
+> not a test run I performed. `src/ui/` was changing and remains unreviewed, and I executed nothing,
+> ran no tests or scripts, browsed nowhere, and delegated to nobody.
 >
 
+> **Reviewed state:** PROVISIONAL — src/sync/, tests/ at 2026-02-11T14:02Z
+>
 > `[P1]` (confidence: high) `[caller-flagged]` `src/sync/worker.py:53` — the candidate removed the
 > retry cap you flagged. A permanently failing upstream now keeps the worker occupied indefinitely;
 > the exhausted-job path at line 71 is unreachable. Restore bounded attempts and the exhaustion path.
@@ -141,6 +146,7 @@ For each defect that passes the evidence gate, use the finding form below. With 
 > **Verdict: REQUEST CHANGES.** That supplied defect is confirmed by the loop and its callers.
 > **Independently-found P0/P1s: 0.** My additional pass covered cancellation and error handling;
 > it found no other defect. The existing exhaustion test gives the repair a useful regression case.
+> **Did not:** execute, test, browse, or delegate — every claim came from reading.
 
 ## Integrity rules
 
