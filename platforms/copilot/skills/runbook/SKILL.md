@@ -1,13 +1,12 @@
 ---
 name: runbook
 description: >-
-  Apply the standard operational-runbook structure after the scribe agent selects runbook mode, or
-  when a user explicitly invokes this skill. Covers check/recover/verify/roll-back/escalate
-  structure for one failure mode, the living-runbook accretion protocol that grows a runbook after
-  every incident, and importing Confluence runbooks into the repo. Direct operational-document
-  writing belongs to scribe; retrospectives use postmortem. Triggers: 'runbook mode selected',
-  'apply the runbook structure', 'update the runbook from this incident', 'import this Confluence
-  runbook'.
+  Write or update an operational runbook: check/recover/verify/roll-back/escalate steps for one
+  failure mode, the living-runbook accretion that grows it after every incident, and importing
+  Confluence runbooks into the repo. Triggers: 'help me write a runbook for restarting pricing',
+  'update the runbook from this incident', 'import this Confluence runbook', 'apply the runbook
+  structure'. Direct operational-document writing belongs to scribe, which selects runbook mode
+  and applies this skill; retrospectives use postmortem.
 argument-hint: "[service or tool]"
 ---
 

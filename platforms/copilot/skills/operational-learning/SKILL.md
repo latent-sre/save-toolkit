@@ -1,11 +1,13 @@
 ---
 name: operational-learning
 description: >-
-  Apply the operational-learning closeout after scribe selects knowledge closeout mode, or when a
-  user explicitly invokes this skill. Direct KB writing belongs to scribe; active incidents route
-  to incident-investigation, alert design routes to observability-engineer, and fleet prompt work routes to
-  agent-engineer. Triggers: 'knowledge closeout mode selected',
-  'apply the operational-learning closeout', 'capture durable operational lessons'.
+  Turn a resolved incident, drill, audit, or approved component or alert change into durable
+  knowledge (service cards, alert cards, the operations index, runbook dispositions), and answer
+  ownership questions from those records. Triggers: 'which team owns payments and how do I page
+  them', 'what depends on the ledger service', 'capture durable operational lessons', 'apply the
+  operational-learning closeout'. Direct KB writing belongs to scribe, which selects knowledge
+  closeout mode and applies this skill; active incidents route to incident-investigation and
+  alert design to observability-engineer.
 argument-hint: "[component, alert, incident, drill, or audit]"
 ---
 
@@ -68,6 +70,15 @@ alert, SLO, and dashboard design stays with `observability-engineer`; code or au
 6. **Return the result for review.** Lead with changed paths or the owned handoff, then evidence,
    affected dispositions, grouped non-actions, gaps, and next action. A stale-contact correction
    stays a contact/link diff when no operational behavior changed. Human PR review remains required.
+
+## Answer an ownership or dependency question
+
+"Who owns payments", "how do I page them", "what depends on ledger" are reads, not a closeout.
+Read `docs/operations/index.md` and `docs/operations/services/<app>.md` under the knowledge
+repository root; report the owner, escalation path, and dependencies as `[sourced]` with the file
+path and the card's `last_verified` date. If no card or index exists, say so and name the path a
+card would live at; never infer an owner from code paths, commit authors, or alert labels. During
+an active incident the same read belongs to `incident-investigation`.
 
 ## Required invariants
 

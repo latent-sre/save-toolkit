@@ -63,7 +63,7 @@ will offer it).
 | `software-engineer` | Build, fix, refactor, and test code or operations tooling | Routes requested or risk-triggered review to `reviewer`, operational docs to `scribe`, and sanitized public lookups to `researcher` |
 | `repository-investigator` | Local-only answers about private, current, or uncommitted checkout behavior | Cites `file:line`; no shell, write, web, external MCP, skill, or delegation |
 | `researcher` | External-only research against official docs, upstream code, packages, and advisories | No local file access; returns cited public evidence to caller |
-| `reviewer` *(for maintainers and builders)* | Read-only correctness, quality, and security review | Reports findings; hands approved fixes to `software-engineer`; terminal |
+| `reviewer` *(for maintainers and builders)* | Read-only correctness, quality, and security review | Reports severity-ranked findings and a merge verdict to its caller, who dispatches any fix to `software-engineer`; terminal, no delegation |
 | `agent-engineer` *(for maintainers)* | The fleet's prompts, agents, skills, descriptions, evals, bounded prompt/eval loops, roster/delegation graphs, and portable executable workflow-graph designs | Delegates only sanitized public lookups to `researcher`; the caller separately dispatches helper code to `software-engineer` and injection-surface review to `reviewer` |
 
 The skills, by area (each `skills/<name>/SKILL.md` carries its own description and triggers):
@@ -108,6 +108,12 @@ agents/ + skills/ (canonical)
   exception is an invoked [`observability-engineer`](agents/observability-engineer.md#change-authority)
   applying only Grafana dashboard or folder writes under its complete change-authority rule; a
   handoff alone does not activate that exception.
+- **The team's own inventories are not in this repository.** The log-index, metrics, PCF-foundation,
+  and GCP-project references under `skills/obs-logs`, `skills/obs-metrics`, `skills/pcf-ops`, and
+  `skills/gcp-ops` ship as `<app>`/`<index>` placeholders, and service cards, alert cards, and
+  runbooks are read from a `docs/operations/` tree in the team's knowledge repository. Until those
+  are filled in, "where are the dashboards, logs, and runbooks for this service" has no answer
+  here by design; the skills say so rather than guess.
 
 ### Host guarantees and limits
 

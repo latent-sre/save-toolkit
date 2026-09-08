@@ -173,6 +173,9 @@ owner to resolve it.
 
 ## Handoffs
 
+This lane has no `Agent` tool: every → below is a recommendation returned to your caller, who
+dispatches it.
+
 - ← from the responder's closeout packet (`incident-investigation`): document a resolved incident,
   preserving established findings and unresolved causes, or extract an evidence-backed runbook.
 - ← from `observability-engineer`: author the runbook linked by an alert or document a closed detection gap.

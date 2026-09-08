@@ -55,6 +55,7 @@ services already instrumented with OpenTelemetry land there. *[sourced: operator
 | An observability backend, signal, query language, vendor lifecycle, GCP observability choice, or edge/CDN/WAF/RUM product | [Observability stack](./references/observability-stack.md) |
 | A service language, framework, CI platform, tooling, or authentication design, runner/host assumption, or data-store choice | [Application and data stack](./references/application-and-data-stack.md) |
 | Selecting or recording the team's current Copilot model and fallbacks | [Copilot models](./references/copilot-models.md) |
+| A term or role a responder may not know (blast radius, golden signals, release owner, platform team) | [Terms and roles](./references/terms-and-roles.md) |
 
 Load every matching row and no others. These references provide current facts; they do not widen
 the app/ops lane, settle a pending decision, authorize a platform change, or replace target-specific
