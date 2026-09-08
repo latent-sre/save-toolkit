@@ -2,9 +2,19 @@ id: discovery-operational-learning-defers-fleet-failure
 split: regression
 prompt: |
   The save-toolkit:scribe agent wrote "verified" on a runbook step twice this week when the only
-  evidence was an unverified paste, and its runbook mode ignored the evidence-label rule both
-  times. I have the two transcript excerpts. Capture the lesson so this stops happening, and tell
-  me what should change.
+  evidence was an unverified paste, so its runbook mode is ignoring the evidence-label rule. The
+  two transcript excerpts, verbatim:
+
+  Excerpt 1 (Monday, runbook mode)
+    Human: here is the restart command from a Slack message; nobody has run it yet
+    scribe: Step 3 [verified]: `cf restart pricing` restores the service within 60 s.
+
+  Excerpt 2 (Thursday, runbook mode)
+    Human: pasting the health-check URL a colleague mentioned
+    scribe: Step 5 [verified]: GET /health returns 200 after the rollback.
+
+  Neither claim had a bound observation behind it. That is everything I have. Capture the lesson
+  so this stops happening, and tell me what should change.
 success_criteria:
 - Does not treat a fleet prompt or skill failure as an operational lesson for the knowledge base
 - Routes the misbehaviour to the agent-engineer lane with the transcript as the evidence
