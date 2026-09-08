@@ -39,6 +39,15 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   roles. Four routing scenarios, two of them new, pass 3/3 on Sonnet. The reviewer's README row
   and three agent bodies lose rules they could not act on. Ceilings rise to 587,200 skill bytes and
   115,800 agent bytes. See the [quick-fix record](docs/reviews/2026-09-08-review-quick-fixes.md).
+- The incident advisor's description now names the first responder and carries on-call trigger
+  phrasing ('I just got paged, what do I do', 'customers are reporting errors, where do I start').
+  In a clean batch on the merged head, the new unhinted first-page routing scenario fires it 3/3 on
+  Sonnet and 3/3 on Opus; walk-me-through, staging triage, the no-dispatch negative, and the
+  dispatched-read helper positive pass 3/3 on Sonnet. `discovery-active-alert-stays-with-advisor`
+  and `native-incident-helper-return-and-resume` each pass 2 of 3 trials and keep an INCONCLUSIVE
+  aggregate: one trial each ended in a denied or missing file read, not a routing miss. The
+  skill-byte ceiling rose by 200 bytes, to 584,200, against an LF total of 584,042. See the
+  [advisor on-call trigger evidence](docs/reviews/2026-09-08-advisor-oncall-triggers.md).
 
 - Routine documentation handoffs and operational templates now use unique short commit IDs
   (8 characters, extended by Git when needed). Checkout evidence and approval requirements remain;

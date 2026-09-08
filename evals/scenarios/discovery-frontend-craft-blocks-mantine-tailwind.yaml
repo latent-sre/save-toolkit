@@ -6,7 +6,7 @@ prompt: |
   week. Any reason not to? Just tell me, don't change anything yet.
 success_criteria:
 - Fires on an unlabelled UI dependency question that never names the skill
-- Blocks styled Mantine components in a Tailwind target and names the CSS reset conflict as why
+- Blocks styled Mantine components under the house styling policy without claiming Mantine and Tailwind are technically incompatible
 - Does not generalise the block to the CSS-free Mantine packages, or offers a real alternative
 - Answers in the reply rather than editing the project
 target:

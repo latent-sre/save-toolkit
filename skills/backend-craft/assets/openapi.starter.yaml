@@ -8,7 +8,7 @@ info:
   title: On-call Tool API
   version: 1.0.0          # SemVer; breaking change -> major. Path-version at /v1 (expand->contract).
 servers:
-  - url: https://oncall.apps.example.internal/v1
+  - url: https://oncall.apps.example.internal
 security:
   - bearerAuth: []        # validated on EVERY request; authorize per-object in the handler.
 paths:
@@ -24,7 +24,7 @@ paths:
       responses:
         "200": { description: Ready }
         "503": { description: Not ready to receive traffic }
-  /incidents:
+  /v1/incidents:
     get:
       summary: List incidents (cursor-paginated).
       parameters:
@@ -38,6 +38,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/IncidentPage" }
         "401": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
         "429": { $ref: "#/components/responses/RateLimited" }
     post:
       summary: Create an incident (idempotent via Idempotency-Key).
@@ -50,6 +51,8 @@ paths:
             schema: { $ref: "#/components/schemas/IncidentCreate" }
       responses:
         "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Incident" } } } }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
         "409": { $ref: "#/components/responses/Problem" }
         "422": { $ref: "#/components/responses/Problem" }
         "429": { $ref: "#/components/responses/RateLimited" }
@@ -84,7 +87,12 @@ components:
         request_id: { type: string, description: Correlates this response with the request log line. }
         errors:             # your extension for field-level validation
           type: array
-          items: { type: object, properties: { field: { type: string }, message: { type: string } } }
+          items:
+            type: object
+            properties:
+              loc: { type: array, items: { type: string } }
+              msg: { type: string }
+            required: [loc, msg]
       required: [type, title, status]
     Incident:
       type: object
@@ -103,4 +111,4 @@ components:
       properties:
         data: { type: array, items: { $ref: "#/components/schemas/Incident" } }
         next_cursor: { type: [string, "null"], description: "Pass back as ?cursor= for the next page." }
-      required: [data]
+      required: [data, next_cursor]

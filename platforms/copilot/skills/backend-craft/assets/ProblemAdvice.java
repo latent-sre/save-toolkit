@@ -32,10 +32,9 @@ public class ProblemAdvice extends ResponseEntityExceptionHandler {
             MethodArgumentNotValidException ex, HttpHeaders headers,
             HttpStatusCode status, WebRequest request) {
         // 422, not the framework's default 400: the body was well formed and its values failed
-        // validation. Spring Framework 6.2+ spells it UNPROCESSABLE_CONTENT (the RFC 9110 name);
-        // older versions spell the same 422 UNPROCESSABLE_ENTITY.
+        // validation. valueOf works on Framework 6 and 7; UNPROCESSABLE_CONTENT starts in 7.
         ProblemDetail body = ProblemDetail.forStatusAndDetail(
-                HttpStatus.UNPROCESSABLE_CONTENT, "The request failed validation.");
+                HttpStatusCode.valueOf(422), "The request failed validation.");
         body.setType(URI.create(TYPE_BASE + "validation-failed"));
         body.setTitle("Validation failed");
         body.setProperty("errors", ex.getBindingResult().getFieldErrors().stream()
@@ -43,7 +42,7 @@ public class ProblemAdvice extends ResponseEntityExceptionHandler {
                         "loc", List.of("body", error.getField()),
                         "msg", String.valueOf(error.getDefaultMessage())))
                 .toList());
-        return ResponseEntity.unprocessableEntity().body(body);
+        return ResponseEntity.status(422).headers(headers).body(body);
     }
 
     @ExceptionHandler(Exception.class)
