@@ -23,9 +23,10 @@ untrusted pull-request code populate a key that trusted jobs restore.
 
 ## Concurrency and artifact promotion
 
-Cancel superseded branch validation (`group: ${{ github.workflow }}-${{ github.ref }}` with
-`cancel-in-progress: true`), never a production deployment (a stable group with
-`cancel-in-progress: false`). Upload build outputs once, retain their identity or digest, and
+Cancel superseded validation at the job boundary. Include workflow, ref, validation job, and matrix
+dimensions in its group; reusable calls also need a stable caller-job/target key and a group distinct
+from the caller's. Production deployment uses a stable group with `cancel-in-progress: false`.
+Upload build outputs once, retain their identity or digest, and
 download that exact artifact in the deployment job. Do not rebuild from the deployment ref.
 
 ## Self-hosted runners

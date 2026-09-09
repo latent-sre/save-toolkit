@@ -28,8 +28,9 @@ Before the first iteration, write down every row:
 | Promotion authority | Human acceptance of the exact candidate PR revision; never the loop itself |
 | Durable evidence | The regression case, incumbent and winning revisions, per-case results, cost, and decision in the PR |
 
-Missing or inconclusive evidence is never success. Persist only the accepted result and its
-decision evidence; scratch attempts are discarded.
+Missing or inconclusive evidence is never success. Keep decision evidence, including failed or
+inconclusive results still needed by an unresolved decision or current regression, under
+CONTRIBUTING's retention rule. Discard disposable drafts when no current dependency remains.
 
 ## Learn from an encountered failure
 

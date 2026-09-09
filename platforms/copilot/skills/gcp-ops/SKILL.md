@@ -46,10 +46,10 @@ access or data is not health evidence. For a different log window, use the log
 query guidance below. If the service name is unknown, use
 `gcloud run services list --region <region> --project <project>`.
 
-Record our projects, regions, and service inventory in
+The human inventory owner records projects, regions, and services in
 [references/projects.md](./references/projects.md).
 
-## The revision model — "what changed?" is one command
+## Revisions — correlate changes with symptoms
 
 Every deploy creates an immutable **revision** (image + env + limits + concurrency). A new
 deployment takes traffic only while the service still tracks the latest revision:
@@ -68,14 +68,18 @@ As with `cf events`, a revision near symptom onset is a hypothesis, not proof of
 ## Logs — guard-safe filter shapes
 
 ```bash
-gcloud logging read 'resource.type=cloud_run_revision AND resource.labels.service_name=<service> AND resource.labels.location=<region> AND severity=(ERROR OR CRITICAL)' --freshness=1h --limit=50 --project <project>
+gcloud logging read 'resource.type=cloud_run_revision AND resource.labels.service_name=<service> AND resource.labels.location=<region> AND (severity>=ERROR OR httpRequest.status=429)' --freshness=1h --limit=50 --project <project>
 ```
+
+This includes warning-level no-available-instance 429s as well as high-severity errors. A 429 alone
+does not establish the cause; correlate the message, capacity and affected revision.
+*[sourced: docs.cloud.google.com/run/docs/troubleshooting; reviewed 2026-09-09]*
 
 Two shapes matter to this fleet specifically:
 
 - Use **`--freshness`** for the time bound and keep the whole Logging filter in one quoted argument.
   `severity>=ERROR` is valid and guard-safe when quoted; the unquoted spelling is shell redirection
-  and is denied. `severity=(ERROR OR CRITICAL)` remains a guard-safe alternate spelling.
+  and is denied.
 - The Logging query language details (operators, `log_id()`, `SEARCH()`) belong to the `obs-logs`
   skill's GCP reference — load that for query construction; this skill owns the triage flow.
 
@@ -92,7 +96,7 @@ docs.cloud.google.com/logging/docs/api/v2/resource-list#cloud_run_revision]*.
   transfers exactly.
 - **Cold starts** — min-instances is a billed change to recommend, not assume.
 - **Concurrency/saturation** — exact defaults vary by deploy path: `[unverified]`, read them from
-  `services describe`, don't quote memory.
+  the affected revision and service configuration, don't quote memory.
 
 ### OOM evidence
 
@@ -100,7 +104,9 @@ Cloud Logging example: *"While handling this request, the container instance was
 using too much memory and was terminated."* (HTTP 500/503; exact target wording `[unverified]`).
 **No exit code to grep.** Local filesystem writes count toward memory, including logs outside
 `/var/log/*` and `/dev/log`. For a leak appearing after PCF migration, check these writes first;
-corroborate the revision's limit from `services describe` before recommending a bump
+take `resource.labels.revision_name` from the failing log, select that revision in **Revision
+history**, or use the target-bound `revisions describe` command above. Read its container memory
+limit before recommending a bump; the current service template may describe a later revision
 *[sourced: docs.cloud.google.com/run/docs/troubleshooting; reviewed 2026-08-21]*.
 
 ## Mitigation you recommend (never run): traffic rollback
@@ -126,15 +132,13 @@ holds egress. A human runs them if genuinely needed and pastes the smallest sani
 `--impersonate-service-account` and `--flags-file` are denied on every command — identity pivots
 and flag smuggling, not reads.
 
-## Project-side vs platform-side (the boundary moved — know the new one)
+## Provisional project/platform ownership
 
-On GCP this team owns more than it did on PCF: service config, revisions, project-scoped IAM and
-observability are **ours**. Org policy, folder/project structure, shared VPC/networking, and IAM
-above project scope sit with the cloud platform owner — Google's shared-responsibility line makes
-IAM configuration and hierarchy explicitly customer-owned work *[sourced:
-cloud.google.com/architecture/framework/security/shared-responsibility-shared-fate]*, and our
-internal split of that customer side is **not yet ratified** (`stack-profile` carries the current
-state). Use `pcf-ops`'s escalation packet: observed symptom and UTC timing (onset unknown if not
+Our internal GCP ownership split is **[unverified], not yet ratified**; `stack-profile` carries its
+status. The working proposal assigns service config, revisions, project-scoped IAM and observability
+to this team; org policy, hierarchy, shared networking and wider IAM to the cloud platform owner.
+Google's customer/provider boundary does not settle our internal owners. Confirm the responsible
+owner before recommending a change. Use `pcf-ops`'s escalation packet: symptom and UTC timing (onset unknown if not
 established), scope across services/projects, checks and their limits, shared dependencies, and
 the evidence the receiving owner can add. Running instances and clean logs do not certify the
 service healthy; broad impact justifies involving owners without proving fault ownership.

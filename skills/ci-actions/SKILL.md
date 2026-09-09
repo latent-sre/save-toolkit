@@ -52,8 +52,9 @@ gate production with protected environments.
   job. The deploy job promotes the already-built artifact and carries an explicit rollback path.
 - A check that is not required blocks nothing. Say whether each check is required on the
   protected branch, and read the branch ruleset rather than assuming it.
-- A push- or pull-request-only gate that is switched off stops running, which looks identical to
-  passing. Give a branch-protecting gate a manual dispatch and a scheduled floor.
+- A filtered/skipped workflow can leave required checks pending; a conditionally skipped job
+  reports success. Inspect the candidate's required check and actual job execution. A scheduled
+  or manual liveness check can detect a dormant gate; it does not validate the candidate.
 
 ## Route context only when it matches
 
@@ -78,7 +79,7 @@ pauses for the human gate.
 
 ## Working method
 
-Reuse evidence that still matches the current workflow/ref, target, and run, preserving its labels
+Reuse evidence matching the candidate source/workflow revisions, target, and run ID/attempt, preserving its labels
 and taint. Refresh changed or stale facts instead of repeating the inventory.
 
 1. **Establish the requirement.** For a failure, identify the failing run, job, step, event, ref,
@@ -87,8 +88,8 @@ and taint. Refresh changed or stale facts instead of repeating the inventory.
 2. **Inventory the current contract before proposing YAML.** Read existing workflows, action
    metadata, build commands, release evidence, and local conventions; locate permissions,
    secrets/environments, concurrency, cache keys, artifact flow, and repository-owned validation
-   commands. The project-owned workflow or starter is authoritative; do not create a parallel
-   pipeline or infer absent requirements from a generic starter.
+   commands. Adapt the project-owned workflow or starter against those requirements; do not create
+   a parallel pipeline or infer absent requirements from a generic starter.
 3. **Classify the change** and load only the matching routed detail.
 4. **Design the trust path.** Mark untrusted events and values, identify every credential and write
    permission, bind deploy credentials to the protected environment, and keep build and deploy

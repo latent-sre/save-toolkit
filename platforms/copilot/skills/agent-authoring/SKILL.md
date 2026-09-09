@@ -143,7 +143,7 @@ authorizes a self-modifying loop.
 
 ## Handoffs
 
-- Independent evaluation, review, or security finding → the typed `reviewer` agent, with the exact artifact,
+- Independent review of an artifact, supplied evaluation evidence, or security finding → the typed `reviewer` agent, with the exact artifact,
   success criteria, evidence, source trust, and unresolved labels.
 - Approved implementation or generator change → the typed `software-engineer` agent, with the
   failing fixture and minimal required scope.

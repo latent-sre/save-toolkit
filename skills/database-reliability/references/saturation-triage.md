@@ -4,7 +4,15 @@ Read only for a DB-driven incident involving connection, lock, replication, stor
 signals. Diagnose read-only; any pool change, query kill, failover, scaling, or other live mitigation
 still requires the exact human-approved incident packet in `../SKILL.md`.
 
-Check the cheapest discriminating evidence first:
+Name the engine/version, database, affected app, UTC window, and available access. Start in the
+app's pool dashboard: active/idle connections, pending borrowers, wait time and timeouts over the
+same window. If unavailable, request that slice from the app owner; missing metrics are unknown.
+For DB-side blocking, ask the DBA for a bounded, sanitized session/wait snapshot for that database:
+PostgreSQL `pg_stat_activity` with `pg_blocking_pids`, or SQL Server `sys.dm_exec_requests` with
+`sys.dm_os_waiting_tasks`. Include transaction age and blocker IDs; omit SQL literals and credentials.
+A helper without permitted SQL tools returns this request instead of executing it.
+
+Use the first evidence to choose the next discriminator:
 
 - **Connections:** pool occupancy, wait time, timeouts, database-session limits, and leak evidence.
   Separate an undersized pool from leaked or long-held connections before recommending a change.

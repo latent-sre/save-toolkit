@@ -41,11 +41,14 @@ techdocs.akamai.com/property-mgr/docs/enhanced-debug]*. Whether legacy `Pragma` 
 property that never adopted Enhanced Debug is property-dependent — `[unverified]`; test per
 property, don't assume.
 
-- `Akamai-Debug: cache` → returns `X-Cache`, `X-Cache-Remote`, `X-Check-Cacheable`, `X-Cache-Key`,
+- `Akamai-Debug: <auth-token> cache` → returns `X-Cache`, `X-Cache-Remote`, `X-Check-Cacheable`, `X-Cache-Key`,
   `X-True-Cache-Key`, `Edge-Cache-Tag`, `Akamai-Cache-Status` and related headers.
-- `Akamai-Debug: cache vars` ≈ the legacy set `Pragma: akamai-x-get-request-id, akamai-x-cache-on,
+- `Akamai-Debug: <auth-token> cache vars` ≈ the legacy set `Pragma: akamai-x-get-request-id, akamai-x-cache-on,
   akamai-x-cache-remote-on, akamai-x-check-cacheable, akamai-x-get-cache-key,
   akamai-x-get-true-cache-key, akamai-x-get-extracted-values`.
+- The human supplies the token first, or in the case-sensitive `akamaidebugtoken` cookie with
+  options alone in the header. An invalid/expired token returns `Akamai-Debug-Status` and no other
+  debug headers; absent cache headers then say nothing about cache health. Never quote the token.
 - The behavior can also emit an `Akamai-GRN` response header — feed it straight into Translate
   Error String.
 - Staging responses carry `X-Akamai-Staging` (e.g. `ESSL`) — the header that proves you hit
@@ -96,15 +99,9 @@ Two completeness caveats that change conclusions:
 
 ## Offload and error reports (Control Center → Reporting)
 
-The legacy **Traffic report** is discontinued; use **Traffic by Hostname** in the Control Center.
-Akamai's planning changelog says the change was effective **2025-11-05**, while the current Traffic
-report page records **2025-11-06**. The exact effective day is `[unverified]`; that disagreement does
-not change the replacement. The retired report showed hits/volume/offload split into edge, midgress,
-and origin traffic, filtered by response type (Error vs Success), class (2XX…), and individual code
-— the fast way to see "did origin errors rise while edge stayed flat" *[sourced:
-techdocs.akamai.com/reporting/changelog/
-apr-24-2025-traffic-and-todays-traffic-reports-decommission;
-techdocs.akamai.com/reporting/docs/traffic-rpts, re-checked 2026-08-24]*. The offload arithmetic
+Use **Traffic by Hostname** in Control Center. The legacy **Traffic report** is discontinued;
+do not describe its retired filters as current UI controls *[sourced:
+techdocs.akamai.com/reporting/docs/traffic-rpts, reviewed 2026-08-24]*. The offload arithmetic
 `(edge − origin) / edge × 100` is a working
 definition, not a quoted formula — the API defines `offloadedHitsPercentage` in prose. The
 Reporting API v2 exposes the data as `delivery/traffic/current`; the CP-code filter is

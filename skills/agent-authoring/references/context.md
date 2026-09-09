@@ -9,9 +9,8 @@ easiest places to silently upgrade a label.
 
 - **Durable knowledge lives outside the window** — for us that is runbooks, postmortems, and the
   knowledge loop, never a giant in-context scratchpad.
-- **Preload the two things a step always needs; keep just-in-time retrieval for what only some
-  steps require.** Forcing three fetches before work can start trades tokens for latency and for
-  the chance of fetching the wrong files.
+- **Preload context every step needs; retrieve conditional detail when it applies.** Avoid a
+  chain of fetches for prerequisites that are already known.
 - **Fork or rewind only when replay is defined.** A checkpoint before a failed path gives a clean
   retry only when the runtime defines replay and effect semantics. Never replay an external side
   effect by assumption; otherwise correct in place and record the divergence.
