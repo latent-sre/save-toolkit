@@ -313,8 +313,23 @@ being worked, every reply ends with the strip" against "a standalone question �
 does this mean?' — gets no strip". Asked "what does 'waiting for a connection' mean here" while 500s
 were live, five of six runs read the question's shape and dropped the strip. The rule now says the
 test is whether an incident is being worked, not the shape of the question; only a postmortem
-review, a learning question or a hypothetical gets none. **That clarification is `[unverified]`** —
-the Fable judge ran out of usage credits before it could be measured.
+review, a learning question or a hypothetical gets none.
+
+**The clarification was then verified deterministically** (`4f3aa7af`, three runs per model; the judge
+was out of usage credits, so these are label counts, which is what the rule actually asserts):
+
+| Prompt | pre-strip bytes | strip, before the fix | after the fix |
+|---|---|---|---|
+| Explanation asked mid-incident (ambiguous wording) | 0/6 | 1/6 | 4/6 |
+| Explanation asked mid-incident (unambiguous: on the page, incident ID, errors climbing) | — | — | **6/6** |
+| Standalone learning question | — | 0/6 | 0/6 |
+
+The ambiguous prompt turned out to be a defective test rather than a defective rule: its symptoms were
+past-tense with no page and no incident ID, and Sonnet's non-strip answers said so — "No live incident
+is indicated here, so no state strip" and "is this an active incident right now?". Asking is the right
+move on an ambiguous prompt. Rewritten so the incident is unambiguous, both models carry the strip on
+every run, and the standalone question still carries none. The private prompt was corrected in the
+workspace eval set; `scripts/check_strip.py` there performs this check without a judge.
 
 **Quality on the four incident prompts**, both arms on CLI 2.1.265 (pre-strip bytes `84ca1192`
 against strip bytes `d9df312d`), three runs per cell:
@@ -339,9 +354,9 @@ Cost: about USD 9 for cells and USD 14 for grading.
 
 ## Not established
 
-- The strip boundary clarification, the standalone-question control (eval 5), and the mid-incident
-  explanation control on pre-strip bytes are ungraded: the Fable judge exhausted its usage credits
-  mid-session. Their strip-presence numbers above are deterministic label counts, not judged grades.
+- Everything measured after the judge exhausted its usage credits is a deterministic label count, not a
+  judged grade: the strip-presence tables above stand, but the accompanying quality assertions on those
+  prompts (boundedness, which next observation is offered) remain ungraded.
 - The engineering lane has no old-skill arm (its eval sets were written after the edits), so its
   numbers show new skill versus no skill, not the size of the fix.
 - The Spring prompt does not discriminate on Opus (1.00 both arms); it confirms no regression, not gain.
