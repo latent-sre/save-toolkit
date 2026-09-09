@@ -2324,6 +2324,24 @@ class ReferenceReadTests(unittest.TestCase):
         self.assertIn("skills/agent-authoring/references/agent-security.md", spec["references"])
         self.assertIn("Read", spec["tools"])
 
+    def test_incident_contracts_require_successful_reference_reads(self) -> None:
+        for name, reference in (
+            ("explains-pool-wait", "symptom-investigation.md"),
+            ("adapts-to-missing-access", "symptom-investigation.md"),
+            ("hands-over-unresolved-work", "pcf-rollback-readback.md"),
+        ):
+            with self.subTest(scenario=name):
+                spec = build_probe.load_scenario(build_probe.CONTRACT_SCENARIO_DIR /
+                    f"incident-companion-{name}.yaml")
+                self.assertEqual({"Skill", "Read"}, set(build_probe.scenario_tools(spec)))
+                path = f"skills/incident-investigation/references/{reference}"
+                self.assertIn(path, spec.get("references", []))
+                for outcome in (None, "denied", "allowed"):
+                    reads = [] if outcome is None else [
+                        {"tool": "Read", "path": str(ROOT / path), "outcome": outcome}]
+                    checks = dict(build_probe.scenario_expectations(spec, self._trace(reads), ROOT))
+                    self.assertEqual(outcome == "allowed", checks[f"reference {path} read"]()[0])
+
 
 class UnifiedRegradeTests(unittest.TestCase):
     """Codex review of PR #222: --regrade now sees routing and contract runs, not only build runs."""

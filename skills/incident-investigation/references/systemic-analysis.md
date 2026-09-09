@@ -38,7 +38,7 @@ Distinguish observed change, current state, and sustained recovery. A rollback a
 establish that the trigger disappeared, and a lower aggregate error rate may hide a still-stuck
 partition. Verify the affected population and the agreed recovery window before human resolution.
 
-Keep the mechanism, evidence/conflicts, unknowns, decisions, and owners in the existing checkpoint.
+Keep the mechanism, evidence/conflicts, unknowns, decisions, and owners in the existing board.
 For prevention, suggest evidence-supported isolation, backpressure, timeout/retry, idempotency, or
 control-loop changes. Name an earlier-warning signal such as retry amplification or oldest-item
 age. Return code/design and observability proposals to the caller; closeout follows human recovery.

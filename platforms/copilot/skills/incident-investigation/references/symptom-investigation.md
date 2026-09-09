@@ -7,8 +7,9 @@ skill owns evidence, mitigation, escalation, and recovery rules.
 
 ## Choose a comparison
 
-Pick the impact's row. For a known PCF app, the first read is Apps Manager → the app → Events for
-the impact window — what changed and when — before any comparison below. Start with an accessible
+Pick the impact's row. For a known PCF app, the default first read is Apps Manager → the app → Events
+for the impact window — what changed and when. Use a comparison below first when the supplied
+evidence makes it more useful or urgent, and explain that choice. Start with an accessible
 ticket, safe excerpt, or console view.
 
 | What the person sees | A useful first distinction | What the result would change |

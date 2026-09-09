@@ -457,15 +457,119 @@ The oracle and its test were renamed with it, to
 label `strip` became `fields`. No build scenario binds that oracle path — checked with a positive
 control on a path that is bound — so scenario identity is unaffected.
 
+### PR #247 checkpoint reference fix — 2026-09-09
+
+The [open review finding](https://github.com/latent-sre/save-toolkit/pull/247#discussion_r3969292549)
+identified the ambiguous replacement target. The follow-up to `2f138025` changes only "replaces
+them" to "replaces the closing fields" in that sentence and regenerates the Copilot projection.
+The explicit noun adds 14 canonical skill bytes, measured at 619,317; `scripts/weights.json`
+records that ceiling in the same diff. No checkpoint trigger, field, or section placement changes.
+
+`[verified]` The existing 15 closing-fields oracle tests pass before and after this edit; context
+budgets pass 7/7. These checks preserve the static contract but do not detect pronoun ambiguity or
+prove model compliance. `[unverified]` No live model batch was rerun for this follow-up, so the
+historical 3/6 and 5/6 handover results above remain tied to their original revisions. This edit
+does not establish recovery of checkpoint presence or answer-quality parity.
+
+### Approved incident-skill repairs — 2026-09-09
+
+The owner approved the five audit fixes and four optimization opportunities against `c8efc93b`.
+The candidate extends [PR #248](https://github.com/latent-sre/save-toolkit/pull/248):
+
+- The handover rubric and calibration now use the new higher rollback revision, deployment
+  completion, and attempt reconciliation. Added negative examples reject target-number equality,
+  partial deployment, and invented attempt timing.
+- The closing-fields oracle keeps `classify()` as rough presence and makes `check()` require a
+  complete terminal block with nonempty values. Ordinary prose, incomplete/empty fields, quoted
+  examples, and blocks preceding a separate answer are regression cases. This remains a structural
+  check; it cannot establish truth, useful reasoning, or semantic completeness of free-form prose.
+- Generic interrupted-action reconciliation stays in the core; the PCF-specific readback and
+  worked helper exchange move to linked references. The shipped helper and handover examples
+  now carry their required closing fields and are exercised by the oracle tests.
+- The three companion contract scenarios grant only `Skill,Read` and assert their relevant
+  reference reads. Their regression rejects absent or denied reads and accepts successful reads.
+- Navigation follows the confirmed PCF/GCP runtime. Closing fields summarize the supporting
+  explanation; supplied names are preserved, known roles can remain pending, and missing owners
+  stay unowned. These are the owner's selected compactness and ownership policies, not a claim
+  that model output already meets them.
+- The owner subsequently approved restoring an explicit review of the five opening questions:
+  what changed and when, who else is affected, what failing cases share, whether impact is growing,
+  and whether it reproduces from the user's side. Use supplied answers, ask together for missing
+  answers that affect immediate advice, retain unanswered questions, and do not delay mitigation.
+  This replaces the later optional-comparison sentence; it adds 248 canonical skill bytes.
+
+`[verified]` The entrypoint shrinks from 21,707 bytes at `ae7252d7` to 20,110 bytes (1,597 bytes,
+7.4%). This is an invoked-core reduction, not a reduction of the whole bundle or measured latency.
+The complete canonical bundle grows because the repair retains conditional details and adds
+complete examples. Exact totals and the evaluator's added test/code lines are reviewed in
+`scripts/weights.json`; Gate A's structural roster is unchanged.
+
+`[verified]` At `8216ac0c`, before the five-question follow-up, red-first regressions failed on the
+old oracle and on all three scenarios' missing Read access. The corrected oracle passes 41 cases;
+the full local suite passes 634 tests and
+1,023 subtests, with four local-environment skips. Gate A passes 4/4 and scenario validation
+passes 73 specifications / 343 expectations. Terra's independent static review found no actionable
+defects. Including the five-question and evidence-label follow-ups, canonical skill content grows
+by 2,919 bytes and evaluator Python by 201 lines.
+Historical presence scores above used the old
+oracle and are not reclassified as completeness scores. No build scenario previously bound this
+oracle; the existing runner's reference-read assertions are reused without a new mechanism.
+
+`[verified]` The five-question follow-up passes the adapter and closing-fields suites: 77 tests,
+50 subtests, and two local symlink skips. Gate A passes 4/4 and `git diff --check` is clean.
+These checks establish structural consistency; the opening-question behavior has not been run
+against a fresh model.
+
+`[unverified]` Fresh judge calibration and paired native model behavior remain separate checks.
+Preflight found 141 calibration cases and zero reusable exact cache keys on this host; a full
+calibration would make fresh model calls. The source repairs and size reduction do not establish
+checkpoint reliability, reference-loading behavior, or answer-quality parity.
+
+### Terra source-input follow-up — 2026-09-09
+
+The owner approved correcting the exploratory Terra eval, verifying supplied instructions, and
+changing the skill only for a demonstrated ambiguity or repeated failure. The earlier private
+subagent run lacked complete source-read traces, overreached on a second handover's checkpoint
+expectation, and omitted shared factual-integrity criteria. Its scores are not comparable with
+this corrected run. The mitigation approval was supplied; only capture availability was invented
+in that earlier response, not Morgan's decision to mitigate.
+
+`[verified]` The rerun used Codex CLI 0.153.4 with `gpt-5.6-terra`, medium reasoning, recorded stdin
+containing the complete skill and its bundled references (five source files), and persistent session IDs for the two
+follow-up conversations. There were seven response turns in five sessions per arm, one trial per
+case, and no automatic retries. CLI rollouts bind the model/configuration and source-bearing input;
+the comparison normalizes only CRLF/LF. Personal host AGENTS instructions remained present and
+were recorded, so this is matched prompt behavior, not a clean-room plugin-discovery result.
+Private inputs, criteria, responses, traces, hashes, and grading are retained under
+`.eval-runs/terra-pr248-v2-20260909/`.
+
+The baseline is the `7c5abe1c` skill, SHA-256
+`332162573b15cd4de69d5325d39c4519301c3b9f1730053d6cbc9ca6c1d55be5`.
+Its first response still omitted user-side reproduction as an unanswered question. The new skill,
+SHA-256 `c48c57f945c182c6c0dca52a41e51245ca7466eb753b0fe01b43e0e5360c9693`,
+changes only the opening review to summarize supplied answers/name unanswered questions and the
+existing handover example to separate a sourced attempt report from its unverified outcome.
+Together these add 72 canonical bytes over `7c5abe1c`; the candidate response explicitly retained
+user-side reproduction as unknown. Neither arm invented unavailable capture, but the candidate's
+connection-wait explanation inferred a database destination; the baseline correctly left it open.
+The candidate passed four of six cases versus two of six for the baseline, with mixed per-case
+deltas. These are observations from one paired sample, not reliability rates or causal proof.
+
+`[unverified]` Behavioral acceptance remains open: both arms still used closing fields after the
+new-evidence case materially changed investigation direction, and the candidate's unsupported
+database-destination claim remains a factual failure. Exact source inclusion does not
+establish installed skill discovery, selective reference retrieval, or Claude-native behavior.
+No further skill expansion or repeat-until-green campaign followed this comparison.
+
 ## Not established
 
 - The judged gap left by the exhausted credits is now partly closed: iteration 13 (the merged bytes)
   and iteration 9 (the boundary fix) are graded above. Still ungraded are the rename arm (iteration
   12, 9 of 36 cells before the batch was stopped) and the seam arm (iteration 11), so the rename's
   effect on answer *quality*, as opposed to the presence of the closing fields, is `[unverified]`.
-- Whether the ten-to-twenty-line closing block is a regression or the "about three lines" assertion
-  has fallen behind the shipped contract is undecided, as is whether a team or role satisfies "owner
-  by name". Each needs an owner call and then a fresh measurement.
+- The owner selected concise closing summaries and supplied-name/known-role/unowned handling in
+  the candidate above. Their effect on the historical ten-to-twenty-line output and ownership
+  scores still needs a fresh measurement; the old scores retain their original assertions.
 - The engineering lane has no old-skill arm (its eval sets were written after the edits), so its
   numbers show new skill versus no skill, not the size of the fix.
 - The Spring prompt does not discriminate on Opus (1.00 both arms); it confirms no regression, not gain.

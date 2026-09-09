@@ -238,5 +238,11 @@ rather than publishing the batch.
 
 ## Tests
 
+The incident advisor now uses one seven-field board. Its structural check is
+`python evals/oracles/incident-closing-fields/probe_closing_fields.py <response.md> board`.
+Legacy `fields`/`checkpoint` expectations remain for historical comparisons, not current acceptance.
+Completeness does not establish useful advice, factual accuracy, or continuity across turns;
+those require assessment of the conversation against the supplied incident evidence.
+
 `python -m pytest evals/` covers the runner, graders, and judge without a model. Gate A is
 structural and does not run them; CI does.

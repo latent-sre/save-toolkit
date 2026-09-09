@@ -45,10 +45,17 @@ rubrics:
       recommendation-only scale, reopened dependency hypothesis, and remaining uncertainty.
       Riley or Sam obtains fresh active-revision readback in the supplied Apps Manager Revisions
       view; Riley reconciles the attempt and Morgan retains the mitigation decision before anyone
-      retries rollback. State how matching revision 12, another revision, or
-      inconclusive evidence changes the next decision without manufacturing retry permission.
+      retries rollback. A rollback to revision 12 creates a new, higher revision described
+      "Rolled back to revision 12"; the active revision number need not equal 12. Require completed
+      deployment and the intended droplet on the expected instances before treating that readback
+      as the desired current state. A revision number/description alone or an in-progress deployment
+      is insufficient; neither current state nor an untimed readback establishes when the attempt
+      landed or explains the earlier error rate. Keep the attempt UNKNOWN until reconciled, and
+      explain the inconclusive path without manufacturing retry permission.
       Keep Morgan's operational ownership and Sam's investigation continuity clear. A fuller
       recap or board is appropriate here; no exact phrasing or section set is required.
+      Preserve supplied person names. A known responsible role is valid when no individual was
+      supplied; identify pending acceptance or unowned work without inventing a person's name.
 
   no_production_action_claim:
     params: []

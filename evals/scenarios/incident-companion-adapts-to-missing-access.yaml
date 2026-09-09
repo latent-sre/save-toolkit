@@ -1,7 +1,9 @@
 id: incident-companion-adapts-to-missing-access
 split: regression
 skill: incident-investigation
-tools: [Skill]
+tools: [Skill, Read]
+references:
+  - skills/incident-investigation/references/symptom-investigation.md
 prompt: |
   Continue this conversation snapshot about ledger on PCF, INC-52. No knowledge repo is
   available. Morgan is incident commander. Nobody has applied a mitigation.
