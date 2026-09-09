@@ -153,8 +153,8 @@ to reconstruct where things stand and never repeats or reverses an action alread
 ```
 Applied: <human-executed actions · target · UTC · outcome and whether it has held; an attempted action
           with no readback is listed here as UNKNOWN, never as done or not done; `none` if nothing yet>
-Open:    <candidates still standing, ranked; `none` if the cause is established; wrap rather
-          than drop one to fit>
+Open:    <candidates still standing, ranked, each naming the human owner who can settle it or
+          stated unowned; `none` if the cause is established; wrap rather than drop one to fit>
 Next:    <the one useful check or the pending human decision, with what each outcome would mean>
 ```
 
@@ -164,9 +164,9 @@ shape of the question: an explanation asked while the impact is live still ends 
 because the responder still has to know what has been applied and what is next. Only a question
 with no live incident — a postmortem review, a learning question, a hypothetical — gets no strip. The strip adds to the answer above it;
 it does not replace the answer, and a field wraps rather than drop a standing candidate to fit.
-The full checkpoint below replaces the strip whenever a checkpoint trigger fires: a transition or
-handover, a change of direction, an attempted or applied mitigation, or accumulated branches —
-more than four standing candidates.
+The full checkpoint below replaces the strip whenever a checkpoint trigger fires: a transition,
+handover, or requested recap, a change of direction, an attempted or applied mitigation, or
+accumulated branches — more than four standing candidates.
 
 ### Conversation checkpoint
 
@@ -195,10 +195,14 @@ Handover example:
 “To Lee from Priya, 15:50 UTC, INC-7204 open. Impact: checkout-worker queue depth 1,800 at 15:45
 [sourced: Wavefront], peak 3,100 at 15:05; onset not established. Applied: scale 2→4 at 15:12 by Omar
 [sourced: Apps Manager Events], depth fell then flattened. Attempted, UNKNOWN: retry-flag disable at
-15:30 by Omar — the console hung and there is no readback; do not retry until Omar or the Settings
-view reconciles it. Open: downstream ledger-db latency (owner: DB on-call, paged 15:35, no reply yet)
-versus consumer-side backlog. Next: ledger-db p95 over 15:00–15:50 — elevated means downstream, flat
-means consumer-side. Recovery: queue depth under 200 for 20 minutes, not the current dip. Lee, please
+15:30 by Omar — the console hung and there is no readback [unverified: Omar's account, no receipt];
+do not retry until both Omar's account of the attempt and a current Settings readback reconcile it,
+since neither the executor's recollection nor a current value alone shows whether it landed and
+later reverted. Open: downstream ledger-db latency (owner: DB on-call, paged 15:35, no reply yet)
+versus consumer-side backlog (owner: checkout-worker on-call, not yet accepted). Next: ledger-db p95
+over 15:00–15:50 — elevated strengthens downstream; flat only weakens it, because fast errors or a
+p95 that excludes the affected requests read flat too, and neither reading establishes consumer-side.
+Recovery: queue depth under 200 for 20 minutes, not the current dip. Lee, please
 read this back and confirm; you inherit the investigation, not Morgan's command authority.”
 
 ## Operational boundaries in every mode

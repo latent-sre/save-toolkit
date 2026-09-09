@@ -290,21 +290,21 @@ lines used to carry survived only as prose and stopped landing — owner per ope
 
 The owner's decision (2026-09-08, from simulation experience) was a middle position: a compact
 three-line strip on every reply **once an incident is being worked**, none on a standalone question,
-the full checkpoint still taking over at a transition or handover. `d9df312d` adds it, plus a
+the full checkpoint still taking over at a transition or handover. `7592420b` adds it, plus a
 handover example carrying the action states, per-item owners, recovery criterion and read-back
 request. A later commit clarified the boundary (below).
 
 Baseline before the change: 0 of 24 with-skill incident replies carried Applied/Open/Next labels.
 
 **Does the strip appear where it should?** `[verified]` deterministic label check, three runs per
-model per prompt at `d9df312d`:
+model per prompt at `7592420b`:
 
 | Prompt | strip present |
 |---|---|
 | First page, new responder | 6/6 |
 | External monitor Situation | 6/6 |
 | What to look at first | 6/6 |
-| Handover | Sonnet 3/3 strip; Opus 1/3 full checkpoint, 2/3 partial — both allowed, the rule sends a handover to the checkpoint |
+| Handover | Sonnet 3/3 strip; Opus 1/3 full checkpoint, 2/3 partial — pre-seam results, under the looser wording of that commit. `6fcb1210` makes a handover a checkpoint trigger, so a strip-only handover is a miss under the shipped contract, not an allowed outcome; re-measured below |
 | Explanation asked mid-incident | 1/6 — **the boundary defect** |
 | Standalone learning question (no live incident) | 0/6 — correct |
 
@@ -332,7 +332,7 @@ every run, and the standalone question still carries none. The private prompt wa
 workspace eval set; `scripts/check_strip.py` there performs this check without a judge.
 
 **Quality on the four incident prompts**, both arms on CLI 2.1.265 (pre-strip bytes `84ca1192`
-against strip bytes `d9df312d`), three runs per cell:
+against strip bytes `7592420b`), three runs per cell:
 
 | Prompt | Sonnet pre → strip | Opus pre → strip |
 |---|---|---|
@@ -351,6 +351,34 @@ with a read-back 3/4 → 2/6; declare and route edge evidence 2/4 → 2/6; insta
 check named next 1/4 → 0/6.
 
 Cost: about USD 9 for cells and USD 14 for grading.
+
+### The seam measurement — 2026-09-09
+
+`6fcb1210` pointed the strip at the checkpoint's full trigger list, after a drill found that the strip
+section named only "a transition or handover" while the checkpoint names four triggers. A candidate that
+went further — lifting both out of "Recap or hand over" into a mode-independent section, then renaming
+the strip — was measured against it and **rejected**.
+
+Two arms, `with_skill` only, all six prompts, both models, three runs, CLI 2.1.265, both
+`plugin_inputs_dirty=false`, 36/36 cells ok each. Handover, checkpoint-bearing replies:
+
+| Arm | Sonnet | Opus | Total |
+|---|---|---|---|
+| `6fcb1210` (shipped) | 3/3 | 3/3 | **6/6** |
+| `6b2fdafb` (placement + rename) | 0/3 | 2/3 | **2/6** |
+
+Every other prompt was identical across arms: `first-page`, `external-monitor`, `what-to-look-first` and
+`explain-mid-incident` all 3/3 strip on both models; the standalone learning question 3/3 none, so the
+detector is not false-positiving. `explain-mid-incident` was already 3/3 at `4f3aa7af` (iteration 9), so
+the placement change had no headroom to win and cost the handover instead — the adjacency of the
+checkpoint to the recap section was load-bearing. The two candidate commits were not separated, so
+placement versus rename is unattributed. Cost USD 16.30.
+
+**The committed checker undercounts.** The workspace `check_strip.py` requires a colon within four
+characters of a field label, so a checkpoint written as `### Follow-ups` or `### Next — the single most
+useful check` scores as none. It reported the Opus candidate arm as 3/3 none when two of three replies
+were substantively sound. The numbers above come from a format-tolerant detector applied identically to
+both arms; a committed check must match on heading-style fields too.
 
 ## Not established
 
