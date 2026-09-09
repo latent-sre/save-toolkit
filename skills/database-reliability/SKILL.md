@@ -18,8 +18,8 @@ persistence and migration code; this skill owns operating it safely, diagnosing 
 > **Safety rule (non-negotiable):** read-only inspection is fine; any **state-changing or prod-facing**
 > action (running a migration, `UPDATE`/`DELETE`, killing a query, failover, scaling) requires an
 > existing human-approved exact change and recovery packet naming the target, commands, blast radius,
-> verification, recovery strategy, and actor. If the packet is absent or materially different, stop
-> and hand it to the human release owner.
+> verification, recovery strategy, and actor. Reuse it while the target, commands, and current
+> conditions still match; if absent or materially different, stop and hand it to the human release owner.
 
 ## Core decision rules
 
@@ -45,17 +45,16 @@ persistence and migration code; this skill owns operating it safely, diagnosing 
   inherits the production-change boundary, and wrapping it in a transaction is not a universal
   rollback because effects may escape the transaction.
 - Application diagnosis and DBA operations are different lanes. Reading a plan and fixing a query
-  are ours; changing DB parameters or executing against production needs DBA sign-off and the exact
-  human-approved packet.
+  are ours; changing DB parameters or executing against production needs DBA sign-off in addition
+  to the safety rule above.
 - Index for measured query patterns, avoid N+1 access and unbounded result sets, and verify any fix
   with before/after evidence. Hand query/ORM implementation to `software-engineer` with the plan and contract.
 - Backups must be monitored **and restored in a drill**. An untested backup does not prove recovery,
   RPO, or RTO. Verify replication and failover rather than assuming them.
 - Use scoped database credentials, never an application admin role. No unbounded `UPDATE`/`DELETE`:
   require a predicate and row-count sanity check, plus the tested recovery strategy.
-- During a DB-driven incident, preserve `[verified]`, `[sourced]`, and `[unverified]` labels. A human
-  release owner may mitigate only from the current incident packet's exact approved command and
-  target; the agent diagnoses and hands off.
+- During a DB-driven incident, the agent diagnoses and hands off; the human release owner may
+  mitigate under the safety rule above.
 
 ## Read only the conditional procedure the request needs
 
@@ -72,12 +71,13 @@ claim from the request. The entrypoint rules remain authoritative after a refere
 
 ## Output format
 
+Summarize applicable evidence already gathered with its `[verified]`, `[sourced]`, or `[unverified]`
+labels and taint; refresh it when the target, state, or time window changes.
+
 - **Migrations:** compatibility sequence, engine/version assumptions, production-scale lock/risk
-  assessment, forward change, tested recovery strategy, and owner. Include a reverse script only
-  when it is demonstrably lossless; otherwise name the roll-forward, compensating, or restore path.
-  Implementation goes to `software-engineer`.
+  assessment, forward change, verification, tested recovery strategy, and owner. Implementation goes
+  to `software-engineer`.
 - **Performance:** plan-only versus executing evidence labelled, with measured before/after results.
 - **Incidents/recovery:** current evidence, hypothesis labels, human action boundary, and measured
-  recovery gaps. Never present a destructive change without the safety check and recovery strategy.
-
-This skill contains the database method it requires.
+  recovery gaps. For a proposed change, reference the safety packet and identify missing approval
+  or recovery evidence.

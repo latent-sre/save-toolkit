@@ -6,13 +6,9 @@ it, edit it like code: reproduce, minimal fix, verify. `../SKILL.md`'s source-tr
 untrusted-data rules, and four method steps govern every step here; a clean-context subagent is not
 a sandbox.
 
-## Case-set sizing
-
-| Change | Cases |
-|---|---|
-| Accepted failure or explicit new behavior | The smallest set that distinguishes it — one named regression unless a specific adjacent risk warrants another |
-| Ordinary routing edit | The existing overlapping scenarios |
-| Pure rewording | None |
+When the entrypoint's method calls for cases, use the existing overlapping scenarios for routing
+edits. For an accepted failure or new behavior, use one named regression unless a specific adjacent
+risk warrants another.
 
 ## The bounds on the loop
 
@@ -50,23 +46,7 @@ decision evidence; scratch attempts are discarded.
   text is a tax. Prose carries the team's choices among alternatives and facts the model lacks; a
   rule the model reads and does not apply ships as a copied test or asset, not a stronger sentence.
 
-## Descriptions
-
-`../SKILL.md` states the rule and three symptoms; the fix is each symptom inverted — the literal
-phrases users type; the concrete goal plus the neighboring owner; one owner, with the other naming
-the alternative. Fourth symptom, this fleet's own finding: **triggers, then does the wrong steps**
-means procedural choreography in the description — keep capability, invocation conditions, and
-exclusions; move the steps to the body.
-
-## Match the form to the failure — the wrong form each failure invites
-
-| Failure | Wrong form (measurably backfires) |
-|---|---|
-| Rule broken under pressure | Soft guidance ("prefer…") |
-| Wrong-shaped machine-consumed output | Stronger formatting prose |
-| Wrong-shaped human-facing output | A list of don'ts |
-| Omitted element | Prose reminders near the template |
-| Condition-dependent behavior | An unconditional rule plus exemption clauses |
+## Examples and thresholds
 
 Prefer a small, diverse set of canonical examples over an edge-case list, count chosen by
 evaluation. No vague qualifiers: state the threshold ("≤150 words, no preamble").

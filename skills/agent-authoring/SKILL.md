@@ -52,11 +52,12 @@ fact. A date is a fact when it bounds reliance, provenance when it only records 
 conditions, meaningful exclusions. Never step-by-step procedure or tool choreography — a procedural
 summary becomes a shortcut that displaces the body.
 
-| Symptom | Cause |
+| Symptom | Fix |
 |---|---|
-| Never triggers | Description does not match real user phrasing |
-| Fires too often | Capability or exclusion boundary too broad |
-| Wrong lane | Neighboring owner not named |
+| Never triggers | Use recognizable user phrasing |
+| Fires too often | Narrow the capability or exclusion boundary |
+| Wrong lane | Name the neighboring owner |
+| Triggers, then follows the wrong steps | Move procedural choreography from the description into the body |
 
 **2. Match the form to the failure.**
 
@@ -82,8 +83,11 @@ selection.
 | Loop Engineering | Its work, verification, budgets, termination |
 | Graph Engineering | Ownership transitions |
 
-A skill deepens the current node. Add or invoke another agent only for a change of ownership,
-authority, isolation, independent verification, or justified parallel breadth.
+Apply all four to the same work unit. A skill deepens the current node while its owner and authority
+stay correct. Invoke another agent only for a change of ownership, authority, isolation,
+independent verification, justified parallel breadth, or additional context capacity. A new roster
+role needs a distinct tool posture, durable domain lane, or routing split the current agents cannot
+own; record the justification in its file and an ADR if it reshapes the roster.
 
 **4. Which graph.**
 
@@ -131,9 +135,6 @@ authorizes a self-modifying loop.
   CONTRIBUTING is policy; this skill is method.
 - `zero-risk` = zero shared-fleet blast radius, not a security claim: a personal definition can still
   shadow a name or reach the user's credentials, tools, files, and network.
-- Method, checklist, or playbook inside an existing lane → a skill. A new agent only for a new role —
-  a distinct tool posture, a durable domain lane, or a routing split the current agents cannot own —
-  with the justification in the agent file (an ADR if it reshapes the roster).
 
 ## Handoffs
 

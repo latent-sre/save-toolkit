@@ -16,9 +16,6 @@ gate production with protected environments.
 
 ## Mandate and authority
 
-- Inspect the repository's workflows, action metadata, build commands, release evidence, and local
-  conventions before proposing YAML. An existing project-owned workflow or starter is authoritative;
-  change it narrowly instead of creating a parallel pipeline.
 - Author or review workflow changes only. Never dispatch a deployment, approve an environment, or
   use a credential. Production execution belongs to the human release owner acting from current
   approval evidence for the exact artifact, target, commands, verification, and rollback.
@@ -60,8 +57,7 @@ gate production with protected environments.
 
 ## Route context only when it matches
 
-Load only the resources whose predicates match the current task. A link is not permission to load
-the file unconditionally.
+Load only the resources whose predicates match the current task.
 
 | Task predicate | Load |
 |---|---|
@@ -70,10 +66,6 @@ the file unconditionally.
 | The task involves matrices, timeouts, runner images, caching, concurrency, artifact promotion, or self-hosted/ephemeral runners | [`references/execution-and-runners.md`](./references/execution-and-runners.md) |
 | The task requires a PCF deployment job, cf authentication, deployment verification, or rollback | [`references/pcf-deploy-job.md`](./references/pcf-deploy-job.md) |
 | The task recommends runner placement, CI infrastructure, a landing runtime, or PCF/GCP identity | Load `stack-profile` first, then the matching reference above |
-
-For a simple failure caused by syntax, permissions, an environment, or a missing secret, inspect the
-existing workflow and run evidence first; no reference is required unless one of the table's
-predicates also matches.
 
 ## Choose the smallest workflow shape
 
@@ -86,26 +78,30 @@ pauses for the human gate.
 
 ## Working method
 
+Reuse evidence that still matches the current workflow/ref, target, and run, preserving its labels
+and taint. Refresh changed or stale facts instead of repeating the inventory.
+
 1. **Establish the requirement.** For a failure, identify the failing run, job, step, event, ref,
    runner, and exact error before editing. For new CI, name callers, required checks, build
    commands, artifact, trust boundary, and deployment targets.
-2. **Inventory the current contract.** Read existing workflows and action metadata; locate current
-   permissions, secrets/environments, concurrency, cache keys, artifact flow, and repository-owned
-   validation commands. Do not infer absent requirements from a generic starter.
-3. **Classify the change** and load only the matching routed detail. If the change affects
-   platform placement or identity, load `stack-profile` first.
+2. **Inventory the current contract before proposing YAML.** Read existing workflows, action
+   metadata, build commands, release evidence, and local conventions; locate permissions,
+   secrets/environments, concurrency, cache keys, artifact flow, and repository-owned validation
+   commands. The project-owned workflow or starter is authoritative; do not create a parallel
+   pipeline or infer absent requirements from a generic starter.
+3. **Classify the change** and load only the matching routed detail.
 4. **Design the trust path.** Mark untrusted events and values, identify every credential and write
    permission, bind deploy credentials to the protected environment, and keep build and deploy
    separated so deployment downloads the same immutable artifact.
 5. **Make the narrow change.** Preserve project naming and conventions; no unrelated action
    upgrades or formatting churn, and each dependency re-pin gets its own provenance review.
 6. **Verify in layers.** Run repository-established static validation and focused tests; for a new
-   deterministic check, show a safe red-to-green regression; then use a trusted non-deploy CI run
-   for runtime evidence.
+   deterministic check, show a safe red-to-green regression. Assess existing trusted non-deploy CI
+   evidence against the runtime criterion in **Mandate and authority**.
 
 ## Handoff
 
-Lead with the result, then provide:
+Lead with the result, then summarize relevant evidence already gathered:
 
 - changed workflow/action paths and the behavior they own;
 - event, runner, permissions, environment, secret source, cache/concurrency, and artifact flow;
@@ -115,5 +111,5 @@ Lead with the result, then provide:
 - unresolved host, identity, secret, or deployment assumptions;
 - for deployment, the exact human approval, target, verification, and rollback still required.
 
-State what was not run. Never present static validation, an authored workflow, or a non-deploy CI
-run as proof that production deployment is safe or successful.
+State what was not run. A non-deploy CI run does not prove production deployment is safe or
+successful.

@@ -17,5 +17,5 @@ Check the cheapest discriminating evidence first:
   responder with `incident-investigation` without upgrading correlation into root cause.
 
 Return current impact, verified signals, competing hypotheses, the next read-only discriminator, and
-the named owner. If mitigation is requested, show the exact target, command, blast radius,
-verification, recovery, actor, and approval state; never execute it.
+the named owner. If mitigation is requested, reference the safety packet from `../SKILL.md` and
+report its approval state and gaps; never execute mitigation.

@@ -30,9 +30,11 @@ techdocs.akamai.com/property-mgr/docs/how-activation-works]*:
 - **After the window**: rollback = a normal production activation of the previous version — plan
   for the full activation time in the rollback estimate, not the fast-fallback time.
 
-A production-change packet for a property change therefore states: the version diff, staging
-evidence, blast radius (hostnames/CP codes on the property), verification (the exact debug-header
-or report check), **which rollback applies right now**, and the fast-fallback expiry once
+## Property change packet
+
+The packet states: the version diff, staging evidence, blast radius (hostnames/CP codes on the
+property), verification (the exact debug-header or report check), **which rollback applies right
+now**, and the fast-fallback expiry once
 activated. Production activation is Tier 2 minimum, human release owner, through
 `production-change-gate`; a WAF/security-config change is a security change with its own owner.
 

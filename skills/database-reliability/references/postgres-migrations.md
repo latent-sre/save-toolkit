@@ -28,5 +28,5 @@ behavior. *[sourced: PostgreSQL 18 release notes; reviewed 2026-08-21]*
   verify lock acquisition, runtime, partial-failure cleanup, and the migration tool's transaction mode.
 - Run migrations through the repository's migration tooling (Flyway, Liquibase, Alembic, or
   `migrate` as applicable), not ad-hoc production SQL.
-- Record production-scale scan/rewrite behavior, replication/log impact, cancellation, retry
-  identity, verification, and the tested recovery strategy before handoff.
+- Add production-scale scan/rewrite behavior, replication/log impact, cancellation, and retry
+  identity to the migration handoff defined in `../SKILL.md`.

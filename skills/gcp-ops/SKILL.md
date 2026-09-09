@@ -88,8 +88,15 @@ docs.cloud.google.com/logging/docs/api/v2/resource-list#cloud_run_revision]*.
 - **Cold starts** — min-instances is a billed change to recommend, not assume.
 - **Concurrency/saturation** — exact defaults vary by deploy path: `[unverified]`, read them from
   `services describe`, don't quote memory.
-- **OOM** — exact memory-limit error text `[unverified]`; corroborate with the revision's memory
-  limit from `services describe` before recommending a bump, same 137-discipline as PCF.
+
+### OOM evidence
+
+Cloud Logging example: *"While handling this request, the container instance was found to be
+using too much memory and was terminated."* (HTTP 500/503; exact target wording `[unverified]`).
+**No exit code to grep.** Local filesystem writes count toward memory, including logs outside
+`/var/log/*` and `/dev/log`. For a leak appearing after PCF migration, check these writes first;
+corroborate the revision's limit from `services describe` before recommending a bump
+*[sourced: docs.cloud.google.com/run/docs/troubleshooting; reviewed 2026-08-21]*.
 
 ## Mitigation you recommend (never run): traffic rollback
 
