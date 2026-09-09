@@ -149,6 +149,11 @@ expected shape of a landed rollback; we still lack the receipt or timing for the
 reconcile the attempt and obtain fresh recovery observations. Keep the flag change as confirmed
 and scaling as proposal-only. The commander decides any further change.”
 
+## Closing every incident reply
+
+These close a reply in every mode above, not only a recap: the strip closes an ordinary incident
+reply, and a checkpoint trigger replaces it with the fuller view.
+
 ### State strip
 
 Once a live incident is being worked — a page, an incident ID, or an ongoing user impact the human
