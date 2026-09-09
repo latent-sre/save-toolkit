@@ -23,6 +23,6 @@ edition and roughly twice the free space for the hidden replacement column. *[so
 waits for every open transaction on the table before it begins; a long-running report can stall the
 migration. *[sourced: SQL Server `ALTER TABLE` reference; reviewed 2026-08-21]*
 
-Record the exact edition, row-size and LOB facts, table/index size, open-transaction risk, expected
-duration, space, cancellation behavior, verification, and tested recovery strategy. Run the change
-through the repository's migration tooling rather than ad-hoc production SQL.
+Add the exact edition, row-size and LOB facts, table/index size, open-transaction risk, expected
+duration, space, and cancellation behavior to the migration handoff defined in `../SKILL.md`.
+Run the change through the repository's migration tooling rather than ad-hoc production SQL.

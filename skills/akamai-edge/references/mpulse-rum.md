@@ -36,14 +36,15 @@ The built-in dimensions (browser, OS, device, network, geography, ISP) are the t
    Correlate with app deploys; the Waterfall view names the slow object.
 3. **Both moved at once** → suspect the measurement or the page itself changed (new page weight,
    new beacon config) before believing two independent regressions landed together.
-4. Always compare **equal-duration windows** and check traffic mix shifted (a bot wave or a
+4. Always compare **equal-duration windows** and check whether traffic mix changed (a bot wave or a
    campaign changes the population, not the site).
 
 ## Boundaries
 
-- mPulse samples real sessions — a regression invisible to synthetics but visible here is real
-  user pain; the reverse (synthetics red, mPulse flat) points at the probe, not the users. The
-  `obs-alerting` skill's ThousandEyes reference owns the synthetics side.
+- mPulse samples browser sessions. A flat aggregate cannot clear a failing synthetic journey:
+  compare URL/journey, time, geography, device/network mix, and beacon count/freshness. Failed
+  sessions may never send a beacon. Corroborate with request logs or another journey check before
+  attributing the disagreement; `obs-alerting`'s ThousandEyes reference owns the synthetic checks.
 - A documented per-beacon edge cache hit/miss dimension is `[unverified]` — do not promise
   beacon-level cache attribution; use DataStream 2 for that.
 - Beacon data is user telemetry: apply the fleet's redaction rules before quoting URLs or session

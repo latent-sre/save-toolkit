@@ -1,14 +1,12 @@
 # Roster altitude — design the agent system, not one artifact
 
-Four disciplines: **Prompt Engineering** (selection, guidance, output contracts), **Context
-Engineering** (the smallest relevant, trusted state), **Loop Engineering** (work, verification,
-budgets, termination), **Graph Engineering** (ownership and authority transitions). Handoffs are the
-context payload on a graph edge; durable learning is accepted loop output, not a fifth discipline.
+The entrypoint defines the four engineering themes and when a task needs an agent or a skill.
+This reference applies them to the roster. Handoffs carry context across a graph edge; durable
+learning is accepted loop output, not a fifth discipline.
 
 ## Contents
 
-- Four-theme decision rule
-- Agent vs. skill
+- Apply the roster decision
 - Choose coordination from dependencies
 - The loop inside each lane
 - Handoffs between contexts
@@ -17,31 +15,11 @@ context payload on a graph edge; durable learning is accepted loop output, not a
 - Learning as repository state
 - Wrapper-layer failures
 
-## Four-theme decision rule
+## Apply the roster decision
 
-Apply all four to the same work unit.
-
-| Theme | Owns the decision |
-|---|---|
-| Prompt Engineering | Which owner is selected, its instructions, and the response/tool shape it must produce |
-| Context Engineering | What that owner sees, in what order, with which provenance, freshness, trust, compaction, and retention |
-| Loop Engineering | Entry and mutable state, action/verification cycle, budgets, stops, terminal evidence, and promotion authority |
-| Graph Engineering | Which node owns the work, which ownership transitions exist, and what authority and payload cross each edge |
-
-Skills deepen a node; agents change ownership. Keep work in one agent and load a skill when the
-owner and authority remain correct; add or traverse an agent edge only when ownership, authority
-isolation, independent verification, parallel breadth, or additional context capacity justifies
-the transition — and budget each lane from this fleet's measurements, not a vendor multiplier. A
-graph edge never substitutes for a missing verifier; a larger prompt never substitutes for a
-required authority boundary.
-
-## Agent vs. skill
-
-| | Agent | Skill |
-|---|---|---|
-| Is | A roster role with its own tool posture and lane | Altitude, method, checklist, or playbook loaded into a lane |
-| Use when | Ownership, authority, or isolation must change — a tool-scope split is the common reason, not the only one | The owner and its authority stay correct |
-| Record | Why, in the agent's own file; an ADR if it reshapes the roster | — |
+Budget each lane from this fleet's measurements, not a vendor multiplier. A graph edge never
+substitutes for a missing verifier; a larger prompt never substitutes for a required authority
+boundary.
 
 Seniority tiers are ladder skills, not cloned agents. Routing and live coordination stay in the
 main session; a coordinator subagent adds a round-trip for a low-context decision (a reasoned

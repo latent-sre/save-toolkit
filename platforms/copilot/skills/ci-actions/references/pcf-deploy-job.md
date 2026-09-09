@@ -2,10 +2,8 @@
 
 # PCF deployment job
 
-Read this reference only when the task requires a PCF deployment job, cf authentication,
-deployment verification, or rollback. Load `stack-profile` first for runner placement,
-infrastructure, runtime, or identity recommendations. The authority and safety contract in
-`SKILL.md` still applies.
+For PCF deployment-job authoring. `SKILL.md` owns authority; load `stack-profile` before runner,
+infrastructure, runtime or identity recommendations.
 
 ## Preconditions and design
 
@@ -13,12 +11,13 @@ infrastructure, runtime, or identity recommendations. The authority and safety c
   pinned cf CLI v8 installation from an approved, checksum-verified source.
 - A protected GitHub environment with required reviewers and environment-scoped credentials for a
   least-privilege PCF service account.
-- The exact artifact produced by the trusted build job, downloaded, never rebuilt.
+- A trusted `build` job that uploads `app-build` with `app.zip` and a reviewed single-app
+  `manifest.yml`, and exposes their SHA-256 digests as `app_sha256` and `manifest_sha256` outputs.
+  The manifest must be self-contained, without credentials or a Docker-image deployment path.
 - Shell tracing off. `cf auth` with no arguments reads `CF_USERNAME` and `CF_PASSWORD` from the
   environment; never put them in argv. *[sourced: cf CLI `command/v7/auth_command.go` help text]*
-- A reviewed manifest, health check, rollback job or commands, release-readiness evidence, and
-  current human approval naming the exact artifact, target, action, verification, and rollback.
-  This skill does not load, run, or approve either gate.
+- Health checks, rollback commands, and the release-readiness and exact human approval evidence
+  required by `SKILL.md`. Preparing this evidence grants no approval.
 
 ## Planning skeleton
 
@@ -26,33 +25,57 @@ Pin every `uses:` to a reviewed full commit SHA before committing this example.
 
 ```yaml
 deploy-prod:
+  needs: build
   runs-on: [self-hosted, pcf]          # runner group with foundation network access
-  timeout-minutes: 20                   # every job: a hang must not hold the runner to the platform cap
-  environment: production               # required reviewers approve before this runs
-  concurrency: { group: deploy-prod, cancel-in-progress: false }   # SKILL.md: never cancel a deploy
+  timeout-minutes: 20
+  environment: production
+  concurrency: { group: deploy-prod, cancel-in-progress: false }
+  permissions: { contents: read }
+  env:
+    RELEASE_DIR: ${{ github.workspace }}/.pcf-release-${{ github.run_id }}-${{ github.run_attempt }}
   steps:
-    - uses: actions/checkout@<pin-to-sha>
-    - uses: actions/download-artifact@<pin-to-sha>   # promote the SAME artifact built earlier
-      with: { name: app-build }
-    - name: Verify cf CLI v8
+    - uses: actions/download-artifact@<pin-to-sha>
+      with: { name: app-build, path: '${{ env.RELEASE_DIR }}' }
+    - name: Verify release bytes and cf CLI v8
+      shell: bash
+      env:
+        APP_SHA256: ${{ needs.build.outputs.app_sha256 }}
+        MANIFEST_SHA256: ${{ needs.build.outputs.manifest_sha256 }}
       run: |
+        set -euo pipefail
+        [[ "$APP_SHA256" =~ ^[[:xdigit:]]{64}$ && "$MANIFEST_SHA256" =~ ^[[:xdigit:]]{64}$ ]]
+        printf '%s  %s\n' "$APP_SHA256" "$RELEASE_DIR/app.zip" "$MANIFEST_SHA256" "$RELEASE_DIR/manifest.yml" | sha256sum --check --status
         cf version
     - name: Deploy
-      env:                              # from environment secrets — not echoed, not in ps
+      shell: bash
+      env:
         CF_API: ${{ secrets.CF_API }}
         CF_USERNAME: ${{ secrets.CF_USERNAME }}
-        CF_PASSWORD: ${{ secrets.CF_PASSWORD }}   # fed to cf auth via env, never argv
+        CF_PASSWORD: ${{ secrets.CF_PASSWORD }}
         CF_ORG: ${{ vars.CF_ORG }}
         CF_SPACE: ${{ vars.CF_SPACE }}
       run: |
+        set -euo pipefail
+        umask 077
+        export CF_HOME
+        CF_HOME="$(mktemp -d "${RUNNER_TEMP%/}/cf-deploy.XXXXXX")"
+        trap 'rm -rf -- "$CF_HOME"' EXIT
+        trap 'exit 130' INT
+        trap 'exit 143' TERM
         cf api "$CF_API"
         cf auth
         cf target -o "$CF_ORG" -s "$CF_SPACE"
-        cf push -f manifest.yml --strategy rolling
+        cf push -f "$RELEASE_DIR/manifest.yml" -p "$RELEASE_DIR/app.zip" --strategy rolling
+    - name: Dispose release bytes
+      if: ${{ always() }}
+      shell: bash
+      run: rm -rf -- "$RELEASE_DIR"
 ```
 
-Deployment execution belongs to the human release owner. This file is a planning artifact; running
-it against a foundation requires the approved-change packet named in `SKILL.md`.
+This is a planning example; the human release owner owns deployment execution.
+The private `CF_HOME` contains tokens. Never cache/upload it. The runner owner must remove job
+storage after forced termination or host loss, when shell traps cannot run; ephemeral registration
+alone does not erase the filesystem. Record that cleanup evidence before runner reuse.
 
 ## Verification and rollback handoff
 

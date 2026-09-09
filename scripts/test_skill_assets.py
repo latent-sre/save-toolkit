@@ -17,6 +17,59 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class SkillAssetTests(unittest.TestCase):
+    def test_ci_starter_cancellation_is_local_to_each_validation_leg(self) -> None:
+        workflow = yaml.safe_load(
+            (ROOT / "skills/ci-actions/assets/ci.reusable.yml").read_text(encoding="utf-8")
+        )
+        self.assertFalse(workflow.get("concurrency", {}).get("cancel-in-progress", False))
+        job = workflow["jobs"]["test"]
+        self.assertTrue(job["concurrency"]["cancel-in-progress"])
+        group = job["concurrency"]["group"]
+
+        def resolve(workflow_ref: str, ref: str, caller: str, version: str) -> str:
+            context = {"github.workflow_ref": workflow_ref, "github.ref": ref,
+                       "inputs.concurrency-key": caller, "matrix.python-version": version}
+            return re.sub(r"\$\{\{\s*(.*?)\s*\}\}", lambda m: context[m[1]], group)
+
+        # Reusable invocations, Python legs, branches and workflows must not cancel each other.
+        groups = {resolve(workflow_ref, ref, caller, version)
+                  for workflow_ref in (
+                      "org/repo/.github/workflows/checks.yml@refs/heads/main",
+                      "org/repo/.github/workflows/release.yml@refs/heads/main",
+                  )
+                  for ref in ("refs/heads/a", "refs/heads/b")
+                  for caller in ("api", "worker")
+                  for version in job["strategy"]["matrix"]["python-version"]}
+        self.assertEqual(len(groups), 8 * len(job["strategy"]["matrix"]["python-version"]))
+
+    def test_pcf_example_pushes_only_the_downloaded_release_paths(self) -> None:
+        text = (ROOT / "skills/ci-actions/references/pcf-deploy-job.md").read_text(encoding="utf-8")
+        job = yaml.safe_load(re.search(r"```yaml\n(.*?)\n```", text, re.DOTALL)[1])["deploy-prod"]
+        download = next(step for step in job["steps"]
+                        if step.get("uses", "").startswith("actions/download-artifact@"))
+        self.assertIn("path", download["with"], "artifact destination is implicit")
+        release_dir = job["env"]["RELEASE_DIR"]
+        # GitHub's jobs.<job_id>.env context contract excludes runner and steps.
+        job_env_contexts = {"github", "needs", "strategy", "matrix", "vars", "secrets", "inputs"}
+        for expression in re.findall(r"\$\{\{\s*(.*?)\s*\}\}", release_dir):
+            self.assertIn(expression.split(".")[0], job_env_contexts)
+        self.assertEqual(download["with"]["path"], "${{ env.RELEASE_DIR }}")
+        self.assertTrue(release_dir)
+        deploy = next(step for step in job["steps"] if "cf push " in step.get("run", ""))
+        push = next(line for line in deploy["run"].splitlines() if line.strip().startswith("cf push "))
+        words = shlex.split(push)
+        for flag, filename in (("-p", "app.zip"), ("-f", "manifest.yml")):
+            self.assertIn(flag, words)
+            self.assertEqual(words[words.index(flag) + 1], f"$RELEASE_DIR/{filename}")
+        self.assertEqual(job["needs"], "build")
+        # Identity checks precede credential use; parsing this plan never executes cf.
+        verify_index = next(i for i, step in enumerate(job["steps"])
+                            if "sha256sum" in step.get("run", ""))
+        self.assertLess(verify_index, job["steps"].index(deploy))
+        verify = job["steps"][verify_index]
+        self.assertEqual(verify["env"]["APP_SHA256"], "${{ needs.build.outputs.app_sha256 }}")
+        self.assertEqual(verify["env"]["MANIFEST_SHA256"], "${{ needs.build.outputs.manifest_sha256 }}")
+
     def test_operational_template_revision_slots_use_short_commit_ids(self) -> None:
         for name, field, expected in (
             ("runbook/assets/runbook-template.md", "source_revision",

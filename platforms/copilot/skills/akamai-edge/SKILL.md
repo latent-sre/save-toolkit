@@ -41,10 +41,8 @@ fix differs completely by leg. Establish the leg **before** hypothesizing:
    `turnAroundTimeMSec`, `errorCode`) in the configured log backend, and Traffic by Hostname for
    offload trends.
 
-Edge-side evidence (WAF deny, cache misconfiguration, edge 5xx) stays in this skill's lanes;
-origin-side evidence (edge→origin errors, healthy edge with slow turnaround) hands back to the
-responder's app/platform investigation with `incident-investigation`, leg finding attached —
-`sre-assistant` only for a dispatched read.
+Edge-side evidence (WAF deny, cache misconfiguration, edge 5xx) stays in this skill's lanes.
+Route origin-side findings through [Handoffs](#handoffs).
 
 ## Three lanes, three authority postures
 
@@ -70,10 +68,10 @@ responder's app/platform investigation with `incident-investigation`, leg findin
 
 ## Handoffs
 
-An actively firing alert or live user impact belongs to the responder with `incident-investigation`
-— send the leg finding (edge vs origin), the exact portal tool and result, and timestamps;
-`sre-assistant` only for a dispatched read. A recurring query, missing
-alert, or detection gap goes to the `observability-engineer` agent. A property change that is ready
-to propose goes to the human release owner as a prepared version with diff, blast radius,
-verification, and the fast-fallback/previous-version rollback stated. New durable operational facts
-route to `scribe` through the operational-learning disposition path.
+Origin-side evidence (edge→origin errors, healthy edge with slow turnaround), an actively firing
+alert, or live user impact belongs to the responder with `incident-investigation` — send the leg
+finding, exact portal tool and result, and timestamps; `sre-assistant` only for a dispatched read.
+A recurring query, missing alert, or detection gap goes to `observability-engineer`. For a proposed
+property change, send the human release owner the prepared version and
+[property change packet](./references/property-config.md#property-change-packet). New durable
+operational facts route to `scribe` through the operational-learning disposition path.

@@ -51,9 +51,11 @@ restrict it — the map is [skill portability](./skill-portability.md).
 ### Hook scoping is a fleet decision
 
 Hook matchers can express an agent-scoped hook; the read-only guard deliberately does not use one.
-A matcher that stops matching after an upstream rename silently skips the hook and fails **open**;
-the guard runs on every Bash call and scopes itself in Python, so the same rename trips a canary and
-fails **closed**.
+A matcher can silently stop matching after an upstream rename. The guard instead runs on every
+Bash call and scopes itself in Python. Its canaries deny a guarded name under a changed plugin
+namespace, or a recognized guarded identity in another top-level key containing `agent` when
+`agent_type` is absent. A renamed key such as `role` is not detected. Re-probe the live PreToolUse
+payload after host upgrades; offline tests cover known shapes, not every upstream rename.
 
 ### Authoring rules that are checkable
 

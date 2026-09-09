@@ -11,15 +11,17 @@ version to **staging** or **production** *[sourced:
 techdocs.akamai.com/property-mgr/docs/how-activation-works]*:
 
 - **Staging** activations "usually finish within 3 minutes" — smaller network, no end-user
-  traffic. Verify against staging with the staging hostname; the `X-Akamai-Staging` response
-  header proves which network answered.
+  traffic. The human resolves the staging edge hostname to an IP, then requests the **public
+  property hostname** with that connection destination, preserving Host, SNI and TLS verification:
+  `curl --resolve '<public-host>:443:<staging-ip>' 'https://<public-host>/<safe-path>' -D - -o /dev/null`.
+  Verify `X-Akamai-Staging` in the response; a request to the edge hostname tests the wrong host
+  *[sourced: techdocs.akamai.com/property-mgr/docs/test-https; reviewed 2026-09-09]*.
 - **Production** activation is **two-phased**: phase 1 rolls out to live-traffic servers — but
   users mapped to fresh edge locations "may still reach Akamai servers with the previous property
   configuration" for a few minutes after phase 1 completes *[sourced: how-activation-works,
   re-checked 2026-08-19]*; phase 2 ("Pending - Full Rollout") continues to
   the rest of the network and can auto-cancel if the system detects a problem. "The total
-  activation process takes up to 15 minutes on the production network." (A "under 4 minutes"
-  figure circulates and likely describes phase 1 only — `[unverified]`, don't quote it.)
+  activation process takes up to 15 minutes on the production network."
 
 ## Rollback — know which of the two you have
 
@@ -30,9 +32,11 @@ techdocs.akamai.com/property-mgr/docs/how-activation-works]*:
 - **After the window**: rollback = a normal production activation of the previous version — plan
   for the full activation time in the rollback estimate, not the fast-fallback time.
 
-A production-change packet for a property change therefore states: the version diff, staging
-evidence, blast radius (hostnames/CP codes on the property), verification (the exact debug-header
-or report check), **which rollback applies right now**, and the fast-fallback expiry once
+## Property change packet
+
+The packet states: the version diff, staging evidence, blast radius (hostnames/CP codes on the
+property), verification (the exact debug-header or report check), **which rollback applies right
+now**, and the fast-fallback expiry once
 activated. Production activation is Tier 2 minimum, human release owner, through
 `production-change-gate`; a WAF/security-config change is a security change with its own owner.
 
@@ -42,7 +46,7 @@ activated. Production activation is Tier 2 minimum, human release owner, through
   activations; everything else is built on it *[sourced: techdocs.akamai.com/property-mgr/reference/api]*.
 - **Terraform** — the actively versioned path: the Akamai provider's property provisioning
   requires rule format ≥ `v2023-01-05`, and **`cli-terraform` exports an existing property to
-  Terraform config plus an import script** — the sane on-ramp for a property that grew up in the
+  Terraform config plus an import script** — an import path for a property maintained in the
   UI *[sourced: techdocs.akamai.com/terraform/docs/set-up-property-provisioning,
   …/docs/import-and-export-assets]*. No official page crowns Terraform as "the" recommended path
   over the Property Manager CLI — `[unverified]`; choose per team and record the choice.
@@ -63,5 +67,5 @@ activated. Production activation is Tier 2 minimum, human release owner, through
 - Rule ordering/criteria — Property Manager rules cascade; a new rule above an existing one can
   shadow it silently.
 - Behaviors that change debugging itself (Enhanced Debug key rotation, `disablePragma`, GRN) —
-  losing debug access mid-incident is a self-inflicted wound.
+  check that debug access remains available after the change.
 - Hostnames added/removed from the property — that is blast radius, list them in the packet.
