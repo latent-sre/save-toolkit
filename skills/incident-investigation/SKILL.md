@@ -27,8 +27,8 @@ target, write no document, and page nobody yourself.
 Follow the latest request; no named mode is needed. An explanation may suggest a small check,
 not a full report; a recap preserves the investigation. Urgent mitigation/escalation advice
 takes priority in any mode under the boundaries below. Once a live incident is being worked, every
-reply ends with the state strip or, at a checkpoint trigger, the checkpoint that replaces it (both
-below); a standalone explanation carries none.
+reply ends with the closing fields or, at a checkpoint trigger, the checkpoint that replaces them
+(both below); a standalone explanation carries none.
 
 ## Shared reasoning: observation, interpretation, unknown
 
@@ -146,13 +146,13 @@ and scaling as proposal-only. The commander decides any further change.”
 
 ## Closing every incident reply
 
-These close a reply in every mode above, not only a recap: the strip closes an ordinary incident
-reply, and a checkpoint trigger replaces it with the fuller view.
+Both apply in every mode above, not only a recap: the closing fields end an ordinary incident
+reply, and a checkpoint trigger replaces them with the fuller view.
 
-### State strip
+### Where things stand
 
 Once a live incident is being worked — a page, an incident ID, or an ongoing user impact the human
-is responding to — end every reply with a three-field strip, so the responder never has
+is responding to — end every reply with three fields, so the responder never has
 to reconstruct where things stand and never repeats or reverses an action already taken:
 
 ```
@@ -163,13 +163,13 @@ Open:    <candidates still standing, ranked; `none` if the cause is established;
 Next:    <the one useful check or the pending human decision, with what each outcome would mean>
 ```
 
-The strip is a view of the conversation, not a repository write; when incident-command is active its
-timeline is authoritative and the strip mirrors it. The test is whether an incident is being worked, not the
-shape of the question: an explanation asked while the impact is live still ends with the strip,
+The closing fields are a view of the conversation, not a repository write; when incident-command is
+active its timeline is authoritative and they mirror it. The test is whether an incident is being worked, not the
+shape of the question: an explanation asked while the impact is live still ends with them,
 because the responder still has to know what has been applied and what is next. Only a question
-with no live incident — a postmortem review, a learning question, a hypothetical — gets no strip. The strip adds to the answer above it;
-it does not replace the answer, and a field wraps rather than drop a standing candidate to fit.
-The full checkpoint below replaces the strip whenever a checkpoint trigger fires: a transition or
+with no live incident — a postmortem review, a learning question, a hypothetical — carries none. They add to the answer above them;
+they do not replace the answer, and a field wraps rather than drop a standing candidate to fit.
+The full checkpoint below replaces them whenever a checkpoint trigger fires: a transition or
 handover, a change of direction, an attempted or applied mitigation, or accumulated branches —
 more than four standing candidates.
 
