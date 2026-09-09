@@ -19,7 +19,7 @@ reverted, or what caused recovery. Reconcile with the executor and available rec
 any retry; missing evidence leaves the attempt UNKNOWN. Judge recovery using observations from
 an established post-change interval.
 
-Analysis excerpt for a checkpoint; include the other known checkpoint fields in the full reply:
+Analysis excerpt for the board; include the other board fields in the full reply:
 
 “Revision 14, described ‘Rolled back to revision 12’, is live at 10:10 [sourced]. That is the
 expected revision shape; deployment completion and instance convergence still need readback.

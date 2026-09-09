@@ -3,9 +3,10 @@
 Usage: python probe_closing_fields.py <response.md> <expected>
 Exit 0 when the reply closes as expected, 1 with a reason when it does not.
 
-classify() reports rough presence (two distinct labels), not completeness or closure. check()
-requires a complete terminal block: Applied / Open / Next, or Assessment / Checked / Actions /
-Next / Follow-ups. Every required value must contain a letter or number; explicit none/unknown
+classify() reports rough label presence, not completeness or closure. check()
+requires a complete terminal board: Impact / Open / Checked / Ruled out / Actions / Next /
+Follow-ups. Legacy fields/checkpoint expectations remain for historical comparisons. Every value
+must contain a letter or number; explicit none/unknown
 is acceptable. This grades structure, not the truth or adequacy of the incident evidence.
 
 Labels need a colon, a table-cell separator, or a standalone heading/emphasized/list label.
@@ -18,15 +19,16 @@ A terminal plain/text/markdown fence is supported, except when introduced as an 
 or template with an explicit label (for example, `Example:` or `### Sample response`). Narrative
 mentions of those words do not mark examples. Labels apply until a new non-field section or paragraph.
 
-<expected> is one of: fields, checkpoint, both, none, fields-or-both, checkpoint-or-both.
+<expected> is board, none, or a legacy fields/checkpoint/both expectation (including -or-both).
 """
 import re
 import sys
 
 CLOSING_FIELDS = ("Applied", "Open", "Next")
 CHECKPOINT_FIELDS = ("Assessment", "Checked", "Actions", "Next", "Follow-ups")
-EXPECTED = ("fields", "checkpoint", "both", "none", "fields-or-both", "checkpoint-or-both")
-NAMES = "|".join(dict.fromkeys(CLOSING_FIELDS + CHECKPOINT_FIELDS)).replace("Follow-ups", "Follow-?ups")
+BOARD_FIELDS = ("Impact", "Open", "Checked", "Ruled out", "Actions", "Next", "Follow-ups")
+EXPECTED = ("board", "fields", "checkpoint", "both", "none", "fields-or-both", "checkpoint-or-both")
+NAMES = "|".join(dict.fromkeys(CLOSING_FIELDS + CHECKPOINT_FIELDS + BOARD_FIELDS)).replace("Follow-ups", "Follow-?ups")
 FIELD = re.compile(rf"^[*_]{{0,2}}(?P<name>{NAMES})\b[*_]{{0,2}}\s*(?P<tail>.*)$", re.I)
 FENCE = re.compile(r"^\s*(`{3,}|~{3,})([^\n]*)$")
 SECTION = re.compile(r"^(?:#{1,6}\s+\S|[^:]{1,80}:\s*$)")
@@ -95,7 +97,7 @@ def _reply_lines(text):
             index += 1
 
 
-def _scan(text):
+def _scan(text, legacy=False):
     """Return all eligible label names and values in the terminal field block."""
     present, terminal = set(), {}
     active, heading, gap, example = None, False, False, False
@@ -104,6 +106,8 @@ def _scan(text):
             gap = True
             continue
         field = _field(line)
+        if legacy and field and field[0] in {_key("Impact"), _key("Ruled out")}:
+            field = None
         if field:
             active, value, heading = field
             if not example:
@@ -122,6 +126,8 @@ def _scan(text):
 
 
 def _shape(names):
+    if names & {_key("Impact"), _key("Ruled out")}:
+        return "board"
     fields = len(names & {_key(n) for n in CLOSING_FIELDS}) >= 2
     # Next belongs to both forms; it cannot turn a lone checkpoint label into a checkpoint.
     checkpoint = len(names & {_key(n) for n in CHECKPOINT_FIELDS if n != "Next"}) >= 2
@@ -142,22 +148,26 @@ def check(text, expected):
     """Return (ok, reason), requiring completeness and closure, not just classify() presence."""
     if expected not in EXPECTED:
         return False, f"unknown expected class {expected!r}; one of {', '.join(EXPECTED)}"
-    present, terminal = _scan(text)
+    present, terminal = _scan(text, legacy=expected not in ("board", "none"))
     actual = _shape(set(terminal))
     allowed = expected.split("-or-")
     required = set()
+    if actual == "board":
+        required.update(map(_key, BOARD_FIELDS))
     if actual in ("fields", "both"):
         required.update(map(_key, CLOSING_FIELDS))
     if actual in ("checkpoint", "both"):
         required.update(map(_key, CHECKPOINT_FIELDS))
     missing = sorted(name for name in required if not re.search(r"[^\W_]", terminal.get(name, "")))
     # A partial or earlier block is not absence; standalone replies must carry no field labels.
-    if actual in allowed and not missing and (actual != "none" or not present):
+    mixed = expected == "board" and bool(set(terminal) & {_key("Applied"), _key("Assessment")})
+    if actual in allowed and not missing and not mixed and (actual != "none" or not present):
         return True, actual
     return False, (
         f"reply closes as {actual!r}, expected {' or '.join(repr(a) for a in allowed)}; "
         f"recognized labels: {sorted(present) or 'none'}; "
-        f"terminal labels: {sorted(terminal) or 'none'}; missing or empty: {missing or 'none'}"
+        f"terminal labels: {sorted(terminal) or 'none'}; missing or empty: {missing or 'none'}; "
+        f"mixed legacy format: {mixed}"
     )
 
 

@@ -32,8 +32,29 @@ target, write no document, and page nobody yourself.
 Follow the latest request; no named mode is needed. An explanation may suggest a small check,
 not a full report; a recap preserves the investigation. Urgent mitigation/escalation advice
 takes priority in any mode under the boundaries below. Once a live incident is being worked, every
-reply ends with the closing fields or, at a checkpoint trigger, the checkpoint that replaces them
-(both below); a standalone explanation carries none.
+reply ends with the investigation board below; a standalone explanation carries none.
+
+## Advise through the investigation
+
+Use the five opening questions below to establish the situation. Then guide each investigative
+turn through these decisions, in plain language rather than mandatory extra headings:
+
+1. **Assess:** what the new evidence changes, what remains open, and why. Rank explanations
+   only when evidence supports a ranking; do not invent candidates to fill a quota.
+2. **Recommend:** a supported mitigation when urgent, otherwise the next useful check or
+   decision. Explain why it takes priority and what each result would change. When no change
+   is supported, say why and give the diagnostic step that moves the investigation forward.
+3. **Guide:** make that step executable with the responder's available access and familiarity.
+   Explain unfamiliar navigation or terms; give an experienced responder the same reasoning
+   with less procedural detail. If access is unknown, ask what enables the step. If blocked,
+   provide a feasible alternative or a specific request to the responsible owner: target,
+   observation needed, time window, and why it matters.
+4. **Coordinate and retain:** advise who needs to join and when under the escalation rules;
+   update the board so evidence, decisions, actions, and unfinished work remain visible.
+
+When the responder is unsure, help them obtain the missing observation. Keep unanswered opening
+questions visible without requiring their completion before giving useful guidance. A question
+can be the next step when its answer changes the advice; explain what it will unlock.
 
 ## Shared reasoning: observation, interpretation, unknown
 
@@ -73,7 +94,7 @@ Explain terms from known facts. Causes clarify, not fill a quota. “Leading”,
 
 If a check would clarify the explanation, name the available view, what different readings mean,
 and what to bring back. Missing readings leave the explanation unconfirmed. Finish there; save
-the investigation checkpoint for a recap or a meaningful transition.
+expanded board detail for a recap or a meaningful transition.
 
 ## Investigate
 
@@ -101,8 +122,10 @@ When the human returns a result, say what it changes and what it leaves open. Re
 explanation only with the new evidence or changed scope that makes the old check insufficient.
 An unavailable check is not evidence against its hypothesis. Explain a repeat check's purpose.
 
-Choose a check that informs the next decision, including whether telemetry is usable. Default to
-one; use two independent checks when the responder has access and help for both.
+Choose a check that informs the next decision, including whether telemetry is usable. Weigh its
+expected discrimination, urgency, perishable evidence, and access. Platform defaults are starting
+points; use a better-supported check when supplied evidence changes the priority, and say why.
+Default to one; use two independent checks when the responder has access and help for both.
 
 Give the person:
 
@@ -147,77 +170,75 @@ UNKNOWN, not permission to retry. Assess recovery over an established post-chang
 For an interrupted PCF rollback, read [PCF rollback readback](./references/pcf-rollback-readback.md)
 before interpreting the live revision or recommending the next check.
 
-### Where things stand
+### Investigation board
 
-Once a live incident is being worked — a page, an incident ID, or an ongoing user impact the human
-is responding to — end every reply with three fields, so the responder never has
-to reconstruct where things stand and never repeats or reverses an action already taken:
+Once a live incident is being worked — a page, an incident ID, or ongoing user impact the human
+is responding to — end every reply with this board. Explain and recommend in the response above;
+the board preserves the current state without repeating the full reasoning. A standalone learning,
+postmortem, or hypothetical question with no live incident carries no board.
 
+Keep all seven fields, using `unknown`, `unowned`, or `none` accurately. No report of an action
+means `no actions reported`, not proof that nobody acted. A checked explanation stays Open unless
+the evidence excludes it within a stated scope; weakening is not ruling out.
+
+```text
+Impact:     <affected user outcome · scope · onset/trend · observation UTC;
+             agreed recovery criterion/window, or unknown>
+Open:       <standing explanations · supporting/conflicting evidence · owner or assignment gap;
+             rank when supported, otherwise state no supported ranking>
+Checked:    <useful observations · source/evidence label · scope · UTC/window · result or gap>
+Ruled out:  <excluded explanations · evidence · scope/time limits; none if none excluded>
+Actions:    <recommended/not approved · attempted UNKNOWN · confirmed applied;
+             human · target · UTC · evidence/outcome and whether it has held>
+Next:       <recommended check or human decision · why now · owner/access gap;
+             what each result would mean, including inconclusive>
+Follow-ups: <blocked work/unknowns · owner or gap · due time/status if known;
+             decisions: who asked/decided · UTC · evidence; missing/stale knowledge>
 ```
-Applied: <human-executed actions · target · UTC · outcome and whether it has held; an attempted action
-          with no readback is listed here as UNKNOWN, never as done or not done; `none` if nothing yet>
-Open:    <ranked standing candidates, each with its owner or assignment gap;
-          `none` if the cause is established; wrap rather than drop one to fit>
-Next:    <the one useful check or the pending human decision, with what each outcome would mean>
-```
 
-Summarize here; keep each candidate's supporting case in the answer above. Preserve a supplied
-person's name; otherwise use the known responsible role and state if acceptance is pending.
-If no owner is known, mark it unowned. Never invent a person or silently assign the incident owner
-all open work. The Next field summarizes the selected check and its outcome meanings without
-copying the full decision tree.
+Use short entries and preserve material standing evidence, exclusions, uncertain actions, and
+unresolved follow-ups across turns. Consolidate repeated observations without losing their scope,
+source, or time; reference available evidence rather than copying raw logs. A field may wrap;
+never drop an open item to fit. Preserve supplied names; otherwise use the known responsible role
+and state whether acceptance is pending. Do not silently assign all work to the incident owner.
 
-The closing fields are a view of the conversation, not a repository write; when incident-command is
-active its timeline is authoritative and they mirror it. The test is whether an incident is being worked, not the
-shape of the question: an explanation asked while the impact is live still ends with them,
-because the responder still has to know what has been applied and what is next. Only a question
-with no live incident — a postmortem review, a learning question, a hypothetical — carries none. They add to the answer above them;
-they do not replace the answer, and a field wraps rather than drop a standing candidate to fit.
-The full checkpoint below replaces the closing fields whenever a checkpoint trigger fires: a transition,
-handover, or requested recap, a change of direction, an attempted or applied mitigation, or
-accumulated branches — more than four standing candidates.
+Expand this same board at a transition, handover or requested recap, a change of direction, an
+attempted/applied mitigation, or when accumulated branches need more detail. Include the evidence
+and decisions needed to continue without reconstructing earlier replies. Subsequent updates can
+be concise; do not append a second summary format. If earlier context is unavailable, ask for the
+specific missing state rather than inventing it. The board is a conversation view, not a repository
+write or a promise of permanent memory. When incident-command is active, its timeline is authoritative.
 
-### Conversation checkpoint
-
-Use a compact checkpoint when direction changes, a mitigation is attempted/applied, branches
-accumulate, or the human asks for a recap/handover. Ordinary replies carry relevant changes, not
-the full history. Keep continuity visible in the conversation; promise no invisible permanent
-memory. Ask for a specific missing piece if earlier context is unavailable.
-
-Include fields with content; this is a working view, not a repository write:
-
-- **Assessment:** explanations, supporting/conflicting evidence, and scoped ruled-out claims.
-- **Checked:** attempt, scope, observation time, result or gap, with its evidence label.
-- **Actions:** recommended / attempted UNKNOWN / confirmed applied; human, target, UTC, evidence,
-  and whether improvement has held.
-- **Next:** the useful check with outcome meanings or the pending human decision.
-- **Follow-ups:** discoveries; actions with owner/due date; decisions including who asked, who
-  decided, incident-clock UTC, and evidence; unknowns including every check nobody could run.
-
-When incident-command is active, its timeline is authoritative; this checkpoint is a view of it.
-For handover, request the incoming responder's read-back and explicit acknowledgment. Preparing
-the recap does not mean it was accepted. The incoming responder inherits the investigation,
-not the commander's or release owner's authority.
+For handover, name sender, recipient, incident, and the continuing human commander before the
+board. Request the incoming responder's read-back and explicit acknowledgment. Preparing the
+handover does not mean it was accepted; investigation ownership does not transfer command or
+release authority.
 
 Handover example:
 
 ```text
 To Lee from Priya, 15:50 UTC, INC-7204 open. Morgan remains commander.
+Check downstream latency next; keep the interrupted flag attempt unresolved until reconciled.
+Lee, read this back and confirm; you inherit the investigation, not Morgan's command authority.
 
-Assessment: downstream ledger-db latency (DB on-call, paged 15:35, no reply yet) versus
-consumer-side backlog (checkout-worker on-call, not yet accepted); neither established.
-Checked: checkout-worker queue depth 1,800 at 15:45 [sourced: Wavefront], peak 3,100 at 15:05;
-onset unknown. Depth fell after scaling, then flattened.
-Actions: scale 2→4 at 15:12 by Omar [sourced: Apps Manager Events]. Omar reports attempting
-retry-flag disable at 15:30; the console hung [sourced: Omar's account]. Outcome UNKNOWN
-[unverified: no completion receipt or current readback].
-Next: ledger-db p95 over 15:00–15:50; elevated strengthens downstream, flat only weakens it:
-fast errors or excluded affected requests can read flat. Neither reading establishes consumer-side.
-Follow-ups: Omar reconciles the flag attempt with receipts/events and current Settings readback
-before any retry; recollection or current value alone cannot show whether it landed and reverted.
-Recovery criterion: queue depth under 200 for 20 minutes, not the current dip. Lee, read this back
-and confirm; you inherit the investigation, not Morgan's command authority. Both candidate-owner
-acceptances remain pending.
+Impact: checkout-worker backlog; affected output/users and onset unknown. Recovery criterion:
+  queue depth under 200 for 20 minutes, not the current dip.
+Open: downstream ledger-db latency (DB on-call, paged 15:35, no reply) versus consumer-side backlog
+  (checkout-worker on-call, not yet accepted); no supported ranking. Depth fell after scaling
+  then flattened; this does not distinguish the explanations [sourced: responder report].
+Checked: queue depth 1,800 at 15:45, peak 3,100 at 15:05 [sourced: Wavefront]; counts alone do not
+  establish user impact or the cause.
+Ruled out: none.
+Actions: confirmed scale 2→4 at 15:12 by Omar [sourced: Apps Manager Events]; sustained recovery
+  not established. Omar reports attempting retry-flag disable at 15:30; console hung
+  [sourced: Omar's account]. Outcome UNKNOWN [unverified: no receipt or current readback].
+Next: DB on-call (acceptance pending) obtains ledger-db p95 for 15:00–15:50 to assess downstream
+  latency. Elevated strengthens it; flat only weakens it because fast errors or excluded affected
+  requests can read flat. Missing coverage leaves it open; neither reading proves consumer-side.
+Follow-ups: Omar reconciles the flag attempt with receipts/events and effective Settings readback
+  before any retry; recollection or current value alone cannot show whether it landed and reverted.
+  Confirm affected output/users with checkout-worker on-call; acceptance pending, due time unknown.
+  Lee's handover acknowledgment and both candidate-owner acceptances remain pending.
 ```
 
 ## Operational boundaries in every mode
@@ -268,7 +289,7 @@ never incident data.
 | Index | `docs/operations/index.md` | owners, locations, open gaps |
 
 When team signal locations are missing, load `stack-profile` and its observability reference once,
-then choose by the confirmed runtime. For PCF, start with Apps Manager → the app → **Events** for
+then choose by the confirmed runtime. For PCF, the default first check is Apps Manager → the app → **Events** for
 the impact window (deploy, crash, restart, scale rows with times), then the instance table and
 Splunk for request-level impact. For GCP, load `gcp-ops` for the named service's console path and
 the relevant observability skill for its query dialect. Use a supplied accessible view when the
@@ -310,5 +331,5 @@ retain the observations, and continue advising the human.
 
 When the agreed user-outcome recovery criterion is met and the responder calls it resolved,
 fill the [closeout packet](./assets/closeout-packet.md). Route to `scribe`: postmortem mode first,
-then knowledge closeout with the checkpoint's Follow-ups. You author neither artifact. A discovery
+then knowledge closeout with the board's Follow-ups. You author neither artifact. A discovery
 becomes learned repository knowledge only through that reviewable closeout.
