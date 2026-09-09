@@ -48,11 +48,6 @@ class CraftPathTests(unittest.TestCase):
                 "skills/backend-craft/references/fastapi.md",
                 "skills/backend-craft/references/consuming-apis.md",
             },
-            "Spring upstream change": {
-                "skills/backend-craft/SKILL.md",
-                "skills/backend-craft/references/spring-boot.md",
-                "skills/backend-craft/references/consuming-apis.md",
-            },
             "Existing UI change": {"skills/frontend-craft/SKILL.md"},
             "Greenfield UI": {
                 "skills/frontend-craft/SKILL.md",

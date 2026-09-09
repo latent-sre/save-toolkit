@@ -15,23 +15,21 @@ argument-hint: "[the API or service to build or change]"
 
 # Backend craft
 
-You write the actual code: complete, runnable files (routes, models, config, tests), never
-pseudo-code or architecture-only answers. Any backend or API, held to an SRE-grade bar:
-failure-first, observable, safe to operate.
+Load `stack-profile` to distinguish code the team authors from services it
+only supports. For authoring work, deliver complete, runnable files (routes, models, config, tests):
+failure-first, observable and safe to operate.
 
 ## Establish the contract before you build
 
 1. Inspect the task, repository, framework, existing interfaces, authentication, and tests first.
    Preserve established API and auth contracts unless the requested change explicitly alters them.
-2. Add the narrow regression for the changed behavior using the project's native test approach:
-   FastAPI tests for FastAPI, JUnit/MockMvc or the existing Spring test setup for Java. For a bug,
-   demonstrate the relevant failure; existing passing contracts need not be made to fail.
+2. Add the narrow regression for the changed behavior using the project's native test approach.
+   For a bug, demonstrate the relevant failure; existing passing contracts need not be made to fail.
 3. For a new FastAPI HTTP service with no project-owned contract, use
    [test_http_contract.py](./assets/test_http_contract.py) only when its collection, error, and auth
    assumptions fit the requested interface. Adapt fixtures and assertions to that interface; never
    add a collection or weaken auth to satisfy the starter. Use
-   [problem_fastapi.py](./assets/problem_fastapi.py) or [ProblemAdvice.java](./assets/ProblemAdvice.java)
-   only for a compatible new HTTP error contract in the matching framework.
+   [problem_fastapi.py](./assets/problem_fastapi.py) only for a compatible new FastAPI error contract.
 4. Build and verify the scoped change. Workers, schedulers, and client-only tasks use their own
    execution and failure contracts; they do not require HTTP endpoints, collections, or scaffolds.
 
@@ -78,7 +76,6 @@ operability and failure rules that fit a worker, scheduler, or client without ad
 | If the task involves… | Read first |
 |---|---|
 | building in Python + FastAPI | [FastAPI mechanics](./references/fastapi.md) |
-| building in Java + Spring Boot | [Spring Boot mechanics](./references/spring-boot.md) |
 | calling any upstream or third-party API, including our platform and observability APIs | [consuming-apis](./references/consuming-apis.md) |
 | a new HTTP contract with no project-owned one | [openapi.starter.yaml](./assets/openapi.starter.yaml) |
 | choosing a stack for a greenfield service | Load `stack-profile` |

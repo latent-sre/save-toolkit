@@ -43,7 +43,6 @@ Gate A rejects uncited review packets; citation alone does not establish that a 
 |---|---|
 | Code, validator, or exit code | The affected tests |
 | Agent, skill, command, or bundled reference | The matching asset or contract test |
-| Spring error starter | The [MockMvc fixture](scripts/fixtures/spring-problem/README.md), against both supported framework versions; CI runs the same matrix |
 | Routing description | The overlapping clean-room scenarios; pure wording changes need no live eval |
 | Eval harness or scenario | The affected `evals/test_*.py`; `python evals/build_probe.py --validate` for parsing or targeting changes; `python evals/judge.py --calibrate` after a rubric edit |
 | Read-only guard or hook wiring | `python -m pytest scripts/test_readonly_guard.py scripts/test_hook_wiring.py`; exit codes stay 42 allow, 43 deny, 44 indeterminate |

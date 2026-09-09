@@ -83,12 +83,6 @@ TASK_FILES: dict[str, list[str]] = {
     # Existing HTTP read-path changes with an upstream call and stack/toolchain inspection.
     # No new schema, retryable write, migration, telemetry or CI change is implied by these profiles.
     "FastAPI upstream change": [*_FASTAPI_UPSTREAM],
-    "Spring upstream change": [
-        *_ENGINEERING_CONTEXT,
-        "skills/backend-craft/SKILL.md",
-        "skills/backend-craft/references/spring-boot.md",
-        "skills/backend-craft/references/consuming-apis.md",
-    ],
     "Existing UI change": [
         *_ENGINEERING_CONTEXT,
         "skills/frontend-craft/SKILL.md",
@@ -114,7 +108,6 @@ TASK_BUDGETS: dict[str, int] = {
     "Write a runbook": 41_000,
     "Audit a service": 39_000,
     "FastAPI upstream change": 54_000,
-    "Spring upstream change": 57_000,
     "Existing UI change": 47_000,
     "Greenfield UI": 53_000,
     "Prepare FastAPI release": 66_000,
