@@ -66,6 +66,10 @@ deploy-prod:
         cf auth
         cf target -o "$CF_ORG" -s "$CF_SPACE"
         cf push -f "$RELEASE_DIR/manifest.yml" -p "$RELEASE_DIR/app.zip" --strategy rolling
+    - name: Dispose release bytes
+      if: ${{ always() }}
+      shell: bash
+      run: rm -rf -- "$RELEASE_DIR"
 ```
 
 This is a planning example; the human release owner owns deployment execution.

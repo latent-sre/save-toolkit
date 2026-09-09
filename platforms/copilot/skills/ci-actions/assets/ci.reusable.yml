@@ -22,7 +22,7 @@ jobs:
       matrix: { python-version: ["3.11", "3.12"] }
     concurrency:
       # Reserve this suffix for the callee; caller groups must differ.
-      group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.concurrency-key }}-ci-test-${{ matrix.python-version }}
+      group: ${{ github.workflow_ref }}-${{ github.ref }}-${{ inputs.concurrency-key }}-ci-test-${{ matrix.python-version }}
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1 — Node 24 runner required

@@ -26,14 +26,17 @@ class SkillAssetTests(unittest.TestCase):
         self.assertTrue(job["concurrency"]["cancel-in-progress"])
         group = job["concurrency"]["group"]
 
-        def resolve(workflow_name: str, ref: str, caller: str, version: str) -> str:
-            context = {"github.workflow": workflow_name, "github.ref": ref,
+        def resolve(workflow_ref: str, ref: str, caller: str, version: str) -> str:
+            context = {"github.workflow_ref": workflow_ref, "github.ref": ref,
                        "inputs.concurrency-key": caller, "matrix.python-version": version}
             return re.sub(r"\$\{\{\s*(.*?)\s*\}\}", lambda m: context[m[1]], group)
 
         # Reusable invocations, Python legs, branches and workflows must not cancel each other.
-        groups = {resolve(workflow_name, ref, caller, version)
-                  for workflow_name in ("checks", "release")
+        groups = {resolve(workflow_ref, ref, caller, version)
+                  for workflow_ref in (
+                      "org/repo/.github/workflows/checks.yml@refs/heads/main",
+                      "org/repo/.github/workflows/release.yml@refs/heads/main",
+                  )
                   for ref in ("refs/heads/a", "refs/heads/b")
                   for caller in ("api", "worker")
                   for version in job["strategy"]["matrix"]["python-version"]}
