@@ -169,7 +169,7 @@ shape of the question: an explanation asked while the impact is live still ends 
 because the responder still has to know what has been applied and what is next. Only a question
 with no live incident — a postmortem review, a learning question, a hypothetical — carries none. They add to the answer above them;
 they do not replace the answer, and a field wraps rather than drop a standing candidate to fit.
-The full checkpoint below replaces them whenever a checkpoint trigger fires: a transition,
+The full checkpoint below replaces the closing fields whenever a checkpoint trigger fires: a transition,
 handover, or requested recap, a change of direction, an attempted or applied mitigation, or
 accumulated branches — more than four standing candidates.
 

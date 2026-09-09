@@ -457,6 +457,20 @@ The oracle and its test were renamed with it, to
 label `strip` became `fields`. No build scenario binds that oracle path — checked with a positive
 control on a path that is bound — so scenario identity is unaffected.
 
+### PR #247 checkpoint reference fix — 2026-09-09
+
+The [open review finding](https://github.com/latent-sre/save-toolkit/pull/247#discussion_r3969292549)
+identified the ambiguous replacement target. The follow-up to `2f138025` changes only "replaces
+them" to "replaces the closing fields" in that sentence and regenerates the Copilot projection.
+The explicit noun adds 14 canonical skill bytes, measured at 619,317; `scripts/weights.json`
+records that ceiling in the same diff. No checkpoint trigger, field, or section placement changes.
+
+`[verified]` The existing 15 closing-fields oracle tests pass before and after this edit; context
+budgets pass 7/7. These checks preserve the static contract but do not detect pronoun ambiguity or
+prove model compliance. `[unverified]` No live model batch was rerun for this follow-up, so the
+historical 3/6 and 5/6 handover results above remain tied to their original revisions. This edit
+does not establish recovery of checkpoint presence or answer-quality parity.
+
 ## Not established
 
 - The judged gap left by the exhausted credits is now partly closed: iteration 13 (the merged bytes)
