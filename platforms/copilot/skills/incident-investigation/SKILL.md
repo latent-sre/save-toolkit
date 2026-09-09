@@ -333,3 +333,5 @@ When the agreed user-outcome recovery criterion is met and the responder calls i
 fill the [closeout packet](./assets/closeout-packet.md). Route to `scribe`: postmortem mode first,
 then knowledge closeout with the board's Follow-ups. You author neither artifact. A discovery
 becomes learned repository knowledge only through that reviewable closeout.
+
+Historical comparison only: [OLD.md](./OLD.md).
