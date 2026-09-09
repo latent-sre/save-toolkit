@@ -77,7 +77,8 @@ the investigation checkpoint for a recap or a meaningful transition.
 
 ## Investigate
 
-At the start of an investigation, review these five questions against the evidence already supplied:
+In the first investigative reply, summarize the supplied answers and explicitly name the unanswered
+questions for all five:
 
 1. What changed, and when?
 2. Who else is affected?
@@ -207,8 +208,9 @@ Assessment: downstream ledger-db latency (DB on-call, paged 15:35, no reply yet)
 consumer-side backlog (checkout-worker on-call, not yet accepted); neither established.
 Checked: checkout-worker queue depth 1,800 at 15:45 [sourced: Wavefront], peak 3,100 at 15:05;
 onset unknown. Depth fell after scaling, then flattened.
-Actions: scale 2→4 at 15:12 by Omar [sourced: Apps Manager Events]. Retry-flag disable attempted
-15:30 by Omar, UNKNOWN: console hung, no readback [unverified: Omar's account, no receipt].
+Actions: scale 2→4 at 15:12 by Omar [sourced: Apps Manager Events]. Omar reports attempting
+retry-flag disable at 15:30; the console hung [sourced: Omar's account]. Outcome UNKNOWN
+[unverified: no completion receipt or current readback].
 Next: ledger-db p95 over 15:00–15:50; elevated strengthens downstream, flat only weakens it:
 fast errors or excluded affected requests can read flat. Neither reading establishes consumer-side.
 Follow-ups: Omar reconciles the flag attempt with receipts/events and current Settings readback

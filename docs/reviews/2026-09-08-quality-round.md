@@ -498,8 +498,8 @@ The candidate extends [PR #248](https://github.com/latent-sre/save-toolkit/pull/
   answers that affect immediate advice, retain unanswered questions, and do not delay mitigation.
   This replaces the later optional-comparison sentence; it adds 248 canonical skill bytes.
 
-`[verified]` The entrypoint shrinks from 21,707 bytes at `ae7252d7` to 20,038 bytes (1,669 bytes,
-7.7%). This is an invoked-core reduction, not a reduction of the whole bundle or measured latency.
+`[verified]` The entrypoint shrinks from 21,707 bytes at `ae7252d7` to 20,110 bytes (1,597 bytes,
+7.4%). This is an invoked-core reduction, not a reduction of the whole bundle or measured latency.
 The complete canonical bundle grows because the repair retains conditional details and adds
 complete examples. Exact totals and the evaluator's added test/code lines are reviewed in
 `scripts/weights.json`; Gate A's structural roster is unchanged.
@@ -509,8 +509,8 @@ old oracle and on all three scenarios' missing Read access. The corrected oracle
 the full local suite passes 634 tests and
 1,023 subtests, with four local-environment skips. Gate A passes 4/4 and scenario validation
 passes 73 specifications / 343 expectations. Terra's independent static review found no actionable
-defects. Including the five-question follow-up, canonical skill content grows by 2,847 bytes and
-evaluator Python by 201 lines.
+defects. Including the five-question and evidence-label follow-ups, canonical skill content grows
+by 2,919 bytes and evaluator Python by 201 lines.
 Historical presence scores above used the old
 oracle and are not reclassified as completeness scores. No build scenario previously bound this
 oracle; the existing runner's reference-read assertions are reused without a new mechanism.
@@ -524,6 +524,42 @@ against a fresh model.
 Preflight found 141 calibration cases and zero reusable exact cache keys on this host; a full
 calibration would make fresh model calls. The source repairs and size reduction do not establish
 checkpoint reliability, reference-loading behavior, or answer-quality parity.
+
+### Terra source-input follow-up — 2026-09-09
+
+The owner approved correcting the exploratory Terra eval, verifying supplied instructions, and
+changing the skill only for a demonstrated ambiguity or repeated failure. The earlier private
+subagent run lacked complete source-read traces, overreached on a second handover's checkpoint
+expectation, and omitted shared factual-integrity criteria. Its scores are not comparable with
+this corrected run. The mitigation approval was supplied; only capture availability was invented
+in that earlier response, not Morgan's decision to mitigate.
+
+`[verified]` The rerun used Codex CLI 0.153.4 with `gpt-5.6-terra`, medium reasoning, recorded stdin
+containing the complete skill and its bundled references (five source files), and persistent session IDs for the two
+follow-up conversations. There were seven response turns in five sessions per arm, one trial per
+case, and no automatic retries. CLI rollouts bind the model/configuration and source-bearing input;
+the comparison normalizes only CRLF/LF. Personal host AGENTS instructions remained present and
+were recorded, so this is matched prompt behavior, not a clean-room plugin-discovery result.
+Private inputs, criteria, responses, traces, hashes, and grading are retained under
+`.eval-runs/terra-pr248-v2-20260909/`.
+
+The baseline is the `7c5abe1c` skill, SHA-256
+`332162573b15cd4de69d5325d39c4519301c3b9f1730053d6cbc9ca6c1d55be5`.
+Its first response still omitted user-side reproduction as an unanswered question. The new skill,
+SHA-256 `c48c57f945c182c6c0dca52a41e51245ca7466eb753b0fe01b43e0e5360c9693`,
+changes only the opening review to summarize supplied answers/name unanswered questions and the
+existing handover example to separate a sourced attempt report from its unverified outcome.
+Together these add 72 canonical bytes over `7c5abe1c`; the candidate response explicitly retained
+user-side reproduction as unknown. Neither arm invented unavailable capture, but the candidate's
+connection-wait explanation inferred a database destination; the baseline correctly left it open.
+The candidate passed four of six cases versus two of six for the baseline, with mixed per-case
+deltas. These are observations from one paired sample, not reliability rates or causal proof.
+
+`[unverified]` Behavioral acceptance remains open: both arms still used closing fields after the
+new-evidence case materially changed investigation direction, and the candidate's unsupported
+database-destination claim remains a factual failure. Exact source inclusion does not
+establish installed skill discovery, selective reference retrieval, or Claude-native behavior.
+No further skill expansion or repeat-until-green campaign followed this comparison.
 
 ## Not established
 
