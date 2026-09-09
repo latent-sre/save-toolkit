@@ -5,6 +5,8 @@
 Installs, agent flags and app launches belong to `software-engineer` or the human build/deploy owner.
 The guard denies installs/app execution for `sre-assistant`; unguarded Bash does not give
 `observability-engineer` ownership of service builds.
+Respect `stack-profile`'s authoring/support boundary: Java source, manual-span and dependency
+changes belong to the application's development owner; this fleet supports its deployed instrumentation.
 
 Commands are `[sourced]` to opentelemetry.io docs (indirect retrieval, 2026-08-07); exact-target behavior
 remains `[unverified]` until a canary proves it.
@@ -32,7 +34,7 @@ instrumentation uses the full method.
    Standard env config either way: `OTEL_SERVICE_NAME`, `OTEL_EXPORTER_OTLP_ENDPOINT`
    (gRPC 4317 / HTTP 4318), `OTEL_EXPORTER_OTLP_PROTOCOL`.
 
-   **Spring Boot: agent or starter — pick one, and the default is the agent.** The
+   **Supporting Spring Boot: identify whether the app uses the agent or the starter.** The
    `-javaagent` path instruments bytecode at startup with no code change and the widest library
    coverage. The **starter** (`io.opentelemetry.instrumentation:opentelemetry-spring-boot-starter`,
    versions via the `opentelemetry-instrumentation-bom`) is library-mode auto-configuration; the
@@ -43,8 +45,8 @@ instrumentation uses the full method.
    `application.yml` (including declarative YAML) rather than env vars. It supports Spring Boot
    2.6+ and 3.1+ per the docs, and upstream carries a Spring Boot 4 test suite; this guidance was
    reviewed against 2.31.1 on 2026-08-24. The two are alternatives — do not load both. On PCF the
-   Java buildpack can inject the agent for you, so check what the buildpack already does before
-   adding the starter.
+   Java buildpack can inject the agent, so check the buildpack configuration when investigating
+   duplicate instrumentation; refer dependency changes to the application's development owner.
    *[sourced: opentelemetry.io zero-code Java Spring Boot starter pages;
    opentelemetry-java-instrumentation repo]* Which path the team's services
    use today is `[unverified]` — read the build file and the buildpack config.

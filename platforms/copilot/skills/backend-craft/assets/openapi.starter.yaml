@@ -4,6 +4,8 @@
 # rate-limit response with Retry-After, and split liveness/readiness endpoints.
 # Validate/lint in CI (e.g. `redocly lint` or `spectral lint`) and generate the typed
 # client for the UI consumer contract from this file.
+# Example bounds: limit 1-200, title 1-200 characters, cursor 1-2048, key 1-255.
+# Adapt these with runtime validation and ingress/body byte limits; a schema is not enforcement.
 openapi: 3.1.0
 info:
   title: On-call Tool API
@@ -29,8 +31,8 @@ paths:
     get:
       summary: List incidents (cursor-paginated).
       parameters:
-        - { name: cursor, in: query, schema: { type: string }, description: Opaque cursor from next_cursor. }
-        - { name: limit, in: query, schema: { type: integer, default: 50, maximum: 200 } }
+        - { name: cursor, in: query, schema: { type: string, minLength: 1, maxLength: 2048 }, description: Opaque cursor from next_cursor; omit on the first page. }
+        - { name: limit, in: query, schema: { type: integer, default: 50, minimum: 1, maximum: 200 } }
         - { name: status, in: query, schema: { type: string, enum: [open, closed] }, description: Allowlisted filter. }
       responses:
         "200":
@@ -44,7 +46,7 @@ paths:
     post:
       summary: Create an incident (idempotent via Idempotency-Key).
       parameters:
-        - { name: Idempotency-Key, in: header, required: true, schema: { type: string } }
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 1, maxLength: 255 } }
       requestBody:
         required: true
         content:
@@ -100,16 +102,16 @@ components:
       properties:
         id: { type: string }
         status: { type: string, enum: [open, closed] }
-        title: { type: string }
+        title: { type: string, minLength: 1, maxLength: 200 }
       required: [id, status, title]
     IncidentCreate:
       type: object
-      properties: { title: { type: string, minLength: 1 } }
+      properties: { title: { type: string, minLength: 1, maxLength: 200 } }
       required: [title]
       additionalProperties: false   # reject unknown fields.
     IncidentPage:
       type: object
       properties:
         data: { type: array, items: { $ref: "#/components/schemas/Incident" } }
-        next_cursor: { type: [string, "null"], description: "Pass back as ?cursor= for the next page." }
+        next_cursor: { type: [string, "null"], minLength: 1, maxLength: 2048, description: "Pass back as ?cursor= for the next page." }
       required: [data, next_cursor]

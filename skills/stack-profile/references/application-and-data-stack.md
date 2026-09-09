@@ -7,9 +7,14 @@ known.
 
 ## Languages and CI
 
-Services are built in **Java/JVM, Python, JavaScript/TypeScript, and Go**. Bash and PowerShell are
+Services in the stack use **Java/JVM, Python, JavaScript/TypeScript, and Go**. Bash and PowerShell are
 glue and automation, not service languages. GitHub + GitHub Actions; Bamboo is legacy.
 *[sourced: operator statement 2026-08-21]*
+
+**Java/JVM is support-only:** the team operates and troubleshoots Java/Spring Boot services; it
+does not write Java code. Use the operational skills for runtime issues and return source changes
+to the application's development owner. The service inventory is not an authoring-language list.
+*[sourced: operator clarification 2026-09-09]*
 
 **CI jobs authenticate from GitHub environment secrets**, not GitHub OIDC. This settles the hedge
 the `ci-actions` skill carries: do not design around a GitHub-OIDC→CredHub exchange — CredHub
@@ -23,7 +28,6 @@ defaults until the owner records a decision here.
 | Language | Format and lint | Types and analysis | Tests | Environment or runtime |
 |---|---|---|---|---|
 | Python | `ruff` for both lint and format, with the `B` (bugbear) rules selected | `mypy` or `pyright`; prefer `dataclasses`/`pydantic` to loose dicts | `pytest` with `parametrize`, fixtures, `tmp_path`, `monkeypatch`, and an injected clock | `uv` (`poetry` is fine for a published library); never `pip install` into system Python |
-| Java | Spotless driving google-java-format or palantir-java-format, enforced in CI | Error Prone + NullAway with `-Xlint:all` as errors; `@NullMarked` packages (JSpecify); package by feature, not by layer | JUnit Jupiter + AssertJ, `@ParameterizedTest` for tables; Mockito only for collaborators you don't own | Wrapper checked in (`./mvnw` / `./gradlew`), versions from the Spring Boot BOM; read `maven.compiler.release` or the Gradle toolchain, not `java` on `PATH` |
 | TypeScript/JavaScript | ESLint with `@typescript-eslint/no-floating-promises` and `no-misused-promises` | `strict` on, no `any`, `unknown` narrowed at the boundary; branded IDs and exhaustively switched discriminated unions | Vitest or Jest; React Testing Library for React, Vue Test Utils for Vue; MSW at the network boundary; Playwright for the few critical journeys | The repository's package manager and its `tsconfig` target |
 | Go | `gofmt`/`goimports` enforced in CI | `go vet`, and `golangci-lint` on the baseline `staticcheck`, `govet`, `errcheck`, `ineffassign`, `unused` | Table-driven `t.Run` subtests; `go test -race` targeted at concurrent code | `go.mod`'s `go` directive gates semantics; Semantic Import Versioning (`/v2`) |
 | Bash | `shellcheck` clean, or a justified `# shellcheck disable=` carrying a reason | The four-line header: `#!/usr/bin/env bash`, `set -Eeuo pipefail`, and the bare `shopt -s inherit_errexit` — the 5.1 floor stated above allows it, so no `\|\| true` guard | `bats`: exit codes, stdout/stderr, idempotency | Bash 5.1 floor (see Hosts and runners) |
@@ -31,8 +35,8 @@ defaults until the owner records a decision here.
 
 ## Frameworks
 
-- **Backend:** **Spring Boot** on the JVM (matching the `java_buildpack_offline` in the PCF manifest
-  example); **FastAPI** on Python.
+- **Backend:** **Spring Boot** on supported JVM services (matching the `java_buildpack_offline` in
+  the PCF manifest example); **FastAPI** for Python backend code.
 - **Frontend:** **both React and Vue** are in use; `frontend-craft` preserves the repository's
   framework.
 

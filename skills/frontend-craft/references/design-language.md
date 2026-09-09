@@ -6,12 +6,11 @@ invariants (theme tokens, no-flash theme, status never by color alone, designed 
 live in `../SKILL.md`; this file owns the *choices* those rules leave open.
 
 Before styling, record a small design plan: audience, workflow density, page/surface/accent/status
-tokens, type choices, and one signature element tied to this product. Every visual choice should be
+tokens, type choices, and visual choices tied to this product. Every visual choice should be
 traceable to that plan; if the same plan could describe any dashboard, it is not specific enough.
 
-The bar: organized and uncluttered is the floor, not the ceiling. Aim to sit at home next to Linear
-or Vercel's dashboard with the color courage turned up — never mistakable for an unstyled admin
-template.
+The bar is a polished, recognizable product: clear hierarchy, intentional typography, and a visual
+character suited to its audience. Decoration should earn its place in the workflow.
 
 ## App shell and composition
 
@@ -30,20 +29,19 @@ template.
   through the same tokens, with a manual light/dark/system toggle, persisted and defaulting to the
   OS setting. Deep page background, cards a step lighter, raised elements a step lighter again;
   depth from layering plus low-alpha borders and soft shadows, not heavy lines.
-- **One vivid accent**, used with gradient touches on primary actions and active states, and one
-  hero moment per view. Status colors saturated enough to glow against dark surfaces, each still
-  paired with its dot and text.
-- **Categorical KPI accents**: a row of distinct metrics or stat cards gets its own accent hue per
-  card (e.g. purple / teal / amber / cyan), icon and number tinted to match, one card elevated above
-  the rest. Keep the set to ~4–5 hues drawn from the theme tokens.
-- **Depth cues, spent sparingly**: rounded-xl cards, soft elevation shadows, hover lift (small
-  translate + shadow), accent-colored focus rings.
+- **Accent with purpose**: use a clear accent for primary actions and active states. Gradients or a
+  hero treatment are optional when they help communicate the product. Status stays distinct and
+  paired with text or an icon.
+- **Categorical KPI accents**, when they help distinguish metric groups: draw a small set of hues
+  from theme tokens, keep categories distinct from status, and emphasize metrics by importance.
+- **Depth cues, spent sparingly**: use borders, elevation, or grouping when they clarify structure;
+  decorative cards and hover lifts are optional. Keep focus rings visible.
 
 ## Motion
 
-One orchestrated motion moment per view — hover lifts, pressed states, animated number changes on
-live stats, staggered list entrances (30–50 ms steps), smooth expand/collapse. Transitions 150–250
-ms, ease-out, animating `opacity` and `transform` only; respect `prefers-reduced-motion`.
+Use motion when it clarifies feedback, continuity, or a state change. A view needs no decorative
+animation. Keep transitions brief (150–250 ms), prefer `opacity` and `transform`, and respect
+`prefers-reduced-motion`.
 
 ## Self-critique as you build
 
@@ -51,7 +49,7 @@ Screenshot what you made and look at it: would a stranger read it as a templated
 Generated UIs cluster around a few stock looks (cream page + serif display + terracotta accent;
 near-black + one acid accent; hairline-rule broadsheet) and stock component tells (uniform
 rounded-2xl, purple-to-indigo gradients as the default aesthetic, a shadow on every surface) — a
-look you fell into is not a decision you made; change one real thing. Spend your boldness in one
-place: one deliberate risk you can justify, everything around it quiet. Bespoke work sources its
-distinctive choices from the subject's own world — its materials, instruments, vernacular — never a
-house style carried from the last project.
+look you fell into is not a decision you made; revisit choices that do not serve this product.
+Spend any boldness in one place you can justify, with everything around it quiet. Bespoke work sources
+its distinctive choices from the subject's own world — its materials, instruments, vernacular — never
+a house style carried from the last project.

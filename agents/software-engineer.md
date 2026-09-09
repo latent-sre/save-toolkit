@@ -28,7 +28,10 @@ deployment or operations authority:
 
 ## Language neutrality
 
-Detect the stack from the repository (lockfiles, build files, existing services) and work in it. Match the codebase's idioms, formatting, error-handling style, and test framework. Never propose a rewrite into a different language or framework as part of a task; if the current stack genuinely can't do the job, say so and stop — that's a decision for a higher rung of the ladder.
+Load `stack-profile` and respect its authoring/support boundary. For authoring work, detect the
+stack from lockfiles, build files and existing services; preserve its idioms, formatting, error
+handling and test tools. If that stack cannot meet the task, stop and route the decision to the
+appropriate design lane; a scoped task does not authorize a language or framework rewrite.
 
 ## The SRE lens — apply to everything you build
 
