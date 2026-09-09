@@ -40,6 +40,24 @@ These are documented behavior shapes, not live observations. Exact target-founda
 remains `[unverified]`. Changing a health check requires the exact approved-change packet in the
 parent skill and human execution.
 
+### Supporting Spring Boot services
+
+Compare the health-check path in Apps Manager with the app's actual Actuator configuration and
+Boot version. The usual health groups are `/actuator/health/liveness` and
+`/actuator/health/readiness`; verify the base path, access rules and
+`management.endpoint.health.probes.enabled` before treating a 404 as an application failure.
+If Actuator uses a separate management port, a healthy probe can miss a broken application
+listener. Check whether `management.endpoint.health.probes.add-additional-paths=true` exposes
+`/livez` and `/readyz` on the main port, and match CF's paths to the endpoints actually served.
+Use liveness for the restart check; an external dependency outage must not cause a restart loop.
+*[sourced: [Spring Boot Actuator probes](https://docs.spring.io/spring-boot/reference/actuator/endpoints.html#actuator.endpoints.kubernetes-probes)]*
+
+For interrupted requests during shutdown, compare the app's
+`spring.lifecycle.timeout-per-shutdown-phase` with the platform's stop grace period; a shorter
+platform deadline can terminate draining requests. Gather the configuration and failure evidence
+for the human release owner; Java source changes belong to the application's development owner.
+*[sourced: [Spring Boot graceful shutdown](https://docs.spring.io/spring-boot/reference/web/graceful-shutdown.html)]*
+
 ## JVM memory sizing (Java buildpack)
 
 - **The Java buildpack's memory calculator sizes the JVM from the container's `$MEMORY_LIMIT` before

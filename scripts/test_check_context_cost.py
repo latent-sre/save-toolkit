@@ -35,6 +35,62 @@ class BudgetBreachTests(unittest.TestCase):
         self.assertIn("Noisy alert", rendered)
 
 
+class CraftPathTests(unittest.TestCase):
+    def test_craft_profiles_include_their_required_context(self) -> None:
+        common = {
+            "agents/software-engineer.md",
+            "skills/stack-profile/SKILL.md",
+            "skills/stack-profile/references/application-and-data-stack.md",
+        }
+        expected = {
+            "FastAPI upstream change": {
+                "skills/backend-craft/SKILL.md",
+                "skills/backend-craft/references/fastapi.md",
+                "skills/backend-craft/references/consuming-apis.md",
+            },
+            "Existing UI change": {"skills/frontend-craft/SKILL.md"},
+            "Greenfield UI": {
+                "skills/frontend-craft/SKILL.md",
+                "skills/frontend-craft/references/stack.md",
+                "skills/frontend-craft/references/design-language.md",
+            },
+        }
+        for task, required in expected.items():
+            with self.subTest(task=task):
+                paths = check_context_cost.TASK_FILES.get(task, [])
+                self.assertTrue(common | required <= set(paths), "required task context omitted")
+                self.assertNotIn("skills/production-change-gate/SKILL.md", paths)
+                self.assertEqual(len(paths), len(set(paths)), "shared files counted twice")
+                self.assertIn(task, check_context_cost.TASK_BUDGETS)
+
+    def test_release_preparation_adds_context_to_the_same_code_task(self) -> None:
+        code = set(check_context_cost.TASK_FILES.get("FastAPI upstream change", []))
+        release = set(check_context_cost.TASK_FILES.get("Prepare FastAPI release", []))
+        self.assertTrue(code, "missing implementation profile")
+        self.assertEqual(release - code, {
+            "skills/production-change-gate/SKILL.md",
+            "skills/production-change-gate/references/release-readiness.md",
+            "skills/production-change-gate/references/release-artifact-evidence.md",
+        })
+        self.assertTrue(code <= release)
+
+    def test_framework_reference_growth_can_fail_its_task(self) -> None:
+        task = "FastAPI upstream change"
+        original = check_context_cost.task_bytes
+
+        def inflated_reference(paths):
+            return original(paths) + (
+                100_000 if "skills/backend-craft/references/fastapi.md" in paths else 0
+            )
+
+        out = io.StringIO()
+        with mock.patch.object(check_context_cost, "task_bytes", inflated_reference):
+            with contextlib.redirect_stdout(out):
+                code = check_context_cost.main([])
+        self.assertEqual(1, code)
+        self.assertIn(task, out.getvalue())
+
+
 class MissingPathTests(unittest.TestCase):
     def test_a_missing_file_is_reported_by_path(self) -> None:
         out, err = io.StringIO(), io.StringIO()

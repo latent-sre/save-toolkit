@@ -7,36 +7,25 @@ The universal frontend rules live in `../SKILL.md`. On any conflict, SKILL.md wi
 
 ## Stack
 
-An existing repo's stack always wins — match it. Greenfield is always a **React + TypeScript SPA on Vite**. Keep two layers cleanly separated — enterprise-grade logic, custom-painted SPA:
+An existing repo's stack always wins — match it. Greenfield uses a **React + TypeScript SPA on Vite**.
+Add the dependencies below when the feature needs their capabilities. Keep UI behavior separate
+from styling, with one reset and one token system.
 
-**Paint — one Tailwind reset, one token system:**
-- **Tailwind** for all styling.
-- **shadcn/ui pattern on Radix (or Base UI) primitives** — headless, accessible components you style yourself; this owns the calibrated look. Base UI is the newer foundation, either is fine.
-- **lucide-react** icons; **Framer Motion** only when CSS transitions aren't enough (CSS is right for hovers, fades, modals).
+**Paint — one reset, one token system:**
+- **Tailwind** when a utility styling layer is needed.
+- **shadcn/ui pattern on Radix (or Base UI) primitives** for interactive widgets needing accessible behavior you style yourself; use semantic HTML for simpler controls.
+- **lucide-react** when icons help the workflow; **Framer Motion** only when CSS transitions aren't enough (CSS is right for hovers, fades, modals).
 - Optional, same Tailwind world: **HeroUI v3** as a styled layer only when it can share the existing reset and token system; **Aceternity / Magic UI** as a sparing garnish for hero / login / empty-state moments — named in the review packet.
 
 **Logic — zero CSS, decoupled from the paint:**
-- **TanStack Query** (server state), **TanStack Router** (typed routes, nested layouts under the app shell, route-based code splitting so each view lazy-loads, URL search-param state), **TanStack Table** (headless data grids) — one type-safe, zero-CSS suite that *is* the logic layer, painted with Tailwind.
-- **@mantine/hooks** for utility logic (disclosure, debounce, local storage, hotkeys, click-outside, media query, element size); optionally **@mantine/form** for form state. Both ship no CSS and need no provider.
+- **TanStack Query** when managing server state; **TanStack Router** when the app needs routes (typed routes, nested layouts, route-based code splitting, URL search-param state); **TanStack Table** when it needs data-grid behavior. Add only the parts in use.
+- **@mantine/hooks** when shared utility logic is needed (disclosure, debounce, local storage, hotkeys, click-outside, media query, element size); **@mantine/form** when form state needs a library. Both ship no CSS and need no provider.
 - Accessible *widget* behavior (focus trap, ARIA, roving tabindex) comes from **Radix / Base UI**, not from Mantine hooks.
 
 The Mantine rule lives in `../SKILL.md`'s decisions table.
 
-For a greenfield SPA, use this stack no matter how small. Existing repositories keep their established stack as required above. If the user explicitly asks for plain HTML or a static page, comply; that call is theirs. Any greenfield deviation from this default gets one line in the review packet.
-
-## TypeScript rules
-
-Universal to any TypeScript or JavaScript in the UI, whichever framework the view uses:
-
-- Keep **`strict`** enabled. Avoid `any`; narrow `unknown` at the boundary with a schema or type
-  guard.
-- Enable **`no-floating-promises`**: every promise is awaited, returned, or deliberately observed
-  with a rejection handler.
-- **Branded identifiers** where two domain IDs share a primitive type, and **discriminated unions**
-  switched exhaustively with a `never` check.
-- **Vitest or Jest + the repository's component-testing library**, **MSW** at the network boundary,
-  and **Playwright** for the few critical user journeys. Framework defaults live in `stack-profile`'s
-  application-and-data reference.
+If the user explicitly asks for plain HTML or a static page, comply. Record a different greenfield
+framework choice in the review packet; omitting an unused optional dependency needs no exception.
 
 ## Build & serve on PCF
 

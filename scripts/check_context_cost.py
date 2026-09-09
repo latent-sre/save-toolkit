@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""G6 -- the context-cost gate: bound the bytes a session loads for canonical tasks.
+"""G6 -- bound canonical instruction-file bytes for representative task paths.
 
-For each canonical task, sums the bytes of the files a session would load and compares the sum
-against a budget. Also sums every agent/skill `description:` field, which is always loaded
-regardless of task (it is what routes a request to a lane in the first place).
+Each profile names its conditional references as well as entrypoints. These are instruction-file
+budgets, not full runtime context: host/caller instructions, project source and tool output are
+excluded, and tokens are only a bytes/4 estimate. Other task predicates can load further references.
+Always-loaded agent/skill descriptions have a separate budget.
 """
 
 from __future__ import annotations
@@ -22,6 +23,17 @@ ROOT = Path(__file__).resolve().parents[1]
 # Byte budgets per canonical task, set to measured usage plus 5% and rounded up to the next 1,000.
 # Raising one is a reviewed decision made in the same diff that earns it, not a side effect of an
 # unrelated change.
+_ENGINEERING_CONTEXT = [
+    "agents/software-engineer.md",
+    "skills/stack-profile/SKILL.md",
+    "skills/stack-profile/references/application-and-data-stack.md",
+]
+_FASTAPI_UPSTREAM = [
+    *_ENGINEERING_CONTEXT,
+    "skills/backend-craft/SKILL.md",
+    "skills/backend-craft/references/fastapi.md",
+    "skills/backend-craft/references/consuming-apis.md",
+]
 TASK_FILES: dict[str, list[str]] = {
     "PCF incident, human path": [
         "skills/incident-investigation/SKILL.md",
@@ -68,11 +80,25 @@ TASK_FILES: dict[str, list[str]] = {
         "skills/obs-pipeline/SKILL.md",
         "skills/runbook/SKILL.md",
     ],
-    "Build a backend change": [
-        "agents/software-engineer.md",
-        "skills/backend-craft/SKILL.md",
-        "skills/stack-profile/references/application-and-data-stack.md",
+    # Existing HTTP read-path changes with an upstream call and stack/toolchain inspection.
+    # No new schema, retryable write, migration, telemetry or CI change is implied by these profiles.
+    "FastAPI upstream change": [*_FASTAPI_UPSTREAM],
+    "Existing UI change": [
+        *_ENGINEERING_CONTEXT,
+        "skills/frontend-craft/SKILL.md",
+    ],
+    "Greenfield UI": [
+        *_ENGINEERING_CONTEXT,
+        "skills/frontend-craft/SKILL.md",
+        "skills/frontend-craft/references/stack.md",
+        "skills/frontend-craft/references/design-language.md",
+    ],
+    # The same FastAPI task followed by release-readiness/artifact review, not live authorization.
+    "Prepare FastAPI release": [
+        *_FASTAPI_UPSTREAM,
         "skills/production-change-gate/SKILL.md",
+        "skills/production-change-gate/references/release-readiness.md",
+        "skills/production-change-gate/references/release-artifact-evidence.md",
     ],
 }
 TASK_BUDGETS: dict[str, int] = {
@@ -81,7 +107,10 @@ TASK_BUDGETS: dict[str, int] = {
     "Noisy alert": 44_000,
     "Write a runbook": 41_000,
     "Audit a service": 39_000,
-    "Build a backend change": 45_000,
+    "FastAPI upstream change": 54_000,
+    "Existing UI change": 47_000,
+    "Greenfield UI": 53_000,
+    "Prepare FastAPI release": 66_000,
 }
 DESCRIPTION_TASK = "Always-loaded descriptions"
 DESCRIPTION_BUDGET = 17_000
