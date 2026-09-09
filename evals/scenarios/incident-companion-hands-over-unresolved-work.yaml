@@ -1,7 +1,9 @@
 id: incident-companion-hands-over-unresolved-work
 split: regression
 skill: incident-investigation
-tools: [Skill]
+tools: [Skill, Read]
+references:
+  - skills/incident-investigation/references/pcf-rollback-readback.md
 prompt: |
   Sam is taking over from me on ledger/PCF INC-52. Morgan is still incident commander and
   Riley is the release owner. Can you get Sam up to speed and tell them what to pick up next?

@@ -8,6 +8,7 @@ empty promise.
 from __future__ import annotations
 
 import importlib.util
+import re
 from pathlib import Path
 
 import pytest
@@ -37,6 +38,7 @@ CHECKPOINT_COLON = """Handing over.
 - **Assessment:** downstream latency versus consumer backlog
 - **Checked:** queue depth 1,800 at 15:45 [sourced]
 - **Actions:** scale 2 to 4 at 15:12, confirmed applied
+- **Next:** Lee checks database p95 for the incident window
 - **Follow-ups:** reconcile the 15:30 attempt with Omar
 """
 
@@ -51,6 +53,9 @@ Queue depth 1,800 at 15:45 [sourced: Wavefront].
 
 ### Actions
 Scale 2 to 4 at 15:12 by Omar, confirmed applied.
+
+### Next
+Lee checks database p95 for the incident window.
 
 ### Follow-ups
 Owner Dana: reconcile the 15:30 retry-flag attempt.
@@ -104,6 +109,89 @@ def test_alternation_accepts_either_allowed_shape(oracle):
 def test_unknown_expected_class_is_refused(oracle):
     ok, reason = oracle.check(CLOSING, "nonsense")
     assert not ok and "unknown expected class" in reason
+
+
+@pytest.mark.parametrize(
+    "text,expected",
+    [
+        ("Open the console.\nNext, inspect the request.", "fields"),
+        ("Applied: none\nNext: inspect the request", "fields"),
+        ("### Assessment\n\n### Checked\n", "checkpoint"),
+        ("Assessment: latency\nChecked: queue depth", "checkpoint"),
+        (CLOSING + "\n## Actual answer\nInspect the request.", "fields"),
+        (CLOSING + "\nInspect the request.", "fields"),
+        ("> " + CLOSING.replace("\n", "\n> "), "fields"),
+        ("```text\n" + CLOSING + "```\n\nInspect the request.", "fields"),
+        ("Example:\n```text\n" + CLOSING + "```\n", "fields"),
+        ("### Sample response\n```text\n" + CLOSING + "```\n", "fields"),
+        ("Applied: none\nOpen: unknown\n### Next — the next useful check", "fields"),
+    ],
+)
+def test_rejects_incomplete_or_nonclosing_blocks(oracle, text, expected):
+    assert not oracle.check(text, expected)[0]
+
+
+def test_presence_is_not_completeness(oracle):
+    text = "Assessment: latency\nChecked: queue depth"
+    assert oracle.classify(text) == "checkpoint"
+    assert not oracle.check(text, "checkpoint-or-both")[0]
+    assert oracle.classify("Open the console.\nNext, inspect the request.") == "none"
+
+
+@pytest.mark.parametrize("expected,names", [
+    ("fields", ("Applied", "Open", "Next")),
+    ("checkpoint", ("Assessment", "Checked", "Actions", "Next", "Follow-ups")),
+])
+def test_every_required_field_needs_a_value(oracle, expected, names):
+    complete = "\n".join(f"{name}: unknown" for name in names)
+    assert oracle.check(complete, expected)[0]
+    for name in names:
+        for replacement in ("", f"{name}:", f"{name}: **—**"):
+            incomplete = complete.replace(f"{name}: unknown", replacement)
+            assert not oracle.check(incomplete, expected)[0], (name, replacement)
+
+
+@pytest.mark.parametrize("text", [
+    "Applied: none\nOpen: unknown\nNext: inspect the request",
+    "### Applied\nnone\n\n### Open\nunknown\n\n### Next\ninspect the request",
+    "~~~markdown\n### Applied ###\nnone\n### Open ###\nunknown\n### Next ###\ninspect the request\n~~~",
+    "### Applied — changes made\nnone\n### Open — unresolved candidates\nunknown\n### Next — the next useful check\ninspect the request",
+    "1. **Applied:** none\n2. **Open:** unknown\n3. **Next:** inspect the request",
+    "| Field | Value |\n| --- | --- |\n| Applied | none |\n| Open | unknown |\n| Next | inspect the request |",
+    "```text\nApplied: none\nOpen: unknown\nNext: inspect the request\n```",
+])
+def test_complete_blocks_keep_supported_markdown_formats(oracle, text):
+    assert oracle.check(text, "fields")[0]
+
+
+@pytest.mark.parametrize("text", [
+    "Based on this sample, inspect the pool.\n\n" + CLOSING.split("\n\n", 1)[1],
+    "Use the supplied sample to compare.\n\n```text\n" + CLOSING + "```",
+])
+def test_narrative_sample_mentions_do_not_exclude_actual_closure(oracle, text):
+    assert oracle.check(text, "fields")[0]
+
+
+def test_both_requires_both_complete_forms(oracle):
+    both = CLOSING + CHECKPOINT_COLON.split("\n\n", 1)[1]
+    assert oracle.check(both, "both")[0]
+    assert oracle.check(both, "fields-or-both")[0]
+    assert not oracle.check(both.replace("Open:", "Missing:"), "both")[0]
+
+
+def test_shipped_helper_replies_are_complete(oracle):
+    reference = ROOT / "skills/incident-investigation/references/helper-exchange.md"
+    replies = re.findall(r"```text\n(.*?)\n```", reference.read_text(encoding="utf-8"), re.S)
+    assert len(replies) == 2
+    for reply in replies:
+        assert oracle.check(reply, "fields")[0]
+
+
+def test_shipped_handover_reply_is_complete(oracle):
+    text = SKILL.read_text(encoding="utf-8").split("Handover example:", 1)[1]
+    reply = re.search(r"```text\n(.*?)\n```", text, re.S)
+    assert reply is not None
+    assert oracle.check(reply[1], "checkpoint")[0]
 
 
 # --- the skill still carries the contract the oracle grades -------------------------------------

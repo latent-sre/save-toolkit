@@ -1,7 +1,9 @@
 id: incident-companion-explains-pool-wait
 split: regression
 skill: incident-investigation
-tools: [Skill]
+tools: [Skill, Read]
+references:
+  - skills/incident-investigation/references/symptom-investigation.md
 prompt: |
   We're looking at ledger on PCF during INC-52. I'm new to this service. Apps Manager shows
   latency rising from 09:40 UTC and errors starting at 09:44, after a deploy at 09:38. A pasted

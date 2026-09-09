@@ -471,15 +471,57 @@ prove model compliance. `[unverified]` No live model batch was rerun for this fo
 historical 3/6 and 5/6 handover results above remain tied to their original revisions. This edit
 does not establish recovery of checkpoint presence or answer-quality parity.
 
+### Approved incident-skill repairs — 2026-09-09
+
+The owner approved the five audit fixes and four optimization opportunities against `c8efc93b`.
+The candidate extends [PR #248](https://github.com/latent-sre/save-toolkit/pull/248):
+
+- The handover rubric and calibration now use the new higher rollback revision, deployment
+  completion, and attempt reconciliation. Added negative examples reject target-number equality,
+  partial deployment, and invented attempt timing.
+- The closing-fields oracle keeps `classify()` as rough presence and makes `check()` require a
+  complete terminal block with nonempty values. Ordinary prose, incomplete/empty fields, quoted
+  examples, and blocks preceding a separate answer are regression cases. This remains a structural
+  check; it cannot establish truth, useful reasoning, or semantic completeness of free-form prose.
+- Generic interrupted-action reconciliation stays in the core; the PCF-specific readback and
+  worked helper exchange move to linked references. The shipped helper and handover examples
+  now carry their required closing fields and are exercised by the oracle tests.
+- The three companion contract scenarios grant only `Skill,Read` and assert their relevant
+  reference reads. Their regression rejects absent or denied reads and accepts successful reads.
+- Navigation follows the confirmed PCF/GCP runtime. Closing fields summarize the supporting
+  explanation; supplied names are preserved, known roles can remain pending, and missing owners
+  stay unowned. These are the owner's selected compactness and ownership policies, not a claim
+  that model output already meets them.
+
+`[verified]` The entrypoint shrinks from 21,707 bytes at `ae7252d7` to 19,790 bytes (1,917 bytes,
+8.8%). This is an invoked-core reduction, not a reduction of the whole bundle or measured latency.
+The complete canonical bundle grows because the repair retains conditional details and adds
+complete examples. Exact totals and the evaluator's added test/code lines are reviewed in
+`scripts/weights.json`; Gate A's structural roster is unchanged.
+
+`[verified]` Red-first regressions failed on the old oracle and on all three scenarios' missing
+Read access. The corrected oracle passes 41 cases; the full local suite passes 634 tests and
+1,023 subtests, with four local-environment skips. Gate A passes 4/4 and scenario validation
+passes 73 specifications / 343 expectations. Terra's independent static review found no actionable
+defects. Canonical skill content grows by 2,599 bytes and evaluator Python by 201 lines.
+Historical presence scores above used the old
+oracle and are not reclassified as completeness scores. No build scenario previously bound this
+oracle; the existing runner's reference-read assertions are reused without a new mechanism.
+
+`[unverified]` Fresh judge calibration and paired native model behavior remain separate checks.
+Preflight found 141 calibration cases and zero reusable exact cache keys on this host; a full
+calibration would make fresh model calls. The source repairs and size reduction do not establish
+checkpoint reliability, reference-loading behavior, or answer-quality parity.
+
 ## Not established
 
 - The judged gap left by the exhausted credits is now partly closed: iteration 13 (the merged bytes)
   and iteration 9 (the boundary fix) are graded above. Still ungraded are the rename arm (iteration
   12, 9 of 36 cells before the batch was stopped) and the seam arm (iteration 11), so the rename's
   effect on answer *quality*, as opposed to the presence of the closing fields, is `[unverified]`.
-- Whether the ten-to-twenty-line closing block is a regression or the "about three lines" assertion
-  has fallen behind the shipped contract is undecided, as is whether a team or role satisfies "owner
-  by name". Each needs an owner call and then a fresh measurement.
+- The owner selected concise closing summaries and supplied-name/known-role/unowned handling in
+  the candidate above. Their effect on the historical ten-to-twenty-line output and ownership
+  scores still needs a fresh measurement; the old scores retain their original assertions.
 - The engineering lane has no old-skill arm (its eval sets were written after the edits), so its
   numbers show new skill versus no skill, not the size of the fix.
 - The Spring prompt does not discriminate on Opus (1.00 both arms); it confirms no regression, not gain.

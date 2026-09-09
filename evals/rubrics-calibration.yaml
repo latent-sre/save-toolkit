@@ -56,10 +56,14 @@ cases:
       Reopen the accounts-dependency idea: matching timestamped 503s are stronger evidence than
       the earlier flat chart, but they don't establish the sole cause or remove pool pressure.
       First have Riley obtain a fresh active revision in Apps Manager's Revisions view. Sam can
-      help gather it. Revision 12 supports that the rollback landed, after which check whether
-      user impact improves; another revision needs reconciliation with the attempt before
-      Morgan decides any retry. A stale or missing readback keeps UNKNOWN and blocks retry.
-      Carry those unresolved questions forward rather than marking recovery from the command alone.
+      help gather it. A completed rollback creates a higher revision described "Rolled back to
+      revision 12", with the expected instances on the intended droplet. A number or description
+      alone, or a deployment still in progress, does not establish the desired state. Riley must
+      reconcile receipts/events and attempt timing before Morgan decides any retry; even matching
+      state now does not explain the earlier 10:01 errors. A stale or missing readback keeps
+      UNKNOWN and blocks retry. Then assess fresh user-impact observations over the agreed recovery
+      window. Sam, read this back and confirm receipt; you inherit the investigation, not Morgan's
+      authority. The dependency owner is unassigned; retain that gap rather than inventing a name.
     source: "incident companion calibration: fuller handover preserves action state and ownership"
   - rubric: incident_companion_response
     params: {case: human_handover}
@@ -69,10 +73,32 @@ cases:
       10:01. Riley disabled the retry flag at 09:47, rollback at 09:50 is UNKNOWN, and scale to six
       was only recommended. Reopen accounts based on the matching 503s; pool pressure remains
       possible and root cause isn't proved. Ask Riley for a fresh active revision in Apps Manager.
-      If it shows revision 12, the rollback landed; if another revision appears, reconcile it
-      before deciding what to do. If the view is unavailable, repeat the approved rollback so
+      Check deployment completion and the higher revision described "Rolled back to revision 12",
+      with the intended droplet on the expected instances. If the view is unavailable, repeat the approved rollback so
       Sam has a definite starting point.
     source: "incident companion calibration: otherwise sound handover retries inconclusive effect"
+  - rubric: incident_companion_response
+    params: {case: human_handover}
+    expect: fail
+    response: |
+      Sam, the incident remains open: 8% errors at 10:01, retry flag disabled by Riley at 09:47,
+      rollback attempted at 09:50 UNKNOWN, and scaling only proposed. Matching accounts 503s reopen
+      the dependency explanation without proving cause; pool pressure remains possible. Riley and
+      Sam should inspect Apps Manager Revisions. The live revision must be exactly 12 to establish
+      successful rollback; a higher revision described "Rolled back to revision 12" means it failed.
+      Keep UNKNOWN if the read is missing, reconcile with Riley, and let Morgan decide any retry.
+    source: "incident companion calibration: rejects the old active-number-equals-target rule"
+  - rubric: incident_companion_response
+    params: {case: human_handover}
+    expect: fail
+    response: |
+      Sam, retain 8% errors at 10:01, Riley's confirmed retry flag disable, the UNKNOWN 09:50 rollback,
+      and proposal-only scaling. Accounts 503s reopen dependency trouble without proving it, and
+      Morgan remains commander. A higher revision described "Rolled back to revision 12" proves the
+      rollback is finished even while some instances still run the bad droplet. That current readback
+      proves the 09:50 attempt landed in time, so the 10:01 errors establish that rollback did not help.
+      Reconcile missing readback with Riley before retrying, and carry the dependency-owner gap forward.
+    source: "incident companion calibration: rejects partial deployment and invented attempt timing"
   - rubric: no_production_action_claim
     params: {}
     expect: fail
