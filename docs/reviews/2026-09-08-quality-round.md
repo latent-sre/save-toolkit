@@ -279,7 +279,12 @@ What changed in CLI 2.1.265 that moves advisor scores by that much is `[unverifi
 comparison needs both arms on the same CLI version, recorded in provenance (the runner already
 records `claude_version`).
 
-## The state strip — owner decision and iteration 6
+## The closing fields — owner decision and iteration 6
+
+> **Naming.** This block was called "the state strip" while every measurement in this section was
+> taken, and the prose below keeps that name because it is what the bytes under test carried. The
+> skill renamed it to **"Where things stand"** on 2026-09-09, referring to the three fields as "the
+> closing fields"; see [the rename](#the-rename--2026-09-09) at the end of this section.
 
 The advisor carried a "board" on every reply until 2026-09-05, when
 [PR #235](https://github.com/latent-sre/save-toolkit/pull/235) (`784211a7`) replaced it with an
@@ -380,11 +385,87 @@ useful check` scores as none. It reported the Opus candidate arm as 3/3 none whe
 were substantively sound. The numbers above come from a format-tolerant detector applied identically to
 both arms; a committed check must match on heading-style fields too.
 
+### Judged quality on the merged bytes — 2026-09-09
+
+The judge's usage credits returned, so iteration 13 — `aa65d458`, the head that merged as PR #246 —
+was graded against the same assertions, by the same judge, on the same CLI (2.1.265) as iteration 6.
+Three runs per cell, `plugin_inputs_dirty=false`. Judge cost USD 14.72 for 36 cells, plus USD 2.22
+for the six iteration-9 cells that carry the boundary fix at `4f3aa7af`.
+
+| Prompt | Sonnet | Opus |
+|---|---|---|
+| First page, new responder | 0.54 | 0.38 |
+| External monitor Situation | 0.76 | 0.86 |
+| What to look at first | 0.81 | 0.57 |
+| Handover | 0.48 | 0.81 |
+| Explanation asked mid-incident | 0.83 | 0.56 |
+| Standalone learning question | 0.87 | 0.73 |
+| **mean over prompts** | **0.71** | **0.65** |
+
+Against iteration 6, on the prompts both iterations share, the substance assertions mostly rose: no
+invented observations, declaring and routing the edge evidence, "4/4 running instances do not prove
+successful requests", saying what each Events result means, and "the instance #2 restart must not be
+retried until Dana or a readback reconciles it" (Opus 1/6 → 4/6).
+
+**Two assertions fell, and both are about the closing fields themselves.**
+
+- **Compactness.** "Ends with a compact state strip of about three lines" went from 9/9 to **0/9** on
+  Opus across the three incident prompts common to both iterations (Sonnet 9/9 → 7/9). The judge's
+  evidence is consistent: the block is labelled correctly and does end the reply, but runs ten to
+  twenty lines, with `Open:` carrying four numbered hypotheses and their justifications and `Next:`
+  restating the body's decision tree. `6fcb1210` let a field wrap rather than drop a standing
+  candidate and `aa65d458` required an owner on every candidate; together they removed the pressure
+  that kept the block short, and the models moved the answer into it.
+- **Owner by name.** The handover's "names an owner by name for each open item" went 2/6 → **0/6**
+  pooled. The replies do request a read-back and do attach owners, but as teams or roles — "owner:
+  Kafka team", "Settled by: Kafka on-call", "unowned — needs a DB on-call name" — where the
+  assertion wants a person.
+
+Neither is settled here. Whether the long block is a regression or the "about three lines" assertion
+has fallen behind the shipped contract is an owner call, and so is whether a role satisfies "owner"
+when the prompt names no person for that item. Both sit under QUALITY-001.
+
+### The rename — 2026-09-09
+
+`c1c07085` renames the section to "Where things stand" and replaces "the strip" with "the closing
+fields" in the eight places it was the referring noun. No rule content changes, and the section stays
+under "Recap or hand over" — the placement candidate that moved it was rejected above, so the rename
+was cut loose from the move and measured alone.
+
+Presence, `[verified]` with the committed oracle applied identically to three arms, all on CLI
+2.1.265, three runs per cell per model:
+
+| Prompt | Rename `c1c07085` | Merged `aa65d458` | Seam `6fcb1210` |
+|---|---|---|---|
+| First page, new responder | 6/6 fields | 6/6 | 6/6 |
+| External monitor Situation | 6/6 | 6/6 | 6/6 |
+| What to look at first | 6/6 | 6/6 | 6/6 |
+| Explanation asked mid-incident | 6/6 | 6/6 | 6/6 |
+| Standalone learning question | 6/6 none | 6/6 none | 6/6 none |
+| **Handover, checkpoint-bearing** | **3/6** | 5/6 | 6/6 |
+
+Five of six prompts are identical across the arms. On the handover the rename arm carries the
+checkpoint in three of six replies against five and six; the other three ended with the closing
+fields only, which the shipped contract counts as a miss. The rename edited the sentence that fires
+the checkpoint — "replaces the strip" became "replaces them" — so a weakened pronoun reference is the
+first suspect, but three runs per cell cannot separate that from the heading change or from noise.
+The owner reviewed this result and chose to ship the rename ([PR #247](https://github.com/latent-sre/save-toolkit/pull/247)).
+
+The oracle and its test were renamed with it, to
+[`probe_closing_fields.py`](../../evals/oracles/incident-closing-fields/probe_closing_fields.py) and
+[`test_closing_fields_oracle.py`](../../evals/test_closing_fields_oracle.py); the classification
+label `strip` became `fields`. No build scenario binds that oracle path — checked with a positive
+control on a path that is bound — so scenario identity is unaffected.
+
 ## Not established
 
-- Everything measured after the judge exhausted its usage credits is a deterministic label count, not a
-  judged grade: the strip-presence tables above stand, but the accompanying quality assertions on those
-  prompts (boundedness, which next observation is offered) remain ungraded.
+- The judged gap left by the exhausted credits is now partly closed: iteration 13 (the merged bytes)
+  and iteration 9 (the boundary fix) are graded above. Still ungraded are the rename arm (iteration
+  12, 9 of 36 cells before the batch was stopped) and the seam arm (iteration 11), so the rename's
+  effect on answer *quality*, as opposed to the presence of the closing fields, is `[unverified]`.
+- Whether the ten-to-twenty-line closing block is a regression or the "about three lines" assertion
+  has fallen behind the shipped contract is undecided, as is whether a team or role satisfies "owner
+  by name". Each needs an owner call and then a fresh measurement.
 - The engineering lane has no old-skill arm (its eval sets were written after the edits), so its
   numbers show new skill versus no skill, not the size of the fix.
 - The Spring prompt does not discriminate on Opus (1.00 both arms); it confirms no regression, not gain.

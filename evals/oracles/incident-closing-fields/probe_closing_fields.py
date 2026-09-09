@@ -1,29 +1,29 @@
 """Probe-owned oracle for the incident advisor's reply-closing contract.
 
-Usage: python probe_strip_boundary.py <response.md> <expected>
+Usage: python probe_closing_fields.py <response.md> <expected>
 Exit 0 when the reply closes as expected, 1 with a reason when it does not.
 
 The rule, made mechanical: once an incident is being worked the reply ends with the three fields
 Applied / Open / Next; a checkpoint trigger — a transition, handover or requested recap, a change of
 direction, an attempted or applied mitigation, or accumulated branches — replaces them with the
 checkpoint's fields; a question with no live incident carries neither. Two distinct field names are
-required so that a reply merely using the word "Next" in prose does not read as a strip.
+required so that a reply merely using the word "Next" in prose does not read as the fields.
 
 Field names are matched at line start under any markdown dress — heading, bold, list marker, table
 cell — with or without a trailing colon. A checkpoint written as `### Follow-ups` is a checkpoint;
 requiring a colon undercounts it, which is how a real handover regression was once read as an
 absence.
 
-<expected> is one of: strip, checkpoint, both, none, strip-or-both, checkpoint-or-both.
+<expected> is one of: fields, checkpoint, both, none, fields-or-both, checkpoint-or-both.
 """
 import re
 import sys
 
-STRIP_FIELDS = ("Applied", "Open", "Next")
+CLOSING_FIELDS = ("Applied", "Open", "Next")
 CHECKPOINT_FIELDS = ("Assessment", "Checked", "Actions", "Follow-ups")
 # Leading markdown dress: heading hashes, bold/italic stars, list markers, table pipes, quotes.
 DRESS = r"[#*_\-+>|\s]{0,8}"
-EXPECTED = ("strip", "checkpoint", "both", "none", "strip-or-both", "checkpoint-or-both")
+EXPECTED = ("fields", "checkpoint", "both", "none", "fields-or-both", "checkpoint-or-both")
 
 
 def _pattern(fields):
@@ -40,12 +40,12 @@ def _present(text, fields):
 
 
 def classify(text):
-    strip = len(_present(text, STRIP_FIELDS)) >= 2
+    fields = len(_present(text, CLOSING_FIELDS)) >= 2
     checkpoint = len(_present(text, CHECKPOINT_FIELDS)) >= 2
-    if strip and checkpoint:
+    if fields and checkpoint:
         return "both"
-    if strip:
-        return "strip"
+    if fields:
+        return "fields"
     if checkpoint:
         return "checkpoint"
     return "none"
@@ -61,7 +61,7 @@ def check(text, expected):
         return True, actual
     return False, (
         f"reply closes as {actual!r}, expected {' or '.join(repr(a) for a in allowed)}; "
-        f"strip fields present: {sorted(_present(text, STRIP_FIELDS)) or 'none'}; "
+        f"closing fields present: {sorted(_present(text, CLOSING_FIELDS)) or 'none'}; "
         f"checkpoint fields present: {sorted(_present(text, CHECKPOINT_FIELDS)) or 'none'}"
     )
 

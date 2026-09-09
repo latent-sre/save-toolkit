@@ -13,19 +13,19 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-ORACLE = ROOT / "evals/oracles/incident-strip/probe_strip_boundary.py"
+ORACLE = ROOT / "evals/oracles/incident-closing-fields/probe_closing_fields.py"
 SKILL = ROOT / "skills/incident-investigation/SKILL.md"
 
 
 @pytest.fixture(scope="module")
 def oracle():
-    spec = importlib.util.spec_from_file_location("probe_strip_boundary", ORACLE)
+    spec = importlib.util.spec_from_file_location("probe_closing_fields", ORACLE)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
 
 
-STRIP = """Check the pool counts next.
+CLOSING = """Check the pool counts next.
 
 Applied: none — nothing executed yet
 Open:    (a) downstream latency (owner: DB on-call)  (b) consumer-side backlog — unowned
@@ -65,10 +65,10 @@ The counts that would discriminate are active, maximum, and waiting.
 @pytest.mark.parametrize(
     "text,expected",
     [
-        (STRIP, "strip"),
+        (CLOSING, "fields"),
         (CHECKPOINT_COLON, "checkpoint"),
         (CHECKPOINT_HEADINGS, "checkpoint"),
-        (STRIP + CHECKPOINT_COLON, "both"),
+        (CLOSING + CHECKPOINT_COLON, "both"),
         (NONE, "none"),
     ],
 )
@@ -81,28 +81,28 @@ def test_heading_style_checkpoint_is_not_read_as_absence(oracle):
     assert oracle.classify(CHECKPOINT_HEADINGS) != "none"
 
 
-def test_prose_mention_of_a_field_word_is_not_a_strip(oracle):
+def test_prose_mention_of_a_field_word_is_not_the_closing_fields(oracle):
     """One field name in a sentence must not satisfy the contract."""
     assert oracle.classify("Next, open the Events view and see what is applied.") == "none"
 
 
 def test_removing_the_fields_flips_the_verdict(oracle):
     """Mutate the thing the oracle names and watch it fail, so a pass means something."""
-    ok, _ = oracle.check(STRIP, "strip")
+    ok, _ = oracle.check(CLOSING, "fields")
     assert ok
-    stripped = STRIP.replace("Applied:", "").replace("Open:", "").replace("Next:", "")
-    ok, reason = oracle.check(stripped, "strip")
-    assert not ok and "expected 'strip'" in reason
+    removed = CLOSING.replace("Applied:", "").replace("Open:", "").replace("Next:", "")
+    ok, reason = oracle.check(removed, "fields")
+    assert not ok and "expected 'fields'" in reason
 
 
 def test_alternation_accepts_either_allowed_shape(oracle):
     assert oracle.check(CHECKPOINT_HEADINGS, "checkpoint-or-both")[0]
-    assert oracle.check(STRIP + CHECKPOINT_COLON, "checkpoint-or-both")[0]
-    assert not oracle.check(STRIP, "checkpoint-or-both")[0]
+    assert oracle.check(CLOSING + CHECKPOINT_COLON, "checkpoint-or-both")[0]
+    assert not oracle.check(CLOSING, "checkpoint-or-both")[0]
 
 
 def test_unknown_expected_class_is_refused(oracle):
-    ok, reason = oracle.check(STRIP, "nonsense")
+    ok, reason = oracle.check(CLOSING, "nonsense")
     assert not ok and "unknown expected class" in reason
 
 
@@ -115,20 +115,20 @@ def test_skill_defines_the_three_closing_fields():
 
 
 def _handoff_sentence() -> str:
-    """The clause that sends the strip to the checkpoint, alone.
+    """The clause that sends the closing fields to the checkpoint, alone.
 
     Scoped deliberately: every trigger word also appears elsewhere in the skill, so a whole-file
     substring search would pass with this clause deleted.
     """
     text = SKILL.read_bytes().decode("utf-8")
     marker = "checkpoint trigger fires:"
-    assert marker in text, "the strip no longer hands off to the checkpoint at all"
+    assert marker in text, "the closing fields no longer hand off to the checkpoint at all"
     tail = text.split(marker, 1)[1]
     return tail.split(".", 1)[0].lower()
 
 
 def test_skill_names_every_checkpoint_trigger():
-    """The strip must hand off on all of the checkpoint's triggers, not just a handover."""
+    """The closing fields must hand off on all of the checkpoint's triggers, not just a handover."""
     clause = _handoff_sentence()
     for trigger in ("transition", "handover", "recap", "direction", "mitigation", "branches"):
         assert trigger in clause, f"checkpoint trigger {trigger!r} missing from the handoff clause"
