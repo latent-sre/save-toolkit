@@ -8,7 +8,7 @@ import sys
 from types import ModuleType
 from urllib.parse import urlsplit
 
-from fastapi import FastAPI, HTTPException
+from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.testclient import TestClient
 from jsonschema import Draft202012Validator
 from pydantic import BaseModel
@@ -33,14 +33,15 @@ class Payload(BaseModel):
 
 @pytest.fixture
 def client():
-    app = FastAPI()
-    load_asset("problem_fastapi").install_problem_handlers(app)
+    problems = load_asset("problem_fastapi")
+    app = FastAPI(responses=problems.problem_responses(400, 422, 500))
+    problems.install_problem_handlers(app)
 
-    @app.get("/auth")
+    @app.get("/auth", responses=problems.problem_responses(401))
     def auth():
         raise HTTPException(401, "Sign in", headers={"WWW-Authenticate": "Bearer"})
 
-    @app.get("/limited")
+    @app.get("/limited", responses=problems.problem_responses(429))
     def limited():
         raise HTTPException(429, "Wait", headers={"Retry-After": "30"})
 
@@ -132,6 +133,68 @@ def test_validation_response_matches_consumer_fields(client):
     assert set(item["required"]) == {"loc", "msg"}
     assert item["properties"]["loc"] == {"type": "array", "items": {"type": "string"}}
     assert item["properties"]["msg"]["type"] == "string"
+    served = client.get("/openapi.json").json()
+    documented = served["paths"]["/data"]["post"]["responses"]["422"]["content"]
+    assert documented["application/problem+json"]["schema"] == schema["components"]["schemas"]["Problem"]
+
+
+@pytest.mark.parametrize("method,path,body,status", [
+    ("POST", "/data", '{"count":', 400),
+    ("POST", "/data", '{"count":"wrong"}', 422),
+    ("GET", "/boom", None, 500),
+    ("GET", "/auth", None, 401),
+    ("GET", "/limited", None, 429),
+])
+def test_served_openapi_matches_actual_problem_responses(client, method, path, body, status):
+    response = client.request(
+        method, path, content=body, headers={"Content-Type": "application/json"}
+    )
+    assert response.status_code == status
+    document = client.get("/openapi.json").json()
+    responses = document["paths"][path][method.lower()]["responses"]
+    content = responses[str(status)]["content"]
+    assert set(content) == {response.headers["content-type"]} == {"application/problem+json"}
+    schema = content["application/problem+json"]["schema"]
+    Draft202012Validator.check_schema(schema)
+    validator = Draft202012Validator(schema)
+    validator.validate(response.json())
+    assert not validator.is_valid({"detail": "FastAPI's default error shape"})
+    assert not validator.is_valid({
+        "type": "https://errors.example.internal/validation-failed",
+        "title": "Validation failed", "status": 422,
+        "errors": [{"loc": ["body", 0], "msg": "Invalid"}],
+    })
+    assert set(responses["200"]["content"]) == {"application/json"}
+    assert "HTTPValidationError" not in document["components"]["schemas"]
+
+
+def test_problem_metadata_composes_with_router_and_operation_contracts():
+    problems = load_asset("problem_fastapi")
+    app = FastAPI(responses=problems.problem_responses(422, 500))
+    problems.install_problem_handlers(app)
+    router = APIRouter(responses=problems.problem_responses(401, 429))
+    rate_limit = problems.problem_responses(429)
+    rate_limit[429]["description"] = "Per-user quota exceeded"
+    rate_limit[429]["headers"] = {"Retry-After": {"schema": {"type": "integer"}}}
+
+    @router.get("/limited", responses=rate_limit)
+    def limited():
+        raise HTTPException(429, "Wait", headers={"Retry-After": "30"})
+
+    app.include_router(router)
+    with TestClient(app) as client:
+        responses = client.get("/openapi.json").json()["paths"]["/limited"]["get"]["responses"]
+        response = client.get("/limited")
+    assert set(responses) == {"200", "401", "422", "429", "500"}
+    assert responses["429"]["description"] == "Per-user quota exceeded"
+    assert responses["429"]["headers"] == rate_limit[429]["headers"]
+    assert int(response.headers["Retry-After"]) == 30
+    assert response.status_code == 429
+    assert "headers" not in responses["401"]
+    assert "headers" not in problems.problem_responses(429)[429]
+    rate_limit[429]["content"]["application/problem+json"]["schema"]["properties"].clear()
+    fresh = problems.problem_responses(429)[429]["content"]["application/problem+json"]["schema"]
+    assert "status" in fresh["properties"]
 
 
 def test_unexpected_error_is_redacted_and_correlated(client):

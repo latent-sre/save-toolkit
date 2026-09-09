@@ -1,18 +1,24 @@
 """One RFC 9457 problem+json shape on a FastAPI app.
 
-    from problem_fastapi import install_problem_handlers
+    from fastapi import FastAPI
+    from problem_fastapi import install_problem_handlers, problem_responses
 
     def create_app() -> FastAPI:
-        app = FastAPI()
+        app = FastAPI(responses=problem_responses(400, 422, 500))
         install_problem_handlers(app)
+        # Register routes/routers here; add their applicable errors (e.g. 401, 409, 429).
         return app
 
+Choose applicable status codes at app, router, or operation scope using responses=.
+Handlers alone do not update OpenAPI. Configure response metadata before registering routes;
+retain project-specific response descriptions, headers, and schemas when combining dictionaries.
 Use application/problem+json and the protocol-header allowlist below. Adapt request_id to the app's
 correlation middleware; this starter echoes X-Request-ID supplied by a validating trusted ingress.
 """
 from __future__ import annotations
 
 from collections.abc import Mapping
+from copy import deepcopy
 from typing import Any
 
 from fastapi import FastAPI, Request
@@ -35,8 +41,49 @@ _PROTOCOL_HEADERS = {
 _TITLES = {
     400: "Malformed request", 401: "Unauthenticated", 403: "Forbidden", 404: "Not found",
     409: "Conflict", 422: "Validation failed", 429: "Too many requests",
-    503: "Dependency unavailable",
+    500: "Internal server error", 503: "Dependency unavailable",
 }
+
+# Inline for a self-contained starter; keep aligned with openapi.starter.yaml's Problem schema.
+_PROBLEM_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "type": {
+            "type": "string", "format": "uri",
+            "description": "Stable URI identifying the error class.",
+        },
+        "title": {"type": "string"},
+        "status": {"type": "integer"},
+        "detail": {"type": "string"},
+        "instance": {"type": "string"},
+        "request_id": {
+            "type": "string", "description": "Correlates this response with the request log line.",
+        },
+        "errors": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "loc": {"type": "array", "items": {"type": "string"}},
+                    "msg": {"type": "string"},
+                },
+                "required": ["loc", "msg"],
+            },
+        },
+    },
+    "required": ["type", "title", "status"],
+}
+
+
+def problem_responses(*statuses: int) -> dict[int, dict[str, Any]]:
+    """Fresh metadata for FastAPI/APIRouter/path-operation responses=; does not install handlers."""
+    return {
+        status: {
+            "description": _TITLES.get(status, "Request failed"),
+            "content": {PROBLEM_MEDIA_TYPE: {"schema": deepcopy(_PROBLEM_SCHEMA)}},
+        }
+        for status in statuses
+    }
 
 
 def _slug(title: str) -> str:
@@ -71,7 +118,7 @@ def problem(
 
 
 def install_problem_handlers(app: FastAPI) -> None:
-    """Register the three handlers that make the shape universal."""
+    """Normalize HTTP/validation/unhandled exceptions; configure OpenAPI separately above."""
 
     @app.exception_handler(StarletteHTTPException)
     async def _http_exception(request: Request, exc: StarletteHTTPException) -> JSONResponse:

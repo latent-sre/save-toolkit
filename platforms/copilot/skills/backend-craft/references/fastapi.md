@@ -2,29 +2,38 @@
 
 # FastAPI mechanics
 
-The universal backend rules live in `../SKILL.md`. On any conflict, SKILL.md wins. Versions are read
-from the repository's `pyproject.toml`, never assumed.
+The universal backend rules live in `../SKILL.md`. On any conflict, SKILL.md wins. Read framework,
+Python and dependency versions from the project's actual manifests and lockfiles, never assume them.
 
-- **Layered layout** — `routers/`, `schemas/`, `models/`, `services/`, plus `config.py`,
-  `dependencies.py`, `database.py` — with an app factory in `create_app()` and startup/shutdown owned
-  by a `lifespan` context.
+- **Layout and lifecycle:** preserve the app's existing modules, factory and dependency patterns.
+  For a new app, keep the layout small; use `create_app()` and a `lifespan` context to own startup
+  validation, shared engines/clients and their shutdown cleanup.
 - **Config via `pydantic-settings`**: one `Settings(BaseSettings)` loaded once from env — this *is*
-  the validate-at-startup rule. On PCF the values come from `VCAP_SERVICES`.
+  the validate-at-startup rule. Read required PCF service bindings from `VCAP_SERVICES`.
 - **Alembic for schema changes**; `create_all` is dev-only. Live migration mechanics on a database
   with data belong to the `database-reliability` skill.
-- **Separate input and output models** per resource, with `response_model=` on every route and
-  `model_config = {"from_attributes": True}` — that is what makes "never return ORM objects"
-  enforceable.
+- **Public response contracts:** typed JSON uses `response_model=` or a return annotation describing
+  the public output; separate input/output models when their contracts differ. Use
+  `from_attributes=True` only for attribute extraction, not as a default on every model.
+  A returned `Response` bypasses model validation/serialization; enforce its own contract explicitly.
 - **Authentication and authorization as chained dependencies**: `get_current_user` → `401` with
   `WWW-Authenticate`, then a role check → `403`.
 - **Domain errors are FastAPI-free**, translated by one global `@app.exception_handler` into the
   single problem+json shape.
-- **Async all the way down**: async SQLAlchemy, `await db.execute(select(...))`; one sync driver call
-  in an async route blocks the event loop for every request. Paginated queries always carry
-  `.order_by(...)` on a unique key.
-- **Integration tests drive the real app over ASGI** with
-  `httpx.AsyncClient(transport=ASGITransport(app=...))`, against a real ephemeral database, with the
-  fixture chain: fresh schema → `client` → `registered_user` → `auth_token` → `auth_client`.
+- **Concurrency:** `async def` fits awaitable libraries; synchronous `def` routes/dependencies are
+  valid for blocking libraries and FastAPI runs them in its thread pool. A plain helper called from
+  `async def` gets no automatic offload: never perform blocking I/O directly on the event loop.
+  With async SQLAlchemy, scope and close an `AsyncSession` per request/task; never share it across
+  concurrent tasks. Load needed attributes/relationships before serialization, which must not
+  trigger implicit database I/O. Paginated queries need deterministic ordering with a unique tie-breaker.
+- **OpenAPI:** for a compatible problem-response contract, configure app/router `responses` with
+  [problem_responses(*statuses)](../assets/problem_fastapi.py) before registering routes. Installing
+  exception handlers alone does not update generated error schemas. Compare served OpenAPI with
+  actual error statuses, media types and bodies.
+- **Integration tests:** mirror the existing app and fixture structure. Use a disposable real
+  datastore for changed persistence boundaries and the project's test identity for protected
+  requests; a pure HTTP/client change does not require inventing a database or registration flow.
+  Drive the real app with `httpx.AsyncClient(transport=ASGITransport(app=...))` or `TestClient`.
   `ASGITransport` does not run lifespan: manage startup/shutdown explicitly with the project's
   lifespan fixture (for example `LifespanManager`), or use `with TestClient(app)` for sync tests.
   Assert initialization and cleanup; an endpoint response alone does not prove either ran.
