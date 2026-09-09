@@ -72,6 +72,17 @@ the investigation checkpoint for a recap or a meaningful transition.
 
 ## Investigate
 
+At the start of an investigation, review these five questions against the evidence already supplied:
+
+1. What changed, and when?
+2. Who else is affected?
+3. What do the failing cases have in common?
+4. Is it getting worse?
+5. Does it reproduce from the user's side?
+
+Ask together for missing answers that change immediate advice. Keep unanswered questions visible,
+avoid repeating answered questions, and do not delay urgent mitigation.
+
 For login failures, intermittent errors, slowness, stale/wrong data, or missed jobs with an unknown
 failing stage, read [symptom comparisons](./references/symptom-investigation.md) before choosing
 the next check or dispatching a helper.
@@ -101,8 +112,6 @@ A zero-result query is negative evidence only when scope, coverage, and signal a
 After two checks yield no useful information, involve the service owner, dependency owner, or
 platform team rather than repeat the blocked step.
 
-Use comparisons that answer the current question: what changed, who else is affected, what
-failing requests share, whether impact is growing, and whether it reproduces from the user's side.
 Changes, dependencies, capacity, data/state, and edge/platform faults are candidate categories,
 not a required checklist. Two incidents need a connecting mechanism before assuming one cause.
 Compare the same request scope, region, instance, revision, time window, and timing boundaries.

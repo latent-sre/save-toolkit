@@ -492,21 +492,33 @@ The candidate extends [PR #248](https://github.com/latent-sre/save-toolkit/pull/
   explanation; supplied names are preserved, known roles can remain pending, and missing owners
   stay unowned. These are the owner's selected compactness and ownership policies, not a claim
   that model output already meets them.
+- The owner subsequently approved restoring an explicit review of the five opening questions:
+  what changed and when, who else is affected, what failing cases share, whether impact is growing,
+  and whether it reproduces from the user's side. Use supplied answers, ask together for missing
+  answers that affect immediate advice, retain unanswered questions, and do not delay mitigation.
+  This replaces the later optional-comparison sentence; it adds 248 canonical skill bytes.
 
-`[verified]` The entrypoint shrinks from 21,707 bytes at `ae7252d7` to 19,790 bytes (1,917 bytes,
-8.8%). This is an invoked-core reduction, not a reduction of the whole bundle or measured latency.
+`[verified]` The entrypoint shrinks from 21,707 bytes at `ae7252d7` to 20,038 bytes (1,669 bytes,
+7.7%). This is an invoked-core reduction, not a reduction of the whole bundle or measured latency.
 The complete canonical bundle grows because the repair retains conditional details and adds
 complete examples. Exact totals and the evaluator's added test/code lines are reviewed in
 `scripts/weights.json`; Gate A's structural roster is unchanged.
 
-`[verified]` Red-first regressions failed on the old oracle and on all three scenarios' missing
-Read access. The corrected oracle passes 41 cases; the full local suite passes 634 tests and
+`[verified]` At `8216ac0c`, before the five-question follow-up, red-first regressions failed on the
+old oracle and on all three scenarios' missing Read access. The corrected oracle passes 41 cases;
+the full local suite passes 634 tests and
 1,023 subtests, with four local-environment skips. Gate A passes 4/4 and scenario validation
 passes 73 specifications / 343 expectations. Terra's independent static review found no actionable
-defects. Canonical skill content grows by 2,599 bytes and evaluator Python by 201 lines.
+defects. Including the five-question follow-up, canonical skill content grows by 2,847 bytes and
+evaluator Python by 201 lines.
 Historical presence scores above used the old
 oracle and are not reclassified as completeness scores. No build scenario previously bound this
 oracle; the existing runner's reference-read assertions are reused without a new mechanism.
+
+`[verified]` The five-question follow-up passes the adapter and closing-fields suites: 77 tests,
+50 subtests, and two local symlink skips. Gate A passes 4/4 and `git diff --check` is clean.
+These checks establish structural consistency; the opening-question behavior has not been run
+against a fresh model.
 
 `[unverified]` Fresh judge calibration and paired native model behavior remain separate checks.
 Preflight found 141 calibration cases and zero reusable exact cache keys on this host; a full

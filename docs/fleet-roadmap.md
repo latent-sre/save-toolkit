@@ -100,9 +100,10 @@ probe; reducing bytes alone does not prove better behavior.
 **Next action:** Review the owner-approved incident-investigation repairs and conditional-detail
 candidate in [PR #248](https://github.com/latent-sre/save-toolkit/pull/248), recorded in the
 [quality round](reviews/2026-09-08-quality-round.md#approved-incident-skill-repairs--2026-09-09).
-The core is 8.8% smaller; reference-read scenarios and example checks are repaired, but fresh judge
-calibration and paired native behavior are unverified. Select their budget before behavioral
-acceptance. `agent-authoring` remains queued; this slice does not authorize another skill's cut.
+The core is 7.7% smaller after restoring the five opening questions; reference-read scenarios and
+example checks are repaired, but fresh judge calibration and paired native behavior are unverified.
+Select their budget before behavioral acceptance. `agent-authoring` remains queued; this slice does
+not authorize another skill's cut.
 **Evidence:** [verified] UTF-8/LF entrypoint sizes at `ed321035`, measured 2026-09-07. Six exceed
 the existing 7,800-byte screen (the old list of three is obsolete):
 
