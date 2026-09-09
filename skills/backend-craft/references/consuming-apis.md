@@ -12,8 +12,10 @@ The universal backend rules live in `../SKILL.md`. On any conflict, SKILL.md win
   cap attempts by remaining time. Per-read inactivity timeouts do not bound the operation. Propagate
   cancellation, stop attempts on cancellation/expiry, and close responses/streams on every exit.
 - **Ownership:** inspect SDK/transport/wrapper retries; keep one owner or count every nested physical
-  attempt against shared time/attempt limits. One lifecycle-owned typed client/pool and breaker per
-  upstream; open breakers fail fast with bounded recovery probes.
+  attempt against shared time/attempt limits. Reuse one lifecycle-owned typed client/pool per upstream.
+  In long-lived clients, use an upstream breaker when repeated failures need shared suppression;
+  open breakers fail fast with bounded recovery probes. A bounded one-shot integration can use its
+  deadline and attempt budget without a breaker; concurrency and response-size limits still apply.
 - **Eligibility:** retry documented transient failures only when safe to repeat; never blanket-retry
   exceptions, auth or validation failures. For effectful calls, use [API writes](./api-writes.md):
   timeout/cancellation may mean UNKNOWN. A header alone does not establish deduplication; reconcile or reuse
@@ -30,7 +32,7 @@ The universal backend rules live in `../SKILL.md`. On any conflict, SKILL.md win
 |---|---|
 | Slow response, retry delay or cancellation | Deadline/cancellation stops attempts; connection and permit released |
 | Transient/permanent errors, both `Retry-After` forms | Actual attempts stay capped; permanent errors stop; delay is honored or deferred |
-| Saturation and upstream outage/recovery | Concurrency stays bounded; breaker opens, fails fast and recovers with bounded probes |
+| Saturation and upstream outage/recovery | Concurrency stays bounded; attempts stop within budget; when a breaker is used, it opens, fails fast and recovers with bounded probes |
 
 Effectful retries also owe API writes' ambiguous-outcome checks; mocks cannot establish a remote outcome.
 

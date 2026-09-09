@@ -103,3 +103,30 @@ jobs:
 
       - name: Validate plugin manifest, frontmatter, and hooks
         run: claude plugin validate . --strict
+
+  spring-starter-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    container:
+      image: maven:3.9.9-eclipse-temurin-17@sha256:f58d59b6273e785ac0a4477f6e9b5ba1d7731c75b906c0f7b34076f1851318cc
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - spring: '6.2.10'
+            security: '6.5.3'
+          - spring: '7.0.9'
+            security: '7.0.0'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Exercise the shipped Spring error starter
+        env:
+          SPRING_VERSION: ${{ matrix.spring }}
+          SECURITY_VERSION: ${{ matrix.security }}
+        run: >-
+          mvn -B -ntp -f scripts/fixtures/spring-problem/pom.xml
+          -Dspring.version="$SPRING_VERSION" -Dspring-security.version="$SECURITY_VERSION" test

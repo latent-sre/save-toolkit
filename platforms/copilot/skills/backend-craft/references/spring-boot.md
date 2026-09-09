@@ -36,9 +36,14 @@ The universal backend rules live in `../SKILL.md`. On any conflict, SKILL.md win
   filter-chain 401/403, handled by `ExceptionTranslationFilter` through the `AuthenticationEntryPoint`
   and `AccessDeniedHandler` before any MVC handler runs *[sourced: Spring Security reference,
   ExceptionTranslationFilter]*; give those and the `/error` fallthrough the same shape.
-- **Validation failures are `422`, not `400`** — the framework default is `400`, so the override
-  passes `HttpStatus.UNPROCESSABLE_CONTENT` explicitly (older Framework versions spell it
-  `UNPROCESSABLE_ENTITY`).
+  The starter requires `spring-security-core` and rethrows authentication/authorization exceptions
+  raised inside MVC so method-security denials reach those configured handlers rather than becoming 500s.
+- **Input validation failures are `422`, not `400`**: normalize both
+  `MethodArgumentNotValidException` and `HandlerMethodValidationException`, including field and
+  object errors in `errors[]`. Return-value validation remains a server failure (`500`); malformed
+  JSON remains `400`. The [starter](../assets/ProblemAdvice.java) uses `HttpStatusCode.valueOf(422)`
+  on Framework 6.2 and 7. Verify the advice through MockMvc with the application's real security
+  filter chain, including authenticated and anonymous denials.
 - **`@PreAuthorize` is silently ignored unless method security is activated**: add
   `@EnableMethodSecurity` to a `@Configuration` class, and put method security on the service so a
   second caller of that service gets the same check.
@@ -67,4 +72,6 @@ The universal backend rules live in `../SKILL.md`. On any conflict, SKILL.md win
   `@ServiceConnection(name = "...")` because Boot cannot infer the service from an untyped container.
 - **Slices per module in Boot 4** (`spring-boot-webmvc-test` and friends). Slices skip
   `@Configuration` classes, so a custom `WebMvcConfigurer` needs an explicit `@Import`.
-- **WireMock for upstream failure paths** — the timeout fires, the retry backs off, the breaker opens.
+- **WireMock for upstream failure paths** — the deadline expires and retries stay bounded. When a
+  long-lived client uses a breaker, verify opening and bounded recovery probes too; a one-shot
+  integration can rely on its deadline and attempt budget.

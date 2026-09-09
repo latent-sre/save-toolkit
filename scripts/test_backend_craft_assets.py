@@ -10,6 +10,7 @@ from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
+from jsonschema import Draft202012Validator
 from pydantic import BaseModel
 import pytest
 from starlette.datastructures import Headers
@@ -147,6 +148,27 @@ def test_starter_urls_and_page_shape_match_the_house_contract():
     assert {base + path for path in schema["paths"]} == {"/healthz", "/readyz", "/v1/incidents"}
     page = schema["components"]["schemas"]["IncidentPage"]
     assert set(page["required"]) == {"data", "next_cursor"}
+
+
+@pytest.mark.parametrize("field,accepted,rejected", [
+    ("limit", [1, 50, 200], [-1, 0, 201]),
+    ("cursor", ["a", "x" * 2048], ["", "x" * 2049]),
+    ("idempotency_key", ["a", "x" * 255], ["", "x" * 256]),
+    ("title", ["a", "x" * 200], ["", "x" * 201]),
+])
+def test_starter_input_bounds(field, accepted, rejected):
+    """Exercise the example's public bounds with an independent schema validator."""
+    schema = yaml.safe_load((ASSETS / "openapi.starter.yaml").read_text(encoding="utf-8"))
+    collection = schema["paths"]["/v1/incidents"]
+    inputs = {param["name"]: param["schema"] for param in collection["get"]["parameters"]}
+    inputs["idempotency_key"] = collection["post"]["parameters"][0]["schema"]
+    inputs["title"] = schema["components"]["schemas"]["IncidentCreate"]["properties"]["title"]
+    Draft202012Validator.check_schema(inputs[field])
+    validator = Draft202012Validator(inputs[field])
+    for value in accepted:
+        assert validator.is_valid(value), f"{field}: documented boundary rejected"
+    for value in rejected:
+        assert not validator.is_valid(value), f"{field}: out-of-bounds input accepted"
 
 
 @pytest.mark.parametrize("attribute", ["app", "create_app"])

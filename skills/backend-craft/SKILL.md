@@ -46,7 +46,7 @@ operability and failure rules that fit a worker, scheduler, or client without ad
 | Long-running work | `202` plus a status resource the client polls |
 | API writes | Before retryable or concurrent writes, read [API writes](./references/api-writes.md); adapt [write acceptance tests](./assets/test_api_write_contract.py) to compatible Python contracts |
 | Rate limits | `429` with `Retry-After` and `X-RateLimit-Limit`/`-Remaining`/`-Reset` |
-| Outbound calls | A timeout on every one; retries only for idempotent operations with backoff and jitter; a breaker per upstream; one typed client per upstream |
+| Outbound calls | A timeout on every one; retries only for idempotent operations with backoff and jitter; one typed client per upstream; long-lived clients use an upstream breaker when repeated failures need shared suppression and recovery probes |
 | Health | `/healthz` process-only; `/readyz` includes a dependency only when withdrawing the instance improves behaviour; public health endpoints carry no auth |
 | Observability | Request ID on every log line; RED on the request path |
 | Config | From the environment, validated at startup, fail loud |
