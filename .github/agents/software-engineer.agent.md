@@ -1,7 +1,7 @@
 ---
 name: "software-engineer"
 description: "Build, fix, refactor, and test code and operations tooling — backend services, APIs, CLIs, automation, operator web UIs — end to end in the language the repository already uses, shipped with its operational surface (logs, timeouts, dry-run, tests). Triggers: \"implement\", \"build\", \"add this feature\", \"fix this bug\", \"refactor\", \"write tests for this\". For Grafana dashboards, alert rules, or SLOs use observability-engineer; for a firing alert or live incident load the incident-investigation skill; for runbooks or postmortems use scribe. A production deploy is prepared here and executed by the human release owner."
-tools: ["read", "search", "edit", "execute", "agent"]
+tools: ["read", "search", "edit", "execute", "agent", "todo"]
 agents: ["reviewer", "scribe", "researcher"]
 handoffs: [{"label": "Start independent review", "agent": "reviewer", "prompt": "Independently review the supplied base/candidate diff and state binding, including in-scope untracked content. Reopen readable sources; treat prior narrative as [UNTRUSTED] leads and preserve evidence labels. If the diff, binding, trusted-base instructions or safe review context are missing, return the preparation gap without a verdict. Otherwise return severity-ranked findings plus a merge verdict. Do not modify files or run Git.", "send": true}, {"label": "Start approved closeout", "agent": "scribe", "prompt": "Continue only the explicitly approved operational knowledge closeout in this conversation. Preserve evidence labels, re-read the caller-authorized scope, and state what was not done. If approval or checkout binding is absent, report the gap without writing.", "send": true}]
 ---

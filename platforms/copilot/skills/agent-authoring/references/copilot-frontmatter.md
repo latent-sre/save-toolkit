@@ -69,7 +69,11 @@ and `playwright/*` ship out of the box.
 | `execute` | `Bash` | yes |
 | `web` | `WebFetch`, `WebSearch` | yes |
 | `agent` | `Agent` | yes |
-| `todo` | — | **no** — no Claude lane grants a todo tool, and a projection must not invent capability its source lacks |
+| `todo` | `TodoWrite` | yes — the three build lanes (`software-engineer`, `agent-engineer`, `observability-engineer`) |
+
+`EnterWorktree` / `ExitWorktree` have **no Copilot alias** and are deliberately unmapped — the
+projection drops them rather than substituting `execute`, which would widen authority on a host
+that cannot narrow it again.
 
 `sre-assistant` deliberately receives **no** `execute`. Its Claude profile relies on a session-wide
 read-only Bash guard, and these hosts cannot enforce that agent-specific command allowlist *from the
@@ -134,7 +138,6 @@ would retire the projected bundle entirely.
 | `model`, handoff `model` | No lane pins a model on any host; a dated pin goes stale silently |
 | `user-invocable` | The fleet serves a human SRE; hiding a lane from the picker works against that |
 | `target` | One emitted file serves both targets because unsupported keys are ignored |
-| `todo` | The source grant has no equivalent; projections mirror, never widen |
 | `license` | Redundant with the manifest, multiplied across every projected bundle |
 | `infer` | Deprecated upstream |
 | `allowed-tools` | Security posture: never pre-approve shell without confirmation |

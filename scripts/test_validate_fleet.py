@@ -510,7 +510,16 @@ class FleetValidatorTests(unittest.TestCase):
             for source in (ROOT / "agents").glob("*.md"):
                 text = source.read_text(encoding="utf-8")
                 if source.name == "software-engineer.md":
-                    text = text.replace("Write, Skill", "Write, WebFetch, Skill")
+                    # Anchor on the `tools:` line itself, not on an adjacent pair of tool
+                    # names: this injection silently became a no-op once a grant landed
+                    # between `Write` and `Skill`, and a no-op injection makes the assertion
+                    # below test nothing at all.
+                    before = text
+                    text = re.sub(
+                        r"^(tools: .*?)(, Skill\b)", r"\1, WebFetch\2",
+                        text, count=1, flags=re.M,
+                    )
+                    self.assertNotEqual(before, text, "WebFetch injection did not apply")
                 (root / "agents" / source.name).write_text(text, encoding="utf-8")
             _, failures = validate_fleet.validate_agents(root)
         self.assertIn("forbidden tool(s): WebFetch", "\n".join(failures))

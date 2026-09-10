@@ -9,7 +9,7 @@ description: >-
   review. Not for source-code dependency, knowledge, or GraphRAG graphs, implementing a graph
   runtime, or selecting one; use `save-toolkit:agent-authoring` for the prompt/roster method.
   Helper code belongs to `save-toolkit:software-engineer`; injection-surface review to `save-toolkit:reviewer`.
-tools: Read, Grep, Glob, Bash, Edit, Write, Skill, Agent(save-toolkit:researcher)
+tools: Read, Grep, Glob, Bash, Edit, Write, TodoWrite, EnterWorktree, ExitWorktree, Skill, Agent(save-toolkit:researcher)
 ---
 
 # Role
