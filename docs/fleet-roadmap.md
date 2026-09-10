@@ -15,11 +15,6 @@ leaves this file only when its Outcome is met and merged, or an owner dispositio
 Its removal commit is the closure record: name the ID, disposition, and supporting evidence in the
 commit message or patch. The changelog is a recent summary, not a permanent closure register.
 
-Find an older item's disposition with
-`git log --first-parent -m -p -G '<ID>' -- docs/fleet-roadmap.md docs/roadmap-closed.md CHANGELOG.md`.
-Inspect the removal patch; read an older closure entry with `git show <commit>:CHANGELOG.md`.
-This also covers items recorded before the closed register and changelog were trimmed. Historical
-records do not re-queue work.
 
 ## Repository work
 
@@ -29,8 +24,8 @@ records do not re-queue work.
 **Owner:** Maintainers accept the release; `agent-engineer` owns the plugin contract and
 `software-engineer` owns helper/adapter repairs.
 **Outcome:** An SRE installs a pinned artifact rather than whatever `main` holds, and can roll back
-to a previously accepted one. The [acceptance cases](vscode-plugin-acceptance.md) pass on those
-exact shipping bytes, which the 2026-09-10 local-install run did not exercise.
+to a previously accepted one. The 2026-09-10 acceptance run passed against a local install, not
+those exact shipping bytes.
 **Next action:** Retire the mutable `"source": "./"` selector in `.claude-plugin/marketplace.json`
 for an immutable selector or checksum, then re-run the acceptance cases on those shipping bytes: the
 2026-09-10 pass was against a local `./` install, and a passing run does not carry to bytes it did
@@ -43,33 +38,6 @@ exit-code authentication and `agent_type` scoping.
 [`README.md`](../README.md); HOST-002's closure commit records the owner disposition.
 **SRE task:** Install a named version of the toolkit, and go back to the previous one if it regresses.
 
-### INCIDENT-QUALITY-001 — verify decision quality after the SRE contract repairs
-
-**Status:** `decision-needed` (2026-09-07); behavioral acceptance remains on hold.
-**Owner:** Maintainers select the exact candidate and evaluation budget; `agent-engineer` owns
-the bounded follow-up.
-**Outcome:** The advisor loads relevant guidance, dispatches a bounded helper, reconciles its
-return, and advances without invented causes, timing, or current-state claims.
-**Next action:** Address unsupported stage/timing/escalation conclusions and exact file resolution
-before the next bounded candidate. The helper-scope repair at `c53ed2b6` used one helper in both
-fresh samples; one completed the actual native return/resume sequence but failed semantic criteria
-4 and 6. The second read the fixture then tried an unnecessary missing path, stopping before resume.
-Preserve these failures; neither the source repair nor structural PASS establishes acceptance. See the
-[selected-improvement record](reviews/2026-09-07-selected-sre-improvements.md).
-The completed 24-session Sonnet campaign failed behavioral acceptance; later source merges are not
-a fresh behavioral verdict. Preserve actual return/resume and sufficient-evidence recovery as
-regressions. Separate decisions remain for limited Terra comparisons (zero calls; tool absence
-unproved and host skills injected), six Sonnet pairs for task-sized outputs, and three pairs for
-helper exchanges. These are pending choices, not permission to run them.
-**Evidence:** [Second pass](reviews/2026-09-07-incident-quality-second-pass.md), its
-[symptom-guidance](reviews/2026-09-06-general-incident-help.md) and
-[first-repair](reviews/2026-09-06-sre-decision-quality-repairs.md) baselines, plus
-[task-sized outputs](reviews/2026-09-07-task-sized-skill-outputs.md) and
-[helper exchange](reviews/2026-09-07-incident-helper-exchange.md). The
-[operational-contract report](reviews/2026-09-04-operational-contract-fixes.md) remains the
-record-provenance evidence used by merged PR #237. Results apply to those records' named snapshots.
-**SRE task:** Get a useful next check or closeout without mistaking a helper's completed assignment
-or an untimed aggregate for evidence of incident recovery or cause.
 
 ### CONTEXT-001 — establish a generalized SRE operational-context contract
 
@@ -106,7 +74,7 @@ handoff before claiming usability. Do not replay the old consumer patch as proof
 probe; reducing bytes alone does not prove better behavior.
 **Next action:** Review the owner-approved incident-investigation repairs and conditional-detail
 candidate in [PR #248](https://github.com/latent-sre/save-toolkit/pull/248), recorded in the
-[quality round](reviews/2026-09-08-quality-round.md#approved-incident-skill-repairs--2026-09-09).
+retired 2026-09-08 quality-round report preserved in Git history.
 The core is 7.4% smaller after restoring and clarifying the five opening questions; reference-read
 scenarios and example checks are repaired, but fresh judge calibration and paired native behavior
 are unverified.
@@ -114,8 +82,8 @@ Select their budget before behavioral acceptance. `agent-authoring` remains queu
 not authorize another skill's cut.
 The owner-approved Terra prompt comparison now records supplied source and same-session updates;
 opening coverage improved in its single paired sample, while direction-change checkpoint selection
-still failed and the candidate inferred a database destination. See the quality round's
-[Terra follow-up](reviews/2026-09-08-quality-round.md#terra-source-input-follow-up--2026-09-09).
+still failed and the candidate inferred a database destination. The detailed Terra follow-up is
+preserved in the retired quality-round report in Git history.
 **Evidence:** [verified] UTF-8/LF entrypoint sizes at `ed321035`, measured 2026-09-07. Six exceed
 the existing 7,800-byte screen (the old list of three is obsolete):
 
@@ -130,38 +98,6 @@ the existing 7,800-byte screen (the old list of three is obsolete):
 
 **SRE task:** Get the needed guidance with less irrelevant context and response delay.
 
-### LIFECYCLE-001 — a service record stays true for the whole service life
-
-**Status:** `active` (2026-09-07).
-**Owner:** Save Toolkit maintainers.
-**Outcome:** Change, remediation, refresh, and retirement each have an owner who keeps the service
-record current or visibly marks it stale.
-**Next action:** Verify those ownership transitions and reconcile producer support for freshness
-and forbidden paths through CONTEXT-001. The consumer already declares `forbidden` and `maxAge`;
-verify their shared semantics and the evidence needed for `last_verified`, rather than adding
-another skill-local schema. Retirement is already a mode of `service-lifecycle`.
-**Evidence:** Current [lifecycle requirements](../skills/service-lifecycle/context-requirements.yaml)
-and [knowledge-disposition rules](../skills/operational-learning/SKILL.md); end-to-end acceptance
-of all four transitions remains unverified.
-**SRE task:** Know whether a service record still applies to the deployment being operated.
-
-### QUALITY-001 — close the remaining platform and observability quality findings
-
-**Status:** `decision-needed` (2026-09-08).
-**Owner:** Maintainers decide whether and when to run the batch; `agent-engineer` executes with
-independent review.
-**Outcome:** The fifteen platform and observability P2 findings from the 2026-09-08 quality round are
-fixed at source with their primary sources cited, or dispositioned, and the touched skills are
-re-measured against the round's iteration-1 baseline on Sonnet and Opus.
-**Next action:** Owner selects the batch (first two by behavioural evidence: the pcf-ops startup
-health-check timeout crash loop and the obs-alerting Splunk scheduled-alert window), then the same
-method as the merged batches: reconfirm each finding at source, implement from exact specs, review,
-after-run. No model run is authorized by this item.
-**Evidence:** [Quality round record](reviews/2026-09-08-quality-round.md) (analysis counts, the two
-behaviourally confirmed misses, and the open list); the lane reports are private under
-`.eval-runs/quality-20260908/analysis/`.
-**SRE task:** Get correct first checks for a PCF crash loop, a Splunk alert window, a Cloud Run 429, an
-Akamai purge, and a Wavefront alert from the skills instead of from memory.
 
 ## Deferred
 
@@ -181,20 +117,14 @@ target, argv/executable digest, expiry, rollback — instead of an open-ended ex
 ## Parked
 
 All ten items below remain `deferred` (2026-09-03). Reopening requires a named SRE task and owner
-decision, then a full seven-field item above. This refresh neither closes them nor authorizes runs.
-The [prior roadmap](https://github.com/latent-sre/save-toolkit/blob/ed3210358557415023f33faaaf669315fe79d7ec/docs/fleet-roadmap.md)
-retains their historical evidence paths and recovery commands; those measurements do not establish
-current behavior. Consumed evaluation profiles remain non-reusable.
+decision, then a full seven-field item above.
 
 | ID | Required decision or evidence before work resumes |
 |---|---|
 | WF-001 | Prove dispatch of an exact trusted `ship-review` workflow without caller-supplied workflow code. Re-probe only on a material host/contract change. |
-| ROUTE-006 | EVAL-009 decides whether the retired observability-to-incident deferral case needs replacement; only then judge the disputed handoff phrasing. |
 | GRAPH-004 | Establish a named SRE use for `fleet-atlas`. [PR #205](https://github.com/latent-sre/save-toolkit/pull/205) is closed unmerged; preserve donor source/evidence and do not merge or rewrite it before GRAPH-006 semantic parity. |
 | GRAPH-005 | Reconcile bridge findings and rerun the pinned-image six-case lifecycle before accepting the offline Agent Framework/AutoGen A2A bridge with its human decision boundary. |
 | GRAPH-006 | Review a compact v2 atlas design and compatibility matrix: one typed pipeline and shared projection/provenance verifier for build/check/query. |
 | ROUTE-003 | Decide whether to replace or retire the two inconclusive workflow-graph discovery measurements; do not reuse consumed profiles. |
 | ROUTE-004 | Decide whether the surviving Mantine positive at threshold 1.0 suffices, or needs a replacement calibration case. |
 | EVAL-005 | The [dashboard probe](../evals/build-scenarios/build-obs-dashboard-write-honours-the-carve-out.yaml) now seeds real Prometheus data. Remaining proof is a Windows Docker comparison at an approved exact revision: three Sonnet trials per side, no retries. |
-| EVAL-007 | Resolve the closure contract for an incident-response verdict based on meaning: a structural or relation-based grader plus a clean guidance-removal counterfactual. |
-| EVAL-009 | Reconcile the old fleet-weight/PR #224 prerequisites against current main before authorizing a new corpus baseline and judge calibration. Decide description ownership-map wording and injection-refusal coverage; include the eleven-description routing follow-up. |

@@ -17,8 +17,8 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   external-monitor and Situation pages to `obs-alerting`, opens Apps Manager Events first, and never
   searches for documentation; the runbook exemplar and template are console-first with
   `last_verified` bound to the drilled version; the commander's evidence rules match the helper's
-  read contract. Ceilings rise to 610,565 skill bytes and a 77,000-byte human incident path. See the
-  [quality round record](docs/reviews/2026-09-08-quality-round.md).
+  read contract. Ceilings rise to 610,565 skill bytes and a 77,000-byte human incident path. The
+  detailed quality-round record is retained in Git history.
 - Engineering lane, same round: the Spring problem-details advice no longer claims a property it
   makes redundant and names the security-filter 401/403 gap; the builder ladder keeps a scoped
   security fix builder-owned; the skill token budget is described as the compaction re-attachment
