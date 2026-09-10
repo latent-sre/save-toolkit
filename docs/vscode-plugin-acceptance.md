@@ -43,5 +43,5 @@ artifact to an immutable selector/checksum, and verifies reinstalling the previo
 artifact. Follow [release readiness](../skills/production-change-gate/references/release-readiness.md)
 and its distribution-specific immutability evidence. A mutable main install remains pre-release.
 
-Record results under the HOST-002 item in the [live roadmap](fleet-roadmap.md). Source tests and
+Record results under the RELEASE-001 item in the [live roadmap](fleet-roadmap.md). Source tests and
 an installed VS Code version number do not close runtime or model-behavior gaps.

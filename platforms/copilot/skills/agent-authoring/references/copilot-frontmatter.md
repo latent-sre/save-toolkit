@@ -7,7 +7,7 @@ the live docs (code.visualstudio.com/docs/agent-customization/custom-agents,
 docs.github.com/en/copilot/reference/custom-agents-configuration) the docs win — update this file
 and re-verify after host upgrades.
 
-Facts below are **doc-checked (2026-09-09; Skills refreshed 2026-09-10), not host-probed**. `HOST-002` owns installed-host
+Facts below are **doc-checked (2026-09-09; Skills refreshed 2026-09-10), not host-probed**. `RELEASE-001` owns installed-host
 verification; treat a key's presence here as permission to author, never as proof it enforces.
 
 ## Contents
@@ -37,7 +37,7 @@ host does not support is **ignored, not rejected**, which is why one file serves
 | `disable-model-invocation` | Boolean, default `false`; prevents the agent being invoked **as a subagent by other agents**. Unused on agents today, and the one host key that could turn the delegation graph's inbound edges into enforcement rather than documented intent |
 | `target` | `vscode` or `github-copilot`. Unused — one file serves both because unsupported keys are ignored |
 | `mcp-servers` | MCP server config JSON for Copilot targets. Unused — `researcher`'s 18 exact Claude MCP grants collapse to bare `web`, so the cited-research lane is materially weaker here than on Claude |
-| `hooks` | **(Preview)** agent-scoped hooks, VS Code 1.111+, gated behind `chat.useCustomAgentHooks`. Same shape as hook config files, and `PreToolUse` may return a permission decision — the mechanism `readonly-guard.py` uses. Unused: `HOST-002` keeps `hooks/copilot-hooks.json` empty until its separate canary passes |
+| `hooks` | **(Preview)** agent-scoped hooks, VS Code 1.111+, gated behind `chat.useCustomAgentHooks`. Same shape as hook config files, and `PreToolUse` may return a permission decision — the mechanism `readonly-guard.py` uses. Unused: `RELEASE-001` keeps `hooks/copilot-hooks.json` empty until its separate canary passes |
 | `infer` | **Deprecated** — replaced by `user-invocable` and `disable-model-invocation`. Never emit |
 
 Claude grants use full plugin names (`Agent(reviewer)`); the generator projects the
@@ -107,7 +107,7 @@ defines portable metadata. Both were checked against the current docs on 2026-09
 
 ## Hook events and shape
 
-Unadopted (`HOST-002`), documented because the gap is smaller than it looks: the `PreToolUse`
+Unadopted (`RELEASE-001`), documented because the gap is smaller than it looks: the `PreToolUse`
 decision payload is **field-identical** to what `readonly-guard.py` already emits for Claude.
 
 | Event | Claude equivalent |
@@ -151,4 +151,4 @@ would retire the projected bundle entirely.
 | `infer` | Deprecated upstream |
 | Skill `context`, `metadata` | No current adoption requirement; forked execution needs a bounded host check before changing a skill's execution model |
 | `allowed-tools` | Fleet policy avoids tool preapproval; Copilot support is not established by the portable specification |
-| Agent `hooks`, `mcp-servers`, `disable-model-invocation` | Not decided against — unadopted pending `HOST-002` verification. The skill invocation flag is already used by `pcf-deploy` |
+| Agent `hooks`, `mcp-servers`, `disable-model-invocation` | Not decided against — unadopted pending `RELEASE-001` verification. The skill invocation flag is already used by `pcf-deploy` |

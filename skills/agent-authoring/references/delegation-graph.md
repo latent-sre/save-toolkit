@@ -44,7 +44,7 @@ Canonical Claude `Agent(target)` enforces an edge only for a main-thread agent; 
 the list is silently ignored (probed; see
 [`claude-code-frontmatter.md`](./claude-code-frontmatter.md)). VS Code has a separate `agents:`
 field. The generated field scopes discovery on the currently observed host; deterministic
-invocation and nested-edge enforcement are build-specific and stay unverified until `HOST-002`
+invocation and nested-edge enforcement are build-specific and stay unverified until `RELEASE-001`
 observes a real allowed and forbidden call on the exact build.
 
 Neither projection is a sandbox. Host/network isolation, tool absence, and the guard (the fleet
