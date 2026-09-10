@@ -11,9 +11,9 @@ argument-hint: "[task, diff, file, or design doc]"
 
 ## The engineering ladder
 
-Pick the rung the work actually sits at, then read only that tier file. Do not preload neighboring
-tiers as a checklist. Load a different tier only when observed scope changes the altitude or the
-selected tier's escalation rule requires it.
+For routing, read the tier for the decision still open; for assessment, read the requested bar.
+Do not preload neighboring tiers. Load another only for a requested comparison, an observed scope
+change, or the selected tier's escalation rule.
 
 | | Builder | Principal | Distinguished |
 |---|---|---|---|
@@ -46,9 +46,7 @@ The caller arranges any invocation the current lane cannot make.
 
 Keep work in the current context when it fits; use `software-engineer` for implementation needing
 fresh context or parallel work. Read only the matching bar: [builder](./references/builder.md),
-[principal](./references/principal.md), or [distinguished](./references/distinguished.md). If it is
-insufficient, the main context loads the next tier; a delegated agent returns the fork to its caller
-instead of changing altitude.
+[principal](./references/principal.md), or [distinguished](./references/distinguished.md).
 
 This table is the source of truth for routing — on any conflict over which rung a task belongs to, the table wins; fix the paraphrase, not the table.
 
@@ -56,8 +54,16 @@ Application-operations work routes to the responder with `incident-investigation
 
 ## Mode 2 — Assess work at a bar
 
-The table above routes; it is not the bar. Each rung's reference file is its full bar. Read the relevant one before scoring. Score the artifact against its current-level bar: **meets**, or **gaps** with cited evidence (specific lines or sections — no generic feedback). Score against the artifact's own remit: absence of work nobody asked for is not a gap, and a simple artifact done cleanly meets the bar — never invent gaps to make the assessment look rigorous. Then state the next-level delta: the two or three concrete things that would make this artifact next-rung work. Example: "The code works and is tested — the principal version would name the migration rollback plan and cut the config surface in half."
+The table routes; the selected reference supplies the assessment bar.
+
+1. Use the requested bar, or state the inferred rung when none was named.
+2. Score **meets** or **gaps**, citing specific lines or sections. Assess the artifact's remit;
+   unrequested implementation or architecture work is not a gap. A simple artifact done cleanly
+   can meet the bar.
+3. Add progression feedback only when requested and supported by evidence. Keep it separate from
+   current-bar gaps, without a quota of suggestions. Distinguished has no higher rung in this ladder.
 
 ## Mode 3 — Growth feedback
 
-For a body of work (several diffs or docs): identify recurring patterns, strengths at the current level, and the single highest-leverage next-level behavior to practice. One behavior, not a list — growth feedback that names ten things changes nothing.
+For several diffs or docs, identify recurring patterns, current strengths, and one evidence-supported
+behavior to practice at the current or next defined rung. Do not invent a higher rung or extra scope.
