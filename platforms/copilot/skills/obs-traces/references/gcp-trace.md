@@ -6,7 +6,7 @@ Use this reference only after applying the product-agnostic investigation shape 
 skill. Sources reviewed 2026-08-19 against live official pages on `docs.cloud.google.com` (every
 `cloud.google.com/...` docs URL now 301-redirects there).
 
-## Where trace data goes now (this changed recently)
+## Trace ingestion, storage, and export
 
 - **The OTLP-to-Telemetry-API ingest fact (endpoint, all three signals, Pre-GA logs) is owned by
   `obs-pipeline`.** The older proprietary Cloud Trace API is *not* retired: it is absent from the
@@ -53,6 +53,9 @@ skill. Sources reviewed 2026-08-19 against live official pages on `docs.cloud.go
   sustained drops at high volume are a quota hypothesis, checked in the API dashboard.
 - Retention and span caps: the `_Trace` bucket retains spans for **30 days**; per-span limits
   include 1,024 attributes and 256 events *[sourced: docs.cloud.google.com/trace/docs/quotas]*.
-  A trace absent beyond 30 days is retention, not telemetry loss.
-- Cross-project traces require the viewer to hold access on the scoping project; "no data" for one
-  responder and data for another is an IAM symptom, not a telemetry one.
+  Older traces are not expected to remain queryable; absence cannot establish whether they were
+  originally sampled or exported.
+- Cross-project viewing requires `roles/cloudtrace.user` on the viewing project and every project
+  storing the trace data. Compare backend, trace scope, time window, and filters before treating
+  different responders' results as an access hypothesis; viewing-project access alone is insufficient.
+  *[sourced: [Cloud Trace IAM](https://docs.cloud.google.com/trace/docs/iam); reviewed 2026-09-09]*

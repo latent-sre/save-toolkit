@@ -70,22 +70,23 @@ for the human release owner; Java source changes belong to the application's dev
   3. The staging log line `Loaded Classes: N, Threads: 300` is the calculator's input; tune
      `stack_threads` via `JBP_CONFIG_OPEN_JDK_JRE` rather than hand-setting `-Xss`.
 
-  A container memory kill (`Exited with status 137 (out of memory)`, no JVM stack trace) is total RSS
-  over the limit. A JVM `OutOfMemoryError` names its reason in the message; for the common
-  pool-exhaustion forms the message picks the knob: `Java heap space` / `GC overhead limit exceeded`
-  → heap (`-Xmx`, which the calculator derives); `Metaspace` / `Compressed class space` → class
-  metadata (the calculator's class count, not heap); `unable to create native thread` → thread count
-  or `-Xss`; `Direct buffer memory` → `MaxDirectMemorySize`. Other reasons are not sizing problems:
-  `Requested array size exceeds VM limit` is one impossible allocation (a code defect), and `unable
-  to create native thread` can also be an OS process or thread limit (ulimit, cgroup pids) rather
-  than `-Xss`; a message outside this list stays open for diagnosis. Read the message before moving
-  any knob: raising heap or container memory does not fix a Metaspace or thread exhaustion. With the
-  calculator's heap cap in place a
-  container kill is non-heap unless `-Xmx` was pinned by hand. *[sourced: Oracle JDK 17 troubleshooting guide
-  for the heap, GC-overhead, Metaspace, compressed-class, and native-allocation forms,
-  https://docs.oracle.com/en/java/javase/17/troubleshoot/troubleshooting-memory-leaks.html; the
-  native-thread and direct-buffer messages are JDK runtime strings whose exact text varies by JDK
-  version `[unverified]`]*
+  A container OOM kill establishes total memory pressure, not which JVM pool caused it. The
+  calculator budgets from inputs; a calculated heap cap does not prove a later kill was non-heap.
+  Compare effective JVM limits, heap/native usage, class/thread estimates, and OS/cgroup limits.
+  More container memory can mainly enlarge the calculated heap; it need not raise a fixed metaspace
+  cap or resolve a thread limit. Diagnose before proposing a sizing change:
+
+  | JVM `OutOfMemoryError` reason | Investigate |
+  |---|---|
+  | `Java heap space` / `GC overhead limit exceeded` | Heap demand and effective `-Xmx` |
+  | `Metaspace` / `Compressed class space` | Class metadata demand, class-count estimate, and pool caps |
+  | `unable to create native thread` | Thread count, stack size (`-Xss`), native headroom, and OS/cgroup process limits |
+  | `Direct buffer memory` | Direct allocation demand and `MaxDirectMemorySize` |
+  | `Requested array size exceeds VM limit` | Impossible single allocation; correct the code |
+
+  Unlisted reasons stay open for diagnosis. *[sourced: [Oracle JDK 17 troubleshooting](https://docs.oracle.com/en/java/javase/17/troubleshoot/troubleshooting-memory-leaks.html);
+  [calculator](https://github.com/cloudfoundry/java-buildpack-memory-calculator/blob/3d845d8695ed03f1315c5a66582a441c754e3870/calculator/calculator.go);
+  reviewed 2026-09-09. Exact native-thread/direct-buffer message text varies by JDK `[unverified]`.]*
 - **The buildpack picks the JRE from its own config** (`JBP_CONFIG_OPEN_JDK_JRE`), not from the
   build file — check the two agree before blaming the code for a `ClassFormatError`. *[sourced:
   cloudfoundry/java-buildpack `docs/IMPLEMENTING_JRES.md`, `docs/jre-open_jdk_jre.md`,
