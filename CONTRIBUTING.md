@@ -25,6 +25,12 @@ third-party dependencies in `requirements-dev.txt`; `scripts/readonly-guard.py` 
 standard-library-only under `python -I -S`. On Windows use `python` or `py -3`, not the Store stub.
 `rg` hides generated projections through [`.ignore`](.ignore); pass `--no-ignore` to inspect them.
 
+Repository development and CI track the latest Python 3.14 patch. `.python-version` selects the
+minor series; both CI jobs use `check-latest: true`. Use `uv python install 3.14` and
+`uv venv --python 3.14`, then install the required dependency set into that environment.
+An old uv binary may need updating before it knows about a newly released Python patch.
+This development default does not raise the installed hook guard's Python 3.11 floor.
+
 ## 3. Verify in proportion to the change
 
 Run the smallest check that exercises the changed behavior. A new contract needs one focused test

@@ -25,7 +25,8 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.14'
+          check-latest: true
 
       # gate_a.py owns the structural roster; component suites run in the matrix below.
       - name: Gate A -- mechanical audit
@@ -46,7 +47,8 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.14'
+          check-latest: true
 
       # Install the constrained test set so dependency-backed checks do not silently skip.
       - name: Install pinned fleet test dependencies

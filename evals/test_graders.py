@@ -14,7 +14,6 @@ Exits non-zero on any failure with a PASS/FAIL summary.
 """
 from __future__ import annotations
 
-import math
 import json
 import sys
 from datetime import date

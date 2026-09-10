@@ -19,6 +19,27 @@ WORKFLOW = ROOT / ".github" / "workflows" / "validate.yml"
 
 
 class ValidateWorkflowTests(unittest.TestCase):
+    def test_sandbox_dependencies_match_repository_pins(self) -> None:
+        def pins(path):
+            return {line.strip() for line in path.read_text(encoding="utf-8").splitlines()
+                    if line.strip() and not line.lstrip().startswith("#")}
+
+        repository = pins(ROOT / "requirements-dev.txt")
+        for relative in ("sandbox/autogen-a2a-sandbox/requirements.txt",
+                         "sandbox/graph-sandbox/runner/requirements.txt",
+                         "sandbox/graph-sandbox/services/requirements.txt"):
+            with self.subTest(path=relative):
+                self.assertEqual(set(), pins(ROOT / relative) - repository,
+                                 "sandbox dependencies drifted from the repository pin set")
+
+    def test_ci_tracks_latest_python_314(self) -> None:
+        jobs = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]
+        for name in ("validate", "component-tests"):
+            setup = next(step for step in jobs[name]["steps"]
+                         if step.get("uses", "").startswith("actions/setup-python@"))
+            self.assertEqual("3.14", setup["with"]["python-version"])
+            self.assertIs(setup["with"]["check-latest"], True)
+
     def test_repository_actions_use_major_tags(self) -> None:
         jobs = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]
         for job in jobs.values():
