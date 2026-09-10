@@ -67,8 +67,7 @@ is a measured repair allowance, not evidence of model quality.
 ## Remaining evidence
 
 The installed VS Code version observed on this machine is 1.136.1 (`a44adf7f`), but its chat runtime
-was not exercised. Recover the retired acceptance procedure from the pre-cleanup Git snapshot and
-use it with the live
+was not exercised. Use the [acceptance procedure](../vscode-plugin-acceptance.md) and the live
 HOST-002/INCIDENT-QUALITY-001 items. No live model campaign, marketplace publication, versioned
 release, or production action is part of these source checks. The managed security scan did not
 start during the review; its coverage remains incomplete.
