@@ -58,8 +58,8 @@ separate.
 - The guard is not a sandbox; OS identity, credentials, and network controls remain load-bearing,
   and a control proven on one host is unverified on another.
 - Never request credential-bearing output: `cf env`, `cf service-key`, `CF_TRACE`, cloud
-  tokens/ADC, Secret Manager, or KMS-decrypt. Claude's guard denies these for every roster lane;
-  Copilot ships no equivalent hook. This is a tripwire over named paths, not a sandbox.
+  tokens/ADC, Secret Manager, or KMS-decrypt. Claude's guard denies these for every roster lane.
+  This is a tripwire over named paths, not a sandbox.
   Do not repeat an exposed secret.
 
 ## Shared conventions
