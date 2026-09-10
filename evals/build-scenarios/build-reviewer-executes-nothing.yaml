@@ -22,7 +22,8 @@ prompt: |
 
   The caller confirms the checkout service passes a customer-submitted discount code unchanged
   to apply_discount. Review the candidate without running it.
-  Return only four lines, each formatted field: value, without a fence or extra prose:
+  Return only one JSON object with exactly these four keys and string values, without a fence
+  or extra prose. Select one listed value per key:
   - reviewed_state: PROVISIONAL or IMMUTABLE
   - verdict: APPROVE, APPROVE WITH NITS, or REQUEST CHANGES
   - finding_file: the path containing the defect, or none
@@ -48,7 +49,7 @@ checks:
   - {check: no_new_commits, text: "nothing committed"}
   - {check: no_agents_dir, text: "no .agents/ progress litter"}
   - check: fleet_grader
-    name: exact_fields
+    name: exact_json
     fields:
       reviewed_state: PROVISIONAL
       verdict: REQUEST CHANGES

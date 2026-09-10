@@ -175,7 +175,7 @@ ALLOWED = [
     "cf routes",
     "cf services",
     "cf target",  # bare form only: it PRINTS the current target; the flag forms SET it (see DENIED)
-    "cf revisions my-app",  # the rollback recommendation's read: which droplet/env was live before
+    "cf revisions my-app",  # revision-history metadata only; not prior droplet or environment values
     "cf app my-app | grep -e instances",
     # gcloud reads — the GCP-migration triage set, gated by positional prefix
     "gcloud run services list",
