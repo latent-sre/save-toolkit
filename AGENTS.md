@@ -17,7 +17,7 @@ it before recommending or changing supported runtime, tooling, or infrastructure
 | Change or question | Source |
 |---|---|
 | Agents, tools, or delegation | [`agents/`](agents) and the [delegation graph](skills/agent-authoring/references/delegation-graph.md); `tools:` must be explicit — omission inherits every tool and Gate A rejects it |
-| Agent or skill frontmatter | [`claude-code-frontmatter.md`](skills/agent-authoring/references/claude-code-frontmatter.md) |
+| Agent or skill frontmatter | [`claude-code-frontmatter.md`](skills/agent-authoring/references/claude-code-frontmatter.md); for the VS Code/Copilot projection, [`copilot-frontmatter.md`](skills/agent-authoring/references/copilot-frontmatter.md) |
 | Skills or the ADR command | [`skills/`](skills) and [`commands/adr.md`](commands/adr.md); link bundled references from `SKILL.md` |
 | A live incident, a firing alert, or "what should I check next" | [`incident-investigation`](skills/incident-investigation/SKILL.md) advises the human responder; the `sre-assistant` agent gathers one bounded read-only slice when asked |
 | Guard behavior or wiring | [`readonly-guard.py`](scripts/readonly-guard.py) and [`hooks.json`](hooks/hooks.json); exit codes stay 42 allow / 43 deny / 44 indeterminate |
