@@ -75,8 +75,11 @@ python -m pytest -q
 [`.github/workflows/validate.yml`](.github/workflows/validate.yml) then runs three jobs on the
 pull request: `validate` (this same gate), `component-tests` (`pytest` against
 `requirements-test.txt` on a Linux/Windows matrix), and `claude-plugin-contract`
-(`claude plugin validate . --strict` on a pinned CLI). Report what ran and what remains
-unverified.
+(npm's latest Claude Code release, with its resolved version recorded in the job log).
+That job validates `.claude-plugin/marketplace.json` with `--strict` and
+`.claude-plugin/plugin.json` without it: plugin errors fail the job; warnings remain visible.
+The root `CLAUDE.md` intentionally provides repository authoring context and produces a warning
+because installed plugins do not load it. Report what ran and what remains unverified.
 
 ## 4. Publish the intended change
 

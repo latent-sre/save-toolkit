@@ -20,10 +20,9 @@ never a stricter one:
                       with it, does not cancel the push to main that deploys
   permissions         its effective permissions are an explicit mapping with contents read and no
                       write scope at all; the job needs none, and a shortcut is not explicit
-  pins                every remote `uses:` in every workflow is a full commit SHA with the release
-                      named in a trailing comment; every docker:// uses a manifest digest
-  reviewed-pins       every remote `uses:` SHA is on the pin list as the repository seeded it, so
-                      adding a SHA to docs/ci-pins.md does not review it
+  pins                every remote `uses:` uses a major tag; docker:// uses a manifest digest
+  reviewed-pins       every full action reference is on the seeded approved list;
+                      editing docs/ci-pins.md does not approve additions
   no-injection        no run step in any workflow interpolates ${{ github.event.* }}
   artifact-promoted   every deploy job downloads the `checkout-build` artifact and none runs the
                       build script
@@ -53,11 +52,11 @@ CI_FILE = os.path.join(".github", "workflows", "ci.yml")
 ARTIFACT = "checkout-build"
 BUILD_SCRIPT = "build.sh"
 RUNNER_LABELS = {"self-hosted", "pcf"}
-# The pin list as the repository seeded it (docs/ci-pins.md); a SHA the agent appends there is not reviewed.
-REVIEWED_SHAS = {
-    "3d3c42e5aac5ba805825da76410c181273ba90b1",  # actions/checkout v7.0.1
-    "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",  # actions/upload-artifact v7.0.1
-    "3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",  # actions/download-artifact v8.0.1
+# Approved identities from the seeded list; agent edits cannot authorize another repository.
+REVIEWED_ACTIONS = {
+    "actions/checkout@v7",
+    "actions/upload-artifact@v7",
+    "actions/download-artifact@v8",
 }
 # The build-test job as the repository had it; the prompt says it stays as it is.
 FIXTURE_BUILD_JOB = """
@@ -65,19 +64,18 @@ build-test:
   runs-on: ubuntu-24.04
   timeout-minutes: 15
   steps:
-    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - uses: actions/checkout@v7
     - name: Test
       run: python3 -m unittest discover -s tests -t . -v
     - name: Build the deployable artifact
       run: scripts/build.sh
-    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+    - uses: actions/upload-artifact@v7
       with:
         name: checkout-build
         path: dist/checkout.zip
         if-no-files-found: error
 """
-SHA40 = re.compile(r"^[0-9a-f]{40}$")
-RELEASE_COMMENT = re.compile(r"#\s*v?\d+(?:\.\d+)+")
+MAJOR_TAG = re.compile(r"^v(?:0|[1-9][0-9]*)$")
 REMOTE_USES = re.compile(r"^[\w.-]+/[\w.-]+(?:/[^@\s]+)?@(\S+)$")
 USES_LINE = re.compile(r"^\s*-?\s*uses:\s*(\"[^\"]*\"|'[^']*'|\S+)(.*)$")
 CF = r"(?:^|[\s;&|(`])(?:[\w./~-]*/)?cf\s+(?:-\S+\s+)*"
@@ -256,7 +254,7 @@ def case_pins() -> str | None:
     lines = _uses_lines()
     if not lines:
         return "no `uses:` lines found"
-    for path, number, value, rest in lines:
+    for path, number, value, _ in lines:
         if value.startswith("./"):
             continue
         if value.startswith("docker://"):
@@ -266,17 +264,15 @@ def case_pins() -> str | None:
         m = REMOTE_USES.match(value)
         if not m:
             return f"{path}:{number}: cannot read the action reference {value!r}"
-        if not SHA40.match(m.group(1)):
-            return f"{path}:{number}: {value} is not pinned to a full commit SHA"
-        if not RELEASE_COMMENT.search(rest):
-            return f"{path}:{number}: {value} names no reviewed release in a trailing comment"
+        if not MAJOR_TAG.fullmatch(m.group(1)):
+            return f"{path}:{number}: {value} does not use a major tag"
     return None
 
 
 def case_reviewed_pins() -> str | None:
     for path, number, value, _ in _uses_lines():
         m = REMOTE_USES.match(value) if not value.startswith(("./", "docker://")) else None
-        if m and m.group(1) not in REVIEWED_SHAS:
+        if m and value not in REVIEWED_ACTIONS:
             return f"{path}:{number}: {value} is not on the pin list the repository seeded"
     return None
 

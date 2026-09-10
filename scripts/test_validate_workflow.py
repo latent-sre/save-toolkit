@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import importlib.util
 import re
 import sys
 import tempfile
@@ -18,6 +19,56 @@ WORKFLOW = ROOT / ".github" / "workflows" / "validate.yml"
 
 
 class ValidateWorkflowTests(unittest.TestCase):
+    def test_repository_actions_use_major_tags(self) -> None:
+        jobs = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]
+        for job in jobs.values():
+            for step in job["steps"]:
+                if "uses" in step:
+                    self.assertRegex(step["uses"], r"^[\w.-]+/[\w.-]+@v[0-9]+$")
+
+    def test_deploy_oracle_action_policy(self) -> None:
+        path = ROOT / "evals/oracles/pcf-deploy-job/probe_ci_workflow.py"
+        spec = importlib.util.spec_from_file_location("ci_oracle", path)
+        oracle = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(oracle)
+        cases = [
+            ("actions/checkout@v7", True, True),
+            ("actions/upload-artifact@v7", True, True),
+            ("actions/download-artifact@v8", True, True),
+            ("other/checkout@v7", True, False),
+            ("actions/checkout/subaction@v7", True, False),
+            ("actions/checkout@main", False, False),
+            ("actions/checkout@latest", False, False),
+            ("actions/checkout@v7.0.1", False, False),
+            ("actions/checkout@" + "a" * 40, False, False),
+            ("./local-action", True, True),
+            ("docker://example@sha256:" + "a" * 64, True, True),
+            ("docker://example:latest", False, True),
+        ]
+        with tempfile.TemporaryDirectory() as temporary:
+            workflow = Path(temporary) / "ci.yml"
+            with mock.patch.object(oracle, "workflow_files", return_value=[str(workflow)]):
+                for reference, valid, approved in cases:
+                    with self.subTest(reference=reference):
+                        workflow.write_text(f"steps:\n  - uses: {reference}\n", encoding="utf-8")
+                        self.assertEqual(oracle.case_pins() is None, valid)
+                        self.assertEqual(oracle.case_reviewed_pins() is None, approved)
+
+    def test_plugin_validator_tracks_latest_and_records_its_version(self) -> None:
+        job = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]["claude-plugin-contract"]
+        commands = [line.strip() for step in job["steps"] for line in step.get("run", "").splitlines()]
+        install = commands.index("npm install -g @anthropic-ai/claude-code@latest")
+        version = commands.index("claude --version")
+        marketplace = commands.index("claude plugin validate .claude-plugin/marketplace.json --strict")
+        validate = commands.index("claude plugin validate .claude-plugin/plugin.json")
+        self.assertLess(install, version)
+        self.assertLess(version, marketplace)
+        self.assertLess(version, validate)
+        self.assertNotIn("claude plugin validate . --strict", commands)
+        for step in job["steps"]:
+            if "claude plugin validate" in step.get("run", ""):
+                self.assertNotIn("continue-on-error", step)
+
     def test_linux_validate_job_runs_gate_a(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
         validate_job, separator, _remainder = workflow.partition("\n  component-tests:")

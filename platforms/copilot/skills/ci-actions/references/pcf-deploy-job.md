@@ -21,7 +21,7 @@ infrastructure, runtime or identity recommendations.
 
 ## Planning skeleton
 
-Pin every `uses:` to a reviewed full commit SHA before committing this example.
+Use published major tags for every GitHub action in this example.
 
 ```yaml
 deploy-prod:
@@ -34,7 +34,7 @@ deploy-prod:
   env:
     RELEASE_DIR: ${{ github.workspace }}/.pcf-release-${{ github.run_id }}-${{ github.run_attempt }}
   steps:
-    - uses: actions/download-artifact@<pin-to-sha>
+    - uses: actions/download-artifact@v8
       with: { name: app-build, path: '${{ env.RELEASE_DIR }}' }
     - name: Verify release bytes and cf CLI v8
       shell: bash

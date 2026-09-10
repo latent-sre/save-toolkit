@@ -28,12 +28,13 @@ gate production with protected environments.
 ## Always-on safety contract
 
 - Set `permissions:` explicitly, starting from `contents: read`, and grant only what the job needs.
-- Pin every third-party action to a full commit SHA, and name in the trailing comment the exact
-  release the SHA resolves to, never a floating major alias: `# v5` on a SHA that is really
-  `v5.6.0` hides the version that was reviewed. Pin a `docker://` action to an image manifest
-  digest, not a Git commit.
+- Use published major tags for GitHub Actions, such as `actions/checkout@v7`. If upstream has no
+  major tag, use a published release tag and note the exception. Keep `docker://` actions on image
+  manifest digests. Do not attach exact-release comments to moving tags.
 - Pin what a step installs, not only what a step is: install from a lockfile or hash-pinned
-  requirements. Suppress lifecycle scripts where the package works without them; where it does
+  requirements. The toolkit's Claude Code plugin-compatibility job tracks npm `latest` and prints
+  `claude --version` each run; it checks current upstream compatibility. Suppress lifecycle
+  scripts where the package works without them; where it does
   not, say so and let the pinned integrity carry the trust.
 - Never interpolate `${{ github.event.* }}` values directly into `run:`. Pass the value through an
   environment variable and quote it in the shell.

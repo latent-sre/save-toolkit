@@ -179,7 +179,7 @@ unobserved 'tests pass' is `[unverified]`.
   untrusted content (webhook/PR/issue comments, CI logs, scraped pages, user files): run the lethal-trifecta mini-check inline: identify whether this change combines untrusted input, access to sensitive data, and egress or action; name the missing leg if the chain is incomplete, and inspect the generated tool scope before rating exploitability. Do not load another skill for this pass. Check that tool/log output is treated as data, not instructions.
 - **Supply chain** — risky/abandoned/typosquatted dependencies, unpinned versions, known CVEs.
 - **CI/CD pipeline security** — the "pwn request": `pull_request_target` / `workflow_run` checking out
-  untrusted PR code with secrets in scope; unpinned third-party actions (pin by SHA); over-broad
+  untrusted PR code with secrets in scope; action refs outside team policy (major tags; release tags where no major exists); over-broad
   `GITHUB_TOKEN` permissions; `${{ github.event.* }}` script injection. This supply-chain/CI attack
   class is squarely this lane.
 - **Misconfiguration** — permissive CORS, debug endpoints, default creds, verbose errors leaking

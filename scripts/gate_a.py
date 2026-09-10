@@ -1,33 +1,14 @@
 #!/usr/bin/env python3
-"""Gate A -- the fast live-tree structural audit used by CI and before a push.
+"""Run the live-tree structural checks used by CI and before a push.
 
-WHY THIS EXISTS
----------------
-The contributor protocol once copied CI's command list into prose. The copies drifted, so this file
-became the one executable source of truth for the repository's push-boundary structural checks.
-
-SCOPE
------
-Gate A runs validators against the checked-out repository. It deliberately does not discover or run
-``test_*.py``, the eval harness, release tests, guard tests, or other component suites. Those checks
-belong to the implementation that changed their owning code. Re-running every component suite at
-the push boundary contradicted the repository's focused-test and owner-trigger rules and made a
-nominally structural check require eval dependencies and Git history.
-
-The remaining checks are read-only, standard-library processes. They do not need a clean tree, a
-full clone or a machine-wide lock. Today no gate step imports a third-party package; the first
-one that does must ship the CI `pip install -r requirements-dev.txt` steps in the same change
-(see the dependency rule in AGENTS.md Hard rules). Every step still runs after a failure so one invocation
-reports the complete structural defect set.
-
-OUTPUT
-------
-A successful default run prints one verdict. Failures retain their complete attributed diagnostics.
-Pass ``--verbose`` when the complete step transcript is useful.
+This is the executable roster; CONTRIBUTING.md defines when component suites must also run.
+Checks use the standard library and need neither a clean tree nor full Git history. If a check
+adds a third-party dependency, CI must install it in the validate job before invoking this gate.
+All checks run even after a failure. Default output is one verdict plus failure diagnostics;
+--verbose includes successful step output. Structural success is not behavioral acceptance.
 """
 
 import argparse
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -35,32 +16,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-# The single roster of live-tree structural checks. Unit and component suites are intentionally
-# absent; their owners run them while implementing the relevant change.
-STRUCTURAL_STEPS = [
-    (
-        "Canonical skill and bundle links",
-        ["scripts/check_links.py"],
-        None,
-    ),
-    (
-        "Fleet, plugin, and generated adapter contracts",
-        ["scripts/validate_fleet.py"],
-        None,
-    ),
-    (
-        "Context-cost budgets for canonical tasks",
-        ["scripts/check_context_cost.py"],
-        None,
-    ),
-    (
-        "Weight totals: evals lines, skills bytes, agents bytes",
-        ["scripts/check_weight.py"],
-        None,
-    ),
+STEPS = [
+    ("Canonical skill and bundle links", ["scripts/check_links.py"]),
+    ("Fleet, plugin, and generated adapter contracts", ["scripts/validate_fleet.py"]),
+    ("Context-cost budgets for canonical tasks", ["scripts/check_context_cost.py"]),
+    ("Weight totals: evals lines, skills bytes, agents bytes", ["scripts/check_weight.py"]),
 ]
 
-STEPS = STRUCTURAL_STEPS
 MINIMUM_PYTHON = (3, 11)
 
 
@@ -83,12 +45,10 @@ def preflight() -> bool:
 def run_steps(steps, *, verbose: bool = False) -> list[str]:
     """Run every step and return failed labels in roster order."""
     failed: list[str] = []
-    for label, argv, env_extra in steps:
-        env = dict(os.environ, **env_extra) if env_extra else None
+    for label, argv in steps:
         proc = subprocess.run(
             [sys.executable, *argv],
             cwd=ROOT,
-            env=env,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
