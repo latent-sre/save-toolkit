@@ -3,9 +3,17 @@
 
 Measures three totals against the ceilings in ``scripts/weights.json``: the summed line count of
 every ``*.py`` under ``evals/`` (tests included), the summed byte count of every file under
-``skills/``, and the summed byte count of ``agents/*.md``. Growing past a ceiling is a reviewed
-decision made by raising it in the same diff that earns it -- never a silent side effect of an
-unrelated change.
+``skills/`` EXCEPT ``skills/<name>/references/``, and the summed byte count of ``agents/*.md``.
+Growing past a ceiling is a reviewed decision made by raising it in the same diff that earns it --
+never a silent side effect of an unrelated change.
+
+Why ``references/`` is excluded: this ceiling exists to resist growth in what a lane carries by
+default. A bundled reference is on-demand depth -- it enters a context only when a task reaches for
+it, and when it does sit on a task path ``check_context_cost.py`` already bounds it against that
+task's real budget. Counting it here charged a deep reference exactly what it charged a skill body,
+so the budget came to be dominated (56% when this was split out) by bytes that cost nothing at
+rest, and the gate fired on additions it had no opinion about. The narrower total keeps the ratchet
+where it bites: the always-considered body, its assets, and its scripts.
 """
 
 from __future__ import annotations
@@ -71,11 +79,29 @@ def _tracked_files(root: Path, prefix: str) -> list[Path]:
     return tracked
 
 
+def _is_bundled_reference(path: Path, root: Path) -> bool:
+    """True for ``skills/<name>/references/...`` -- on-demand depth, excluded from the ceiling.
+
+    Matched on the second path segment only, so a directory named ``references`` nested anywhere
+    else in a bundle (under ``assets/``, say) still counts. Excluding by that deeper name would let
+    any addition escape the ceiling by choosing a directory name.
+    """
+    try:
+        parts = path.relative_to(root / "skills").parts
+    except ValueError:
+        return False
+    return len(parts) > 2 and parts[1] == "references"
+
+
 def measure(root: Path = ROOT) -> dict[str, int]:
     evals_lines = sum(
         _count_lines(path) for path in _tracked_files(root, "evals") if path.suffix == ".py"
     )
-    skills_bytes = sum(path.stat().st_size for path in _tracked_files(root, "skills"))
+    skills_bytes = sum(
+        path.stat().st_size
+        for path in _tracked_files(root, "skills")
+        if not _is_bundled_reference(path, root)
+    )
     agents_dir = root / "agents"
     agents_bytes = sum(
         path.stat().st_size

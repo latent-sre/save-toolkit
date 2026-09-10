@@ -170,7 +170,7 @@ stub):
 ```sh
 python scripts/gate_a.py                                # the whole structural gate
 python scripts/check_context_cost.py                    # canonical-task and description byte budgets
-python scripts/check_weight.py                           # evals-line, skills-byte, agents-byte ceilings
+python scripts/check_weight.py                           # evals-line, skills-byte, agents-byte ceilings (bundled references/ excluded)
 python scripts/generate_platform_adapters.py --write    # after any canonical edit
 python scripts/test_platform_adapters.py                 # Copilot projection + plugin contract
 claude plugin validate . --strict                       # Claude platform contract
