@@ -255,8 +255,36 @@ class ConfluenceImportTest(unittest.TestCase):
         self.assertEqual(0, proc.returncode, proc.stderr)
         procedure = draft.split("## Procedure\n\n", 1)[1].split("\n## Verification", 1)[0]
         self.assertIn("3. Inspect.", procedure)
-        self.assertIn("- Check the dependency.", procedure)
+        self.assertIn("\n   - Check the dependency.\n", procedure)
         self.assertIn("4. Continue.", procedure)
+
+    def test_list_continuations_and_nested_commands_stay_with_their_step(self) -> None:
+        proc, draft = run_converter(
+            '<h1>Recovery</h1><h2>Procedure</h2><ol start="10">'
+            '<li><p>Inspect.</p><ul><li><p>Check.</p><pre>cf app worker</pre></li></ul>'
+            '<p>Only then continue.</p></li><li>Finish.</li></ol><p>Outside.</p>'
+        )
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        self.assertIn("10. Inspect.\n\n    - Check.", draft)
+        self.assertIn("\n      ```\n      cf app worker\n      ```", draft)
+        self.assertIn("\n    Only then continue.\n\n11. Finish.\n\nOutside.", draft)
+
+    def test_explicit_and_reversed_step_labels_survive_markdown(self) -> None:
+        cases = [
+            ('<ol><li value="5">Five.</li><li>Six.</li></ol>', '5. Five.\n\n6. Six.'),
+            ('<ol reversed start="5"><li>Five.</li><li>Four.</li></ol>', '- **5.** Five.\n\n- **4.** Four.'),
+            ('<ol reversed><li>Two.</li><li>One.</li></ol>', '- **2.** Two.\n\n- **1.** One.'),
+            ('<ol><li>One.</li><li value="5">Five.</li><li>Six.</li></ol>',
+             '- **1.** One.\n\n- **5.** Five.\n\n- **6.** Six.'),
+            ('<ol reversed><li>Three.<ul><li>Child.</li></ul></li>'
+             '<li value="7">Seven.</li><li>Six.</li></ol>',
+             '- **3.** Three.\n\n  - Child.\n\n- **7.** Seven.\n\n- **6.** Six.'),
+        ]
+        for html, expected in cases:
+            with self.subTest(html=html):
+                proc, draft = run_converter('<h1>Recovery</h1><h2>Procedure</h2>' + html)
+                self.assertEqual(0, proc.returncode, proc.stderr)
+                self.assertIn(expected, draft)
 
     def test_missing_output_parent_is_created_for_first_import(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

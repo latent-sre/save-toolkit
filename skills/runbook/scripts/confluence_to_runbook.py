@@ -19,6 +19,7 @@ import datetime
 import json
 import re
 import sys
+from dataclasses import dataclass, field
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import quote, urlsplit
@@ -57,6 +58,41 @@ UNVERIFIED_MARK = "*Imported command — [unverified] until rehearsed on the tar
 SERVICE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
 
+@dataclass
+class _List:
+    ordered: bool
+    start: int | None
+    step: int
+    items: list[tuple[int | None, list[tuple[str, str]]]] = field(default_factory=list)
+
+    def render(self) -> str:
+        number = self.start if self.start is not None else (len(self.items) if self.step < 0 else 1)
+        numbers = []
+        for override, _ in self.items:
+            number = override if override is not None else number
+            numbers.append(number)
+            number += self.step
+        # Markdown renumbers reversed/discontinuous lists. Literal labels retain their meaning.
+        literal = self.ordered and any(n != numbers[0] + i or not 0 <= n < 10**9
+                                       for i, n in enumerate(numbers))
+        output = []
+        for number, (_, blocks) in zip(numbers, self.items):
+            marker = f"- **{number}.** " if literal else (f"{number}. " if self.ordered else "- ")
+            indent = " " * (2 if literal else len(marker))
+            lines = "\n".join(render_blocks(blocks)).rstrip("\n").split("\n")
+            output.append(marker + lines[0])
+            output.extend(indent + line if line else "" for line in lines[1:])
+            output.append("")
+        return "\n".join(output).rstrip("\n")
+
+
+def _integer(value: str | None) -> int | None:
+    try:
+        return int(value) if value is not None else None
+    except ValueError:
+        return None
+
+
 class _Extractor(HTMLParser):
     """Flatten the export into (heading, blocks) sections.
 
@@ -82,8 +118,7 @@ class _Extractor(HTMLParser):
         self._heading: str | None = None
         self._pre: list[str] | None = None
         self._text: list[str] = []
-        self._list_numbers: list[int | None] = []
-        self._pending_list_prefix = ""
+        self._lists: list[_List] = []
         self._link: tuple[int, str] | None = None
 
     def _destination(self, value: str | None) -> str:
@@ -117,9 +152,12 @@ class _Extractor(HTMLParser):
         self._text = []
         if not text:
             return
-        text = self._pending_list_prefix + text
-        self._pending_list_prefix = ""
-        self.sections[-1][1].append(("text", text))
+        self._append_block("text", text)
+
+    def _append_block(self, kind: str, text: str) -> None:
+        blocks = (self._lists[-1].items[-1][1] if self._lists and self._lists[-1].items
+                  else self.sections[-1][1])
+        blocks.append((kind, text))
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         if tag in {"iframe", "object", "embed", "video", "audio", "svg"} and not self._ac_depth:
@@ -158,20 +196,13 @@ class _Extractor(HTMLParser):
             self.table_count += 1
         elif tag in {"ul", "ol"}:
             self._flush_text()
-            number = None
-            if tag == "ol":
-                try:
-                    number = int(dict(attrs).get("start") or "1")
-                except ValueError:
-                    number = 1
-            self._list_numbers.append(number)
+            attributes = dict(attrs)
+            self._lists.append(_List(tag == "ol", _integer(attributes.get("start")),
+                                     -1 if "reversed" in attributes else 1))
         elif tag == "li":
             self._flush_text()
-            if self._list_numbers:
-                number = self._list_numbers[-1]
-                self._pending_list_prefix = "- " if number is None else f"{number}. "
-                if number is not None:
-                    self._list_numbers[-1] += 1
+            if self._lists:
+                self._lists[-1].items.append((_integer(dict(attrs).get("value")), []))
         elif tag in {"p", "tr", "br"}:
             if tag != "br" or self._link is None:
                 self._flush_text()
@@ -201,13 +232,12 @@ class _Extractor(HTMLParser):
             code = "".join(self._pre).strip("\n")
             self._pre = None
             if code.strip():
-                self.sections[-1][1].append(("code", code))
-        elif tag in {"ul", "ol"} and self._list_numbers:
+                self._append_block("code", code)
+        elif tag in {"ul", "ol"} and self._lists:
             self._flush_text()
-            self._list_numbers.pop()
+            self._append_block("text", self._lists.pop().render())
         elif tag == "li":
             self._flush_text()
-            self._pending_list_prefix = ""
         elif tag in {"p", "tr"}:
             self._flush_text()
 
@@ -225,6 +255,8 @@ class _Extractor(HTMLParser):
 
     def close(self) -> None:
         self._flush_text()
+        while self._lists:
+            self._append_block("text", self._lists.pop().render())
         super().close()
 
 

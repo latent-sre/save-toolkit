@@ -45,7 +45,9 @@ It pre-fills schema-valid frontmatter (`status: draft`, `version: 1`, dates `nul
 recognizable headings into the slot table below, keeps everything unrecognized under an explicit
 *Imported content (unmapped)* section, marks every imported command block `[unverified]`, and
 preserves links and image references, and reports dropped media/macros, flattened tables, uncopied
-images, and unusable destinations. Transfer relative files or repair their paths. The draft starts
+images, and unusable destinations. Nested lists retain their parent steps. Reversed or restarted
+sequences use literal numbered labels in bullets so Markdown cannot renumber them.
+Transfer relative files or repair their paths. The draft starts
 `scribe`'s work: fill applicable slots, use `n/a — why` only when genuinely inapplicable, and leave
 missing evidence `[unverified]` with an owner and next check.
 
