@@ -1,4 +1,4 @@
-# Fleet and HTTP-starter regression tests; versions come from the development pin set.
+# Fleet, HTTP-starter, and Inspect regression tests; versions come from the development pin set.
 # Constraints exclude unrelated sandbox dependencies; runtime contract tests must not skip.
 -c requirements-dev.txt
 pytest
@@ -6,3 +6,6 @@ pyyaml
 fastapi
 httpx
 jsonschema
+inspect-ai
+inspect-swe
+anthropic

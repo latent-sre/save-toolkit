@@ -1,6 +1,6 @@
 # Fleet evals
 
-One runner, [`build_probe.py`](build_probe.py). It grades three kinds of scenario, decided by the
+The native fleet runner, [`build_probe.py`](build_probe.py), grades three kinds of scenario, decided by the
 keys a spec carries rather than by a mode field.
 
 | Kind | Where | Session | Graded on |
@@ -14,7 +14,8 @@ the short routing specs. The runner does not care which one a spec came from.
 
 ## Run it
 
-Needs **Python 3.12+** (the clean-room teardown uses `shutil.rmtree(..., onexc=...)`).
+Use the latest **Python 3.14** patch for development and CI. The native runner's existing
+compatibility floor is Python 3.12; installed hooks retain their separate Python 3.11 floor.
 
 ```bash
 python -m pip install -r requirements-dev.txt
@@ -37,6 +38,45 @@ refuses any other bytes. `--overwrite` replaces the selected run slots; use a ne
 the candidate or scenario. `--regrade` re-grades saved traces offline only when the original scenario
 identity matches, and `--container IMAGE@sha256:…` runs every shell call inside a pinned, network-less
 container for a candidate that is not team-authored.
+
+## Inspect AI + Inspect SWE pilot
+
+[`inspect_pilot.py`](inspect_pilot.py) runs the existing word-frequency fixture through Inspect
+SWE's sandboxed Claude Code agent, with Inspect AI owning scheduling, logs, limits, and scoring.
+It reuses seven artifact checks and records the other nine as omitted. It does not load the
+Save Toolkit plugin or pin its software-engineer agent: this is an **artifact-only integration
+pilot**, not native fleet acceptance. The existing runner remains authoritative for plugin
+identity, routing, hooks, delegation, calibrated judging, and conversation continuity.
+
+Install `requirements-test.txt` for offline tests, or `requirements-dev.txt` for all tooling.
+Both include Inspect AI, Inspect SWE, and the Anthropic SDK required by the Claude bridge.
+Docker must be available for sandboxed runs. The sandbox uses a reviewed image digest, resource
+limits, and no host mounts or operator credential files. Network access remains available for
+agent installation and the model proxy; it is not an offline sandbox.
+
+```powershell
+inspect eval evals/inspect_pilot.py@wordfreq --model <provider/model> --log-dir .eval-runs/inspect
+inspect view --log-dir .eval-runs/inspect
+```
+
+Select the model explicitly and configure the provider credential through its normal local
+environment. This differs from native Claude subscription authentication. The task requests
+the latest Claude CLI, one attempt, no refusal/crash retries, 20,000 tokens, 300 seconds, and
+a $1 cost limit. Inspect checks limits between operations; an in-flight call can overshoot.
+Models without pricing metadata require explicit pricing before a cost-limited run can start.
+`-T claude_version=<version>` selects a repeatable CLI version for comparisons.
+
+Run the bridge smoke tests without a paid model (downloads Claude and starts Docker):
+
+```powershell
+$env:RUN_INSPECT_DOCKER_SMOKE = '1'
+python -m pytest evals/test_inspect_pilot.py -k real_swe -q
+Remove-Item Env:RUN_INSPECT_DOCKER_SMOKE
+```
+
+These scripted pass/fail cases verify the bridge and scorers, not model capability. Ordinary
+CI runs the offline tests; Docker smoke cases are explicit opt-ins. Details and remaining
+modernization work are in [Python and eval modernization](../docs/python-eval-modernization.md).
 
 ## Scenario contract
 

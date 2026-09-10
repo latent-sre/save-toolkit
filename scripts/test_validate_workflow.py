@@ -19,6 +19,14 @@ WORKFLOW = ROOT / ".github" / "workflows" / "validate.yml"
 
 
 class ValidateWorkflowTests(unittest.TestCase):
+    def test_ci_tracks_latest_python_314(self) -> None:
+        jobs = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]
+        for name in ("validate", "component-tests"):
+            setup = next(step for step in jobs[name]["steps"]
+                         if step.get("uses", "").startswith("actions/setup-python@"))
+            self.assertEqual("3.14", setup["with"]["python-version"])
+            self.assertIs(setup["with"]["check-latest"], True)
+
     def test_repository_actions_use_major_tags(self) -> None:
         jobs = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]
         for job in jobs.values():
