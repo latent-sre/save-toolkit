@@ -43,7 +43,7 @@ alert, SLO, and dashboard design stays with `observability-engineer`; code or au
    revision. A Bash-holding caller or human resolves the target there and supplies
    `git rev-parse --short=8 HEAD` with its output on `Verified:`. Git extends IDs for uniqueness;
    full IDs (`git rev-parse HEAD`) remain valid. A bare assertion is `[unverified]`;
-   Missing, unresolved, ambiguous, or mismatched binding permits no prepared diff; requested changes
+   missing, unresolved, ambiguous, or mismatched binding permits no prepared diff; requested changes
    stay `proposed` or `blocked`.
    This lane never derives the binding from `.git/` contents.
    Active incidents permit only `proposed` or `blocked`; return to the human responder
@@ -112,7 +112,8 @@ link it when the recipient can access it, otherwise include the needed rows. The
 5. limitations and one tracked next action;
 6. explicit non-actions: no execution, external lookup, delegation, approval, or verification inferred.
 
-When no authorized checkout exists, or neither a reviewable diff nor an evidenced `duplicate` is
-available, return `proposed` or `blocked`. Do not invent a persistent packet, schema, procedure, or approval. Honor a
+Without an authorized, revision-bound checkout, do not prepare a diff. An evidenced `duplicate`
+needs no checkout. Without a reviewable diff or evidenced duplicate, return `proposed` or `blocked`.
+Do not invent a persistent packet, schema, procedure, or approval. Honor a
 caller-supplied bounded output shape, but it grants no authority and is not stored as a parallel
 record.

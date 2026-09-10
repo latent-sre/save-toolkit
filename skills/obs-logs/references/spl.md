@@ -103,13 +103,15 @@ coverage. `current=f` excludes the candidate point so it cannot raise its own ba
 `timechart`'s chronological order; a different pipeline must sort time without truncating results.
 Source freshness remains an independent check: complete result buckets do not prove complete ingestion.
 
-**Seasonal comparison:** to compare with the same hour last week, use a window covering both
-periods and reuse the complete `timechart`/`error_rate` construction above. Before `streamstats`,
-keep `_time` and `error_rate` and apply `timewrap 1week` to overlay the weeks. Preserve nulls and
-check coverage in each phase. A preceding-hour baseline cannot answer this seasonal question.
-`eventstats` compares each row with a whole-period aggregate; the candidate point then contributes
-to its own baseline. That differs from the preceding-hour test above. Threshold and normalization
-choices are operational guidance, not guarantees supplied by Splunk's syntax documentation.
+**Seasonal comparison:** cover both weeks; reuse only the
+`timechart`/`error_rate` construction. Keep `_time` and `error_rate` and apply
+`timewrap 1week series=short`. Compare `s0` (latest) with `s1` (previous):
+require aligned, complete, non-null buckets in both weeks and an owner-set minimum ratio increase. Do not append the preceding-hour
+`streamstats` pipeline: `error_rate` has become period-specific fields.
+*[sourced: [Splunk timewrap](https://help.splunk.com/en/splunk-enterprise/spl-search-reference/10.4/search-commands/timewrap);
+unverified target query execution and period alignment]*
+`eventstats` includes the candidate in its whole-period baseline. Thresholds and normalization
+remain operational choices, not Splunk guarantees.
 
 ## Correlate one request across services
 

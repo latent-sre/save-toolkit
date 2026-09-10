@@ -43,7 +43,9 @@ hash and diff, commands, blast radius, verification, and rollback.
 
 A route rollback restores traffic to a retained app; it does not restore that app's configuration.
 `cf rollback` restores revision-scoped code, start command, and environment, not routes, bindings,
-scale, or app features outside the revision. Neither reverses:
+scale, or app features outside the revision.
+*[sourced: [Cloud Foundry revisions](https://docs.cloudfoundry.org/devguide/revisions.html);
+unverified for the target foundation and retained artifacts]* Neither reverses:
 
 - data or schema migrations, rows already written, or consumed sequence values;
 - messages, webhooks, files, or any other external effect a consumer already performed.
