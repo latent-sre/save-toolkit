@@ -41,15 +41,18 @@ def artifact_checks(checks: list[dict]):
                 await sandbox().write_file(path, content)
             kind = check["check"]
             if kind == "file_exists":
-                command = ["test", "-f", check["path"]]
+                command = ["/usr/bin/test", "-f", check["path"]]
             elif kind == "glob_exists":
-                command = ["python", "-c", "import glob,sys; sys.exit(not glob.glob(sys.argv[1]))", check["pattern"]]
+                command = ["/usr/local/bin/python", "-c", "import glob,sys; sys.exit(not glob.glob(sys.argv[1]))", check["pattern"]]
             elif kind in {"command_exit_zero", "command_output_regex"}:
-                command = ["bash", "-c", check["command"]]
+                command = ["/bin/bash", "-c", check["command"]]
             else:
                 raise ValueError(f"unsupported artifact check: {kind}")
             # Sandbox/timeout exceptions become Inspect sample errors, not agent failures.
-            result = await sandbox().exec(command, timeout=check.get("timeout", 60))
+            result = await sandbox().exec(command, timeout=check.get("timeout", 60), env={
+                "PATH": "/usr/local/bin:/usr/bin:/bin", "BASH_ENV": "/dev/null",
+                "PYTHONPATH": "", "PYTHONSAFEPATH": "1", "PYTHONNOUSERSITE": "1",
+            })
             passed = result.success
             if kind == "command_output_regex":
                 passed = passed and re.search(check["pattern"], result.stdout, re.MULTILINE) is not None

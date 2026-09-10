@@ -2,6 +2,16 @@ services:
   default:
     image: python:3.14-slim-bookworm@sha256:9ab8d9c8514b44f90cf0029dd42fdd7e9e211e639c8b995304cc04568dee900f
     init: true
+    user: "0:0"
+    read_only: true
+    environment:
+      HOME: /home/agent
+      PATH: /usr/local/bin:/usr/bin:/bin
+    tmpfs:
+      - /workspace:rw,exec,nosuid,nodev,size=128m,mode=0700
+      - /home/agent:rw,exec,nosuid,nodev,size=512m,mode=0700
+      - /tmp:rw,exec,nosuid,nodev,size=512m,mode=1777
+      - /var/tmp:rw,exec,nosuid,nodev,size=256m,mode=1777
     working_dir: /workspace
     command: sleep infinity
     mem_limit: 2g
