@@ -30,16 +30,17 @@ records do not re-queue work.
 `software-engineer` owns helper/adapter repairs.
 **Outcome:** An SRE installs a pinned artifact rather than whatever `main` holds, and can roll back
 to a previously accepted one. The [acceptance cases](vscode-plugin-acceptance.md) pass on those
-exact shipping bytes, including the host-enforcement cases install-and-use acceptance did not cover.
+exact shipping bytes, which the 2026-09-10 local-install run did not exercise.
 **Next action:** Retire the mutable `"source": "./"` selector in `.claude-plugin/marketplace.json`
-for an immutable selector or checksum, then run the acceptance cases on the shipping bytes. Two
-results carry forward as open, not passed: on VS Code 1.135.0 a **forbidden child still ran** and
-the real `software-engineer` -> `reviewer` call was inconclusive; the agent-scoped hook canary has
-never been run. VS Code 1.111+ now supports `PreToolUse` permission decisions whose payload fields
-match `readonly-guard.py`, so the canary is shorter than the procedure implies -- what does not
-carry over is the 42/43/44 exit-code authentication and `agent_type` scoping.
-**Evidence:** The 2026-08-30 VS Code 1.135.0 run recorded in the host-support table of
-[`README.md`](../README.md); HOST-002's install-and-use closure records acceptance of the other half.
+for an immutable selector or checksum, then re-run the acceptance cases on those shipping bytes: the
+2026-09-10 pass was against a local `./` install, and a passing run does not carry to bytes it did
+not exercise. The enforcement results that were open on VS Code 1.135.0 are superseded by that run.
+Still unrun: the agent-scoped hook canary, with `hooks/copilot-hooks.json` shipping empty. VS Code
+1.111+ supports `PreToolUse` permission decisions whose payload fields match `readonly-guard.py`, so
+the canary is shorter than the procedure implies -- what does not carry over is the 42/43/44
+exit-code authentication and `agent_type` scoping.
+**Evidence:** The 2026-09-10 VS Code 1.137.0 acceptance row in the host-support table of
+[`README.md`](../README.md); HOST-002's closure commit records the owner disposition.
 **SRE task:** Install a named version of the toolkit, and go back to the previous one if it regresses.
 
 ### INCIDENT-QUALITY-001 — verify decision quality after the SRE contract repairs
