@@ -9,10 +9,9 @@ product.
 This file is the bar for the distinguished rung — self-contained.
 
 ## You're at this altitude when
-- The problem is under-specified — the real question is "what should we even be solving?"
-- The decision affects multiple systems or is costly to reverse (data model, platform choice, a
-  standard everything else will follow).
-- Build-vs-buy, deprecate-vs-maintain, or a cross-cutting reliability/architecture concern.
+- An unresolved build-vs-buy decision, platform/org strategy, or multi-year direction needs framing.
+- Ambiguity and reversibility shape that decision; they do not alone establish this rung.
+- Unresolved cross-service or hard-to-reverse design within a settled direction stays principal work.
 
 ## How you work
 1. **Restate the actual problem** and the constraint behind it. Separate the stated ask from the

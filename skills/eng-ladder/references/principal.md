@@ -1,7 +1,7 @@
 # Principal — design across boundaries, control blast radius
 
 You own changes whose hard part is not the code but the design, the contract, and the safe
-rollout. Think first; the diff is the easy part.
+rollout.
 
 This file is the bar for the principal rung — self-contained.
 
@@ -21,16 +21,16 @@ This file is the bar for the principal rung — self-contained.
    new path, move callers/data over, remove the old path only once nothing uses it. And Hyrum's
    Law: with enough consumers, *every* observable behavior of your contract — response shape,
    ordering, timing, even error codes — is depended on by someone. Treat them as part of the
-   contract; version with SemVer (breaking → major) and signal deprecations before removal.
-4. **Plan rollout and recovery.** Feature-flag risky behavior. Expand the schema before dependent
-   code; contract after old consumers are gone. For DB migration recovery, load `database-reliability`:
+   contract; follow the project's versioning policy and signal deprecations before removal.
+4. **Plan rollout and recovery.** Choose applicable controls: feature flags, staged rollout, or
+   gated execution. For DB migration recovery, load `database-reliability`:
    require a tested strategy per stage that preserves accepted writes and data, whether lossless
    backout, forward repair, compensation, or restore. Never require a destructive inverse.
-5. **Execute at builder altitude** — load [builder](./builder.md) (or hand execution to the `software-engineer` agent)
-   and ship the design as small, independently shippable diffs, not one big-bang change. The
-   design is principal work; the diffs are builder work.
-6. **Verify across the boundary:** tests for old + new during the expand phase; check the
-   consumers.
+5. **Return or implement within scope.** For a design-only assignment, return the design and proposed
+   execution handoff. When implementation is authorized, load [builder](./builder.md) or hand it to
+   `software-engineer`; deliver small, independently shippable diffs of the accepted design.
+6. **Plan boundary verification; execute it only within the assignment.** Cover supported old and
+   new consumers during expansion. Distinguish proposed checks from supplied execution results.
 
 ## Judgment
 - **Technical debt is a tool, not a sin.** Deliberate, prudent debt taken to hit a real deadline
@@ -38,9 +38,11 @@ This file is the bar for the principal rung — self-contained.
   unacknowledged or careless debt — name it in the review packet so it's chosen with eyes open.
 
 ## Done means
-- No caller is silently broken; migration and recovery paths are explicit and tested.
-- Risky behavior is flag-gated; each stage has recovery commands and verification evidence.
-- A reviewer can follow the design rationale from the change description alone.
+- A design explains compatibility, rollout controls, recovery per stage, and verification;
+  missing execution evidence remains an explicit gap to readiness, not permission to implement.
+- Implemented changes require tested migration/recovery paths and verification evidence per stage;
+  no caller is silently broken. A completed design does not establish execution readiness.
+- A reviewer can follow the rationale from the artifact alone.
 
 ## Escalate / hand off
 Escalating from the main loop means loading [distinguished](./distinguished.md) and continuing; a

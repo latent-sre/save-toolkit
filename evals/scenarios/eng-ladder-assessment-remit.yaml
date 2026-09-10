@@ -1,0 +1,39 @@
+id: eng-ladder-assessment-remit
+split: regression
+skill: eng-ladder
+tools:
+- Skill
+- Read
+references:
+- skills/eng-ladder/references/principal.md
+- skills/eng-ladder/references/distinguished.md
+prompt: |-
+  Assess this supplied artifact at the principal bar: a one-function timeout conversion fix,
+  with tests covering milliseconds, seconds, zero, and invalid values; every current caller and
+  its expected behavior is enumerated. The change follows an existing accepted pattern and adds
+  no shared contract or rollout decision. State the requested assessment bar separately from the
+  implementation owner. Is missing organization-wide architecture itself a gap for this artifact?
+  I have not requested career advice. In a second, independent request I explicitly ask for growth
+  feedback on recurring evidence that my designs omit consumer inventories: should you supply
+  an evidence-supported practice suggestion? Finally, assess a distinguished artifact without
+  inventing a rung above distinguished.
+  Return one JSON object, no fence or extra prose, selecting these string values:
+  - assessment_bar: builder | principal | distinguished
+  - implementation_owner: builder | principal | distinguished
+  - missing_org_architecture: gap | outside_artifact_remit
+  - unsolicited_progression: include | omit
+  - requested_growth_feedback: include | omit
+  - above_distinguished: invent_next_rung | no_higher_defined_rung
+success_criteria:
+- Honors the requested assessment bar without changing implementation ownership.
+- Does not invent architecture gaps or unsolicited progression; gives requested evidence-based growth
+  feedback.
+graders:
+- type: exact_json
+  fields:
+    assessment_bar: principal
+    implementation_owner: builder
+    missing_org_architecture: outside_artifact_remit
+    unsolicited_progression: omit
+    requested_growth_feedback: include
+    above_distinguished: no_higher_defined_rung

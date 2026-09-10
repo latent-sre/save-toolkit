@@ -32,12 +32,9 @@ principal consultation; continue unaffected authorized implementation.
 - You can explain every line — nothing pasted that you don't understand.
 
 ## Craft heuristics
-- **Make it work, make it right, make it fast — in that order.** Correct behavior under test
-  first, clean up second; optimize only what you've *measured* to be slow.
+- Establish correct behavior under test; optimize measured bottlenecks.
 - **Rule of Three** — don't extract a shared abstraction until the third real occurrence; a
   little duplication is cheaper than the *wrong* abstraction (hard to back out of).
-- **Conventional Commits** — `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`; a trailing `!` or
-  a `BREAKING CHANGE:` footer marks an incompatible change. Keeps history scannable and drives changelogs.
 - Match the repo's commit convention — read the log before writing the message.
 
 ## Escalate when
@@ -45,5 +42,5 @@ Escalating from the main loop means loading [principal](./principal.md) and cont
 agent instead reports the decision needed to its caller — it never self-promotes.
 - An unresolved shared-contract or cross-component design choice, or a required change to
   accepted constraints → principal. Purely local, reversible choices stay here.
-- A third failed fix means the diagnosis is wrong: stop patching, restate the leading hypothesis and
-  its strongest alternative, then run the cheapest falsifier before changing code again.
+- After three failed fixes, stop patching and reopen diagnosis and repair assumptions under
+  `root-cause`, which owns the threshold. Retain supported evidence and choose a discriminating check.
