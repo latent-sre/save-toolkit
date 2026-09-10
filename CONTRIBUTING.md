@@ -46,7 +46,7 @@ Gate A rejects uncited review packets; citation alone does not establish that a 
 | Routing description | The overlapping clean-room scenarios; pure wording changes need no live eval |
 | Eval harness or scenario | The affected `evals/test_*.py`; `python evals/build_probe.py --validate` for parsing or targeting changes; `python evals/judge.py --calibrate` after a rubric edit |
 | Read-only guard or hook wiring | `python -m pytest scripts/test_readonly_guard.py scripts/test_hook_wiring.py`; exit codes stay 42 allow, 43 deny, 44 indeterminate |
-| Any byte added under `skills/` or `agents/` | `python scripts/check_weight.py`; the ceilings in `scripts/weights.json` are ratchets; growth beyond remaining headroom fails Gate A unless the same change raises the ceiling and says why |
+| Any byte added under `agents/`, or under `skills/` outside a bundle's `references/` | `python scripts/check_weight.py`; the ceilings in `scripts/weights.json` are ratchets; growth beyond remaining headroom fails Gate A unless the same change raises the ceiling and says why. Bundled `references/` are on-demand depth and sit outside the ceiling — `check_context_cost.py` bounds them when they reach a task path |
 | Canonical task-path file or `description:` field | `python scripts/check_context_cost.py`; it fails when a task or the always-loaded description total exceeds its byte budget |
 
 When the acting lane already has Bash, a check may run inside an official pinned Docker image rather

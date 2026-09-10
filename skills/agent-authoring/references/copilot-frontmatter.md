@@ -14,6 +14,7 @@ verification; treat a key's presence here as permission to author, never as proo
 - Handoff entries
 - Tool aliases
 - Skills
+- Hook events and shape
 - Plugin manifest formats
 - Fleet decisions on unused fields
 
@@ -88,6 +89,26 @@ is both git-ignored and a retired generated root — a stray copy there would lo
 | `disable-model-invocation` | Supported for skills and used by one skill today (`pcf-deploy`, manual-only) |
 | `license` | Optional. Unused — the plugin manifest already carries MIT, and the field would repeat across every projected bundle |
 | `allowed-tools` | Pre-approves tools such as `shell` or `bash` **without confirmation**. **Never use.** It inverts the fail-closed posture the guard exists to hold |
+
+## Hook events and shape
+
+Unadopted (`HOST-002`), documented because the gap is smaller than it looks: the `PreToolUse`
+decision payload is **field-identical** to what `readonly-guard.py` already emits for Claude.
+
+| Event | Claude equivalent |
+|---|---|
+| `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PreCompact`, `Stop` | same names |
+| `SubagentStart`, `SubagentStop` | no Claude equivalent — subagent-scoped lifecycle |
+
+A hook entry requires `type: "command"` and `command`; optional `timeout`, `cwd`, `env`, and the
+per-OS overrides `windows` / `linux` / `osx`, which would replace the interpreter-probe loop the
+Claude hook needs today.
+
+`PreToolUse` returns `hookSpecificOutput.permissionDecision` — `allow` \| `deny` \| `ask` — with
+`permissionDecisionReason`. The fleet's guard already emits exactly these fields. What does **not**
+carry over is the exit-code authentication (42/43/44) that proves the answer came from the guard
+rather than a PATH-planted stand-in, and `agent_type` payload scoping. A port must re-establish
+both, or it is armor that provides none.
 
 ## Plugin manifest formats
 
