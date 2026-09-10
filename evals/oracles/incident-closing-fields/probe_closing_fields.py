@@ -24,11 +24,16 @@ mentions of those words do not mark examples. Labels apply until a new non-field
 import re
 import sys
 
-CLOSING_FIELDS = ("Applied", "Open", "Next")
-CHECKPOINT_FIELDS = ("Assessment", "Checked", "Actions", "Next", "Follow-ups")
-BOARD_FIELDS = ("Impact", "Open", "Checked", "Ruled out", "Actions", "Next", "Follow-ups")
-EXPECTED = ("board", "fields", "checkpoint", "both", "none", "fields-or-both", "checkpoint-or-both")
-NAMES = "|".join(dict.fromkeys(CLOSING_FIELDS + CHECKPOINT_FIELDS + BOARD_FIELDS)).replace("Follow-ups", "Follow-?ups")
+FIELDS = {
+    "board": {"impact", "open", "checked", "ruled out", "actions", "next", "followups"},
+    "fields": {"applied", "open", "next"},
+    "checkpoint": {"assessment", "checked", "actions", "next", "followups"},
+}
+FIELDS["both"] = FIELDS["fields"] | FIELDS["checkpoint"]
+EXPECTED = (*FIELDS, "none", "fields-or-both", "checkpoint-or-both")
+BOARD_ONLY = FIELDS["board"] - FIELDS["both"]
+LEGACY_ONLY = FIELDS["both"] - FIELDS["board"]
+NAMES = "|".join(sorted(FIELDS["board"] | FIELDS["both"])).replace("followups", "Follow-?ups")
 FIELD = re.compile(rf"^[*_]{{0,2}}(?P<name>{NAMES})\b[*_]{{0,2}}\s*(?P<tail>.*)$", re.I)
 FENCE = re.compile(r"^\s*(`{3,}|~{3,})([^\n]*)$")
 SECTION = re.compile(r"^(?:#{1,6}\s+\S|[^:]{1,80}:\s*$)")
@@ -106,7 +111,7 @@ def _scan(text, legacy=False):
             gap = True
             continue
         field = _field(line)
-        if legacy and field and field[0] in {_key("Impact"), _key("Ruled out")}:
+        if legacy and field and field[0] in BOARD_ONLY:
             field = None
         if field:
             active, value, heading = field
@@ -126,11 +131,11 @@ def _scan(text, legacy=False):
 
 
 def _shape(names):
-    if names & {_key("Impact"), _key("Ruled out")}:
+    if names & BOARD_ONLY:
         return "board"
-    fields = len(names & {_key(n) for n in CLOSING_FIELDS}) >= 2
+    fields = len(names & FIELDS["fields"]) >= 2
     # Next belongs to both forms; it cannot turn a lone checkpoint label into a checkpoint.
-    checkpoint = len(names & {_key(n) for n in CHECKPOINT_FIELDS if n != "Next"}) >= 2
+    checkpoint = len((names & FIELDS["checkpoint"]) - {"next"}) >= 2
     if fields and checkpoint:
         return "both"
     if fields:
@@ -151,16 +156,10 @@ def check(text, expected):
     present, terminal = _scan(text, legacy=expected not in ("board", "none"))
     actual = _shape(set(terminal))
     allowed = expected.split("-or-")
-    required = set()
-    if actual == "board":
-        required.update(map(_key, BOARD_FIELDS))
-    if actual in ("fields", "both"):
-        required.update(map(_key, CLOSING_FIELDS))
-    if actual in ("checkpoint", "both"):
-        required.update(map(_key, CHECKPOINT_FIELDS))
+    required = FIELDS.get(actual, set())
     missing = sorted(name for name in required if not re.search(r"[^\W_]", terminal.get(name, "")))
     # A partial or earlier block is not absence; standalone replies must carry no field labels.
-    mixed = expected == "board" and bool(set(terminal) & {_key("Applied"), _key("Assessment")})
+    mixed = expected == "board" and bool(set(terminal) & LEGACY_ONLY)
     if actual in allowed and not missing and not mixed and (actual != "none" or not present):
         return True, actual
     return False, (

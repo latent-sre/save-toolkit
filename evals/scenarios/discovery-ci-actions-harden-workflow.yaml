@@ -15,7 +15,7 @@ prompt: |
 success_criteria:
 - Fires ci-actions on an unlabelled workflow review that never names the skill
 - Names the missing least-privilege permissions block
-- Names the floating tag and requires a full commit SHA pin
+- Accepts the published major action tag under team policy and requires explicit least-privilege permissions
 - Names the PR title interpolated into shell source as an injection surface
 target:
   kind: skill

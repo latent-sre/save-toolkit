@@ -24,8 +24,8 @@ jobs:
       group: ${{ github.workflow_ref }}-${{ github.ref }}-${{ inputs.concurrency-key }}-ci-test-${{ matrix.python-version }}
       cancel-in-progress: true
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1 — Node 24 runner required
-      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d  # v10.0.1
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.0.1 # upstream has no major tag
         with: { python-version: "${{ matrix.python-version }}" }
       - run: uv sync --frozen
       - run: uv run ruff check .

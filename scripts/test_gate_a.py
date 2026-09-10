@@ -17,14 +17,13 @@ def _step(label, code, marker_file=None):
     if marker_file is not None:
         body += f"; open({str(marker_file)!r}, 'w').write('ran')"
     body += f"; print('step {label} output'); sys.exit({code})"
-    return (label, ["-c", body], None)
+    return (label, ["-c", body])
 
 
 class StructuralScopeTests(unittest.TestCase):
     def test_gate_runs_live_tree_validators_not_component_test_suites(self) -> None:
         """The push-boundary gate must not silently re-expand into the whole test corpus."""
-        self.assertEqual(gate_a.STRUCTURAL_STEPS, gate_a.STEPS)
-        commands = [argv[0] for _label, argv, _env in gate_a.STEPS]
+        commands = [argv[0] for _label, argv in gate_a.STEPS]
         self.assertFalse(
             any(Path(command).name.startswith("test_") for command in commands),
             "component tests belong to the changed implementation, not every push",
@@ -36,12 +35,12 @@ class StructuralScopeTests(unittest.TestCase):
         )
 
     def test_context_cost_gate_is_the_third_structural_step(self) -> None:
-        commands = [argv[0] for _label, argv, _env in gate_a.STEPS]
+        commands = [argv[0] for _label, argv in gate_a.STEPS]
         self.assertEqual(4, len(gate_a.STEPS))
         self.assertEqual("scripts/check_context_cost.py", commands[2])
 
     def test_weight_totals_gate_is_the_fourth_structural_step(self) -> None:
-        commands = [argv[0] for _label, argv, _env in gate_a.STEPS]
+        commands = [argv[0] for _label, argv in gate_a.STEPS]
         self.assertEqual("scripts/check_weight.py", commands[3])
 
 

@@ -85,12 +85,12 @@ fixture:
           runs-on: ubuntu-24.04
           timeout-minutes: 15
           steps:
-            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            - uses: actions/checkout@v7
             - name: Test
               run: python3 -m unittest discover -s tests -t . -v
             - name: Build the deployable artifact
               run: scripts/build.sh
-            - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+            - uses: actions/upload-artifact@v7
               with:
                 name: checkout-build
                 path: dist/checkout.zip
@@ -100,17 +100,16 @@ fixture:
       self-hosted-runner:
         labels: [pcf]
     docs/ci-pins.md: |
-      # Reviewed action pins
+      # Approved action versions
 
-      Only actions on this list may be used in this repository's workflows; propose an addition in the
-      pull request with the upstream diff reviewed. The release column names the release each SHA
-      resolves to, and the same release goes in the trailing comment on the `uses:` line.
+      Only action references on this list may be used; propose additions in the pull request.
+      These published major tags follow upstream updates within their selected major.
 
-      | Action | SHA | Release |
-      |---|---|---|
-      | actions/checkout | 3d3c42e5aac5ba805825da76410c181273ba90b1 | v7.0.1 |
-      | actions/upload-artifact | 043fb46d1a93c77aae656e7c1c64a875d1fc6a0a | v7.0.1 |
-      | actions/download-artifact | 3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c | v8.0.1 |
+      | Action | Major tag |
+      |---|---|
+      | actions/checkout | v7 |
+      | actions/upload-artifact | v7 |
+      | actions/download-artifact | v8 |
     manifest.yml: |
       applications:
         - name: checkout
@@ -223,11 +222,11 @@ checks:
   - check: command_exit_zero
     command: "python probe_ci_workflow.py pins"
     timeout: 600
-    text: "every remote action is pinned to a full commit SHA with the release named in a trailing comment"
+    text: "every remote action uses a published major tag; docker actions retain manifest digests"
   - check: command_exit_zero
     command: "python probe_ci_workflow.py reviewed-pins"
     timeout: 600
-    text: "every action SHA is on the pin list as the repository seeded it, not as the agent may have edited it"
+    text: "every full action reference is on the approved list as seeded, not as the agent may have edited it"
   - check: command_exit_zero
     command: "python probe_ci_workflow.py no-injection"
     timeout: 600

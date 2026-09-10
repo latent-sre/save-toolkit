@@ -1,7 +1,7 @@
 # CI security and provenance
 
 Read this reference only when the task designs or changes credential/OIDC handling, action/image
-provenance and re-pinning, event trust, workflow linting, attestations, or immutable releases. The
+provenance and version updates, event trust, workflow linting, attestations, or immutable releases. The
 authority and safety contract in `SKILL.md` still applies.
 
 ## Credentials and identity
@@ -17,15 +17,15 @@ accept GitHub OIDC JWTs, so do not add `id-token: write` as decorative hardening
 load `stack-profile` and confirm the selected runtime and identity broker before proposing an
 exchange.
 
-## Re-pinning
+## Action versions
 
-Some projects do not publish floating major tags; the trailing comment names the exact reviewed
-release, not an invented major alias. Let dependency automation propose SHA changes, inspect the
-upstream diff, and normally allow a short adoption cooldown; skip the cooldown when the current
-SHA has a disclosed vulnerability, since waiting would retain the known-bad revision.
-`owner/repository@<commit-sha>` resolves a Git commit and `docker://image@sha256:<manifest-digest>`
-an image manifest in a registry; a Git commit after `docker://` does not identify an image and the
-job will not start.
+Use published major tags for GitHub Actions. Verify the tag exists before changing a reference;
+if upstream publishes only release tags, use a published release tag and document the exception.
+For example, setup-uv publishes `v10.0.1` but no `v10` tag (verified 2026-09-10).
+Major tags receive upstream updates without a repository edit; review changes to the selected
+major and investigate new failures against the version resolved in the run. Do not label a moving
+tag with a fixed release comment. Keep `docker://image@sha256:<manifest-digest>` for image actions;
+a Git commit does not identify a registry image.
 
 ## Fork checkout under privileged events
 
@@ -37,8 +37,7 @@ PR's head or merge SHA.
 This shipped in v7.0.0 on 2026-06-18 and was backported to every supported major on 2026-07-16, so
 a workflow resolving to v5 or v6 enforces it too. On a floating major tag such as `@v5` the tag is
 mutable, so unchanged YAML can resolve to newly backported code: read a new failure there as the
-protection engaging rather than hunting for a regression in your own YAML. A full commit SHA pin
-cannot change behavior until someone moves it, so there the backport arrives with the re-pin. The
+protection engaging rather than hunting for a regression in your own YAML. The
 opt-out input `allow-unsafe-pr-checkout: true` exists; treat finding one in a diff, or an upgrade
 failure that tempts you to add one, as an unsafe design to review, not a fix to reach for.
 *[sourced: GitHub Changelog, ["Safer pull_request_target defaults for GitHub Actions
@@ -54,7 +53,7 @@ result does not establish runtime or deployment behavior.
 
 ## Artifact attestations and immutable releases
 
-For releasable artifacts, use pinned `actions/attest-build-provenance` and `actions/attest-sbom`
+For releasable artifacts, use major-tagged `actions/attest-build-provenance` and `actions/attest-sbom`
 steps, then verify the result downstream with `gh attestation verify`. The attestation connects an
 artifact to its source and workflow; it does not replace review of the workflow that produced it.
 
