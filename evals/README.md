@@ -51,7 +51,11 @@ identity, routing, hooks, delegation, calibrated judging, and conversation conti
 Install `requirements-test.txt` for offline tests, or `requirements-dev.txt` for all tooling.
 Both include Inspect AI, Inspect SWE, and the Anthropic SDK required by the Claude bridge.
 Docker must be available for sandboxed runs. The sandbox uses a reviewed image digest, resource
-limits, and no host mounts or operator credential files. Network access remains available for
+limits, all capabilities dropped, and a read-only system filesystem. Only workspace, home, and temporary
+directories are writable. Grading uses system executables, a fixed PATH, and disables Python's
+user-site and unsafe startup paths so agent-written configuration cannot replace the grader.
+Inspect's root helper and agent retain the image's root user, but cannot modify the read-only
+system executables. There are no host mounts or operator credential files. Network access remains available for
 agent installation and the model proxy; it is not an offline sandbox.
 
 ```powershell

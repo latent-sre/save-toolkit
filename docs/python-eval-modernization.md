@@ -77,7 +77,20 @@ were synchronous test callbacks consumed within their loop iteration, not observ
 
 ## Remaining limitations
 
-- [verified] Final Python 3.14.7 suite: 682 passed, 7 skipped, 1,055 subtests, one upstream warning,
+PR #260 review follow-up: a Docker regression reproduced replacement of Python, test, and Bash
+inside the original root container. The pilot now runs with a read-only system filesystem and all capabilities dropped;
+the same regression proves all three replacements are denied and a missing solution scores zero.
+Grading also fixes PATH and disables Python user-site/startup-path injection. Writable tmpfs mounts
+allow fixture setup and agent installation without granting writes to system executables.
+Inspect's root helper and agent retain the original root uid with zero effective capabilities.
+Read-only system mounts protect grader binaries while writable temporary paths support installation.
+Both sandbox FastAPI declarations now match the canonical 0.141.1 pin. The repository-only
+dependency alignment test moved out of the container suite into ordinary CI and covers all three
+sandbox requirements files. Their Python/Uvicorn/SSE upgrades remain a separate branch.
+The additional executable-tampering regression and protection add 51 eval lines, raising that
+ceiling from 11,503 to 11,554 without changing the skill or agent ceilings.
+
+- [verified] Initial pilot Python 3.14.7 suite: 682 passed, 7 skipped, 1,055 subtests, one upstream warning,
   95.58 seconds. Two skips are the separately passed opt-in Docker smoke cases; the other five
   were already present. Gate A passed 4/4, all 76 native scenario definitions validated, and
   `uv pip check` reported all 129 installed development packages compatible.

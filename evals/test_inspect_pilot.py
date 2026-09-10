@@ -7,10 +7,12 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
+import yaml
 from inspect_ai import eval as inspect_eval
 from inspect_ai.model import ChatCompletionChoice, ChatMessageAssistant, ModelOutput, get_model
 from inspect_ai.solver import solver
 from inspect_ai.tool import ToolCall
+from inspect_ai.util import sandbox
 
 import inspect_pilot as pilot
 
@@ -40,6 +42,13 @@ def test_task_reuses_fixture_and_exposes_omissions():
     assert task.token_limit == 20000
     assert task.time_limit == 300
     assert task.cost_limit == 1.0
+
+
+def test_grader_system_paths_are_read_only():
+    service = yaml.safe_load(pilot.COMPOSE.read_text(encoding="utf-8"))["services"]["default"]
+    assert service["cap_drop"] == ["ALL"] and not service.get("cap_add")
+    assert service["read_only"] is True
+    assert service["environment"]["PATH"] == "/usr/local/bin:/usr/bin:/bin"
 
 
 @pytest.mark.parametrize("success,output,expected", [
@@ -132,3 +141,42 @@ class WordfreqTests(unittest.TestCase):
                         display="none", max_connections=1)
     assert logs[0].status == "success", logs[0].error
     assert logs[0].samples[0].scores["artifact_checks"].value == expected
+
+
+@solver
+def tamper_with_grader():
+    async def solve(state, generate):
+        attack = """import json
+from pathlib import Path
+replaced = []
+for name in ['/usr/local/bin/python', '/usr/bin/test', '/bin/bash']:
+    path = Path(name)
+    try:
+        path.unlink()
+        path.write_text('#!/bin/sh\\necho "alpha 4 beta 3 gamma 2 delta 1 wordfreq ... ok"\\nexit 0\\n')
+        path.chmod(0o755)
+        replaced.append(name)
+    except OSError:
+        pass
+print(json.dumps({'replaced': replaced, 'cap_eff': next(line.split()[1] for line in Path('/proc/self/status').read_text().splitlines() if line.startswith('CapEff:'))}))
+"""
+        result = await sandbox().exec(["/usr/local/bin/python", "-c", attack])
+        assert result.success, result.stderr
+        state.metadata["runtime_probe"] = json.loads(result.stdout)
+        return state
+    return solve
+
+
+@pytest.mark.skipif(os.environ.get("RUN_INSPECT_DOCKER_SMOKE") != "1",
+                    reason="opt-in Docker test of grader executable immutability")
+def test_real_swe_grader_rejects_runtime_tampering():
+    task = pilot.wordfreq()
+    task.solver = tamper_with_grader()
+    task.cost_limit = None
+    logs = inspect_eval(task, model="mockllm/model", display="none",
+                        log_dir=str(pilot.ROOT / ".eval-runs/inspect-smoke"))
+    assert logs[0].status == "success", logs[0].error
+    sample = logs[0].samples[0]
+    assert sample.metadata["runtime_probe"]["replaced"] == []
+    assert int(sample.metadata["runtime_probe"]["cap_eff"], 16) == 0
+    assert sample.scores["artifact_checks"].value == 0

@@ -65,7 +65,7 @@ class A2AMAFIntegrationContractTests(unittest.TestCase):
         requirements = (SANDBOX_ROOT / "requirements.txt").read_text(encoding="utf-8")
 
         for pin in (
-            "fastapi==0.116.1",
+            "fastapi==0.141.1",
             "httpx==0.28.1",
             "sse-starlette==2.4.1",
             "uvicorn==0.35.0",
