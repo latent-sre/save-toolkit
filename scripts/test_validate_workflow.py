@@ -101,15 +101,11 @@ class ValidateWorkflowTests(unittest.TestCase):
             "the Linux validate job no longer invokes Gate A",
         )
 
-    def test_linux_and_windows_are_the_only_gate_platforms(self) -> None:
-        workflow = WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn("runs-on: ubuntu-latest", workflow)
-        self.assertIn("windows-latest", workflow, "Windows must still run somewhere in the gate")
-        self.assertNotIn(
-            "macos-latest",
-            workflow,
-            "macOS duplicated Linux or Windows in the measured workflow history",
-        )
+    def test_ci_runs_only_linux_and_preserves_the_required_check_name(self) -> None:
+        jobs = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]
+        self.assertEqual({"ubuntu-latest"}, {job["runs-on"] for job in jobs.values()})
+        self.assertNotIn("strategy", jobs["component-tests"])
+        self.assertEqual("component-tests (ubuntu-latest)", jobs["component-tests"]["name"])
 
     def test_gate_a_jobs_do_not_fetch_history_for_focused_component_tests(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
@@ -235,35 +231,11 @@ class ValidateWorkflowTests(unittest.TestCase):
         hook = (ROOT / "hooks" / "hooks.json").read_text(encoding="utf-8")
         self.assertIn("-I -S", hook, "the guard's isolated invocation is what makes this binding")
 
-    def test_component_tests_run_on_windows_as_well_as_linux(self) -> None:
-        """Windows coverage lives where it can actually catch something: the tests.
-
-        The retired `validate-windows` job ran `gate_a.py` only, which runs no `test_*.py` at all.
-        The one Windows-only defect this repository has had -- 8.3 short paths defeating the
-        link-containment check, fixed at `scripts/check_links.py` by resolving the root -- was
-        caught by test fixtures under an OS matrix, not by the structural gate. A Windows job that
-        runs no tests could not have caught it.
-        """
-        workflow = WORKFLOW.read_text(encoding="utf-8")
-        self.assertNotIn(
-            "\n  validate-windows:",
-            workflow,
-            "the test-less Windows gate is retired; Windows coverage belongs on component-tests",
-        )
-        job = workflow.partition("\n  component-tests:")[2].partition("\n  claude-plugin-contract:")[0]
-        self.assertTrue(job, "validate workflow has no component-tests job")
-        self.assertIn("windows-latest", job, "component tests must run on Windows")
-        self.assertIn("ubuntu-latest", job, "component tests must still run on Linux")
-        self.assertIn("matrix:", job, "the two operating systems are one matrix, not two jobs")
-        self.assertIn("${{ matrix.os }}", job)
-        self.assertIn(
-            "run: python -m pytest -q", job,
-            "invoke `python`, never the Store-stub `python3`, so Windows resolves the real interpreter",
-        )
-        self.assertIn(
-            "run: python -m pip install -r requirements-test.txt", job,
-            "PyYAML is required on both runners or layered grader checks silently SKIP",
-        )
+    def test_component_tests_install_dependencies_and_run_pytest(self) -> None:
+        jobs = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]
+        commands = [step.get("run") for step in jobs["component-tests"]["steps"]]
+        self.assertIn("python -m pytest -q", commands)
+        self.assertIn("python -m pip install -r requirements-test.txt", commands)
 
     def test_the_gate_still_has_a_schedule_and_manual_dispatch(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")

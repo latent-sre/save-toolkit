@@ -80,7 +80,7 @@ python -m pytest -q
 
 [`.github/workflows/validate.yml`](.github/workflows/validate.yml) then runs three jobs on the
 pull request: `validate` (this same gate), `component-tests` (`pytest` against
-`requirements-test.txt` on a Linux/Windows matrix), and `claude-plugin-contract`
+`requirements-test.txt` on Linux), and `claude-plugin-contract`
 (npm's latest Claude Code release, with its resolved version recorded in the job log).
 That job validates `.claude-plugin/marketplace.json` with `--strict` and
 `.claude-plugin/plugin.json` without it: plugin errors fail the job; warnings remain visible.
