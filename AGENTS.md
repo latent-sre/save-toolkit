@@ -16,7 +16,7 @@ it before recommending or changing supported runtime, tooling, or infrastructure
 
 | Change or question | Source |
 |---|---|
-| Agents, tools, or delegation | [`agents/`](agents) and the [delegation graph](skills/agent-authoring/references/delegation-graph.md); omitted `tools:` inherits every tool |
+| Agents, tools, or delegation | [`agents/`](agents) and the [delegation graph](skills/agent-authoring/references/delegation-graph.md); `tools:` must be explicit — omission inherits every tool and Gate A rejects it |
 | Agent or skill frontmatter | [`claude-code-frontmatter.md`](skills/agent-authoring/references/claude-code-frontmatter.md) |
 | Skills or the ADR command | [`skills/`](skills) and [`commands/adr.md`](commands/adr.md); link bundled references from `SKILL.md` |
 | A live incident, a firing alert, or "what should I check next" | [`incident-investigation`](skills/incident-investigation/SKILL.md) advises the human responder; the `sre-assistant` agent gathers one bounded read-only slice when asked |
@@ -31,16 +31,20 @@ it before recommending or changing supported runtime, tooling, or infrastructure
 
 ## The roster
 
-The last column is the enforced Claude delegation graph; VS Code handoffs are separate.
+The last column is the Claude delegation graph, validated against each agent's frontmatter by
+Gate A. `Agent(...)` enforces an edge only on the main thread; at subagent depth the list is
+silently ignored, so there the graph is documented intent rather than a control — see the
+[delegation graph](skills/agent-authoring/references/delegation-graph.md). VS Code handoffs are
+separate.
 
 | Agent | Lane | Tools posture | Delegates to |
 |---|---|---|---|
 | `software-engineer` | Code and operator tooling | Local read/write + unguarded Bash for team-authored code; no web | `reviewer`, `scribe`, `researcher` |
-| `reviewer` | Correctness and security review | Read/Grep/Glob only; no write, Bash, web, Skill, or delegation | — |
+| `reviewer` | Correctness and security review | Read/Grep/Glob only; no write, Bash, web, or Skill; terminal | — |
 | `repository-investigator` | Bounded checkout questions | Read/Grep/Glob only; terminal | — |
 | `sre-assistant` | One bounded read-only evidence slice, dispatched by the human or the advisor | Guarded read-only `cf`/`gcloud`/`git`/`gh`; recommends mitigation | `researcher` |
 | `observability-engineer` | Steady-state observability | Unguarded Bash; writes config and authorized dashboards only | `scribe`, `researcher` |
-| `scribe` | Evidence-bound operational documents | Local document write; no Bash, web, or delegation; terminal | — |
+| `scribe` | Evidence-bound operational documents | Local document write; no Bash or web; terminal | — |
 | `researcher` | Cited public research | External-only; no local read, Bash, Write, Skill, or Agent | — |
 | `agent-engineer` | Fleet prompts, evals, and graphs | Local read/write + Bash; no web | `researcher` |
 

@@ -46,6 +46,7 @@ Gate A rejects uncited review packets; citation alone does not establish that a 
 | Routing description | The overlapping clean-room scenarios; pure wording changes need no live eval |
 | Eval harness or scenario | The affected `evals/test_*.py`; `python evals/build_probe.py --validate` for parsing or targeting changes; `python evals/judge.py --calibrate` after a rubric edit |
 | Read-only guard or hook wiring | `python -m pytest scripts/test_readonly_guard.py scripts/test_hook_wiring.py`; exit codes stay 42 allow, 43 deny, 44 indeterminate |
+| Any byte added under `skills/` or `agents/` | `python scripts/check_weight.py`; the ceilings in `scripts/weights.json` are ratchets pinned at the current totals, so growth fails Gate A until the same change raises the ceiling and says why |
 | Canonical task-path file or `description:` field | `python scripts/check_context_cost.py`; it fails when a task or the always-loaded description total exceeds its byte budget |
 
 When the acting lane already has Bash, a check may run inside an official pinned Docker image rather
@@ -62,11 +63,31 @@ Before pushing, run the structural gate once:
 python scripts/gate_a.py
 ```
 
-Report what ran and what remains unverified.
+Run it once, at the push boundary, and never through a pipe — a pipe masks its exit code.
+When the change reaches code, tests, or frontmatter, run the suite at that same boundary:
+
+```powershell
+python -m pytest -q
+```
+
+[`.github/workflows/validate.yml`](.github/workflows/validate.yml) then runs three jobs on the
+pull request: `validate` (this same gate), `component-tests` (`pytest` against
+`requirements-test.txt` on a Linux/Windows matrix), and `claude-plugin-contract`
+(`claude plugin validate . --strict` on a pinned CLI). Report what ran and what remains
+unverified.
 
 ## 4. Publish the intended change
 
-Compare the branch with current `origin/main` and confirm the diff and commit list hold only the
-intended work. `main` takes pull requests only; Save Toolkit maintainers merge. Production deployment
-of new bytes is a separate, exact-candidate decision under
+Fetch before comparing — `origin/main` is a local ref, and pull requests land mid-session, so an
+unfetched base hides work that is already on `main`:
+
+```powershell
+git fetch origin
+git diff origin/main...HEAD --stat
+git log origin/main..HEAD --oneline
+```
+
+Confirm the diff and commit list hold only the intended work. `main` takes pull requests only;
+Save Toolkit maintainers merge. Production deployment of new bytes is a separate, exact-candidate
+decision under
 [`production-change-gate`](skills/production-change-gate/SKILL.md).
