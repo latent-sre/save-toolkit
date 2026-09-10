@@ -59,7 +59,7 @@ class RuntimeEvidenceTests(unittest.TestCase):
         evidence = runtime_evidence()
 
         self.assertEqual(evidence["runtime_version"], "graph-runner-runtime/v1")
-        self.assertEqual(evidence["python_version"], "3.12.10")
+        self.assertEqual(evidence["python_version"], "3.14.7")
         self.assertEqual(
             evidence["packages"],
             {

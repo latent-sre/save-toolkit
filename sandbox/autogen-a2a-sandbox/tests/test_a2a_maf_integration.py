@@ -20,7 +20,6 @@ from agent_framework import WorkflowBuilder  # noqa: E402
 from a2a.types import Part  # noqa: E402
 from fastapi import FastAPI  # noqa: E402
 from google.protobuf.descriptor import FieldDescriptor  # noqa: E402
-from sse_starlette.sse import AppStatus  # noqa: E402
 from uvicorn import Config, Server  # noqa: E402
 
 from interop_sandbox.a2a_worker import create_worker_app  # noqa: E402
@@ -65,10 +64,10 @@ class A2AMAFIntegrationContractTests(unittest.TestCase):
         requirements = (SANDBOX_ROOT / "requirements.txt").read_text(encoding="utf-8")
 
         for pin in (
-            "fastapi==0.116.1",
+            "fastapi==0.141.1",
             "httpx==0.28.1",
-            "sse-starlette==2.4.1",
-            "uvicorn==0.35.0",
+            "sse-starlette==3.4.11",
+            "uvicorn==0.52.4",
         ):
             with self.subTest(pin=pin):
                 self.assertIn(f"\n{pin}\n", f"\n{requirements}")
@@ -109,10 +108,6 @@ class A2AMAFIntegrationContractTests(unittest.TestCase):
 
 class A2AMAFIntegrationTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
-        # sse-starlette 2.4.1 keeps its Uvicorn exit event at process scope;
-        # IsolatedAsyncioTestCase intentionally creates a new loop per test.
-        AppStatus.should_exit = False
-        AppStatus.should_exit_event = None
         self.requests = _requests_by_case()
         self.temporary = tempfile.TemporaryDirectory()
         self.state_directory = Path(self.temporary.name)

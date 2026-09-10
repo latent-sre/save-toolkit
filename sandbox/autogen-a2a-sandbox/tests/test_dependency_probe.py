@@ -21,10 +21,10 @@ EXPECTED_DISTRIBUTIONS = {
     "autogen-agentchat": "0.7.5",
 }
 EXPECTED_TRANSPORT_PINS = {
-    "fastapi": "0.116.1",
+    "fastapi": "0.141.1",
     "httpx": "0.28.1",
-    "sse-starlette": "2.4.1",
-    "uvicorn": "0.35.0",
+    "sse-starlette": "3.4.11",
+    "uvicorn": "0.52.4",
 }
 
 
@@ -69,7 +69,7 @@ class DependencyProbeTests(unittest.TestCase):
         report = {
             "distributions": EXPECTED_DISTRIBUTIONS.copy(),
             "probe_version": "autogen-a2a-dependency-probe/v1",
-            "python": "3.12.10",
+            "python": "3.14.7",
             "surfaces": {
                 "a2a_v1_models": "constructed",
                 "agent_framework_a2a": "constructed",
@@ -81,14 +81,14 @@ class DependencyProbeTests(unittest.TestCase):
         self.assertEqual(dependency_probe.validate_report(report), report)
 
     def test_report_contract_rejects_a_missing_distribution_version(self) -> None:
-        report = dependency_probe.expected_report("3.12.10")
+        report = dependency_probe.expected_report("3.14.7")
         del report["distributions"]["a2a-sdk"]
 
         with self.assertRaisesRegex(ValueError, "distributions"):
             dependency_probe.validate_report(report)
 
     def test_report_contract_rejects_an_unexpected_top_level_key(self) -> None:
-        report = dependency_probe.expected_report("3.12.10")
+        report = dependency_probe.expected_report("3.14.7")
         report["unexpected"] = "not closed"
 
         with self.assertRaisesRegex(ValueError, "top-level"):
