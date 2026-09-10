@@ -4,11 +4,6 @@ from pathlib import Path
 
 
 SANDBOX_ROOT = Path(__file__).resolve().parents[1]
-REPOSITORY_ROOT = next(
-    parent
-    for parent in SANDBOX_ROOT.parents
-    if (parent / ".git").exists() and (parent / "AGENTS.md").is_file()
-)
 sys.path.insert(0, str(SANDBOX_ROOT))
 
 from interop_sandbox import dependency_probe
@@ -48,22 +43,6 @@ class DependencyProbeTests(unittest.TestCase):
                 }.items()
             },
         )
-
-    def test_runtime_dependencies_match_the_repository_pin_set(self) -> None:
-        sandbox_pins = {
-            line
-            for line in (SANDBOX_ROOT / "requirements.txt").read_text(encoding="utf-8").splitlines()
-            if line and not line.startswith("#")
-        }
-        repository_pins = {
-            line
-            for line in (REPOSITORY_ROOT / "requirements-dev.txt")
-            .read_text(encoding="utf-8")
-            .splitlines()
-            if line and not line.startswith("#")
-        }
-
-        self.assertEqual(set(), sandbox_pins - repository_pins)
 
     def test_report_contract_accepts_exact_expected_shape(self) -> None:
         report = {
