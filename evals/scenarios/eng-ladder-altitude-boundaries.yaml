@@ -1,0 +1,30 @@
+id: eng-ladder-altitude-boundaries
+split: regression
+skill: eng-ladder
+tools:
+- Skill
+- Read
+references:
+- skills/eng-ladder/references/principal.md
+- skills/eng-ladder/references/distinguished.md
+prompt: |-
+  Choose the engineering altitude for three independent supplied cases; do not implement:
+  A. Company strategy already mandates its existing event platform. Three services need an
+  unsettled event-schema compatibility and migration design. Reversing that migration later is
+  expensive, but platform selection and long-term direction are settled.
+  B. Leadership has not decided whether to buy a managed platform or build one. The choice sets
+  organization-wide standards and costs for the next five years.
+  C. The shared-contract design, migration, recovery, and compatibility criteria are accepted.
+  The assignment is to implement that design across the three services without changing it.
+  Return only a JSON object with case_a, case_b, case_c string values. Choose builder, principal,
+  or distinguished independently for each case.
+success_criteria:
+- Keeps unresolved cross-service design within settled direction at principal.
+- Routes unresolved organization-wide multi-year strategy to distinguished and accepted implementation
+  to builder.
+graders:
+- type: exact_json
+  fields:
+    case_a: principal
+    case_b: distinguished
+    case_c: builder
