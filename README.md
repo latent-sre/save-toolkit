@@ -13,7 +13,7 @@ the Apps Manager view with the `cf` command beside it. A human executes every pr
 with one narrow exception: an invoked `observability-engineer` may apply Grafana dashboard and
 folder writes under its [change-authority rule](agents/observability-engineer.md#change-authority).
 
-> **Pre-release (0.1.0).** Installs track `main` and may change without notice. The repository has
+> **Pre-release (0.40.0).** Installs track `main` and may change without notice. The repository has
 > no supported immutable release channel.
 
 ## Install (Claude Code)
@@ -124,7 +124,8 @@ Treat these as build-bound evidence, and rerun the linked probe after host upgra
 |---|---|---|
 | Claude Code | Canonical agents and skills load directly; tool absence is the primary role boundary, with the plugin-level read-only Bash guard for `sre-assistant` | Claude has the richest enforceable contract, but `Agent(target)` is enforced only on the main thread; subagent-depth restrictions remain documentary. See [`AGENTS.md`](AGENTS.md#enforcement-boundaries) |
 | VS Code 1.135.0 (`08d4889f`) | Generated agents, skills, model-call `agents:`, and human-selected `handoffs:` | `[verified]` On 2026-08-30, plugin registration, 8 agents, 33 skills, the separate ADR prompt, and a synthetic allowed child passed. A forbidden child still ran, the real `software-engineer` -> `reviewer` call was inconclusive, and the separate hook canary was not run. The live transcript was removed in the 2026-09-02 retention pass; recover it with `git show e77fc672^:docs/reviews/evidence/host-002/2026-08-30-vscode-plugin-delegation-transcript.md` |
-| First installed VS Code build proven to contain `d679b159` | Upstream adds prepare/invoke rejection outside `agents:` and forwards each child's own list | `[sourced]` The [upstream change](https://github.com/microsoft/vscode/commit/d679b159e16d15d24e364b627ab85e144899ead0) is merged; `[unverified]` the installed plugin path until the HOST-002 probe passes on that exact build (procedure removed 2026-09-02; recover it with `git show e77fc672^:docs/probes/host-002-vscode-agent-delegation.md`) |
+| VS Code 1.137.0 | Generated agents, skills, model-call `agents:`, and human-selected `handoffs:` | `[verified]` On 2026-09-10 the maintainer ran the [acceptance cases](docs/vscode-plugin-acceptance.md) against an installed 0.40.0 candidate and reported all passing, including the forbidden-child case that ran anyway on 1.135.0. Owner-reported from a live session; no transcript was filed, so this row is the record. The separate agent-scoped hook canary remains unrun and `hooks/copilot-hooks.json` still ships empty |
+| First installed VS Code build proven to contain `d679b159` | Upstream adds prepare/invoke rejection outside `agents:` and forwards each child's own list | `[sourced]` The [upstream change](https://github.com/microsoft/vscode/commit/d679b159e16d15d24e364b627ab85e144899ead0) is merged; `[unverified]` the installed plugin path until the `RELEASE-001` acceptance run passes on that exact build (procedure removed 2026-09-02; recover it with `git show e77fc672^:docs/probes/host-002-vscode-agent-delegation.md`) |
 
 ### Other hosts
 

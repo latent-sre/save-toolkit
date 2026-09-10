@@ -124,7 +124,7 @@ authorizes a self-modifying loop.
 |---|---|
 | Canonical source | `agents/<name>.md`, `skills/<name>/SKILL.md`, `commands/adr.md`; regenerate projections with `scripts/generate_platform_adapters.py --write`; never edit a generated root |
 | Agent frontmatter | `name`, `description`, `tools` — omitting `tools` inherits **every** tool |
-| Delegation | Canonical Claude uses `Agent(target, …)`: an ungranted main-thread edge does not exist, while depth is documented intent. Generated VS Code profiles use `agent` plus `agents:` for model calls and a separately pinned `handoffs:` graph for human-selected ownership changes; enforcement is build-specific and tracked under `HOST-002` |
+| Delegation | Canonical Claude uses `Agent(target, …)`: an ungranted main-thread edge does not exist, while depth is documented intent. Generated VS Code profiles use `agent` plus `agents:` for model calls and a separately pinned `handoffs:` graph for human-selected ownership changes; enforcement is build-specific and tracked under `RELEASE-001` |
 | Agent keys that do nothing in a plugin | `hooks`, `mcpServers`, `permissionMode` — the read-only Bash guard lives once in `hooks/hooks.json`, scoped to the exact `agent_type` |
 | Skill frontmatter this fleet uses | `name`, `description`, `argument-hint`, `disable-model-invocation`; depth in `references/`, `assets/`, `scripts/`, each linked from the body |
 | Invocation | Claude calls a plugin skill through its namespace (`/save-toolkit:pcf-deploy`); the generator rewrites fleet names to bare host-native forms elsewhere |

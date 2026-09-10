@@ -33,7 +33,8 @@ final human-facing answer, target identity, and PASS/FAIL/UNVERIFIED with its re
 
 ## Hook limitation and release
 
-Copilot currently ships no credential-command hook. Do not claim Claude's guard is present.
+VS Code 1.111+ supports agent-scoped hooks whose `PreToolUse` may return a permission decision,
+but this plugin ships `hooks/copilot-hooks.json` empty. Do not claim Claude's guard is present.
 Before proposing one, use a separate disposable agent-scoped hook that denies a harmless command,
 and a built-in Agent control that remains unaffected. This canary grants no cloud access.
 
@@ -43,5 +44,5 @@ artifact to an immutable selector/checksum, and verifies reinstalling the previo
 artifact. Follow [release readiness](../skills/production-change-gate/references/release-readiness.md)
 and its distribution-specific immutability evidence. A mutable main install remains pre-release.
 
-Record results under the HOST-002 item in the [live roadmap](fleet-roadmap.md). Source tests and
+Record results under the RELEASE-001 item in the [live roadmap](fleet-roadmap.md). Source tests and
 an installed VS Code version number do not close runtime or model-behavior gaps.
