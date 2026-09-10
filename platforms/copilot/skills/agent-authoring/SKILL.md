@@ -120,6 +120,7 @@ authorizes a self-modifying loop.
 | Prompt injection, least privilege, egress, unsafe delegation, or blast radius of an agent, skill, tool, or flow | [agent security](./references/agent-security.md) — the lethal trifecta, cross-agent trust, the five-question review |
 | A cold-start packet or bounded evidence | [context guidance](./references/context.md) |
 | Authoring or debugging any agent or skill frontmatter | [Claude Code frontmatter](./references/claude-code-frontmatter.md) — the single source of truth |
+| Authoring frontmatter for the VS Code or Copilot projection | [Copilot & VS Code frontmatter](./references/copilot-frontmatter.md) — keys, handoff entries, tool aliases, and the two plugin manifest formats |
 | Relying on a frontmatter field to enforce anything, or publishing a skill beyond this plugin | [skill portability](./references/skill-portability.md) — the portable set can grant, never restrict |
 
 ## Platform traps (the facts models author wrong)

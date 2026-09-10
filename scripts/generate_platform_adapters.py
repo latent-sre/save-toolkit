@@ -58,7 +58,7 @@ MANUAL_ONLY = {"pcf-deploy"}
 GUARDED_AGENTS = {"sre-assistant"}
 COPILOT_AGENT_PROMPT_MAX_CHARS = 30_000
 
-COPILOT_TOOL_ORDER = ("read", "search", "edit", "execute", "web", "agent")
+COPILOT_TOOL_ORDER = ("read", "search", "edit", "execute", "web", "agent", "todo")
 COPILOT_TOOL_MAP = {
     "Read": "read",
     "Grep": "search",
@@ -70,6 +70,9 @@ COPILOT_TOOL_MAP = {
     "WebFetch": "web",
     "WebSearch": "web",
     "Agent": "agent",
+    "TodoWrite": "todo",
+    # `EnterWorktree`/`ExitWorktree` have no Copilot alias and are deliberately unmapped: the
+    # projection drops them rather than substituting `execute`, which would widen authority.
 }
 COPILOT_HANDOFFS_BY_SOURCE = {
     "observability-engineer": (

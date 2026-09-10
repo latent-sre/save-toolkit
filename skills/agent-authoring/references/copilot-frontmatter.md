@@ -1,0 +1,142 @@
+# Copilot & VS Code frontmatter — agents & skills
+
+The fleet's single source of truth for VS Code / GitHub Copilot frontmatter facts. On conflict with
+the live docs (code.visualstudio.com/docs/agent-customization/custom-agents,
+docs.github.com/en/copilot/reference/custom-agents-configuration) the docs win — update this file
+and re-verify after host upgrades.
+
+Every fact below is **doc-checked (2026-09-09), not host-probed**. `HOST-002` owns installed-host
+verification; treat a key's presence here as permission to author, never as proof it enforces.
+
+## Contents
+
+- Agents
+- Handoff entries
+- Tool aliases
+- Skills
+- Hook events and shape
+- Plugin manifest formats
+- Fleet decisions on unused fields
+
+## Agents
+
+VS Code loads any `.md` file under `.github/agents/`; the fleet emits `<name>.agent.md`. A key the
+host does not support is **ignored, not rejected**, which is why one file serves both targets.
+
+| Field | Disposition here |
+|---|---|
+| `name`, `description` | Required. Emitted. `description` is the trigger and the chat-input placeholder |
+| `tools` | Tool or tool-set names — aliases below. Emitted, mapped from the Claude grant |
+| `agents` | Agent names available as subagents; `*` allows all, `[]` prevents any. Emitted from the same `Agent(...)` grant that feeds the delegation graph |
+| `handoffs` | Human-selected ownership transfer — **VS Code only**; explicitly *"not supported for Copilot cloud agent on GitHub.com"*. Emitted for the five lanes in `COPILOT_HANDOFFS_BY_SOURCE` |
+| `argument-hint` | **VS Code only**; unsupported on Copilot cloud alongside `handoffs`. Not emitted on agents; the fleet uses it on all 26 skills |
+| `model` | Single model name or a prioritized array. Unused — mirrors the Claude side, where no agent pins one |
+| `user-invocable` | Boolean, default `true`; `false` hides the agent from the chat dropdown. Unused — every fleet lane is meant to be reachable by the human SRE |
+| `disable-model-invocation` | Boolean, default `false`; prevents the agent being invoked **as a subagent by other agents**. Unused on agents today, and the one host key that could turn the delegation graph's inbound edges into enforcement rather than documented intent |
+| `target` | `vscode` or `github-copilot`. Unused — one file serves both because unsupported keys are ignored |
+| `mcp-servers` | MCP server config JSON for Copilot targets. Unused — `researcher`'s 18 exact Claude MCP grants collapse to bare `web`, so the cited-research lane is materially weaker here than on Claude |
+| `hooks` | **(Preview)** agent-scoped hooks, VS Code 1.111+, gated behind `chat.useCustomAgentHooks`. Same shape as hook config files, and `PreToolUse` may return a permission decision — the mechanism `readonly-guard.py` uses. Unused: `HOST-002` keeps `hooks/copilot-hooks.json` empty until its separate canary passes |
+| `infer` | **Deprecated** — replaced by `user-invocable` and `disable-model-invocation`. Never emit |
+
+Claude grants use full plugin names (`Agent(save-toolkit:reviewer)`); the generator projects the
+same targets to bare Copilot names. The delegation-graph reference owns the edge list.
+
+## Handoff entries
+
+Each entry in `handoffs`. VS Code only — the whole key is inert on Copilot cloud.
+
+| Field | Disposition here |
+|---|---|
+| `label` | Display text on the handoff button. Emitted |
+| `agent` | Target agent identifier to switch to. Emitted |
+| `prompt` | Prompt text sent to the target. Emitted |
+| `send` | Boolean, default `false`; `true` auto-submits so one click starts the receiver. Emitted `true` |
+| `model` | Optional model for the handoff, formatted `Model Name (vendor)`. Unused — consistent with pinning no model anywhere |
+
+## Tool aliases
+
+Valid Copilot values: the seven aliases below, plus `<server>/<tool>` for a specific MCP tool,
+`<server>/*` for a whole server, `["*"]` for everything, and `[]` to disable all tools. `github/*`
+and `playwright/*` ship out of the box.
+
+| Alias | Claude tools mapped to it | Used |
+|---|---|---|
+| `read` | `Read` | yes |
+| `search` | `Grep`, `Glob` | yes |
+| `edit` | `Write`, `Edit`, `NotebookEdit` | yes |
+| `execute` | `Bash` | yes |
+| `web` | `WebFetch`, `WebSearch` | yes |
+| `agent` | `Agent` | yes |
+| `todo` | `TodoWrite` | yes — the three build lanes (`software-engineer`, `agent-engineer`, `observability-engineer`) |
+
+`EnterWorktree` / `ExitWorktree` have **no Copilot alias** and are deliberately unmapped — the
+projection drops them rather than substituting `execute`, which would widen authority on a host
+that cannot narrow it again.
+
+`sre-assistant` deliberately receives **no** `execute`. Its Claude profile relies on a session-wide
+read-only Bash guard, and these hosts cannot enforce that agent-specific command allowlist *from the
+plugin contract*; tool absence is the stronger control.
+
+## Skills
+
+Copilot discovers workspace skills from `.github/skills`, `.claude/skills`, and `.agents/skills`,
+and personal skills from `~/.copilot/skills` and `~/.agents/skills`. This fleet ships skills as a
+**plugin**, declared through the manifest selector, so its projection lives at
+`platforms/copilot/skills/` and is reached by declaration rather than discovery. `.github/skills/`
+is both git-ignored and a retired generated root — a stray copy there would load a second time.
+
+| Field | Disposition here |
+|---|---|
+| `name` | Required; lowercase, hyphens for spaces. Emitted on all 26 skills |
+| `description` | Required; what the skill does and when to use it. Emitted |
+| `argument-hint` | Emitted on all 26; ignored on Copilot cloud |
+| `disable-model-invocation` | Supported for skills and used by one skill today (`pcf-deploy`, manual-only) |
+| `license` | Optional. Unused — the plugin manifest already carries MIT, and the field would repeat across every projected bundle |
+| `allowed-tools` | Pre-approves tools such as `shell` or `bash` **without confirmation**. **Never use.** It inverts the fail-closed posture the guard exists to hold |
+
+## Hook events and shape
+
+Unadopted (`HOST-002`), documented because the gap is smaller than it looks: the `PreToolUse`
+decision payload is **field-identical** to what `readonly-guard.py` already emits for Claude.
+
+| Event | Claude equivalent |
+|---|---|
+| `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PreCompact`, `Stop` | same names |
+| `SubagentStart`, `SubagentStop` | no Claude equivalent — subagent-scoped lifecycle |
+
+A hook entry requires `type: "command"` and `command`; optional `timeout`, `cwd`, `env`, and the
+per-OS overrides `windows` / `linux` / `osx`, which would replace the interpreter-probe loop the
+Claude hook needs today.
+
+`PreToolUse` returns `hookSpecificOutput.permissionDecision` — `allow` \| `deny` \| `ask` — with
+`permissionDecisionReason`. The fleet's guard already emits exactly these fields. What does **not**
+carry over is the exit-code authentication (42/43/44) that proves the answer came from the guard
+rather than a PATH-planted stand-in, and `agent_type` payload scoping. A port must re-establish
+both, or it is armor that provides none.
+
+## Plugin manifest formats
+
+Two formats are live. VS Code auto-detects by inspecting the root manifest; the Copilot format is
+the fallback when no other marker is found.
+
+| Format | Shape | Status |
+|---|---|---|
+| Copilot (selector) | Root `plugin.json` naming component paths — `agents`, `skills`, `hooks`. **What this fleet ships** | Supported: *"Existing Copilot-format plugins that don't declare the Agent Plugins schema remain supported"* |
+| Agent Plugins 1.0 | `$schema: https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`; skills auto-discovered from `skills/`, MCP from `mcp.json`, Copilot-specific agents/hooks/commands under `com.github.copilot/` | Published 2026-08-12; forward-compatible standard |
+
+`generate_platform_adapters.py` fails the build on a `$schema` added without also moving skills to
+`skills/` and Copilot components to `com.github.copilot/` — a half-migration is the failure it
+prevents. Under 1.0 the canonical `skills/` directory would itself be the discovery path, which
+would retire the projected bundle entirely.
+
+## Fleet decisions on unused fields
+
+| Field | Why unused |
+|---|---|
+| `model`, handoff `model` | No lane pins a model on any host; a dated pin goes stale silently |
+| `user-invocable` | The fleet serves a human SRE; hiding a lane from the picker works against that |
+| `target` | One emitted file serves both targets because unsupported keys are ignored |
+| `license` | Redundant with the manifest, multiplied across every projected bundle |
+| `infer` | Deprecated upstream |
+| `allowed-tools` | Security posture: never pre-approve shell without confirmation |
+| `hooks`, `mcp-servers`, `disable-model-invocation` | Not decided against — unadopted pending `HOST-002` verification. Each closes a real gap this file names |

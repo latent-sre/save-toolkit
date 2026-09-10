@@ -85,8 +85,30 @@ class TrackedFilesOnlyTests(unittest.TestCase):
             ["git", "-C", str(check_weight.ROOT), "ls-files", "-z", "--", "skills"],
             capture_output=True, text=True, encoding="utf-8", check=True,
         ).stdout.split("\0")
-        expected = sum((check_weight.ROOT / n).stat().st_size for n in tracked if n)
+        expected = sum(
+            (check_weight.ROOT / n).stat().st_size
+            for n in tracked
+            if n and not check_weight._is_bundled_reference(check_weight.ROOT / n, check_weight.ROOT)
+        )
         self.assertEqual(expected, check_weight.measure()["skills_bytes"])
+        # The exclusion must actually remove something, or this test passes vacuously.
+        self.assertLess(expected, sum((check_weight.ROOT / n).stat().st_size for n in tracked if n))
+
+    def test_bundled_references_are_outside_the_ceiling(self) -> None:
+        """`skills/<name>/references/` is on-demand depth; only a deeper same-named dir counts."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "skills" / "s" / "references").mkdir(parents=True)
+            (root / "skills" / "s" / "assets" / "references").mkdir(parents=True)
+            (root / "evals").mkdir()
+            (root / "agents").mkdir()
+            (root / "skills" / "s" / "SKILL.md").write_text("x" * 100, encoding="utf-8")
+            (root / "skills" / "s" / "references" / "deep.md").write_text("y" * 5000, encoding="utf-8")
+            self.assertEqual(100, check_weight.measure(root)["skills_bytes"])
+            # A `references` directory nested deeper is NOT the exempt one.
+            (root / "skills" / "s" / "assets" / "references" / "a.md").write_text("z" * 7, encoding="utf-8")
+            self.assertEqual(107, check_weight.measure(root)["skills_bytes"])
 
     def _git(self, cwd: Path, *args: str) -> None:
         import subprocess

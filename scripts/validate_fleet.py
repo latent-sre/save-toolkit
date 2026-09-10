@@ -24,10 +24,34 @@ KNOWN_AGENT_FIELDS = {"name", "description", "tools", "model"}
 # `inherit` is the default and is accepted explicitly so a lane can document the choice.
 MODEL_ALIASES = {"haiku", "sonnet", "opus", "fable", "inherit"}
 PLUGIN_INERT_AGENT_FIELDS = {"hooks", "mcpServers", "permissionMode"}
+# The built-in tools a canonical agent may name. This is an ALLOWLIST, not the platform's list:
+# a tool documented as available to subagents but absent here is refused with "unknown tool grant",
+# so adding one is a deliberate act. Absent on purpose, with the reason each omission carries:
+#
+#   `PowerShell`  THE LOAD-BEARING ONE. The read-only guard sees Bash and nothing else: the
+#                 `hooks/hooks.json` matcher is `"Bash"`, and readonly-guard.py returns early
+#                 unless `tool_name == "Bash"`. Granting `PowerShell` to `sre-assistant` would
+#                 hand the one guarded lane a completely unguarded shell -- and it would look
+#                 like a fix, because PowerShell is a supported language in this team's own
+#                 stack-profile and this is a Windows-first repository. Adding it here requires
+#                 teaching the hook matcher and the guard about it FIRST, in the same change.
+#   `SendMessage` Peer messaging routes around the delegation graph: a lane could reach an agent
+#                 it holds no `Agent(...)` edge to, and the roster's validated edge list would
+#                 describe a graph the fleet no longer has.
+#   `Artifact`    Publishing is an external, durable effect. `scribe` writes evidence-bound
+#                 documents into the checkout, where review and rollback already apply.
+#   `Monitor`     No lane runs background work today; grant it with the lane that needs it.
+#
+# `NotebookEdit` is allowed but granted to nobody -- the stack has no notebooks. It stays so a
+# write-tool set (`WRITE_TOOLS`) reasons over the whole write surface rather than a subset.
 BUILTIN_TOOLS = {
-    "Agent", "Bash", "Edit", "Glob", "Grep", "NotebookEdit", "Read", "Skill", "ToolSearch",
-    "WebFetch", "WebSearch", "Write",
+    "Agent", "Bash", "Edit", "EnterWorktree", "ExitWorktree", "Glob", "Grep", "NotebookEdit",
+    "Read", "Skill", "TodoWrite", "ToolSearch", "WebFetch", "WebSearch", "Write",
 }
+# Worktree entry/exit creates and removes a checkout. That is a filesystem effect, so it belongs
+# only to lanes that already hold write authority -- never to a lane whose posture is read-only by
+# tool absence, where it would be a write path the `WRITE_TOOLS` forbid-list does not name.
+WORKTREE_TOOLS = {"EnterWorktree", "ExitWorktree"}
 WRITE_TOOLS = {"Write", "Edit", "NotebookEdit"}
 LOCAL_READ_TOOLS = {"Read", "Grep", "Glob"}
 # The evidence-label triad, pinned once: an agent that uses any label must carry all three.
@@ -87,17 +111,17 @@ SCRIBE_TOOLS = {"Read", "Grep", "Glob", "Edit", "Write", "Skill"}
 EXPECTED_AUTHORITY = {
     "reviewer": {
         "required": LOCAL_READ_TOOLS,
-        "forbidden": {"Bash", "Agent", "Skill", *WRITE_TOOLS, *EXTERNAL_EVIDENCE_TOOLS},
+        "forbidden": {"Bash", "Agent", "Skill", *WRITE_TOOLS, *WORKTREE_TOOLS, *EXTERNAL_EVIDENCE_TOOLS},
     },
     "repository-investigator": {
         "required": LOCAL_READ_TOOLS,
         "forbidden": {
-            "Bash", "Agent", "Skill", *WRITE_TOOLS, *EXTERNAL_EVIDENCE_TOOLS,
+            "Bash", "Agent", "Skill", *WRITE_TOOLS, *WORKTREE_TOOLS, *EXTERNAL_EVIDENCE_TOOLS,
         },
     },
     "researcher": {
         "required": EXTERNAL_EVIDENCE_TOOLS,
-        "forbidden": {"Read", "Grep", "Glob", "Bash", "Agent", "Skill", *WRITE_TOOLS},
+        "forbidden": {"Read", "Grep", "Glob", "Bash", "Agent", "Skill", *WRITE_TOOLS, *WORKTREE_TOOLS},
     },
     "software-engineer": {
         "required": {"Read", "Bash", "Edit", "Write", "Skill", "Agent"},
@@ -105,7 +129,7 @@ EXPECTED_AUTHORITY = {
     },
     "sre-assistant": {
         "required": {"Read", "Bash", "Skill", "Agent"},
-        "forbidden": {*WRITE_TOOLS, *EXTERNAL_EVIDENCE_TOOLS},
+        "forbidden": {*WRITE_TOOLS, *WORKTREE_TOOLS, *EXTERNAL_EVIDENCE_TOOLS},
     },
     "observability-engineer": {
         "required": {"Read", "Bash", "Edit", "Write", "Skill", "Agent"},
