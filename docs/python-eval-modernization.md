@@ -113,3 +113,5 @@ ceiling from 11,503 to 11,554 without changing the skill or agent ceilings.
   (220 net lines added, using five lines of existing headroom). Retire that
   additive cost as equivalent native infrastructure can be removed; do not count a pilot as a net
   simplification yet.
+
+The next framework batch is recorded in [LangGraph upgrade verification](langgraph-upgrade.md).
