@@ -13,7 +13,7 @@ the Apps Manager view with the `cf` command beside it. A human executes every pr
 with one narrow exception: an invoked `observability-engineer` may apply Grafana dashboard and
 folder writes under its [change-authority rule](agents/observability-engineer.md#change-authority).
 
-> **Pre-release (0.1.0).** Installs track `main` and may change without notice. The repository has
+> **Pre-release (0.40.0).** Installs track `main` and may change without notice. The repository has
 > no supported immutable release channel.
 
 ## Install (Claude Code)
