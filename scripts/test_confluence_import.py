@@ -197,6 +197,21 @@ class ConfluenceImportTest(unittest.TestCase):
                 self.assertEqual(len(section), 2, f"missing slot {slot!r}")
                 self.assertIn(content, section[1].split("\n## ", 1)[0])
 
+    def test_explicit_recovery_headings_win_over_generic_step_words(self) -> None:
+        proc, draft = run_converter(
+            "<h1>Recovery</h1>"
+            "<h2>Rollback steps</h2><p>Restore the previous artifact.</p>"
+            "<h2>Verification steps</h2><p>Confirm healthy traffic.</p>"
+        )
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        rollback = draft.split("## Rollback / cleanup\n\n", 1)[1].split("\n## Escalation", 1)[0]
+        verification = draft.split("## Verification\n\n", 1)[1].split("\n## Rollback", 1)[0]
+        procedure = draft.split("## Procedure\n\n", 1)[1].split("\n## Verification", 1)[0]
+        self.assertIn("Restore the previous artifact.", rollback)
+        self.assertIn("Confirm healthy traffic.", verification)
+        self.assertNotIn("Restore the previous artifact.", procedure)
+        self.assertNotIn("Confirm healthy traffic.", procedure)
+
     def test_unrecognized_content_is_kept_not_dropped(self) -> None:
         self.assertIn("Imported content (unmapped)", self.draft)
         unmapped = self.draft.split("Imported content (unmapped)", 1)[1]
@@ -206,6 +221,67 @@ class ConfluenceImportTest(unittest.TestCase):
         self.assertIn("cf app checkout-worker", self.draft)
         block_and_after = self.draft.split("cf app checkout-worker", 1)[1]
         self.assertIn("[unverified]", block_and_after[:300])
+
+    def test_code_fence_is_longer_than_backticks_inside_the_command(self) -> None:
+        command = "cat <<'EOF'\n```\nliteral document sample\n```\nEOF"
+        proc, draft = run_converter(
+            "<h1>Recovery</h1><h2>Procedure</h2><pre>" + command + "</pre>"
+        )
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        procedure = draft.split("## Procedure\n\n", 1)[1].split("\n## Verification", 1)[0]
+        self.assertIn("````\n" + command + "\n````", procedure)
+        self.assertEqual(1, procedure.count("*Imported command — [unverified] until rehearsed on the target.*"))
+
+    def test_ordered_list_numbers_survive_and_flattened_tables_are_reported(self) -> None:
+        proc, draft = run_converter(
+            '<h1>Recovery</h1><h2>Procedure</h2><ol start="3">'
+            '<li>Inspect.</li><li>If unsafe, return to step 3.</li></ol>'
+            '<table><tr><th>State</th><th>Action</th></tr>'
+            '<tr><td>Running</td><td>Wait</td></tr></table>'
+        )
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        procedure = draft.split("## Procedure\n\n", 1)[1].split("\n## Verification", 1)[0]
+        self.assertIn("3. Inspect.", procedure)
+        self.assertIn("4. If unsafe, return to step 3.", procedure)
+        for output in (draft, proc.stdout):
+            self.assertIn("HTML tables flattened: 1", output)
+
+    def test_ordered_numbers_attach_to_paragraph_wrapped_items_with_a_nested_list(self) -> None:
+        proc, draft = run_converter(
+            '<h1>Recovery</h1><h2>Procedure</h2><ol start="3">'
+            '<li><p>Inspect.</p><ul><li>Check the dependency.</li></ul></li>'
+            '<li><p>Continue.</p></li></ol>'
+        )
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        procedure = draft.split("## Procedure\n\n", 1)[1].split("\n## Verification", 1)[0]
+        self.assertIn("3. Inspect.", procedure)
+        self.assertIn("- Check the dependency.", procedure)
+        self.assertIn("4. Continue.", procedure)
+
+    def test_missing_output_parent_is_created_for_first_import(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "page.html"
+            output = root / "docs" / "runbooks" / "draft.md"
+            source.write_text(VIEW_HTML, encoding="utf-8")
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    str(CONVERTER),
+                    str(source),
+                    "-o",
+                    str(output),
+                    "--service-id",
+                    "checkout-worker",
+                ],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                env=child_env(),
+                timeout=30,
+            )
+            self.assertEqual(0, proc.returncode, proc.stderr)
+            self.assertTrue(output.is_file())
 
     def test_macro_loss_is_reported_in_provenance_and_stdout(self) -> None:
         # The <ac:structured-macro> cannot convert; it must be COUNTED, in the draft's provenance

@@ -25,8 +25,9 @@ preserve the existing structure, IDs, status and history. Report unrelated gaps 
 Review and rehearsal dates follow their evidence rules below; a small edit proves no operational step.
 Changes to actions or decision branches use the procedure-revision path.
 
-For a new runbook or substantial procedure revision, use the [runbook template](./assets/runbook-template.md),
-filling applicable slots or marking `n/a — why`. For a first runbook or thin draft, read the
+For a new runbook or substantial procedure revision, use the [runbook template](./assets/runbook-template.md).
+Fill applicable slots; mark only genuinely inapplicable ones `n/a — why`. Missing applicable evidence
+stays `[unverified]` with its owner and next check. For a first runbook or thin draft, read the
 [worked exemplar](./assets/runbook-example.md); its service, dates and evidence IDs are fictional.
 
 "Common failures" lists only observed or clearly plausible service failures, without padding.
@@ -58,15 +59,13 @@ and outcome. Otherwise leave it unchanged and label the rehearsal `[unverified]`
   for command claims. If that evidence is absent, mark the command `[unverified]`; never execute from
   this documentation lane, including a read-only command, merely to confirm syntax or output.
 
-For Procedure/Triage steps added or changed, check target binding, partial/failed outcomes, inherited side
-effects when entered directly, repeat-safe rollback, inspection before destruction, stop condition,
-placeholder source, and routing of other failure modes. The
-[worked exemplar](./assets/runbook-example.md) demonstrates these checks.
-
 ## Before you publish — read it back as the responder
 
 Read as a responder new to this service. For a procedure change, walk its affected branches in order;
-the first unsupported decision is a finding. For a bounded correction, check the changed claim and links.
+the first unsupported decision is a finding. Check target and placeholder sources, inherited effects
+when a branch is entered directly, inspection before destruction, and repeat-safe rollback. For a
+bounded correction, check the changed claim and links. The [worked exemplar](./assets/runbook-example.md)
+demonstrates these checks.
 
 Four questions that surface most of them:
 
@@ -79,10 +78,11 @@ Missing evidence stays `[unverified]`, never invented.
 
 ## Living runbooks — every incident leaves the runbook better
 
-Every incident or drill that touches a runbook yields one outcome per step — **held**,
-**contradicted**, or **missing** — and each becomes an `operational-learning` disposition at
-closeout. Append an Incident history row (template slot) pinned to the `version` used; rows are
-evidence, never rewritten. A contradicted step is fixed now or the runbook drops to
+For steps actually exercised, record **held** or **contradicted**; record **missing** when the
+responder needed a step that did not exist. Untraversed branches remain untested. Each observed
+outcome becomes an `operational-learning` disposition at closeout. Append an Incident history row
+(template slot) pinned to the `version` used; rows are evidence, never rewritten. A contradicted step
+is fixed now or the runbook drops to
 `status: draft`; `last_verified` moves only on binding rehearsal evidence. The full accretion
 protocol and its sourced rationale (playbooks ≈ 3x MTTR improvement) are in
 [living runbooks](./references/living-runbooks.md).
@@ -97,26 +97,11 @@ Imported command claims stay `[unverified]`; preserve source page URL and export
 
 ## Alert → runbook links and the Crawl → Walk → Run path
 
-Link every paging alert to its runbook. When investigation is needed, the responder troubleshoots
-with `incident-investigation` and may dispatch `sre-assistant` for a bounded read; when code
-remediation is needed, hand the defect and evidence to the `software-engineer` agent.
-When a new alert/service, drill, audit, or resolved incident exposes a missing or contradicted
-runbook, record an `operational-learning` disposition and have `scribe` prepare the evidence-bound
-create/update. Do not let a chat-only observation disappear or silently bump `last_verified`.
-If a step is fully mechanical, recommend automating it along the **Crawl → Walk → Run** path: document
-the manual steps (crawl), wrap them in a checked script the on-call runs by hand (walk), then trigger
-it automatically once proven (run). Data-drive the alert→runbook link so saved searches/alerts surface
-the right runbook automatically — each tool in our stack has a mechanism:
-- **Splunk:** `... | lookup instructions_lookup alert_type OUTPUT runbook_url`.
-- **Grafana:** a `runbook_url` annotation on the alert rule (templated by labels).
-- **Wavefront:** the alert's resolution/runbook link, with Mustache-templated targets.
-- **Moogsoft:** enrichment that attaches the runbook URL + escalation path to the alert/Situation.
+Link every paging alert to its runbook. The responder investigates with `incident-investigation` and
+may dispatch `sre-assistant`; code defects go to `software-engineer`. A missing or contradicted
+runbook becomes an `operational-learning` disposition for `scribe`, never a chat-only update or an
+unsupported `last_verified` change.
 
-### Worked excerpt — tier-marked steps with provenance
-
-> **Trigger**: alert `checkout-p95-burn-fast` (page).
-> **First checks**: Apps Manager → checkout → Instances: expect `6/6 running` (`cf app checkout`) [unverified].
-> **Step 1**: headroom unproved; no restart. Immediately escalate target/index/window/readings to
-> payments engineering lead for the missing check and separately approved procedure. Missing reply
-> or evidence keeps restart blocked; independent read-only checks may continue.
-> *Illustrative only; every step stays [unverified] until a human records the exact command, target, actor, and result.*
+For repeated mechanical steps: document the manual procedure, wrap it in a checked human-run script,
+then automate after evidence. Store the runbook link in the backend's native field: Splunk lookup,
+Grafana `runbook_url`, Wavefront runbook link, or Moogsoft enrichment.

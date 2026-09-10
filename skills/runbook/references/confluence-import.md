@@ -44,11 +44,10 @@ python "<resolved converter path>" page.html -o docs/runbooks/<slug>.md \
 It pre-fills schema-valid frontmatter (`status: draft`, `version: 1`, dates `null`), maps
 recognizable headings into the slot table below, keeps everything unrecognized under an explicit
 *Imported content (unmapped)* section, marks every imported command block `[unverified]`, and
-preserves links and image references, and reports dropped macros/media, unusable destinations,
-and uncopied image attachments. Relative destinations retain the export's layout; transfer the
-referenced files or repair their destinations when moving the draft. The draft is a
-starting point for `scribe`'s conversion work, not a finished runbook — every slot still gets
-filled or marked `n/a — why`, and the provenance rules below still apply.
+preserves links and image references, and reports dropped media/macros, flattened tables, uncopied
+images, and unusable destinations. Transfer relative files or repair their paths. The draft starts
+`scribe`'s work: fill applicable slots, use `n/a — why` only when genuinely inapplicable, and leave
+missing evidence `[unverified]` with an owner and next check.
 
 ## Slot mapping — where Confluence prose lands in the template
 
@@ -61,9 +60,8 @@ filled or marked `n/a — why`, and the provenance rules below still apply.
 | "If that didn't work" prose | Escalation table | Confluence pages rarely name a time-box — the table needs one; mark `n/a — why` if truly none |
 | Comments thread | Incident history seed | Dated comments describing real uses become the first history rows, labeled `[sourced: page comment, <date>]` |
 
-What Confluence pages almost never carry — and the template requires — gets filled or explicitly
-marked `n/a — why`: **expected output per step, rollback per state-changing step, verification,
-the escalation time-box, and all frontmatter fields.**
+Confluence pages often omit **expected output, rollback, verification, escalation time-boxes, and
+frontmatter**. Fill them from supplied evidence; otherwise apply the gap rule above.
 
 ## Provenance rules (non-negotiable)
 
