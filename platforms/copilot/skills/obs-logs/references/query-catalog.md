@@ -28,25 +28,22 @@ packet needs the same expectation.
 
 ## Entry shape
 
-Each entry carries these fields, in this order. The shape deliberately mirrors the
-runbook-registry shape in the accepted SRE operational-context contract — identity, applicability,
-ownership, lifecycle, and source location — so entries lift into `sre-context` as typed values when
-that contract reaches real-team onboarding, instead of being rewritten.
+Use the question as the entry heading, followed by the metadata fields below and the query block.
 
 | Field | Meaning |
 |---|---|
 | **Question** | What a responder wants to know, in plain English. This is the lookup key. |
 | **Applies to** | Service, environment, or signal the query is valid for. |
-| **Query** | The search itself, with `<placeholders>` for every inventory value. |
 | **Reads as** | What the columns mean, so pasted output can be interpreted. |
 | **Healthy looks like** | The result shape when nothing is wrong — the comparison that makes an unhealthy result legible. |
 | **Owner** | Named human or team role accountable for the entry. |
 | **Verified** | `[verified] <date> by <role>`, or `[unverified]` with what is untested. |
+| **Query** | The final code block, with `<placeholders>` for every inventory value. |
 
 ## Contribute an entry
 
-Copy this template, fill every field, open a PR. No skill file changes are needed — the catalog is
-data, and the PR review checks the shape and the safety rules.
+Copy this template into this catalog, fill every field, and open a PR. No new skill is needed;
+review checks the entry shape, target assumptions, and safety rules.
 
 ````markdown
 ### <the question, phrased as a responder would ask it>

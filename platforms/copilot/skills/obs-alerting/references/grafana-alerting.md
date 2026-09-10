@@ -40,9 +40,12 @@ owner per rule and never duplicate a rule in both paths.
 - **No-data and execution-error states** are a decision per rule: for a paging burn-rate rule,
   silent telemetry mapped to Normal is the false all-clear, and an erroring query mapped to Normal
   disarms the alert invisibly. In file-provisioning YAML "Normal" is spelled `OK`
-  (`noDataState: NoData|Alerting|OK`, `execErrState: Error|Alerting|OK`) and `KeepLast` is absent
-  from that enum; a generated YAML carrying `Normal` or `Keep Last State` fails to load
-  *[sourced: file-provisioning page, re-checked 2026-08-19]*.
+  (`noDataState: NoData|Alerting|OK|KeepLast`, `execErrState: Error|Alerting|OK|KeepLast`).
+  `KeepLast` preserves the previous state; it does not establish current health. Literal UI labels
+  `Normal` and `Keep Last State` are invalid provisioning values.
+  *[sourced: Grafana 13.1.4 [file loader](https://github.com/grafana/grafana/blob/v13.1.4/pkg/services/provisioning/alerting/rules_types.go#L135)
+  and [state parsers](https://github.com/grafana/grafana/blob/v13.1.4/pkg/services/ngalert/models/alert_rule.go#L67),
+  checked 2026-09-09; the provisioning documentation example omits KeepLast]*.
 
 Review all four per rule; the defaults are not a decision.
 

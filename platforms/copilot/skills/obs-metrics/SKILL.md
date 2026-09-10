@@ -61,9 +61,10 @@ threshold, current value and missing-data behavior.
 Validate any identifier or label value copied from a ticket, log, or alert against the service's
 documented format before it enters a selector; never concatenate a raw value into a query
 expression, and apply the selected dialect reference's quoting/escaping rule. A regex matcher
-(`=~`) built from untrusted text is a matcher-widening risk — anchor it or prefer exact match. If
-a value cannot be encoded unambiguously, stop and ask for a sanitized identifier rather than
-broadening the match.
+built from untrusted text can widen the population: prefer exact matching. If regex is required,
+escape the value as literal regex text, then separately encode the enclosing query string using the
+dialect reference. Anchors do not escape metacharacters. If encoding is uncertain, stop and ask for
+a sanitized identifier rather than broadening the match.
 
 ## Build the evidence packet
 

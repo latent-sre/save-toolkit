@@ -32,15 +32,15 @@ of two silent traps:
 The namespace is `default` for org 1, `org-<id>` otherwise, `stacks-<id>` on Grafana Cloud.
 App-platform identity is `metadata.name` (the dashboard uid), not the server-minted `metadata.uid`.
 
-The version in a read URL controls the returned *shape*, not what is stored: QA 13.1.4 served
-`v0alpha1`, `v1`, `v1beta1`, `v2alpha1`, `v2beta1`, and `v2` with preferred `v2`, so a Classic
-`spec.panels[]` transform against an unpinned read can silently see nothing. Find the stored version
-first: read the dashboard at `v0alpha1` (unstructured, no migration) and take
-`status.conversion.storedVersion`, falling back to the returned `apiVersion`; both may be
-group-qualified (`dashboard.grafana.app/v0alpha1`), so the version is the segment after the last
-slash, never the whole value spliced into the path; then pin every read and write to that version. If the probe and the pinned read disagree, stop without diffing or
-writing. Do not use the legacy `meta.apiVersion` as storage evidence: it reports what the client
-asked for.
+The read URL selects the returned shape, not the stored schema. QA 13.1.4 served all six
+versions with preferred `v2`; an unpinned Classic transform can therefore see no panels.
+
+1. Read at `v0alpha1` (unstructured, no migration). Take `status.conversion.storedVersion`,
+   falling back to the returned `apiVersion`.
+2. Extract the segment after the last slash from a group-qualified value such as
+   `dashboard.grafana.app/v0alpha1`; use only that segment in the versioned URL.
+3. Pin every read/write to that version. If the probe and pinned read disagree, stop before
+   diffing or writing. Legacy `meta.apiVersion` reports the requested version, not storage.
 
 ## Preflight, once per target and after every upgrade
 

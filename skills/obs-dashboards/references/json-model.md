@@ -82,7 +82,7 @@ Copy structure from the target and replace only the metric and labels with disco
     "legendFormat": "p99"
   }],
   "fieldConfig": {
-    "defaults": {"unit": "s", "min": 0, "noValue": "no traffic"},
+    "defaults": {"unit": "s", "min": 0, "noValue": "no data"},
     "overrides": []
   }
 }
@@ -104,11 +104,12 @@ and preserve that shape. The bundled checker refuses V2; use `dashboard-linter` 
 
 ## Variables and portability
 
-- One data-source variable named `datasource`, referenced as `${datasource}` in every panel and
-  target; a rebuilt source can receive a new uid. Leave its `current` unpinned: QA stored a concrete
-  uid exactly as sent, and `{}` resolves from the target default. Add a regex when several sources
-  share a type. A data-source variable switches instances of one type; it cannot translate between
-  WQL, SPL, PromQL, LogQL, or TraceQL.
+- Use `${datasource}` for interchangeable sources of one type. Mixed-backend dashboards need
+  separately typed variables (for example `${metrics_source}` and `${logs_source}`) in corresponding
+  panels and targets: a variable cannot translate query languages. Set each variable's plugin type
+  and resolve it to a discovered source; scope selection when several sources share that type.
+  For portable exports, leave `current` unpinned: QA stored concrete uids as sent, while `{}`
+  resolved from the target default. Verify selected sources after import.
 - Multi-value or All selectors set `allValue: ".+"` and use `${var:regex}` in regex matchers; a
   custom all value is not escaped, and the generated expansion can grow large.
 - `$__rate_interval` for Prometheus `rate()` and `increase()`; the query API does not expand it, so

@@ -12,9 +12,23 @@ Primary references: [querying basics](https://prometheus.io/docs/prometheus/late
 [histogram practices](https://prometheus.io/docs/practices/histograms/),
 [Grafana Mimir HTTP API](https://grafana.com/docs/mimir/latest/references/http-api/).
 
-`[verified 2026-08-22]` Every query block below parsed and executed against a live Prometheus
-behind a non-production Grafana 13.1.4; the example labels are illustrative and return zero series.
-Semantics against your metric names, and Mimir's deployed version and tenancy, remain `[unverified]`.
+Earlier query blocks parsed against a non-production Prometheus through Grafana on 2026-08-22,
+with illustrative selectors returning no series. Added examples and target semantics remain
+`[unverified]`; historical execution does not validate revised bytes or the deployed Mimir tenant.
+
+## Encode copied label values
+
+Prefer an exact matcher: the literal identifier `checkout.v2` renders as `app="checkout.v2"`.
+In a double-quoted PromQL string, encode each backslash as `\\` and each double quote as `\"`;
+use the documented escapes for control characters. Then apply any additional client JSON or shell
+encoding, and inspect the final PromQL expression. Validate label names separately as identifiers.
+
+If a regex is necessary, first escape its metacharacters so the supplied value is literal, then
+encode that regex as a PromQL string. `checkout.v2` becomes regex text `checkout\.v2` and the
+rendered matcher `app=~"checkout\\.v2"`. PromQL regex label matchers are already fully anchored;
+adding `^` and `$` does not make an unescaped dot literal. Use a tested encoder for arbitrary values
+or stop for a sanitized identifier; never concatenate raw input.
+*[sourced: Prometheus querying basics, string literals and label matchers; unverified client encoding]*
 
 ## The shapes alerts and dashboards copy
 

@@ -2,10 +2,8 @@
 
 # Cloud Logging dialect for log investigation
 
-Use this reference only after applying the product-agnostic investigation shape in the parent
-skill. Sources reviewed 2026-08-19 against live official pages on `docs.cloud.google.com` (every
-`cloud.google.com/...` docs URL now 301-redirects there);
-re-verify exact operator behavior against the live query-language page for the target project.
+Apply the parent investigation shape first. Syntax follows the official references below;
+validate filters against the target project and client.
 
 Official syntax basis: the
 [Logging query language](https://docs.cloud.google.com/logging/docs/view/logging-query-language)
@@ -76,9 +74,14 @@ be encoded unambiguously is a stop-and-ask, not a broader match.
 ## gcloud read from the terminal
 
 ```bash
-gcloud logging read 'resource.type=cloud_run_revision AND resource.labels.service_name=<service> AND severity=(ERROR OR CRITICAL)' --freshness=1h --limit=50 --format=json
+gcloud logging read 'resource.type=cloud_run_revision AND resource.labels.service_name="<service>" AND resource.labels.location="<region>" AND severity>=ERROR' --project=<project_id> --freshness=1h --limit=50 --format=json
 ```
 
+- Bind the project explicitly and the Cloud Run region through `resource.labels.location`; a
+  same-named service in another region is a different population. For a specific log bucket/view,
+  also select the discovered `--location`, `--bucket`, and `--view` scope supported by the client;
+  bucket location is distinct from the Cloud Run resource location.
+- For a named event, replace freshness with explicit absolute UTC timestamp bounds in the filter.
 - `--freshness` (default `1d`) supplies the time bound and "works only with DESC ordering and
   filters without a timestamp" *[sourced: gcloud logging read reference]* — so use it INSTEAD of
   `timestamp >=` comparisons, not alongside them.
@@ -87,7 +90,7 @@ gcloud logging read 'resource.type=cloud_run_revision AND resource.labels.servic
   redirects *[sourced: scripts/readonly-guard.py; probed 2026-08-20, quoted filter exit 42, unquoted
   exit 43]*. Keep the whole filter in single quotes; an unquoted `>=` is a shell redirect and is
   denied. `--freshness` for time and `severity=(ERROR OR CRITICAL OR ALERT OR EMERGENCY)` for the
-  floor remain fine alternate spellings.
+  floor remain fine alternate spellings for a relative-window search.
 - `--limit` defaults to **unlimited** — always set it.
 
 ## Observability Analytics (SQL over logs)
@@ -106,8 +109,8 @@ it — upgrade state per bucket is `[unverified]`, check before promising a SQL 
   surface ran it (Explorer / gcloud / Analytics) — a filter without its project and bucket is not
   reproducible evidence.
 - Severity floor via `severity=(ERROR OR CRITICAL OR ALERT OR EMERGENCY)` and via
-  `severity >= "ERROR"` are equivalent shapes; the list form exists here for the guard, use the
-  `>=` form freely in Logs Explorer.
+  `severity >= "ERROR"` are equivalent severity floors, including ALERT and EMERGENCY; a quoted `>=` filter
+  also works through the guard.
 - The `_Default` sink does not capture everything (Data Access audit logs are opt-in); absence of
   an entry proves nothing until the sink/exclusion config is checked — exclusions are silent.
 - Quota: `entries.list` is rate-limited to **60 calls/min per project** and the limit cannot be
