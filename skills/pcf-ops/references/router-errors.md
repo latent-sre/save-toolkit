@@ -10,15 +10,16 @@ Status alone under-determines the cause. The documented shapes include:
 |---|---|---|
 | `unknown_route` | **404** | route absent from the router table |
 | `no_endpoints` | **503** | route exists, no healthy backends |
-| `endpoint_failure` | **502** | backend reached; dial/read/timeout failed |
+| `endpoint_failure` | **502** | backend selected; connection or response failed; app receipt unproven |
 | `Connection Limit Reached` | 503 | backend connection limit |
 | `route_service_unsupported` | 502 | route-service configuration problem |
 
 *[sourced: Cloud Foundry "Troubleshooting router error responses"; gorouter
 `handlers/lookup.go` and `proxy/round_tripper/error_handler.go`]*
 
-- **502 Bad Gateway** — Gorouter reached a backend but the response or connection failed: the app
-  crashed mid-request, exceeded the router timeout, or hit the **keep-alive race**. Upstream
+- **502 with `endpoint_failure`** — backend connection or response failed, including refused dials;
+  it does not prove the app received the request. Check connection errors, mid-request crashes,
+  router timeouts, and the **keep-alive race**. Upstream
   Gorouter's backend-connection idle timeout is hardcoded at 90 seconds. If the app's keep-alive
   idle timeout is **< 90s**, it can close a connection just as Gorouter reuses it; set the app
   server's keep-alive idle timeout **> 90s** (for example, Tomcat's

@@ -27,14 +27,17 @@ when the repository owns neither a manifest nor a starter.
 
 ## Classic blue-green plan
 
-The live app keeps the stable name (`checkout`); green is always disposable. Rotate names after the
-soak so every run begins with the live app at the stable name.
+Before each push, resolve both app names, identities, and route mappings. The live app must be
+`checkout`; never reuse a production-serving `checkout-green` as the candidate. Reconcile an
+interrupted or unknown delete/rename outcome under the approved recovery plan before restarting
+this sequence. Rotate names after soak to restore that starting state.
 
 ```bash
 cf push checkout-green -f manifest.yml --no-route
 cf map-route checkout-green apps.example.com --hostname checkout-test
 # smoke-test green on the test route
 cf map-route checkout-green apps.example.com --hostname checkout
+# confirm production traffic and telemetry meet approved criteria before unmapping the old app
 cf unmap-route checkout apps.example.com --hostname checkout
 # soak; rollback here re-maps checkout and unmaps green
 cf unmap-route checkout-green apps.example.com --hostname checkout-test
@@ -46,9 +49,11 @@ The human release owner runs only commands named in the approved packet. Before 
 verify the candidate on its test route. During the shared-route transition, confirm traffic and
 telemetry before unmapping the old app. Keep the old app running through the soak.
 
-Stable-name rotation is load-bearing. Without it, the next run can push onto the app already serving
-production. `--no-route` does not unbind routes an app already holds.
-*[sourced: docs.cloudfoundry.org/devguide/deploy-apps/manifest-attributes.html]*
+Do not use `--no-route` to prove a reused app is isolated: the
+[manifest docs](https://docs.cloudfoundry.org/devguide/deploy-apps/manifest-attributes.html) say existing
+routes remain, but the [CLI v8.18.4 tests](https://github.com/cloudfoundry/cli/blob/v8.18.4/integration/v7/push/no_route_test.go#L35)
+expect them removed. This source conflict leaves target behavior `[unverified]`; require the parent's
+bounded non-production evidence for the exact CLI/CAPI versions. *[sources reviewed 2026-09-09]*
 
 ## Manifest-name interaction
 

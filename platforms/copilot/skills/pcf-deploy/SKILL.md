@@ -47,11 +47,13 @@ hash and diff, commands, blast radius, verification, and rollback.
 
 ## Rollback truth — always account for it
 
-A route swap or `cf rollback` reverses only code, the start command, and revision-scoped environment
-variables. It does **not** reverse:
+A route rollback restores traffic to a retained app; it does not restore that app's configuration.
+`cf rollback` restores revision-scoped code, start command, and environment, not routes, bindings,
+scale, or app features outside the revision.
+*[sourced: [Cloud Foundry revisions](https://docs.cloudfoundry.org/devguide/revisions.html);
+unverified for the target foundation and retained artifacts]* Neither reverses:
 
 - data or schema migrations, rows already written, or consumed sequence values;
-- service bindings, routes, instance/memory/disk scale, or app features outside the revision;
 - messages, webhooks, files, or any other external effect a consumer already performed.
 
 Design schema changes as expand → backfill → dual-write, and do not contract until the old code is
@@ -67,13 +69,10 @@ worked procedure unconditionally.
 
 | Task predicate | Load |
 |---|---|
-| The plan creates or changes a manifest (its declarative example is the starter when the repository owns none), uses parallel blue-green apps/routes, or needs stable-name rotation and route rollback | [`references/blue-green-and-manifest.md`](./references/blue-green-and-manifest.md) |
+| Manifest changes, blue-green apps/routes, stable-name rotation, or route rollback | [`references/blue-green-and-manifest.md`](./references/blue-green-and-manifest.md) |
 | The plan uses rolling/canary deployment, instance steps, max-in-flight, app revisions, `cf rollback`, or `cf cancel-deployment` | [`references/rolling-canary-and-revisions.md`](./references/rolling-canary-and-revisions.md) |
 | The plan changes environment variables, chooses restart versus restage, or changes instance/memory/disk scale | [`references/configuration-and-scaling.md`](./references/configuration-and-scaling.md) |
 | The plan recommends a runtime, buildpack policy, credential service, runner placement, foundation, or platform change | Load `stack-profile` first; do not cross its platform boundary |
-
-Do not copy the example manifest when the repository already owns one. Inspect and modify the
-project-owned manifest narrowly instead.
 
 ## Choose the strategy before writing commands
 

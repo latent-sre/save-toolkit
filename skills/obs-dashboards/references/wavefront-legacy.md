@@ -38,8 +38,8 @@ inventing one. `[sourced: owner, 2026-08-21]`
 - **Variables:** `datasource`, `env`, `app`, `instance`, `route` in that order. Multi-value selectors
   use `allValue: ".+"` and `${var:regex}`.
 - **Data sources:** use `${datasource}` for panels backed by interchangeable sources of one type.
-  Wavefront/WQL and Splunk/SPL panels name their own discovered plugin source; a single variable
-  cannot translate between query languages.
+  Wavefront/WQL and Splunk/SPL panels use separate typed variables resolved to their discovered
+  plugin sources; one variable cannot translate between query languages.
 
 Before any create or edit, record in the task evidence: Grafana instance and edition, dashboard and
 folder uids, owner, purpose/SLO, installed data-source names/types/uids, entitlement status, and any

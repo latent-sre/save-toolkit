@@ -2,10 +2,9 @@
 
 # WQL dialect for metric investigation
 
-Use this reference only after applying the parent skill's product-agnostic investigation shape. The
-syntax and behavior statements are sourced from current VMware Aria Operations for Applications
-documentation; all metric names, tags, counter types, alert policies, and tenant capabilities remain
-unverified until checked against the team's target.
+Apply the parent investigation shape first. Query syntax is `[sourced]` to the primary references
+below; all example names, tags, types, policies, and target behavior remain `[unverified]` until
+checked against the deployed tenant.
 
 **Lifecycle.** Wavefront continues as Broadcom DX OpenExplore; the end-of-availability retired
 the VMware *Tanzu Observability* offering, not the engine or WQL. `docs.wavefront.com` is still
@@ -43,11 +42,23 @@ Primary references:
 `ts()` selects time series. Filter sources, source tags, and point tags inside the selector and confirm
 the actual tag keys in [local metric inventory](./metrics.md).
 
-*[sourced: WQL reference; unverified for target metric and tags]*
-
 ```text
 ts(app.http.requests.count, app="checkout" and env="prod")
 ```
+
+### Encode copied tag values
+
+For a value verified to contain only ASCII letters, digits, `.`, `_`, and `-`, use quoted exact
+matching: `ts(app.http.requests.count, app="checkout.v2")`. Validate the tag key independently;
+it is syntax, not a value. This recipe does not cover quotes, backslashes, delimiters, or control
+characters: use a target-validated WQL literal encoder for those values, or stop for a sanitized
+identifier. Inspect the rendered query after any additional client encoding.
+
+WQL regex patterns use `/.../`; backslashes escape special characters, and `^`/`$` anchors are
+unsupported. Do not copy PromQL's `=~` syntax or treat anchoring as escaping. Prefer exact matching
+for copied identifiers rather than constructing a regex from their contents.
+*[sourced: [WQL reference source](https://github.com/wavefrontHQ/docs/blob/master/pages/doc/query_language_reference.md),
+pattern matching and escaping, reviewed 2026-09-09; unverified target version and arbitrary-value encoder]*
 
 ## Aggregate and group — reject the fabricated aggregation clause
 
@@ -69,22 +80,16 @@ sum(ts(app.http.requests.count), app)
 
 Multiple trailing parameters create nested grouping dimensions.
 
-*[sourced: WQL aggregation functions; unverified for target tags]*
-
 ```text
 sum(ts(app.http.requests.count), app, env)
 ```
 
 Break a flat aggregate down by adding the pointTag parameter: `, instance` / `, host`.
-*[sourced: WQL aggregation grouping parameters; unverified for target tag names]*
-
 ## Percentile latency — combine the request distribution
 
 `percentile()` over a `ts()` expression aggregates point values across the selected series at each
 timestamp. If those points are per-instance means, the result is a percentile of instance means, not a
 request percentile.
-
-*[sourced: WQL time-series percentile documentation; unverified for target metric semantics]*
 
 ```text
 percentile(95, ts(app.http.requests.latency, app="checkout"), instance)
@@ -92,8 +97,6 @@ percentile(95, ts(app.http.requests.latency, app="checkout"), instance)
 
 Histogram conversion functions return a value for each input histogram series. To calculate one
 app-wide request percentile across instance histogram series, merge the distributions first.
-
-*[sourced: WQL histogram `merge()` and percentile documentation; unverified for target histogram name]*
 
 ```text
 percentile(95, merge(hs(app.http.requests.latency.m, app="checkout")))
@@ -109,8 +112,6 @@ those quantiles does not reconstruct the combined request distribution. *[unveri
 Apply `rate()` to each cumulative series before `sum()`. Dividing raw cumulative totals describes the
 population since process start and is distorted by resets.
 
-*[sourced: WQL `rate()` and aggregation documentation; unverified for target counter types/metrics]*
-
 ```text
 100 * sum(rate(ts(app.http.requests.errors, app="checkout")))
     / sum(rate(ts(app.http.requests.count, app="checkout")))
@@ -118,15 +119,12 @@ population since process start and is distorted by resets.
 
 `rate()` reports positive change and can leave a gap at a counter reset. On PCF, instance restarts are
 routine, so inspect the target's reset, reporting, and gap behavior before this becomes alert evidence;
-prefer delta counters when the emitted contract supports them. *[sourced: WQL `rate()` and delta-counter
-documentation; unverified for target emission and restart pattern]*
+prefer delta counters when the emitted contract supports them.
 
 ### Delta counters
 
 Delta counters report change for an interval and are queried with `cs()`. Do not apply cumulative-counter
 `rate()` semantics to them.
-
-*[sourced: WQL delta-counter and `cs()` documentation; unverified for target counter types/metrics]*
 
 ```text
 100 * sum(cs(app.http.requests.errors, app="checkout"))
@@ -135,8 +133,6 @@ Delta counters report change for an interval and are queried with `cs()`. Do not
 
 When the numerator is absent during clean periods, a narrowly scoped default can render zero. Confirm
 that doing so will not conceal late or missing telemetry.
-
-*[sourced: WQL `default()` behavior; unverified for target emission and alert policy]*
 
 ```text
 100 * default(0, sum(cs(app.http.requests.errors, app="checkout")))
@@ -188,8 +184,7 @@ last(1h, mcount(3m, ts(app.http.requests.count, app="checkout"))) = 0
 
 Treat this as a candidate only after verifying its behavior in the target alert lifecycle. Configure the
 platform's no-data notification path for ordinary thresholds whose series vanishes and for selectors
-that match nothing at all. Do not describe a no-data state as healthy. *[sourced: WQL alert states and
-missing-data guidance; unverified for target notification configuration]*
+that match nothing at all. Do not describe a no-data state as healthy.
 
 ## WQL and PromQL mapping aid
 
@@ -199,8 +194,6 @@ staleness conditions.
 - WQL `sum(ts(m), tag)` roughly maps to PromQL `sum by (label) (m)`.
 - WQL `rate(ts(counter))` roughly maps to PromQL `rate(counter[5m])`.
 - WQL `mavg(5m, ts(m))` is a moving-window operation.
-
-*[sourced: WQL aggregation/rate documentation and Prometheus language docs; unverified target parity]*
 
 ## Investigation handoff
 

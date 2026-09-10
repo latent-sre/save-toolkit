@@ -40,7 +40,7 @@ def clean_model() -> dict:
             "title": "Is checkout error ratio breaching target?",
             "description": "5xx over all requests, SLO 99.9%.",
             "datasource": {"type": "prometheus", "uid": "${datasource}"},
-            "fieldConfig": {"defaults": {"unit": "percentunit", "noValue": "no traffic"}},
+            "fieldConfig": {"defaults": {"unit": "percentunit", "noValue": "no data"}},
             "targets": [{
                 "refId": "A",
                 "expr": 'sum(rate(http_requests_total{job=~"$job"}[$__rate_interval]))',
@@ -137,6 +137,28 @@ class RuleMutationTest(unittest.TestCase):
             lambda m: m["panels"][0].update(datasource={"type": "datasource", "uid": "-- Grafana --"})
         )
         self.assertNotIn("panel-datasource", fired)
+
+    def test_mixed_backends_use_independent_typed_variables(self) -> None:
+        model = clean_model()
+        model["templating"]["list"] = [
+            {"name": "metrics_source", "type": "datasource", "query": "wavefront"},
+            {"name": "logs_source", "type": "datasource", "query": "splunk"},
+        ]
+        logs = copy.deepcopy(model["panels"][0])
+        model["panels"].append(logs)
+        for panel, plugin, variable, query in (
+            (model["panels"][0], "wavefront", "metrics_source", "ts(app.requests)"),
+            (logs, "splunk", "logs_source", "index=app | stats count"),
+        ):
+            source = {"type": plugin, "uid": "${" + variable + "}"}
+            panel["datasource"] = source
+            panel["targets"] = [{"refId": "A", "datasource": source, "query": query}]
+        logs.update(id=2, title="Request log evidence")
+        self.assertEqual([], hygiene.check(model))
+
+        # A target override still breaks portability even when other sources are variable-backed.
+        logs["targets"][0]["datasource"] = {"type": "splunk", "uid": "literal-uid"}
+        self.assertIn("panel-datasource", rules_fired(model))
 
     def test_rate_without_rate_interval(self) -> None:
         fired = self._mutate(

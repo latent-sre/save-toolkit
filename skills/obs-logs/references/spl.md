@@ -10,24 +10,15 @@ docs version selector *[sourced: help.splunk.com; reviewed 2026-08-21]*) for
 [classic SPL quoting and escaping](https://help.splunk.com/en/splunk-enterprise/search/search-manual/10.4/use-the-search-app/anatomy-of-a-search),
 [`timechart`](https://help.splunk.com/en/splunk-enterprise/search/spl-search-reference/10.4/search-commands/timechart),
 and [`streamstats`](https://help.splunk.com/en/splunk-enterprise/search/spl-search-reference/10.4/search-commands/streamstats).
-Every example still requires confirmation against the target Splunk version, permissions, index
-inventory, and field extractions.
+Query syntax is `[sourced]` to Splunk's command references. Every example remains `[unverified]`
+for the target version, permissions, inventory, and extractions until executed there.
 
-> ## ⚠️ `#` IS NOT AN SPL COMMENT
-> SPL comments are **triple backticks**: `` ```like this``` ``. A `#` is not SPL comment syntax;
-> depending on its position, trailing `#` text can alter the command expression or cause a parse error.
-> Every example below therefore uses the documented backtick form. Replace placeholders and validate
-> the complete query against the target before execution.
->
-> Two documented restrictions: a comment **cannot precede a generating command** (`tstats`,
-> `makeresults`, `multisearch`, `gentimes`) — the search fails or returns wrong results — and comments
-> **cannot appear inside a quoted string**.
-> *(There is a community `` `comment()` `` macro, but it is **not** in Splunk's official docs and its
-> app-scoped sharing means it can fail to resolve for other users. Don't rely on it.)*
-> *SPL2 is different again: `//` and `/* */`.*
-> *[sourced: Splunk comment documentation; unverified exact parser outcome for the target version]*
-> *[sourced: Splunk, “Add comments to searches”; community-macro behavior remains unverified for the target]*
+## SPL comments
 
+Classic SPL comments use triple backticks: `` ```like this``` ``. `#` can alter a query or
+cause a parse error. Comments cannot precede a generating command (`tstats`, `makeresults`,
+`multisearch`, `gentimes`) or appear inside a quoted string. Do not substitute an app-scoped
+comment macro; SPL2's `//` and `/* */` belong to a different language.
 ## Contents
 
 - Start narrow
@@ -42,36 +33,22 @@ inventory, and field extractions.
 
 ## Start narrow
 
-*[sourced: Splunk search syntax; unverified for the target index, sourcetype, host, and extracted fields]*
-
 ````spl
 index=<app_index> host=<...> sourcetype=<...> earliest=-1h latest=now
 | where status>=500
-```scope the base search by index/sourcetype/host/time ONLY — no keyword filter.
-   a keyword like "error" would drop 5xx access-log events whose raw text has no
-   "error", false-clearing the very spike you're confirming.```
+```No raw "error" keyword: it would drop 5xx events without that word.```
 ````
 
-> **Numeric field comparisons (`status>=500`, `error_type=...`) belong in a `| where`/`| search`
-> *after* the base search, not in the raw keyword search.** A numeric comparison on a field that isn't
-> search-time-extracted silently matches **nothing** — a false "all clear" mid-incident. Confirm
-> `status`/`error_type` are extracted (or `rex` them first); see the extraction note under *Tips*.
+Confirm field extraction before filtering (`status>=500`, `error_type=...`); use `rex` if needed.
+A predicate on an absent field can match nothing, so an empty result alone cannot establish health.
 
 ## Read it over time
-
-*[sourced: Splunk `timechart`; unverified for the target index and `status` extraction]*
 
 ````spl
 index=<app_index>
 | where status>=500     ```status must be an extracted field, else this matches nothing```
 | timechart span=1m count     ```5xx per minute — find the exact onset```
 ````
-
-> Same trap as above: a keyword like `error` in the base search filters before `| where status>=500`
-> runs, missing 5xx access-log events with no "error" text and false-clearing the spike. Scope the base
-> search; filter the status in `| where`.
-
-*[sourced: Splunk `timechart`; unverified for the target index and `status` extraction]*
 
 ````spl
 index=<app_index>
@@ -80,95 +57,61 @@ index=<app_index>
 
 ## Top offenders
 
-*[sourced: Splunk `stats` and `sort`; unverified for the target index and field extraction]*
-
 ````spl
 index=<app_index> sourcetype=<...> earliest=-1h latest=now
 | where isnotnull(error_type)
 | stats count by error_type, service
 | sort -count
-```scope by index/sourcetype/time only — no `error` keyword (see above). Events without
-   `error_type` are omitted from `stats … by error_type`, so an EMPTY result is ambiguous:
-   no errors in the window, or the field is not extracted. Never read it as healthy until
-   extraction is proven — run `| stats count(error_type) AS classified, count` over a
-   window known to contain errors (or against one event known to carry the field):
-   classified = 0 there means the field is not extracted; a low but non-zero ratio in a
-   normal window can simply be a low error rate.```
+```Grouping omits events without error_type. Prove extraction on known errors with
+   | stats count(error_type) AS classified, count
+   before interpreting an empty result. A low classification ratio in ordinary traffic
+   can simply reflect few errors.```
 ````
 
-`error_type` must be search-time-extracted; if it isn't, `rex` it first (see *Tips* below). Group by
-stable fields (`error_type`, `service`, `route`); keep raw `message` out of the `by` clause.
+Group by stable fields (`error_type`, `service`, `route`), not raw `message`.
 
 ## Spot a spike vs the baseline (anomaly detection)
 
-Bucket FIRST, filter inside the aggregation — `timechart` fills empty buckets, `stats` does not.
-A filter-first pipeline emits rows only for buckets that already had errors, so the baseline is
-computed over error-containing buckets and the alert under-fires on the exact spike it exists
-to catch.
+Use a request-completion sourcetype with one event per eligible request/attempt. Confirm source
+freshness, ingestion coverage, and a single three-digit HTTP status per event before interpreting
+an anomaly. A ratio needs the complete request population; errors/sec or counts alone measure volume.
 
-*[sourced: Splunk `timechart` fills null time buckets and `streamstats current=f` excludes the current
-result; unverified for the target schema and for whether a three-standard-deviation threshold fits the service]*
+**Complete five-minute buckets, preceding-hour baseline:** choose absolute bounds aligned to five
+minutes, excluding the current incomplete bucket. `timechart cont=t` retains empty buckets;
+`stats ... by _time` would omit them. Missing/invalid status or zero traffic leaves the ratio null,
+not healthy zero. An entirely empty search has no usable baseline.
 
-````spl
-index=<app_index> earliest=-24h
-| timechart span=5m count(eval(status>=500)) AS errors
-| streamstats window=12 current=f avg(errors) AS baseline stdev(errors) AS sd
-| where isnotnull(baseline) AND sd>0 AND errors > baseline + 3*sd
-   ```guards: the first rows have no baseline; a flat window gives sd=0 and would flag everything```
-````
-
-`window=12` here really is a trailing hour (12 × 5m), because every bucket emits a row.
-
-**Three traps here, and the skill used to fall into all of them.**
-
-**1. The baseline must EXCLUDE the current point.** `streamstats` defaults to `current=true` and
-`window=0` (all previous *and current* events), so a naive trailing baseline is **contaminated by the
-very spike you are trying to detect** — the bigger the spike, the more it raises its own baseline and
-hides itself. Pass `current=f`.
-
-**2. `streamstats` follows RESULT order, not time order.** For a `stats`-based form, put
-`sort 0 _time` first (`0` = no result limit; `sort` silently truncates otherwise). That instruction is
-not needed for the fixed `timechart` form above, which emits complete ordered buckets.
-
-**3. Compare RATES, not raw counts.** A rise in error *count* during a traffic doubling is not a rise in
-error *rate*. Normalize by total volume, or you page on a marketing campaign.
-
-**Normalized (rate, not count) — prefer this:**
-
-*[sourced: Splunk `bin`, `stats`, `eval`, `sort`, and `streamstats` syntax; unverified operational
-guidance and target fields]*
+*[sourced: Splunk `timechart`, `eval`, and `streamstats` mechanisms; unverified target fields,
+query execution, coverage, and suitability of the thresholds]*
 
 ````spl
-index=<app_index> earliest=-24h
-| bin _time span=5m
-| stats count(eval(status>=500)) AS errors, count AS total by _time
-| eval error_rate = errors / total                ```a ratio survives a traffic spike; a count does not```
-| sort 0 _time
-| streamstats window=12 current=f avg(error_rate) AS baseline stdev(error_rate) AS sd
-| where isnotnull(baseline) AND sd>0 AND error_rate > baseline + 3*sd
+index=<app_index> sourcetype=<request_completion_sourcetype> earliest=<start_epoch> latest=<end_epoch>
+| eval status=if(match(status, "^[1-5][0-9]{2}$"), tonumber(status), null())
+| timechart span=5m cont=t partial=f count AS total count(status) AS classified count(eval(status>=500 AND status<600)) AS errors
+| eval error_rate=if(total>0 AND classified=total, errors/total, null())
+| streamstats window=12 current=f count(error_rate) AS valid_buckets avg(error_rate) AS baseline stdev(error_rate) AS sd
+| where valid_buckets=12 AND isnotnull(error_rate) AND errors>=<minimum_errors>
+    AND error_rate-baseline>=<minimum_ratio_increase>
+    AND ((sd>0 AND error_rate>baseline+3*sd) OR (sd=0 AND error_rate>baseline))
 ````
 
-**Seasonal comparison** — "is this hour worse than the same hour last week?" is usually the question you
-actually mean, and a trailing window can't answer it:
+The owner supplies numeric minimum-error and minimum-ratio-increase thresholds before use; they
+are service policy, not Splunk defaults. A flat baseline (`sd=0`) can still have a real spike. The
+explicit branch detects a material increase instead of suppressing every zero-variance case.
+`valid_buckets=12` requires twelve valid preceding five-minute buckets; any null bucket breaks that
+coverage. `current=f` excludes the candidate point so it cannot raise its own baseline. Keep
+`timechart`'s chronological order; a different pipeline must sort time without truncating results.
+Source freshness remains an independent check: complete result buckets do not prove complete ingestion.
 
-*[sourced: Splunk `timewrap` syntax; unverified for target fields and seasonal suitability]*
-
-````spl
-index=<app_index> earliest=-8d
-| bin _time span=5m
-| stats count(eval(status>=500)) AS errors, count AS total by _time
-| eval error_rate = errors / total
-| timechart span=5m avg(error_rate)
-| timewrap 1week                                  ```overlay this week on last week```
-````
-
-> `eventstats` (adds an aggregate to **every** row, unlike `stats` which collapses them) is still the
-> right tool for "which buckets exceed the *whole period's* mean" — but note it has the same
-> contamination problem in reverse: the outlier is inside the mean it is being compared against.
-> *Caveat on sourcing: `sort 0 _time`, `current=f`, and the null/`sd>0` guards are statistically
-> correct, but they are **our** guidance — Splunk's own outlier example omits `current=f`. Don't cite
-> Splunk for the normalization advice either; it documents the mechanisms (`streamstats`, `timewrap`),
-> not the choice to normalize.*
+**Seasonal comparison:** cover both weeks; reuse only the
+`timechart`/`error_rate` construction. Keep `_time` and `error_rate` and apply
+`timewrap 1week series=short`. Compare `s0` (latest) with `s1` (previous):
+require aligned, complete, non-null buckets in both weeks and an owner-set minimum ratio increase. Do not append the preceding-hour
+`streamstats` pipeline: `error_rate` has become period-specific fields.
+*[sourced: [Splunk timewrap](https://help.splunk.com/en/splunk-enterprise/spl-search-reference/10.4/search-commands/timewrap);
+unverified target query execution and period alignment]*
+`eventstats` includes the candidate in its whole-period baseline. Thresholds and normalization
+remain operational choices, not Splunk guarantees.
 
 ## Correlate one request across services
 
@@ -176,10 +119,6 @@ The identifier-trust rules in `../SKILL.md` (validate, never concatenate, stop i
 apply; the SPL-specific part is the escaping: apply classic SPL's documented escaping for quotes,
 pipes, and backslashes, then inspect the final rendered query — API, shell, or dashboard layers can
 require additional encoding.
-
-*[sourced: Splunk classic search quoting/escaping; unverified target id grammar and client layers]*
-
-*[sourced: Splunk base-search, Boolean, `sort`, and `table` syntax; unverified for target field names]*
 
 ````spl
 index=<app_index> (request_id="<validated_and_spl_escaped_id>" OR trace_id="<validated_and_spl_escaped_id>")
@@ -198,8 +137,6 @@ Use equal, absolute windows around the deploy. Select a request-completion sourc
 one event per eligible request/attempt; an application index containing debug or lifecycle events
 is not a request denominator. Establish that population and coverage before interpreting a rate.
 The denominator below is all eligible requests in the phase, independent of error classification:
-
-*[sourced: Splunk `eval` and `stats` syntax; unverified for target fields and deploy epoch]*
 
 ````spl
 index=<app_index> sourcetype=<request_completion_sourcetype> earliest=<before_start_epoch> latest=<after_end_epoch>
@@ -220,8 +157,6 @@ and window coverage. Successful requests without `error_type` still count in `ev
 the class grouping. Use the catalog's overall-rate query when no error classification is available.
 
 ## Extract fields ad hoc
-
-*[sourced: Splunk `rex` and `stats` syntax; unverified for target log format]*
 
 ````spl
 index=<app_index> sourcetype=<...> earliest=-1h     ```scope the base search — never start bare```

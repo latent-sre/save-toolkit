@@ -8,4 +8,4 @@ Selection rule: primary = the strongest Claude model in the team's Copilot picke
 middle fallback = the next approved Claude model; final fallback = the org's default non-Claude model.
 
 Recorded ordered list: Claude Sonnet 5 (copilot) → Claude Opus 4.8 (copilot) → GPT-5.4 (copilot).
-[unverified — confirmed for the team license tier in Phase 5; re-record the complete ordered list when it changes]
+[unverified — re-record the complete ordered list from dated team-license evidence when it changes]

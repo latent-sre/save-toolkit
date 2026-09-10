@@ -38,7 +38,9 @@ scripted dashboards by default. Version- and upgrade-specific details live in
    Run `python "<resolved helper path>" <file>`, then
    `dashboard-linter lint --strict` when installed. On an edit, check the live model first; only
    violations introduced by this diff block the write. Report pre-existing findings without
-   silently expanding scope.
+   silently expanding scope. V2 requires a V2-capable linter on the actual candidate; do not
+   substitute a converted V1 model. If the candidate cannot be checked, report the gap and stop
+   before writing.
 6. **Show the target and full diff, then write once.** Carry the API family's fresh concurrency
    token: `metadata.resourceVersion` on app-platform `PUT`, or `dashboard.version` with
    `overwrite: false` on legacy `POST`. Include a save message naming the change because it cannot be
@@ -71,8 +73,9 @@ advice:
 
 - Latency uses percentiles, not averages. Prometheus counters use `rate()` or `increase()` with
   `$__rate_interval`.
-- A data-source variable named `datasource` is referenced as `${datasource}` in every panel and target;
-  verify expanded-query cardinality. Never substitute a remembered uid.
+- Use `${datasource}` for interchangeable sources of one type; mixed-backend dashboards use
+  separate typed variables, such as `${metrics_source}` and `${logs_source}`, in panels and targets.
+  Discover their sources and verify expanded-query cardinality; never substitute a remembered uid.
 - A blank panel must not look healthy: distinguish no traffic, query failure, and missing telemetry.
 - Keep the existing time range across panels and leave `timezone` unset for this team. Preserve time
   and variables in dashboard links.

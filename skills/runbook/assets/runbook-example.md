@@ -21,24 +21,27 @@ version: 4
 # Runbook: checkout p95 latency burning fast error budget
 
 ## Purpose & scope
-Handles `checkout-p95-burn-fast`: checkout p95 latency above the SLO with a burn rate that exhausts
-the 30-day budget in under 6 hours.
+Handles `checkout-p95-burn-fast`: requests slower than 0.8 s consuming the 30-day latency budget at
+the 14.4× fast-burn threshold.
 
 **Out of scope** (do NOT use this for): checkout returning 5xx (that is
 `checkout-error-rate`); payment-path investigation (see `payments-vendor-degraded`).
 
 ## Trigger
-Alert `checkout-p95-burn-fast` fires: `p95(checkout_request_duration_seconds) > 0.8` sustained 10 min
-with fast-burn multiplier ≥ 14.4.
+Alert `checkout-p95-burn-fast` fires when the slow-request ratio exceeds 14.4 times the allowed ratio
+over both 1 hour and 5 minutes: 2% of a 30-day budget per hour, or 50 hours to exhaust a full budget
+if sustained. p95 remains a diagnostic.
 Dashboard: `https://grafana.example.internal/d/checkout-slo`  ·  Source/repo: `git@example.internal:payments/checkout`
 
 ## Prerequisites
-- Access: Apps Manager for the `payments` org, `prod` space; Splunk `payments_*` index; Wavefront
+- Approved target from the service card and change packet: `pcf-east` /
+  `https://api.pcf-east.example.internal` / `payments` / `prod` / `checkout`.
+- Access: Apps Manager for that foundation/org/space; Splunk `payments_*` index; Wavefront
   or PCF App Metrics; Grafana viewer. `cf` CLI v8 only if you have it.
-- Tools: Apps Manager is the console this team uses. Confirm before you start that its breadcrumb
-  reads `payments` / `prod`. With the `cf` CLI the equivalent is `cf target` printing
-  `org: payments` / `space: prod`; if it prints anything else run `cf target -o payments -s prod` —
-  every `cf` command below assumes that target and none of them name the space explicitly.
+- Tools: Before starting, Apps Manager must match the approved foundation, org, and space; `cf
+  target` must match the approved API, org, and space. An API mismatch stops for target
+  reconciliation; on the correct API, select `payments` / `prod`. Every command below assumes that
+  target.
 - Useful links: SLO definition `checkout-availability`, prior postmortem `2026-01-19-checkout-pool`.
 
 ## Triage / first checks
@@ -155,8 +158,13 @@ the earlier damage — that is expected and not a reason to keep acting.
   ```bash
   cf scale checkout -i 6
   ```
-  Expected: 6 running. Watch p95 for 10 min after; if it climbs again, scale back to 9 and treat
-  the underlying cause as unresolved.
+  Expected: 6 running within 3 min; p95 and the five-minute slow-request ratio stay below their
+  alert thresholds for 10 min.
+  - If capacity is not established or observed in 3 min, stop and escalate with both counts; do not
+    scale again.
+  - If either current latency signal regresses, one separately approved recovery to 9 uses
+    Procedure 3's same checks.
+    Failed or unknown recovery stops further scaling and escalates; cause remains unresolved.
 - Abort: stop further changes and hand over observed instance states/count, requests, and completed
   actions. A started restart or scale continues after you stop; service may remain degraded. Check
   readiness and latency, and have the human owner choose recovery using the entries above.
@@ -167,6 +175,7 @@ the earlier damage — that is expected and not a reason to keep acting.
 | Restart headroom unknown (step 1): immediately | payments engineering lead | pager `payments-lead`, `#payments-oncall` |
 | Not resolved 20 min after Procedure step 2 | payments engineering lead | pager `payments-lead`, `#payments-oncall` |
 | Scale-out has not reached 9 running after 3 min, or p95 is still above 0.8 s 10 min after reaching it | payments engineering lead | pager `payments-lead`, `#payments-oncall` |
+| Scale-down or its approved recovery fails or remains unknown | payments engineering lead | same, with requested and observed counts plus current latency |
 | Instances missing/starting/crashing, or observation unavailable (Procedure step 4) | payments engineering lead | same, with captured evidence and gaps |
 | Multiple unrelated apps slow in the same space | platform on-call | pager `tas-platform`, `#platform-oncall` |
 

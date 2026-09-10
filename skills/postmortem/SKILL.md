@@ -12,7 +12,7 @@ argument-hint: "[the resolved incident]"
 # Blameless postmortem
 
 Use the [postmortem template](./assets/postmortem-template.md): full for P1/P2 or an explicit full
-review; abbreviated for P3/near-misses unless policy or the owner requires full depth. Keep unknown
+review; abbreviated for P3/P4 and near-misses unless policy or the owner requires full depth. Keep unknown
 severity as YAML `null` and confirm required depth before finalizing. A summary/explanation request gets
 only that answer, not a completed postmortem by implication.
 
@@ -29,9 +29,7 @@ Explain decisions from the information available then. Human error is not the ro
 system conditions. Separate trigger from mechanism and failed defenses; aim to reduce recurrence
 or impact, never promise zero recurrence.
 
-Two claims that need evidence, not silence:
-
-- **"No data loss" is a claim that needs evidence, not an assumption of silence** — state explicitly
+- **"No data loss" needs evidence** — state explicitly
   what was checked (row counts, checksums, replay of the write path) or mark it `[unverified]`.
 - **Assess detection, not who detected it.** Name the source, delay, available signals, and noise.
   Human detection is not automatically a gap. Propose `observability-engineer` follow-up when

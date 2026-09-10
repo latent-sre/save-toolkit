@@ -6,18 +6,11 @@ and [metric-query reference](https://grafana.com/docs/loki/latest/query/metric_q
 [string-quoting guidance](https://grafana.com/docs/loki/latest/query/log_queries/). Confirm the
 deployed Loki version, tenant, labels, parsers, and alert-engine behavior before use.
 
-**Syntax verification — `[verified 2026-08-22]`.** Every query block in this file was executed against
-a live Loki (a non-production Grafana 13.1.4 instance's Loki source) through
-`POST /api/ds/query`. All 12 parse and execute, including the `pattern` block and the `| json |
-status >= 500 | __error__=""` chain; the example labels are illustrative, so they match no streams.
-The harness was proved to fire first — a stream selector missing a comma, a misspelled `jsonn`
-parser, and an unbalanced aggregation paren were each rejected with a specific parse error.
-
-**The no-data fallback is demonstrated, not just asserted `[verified 2026-08-22]`:** on a selector
-matching nothing, `sum(rate(...))` and `sum(count_over_time(...))` returned **zero frames** — an
-alert on those sees *no data*, not zero — while the same expression with `or on() vector(0)` returned
-a full series of 32 points. That is the difference between an alert that evaluates and one that sits
-in No Data, reproduced against a live Loki.
+**Verification scope.** Earlier examples parsed against a non-production Loki source on
+2026-08-22, using illustrative selectors that matched no streams. Revised queries below are
+`[unverified]` until executed against the target; that historical run does not validate their bytes.
+It also showed that `or on() vector(0)` turns a selector matching nothing into zero-valued samples.
+That fallback cannot distinguish a quiet service from wrong labels, a wrong tenant, or lost ingestion.
 
 ## Contents
 
@@ -117,38 +110,58 @@ sum by (app) (
 )
 ```
 
-*[sourced: Grafana Loki `count_over_time`, `or`, and `vector` behavior; unverified for target alert
-evaluation cadence]*
+*[sourced: Grafana Loki `count_over_time`; unverified target fields, population, and cadence]*
 
 ```logql
 sum(count_over_time({app="checkout", env="prod"} | json | status >= 500 | __error__="" [5m]))
-or on() vector(0)
 ```
 
-This is the bucket-first anomaly shape: evaluate fixed five-minute ranges, count the condition inside
-each range, and explicitly represent a quiet evaluation as zero before a downstream baseline is built.
-Evaluate or record the zero-filled LogQL count every five minutes, then compute trailing average and
-standard deviation over that recorded metric in the verified Prometheus-compatible backend. Loki
-recording rules remote-write samples to that backend; do not claim that a pure Loki alert or a dependent
-Loki recording rule can consume the derived history. *[sourced: Grafana Loki
-[recording rules](https://grafana.com/docs/loki/latest/operations/recording-rules/); unverified for the
-target ruler, remote-write destination, and evaluation cadence]*
+Evaluate fixed five-minute ranges. Preserve an absent result as unknown unless independent evidence
+proves the selector, source freshness, parsing coverage, and eligible population, and the source's
+emission contract says an absent error series means no errors. Only that verified case may become
+zero; retain a separate missing-telemetry path. Filtering `__error__` prevents query failure, but
+silently discarded records still reduce coverage.
+
+For a recurring baseline, record the count with its coverage state, then calculate history in the
+configured Prometheus-compatible destination. Loki recording rules remote-write samples there;
+a pure Loki query cannot read that derived metric history. Require a complete valid baseline window
+before drawing an anomaly conclusion. *[sourced: Loki
+[recording rules](https://grafana.com/docs/loki/latest/operations/recording-rules/); unverified target
+ruler, remote-write destination, and missing-data policy]*
 
 ## Compare before and after a deploy
 
-Run the same rate expression over equal-duration windows and use `offset` immediately after the range
-selector for the comparison period. A fixed offset is not a deploy marker; record the actual deploy
-timestamp and align the windows deliberately.
+Select a verified request-completion stream with exactly one event per eligible request/attempt.
+The illustrative `log_type` label below must be replaced with the target's discovered selector;
+application debug/lifecycle logs are not a request denominator. Confirm fresh, complete ingestion in
+both windows and one three-digit HTTP status per completion. Run this coverage ratio first:
 
-*[sourced: Grafana Loki `offset` modifier syntax; unverified for target deploy time and labels]*
-
-```logql
-sum(rate({app="checkout", env="prod"} | json | status >= 500 | __error__="" [30m]))
-```
+*[sourced: Loki metric queries, JSON parsing, and label filters; revised queries and target semantics unverified]*
 
 ```logql
-sum(rate({app="checkout", env="prod"} | json | status >= 500 | __error__="" [30m] offset 30m))
+sum(count_over_time({app="checkout", env="prod", log_type="request_completion"} | json | status=~"[1-5][0-9]{2}" | __error__="" [30m]))
+/
+sum(count_over_time({app="checkout", env="prod", log_type="request_completion"} [30m]))
 ```
+
+Require a positive denominator and coverage of 1. A missing/invalid status, parse failure, empty
+population, or unproven ingestion coverage leaves request quality unknown. Then compare failures
+per eligible request:
+
+```logql
+sum(count_over_time({app="checkout", env="prod", log_type="request_completion"} | json | status=~"5[0-9]{2}" | __error__="" [30m]))
+/
+sum(count_over_time({app="checkout", env="prod", log_type="request_completion"} [30m]))
+```
+
+An absent numerator becomes zero only under the verified no-errors policy above; do not silently
+zero-fill the ratio. Errors/sec may accompany it as a labeled volume measure. Doubling requests and
+failures at a constant ratio is not evidence of worse request quality.
+
+Evaluate at the end of the after window. For the equal preceding window, add `offset 30m` immediately
+after **every** `[30m]` in both coverage and failure-ratio queries. Align the actual windows with the
+recorded deploy timestamp; an offset alone is not a deploy marker. Keep selectors, classification,
+and window lengths identical between numerator and denominator and across phases.
 
 ## Follow one request
 

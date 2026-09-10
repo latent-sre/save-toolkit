@@ -63,9 +63,9 @@ evidence_status: sourced | unverified
 
 ## Known risks and open gaps
 
-| Gap / accepted risk | Evidence label | Owner | Due / review date | Tracking link |
-|---|---|---|---|---|
-|  |  |  |  |  |
+| Gap / accepted risk | Artifact | Status | Evidence label | Owner | Due / review date | Tracking link |
+|---|---|---|---|---|---|---|
+|  |  |  |  |  |  |  |
 
 ## Evidence and provenance
 

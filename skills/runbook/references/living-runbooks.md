@@ -6,11 +6,11 @@ when responders work from a playbook instead of improvising, and Google's stated
 *[sourced: sre.google/sre-book/introduction/; sre.google/workbook/on-call/]*. The same sources tie
 playbook updates to postmortem action items — which is exactly the disposition loop below.
 
-A runbook is an accreting asset, not a published-once document. Every incident or drill that
-touches it produces exactly one of three outcomes per step — **held** (the step worked as written),
-**contradicted** (the step was wrong, unsafe, or produced different output), or **missing** (the
-responder needed a step that was not there) — and each outcome becomes an `operational-learning`
-disposition at closeout, per the disposition policy.
+A runbook is an accreting asset, not a published-once document. For each exercised step, record
+**held** when it worked as written or **contradicted** when it was wrong, unsafe, or produced a
+different result. Record **missing** when the responder needed a step that was absent; untraversed
+branches remain untested. Each observed outcome becomes an `operational-learning` disposition at
+closeout, per the disposition policy.
 
 ## The protocol
 

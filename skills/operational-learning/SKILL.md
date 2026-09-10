@@ -38,12 +38,13 @@ alert, SLO, and dashboard design stays with `observability-engineer`; code or au
    trigger, owner, evidence, and requested documentation roots. Roots lie under the repository's
    documented operations or docs tree — never `agents/`, `skills/`, `hooks/`, `.github/`,
    `.claude/`, or a fleet guide — and a root outside it is `blocked`; when the caller names none,
-   the policy's default paths apply. Before any `prepared` disposition, require a caller-supplied
+   follow the policy's repository conventions and fallback paths. Before `prepared`, require a caller-supplied
    `[verified]` checkout binding confirming the mounted checkout's current commit matches the target
    revision. A Bash-holding caller or human resolves the target there and supplies
    `git rev-parse --short=8 HEAD` with its output on `Verified:`. Git extends IDs for uniqueness;
    full IDs (`git rev-parse HEAD`) remain valid. A bare assertion is `[unverified]`;
-   missing, unresolved, ambiguous or mismatched binding permits only `proposed` or `blocked`.
+   missing, unresolved, ambiguous, or mismatched binding permits no prepared diff; requested changes
+   stay `proposed` or `blocked`.
    This lane never derives the binding from `.git/` contents.
    Active incidents permit only `proposed` or `blocked`; return to the human responder
    with `incident-investigation`.
@@ -62,18 +63,18 @@ alert, SLO, and dashboard design stays with `observability-engineer`; code or au
 5. **Prepare the smallest coherent documentation diff.** A service or alert closeout may update its
    cards, index links, and a missing or stale runbook. Load `runbook` before writing a procedure.
    A postmortem remains its own primary artifact.
-6. **Return the result for review.** Lead with changed paths or the owned handoff, then evidence,
-   affected dispositions, grouped non-actions, gaps, and next action. A stale-contact correction
+6. **Return for review using the output contract.** A stale-contact correction
    stays a contact/link diff when no operational behavior changed. Human PR review remains required.
 
 ## Answer an ownership or dependency question
 
 "Who owns payments", "how do I page them", "what depends on ledger" are reads, not a closeout.
-Read `docs/operations/index.md` and `docs/operations/services/<app>.md` under the knowledge
-repository root; report the owner, escalation path, and dependencies as `[sourced]` with the file
-path and the card's `last_reviewed` date and `evidence_status`. If no card or index exists, say so and name the path a
-card would live at; never infer an owner from code paths, commit authors, or alert labels. During
-an active incident the same read belongs to `incident-investigation`.
+Read the repository's documented knowledge index and component-card paths; absent a convention,
+use `docs/operations/index.md` and `docs/operations/services/<app>.md`. Report owner, escalation,
+and dependencies as `[sourced]` with the path, `last_reviewed`, and `evidence_status`. If records
+are missing, name the inspected roots and expected path; do not claim absence outside that scope
+or infer an owner from code paths, commit authors, or alert labels. During an active incident the
+same read belongs to `incident-investigation`.
 
 ## Required invariants
 
@@ -111,7 +112,8 @@ link it when the recipient can access it, otherwise include the needed rows. The
 5. limitations and one tracked next action;
 6. explicit non-actions: no execution, external lookup, delegation, approval, or verification inferred.
 
-When no authorized checkout or reviewable diff exists, return an evidence-bound `proposed` or
-`blocked` handoff. Do not invent a persistent packet, schema, procedure, or approval. Honor a
+Without an authorized, revision-bound checkout, do not prepare a diff. An evidenced `duplicate`
+needs no checkout. Without a reviewable diff or evidenced duplicate, return `proposed` or `blocked`.
+Do not invent a persistent packet, schema, procedure, or approval. Honor a
 caller-supplied bounded output shape, but it grants no authority and is not stored as a parallel
 record.

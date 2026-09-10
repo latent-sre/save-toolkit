@@ -39,13 +39,13 @@ route behavior remain `[unverified]` until a canary run proves them.
 
 ## Where a missing signal gets lost
 
-1. **The app never emits it.** Tier-0: exercise one known request locally and inspect SDK diagnostics
+1. **The app never emits it.** Exercise one known request locally and inspect SDK diagnostics
    or a local console exporter for the expected log, metric, or span before checking the network.
-2. **The SDK/agent never exports it.** Tier-0: confirm the process has the intended endpoint,
+2. **The SDK/agent never exports it.** Confirm the process has the intended endpoint,
    protocol, resource attributes, and credentials, then inspect its export error/drop counters.
-3. **The collector/Alloy never accepts or keeps it.** Tier-0: check receiver health and accepted,
+3. **The collector/Alloy never accepts or keeps it.** Check receiver health and accepted,
    refused, processed, and dropped counts for that signal; validate the deployed config before edits.
-4. **The exporter/backend rejects, delays, or misroutes it.** Tier-0: check exporter send/failure
+4. **The exporter/backend rejects, delays, or misroutes it.** Check exporter send/failure
    evidence, then issue one time-bounded backend query using the canary's exact service and trace IDs.
 
 A healthy later component does not prove an earlier boundary, and a backend query with no bounded
@@ -63,7 +63,7 @@ Read only the reference needed for the task:
 emails, raw SQL) → traces and logs, **never** metric labels. A label with unbounded values creates a new
 time series per value.
 
-## Naming — OTel uses DOTS, not underscores
+## OTel naming — dotted namespaces and instrument metadata
 - **The OTel name is the source of truth:** namespaces delimited by **dots**, `snake_case` only *within*
   a multi-word component. **Units live in instrument metadata (UCUM), not the name** (upstream allows a
   unit in the name only to resolve ambiguity) — *"units do not need to be specified in the names since
