@@ -962,7 +962,7 @@ def _validate_runtime_evidence(files: Mapping[str, Path]) -> dict[str, object]:
     )
     expected_packages = {
         "httpx": "0.28.1",
-        "langgraph": "1.0.10",
+        "langgraph": "1.2.11",
         "langgraph-checkpoint-sqlite": "3.1.1",
     }
     if runtime["runtime_version"] != "graph-runner-runtime/v1":
@@ -1162,7 +1162,7 @@ def _validate_checkpoint_oracle(
         or closed["state_schema"] != STATE_SCHEMA_VERSION
         or closed["source_revision"] != source_revision
         or closed["thread_id"] != f"{THREAD_PREFIX}{run_id}"
-        or closed["langgraph_version"] != "1.0.10"
+        or closed["langgraph_version"] != "1.2.11"
         or closed["sqlite_saver_version"] != "3.1.1"
         or closed["langgraph_version"] != packages["langgraph"]
         or closed["sqlite_saver_version"] != packages["langgraph-checkpoint-sqlite"]
