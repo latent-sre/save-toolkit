@@ -20,6 +20,7 @@ import datetime
 import json
 import re
 import sys
+from dataclasses import dataclass, field
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import quote, urlsplit
@@ -45,9 +46,9 @@ SLOT_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("Trigger", ("when to use", "trigger", "symptom", "alert")),
     ("Prerequisites", ("before you start", "prerequisite", "requirement", "access", "tooling", "tools")),
     ("Triage / first checks", ("triage", "first check", "diagnos", "impact")),
-    ("Procedure", ("step", "procedure", "resolution", "remediat", "instruction", "process", "fix")),
-    ("Verification", ("verif", "validat", "confirm")),
     ("Rollback / cleanup", ("rollback", "roll back", "revert", "undo", "backout", "back out", "cleanup")),
+    ("Verification", ("verif", "validat", "confirm")),
+    ("Procedure", ("step", "procedure", "resolution", "remediat", "instruction", "process", "fix")),
     ("Escalation", ("escalat", "on-call", "on call", "paging", "contact", "support")),
     ("Communication", ("communicat", "notif", "stakeholder", "comms")),
     ("Purpose & scope", ("purpose", "overview", "scope", "about", "goal", "summary")),
@@ -56,6 +57,41 @@ SLOT_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
 
 UNVERIFIED_MARK = "*Imported command — [unverified] until rehearsed on the target.*"
 SERVICE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+
+
+@dataclass
+class _List:
+    ordered: bool
+    start: int | None
+    step: int
+    items: list[tuple[int | None, list[tuple[str, str]]]] = field(default_factory=list)
+
+    def render(self) -> str:
+        number = self.start if self.start is not None else (len(self.items) if self.step < 0 else 1)
+        numbers = []
+        for override, _ in self.items:
+            number = override if override is not None else number
+            numbers.append(number)
+            number += self.step
+        # Markdown renumbers reversed/discontinuous lists. Literal labels retain their meaning.
+        literal = self.ordered and any(n != numbers[0] + i or not 0 <= n < 10**9
+                                       for i, n in enumerate(numbers))
+        output = []
+        for number, (_, blocks) in zip(numbers, self.items):
+            marker = f"- **{number}.** " if literal else (f"{number}. " if self.ordered else "- ")
+            indent = " " * (2 if literal else len(marker))
+            lines = "\n".join(render_blocks(blocks)).rstrip("\n").split("\n")
+            output.append(marker + lines[0])
+            output.extend(indent + line if line else "" for line in lines[1:])
+            output.append("")
+        return "\n".join(output).rstrip("\n")
+
+
+def _integer(value: str | None) -> int | None:
+    try:
+        return int(value) if value is not None else None
+    except ValueError:
+        return None
 
 
 class _Extractor(HTMLParser):
@@ -75,6 +111,7 @@ class _Extractor(HTMLParser):
         self.macro_count = 0
         self.image_count = 0
         self.media_count = 0
+        self.table_count = 0
         self.unusable_destinations = 0
         self._ac_depth = 0
         self._media: list[str] = []
@@ -82,7 +119,7 @@ class _Extractor(HTMLParser):
         self._heading: str | None = None
         self._pre: list[str] | None = None
         self._text: list[str] = []
-        self._list_stack: list[str] = []
+        self._lists: list[_List] = []
         self._link: tuple[int, str] | None = None
 
     def _destination(self, value: str | None) -> str:
@@ -116,8 +153,12 @@ class _Extractor(HTMLParser):
         self._text = []
         if not text:
             return
-        prefix = "- " if self._list_stack else ""
-        self.sections[-1][1].append(("text", prefix + text))
+        self._append_block("text", text)
+
+    def _append_block(self, kind: str, text: str) -> None:
+        blocks = (self._lists[-1].items[-1][1] if self._lists and self._lists[-1].items
+                  else self.sections[-1][1])
+        blocks.append((kind, text))
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         if tag in {"iframe", "object", "embed", "video", "audio", "svg"} and not self._ac_depth:
@@ -152,10 +193,18 @@ class _Extractor(HTMLParser):
         elif tag == "pre":
             self._flush_text()
             self._pre = []
+        elif tag == "table":
+            self.table_count += 1
         elif tag in {"ul", "ol"}:
             self._flush_text()
-            self._list_stack.append(tag)
-        elif tag in {"p", "li", "tr", "br"}:
+            attributes = dict(attrs)
+            self._lists.append(_List(tag == "ol", _integer(attributes.get("start")),
+                                     -1 if "reversed" in attributes else 1))
+        elif tag == "li":
+            self._flush_text()
+            if self._lists:
+                self._lists[-1].items.append((_integer(dict(attrs).get("value")), []))
+        elif tag in {"p", "tr", "br"}:
             if tag != "br" or self._link is None:
                 self._flush_text()
 
@@ -184,11 +233,13 @@ class _Extractor(HTMLParser):
             code = "".join(self._pre).strip("\n")
             self._pre = None
             if code.strip():
-                self.sections[-1][1].append(("code", code))
-        elif tag in {"ul", "ol"} and self._list_stack:
+                self._append_block("code", code)
+        elif tag in {"ul", "ol"} and self._lists:
             self._flush_text()
-            self._list_stack.pop()
-        elif tag in {"p", "li", "tr"}:
+            self._append_block("text", self._lists.pop().render())
+        elif tag == "li":
+            self._flush_text()
+        elif tag in {"p", "tr"}:
             self._flush_text()
 
     def handle_data(self, data: str) -> None:
@@ -205,6 +256,8 @@ class _Extractor(HTMLParser):
 
     def close(self) -> None:
         self._flush_text()
+        while self._lists:
+            self._append_block("text", self._lists.pop().render())
         super().close()
 
 
@@ -243,7 +296,9 @@ def render_blocks(blocks: list[tuple[str, str]]) -> list[str]:
     lines: list[str] = []
     for kind, value in blocks:
         if kind == "code":
-            lines += ["```", value, "```", UNVERIFIED_MARK, ""]
+            longest = max((len(match.group(0)) for match in re.finditer(r"`+", value)), default=0)
+            fence = "`" * max(3, longest + 1)
+            lines += [fence, value, fence, UNVERIFIED_MARK, ""]
         else:
             lines += [value, ""]
     return lines
@@ -278,6 +333,7 @@ def convert(source: Path, source_url: str | None, service_id: str, owner: str) -
         f"Confluence macros dropped (not convertible): {parser.macro_count}",
         f"Image attachments not copied: {parser.image_count} (references retained where usable)",
         f"Unsupported media dropped: {parser.media_count}",
+        f"HTML tables flattened: {parser.table_count}",
         f"Unusable link or image destinations: {parser.unusable_destinations}",
     ]
     report.extend(f"  losses: {loss}" for loss in losses)
@@ -301,8 +357,9 @@ def convert(source: Path, source_url: str | None, service_id: str, owner: str) -
         f"# Runbook: {display_title}",
         "",
         "> **Imported draft.** Converted from a Confluence export; every command below is",
-        "> `[unverified]` until rehearsed on the target, and every empty slot must be filled or",
-        "> marked “n/a — why” before this leaves `draft`. See the runbook skill's Confluence-import",
+        "> `[unverified]` until rehearsed on the target. Fill applicable slots from evidence; mark",
+        "> only genuinely inapplicable ones “n/a — why”. Missing applicable evidence stays",
+        "> `[unverified]` with an owner and next check. See the runbook skill's Confluence-import",
         "> reference for the provenance rules this draft follows.",
         "",
     ]
@@ -355,7 +412,12 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: cannot read {args.source}", file=sys.stderr)
         return 1
     draft, report = convert(args.source, args.source_url, args.service_id, args.owner)
-    args.output.write_text(draft, encoding="utf-8")
+    try:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(draft, encoding="utf-8")
+    except OSError as exc:
+        print(f"error: cannot write {args.output}: {exc}", file=sys.stderr)
+        return 1
     print(report)
     print(f"Draft written: {args.output}")
     return 0

@@ -25,7 +25,7 @@ components consume them by reference (`local.file_match.tmplogs.targets`). The l
 "Alloy configuration syntax" — "River" is the *old* name from Grafana Agent Flow docs; don't use
 it in new work. *[sourced: docs/alloy/latest/get-started/configuration-syntax/]*
 
-**The wiring asymmetry that causes most broken pipelines:** `loki.*`/`prometheus.*` components
+**Component wiring:** `loki.*`/`prometheus.*` components
 chain with `forward_to = [<component>.receiver]`, while `otelcol.*` components chain with an
 `output { }` block listing downstream `.input` exports. And on the discovery side:
 `discovery.relabel` exports `.output` (targets), `prometheus.relabel` exports `.receiver`
@@ -71,7 +71,11 @@ prometheus.remote_write "mimir" {
 }
 ```
 
-**OTLP (traces/metrics/logs) — receive → batch → export** *[sourced: collect/opentelemetry-data; collect/opentelemetry-to-lgtm-stack]*
+**OTLP (traces/metrics/logs) — receive → batch → export** *[sourced: collect/opentelemetry-data]*
+
+The endpoint must accept every connected signal, directly or through a gateway.
+For direct self-managed LGTM ingestion, use [per-signal exporters](https://grafana.com/docs/alloy/latest/collect/opentelemetry-to-lgtm-stack/);
+pointing this shared exporter at a trace-only backend will not deliver logs or metrics.
 
 ```alloy
 otelcol.receiver.otlp "default" {
@@ -128,8 +132,9 @@ grafana.com/docs/alloy/latest/reference/components/otelcol/otelcol.auth.google; 
   memory/cardinality limits, and batch only after signal-specific filtering. No secrets, PII, or
   unbounded identity in labels. Sharing a processor across signals is safe only when its data
   model and drop policy hold for every connected signal. `[unverified]`
-- **Exporters**: name the exact destination and failure policy. Structured logs to Loki (and
-  Splunk where required), metrics to Mimir plus the current Wavefront path, traces to Tempo.
+- **Exporters**: map each configured signal to its actual destination, protocol, and failure policy
+  (LGTM, Google Telemetry API, or a verified gateway). Existing PCF-owned Splunk and Wavefront feeds
+  remain platform responsibilities; verify or hand off gaps without wiring new exporters for them.
 
 ## Debugging a running Alloy
 
@@ -193,10 +198,12 @@ grafana.com/docs/alloy/latest/reference/components/otelcol/otelcol.auth.google; 
 
 ## End-to-end canary
 
-From a bounded non-production target, emit one unique structured-log marker, one metric sample with
-bounded attributes, and one trace with a known trace ID. Query Loki and Splunk for the log where both
-routes are required, Mimir for the metric, and Tempo for the trace. Preserve each exact query, target,
-time range, and result. Promote a route from `[unverified]` to `[verified]` only when that evidence
-demonstrates the same canary crossed every boundary without leaking forbidden fields.
+For each signal on the changed route, emit a bounded non-production canary: a unique log marker,
+a metric sample with bounded attributes, or a known trace ID. Query the reviewed destination:
+Loki/Mimir/Tempo for LGTM, or Logs/Metrics/Trace Explorer for Google ingestion. Check every
+configured branch of a fan-out; do not require signals or stores outside the changed path.
+Preserve query, target/tenant, UTC window, result, and corresponding receive/export evidence.
+Call a route `[verified]` only when the canary crossed its boundaries without forbidden fields;
+unexercised routes stay `[unverified]`.
 
 Worked-evidence canary (record only after a target run): `canary_id=<unique-run-id>`.

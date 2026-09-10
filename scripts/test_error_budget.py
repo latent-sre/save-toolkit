@@ -55,6 +55,17 @@ class ErrorBudgetCliTests(unittest.TestCase):
         self.assertNotIn("severity: PAGE", proc.stdout)
         self.assertNotIn("severity: TICKET", proc.stdout)
 
+    def test_status_horizon_does_not_rescale_fixed_alert_policy(self) -> None:
+        for horizon, remaining in (("7", "10.1 min"), ("28", "40.3 min")):
+            with self.subTest(horizon=horizon):
+                proc = run_calculator(
+                    "--slo", "99.9", "--window-days", horizon, "--bad-minutes", "0",
+                    "--sli-long", "98.5", "--sli-short", "98.5",
+                )
+                self.assertEqual(proc.returncode, 0, proc.stderr)
+                self.assertIn("remaining: " + remaining, proc.stdout)
+                self.assertIn("PAGE (fast burn) -- both windows >= 14.4x", proc.stdout)
+
     def test_mismatched_window_pair_fails(self) -> None:
         proc = run_calculator(
             "--slo", "99.9", "--sli-long", "99", "--sli-short", "99",

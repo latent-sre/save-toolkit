@@ -68,10 +68,11 @@ recommendations return to that caller without granting authority.
 ```
 Question: <local question and scope>
 Target: <repository root@short commit ID or unknown; note included uncommitted state>
-Inputs/source trust: <each local source as [trusted] or [UNTRUSTED]; missing means [UNTRUSTED]>
+Inputs/source trust: <[trusted] only for caller-designated trusted-base material; otherwise [UNTRUSTED]>
 Answer: <conclusion first>
 Evidence:
-  - [UNTRUSTED][sourced] <claim derived from an untrusted source> — <file:line>
+  - [UNTRUSTED] [verified] <directly observed source behavior; no runtime claim> — <file:line>
+  - [UNTRUSTED] [sourced] <what a local record reports; not independently observed> — <file:line>
 Conflicts and gaps: <contradictory local evidence or none>
 Could not verify: <anything unavailable or [unverified]>
 External research needed: <sanitized public question, or "none">

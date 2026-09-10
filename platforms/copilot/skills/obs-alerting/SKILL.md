@@ -25,15 +25,15 @@ Design and verification steps below apply only to the artifact or readiness work
 ## SLI, SLO, and burn rate
 
 When defining an SLI, name the journey, **good events / valid events**, exclusions, and request/time
-unit. Retain the exact query, backend, target, time range and result. Without reproducible query
-evidence, the SLI is proposed, not verified.
+unit; for an SLO, name its objective horizon. Retain query, backend, target, time range and result.
+Without reproducible query evidence, the SLI is proposed, not verified.
 
 **Burn rate = observed bad-event fraction / the SLO's allowed bad-event fraction.** Keep request- and
 time-based budgets in their own units; never translate a request-ratio budget to downtime minutes.
 For budget work, separate consumed-budget status from the current alert verdict. The human service owner
 uses the budget to balance feature risk and reliability work.
 
-For burn-rate work, load the method below for its pairs, low-traffic judgment, and guard-safe
+For burn-rate work, load the method below for its pairs, low-traffic judgment, and offline
 calculator. Both windows must meet the pair's threshold. A one-window spike or
 recovered short window is not a page, but neither proves the service is in budget.
 

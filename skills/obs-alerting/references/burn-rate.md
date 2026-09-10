@@ -6,7 +6,7 @@ query: carry the reviewed numerator/denominator query and its result into the al
 ## The pairs
 
 `[sourced]` Google's SRE Workbook, [Alerting on SLOs](https://sre.google/workbook/alerting-on-slos/),
-Table 5-8, for a 99.9% SLO:
+Table 5-8, for a 99.9% SLO over **30 days**:
 
 | Long window | Short window | Threshold | Budget consumed at threshold | Action |
 |---|---|---|---|---|
@@ -14,7 +14,13 @@ Table 5-8, for a 99.9% SLO:
 | 6h | 30m | 6.0x | 5% in 6h | PAGE (slow burn) |
 | 3d | 6h | 1.0x | 10% in 3d | TICKET (slow leak) |
 
-A pair is one unit: both windows must exceed the pair's one threshold (AND, never OR), and no row
+For another objective horizon, choose whether to retain these fixed thresholds or recalculate them
+for the intended budget fraction: fraction = burn × long window / objective horizon, in matching
+time units. For request SLIs, this time-based estimate assumes comparable request volume; measure
+actual consumed budget from eligible requests. At 28 days, the pairs represent about 2.14%, 5.36%,
+and 10.71%, not 2%, 5%, and 10%.
+
+A pair is one unit: both windows must meet the pair's threshold (AND, never OR), and no row
 lends its window or threshold to another. Low-traffic services need separate judgment: a tiny
 denominator turns one failure into an extreme burn.
 
@@ -32,7 +38,9 @@ denominator turns one failure into an extreme burn.
 [error_budget.py](../scripts/error_budget.py) is pure stdlib with budget-status and burn-rate modes.
 A human or an unguarded lane runs it and pastes the output; the read-only guard denies script
 execution by design. Resolve the linked calculator to its absolute path in this installed skill;
-substitute that path below. The three admitted pair behaviours:
+substitute that path below. Set `--window-days` to the objective horizon for budget status; its
+default is 28 days and it **does not rescale the fixed alert thresholds above**. For a different
+threshold policy, use the reviewed alert rule rather than this calculator's verdict. The examples:
 
 ```powershell
 $budgetScript = '<resolved calculator path>'

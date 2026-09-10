@@ -1,8 +1,7 @@
 # Cloud Monitoring for metric investigation — PromQL first
 
-Use this reference only after applying the product-agnostic investigation shape in the parent
-skill. Sources reviewed 2026-08-19 against live official pages on `docs.cloud.google.com` (every
-`cloud.google.com/...` docs URL now 301-redirects there).
+Apply the parent investigation shape first. This reference adds Cloud Monitoring behavior
+to [PromQL](./promql.md); confirm the target's metric and access contract.
 
 ## The one decision that's already made: query in PromQL
 
@@ -48,8 +47,10 @@ guard's allowlist `[sourced: scripts/readonly-guard.py, disposition verified 202
 group holds only `dashboards`, `policies`, `snoozes`, and `uptime` *[sourced:
 docs.cloud.google.com/sdk/gcloud/reference/monitoring]*; the alpha/beta tracks remain
 `[unverified as an absence]`. Time-series reads go through the console PromQL editor, Grafana, or
-the Monitoring API, all recommend-for-human from this fleet. Do not burn incident time hunting
-for a `gcloud monitoring timeseries` command.
+the Monitoring API. Lanes without the applicable read tools/authority prepare the query for the
+human. The invoked `observability-engineer` retains its existing dashboard-query verification path
+under `obs-dashboards`; this grants no other lane dashboard writes. Do not hunt for a
+`gcloud monitoring timeseries` command.
 
 ## Gotchas
 

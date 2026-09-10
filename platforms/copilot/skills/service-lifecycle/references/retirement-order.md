@@ -25,10 +25,10 @@ resolve gaps; execution stops at the first unproven row and requires the parent 
 5. **Delivery and ownership edges.** Disable or retire deployment workflows and environment
    bindings, transfer shared repositories or resources, and route access removal to the authorized
    identity owner. Never inspect, print, or copy credentials as evidence.
-6. **Independent verification.** Separately supplied authoritative evidence that nothing serves
+6. **Independent verification.** After record review, independent evidence that nothing serves
    traffic or scheduled work, retired alerts no longer page, the intended telemetry path is absent,
-   retained shared resources still work, and durable records show `retired`. A checklist author's
-   assertion is not independent verification.
+   retained shared resources still work, and durable records show `retired`. A handoff is pending
+   work, not readback; the checklist author's assertion is not independent verification.
 
 A dispatch that may have occurred with no durable result is `UNKNOWN`; nothing is retried or
 re-issued until the named owner reconciles authoritative state. A broad "retire the service"

@@ -115,7 +115,7 @@ and hand the human release owner the exact target, purpose, and rollback/exit pl
 
 The `incident-command` skill owns mitigation choice and the human-invoked `/save-toolkit:pcf-deploy` workflow owns the deployment plan the human release owner executes; this read-only skill stops and hands off. Require an
 already-approved Tier-2/3 evidence packet naming the exact target, action, actor, blast radius,
-verification, and rollback before any live command.
+verification, and rollback before any state-changing command.
 
 ## Tips
 

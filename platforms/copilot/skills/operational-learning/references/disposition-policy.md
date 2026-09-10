@@ -18,14 +18,14 @@ disposition-state definitions, default paths, and the evidence rules.
 | An alert fires | Active event: route investigation to the responder with `incident-investigation` (`sre-assistant` only for a dispatched read); prepare no retrospective or KB change until resolution. |
 | A runbook is missing or contradicted by evidence | Create or update it through `scribe` plus `runbook`; retain unsupported commands as `[unverified]`. |
 | A drill exposes a bad or missing step | Update the runbook from the supplied drill record; change `last_verified` only when evidence binds artifact/version, target, actor, time, and outcome. |
-| A resolved incident reveals a systemic lesson | Write the postmortem, then disposition runbook, service card, alert card, knowledge index, observability, automation, code, and accepted-risk follow-ups. |
+| A resolved incident reveals a systemic lesson | Disposition a missing postmortem to a separate postmortem-mode assignment with an owner; continue the authorized knowledge closeout and its affected follow-ups. |
 | A fleet prompt, agent, or skill has an accepted behavioral failure | Route the observed divergence, evidence, and proposed named regression to `agent-engineer`; operational content never rewrites fleet definitions directly. |
 
 ## One-time disposition states
 
-`prepared` and `duplicate` follow `../SKILL.md`: a caller-supplied `[verified]` checkout binding
-confirms the mounted checkout's current commit matches the target revision. Its short-ID and
-ambiguity rules apply. The rest:
+`prepared` requires the body's caller-supplied `[verified]` checkout binding: the mounted checkout's
+current commit matches the target revision. Its short-ID and ambiguity rules apply. `duplicate`
+requires the existing owning artifact and supporting evidence. The rest:
 
 - `proposed` — the owner and next action are named, but no reviewable artifact change exists.
 - `blocked` — the missing evidence, authority, dependency, or owner is named.

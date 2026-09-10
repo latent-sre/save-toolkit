@@ -8,8 +8,8 @@ The guard denies installs/app execution for `sre-assistant`; unguarded Bash does
 Respect `stack-profile`'s authoring/support boundary: Java source, manual-span and dependency
 changes belong to the application's development owner; this fleet supports its deployed instrumentation.
 
-Commands are `[sourced]` to opentelemetry.io docs (indirect retrieval, 2026-08-07); exact-target behavior
-remains `[unverified]` until a canary proves it.
+Commands are `[sourced]` to the linked OpenTelemetry docs; the uv bootstrap was checked 2026-09-09.
+Exact-target behavior remains `[unverified]` until a canary proves it.
 
 ## Steps
 
@@ -20,11 +20,16 @@ instrumentation uses the full method.
 2. **For service-wide instrumentation, auto-instrument first** with the SDK; then add **manual** spans for critical
    operations. The zero-code entry points *[sourced: opentelemetry.io/docs/zero-code/]*:
 
+   For Python, use the repository's managed environment and lock workflow; never install into
+   system Python. The [upstream uv bootstrap](https://opentelemetry.io/docs/zero-code/python/troubleshooting/#bootstrap-using-uv)
+   below records dependencies in the project. Review the dependency/lock diff and reproduce from
+   the lock before deployment; use the established equivalent for a library using Poetry.
+
    ```sh
-   # Python
-   pip install opentelemetry-distro opentelemetry-exporter-otlp
-   opentelemetry-bootstrap -a install
-   opentelemetry-instrument --traces_exporter otlp --metrics_exporter otlp \
+   # Python — in the uv project
+   uv add opentelemetry-distro opentelemetry-exporter-otlp
+   uv run opentelemetry-bootstrap -a requirements | uv add --requirement -
+   uv run opentelemetry-instrument --traces_exporter otlp --metrics_exporter otlp \
      --logs_exporter otlp --service_name my-service python app.py
 
    # Java — agent JAR (Spring Boot starter and Quarkus extension also exist)
@@ -34,19 +39,17 @@ instrumentation uses the full method.
    Standard env config either way: `OTEL_SERVICE_NAME`, `OTEL_EXPORTER_OTLP_ENDPOINT`
    (gRPC 4317 / HTTP 4318), `OTEL_EXPORTER_OTLP_PROTOCOL`.
 
-   **Supporting Spring Boot: identify whether the app uses the agent or the starter.** The
-   `-javaagent` path instruments bytecode at startup with no code change and the widest library
-   coverage. The **starter** (`io.opentelemetry.instrumentation:opentelemetry-spring-boot-starter`,
-   versions via the `opentelemetry-instrumentation-bom`) is library-mode auto-configuration; the
-   upstream docs name exactly when to prefer it: a **Spring Boot native image**, "for which the
-   OpenTelemetry Java agent does not work"; "startup overhead of the OpenTelemetry Java agent
-   exceeding your requirements"; "a Java monitoring agent already used because the OpenTelemetry
-   Java agent might not work with the other agent"; or wanting OTel configured from
-   `application.yml` (including declarative YAML) rather than env vars. It supports Spring Boot
-   2.6+ and 3.1+ per the docs, and upstream carries a Spring Boot 4 test suite; this guidance was
-   reviewed against 2.31.1 on 2026-08-24. The two are alternatives — do not load both. On PCF the
-   Java buildpack can inject the agent, so check the buildpack configuration when investigating
-   duplicate instrumentation; refer dependency changes to the application's development owner.
+   **Spring Boot: identify the installed path before troubleshooting.**
+
+   - `-javaagent` instruments bytecode at startup without source changes and has the widest
+     library coverage. PCF's Java buildpack can inject it; check buildpack config for duplicates.
+   - The library-mode starter (`io.opentelemetry.instrumentation:opentelemetry-spring-boot-starter`,
+     versions via `opentelemetry-instrumentation-bom`) fits native images, unacceptable agent
+     startup overhead, another incompatible monitoring agent, or `application.yml` configuration
+     (including declarative YAML). Docs list Spring Boot 2.6+/3.1+; upstream also tests Boot 4,
+     reviewed against instrumentation 2.31.1 on 2026-08-24.
+
+   Use one path. Refer dependency changes to the application's development owner.
    *[sourced: opentelemetry.io zero-code Java Spring Boot starter pages;
    opentelemetry-java-instrumentation repo]* Which path the team's services
    use today is `[unverified]` — read the build file and the buildpack config.
@@ -75,7 +78,10 @@ instrumentation uses the full method.
    Where **Collector tail sampling** is used, explicit policies (status=error, latency threshold)
    **prioritize** error/slow traces, subject to every constraint below:
    > ⚠️ **Tail sampling does NOT guarantee you keep all error traces.** It is best-effort under capacity
-   > limits, and it fails *silently*. Three things must hold, and none is automatic:
+   > limits. Check these conditions:
+   > - **Upstream sampling:** record the effective SDK/head sampler and propagated parent decision.
+   >   A collector cannot recover spans never exported by the SDK. Check this before tuning tail
+   >   policies; do not increase sampling outside the authorized scope.
    > - **Routing:** *all spans of a trace MUST reach the same collector instance*, or policies evaluate
    >   on a fragment. This needs a two-layer topology — a **load-balancing exporter** layer in front of
    >   the tail-sampling layer. Deploying tail sampling behind a plain round-robin LB is the classic

@@ -13,15 +13,19 @@ Splunk's own manual says to use a scheduled alert when possible *[sourced: Alert
 types]*. Reach for real-time only when seconds change the response, and say why in the review.
 
 ```ini
-# run every 5 minutes over the last 5 minutes — window matches cadence
+# Five-minute windows with an illustrative two-minute indexing allowance.
+# Choose the allowance from measured _indextime - _time for this source.
 cron_schedule = */5 * * * *
-dispatch.earliest_time = -5m
-dispatch.latest_time = now
+dispatch.earliest_time = -7m@m
+dispatch.latest_time = -2m@m
 ```
 
-- **Window matches cadence.** A 5-minute cron over a 1-hour window re-alerts on the same events
-  eleven times; a 15-minute cron over a 5-minute window never sees two-thirds of the data. This is
-  the most common silent defect in inherited alerts; check it first.
+- **Cover event time and indexing delay.** Matching window length to cadence alone can miss late
+  events permanently. Choose a measured delay allowance, durable-search policy, or bounded overlap
+  with deduplication; check skipped/delayed runs too. Overlap can re-evaluate an event; a shorter
+  window than cadence leaves gaps. Record the completeness/latency tradeoff.
+  *[sourced: Splunk [alert scheduling tips](https://help.splunk.com/en/splunk-enterprise/alert-and-respond/alerting-manual/10.4/create-alerts/alert-scheduling-tips);
+  unverified for target indexing delay and scheduler behavior]*
 - **Timezone:** Splunk Cloud evaluates cron in UTC; Splunk Enterprise uses the search head's
   timezone *[sourced: cron-expressions page]*. Record which applies next to every schedule.
 - Trigger conditions are `counttype` with `relation` and `quantity`, or `alert_condition`, a
@@ -35,7 +39,8 @@ dispatch.latest_time = now
 ```ini
 alert.suppress = 1
 alert.suppress.period = 30m
-alert.suppress.fields = service,alert_type   # required for per-result throttling
+# Required for per-result throttling:
+alert.suppress.fields = service,alert_type
 ```
 
 *[sourced: savedsearches.conf reference]* `alert.suppress.fields` scopes the suppression key so one

@@ -32,9 +32,9 @@ prohibited read is recorded as a gap.
 Unknown service or environment identities bound discovery: inspect supplied repository evidence,
 and request only the target-scoped reads the caller authorized. Ask for the scope before live reads
 when it is unknown; never invent a target, owner, consumer, or approval. Discovery and draft
-planning require no production approval. Before readiness or execution, require the exact approved
-plan, service/environment, owner, source commit, authoritative definitions, executor, and current
-production gate. Retirement also requires the change record, known consumers and dependencies,
+planning require no production approval. Before an onboard or retire plan is ready for live execution,
+require its approved plan, target, owner, source commit, definitions, executor, and current production
+gate. Retirement also requires the change record, known consumers and dependencies,
 data-retention obligations, proven recovery path, and approval expiry. Missing ownership, unknown
 consumers, unclassified data, or unproven recovery blocks removal, not the inventory that resolves it.
 
@@ -78,13 +78,13 @@ record exists at all.
 
 ## Knowledge closeout
 
-After executed onboarding or retirement, send an evidence-bound handoff to `scribe` for the service
-card, alert cards, index entry, and any missing or stale runbook, carrying the authorizing record, the exact
-repository revision, the caller's `[verified]` checkout binding (unique short commit ID), the execution receipts,
-every evidence label as received, and what was not done. Audit findings travel the same route. This
-skill never loads `operational-learning` or authors a record. An unexecuted draft reports its
-proposed knowledge changes without claiming onboarding or retirement occurred. When no service card
-or index entry exists, the audit's handoff asks `scribe` to create them from `operational-learning`'s templates.
+After onboarding execution—or after retirement's live-resource receipts but before final record
+verification—send `scribe` an evidence-bound handoff for affected cards, index entries, and runbooks.
+Include the authorizing record, exact repository revision, caller's `[verified]` checkout binding,
+receipts, retained evidence labels, and non-actions. Audit findings use the same route. This skill
+never loads `operational-learning` or writes records. Drafts describe proposed knowledge changes;
+missing records use its templates. A retirement handoff remains pending until reviewed records and
+final verification are supplied.
 
 ## Return
 

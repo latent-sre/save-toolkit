@@ -1,20 +1,10 @@
 #!/usr/bin/env python3
 """Dashboard hygiene checker — the mechanically checkable subset of this skill's panel rules.
 
-Pure stdlib, offline, cross-platform. Reads a dashboard JSON model and reports the rule violations
-a reviewer would otherwise have to find by eye.
-
-WHY THIS EXISTS RATHER THAN `dashboard-linter`. Grafana's linter is the reference implementation and
-is strictly better where it runs: it validates PromQL/LogQL properly and knows Grafana's real unit
-catalogue. But it ships as a prebuilt binary per platform (upstream does not support `go install`
-because its `go.mod` carries a `replace` directive), so it is frequently absent exactly when an agent
-is about to write a dashboard. This script needs nothing but Python, so the pre-write check always
-runs. When the linter IS available, prefer it and treat this as a fast pre-filter.
-
-DELIBERATELY CONSERVATIVE. Every rule here is a *textual* property of the model. Nothing in this file
-parses PromQL, resolves a data source, or contacts a Grafana. A clean report means "no rule in this
-file fired", never "this dashboard is correct" — the queries can still be wrong, point at the wrong
-service, or answer no useful question. See the skill body for the judgement this cannot make.
+Pure stdlib and offline. Checks textual properties only: no query parsing, datasource resolution,
+or Grafana access. A clean result means no implemented rule fired, not that the dashboard is correct.
+Prefer dashboard-linter where installed for real query/schema validation; this helper is the
+portable fallback for Classic/V1 models.
 
 Which model shapes it accepts:
   * Classic / V1 `spec`  — the `panels[]` + `templating.list[]` shape
@@ -58,8 +48,6 @@ def rate_call_spans(expr):
       rule exists to reject;
     * "count parentheses before the metric" decides `sum(rate(a[$__rate_interval])) / sum(b_total)`
       has `b_total` inside a rate call, because it cannot see that the earlier call already closed.
-
-    Both were shipped and both were caught in review; the spans make each call answerable on its own.
     """
     spans = []
     for match in RATE_FUNCS.finditer(expr):
@@ -166,11 +154,7 @@ def check(spec: dict) -> list[tuple[str, str, str]]:
                         "'Include All' with no custom all value; the expanded expression can grow "
                         "unbounded — set one such as '.+'"))
 
-    # `editable` is deliberately NOT checked. It was once required to be false, on the reasoning
-    # that a dashboard kept as code should refuse UI edits. This team keeps no dashboards as code and
-    # edits them in the UI by design, so that rule fired on every dashboard and, worse, told authors
-    # to ship a flag that blocks the workflow this skill recommends. A checker that contradicts its
-    # own skill trains people to ignore it.
+    # Preserve UI editing: this team's dashboards are not maintained as code.
     if not (spec.get("tags") or []):
         out.append(("dashboard-tags", "dashboard", "no tags; search and the dashboard list rely on them"))
 
@@ -193,8 +177,8 @@ def main(argv: list[str] | None = None) -> int:
     spec = unwrap(model)
     if "elements" in spec or "layout" in spec:
         print("refusing to check a V2 (dynamic) dashboard: its panels live under spec.elements, which "
-              "this checker does not read. Re-read the dashboard pinned to v1 and check that, or use "
-              "dashboard-linter v0.2.0+, which supports the V2 schema.", file=sys.stderr)
+              "this checker does not read. Validate the actual V2 candidate with a V2-capable linter "
+              "(dashboard-linter v0.2.0+), or report the validation gap; keep its stored version.", file=sys.stderr)
         return 2
     if "panels" not in spec:
         print("no `panels` key: this does not look like a Classic/V1 dashboard model", file=sys.stderr)

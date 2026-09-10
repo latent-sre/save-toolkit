@@ -72,7 +72,7 @@ def main(argv=None) -> int:
     parser.add_argument("--slo", type=float, required=True, help="SLO target percent, e.g. 99.9")
     parser.add_argument(
         "--window-days", type=float, default=28.0,
-        help="rolling budget-status window in days (default 28)",
+        help="budget-status horizon in days (default 28); does not rescale fixed alert thresholds",
     )
 
     status = parser.add_argument_group("budget status — pick ONE kind of SLI")
@@ -186,6 +186,7 @@ def main(argv=None) -> int:
 
     # Burn rate: a pair selects one threshold, and both windows must cross it.
     if args.sli_long is not None:
+        print("  alert policy: fixed 30-day example thresholds; --window-days does not rescale them")
         burn_long = (1.0 - args.sli_long / 100.0) / budget_fraction
         print(f"  burn ({args.long_window}):  SLI {args.sli_long}%  ->  {burn_long:.2f}x")
 
@@ -229,7 +230,8 @@ def main(argv=None) -> int:
                 exhaustion_days = args.window_days / burn_long
                 print(
                     f"  at the {args.long_window} rate, the full {args.window_days:g}d budget "
-                    f"is gone in {fmt_minutes(exhaustion_days * 24 * 60)}"
+                    f"is gone in {fmt_minutes(exhaustion_days * 24 * 60)} "
+                    "(projection assumes steady eligible volume; not remaining budget)"
                 )
 
     if args.bad_minutes is None and not request_mode and args.sli_long is None:
