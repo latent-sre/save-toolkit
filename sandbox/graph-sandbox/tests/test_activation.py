@@ -942,7 +942,7 @@ class ActivationTests(unittest.TestCase):
                     "state_schema": "graph-state/v2",
                     "source_revision": SOURCE_REVISION,
                     "thread_id": thread_id,
-                    "langgraph_version": "1.0.10",
+                    "langgraph_version": "1.2.11",
                     "sqlite_saver_version": "3.1.1",
                     "resume_source_checkpoint_id": None,
                     "checkpoints": [
@@ -957,7 +957,7 @@ class ActivationTests(unittest.TestCase):
                     "python_version": "3.14.7",
                     "packages": {
                         "httpx": "0.28.1",
-                        "langgraph": "1.0.10",
+                        "langgraph": "1.2.11",
                         "langgraph-checkpoint-sqlite": "3.1.1",
                     },
                 }
@@ -1806,7 +1806,7 @@ class ActivationTests(unittest.TestCase):
                 environment["package_posture"],
                 {
                     "httpx": "observed:0.28.1",
-                    "langgraph": "observed:1.0.10",
+                    "langgraph": "observed:1.2.11",
                     "langgraph-checkpoint-sqlite": "observed:3.1.1",
                 },
             )

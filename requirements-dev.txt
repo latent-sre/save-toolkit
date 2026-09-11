@@ -15,7 +15,7 @@ httpx==0.28.1
 inspect-ai==0.3.263
 inspect-swe==0.2.70
 jsonschema==4.26.0
-langgraph==1.0.10
+langgraph==1.2.11
 langgraph-checkpoint-sqlite==3.1.1
 pytest==9.1.1
 pyyaml==6.0.3

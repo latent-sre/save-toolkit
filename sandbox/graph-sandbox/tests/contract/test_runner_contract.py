@@ -59,7 +59,7 @@ class RunnerImageContractTests(unittest.TestCase):
             requirements,
             {
                 "httpx==0.28.1",
-                "langgraph==1.0.10",
+                "langgraph==1.2.11",
                 "langgraph-checkpoint-sqlite==3.1.1",
             },
         )

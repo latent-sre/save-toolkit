@@ -243,6 +243,24 @@ class CheckpointCompatibilityTests(unittest.TestCase):
             self.assertIn("source_revision", caught.exception.mismatches)
             self.assertEqual(CheckpointStore.read_fingerprint(path), original)
 
+    def test_previous_langgraph_checkpoint_is_rejected_without_changing_metadata(self) -> None:
+        from dataclasses import replace
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "checkpoints.sqlite3"
+            current = CheckpointFingerprint.current(REVISION)
+            previous = replace(current, langgraph_version="1.0.10")
+            self.assertNotEqual(previous.langgraph_version, current.langgraph_version)
+            with CheckpointStore(path, previous):
+                pass
+
+            with self.assertRaises(CheckpointIncompatible) as caught:
+                with CheckpointStore(path, current):
+                    pass
+
+            self.assertIn("langgraph_version", caught.exception.mismatches)
+            self.assertEqual(CheckpointStore.read_fingerprint(path), previous)
+
     def test_contract_version_mismatch_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             path = Path(temp_dir) / "checkpoints.sqlite3"
