@@ -228,10 +228,10 @@ ALLOWED_KEYS = {
     "compatibility",
 }
 # Skills that must carry `disable-model-invocation: true`, and the only ones allowed to. Each is
-# explicit-only because autonomous invocation would be an effect or a cost the caller did not ask
-# for: `pcf-deploy` coordinates approved production effects. Adding a name here is a decision:
+# explicit-only: `pcf-deploy` coordinates approved production effects; `incident-command` must be
+# selected by the human commander, not activated by an investigator's skill. Adding a name is a decision:
 # state why the skill cannot be model-invoked, and keep the message below in sync.
-MANUAL_ONLY = {"pcf-deploy"}
+MANUAL_ONLY = {"pcf-deploy", "incident-command"}
 YAML_NON_STRING = re.compile(
     r"^(?:"
     r"~|null|true|false|yes|no|on|off|"
@@ -342,7 +342,7 @@ def _check_skill_frontmatter(path: Path, text: str) -> tuple[str, list[str]]:
             failures.append(f"{where}: compatibility exceeds 500 characters")
     raw_manual_only = values.get("disable-model-invocation")
     if expected_name in MANUAL_ONLY:
-        if raw_manual_only != "true":
+        if raw_manual_only != "true" or styles.get("disable-model-invocation") != "plain":
             failures.append(
                 f"{where}: manual-only skill must contain frontmatter "
                 "disable-model-invocation: true"

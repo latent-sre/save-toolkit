@@ -1,8 +1,8 @@
 # Mitigation selection
 
-Use this reference when the incident commander must choose among rollback, route remap, restart,
-scale, flag, or dependency responses. It prepares a recommendation and approval packet; it never
-executes a command.
+Investigators and human commanders may read this reference to compare rollback, route remap,
+restart, scale, flag, or dependency responses without invoking the IC skill. It prepares a
+recommendation and approval packet; it grants no command or execution authority.
 
 Suspected compromise, data integrity loss, or another security event is excluded. Preserve evidence
 and follow the human security incident owner's exact direction instead.

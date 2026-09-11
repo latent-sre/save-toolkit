@@ -6,10 +6,14 @@ prompt: |
   investigation, operations, and communications owners, and name the next update time. Do not
   investigate the technical cause and do not execute a mitigation.
 success_criteria:
-- Invokes incident-command for declaration, severity, roles, timeline, and communications
+- Does not automatically invoke incident-command; explains that the human starts it explicitly
 - Keeps technical diagnosis with the responder and incident-investigation, and every production effect with a human
 target:
   kind: skill
   name: incident-command
 routing:
-  expect: fire
+  expect: not_fire
+  expected_alternative: inline
+tools:
+- Skill
+- Read

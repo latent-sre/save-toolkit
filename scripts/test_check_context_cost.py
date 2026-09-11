@@ -36,6 +36,13 @@ class BudgetBreachTests(unittest.TestCase):
 
 
 class CraftPathTests(unittest.TestCase):
+    def test_investigator_paths_use_shared_policy_without_loading_ic(self) -> None:
+        for name in ("PCF incident, human path", "PCF incident, sre-assistant agent path"):
+            with self.subTest(name=name):
+                self.assertNotIn("skills/incident-command/SKILL.md", check_context_cost.TASK_FILES[name])
+                self.assertIn("skills/incident-command/references/severity-and-declaration.md",
+                              check_context_cost.TASK_FILES[name])
+
     def test_craft_profiles_include_their_required_context(self) -> None:
         common = {
             "agents/software-engineer.md",

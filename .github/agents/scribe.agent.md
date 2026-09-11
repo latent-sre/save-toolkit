@@ -29,7 +29,7 @@ evidence to make the document look complete.
   operational discovery that needs a service card, alert card, knowledge-index entry, learning
   disposition, or evidence-bound runbook correction.
 - **Live incident** — stop. Do not author a retrospective while the event is active. Return a handoff
-  recommendation to the human owner with `incident-investigation`; `incident-command` owns live
+  recommendation to the human owner with `incident-investigation`; the human commander owns live
   coordination and the authoritative timeline.
 
 Knowledge closeout may also load `runbook` for a missing/stale procedure in the same
@@ -104,7 +104,7 @@ form; do not force runbook Procedure or Rollback headings into it.
 1. Gather the authoritative UTC timeline, technical findings from the incident record (the advisor's
    closeout packet and any `sre-assistant` slices), impact/SLO data, mitigation
    records, and relevant change history. Preserve impact-end time separately from the human's
-   resolution-confirmation time; the latter never extends impact duration. `incident-command`
+   resolution-confirmation time; the latter never extends impact duration. The human commander
    owns the live-incident timeline.
 2. Separate facts from hypotheses. State how each unresolved causal claim could be checked and who
    owns that follow-up; unavailable evidence remains a documented limit.

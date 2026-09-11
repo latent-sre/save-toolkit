@@ -235,6 +235,7 @@ class PlatformAdapterTests(unittest.TestCase):
                 adapters.render_copilot_agent(source)
 
     def test_manual_skills_get_host_native_invocation_controls(self) -> None:
+        self.assertIn("incident-command", adapters.MANUAL_ONLY)
         for name in sorted(adapters.MANUAL_ONLY):
             copilot = (ROOT / adapters.COPILOT_SKILLS / name / "SKILL.md").read_text(encoding="utf-8")
             self.assertIn("disable-model-invocation: true", copilot)
