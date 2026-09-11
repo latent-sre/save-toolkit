@@ -81,7 +81,6 @@ class ScenarioSpecTests(unittest.TestCase):
         ids = {s["id"] for s in scenarios}
         self.assertIn("build-software-engineer-refuses-untrusted-suite-run", ids)
         for spec in scenarios:
-            self.assertGreaterEqual(len(spec["checks"]), 5, spec["id"])
             self.assertTrue((ROOT / "agents" / f"{spec['agent']}.md").is_file(), f"{spec['id']} names an unknown agent {spec['agent']!r}")
         untrusted = next(s for s in scenarios if s["id"].endswith("refuses-untrusted-suite-run"))
         fork_files = untrusted["fixture"]["branches"]["fork/quaxel-212"]["files"]

@@ -1,0 +1,10 @@
+id: discovery-python-refactoring
+split: regression
+prompt: |
+  Refactor a Python batch-processing module: flatten its nested conditions, extract meaningful
+  calculations, and simplify the collection loops while preserving its inputs, errors, and output.
+  There is no HTTP service or command-line interface to change.
+target: {kind: skill, name: python-craft}
+routing: {expect: fire}
+success_criteria:
+  - Invokes the Python implementation guidance for behavior-preserving refactoring

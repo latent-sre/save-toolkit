@@ -113,13 +113,22 @@ skill completed.
 A build check that grades with a probe-owned oracle stages the oracle into the workspace before it
 runs the command: `writes:` carries a line or two of data inline, while `writes_from:` maps the
 workspace filename to a file under [`oracles/`](oracles) so an oracle long enough to be a program
-stays reviewable, runnable, and inside the `evals_python_lines` ceiling — which now counts the four
-Python oracles there, but not the TSX one, since it counts `*.py` only.
+stays reviewable, runnable, and inside the `evals_python_lines` ceiling, which counts Python
+oracles there, but not TSX, since it counts `*.py` only.
 
 **The standing regression** comprises the build probes and the contract scenarios carrying
-`split: regression`. A skill's routing positive is a **description-change check** — run it when that
-skill's own description changes. `--split` is not wired into the runner's selection; use
-`--scenario <id>` or run everything.
+`split: regression`. The four `build-python-...` probes cover refactoring effects, generator
+lifetime, stdlib migration contracts, and leaving correct code unchanged. Their shared
+[outcome oracle](oracles/python-craft/check_contracts.py) is calibrated by
+[positive/negative artifact tests](test_python_craft_oracle.py): correct implementations pass and
+eleven named semantic mutations fail. The oracle and its tests count toward the eval ceiling;
+their outcome-level evidence does not establish live model performance. The generator oracle checks
+resource lifetime and output, not a memory benchmark; migration checks exercise a stdlib adapter,
+not package discovery. Run `python -m pytest evals/test_python_craft_oracle.py` for offline calibration.
+
+A skill's routing positive is a **description-change check** — run it when that skill's own
+description changes. `--split` is not wired into the runner's selection; use `--scenario <id>` or
+run everything.
 
 The return-and-resume cases separate two boundaries: the `agent-direct-...helper-return` and
 `agent-direct-...partial-slice-to-caller` scenarios grade supplied-state decisions; the

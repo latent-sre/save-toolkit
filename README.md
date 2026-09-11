@@ -74,7 +74,7 @@ The skills, by area (each `skills/<name>/SKILL.md` carries its own description a
   `obs-pipeline`
 - **Platform** — `stack-profile`, `pcf-ops`, `pcf-deploy`, `gcp-ops`, `akamai-edge`
 - **Change gates** — `production-change-gate`
-- **Engineering craft** — `backend-craft`, `frontend-craft`, `operator-cli`,
+- **Engineering craft** — `backend-craft`, `python-craft`, `frontend-craft`, `operator-cli`,
   `ci-actions`, `database-reliability`, `eng-ladder`
 - **For maintainers: the fleet itself and the graphs it designs** — `agent-authoring`
 

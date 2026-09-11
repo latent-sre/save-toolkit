@@ -1,0 +1,42 @@
+---
+name: python-craft
+description: "Write, refactor, and modernize Python in services, CLIs, scripts, libraries, and tests, including replacing custom code with suitable maintained libraries. Triggers: \"refactor this Python\", \"modernize this module\", \"write Python code\". Not for operating a running service or changing another language; backend-craft and operator-cli retain their interface contracts."
+---
+
+# Python craft
+
+Use supported Python features and maintained libraries when they improve correctness, clarity,
+capability, or maintenance. Keep clear working code when no concrete benefit justifies a change.
+
+## Establish the change
+
+- Inspect callers, tests, dependencies, and the deployed Python floor. Load `stack-profile` for
+  authoring boundaries and toolchain defaults; project tooling wins. Preserve component-specific
+  floors and restrictions, including isolated standard-library-only entrypoints.
+- Separate behavior-preserving refactoring from authorized API, dependency, or runtime migration.
+  Preserve names/keyword callers, return types, errors, serialization, mutation, effect order, and
+  resource lifetime unless the task changes them. Check dynamic/import-string callers before moves.
+- Use existing tests; characterize unclear or uncovered contracts. Working behavior needs no
+  artificial failing test. A cleanup request does not imply a framework or runtime migration.
+
+## Load the detail that applies
+
+| Task | Read |
+|---|---|
+| Function/data design, typing, errors, or resource ownership | [Writing Python](./references/writing-python.md) |
+| Restructuring existing code | [Refactoring](./references/refactoring.md) |
+| Adopting libraries, replacing custom infrastructure, or changing dependency/runtime APIs | [Libraries and modernization](./references/libraries-and-modernization.md) |
+| Automated refactoring, repeated migration, or lint fixes | [Refactoring tools](./references/refactoring-tools.md) |
+
+Load each matching reference. Compose with `backend-craft` for service/integration contracts and
+`operator-cli` for command behavior; this skill does not add tools or change the caller's authority.
+
+## Verify and return
+
+Test affected behavior and failure paths, not private helper structure; control external effects
+and time at their boundary. Run relevant lint/type checks and version-sensitive checks on supported
+runtimes. For performance claims, profile the cost and benchmark the change separately.
+
+Inspect the full diff and remove code/dependencies this change makes obsolete. Return the benefit,
+intentional compatibility changes, checks/results, and gaps with `[verified]`, `[sourced]`, or
+`[unverified]`. Tool success alone does not establish correctness.

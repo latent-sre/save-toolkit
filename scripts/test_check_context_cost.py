@@ -47,6 +47,20 @@ class CraftPathTests(unittest.TestCase):
                 "skills/backend-craft/SKILL.md",
                 "skills/backend-craft/references/fastapi.md",
                 "skills/backend-craft/references/consuming-apis.md",
+                "skills/python-craft/SKILL.md",
+                "skills/python-craft/references/writing-python.md",
+            },
+            "Python automated refactor": {
+                "skills/python-craft/SKILL.md",
+                "skills/python-craft/references/writing-python.md",
+                "skills/python-craft/references/refactoring.md",
+                "skills/python-craft/references/refactoring-tools.md",
+            },
+            "Python library migration": {
+                "skills/python-craft/SKILL.md",
+                "skills/python-craft/references/writing-python.md",
+                "skills/python-craft/references/libraries-and-modernization.md",
+                "skills/python-craft/references/refactoring-tools.md",
             },
             "Existing UI change": {"skills/frontend-craft/SKILL.md"},
             "Greenfield UI": {
@@ -62,6 +76,21 @@ class CraftPathTests(unittest.TestCase):
                 self.assertNotIn("skills/production-change-gate/SKILL.md", paths)
                 self.assertEqual(len(paths), len(set(paths)), "shared files counted twice")
                 self.assertIn(task, check_context_cost.TASK_BUDGETS)
+
+    def test_python_depth_stays_conditional_and_every_reference_is_measured(self) -> None:
+        for task in ("Existing UI change", "Greenfield UI"):
+            with self.subTest(task=task):
+                self.assertFalse(any("python-craft" in path
+                                     for path in check_context_cost.TASK_FILES[task]))
+        measured = {path for paths in check_context_cost.TASK_FILES.values() for path in paths}
+        references = {
+            path.relative_to(check_context_cost.ROOT).as_posix()
+            for path in (check_context_cost.ROOT / "skills/python-craft/references").glob("*.md")
+        }
+        self.assertTrue(references)
+        self.assertTrue(references <= measured, "Python reference omitted from context budgets")
+        for task in ("Python automated refactor", "Python library migration"):
+            self.assertNotIn("skills/backend-craft/SKILL.md", check_context_cost.TASK_FILES[task])
 
     def test_release_preparation_adds_context_to_the_same_code_task(self) -> None:
         code = set(check_context_cost.TASK_FILES.get("FastAPI upstream change", []))

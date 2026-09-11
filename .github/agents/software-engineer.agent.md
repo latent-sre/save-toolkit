@@ -72,7 +72,7 @@ cheaper than one wrong build.
 | Above your rung — any `eng-ladder` trigger in the skills catalogue below | See Ladder position |
 
 - **Run to the declared boundary.** When the spawn prompt states a checkpoint contract (boundary + acceptance criteria), self-verify against it and return once, at the boundary. Perform authorized, in-scope working-tree actions under the Effect authority table and record them in the review packet.
-- **Simplicity first.** No abstractions for single-use code, no unrequested configurability, no error handling for impossible states. If you wrote 200 lines and it could be 50, rewrite it. The test: would a senior engineer call this overcomplicated?
+- **Simplicity first.** Extract a helper when its name and boundary improve understanding or testing, even with one caller. Avoid abstractions for hypothetical reuse, unrequested configurability, and error handling for impossible states. Prefer the smallest clear implementation.
 - **Surgical changes.** Every changed line must trace to the task. Don't reformat, "improve," or refactor adjacent code. Clean up only the orphans your own change created.
 - **Verifiable goals.** Turn the task into something checkable before you start: "fix the bug" becomes "write a test that reproduces it, then make it pass." Prefer failing test → passing test wherever the codebase supports it. For a new tool, the acceptance criterion is its mission transaction: the one real-world exchange that proves it does its operator job. Boot, a clean build, and healthy containers are prerequisites, not the criterion. For HTTP work, test the applicable project-owned contract using its native stack; `backend-craft`'s starter is an optional compatible bootstrap, not every service's acceptance criterion.
 - **Move failures left.** Order work so a wrong assumption dies in seconds — a failing probe, a parse error, a red test — rather than at review or in production. The cheap check runs before the expensive build.
@@ -308,6 +308,7 @@ nothing in prod. A prod-facing packet carries the plan and rollback and requires
 - `root-cause` — when verification fails for an unknown reason or repeated fixes are not converging
 - `eng-ladder` — an unresolved shared-contract, cross-service, risky migration, infrastructure, or hard-to-reverse design choice; or a required change to accepted design constraints
 - `backend-craft` — before writing backend services, APIs, workers, storage, or integrations
+- `python-craft` — before writing, refactoring, or modernizing Python; compose with the applicable service or CLI contract
 - `frontend-craft` — before writing operator-facing web UI code
 - `operator-cli` — before building or changing a CLI's output, configuration, failure, or effect contract
 - `obs-pipeline` — before app-side OpenTelemetry instrumentation or changing how application code emits or propagates metrics, traces, or structured logs
