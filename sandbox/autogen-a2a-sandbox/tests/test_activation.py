@@ -219,7 +219,7 @@ def _final_runtime_fixture(module):
         "case_id": artifact["case_id"],
         "case_digest": artifact["case_digest"],
         "candidate_revision": artifact["candidate_revision"],
-        "python": "3.12.10",
+        "python": "3.14.7",
         "packages": copy.deepcopy(module._PINNED_PACKAGES),
         "analysis_invocations": 1,
         "a2a": {"state": "completed", "task_id": artifact["a2a_task_id"], "context_id": artifact["a2a_context_id"], "artifact_id": artifact["artifact_id"], "authoritative_content": "data", "transport_mode": "maf-workflow", "used_streaming_workflow": True, "event_timeline": timeline},
@@ -700,7 +700,7 @@ class HostEvidenceValidationTests(unittest.TestCase):
             "status": "input-required", "run_id": terminal["run_id"],
             "source_revision": terminal["source_revision"], "case_id": case.case_id,
             "case_digest": terminal["case_digest"], "candidate_revision": terminal["candidate_revision"],
-            "python": "3.12.10", "packages": copy.deepcopy(self.module._PINNED_PACKAGES),
+            "python": "3.14.7", "packages": copy.deepcopy(self.module._PINNED_PACKAGES),
             "analysis_invocations": 1, "remote_request_info_count": 1,
             "approval_request_info_count": 0, "artifact": None,
             "a2a": {"state": "input-required", "task_id": terminal["a2a_task_id"], "context_id": terminal["a2a_context_id"], "artifact_id": None, "transport_mode": "maf-workflow", "used_streaming_workflow": True, "event_timeline": timeline, "recovery": {"same_task": True}},
@@ -747,7 +747,7 @@ class HostEvidenceValidationTests(unittest.TestCase):
             "source_revision": "1" * 40, "case_id": case.case_id,
             "case_digest": canonical_sha256(case),
             "candidate_revision": case.candidate.candidate_revision,
-            "python": "3.12.10", "packages": copy.deepcopy(self.module._PINNED_PACKAGES),
+            "python": "3.14.7", "packages": copy.deepcopy(self.module._PINNED_PACKAGES),
             "analysis_invocations": 1, "remote_request_info_count": 0,
             "approval_request_info_count": 0, "artifact": None,
             "a2a": {
@@ -923,7 +923,7 @@ class HostEvidenceValidationTests(unittest.TestCase):
                 "image_id": image_id, "daemon_id": daemon_id, "docker_context": "desktop-linux",
                 "docker_server": {"Version": "29.7.0", "ApiVersion": "1.53", "Os": "linux", "Arch": "amd64"},
                 "docker_compose": "5.0.0", "host_python": platform.python_version(),
-                "runtime_python": "3.12.10", "packages": copy.deepcopy(self.module._PINNED_PACKAGES),
+                "runtime_python": "3.14.7", "packages": copy.deepcopy(self.module._PINNED_PACKAGES),
             }),
         }
         stage = root / ".final-bundle.pending"

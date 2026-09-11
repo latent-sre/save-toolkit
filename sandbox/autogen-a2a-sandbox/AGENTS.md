@@ -5,8 +5,8 @@ These instructions apply only under `autogen-a2a-sandbox/`. The root `AGENTS.md`
 
 ## Environment card
 
-- **Toolchain**: Python 3.12.10 at `python`; Docker Engine 29.7.2 Linux/amd64; Docker Compose
-  5.4.0; one pinned Linux/amd64 Python 3.12 image shared by both runtime roles unless the clean
+- **Toolchain**: Python 3.14.7 at `python`; Docker Engine 29.7.2 Linux/amd64; Docker Compose
+  5.4.0; one pinned Linux/amd64 Python 3.14 image shared by both runtime roles unless the clean
   dependency probe proves a conflict.
 - **Build**: `python autogen-a2a-sandbox/activate.py build --docker-context desktop-linux --source-revision <40-lowercase-hex>`.
 - **Run**: `python autogen-a2a-sandbox/activate.py fresh --docker-context desktop-linux --source-revision <same-40-hex> --run-id mission-healthy-001 --evidence-root <existing-canonical-dir> --case mission-healthy-001 --approval-fixture PENDING`.

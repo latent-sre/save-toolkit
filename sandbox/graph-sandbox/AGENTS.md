@@ -5,8 +5,8 @@ runtime decision, and the live roadmap remain authoritative.
 
 ## Environment card
 
-- **Toolchain**: Python 3.12.10 at `python`; Docker Engine 29.7.2 Linux/amd64; Docker Compose 5.4.0;
-  container base `python:3.12.10-slim-bookworm@sha256:97983fa8cc88343512862c62307159a82261c3528dc025f79e5a3f7af43e50b4`
+- **Toolchain**: Python 3.14.7 at `python`; Docker Engine 29.7.2 Linux/amd64; Docker Compose 5.4.0;
+  container base `python:3.14.7-slim-bookworm@sha256:9ab8d9c8514b44f90cf0029dd42fdd7e9e211e639c8b995304cc04568dee900f`
   for Linux/amd64.
 - **Build**: `python sandbox/graph-sandbox/activate.py build --docker-context <named-local-context> --source-revision <40-lowercase-hex>`.
 - **Run**: `python sandbox/graph-sandbox/activate.py fresh --docker-context <same-named-local-context> --source-revision <same-40-hex> --run-id mission-healthy-001 --evidence-root <existing-canonical-dir> --case mission-healthy-001 --approval-fixture APPROVED`.

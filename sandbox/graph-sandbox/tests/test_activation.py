@@ -498,8 +498,8 @@ class SnapshotTests(unittest.TestCase):
 
     def test_builder_uses_snapshot_for_build_and_repeats_explicit_local_context(self) -> None:
         base = (
-            b"FROM python:3.12.10-slim-bookworm@"
-            b"sha256:97983fa8cc88343512862c62307159a82261c3528dc025f79e5a3f7af43e50b4\n"
+            b"FROM python:3.14.7-slim-bookworm@"
+            b"sha256:9ab8d9c8514b44f90cf0029dd42fdd7e9e211e639c8b995304cc04568dee900f\n"
         )
         archive = self.archive_files(
             {
@@ -954,7 +954,7 @@ class ActivationTests(unittest.TestCase):
             "runtime.json": json.dumps(
                 {
                     "runtime_version": "graph-runner-runtime/v1",
-                    "python_version": "3.12.10",
+                    "python_version": "3.14.7",
                     "packages": {
                         "httpx": "0.28.1",
                         "langgraph": "1.0.10",
@@ -1801,7 +1801,7 @@ class ActivationTests(unittest.TestCase):
             environment = json.loads(
                 (final / "environment.json").read_text(encoding="utf-8")
             )
-            self.assertEqual(environment["python_runtime_posture"], "observed:3.12.10")
+            self.assertEqual(environment["python_runtime_posture"], "observed:3.14.7")
             self.assertEqual(
                 environment["package_posture"],
                 {

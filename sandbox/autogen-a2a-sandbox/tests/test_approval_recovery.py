@@ -22,7 +22,6 @@ from a2a.types import Part  # noqa: E402
 from agent_framework import FileCheckpointStorage, WorkflowBuilder  # noqa: E402
 from google.protobuf.json_format import ParseDict  # noqa: E402
 from google.protobuf.struct_pb2 import Value  # noqa: E402
-from sse_starlette.sse import AppStatus  # noqa: E402
 from uvicorn import Config, Server  # noqa: E402
 
 from interop_sandbox.a2a_worker import create_worker_app  # noqa: E402
@@ -419,8 +418,6 @@ class ApprovalGateTests(unittest.IsolatedAsyncioTestCase):
 
 class A2ASameTaskLifecycleTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
-        AppStatus.should_exit = False
-        AppStatus.should_exit_event = None
         self.requests = _requests_by_case()
         self.temporary = tempfile.TemporaryDirectory()
         self.state_directory = Path(self.temporary.name)

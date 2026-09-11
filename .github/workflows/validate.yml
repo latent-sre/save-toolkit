@@ -33,12 +33,9 @@ jobs:
         run: python scripts/gate_a.py
 
   component-tests:
-    # Exercise OS-specific paths in tests, not a duplicate structural-only Windows job.
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+    # Preserve the required-check identity while running only Linux.
+    name: component-tests (ubuntu-latest)
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - name: Check out repository

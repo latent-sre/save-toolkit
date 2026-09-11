@@ -9,7 +9,7 @@ from typing import Any, Sequence
 
 
 PROBE_VERSION = "autogen-a2a-dependency-probe/v1"
-EXPECTED_PYTHON = "3.12.10"
+EXPECTED_PYTHON = "3.14.7"
 EXPECTED_DISTRIBUTIONS = {
     "a2a-sdk": "1.1.2",
     "agent-framework-a2a": "1.0.0b260821",

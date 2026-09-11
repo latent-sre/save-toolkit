@@ -18,7 +18,7 @@ updates every producer and consumer in one revision and bumps this interface ver
 ## Boundary and topology
 
 The orchestrator is an A2A client and the worker is an A2A server. Both run from the same immutable
-Python 3.12 image so the build proves the pinned dependency families coexist. They communicate only
+Python 3.14 image so the build proves the pinned dependency families coexist. They communicate only
 over the run-scoped internal Compose network. The worker exposes JSON-RPC v1 and Agent Card routes
 internally; the orchestrator binds no socket. No runtime service is reachable from the host.
 
