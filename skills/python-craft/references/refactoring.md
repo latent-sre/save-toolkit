@@ -1,0 +1,96 @@
+# Refactoring Python
+
+Preserve behavior through small, inspectable transformations. The parent skill owns baseline and
+verification; a code smell suggests a question, not an automatic rewrite.
+
+## Choose a transformation
+
+| Technique | Useful trigger | Preserve or check |
+|---|---|---|
+| Guard clauses | Terminal cases hide the normal path | Condition order, effects before return, cleanup, zero/None semantics |
+| Extract function/method | A coherent calculation or operation lacks a name | Live inputs, returned state, mutation, exception and return boundaries |
+| Inline helper | Indirection hides an already simple operation | Public callers and any hidden effect |
+| Named predicate/variable | An expression hides domain meaning | Short-circuiting, evaluation order and number of calls |
+| Dictionary lookup/dispatch | Branches compare stable keys for equality | Missing keys, hashability, duplicate/equal keys, and eager evaluation |
+| List/dict/set comprehension | Simple mapping/filter builds the required collection | Scope, ordering, duplicate handling and materialization |
+| Generator expression | Values can be consumed once and incrementally | Deferred work/errors, exhaustion, and resource lifetime |
+| Standard collection operation | A loop duplicates a known operation | Empty cases, ordering, mutation and algorithmic cost |
+
+For extraction, returning inside a new helper does not return from its caller. Adapt the caller
+explicitly; likewise, a moved `break` or `continue` must retain its original loop effect. Avoid a
+helper with a large bundle of unrelated inputs simply to reduce the caller's line count.
+
+## Guards and extraction together
+
+Both functions implement the same contract: ignore negative values and scale the sum, with `None`
+meaning the default multiplier. The extracted calculation is useful despite having one caller.
+
+```python
+def total_before(values: list[int], multiplier: int | None) -> int:
+    if values:
+        subtotal = 0
+        for value in values:
+            if value >= 0:
+                subtotal += value
+        if multiplier is None:
+            return subtotal
+        return subtotal * multiplier
+    return 0
+
+
+def nonnegative_sum(values: list[int]) -> int:
+    return sum(value for value in values if value >= 0)
+
+
+def total_after(values: list[int], multiplier: int | None) -> int:
+    if not values:
+        return 0
+    subtotal = nonnegative_sum(values)
+    if multiplier is None:
+        return subtotal
+    return subtotal * multiplier
+```
+
+Check empty/mixed/all-negative inputs and `None`, zero, and negative multipliers. Keep exceptions
+and effects outside this example under their own contract; the integers here have no external work.
+
+## Dictionaries and comprehensions need semantic checks
+
+Use a dispatch table for equality-based selection, keeping the established unknown-action result:
+
+```python
+def transform(text: str, action: str) -> str:
+    handlers = {"upper": str.upper, "lower": str.lower}
+    if action not in handlers:
+        raise ValueError(f"unsupported action: {action}")
+    return handlers[action](text)
+```
+
+Store callables when only the selected operation should execute. A dictionary containing function
+*calls* evaluates those values during construction. `mapping.get(key, expensive_default())` also
+evaluates its default on a hit. Ranges, overlapping predicates, and ordered fallbacks often remain
+clearer as conditionals; hashing and equality must fit the keys the old code accepted.
+
+Prefer a straightforward transformation with an optional filter. Keep an explicit loop when the
+work needs several stages, per-item exceptions, logging, or effects. In Python 3, a comprehension's
+iteration variable does not replace the surrounding variable as an ordinary loop does.
+
+A generator expression delays element computation, but evaluates the outermost iterable expression
+immediately. Replacing a list with a generator changes repeatability, indexing, length, and when
+errors occur. A generator returned from a closed file context cannot consume that file. Passing a
+generator to `any`/`all` may skip later effects that an eagerly built list performed.
+
+## Check equivalence at the changed boundary
+
+Use existing contract tests plus focused missing cases. For deterministic logic, compare old/new
+implementations over representative inputs, checking relevant types, mutations, errors, and effects
+as well as values. Pair differential checks with independent expectations: preserving an old bug
+does not satisfy a requested fix. Keep test data, external effects, and time controlled.
+
+Use property-based testing for a useful invariant or reference implementation over a broad input
+space; keep ordinary examples for named regressions. The parent skill owns performance verification.
+
+[sourced] [Fowler's guard clauses](https://refactoring.com/catalog/replaceNestedConditionalWithGuardClauses.html),
+[Extract Function](https://refactoring.com/catalog/extractFunction.html),
+[Python expression semantics](https://docs.python.org/3/reference/expressions.html), and
+[Hypothesis properties](https://hypothesis.readthedocs.io/en/latest/tutorial/introduction.html).

@@ -1,0 +1,26 @@
+id: build-python-generator-lifetime
+agent: software-engineer
+tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
+prompt: |
+  Fix records.py in this reviewed, team-authored Python 3.11+ fixture. iter_records(path) must
+  return a closeable iterator yielding each UTF-8 line stripped of surrounding whitespace.
+  The caller consumes it after the function returns. Keep processing incremental for large
+  files, and close the owned file on exhaustion, explicit iterator.close(), or decoding failure.
+  Preserve empty lines as empty strings and propagate decoding errors.
+  Use local checks; no network, installs, commits, or external systems. Only change records.py
+  and optional tests/test_records.py. Report what you changed and verified.
+fixture:
+  files:
+    .gitignore: "__pycache__/\n"
+    records.py: |
+      def iter_records(path):
+          with open(path, encoding="utf-8") as source:
+              return (line.strip() for line in source)
+checks:
+  - {check: skill_loaded, skill: python-craft, text: "Python craft was loaded"}
+  - {check: changes_within, allowed: [records.py, tests/test_records.py], text: "changes stay in the requested module and tests"}
+  - {check: no_new_commits, text: "no commits"}
+  - check: command_exit_zero
+    command: "python -I -B _python_oracle.py generator"
+    writes_from: {_python_oracle.py: evals/oracles/python-craft/check_contracts.py}
+    text: "iterator output, exhaustion, explicit closure and decoding-error cleanup work"

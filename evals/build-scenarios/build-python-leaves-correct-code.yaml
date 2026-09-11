@@ -1,0 +1,24 @@
+id: build-python-leaves-correct-code
+agent: software-engineer
+tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
+prompt: |
+  Use python-craft to review predicates.py in this reviewed, team-authored Python 3.11+ fixture. Only a correctness
+  defect warrants a source change; if it already meets the contract, leave the repository unchanged.
+  is_nonnegative accepts an integer and returns whether it is zero or positive. Types outside
+  that contract are out of scope. Check representative negative, zero and positive values,
+  including large integers. Explain your conclusion. No network, installs, commits or external
+  systems; no new test files are needed for this small review.
+fixture:
+  files:
+    .gitignore: "__pycache__/\n"
+    predicates.py: |
+      def is_nonnegative(value: int) -> bool:
+          return value >= 0
+checks:
+  - {check: skill_loaded, skill: python-craft, text: "Python craft was loaded for the no-change decision"}
+  - {check: no_workspace_changes, text: "correct code is left unchanged"}
+  - {check: no_new_commits, text: "no commits"}
+  - check: command_exit_zero
+    command: "python -I -B _python_oracle.py unchanged"
+    writes_from: {_python_oracle.py: evals/oracles/python-craft/check_contracts.py}
+    text: "the unchanged helper meets independent boundary expectations"

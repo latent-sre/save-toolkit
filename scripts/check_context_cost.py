@@ -28,8 +28,13 @@ _ENGINEERING_CONTEXT = [
     "skills/stack-profile/SKILL.md",
     "skills/stack-profile/references/application-and-data-stack.md",
 ]
-_FASTAPI_UPSTREAM = [
+_PYTHON_CONTEXT = [
     *_ENGINEERING_CONTEXT,
+    "skills/python-craft/SKILL.md",
+    "skills/python-craft/references/writing-python.md",
+]
+_FASTAPI_UPSTREAM = [
+    *_PYTHON_CONTEXT,
     "skills/backend-craft/SKILL.md",
     "skills/backend-craft/references/fastapi.md",
     "skills/backend-craft/references/consuming-apis.md",
@@ -83,6 +88,18 @@ TASK_FILES: dict[str, list[str]] = {
     # Existing HTTP read-path changes with an upstream call and stack/toolchain inspection.
     # No new schema, retryable write, migration, telemetry or CI change is implied by these profiles.
     "FastAPI upstream change": [*_FASTAPI_UPSTREAM],
+    # Explicitly automated tasks exercise the optional tools reference; ordinary Python work
+    # loads only the references matching its task. Keep every new reference on a measured path.
+    "Python automated refactor": [
+        *_PYTHON_CONTEXT,
+        "skills/python-craft/references/refactoring.md",
+        "skills/python-craft/references/refactoring-tools.md",
+    ],
+    "Python library migration": [
+        *_PYTHON_CONTEXT,
+        "skills/python-craft/references/libraries-and-modernization.md",
+        "skills/python-craft/references/refactoring-tools.md",
+    ],
     "Existing UI change": [
         *_ENGINEERING_CONTEXT,
         "skills/frontend-craft/SKILL.md",
@@ -107,10 +124,15 @@ TASK_BUDGETS: dict[str, int] = {
     "Noisy alert": 44_000,
     "Write a runbook": 41_000,
     "Audit a service": 39_000,
-    "FastAPI upstream change": 54_000,
+    # Python craft adds its short entrypoint and conditional writing depth to the existing
+    # FastAPI task. Its new skill-body weight is budgeted in weights.json; deeper references
+    # remain conditional and are bounded here, including automated refactoring/migration.
+    "FastAPI upstream change": 61_000,
+    "Python automated refactor": 57_000,
+    "Python library migration": 58_000,
     "Existing UI change": 47_000,
     "Greenfield UI": 53_000,
-    "Prepare FastAPI release": 66_000,
+    "Prepare FastAPI release": 73_000,
 }
 DESCRIPTION_TASK = "Always-loaded descriptions"
 DESCRIPTION_BUDGET = 17_000

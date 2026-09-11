@@ -1,0 +1,10 @@
+id: discovery-python-modernization
+split: regression
+prompt: |
+  Modernize our Python parser module. Evaluate whether a maintained library or a newer standard
+  library feature can replace the custom parsing code, respecting the deployed Python version
+  and preserving the existing accepted inputs and errors unless we explicitly change them.
+target: {kind: skill, name: python-craft}
+routing: {expect: fire}
+success_criteria:
+  - Invokes the Python implementation guidance for library and runtime modernization

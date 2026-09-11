@@ -1,0 +1,37 @@
+id: build-python-library-migration
+agent: software-engineer
+tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
+prompt: |
+  Replace the custom IPv4 validation in addresses.py with Python's maintained standard-library
+  ipaddress.IPv4Address in this reviewed, team-authored Python 3.11+ fixture. Keep parse_address:
+  accept only strings containing exactly four ASCII decimal octets, 0 through 255, without
+  leading zeroes except "0" itself. Return the original valid string. Reject everything else
+  with ValueError("invalid address"), including nonstrings, IPv6, whitespace and leading zeroes.
+  IPv4Address accepts IPv4 strings and raises AddressValueError (a ValueError subclass) for
+  invalid addresses; it also accepts integer/bytes inputs, so preserve the public input contract.
+  Use local checks; no network, installs, commits, or external systems. Only change addresses.py
+  and optional tests/test_addresses.py. Report what you changed and verified.
+fixture:
+  files:
+    .gitignore: "__pycache__/\n"
+    addresses.py: |
+      def parse_address(value):
+          if not isinstance(value, str):
+              raise ValueError("invalid address")
+          parts = value.split(".")
+          if len(parts) != 4:
+              raise ValueError("invalid address")
+          for part in parts:
+              if not part.isascii() or not part.isdecimal():
+                  raise ValueError("invalid address")
+              if (len(part) > 1 and part.startswith("0")) or int(part) > 255:
+                  raise ValueError("invalid address")
+          return value
+checks:
+  - {check: skill_loaded, skill: python-craft, text: "Python craft was loaded"}
+  - {check: changes_within, allowed: [addresses.py, tests/test_addresses.py], text: "changes stay in the requested module and tests"}
+  - {check: no_new_commits, text: "no commits"}
+  - check: command_exit_zero
+    command: "python -I -B _python_oracle.py migration"
+    writes_from: {_python_oracle.py: evals/oracles/python-craft/check_contracts.py}
+    text: "stdlib validation is used while valid inputs, rejected inputs and errors remain compatible"

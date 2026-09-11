@@ -1,0 +1,38 @@
+id: build-python-refactor-effects
+agent: software-engineer
+tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
+prompt: |
+  Refactor batch.py in this reviewed, team-authored Python 3.11+ fixture. Simplify the nested
+  conditions and extract meaningful calculations where useful, preserving process(values, *,
+  limit=None, emit) and its behavior. Values are a list of integers or None. Skip None and negative
+  values; emit each accepted value before appending its double. Limit counts accepted values;
+  None means unlimited, zero means none, and a negative limit raises ValueError("negative limit")
+  before any emission. Propagate callback exceptions. Do not mutate the input.
+  Use local checks; no network, installs, commits, or external systems. Only change batch.py
+  and optional tests/test_batch.py. Report what you changed and verified.
+fixture:
+  files:
+    .gitignore: "__pycache__/\n"
+    batch.py: |
+      def process(values, *, limit=None, emit):
+          if limit is None or limit >= 0:
+              result = []
+              for value in values:
+                  if limit is None or len(result) < limit:
+                      if value is not None:
+                          if value >= 0:
+                              emit(value)
+                              result.append(value * 2)
+              return result
+          raise ValueError("negative limit")
+checks:
+  - {check: skill_loaded, skill: python-craft, text: "Python craft was loaded"}
+  - {check: changes_within, allowed: [batch.py, tests/test_batch.py], text: "changes stay in the requested module and tests"}
+  - {check: no_new_commits, text: "no commits"}
+  - check: command_exit_zero
+    command: "python -c \"import subprocess,sys; sys.exit(0 if subprocess.run(['git','diff','--quiet','HEAD','--','batch.py']).returncode == 1 else 1)\""
+    text: "the requested module was changed, rather than only reporting the original passing behavior"
+  - check: command_exit_zero
+    command: "python -I -B _python_oracle.py refactor"
+    writes_from: {_python_oracle.py: evals/oracles/python-craft/check_contracts.py}
+    text: "values, limits, errors, mutation and callback effects satisfy independent expectations"

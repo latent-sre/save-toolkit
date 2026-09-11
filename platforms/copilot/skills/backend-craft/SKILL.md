@@ -75,6 +75,7 @@ operability and failure rules that fit a worker, scheduler, or client without ad
 
 | If the task involves… | Read first |
 |---|---|
+| writing, refactoring, or modernizing Python | Load `python-craft` for language and library choices |
 | building in Python + FastAPI | [FastAPI mechanics](./references/fastapi.md) |
 | calling any upstream or third-party API, including our platform and observability APIs | [consuming-apis](./references/consuming-apis.md) |
 | a new HTTP contract with no project-owned one | [openapi.starter.yaml](./assets/openapi.starter.yaml) |
