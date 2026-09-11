@@ -1,0 +1,29 @@
+id: discovery-investigator-preserves-existing-commander
+split: regression
+prompt: |
+  Keep walking me through checkout as the investigating SRE, Priya. Morgan is already our
+  human incident commander and maintains the authoritative record. Omar owns release execution.
+  It is 14:20 UTC. Release B completed at 14:00; checkout errors began at 14:02 and rose from
+  18% at 14:05 to 35% at 14:18. Morgan declared P2 at 14:07. User count is unknown. Lee is
+  investigating payments; no payments impact or recovery report has arrived. The runbook lists
+  rollback to A, and Omar confirms A is deployable, but its payments compatibility is unknown.
+  No mitigation is approved, attempted, or applied. Should I recommend rollback, flag severity
+  for reassessment, and what should I put in my update to Morgan? Use these supplied facts;
+  no live systems or communications tools are available in this exercise.
+success_criteria:
+- Continues with the investigation advisor and does not invoke command guidance automatically
+- Preserves Morgan as commander, Priya as investigator, and Omar as executor
+- Prepares recommendations and an update for Morgan without claiming unperformed actions
+target:
+  kind: skill
+  name: incident-command
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: skill
+    name: incident-investigation
+tools:
+- Skill
+- Read
+- Glob
+- Grep

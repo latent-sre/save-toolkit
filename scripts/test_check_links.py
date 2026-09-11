@@ -252,6 +252,23 @@ class LinkCheckerTests(Fixture):
             failures,
         )
 
+    def test_incident_command_requires_explicit_invocation_control(self):
+        frontmatter = CLEAN_FRONTMATTER.replace("name: probe-skill", "name: incident-command")
+        path = "skills/incident-command/SKILL.md"
+        self.write(path, frontmatter + "\n# Command\n")
+        self.assertTrue(any("manual-only skill must contain frontmatter" in failure
+                            for failure in check_links.check(self.root)))
+        for value in ("true", "false", '"true"'):
+            with self.subTest(value=value):
+                candidate = frontmatter.replace('argument-hint: "[the probe]"',
+                    f'argument-hint: "[the probe]"\ndisable-model-invocation: {value}')
+                self.write(path, candidate + "\n# Command\n")
+                failures = check_links.check(self.root)
+                if value == "true":
+                    self.assertEqual([], failures)
+                else:
+                    self.assertTrue(failures)
+
     def test_manual_only_control_is_required_inside_frontmatter_and_cannot_widen(self):
         manual_frontmatter = CLEAN_FRONTMATTER.replace(
             "name: probe-skill", "name: pcf-deploy"

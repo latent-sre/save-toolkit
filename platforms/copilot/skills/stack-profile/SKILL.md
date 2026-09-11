@@ -63,9 +63,9 @@ verification. The entrypoint rules remain authoritative after a reference is loa
 
 ## Incident response
 A formal on-call rotation is in place. *[sourced: operator statement 2026-08-21]*
-`incident-command` owns the current P1–P4 entry criteria, response roles, and communications cadence
-and records their ratification status; load it whenever severity, roles, or incident communications
-matter. Other skills consume the selected tier without copying its rubric.
+The human invokes `/incident-command` for command advice. Other skills may read
+`skills/incident-command/references/severity-and-declaration.md` from the installed plugin root
+for the ratified P1–P4 policy without invoking IC or changing human command ownership.
 
 ## Change management
 Change records live in **both BMC Remedy and Jira**. `production-change-gate` refers to "the formal

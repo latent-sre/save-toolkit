@@ -8,6 +8,9 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- Made `incident-command` user-invoked only; investigators preserve the human commander and read
+  shared severity/mitigation references without activating IC. The skill-byte ceiling increases
+  by 900 bytes for the explicit-invocation boundary and installed-reference pointers.
 - Corrected wrong PCF mitigation guidance: whole-app `cf restart` stops every instance, so the
   covered restart is per-instance or rolling; a revision rollback restores the revision's env vars
   and creates a new `Rolled back to revision <n>` entry, so readback checks the description; rollback

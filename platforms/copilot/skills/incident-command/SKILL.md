@@ -1,11 +1,11 @@
 ---
 name: incident-command
 description: >-
-  Coordinate a live incident: set or revise P1-P4 severity, establish command roles and the
-  authoritative timeline, prepare stakeholder updates, and choose a reversible mitigation for human
-  execution. Triggers: 'declare an incident', 'what severity is this', 'send the incident update',
-  'should we roll back'. Not for technical diagnosis (incident-investigation), resolved-incident documentation
-  (scribe), or applying production changes.
+  Advise the human incident commander on severity, roles, priorities, mitigation decisions, and
+  communications. User-invoked only via /incident-command. Triggers: 'help me coordinate
+  this incident', 'prepare the incident update'. Not for an investigator's technical recommendations
+  (incident-investigation), resolved-incident documentation (scribe), or applying production changes.
+disable-model-invocation: true
 argument-hint: "[the incident or severity question]"
 ---
 
@@ -13,8 +13,13 @@ argument-hint: "[the incident or severity question]"
 
 > **Copilot adapter:** Fleet component names are bare in this generated copy.
 > Resolve them from the installed plugin using the host's agent or skill picker.
+> This skill is explicit-only through Copilot's frontmatter switch.
 
 # Incident command
+
+The human starts this skill with `/incident-command`. Never auto-load it from another
+skill or agent. Advise the human commander; invocation does not transfer command or replace an
+existing commander or their designated incident record.
 
 Lead with the current severity and impact, then establish control. Set a **provisional** severity
 from what is known in the first minutes and revise it as the blast radius becomes clearer. Round up

@@ -1,8 +1,9 @@
 # Severity and declaration
 
 Use this reference when the request asks how serious the incident is, whether to declare, who must
-be paged, or how often updates are due. The `incident-command` entrypoint's security carve-out and
-human-only effect boundary remain controlling.
+be paged, or how often updates are due. Investigators may read this policy without invoking
+`incident-command`: recommend reassessment to the existing human commander, preserving their
+recorded classification. Reading policy grants no command or execution authority.
 
 ## Severity rubric — round up when unsure
 

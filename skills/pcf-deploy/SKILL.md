@@ -3,7 +3,7 @@ name: pcf-deploy
 description: >-
   Plan human-approved VMware TAS/PCF application deploys, blue-green cutovers, scaling, and
   rollback verification. Triggers: 'deploy this app to PCF', 'design a blue-green deploy',
-  'scale this PCF app'. Not for readiness (production-change-gate) or the rollback decision (incident-command).
+  'scale this PCF app'. Not for readiness (production-change-gate) or technical rollback selection (incident-investigation).
 compatibility: Requires the cf CLI v8 and authorized access to the target PCF foundation/space
 # Deploys are human-initiated: invoke explicitly as `/save-toolkit:pcf-deploy`; never auto-load.
 disable-model-invocation: true
@@ -53,8 +53,9 @@ unverified for the target foundation and retained artifacts]* Neither reverses:
 Design schema changes as expand → backfill → dual-write, and do not contract until the old code is
 permanently gone. `database-reliability` owns operational migration safety; this is an ownership map,
 not permission to load it. "We can roll back" remains `[unverified]` until rehearsed evidence proves
-the exact artifact and target can be restored. A rollback decision during an incident belongs to
-`incident-command`.
+the exact artifact and target can be restored. For a rollback recommendation, read
+`skills/incident-command/references/mitigation-selection.md` from the installed plugin root without
+invoking IC. The human incident owner decides.
 
 ## Route context only when it matches
 

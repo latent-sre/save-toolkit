@@ -41,7 +41,7 @@ fires"; plugin skills are namespaced (`plugin:name`) and sit outside that chain.
 | Field | Disposition here |
 |---|---|
 | `name`, `description`, `argument-hint` | The fleet's set. `description` is the trigger and loads every session; `check_links.py` caps it at **600 UTF-8 bytes** and requires a literal `Triggers:` list carrying 2–4 quoted user phrasings |
-| `disable-model-invocation: true` | Side-effect skills (deploy, onboard): user-only invocation via `/plugin:name`, description removed from the model's context, unavailable for agent `skills:` preloading. `[verified 2026-08-25, CLI 2.1.243]` by a paired disposable-plugin canary; earlier builds (2.1.29, 2.1.212) ignored it for plugin-shipped skills, so the skill body still defers authority rather than trusting the flag |
+| `disable-model-invocation: true` | Human-selected workflows (`pcf-deploy`, `incident-command`): user-only invocation via `/plugin:name`, description removed from the model's context, unavailable for agent `skills:` preloading. `[verified 2026-08-25, CLI 2.1.243]` by a paired disposable-plugin canary; earlier builds (2.1.29, 2.1.212) ignored it for plugin-shipped skills, so the skill body still defers authority rather than trusting the flag |
 | `allowed-tools`, `disallowed-tools` | `allowed-tools` **grants** (pre-approves) while the skill is active and cannot restrict; `disallowed-tools` **removes** tools while the skill is active, clearing on the next user message — the only restricting field. Neither is used here |
 | `user-invocable: false`, `when_to_use`, `arguments`, `model`, `effort`, `context`, `agent`, `hooks`, `paths`, `shell` | Available on the platform, unused here; `when_to_use` is decided against below |
 

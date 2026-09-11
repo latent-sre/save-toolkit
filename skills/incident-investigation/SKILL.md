@@ -5,8 +5,8 @@ description: >-
   including a first responder who does not know where to start, or explain what a graph, log, or
   alert is telling them. Triggers: 'I just got paged, what do I do', 'customers are reporting
   errors, where do I start', 'walk me through this incident', 'what should I check next'. Not for
-  a dispatched read-only evidence slice (sre-assistant agent) or incident command and
-  communications (incident-command).
+  a dispatched read-only evidence slice (sre-assistant agent) or managing the incident response
+  (the human's explicitly invoked incident-command skill).
 argument-hint: "[INC id or symptom] [knowledge repository root]"
 ---
 
@@ -87,8 +87,10 @@ recap or handover uses the expanded board below.
    the candidates; use two independent checks only when access and help make both feasible.
 5. **The call.** Recommend who to involve from the escalation path. Recommend declaration/command
    if not stabilized in roughly fifteen minutes or impact grows; sooner for customer-visible
-   impact or another team's help (`incident-command`). Use supplied UTC to state the due time;
-   do not invent elapsed time. Inform an existing commander; do not reassign, declare, or page yourself.
+   impact or another team's help. Use supplied UTC to state the due time; do not invent elapsed time.
+   Preserve the existing human commander; help prepare findings, recommendations, and questions for
+   them. Do not invoke `incident-command`, assume command, reassign, declare, or page yourself.
+   If command ownership is unknown, recommend establishing it while continuing useful investigation.
 6. **Board.** Update the current state below so the next reply starts from what was learned.
 
 ## Building the differential
@@ -220,7 +222,8 @@ state, read the [worked helper exchange](./references/helper-exchange.md) before
 | External synthetic failure, alert storm, or a Moogsoft Situation | `obs-alerting`, including its `thousandeyes` and `moogsoft` references |
 | Deeper causal method once the symptom is confirmed | `root-cause` |
 | Signal locations and query dialect | `stack-profile` |
-| Severity, roles, communications, authoritative timeline | `incident-command` |
+| Severity assessment | Read `skills/incident-command/references/severity-and-declaration.md` from the installed plugin root; recommend reassessment to the human commander without invoking IC |
+| Command decisions or updates | Prepare evidence and questions for the human commander; their designated incident record is authoritative |
 | Suspected compromise | Human security owner; preserve evidence |
 
 ### Investigation board
@@ -248,7 +251,7 @@ Do not silently assign all work to the incident owner or remove a candidate mere
 Expand this same board at a transition, handover/recap, direction change, attempted/applied mitigation,
 or accumulated branches. Include what the next responder needs; append no second summary. Ask for
 specific missing context. This conversation view is not a repository write or permanent memory;
-an active `incident-command` timeline is authoritative.
+the human commander's designated incident record is authoritative, whether or not they use a skill.
 
 ## Handover and after
 
