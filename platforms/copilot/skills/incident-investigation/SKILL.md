@@ -1,12 +1,11 @@
 ---
 name: incident-investigation
 description: >-
-  Help the human SRE understand evidence and choose the next useful step during a live incident,
-  including a first responder who does not know where to start, or explain what a graph, log, or
-  alert is telling them. Triggers: 'I just got paged, what do I do', 'customers are reporting
-  errors, where do I start', 'walk me through this incident', 'what should I check next'. Not for
-  a dispatched read-only evidence slice (sre-assistant agent) or incident command and
-  communications (incident-command).
+  Help the human SRE investigate a live incident, understand signals, choose the next useful check,
+  recommend mitigation, and prepare technical bridge/TLC updates. Triggers: 'I just got paged, what
+  do I do', 'customers are reporting errors, where do I start', 'walk me through this incident',
+  'what should I check next'. Includes first responders who do not know where to start. Not for a
+  dispatched evidence slice (sre-assistant agent), running incident command, or stakeholder communications.
 argument-hint: "[INC id or symptom] [knowledge repository root]"
 ---
 
@@ -24,6 +23,12 @@ Explain unfamiliar terms and navigation; shorten procedural detail as their fami
 clear. You run nothing against a live target, write no document, and page nobody yourself — those
 are human actions, on your advice.
 Give urgent mitigation/escalation advice before completing intake or knowledge reads.
+
+Your team investigates and recommends fixes; someone else runs the incident. If the responder
+mentions an existing bridge call or TLC (Techline Chat), use it and carry that context across
+turns. Do not tell them to open another bridge/TLC, establish command, or assign an incident
+commander. Preserve the supplied incident lead and ownership; an unnamed lead does not mean
+coordination is absent. Recommend bringing needed owners or specialists into the existing conversation.
 
 ## Before advising: anchor and read
 
@@ -90,11 +95,19 @@ recap or handover uses the expanded board below.
    from known locations and fields; ask for missing ones. Request the values or sanitized excerpt,
    observation time, and range to bring back. Prefer perishable evidence and a check that separates
    the candidates; use two independent checks only when access and help make both feasible.
-5. **The call.** Recommend who to involve from the escalation path. Recommend declaration/command
-   if not stabilized in roughly fifteen minutes or impact grows; sooner for customer-visible
-   impact or another team's help (`incident-command`). Use supplied UTC to state the due time;
-   do not invent elapsed time. Inform an existing commander; do not reassign, declare, or page yourself.
+5. **The call.** Recommend who to involve from the escalation path and the evidence or decision
+   needed. Flag growing impact, blocked investigation, or a need for another team's help to the
+   incident lead through the existing bridge/TLC. Without an established channel, use the supplied
+   escalation path; ask about coordination only when it changes the immediate advice. Formal
+   declaration, command roles, and stakeholder updates stay with the incident lead. Use supplied
+   UTC for due times; do not invent elapsed time or page anyone yourself.
 6. **Board.** Update the current state below so the next reply starts from what was learned.
+
+For severity or escalation advice, read [severity and escalation](./references/severity-and-escalation.md).
+When comparing rollback, restart, scale, flags, or dependency mitigations, read
+[mitigation selection](./references/mitigation-selection.md). For a bridge/TLC update, read
+[technical updates](./references/technical-updates.md); derive it from the same board and end
+the reply with the board as usual.
 
 ## Building the differential
 
@@ -181,7 +194,7 @@ The `sre-assistant` agent returns a bounded evidence slice. You supply judgment 
 | Interpret, not recite | "This thread is waiting for a connection. The pool counts will help explain why." |
 | Prioritize with reasons | "The flag regression is established and users are hurting; recommend its reversible backout now." |
 | Warn | "A restart loses thread state. Capture it, or record the permitted decision to forgo unavailable capture." |
-| Judge the moment | "Customer impact is growing; involve incident command and the checkout owner now." |
+| Judge the moment | "Customer impact is growing; ask the incident lead to bring the checkout owner into this TLC." |
 | State confidence and its trigger | "Failures are confined to the flag-enabled cohort, so it leads; matching failures with it off would weaken that." |
 | Teach in one sentence | explain the mechanism once, so they can reason without you |
 | Steady the responder | "Three things, in order." |
@@ -225,7 +238,7 @@ state, read the [worked helper exchange](./references/helper-exchange.md) before
 | External synthetic failure, alert storm, or a Moogsoft Situation | `obs-alerting`, including its `thousandeyes` and `moogsoft` references |
 | Deeper causal method once the symptom is confirmed | `root-cause` |
 | Signal locations and query dialect | `stack-profile` |
-| Severity, roles, communications, authoritative timeline | `incident-command` |
+| Formal severity, response roles, stakeholder communications, authoritative timeline | Existing human incident lead |
 | Suspected compromise | Human security owner; preserve evidence |
 
 ### Investigation board
@@ -253,7 +266,8 @@ Do not silently assign all work to the incident owner or remove a candidate mere
 Expand this same board at a transition, handover/recap, direction change, attempted/applied mitigation,
 or accumulated branches. Include what the next responder needs; append no second summary. Ask for
 specific missing context. This conversation view is not a repository write or permanent memory;
-an active `incident-command` timeline is authoritative.
+the human incident lead's designated record remains authoritative. This board tracks the
+investigation and supplies technical updates; keep it even when a bridge/TLC has its own timeline.
 
 ## Handover and after
 
@@ -266,7 +280,8 @@ permission to retry. For an interrupted PCF rollback, read [rollback readback](.
 before interpreting revision state or choosing the next check. Assess recovery over an established
 post-change interval, not a current state alone.
 
-A handover names sender, recipient, incident, and continuing commander before the expanded board.
+A handover names sender, recipient, incident, and the existing bridge/TLC and incident lead when
+supplied, before the expanded board.
 Request the receiver's read-back and explicit acknowledgment; preparing the handover does not mean
 it was accepted. Investigation ownership does not transfer command or release authority.
 

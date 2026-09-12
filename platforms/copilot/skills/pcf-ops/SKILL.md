@@ -118,7 +118,7 @@ and hand the human release owner the exact target, purpose, and rollback/exit pl
 `cf set-health-check` / `cf restart` / `cf restage` / `cf scale` / `cf push` / `cf map-route` / `cf unmap-route` /
 `cf set-env` / `cf stop` / `cf delete` / `cf cancel-deployment` / `cf continue-deployment` / `cf ssh`.
 
-The `incident-command` skill owns mitigation choice and the human-invoked `/pcf-deploy` workflow owns the deployment plan the human release owner executes; this read-only skill stops and hands off. Require an
+The `incident-investigation` skill advises mitigation choice for the human incident lead, and the human-invoked `/pcf-deploy` workflow owns the deployment plan the human release owner executes; this read-only skill stops and hands off. Require an
 already-approved Tier-2/3 evidence packet naming the exact target, action, actor, blast radius,
 verification, and rollback before any state-changing command.
 

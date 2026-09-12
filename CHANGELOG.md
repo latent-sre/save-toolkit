@@ -49,6 +49,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Retired the standalone `incident-command` skill for the team's investigation role. The advisor
+  retains its seven-field board, owns conditional mitigation and severity advice, and prepares
+  technical updates for an existing bridge/TLC without opening another or assigning command roles.
+  The human incident lead retains formal classification, coordination, and stakeholder communications.
+
 - The `runbook`, `postmortem`, and `operational-learning` descriptions lead with what a person
   would say ("help me write a runbook for restarting pricing", "write a postmortem for INC-1234",
   "which team owns payments and how do I page them"); `operational-learning` answers ownership and

@@ -7,6 +7,9 @@ lanes; Claude invokes `save-toolkit:<name>`.
 The fleet serves a human SRE who owns the work, and the agents that help them. `incident-investigation`
 advises the human; agents take the bounded jobs the human dispatches; skills serve both readers, so
 a platform check gives the human the console view and the agent the command beside it.
+The team investigates and recommends fixes while a separate human lead runs the incident. Preserve
+an existing bridge or TLC (Techline Chat); keep the investigation board and prepare technical updates
+for that conversation without asking the responder to establish command or another channel.
 
 The team's stack lives in [`stack-profile`](skills/stack-profile/SKILL.md). Skill-capable lanes load
 it before recommending or changing supported runtime, tooling, or infrastructure choices; the

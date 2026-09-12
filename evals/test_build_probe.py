@@ -1872,16 +1872,16 @@ class RoutingGradeTests(unittest.TestCase):
 
     def test_fire_credits_a_completed_namespaced_invocation(self) -> None:
         passed, detail = build_probe.grade_routing(
-            self._fire("incident-command"),
-            _trace(skills=["save-toolkit:incident-command"]),
+            self._fire("incident-investigation"),
+            _trace(skills=["save-toolkit:incident-investigation"]),
             self.plugin_root,
         )
         self.assertTrue(passed, detail)
-        self.assertIn("save-toolkit:incident-command", detail)
+        self.assertIn("save-toolkit:incident-investigation", detail)
 
     def test_fire_is_not_satisfied_by_an_inline_answer(self) -> None:
         passed, detail = build_probe.grade_routing(
-            self._fire("incident-command"), _trace(), self.plugin_root
+            self._fire("incident-investigation"), _trace(), self.plugin_root
         )
         self.assertFalse(passed)
         self.assertIn("saw []", detail)
@@ -1889,8 +1889,8 @@ class RoutingGradeTests(unittest.TestCase):
     def test_fire_is_not_satisfied_by_a_failed_skill_call(self) -> None:
         """An attempt is not a load: skills_failed must not count."""
         trace = _trace()
-        trace.skills_failed = ["save-toolkit:incident-command"]
-        passed, _ = build_probe.grade_routing(self._fire("incident-command"), trace, self.plugin_root)
+        trace.skills_failed = ["save-toolkit:incident-investigation"]
+        passed, _ = build_probe.grade_routing(self._fire("incident-investigation"), trace, self.plugin_root)
         self.assertFalse(passed)
 
     def test_fire_on_an_agent_target_reads_completed_dispatches(self) -> None:
@@ -1906,8 +1906,8 @@ class RoutingGradeTests(unittest.TestCase):
         self.assertFalse(passed)
 
     def test_namespace_comes_from_the_loaded_plugin_not_a_literal(self) -> None:
-        spec = self._fire("incident-command")
-        trace = _trace(skills=["renamed:incident-command"], plugins=(("renamed",),))
+        spec = self._fire("incident-investigation")
+        trace = _trace(skills=["renamed:incident-investigation"], plugins=(("renamed",),))
         passed, _ = build_probe.grade_routing(spec, trace, self.plugin_root)
         self.assertTrue(passed)
 
