@@ -52,7 +52,9 @@ def refactor():
     CHECK.assertEqual(emitted, [])
 
     with CHECK.assertRaises(TypeError):
-        process([1], None, emitted.append)
+        process([1], None, emit=emitted.append)
+    with CHECK.assertRaises(TypeError):
+        process([1], emitted.append, limit=None)
     CHECK.assertEqual(emitted, [])
     failure = RuntimeError("callback failed")
 
@@ -61,10 +63,12 @@ def refactor():
         if value == 2:
             raise failure
 
+    values = [0, 2, 3]
     with CHECK.assertRaisesRegex(RuntimeError, "^callback failed$") as raised:
-        process([0, 2, 3], emit=fail)
+        process(values, emit=fail)
     CHECK.assertIs(raised.exception, failure, "callback exception replaced")
     CHECK.assertEqual(emitted, [0, 2])
+    CHECK.assertEqual(values, [0, 2, 3], "input mutated after callback failure")
 
     # Exhaust the small input domain independently of the candidate's control flow.
     for width in range(4):
@@ -111,21 +115,27 @@ class ObservedSource:
             raise StopIteration
         return line
 
+    def _at_eof(self):
+        position = self.source.tell()
+        end = self.source.seek(0, io.SEEK_END)
+        self.source.seek(position)
+        return position == end
+
     def readline(self, size=-1):
         line = self.source.readline(size)
-        self.eof |= size != 0 and line == ""
+        self.eof |= size != 0 and (line == "" or self._at_eof())
         return line
 
     def read(self, size=-1):
         self.eager |= size is None or size < 0
         text = self.source.read(size)
-        self.eof |= size != 0 and text == ""
+        self.eof |= size != 0 and (text == "" or self._at_eof())
         return text
 
     def readlines(self, hint=-1):
         self.eager |= hint is None or hint <= 0
         lines = self.source.readlines(hint)
-        self.eof |= not lines
+        self.eof |= not lines or self._at_eof()
         return lines
 
 
@@ -209,6 +219,8 @@ def modules():
             formatter("  ")
     names = [" bob ", "ada", "bob"]
     CHECK.assertEqual(reports.render(names, prefix="!"), ["!BOB", "!ADA", "!BOB"])
+    with CHECK.assertRaises(TypeError):
+        reports.render(names, "!")
     CHECK.assertEqual(names, [" bob ", "ada", "bob"])
     with mock.patch.object(reports, "format_label", side_effect=lambda name, **kw: "patched:" + name):
         CHECK.assertEqual(reports.render(["a", "b"]), ["patched:a", "patched:b"])

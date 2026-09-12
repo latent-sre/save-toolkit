@@ -121,13 +121,14 @@ oracles there, but not TSX, since it counts `*.py` only.
 consumption/lifetime, module moves, stdlib migration contracts, and leaving correct code unchanged. Their shared
 [outcome oracle](oracles/python-craft/check_contracts.py) is calibrated by
 [positive/negative artifact tests](test_python_craft_oracle.py): correct implementations pass and
-twenty-two named semantic mutations fail, including eager reads, adjacent duplicate loss, broken
+twenty-seven named semantic mutations fail, including eager reads, adjacent duplicate loss, broken
 legacy imports, circular imports, and bypassed public patch points. The effect oracle adds 936
 generated comparisons over a bounded integer/None domain, with independent output, mutation, error,
 and effect expectations; this is not arbitrary-input coverage and needs no additional dependency.
 The module-move oracle runs both import orders in fresh processes and exercises an unchanged alias
 registry and configured dotted lookup. The generator oracle observes unbounded read/readlines and
-logical EOF before first yield, allowing bounded chunks and readline iteration. These common API
+uses the source position to detect logical EOF before first yield, allowing bounded chunks and
+readline iteration. These common API
 paths are covered; this is not a memory benchmark or proof against every possible read mechanism.
 Migration checks exercise a stdlib adapter, not package discovery. The oracle and tests count
 toward the eval ceiling; their outcome-level evidence does not establish live model performance.

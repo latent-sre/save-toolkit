@@ -116,7 +116,13 @@ class PythonCraftOracleTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_generator_rejects_eager_materialization_before_first_yield(self):
-        for expression in ("source.readlines()", "list(source)", "source.read().splitlines()"):
+        for expression in (
+            "source.readlines()",
+            "list(source)",
+            "source.read().splitlines()",
+            "source.read(path.stat().st_size).splitlines()",
+            "source.readlines(path.stat().st_size * 10)",
+        ):
             source = CORRECT["generator"].replace("for line in source:", f"for line in {expression}:")
             with self.subTest(expression=expression):
                 result = self.run_artifact("generator", source)
@@ -167,6 +173,9 @@ class PythonCraftOracleTests(unittest.TestCase):
              "implementation was not moved"),
             ("implementation duplicated", {"reports.py": scenario("modules")["fixture"]["files"]["reports.py"]},
              "new callable lost the existing alias registry"),
+            ("render prefix made positional", {"reports.py": correct["reports.py"].replace(
+                "def render(names, *, prefix", "def render(names, prefix"
+            )}, "TypeError not raised"),
         ]:
             with self.subTest(name=name):
                 result = self.run_artifact("modules", {**correct, **changes})
@@ -230,11 +239,24 @@ class PythonCraftOracleTests(unittest.TestCase):
                 except RuntimeError as exc:
                     raise RuntimeError(str(exc)) from exc
         ''')
+        mutated_on_error = textwrap.dedent(CORRECT["refactor"]).replace(
+            "def process(", "def original(") + textwrap.dedent('''
+            def process(values, *, limit=None, emit):
+                try:
+                    return original(values, limit=limit, emit=emit)
+                except RuntimeError:
+                    values.clear()
+                    raise
+        ''')
         for name, source, diagnostic in [
-            ("positional options accepted", CORRECT["refactor"].replace(
-                "*, limit=None, emit", "limit=None, emit=None"),
+            ("positional limit accepted", CORRECT["refactor"].replace(
+                "*, limit=None, emit", "limit=None, *, emit"),
+             "TypeError not raised"),
+            ("positional emit accepted", CORRECT["refactor"].replace(
+                "*, limit=None, emit", "emit, *, limit=None"),
              "TypeError not raised"),
             ("callback exception replaced", replaced_error, "callback exception replaced"),
+            ("input mutated on callback failure", mutated_on_error, "Lists differ"),
         ]:
             with self.subTest(name=name):
                 result = self.run_artifact("refactor", source)
