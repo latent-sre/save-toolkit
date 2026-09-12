@@ -45,8 +45,7 @@ TASK_FILES: dict[str, list[str]] = {
         "skills/incident-investigation/references/symptom-investigation.md",
         "skills/stack-profile/SKILL.md",
         "skills/stack-profile/references/observability-stack.md",
-        "skills/incident-command/SKILL.md",
-        "skills/incident-command/references/severity-and-declaration.md",
+        "skills/incident-investigation/references/severity-and-escalation.md",
         "skills/pcf-ops/SKILL.md",
         "skills/obs-logs/SKILL.md",
         "skills/obs-logs/references/spl.md",
@@ -59,11 +58,22 @@ TASK_FILES: dict[str, list[str]] = {
         "skills/obs-logs/SKILL.md",
         "skills/obs-logs/references/spl.md",
         "skills/root-cause/SKILL.md",
-        "skills/incident-command/SKILL.md",
-        "skills/incident-command/references/severity-and-declaration.md",
+        "skills/incident-investigation/references/severity-and-escalation.md",
         "skills/production-change-gate/SKILL.md",
         "skills/production-change-gate/references/tier-2-approval-example.md",
         "skills/stack-profile/SKILL.md",
+    ],
+    # Mitigation choice and a technical update load different depth from symptom diagnosis.
+    "PCF mitigation advice and TLC update": [
+        "skills/incident-investigation/SKILL.md",
+        "skills/incident-investigation/references/mitigation-selection.md",
+        "skills/incident-investigation/references/severity-and-escalation.md",
+        "skills/incident-investigation/references/technical-updates.md",
+        "skills/incident-investigation/references/pcf-rollback-readback.md",
+        "skills/stack-profile/SKILL.md",
+        "skills/pcf-ops/SKILL.md",
+        "skills/production-change-gate/SKILL.md",
+        "skills/production-change-gate/references/incident-fast-path.md",
     ],
     "Noisy alert": [
         "agents/observability-engineer.md",
@@ -121,6 +131,9 @@ TASK_FILES: dict[str, list[str]] = {
 TASK_BUDGETS: dict[str, int] = {
     "PCF incident, human path": 77_000,
     "PCF incident, sre-assistant agent path": 76_000,
+    # New conditional path: moved mitigation guidance, severity advice, technical update, and
+    # human approval/readback context. Measured together, then bounded with the normal 5% margin.
+    "PCF mitigation advice and TLC update": 75_000,
     "Noisy alert": 44_000,
     "Write a runbook": 41_000,
     "Audit a service": 39_000,

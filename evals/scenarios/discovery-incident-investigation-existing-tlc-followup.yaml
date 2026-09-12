@@ -1,0 +1,20 @@
+id: discovery-incident-investigation-existing-tlc-followup
+split: regression
+prompt: |
+  Continue our conversation about ledger on PCF, INC-52. Earlier I said we are already in TLC
+  (Techline Chat) and a separate lead runs it; I didn't give you their name. Our team investigates.
+  The board carried checkout failures at 8% at 10:01 UTC; pool pressure versus a slow accounts
+  dependency were Open, neither ruled out. Riley tried an approved rollback at 09:50 but has no
+  receipt or readback; that attempt is UNKNOWN. We have no knowledge repo and no CLI access.
+
+  Now it is 10:10 UTC. Apps Manager shows all ledger instances running, but the pool graph
+  still has no data. I cannot open Splunk. Does that clear either explanation? What is our next
+  useful step and what should I tell the techline?
+success_criteria:
+  - Invokes incident-investigation and carries the earlier TLC context forward without asking to open it again.
+  - An unnamed lead does not trigger command assignment, a new bridge, or repeated coordination intake.
+  - Carries both hypotheses and UNKNOWN rollback forward; running instances and missing pool readings do not clear them.
+  - Recommends a bounded evidence request through the existing TLC and drafts a technical update without claiming it was sent.
+  - Preserves all seven board fields and the pending action state; does not recommend a retry before reconciliation.
+target: {kind: skill, name: incident-investigation}
+routing: {expect: fire}

@@ -14,7 +14,7 @@ execution.
 ## What this path covers
 
 Tier 0–2 operational mitigation and rollback to an already-live artifact — the reversible actions in
-the `incident-command` mitigation table (route remap, revision rollback, confirmed existing-droplet
+the `incident-investigation` mitigation table (route remap, revision rollback, confirmed existing-droplet
 per-instance or rolling restart with confirmed serving headroom, scale, flag flip). Two things stay
 on the full gate even at P1:
 
@@ -48,7 +48,7 @@ on the full gate even at P1:
   envelope re-enters approval; an iterative mitigation does not re-run the gate per attempt. An
   expired envelope or state mismatch re-enters approval.
 - **Blast radius and verification**, a sentence each.
-- **A backout plan** — prefer the reversible mitigations in the `incident-command` skill's table.
+- **A backout plan** — prefer the reversible mitigations in the `incident-investigation` skill's table.
 - **Who made the call**, recorded in the incident timeline (UTC).
 - **Effect result**, recorded by the human executor after every attempt; `SKILL.md`'s UNKNOWN rule
   (reconciliation owner, read-after-write query, no retry until resolved) applies unchanged.
@@ -70,5 +70,5 @@ not paperwork. These administrative records never delay a covered mitigation:
 
 The fast path narrows paperwork, never authority: covered Tier 2 execution remains owned by a human
 release owner or separately approved protected automation. Tier 3 remains on the full gate, and the
-security/integrity carve-out in `incident-command` exits this path entirely. After resolution,
+security/integrity carve-out in `incident-investigation` exits this path entirely. After resolution,
 reconcile every deferred record and give the timeline to the typed `scribe` agent.
