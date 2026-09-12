@@ -117,14 +117,21 @@ stays reviewable, runnable, and inside the `evals_python_lines` ceiling, which c
 oracles there, but not TSX, since it counts `*.py` only.
 
 **The standing regression** comprises the build probes and the contract scenarios carrying
-`split: regression`. The four `build-python-...` probes cover refactoring effects, generator
-lifetime, stdlib migration contracts, and leaving correct code unchanged. Their shared
+`split: regression`. The five `build-python-...` probes cover refactoring effects, generator
+consumption/lifetime, module moves, stdlib migration contracts, and leaving correct code unchanged. Their shared
 [outcome oracle](oracles/python-craft/check_contracts.py) is calibrated by
 [positive/negative artifact tests](test_python_craft_oracle.py): correct implementations pass and
-eleven named semantic mutations fail. The oracle and its tests count toward the eval ceiling;
-their outcome-level evidence does not establish live model performance. The generator oracle checks
-resource lifetime and output, not a memory benchmark; migration checks exercise a stdlib adapter,
-not package discovery. Run `python -m pytest evals/test_python_craft_oracle.py` for offline calibration.
+twenty-two named semantic mutations fail, including eager reads, adjacent duplicate loss, broken
+legacy imports, circular imports, and bypassed public patch points. The effect oracle adds 936
+generated comparisons over a bounded integer/None domain, with independent output, mutation, error,
+and effect expectations; this is not arbitrary-input coverage and needs no additional dependency.
+The module-move oracle runs both import orders in fresh processes and exercises an unchanged alias
+registry and configured dotted lookup. The generator oracle observes unbounded read/readlines and
+logical EOF before first yield, allowing bounded chunks and readline iteration. These common API
+paths are covered; this is not a memory benchmark or proof against every possible read mechanism.
+Migration checks exercise a stdlib adapter, not package discovery. The oracle and tests count
+toward the eval ceiling; their outcome-level evidence does not establish live model performance.
+Run `python -m pytest evals/test_python_craft_oracle.py` for offline calibration.
 
 A skill's routing positive is a **description-change check** — run it when that skill's own
 description changes. `--split` is not wired into the runner's selection; use `--scenario <id>` or

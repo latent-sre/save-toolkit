@@ -7,7 +7,9 @@ They are public regression oracles, not hidden evaluations or a sandbox.
 import importlib.util
 import io
 import ipaddress
+from itertools import product
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 from unittest import TestCase, mock
@@ -49,14 +51,82 @@ def refactor():
     CHECK.assertEqual(process([None, -5], emit=emitted.append), [])
     CHECK.assertEqual(emitted, [])
 
+    with CHECK.assertRaises(TypeError):
+        process([1], None, emitted.append)
+    CHECK.assertEqual(emitted, [])
+    failure = RuntimeError("callback failed")
+
     def fail(value):
         emitted.append(value)
         if value == 2:
-            raise RuntimeError("callback failed")
+            raise failure
 
-    with CHECK.assertRaisesRegex(RuntimeError, "^callback failed$"):
+    with CHECK.assertRaisesRegex(RuntimeError, "^callback failed$") as raised:
         process([0, 2, 3], emit=fail)
+    CHECK.assertIs(raised.exception, failure, "callback exception replaced")
     CHECK.assertEqual(emitted, [0, 2])
+
+    # Exhaust the small input domain independently of the candidate's control flow.
+    for width in range(4):
+        for items in product((None, -2, 0, 1, 3), repeat=width):
+            accepted = [item for item in items if item is not None and item >= 0]
+            for limit in (None, -1, 0, 1, 2, 5):
+                values, effects = list(items), []
+                if limit == -1:
+                    with CHECK.assertRaisesRegex(ValueError, "^negative limit$"):
+                        process(values, limit=limit, emit=effects.append)
+                    expected = []
+                else:
+                    expected = accepted if limit is None else accepted[:limit]
+                    actual = process(values, limit=limit, emit=effects.append)
+                    CHECK.assertIs(type(actual), list)
+                    CHECK.assertTrue(all(type(value) is int for value in actual))
+                    CHECK.assertEqual(actual, [value * 2 for value in expected])
+                CHECK.assertEqual(effects, expected)
+                CHECK.assertEqual(values, list(items))
+
+
+class ObservedSource:
+    """Observe logical consumption while allowing bounded text buffering."""
+
+    def __init__(self, source):
+        self.source = source
+        self.eager = self.eof = False
+
+    def __getattr__(self, name):
+        return getattr(self.source, name)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *error):
+        return self.source.__exit__(*error)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        line = self.readline()
+        if not line:
+            raise StopIteration
+        return line
+
+    def readline(self, size=-1):
+        line = self.source.readline(size)
+        self.eof |= size != 0 and line == ""
+        return line
+
+    def read(self, size=-1):
+        self.eager |= size is None or size < 0
+        text = self.source.read(size)
+        self.eof |= size != 0 and text == ""
+        return text
+
+    def readlines(self, hint=-1):
+        self.eager |= hint is None or hint <= 0
+        lines = self.source.readlines(hint)
+        self.eof |= not lines
+        return lines
 
 
 def generator():
@@ -67,7 +137,7 @@ def generator():
         handles = []
 
         def tracked_open(*args, **kwargs):
-            handle = real_open(*args, **kwargs)
+            handle = ObservedSource(real_open(*args, **kwargs))
             handles.append(handle)
             return handle
 
@@ -77,6 +147,8 @@ def generator():
             CHECK.assertIs(iter(records), records)
             CHECK.assertEqual(next(records), "one")
             CHECK.assertTrue(handles, "the file was not opened")
+            CHECK.assertFalse(any(handle.eager or handle.eof for handle in handles),
+                              "source consumed eagerly before first yield")
             CHECK.assertTrue(any(not handle.closed for handle in handles))
             records.close()
             CHECK.assertTrue(all(handle.closed for handle in handles))
@@ -111,7 +183,39 @@ def unchanged():
         CHECK.assertIs(predicate(value), expected)
 
 
+def modules():
+    # Import caches cannot make a broken import order appear valid.
+    if len(sys.argv) == 2:
+        for first in ("reports", "formatting"):
+            subprocess.run([sys.executable, "-I", "-B", str(Path(__file__).resolve()), "modules", first],
+                           check=True, timeout=10)
+        return
+    sys.path.insert(0, str(Path.cwd()))
+    importlib.import_module(sys.argv[2])
+    formatting = importlib.import_module("formatting")
+    reports = importlib.import_module("reports")
+    client = importlib.import_module("client")
+    CHECK.assertEqual(formatting.format_label.__module__, "formatting", "implementation was not moved")
+    CHECK.assertEqual(client.FORMATTERS.get(formatting.format_label), "default",
+                      "new callable lost the existing alias registry")
+    for formatter in (formatting.format_label, reports.format_label, client.label_alias, client.configured_label):
+        CHECK.assertEqual(formatter(" ada ", prefix="Dr. "), "Dr. ADA")
+        CHECK.assertEqual(formatter("bob"), "BOB")
+        with CHECK.assertRaises(TypeError):
+            formatter("ada", "Dr. ")
+        with CHECK.assertRaisesRegex(TypeError, "^name must be text$"):
+            formatter(None)
+        with CHECK.assertRaisesRegex(ValueError, "^empty name$"):
+            formatter("  ")
+    names = [" bob ", "ada", "bob"]
+    CHECK.assertEqual(reports.render(names, prefix="!"), ["!BOB", "!ADA", "!BOB"])
+    CHECK.assertEqual(names, [" bob ", "ada", "bob"])
+    with mock.patch.object(reports, "format_label", side_effect=lambda name, **kw: "patched:" + name):
+        CHECK.assertEqual(reports.render(["a", "b"]), ["patched:a", "patched:b"])
+
+
 if __name__ == "__main__":
-    checks = {"refactor": refactor, "generator": generator, "migration": migration, "unchanged": unchanged}
+    checks = {"refactor": refactor, "generator": generator, "migration": migration,
+              "unchanged": unchanged, "modules": modules}
     checks[sys.argv[1]]()
     print("contract passed:", sys.argv[1])

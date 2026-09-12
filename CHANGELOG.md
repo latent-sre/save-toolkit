@@ -49,6 +49,15 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Strengthened Python refactoring guidance for interpreter/environment selection, public module
+  moves, independent old/new comparisons, and review of automated fixes. Added two semantic
+  regression checks that reject widened keyword-only calls and replaced callback exceptions.
+  Added incremental-consumption checks, 936 bounded generated comparisons, and a module-move
+  fixture with alias/configuration/patch compatibility and fresh import orders. Twenty-two broken
+  artifacts are rejected; the eval ceiling grows by 199 lines for the oracles and calibration.
+  Conditional environment depth is included in the refactor/migration context budgets; Python
+  skill discovery is unchanged.
+
 - The `runbook`, `postmortem`, and `operational-learning` descriptions lead with what a person
   would say ("help me write a runbook for restarting pricing", "write a postmortem for INC-1234",
   "which team owns payments and how do I page them"); `operational-learning` answers ownership and

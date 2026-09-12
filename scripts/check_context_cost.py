@@ -92,11 +92,13 @@ TASK_FILES: dict[str, list[str]] = {
     # loads only the references matching its task. Keep every new reference on a measured path.
     "Python automated refactor": [
         *_PYTHON_CONTEXT,
+        "skills/python-craft/references/environment-and-checks.md",
         "skills/python-craft/references/refactoring.md",
         "skills/python-craft/references/refactoring-tools.md",
     ],
     "Python library migration": [
         *_PYTHON_CONTEXT,
+        "skills/python-craft/references/environment-and-checks.md",
         "skills/python-craft/references/libraries-and-modernization.md",
         "skills/python-craft/references/refactoring-tools.md",
     ],
@@ -128,8 +130,10 @@ TASK_BUDGETS: dict[str, int] = {
     # FastAPI task. Its new skill-body weight is budgeted in weights.json; deeper references
     # remain conditional and are bounded here, including automated refactoring/migration.
     "FastAPI upstream change": 61_000,
-    "Python automated refactor": 57_000,
-    "Python library migration": 58_000,
+    # These task paths include choosing the development environment as well as the scoped
+    # transformation; the added uv/interpreter depth is conditional elsewhere.
+    "Python automated refactor": 63_000,
+    "Python library migration": 63_000,
     "Existing UI change": 47_000,
     "Greenfield UI": 53_000,
     "Prepare FastAPI release": 73_000,

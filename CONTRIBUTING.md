@@ -22,12 +22,17 @@ python scripts/generate_platform_adapters.py --write
 Before changing frontmatter, tool authority, delegation, or guard wiring, read the
 [frontmatter reference](skills/agent-authoring/references/claude-code-frontmatter.md). Pin
 third-party dependencies in `requirements-dev.txt`; `scripts/readonly-guard.py` stays
-standard-library-only under `python -I -S`. On Windows use `python` or `py -3`, not the Store stub.
+standard-library-only under `python -I -S`. Commands using `python` here mean the verified project
+interpreter; activate that environment or use its full executable path. A bare `python` or `py -3`
+can select a different version on Windows; avoid the Store stub.
 `rg` hides generated projections through [`.ignore`](.ignore); pass `--no-ignore` to inspect them.
 
 Repository development and CI track the latest Python 3.14 patch. `.python-version` selects the
-minor series; both CI jobs use `check-latest: true`. Use `uv python install 3.14` and
-`uv venv --python 3.14`, then install the required dependency set into that environment.
+minor series; both CI jobs use `check-latest: true`. Use `uv python install 3.14`, then create
+`uv venv --python 3.14 .venv` if a matching environment does not already exist. Verify it with
+`.venv\Scripts\python.exe -c "import sys; print(sys.executable); print(sys.version)"`
+(POSIX: `.venv/bin/python`). Use this interpreter for installation, the baseline, and final checks.
+This repository uses requirements/constraints files, not a uv project lock; keep that workflow.
 An old uv binary may need updating before it knows about a newly released Python patch.
 This development default does not raise the installed hook guard's Python 3.11 floor.
 
@@ -74,9 +79,13 @@ When the change reaches code, tests, or frontmatter, run the suite at that same 
 In the project environment, install its constrained test dependencies first:
 
 ```powershell
-python -m pip install -r requirements-test.txt
-python -m pytest -q
+uv pip install --python .venv\Scripts\python.exe -r requirements-test.txt
+.venv\Scripts\python.exe -m pytest -q
 ```
+
+On POSIX, substitute `.venv/bin/python`. Installing `requirements-test.txt` honors its
+`requirements-dev.txt` constraints; it is a selected test set, not a complete environment export
+for `uv pip sync`. CI retains its setup-python/pip workflow in a job-owned environment.
 
 [`.github/workflows/validate.yml`](.github/workflows/validate.yml) then runs three jobs on the
 pull request: `validate` (this same gate), `component-tests` (`pytest` against

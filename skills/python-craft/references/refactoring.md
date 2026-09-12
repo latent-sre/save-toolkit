@@ -3,6 +3,27 @@
 Preserve behavior through small, inspectable transformations. The parent skill owns baseline and
 verification; a code smell suggests a question, not an automatic rewrite.
 
+## Contents
+
+- Map the affected behavior
+- Choose a transformation
+- Guards and extraction together
+- Dictionaries and comprehensions need semantic checks
+- Check equivalence at the changed boundary
+
+## Map the affected behavior
+
+Name the concrete benefit and the seam that changes: control flow, data ownership, a public name,
+or a module boundary. Find consumers in imports/re-exports, entry points, configuration/import
+strings, decorators/registries, and tests. Inspect the smallest useful slice before deciding
+whether extraction reduces coupling or merely moves complexity.
+
+For a rename or move, preserve positional/keyword-only calling rules and defaults. Check public
+import paths, circular imports, import-time effects, and patch locations used by callers/tests.
+If persisted objects or plugins refer to module-qualified names, exercise that lookup explicitly;
+an internal move does not authorize breaking those consumers. Add a compatibility re-export only
+when an actual supported caller needs it.
+
 ## Choose a transformation
 
 | Technique | Useful trigger | Preserve or check |
@@ -83,12 +104,23 @@ generator to `any`/`all` may skip later effects that an eagerly built list perfo
 ## Check equivalence at the changed boundary
 
 Use existing contract tests plus focused missing cases. For deterministic logic, compare old/new
-implementations over representative inputs, checking relevant types, mutations, errors, and effects
-as well as values. Pair differential checks with independent expectations: preserving an old bug
-does not satisfy a requested fix. Keep test data, external effects, and time controlled.
+implementations on equivalent fresh inputs; do not feed one run's mutated state to the other.
+Check values/types, aliasing or mutation, accepted and rejected call forms, errors, and the relevant
+ordered effect trace. When the contract propagates an exception, preserve that object rather than
+manufacturing a new exception with the same message. Pair differential checks with independent
+expectations: preserving an old bug does not satisfy a requested fix.
 
-Use property-based testing for a useful invariant or reference implementation over a broad input
-space; keep ordinary examples for named regressions. The parent skill owns performance verification.
+Keep time, randomness, external effects, and caches controlled independently for each run. Use a
+fresh process where imports, global registries, or process state could contaminate the comparison.
+Change one structural seam at a time and inspect its callers before expanding. Check extraction
+through the existing public entrypoint; tests that only call the new helper can miss a broken caller.
+
+For a small input domain, exhaust bounded combinations against independent expectations. Use
+property-based testing when a larger domain or stateful operation sequence warrants it; retain
+named regression examples. Define the invariant and comparison budget before generating cases.
+For streaming changes, check progress before full consumption and cleanup after consuming only a
+prefix; returning an iterator alone does not prove incremental processing or bounded memory.
+The parent skill owns performance verification.
 
 [sourced] [Fowler's guard clauses](https://refactoring.com/catalog/replaceNestedConditionalWithGuardClauses.html),
 [Extract Function](https://refactoring.com/catalog/extractFunction.html),
