@@ -43,6 +43,13 @@ Use the project's configured rules and Python target. Ruff's safe fixes are inte
 runtime behavior; unsafe fixes may change it or remove comments. Review their applicability before
 opting in. A blanket unsafe-fix sweep is not a behavior-preserving refactoring strategy.
 
+Start with `ruff check --no-fix <paths>` and `ruff format --check <paths>`. Preview eligible fixes with
+`ruff check --diff <paths>`; this writes no source and returns nonzero when there are diffs, but
+implies `--fix-only`, so a clean diff does not establish a clean lint run. Review configuration for
+unsafe-fix opt-ins and rule-specific applicability overrides; use `--no-unsafe-fixes` when checking
+only safe fixes. Keep formatting/import cleanup separate from semantic changes when it obscures
+review. Run the configured type checker against public callers after signature or module changes.
+
 AST parsing/unparsing is useful for structural work but can change source representation, and a
 successful parse does not establish executable validity. Prefer a source-preserving transformation
 when comments and formatting matter. `2to3` and `lib2to3` were removed from Python in 3.13; do not
@@ -60,5 +67,6 @@ checks; report the tool/version and unresolved references when material.
 [LibCST syntax preservation](https://libcst.readthedocs.io/en/latest/why_libcst.html),
 [codemod testing](https://libcst.readthedocs.io/en/latest/codemods.html),
 [Ruff fix safety](https://docs.astral.sh/ruff/linter/#fix-safety),
+[Ruff check/diff options](https://docs.astral.sh/ruff/configuration/),
 [AST guarantees](https://docs.python.org/3/library/ast.html#ast.unparse), and
 [Python 3.13 removals](https://docs.python.org/3.13/whatsnew/3.13.html#removed-modules-and-apis).
