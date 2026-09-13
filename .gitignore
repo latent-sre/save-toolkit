@@ -1,7 +1,3 @@
-# Copilot/VS Code agents are generated and committed. A legacy .github/skills mirror remains ignored;
-# the supported generated skill adapter lives under platforms/copilot/skills/.
-.github/skills/
-
 # Temporary git worktrees used for cross-branch review/comparison (scratch; never committed).
 /.worktrees/
 

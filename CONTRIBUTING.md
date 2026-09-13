@@ -12,7 +12,7 @@ without the owner's approval.
 ## 2. Change the source of truth
 
 Edit agents, skills, and commands only under `agents/`, `skills/`, and `commands/`; `.github/agents/`
-and `platforms/copilot/skills/` are generated. After a canonical change, regenerate once and commit
+and `.github/skills/` are generated. After a canonical change, regenerate once and commit
 the projections with the source:
 
 ```powershell

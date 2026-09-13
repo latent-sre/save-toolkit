@@ -1,0 +1,116 @@
+# Starter OpenAPI 3.1 for an ops API — copy and adapt. Embodies the backend contract starter rules:
+# problem+json errors (with request_id), cursor pagination, bearer auth, idempotency key,
+# rate-limit response with Retry-After, and split liveness/readiness endpoints.
+# Validate/lint in CI (e.g. `redocly lint` or `spectral lint`) and generate the typed
+# client for the UI consumer contract from this file.
+# Example bounds: limit 1-200, title 1-200 characters, cursor 1-2048, key 1-255.
+# Adapt these with runtime validation and ingress/body byte limits; a schema is not enforcement.
+openapi: 3.1.0
+info:
+  title: On-call Tool API
+  version: 1.0.0          # SemVer; breaking change -> major. Path-version at /v1 (expand->contract).
+servers:
+  - url: https://oncall.apps.example.internal
+security:
+  - bearerAuth: []        # validated on EVERY request; authorize per-object in the handler.
+paths:
+  /healthz:
+    get:
+      summary: Liveness probe; process-local and independent of external systems.
+      security: []        # health is unauthenticated.
+      responses: { "200": { description: OK } }
+  /readyz:
+    get:
+      summary: Readiness probe; whether this instance should receive new traffic.
+      security: []        # readiness is unauthenticated.
+      responses:
+        "200": { description: Ready }
+        "503": { description: Not ready to receive traffic }
+  /v1/incidents:
+    get:
+      summary: List incidents (cursor-paginated).
+      parameters:
+        - { name: cursor, in: query, schema: { type: string, minLength: 1, maxLength: 2048 }, description: Opaque cursor from next_cursor; omit on the first page. }
+        - { name: limit, in: query, schema: { type: integer, default: 50, minimum: 1, maximum: 200 } }
+        - { name: status, in: query, schema: { type: string, enum: [open, closed] }, description: Allowlisted filter. }
+      responses:
+        "200":
+          description: A page of incidents.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IncidentPage" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+    post:
+      summary: Create an incident (idempotent via Idempotency-Key).
+      parameters:
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 1, maxLength: 255 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IncidentCreate" }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Incident" } } } }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }   # OIDC/OAuth2 via corp SSO/UAA.
+  responses:
+    Problem:
+      description: RFC 9457 problem+json. `type`/codes are part of the contract.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    RateLimited:
+      description: Rate limited. Retry-After is required so a well-behaved client can self-throttle.
+      headers:
+        Retry-After: { required: true, schema: { type: integer }, description: Seconds to wait. }
+        X-RateLimit-Limit: { schema: { type: integer } }
+        X-RateLimit-Remaining: { schema: { type: integer } }
+        X-RateLimit-Reset: { schema: { type: integer }, description: Unix seconds when the window resets. }
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+  schemas:
+    Problem:                # RFC 9457
+      type: object
+      properties:
+        type: { type: string, format: uri, description: Stable URI identifying the error class. }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+        request_id: { type: string, description: Correlates this response with the request log line. }
+        errors:             # your extension for field-level validation
+          type: array
+          items:
+            type: object
+            properties:
+              loc: { type: array, items: { type: string } }
+              msg: { type: string }
+            required: [loc, msg]
+      required: [type, title, status]
+    Incident:
+      type: object
+      properties:
+        id: { type: string }
+        status: { type: string, enum: [open, closed] }
+        title: { type: string, minLength: 1, maxLength: 200 }
+      required: [id, status, title]
+    IncidentCreate:
+      type: object
+      properties: { title: { type: string, minLength: 1, maxLength: 200 } }
+      required: [title]
+      additionalProperties: false   # reject unknown fields.
+    IncidentPage:
+      type: object
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/Incident" } }
+        next_cursor: { type: [string, "null"], minLength: 1, maxLength: 2048, description: "Pass back as ?cursor= for the next page." }
+      required: [data, next_cursor]

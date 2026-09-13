@@ -707,7 +707,7 @@ class GuardScopingTest(unittest.TestCase):
     """The guard is registered SESSION-WIDE, so it must scope itself — precisely.
 
     Too loose and it denies the user's own `git commit` in their own session. Too tight and the
-    reviewer runs unguarded. Both failures are worse than having no guard at all, so they get
+    sre-assistant runs unguarded. Both failures are worse than having no guard at all, so they get
     their own tests rather than riding along inside the denylist cases.
     """
 

@@ -134,6 +134,15 @@ Migration checks exercise a stdlib adapter, not package discovery. The oracle an
 toward the eval ceiling; their outcome-level evidence does not establish live model performance.
 Run `python -m pytest evals/test_python_craft_oracle.py` for offline calibration.
 
+The reviewer cases cover explicit reading-only scope, Git investigation of a broken unchanged
+caller and a matched compatible refactor, candidate-controlled runner/instruction rejection, and
+the supplied-state decision to use an established verification environment. Their
+[calibration tests](test_reviewer_cases.py) check real fixture branches, caller behavior, decision
+graders, and command matching. Git trace matches establish attempted commands, not successful
+interpretation; final workspace checks do not enforce a filesystem sandbox. The verification
+decision case is not an execution trial. These bounded probes do not establish general free-form
+review quality, host containment, or live helper behavior.
+
 A skill's routing positive is a **description-change check** — run it when that skill's own
 description changes. `--split` is not wired into the runner's selection; use `--scenario <id>` or
 run everything.

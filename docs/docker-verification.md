@@ -6,6 +6,11 @@ Docker-backed local verification is allowed and recommended when the acting lane
 or execute authority and an official image exercises the real tool or runtime more faithfully than
 a substitute or missing host binary. It does not grant production-change authority or widen tools.
 
+The [reviewer](../agents/reviewer.md) requires its stricter execution conditions: reviewed code,
+read-only candidate input, credential-free/no-network execution, and bounded ephemeral scratch.
+This convention alone does not establish adversarial isolation or admit an arbitrary contributor's
+code. Such execution requires independently established isolated CI/runner admission.
+
 - Pin an exact image version and record its resolved reference plus the tool version.
 - Use `--rm` and `--network none` by default.
 - Pass the minimum artifact set through a read-only bind mount or stdin; never mount the Docker

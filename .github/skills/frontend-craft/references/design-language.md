@@ -1,0 +1,55 @@
+# Default design language — designed, not default
+
+Read only for a greenfield or unbranded UI with nothing to match — no brand, no design system, no
+established visual conventions. Any of those always wins: match it and leave this file unread. The
+invariants (theme tokens, no-flash theme, status never by color alone, designed states, composition)
+live in `../SKILL.md`; this file owns the *choices* those rules leave open.
+
+Before styling, record a small design plan: audience, workflow density, page/surface/accent/status
+tokens, type choices, and visual choices tied to this product. Every visual choice should be
+traceable to that plan; if the same plan could describe any dashboard, it is not specific enough.
+
+The bar is a polished, recognizable product: clear hierarchy, intentional typography, and a visual
+character suited to its audience. Decoration should earn its place in the workflow.
+
+## App shell and composition
+
+- **Sidebar rail above ~5 destinations**: icon + label nav grouped by area, active item marked with
+  an accent bar or tint, brand mark at top, user/account with theme toggle pinned at the bottom.
+  Collapses to icons-only on narrow viewports, to a drawer on mobile. Top tabs or a single-column
+  layout only for ≤5 views or a focused single-purpose tool.
+- **Spacing grid** on a consistent 4/8px scale.
+- **Typography**: 4–5 sizes total, hierarchy through size and weight, never color alone. Inter (or
+  similar, self-hosted), tight letter-spacing on large headings, `tabular-nums` for data, big
+  confident numbers on stat tiles.
+
+## Visual character
+
+- **Dark-first, layered surfaces.** Dark is the designed-for theme; light stays fully supported
+  through the same tokens, with a manual light/dark/system toggle, persisted and defaulting to the
+  OS setting. Deep page background, cards a step lighter, raised elements a step lighter again;
+  depth from layering plus low-alpha borders and soft shadows, not heavy lines.
+- **Accent with purpose**: use a clear accent for primary actions and active states. Gradients or a
+  hero treatment are optional when they help communicate the product. Status stays distinct and
+  paired with text or an icon.
+- **Categorical KPI accents**, when they help distinguish metric groups: draw a small set of hues
+  from theme tokens, keep categories distinct from status, and emphasize metrics by importance.
+- **Depth cues, spent sparingly**: use borders, elevation, or grouping when they clarify structure;
+  decorative cards and hover lifts are optional. Keep focus rings visible.
+
+## Motion
+
+Use motion when it clarifies feedback, continuity, or a state change. A view needs no decorative
+animation. Keep transitions brief (150–250 ms), prefer `opacity` and `transform`, and respect
+`prefers-reduced-motion`.
+
+## Self-critique as you build
+
+Screenshot what you made and look at it: would a stranger read it as a templated default?
+Generated UIs cluster around a few stock looks (cream page + serif display + terracotta accent;
+near-black + one acid accent; hairline-rule broadsheet) and stock component tells (uniform
+rounded-2xl, purple-to-indigo gradients as the default aesthetic, a shadow on every surface) — a
+look you fell into is not a decision you made; revisit choices that do not serve this product.
+Spend any boldness in one place you can justify, with everything around it quiet. Bespoke work sources
+its distinctive choices from the subject's own world — its materials, instruments, vernacular — never
+a house style carried from the last project.

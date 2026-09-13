@@ -110,8 +110,8 @@ EXTERNAL_EVIDENCE_TOOLS = {"ToolSearch", *WEB_TOOLS, *EVIDENCE_MCP_TOOLS}
 SCRIBE_TOOLS = {"Read", "Grep", "Glob", "Edit", "Write", "Skill"}
 EXPECTED_AUTHORITY = {
     "reviewer": {
-        "required": LOCAL_READ_TOOLS,
-        "forbidden": {"Bash", "Agent", "Skill", *WRITE_TOOLS, *WORKTREE_TOOLS, *EXTERNAL_EVIDENCE_TOOLS},
+        "required": {*LOCAL_READ_TOOLS, "Bash", "Write", "Edit", "TodoWrite", "Skill", "Agent"},
+        "forbidden": {"NotebookEdit", *WORKTREE_TOOLS, *EXTERNAL_EVIDENCE_TOOLS},
     },
     "repository-investigator": {
         "required": LOCAL_READ_TOOLS,
@@ -145,7 +145,7 @@ EXPECTED_AUTHORITY = {
     },
 }
 EXPECTED_DELEGATION = {
-    "reviewer": set(),
+    "reviewer": {"repository-investigator", "researcher"},
     "repository-investigator": set(),
     "researcher": set(),
     "software-engineer": {"reviewer", "scribe", "researcher"},
@@ -243,14 +243,8 @@ def validate_agents(root: Path) -> tuple[list[str], list[str]]:
         if _resolve_handoff_contract(root, name, body) is None:
             failures.append(f"{path}: missing handoff contract")
         # An agent with no `Agent` tool cannot dispatch anyone, so the shared handoff block's
-        # imperative form is a false instruction in that lane. This is not hypothetical tidying:
-        # `reviewer` — local read-only by tool absence, and the lane that gates every merge —
-        # carried the `software-engineer` block verbatim, telling it to "Hand to exactly one agent" and to load
-        # `production-change-gate`, a skill it holds no `Skill` tool to load. `scribe`, under the
-        # identical constraint, had been adapted correctly ("Recommend exactly one next owner. This
-        # role cannot invoke that owner."), which is what proves the reviewer copy was drift rather
-        # than a deliberate choice. A filled-in template beats a prose constraint 70 lines earlier,
-        # so the contradiction is pinned here rather than left to review.
+        # imperative form is a false instruction in that lane. Keep this check for terminal
+        # agents such as scribe and repository-investigator when other lanes gain delegation.
         if "Agent" not in _tool_bases(fields["tools"]):
             flat = _flatten(body)
             if DELEGATION_IMPERATIVE in flat:

@@ -29,9 +29,10 @@ Read the current edges from the validated roster table, not from memory.
 
 | Role | Agents | Why |
 |---|---|---|
-| Orchestrators | `software-engineer` (build lane); `sre-assistant` dispatches only a sanitized public question to `researcher` | The lanes that dispatch work |
+| Evidence orchestration | `reviewer` dispatches bounded local questions to `repository-investigator` and sanitized public questions to `researcher` | Helpers gather facts; reviewer retains severity and verdict |
+| Other orchestrators | `software-engineer` (build lane); `sre-assistant` dispatches only a sanitized public question to `researcher` | The lanes that dispatch work |
 | Universal sink | `researcher` | Every orchestrating lane reaches it for sanitized public fact-finding |
-| Terminal for model calls | `reviewer`, `repository-investigator`, `scribe` | No `Agent` grant, so the model cannot dispatch onward; a user may still select a declared VS Code handoff, which starts a new owner without giving the source delegation authority |
+| Terminal for model calls | `repository-investigator`, `scribe` | No `Agent` grant, so the model cannot dispatch onward; a user may still select a declared VS Code handoff, which starts a new owner without giving the source delegation authority |
 
 ## The honest limit
 

@@ -207,6 +207,14 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertIn("## Pick one primary mode", body)
         self.assertIn("**Knowledge closeout mode**", body)
 
+    def test_reviewer_collects_and_verifies_evidence_without_direct_external_tools(self) -> None:
+        path = ROOT / "agents/reviewer.md"
+        fields, _, _ = validate_fleet.adapters.parse_frontmatter(path)
+        self.assertEqual({"Read", "Grep", "Glob", "Bash", "Write", "Edit", "TodoWrite", "Skill", "Agent"},
+                         validate_fleet._tool_bases(fields["tools"]))
+        self.assertEqual({"repository-investigator", "researcher"},
+                         validate_fleet._delegates(fields["tools"], path))
+
     def test_handoff_receivers_keep_evidence_confidence_separate_from_taint(self) -> None:
         sections = {
             "software-engineer": _markdown_section(
@@ -734,14 +742,7 @@ class FleetValidatorTests(unittest.TestCase):
 
 
 class NonDelegatingHandoffTests(unittest.TestCase):
-    """An agent with no `Agent` tool must not carry the delegating handoff imperative.
-
-    The real defect this pins: `reviewer` — read-only by tool absence, and the lane that gates every
-    merge — carried the `software-engineer` handoff block verbatim, instructing it to "Hand to exactly one agent"
-    and to load `production-change-gate`, a skill it holds no `Skill` tool to load. `scribe`, under
-    the identical constraint, had already been adapted correctly, which is what showed the reviewer
-    copy was drift and not a decision.
-    """
+    """Terminal lanes must not acquire a delegating handoff through copied instructions."""
 
     def _mutate(self, filename: str, before: str, after: str) -> list[str]:
         with tempfile.TemporaryDirectory() as temporary:
@@ -768,12 +769,12 @@ class NonDelegatingHandoffTests(unittest.TestCase):
 
     def test_delegating_imperative_in_a_toolless_lane_is_flagged(self) -> None:
         failures = self._mutate(
-            "reviewer.md",
+            "scribe.md",
             "Recommend exactly one next owner. This role cannot invoke that owner",
             "Hand to exactly one agent. If two are needed, sequence them",
         )
         self.assertTrue(
-            any("holds no Agent tool" in f and "reviewer" in f for f in failures), failures
+            any("holds no Agent tool" in f and "scribe" in f for f in failures), failures
         )
 
     def test_a_lane_that_drops_every_disclaimer_is_flagged(self) -> None:

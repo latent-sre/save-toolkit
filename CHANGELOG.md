@@ -49,6 +49,15 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Expanded `reviewer` to gather Git/PR/history evidence, load trusted guidance, write scratch
+  reproductions, run permitted isolated checks, and dispatch bounded investigation/research helpers.
+  Candidate fixes and release actions remain with the caller. Updated the graph, host projections,
+  and balanced review cases; shell/write limits are no longer described as enforced by tool absence.
+
+- Moved the Copilot skill projection to `.github/skills/` for standard workspace discovery and
+  updated the plugin selector. Removed the custom VS Code skill-location override and generated
+  banners from adapters and bundled resources; byte validation still checks the authored sources.
+
 - Strengthened Python refactoring guidance for interpreter/environment selection, public module
   moves, independent old/new comparisons, and review of automated fixes. Added semantic regression
   checks that independently reject widened keyword-only parameters, callback-path input mutation,

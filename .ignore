@@ -8,10 +8,10 @@
 # the validators read them through pathlib — none of that is affected.
 #
 # To search them on purpose (debugging the generator, confirming a host difference):
-#   rg --no-ignore <pattern> platforms/copilot/skills/
+#   rg --no-ignore <pattern> .github/skills/
 #
 # To fix something you found in one: edit the canonical file under agents/ or skills/, then run
 #   python scripts/generate_platform_adapters.py --write
 # Editing a projection directly is erased by the next regeneration.
 .github/agents/
-platforms/copilot/skills/
+.github/skills/

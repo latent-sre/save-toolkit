@@ -36,6 +36,13 @@ class BudgetBreachTests(unittest.TestCase):
 
 
 class CraftPathTests(unittest.TestCase):
+    def test_review_profile_measures_trusted_guidance_without_builder_instructions(self) -> None:
+        paths = check_context_cost.TASK_FILES["Independent Python review"]
+        self.assertTrue({"agents/reviewer.md", "skills/python-craft/references/refactoring.md",
+                         "docs/docker-verification.md"} <= set(paths))
+        self.assertNotIn("agents/software-engineer.md", paths)
+        self.assertEqual(len(paths), len(set(paths)))
+
     def test_craft_profiles_include_their_required_context(self) -> None:
         common = {
             "agents/software-engineer.md",

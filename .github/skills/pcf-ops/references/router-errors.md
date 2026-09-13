@@ -1,0 +1,39 @@
+# Gorouter error interpretation
+
+Read when the evidence includes `X-Cf-RouterError`, 404/502/503, a keep-alive failure, a connection
+limit, a route-service error, or certificate/clock-skew symptoms. The parent `SKILL.md` owns the
+application/platform boundary, header-capture restriction, escalation packet, and human authority.
+
+Status alone under-determines the cause. The documented shapes include:
+
+| `X-Cf-RouterError` | Status | Means |
+|---|---|---|
+| `unknown_route` | **404** | route absent from the router table |
+| `no_endpoints` | **503** | route exists, no healthy backends |
+| `endpoint_failure` | **502** | backend selected; connection or response failed; app receipt unproven |
+| `Connection Limit Reached` | 503 | backend connection limit |
+| `route_service_unsupported` | 502 | route-service configuration problem |
+
+*[sourced: Cloud Foundry "Troubleshooting router error responses"; gorouter
+`handlers/lookup.go` and `proxy/round_tripper/error_handler.go`]*
+
+- **502 with `endpoint_failure`** — backend connection or response failed, including refused dials;
+  it does not prove the app received the request. Check connection errors, mid-request crashes,
+  router timeouts, and the **keep-alive race**. Upstream
+  Gorouter's backend-connection idle timeout is hardcoded at 90 seconds. If the app's keep-alive
+  idle timeout is **< 90s**, it can close a connection just as Gorouter reuses it; set the app
+  server's keep-alive idle timeout **> 90s** (for example, Tomcat's
+  `server.tomcat.keep-alive-timeout`). This is the router-to-app connection pool, not a universal
+  Gorouter keepalive; the frontend idle timeout is separate and platform-configurable. The
+  application setting is usually app-side, while any Gorouter setting remains a platform-team
+  concern. *[sourced: gorouter `proxy/proxy.go` backend transport and `router/router.go` frontend
+  server]*
+- A 502 can also be **platform-side**: clock skew between Gorouter and a Diego cell makes the cell's
+  TLS certificate look not-yet-valid (`x509: certificate ... is not yet valid`), surfaced as
+  `ExpiredOrNotYetValidCertFailure`. Escalate that NTP/time-sync evidence to the platform team rather
+  than chasing it app-side. *[sourced: CF router error docs; Broadcom KB 297999]*
+- **503 Service Unavailable** — inspect `X-Cf-RouterError`: `no_endpoints` and
+  `Connection Limit Reached` lead to different checks (backend availability versus connection
+  pressure). Without that evidence, status alone does not establish that all instances are down.
+- **One route/app affected while others are fine** points to the application lane; a foundation-wide
+  pattern goes to the platform team with the parent skill's escalation packet.
