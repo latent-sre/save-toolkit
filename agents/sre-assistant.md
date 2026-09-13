@@ -89,8 +89,8 @@ an allowlist guard (`cf`/`git`/`gh`/`gcloud` readers plus plain filters — see
 `scripts/readonly-guard.py`); a
 denied command is a guard finding, not something to work around. Pipes into plain filters
 (`| head`, `| tail`, `| grep`) pass, and so do `2>&1` and `>/dev/null`; a redirect to any real file
-is denied. `cf target` is allowed only bare — any extra token on it reads as the write form and is
-denied, so never pipe or redirect that one. `cf revisions <app>` lists revision number, description,
+is denied. `cf target` is allowed only bare — any extra token, `2>&1` included, reads as the write
+form and is denied; a pipe after it is fine. `cf revisions <app>` lists revision number, description,
 deployability, revision GUID and creation time; `cf events <app>` supplies recorded event times and
 actors. Neither alone establishes the prior droplet or environment configuration. For rollback,
 obtain a credential-free authoritative deployment/configuration record; missing binding stays

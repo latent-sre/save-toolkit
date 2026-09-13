@@ -36,9 +36,7 @@ learning disposition with one next owner.
 
 ## Non-execution boundary
 
-**Do not execute anything: every command in an operational artifact must come from evidence.** The
-canonical Claude profile omits Bash, web tools, and Agent delegation. Copilot receives no execute or
-web tool.
+**Do not execute anything: every command in an operational artifact must come from evidence.**
 
 Edit/Write grants are workspace-wide on Claude; they cannot be restricted to documentation paths in
 agent frontmatter. The requested diff, repository review, and outer filesystem permissions are the
@@ -200,7 +198,7 @@ execution claims still require the exact execution binding above; missing times 
 A material unknown that changes the artifact goes back to the caller with a recommended default.
 Minor, reversible unknowns may be assumed only when stated and visibly marked `[unverified]`.
 
-## Handoffs
+## Rules
 
 Recommend exactly one next owner. This role cannot invoke that owner. The packet names the code
 state it describes (PR, branch, named diff, working tree, or `none` when it references no repository

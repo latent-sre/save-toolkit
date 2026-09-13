@@ -44,6 +44,12 @@ PLUGIN_INERT_AGENT_FIELDS = {"hooks", "mcpServers", "permissionMode"}
 #
 # `NotebookEdit` is allowed but granted to nobody -- the stack has no notebooks. It stays so a
 # write-tool set (`WRITE_TOOLS`) reasons over the whole write surface rather than a subset.
+#
+# `TodoWrite` is inert on Claude Code 2.1.268+ (disabled by default in favour of the `TaskCreate`/
+# `TaskList`/`TaskUpdate` family, none of which has yet been shown to reach a subagent) and is kept
+# ONLY as the source of Copilot's `todo` alias, which VS Code provisions (owner-verified 2026-09-13)
+# and the cloud coding agent does not. A partially unresolved `tools:` list launches without the
+# dead name, so the grant is harmless on Claude; swap it for the Task* names once one is proven.
 BUILTIN_TOOLS = {
     "Agent", "Bash", "Edit", "EnterWorktree", "ExitWorktree", "Glob", "Grep", "NotebookEdit",
     "Read", "Skill", "TodoWrite", "ToolSearch", "WebFetch", "WebSearch", "Write",
@@ -89,8 +95,6 @@ WEB_TOOLS = {"WebFetch", "WebSearch"}
 EVIDENCE_MCP_TOOLS = {
     "mcp__claude_ai_Context7__query-docs",
     "mcp__claude_ai_Context7__resolve-library-id",
-    "mcp__plugin_context7_context7__query-docs",
-    "mcp__plugin_context7_context7__resolve-library-id",
     "mcp__plugin_githits_githits__code_files",
     "mcp__plugin_githits_githits__code_grep",
     "mcp__plugin_githits_githits__code_read",
