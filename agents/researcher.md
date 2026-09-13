@@ -14,8 +14,6 @@ tools:
   - ToolSearch
   - mcp__claude_ai_Context7__resolve-library-id
   - mcp__claude_ai_Context7__query-docs
-  - mcp__plugin_context7_context7__resolve-library-id
-  - mcp__plugin_context7_context7__query-docs
   - mcp__plugin_githits_githits__search
   - mcp__plugin_githits_githits__search_status
   - mcp__plugin_githits_githits__search_language

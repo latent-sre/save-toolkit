@@ -67,7 +67,7 @@ and `playwright/*` ship out of the box.
 | `execute` | `Bash` | yes |
 | `web` | `WebFetch`, `WebSearch` | yes |
 | `agent` | `Agent` | yes |
-| `todo` | `TodoWrite` | yes — builders and the reviewer for bounded investigation |
+| `todo` | `TodoWrite` | yes — builders and the reviewer for bounded investigation. VS Code provisions it [verified by the owner 2026-09-13]; the cloud coding agent does not [sourced: docs.github.com custom-agents-configuration]. `TodoWrite` itself is inert on Claude Code 2.1.268+ and stays only as this mapping's source |
 
 `EnterWorktree` / `ExitWorktree` have **no Copilot alias** and are deliberately unmapped — the
 projection drops them rather than substituting `execute`, which would widen authority on a host
