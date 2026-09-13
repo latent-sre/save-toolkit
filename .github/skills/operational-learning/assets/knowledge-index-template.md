@@ -1,0 +1,37 @@
+---
+schema_version: 1
+owner: <team/role>
+last_reviewed: null
+---
+
+# Operations knowledge index
+
+This index links durable records; it does not copy alert queries, runbook commands, or service
+configuration. The linked version-controlled source remains authoritative.
+
+## Services
+
+| Service | Lifecycle | Owner | Criticality | Service card | SLO/dashboard | Open gaps |
+|---|---|---|---|---|---|---|
+|  |  |  |  |  |  |  |
+
+## Alerts
+
+| Exact alert name | Status | Service | Page/ticket | Alert card | Runbook | Definition |
+|---|---|---|---|---|---|---|
+|  |  |  |  |  |  |  |
+
+Set `Status` for every alert row. Keep it aligned with the linked alert card (`active`, `retired`,
+or the repository's equivalent lifecycle state).
+
+## Open knowledge gaps
+
+| Gap | Artifact | Status | Owner | Tracking link | Evidence label |
+|---|---|---|---|---|---|
+|  |  | proposed / blocked |  |  | `[unverified]` |
+
+## Recent learning updates
+
+| PR / revision / evidence reference | Trigger | Summary | Dispositions | Reviewed change |
+|---|---|---|---|---|
+|  |  |  |  |  |

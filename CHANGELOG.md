@@ -8,6 +8,9 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- Reviewer evaluation checks now detect path-qualified and common wrapper-prefixed Python/tool
+  commands and require the reviewed range in Git diff/history requests. Added positive and negative
+  calibration cases; the eval Python ceiling rises by 22 lines to 12,275 for this regression coverage.
 - Corrected wrong PCF mitigation guidance: whole-app `cf restart` stops every instance, so the
   covered restart is per-instance or rolling; a revision rollback restores the revision's env vars
   and creates a new `Rolled back to revision <n>` entry, so readback checks the description; rollback
@@ -48,6 +51,15 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   secret handling, and uncertain effect outcomes.
 
 ### Changed
+
+- Expanded `reviewer` to gather Git/PR/history evidence, load trusted guidance, write scratch
+  reproductions, run permitted isolated checks, and dispatch bounded investigation/research helpers.
+  Candidate fixes and release actions remain with the caller. Updated the graph, host projections,
+  and balanced review cases; shell/write limits are no longer described as enforced by tool absence.
+
+- Moved the Copilot skill projection to `.github/skills/` for standard workspace discovery and
+  updated the plugin selector. Removed the custom VS Code skill-location override and generated
+  banners from adapters and bundled resources; byte validation still checks the authored sources.
 
 - Strengthened Python refactoring guidance for interpreter/environment selection, public module
   moves, independent old/new comparisons, and review of automated fixes. Added semantic regression

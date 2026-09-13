@@ -17,6 +17,6 @@
     "pcf"
   ],
   "agents": "./.github/agents/",
-  "skills": "./platforms/copilot/skills/",
+  "skills": "./.github/skills/",
   "hooks": "./hooks/copilot-hooks.json"
 }

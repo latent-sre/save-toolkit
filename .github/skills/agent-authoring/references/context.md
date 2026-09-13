@@ -1,0 +1,29 @@
+# Context engineering
+
+Find the smallest set of high-signal tokens that lets the agent act correctly, and treat context
+like least privilege: include what the step needs, nothing it doesn't. `../SKILL.md`'s
+untrusted-data and label rules apply unchanged — compression, compaction, and handoff are the
+easiest places to silently upgrade a label.
+
+## Fleet rules the general techniques leave open
+
+- **Durable knowledge lives outside the window** — for us that is runbooks, postmortems, and the
+  knowledge loop, never a giant in-context scratchpad.
+- **Preload context every step needs; retrieve conditional detail when it applies.** Avoid a
+  chain of fetches for prerequisites that are already known.
+- **Fork or rewind only when replay is defined.** A checkpoint before a failed path gives a clean
+  retry only when the runtime defines replay and effect semantics. Never replay an external side
+  effect by assumption; otherwise correct in place and record the divergence.
+- **Clearing old tool results is not lossless.** Clear only after retaining their load-bearing
+  facts and only when the source can be read safely again.
+
+## In this fleet
+
+Thin agent bodies, on-demand detail, isolated bounded work, and compact evidence packets keep
+context deliberate; apply them before reaching for a bigger model or a longer prompt. Send a
+cold-start packet, not a transcript: invoking caller and human owner separately, intent, source/state,
+success criteria, scope, source trust, unknowns and [return fields](./roster.md#handoffs-between-contexts). Preserve
+targets, windows, observed values and [verified], [sourced], [unverified], [UNTRUSTED] markers.
+Preserve the verified subject, method, source and time. Reading export E verifies its bytes;
+`[sourced] export E reports 4/4 at 09:40` does not verify current health. Missing chronology or state
+stays unknown. The caller checks returned evidence and resumes pending work within its authority.

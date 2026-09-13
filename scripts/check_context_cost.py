@@ -40,6 +40,16 @@ _FASTAPI_UPSTREAM = [
     "skills/backend-craft/references/consuming-apis.md",
 ]
 TASK_FILES: dict[str, list[str]] = {
+    # Trusted guidance selected for a Python review; candidate source and tool output are separate.
+    "Independent Python review": [
+        "agents/reviewer.md",
+        "skills/stack-profile/SKILL.md",
+        "skills/stack-profile/references/application-and-data-stack.md",
+        "skills/python-craft/SKILL.md",
+        "skills/python-craft/references/writing-python.md",
+        "skills/python-craft/references/refactoring.md",
+        "docs/docker-verification.md",
+    ],
     "PCF incident, human path": [
         "skills/incident-investigation/SKILL.md",
         "skills/incident-investigation/references/symptom-investigation.md",
@@ -121,6 +131,7 @@ TASK_FILES: dict[str, list[str]] = {
     ],
 }
 TASK_BUDGETS: dict[str, int] = {
+    "Independent Python review": 43_000,
     "PCF incident, human path": 77_000,
     "PCF incident, sre-assistant agent path": 76_000,
     "Noisy alert": 44_000,

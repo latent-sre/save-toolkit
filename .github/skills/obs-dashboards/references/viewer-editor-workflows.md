@@ -1,0 +1,42 @@
+# Viewer and Editor workflows
+
+Read this when helping someone consume or author dashboards without widening their organization role.
+Confirm the deployed Grafana edition and permission model; documentation describes capabilities, not
+the grants on this instance.
+
+## Permission boundary
+
+- Viewer is the read baseline; Editor adds dashboard, folder, annotation, and library-panel changes.
+  Organization Admin also manages organization resources such as data sources and teams.
+- Prefer a user/team grant on the one dashboard or folder over an organization-wide role increase.
+  Dashboards inherit folder permissions. Where licensed, an Explore-specific RBAC grant can allow
+  ad-hoc querying without dashboard-edit authority.
+- Permission and role changes are live configuration outside the dashboard write rule. Prepare the
+  exact requested grant for the Grafana administrator; the agent does not apply it.
+
+*[sourced: Grafana basic roles, RBAC fixed roles, and dashboard permissions documentation; target
+behavior remains `[unverified]` until checked]*
+
+## Viewer evidence
+
+- Preserve the investigation state in the URL: absolute or relative time range, `var-<name>` values,
+  and timezone. Prefer an access-controlled live link over a screenshot; a screenshot freezes data
+  and can expose more than the recipient is authorized to query.
+- Panel Inspect exposes the query, returned data, panel JSON, and CSV without granting Explore.
+  Record the time window and variable values with exported evidence.
+- Internal panel/dashboard links remain access-controlled. A Grafana snapshot embeds queried data
+  outside the dashboard's normal access path: scrub it, set an expiry, and treat sharing it as data
+  egress.
+
+*[sourced: Grafana URL variables, panel inspection, and sharing documentation]*
+
+## Editor changes
+
+- Library panels propagate an edit to every consumer; inventory those consumers before changing one.
+- Annotations should mark deploys, incidents, and configuration changes with consistent tags.
+- Version history names who changed a dashboard and supports comparison/restore. A restore is durable
+  only for an unmanaged dashboard. Provisioned or tool-managed resources must be changed through
+  their owner or the next reconciliation will replace the UI/API edit.
+- Every UI or API save is a real change. Use a meaningful save message; prefer the API path in
+  [http-api](./http-api.md) when the work needs a reviewable diff, concurrency protection, query
+  evidence, and a rollback.

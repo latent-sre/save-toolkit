@@ -24,4 +24,4 @@ Dockerfile text eol=lf
 # Host projections are generated from agents/ and skills/. These attributes help review tools
 # collapse the copies without changing their runtime behavior.
 /.github/agents/** linguist-generated=true
-/platforms/copilot/skills/** linguist-generated=true
+/.github/skills/** linguist-generated=true

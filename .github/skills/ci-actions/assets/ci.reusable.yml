@@ -1,0 +1,37 @@
+# Conditional starter: use only when no project-owned workflow or starter exists; adapt from reviewed requirements.
+# Review action provenance, event trust, permissions and secrets before merge.
+name: ci
+
+on:
+  workflow_call:
+    inputs:
+      concurrency-key:
+        description: Stable identity unique to the caller job and any caller matrix target
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      matrix: { python-version: ["3.11", "3.12"] }
+    concurrency:
+      # Reserve this suffix for the callee; caller groups must differ.
+      group: ${{ github.workflow_ref }}-${{ github.ref }}-${{ inputs.concurrency-key }}-ci-test-${{ matrix.python-version }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.0.1 # upstream has no major tag
+        with: { python-version: "${{ matrix.python-version }}" }
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy .
+      - run: uv run pytest -q
+
+  # Deployment belongs in a separate protected-environment job/workflow.
+  # See the PCF job reference for its approval, artifact and credential contract.
