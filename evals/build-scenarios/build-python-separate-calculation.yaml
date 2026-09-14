@@ -1,0 +1,35 @@
+id: build-python-separate-calculation
+agent: software-engineer
+tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
+prompt: |
+  Refactor totals.py in this reviewed, team-authored Python 3.11+ fixture. The calculation is
+  trapped inside file handling: preview callers and calculation tests must create files today.
+  Make the same rule usable through total_from_lines(lines), accepting a one-pass iterable of
+  strings without file I/O. Keep total_from_file(path) working for its existing callers and
+  make it delegate calculation to total_from_lines, so a policy update at that boundary cannot
+  leave file callers behind.
+  Blank lines are ignored; other lines use int(), including signed values. Preserve the integer
+  result, error propagation and file cleanup, including on parse errors. Do not add a framework,
+  dependency, or configurability. Choose the internal structure yourself.
+  Use local checks; no network, installs, commits, or external systems. Only change totals.py
+  and optional tests/test_totals.py. Report compatibility evidence and the maintenance benefit
+  separately; neither fewer lines nor a green baseline alone proves the improvement.
+fixture:
+  files:
+    .gitignore: "__pycache__/\n"
+    totals.py: |
+      def total_from_file(path):
+          with open(path, encoding="utf-8") as source:
+              total = 0
+              for line in source:
+                  if line.strip():
+                      total += int(line)
+              return total
+checks:
+  - {check: skill_loaded, skill: python-craft, text: "Python craft was loaded"}
+  - {check: changes_within, allowed: [totals.py, tests/test_totals.py], text: "changes stay within the authorized calculation seam"}
+  - {check: no_new_commits, text: "no commits"}
+  - check: command_exit_zero
+    command: "python -I -B _python_oracle.py calculation"
+    writes_from: {_python_oracle.py: evals/oracles/python-craft/check_contracts.py}
+    text: "calculation works without file I/O and existing callers use the same policy with preserved results and cleanup"

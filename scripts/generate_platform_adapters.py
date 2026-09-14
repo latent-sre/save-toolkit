@@ -612,13 +612,19 @@ def _gitattributes_failures(root: Path) -> list[str]:
     return failures
 
 
-def validate_platform_support(root: Path) -> list[str]:
+def _generated_tree_failures(root: Path) -> list[str]:
+    """Shared tree policy for fleet validation and the adapter CLI's post-write check."""
+    # The CLI once omitted retired roots and printed PASS over stale host-loadable content.
+    # Git ignores those roots, so neither caller may rely on Git to detect them.
     return (
-        validate_platform_contracts(root)
-        + validate_generated_outputs(root)
+        validate_generated_outputs(root)
         + _retired_generated_root_failures(root)
         + _gitattributes_failures(root)
     )
+
+
+def validate_platform_support(root: Path) -> list[str]:
+    return validate_platform_contracts(root) + _generated_tree_failures(root)
 
 
 def write_generated_outputs(root: Path) -> int:
@@ -684,15 +690,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.write:
             count = write_generated_outputs(root)
             print(f"Generated {count} adapter file(s).")
-        # Everything validate_platform_support() covers except the contract check already run
-        # above. Without the retired-root check here, this CLI printed PASS over a stale
-        # `.codex/agents/` or `plugins/save-toolkit/` left in an upgraded checkout — host-loadable
-        # content that is `.gitignore`d, so neither git nor this command would have said a word.
-        failures = (
-            validate_generated_outputs(root)
-            + _retired_generated_root_failures(root)
-            + _gitattributes_failures(root)
-        )
+        # Check the resulting tree; manifest validation must remain before any write.
+        failures = _generated_tree_failures(root)
     except (OSError, UnicodeError, ValueError) as exc:
         print(exc)
         return 1

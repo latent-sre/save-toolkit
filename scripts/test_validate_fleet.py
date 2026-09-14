@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 import re
 import tempfile
 import unittest
@@ -30,11 +31,76 @@ def _markdown_section(relative: Path, heading: str) -> str:
     return _normalized(section)
 
 
+def _agent_failures_after_edit(filename: str, edit: Callable[[str], str]) -> list[str]:
+    """Validate one real edit in a fresh copy of the authored agent tree."""
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        (root / "agents").mkdir()
+        replaced = False
+        for source in (ROOT / "agents").glob("*.md"):
+            text = source.read_text(encoding="utf-8")
+            if source.name == filename:
+                mutated = edit(text)
+                if mutated == text:
+                    raise AssertionError(f"{filename}: mutation matched nothing")
+                text, replaced = mutated, True
+            (root / "agents" / source.name).write_text(text, encoding="utf-8")
+        if not replaced:
+            raise AssertionError(f"{filename} not found in agents/")
+        _, failures = validate_fleet.validate_agents(root)
+    return failures
+
+
 class FleetValidatorTests(unittest.TestCase):
     def test_current_agents_pass(self) -> None:
         names, failures = validate_fleet.validate_agents(ROOT)
         self.assertEqual(sorted(validate_fleet.EXPECTED_AUTHORITY), sorted(names))
         self.assertEqual([], failures)
+
+    def test_missing_tools_returns_a_diagnostic_instead_of_crashing(self) -> None:
+        failures = _agent_failures_after_edit(
+            "repository-investigator.md",
+            lambda text: text.replace("tools: Read, Grep, Glob", "# tools omitted"),
+        )
+        self.assertEqual(1, len(failures), failures)
+        self.assertIn("tools must be explicit; omission inherits all tools", failures[0])
+
+    def test_unknown_agent_returns_roster_mismatch_instead_of_crashing(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "agents").mkdir()
+            (root / "agents/extra-agent.md").write_text(
+                "---\nname: extra-agent\ndescription: Unexpected roster member\ntools: Read\n---\n"
+                "## Handoffs\nThis agent cannot invoke another owner.\n"
+                "[verified] [sourced] [unverified]\n",
+                encoding="utf-8",
+            )
+            names, failures = validate_fleet.validate_agents(root)
+        self.assertEqual(["extra-agent"], names)
+        self.assertEqual(1, len(failures), failures)
+        self.assertIn("agents/: roster mismatch;", failures[0])
+        self.assertTrue(failures[0].endswith("; found extra-agent"), failures)
+
+    def test_field_tool_and_authority_diagnostics_keep_their_order(self) -> None:
+        failures = _agent_failures_after_edit(
+            "scribe.md", lambda text: text.replace(
+                "tools: Read, Grep, Glob, Edit, Write, Skill", "hooks: ignored\ntools: Read, Read",
+            ),
+        )
+        self.assertEqual([
+            "unknown or unsupported plugin agent field(s): hooks",
+            "plugin-inert authority field(s) are forbidden: hooks",
+            "duplicate tool grant(s): Read",
+            "missing required tool(s): Edit, Glob, Grep, Skill, Write",
+        ], [failure.split(": ", 1)[1] for failure in failures])
+
+    def test_agent_mutations_must_change_an_existing_file(self) -> None:
+        for filename, before, message in (
+            ("scribe.md", "absent mutation needle", "mutation matched nothing"),
+            ("missing-agent.md", "name:", "not found in agents/"),
+        ):
+            with self.subTest(filename=filename), self.assertRaisesRegex(AssertionError, message):
+                _agent_failures_after_edit(filename, lambda text: text.replace(before, "replacement"))
 
     def test_agent_return_templates_keep_recipient_status_and_parent_separate(self) -> None:
         """Catch removal of return slots, not just loss of prose mentioning them."""
@@ -201,7 +267,7 @@ class FleetValidatorTests(unittest.TestCase):
         fields, body, _ = validate_fleet.adapters.parse_frontmatter(path)
         self.assertEqual(
             {"Read", "Grep", "Glob", "Edit", "Write", "Skill"},
-            validate_fleet._tool_bases(fields["tools"]),
+            validate_fleet._tool_bases(validate_fleet._tool_specs(fields["tools"])),
         )
         self.assertIn("Do not execute anything", body)
         self.assertIn("## Pick one primary mode", body)
@@ -211,9 +277,9 @@ class FleetValidatorTests(unittest.TestCase):
         path = ROOT / "agents/reviewer.md"
         fields, _, _ = validate_fleet.adapters.parse_frontmatter(path)
         self.assertEqual({"Read", "Grep", "Glob", "Bash", "Write", "Edit", "TodoWrite", "Skill", "Agent"},
-                         validate_fleet._tool_bases(fields["tools"]))
+                         validate_fleet._tool_bases(validate_fleet._tool_specs(fields["tools"])))
         self.assertEqual({"repository-investigator", "researcher"},
-                         validate_fleet._delegates(fields["tools"], path))
+                         validate_fleet._delegates(validate_fleet._tool_specs(fields["tools"]), path))
 
     def test_handoff_receivers_keep_evidence_confidence_separate_from_taint(self) -> None:
         sections = {
@@ -329,7 +395,7 @@ class FleetValidatorTests(unittest.TestCase):
         names = re.findall(r"(?m)^- `([^`]+)`", required)
         self.assertIn("operational-learning", names)
         fields, _, _ = validate_fleet.adapters.parse_frontmatter(ROOT / "agents/scribe.md")
-        self.assertIn("Skill", validate_fleet._tool_bases(fields["tools"]))
+        self.assertIn("Skill", validate_fleet._tool_bases(validate_fleet._tool_specs(fields["tools"])))
         closeout = _markdown_section(Path("agents/scribe.md"), "## Knowledge closeout mode")
         self.assertIn("`operational-learning`", closeout)
 
@@ -414,18 +480,12 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertIn("→ `scribe`", body)
 
     def test_scribe_execute_egress_and_delegation_are_rejected(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            (root / "agents").mkdir()
-            for source in (ROOT / "agents").glob("*.md"):
-                text = source.read_text(encoding="utf-8")
-                if source.name == "scribe.md":
-                    text = text.replace(
-                        "tools: Read, Grep, Glob, Edit, Write, Skill",
-                        "tools: Read, Grep, Glob, Edit, Write, Skill, Bash, WebSearch, Agent(save-toolkit:researcher)",
-                    )
-                (root / "agents" / source.name).write_text(text, encoding="utf-8")
-            _, failures = validate_fleet.validate_agents(root)
+        failures = _agent_failures_after_edit(
+            "scribe.md", lambda text: text.replace(
+                "tools: Read, Grep, Glob, Edit, Write, Skill",
+                "tools: Read, Grep, Glob, Edit, Write, Skill, Bash, WebSearch, Agent(save-toolkit:researcher)",
+            ),
+        )
         rendered = "\n".join(failures)
         self.assertIn("forbidden tool(s): Agent, Bash, WebSearch", rendered)
         self.assertIn("delegation mismatch", rendered)
@@ -452,15 +512,9 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertIn("otherwise leave it unchanged", template)
 
     def test_inert_plugin_hook_and_missing_tools_fail(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            (root / "agents").mkdir()
-            for source in (ROOT / "agents").glob("*.md"):
-                text = source.read_text(encoding="utf-8")
-                if source.name == "reviewer.md":
-                    text = text.replace("tools: Read, Grep, Glob", "hooks: ignored\ntools: Read")
-                (root / "agents" / source.name).write_text(text, encoding="utf-8")
-            _, failures = validate_fleet.validate_agents(root)
+        failures = _agent_failures_after_edit(
+            "reviewer.md", lambda text: text.replace("tools: Read, Grep, Glob", "hooks: ignored\ntools: Read"),
+        )
         rendered = "\n".join(failures)
         self.assertIn("unsupported plugin agent field", rendered)
         self.assertIn("missing required tool", rendered)
@@ -471,116 +525,67 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertIn("plugin-inert authority field(s) are forbidden", rendered)
 
     def test_mcp_server_wildcard_is_rejected(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            (root / "agents").mkdir()
-            for source in (ROOT / "agents").glob("*.md"):
-                text = source.read_text(encoding="utf-8")
-                if source.name == "researcher.md":
-                    text = text.replace("  - mcp__plugin_githits_githits__search\n", "  - mcp__plugin_githits_githits__*\n")
-                (root / "agents" / source.name).write_text(text, encoding="utf-8")
-            _, failures = validate_fleet.validate_agents(root)
+        failures = _agent_failures_after_edit(
+            "researcher.md", lambda text: text.replace(
+                "  - mcp__plugin_githits_githits__search\n", "  - mcp__plugin_githits_githits__*\n",
+            ),
+        )
         self.assertIn("MCP authority is not exact-approved", "\n".join(failures))
 
     def test_unknown_delegation_target_is_rejected(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            (root / "agents").mkdir()
-            for source in (ROOT / "agents").glob("*.md"):
-                text = source.read_text(encoding="utf-8")
-                if source.name == "software-engineer.md":
-                    text = text.replace(
-                        "Agent(save-toolkit:reviewer, save-toolkit:scribe, save-toolkit:researcher)", "Agent(save-toolkit:does-not-exist)"
-                    )
-                (root / "agents" / source.name).write_text(text, encoding="utf-8")
-            _, failures = validate_fleet.validate_agents(root)
+        failures = _agent_failures_after_edit(
+            "software-engineer.md", lambda text: text.replace(
+                "Agent(save-toolkit:reviewer, save-toolkit:scribe, save-toolkit:researcher)",
+                "Agent(save-toolkit:does-not-exist)",
+            ),
+        )
         self.assertIn("does not exist", "\n".join(failures))
 
     def test_local_investigator_external_egress_is_rejected(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            (root / "agents").mkdir()
-            for source in (ROOT / "agents").glob("*.md"):
-                text = source.read_text(encoding="utf-8")
-                if source.name == "repository-investigator.md":
-                    text = text.replace("tools: Read, Grep, Glob", "tools: Read, Grep, Glob, WebSearch")
-                (root / "agents" / source.name).write_text(text, encoding="utf-8")
-            _, failures = validate_fleet.validate_agents(root)
+        failures = _agent_failures_after_edit(
+            "repository-investigator.md",
+            lambda text: text.replace("tools: Read, Grep, Glob", "tools: Read, Grep, Glob, WebSearch"),
+        )
         self.assertIn("forbidden tool(s): WebSearch", "\n".join(failures))
 
     def test_external_researcher_local_read_is_rejected(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            (root / "agents").mkdir()
-            for source in (ROOT / "agents").glob("*.md"):
-                text = source.read_text(encoding="utf-8")
-                if source.name == "researcher.md":
-                    text = text.replace("  - WebSearch\n", "  - Read\n  - WebSearch\n")
-                (root / "agents" / source.name).write_text(text, encoding="utf-8")
-            _, failures = validate_fleet.validate_agents(root)
+        failures = _agent_failures_after_edit(
+            "researcher.md", lambda text: text.replace("  - WebSearch\n", "  - Read\n  - WebSearch\n"),
+        )
         self.assertIn("forbidden tool(s): Read", "\n".join(failures))
 
     def test_local_agent_direct_web_access_is_rejected(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            (root / "agents").mkdir()
-            for source in (ROOT / "agents").glob("*.md"):
-                text = source.read_text(encoding="utf-8")
-                if source.name == "software-engineer.md":
-                    # Anchor on the `tools:` line itself, not on an adjacent pair of tool
-                    # names: this injection silently became a no-op once a grant landed
-                    # between `Write` and `Skill`, and a no-op injection makes the assertion
-                    # below test nothing at all.
-                    before = text
-                    text = re.sub(
-                        r"^(tools: .*?)(, Skill\b)", r"\1, WebFetch\2",
-                        text, count=1, flags=re.M,
-                    )
-                    self.assertNotEqual(before, text, "WebFetch injection did not apply")
-                (root / "agents" / source.name).write_text(text, encoding="utf-8")
-            _, failures = validate_fleet.validate_agents(root)
+        # Anchor on the tools line: adjacent tool names previously drifted and made this a no-op.
+        failures = _agent_failures_after_edit(
+            "software-engineer.md", lambda text: re.sub(
+                r"^(tools: .*?)(, Skill\b)", r"\1, WebFetch\2", text, count=1, flags=re.M,
+            ),
+        )
         self.assertIn("forbidden tool(s): WebFetch", "\n".join(failures))
 
     def test_delegation_contract_is_exact(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            (root / "agents").mkdir()
-            for source in (ROOT / "agents").glob("*.md"):
-                text = source.read_text(encoding="utf-8")
-                if source.name == "software-engineer.md":
-                    text = text.replace(
-                        "Agent(save-toolkit:reviewer, save-toolkit:scribe, save-toolkit:researcher)", "Agent(save-toolkit:reviewer)"
-                    )
-                (root / "agents" / source.name).write_text(text, encoding="utf-8")
-            _, failures = validate_fleet.validate_agents(root)
+        failures = _agent_failures_after_edit(
+            "software-engineer.md", lambda text: text.replace(
+                "Agent(save-toolkit:reviewer, save-toolkit:scribe, save-toolkit:researcher)",
+                "Agent(save-toolkit:reviewer)",
+            ),
+        )
         self.assertIn("delegation mismatch", "\n".join(failures))
 
     def test_sre_postincident_delegation_edges_are_rejected(self) -> None:
-        failures = self._agents_with_mutation(
-            "sre-assistant.md",
-            "Agent(save-toolkit:researcher)",
-            "Agent(save-toolkit:observability-engineer, save-toolkit:scribe, save-toolkit:researcher)",
+        failures = _agent_failures_after_edit(
+            "sre-assistant.md", lambda text: text.replace(
+                "Agent(save-toolkit:researcher)",
+                "Agent(save-toolkit:observability-engineer, save-toolkit:scribe, save-toolkit:researcher)",
+            ),
         )
         self.assertIn("delegation mismatch", "\n".join(failures))
 
     def test_bare_plugin_delegation_is_rejected(self) -> None:
-        failures = self._agents_with_mutation(
-            "sre-assistant.md", "Agent(save-toolkit:researcher)", "Agent(researcher)",
+        failures = _agent_failures_after_edit(
+            "sre-assistant.md", lambda text: text.replace("Agent(save-toolkit:researcher)", "Agent(researcher)"),
         )
         self.assertIn("invalid Agent target 'researcher'", "\n".join(failures))
-
-    def _agents_with_mutation(self, filename: str, before: str, after: str) -> list[str]:
-        """Copy the agent tree, apply one substitution to one file, return failures."""
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            (root / "agents").mkdir()
-            for source in (ROOT / "agents").glob("*.md"):
-                text = source.read_text(encoding="utf-8")
-                if source.name == filename:
-                    text = text.replace(before, after)
-                (root / "agents" / source.name).write_text(text, encoding="utf-8")
-            _, failures = validate_fleet.validate_agents(root)
-        return failures
 
     def test_model_alias_is_accepted(self) -> None:
         """An alias must produce NO failure at all, not merely avoid one message.
@@ -590,44 +595,53 @@ class FleetValidatorTests(unittest.TestCase):
         an unknown field, a different message, and the acceptance contract silently stopped
         being tested.
         """
-        failures = self._agents_with_mutation(
-            "sre-assistant.md", "name: sre-assistant\n", "name: sre-assistant\nmodel: sonnet\n"
+        failures = _agent_failures_after_edit(
+            "sre-assistant.md", lambda text: text.replace(
+                "name: sre-assistant\n", "name: sre-assistant\nmodel: sonnet\n",
+            ),
         )
         self.assertEqual([], failures)
 
     def test_full_model_id_is_rejected(self) -> None:
         # The staleness the old blanket ban existed to prevent: a dated ID keeps pointing at
         # a model long after the fleet has moved on, and nothing errors.
-        failures = self._agents_with_mutation(
-            "sre-assistant.md", "name: sre-assistant\n", "name: sre-assistant\nmodel: claude-opus-4-1-20250805\n"
+        failures = _agent_failures_after_edit(
+            "sre-assistant.md", lambda text: text.replace(
+                "name: sre-assistant\n", "name: sre-assistant\nmodel: claude-opus-4-1-20250805\n",
+            ),
         )
         self.assertIn("model must be one of", "\n".join(failures))
 
     def test_scoped_grant_on_non_agent_tool_is_rejected(self) -> None:
         # `Bash(git diff:*)` reads like a narrowed shell and grants an open one — the runtime
         # ignores the scope. Only Agent(...) scoping is real.
-        failures = self._agents_with_mutation(
-            "sre-assistant.md", "Read, Grep, Glob, Bash, Skill", "Read, Grep, Glob, Bash(git diff:*), Skill"
+        failures = _agent_failures_after_edit(
+            "sre-assistant.md", lambda text: text.replace(
+                "Read, Grep, Glob, Bash, Skill", "Read, Grep, Glob, Bash(git diff:*), Skill",
+            ),
         )
         self.assertIn("scoped tool grant", "\n".join(failures))
 
     def test_duplicate_tool_grant_is_rejected(self) -> None:
-        failures = self._agents_with_mutation(
-            "reviewer.md", "tools: Read, Grep, Glob", "tools: Read, Grep, Glob, Read"
+        failures = _agent_failures_after_edit(
+            "reviewer.md", lambda text: text.replace("tools: Read, Grep, Glob", "tools: Read, Grep, Glob, Read"),
         )
         self.assertIn("duplicate tool grant", "\n".join(failures))
 
     def test_incomplete_evidence_triad_is_rejected(self) -> None:
         # Dropping [sourced] while keeping the other two labels loses the ability to distinguish
         # "I ran it" from "the file says so"; the triad is all-or-nothing.
-        failures = self._agents_with_mutation("software-engineer.md", "[sourced]", "[srcd]")
+        failures = _agent_failures_after_edit(
+            "software-engineer.md", lambda text: text.replace("[sourced]", "[srcd]"),
+        )
         self.assertIn("incomplete evidence-label triad", "\n".join(failures))
 
     def test_bash_without_write_must_be_on_guard_roster(self) -> None:
         # repository-investigator holds no Bash today; granting it Bash with no write tool makes it
         # read-only-by-intent, whose read-only-ness is only a promise unless the guard scopes it.
-        failures = self._agents_with_mutation(
-            "repository-investigator.md", "tools: Read, Grep, Glob", "tools: Read, Grep, Glob, Bash"
+        failures = _agent_failures_after_edit(
+            "repository-investigator.md",
+            lambda text: text.replace("tools: Read, Grep, Glob", "tools: Read, Grep, Glob, Bash"),
         )
         self.assertIn("not on the guard roster", "\n".join(failures))
 
@@ -753,34 +767,17 @@ class FleetValidatorTests(unittest.TestCase):
 class NonDelegatingHandoffTests(unittest.TestCase):
     """Terminal lanes must not acquire a delegating handoff through copied instructions."""
 
-    def _mutate(self, filename: str, before: str, after: str) -> list[str]:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            (root / "agents").mkdir()
-            replaced = False
-            for source in (ROOT / "agents").glob("*.md"):
-                text = source.read_text(encoding="utf-8")
-                if source.name == filename:
-                    mutated = text.replace(before, after)
-                    # Without this the whole test silently passes on a needle that moved — the exact
-                    # failure AGENTS.md records this repo having already shipped once.
-                    self.assertNotEqual(text, mutated, f"{filename}: mutation matched nothing")
-                    text, replaced = mutated, True
-                (root / "agents" / source.name).write_text(text, encoding="utf-8")
-            self.assertTrue(replaced, f"{filename} not found in agents/")
-            _, failures = validate_fleet.validate_agents(root)
-        return failures
-
     def test_live_tree_has_no_delegation_contradiction(self) -> None:
         _, failures = validate_fleet.validate_agents(ROOT)
         offenders = [f for f in failures if "Agent tool" in f]
         self.assertEqual([], offenders, offenders)
 
     def test_delegating_imperative_in_a_toolless_lane_is_flagged(self) -> None:
-        failures = self._mutate(
-            "scribe.md",
-            "# Scribe\n",
-            "# Scribe\n\nHand to exactly one agent. If two are needed, sequence them.\n",
+        failures = _agent_failures_after_edit(
+            "scribe.md", lambda text: text.replace(
+                "# Scribe\n",
+                "# Scribe\n\nHand to exactly one agent. If two are needed, sequence them.\n",
+            ),
         )
         self.assertTrue(
             any("holds no Agent tool" in f and "scribe" in f for f in failures), failures
@@ -794,23 +791,16 @@ class NonDelegatingHandoffTests(unittest.TestCase):
         validator correctly silent, so an earlier single-substitution version of this test failed
         for the right reason. Strip every phrase and assert none survive before expecting the flag.
         """
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            (root / "agents").mkdir()
-            for source in (ROOT / "agents").glob("*.md"):
-                text = source.read_text(encoding="utf-8")
-                if source.name == "scribe.md":
-                    for phrase in validate_fleet.NON_DELEGATION_DISCLAIMERS:
-                        text = text.replace(phrase, "proceeds")
-                    self.assertFalse(
-                        any(
-                            phrase in validate_fleet._flatten(text)
-                            for phrase in validate_fleet.NON_DELEGATION_DISCLAIMERS
-                        ),
-                        "fixture still carries a disclaimer; the assertion below would be vacuous",
-                    )
-                (root / "agents" / source.name).write_text(text, encoding="utf-8")
-            _, failures = validate_fleet.validate_agents(root)
+        def remove_disclaimers(text: str) -> str:
+            for phrase in validate_fleet.NON_DELEGATION_DISCLAIMERS:
+                text = text.replace(phrase, "proceeds")
+            self.assertFalse(
+                any(phrase in validate_fleet._flatten(text) for phrase in validate_fleet.NON_DELEGATION_DISCLAIMERS),
+                "fixture still carries a disclaimer; the assertion below would be vacuous",
+            )
+            return text
+
+        failures = _agent_failures_after_edit("scribe.md", remove_disclaimers)
         self.assertTrue(
             any("must state that it cannot invoke" in f and "scribe" in f for f in failures),
             failures,

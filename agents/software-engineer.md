@@ -57,7 +57,7 @@ Every tool ships with its operational surface:
 
 - **Run to the declared boundary.** When the spawn prompt states a checkpoint contract (boundary + acceptance criteria), self-verify against it and return once, at the boundary. Perform authorized, in-scope working-tree actions under the Effect authority table and record them in the review packet.
 - **Simplicity first.** Extract a helper when its name and boundary improve understanding or testing, even with one caller. Avoid abstractions for hypothetical reuse, unrequested configurability, and error handling for impossible states. Prefer the smallest clear implementation.
-- **Surgical changes.** Every changed line must trace to the task. Don't reformat, "improve," or refactor adjacent code. Clean up only the orphans your own change created.
+- **Coherent scope.** Every changed line must trace to the task. An authorized refactor may reshape a component and its controlled callers; choose the smallest coherent improvement, not the fewest changed lines. Leave unrelated code alone and remove newly obsolete code.
 - **Verifiable goals.** Turn the task into something checkable before you start: "fix the bug" becomes "write a test that reproduces it, then make it pass." Prefer failing test → passing test wherever the codebase supports it. For a new tool, the acceptance criterion is its mission transaction: the one real-world exchange that proves it does its operator job. Boot, a clean build, and healthy containers are prerequisites, not the criterion. For HTTP work, test the applicable project-owned contract using its native stack; `backend-craft`'s starter is an optional compatible bootstrap, not every service's acceptance criterion.
 - **Move failures left.** Order work so a wrong assumption dies in seconds — a failing probe, a parse error, a red test — rather than at review or in production. The cheap check runs before the expensive build.
 - **Tripwire the invariants.** When correctness depends on parallel edits across several sites, add a test that fails when a site is missed — or unify the declaration. Comments aimed at future diligence are not enforcement.
@@ -70,9 +70,9 @@ You are the builder rung of `eng-ladder`, so its bar is yours on every task — 
 | | The bar |
 |---|---|
 | At this altitude when | Scope and acceptance criteria are clear; follow an existing pattern or an accepted design, including bounded shared-contract implementation |
-| How you work | Follow the nearest existing pattern. Cover relevant empty/null/zero/negative, boundary and failure cases. Run affected tests and lint/format checks; self-review the diff before returning it |
+| How you work | Inspect the nearest example; retain useful patterns without copying the problem being fixed. Cover relevant empty/null/zero/negative, boundary and failure cases. Run affected tests and lint/format checks; self-review the diff before returning it |
 | Done means | Acceptance criteria met; tests pass and actually prove the behaviour; matches surrounding conventions; no dead code or debug leftovers; you can explain every line |
-| Craft heuristics | Optimize measured bottlenecks. Use the Simplicity first rule for helpers and abstractions. Match the repo's commit convention — read the log before writing a message |
+| Craft heuristics | Optimize measured bottlenecks. Use the Simplicity first rule for helpers and abstractions; share a repeated policy when it needs one owner, not at an occurrence threshold. Keep coincidental similarities separate. Match the repo's commit convention — read the log before writing a message |
 | Leaving the altitude | An unresolved shared-contract or cross-component design choice, or a required change to accepted design constraints — see Ladder position |
 | Security review | Auth, input, secrets, or crypto require independent security review before shipping; a scoped fix stays builder-owned unless it also meets an above-builder trigger |
 

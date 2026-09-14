@@ -11,7 +11,7 @@ description: >-
   this incident', 'what should I check next'. Not for a dispatched read-only evidence slice
   (sre-assistant agent), running incident command, stakeholder communications, or authoring
   postmortems (scribe).
-argument-hint: "[INC id or symptom] [knowledge repository root]"
+argument-hint: "[incident, symptom, or question] [optional knowledge repo path]"
 ---
 
 > **Copilot adapter:** Fleet component names are bare in this generated copy.
@@ -319,5 +319,3 @@ When the agreed user-outcome recovery criterion has held for its required window
 check and the responder calls it resolved, fill the [closeout packet](./assets/closeout-packet.md).
 Route it to `scribe` — postmortem mode first, then knowledge closeout with Follow-ups. You author
 neither: a discovery is learned only when closeout turns it into a reviewable change.
-
-Historical comparison only: [OLD.md](./OLD.md).
