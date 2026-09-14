@@ -10,7 +10,16 @@ prompt: |
   needs a database unrelated to this function. No repository rule requires that startup check.
   B: A new backup CLI has passing helper tests and starts successfully, but its actual backup
   transaction has never been exercised against a disposable target.
+  Dispatch: invoking caller is review coordinator; human owner is human requester.
+  Parent objective is assess agent contracts. Your assignment is this supplied-state
+  classification, not execution of the fictional work. Return its status as complete;
+  the caller's next step is review classifications. Include this handoff in the JSON.
   Return exactly one JSON object:
+  - returning_to: review coordinator
+  - assignment: complete
+  - parent_objective: assess agent contracts
+  - human_owner: human requester
+  - caller_next_step: review classifications
   - parser_evidence: sufficient_for_changed_boundary | must_start_whole_service
   - parser_service_integration: verified | unverified
   - new_cli_evidence: incomplete | complete
@@ -21,6 +30,11 @@ success_criteria:
 graders:
   - type: exact_json
     fields:
+      returning_to: review coordinator
+      assignment: complete
+      parent_objective: assess agent contracts
+      human_owner: human requester
+      caller_next_step: review classifications
       parser_evidence: sufficient_for_changed_boundary
       parser_service_integration: unverified
       new_cli_evidence: incomplete

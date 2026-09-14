@@ -11,7 +11,16 @@ prompt: |
   parser.py has not been read.
   C: "Which timeout takes effect?" You have read a default, but caller overrides are uninspected.
   D: "Does this repository have no parse implementation?" One search of __init__.py found no match.
+  Dispatch: invoking caller is review coordinator; human owner is human requester.
+  Parent objective is assess agent contracts. Your assignment is this supplied-state
+  classification, not execution of the fictional work. Return its status as complete;
+  the caller's next step is review classifications. Include this handoff in the JSON.
   Return exactly one JSON object:
+  - returning_to: review coordinator
+  - assignment: complete
+  - parent_objective: assess agent contracts
+  - human_owner: human requester
+  - caller_next_step: review classifications
   - declaration_a: cite_and_stop | trace_all_callers
   - import_b: read_defining_module | declare_import_the_definition
   - effective_c: trace_overrides | report_default_as_effective
@@ -23,6 +32,11 @@ success_criteria:
 graders:
   - type: exact_json
     fields:
+      returning_to: review coordinator
+      assignment: complete
+      parent_objective: assess agent contracts
+      human_owner: human requester
+      caller_next_step: review classifications
       declaration_a: cite_and_stop
       import_b: read_defining_module
       effective_c: trace_overrides

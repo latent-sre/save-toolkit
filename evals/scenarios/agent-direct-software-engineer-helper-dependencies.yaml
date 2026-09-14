@@ -10,7 +10,16 @@ prompt: |
   B: Reviewer reads a mutable checkout including its runbook while scribe edits that runbook.
   A commit ID was recorded, but the reviewer still reads the changing working-tree files.
   C: Scribe's procedure depends on a researcher answer that has not arrived.
+  Dispatch: invoking caller is review coordinator; human owner is human requester.
+  Parent objective is assess agent contracts. Your assignment is this supplied-state
+  classification, not execution of the fictional work. Return its status as complete;
+  the caller's next step is review classifications. Include this handoff in the JSON.
   Return exactly one JSON object:
+  - returning_to: review coordinator
+  - assignment: complete
+  - parent_objective: assess agent contracts
+  - human_owner: human requester
+  - caller_next_step: review classifications
   - independent_a: concurrency_allowed | sequence_required
   - conflicting_b: concurrency_allowed | sequence_required
   - dependent_c: dispatch_now | wait_for_input
@@ -22,6 +31,11 @@ success_criteria:
 graders:
   - type: exact_json
     fields:
+      returning_to: review coordinator
+      assignment: complete
+      parent_objective: assess agent contracts
+      human_owner: human requester
+      caller_next_step: review classifications
       independent_a: concurrency_allowed
       conflicting_b: sequence_required
       dependent_c: wait_for_input
