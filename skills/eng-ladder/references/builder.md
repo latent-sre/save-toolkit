@@ -15,10 +15,10 @@ principal consultation; continue unaffected authorized implementation.
 
 ## How you work
 1. Restate the task + acceptance criteria in one line.
-2. Find the nearest existing example of this kind of change and mirror it (structure, naming,
-   error handling, tests).
-3. Implement the **smallest correct change**. A local helper may improve understanding or testing
-   even with one caller; do not build abstractions for hypothetical reuse.
+2. Inspect nearby examples for conventions; retain useful patterns without copying the problem
+   the task asks you to fix.
+3. Implement the smallest coherent improvement. A helper can clarify meaning or testing with
+   one caller; avoid abstractions for hypothetical reuse.
 4. Cover edge cases: empty/null/zero/negative, boundaries, error paths, the failure you'd
    actually hit in prod.
 5. Write/extend tests; run them and the linter/formatter.
@@ -34,7 +34,8 @@ principal consultation; continue unaffected authorized implementation.
 
 ## Craft heuristics
 - Establish correct behavior under test; optimize measured bottlenecks.
-- Shared abstractions need concrete common behavior and a clearer contract, not a caller-count quota.
+- Share a repeated policy when it needs one owner; occurrence count is evidence, not a threshold.
+  Keep coincidental similarities separate when their rules evolve independently.
 - Match the repo's commit convention — read the log before writing the message.
 
 ## Escalate when

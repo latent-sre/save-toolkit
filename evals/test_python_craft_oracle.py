@@ -162,6 +162,15 @@ class PythonCraftOracleTests(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn("calculation attempted file I/O", result.stderr)
 
+    def test_calculation_accepts_materialization_and_bare_reraise(self):
+        for replacement in ("return total_from_lines(list(source))",
+                            "try:\n            return total_from_lines(source)\n"
+                            "        except ValueError:\n            raise"):
+            source = textwrap.dedent(CORRECT["calculation"]).replace("return total_from_lines(source)", replacement)
+            with self.subTest(replacement=replacement):
+                result = self.run_artifact("calculation", source)
+                self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_calculation_rejects_cosmetic_duplicate_and_behavior_regressions(self):
         seed = scenario("calculation")["fixture"]["files"]["totals.py"]
         source = textwrap.dedent(CORRECT["calculation"])
@@ -169,6 +178,13 @@ class PythonCraftOracleTests(unittest.TestCase):
         for name, candidate, diagnostic in [
             ("comment only", seed + "\n# Clearer calculation\n", "missing in-memory calculation boundary"),
             ("duplicate rule", duplicate, "file entrypoint bypassed shared calculation"),
+            ("prevalidates before delegation", source.replace("return total_from_lines(source)",
+                'lines = list(source)\n        sum(int(line) for line in lines if line.strip())\n'
+                '        return total_from_lines(lines)'), "file entrypoint bypassed shared calculation"),
+            ("revalidates after delegation", source.replace("return total_from_lines(source)",
+                'lines = list(source)\n        result = total_from_lines(lines)\n'
+                '        sum(int(line) for line in lines if line.strip())\n        return result'),
+                "accepted by replacement policy"),
             ("rejects string path", source.replace('open(path, encoding="utf-8")',
                                                  'path.open(encoding="utf-8")'), "has no attribute 'open'"),
             ("renames path keyword", source.replace("path", "filename"), "unexpected keyword argument 'path'"),
@@ -181,6 +197,9 @@ class PythonCraftOracleTests(unittest.TestCase):
             ("replaces propagated error", source.replace("return total_from_lines(source)",
                 'try:\n            return total_from_lines(source)\n        except RuntimeError as exc:\n'
                 '            raise RuntimeError(str(exc))'), "calculation exception replaced"),
+            ("replaces parse error", source.replace("return total_from_lines(source)",
+                'try:\n            return total_from_lines(source)\n        except ValueError as exc:\n'
+                '            raise ValueError(str(exc))'), "parse exception replaced"),
         ]:
             with self.subTest(name=name):
                 result = self.run_artifact("calculation", candidate)
