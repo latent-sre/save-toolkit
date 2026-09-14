@@ -1,12 +1,8 @@
 ---
 name: incident-investigation
 description: >-
-  Help the human SRE investigate a live incident, understand evidence and signals, choose the next
-  useful check, recommend mitigation, and prepare technical bridge/TLC updates. Also explain what a
-  graph, log, or alert is showing. Triggers: 'I just got paged, what do I do', 'customers are
-  reporting errors, where do I start', 'walk me through this incident', 'what should I check next'.
-  Includes first responders who do not know where to start. Not for a dispatched evidence slice
-  (sre-assistant agent), running incident command, or stakeholder communications.
+  Help the human SRE investigate and understand evidence and choose the next useful step during a live incident, understand signals, choose the next useful check, recommend mitigation, and prepare technical bridge/TLC updates.  This includes a first responder who does not know where to start, or explain what a graph, log, or alert is telling them. Triggers: 'I just got paged, what  do I do', 'customers are reporting errors, where do I start', 'walk me through this incident',
+  'what should I check next'. Includes first responders who do not know where to start. Not for a dispatched evidence slice (sre-assistant agent), running incident command, or stakeholder communications.
 argument-hint: "[INC id or symptom] [knowledge repository root]"
 ---
 

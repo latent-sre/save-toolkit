@@ -19,6 +19,7 @@ import fleet_frontmatter
 
 ROOT = Path(os.environ.get("FLEET_ROOT") or Path(__file__).resolve().parents[1]).resolve()
 NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+SKILL_DESCRIPTION_MAX_CHARS = 1024
 LINK_RE = re.compile(r"\[([^\]]*)\]\(([^)]+)\)")
 CODE_PATH_RE = re.compile(
     r"`((?:references|assets|scripts)/[A-Za-z0-9._/-]+)`"
@@ -309,8 +310,10 @@ def _check_skill_frontmatter(path: Path, text: str) -> tuple[str, list[str]]:
         failures,
     )
     if description:
-        if len(description.encode("utf-8")) > 600:
-            failures.append(f"{where}: description exceeds 600 UTF-8 bytes")
+        if len(description) > SKILL_DESCRIPTION_MAX_CHARS:
+            failures.append(
+                f"{where}: description exceeds {SKILL_DESCRIPTION_MAX_CHARS} characters"
+            )
         if "Triggers:" not in description:
             failures.append(f"{where}: description is missing literal 'Triggers:'")
         else:

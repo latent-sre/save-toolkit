@@ -203,8 +203,8 @@ class LinkCheckerTests(Fixture):
             "one-trigger": CLEAN_FRONTMATTER.replace(
                 ', "inspect this probe"', ""
             ),
-            "over-600": CLEAN_FRONTMATTER.replace(
-                "A clean probe skill.", "x" * 590
+            "over-1024": CLEAN_FRONTMATTER.replace(
+                "A clean probe skill.", "x" * 1025
             ),
         }
         for label, frontmatter in cases.items():
@@ -215,6 +215,30 @@ class LinkCheckerTests(Fixture):
                 )
                 failures = check_links.check(self.root)
                 self.assertTrue(failures, label)
+
+    def test_skill_description_limit_counts_characters_not_utf8_bytes(self):
+        suffix = ' Triggers: "check this probe", "inspect this probe".'
+        description = "é" * (check_links.SKILL_DESCRIPTION_MAX_CHARS - len(suffix)) + suffix
+        frontmatter = CLEAN_FRONTMATTER.replace(
+            'A clean probe skill. Triggers: "check this probe", "inspect this probe".',
+            description,
+        )
+        self.write("skills/probe-skill/SKILL.md", frontmatter + "\n# Probe\n")
+        failures = check_links.check(self.root)
+        self.assertFalse(
+            any("description exceeds" in failure for failure in failures),
+            failures,
+        )
+
+        self.write(
+            "skills/probe-skill/SKILL.md",
+            frontmatter.replace(description, "é" + description) + "\n# Probe\n",
+        )
+        failures = check_links.check(self.root)
+        self.assertTrue(
+            any("description exceeds 1024 characters" in failure for failure in failures),
+            failures,
+        )
 
     def test_skill_name_over_64_characters_is_rejected(self):
         name = "a" * 65

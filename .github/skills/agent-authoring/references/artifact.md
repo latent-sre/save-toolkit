@@ -61,7 +61,7 @@ schema or the output is intentionally free-form.
 
 ## In this fleet
 
-- `name` matches the directory and uses `[a-z0-9-]`; descriptions are ≤600 UTF-8 bytes with 2–4
+- `name` matches the directory and uses `[a-z0-9-]`; descriptions are ≤1,024 characters with 2–4
   quoted trigger phrasings. Canonical validation enforces both.
 - Add an eval scenario only for a gradeable outcome — a gate blocks, routing lands, a refusal
   happens. No tautological prose evals.

@@ -95,7 +95,7 @@ defines portable metadata. Both were checked against the current docs on 2026-09
 | Field | Disposition here |
 |---|---|
 | `name` | Required; 1–64 lowercase letters, digits, or hyphens; no leading, trailing, or consecutive hyphens. Must match the parent directory. Emitted on all 26 skills; leave plugin namespacing to the host |
-| `description` | Required; what the skill does and when to use it, at most 1,024 characters. Emitted; the fleet's stricter authoring budget still applies |
+| `description` | Required; what the skill does and when to use it, at most 1,024 characters. Emitted; the fleet enforces the same character limit |
 | `argument-hint` | Emitted on all 26; ignored on Copilot cloud |
 | `user-invocable` | Optional, default `true`. `false` hides the skill from the slash-command menu while allowing automatic loading. Unused — keep every fleet skill reachable by the human |
 | `disable-model-invocation` | Optional, default `false`. `true` disables automatic loading; used by `pcf-deploy` for manual-only invocation. Setting this to `true` together with `user-invocable: false` disables both entry paths |
