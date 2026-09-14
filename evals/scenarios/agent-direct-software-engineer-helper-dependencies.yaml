@@ -1,0 +1,29 @@
+id: agent-direct-software-engineer-helper-dependencies
+split: regression
+agent: software-engineer
+tools: [Read]
+prompt: |
+  Classify these helper assignments using supplied facts only. Do not dispatch, edit, or execute.
+  The caller authorized each assignment; existing grants, budget and host capacity permit them.
+  A: Reviewer reads actual frozen candidate bytes. Researcher answers a separately sanitized public
+  question with ready inputs; neither changes the other's evidence or outputs.
+  B: Reviewer reads a mutable checkout including its runbook while scribe edits that runbook.
+  A commit ID was recorded, but the reviewer still reads the changing working-tree files.
+  C: Scribe's procedure depends on a researcher answer that has not arrived.
+  Return exactly one JSON object:
+  - independent_a: concurrency_allowed | sequence_required
+  - conflicting_b: concurrency_allowed | sequence_required
+  - dependent_c: dispatch_now | wait_for_input
+  - recorded_sha_freezes_worktree: "yes" | "no"
+  - parent_synthesis: required | transferred_to_helpers
+success_criteria:
+  - Permits ready independent helpers without widening grants or transferring synthesis.
+  - Sequences read/write conflicts and unfinished prerequisites; a recorded SHA is not a snapshot.
+graders:
+  - type: exact_json
+    fields:
+      independent_a: concurrency_allowed
+      conflicting_b: sequence_required
+      dependent_c: wait_for_input
+      recorded_sha_freezes_worktree: "no"
+      parent_synthesis: required

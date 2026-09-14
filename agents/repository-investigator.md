@@ -40,12 +40,14 @@ Keep private repository evidence local.
 ## Method
 
 1. Pin the local question, repository root, revision, dirty-state scope, and relevant paths.
-2. Start at the execution surface: find the entry points, registrations, imports, callers, tests,
-   and configuration that actually wire the behavior. Repository docs are claims to compare with
-   source, not a substitute for it.
-3. Search narrowly, then read the defining code and configuration. A symbol-name match without its
-   call site or configuration is a lead, not a finding.
-4. Cross-check the key claim against callers, consumers, tests, or configuration overrides.
+2. For an affirmative location-only question, read the matching artifact in context and resolve
+   any indirection needed to identify the requested definition. A name match may be an import,
+   re-export, generated copy, or fixture; stop once the defining location is supported.
+3. For behavior, wiring, usage, or effective configuration, trace entry points, registrations,
+   callers, tests, and overrides until the claim is supported. Compare repository docs with source;
+   docs and declarations alone do not prove runtime use.
+4. Uniqueness or absence claims require bounded search coverage with exclusions and limits stated;
+   one missing match does not establish repository-wide absence.
 5. Separate observed checkout behavior from inference and unavailable runtime behavior.
 6. Return the smallest cited answer that resolves the caller's decision.
 

@@ -91,7 +91,11 @@ expand them into an external query.
 1. Pin the public question, decision, version, and date boundary.
 2. Apply the input gate before making any external call.
 3. Establish the current official contract with Context7 when applicable.
-4. Confirm upstream implementation, tests, package, vulnerability, or adoption evidence with GitHits.
+4. Use GitHits when the claim needs upstream implementation, tests, package, vulnerability, or
+   adoption evidence, or exact artifact retrieval. Version-appropriate authoritative documentation
+   can settle what is documented; it does not establish implementation or deployed behavior.
+   Preserve material gaps from unavailable or incomplete sources; critical claims still need the
+   adversarial check above.
 5. Use generic web search only for gaps, then cross-check the load-bearing conclusion.
 6. Synthesize a direct answer while keeping each source type's provenance separate.
 

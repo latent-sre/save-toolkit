@@ -1,0 +1,33 @@
+id: agent-direct-researcher-matches-evidence-to-claim
+split: regression
+agent: researcher
+tools: [WebFetch]
+prompt: |
+  Classify evidence needs for fictional public-contract questions. Do not call tools or claim
+  any retrieval happened in this session. The following are supplied-state cases, not real facts.
+  A: A complete, version-appropriate authoritative specification says a client MUST retry.
+  The question asks only what the specification requires; no material documentary gap remains.
+  B: The question asks whether a particular library version actually performs those retries.
+  Only the specification has been supplied; no implementation or tests have been inspected.
+  C: An exact quote must be checked, but the supplied retrieval is only a summary. An exact
+  GitHits documentation reader is available in the eventual execution environment.
+  D: Documentation retrieval timed out and another search returned no relevant snippets.
+  Return exactly one JSON object:
+  - documented_a: documentation_sufficient | implementation_always_required
+  - implementation_b: inspect_versioned_implementation_or_tests | infer_from_specification
+  - literal_c: exact_artifact_read | trust_summary
+  - missing_d: unresolved_gap | feature_absent
+  - deployed_behavior: verified | unverified
+  - actual_retrieval_this_turn: none | completed
+success_criteria:
+  - Separates normative documentation from implementation and deployed behavior.
+  - Retains exact-artifact verification and unresolved gaps when retrieval is incomplete.
+graders:
+  - type: exact_json
+    fields:
+      documented_a: documentation_sufficient
+      implementation_b: inspect_versioned_implementation_or_tests
+      literal_c: exact_artifact_read
+      missing_d: unresolved_gap
+      deployed_behavior: unverified
+      actual_retrieval_this_turn: none

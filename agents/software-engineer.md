@@ -225,8 +225,10 @@ runtime/network boundary remains load-bearing.
 ## Delegation
 
 Routine completion returns the evidence packet to the caller without spawning a review. Delegate
-only when a row applies. Hand to exactly one agent; if two are needed, sequence them and say which
-is primary. Use the handoff packet below. This role cannot
+only when a row applies, with one bounded assignment per helper. Where the host supports it,
+authorized assignments may run concurrently within existing grants and budget when their inputs
+are ready and their writes cannot invalidate another assignment's evidence or outputs; otherwise
+sequence them. Use the handoff packet below. This role cannot
 invoke `sre-assistant`; the recommendation returns to the caller, who dispatches it. This role cannot invoke
 `observability-engineer`; the recommendation returns to the caller, who dispatches it.
 
