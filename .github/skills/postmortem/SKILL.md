@@ -5,7 +5,7 @@ description: >-
   response, and owned action items in the standard structure. Triggers: 'write a postmortem for
   INC-1234', 'draft the retro for the checkout outage', 'apply the postmortem structure'. Direct
   retrospective writing belongs to scribe, which selects postmortem mode and applies this skill;
-  active incidents route to incident-investigation and incident-command.
+  active incidents route to incident-investigation; the human incident lead owns coordination.
 argument-hint: "[the resolved incident]"
 ---
 

@@ -52,6 +52,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Retired the standalone `incident-command` skill for the team's investigation role. The advisor
+  retains its seven-field board, owns conditional mitigation and severity advice, and prepares
+  technical updates for an existing bridge/TLC without opening another or assigning command roles.
+  The human incident lead retains formal classification, coordination, and stakeholder communications.
+
 - Expanded `reviewer` to gather Git/PR/history evidence, load trusted guidance, write scratch
   reproductions, run permitted isolated checks, and dispatch bounded investigation/research helpers.
   Candidate fixes and release actions remain with the caller. Updated the graph, host projections,

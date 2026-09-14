@@ -86,7 +86,7 @@ the ops tooling the team builds.
    classify trigger, shape, omission, or pressure-violation; each takes a different fix (see
    `agent-authoring`, artifact tier).
 3. **Edit minimally**, matching this fleet's conventions (frontmatter fields, description length —
-   agents ≤1024 B, skills ≤600 B — scope-bearing routing phrasing,
+   agents ≤1024 B, skills ≤1024 characters — scope-bearing routing phrasing,
    `[verified]/[sourced]/[unverified]` labeling).
 4. **Validate structurally** — `python scripts/gate_a.py`, once, before the push — not after each
    edit.

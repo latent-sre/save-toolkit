@@ -68,7 +68,7 @@ will offer it).
 
 The skills, by area (each `skills/<name>/SKILL.md` carries its own description and triggers):
 
-- **Incident and operations** — `incident-investigation`, `root-cause`, `incident-command`, `postmortem`, `runbook`,
+- **Incident and operations** — `incident-investigation`, `root-cause`, `postmortem`, `runbook`,
   `operational-learning`, `service-lifecycle` (audit, onboard, and retire modes)
 - **Observability** — `obs-logs`, `obs-metrics`, `obs-traces`, `obs-dashboards`, `obs-alerting`,
   `obs-pipeline`

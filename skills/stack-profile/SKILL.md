@@ -58,9 +58,11 @@ verification. The entrypoint rules remain authoritative after a reference is loa
 
 ## Incident response
 A formal on-call rotation is in place. *[sourced: operator statement 2026-08-21]*
-`incident-command` owns the current P1–P4 entry criteria, response roles, and communications cadence
-and records their ratification status; load it whenever severity, roles, or incident communications
-matter. Other skills consume the selected tier without copying its rubric.
+The team investigates and recommends fixes; someone else runs the incident. An existing bridge or
+TLC (Techline Chat) is the coordination channel, not a request to open another.
+*[sourced: operator statement 2026-09-12]* `incident-investigation` owns technical advice and the
+investigation board. For severity advice, read installed `incident-investigation/references/severity-and-escalation.md`
+directly; preserve the human lead's declared tier, roles, update requests, and authoritative record.
 
 ## Change management
 Change records live in **both BMC Remedy and Jira**. `production-change-gate` refers to "the formal

@@ -1,0 +1,14 @@
+id: discovery-incident-investigation-existing-bridge
+split: regression
+prompt: |
+  We are already on a bridge call for checkout on PCF, INC-72. Morgan is running it; our team
+  investigates. At 10:05 UTC the error graph shows 8% failed checkouts since 09:50. No changes
+  have been reported. I can open Apps Manager Events but haven't read it yet, and there is no
+  knowledge repo here. What should I check, and what should I tell Morgan on this call?
+success_criteria:
+  - Invokes incident-investigation for the technical investigation and bridge update.
+  - Uses the existing bridge and Morgan's role; never asks the responder to open another call or establish command.
+  - Gives a feasible check and technical update from supplied evidence, without claiming it was sent.
+  - Ends with all seven investigation-board fields; the bridge's own timeline does not replace the board.
+target: {kind: skill, name: incident-investigation}
+routing: {expect: fire}

@@ -1,8 +1,13 @@
 # Mitigation selection
 
-Use this reference when the incident commander must choose among rollback, route remap, restart,
-scale, flag, or dependency responses. It prepares a recommendation and approval packet; it never
-executes a command.
+Use when the responder compares rollback, route remap, restart, scale, flag, or dependency responses.
+Prepare a recommendation for the existing incident lead and human release owner, with the approval
+packet below. This reference neither takes command nor executes a change.
+
+## Contents
+
+- Pick the fastest safe, reversible action
+- Decision rules
 
 Suspected compromise, data integrity loss, or another security event is excluded. Preserve evidence
 and follow the human security incident owner's exact direction instead.
@@ -75,7 +80,8 @@ the executor before a retry.
 4. **Restart is not root-cause closure.** If restart restores service, preserve the leak, poison
    input, or dependency hypothesis and continue investigation with the human on-call, advised by
    `incident-investigation`.
-5. **Record every decision and result in UTC** in the IC-owned timeline.
+5. **Record every decision and result in UTC** in the investigation board; prepare the technical
+   update for the existing bridge/TLC. The human incident lead's record remains authoritative.
 6. **Confirm before executing.** The packet names the exact target, change, command, blast radius,
    verification window, rollback, human executor, and approving decider. It also records the
    perishable diagnostic evidence captured or knowingly forgone — recorded, never gating. Missing

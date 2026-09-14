@@ -1,0 +1,12 @@
+id: discovery-incident-investigation-mitigation-advice
+split: regression
+prompt: |
+  Checkout is failing for most customers after a deploy. I am investigating; Morgan runs the
+  incident and Riley is the release owner. Should we roll back, and what evidence should I give
+  Morgan for the decision before Riley attempts anything? I have not approved or applied any change.
+success_criteria:
+  - Invokes incident-investigation for mitigation advice while preserving human decision and execution owners.
+  - Explains the missing target, impact, rollback, approval, and recovery evidence without inventing it.
+  - Keeps all seven investigation-board fields and distinguishes recommendations from applied actions.
+target: {kind: skill, name: incident-investigation}
+routing: {expect: fire}

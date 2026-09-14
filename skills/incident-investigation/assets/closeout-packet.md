@@ -21,8 +21,8 @@ Knowledge repo:   <root> · read: <paths> · missing or stale: <paths>
 Evidence:         <sanitized excerpts or access-controlled references — pasted outputs, sre-assistant agent packets, dashboard ranges — each with its label; credential-bearing output is never carried: record that it was exposed, where, and to whom>
 
 Next owners:
-1. `scribe`, postmortem mode — this packet is the source; `incident-command` holds the
-   authoritative live timeline if one was kept.
+1. `scribe`, postmortem mode — this packet is the source; the human incident lead's designated
+   record holds the authoritative live timeline if one was kept.
 2. `scribe`, knowledge closeout mode — enrich the same Follow-ups record with artifact dispositions,
    preserving distinct scopes/owners/evidence rather than making another list; include the target revision binding the human
    supplies for any `prepared` disposition.

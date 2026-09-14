@@ -5,7 +5,7 @@ description: >-
   merge, is this build ready to ship, and may this exact action run against production. Records a
   human decision and never executes. Triggers: 'is this ready to merge', 'is this build ready to
   ship', 'can I run this cf command in prod', 'authorize this production change'. Not for code
-  review itself (reviewer) or for choosing a mitigation during an incident (incident-command).
+  review itself (reviewer) or for incident mitigation advice (incident-investigation).
 argument-hint: "[the change, build, or production action to gate]"
 ---
 

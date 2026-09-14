@@ -24,5 +24,5 @@ expected revision shape; deployment completion and instance convergence still ne
 We also lack the receipt or timing for the 09:50 attempt [unverified], so the 10:01 errors do not
 yet tell us whether it helped. Ask the release owner to reconcile the attempt and obtain fresh
 recovery observations. Preserve the earlier confirmed flag change as history, and verify whether
-it still holds if it was environment-based. Scaling remains proposal-only. The commander decides
-any further change.”
+it still holds if it was environment-based. Scaling remains proposal-only. The existing incident
+lead retains the mitigation decision; the release owner executes an approved change.”
