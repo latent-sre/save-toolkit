@@ -137,11 +137,9 @@ policy and service, alert, and index templates.
 5. State the next documentation change or question and owner. Production-facing recommendations
    retain summary, owner, urgency, change tier, approval need, verification, and rollback/recovery.
    Do not perform or approve them.
-6. Return the reviewable documentation diff and every disposition for human PR review. Mark a change
-   `prepared` only when an actual diff exists and a caller-supplied `[verified]` checkout binding says
-   the mounted checkout's current commit matches the target revision. Accept short IDs under
-   `operational-learning`'s binding rule; the diff must come from that checkout. If the binding is
-   absent, ambiguous or mismatched, leave the change `proposed` or `blocked` and name its owner.
+6. Apply `operational-learning`'s checkout-binding and disposition rules before preparing a diff.
+   Return authorized documentation changes and every disposition for human PR review; name the
+   missing prerequisite and owner when the owning rule leaves work `proposed` or `blocked`.
 
 ### Knowledge closeout output
 

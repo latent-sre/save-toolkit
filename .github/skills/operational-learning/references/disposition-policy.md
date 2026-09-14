@@ -21,9 +21,8 @@ disposition-state definitions, default paths, and the evidence rules.
 
 ## One-time disposition states
 
-`prepared` requires the body's caller-supplied `[verified]` checkout binding: the mounted checkout's
-current commit matches the target revision. Its short-ID and ambiguity rules apply. `duplicate`
-requires the existing owning artifact and supporting evidence. The rest:
+`prepared` follows `../SKILL.md`'s checkout-binding rule, including short IDs and ambiguity.
+`duplicate` requires the existing owning artifact and supporting evidence. The rest:
 
 - `proposed` — the owner and next action are named, but no reviewable artifact change exists.
 - `blocked` — the missing evidence, authority, dependency, or owner is named.

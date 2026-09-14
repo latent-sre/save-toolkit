@@ -315,23 +315,31 @@ class FleetValidatorTests(unittest.TestCase):
                 self.assertNotIn("ol_ id", text.lower())
                 self.assertIn(marker, text)
 
-    def test_prepared_requires_verified_checkout_revision_binding(self) -> None:
-        contract_paths = (
-            Path("agents/scribe.md"),
-            Path("skills/operational-learning/SKILL.md"),
-            Path("skills/operational-learning/references/disposition-policy.md"),
-        )
-        for relative in contract_paths:
-            text = re.sub(
-                r"\s+",
-                " ",
-                (ROOT / relative).read_text(encoding="utf-8").lower(),
-            )
-            with self.subTest(contract=relative.as_posix()):
-                self.assertIn("mounted checkout's current commit matches the target revision", text)
-                self.assertIn("`[verified]` checkout binding", text)
-                self.assertIn("`proposed`", text)
-                self.assertIn("`blocked`", text)
+    def test_prepared_binding_is_defined_by_the_owning_skill(self) -> None:
+        # Static policy presence, not proof that a model obeys it. Consumers need not copy it.
+        owner = Path("skills/operational-learning/SKILL.md")
+        text = _markdown_section(owner, "## Close the loop")
+        self.assertIn("mounted checkout's current commit matches the target revision", text)
+        self.assertIn("`[verified]` checkout binding", text)
+        self.assertIn("`proposed` or `blocked`", text)
+
+    def test_scribe_loads_the_binding_owner_before_closeout(self) -> None:
+        text = (ROOT / "agents/scribe.md").read_text(encoding="utf-8")
+        required = text.split("## Required on-demand skills\n", 1)[1].split("\n## ", 1)[0]
+        names = re.findall(r"(?m)^- `([^`]+)`", required)
+        self.assertIn("operational-learning", names)
+        fields, _, _ = validate_fleet.adapters.parse_frontmatter(ROOT / "agents/scribe.md")
+        self.assertIn("Skill", validate_fleet._tool_bases(fields["tools"]))
+        closeout = _markdown_section(Path("agents/scribe.md"), "## Knowledge closeout mode")
+        self.assertIn("`operational-learning`", closeout)
+
+    def test_disposition_reference_returns_to_its_owning_skill(self) -> None:
+        path = ROOT / "skills/operational-learning/references/disposition-policy.md"
+        preamble = path.read_text(encoding="utf-8").split("\n## ", 1)[0]
+        links = re.findall(r"`([^`]*SKILL\.md)`", preamble)
+        self.assertTrue(links)
+        self.assertEqual({(ROOT / "skills/operational-learning/SKILL.md").resolve()},
+                         {(path.parent / link).resolve() for link in links})
 
     def test_closeout_accepts_short_ids_without_guessing_checkout_identity(self) -> None:
         text = _markdown_section(Path("skills/operational-learning/SKILL.md"), "## Close the loop")
@@ -347,11 +355,12 @@ class FleetValidatorTests(unittest.TestCase):
                 self.assertIn(phrase, text)
 
     def test_investigator_target_slot_accepts_short_ids_and_unknown_revision(self) -> None:
-        text = _markdown_section(Path("agents/repository-investigator.md"), "## Output contract")
-        self.assertIn(
-            "target: <repository root@short commit id or unknown; note included uncommitted state>",
-            text,
-        )
+        text = (ROOT / "agents/repository-investigator.md").read_text(encoding="utf-8")
+        templates = "\n".join(re.findall(r"```[^\n]*\n(.*?)```", text, re.DOTALL))
+        target = re.search(r"(?m)^Target: <([^\n]+)>", templates)
+        self.assertIsNotNone(target)
+        for concept in ("repository", "short", "unknown", "uncommitted"):
+            self.assertIn(concept, target[1].lower())
 
     def test_closeout_contracts_bind_sender_roots_and_disposition_homes(self) -> None:
         expectations = {
