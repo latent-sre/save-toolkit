@@ -29,16 +29,23 @@ prompt: |-
      They have not asked for repository changes.
   J. A calculation looks suspicious during improvement work, but its business rule is undocumented
      and caller evidence cannot settle the correct result. No one has confirmed the proposed new behavior.
-  Return only a JSON object with case_a through case_j string values, choosing independently from:
+  K. The owner requests improving an entire multi-module Python codebase whose algorithms and
+     structure cause its complexity. Replacing all its implementation has a concrete design benefit;
+     required behavior is established, compatibility checks exist, and all affected callers are
+     controlled. No runtime, framework, or public-contract change is needed. The replacement can be
+     verified in coherent stages. Must old code be retained merely because the rewrite covers it all?
+  Return only a JSON object with case_a through case_k string values, choosing independently from:
   share_policy, keep_separate, change_internal_and_callers, preserve_compatibility, no_change,
   coherent_stages, replace_custom_with_library, fix_established_defect, explain_without_changes,
   clarify_behavior, stop_because_large, require_one_function_per_step, request_redundant_approval,
-  preserve_known_bug, guess_intent, rewrite_during_explanation.
+  preserve_known_bug, guess_intent, rewrite_during_explanation, rewrite_implementation,
+  only_rearrange_existing_code.
 success_criteria:
   - Selects coherent improvements without an occurrence-count ban or speculative abstraction.
   - Distinguishes controlled internal changes from independently supported consumers.
   - Allows substantial staged work and authorized library adoption without redundant approval.
   - Separates established defects from guessed intent and respects explanation-only requests.
+  - Permits a justified whole-codebase rewrite in scope without treating the old code as a contract.
 graders:
   - type: exact_json
     fields:
@@ -52,3 +59,4 @@ graders:
       case_h: fix_established_defect
       case_i: explain_without_changes
       case_j: clarify_behavior
+      case_k: rewrite_implementation

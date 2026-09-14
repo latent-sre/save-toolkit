@@ -142,7 +142,8 @@ regressions; it is not an arbitrary-I/O sandbox or a general design-quality scor
 effect probe checks compatibility plus a source edit, not whether that edit improves design.
 `python-refactoring-judgment` checks supplied-state choices about shared policy, independent rules,
 internal callers, supported plugin imports, no-change restraint, coherent stages for large work,
-authorized library adoption, established versus uncertain defects, and explanation-only scope.
+authorized library adoption, established versus uncertain defects, explanation-only scope, and
+justified whole-codebase rewrites in scope that preserve required contracts.
 It does not prove execution or consumer discovery. `discovery-python-improvement` checks routing
 for an outcome-driven request; it does not grade implementation quality. These focused oracles
 and calibration tests justify the accompanying eval

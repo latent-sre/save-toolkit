@@ -4,31 +4,38 @@ Improve what makes the code hard to understand, change, test, or trust; patterns
 
 ## Contents
 
-- Diagnose the design problem
+- Choose Pythonic patterns by problem
 - Establish behavior and consumers
 - Choose a coherent change
 - Example: make a calculation usable without files
-- Preserve Python semantics
 - Verify compatibility and improvement
 
-## Diagnose the design problem
+## Choose Pythonic patterns by problem
 
 Inspect a representative path and its callers. Prioritize demonstrated defects and recurring
 maintenance work, using code evidence rather than a questionnaire or smell score.
 
-| Observed problem | Consider | Evidence of improvement |
+| Problem | Pythonic option | Preserve or check |
 |---|---|---|
-| One policy is repeated across callers | Give the policy one owner | A rule change reaches every relevant caller |
-| Calculations depend on I/O or globals | Separate decisions from effects | Test decisions independently; real entrypoints still use them |
-| Parallel collections, flags, or loose data obscure meaning | Clarify data and ownership | Fewer invalid combinations; preserve boundary representations |
-| Long functions or modules mix responsibilities | Reshape control flow or move coherent responsibilities | Follow a change without understanding unrelated operations |
-| Helpers, classes, or compatibility layers add no useful boundary | Inline or remove them with their dead callers | Fewer concepts to navigate without losing supported behavior |
-| Custom machinery duplicates an existing capability | Evaluate a library and necessary compatibility adapter | Remove superseded logic, not just add an import |
+| Nesting or duplicated policy | Guards; coherent helpers; inline trivial wrappers | Condition/effect order, cleanup, zero/None; share policies, not fragments |
+| Mapping/filter loops | Comprehensions for simple transforms; loops for multi-step work | Order, duplicates, mutation, scope; avoid side-effect-only comprehensions |
+| Index bookkeeping | Iteration, unpacking, `enumerate`, `zip` | Needed indexes/lengths; `zip` truncates, while `strict=True` raises on mismatch (3.10+) |
+| Counting, grouping, searching | `Counter`, `defaultdict`, dict/set indexes | Key equality/hashability, multiplicity, order, result type, missing keys, memory |
+| Parallel lists or opaque records | Dataclasses; `TypedDict` to retain a dict API | Construction, equality, aliasing, mutation, serialization; types are not validation |
+| Mixed parsing, decisions, I/O | Separate phases and explicit data | Existing entrypoints share decisions; preserve effect/failure order |
+| Repeated cleanup | `with`/`async with`; `ExitStack` for dynamic resources | Ownership, partial acquisition, cleanup order, cancellation, exception suppression |
+| One-pass temporary collections | Generators/streaming where compatible | Deferred work/errors, repeatability, indexing, short-circuit effects, resource lifetime |
+| Dispatch or custom machinery | Callable lookup or a suitable stdlib/library | Missing/overlapping cases, eager calls/defaults; use the modernization reference |
 
-These are candidates, not prescriptions. Two occurrences can justify sharing one policy; three
-similar-looking fragments may represent independently evolving rules. Compare purpose, inputs,
-failure behavior, and reasons to change before consolidating them. Do not invent a configurable
-framework to unify coincidental similarity.
+These are candidates, not prescriptions. Compare purpose, inputs, failure behavior, and reasons
+to change: two occurrences can share a policy; three similar fragments may evolve independently.
+Do not invent a framework to unify coincidental similarity.
+
+An extracted return does not return from the caller; moved `break`/`continue` must retain their
+loop effect. Comprehension variables do not leak like loop variables. Generators evaluate the
+outermost iterable immediately and cannot consume a file their producer already closed.
+`mapping.get(key, expensive_default())` evaluates the default on a hit; store callables rather
+than calls for selective dispatch. Ranges and ordered fallbacks may be clearer as conditionals.
 
 ## Establish behavior and consumers
 
@@ -44,17 +51,21 @@ persisted module-qualified names. A leading underscore does not prove a name has
 consumer. Internal names, signatures, and data shapes may change with all controlled callers;
 supported consumers keep their contract unless a migration is authorized. Add a compatibility
 re-export only for an actual supported consumer, not every internal move.
+Preserve supported positional/keyword-only call forms and defaults, import-time effects, and patch
+locations; exercise dynamic lookup and both import orders when a move could create a cycle.
 
 ## Choose a coherent change
 
-Plan medium-sized, coherent stages around meaningful improvements and their checks. A stage may
-reshape a component and its callers; reduce its size when risk or weak tests make it hard to verify.
-Do not fragment work by function or file count. Keep unrelated cleanup and invented requirements out.
+Plan medium-sized, coherent stages around meaningful improvements and their checks. Scale stages to
+risk and testability, not function or file count. Keep unrelated cleanup and invented requirements out.
 
-An extraction should expose a meaningful operation, dependency, or ownership boundary. If it just
-relocates a confusing block and passes a bundle of unrelated state, reconsider the decomposition
-or data model. A direct expression can be clearer than a named wrapper. A library replacement
-needs the parent skill's modernization reference, not just a successful import.
+Rewrite a function, module, or the entire codebase in the agreed scope when replacement offers a
+clearer, more maintainable design. Stages bound verification, not the total rewrite. Name the payoff,
+establish behavior checks, and integrate controlled callers. Preserve required contracts, not the
+old source. Remove superseded code once verified; rewriting does not authorize new requirements.
+
+Extraction that merely relocates a confusing block with unrelated state is not enough: reconsider
+the decomposition or data model. Keep the direct expression when a wrapper adds no useful boundary.
 
 ## Example: make a calculation usable without files
 
@@ -82,28 +93,10 @@ def total_from_file(path):
         return total_from_lines(source)
 ```
 
-The benefit is independent calculation and shared policy, not the comprehension or the line count.
-An explicit loop is equally valid. Check empty/blank input, signed values, duplicates, one-pass
+The benefit is independent calculation and shared policy; an explicit loop is equally valid.
+Check empty/blank input, signed values, duplicates, one-pass
 iterables, parse errors, string/keyword path callers, and file cleanup on failure. If no caller or
 test benefits from the new boundary, do not manufacture one merely to split a short function.
-
-## Preserve Python semantics
-
-Choose transformations with their specific risks in view:
-
-- **Rename or move:** preserve supported positional/keyword-only call rules, defaults, public import
-  paths, patch locations, registries, and import-time effects; check circular imports and dynamic lookup.
-- **Guards, extraction, or inlining:** retain condition/effect order and cleanup. Returning from a
-  helper does not return from its caller; moved `break`/`continue` must preserve their loop effect.
-  Zero, `None`, false, and empty values are not interchangeable.
-- **Dispatch or collections:** check missing keys, hashability, equal/duplicate keys, ordering,
-  mutation, and eager evaluation. Store callables rather than calls when only the selected operation
-  should execute. `mapping.get(key, expensive_default())` evaluates the default even on a hit.
-  Ranges, overlapping predicates, or ordered fallbacks may be clearer as conditionals.
-- **Comprehensions or generators:** keep loops for multi-step work, effects, or per-item failures.
-  Comprehension variables do not leak like loop variables. Generators defer work/errors but evaluate
-  their outermost iterable immediately; they change repeatability, indexing, and length. A generator
-  cannot consume a file closed by its producer. `any`/`all` may skip effects after short-circuiting.
 
 ## Verify compatibility and improvement
 
@@ -123,11 +116,13 @@ stateful sequences when useful, retaining named regressions and a defined compar
 For streaming, verify progress before full consumption and cleanup after a prefix; an iterator
 alone proves neither incremental processing nor bounded memory.
 
-Finally, demonstrate the selected benefit: one policy owner, testable decisions, removed layers,
-or a simpler path for the requested next change. Compatibility alone does not establish improvement;
-the parent skill owns project checks, performance evidence, and the final report.
+Demonstrate the benefit: one policy owner, testable decisions, removed layers, or a simpler next
+change. Passing compatibility checks alone does not prove improvement.
 
 [sourced] [Fowler's guard clauses](https://refactoring.com/catalog/replaceNestedConditionalWithGuardClauses.html),
 [Extract Function](https://refactoring.com/catalog/extractFunction.html),
 [Python expression semantics](https://docs.python.org/3/reference/expressions.html), and
 [Hypothesis properties](https://hypothesis.readthedocs.io/en/latest/tutorial/introduction.html).
+Pattern details: [iteration helpers](https://docs.python.org/3.11/library/functions.html),
+[collections](https://docs.python.org/3.11/library/collections.html), and
+[context managers](https://docs.python.org/3.11/library/contextlib.html).

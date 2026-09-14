@@ -31,10 +31,11 @@ a build workflow. This skill adds no tools or authority beyond the caller's task
 - Find the highest-value problem: duplicated policy, tangled responsibilities, awkward data flow,
   fragile effects, or unnecessary machinery. Choose a coherent solution, not a line-count target.
 - Work in medium-sized, coherent stages: complete a meaningful improvement across related files,
-  then verify it. Scale stages to risk and testability; a large task need not mean tiny edits.
-- Reshape internals and controlled callers, remove obsolete layers, and adopt suitable libraries
-  within the task and project constraints. Preserve supported contracts; seek direction for unresolved
-  requirements or material compatibility, runtime, framework, or live-system changes not already authorized.
+  then verify it. Stages are checkpoints, not a limit on how much code may ultimately change.
+- Reshape or rewrite any or all code in scope when justified, including controlled callers. Remove
+  obsolete layers and use suitable libraries within project constraints. Preserve supported contracts;
+  seek direction for unresolved requirements or material compatibility, runtime, framework, or
+  live-system changes not already authorized.
 - Compare direct code, standard-library features, existing dependencies, and maintained packages.
   Before implementation or tooling choices, load `stack-profile`; preserve project conventions and
   component-specific floors, including isolated standard-library-only entrypoints.

@@ -94,7 +94,8 @@ class PythonCraftOracleTests(unittest.TestCase):
                     "case_c": "change_internal_and_callers", "case_d": "preserve_compatibility",
                     "case_e": "no_change", "case_f": "coherent_stages",
                     "case_g": "replace_custom_with_library", "case_h": "fix_established_defect",
-                    "case_i": "explain_without_changes", "case_j": "clarify_behavior"}
+                    "case_i": "explain_without_changes", "case_j": "clarify_behavior",
+                    "case_k": "rewrite_implementation"}
         fields = spec["graders"][0]["fields"]
         self.assertTrue(exact_json(json.dumps(expected), fields)[0])
         for key in expected:
