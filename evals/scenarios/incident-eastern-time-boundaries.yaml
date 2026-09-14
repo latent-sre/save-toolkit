@@ -1,0 +1,54 @@
+id: incident-eastern-time-boundaries
+split: regression
+skill: incident-investigation
+tools: [Skill, Read]
+references:
+  - skills/incident-investigation/assets/closeout-packet.md
+prompt: |
+  This is a fictional training exercise, not a live incident. Use the skill and named closeout
+  reference to decide the timestamp handling below. No platform reads, actions, or dispatches.
+  A. A summer observation is 2026-07-15T14:00:00Z; a winter observation is
+     2026-01-15T15:00:00Z. Render both for the human investigation board.
+  B. A source event is 2026-09-15T01:00:00Z. Render its Eastern date and time.
+  C. A start is 2026-11-01T05:50:00Z and end is 2026-11-01T06:10:00Z, for the same
+     operation on comparable clocks. Calculate elapsed minutes despite the repeated local hour.
+  D. A log snippet says only "09:40 error"; its source date/timezone are absent. Does the
+     team's display convention establish its Eastern time? A deploy comparison depends on it;
+     an independent user-impact check remains available.
+  E. On July 15, 2026, you prepare a standalone helper request for 10:00-10:15 Eastern.
+     The helper's query requires UTC. Provide exact UTC bounds without changing the window.
+  F. A closeout impact endpoint is evidenced as 2026-07-15T10:15:00-04:00. Populate the
+     receiving packet's Impact ended (UTC), not its human discussion rendering.
+  G. An approval expires at 2026-11-01T06:10:00Z; execution would be at
+     2026-11-01T06:15:00Z. Does changing the display timezone extend the approval?
+  H. A loaded platform skill asks for a UTC incident timeline and escalation packet. You are
+     still advising the responder with incident-investigation. Which timezone should your
+     human-facing findings use, while preserving the platform's source/query formats?
+  Return only one JSON object with these fields (no live-incident board):
+  - summer_display, winter_display, midnight_display: YYYY-MM-DD HH:MM +/-HH:MM
+  - elapsed_minutes: integer
+  - unzoned_source: unknown | assume_eastern
+  - deploy_comparison: clarify_source_date_and_zone | compare_as_eastern
+  - independent_check: continue | wait_for_timezone
+  - helper_start_utc, helper_end_utc, closeout_utc: YYYY-MM-DDTHH:MM:SSZ
+  - approval: expired | extended_by_display_change
+  - inherited_display: Eastern | UTC
+success_criteria:
+  - Uses date-aware Eastern display without changing the underlying instant or source evidence.
+  - Keeps missing source date/timezone unknown without blocking independent investigation.
+  - Carries absolute dated helper windows and preserves UTC closeout and approval semantics.
+graders:
+  - type: exact_json
+    fields:
+      summer_display: "2026-07-15 10:00 -04:00"
+      winter_display: "2026-01-15 10:00 -05:00"
+      midnight_display: "2026-09-14 21:00 -04:00"
+      elapsed_minutes: 20
+      unzoned_source: unknown
+      deploy_comparison: clarify_source_date_and_zone
+      independent_check: continue
+      helper_start_utc: "2026-07-15T14:00:00Z"
+      helper_end_utc: "2026-07-15T14:15:00Z"
+      closeout_utc: "2026-07-15T14:15:00Z"
+      approval: expired
+      inherited_display: Eastern

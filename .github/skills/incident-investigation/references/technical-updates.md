@@ -28,9 +28,11 @@ Keep the update brief enough to say on a call or paste into TLC. It is a view of
 not a second board or authoritative timeline. End the assistant's active-incident reply with all
 seven board fields and expand that board for a handover.
 
-Example update excerpt, not incident facts or a complete assistant reply:
+Example update excerpt, not incident facts or a complete assistant reply. The saved Splunk view
+uses Eastern on September 14, 2026:
 
-> Checkout failures remain at 8% at 10:05 UTC [sourced: responder's saved Splunk view]. Failures
+> September 14, 2026 — times Eastern (EDT). Checkout failures remain at 8% at 10:05
+> [sourced: responder's saved Splunk view]. Failures
 > started after the release, but we have not established its cause. No mitigation has been reported.
 > Next we need the release owner's deployment events for 09:40–10:05 to compare with impact onset.
 > Please bring that owner into this TLC; rollback is a recommendation pending target and approval checks.
