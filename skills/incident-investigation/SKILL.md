@@ -96,8 +96,11 @@ the expanded board below.
    "change nothing yet", why, and which diagnostic moves the investigation forward.
 4. **Next check.** The one Apps Manager view, Splunk search, Wavefront/App Metrics chart, or
    command that differs between the top candidates. Give it as: what to run, with target and UTC
-   window · what it does · *if it shows X, A leads — do B; if it shows Y, A weakens and C leads —
-   do D* · if empty, stale, unclear, failed, or inaccessible, what stays open and who can help.
+   window · what it does · *if it shows X, A leads and the next check or human decision is B; if
+   it shows Y, A weakens, C leads, and the next check or decision is D* · if empty, stale, unclear,
+   failed, or inaccessible, what stays open and who can help. A branch names a check or a decision
+   for the owner, never an action to take: a readback showing an interrupted change did not land
+   returns the retry to the owner's approval; it does not authorize one.
    Name the healthy reading and the unhealthy one without inventing values. Perishable evidence
    first (a thread dump before any restart, per-instance state before a scale), then the cheapest
    discriminator. Explain navigation from known locations and fields; ask for missing ones, and
@@ -188,18 +191,24 @@ and names the check that settles it; none is a diagnosis on its own:
 - latency rising before errors reads as waiting, then timeouts: saturation moves up, and a change
   at the onset time stays in play — compare the change with observed onset, then the affected
   requests' waits and limits;
-- one hot instance among calm ones is local; all instances together is shared — though shared
-  data or a shared dependency also hits every instance alike;
-- a thread waiting to *get* a connection says the pool is the bottleneck for that request; a
-  thread *holding* one while it waits on a socket says why — the pool's active, maximum, and
-  waiting counts settle it, and without them exhaustion is a candidate, not a finding;
+- one hot instance among calm ones is instance-scoped impact, not yet a local cause: routing skew,
+  sticky sessions for an affected tenant, or poison input can land a shared fault on one process,
+  so compare routing, inputs, and resources before calling it local; all instances together is
+  shared, though shared data or a shared dependency also hits every instance alike;
+- a sampled thread waiting to *get* a connection says that request was waiting at that instant,
+  not that the pool is the bottleneck: the wait duration and the pool's active, maximum, and
+  waiting counts settle that, and without them exhaustion is a candidate, not a finding; a thread
+  *holding* a connection while it waits on a socket says why the pool is being held;
 - a dependency that is fast from the caller's side, for the failing requests, is not slow however
-  many times it is called — count the calls instead; its own flat dashboard clears only its server
-  side, not the path, region, or tenant that is failing;
+  many times it is called — count the calls instead; its own flat dashboard clears only the series
+  and dimensions it covers, so the dependency stays open until caller-scoped timings or server
+  metrics segmented by the failing region, tenant, or route are compared;
 - a load balancer that sees seconds where the container logs milliseconds is time spent outside
   the container;
-- low CPU everywhere with high latency is waiting, not working — a blocked pool or one hot
-  instance can hide under low aggregate CPU, so check the affected requests' waits and limits;
+- low aggregate CPU with high latency leaves waiting, per-core saturation, and CPU throttling all
+  open — a blocked pool, one hot instance, or one saturated thread can hide under a low average, so
+  check the affected requests' waits and limits and the instance's CPU limit, throttling, or
+  per-core usage;
 - an old last-event time or an empty view is a missing observation: it proves neither staleness,
   a broken pipeline, nor health — check coverage and signal arrival;
 - the trigger is gone — rolled back, flag off — and the service is still degraded: first confirm
@@ -273,8 +282,9 @@ state, read the [worked helper exchange](./references/helper-exchange.md) before
 
 End every reply with this board once a live incident is being worked: a page, incident ID, or ongoing
 user impact. It is what stops the responder looping back to a dead candidate. Advise above it. One
-line per field, two only when an open item would otherwise drop; cite the paste by source and UTC
-rather than restating its values. Retain all seven fields, using `unknown`, `unowned`, or
+line per field, two only when an open item would otherwise drop. The board carries each observation's
+concise result or value once, with source and UTC; the prose omits the duplicate, never the board.
+Retain all seven fields, using `unknown`, `unowned`, or
 `none` accurately. Missing action reports mean `no actions reported`, not proof nobody acted.
 
 ```text
