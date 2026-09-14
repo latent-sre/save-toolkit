@@ -217,11 +217,9 @@ def test_shipped_helper_replies_are_complete(oracle):
         assert oracle.check(reply, "board")[0]
 
 
-def test_shipped_handover_reply_is_complete(oracle):
-    text = SKILL.read_text(encoding="utf-8").split("Handover example:", 1)[1]
-    reply = re.search(r"```text\n(.*?)\n```", text, re.S)
-    assert reply is not None
-    assert oracle.check(reply[1], "board")[0]
+def test_handover_reply_is_complete(oracle):
+    reply = (ROOT / "evals/fixtures/incident-handover-reply.txt").read_text(encoding="utf-8")
+    assert oracle.check(reply, "board")[0]
 
 
 # --- the skill still carries the contract the oracle grades -------------------------------------

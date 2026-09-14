@@ -1,0 +1,23 @@
+To Lee from Priya, September 14, 2026, 15:50 Eastern (EDT), INC-7204 open. Morgan remains commander.
+All times below are Eastern on that date; source views in this example use the same timezone.
+Check downstream latency next; reconcile the flag attempt before any retry.
+Lee, read this back and confirm; you inherit the investigation, not Morgan's command authority.
+
+Impact: checkout-worker backlog; affected output/users and onset unknown. Recovery criterion:
+  queue depth under 200 for 20 minutes, not the current dip.
+Open: downstream ledger-db latency (DB on-call, paged 15:35, no reply) versus consumer-side backlog
+  (checkout-worker on-call, not yet accepted); no supported ranking. Falling then flat depth
+  after scaling does not distinguish these [sourced: responder report].
+Checked: queue depth 1,800 at 15:45, peak 3,100 at 15:05 [sourced: Wavefront]; counts alone do not
+  establish user impact or the cause.
+Ruled out: none.
+Actions: confirmed scale 2→4 at 15:12 by Omar [sourced: Apps Manager Events]; sustained recovery
+  not established. Omar reports attempting retry-flag disable at 15:30; console hung
+  [sourced: Omar's account]. Outcome UNKNOWN [unverified: no receipt or current readback].
+Next: DB on-call (acceptance pending) obtains ledger-db p95 for 15:00–15:50 to assess downstream
+  latency. Elevated strengthens it; flat only weakens it because fast errors or excluded affected
+  requests can read flat. Missing coverage leaves it open; neither reading proves consumer-side.
+Follow-ups: Omar reconciles the flag attempt with receipts/events and effective Settings readback
+  before any retry; recollection or current value alone cannot show whether it landed and reverted.
+  Confirm affected output/users with checkout-worker on-call; acceptance pending, due unknown.
+  Lee's handover acknowledgment and both candidate-owner acceptances remain pending.
