@@ -60,9 +60,10 @@ verification. The entrypoint rules remain authoritative after a reference is loa
 A formal on-call rotation is in place. *[sourced: operator statement 2026-08-21]*
 The team investigates and recommends fixes; someone else runs the incident. An existing bridge or
 TLC (Techline Chat) is the coordination channel, not a request to open another.
-*[sourced: operator statement 2026-09-12]* `incident-investigation` owns technical advice and the
-investigation board. For severity advice, read installed `incident-investigation/references/severity-and-escalation.md`
-directly; preserve the human lead's declared tier, roles, update requests, and authoritative record.
+*[sourced: operator statement 2026-09-12]* `incident-investigation` owns technical advice, the
+investigation board, and severity advice through its own severity-and-escalation reference; every
+other lane returns impact evidence and leaves the tier to the advisor and the human lead. Preserve
+the human lead's declared tier, roles, update requests, and authoritative record.
 
 ## Change management
 Change records live in **both BMC Remedy and Jira**. `production-change-gate` refers to "the formal
