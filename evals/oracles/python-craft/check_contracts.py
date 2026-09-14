@@ -193,6 +193,63 @@ def unchanged():
         CHECK.assertIs(predicate(value), expected)
 
 
+def calculation():
+    no_io = AssertionError("calculation attempted file I/O")
+    with mock.patch("builtins.open", side_effect=no_io), mock.patch("io.open", side_effect=no_io):
+        module = load("totals.py")
+        CHECK.assertTrue(callable(getattr(module, "total_from_lines", None)),
+                         "missing in-memory calculation boundary")
+        for lines, expected in [([], 0), (["\n", " \t"], 0), (["+4\n", "-4"], 0),
+                                ([" 2 ", "", "3", "3"], 8)]:
+            actual = module.total_from_lines(iter(lines))
+            CHECK.assertIs(type(actual), int, "integer result type changed")
+            CHECK.assertEqual(actual, expected)
+        with CHECK.assertRaises(ValueError):
+            module.total_from_lines(iter(["2", "invalid", "3"]))
+
+    real_open = io.open
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "values.txt"
+        handles = []
+
+        def tracked_open(*args, **kwargs):
+            handle = real_open(*args, **kwargs)
+            handles.append(handle)
+            return handle
+
+        for contents, expected in [("", 0), ("2\n\n-4\n+2", 0), ("3\n3\n", 6),
+                                   ("2\ninvalid\n3", ValueError)]:
+            path.write_text(contents, encoding="utf-8")
+            handles.clear()
+            with mock.patch("builtins.open", tracked_open), mock.patch("io.open", tracked_open):
+                module = load("totals.py")
+                if expected is ValueError:
+                    with CHECK.assertRaises(ValueError):
+                        module.total_from_file(path)
+                else:
+                    actual = module.total_from_file(path)
+                    CHECK.assertIs(type(actual), int, "integer result type changed")
+                    CHECK.assertEqual(actual, expected)
+            CHECK.assertTrue(handles and all(handle.closed for handle in handles), "file handle leaked")
+        # The specified extension boundary must reach the unchanged file entrypoint.
+        path.write_text("3\n", encoding="utf-8")
+        CHECK.assertEqual(module.total_from_file(path=str(path)), 3)
+        with mock.patch.object(module, "total_from_lines", return_value=73) as core:
+            CHECK.assertEqual(module.total_from_file(path), 73,
+                              "file entrypoint bypassed shared calculation")
+            core.assert_called_once()
+        failure = RuntimeError("calculation failed")
+        handles.clear()
+        with (mock.patch.object(module, "total_from_lines", side_effect=failure),
+              mock.patch("builtins.open", tracked_open), mock.patch("io.open", tracked_open)):
+            with CHECK.assertRaises(RuntimeError) as raised:
+                module.total_from_file(path)
+            CHECK.assertIs(raised.exception, failure, "calculation exception replaced")
+        CHECK.assertTrue(handles and all(handle.closed for handle in handles), "file handle leaked")
+        with CHECK.assertRaises(FileNotFoundError):
+            module.total_from_file(Path(tmp) / "missing.txt")
+
+
 def modules():
     # Import caches cannot make a broken import order appear valid.
     if len(sys.argv) == 2:
@@ -228,6 +285,6 @@ def modules():
 
 if __name__ == "__main__":
     checks = {"refactor": refactor, "generator": generator, "migration": migration,
-              "unchanged": unchanged, "modules": modules}
+              "unchanged": unchanged, "modules": modules, "calculation": calculation}
     checks[sys.argv[1]]()
     print("contract passed:", sys.argv[1])

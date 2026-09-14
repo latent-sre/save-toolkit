@@ -52,7 +52,8 @@ the task's authority; absence of the required interpreter is a gap, not a reason
 
 Run affected tests plus the configured lint/type checks before and after the change. Preserve
 baseline failures as named gaps; do not silence rules, weaken annotations, or broadly rewrite tests
-to make the new result green. Test public callers and relevant failure paths, then the appropriate
+to make the new result green. Tests coupled to changed internals may move with them; preserve the
+behavioral assertions, including coverage of existing callers. Test relevant failure paths, then the appropriate
 broader suite. Report tool/interpreter versions when they change the result.
 
 [sourced] [uv project locking and syncing](https://docs.astral.sh/uv/concepts/projects/sync/),

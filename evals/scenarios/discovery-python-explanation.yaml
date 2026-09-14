@@ -1,0 +1,19 @@
+id: discovery-python-explanation
+split: regression
+prompt: |
+  I'm learning Python. Explain what this function does and why it uses yield rather than return:
+
+  def positive_values(values):
+      for value in values:
+          if value > 0:
+              yield value
+
+  Show what list(positive_values([-2, 0, 3, 5])) produces, then suggest one small exercise
+  I could try next. I only want an explanation; do not create or edit files.
+target: {kind: skill, name: python-craft}
+routing: {expect: fire}
+# The automated verdict checks routing only; assess the response criteria manually.
+success_criteria:
+  - Invokes Python guidance for understanding unfamiliar code without requesting implementation.
+  - Explains lazy iteration and the result [3, 5] at a beginner-appropriate level.
+  - Suggests one small next exercise without creating or editing files.

@@ -1,5 +1,6 @@
 """Calibrate the Python craft outcome oracles against correct and broken artifacts."""
 
+import json
 from pathlib import Path
 import subprocess
 import sys
@@ -8,6 +9,7 @@ import textwrap
 import unittest
 
 import yaml
+from graders import exact_json
 
 
 ROOT = Path(__file__).resolve().parent
@@ -18,6 +20,7 @@ SCENARIOS = {
     "migration": ("build-python-library-migration", "addresses.py"),
     "unchanged": ("build-python-leaves-correct-code", "predicates.py"),
     "modules": ("build-python-module-move", "reports.py"),
+    "calculation": ("build-python-separate-calculation", "totals.py"),
 }
 CORRECT = {
     "refactor": '''
@@ -56,6 +59,14 @@ CORRECT = {
         def is_nonnegative(value: int) -> bool:
             return value >= 0
     ''',
+    "calculation": '''
+        def total_from_lines(lines):
+            return sum(int(line) for line in lines if line.strip())
+
+        def total_from_file(path):
+            with open(path, encoding="utf-8") as source:
+                return total_from_lines(source)
+    ''',
 }
 
 
@@ -77,6 +88,20 @@ CORRECT["modules"] = {
 
 
 class PythonCraftOracleTests(unittest.TestCase):
+    def test_refactoring_judgment_grader_rejects_each_wrong_decision(self):
+        spec = yaml.safe_load((ROOT / "scenarios/python-refactoring-judgment.yaml").read_text(encoding="utf-8"))
+        expected = {"case_a": "share_policy", "case_b": "keep_separate",
+                    "case_c": "change_internal_and_callers", "case_d": "preserve_compatibility",
+                    "case_e": "no_change", "case_f": "coherent_stages",
+                    "case_g": "replace_custom_with_library", "case_h": "fix_established_defect",
+                    "case_i": "explain_without_changes", "case_j": "clarify_behavior",
+                    "case_k": "rewrite_implementation"}
+        fields = spec["graders"][0]["fields"]
+        self.assertTrue(exact_json(json.dumps(expected), fields)[0])
+        for key in expected:
+            with self.subTest(case=key):
+                self.assertFalse(exact_json(json.dumps(expected | {key: "incorrect"}), fields)[0])
+
     def run_artifact(self, mode, source):
         with tempfile.TemporaryDirectory() as tmp:
             files = source if isinstance(source, dict) else {SCENARIOS[mode][1]: source}
@@ -107,13 +132,60 @@ class PythonCraftOracleTests(unittest.TestCase):
                     self.assertNotEqual(result.returncode, 0)
                     diagnostic = {"generator": "I/O operation on closed file",
                                   "migration": "stdlib validator was not used",
-                                  "modules": "No module named 'formatting'"}[mode]
+                                  "modules": "No module named 'formatting'",
+                                  "calculation": "missing in-memory calculation boundary"}[mode]
                     self.assertIn(diagnostic, result.stderr)
 
     def test_generator_open_aliases_remain_valid(self):
         source = "from io import open\n" + textwrap.dedent(CORRECT["generator"])
         result = self.run_artifact("generator", source)
         self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_calculation_accepts_explicit_loop_without_prescribing_syntax(self):
+        source = CORRECT["calculation"].replace(
+            "return sum(int(line) for line in lines if line.strip())",
+            "total = 0\n            for line in lines:\n                if line.strip():\n"
+            "                    total += int(line)\n            return total",
+        )
+        result = self.run_artifact("calculation", source)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_calculation_observes_aliased_file_openers(self):
+        for prefix in ("from io import open\n", "from builtins import open\n"):
+            source = prefix + textwrap.dedent(CORRECT["calculation"])
+            with self.subTest(prefix=prefix):
+                result = self.run_artifact("calculation", source)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                source = source.replace("def total_from_lines(lines):",
+                                        'def total_from_lines(lines):\n    open("unused", "w")')
+                result = self.run_artifact("calculation", source)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("calculation attempted file I/O", result.stderr)
+
+    def test_calculation_rejects_cosmetic_duplicate_and_behavior_regressions(self):
+        seed = scenario("calculation")["fixture"]["files"]["totals.py"]
+        source = textwrap.dedent(CORRECT["calculation"])
+        duplicate = source.split("\ndef total_from_file")[0] + "\n" + seed
+        for name, candidate, diagnostic in [
+            ("comment only", seed + "\n# Clearer calculation\n", "missing in-memory calculation boundary"),
+            ("duplicate rule", duplicate, "file entrypoint bypassed shared calculation"),
+            ("rejects string path", source.replace('open(path, encoding="utf-8")',
+                                                 'path.open(encoding="utf-8")'), "has no attribute 'open'"),
+            ("renames path keyword", source.replace("path", "filename"), "unexpected keyword argument 'path'"),
+            ("drops signs", source.replace("int(line)", "abs(int(line))"), "!= 0"),
+            ("float result", source.replace("sum(int(line)", "sum(float(line)"), "integer result type changed"),
+            ("leaks file", source.replace('with open(path, encoding="utf-8") as source:\n        ',
+                                         'source = open(path, encoding="utf-8")\n    '), "file handle leaked"),
+            ("unnecessary I/O", source.replace("def total_from_lines(lines):",
+                'def total_from_lines(lines):\n    open("unused")'), "calculation attempted file I/O"),
+            ("replaces propagated error", source.replace("return total_from_lines(source)",
+                'try:\n            return total_from_lines(source)\n        except RuntimeError as exc:\n'
+                '            raise RuntimeError(str(exc))'), "calculation exception replaced"),
+        ]:
+            with self.subTest(name=name):
+                result = self.run_artifact("calculation", candidate)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(diagnostic, result.stderr)
 
     def test_generator_rejects_eager_materialization_before_first_yield(self):
         for expression in (

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import re
 from pathlib import Path
 
@@ -164,26 +165,133 @@ def _tool_specs(raw: object) -> list[str]:
     return adapters._split_tool_specs(raw)  # shared grammar with the generator
 
 
-def _tool_bases(raw: object) -> set[str]:
-    return {spec.split("(", 1)[0] for spec in _tool_specs(raw)}
+def _tool_bases(specs: list[str]) -> set[str]:
+    return {spec.split("(", 1)[0] for spec in specs}
 
 
-def _delegates(raw: object, source: Path) -> set[str]:
-    return set(adapters._delegation_targets(_tool_specs(raw), source) or ())
+def _delegates(specs: list[str], source: Path) -> set[str]:
+    return set(adapters._delegation_targets(specs, source) or ())
 
 
-def _resolve_handoff_contract(root: Path, name: str, body: str) -> str | None:
-    """Resolve an inline handoff contract."""
+def _metadata_failures(path: Path, fields: dict[str, object]) -> list[str]:
+    failures: list[str] = []
+    unknown = sorted(set(fields) - KNOWN_AGENT_FIELDS)
+    if unknown:
+        failures.append(f"{path}: unknown or unsupported plugin agent field(s): {', '.join(unknown)}")
+    model = fields.get("model")
+    if "model" in fields and (not isinstance(model, str) or model not in MODEL_ALIASES):
+        failures.append(
+            f"{path}: model must be one of {', '.join(sorted(MODEL_ALIASES))} — "
+            "a full model ID goes stale silently"
+        )
+    inert = sorted(set(fields) & PLUGIN_INERT_AGENT_FIELDS)
+    if inert:
+        failures.append(f"{path}: plugin-inert authority field(s) are forbidden: {', '.join(inert)}")
+    description = fields.get("description")
+    if not isinstance(description, str) or not description.strip():
+        failures.append(f"{path}: description is required")
+    elif len(description.encode("utf-8")) > 1024:
+        failures.append(f"{path}: description exceeds 1024 UTF-8 bytes")
+    return failures
 
-    if "## The handoff packet" in body or "## Handoffs" in body:
-        return body
-    return None
+
+def _tool_grant_failures(path: Path, specs: list[str]) -> list[str]:
+    failures: list[str] = []
+    # Repeated grants must be checked before set-based authority reasoning loses them.
+    duplicates = sorted(spec for spec, count in Counter(specs).items() if count > 1)
+    if duplicates:
+        failures.append(f"{path}: duplicate tool grant(s): {', '.join(duplicates)}")
+    for spec in specs:
+        match = TOOL_RE.fullmatch(spec)
+        if not match:
+            failures.append(f"{path}: malformed tool grant {spec!r}")
+            continue
+        base = match.group(1)
+        if base.startswith("mcp__"):
+            if base not in EVIDENCE_MCP_TOOLS:
+                failures.append(f"{path}: MCP authority is not exact-approved: {base}")
+            if match.group(2):
+                failures.append(f"{path}: MCP grants cannot carry scoped arguments: {spec}")
+        elif base not in BUILTIN_TOOLS:
+            failures.append(f"{path}: unknown tool grant {base!r}")
+        elif match.group(2) and base != "Agent":
+            # Only Agent(target) scoping is honored (and only on a main-thread agent).
+            # Bash(git diff:*) ran git status just like bare Bash in the CLI 2.1.200 probe.
+            failures.append(
+                f"{path}: scoped tool grant {spec!r} is silently ignored by the runtime; "
+                f"grant bare {base!r} (per-command scoping lives in the guard, not tools:)"
+            )
+    return failures
+
+
+def _body_failures(path: Path, body: str, bases: set[str]) -> list[str]:
+    failures: list[str] = []
+    if "## The handoff packet" not in body and "## Handoffs" not in body:
+        failures.append(f"{path}: missing handoff contract")
+    # An agent with no Agent tool can recommend a next owner, but cannot dispatch one.
+    if "Agent" not in bases:
+        flat = _flatten(body)
+        if DELEGATION_IMPERATIVE in flat:
+            failures.append(
+                f"{path}: says {DELEGATION_IMPERATIVE!r} but holds no Agent tool; this lane can "
+                f"only recommend a next owner (see scribe.md for the adapted wording)"
+            )
+        if not any(phrase in flat for phrase in NON_DELEGATION_DISCLAIMERS):
+            failures.append(
+                f"{path}: holds no Agent tool, so its handoff block must state that it cannot "
+                f"invoke the next owner; expected one of {list(NON_DELEGATION_DISCLAIMERS)}"
+            )
+    # All three labels are needed to distinguish observation from sourced claims.
+    present = [label for label in EVIDENCE_TRIAD if label in body]
+    if not present:
+        failures.append(f"{path}: missing evidence-label contract")
+    elif len(present) != len(EVIDENCE_TRIAD):
+        missing = [label for label in EVIDENCE_TRIAD if label not in present]
+        failures.append(f"{path}: incomplete evidence-label triad; missing {', '.join(missing)}")
+    return failures
+
+
+def _authority_failures(name: str, path: Path, specs: list[str], bases: set[str]) -> list[str]:
+    failures: list[str] = []
+    authority = EXPECTED_AUTHORITY[name]
+    missing = sorted(authority["required"] - bases)
+    forbidden = sorted(authority["forbidden"] & bases)
+    if missing:
+        failures.append(f"{path}: missing required tool(s): {', '.join(missing)}")
+    if forbidden:
+        failures.append(f"{path}: forbidden tool(s): {', '.join(forbidden)}")
+    try:
+        delegates = _delegates(specs, path)
+    except ValueError as exc:
+        failures.append(str(exc))
+        delegates = set()
+    expected_delegates = EXPECTED_DELEGATION[name]
+    if delegates != expected_delegates:
+        failures.append(
+            f"{path}: delegation mismatch; expected "
+            f"{', '.join(sorted(expected_delegates)) or 'none'}; found "
+            f"{', '.join(sorted(delegates)) or 'none'}"
+        )
+    for target in sorted(delegates):
+        if target not in EXPECTED_AUTHORITY:
+            failures.append(f"{path}: Agent target {target!r} does not exist")
+    if name in adapters.GUARDED_AGENTS and "Bash" not in bases:
+        failures.append(f"{path}: guard roster claims an agent without Bash")
+    # Both directions matter: a Bash-only lane outside the guard is read-only by promise alone.
+    if "Bash" in bases and not (bases & WRITE_TOOLS) and name not in adapters.GUARDED_AGENTS:
+        failures.append(
+            f"{path}: agent holds Bash without a write tool but is not on the guard roster "
+            f"(GUARDED_AGENTS in generate_platform_adapters.py / readonly-guard.py); its "
+            f"read-only posture is unenforced"
+        )
+    return failures
 
 
 def validate_agents(root: Path) -> tuple[list[str], list[str]]:
+    """Collect definition failures first, then roster and known-agent authority failures."""
     failures: list[str] = []
     names: list[str] = []
-    parsed: dict[str, tuple[Path, dict[str, object], str]] = {}
+    authority_inputs: dict[str, tuple[Path, list[str], set[str]]] = {}
     for path in sorted((root / "agents").glob("*.md")):
         try:
             fields, body, _ = adapters.parse_frontmatter(path)
@@ -195,80 +303,16 @@ def validate_agents(root: Path) -> tuple[list[str], list[str]]:
             failures.append(f"{path}: name must be kebab-case and match the filename")
             continue
         names.append(name)
-        parsed[name] = (path, fields, body)
-        unknown = sorted(set(fields) - KNOWN_AGENT_FIELDS)
-        if unknown:
-            failures.append(f"{path}: unknown or unsupported plugin agent field(s): {', '.join(unknown)}")
-        model = fields.get("model")
-        if "model" in fields and (not isinstance(model, str) or model not in MODEL_ALIASES):
-            failures.append(
-                f"{path}: model must be one of {', '.join(sorted(MODEL_ALIASES))} — "
-                "a full model ID goes stale silently"
-            )
-        inert = sorted(set(fields) & PLUGIN_INERT_AGENT_FIELDS)
-        if inert:
-            failures.append(f"{path}: plugin-inert authority field(s) are forbidden: {', '.join(inert)}")
-        description = fields.get("description")
-        if not isinstance(description, str) or not description.strip():
-            failures.append(f"{path}: description is required")
-        elif len(description.encode("utf-8")) > 1024:
-            failures.append(f"{path}: description exceeds 1024 UTF-8 bytes")
+        failures.extend(_metadata_failures(path, fields))
         if "tools" not in fields:
             failures.append(f"{path}: tools must be explicit; omission inherits all tools")
             continue
         specs = _tool_specs(fields["tools"])
-        # A repeated grant signals a bad merge and defeats the set-based authority reasoning below,
-        # where the duplicate silently collapses and the mistake never surfaces.
-        duplicates = sorted({spec for spec in specs if specs.count(spec) > 1})
-        if duplicates:
-            failures.append(f"{path}: duplicate tool grant(s): {', '.join(duplicates)}")
-        for spec in specs:
-            match = TOOL_RE.fullmatch(spec)
-            if not match:
-                failures.append(f"{path}: malformed tool grant {spec!r}")
-                continue
-            base = match.group(1)
-            if base.startswith("mcp__"):
-                if base not in EVIDENCE_MCP_TOOLS:
-                    failures.append(f"{path}: MCP authority is not exact-approved: {base}")
-                if match.group(2):
-                    failures.append(f"{path}: MCP grants cannot carry scoped arguments: {spec}")
-            elif base not in BUILTIN_TOOLS:
-                failures.append(f"{path}: unknown tool grant {base!r}")
-            elif match.group(2) and base != "Agent":
-                # A scoped grant like `Bash(git diff:*)` READS like a narrowed tool and does nothing:
-                # probed on CLI 2.1.200, an agent granted `Bash(git diff:*)` ran `git status` exactly
-                # like one granted bare `Bash`. Only `Agent(target)` scoping is honored (and only on a
-                # main-thread agent). A scoped grant here is a limit that looks real and is not.
-                failures.append(
-                    f"{path}: scoped tool grant {spec!r} is silently ignored by the runtime; "
-                    f"grant bare {base!r} (per-command scoping lives in the guard, not tools:)"
-                )
-        if _resolve_handoff_contract(root, name, body) is None:
-            failures.append(f"{path}: missing handoff contract")
-        # An agent with no `Agent` tool cannot dispatch anyone, so the shared handoff block's
-        # imperative form is a false instruction in that lane. Keep this check for terminal
-        # agents such as scribe and repository-investigator when other lanes gain delegation.
-        if "Agent" not in _tool_bases(fields["tools"]):
-            flat = _flatten(body)
-            if DELEGATION_IMPERATIVE in flat:
-                failures.append(
-                    f"{path}: says {DELEGATION_IMPERATIVE!r} but holds no Agent tool; this lane can "
-                    f"only recommend a next owner (see scribe.md for the adapted wording)"
-                )
-            if not any(phrase in flat for phrase in NON_DELEGATION_DISCLAIMERS):
-                failures.append(
-                    f"{path}: holds no Agent tool, so its handoff block must state that it cannot "
-                    f"invoke the next owner; expected one of {list(NON_DELEGATION_DISCLAIMERS)}"
-                )
-        # The evidence triad is all-or-nothing: an agent that keeps [verified]/[unverified] but drops
-        # [sourced] silently loses the ability to distinguish "I ran it" from "the file says so".
-        present = [label for label in EVIDENCE_TRIAD if label in body]
-        if not present:
-            failures.append(f"{path}: missing evidence-label contract")
-        elif len(present) != len(EVIDENCE_TRIAD):
-            missing = [label for label in EVIDENCE_TRIAD if label not in present]
-            failures.append(f"{path}: incomplete evidence-label triad; missing {', '.join(missing)}")
+        bases = _tool_bases(specs)
+        failures.extend(_tool_grant_failures(path, specs))
+        failures.extend(_body_failures(path, body, bases))
+        if name in EXPECTED_AUTHORITY:
+            authority_inputs[name] = (path, specs, bases)
 
     expected_names = set(EXPECTED_AUTHORITY)
     if set(names) != expected_names:
@@ -276,42 +320,8 @@ def validate_agents(root: Path) -> tuple[list[str], list[str]]:
             "agents/: roster mismatch; expected " + ", ".join(sorted(expected_names))
             + "; found " + ", ".join(sorted(names))
         )
-    for name, (path, fields, _) in parsed.items():
-        bases = _tool_bases(fields["tools"])
-        authority = EXPECTED_AUTHORITY[name]
-        missing = sorted(authority["required"] - bases)
-        forbidden = sorted(authority["forbidden"] & bases)
-        if missing:
-            failures.append(f"{path}: missing required tool(s): {', '.join(missing)}")
-        if forbidden:
-            failures.append(f"{path}: forbidden tool(s): {', '.join(forbidden)}")
-        try:
-            delegates = _delegates(fields["tools"], path)
-        except ValueError as exc:
-            failures.append(str(exc))
-            delegates = set()
-        expected_delegates = EXPECTED_DELEGATION[name]
-        if delegates != expected_delegates:
-            failures.append(
-                f"{path}: delegation mismatch; expected "
-                f"{', '.join(sorted(expected_delegates)) or 'none'}; found "
-                f"{', '.join(sorted(delegates)) or 'none'}"
-            )
-        for target in sorted(delegates):
-            if target not in expected_names:
-                failures.append(f"{path}: Agent target {target!r} does not exist")
-        if name in adapters.GUARDED_AGENTS and "Bash" not in bases:
-            failures.append(f"{path}: guard roster claims an agent without Bash")
-        # The reverse of the line above, and the higher-value half: an agent that holds Bash with no
-        # write tool is a read-only-by-intent agent whose read-only-ness is only a promise unless the
-        # guard actually scopes it. If it is not on the guard roster, that promise has no control
-        # behind it — and adding such an agent is exactly when this is easy to forget.
-        if "Bash" in bases and not (bases & WRITE_TOOLS) and name not in adapters.GUARDED_AGENTS:
-            failures.append(
-                f"{path}: agent holds Bash without a write tool but is not on the guard roster "
-                f"(GUARDED_AGENTS in generate_platform_adapters.py / readonly-guard.py); its "
-                f"read-only posture is unenforced"
-            )
+    for name, (path, specs, bases) in authority_inputs.items():
+        failures.extend(_authority_failures(name, path, specs, bases))
     return names, failures
 
 
