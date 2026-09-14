@@ -31,9 +31,10 @@ These are candidates, not prescriptions. Compare purpose, inputs, failure behavi
 to change: two occurrences can share a policy; three similar fragments may evolve independently.
 Do not invent a framework to unify coincidental similarity.
 
-An extracted return does not return from the caller; moved `break`/`continue` must retain their
-loop effect. Comprehension variables do not leak like loop variables. Generators evaluate the
-outermost iterable immediately and cannot consume a file their producer already closed.
+An extracted return does not return from its caller; moved `break`/`continue` must retain loop effects.
+Comprehension variables do not leak like loop variables. Generator expressions evaluate the outermost
+iterable immediately; generator-function bodies wait for resumption. Neither can consume a file
+already closed by its producer.
 `mapping.get(key, expensive_default())` evaluates the default on a hit; store callables rather
 than calls for selective dispatch. Ranges and ordered fallbacks may be clearer as conditionals.
 
