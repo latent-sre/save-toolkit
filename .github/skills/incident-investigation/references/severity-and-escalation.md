@@ -42,8 +42,8 @@ space's app list, the app's **Overview** instance table, **Events**, and recent 
 request to the typed `sre-assistant` agent; do not cross the platform boundary yourself.
 
 If service is not stabilizing after roughly fifteen minutes of investigation, impact grows, or a
-check needs another team's access, give the lead a concrete request for help. Use supplied UTC
-times; do not invent elapsed time. On an existing bridge/TLC, request the specialist there. With
+check needs another team's access, give the lead a concrete request for help. Compare supplied
+instants and display them under the parent skill's time rule; do not invent elapsed time. On an existing bridge/TLC, request the specialist there. With
 no known channel, follow the supplied escalation path and ask only for coordination context that
 changes the next step; do not instruct the investigator to establish command.
 

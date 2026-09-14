@@ -80,7 +80,7 @@ the executor before a retry.
 4. **Restart is not root-cause closure.** If restart restores service, preserve the leak, poison
    input, or dependency hypothesis and continue investigation with the human on-call, advised by
    `incident-investigation`.
-5. **Record every decision and result in UTC** in the investigation board; prepare the technical
+5. **Record every decision and result using the parent skill's time rule** in the investigation board; prepare the technical
    update for the existing bridge/TLC. The human incident lead's record remains authoritative.
 6. **Confirm before executing.** The packet names the exact target, change, command, blast radius,
    verification window, rollback, human executor, and approving decider. It also records the
