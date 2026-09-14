@@ -110,6 +110,11 @@ grader, never a new keyword list. `--agent` runs the session AS the agent, so th
 invocation; a `skill:` instruction can be ignored, so a skill-pinned trial additionally asserts the
 skill completed.
 
+An agent-pinned contract may declare `tools: []` for supplied-state reasoning without tool calls.
+Omitting `tools` retains the default inventory. Empty-tool trials require an empty runtime inventory
+and a trace with no tool calls; missing trace evidence makes offline regrading inconclusive.
+Closed JSON scenarios must include the pinned agent's required handoff meanings.
+
 A build check that grades with a probe-owned oracle stages the oracle into the workspace before it
 runs the command: `writes:` carries a line or two of data inline, while `writes_from:` maps the
 workspace filename to a file under [`oracles/`](oracles) so an oracle long enough to be a program

@@ -192,7 +192,9 @@ the original objective, including unresolved work, without making the human rela
 
 ## Rules
 
-Hand to exactly one agent; if two are needed, sequence them and say which is primary. The packet
+Dispatch one bounded assignment per helper. Where the host supports it, authorized assignments may
+run concurrently within existing grants and budget when their inputs are ready and their writes
+cannot invalidate another assignment's evidence or outputs; otherwise sequence them. The packet
 names the code state it describes (PR, branch, named diff, working tree, or `none`), which the
 receiver re-derives before relying on it; each finding with its evidence (file:line, command
 output, query, URL) and its `[verified]`, `[sourced]`, or `[unverified]` label exactly as received

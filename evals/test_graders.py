@@ -952,6 +952,30 @@ def test_direct_agent_structural_graders() -> None:
     check(not grade_all(sre_assistant, "P2; " + good), "direct SRE: prose around the object is REJECTED")
 
 
+def test_classification_scenarios_preserve_handoff_metadata() -> None:
+    handoff = {
+        "returning_to": "review coordinator", "assignment": "complete",
+        "parent_objective": "assess agent contracts", "human_owner": "human requester",
+        "caller_next_step": "review classifications",
+    }
+    for name in (
+        "software-engineer-scopes-verification", "software-engineer-proportional-packet",
+        "software-engineer-helper-dependencies", "investigator-location-versus-behavior",
+        "researcher-matches-evidence-to-claim",
+    ):
+        scenario = _load_scenario(f"agent-direct-{name}.yaml")
+        specs = scenario["graders"]
+        expected = specs[0]["fields"]
+        response = {**expected, **handoff}
+        check(grade_all(specs, json.dumps(response)), f"{name}: complete handoff passes")
+        for key in handoff:
+            check(expected.get(key) == handoff[key], f"{name}: {key} is required")
+            incomplete = {k: v for k, v in response.items() if k != key}
+            check(not grade_all(specs, json.dumps(incomplete)), f"{name}: missing {key} fails")
+        check(not grade_all(specs, json.dumps({**response, "final_verdict": "PASS"})),
+              f"{name}: undeclared fields remain forbidden")
+
+
 def main() -> int:
     tests = [
         test_contains_all, test_contains_any, test_not_contains,
@@ -964,6 +988,7 @@ def main() -> int:
         test_software_engineer_direct_scenario_fixtures,
         test_observability_engineer_direct_scenario_fixtures,
         test_handoff_direct_scenario_fixtures,
+        test_classification_scenarios_preserve_handoff_metadata,
     ]
     for t in tests:
         t()

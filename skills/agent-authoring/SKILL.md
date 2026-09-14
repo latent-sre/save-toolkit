@@ -50,7 +50,8 @@ fact. A date is a fact when it bounds reliance, provenance when it only records 
 
 **1. Description = scope-bearing routing metadata**: capability or user goal, invocation
 conditions, meaningful exclusions. Never step-by-step procedure or tool choreography — a procedural
-summary becomes a shortcut that displaces the body.
+summary becomes a shortcut that displaces the body. Use this table only after registration,
+visibility, and invocation checks locate the failure in routing metadata.
 
 | Symptom | Fix |
 |---|---|

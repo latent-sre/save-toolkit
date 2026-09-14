@@ -1,0 +1,41 @@
+id: agent-direct-software-engineer-proportional-packet
+split: regression
+agent: software-engineer
+tools: [Read]
+prompt: |
+  Decide from these supplied facts; do not execute, edit, or delegate.
+  A tiny parser fix has passed its focused checks. No assumptions, residual risks or verification
+  gaps remain. The caller routed one finding and still needs its disposition with proof.
+  Extracting one local parsing helper made those tests clearer; it has one caller and no extra
+  configuration. An alternative generic parser framework has only hypothetical future users.
+  Dispatch: invoking caller is review coordinator; human owner is human requester.
+  Parent objective is assess agent contracts. Your assignment is this supplied-state
+  classification, not execution of the fictional work. Return its status as complete;
+  the caller's next step is review classifications. Include this handoff in the JSON.
+  Return exactly one JSON object:
+  - returning_to: review coordinator
+  - assignment: complete
+  - parent_objective: assess agent contracts
+  - human_owner: human requester
+  - caller_next_step: review classifications
+  - check_first: omit | invent_two_concerns
+  - findings_response: retain_with_proof | omit
+  - one_caller_helper: allowed | prohibited
+  - speculative_framework: avoid | introduce
+  - return_identity_and_status: retain | omit
+success_criteria:
+  - Omits empty review-focus padding while retaining routed-finding proof and return fields.
+  - Allows a useful local helper without endorsing speculative reusable infrastructure.
+graders:
+  - type: exact_json
+    fields:
+      returning_to: review coordinator
+      assignment: complete
+      parent_objective: assess agent contracts
+      human_owner: human requester
+      caller_next_step: review classifications
+      check_first: omit
+      findings_response: retain_with_proof
+      one_caller_helper: allowed
+      speculative_framework: avoid
+      return_identity_and_status: retain

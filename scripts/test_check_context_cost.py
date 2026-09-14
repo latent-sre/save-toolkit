@@ -22,8 +22,31 @@ class RealTreeTests(unittest.TestCase):
             self.assertIn(task, rendered)
         self.assertIn(check_context_cost.DESCRIPTION_TASK, rendered)
 
+    def test_every_agent_has_a_representative_profile(self) -> None:
+        measured = {path for paths in check_context_cost.TASK_FILES.values() for path in paths}
+        agents = {path.relative_to(check_context_cost.ROOT).as_posix()
+                  for path in (check_context_cost.ROOT / "agents").glob("*.md")}
+        self.assertTrue(agents <= measured, f"unmeasured agents: {sorted(agents - measured)}")
+
+    def test_profiles_and_budgets_match_without_duplicate_files(self) -> None:
+        self.assertEqual(set(check_context_cost.TASK_FILES), set(check_context_cost.TASK_BUDGETS))
+        for task, paths in check_context_cost.TASK_FILES.items():
+            with self.subTest(task=task):
+                self.assertTrue(paths)
+                self.assertEqual(len(paths), len(set(paths)))
+
 
 class BudgetBreachTests(unittest.TestCase):
+    def test_fixed_budget_accepts_its_boundary_and_rejects_one_byte_more(self) -> None:
+        for measured, expected in ((100, 0), (101, 1)):
+            with self.subTest(measured=measured), \
+                 mock.patch.dict(check_context_cost.TASK_FILES, {"sample": ["sample.md"]}, clear=True), \
+                 mock.patch.dict(check_context_cost.TASK_BUDGETS, {"sample": 100}, clear=True), \
+                 mock.patch.object(check_context_cost, "task_bytes", return_value=measured), \
+                 mock.patch.object(check_context_cost, "description_bytes", return_value=0), \
+                 contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(expected, check_context_cost.main([]))
+
     def test_a_tightened_budget_exits_1_and_names_the_task(self) -> None:
         out = io.StringIO()
         with mock.patch.dict(check_context_cost.TASK_BUDGETS, {"Noisy alert": 1}):
@@ -36,6 +59,17 @@ class BudgetBreachTests(unittest.TestCase):
 
 
 class CraftPathTests(unittest.TestCase):
+    def test_agent_repair_counts_its_required_artifact_and_security_depth(self) -> None:
+        required = {"agents/agent-engineer.md", "skills/agent-authoring/SKILL.md",
+                    "skills/agent-authoring/references/artifact.md",
+                    "skills/agent-authoring/references/agent-security.md"}
+        self.assertTrue(required <= set(check_context_cost.TASK_FILES.get("Agent instruction repair", [])))
+
+    def test_metric_alert_counts_signal_and_conditional_stack_guidance(self) -> None:
+        required = {"skills/stack-profile/references/observability-stack.md",
+                    "skills/obs-metrics/SKILL.md", "skills/obs-metrics/references/promql.md"}
+        self.assertTrue(required <= set(check_context_cost.TASK_FILES["Noisy alert"]))
+
     def test_review_profile_measures_trusted_guidance_without_builder_instructions(self) -> None:
         paths = check_context_cost.TASK_FILES["Independent Python review"]
         self.assertTrue({"agents/reviewer.md", "skills/python-craft/references/refactoring.md",

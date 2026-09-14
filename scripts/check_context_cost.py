@@ -20,9 +20,9 @@ except ModuleNotFoundError:
 
 ROOT = Path(__file__).resolve().parents[1]
 
-# Byte budgets per canonical task, set to measured usage plus 5% and rounded up to the next 1,000.
-# Raising one is a reviewed decision made in the same diff that earns it, not a side effect of an
-# unrelated change.
+# Fixed budgets allow ordinary wording changes without a 5% ratchet. The 2026-09-14 rebaseline
+# uses at least 20% headroom (2 KB minimum), rounded up to 1 KB, retaining higher existing limits.
+# They never grow from live measurements; increasing a limit remains a reviewed source change.
 _ENGINEERING_CONTEXT = [
     "agents/software-engineer.md",
     "skills/stack-profile/SKILL.md",
@@ -39,7 +39,26 @@ _FASTAPI_UPSTREAM = [
     "skills/backend-craft/references/fastapi.md",
     "skills/backend-craft/references/consuming-apis.md",
 ]
+_AGENT_REPAIR_CONTEXT = [
+    "agents/agent-engineer.md",
+    "skills/agent-authoring/SKILL.md",
+    "skills/agent-authoring/references/artifact.md",
+    "skills/agent-authoring/references/agent-security.md",
+]
 TASK_FILES: dict[str, list[str]] = {
+    # Reader lanes have no skill loads. Repository contents, fetched evidence and tool schemas
+    # remain outside this instruction-file measurement, as they do for every other profile.
+    "Repository fact lookup": ["agents/repository-investigator.md"],
+    "Public contract research": ["agents/researcher.md"],
+    "Agent instruction repair": [*_AGENT_REPAIR_CONTEXT],
+    "Agent delegation and tool change": [
+        *_AGENT_REPAIR_CONTEXT,
+        "skills/agent-authoring/references/roster.md",
+        "skills/agent-authoring/references/tools.md",
+        "skills/agent-authoring/references/context.md",
+        "skills/agent-authoring/references/delegation-graph.md",
+        "skills/agent-authoring/references/claude-code-frontmatter.md",
+    ],
     # Trusted guidance selected for a Python review; candidate source and tool output are separate.
     "Independent Python review": [
         "agents/reviewer.md",
@@ -72,6 +91,7 @@ TASK_FILES: dict[str, list[str]] = {
         "skills/production-change-gate/SKILL.md",
         "skills/production-change-gate/references/tier-2-approval-example.md",
         "skills/stack-profile/SKILL.md",
+        "skills/stack-profile/references/observability-stack.md",
     ],
     # Mitigation choice and a technical update load different depth from symptom diagnosis.
     "PCF mitigation advice and TLC update": [
@@ -85,12 +105,16 @@ TASK_FILES: dict[str, list[str]] = {
         "skills/production-change-gate/SKILL.md",
         "skills/production-change-gate/references/incident-fast-path.md",
     ],
+    # A metric-backed Grafana burn-rate rule, including the query and backend guidance it loads.
     "Noisy alert": [
         "agents/observability-engineer.md",
         "skills/obs-alerting/SKILL.md",
         "skills/obs-alerting/references/burn-rate.md",
         "skills/obs-alerting/references/grafana-alerting.md",
         "skills/stack-profile/SKILL.md",
+        "skills/stack-profile/references/observability-stack.md",
+        "skills/obs-metrics/SKILL.md",
+        "skills/obs-metrics/references/promql.md",
     ],
     "Write a runbook": [
         "agents/scribe.md",
@@ -104,6 +128,7 @@ TASK_FILES: dict[str, list[str]] = {
         "skills/obs-alerting/SKILL.md",
         "skills/obs-pipeline/SKILL.md",
         "skills/runbook/SKILL.md",
+        "skills/stack-profile/references/observability-stack.md",
     ],
     # Existing HTTP read-path changes with an upstream call and stack/toolchain inspection.
     # No new schema, retryable write, migration, telemetry or CI change is implied by these profiles.
@@ -141,29 +166,26 @@ TASK_FILES: dict[str, list[str]] = {
     ],
 }
 TASK_BUDGETS: dict[str, int] = {
-    "Independent Python review": 43_000,
-    "PCF incident, human path": 77_000,
-    "PCF incident, sre-assistant agent path": 76_000,
-    # New conditional path: moved mitigation guidance, severity advice, technical update, and
-    # human approval/readback context. Measured together, then bounded with the normal 5% margin.
-    "PCF mitigation advice and TLC update": 75_000,
-    "Noisy alert": 44_000,
-    "Write a runbook": 41_000,
-    "Audit a service": 39_000,
-    # Python craft adds its short entrypoint and conditional writing depth to the existing
-    # FastAPI task. Its new skill-body weight is budgeted in weights.json; deeper references
-    # remain conditional and are bounded here, including automated refactoring/migration.
-    "FastAPI upstream change": 61_000,
-    # These task paths include choosing the development environment as well as the scoped
-    # transformation; the added uv/interpreter depth is conditional elsewhere.
-    "Python automated refactor": 63_000,
-    "Python library migration": 63_000,
-    "Existing UI change": 47_000,
-    "Greenfield UI": 53_000,
-    "Prepare FastAPI release": 73_000,
+    "Repository fact lookup": 8_000,
+    "Public contract research": 12_000,
+    "Agent instruction repair": 42_000,
+    "Agent delegation and tool change": 74_000,
+    "Independent Python review": 50_000,
+    "PCF incident, human path": 87_000,
+    "PCF incident, sre-assistant agent path": 85_000,
+    "PCF mitigation advice and TLC update": 86_000,
+    "Noisy alert": 62_000,
+    "Write a runbook": 48_000,
+    "Audit a service": 44_000,
+    "FastAPI upstream change": 69_000,
+    "Python automated refactor": 72_000,
+    "Python library migration": 71_000,
+    "Existing UI change": 52_000,
+    "Greenfield UI": 60_000,
+    "Prepare FastAPI release": 83_000,
 }
 DESCRIPTION_TASK = "Always-loaded descriptions"
-DESCRIPTION_BUDGET = 17_000
+DESCRIPTION_BUDGET = 20_000
 
 
 class MissingFile(Exception):
@@ -228,6 +250,7 @@ def main(argv: list[str] | None = None) -> int:
         print("\ncheck_context_cost: FAIL -- over budget: %s" % ", ".join(failed))
         return 1
     print("\ncheck_context_cost: PASS -- %d/%d tasks within budget" % (len(rows), len(rows)))
+    print("Representative instruction files only; host context, tool schemas/results and task data excluded.")
     return 0
 
 

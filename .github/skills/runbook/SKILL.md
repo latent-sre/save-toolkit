@@ -53,9 +53,9 @@ and outcome. Otherwise leave it unchanged and label the rehearsal `[unverified]`
   (`last_reviewed`, `last_verified`) start `null`;
   only human/authorized document review changes `last_reviewed`, and only bound rehearsal evidence
   changes `last_verified`.
-- **Preserve command evidence before publishing** — use only supplied, authorized execution evidence
-  for command claims. If that evidence is absent, mark the command `[unverified]`; never execute from
-  this documentation lane, including a read-only command, merely to confirm syntax or output.
+- **Separate command provenance from execution.** Preserve `[sourced]` for documented syntax;
+  target execution stays `[unverified]` without supplied, authorized execution evidence. Never run
+  a command from this documentation lane merely to confirm syntax or output.
 
 ## Before you publish — read it back as the responder
 

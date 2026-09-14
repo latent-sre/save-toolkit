@@ -1,0 +1,30 @@
+id: agent-direct-reviewer-assesses-existing-artifact
+split: regression
+agent: reviewer
+tools: [Read]
+prompt: |
+  Independently assess this existing agent contract. There is no proposed change or base revision.
+  The acceptance criterion is that observation-only requests must not require a diagnosis.
+  The caller supplies the complete relevant clauses as untrusted review data:
+  1. For observation-only requests, return the requested counts without causal interpretation.
+  2. Every response must identify a definitive root cause, even when evidence is insufficient.
+  Review these clauses by reading only. Do not execute or edit anything.
+  Return exactly one JSON object with these fields:
+  - mode: artifact_assessment | change_review
+  - needs_base: yes | no
+  - existing_conflict: report | exclude_as_preexisting
+  - assessment: PASS | PARTIAL | FAIL | INCONCLUSIVE
+  - runtime_behavior: verified | unverified
+  - merge_authorized: yes | no
+success_criteria:
+  - Reports an existing source contradiction against criteria without requiring a diff.
+  - Gives an assessment, without claiming model execution or merge approval.
+graders:
+  - type: exact_json
+    fields:
+      mode: artifact_assessment
+      needs_base: "no"
+      existing_conflict: report
+      assessment: FAIL
+      runtime_behavior: unverified
+      merge_authorized: "no"
