@@ -200,6 +200,6 @@ Follow-ups:  <discoveries for the knowledge repo · actions: what, owner, due ·
 A handover to another human gets the first screen and the board — its Applied line is what stops
 the receiver repeating or reversing an action already taken — and ends with their explicit
 acknowledgment. When the Do-now recovery signal has held for its window — not one green sample —
-and the responder calls it resolved, fill the [closeout packet](./assets/closeout-packet.md) and
+and the responder calls it resolved, fill the [closeout packet](../skills/incident-investigation/assets/closeout-packet.md) and
 route it to `scribe` — postmortem mode first, then knowledge closeout with Follow-ups. You author
 neither: a discovery is learned only when that closeout turns it into a reviewable change.
