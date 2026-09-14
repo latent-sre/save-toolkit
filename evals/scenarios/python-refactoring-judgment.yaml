@@ -1,0 +1,32 @@
+id: python-refactoring-judgment
+split: regression
+skill: python-craft
+tools: [Skill, Read]
+references:
+  - skills/python-craft/references/refactoring.md
+prompt: |-
+  Assess these independent Python refactoring cases; do not edit code. The supplied consumer
+  inventory is complete for these cases; in a real checkout you would need to establish it.
+  A. Two validation entrypoints implement the same required policy. A recent update reached
+     only one, and all callers are owned in this repository.
+  B. Two identical rounding expressions implement unrelated billing and telemetry policies.
+     The owners expect those rules to evolve independently.
+  C. A private helper takes parallel lists. Replacing them with records clarifies ownership;
+     every caller is controlled here and can change in the same commit. External behavior stays.
+  D. An entrypoint is loaded by independently released plugins using its dotted import path.
+     Moving its implementation must not require those consumers to upgrade immediately.
+  E. A clear, tested predicate has no demonstrated maintenance problem; wrapping it in a class
+     would add an indirection and offers only speculative reuse.
+  Return only a JSON object with case_a through case_e string values, choosing independently
+  from: share_policy, keep_separate, change_internal_and_callers, preserve_compatibility, no_change.
+success_criteria:
+  - Selects coherent improvements without an occurrence-count ban or speculative abstraction.
+  - Distinguishes controlled internal changes from independently supported consumers.
+graders:
+  - type: exact_json
+    fields:
+      case_a: share_policy
+      case_b: keep_separate
+      case_c: change_internal_and_callers
+      case_d: preserve_compatibility
+      case_e: no_change

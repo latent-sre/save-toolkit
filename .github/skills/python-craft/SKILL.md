@@ -28,9 +28,12 @@ to the reader's familiarity.
 - Inspect callers, tests, dependencies, and the deployed Python floor. Load `stack-profile` for
   authoring boundaries and toolchain defaults; project tooling wins. Preserve component-specific
   floors and restrictions, including isolated standard-library-only entrypoints.
-- Separate behavior-preserving refactoring from authorized API, dependency, or runtime migration.
-  Preserve names/keyword callers, return types, errors, serialization, mutation, effect order, and
-  resource lifetime unless the task changes them. Check dynamic/import-string callers before moves.
+- Identify the maintenance problem and choose the smallest coherent improvement within scope,
+  not merely the smallest diff. Keep clear code when the proposed change has no concrete benefit.
+- Preserve supported contracts: names/call forms, returns, errors, serialization, mutation, effect
+  order, and resource lifetime. Internal interfaces and their controlled callers may change together;
+  check dynamic/import-string consumers. Published API, dependency, and runtime migrations need
+  separate authorization.
 - Use existing tests; characterize unclear or uncovered contracts. Working behavior needs no
   artificial failing test. A cleanup request does not imply a framework or runtime migration.
 
@@ -53,6 +56,7 @@ Test affected behavior and failure paths, not private helper structure; control 
 and time at their boundary. Run relevant lint/type checks and version-sensitive checks on supported
 runtimes. For performance claims, profile the cost and benchmark the change separately.
 
+Verify the claimed improvement as well as compatibility; fewer lines alone prove neither.
 Inspect the diff and remove newly obsolete code/dependencies. Return the benefit, compatibility
 changes, checks/results, and gaps with `[verified]`, `[sourced]`, or
 `[unverified]`. Tool success alone does not establish correctness.

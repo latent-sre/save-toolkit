@@ -1,11 +1,11 @@
 # Refactoring Python
 
-Preserve behavior through small, inspectable transformations. The parent skill owns baseline and
-verification; a code smell suggests a question, not an automatic rewrite.
+Preserve behavior through inspectable steps. A code smell suggests a question, not a rewrite.
 
 ## Contents
 
 - Map the affected behavior
+- Choose a worthwhile improvement
 - Choose a transformation
 - Guards and extraction together
 - Dictionaries and comprehensions need semantic checks
@@ -13,16 +13,33 @@ verification; a code smell suggests a question, not an automatic rewrite.
 
 ## Map the affected behavior
 
-Name the concrete benefit and the seam that changes: control flow, data ownership, a public name,
-or a module boundary. Find consumers in imports/re-exports, entry points, configuration/import
-strings, decorators/registries, and tests. Inspect the smallest useful slice before deciding
-whether extraction reduces coupling or merely moves complexity.
+Find consumers in imports/re-exports, entry points, configuration/import strings,
+decorators/registries, and tests. Classify supported boundaries separately from implementation:
+internal names, signatures, and data shapes can change with all controlled callers in one coherent
+refactor. A leading underscore is not evidence that no external consumer exists.
 
-For a rename or move, preserve positional/keyword-only calling rules and defaults. Check public
+At supported boundaries, preserve positional/keyword-only calling rules and defaults. Check public
 import paths, circular imports, import-time effects, and patch locations used by callers/tests.
 If persisted objects or plugins refer to module-qualified names, exercise that lookup explicitly;
 an internal move does not authorize breaking those consumers. Add a compatibility re-export only
 when an actual supported caller needs it.
+
+## Choose a worthwhile improvement
+
+Identify what is hard to understand, test, or change from repository evidence, not a questionnaire.
+Compare leaving it alone with a concrete improvement. Authorized scope may span a component and
+its callers; take small verified steps without unrelated cleanup or invented requirements.
+
+| Observed problem | Candidate improvement | Evidence of benefit |
+|---|---|---|
+| One rule must change in several places | Give that rule one owner | A rule change reaches each existing caller |
+| Calculation tests need files, globals, or a service | Separate decision inputs from effects | Exercise the calculation without those effects; existing entrypoint still uses it |
+| Mixed responsibilities or trivial indirection | Split a responsibility or inline | Trace the change through fewer unrelated concepts |
+| A requested next change fights the structure | Prepare its boundary | Show how the known change fits; keep feature behavior separate |
+
+Two occurrences can justify sharing one policy; three similar-looking fragments need not represent
+the same concept. Extract for clarity even with one caller, but keep a direct implementation when
+the helper merely renames syntax. Judge coupling and change ownership, not file count or line count.
 
 ## Choose a transformation
 
@@ -114,6 +131,9 @@ Keep time, randomness, external effects, and caches controlled independently for
 fresh process where imports, global registries, or process state could contaminate the comparison.
 Change one structural seam at a time and inspect its callers before expanding. Check extraction
 through the existing public entrypoint; tests that only call the new helper can miss a broken caller.
+Update tests tied only to retired internals when necessary, retaining their behavioral assertions
+at the new boundary. Do not change expected outputs to conceal a regression. Check the selected
+benefit separately: passing compatibility tests alone does not establish a better design.
 
 For a small input domain, exhaust bounded combinations against independent expectations. Use
 property-based testing when a larger domain or stateful operation sequence warrants it; retain

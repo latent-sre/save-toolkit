@@ -117,11 +117,12 @@ stays reviewable, runnable, and inside the `evals_python_lines` ceiling, which c
 oracles there, but not TSX, since it counts `*.py` only.
 
 **The standing regression** comprises the build probes and the contract scenarios carrying
-`split: regression`. The five `build-python-...` probes cover refactoring effects, generator
-consumption/lifetime, module moves, stdlib migration contracts, and leaving correct code unchanged. Their shared
+`split: regression`. The six `build-python-...` probes cover refactoring effects, generator
+consumption/lifetime, module moves, stdlib migration contracts, leaving correct code unchanged,
+and a shared calculation boundary usable without files. Their shared
 [outcome oracle](oracles/python-craft/check_contracts.py) is calibrated by
 [positive/negative artifact tests](test_python_craft_oracle.py): correct implementations pass and
-twenty-seven named semantic mutations fail, including eager reads, adjacent duplicate loss, broken
+named behavioral and structural counterexamples fail, including eager reads, adjacent duplicate loss, broken
 legacy imports, circular imports, and bypassed public patch points. The effect oracle adds 936
 generated comparisons over a bounded integer/None domain, with independent output, mutation, error,
 and effect expectations; this is not arbitrary-input coverage and needs no additional dependency.
@@ -133,6 +134,24 @@ paths are covered; this is not a memory benchmark or proof against every possibl
 Migration checks exercise a stdlib adapter, not package discovery. The oracle and tests count
 toward the eval ceiling; their outcome-level evidence does not establish live model performance.
 Run `python -m pytest evals/test_python_craft_oracle.py` for offline calibration.
+
+The calculation probe verifies a specified maintenance outcome: the in-memory boundary works
+without ordinary Python file opens, and a policy replacement there reaches the existing file
+entrypoint. It rejects comment-only edits and duplicated calculation as well as compatibility
+regressions; it is not an arbitrary-I/O sandbox or a general design-quality score. The original
+effect probe checks compatibility plus a source edit, not whether that edit improves design.
+`python-refactoring-judgment` checks supplied-state choices about shared policy, independent rules,
+internal callers, supported plugin imports, and no-change restraint; it does not prove execution
+or consumer discovery. These focused oracles and calibration tests justify the accompanying eval
+line-ceiling increase; no new grader, dependency, or evaluation framework is introduced.
+
+For a live Python-skill comparison, agree the native host/model, exact candidate, cases, repetitions,
+and cost cap first. Use matched disposable fixtures and the same builder, tools, prompt, and checks,
+varying only skill availability and its necessary load instructions. Verify completed skill loads
+in the skill arm and absence in the control; preflight one pair before spending the remaining budget.
+Compare compatibility, the named maintenance outcome, restraint, and cost separately. Keep invalid
+or mixed-model trials inconclusive. Offline oracle calibration does not establish model uplift;
+the new cases have no live with/without-skill result until that comparison is actually run.
 
 The reviewer cases cover explicit reading-only scope, Git investigation of a broken unchanged
 caller and a matched compatible refactor, candidate-controlled runner/instruction rejection, and
