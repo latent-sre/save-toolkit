@@ -1,146 +1,131 @@
-# Refactoring Python
+# Improving existing Python
 
-Preserve behavior through inspectable steps. A code smell suggests a question, not a rewrite.
+Improve what makes the code hard to understand, change, test, or trust; patterns serve that outcome.
 
 ## Contents
 
-- Map the affected behavior
-- Choose a worthwhile improvement
-- Choose a transformation
-- Guards and extraction together
-- Dictionaries and comprehensions need semantic checks
-- Check equivalence at the changed boundary
+- Diagnose the design problem
+- Establish behavior and consumers
+- Choose a coherent change
+- Example: make a calculation usable without files
+- Preserve Python semantics
+- Verify compatibility and improvement
 
-## Map the affected behavior
+## Diagnose the design problem
 
-Find consumers in imports/re-exports, entry points, configuration/import strings,
-decorators/registries, and tests. Classify supported boundaries separately from implementation:
-internal names, signatures, and data shapes can change with all controlled callers in one coherent
-refactor. A leading underscore is not evidence that no external consumer exists.
+Inspect a representative path and its callers. Prioritize demonstrated defects and recurring
+maintenance work, using code evidence rather than a questionnaire or smell score.
 
-At supported boundaries, preserve positional/keyword-only calling rules and defaults. Check public
-import paths, circular imports, import-time effects, and patch locations used by callers/tests.
-If persisted objects or plugins refer to module-qualified names, exercise that lookup explicitly;
-an internal move does not authorize breaking those consumers. Add a compatibility re-export only
-when an actual supported caller needs it.
-
-## Choose a worthwhile improvement
-
-Identify what is hard to understand, test, or change from repository evidence, not a questionnaire.
-Compare leaving it alone with a concrete improvement. Authorized scope may span a component and
-its callers; take small verified steps without unrelated cleanup or invented requirements.
-
-| Observed problem | Candidate improvement | Evidence of benefit |
+| Observed problem | Consider | Evidence of improvement |
 |---|---|---|
-| One rule must change in several places | Give that rule one owner | A rule change reaches each existing caller |
-| Calculation tests need files, globals, or a service | Separate decision inputs from effects | Exercise the calculation without those effects; existing entrypoint still uses it |
-| Mixed responsibilities or trivial indirection | Split a responsibility or inline | Trace the change through fewer unrelated concepts |
-| A requested next change fights the structure | Prepare its boundary | Show how the known change fits; keep feature behavior separate |
+| One policy is repeated across callers | Give the policy one owner | A rule change reaches every relevant caller |
+| Calculations depend on I/O or globals | Separate decisions from effects | Test decisions independently; real entrypoints still use them |
+| Parallel collections, flags, or loose data obscure meaning | Clarify data and ownership | Fewer invalid combinations; preserve boundary representations |
+| Long functions or modules mix responsibilities | Reshape control flow or move coherent responsibilities | Follow a change without understanding unrelated operations |
+| Helpers, classes, or compatibility layers add no useful boundary | Inline or remove them with their dead callers | Fewer concepts to navigate without losing supported behavior |
+| Custom machinery duplicates an existing capability | Evaluate a library and necessary compatibility adapter | Remove superseded logic, not just add an import |
 
-Two occurrences can justify sharing one policy; three similar-looking fragments need not represent
-the same concept. Extract for clarity even with one caller, but keep a direct implementation when
-the helper merely renames syntax. Judge coupling and change ownership, not file count or line count.
+These are candidates, not prescriptions. Two occurrences can justify sharing one policy; three
+similar-looking fragments may represent independently evolving rules. Compare purpose, inputs,
+failure behavior, and reasons to change before consolidating them. Do not invent a configurable
+framework to unify coincidental similarity.
 
-## Choose a transformation
+## Establish behavior and consumers
 
-| Technique | Useful trigger | Preserve or check |
-|---|---|---|
-| Guard clauses | Terminal cases hide the normal path | Condition order, effects before return, cleanup, zero/None semantics |
-| Extract function/method | A coherent calculation or operation lacks a name | Live inputs, returned state, mutation, exception and return boundaries |
-| Inline helper | Indirection hides an already simple operation | Public callers and any hidden effect |
-| Named predicate/variable | An expression hides domain meaning | Short-circuiting, evaluation order and number of calls |
-| Dictionary lookup/dispatch | Branches compare stable keys for equality | Missing keys, hashability, duplicate/equal keys, and eager evaluation |
-| List/dict/set comprehension | Simple mapping/filter builds the required collection | Scope, ordering, duplicate handling and materialization |
-| Generator expression | Values can be consumed once and incrementally | Deferred work/errors, exhaustion, and resource lifetime |
-| Standard collection operation | A loop duplicates a known operation | Empty cases, ordering, mutation and algorithmic cost |
+Separate supported behavior from implementation details using requirements, examples, callers,
+and tests. A characterization test records what happens today; a bug fix needs an independently
+established expected result. Do not preserve a demonstrated bug as "refactoring safety," or silently
+change a relied-on behavior because it looks wrong. Separate the fix from the structural steps
+when authorized; otherwise report the defect and continue independent in-scope work. Ask when
+intended behavior or permission to change compatibility is unresolved.
 
-For extraction, returning inside a new helper does not return from its caller. Adapt the caller
-explicitly; likewise, a moved `break` or `continue` must retain its original loop effect. Avoid a
-helper with a large bundle of unrelated inputs simply to reduce the caller's line count.
+Find imports/re-exports, entry points, configuration/import strings, decorators/registries, and
+persisted module-qualified names. A leading underscore does not prove a name has no external
+consumer. Internal names, signatures, and data shapes may change with all controlled callers;
+supported consumers keep their contract unless a migration is authorized. Add a compatibility
+re-export only for an actual supported consumer, not every internal move.
 
-## Guards and extraction together
+## Choose a coherent change
 
-Both functions implement the same contract: ignore negative values and scale the sum, with `None`
-meaning the default multiplier. The extracted calculation is useful despite having one caller.
+Plan medium-sized, coherent stages around meaningful improvements and their checks. A stage may
+reshape a component and its callers; reduce its size when risk or weak tests make it hard to verify.
+Do not fragment work by function or file count. Keep unrelated cleanup and invented requirements out.
+
+An extraction should expose a meaningful operation, dependency, or ownership boundary. If it just
+relocates a confusing block and passes a bundle of unrelated state, reconsider the decomposition
+or data model. A direct expression can be clearer than a named wrapper. A library replacement
+needs the parent skill's modernization reference, not just a successful import.
+
+## Example: make a calculation usable without files
+
+Here a preview caller and calculation tests need in-memory input, but the rule is trapped in I/O:
 
 ```python
-def total_before(values: list[int], multiplier: int | None) -> int:
-    if values:
-        subtotal = 0
-        for value in values:
-            if value >= 0:
-                subtotal += value
-        if multiplier is None:
-            return subtotal
-        return subtotal * multiplier
-    return 0
-
-
-def nonnegative_sum(values: list[int]) -> int:
-    return sum(value for value in values if value >= 0)
-
-
-def total_after(values: list[int], multiplier: int | None) -> int:
-    if not values:
-        return 0
-    subtotal = nonnegative_sum(values)
-    if multiplier is None:
-        return subtotal
-    return subtotal * multiplier
+def total_from_file(path):
+    with open(path, encoding="utf-8") as source:
+        total = 0
+        for line in source:
+            if line.strip():
+                total += int(line)
+        return total
 ```
 
-Check empty/mixed/all-negative inputs and `None`, zero, and negative multipliers. Keep exceptions
-and effects outside this example under their own contract; the integers here have no external work.
-
-## Dictionaries and comprehensions need semantic checks
-
-Use a dispatch table for equality-based selection, keeping the established unknown-action result:
+Keep the existing file interface and give the calculation one reusable boundary:
 
 ```python
-def transform(text: str, action: str) -> str:
-    handlers = {"upper": str.upper, "lower": str.lower}
-    if action not in handlers:
-        raise ValueError(f"unsupported action: {action}")
-    return handlers[action](text)
+def total_from_lines(lines):
+    return sum(int(line) for line in lines if line.strip())
+
+
+def total_from_file(path):
+    with open(path, encoding="utf-8") as source:
+        return total_from_lines(source)
 ```
 
-Store callables when only the selected operation should execute. A dictionary containing function
-*calls* evaluates those values during construction. `mapping.get(key, expensive_default())` also
-evaluates its default on a hit. Ranges, overlapping predicates, and ordered fallbacks often remain
-clearer as conditionals; hashing and equality must fit the keys the old code accepted.
+The benefit is independent calculation and shared policy, not the comprehension or the line count.
+An explicit loop is equally valid. Check empty/blank input, signed values, duplicates, one-pass
+iterables, parse errors, string/keyword path callers, and file cleanup on failure. If no caller or
+test benefits from the new boundary, do not manufacture one merely to split a short function.
 
-Prefer a straightforward transformation with an optional filter. Keep an explicit loop when the
-work needs several stages, per-item exceptions, logging, or effects. In Python 3, a comprehension's
-iteration variable does not replace the surrounding variable as an ordinary loop does.
+## Preserve Python semantics
 
-A generator expression delays element computation, but evaluates the outermost iterable expression
-immediately. Replacing a list with a generator changes repeatability, indexing, length, and when
-errors occur. A generator returned from a closed file context cannot consume that file. Passing a
-generator to `any`/`all` may skip later effects that an eagerly built list performed.
+Choose transformations with their specific risks in view:
 
-## Check equivalence at the changed boundary
+- **Rename or move:** preserve supported positional/keyword-only call rules, defaults, public import
+  paths, patch locations, registries, and import-time effects; check circular imports and dynamic lookup.
+- **Guards, extraction, or inlining:** retain condition/effect order and cleanup. Returning from a
+  helper does not return from its caller; moved `break`/`continue` must preserve their loop effect.
+  Zero, `None`, false, and empty values are not interchangeable.
+- **Dispatch or collections:** check missing keys, hashability, equal/duplicate keys, ordering,
+  mutation, and eager evaluation. Store callables rather than calls when only the selected operation
+  should execute. `mapping.get(key, expensive_default())` evaluates the default even on a hit.
+  Ranges, overlapping predicates, or ordered fallbacks may be clearer as conditionals.
+- **Comprehensions or generators:** keep loops for multi-step work, effects, or per-item failures.
+  Comprehension variables do not leak like loop variables. Generators defer work/errors but evaluate
+  their outermost iterable immediately; they change repeatability, indexing, and length. A generator
+  cannot consume a file closed by its producer. `any`/`all` may skip effects after short-circuiting.
 
-Use existing contract tests plus focused missing cases. For deterministic logic, compare old/new
-implementations on equivalent fresh inputs; do not feed one run's mutated state to the other.
-Check values/types, aliasing or mutation, accepted and rejected call forms, errors, and the relevant
-ordered effect trace. When the contract propagates an exception, preserve that object rather than
-manufacturing a new exception with the same message. Pair differential checks with independent
-expectations: preserving an old bug does not satisfy a requested fix.
+## Verify compatibility and improvement
 
-Keep time, randomness, external effects, and caches controlled independently for each run. Use a
-fresh process where imports, global registries, or process state could contaminate the comparison.
-Change one structural seam at a time and inspect its callers before expanding. Check extraction
-through the existing public entrypoint; tests that only call the new helper can miss a broken caller.
-Update tests tied only to retired internals when necessary, retaining their behavioral assertions
-at the new boundary. Do not change expected outputs to conceal a regression. Check the selected
-benefit separately: passing compatibility tests alone does not establish a better design.
+Use existing tests and characterize missing contracts; working behavior needs no artificial red.
+Compare old/new code on equivalent fresh inputs and controlled state. Check values/types,
+serialization, aliasing, mutation, accepted/rejected call forms, errors, and ordered effects.
+When propagation is required, preserve the exception object, not only its type/message.
+Pair differential checks with independent expectations so preserving an old bug cannot count as a fix.
 
-For a small input domain, exhaust bounded combinations against independent expectations. Use
-property-based testing when a larger domain or stateful operation sequence warrants it; retain
-named regression examples. Define the invariant and comparison budget before generating cases.
-For streaming changes, check progress before full consumption and cleanup after consuming only a
-prefix; returning an iterator alone does not prove incremental processing or bounded memory.
-The parent skill owns performance verification.
+Control time, randomness, effects, and caches independently. Use fresh processes for import order,
+registries, or process state. Test existing entrypoints as well as new capabilities; testing only
+a new helper misses callers that bypass it. Tests coupled to retired internals may change, but
+retain their behavioral assertions rather than rewriting expected outputs to conceal regressions.
+
+For small domains, exhaust bounded combinations. Use property-based tests for larger domains or
+stateful sequences when useful, retaining named regressions and a defined comparison budget.
+For streaming, verify progress before full consumption and cleanup after a prefix; an iterator
+alone proves neither incremental processing nor bounded memory.
+
+Finally, demonstrate the selected benefit: one policy owner, testable decisions, removed layers,
+or a simpler path for the requested next change. Compatibility alone does not establish improvement;
+the parent skill owns project checks, performance evidence, and the final report.
 
 [sourced] [Fowler's guard clauses](https://refactoring.com/catalog/replaceNestedConditionalWithGuardClauses.html),
 [Extract Function](https://refactoring.com/catalog/extractFunction.html),

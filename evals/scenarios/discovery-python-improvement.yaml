@@ -1,0 +1,13 @@
+id: discovery-python-improvement
+split: regression
+prompt: |
+  This Python reporting module has become difficult to maintain: the same validation rules appear
+  in several places, calculations are mixed with file handling, and it has hand-written parsing.
+  Make it clearer and more reliable. Use suitable existing libraries where they genuinely help,
+  update related callers and tests, and explain the important improvements. There is no live
+  service, deployment, or command-line interface change involved.
+target: {kind: skill, name: python-craft}
+routing: {expect: fire}
+# Routing only: implementation quality requires the separate artifact checks and review.
+success_criteria:
+  - Invokes Python guidance for an outcome-driven improvement without a prescribed transformation.

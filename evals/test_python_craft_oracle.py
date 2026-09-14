@@ -92,7 +92,9 @@ class PythonCraftOracleTests(unittest.TestCase):
         spec = yaml.safe_load((ROOT / "scenarios/python-refactoring-judgment.yaml").read_text(encoding="utf-8"))
         expected = {"case_a": "share_policy", "case_b": "keep_separate",
                     "case_c": "change_internal_and_callers", "case_d": "preserve_compatibility",
-                    "case_e": "no_change"}
+                    "case_e": "no_change", "case_f": "coherent_stages",
+                    "case_g": "replace_custom_with_library", "case_h": "fix_established_defect",
+                    "case_i": "explain_without_changes", "case_j": "clarify_behavior"}
         fields = spec["graders"][0]["fields"]
         self.assertTrue(exact_json(json.dumps(expected), fields)[0])
         for key in expected:

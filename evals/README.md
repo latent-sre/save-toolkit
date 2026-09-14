@@ -141,8 +141,11 @@ entrypoint. It rejects comment-only edits and duplicated calculation as well as 
 regressions; it is not an arbitrary-I/O sandbox or a general design-quality score. The original
 effect probe checks compatibility plus a source edit, not whether that edit improves design.
 `python-refactoring-judgment` checks supplied-state choices about shared policy, independent rules,
-internal callers, supported plugin imports, and no-change restraint; it does not prove execution
-or consumer discovery. These focused oracles and calibration tests justify the accompanying eval
+internal callers, supported plugin imports, no-change restraint, coherent stages for large work,
+authorized library adoption, established versus uncertain defects, and explanation-only scope.
+It does not prove execution or consumer discovery. `discovery-python-improvement` checks routing
+for an outcome-driven request; it does not grade implementation quality. These focused oracles
+and calibration tests justify the accompanying eval
 line-ceiling increase; no new grader, dependency, or evaluation framework is introduced.
 
 For a live Python-skill comparison, agree the native host/model, exact candidate, cases, repetitions,

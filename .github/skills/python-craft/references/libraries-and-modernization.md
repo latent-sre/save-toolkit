@@ -19,13 +19,18 @@ present, and suitable new packages against the actual problem. Release recency a
 4. State the concrete benefit and behavior differences: inputs/coercion, defaults, exceptions,
    serialization, public interfaces, sync/async behavior, resource lifetime, and measured performance
    where material. Prefer supported public APIs to library internals.
-5. Make a bounded change. Follow the project's dependency declarations and lock/constraint workflow;
+5. Implement the replacement through its callers. Follow the project's dependency and lock/constraint workflow;
    keep developer-only refactoring tools out of application runtime dependencies. Preserve an
    installable previous code/dependency state. Remove obsolete helpers and dependencies once unused.
 
-Do not migrate a framework, raise the runtime floor, or enable new external effects just because a
-refactoring makes it convenient. Separate authorized migrations from behavior-preserving cleanup
-when their acceptance criteria differ. A small local change rarely needs a compatibility framework.
+Verify that real callers use the replacement. A small compatibility adapter may be necessary;
+retaining a second full implementation needs a concrete reason. Count removed maintenance work,
+not imports added or versions advanced.
+
+Library adoption within an authorized improvement is ordinary implementation when it fits the
+project's compatibility, licensing, dependency, and execution constraints. Seek direction for material
+runtime, framework, public-contract, or external-effect changes only when not already authorized.
+Verify intentional behavior changes separately from behavior-preserving restructuring.
 
 ## Candidates by problem, not a universal package list
 

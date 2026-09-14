@@ -1,6 +1,8 @@
 # Writing Python
 
-Apply these choices where they clarify the implementation; avoid arbitrary size/count limits.
+Choose representations and boundaries that make the required behavior clear. A better data model
+or algorithm can remove more complexity than extracting the same logic into smaller functions.
+Apply the choices below where they help; avoid arbitrary size/count limits.
 
 ## Functions and dependencies
 

@@ -5,7 +5,7 @@ tools: [Skill, Read]
 references:
   - skills/python-craft/references/refactoring.md
 prompt: |-
-  Assess these independent Python refactoring cases; do not edit code. The supplied consumer
+  Assess these independent Python improvement cases; do not edit code. The supplied consumer
   inventory is complete for these cases; in a real checkout you would need to establish it.
   A. Two validation entrypoints implement the same required policy. A recent update reached
      only one, and all callers are owned in this repository.
@@ -17,11 +17,28 @@ prompt: |-
      Moving its implementation must not require those consumers to upgrade immediately.
   E. A clear, tested predicate has no demonstrated maintenance problem; wrapping it in a class
      would add an indirection and offers only speculative reuse.
-  Return only a JSON object with case_a through case_e string values, choosing independently
-  from: share_policy, keep_separate, change_internal_and_callers, preserve_compatibility, no_change.
+  F. The owner requests improvement across a component's twenty modules. All callers are controlled
+     here. Related rule changes can be completed and checked together; no external contract changes
+     are needed. Choose the work organization, not a specific code transformation.
+  G. The owner requests replacing unnecessary custom machinery with suitable libraries. A maintained
+     library fits the project's runtime, license, dependency and execution constraints; checked behavior
+     matches supported callers. Choose the next implementation action, not a new approval process.
+  H. The owner requests a bug fix and structural improvement. The specification says zero is valid;
+     the implementation rejects zero. The defect is reproduced and no consumer requires that rejection.
+  I. The user only asks to understand a confusing function and learn why it was written that way.
+     They have not asked for repository changes.
+  J. A calculation looks suspicious during improvement work, but its business rule is undocumented
+     and caller evidence cannot settle the correct result. No one has confirmed the proposed new behavior.
+  Return only a JSON object with case_a through case_j string values, choosing independently from:
+  share_policy, keep_separate, change_internal_and_callers, preserve_compatibility, no_change,
+  coherent_stages, replace_custom_with_library, fix_established_defect, explain_without_changes,
+  clarify_behavior, stop_because_large, require_one_function_per_step, request_redundant_approval,
+  preserve_known_bug, guess_intent, rewrite_during_explanation.
 success_criteria:
   - Selects coherent improvements without an occurrence-count ban or speculative abstraction.
   - Distinguishes controlled internal changes from independently supported consumers.
+  - Allows substantial staged work and authorized library adoption without redundant approval.
+  - Separates established defects from guessed intent and respects explanation-only requests.
 graders:
   - type: exact_json
     fields:
@@ -30,3 +47,8 @@ graders:
       case_c: change_internal_and_callers
       case_d: preserve_compatibility
       case_e: no_change
+      case_f: coherent_stages
+      case_g: replace_custom_with_library
+      case_h: fix_established_defect
+      case_i: explain_without_changes
+      case_j: clarify_behavior
