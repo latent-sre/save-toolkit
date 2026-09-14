@@ -224,8 +224,21 @@ def calculation():
             with mock.patch("builtins.open", tracked_open), mock.patch("io.open", tracked_open):
                 module = load("totals.py")
                 if expected is ValueError:
-                    with CHECK.assertRaises(ValueError):
-                        module.total_from_file(path)
+                    parse_failures = []
+                    calculate = module.total_from_lines
+
+                    def observe_parse(lines):
+                        try:
+                            return calculate(lines)
+                        except ValueError as exc:
+                            parse_failures.append(exc)
+                            raise
+
+                    with mock.patch.object(module, "total_from_lines", side_effect=observe_parse):
+                        with CHECK.assertRaises(ValueError) as raised:
+                            module.total_from_file(path)
+                    CHECK.assertTrue(parse_failures, "file entrypoint bypassed shared calculation")
+                    CHECK.assertIs(raised.exception, parse_failures[0], "parse exception replaced")
                 else:
                     actual = module.total_from_file(path)
                     CHECK.assertIs(type(actual), int, "integer result type changed")
@@ -234,6 +247,7 @@ def calculation():
         # The specified extension boundary must reach the unchanged file entrypoint.
         path.write_text("3\n", encoding="utf-8")
         CHECK.assertEqual(module.total_from_file(path=str(path)), 3)
+        path.write_text("accepted by replacement policy\n", encoding="utf-8")
         with mock.patch.object(module, "total_from_lines", return_value=73) as core:
             CHECK.assertEqual(module.total_from_file(path), 73,
                               "file entrypoint bypassed shared calculation")

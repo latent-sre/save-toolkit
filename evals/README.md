@@ -137,13 +137,16 @@ Run `python -m pytest evals/test_python_craft_oracle.py` for offline calibration
 
 The calculation probe verifies a specified maintenance outcome: the in-memory boundary works
 without ordinary Python file opens, and a policy replacement there reaches the existing file
-entrypoint. It rejects comment-only edits and duplicated calculation as well as compatibility
-regressions; it is not an arbitrary-I/O sandbox or a general design-quality score. The original
+entrypoint, including input rejected by the old parsing policy. It checks that actual helper parse
+exceptions propagate by identity and rejects duplicated parsing before or after delegation.
+These checks and their positive/negative calibration account for the 33-line review-fix eval increase.
+It is not an arbitrary-I/O sandbox or a general design-quality score. The original
 effect probe checks compatibility plus a source edit, not whether that edit improves design.
 `python-refactoring-judgment` checks supplied-state choices about shared policy, independent rules,
 internal callers, supported plugin imports, no-change restraint, coherent stages for large work,
 authorized library adoption, established versus uncertain defects, explanation-only scope, and
-justified whole-codebase rewrites in scope that preserve required contracts.
+justified whole-codebase rewrites in scope that preserve required contracts. It loads both the Python
+refactoring reference and the builder bar so their abstraction guidance is assessed together.
 It does not prove execution or consumer discovery. `discovery-python-improvement` checks routing
 for an outcome-driven request; it does not grade implementation quality. These focused oracles
 and calibration tests justify the accompanying eval
