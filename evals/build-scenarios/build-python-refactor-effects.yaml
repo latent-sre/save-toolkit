@@ -7,7 +7,8 @@ prompt: |
   limit=None, emit) and its behavior. Values are a list of integers or None. Skip None and negative
   values; emit each accepted value before appending its double. Limit counts accepted values;
   None means unlimited, zero means none, and a negative limit raises ValueError("negative limit")
-  before any emission. Propagate callback exceptions. Do not mutate the input.
+  before any emission. Keep limit and emit keyword-only; propagate the original callback
+  exception object. Do not mutate the input.
   Use local checks; no network, installs, commits, or external systems. Only change batch.py
   and optional tests/test_batch.py. Report what you changed and verified.
 fixture:

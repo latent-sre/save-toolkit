@@ -13,7 +13,7 @@ for that conversation without asking the responder to establish command or anoth
 
 The team's stack lives in [`stack-profile`](skills/stack-profile/SKILL.md). Skill-capable lanes load
 it before recommending or changing supported runtime, tooling, or infrastructure choices; the
-`reviewer` receives those facts in a trusted-base packet and never loads candidate skills.
+`reviewer` reads trusted installed/base guidance and treats candidate skills as review data.
 
 ## Start here
 
@@ -43,7 +43,7 @@ separate.
 | Agent | Lane | Tools posture | Delegates to |
 |---|---|---|---|
 | `software-engineer` | Code and operator tooling | Local read/write + unguarded Bash for team-authored code; no web | `reviewer`, `scribe`, `researcher` |
-| `reviewer` | Correctness and security review | Read/Grep/Glob only; no write, Bash, web, or Skill; terminal | — |
+| `reviewer` | Independent investigation, verification, and review | Git/PR reads, scratch writes, isolated checks, trusted skills; no direct web tools | `repository-investigator`, `researcher` |
 | `repository-investigator` | Bounded checkout questions | Read/Grep/Glob only; terminal | — |
 | `sre-assistant` | One bounded read-only evidence slice, dispatched by the human or the advisor | Guarded read-only `cf`/`gcloud`/`git`/`gh`; recommends mitigation | `researcher` |
 | `observability-engineer` | Steady-state observability | Unguarded Bash; writes config and authorized dashboards only | `scribe`, `researcher` |
@@ -53,8 +53,11 @@ separate.
 
 ## Enforcement boundaries
 
-- Prefer tool absence: `reviewer`, `repository-investigator`, `scribe`, and `researcher` carry
+- Prefer tool absence: `repository-investigator`, `scribe`, and `researcher` carry
   only lane-minimum tools. Other local roles send sanitized public questions to `researcher`.
+- `reviewer` has broad Bash and write tools for investigation and scratch verification. Its
+  no-candidate-edit rule is cooperative unless the outer host enforces it; code execution needs
+  the established isolation in its agent body. The read-only Bash guard does not sandbox it.
 - The fail-closed Bash allowlist applies only to `sre-assistant`, through [`hooks/hooks.json`](hooks/hooks.json)
   and exact `agent_type` values. Plugin agents ignore `hooks:`, `mcpServers:`, `permissionMode:`,
   and unknown frontmatter keys.
@@ -80,10 +83,11 @@ separate.
   identifies its recipient, assignment status, evidence/result, gaps, parent objective, and caller
   next step. The caller checks claims against supplied evidence, states what the result establishes
   and what remains, then continues authorized work; helper completion does not complete the parent task. A human-selected
-  ownership handoff is a separate transition. A review dispatch supplies the base and full candidate
-  identity and an inspectable diff the reviewer can Read (for example `gh pr diff <n>` or
-  `git diff <base>..<sha>` written to a file, plus untracked files in scope); the reviewer holds only
-  Read/Grep/Glob and returns to its caller.
+  ownership handoff is a separate transition. A review dispatch supplies the target, intended
+  base/candidate or working-tree scope, trusted instructions, and available evidence. The reviewer
+  resolves identities and gathers missing Git/PR evidence, including untracked content in scope,
+  without changing the candidate. Evidence helpers return to the reviewer; its verdict returns to
+  the invoking caller, who owns repair and release decisions.
 - **Learning:** only an invoked operational closeout turns a discovery into repository state; the
   originating agent never approves it.
 - Lead with the conclusion, then evidence and next steps. Use blameless language for incidents.

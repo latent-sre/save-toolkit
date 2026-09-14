@@ -5,8 +5,8 @@ description: "Write, refactor, and modernize Python in services, CLIs, scripts, 
 
 # Python craft
 
-Use supported Python features and maintained libraries when they improve correctness, clarity,
-capability, or maintenance. Keep clear working code when no concrete benefit justifies a change.
+Use supported features and libraries for a concrete correctness, clarity, or maintenance benefit.
+Keep clear working code when no change is needed.
 
 ## Establish the change
 
@@ -23,6 +23,7 @@ capability, or maintenance. Keep clear working code when no concrete benefit jus
 
 | Task | Read |
 |---|---|
+| Environment setup, interpreter selection, or unexpected check results | [Environment and checks](./references/environment-and-checks.md) |
 | Function/data design, typing, errors, or resource ownership | [Writing Python](./references/writing-python.md) |
 | Restructuring existing code | [Refactoring](./references/refactoring.md) |
 | Adopting libraries, replacing custom infrastructure, or changing dependency/runtime APIs | [Libraries and modernization](./references/libraries-and-modernization.md) |
@@ -37,6 +38,6 @@ Test affected behavior and failure paths, not private helper structure; control 
 and time at their boundary. Run relevant lint/type checks and version-sensitive checks on supported
 runtimes. For performance claims, profile the cost and benchmark the change separately.
 
-Inspect the full diff and remove code/dependencies this change makes obsolete. Return the benefit,
-intentional compatibility changes, checks/results, and gaps with `[verified]`, `[sourced]`, or
+Inspect the diff and remove newly obsolete code/dependencies. Return the benefit, compatibility
+changes, checks/results, and gaps with `[verified]`, `[sourced]`, or
 `[unverified]`. Tool success alone does not establish correctness.

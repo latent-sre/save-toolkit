@@ -1,0 +1,81 @@
+---
+schema_version: 1
+incident_id: <stable incident/ticket ID>
+status: draft | final
+severity: null # P1 | P2 | P3 | P4; null when unknown/unassigned
+service_ids: []
+started_at: null # evidenced start of impact
+resolved_at: null # evidenced end of impact, not the resolution call
+resolution_confirmed_at: null # when the human confirmed resolution
+owner: <team/role>
+source_revision: <repository@short-commit or reviewed release identifier>
+last_reviewed: null
+---
+
+# YYYY-MM-DD — <incident name>
+
+Choose the form using the skill. Both keep Summary, Timeline, Assessment, and Follow-ups below.
+Only the full form adds the Full analysis sections. Omit these selection instructions from output.
+Repository files keep the frontmatter; ticket drafts name the incident/service, severity, owner, and
+times in prose, without repository-only metadata.
+
+Known times: quoted RFC3339 UTC; unknowns: `null`. Put bounds/estimates in the timeline.
+Duration uses `started_at`/`resolved_at`, never confirmation. Missing endpoints leave duration
+unknown, not the human-confirmed incident reopened.
+
+## Summary
+
+<Affected services/user outcome, scope and impact interval; detection and response; recovery
+evidence/time and separate human resolution confirmation/time. State data-integrity evidence or
+uncertainty, never assume no loss.>
+
+## Timeline (UTC, from evidence)
+
+| Time | Event or decision | Evidence source |
+|---|---|---|
+| <time or unknown> | <impact, detection, human action/decision, or recovery> | <ID/label> |
+
+## Assessment
+
+<Supported trigger, mechanism/contributing factors, and causal limits; unknown cause stays unknown.
+What helped/slowed response and the evidence-bound lesson. Unresolved questions link to Follow-ups.>
+
+## Full analysis — full form only
+
+### Impact
+
+<Magnitude/denominator, affected journeys, SLO/error-budget effect, data-integrity evidence or gaps.>
+
+### Causal analysis
+
+<Name the method; explain the evidenced trigger-to-mechanism chain and contributing conditions,
+including disconfirming evidence and unresolved alternatives. Never force a Why count or blame a person.>
+
+### Detection and response
+
+- What worked:
+- What slowed diagnosis or mitigation:
+- Detection gap:
+
+### Where we got lucky
+
+- <Each item should become a preventative action or an explicit accepted risk.>
+
+### Lessons
+
+- <Evidence-bound lesson and the failure class it addresses.>
+- <What should remain unchanged because it worked?>
+
+## Follow-ups
+
+Reuse incoming IDs; one row per distinct action, question, or artifact outcome. Other sections
+reference these rows. Keep different scopes/owners/evidence separate; missing facts stay gaps.
+Record none with a reason when no work is justified.
+
+| ID / tracking link | Action or question / scope | Owner / due | Status / prerequisite | Artifact / proof of done | Evidence / reason |
+|---|---|---|---|---|---|
+| <ID> | <work; mitigative/preventative for actions> | <owner/due> | <state; dependency if any> | <path/check> | <IDs/labels> |
+
+Knowledge closeout enriches these rows with required artifact dispositions; group unaffected
+categories with a reason. `prepared` requires bound checkout and actual diff. No entry proves execution
+or approval. Verification gaps belong in these rows or their prerequisites, not a second list.

@@ -60,7 +60,7 @@ class LinkCheckerTests(Fixture):
         """The pointer that reads correct and resolves nowhere.
 
         `skills/<name>/SKILL.md` inside that skill's own references/ resolves neither from the
-        reference's directory nor in platforms/copilot/skills/, where the bundle sits under a
+        reference's directory nor in .github/skills/, where the bundle sits under a
         different prefix. Eight of backend-craft's nine references carried it through every green
         gate because CODE_PATH_RE only covers bundle-internal prefixes.
         """
@@ -89,7 +89,7 @@ class LinkCheckerTests(Fixture):
         """The same defect in the one place it actually runs: a command line inside a fence.
 
         `python skills/<own>/scripts/x.py` resolves only from the repository root -- not from
-        platforms/copilot/skills/, and not from a user's project, where the plugin is installed
+        .github/skills/, and not from a user's project, where the plugin is installed
         outside this repository. The diagnostic must identify the linked script to resolve.
         """
         self.skill("# Probe\n\nRead [notes](./references/notes.md).\n")

@@ -1,0 +1,52 @@
+# Multi-window error-budget burn rate
+
+Turn a user-facing SLI into an actionable page or ticket. This method does not define the backend
+query: carry the reviewed numerator/denominator query and its result into the alert definition.
+
+## The pairs
+
+`[sourced]` Google's SRE Workbook, [Alerting on SLOs](https://sre.google/workbook/alerting-on-slos/),
+Table 5-8, for a 99.9% SLO over **30 days**:
+
+| Long window | Short window | Threshold | Budget consumed at threshold | Action |
+|---|---|---|---|---|
+| 1h | 5m | 14.4x | 2% in 1h | PAGE (fast burn) |
+| 6h | 30m | 6.0x | 5% in 6h | PAGE (slow burn) |
+| 3d | 6h | 1.0x | 10% in 3d | TICKET (slow leak) |
+
+For another objective horizon, choose whether to retain these fixed thresholds or recalculate them
+for the intended budget fraction: fraction = burn × long window / objective horizon, in matching
+time units. For request SLIs, this time-based estimate assumes comparable request volume; measure
+actual consumed budget from eligible requests. At 28 days, the pairs represent about 2.14%, 5.36%,
+and 10.71%, not 2%, 5%, and 10%.
+
+A pair is one unit: both windows must meet the pair's threshold (AND, never OR), and no row
+lends its window or threshold to another. Low-traffic services need separate judgment: a tiny
+denominator turns one failure into an extreme burn.
+
+## Verdict boundary
+
+- Both windows over the threshold: emit that pair's page or ticket.
+- Only the long window over: do not page; the short window has recovered. Say that budget may
+  already be spent and calculate budget status separately.
+- Only the short window over: do not page; treat it as an unconfirmed spike and re-check.
+- Neither over: say only that the pair is below its threshold. That does not prove the service is
+  within budget; alert state and consumed-budget status answer different questions.
+
+## Calculator
+
+[error_budget.py](../scripts/error_budget.py) is pure stdlib with budget-status and burn-rate modes.
+A human or an unguarded lane runs it and pastes the output; the read-only guard denies script
+execution by design. Resolve the linked calculator to its absolute path in this installed skill;
+substitute that path below. Set `--window-days` to the objective horizon for budget status; its
+default is 28 days and it **does not rescale the fixed alert thresholds above**. For a different
+threshold policy, use the reviewed alert rule rather than this calculator's verdict. The examples:
+
+```powershell
+$budgetScript = '<resolved calculator path>'
+py -3 $budgetScript --slo 99.9 --sli-long 99.45 --sli-short 99.95
+py -3 $budgetScript --slo 99.9 --sli-long 99.45 --sli-short 99.8 --long-window 3d --short-window 6h
+py -3 $budgetScript --slo 99.9 --long-window 3d --short-window 5m
+```
+
+The third command is deliberately invalid and must exit 2 with the exact allowed-pair list.

@@ -8,6 +8,9 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- Reviewer evaluation checks now detect path-qualified and common wrapper-prefixed Python/tool
+  commands and require the reviewed range in Git diff/history requests. Added positive and negative
+  calibration cases; the eval Python ceiling rises by 22 lines to 12,275 for this regression coverage.
 - Corrected wrong PCF mitigation guidance: whole-app `cf restart` stops every instance, so the
   covered restart is per-instance or rolling; a revision rollback restores the revision's env vars
   and creates a new `Rolled back to revision <n>` entry, so readback checks the description; rollback
@@ -53,6 +56,25 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   retains its seven-field board, owns conditional mitigation and severity advice, and prepares
   technical updates for an existing bridge/TLC without opening another or assigning command roles.
   The human incident lead retains formal classification, coordination, and stakeholder communications.
+
+- Expanded `reviewer` to gather Git/PR/history evidence, load trusted guidance, write scratch
+  reproductions, run permitted isolated checks, and dispatch bounded investigation/research helpers.
+  Candidate fixes and release actions remain with the caller. Updated the graph, host projections,
+  and balanced review cases; shell/write limits are no longer described as enforced by tool absence.
+
+- Moved the Copilot skill projection to `.github/skills/` for standard workspace discovery and
+  updated the plugin selector. Removed the custom VS Code skill-location override and generated
+  banners from adapters and bundled resources; byte validation still checks the authored sources.
+
+- Strengthened Python refactoring guidance for interpreter/environment selection, public module
+  moves, independent old/new comparisons, and review of automated fixes. Added semantic regression
+  checks that independently reject widened keyword-only parameters, callback-path input mutation,
+  and replaced callback exceptions.
+  Added incremental-consumption checks, 936 bounded generated comparisons, and a module-move
+  fixture with alias/configuration/patch compatibility and fresh import orders. Twenty-seven broken
+  artifacts are rejected; the eval ceiling grows for the oracles and calibration.
+  Conditional environment depth is included in the refactor/migration context budgets; Python
+  skill discovery is unchanged.
 
 - The `runbook`, `postmortem`, and `operational-learning` descriptions lead with what a person
   would say ("help me write a runbook for restarting pricing", "write a postmortem for INC-1234",

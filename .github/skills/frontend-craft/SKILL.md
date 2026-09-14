@@ -1,0 +1,70 @@
+---
+name: frontend-craft
+description: >-
+  Build or change a web UI — pages, dashboards-as-app-features, forms, admin panels — from a single
+  page to a full SPA, including serving it on PCF. Owns UI-layer TypeScript/React idiom — component
+  state, interaction, accessibility, resilience UX. Triggers: 'build a UI for', 'add a
+  page/form/table', 'make this dashboard page'. Not for the service behind the UI (backend-craft) or Grafana dashboards (obs-dashboards).
+argument-hint: "[the UI to build or change]"
+---
+
+> **Copilot adapter:** Fleet component names are bare in this generated copy.
+> Resolve them from the installed plugin using the host's agent or skill picker.
+
+# Frontend craft
+
+You write the actual code: complete, runnable files (components, styles, config, wiring), never
+pseudo-code or TODO stubs. Any web UI, held to one bar: failure-first, verifiable, operable. What
+the product has already decided (brand, design system, framework, conventions) wins over every
+default below.
+
+Before any UI code change, load `stack-profile` and its application-and-data reference; read the
+TypeScript/JavaScript row under "Toolchain by language".
+That table owns language and test-tool defaults; the repository's existing tooling wins.
+
+## Invariants
+
+| Rule | What it means here |
+|---|---|
+| Color through tokens | All colour through theme tokens; status never by colour alone (a dot plus text or an icon); AA contrast in every theme shipped. |
+| Theme without a flash | Apply the persisted theme before first paint using the project's CSP-compatible mechanism; allow an inline script with a matching hash or nonce, without weakening CSP. |
+| Shareable URL state | Put appropriate, non-sensitive search, filters, page, sort, tabs, and details in the URL when they should survive refresh or be shared; keep sensitive values and transient drafts out. |
+| Failure-first | Loading, error, and empty states are designed before the happy path; one failing panel shows an inline error in its own card. |
+| Every view is a composition | Use hierarchy and spacing to serve the workflow; focused tasks and empty states can use deliberate whitespace. |
+| Real content | Real copy, never lorem or filler. |
+| Accessibility is baseline | Semantic HTML, every input labelled, keyboard reachable with visible focus. Move focus to the main heading on actual page navigation; preserve keyboard focus during same-view filter and tab updates. |
+
+## Decisions this fleet has made
+
+| Area | Decision |
+|---|---|
+| Mantine | React targets never import `@mantine/core` or any styled Mantine component — a house styling policy that avoids another styled component system. Mantine can integrate with Tailwind through deliberate CSS setup; this policy is not a compatibility claim. |
+| Mantine hooks/form | `@mantine/hooks` and `@mantine/form` are fine in React; never recommended for Vue. |
+| State | Server state lives in the query/cache layer (TanStack Query in the greenfield stack); UI state stays local — no global store until two distant components genuinely share state. |
+| API client | A typed API client generated from the OpenAPI contract; CI fails on drift. |
+| Forms | `react-hook-form` or `@mantine/form` when React form state needs a library; `v-model` plus the repo's validation layer in Vue; the server is the validation truth. |
+| Charts | Recharts v3 by default in React, visx for a bespoke one-off, uPlot for dense real-time series; streamed series batch or throttle redraws per frame and keep a rolling window; never `@mantine/charts`; charts read theme tokens; give every chart a text or data-table alternative. |
+| Tables | TanStack Table when table behavior needs it; virtualised past a few hundred rows. Apply the shareable URL-state rule to sort/filter/page. |
+| Auth | Preserve the project's auth contract; for new corp SSO flows use OIDC Authorization Code + PKCE; a `reviewer` pass for sensitive flows. |
+| BFF and cookie sessions | A BFF keeps OAuth tokens on the backend. Use Secure, HttpOnly session cookies with SameSite set for the flow, and a CSRF defense for state-changing cookie-authenticated requests. |
+| Browser-held tokens | When browser JavaScript calls APIs with bearer tokens, keep access tokens in memory, never `localStorage`. Use the project's auth client for renewal; retry once after a refreshable auth failure only when replay is safe or the original operation was rejected before effects. Failed renewal returns to sign-in without a retry loop. |
+| Live data | SSE for one-way live data via the query cache; close subscriptions when their view or session ends, show stale/disconnected state, and resynchronize after gaps on reconnect. |
+
+## Done means
+
+Use the repository's existing verification tools for the affected capabilities: typecheck and
+lint, component/unit tests for changed behavior, network mocks for changed network behavior, and
+browser automation for changed critical flows. For a bug, prove the failing regression first.
+Run the relevant checks, render the affected view in a real browser, and inspect its screenshot;
+do a keyboard-only pass on changed interactions. Scale the checks to the change and include
+the evidence and any gaps in the review packet. A UI that was never rendered is written, not verified.
+
+## Before you write it — load the reference for what you're building
+
+| If the view involves… | Read first |
+|---|---|
+| a greenfield or unbranded UI — nothing to match | [design language](./references/design-language.md) |
+| choosing a stack for a greenfield UI, or serving a SPA on PCF | Load `stack-profile` first, then [stack](./references/stack.md) |
+| a chart, graph, or metric visualization | the Charts row in the decisions table above |
+
+Load every matching row. The language guidance above applies to every UI code change.

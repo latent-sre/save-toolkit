@@ -44,6 +44,12 @@ PLUGIN_INERT_AGENT_FIELDS = {"hooks", "mcpServers", "permissionMode"}
 #
 # `NotebookEdit` is allowed but granted to nobody -- the stack has no notebooks. It stays so a
 # write-tool set (`WRITE_TOOLS`) reasons over the whole write surface rather than a subset.
+#
+# `TodoWrite` is inert on Claude Code 2.1.268+ (disabled by default in favour of the `TaskCreate`/
+# `TaskList`/`TaskUpdate` family, none of which has yet been shown to reach a subagent) and is kept
+# ONLY as the source of Copilot's `todo` alias, which VS Code provisions (owner-verified 2026-09-13)
+# and the cloud coding agent does not. A partially unresolved `tools:` list launches without the
+# dead name, so the grant is harmless on Claude; swap it for the Task* names once one is proven.
 BUILTIN_TOOLS = {
     "Agent", "Bash", "Edit", "EnterWorktree", "ExitWorktree", "Glob", "Grep", "NotebookEdit",
     "Read", "Skill", "TodoWrite", "ToolSearch", "WebFetch", "WebSearch", "Write",
@@ -89,8 +95,6 @@ WEB_TOOLS = {"WebFetch", "WebSearch"}
 EVIDENCE_MCP_TOOLS = {
     "mcp__claude_ai_Context7__query-docs",
     "mcp__claude_ai_Context7__resolve-library-id",
-    "mcp__plugin_context7_context7__query-docs",
-    "mcp__plugin_context7_context7__resolve-library-id",
     "mcp__plugin_githits_githits__code_files",
     "mcp__plugin_githits_githits__code_grep",
     "mcp__plugin_githits_githits__code_read",
@@ -110,8 +114,8 @@ EXTERNAL_EVIDENCE_TOOLS = {"ToolSearch", *WEB_TOOLS, *EVIDENCE_MCP_TOOLS}
 SCRIBE_TOOLS = {"Read", "Grep", "Glob", "Edit", "Write", "Skill"}
 EXPECTED_AUTHORITY = {
     "reviewer": {
-        "required": LOCAL_READ_TOOLS,
-        "forbidden": {"Bash", "Agent", "Skill", *WRITE_TOOLS, *WORKTREE_TOOLS, *EXTERNAL_EVIDENCE_TOOLS},
+        "required": {*LOCAL_READ_TOOLS, "Bash", "Write", "Edit", "TodoWrite", "Skill", "Agent"},
+        "forbidden": {"NotebookEdit", *WORKTREE_TOOLS, *EXTERNAL_EVIDENCE_TOOLS},
     },
     "repository-investigator": {
         "required": LOCAL_READ_TOOLS,
@@ -145,7 +149,7 @@ EXPECTED_AUTHORITY = {
     },
 }
 EXPECTED_DELEGATION = {
-    "reviewer": set(),
+    "reviewer": {"repository-investigator", "researcher"},
     "repository-investigator": set(),
     "researcher": set(),
     "software-engineer": {"reviewer", "scribe", "researcher"},
@@ -243,14 +247,8 @@ def validate_agents(root: Path) -> tuple[list[str], list[str]]:
         if _resolve_handoff_contract(root, name, body) is None:
             failures.append(f"{path}: missing handoff contract")
         # An agent with no `Agent` tool cannot dispatch anyone, so the shared handoff block's
-        # imperative form is a false instruction in that lane. This is not hypothetical tidying:
-        # `reviewer` — local read-only by tool absence, and the lane that gates every merge —
-        # carried the `software-engineer` block verbatim, telling it to "Hand to exactly one agent" and to load
-        # `production-change-gate`, a skill it holds no `Skill` tool to load. `scribe`, under the
-        # identical constraint, had been adapted correctly ("Recommend exactly one next owner. This
-        # role cannot invoke that owner."), which is what proves the reviewer copy was drift rather
-        # than a deliberate choice. A filled-in template beats a prose constraint 70 lines earlier,
-        # so the contradiction is pinned here rather than left to review.
+        # imperative form is a false instruction in that lane. Keep this check for terminal
+        # agents such as scribe and repository-investigator when other lanes gain delegation.
         if "Agent" not in _tool_bases(fields["tools"]):
             flat = _flatten(body)
             if DELEGATION_IMPERATIVE in flat:

@@ -83,10 +83,9 @@ import sys
 # The namespace Claude Code would prepend if this repo were ever installed as a plugin; guarding
 # both forms means the guard cannot be sidestepped by installing the agents a different way.
 PLUGIN_NAME = "save-toolkit"
-# Agents this guard applies to — the read-only-Bash agents. `software-engineer` and `observability-engineer` are
-# deliberately unguarded (building/testing team code, and applying dashboards and validating obs
-# config, are their jobs); `reviewer` and `researcher` hold no Bash at all, which is a stronger
-# control than any hook.
+# This allowlist protects only sre-assistant. Builders and reviewer have unguarded Bash;
+# reviewer execution requires its separately established verification environment.
+# researcher has no Bash tool.
 GUARDED_AGENT_NAMES = frozenset({"sre-assistant"})
 GUARDED_AGENTS = frozenset(
     set(GUARDED_AGENT_NAMES) | {f"{PLUGIN_NAME}:{name}" for name in GUARDED_AGENT_NAMES}
@@ -94,8 +93,7 @@ GUARDED_AGENTS = frozenset(
 
 # Every lane in the roster. The read-only allowlist above covers ONE of them; the credential
 # deny near the bottom of this file covers all of them, because AGENTS.md states that rule for
-# the whole fleet and three lanes (`software-engineer`, `observability-engineer`,
-# `agent-engineer`) hold unguarded Bash, where it was prose and nothing enforced it.
+# the whole fleet; builders and reviewer hold unguarded Bash.
 FLEET_AGENT_NAMES = frozenset({
     "software-engineer", "reviewer", "repository-investigator", "sre-assistant",
     "observability-engineer", "scribe", "researcher", "agent-engineer",

@@ -67,7 +67,7 @@ and `playwright/*` ship out of the box.
 | `execute` | `Bash` | yes |
 | `web` | `WebFetch`, `WebSearch` | yes |
 | `agent` | `Agent` | yes |
-| `todo` | `TodoWrite` | yes — the three build lanes (`software-engineer`, `agent-engineer`, `observability-engineer`) |
+| `todo` | `TodoWrite` | yes — builders and the reviewer for bounded investigation. VS Code provisions it [verified by the owner 2026-09-13]; the cloud coding agent does not [sourced: docs.github.com custom-agents-configuration]. `TodoWrite` itself is inert on Claude Code 2.1.268+ and stays only as this mapping's source |
 
 `EnterWorktree` / `ExitWorktree` have **no Copilot alias** and are deliberately unmapped — the
 projection drops them rather than substituting `execute`, which would widen authority on a host
@@ -80,10 +80,12 @@ plugin contract*; tool absence is the stronger control.
 ## Skills
 
 Copilot discovers workspace skills from `.github/skills`, `.claude/skills`, and `.agents/skills`,
-and personal skills from `~/.copilot/skills`, `~/.claude/skills`, and `~/.agents/skills`. This fleet ships skills as a
-**plugin**, declared through the manifest selector, so its projection lives at
-`platforms/copilot/skills/` and is reached by declaration rather than discovery. `.github/skills/`
-is both git-ignored and a retired generated root — a stray copy there would load a second time.
+and personal skills from `~/.copilot/skills`, `~/.claude/skills`, and `~/.agents/skills`. This fleet's
+Copilot projection lives at `.github/skills/`, supporting workspace discovery and the plugin's
+explicit manifest selector. The directory is tracked and regenerated from canonical `skills/`.
+The former `platforms/copilot/skills/` root is retired. The custom `chat.agentSkillsLocations`
+override is removed; the [current discovery docs](https://code.visualstudio.com/docs/agent-customization/agent-skills#create-a-skill)
+deprecate it in favor of supported directories. [doc-checked 2026-09-13; not host-probed]
 
 The [VS Code skill header reference](https://code.visualstudio.com/docs/agent-customization/agent-skills#header-required)
 documents invocation behavior; the [Agent Skills specification](https://agentskills.io/specification)

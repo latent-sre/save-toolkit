@@ -63,7 +63,7 @@ will offer it).
 | `software-engineer` | Build, fix, refactor, and test code or operations tooling | Routes requested or risk-triggered review to `reviewer`, operational docs to `scribe`, and sanitized public lookups to `researcher` |
 | `repository-investigator` | Local-only answers about private, current, or uncommitted checkout behavior | Cites `file:line`; no shell, write, web, external MCP, skill, or delegation |
 | `researcher` | External-only research against official docs, upstream code, packages, and advisories | No local file access; returns cited public evidence to caller |
-| `reviewer` *(for maintainers and builders)* | Read-only correctness, quality, and security review | Reports severity-ranked findings and a merge verdict to its caller, who dispatches any fix to `software-engineer`; terminal, no delegation |
+| `reviewer` *(for maintainers and builders)* | Independent investigation, isolated verification, and correctness/security review | Gathers Git/PR evidence and uses focused evidence helpers; owns the verdict, while its caller dispatches fixes to `software-engineer` |
 | `agent-engineer` *(for maintainers)* | The fleet's prompts, agents, skills, descriptions, evals, bounded prompt/eval loops, roster/delegation graphs, and portable executable workflow-graph designs | Delegates only sanitized public lookups to `researcher`; the caller separately dispatches helper code to `software-engineer` and injection-surface review to `reviewer` |
 
 The skills, by area (each `skills/<name>/SKILL.md` carries its own description and triggers):
@@ -92,7 +92,7 @@ never edited by hand.
 ```text
 agents/ + skills/ (canonical)
   |-- Claude Code reads them directly
-  `-- generator -> .github/agents/ + platforms/copilot/skills/ -> VS Code/Copilot
+  `-- generator -> .github/agents/ + .github/skills/ -> VS Code/Copilot
 ```
 
 - An **agent** owns a lane with a distinct prompt, tool posture, and return contract.
@@ -152,9 +152,9 @@ with `chat.pluginLocations` instead:
 ```
 
 Open a neutral test workspace for that plugin check; opening this repository itself also discovers
-`.github/agents/` as workspace agents and can hide duplicate-install mistakes. Opening the repository
-without installing the plugin remains a checkout-only development path:
-[`.vscode/settings.json`](.vscode/settings.json) registers the generated skill projection.
+`.github/agents/` and `.github/skills/` as workspace customizations and can hide duplicate-install
+mistakes. Opening the repository without installing the plugin discovers those standard
+directories directly; no custom skill-location setting is needed.
 Use the maintained [VS Code plugin acceptance procedure](docs/vscode-plugin-acceptance.md) for
 discovery, installed helpers, delegation, return/resume, and disable/uninstall checks. Its release
 section names the immutable-artifact and rollback evidence still required for supported use.

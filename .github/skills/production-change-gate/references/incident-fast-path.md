@@ -1,0 +1,72 @@
+# Incident fast path
+
+Read only during a declared incident for reversible Tier 0–2 mitigation, an incident-commander
+bounded envelope, or rollback to an already-live artifact. After resolution, read only for the
+post-incident reconciliation below. The parent `SKILL.md` owns classification, the full-gate
+exceptions, and human execution authority.
+
+During a declared incident, gate latency is itself harm: every minute of ceremony on the mitigation
+path is user pain. The gate shrinks to its load-bearing core — the items below and nothing else block
+execution.
+
+## What this path covers
+
+Tier 0–2 operational mitigation and rollback to an already-live artifact — the reversible actions in
+the `incident-investigation` mitigation table (route remap, revision rollback, confirmed existing-droplet
+per-instance or rolling restart with confirmed serving headroom, scale, flag flip). Two things stay
+on the full gate even at P1:
+
+- **A new artifact.** An incident hotfix is still a production deployment: independent review of the
+  exact candidate commit ID, lower-environment evidence, migration safety, and rollback evidence are
+  exactly what stop one incident from becoming two. Rolling *back* to the previously live artifact is
+  covered; shipping new bytes is not. `cf restage` creates a new droplet and stays on the full
+  release and production gates, even when reverting a configuration value. Restarting with the
+  existing droplet or rolling back to the previously live artifact remains covered. A whole-app
+  `cf restart` stops every instance before any starts; the downtime it causes is not reversible, so
+  the covered restart is per-instance or `--strategy rolling`, and only when the remaining instances
+  can carry the load meanwhile; a single-instance app has no such path and its restart is a
+  classified outage, not a fast-path action
+  [sourced: https://cli.cloudfoundry.org/en-US/v8/restart.html]. A bare
+  `cf restart` can stage the most recent package when it is unstaged: confirm existing-droplet reuse
+  with no artifact build before classifying it under this fast path. Unknown package/droplet state
+  leaves that classification blocked; a restart that stages belongs on the full gates.
+- **Any Tier 3 destructive or access-path action** (data deletion, storage/backup, credential or
+  identity, DNS, firewall, VPN, proxy, remote access). Tier 3 keeps its proven backup/recovery
+  requirement — a backout plan cannot reverse an irreversible mutation, so speed cannot buy it out.
+
+## Never skipped, even at P1
+
+- **Classification**, one line — and it still gates: a Tier 3 action leaves this path for the full
+  checklist, and the tier decides who executes.
+- **Explicit human confirmation** of the exact command, **or of a bounded envelope** the incident
+  commander approves once (for example, "scale `checkout` up to 10 instances" or "remap the prod
+  route between `checkout-blue` and `checkout-green` as needed"). Record its `Valid until` UTC or
+  explicit incident-lifecycle end. Before each attempt, the human confirms the envelope is current
+  and rechecks the current target and candidate/configuration identity. Only action outside the
+  envelope re-enters approval; an iterative mitigation does not re-run the gate per attempt. An
+  expired envelope or state mismatch re-enters approval.
+- **Blast radius and verification**, a sentence each.
+- **A backout plan** — prefer the reversible mitigations in the `incident-investigation` skill's table.
+- **Who made the call**, recorded in the incident timeline (UTC).
+- **Effect result**, recorded by the human executor after every attempt; `SKILL.md`'s UNKNOWN rule
+  (reconciliation owner, read-after-write query, no retry until resolved) applies unchanged.
+
+## Deferred to post-incident reconciliation
+
+Effect-outcome reconciliation is never deferred: an `UNKNOWN` dispatch is an active incident state,
+not paperwork. These administrative records never delay a covered mitigation:
+
+- Readiness evidence and artifact records **for the covered actions only** — a rollback reuses the
+  previously live artifact's existing records. A new artifact is out of scope and keeps them.
+- Production execution-boundary evidence. A deployment-control or credential/role API call must never
+  sit on the rollback path; a control-plane outage cannot be allowed to block recovery.
+- Timing/freeze documentation, Moogsoft suppression records, and the formal change record: name the
+  system (`stack-profile` owns the Remedy/Jira fact) and the record ID, never just "the change
+  record".
+- Pre-change stakeholder notification — the incident comms cadence covers stakeholders, and the IC
+  roles satisfy monitoring and comms.
+
+The fast path narrows paperwork, never authority: covered Tier 2 execution remains owned by a human
+release owner or separately approved protected automation. Tier 3 remains on the full gate, and the
+security/integrity carve-out in `incident-investigation` exits this path entirely. After resolution,
+reconcile every deferred record and give the timeline to the typed `scribe` agent.

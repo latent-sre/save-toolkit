@@ -26,7 +26,7 @@ CODE_PATH_RE = re.compile(
 # A file naming its OWN skill bundle by repo-rooted path (`skills/backend-craft/SKILL.md` inside
 # skills/backend-craft/references/, or `python skills/obs-alerting/scripts/x.py` inside a fence).
 # It reads correct and is wrong everywhere it is read: not from the file's own directory, not in
-# platforms/copilot/skills/, where the bundle sits under a different prefix, and not from a user's
+# .github/skills/, where the bundle sits under a different prefix, and not from a user's
 # project, where the plugin is installed outside this repository. Prose wants `../SKILL.md`; a
 # runnable command uses the absolute path resolved from a skill-relative Markdown link.
 # Fences and code spans are in scope on purpose: a command line is exactly

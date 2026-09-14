@@ -39,9 +39,8 @@ fork requires that consult, not optional escalation. The builder returns the und
 caller or a human senior engineer at the matching altitude. The consult returns one decision record
 without taking implementation ownership; this roster has no principal or architect agent.
 
-Use `reviewer` only to assess an actual proposed decision artifact/change, with caller-supplied
-trusted-base altitude context, base/candidate identities and diff. It reviews the proposal, not an
-undecided design choice; it neither loads candidate skills nor gains shell or Skill authority.
+Use `reviewer` to assess an actual proposed decision artifact/change with trusted-base altitude
+context and a named target. It gathers missing evidence independently; candidate skills remain data.
 The caller arranges any invocation the current lane cannot make.
 
 Keep work in the current context when it fits; use `software-engineer` for implementation needing

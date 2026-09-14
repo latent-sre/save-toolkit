@@ -1,0 +1,49 @@
+id: build-python-module-move
+agent: software-engineer
+tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
+prompt: |
+  Refactor this reviewed, team-authored Python 3.11+ fixture by moving format_label's
+  implementation from reports.py into a new formatting.py module. Preserve reports.format_label
+  and reports.render as public interfaces, including keyword-only prefix, outputs, and errors.
+  client.py imports an alias and resolves a formatter through settings.json; both must keep working.
+  The alias is also an existing registry key: the new formatting.format_label must be that same
+  callable, with its implementation defined in formatting rather than copied in both modules.
+  Existing callers patch reports.format_label, and render must continue honoring that lookup.
+  Both reports-first and formatting-first imports must work in a fresh process.
+  Use local checks; no network, installs, commits, or external systems. Only change reports.py,
+  formatting.py, and optional tests/test_reports.py. Report what you changed and verified.
+fixture:
+  files:
+    .gitignore: "__pycache__/\n"
+    reports.py: |
+      def format_label(name, *, prefix=""):
+          if not isinstance(name, str):
+              raise TypeError("name must be text")
+          if not name.strip():
+              raise ValueError("empty name")
+          return f"{prefix}{name.strip().upper()}"
+
+      def render(names, *, prefix=""):
+          return [format_label(name, prefix=prefix) for name in names]
+    client.py: |
+      import importlib
+      import json
+      from pathlib import Path
+      from reports import format_label as label_alias
+
+      FORMATTERS = {label_alias: "default"}
+
+      def configured_label(name, *, prefix=""):
+          configured = json.loads(Path("settings.json").read_text(encoding="utf-8"))["formatter"]
+          module, attribute = configured.rsplit(".", 1)
+          formatter = getattr(importlib.import_module(module), attribute)
+          return formatter(name, prefix=prefix)
+    settings.json: '{"formatter": "reports.format_label"}'
+checks:
+  - {check: skill_loaded, skill: python-craft, text: "Python craft was loaded"}
+  - {check: changes_within, allowed: [reports.py, formatting.py, tests/test_reports.py], text: "existing consumers and configuration stay unchanged"}
+  - {check: no_new_commits, text: "no commits"}
+  - check: command_exit_zero
+    command: "python -I -B _python_oracle.py modules"
+    writes_from: {_python_oracle.py: evals/oracles/python-craft/check_contracts.py}
+    text: "moved implementation, public imports, configured lookup, patch behavior and both fresh import orders work"

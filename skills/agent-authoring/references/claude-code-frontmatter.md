@@ -88,7 +88,8 @@ Considered, not overlooked; reopen only with a reason.
 |---|---|
 | `when_to_use` | Trigger phrasings live in `description` so routing has one surface to tune; both share the 1,536-character cap |
 | `maxTurns` | Loop bounds are task-shaped prose rules (three-strikes, two-round review caps) that fail with a diagnosis; a turn cap fails mid-thought. Revisit on an observed runaway loop |
-| `memory` | Agents are stateless; durable knowledge lives in the repo. Setting it auto-enables Read/Write/Edit, so it must never reach `reviewer`, `repository-investigator`, or `researcher` |
+| `memory` | Agents are stateless; durable knowledge lives in the repo. It is not a scratch workspace. Setting it auto-enables Read/Write/Edit, so it must never reach `repository-investigator` or `researcher` |
+| `TodoWrite` in `tools` | Inert on Claude Code 2.1.268+ — disabled by default in favour of `TaskCreate`/`TaskList`/`TaskUpdate`, none yet shown to reach a subagent, and a partially unresolved list launches without it. Kept only as the source of Copilot's `todo`, which VS Code provisions [verified by the owner 2026-09-13] and the cloud coding agent does not [sourced: docs.github.com custom-agents-configuration]. Swap to the Task* names once one is proven |
 
 ## Quote description scalars that contain a colon
 
