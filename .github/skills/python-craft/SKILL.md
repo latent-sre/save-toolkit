@@ -1,6 +1,7 @@
 ---
 name: python-craft
 description: "Write, refactor, and modernize Python in services, CLIs, scripts, libraries, and tests, including replacing custom code with suitable maintained libraries. Triggers: \"refactor this Python\", \"modernize this module\", \"write Python code\". Not for operating a running service or changing another language; backend-craft and operator-cli retain their interface contracts."
+argument-hint: "[Python code, file, or task]"
 ---
 
 > **Copilot adapter:** Fleet component names are bare in this generated copy.

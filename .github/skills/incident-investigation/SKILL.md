@@ -11,7 +11,7 @@ description: >-
   this incident', 'what should I check next'. Not for a dispatched read-only evidence slice
   (sre-assistant agent), running incident command, stakeholder communications, or authoring
   postmortems (scribe).
-argument-hint: "[INC id or symptom] [knowledge repository root]"
+argument-hint: "[incident, symptom, or question] [optional knowledge repo path]"
 ---
 
 > **Copilot adapter:** Fleet component names are bare in this generated copy.
