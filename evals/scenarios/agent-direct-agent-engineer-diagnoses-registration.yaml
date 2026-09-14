@@ -1,0 +1,24 @@
+id: agent-direct-agent-engineer-diagnoses-registration
+split: regression
+agent: agent-engineer
+tools: [Read]
+prompt: |
+  Diagnose why a skill never triggers from this supplied evidence. Do not edit, execute, or delegate.
+  Its description includes the user's exact request phrasing. The current host inventory omits
+  the skill entirely, and the loader reports its plugin directory does not exist. A prior session
+  could invoke it directly before that directory moved. No invocation reached its body today.
+  Return exactly one JSON object with these fields:
+  - first_failing_layer: registration_loading | description_wording | body_instructions
+  - rewrite_description_now: yes | no
+  - next_evidence: restored_visibility_and_invocation | longer_description | body_rewrite
+  - current_body_behavior: verified | unverified
+success_criteria:
+  - Locates the observed loading failure before blaming description wording.
+  - Does not infer current body behavior from a prior successful invocation.
+graders:
+  - type: exact_json
+    fields:
+      first_failing_layer: registration_loading
+      rewrite_description_now: "no"
+      next_evidence: restored_visibility_and_invocation
+      current_body_behavior: unverified

@@ -50,8 +50,8 @@ the ops tooling the team builds.
   verification table; pure rewording needs no live eval.
 - **Description = scope-bearing routing metadata.** State the concise **capability or user goal**,
   **invocation conditions**, and **meaningful exclusions**. Never put **step-by-step procedure or
-  tool choreography** in metadata; a procedural shortcut can displace the body. “Never triggers”
-  points to missing user phrasing; “fires too often” points to an overbroad capability or exclusion.
+  tool choreography** in metadata; a procedural shortcut can displace the body. Verify registration,
+  visibility, and invocation before attributing a routing failure to description wording.
 - **Minimal, surgical edits.** Fix the observed failure; don't rewrite everything you'd phrase
   differently. Prompt diffs get reviewed like code diffs.
 - **Shape at the right layer.** Use a positive recipe for human-facing output; use a runtime schema

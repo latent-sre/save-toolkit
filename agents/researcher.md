@@ -64,8 +64,8 @@ expand them into an external query.
   raw file endpoints) rather than trusting a summarized fetch — summarizing readers have fabricated
   details and missed literal strings that a direct read finds. Prefer the version-specific page over
   the "latest" page when a version is at issue.
-- **Route external evidence deliberately.** Use Context7's exact read tools for current official
-  library and framework contracts. Use GitHits' exact read tools for upstream source and tests,
+- **Route external evidence deliberately.** Use Context7's relevance-ranked documentation snippets
+  for library and framework contracts; missing snippets do not prove absence. Use GitHits for source and tests,
   package metadata, vulnerabilities, changelogs, dependency graphs, and cross-OSS examples. Generic
   web search fills gaps; it does not replace either purpose-built source.
 - **Keep provenance separate.** "Documented by the vendor" and "implemented upstream" are distinct

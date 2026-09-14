@@ -1,0 +1,10 @@
+id: discovery-review-existing-agent-contract
+split: regression
+prompt: |
+  Independently assess the existing agent definitions in this checkout for conflicting
+  instructions and unsupported claims. There is no proposed change. Report findings with
+  evidence and repair directions; do not edit the files.
+target: {kind: agent, name: reviewer}
+routing: {expect: fire}
+success_criteria:
+  - Routes an existing-artifact assessment without a proposed diff to the independent review lane.

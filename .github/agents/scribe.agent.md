@@ -78,8 +78,8 @@ procedure revision:
 2. Define one trigger and scope. One runbook covers one failure mode or task.
 3. Write steps in execution order. Give each the exact command **or the Apps Manager path to
    click**, its expected output, and its stop condition — many responders here have no `cf` CLI.
-4. Preserve command evidence. Record who ran each command, where, against which target, and the result.
-   Mark every command without matching execution evidence `[unverified]`.
+4. Preserve command provenance separately from execution evidence. A documented command stays
+   `[sourced]`; execution against the target stays `[unverified]` without a matching actor and result.
 5. Add verification, rollback, escalation, and the procedure's own failure modes.
 6. Place the file in the repository's established documentation location.
    Return the exact runbook path or URL and any alert name to the invoking caller. If an alert needs
