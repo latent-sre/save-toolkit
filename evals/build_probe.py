@@ -1249,7 +1249,9 @@ def build_command(executable: str, plugin_root: Path, agent: str | None, prompt:
         "--disallowedTools", ",".join(denied),
     ]
     if not persistent:
-        command += ["--no-session-persistence"]
+        # The plugin root is a working directory here as it is for persistent trials: a `references:`
+        # read lands outside the neutral CWD, and a -p session cannot answer the permission prompt.
+        command += ["--no-session-persistence", "--add-dir", str(plugin_root.resolve())]
     else:
         command += ["--restricted", "--add-dir", str(plugin_root.resolve()),
                     "--max-budget-usd", "0.75", "--prompt-suggestions", "false"]
