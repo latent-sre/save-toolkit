@@ -1,6 +1,13 @@
 ---
 name: python-craft
-description: "Write, refactor, and modernize Python in services, CLIs, scripts, libraries, and tests, including replacing custom code with suitable maintained libraries. Triggers: \"refactor this Python\", \"modernize this module\", \"write Python code\". Not for operating a running service or changing another language; backend-craft and operator-cli retain their interface contracts."
+description: >-
+  Write, explain, refactor, and modernize Python in services, CLIs, scripts,
+  libraries, and tests, including replacing custom code with suitable maintained
+  libraries. Use to understand unfamiliar code, choose a starting approach, or
+  improve existing code through behavior-preserving refactoring.
+  Triggers: 'refactor this Python', 'modernize this module', 'write Python code',
+  'explain this Python'. Not for operating a running service or changing another
+  language; backend-craft and operator-cli retain their interface contracts.
 argument-hint: "[Python code, file, or task]"
 ---
 
@@ -11,6 +18,10 @@ argument-hint: "[Python code, file, or task]"
 
 Use supported features and libraries for a concrete correctness, clarity, or maintenance benefit.
 Keep clear working code when no change is needed.
+
+For explanation or learning requests, explain the relevant code and tradeoffs without editing it.
+For starting-point requests, suggest the smallest useful approach and explain why. Adapt the detail
+to the reader's familiarity.
 
 ## Establish the change
 
