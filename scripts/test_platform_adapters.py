@@ -5,6 +5,8 @@ from __future__ import annotations
 import os
 import re
 import json
+import io
+from contextlib import redirect_stderr, redirect_stdout
 import shutil
 import subprocess
 import sys
@@ -355,6 +357,83 @@ class PlatformAdapterTests(unittest.TestCase):
             target.write_text(target.read_text(encoding="utf-8") + "\nmanual edit\n", encoding="utf-8")
             failures = adapters.validate_generated_outputs(root)
         self.assertTrue(any("generated output drift" in failure for failure in failures))
+
+    def _prepare_adapter_tree(self, root: Path) -> int:
+        self._copy_canonical_sources(root)
+        self._copy_platform_contract_files(root)
+        shutil.copy2(ROOT / ".gitattributes", root / ".gitattributes")
+        return adapters.write_generated_outputs(root)
+
+    @staticmethod
+    def _run_adapter_cli(root: Path, argv: list[str]) -> tuple[int, str, str]:
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with (mock.patch.object(adapters, "__file__", str(root / "scripts/generate_platform_adapters.py")),
+              redirect_stdout(stdout), redirect_stderr(stderr)):
+            status = adapters.main(argv)
+        return status, stdout.getvalue(), stderr.getvalue()
+
+    def test_entrypoints_report_ordered_tree_failures_and_recheck_after_write(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            count = self._prepare_adapter_tree(root)
+            relative = Path(".github/agents/software-engineer.agent.md")
+            target = root / relative
+            target.write_bytes(target.read_bytes() + b"\r\nmanual edit\r\n")
+            (root / ".codex/agents").mkdir(parents=True)
+            attributes = root / ".gitattributes"
+            attributes.write_text("\n".join(line for line in attributes.read_text(encoding="utf-8").splitlines()
+                                            if not line.startswith("*.py ")) + "\n", encoding="utf-8")
+            failures = [
+                f"{relative.as_posix()}: generated output drift",
+                ".codex/agents: retired generated root is present on disk; a host can still "
+                "load it through an older configuration. Remove it.",
+                ".gitattributes: missing 'text eol=lf' rule for *.py",
+                f"{relative.as_posix()}: generated file carries a CR byte",
+            ]
+            self.assertEqual(failures, adapters.validate_platform_support(root))
+            self.assertEqual((1, "\n".join(failures) + "\n", ""), self._run_adapter_cli(root, []))
+            # Writing repairs bytes, but must not hide retired content or missing EOL policy.
+            self.assertEqual((1, f"Generated {count} adapter file(s).\n" + "\n".join(failures[1:3]) + "\n", ""),
+                             self._run_adapter_cli(root, ["--write"]))
+
+    def test_manifest_failure_collects_for_fleet_but_stops_cli_before_write(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            self._prepare_adapter_tree(root)
+            manifest_path = root / "plugin.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["agents"] = "./wrong/"
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            target = root / ".github/agents/software-engineer.agent.md"
+            drift = target.read_bytes() + b"\nmanual edit\n"
+            target.write_bytes(drift)
+            failure = "plugin.json: agents must be './.github/agents/'"
+            self.assertEqual([failure, ".github/agents/software-engineer.agent.md: generated output drift"],
+                             adapters.validate_platform_support(root))
+            with mock.patch.object(adapters, "write_generated_outputs", side_effect=AssertionError("must not write")):
+                self.assertEqual((1, failure + "\n", ""), self._run_adapter_cli(root, ["--write"]))
+            self.assertEqual(drift, target.read_bytes())
+
+    def test_cli_write_success_and_read_only_success_preserve_output(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            count = self._prepare_adapter_tree(root)
+            target = root / ".github/agents/software-engineer.agent.md"
+            target.write_bytes(target.read_bytes() + b"\nmanual edit\n")
+            self.assertEqual((0, f"Generated {count} adapter file(s).\nPlatform adapters: PASS\n", ""),
+                             self._run_adapter_cli(root, ["--write"]))
+            self.assertEqual([], adapters.validate_platform_support(root))
+            with mock.patch.object(adapters, "write_generated_outputs", side_effect=AssertionError("must not write")):
+                self.assertEqual((0, "Platform adapters: PASS\n", ""), self._run_adapter_cli(root, []))
+
+    def test_tree_exceptions_propagate_to_fleet_and_are_reported_by_cli(self) -> None:
+        for error in (OSError("read failed"), UnicodeError("decode failed"), ValueError("unsafe tree")):
+            with self.subTest(error=type(error).__name__), mock.patch.object(
+                    adapters, "validate_generated_outputs", side_effect=error):
+                self.assertEqual((1, str(error) + "\n", ""), self._run_adapter_cli(ROOT, []))
+                with self.assertRaises(type(error)) as raised:
+                    adapters.validate_platform_support(ROOT)
+                self.assertIs(raised.exception, error)
 
     def test_retired_generated_root_present_on_disk_is_detected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
