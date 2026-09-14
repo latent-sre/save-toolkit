@@ -94,6 +94,9 @@ SCENARIO_DIR = ROOT / "evals" / "build-scenarios"
 ORACLE_DIR = (ROOT / "evals" / "oracles").resolve()
 CONTRACT_SCENARIO_DIR = ROOT / "evals" / "scenarios"
 BUILD_TOOLS = ("Read", "Edit", "Write", "Grep", "Glob", "Bash", "Skill", "Task")
+# Tools that can change files. A trial holding any of these never gets the measured checkout as a
+# working directory, so a mistaken or fixture-supplied instruction cannot edit the candidate.
+WRITING_TOOLS = frozenset({"Edit", "Write", "NotebookEdit", "Bash"})
 DEFAULT_TIMEOUT = 900
 DEFAULT_GITIGNORE = "__pycache__/\n*.pyc\n.pytest_cache/\n"
 GIT_IDENTITY = ("-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid")
@@ -1250,6 +1253,11 @@ def build_command(executable: str, plugin_root: Path, agent: str | None, prompt:
     ]
     if not persistent:
         command += ["--no-session-persistence"]
+        if not WRITING_TOOLS & set(tools):
+            # A read-only inventory gets the plugin root as a working directory, as persistent trials
+            # do: a `references:` read lands outside the neutral CWD, and a -p session cannot answer
+            # the permission prompt. An inventory that can Edit, Write, or run Bash does not get it.
+            command += ["--add-dir", str(plugin_root.resolve())]
     else:
         command += ["--restricted", "--add-dir", str(plugin_root.resolve()),
                     "--max-budget-usd", "0.75", "--prompt-suggestions", "false"]

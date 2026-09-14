@@ -1992,6 +1992,19 @@ class MainSessionCommandTests(unittest.TestCase):
         spec = {"id": "r", "prompt": "p", "tools": ["Skill", "Task", "Read"]}
         self.assertEqual(("Skill", "Task", "Read"), build_probe.scenario_tools(spec))
 
+    def test_only_a_read_only_inventory_gets_the_plugin_root_as_a_working_directory(self) -> None:
+        # A contract trial that reads its `references:` needs the plugin root readable from the
+        # neutral CWD; a trial that can write must never get the measured checkout as a target.
+        read_only = build_probe.build_command("claude", ROOT, None, "p", "sonnet", ("Skill", "Read"))
+        self.assertEqual(str(ROOT.resolve()), read_only[read_only.index("--add-dir") + 1])
+        for tools in (build_probe.BUILD_TOOLS, ("Skill", "Read", "Write"), ("Skill", "Read", "Bash")):
+            with self.subTest(tools=tools):
+                command = build_probe.build_command("claude", ROOT, None, "p", "sonnet", tools)
+                self.assertNotIn("--add-dir", command)
+        persistent = build_probe.build_command("claude", ROOT, None, "p", "sonnet",
+                                               build_probe.BUILD_TOOLS, persistent=True)
+        self.assertEqual(1, persistent.count("--add-dir"))
+
     def test_a_pinned_build_agent_still_gets_the_build_tools_pre_approved(self) -> None:
         spec = {"id": "b", "agent": "software-engineer", "prompt": "p",
                 "fixture": {"files": {"README.md": "# b\n"}}, "checks": [{"check": "no_new_commits"}]}
