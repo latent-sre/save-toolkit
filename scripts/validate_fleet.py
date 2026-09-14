@@ -195,7 +195,6 @@ def validate_agents(root: Path) -> tuple[list[str], list[str]]:
             failures.append(f"{path}: name must be kebab-case and match the filename")
             continue
         names.append(name)
-        parsed[name] = (path, fields, body)
         unknown = sorted(set(fields) - KNOWN_AGENT_FIELDS)
         if unknown:
             failures.append(f"{path}: unknown or unsupported plugin agent field(s): {', '.join(unknown)}")
@@ -216,6 +215,8 @@ def validate_agents(root: Path) -> tuple[list[str], list[str]]:
         if "tools" not in fields:
             failures.append(f"{path}: tools must be explicit; omission inherits all tools")
             continue
+        if name in EXPECTED_AUTHORITY:
+            parsed[name] = (path, fields, body)
         specs = _tool_specs(fields["tools"])
         # A repeated grant signals a bad merge and defeats the set-based authority reasoning below,
         # where the duplicate silently collapses and the mistake never surfaces.

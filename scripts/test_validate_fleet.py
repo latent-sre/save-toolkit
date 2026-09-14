@@ -36,6 +36,49 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertEqual(sorted(validate_fleet.EXPECTED_AUTHORITY), sorted(names))
         self.assertEqual([], failures)
 
+    def test_missing_tools_returns_a_diagnostic_instead_of_crashing(self) -> None:
+        failures = self._agents_with_mutation(
+            "repository-investigator.md", "tools: Read, Grep, Glob", "# tools omitted",
+        )
+        self.assertEqual(1, len(failures), failures)
+        self.assertIn("tools must be explicit; omission inherits all tools", failures[0])
+
+    def test_unknown_agent_returns_roster_mismatch_instead_of_crashing(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "agents").mkdir()
+            (root / "agents/extra-agent.md").write_text(
+                "---\nname: extra-agent\ndescription: Unexpected roster member\ntools: Read\n---\n"
+                "## Handoffs\nThis agent cannot invoke another owner.\n"
+                "[verified] [sourced] [unverified]\n",
+                encoding="utf-8",
+            )
+            names, failures = validate_fleet.validate_agents(root)
+        self.assertEqual(["extra-agent"], names)
+        self.assertEqual(1, len(failures), failures)
+        self.assertIn("agents/: roster mismatch;", failures[0])
+        self.assertTrue(failures[0].endswith("; found extra-agent"), failures)
+
+    def test_field_tool_and_authority_diagnostics_keep_their_order(self) -> None:
+        failures = self._agents_with_mutation(
+            "scribe.md", "tools: Read, Grep, Glob, Edit, Write, Skill",
+            "hooks: ignored\ntools: Read, Read",
+        )
+        self.assertEqual([
+            "unknown or unsupported plugin agent field(s): hooks",
+            "plugin-inert authority field(s) are forbidden: hooks",
+            "duplicate tool grant(s): Read",
+            "missing required tool(s): Edit, Glob, Grep, Skill, Write",
+        ], [failure.split(": ", 1)[1] for failure in failures])
+
+    def test_agent_mutations_must_change_an_existing_file(self) -> None:
+        for filename, before, message in (
+            ("scribe.md", "absent mutation needle", "mutation matched nothing"),
+            ("missing-agent.md", "name:", "not found in agents/"),
+        ):
+            with self.subTest(filename=filename), self.assertRaisesRegex(AssertionError, message):
+                self._agents_with_mutation(filename, before, "replacement")
+
     def test_agent_return_templates_keep_recipient_status_and_parent_separate(self) -> None:
         """Catch removal of return slots, not just loss of prose mentioning them."""
         slots = ("Returning to", "Assignment", "Parent objective", "Caller next step")
@@ -565,11 +608,15 @@ class FleetValidatorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             (root / "agents").mkdir()
+            replaced = False
             for source in (ROOT / "agents").glob("*.md"):
                 text = source.read_text(encoding="utf-8")
                 if source.name == filename:
-                    text = text.replace(before, after)
+                    mutated = text.replace(before, after)
+                    self.assertNotEqual(text, mutated, f"{filename}: mutation matched nothing")
+                    text, replaced = mutated, True
                 (root / "agents" / source.name).write_text(text, encoding="utf-8")
+            self.assertTrue(replaced, f"{filename} not found in agents/")
             _, failures = validate_fleet.validate_agents(root)
         return failures
 
