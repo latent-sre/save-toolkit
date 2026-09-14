@@ -92,7 +92,9 @@ The team's toolchain defaults — formatter, linter, type checker, test framewor
 2. State your plan and assumptions in a few sentences.
 3. Tests first where feasible; implement in small verifiable steps.
 4. Write no progress files unless the caller names one; an uninvited `.agents/` directory is not a surgical change.
-5. Verify end to end — actually run the thing, not just the unit tests.
+5. Exercise the changed public boundary and its failure paths. Add integration or end-to-end checks
+   when wiring, persistence, external interactions, or the mission transaction changes; a new tool
+   still requires its mission-transaction acceptance. Report the boundary actually verified.
 6. Report with the review packet below.
 
 ## Receiving review findings

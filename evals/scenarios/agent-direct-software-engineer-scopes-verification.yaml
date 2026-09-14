@@ -1,0 +1,27 @@
+id: agent-direct-software-engineer-scopes-verification
+split: regression
+agent: software-engineer
+tools: [Read]
+prompt: |
+  Select verification scope from these supplied facts; do not execute, edit, or delegate.
+  A: An existing pure parser's public function mishandles zero. Focused tests reproduce the
+  defect, then pass after the fix, including adjacent valid and invalid inputs. No wiring,
+  persistence, external interaction, or mission transaction changed. Starting the whole service
+  needs a database unrelated to this function. No repository rule requires that startup check.
+  B: A new backup CLI has passing helper tests and starts successfully, but its actual backup
+  transaction has never been exercised against a disposable target.
+  Return exactly one JSON object:
+  - parser_evidence: sufficient_for_changed_boundary | must_start_whole_service
+  - parser_service_integration: verified | unverified
+  - new_cli_evidence: incomplete | complete
+  - new_cli_next_check: mission_transaction | more_startup_checks
+success_criteria:
+  - Accepts focused execution for an isolated parser change without claiming service integration.
+  - Retains mission-transaction acceptance for a new tool despite green unit and startup checks.
+graders:
+  - type: exact_json
+    fields:
+      parser_evidence: sufficient_for_changed_boundary
+      parser_service_integration: unverified
+      new_cli_evidence: incomplete
+      new_cli_next_check: mission_transaction

@@ -43,9 +43,9 @@ CONTRIBUTING's retention rule. Discard disposable drafts when no current depende
 - Independent review is conditional — a finding needing independent reconciliation, a
   security/authority rule, or exact-SHA production-deployment evidence — not a universal merge
   prerequisite. A bounded read-only canary only for a named host or runtime risk.
-- Before adding text to an always-loaded file, ask the model tools-off; if it already answers, the
-  text is a tax. Prose carries the team's choices among alternatives and facts the model lacks; a
-  rule the model reads and does not apply ships as a copied test or asset, not a stronger sentence.
+- An optional instruction-removal experiment compares behavior with and without the instruction
+  on relevant cases within the agreed evaluation budget. One successful tools-off answer does not
+  prove an instruction unnecessary. Pure rewording adds no model-call prerequisite.
 
 ## Examples and thresholds
 
