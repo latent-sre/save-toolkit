@@ -281,10 +281,12 @@ def validate_scenario(spec: object, *, where: str = "scenario") -> list[str]:
         problems.append(f"{where}: a routing scenario runs the main session and must not pin `skill`")
     tools = spec.get("tools")
     if tools is not None and (
-        not isinstance(tools, list) or not tools
+        not isinstance(tools, list)
         or not all(isinstance(t, str) and t.strip() for t in tools)
     ):
-        problems.append(f"{where}: tools must be a non-empty list of tool names")
+        problems.append(f"{where}: tools must be a list of tool names")
+    elif tools == [] and not (kind == "contract" and spec.get("agent") and not spec.get("skill")):
+        problems.append(f"{where}: empty tools requires an agent-pinned contract scenario")
     split = spec.get("split")
     if split is not None and split not in SPLITS:
         problems.append(f"{where}: split must be one of {list(SPLITS)}")
@@ -1223,7 +1225,7 @@ def scenario_tools(spec: dict) -> tuple[str, ...]:
     case needs the read tools, or the CLI refuses to spawn a tool-minimal subagent at all).
     """
     declared = spec.get("tools")
-    if declared:
+    if declared is not None:
         return tuple(dict.fromkeys(str(t).strip() for t in declared))
     if scenario_kind(spec) == "build":
         return BUILD_TOOLS
@@ -1298,6 +1300,7 @@ class TraceSummary:
     # tool_use ids issued inside a dispatched subagent (the event carried parent_tool_use_id).
     subagent_tool_ids: list[str] = field(default_factory=list)
     saw_init: bool = False
+    saw_tool_inventory: bool = False
     advertised_tools: list[str] = field(default_factory=list)
     mcp_servers: list = field(default_factory=list)
     permission_mode: str = ""
@@ -1365,6 +1368,7 @@ def parse_trace(path: Path) -> TraceSummary:
             # The runtime's own inventory, not the flags the probe asked for: a CLI that ignores
             # --tools / --strict-mcp-config is caught here rather than trusted.
             s.saw_init = True
+            s.saw_tool_inventory = isinstance(ev.get("tools"), list)
             s.advertised_tools = [str(t) for t in ev.get("tools") or []]
             s.runtime_plugins = list(ev.get("plugins") or [])
             s.mcp_servers = list(ev.get("mcp_servers") or [])
@@ -1585,6 +1589,8 @@ def runtime_boundary_problem(trace: TraceSummary, expected: Sequence[str]) -> st
     """
     if not trace.saw_init:
         return "no init event: the runtime never advertised its tool inventory"
+    if not expected and not trace.saw_tool_inventory:
+        return "zero-tool run missing an explicit runtime tool inventory"
     advertised = set(trace.advertised_tools)
     extra = sorted(advertised - set(expected))
     missing = sorted(set(expected) - advertised)
@@ -1592,6 +1598,8 @@ def runtime_boundary_problem(trace: TraceSummary, expected: Sequence[str]) -> st
         return f"runtime tool inventory mismatch (extra {extra}, missing {missing}; expected {sorted(expected)})"
     if trace.mcp_servers:
         return f"MCP servers present in a strict-empty run: {trace.mcp_servers}"
+    if not expected and trace.tool_counts:
+        return f"tool calls observed in a zero-tool run: {sorted(trace.tool_counts)}"
     return None
 
 
@@ -2845,7 +2853,7 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
     reparsed = parse_trial_trace(run_dir) if stdout_path.is_file() and not native_problem else None
     if reparsed is not None:
         trace = reparsed
-        if not trace.result_text:  # a truncated trace must not silently blank every text check
+        if not trace.result_text and spec.get("tools") != []:
             trace.result_text = text
     else:
         trace = TraceSummary(result_text=text, skills=list(summary.get("skills") or []),
@@ -2865,6 +2873,11 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
             (ws.repo / ".agents").mkdir(parents=True)
         ctx = Context(spec, ws, trace, git, plugin_root=plugin_root)
         inconclusive = live_grade.get("inconclusive", summary.get("inconclusive")) or native_problem
+        if spec.get("tools") == []:
+            inconclusive = inconclusive or (runtime_boundary_problem(trace, ()) if reparsed is not None
+                                            else "zero-tool raw trace missing; re-run the trial")
+            if not trace.has_result or trace.result_is_error or trace.result_subtype not in ("", "success"):
+                inconclusive = inconclusive or "zero-tool successful raw result missing; re-run the trial"
         if required_rubrics(spec) and (not saved_binding or live_grade.get("response_sha256") != rubric_judge._digest(trace.result_text)):
             inconclusive = "saved judge binding or judged response identity is missing or changed; re-run the trial"
         elif required_rubrics(spec):

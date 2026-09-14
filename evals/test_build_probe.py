@@ -2367,6 +2367,44 @@ class UnifiedRegradeTests(unittest.TestCase):
         self.assertEqual(["grader contains_any"], [e["text"] for e in grading["expectations"]])
         self.assertTrue(grading["expectations"][0]["passed"])
 
+    def test_zero_tool_contract_schema_and_command_preserve_empty_inventory(self) -> None:
+        spec = {**CONTRACT_SPEC, "agent": "researcher", "tools": []}
+        self.assertEqual([], build_probe.validate_scenario(spec))
+        self.assertEqual((), build_probe.scenario_tools(spec))
+        self.assertEqual(("Skill", "Task"), build_probe.scenario_tools(CONTRACT_SPEC))
+        command = build_probe.build_command("claude", ROOT, "researcher", "p", None,
+                                            build_probe.scenario_tools(spec), pre_approve=False)
+        self.assertEqual("", command[command.index("--tools") + 1])
+        self.assertIn("WebFetch", command[command.index("--disallowedTools") + 1].split(","))
+        for invalid in ({**TINY_SPEC, "tools": []}, {**spec, "agent": None, "skill": "runbook"},
+                        {"id": "routing", "prompt": "p", "routing": {"expect": "skip"}, "tools": []}):
+            with self.subTest(spec=invalid):
+                self.assertTrue(any("tools" in p for p in build_probe.validate_scenario(invalid)))
+
+    def test_zero_tool_contract_rejects_calls_live_and_on_regrade(self) -> None:
+        spec = build_probe.load_scenario(
+            build_probe.CONTRACT_SCENARIO_DIR / "agent-direct-researcher-matches-evidence-to-claim.yaml")
+        text = json.dumps(spec["graders"][0]["fields"])
+        init = {"type": "system", "subtype": "init", "tools": [], "mcp_servers": [],
+                "plugins": [{"name": "save-toolkit", "path": str(ROOT)}]}
+        result = {"type": "result", "subtype": "success", "result": text}
+        call = {"type": "assistant", "message": {"content": [
+            {"type": "tool_use", "id": "fetch", "name": "WebFetch", "input": {}}]}}
+        for case, events in {"clean": [init, result], "call": [init, call, result],
+                             "advertised": [{**init, "tools": ["WebFetch"]}, result],
+                             "missing-tools": [{k: v for k, v in init.items() if k != "tools"}, result],
+                             "null-tools": [{**init, "tools": None}, result],
+                             "init-only": [init], "error-result": [init, {**result, "is_error": True}],
+                             "no-init": [result], "no-trace": None}.items():
+            with self.subTest(case=case), tempfile.TemporaryDirectory() as tmp:
+                run = self._saved(Path(tmp), spec, label="cand", text=text, events=events)
+                if events is not None:
+                    trace = build_probe.parse_trace(run / "stdout.jsonl")
+                    problem = build_probe.invocation_problem(trace, 0, spec, ROOT, Path(tmp))
+                    self.assertEqual(case != "clean", problem is not None, problem)
+                grading = build_probe.regrade_run(run, spec)
+                self.assertEqual("PASS" if case == "clean" else "INCONCLUSIVE", grading["status"])
+
     def test_a_routing_run_regrades_its_one_check_instead_of_crashing(self) -> None:
         spec = {"id": "batch-contract", "prompt": "p", "target": {"kind": "skill", "name": "runbook"},
                 "routing": {"expect": "fire"}}
