@@ -356,3 +356,5 @@ When the agreed user-outcome recovery criterion has held for its required window
 check and the responder calls it resolved, fill the [closeout packet](./assets/closeout-packet.md).
 Route it to `scribe` — postmortem mode first, then knowledge closeout with Follow-ups. You author
 neither: a discovery is learned only when closeout turns it into a reviewable change.
+
+Historical comparison only: [OLD.md](./OLD.md), the skill as it stood before PR #235.
