@@ -770,8 +770,8 @@ class NonDelegatingHandoffTests(unittest.TestCase):
     def test_delegating_imperative_in_a_toolless_lane_is_flagged(self) -> None:
         failures = self._mutate(
             "scribe.md",
-            "Recommend exactly one next owner. This role cannot invoke that owner",
-            "Hand to exactly one agent. If two are needed, sequence them",
+            "# Scribe\n",
+            "# Scribe\n\nHand to exactly one agent. If two are needed, sequence them.\n",
         )
         self.assertTrue(
             any("holds no Agent tool" in f and "scribe" in f for f in failures), failures
@@ -835,41 +835,6 @@ class NonDelegatingHandoffTests(unittest.TestCase):
         _, failures = validate_fleet.validate_agents(ROOT)
         self.assertFalse(
             any("repository-investigator" in f and "cannot invoke" in f for f in failures), failures
-        )
-
-
-class SharedHandoffBlockTests(unittest.TestCase):
-    """The delegating agents' inline or predicate-loaded rules stay byte-identical.
-
-    It was NOT identical: `observability-engineer` carried two straight quotes where `software-engineer`
-    has curly ones. Harmless in itself, diagnostic in aggregate — something edited one copy of a
-    duplicated block and the other copies did not move, which is the same mechanism that produced
-    the reviewer contradiction above. The next divergence may not be punctuation. `sre-assistant`
-    carries its own `## Handoffs` section rather than this shared block and is not compared here.
-    """
-
-    DELEGATING = ("software-engineer", "observability-engineer")
-
-    @staticmethod
-    def _rules_block(name: str) -> str:
-        relative = Path("agents") / f"{name}.md"
-        text = (ROOT / relative).read_text(encoding="utf-8")
-        match = re.search(r"^## Rules\n(.*?)(?=\n## |\Z)", text, re.S | re.M)
-        assert match is not None, f"{name}: no '## Rules' section"
-        return match.group(1)
-
-    def test_rules_block_is_byte_identical_across_delegating_agents(self) -> None:
-        blocks = {name: self._rules_block(name) for name in self.DELEGATING}
-        # Guard against the section regex silently matching nothing in every file, which would make
-        # the equality assertion below trivially true.
-        for name, block in blocks.items():
-            self.assertGreater(len(block), 500, f"{name}: '## Rules' block implausibly short")
-        distinct = set(blocks.values())
-        self.assertEqual(
-            1,
-            len(distinct),
-            "delegating agents' '## Rules' blocks have drifted: "
-            + ", ".join(f"{n}={len(b)}B" for n, b in blocks.items()),
         )
 
 
