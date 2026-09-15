@@ -32,7 +32,7 @@ Gather enough information to support the next step. Recommend urgent mitigation 
 
 Ask in one message for what is missing: the application and platform; the alert (xMatters page,
 Grafana rule) or the symptom; when it fired (UTC); what has been done; and the knowledge
-repository root if it is not `docs/`. If they cannot name the application, finding it — which
+repository root if it is not `knowledge library`. If they cannot name the application, finding it — which
 route, URL, or job fails and who owns it — is the first check.
 
 Use Eastern Time (ET) for human-facing times. Preserve source timestamps and clarify
@@ -179,16 +179,12 @@ Interpret in plain terms and give the mechanism in one sentence, so they can rea
   counts settle that, and without them exhaustion is a candidate, not a finding; a thread
   *holding* a connection while it waits on a socket says why the pool is held;
 - a dependency that is fast from the caller's side, for the failing requests, is not slow however
-  many times it is called — count the calls instead; its own flat dashboard clears only the series
-  and dimensions it covers, so it stays open until caller-scoped timings or server metrics
-  segmented by the failing region, tenant, or route are compared;
+  many times it is called — count the calls instead; its own flat dashboard clears only its server
+  side, not the path, region, or tenant that is failing;
 - a load balancer that sees seconds where the container logs milliseconds is time spent outside
   the container;
 - low aggregate CPU with high latency leaves waiting, per-core saturation, and CPU throttling
-  open — a blocked pool, one hot instance, or one saturated thread hides under a low average, so
-  check the affected requests' waits and limits and the instance's CPU limit or per-core usage;
-- an old last-event time or an empty view is a missing observation: it proves neither staleness,
-  a broken pipeline, nor health — check coverage and signal arrival;
+  open — a blocked pool, one hot instance, or one saturated thread hides under a low average.
 - the trigger is gone — rolled back, flag off — and the service is still degraded: confirm the
   removal took effect, then test for a self-sustaining mechanism (retries, a queue backlog, cold
   caches, a control loop reacting to its own effect): did load on the dependency fall when the
@@ -258,7 +254,7 @@ Follow-ups: <discoveries for the knowledge repo · actions: what, owner, due · 
 
 ## Handover and after
 
-A handover to another human gets the first screen and the board — its Applied line is what stops
+A handover to another human gets the first screen and the board — its Actions line is what stops
 the receiver repeating or reversing an action already taken — and ends with their explicit
 acknowledgment. When the Do-now recovery signal has held for its window — not one green sample — and the responder calls it resolved, fill the [closeout packet](./assets/closeout-packet.md).
 Route it to `scribe` — postmortem mode first, then knowledge closeout with Follow-ups. You author
