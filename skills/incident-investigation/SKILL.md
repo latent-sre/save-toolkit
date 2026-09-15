@@ -4,7 +4,7 @@ description: >-
   Helps a human SRE investigate a live incident, understand evidence, and choose the next useful
   step. Use for new pages, ongoing troubleshooting, interpreting supplied logs, graphs, metrics,
   traces or alerts, comparing mitigation options and recommending what to do, checking recovery,
-  and preparing technical updates or investigation handovers for an existing bridge/TLC
+  and preparing investigation handovers for an existing bridge/TLC
   (Techline Chat). Also explains operational signals outside a live incident. Supports first
   responders who do not know where to start, through experienced SREs. Triggers: 'I just got
   paged, what do I do', 'customers are reporting errors, where do I start', 'walk me through
