@@ -1,6 +1,6 @@
 # Mitigation selection
 
-Use when the responder compares rollback, route remap, restart, scale, flag, or dependency responses.
+Use for mitigation selection or readback of an attempted change.
 Prepare a recommendation for the existing incident lead and human release owner, with the approval
 packet below. This reference neither takes command nor executes a change.
 
@@ -8,6 +8,7 @@ packet below. This reference neither takes command nor executes a change.
 
 - Pick the fastest safe, reversible action
 - Decision rules
+- Read back an interrupted attempt
 
 Suspected compromise, data integrity loss, or another security event is excluded. Preserve evidence
 and follow the human security incident owner's exact direction instead.
@@ -100,6 +101,18 @@ recovery window. The human on-call continues root-cause work with `incident-inve
 (dispatching the typed `sre-assistant` agent for a bounded read-only slice), the human release
 owner owns any fix-forward execution, and the responder owns recovery evidence; `observability-engineer`
 owns detection changes after resolution.
+
+## Read back an interrupted attempt
+
+Read back the effective flag value or route mapping for those actions. For revision rollback,
+confirm completed deployment and the intended droplet on the expected instances: rollback creates
+a new, higher revision described `Rolled back to revision <n>`, so a matching target number is not
+required and a description alone is insufficient. Recheck any environment-based mitigation the
+rollback could have undone, using sanitized results. The revision semantics are sourced above.
+
+Current state does not establish when the attempt landed or whether it caused recovery. Reconcile
+with the executor and receipts/events before retrying; missing evidence leaves the attempt UNKNOWN.
+Judge recovery over an established post-change interval.
 
 Navigation source: VMware's [TAS 2.12 guide, pp. 1145–1157](https://manuals.plus/m/f716ea2ede1f52c2fb9c9496bd199abbede3c0aa1727dab518af606551e1b71f)
 (2023 manual; target-foundation UI unverified). Command semantics: Cloud Foundry

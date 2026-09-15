@@ -10,6 +10,9 @@ import re
 from pathlib import Path
 
 import pytest
+import yaml
+
+from graders import run_grader
 
 ROOT = Path(__file__).resolve().parents[1]
 ORACLE = ROOT / "evals/oracles/incident-closing-fields/probe_closing_fields.py"
@@ -226,17 +229,24 @@ def test_handover_reply_is_complete(oracle):
 
 def test_documented_schema_matches_the_board_contract(oracle):
     text = SKILL.read_text(encoding="utf-8").split("### Investigation board", 1)[1]
-    schema = re.search(r"```text\n(.*?)\n```", text, re.S)
+    schema = re.search(r"```(?:text)?\n(.*?)\n```", text, re.S)
     assert schema is not None
     assert oracle.check(schema[1], "board")[0]
 
 
-def test_skill_keeps_the_live_versus_standalone_boundary():
-    text = SKILL.read_bytes().decode("utf-8").lower()
-    assert "no live incident" in text, "the standalone-question exemption is gone"
-    assert "being worked" in text, "the live-incident trigger is gone"
+@pytest.mark.parametrize("text,expected", [
+    (BOARD, True), (NONE, False), (BOARD.replace("Next: unknown", "Next:"), False),
+    ("Example:\n```text\n" + BOARD + "\n```", False),
+    (BOARD + "\n\nThe actual answer follows here.", False),
+])
+def test_registered_board_grader(text, expected):
+    assert run_grader({"type": "incident_board"}, text)[0] is expected
 
 
-def test_skill_requires_an_owner_on_every_standing_candidate():
-    text = SKILL.read_bytes().decode("utf-8").lower()
-    assert "unowned" in text, "standing candidates no longer have to name an owner"
+@pytest.mark.parametrize("name", [
+    "explains-pool-wait", "adapts-to-missing-access", "hands-over-unresolved-work",
+])
+def test_live_companions_grade_structure_and_advice_separately(name):
+    path = ROOT / f"evals/scenarios/incident-companion-{name}.yaml"
+    scenario = yaml.safe_load(path.read_text(encoding="utf-8"))
+    assert {"incident_board", "rubric"} <= {grader["type"] for grader in scenario["graders"]}

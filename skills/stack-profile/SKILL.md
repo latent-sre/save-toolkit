@@ -61,8 +61,8 @@ A formal on-call rotation is in place. *[sourced: operator statement 2026-08-21]
 The team investigates and recommends fixes; someone else runs the incident. An existing bridge or
 TLC (Techline Chat) is the coordination channel, not a request to open another.
 *[sourced: operator statement 2026-09-12]* `incident-investigation` owns technical advice, the
-investigation board, and severity advice through its own severity-and-escalation reference; every
-other lane returns impact evidence and leaves the tier to the advisor and the human lead. Preserve
+investigation board, and recommendations based on supplied impact and policy. The human lead owns
+severity and escalation decisions. Preserve
 the human lead's declared tier, roles, update requests, and authoritative record.
 
 ## Change management

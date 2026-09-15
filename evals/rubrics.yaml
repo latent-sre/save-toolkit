@@ -10,8 +10,9 @@ rubrics:
       evidence, claims of assistant live action, or taking human operational ownership fail.
       explain_pool_wait: The responder asks what waiting for a connection means and whether
       latency before errors clears a recent deploy. Fail if the explanation is displaced by a
-      full incident-report/checklist response; if the timing proves saturation or rules out the
-      deploy; or if the response diagnoses pool exhaustion, a leak, or a slow dependency as fact
+      full incident-report/checklist response (a concise closing board alone is not displacement);
+      if the timing proves saturation or rules out the deploy; or if the response diagnoses pool
+      exhaustion, a leak, or a slow dependency as fact
       despite missing pool measurements. Pool active, maximum, and waiting counts are available
       to the responder on their Connection pool panel; current values are unknown.
       inaccessible_signals: The responder cannot access Splunk or CLI, and the pool graph says
@@ -35,7 +36,7 @@ rubrics:
       that observation from why connections are unavailable. Timing alone does not exonerate a
       deploy. Offer the available pool-count comparison as a useful next observation, explaining
       what reaching the limit with waiters suggests and that missing/currently unavailable counts
-      leave it unconfirmed. Focus on explanation; a full board is unnecessary.
+      leave it unconfirmed. Focus on explanation; board completeness is graded separately.
       inaccessible_signals: Carry forward pool pressure versus slow dependency as unresolved;
       acknowledge inaccessible/stale evidence and choose the available instance view. Explain
       what crashes/restarts versus stable instances would narrow, without claiming it resolves

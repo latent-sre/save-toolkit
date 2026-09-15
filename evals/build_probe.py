@@ -73,6 +73,7 @@ import judge as rubric_judge  # noqa: E402 -- load the complete evaluator before
 
 HARNESS_FILES = tuple(Path(path).resolve() for path in (
     __file__, fleet_graders.__file__, rubric_judge.__file__, clean_room.__file__,
+    fleet_graders.INCIDENT_BOARD_ORACLE,
 ))
 
 

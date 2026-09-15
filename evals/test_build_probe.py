@@ -2340,7 +2340,7 @@ class ReferenceReadTests(unittest.TestCase):
         for name, reference in (
             ("explains-pool-wait", "symptom-investigation.md"),
             ("adapts-to-missing-access", "symptom-investigation.md"),
-            ("hands-over-unresolved-work", "pcf-rollback-readback.md"),
+            ("hands-over-unresolved-work", "mitigation-selection.md"),
         ):
             with self.subTest(scenario=name):
                 spec = build_probe.load_scenario(build_probe.CONTRACT_SCENARIO_DIR /
@@ -2415,13 +2415,16 @@ class UnifiedRegradeTests(unittest.TestCase):
 
 
 class EvaluatorImplementationIdentityTests(unittest.TestCase):
+    FILES = ("build_probe.py", "graders.py", "judge.py", "clean_room.py",
+             "oracles/incident-closing-fields/probe_closing_fields.py")
+
     def test_new_process_identity_binds_every_local_evaluator_module(self) -> None:
         import shutil
         with tempfile.TemporaryDirectory() as tmp:
             folder = Path(tmp) / "evals"
             folder.mkdir()
-            names = ("build_probe.py", "graders.py", "judge.py", "clean_room.py")
-            for name in names:
+            for name in self.FILES:
+                (folder / name).parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(ROOT / "evals" / name, folder / name)
             script = "import build_probe as b; print(b.scenario_digest({'id':'x','prompt':'p','graders':[{'type':'contains_all','of':['x']}]}))"
             def digest():
@@ -2434,6 +2437,8 @@ class EvaluatorImplementationIdentityTests(unittest.TestCase):
                 "graders.py": ("return (not missing,", "return (False,"),
                 "judge.py": ("Distinguish the assistant's own voice", "Ignore the assistant's own voice"),
                 "clean_room.py": ("subscriber_only: bool = False", "subscriber_only: bool = True"),
+                "oracles/incident-closing-fields/probe_closing_fields.py": (
+                    '"board": {"impact"', '"board": {"changed"'),
             }
             for name, (old, new) in replacements.items():
                 with self.subTest(module=name):
@@ -2447,7 +2452,8 @@ class EvaluatorImplementationIdentityTests(unittest.TestCase):
     def test_disk_edit_after_import_requires_a_new_process(self) -> None:
         import shutil
         with tempfile.TemporaryDirectory() as tmp:
-            for name in ("build_probe.py", "graders.py", "judge.py", "clean_room.py"):
+            for name in self.FILES:
+                (Path(tmp) / name).parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(ROOT / "evals" / name, Path(tmp) / name)
             script = """import build_probe as b
 from pathlib import Path
