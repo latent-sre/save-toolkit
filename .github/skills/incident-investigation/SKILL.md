@@ -233,7 +233,7 @@ blast radius, verification, and rollback; the tiers and approval shape are
 
 ### Investigation board
 
-Every turn every line (`none` if empty), labelled, never written to the repository. It is what prevents the responder from looping back to a excluded candidate: the board is the single source of truth for what has been observed and decided.  This appears until the incident is fully resolved and the closeout packet is completed.
+Every turn every line (`none` for a known absence; `unknown` for missing or unchecked information), labelled, never written to the repository. It is what prevents the responder from looping back to a excluded candidate: the board is the single source of truth for what has been observed and decided.  This appears until the incident is fully resolved and the closeout packet is completed.
 
 ```
 Investigation board:
