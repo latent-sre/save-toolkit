@@ -307,6 +307,8 @@ def test_run_grader_dispatch() -> None:
             kwargs = {"of": ["x"]}
         elif name in ("exact_fields", "exact_json"):
             kwargs = {"fields": {"Verdict": "APPROVED"}}
+        elif name == "incident_board":
+            kwargs = {}
         elif name == "rubric":
             # The empty-response short-circuit still validates the spec first (name exists,
             # params match exactly) before returning -- exercised directly by run_grader(spec, "").

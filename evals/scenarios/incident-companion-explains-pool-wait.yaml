@@ -19,6 +19,7 @@ success_criteria:
   - Separates an observed wait from its possible causes and does not clear the deploy from timing alone.
   - Uses the available pool panel to explain a discriminating observation, including what remains inconclusive.
 graders:
+  - type: incident_board
   - type: rubric
     name: incident_companion_response
     params: {case: explain_pool_wait}

@@ -21,6 +21,7 @@ success_criteria:
   - Adapts to the stated access limit using the available instance view, with interpretations and an inconclusive branch.
   - Does not invent a search schema, repeat the unavailable step, or restart the whole incident intake.
 graders:
+  - type: incident_board
   - type: rubric
     name: incident_companion_response
     params: {case: inaccessible_signals}

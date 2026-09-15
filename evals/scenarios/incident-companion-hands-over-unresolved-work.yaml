@@ -3,7 +3,7 @@ split: regression
 skill: incident-investigation
 tools: [Skill, Read]
 references:
-  - skills/incident-investigation/references/pcf-rollback-readback.md
+  - skills/incident-investigation/references/mitigation-selection.md
 prompt: |
   Sam is taking over from me on ledger/PCF INC-52. Morgan is still incident commander and
   Riley is the release owner. Can you get Sam up to speed and tell them what to pick up next?
@@ -28,6 +28,7 @@ success_criteria:
   - Keeps rollback UNKNOWN and makes fresh readback precede any retry decision, including inconclusive readback.
   - Reopens the dependency hypothesis proportionately and preserves human ownership and unresolved work.
 graders:
+  - type: incident_board
   - type: rubric
     name: incident_companion_response
     params: {case: human_handover}

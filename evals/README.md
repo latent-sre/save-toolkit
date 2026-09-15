@@ -339,6 +339,9 @@ The incident advisor now uses one seven-field board. Its structural check is
 Legacy `fields`/`checkpoint` expectations remain for historical comparisons, not current acceptance.
 Completeness does not establish useful advice, factual accuracy, or continuity across turns;
 those require assessment of the conversation against the supplied incident evidence.
+The three `incident-companion-*` scenarios use the `incident_board` grader for structure and
+the companion rubric for advice quality. Rubric calibration examples assess semantics alone;
+they need not contain a board and are not complete scenario passes.
 
 The `discovery-incident-investigation-existing-bridge` and
 `discovery-incident-investigation-existing-tlc-followup` scenarios cover a current bridge and

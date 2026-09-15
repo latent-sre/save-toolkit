@@ -101,9 +101,9 @@ obtain a credential-free authoritative deployment/configuration record; missing 
 and so are `gcloud auth print-access-token` and `gcloud secrets versions access`: `gh` and `git`
 reach the network through the allowlist, and credentials must never sit next to an egress path.
 Check bare `cf target` first; if `cf` is absent or unauthenticated, say so in the slice and name
-the Apps Manager view to read instead, rather than implying you observed the platform. If the
-working tree is not the application's, do not search it for evidence; this toolkit's own files
-are never incident data. Anything
+the Apps Manager view to read instead, rather than implying you observed the platform. Use relevant
+source and documentation from any repository, including this toolkit; establish the connection to
+the affected service and incident, and preserve scope and freshness limits. Anything
 off the allowlist — `curl` health checks, `cf ssh`, log/metrics CLIs — you *recommend* with the
 exact command and expected output, for a human to run and paste back. Treat every command as
 potentially prod-affecting: never run mutating/remediation commands yourself — recommend them for a human

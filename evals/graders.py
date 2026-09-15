@@ -13,7 +13,17 @@ from __future__ import annotations
 import json
 import math
 import re
+import runpy
 from collections.abc import Callable
+from pathlib import Path
+
+
+INCIDENT_BOARD_ORACLE = Path(__file__).resolve().parent / "oracles/incident-closing-fields/probe_closing_fields.py"
+_incident_board_check = runpy.run_path(str(INCIDENT_BOARD_ORACLE))["check"]
+
+
+def incident_board(response: str) -> tuple[bool, str]:
+    return _incident_board_check(response, "board")
 
 
 def _norm(text: str) -> str:
@@ -290,6 +300,7 @@ REGISTRY: dict[str, Callable[..., tuple[bool, str]]] = {
     "exact_fields": exact_fields,
     "exact_json": exact_json,
     "rubric": rubric,
+    "incident_board": incident_board,
 }
 
 

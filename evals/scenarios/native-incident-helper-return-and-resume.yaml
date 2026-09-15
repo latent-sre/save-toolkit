@@ -54,3 +54,15 @@ success_criteria:
   - Structurally verify initial parent skill selection and completed reference read before helper dispatch, one completed helper, subsequent parent text, and actual same-session follow-up.
   - Manual assessment required for bounded dispatch with distinct caller and owner, successful child evidence-file read, the child's evidence quality, and useful parent synthesis.
   - Manual assessment required for rejecting absent-row-to-duplicate-safe inference and accepting sufficient corrected recovery evidence without invented timing or cause.
+  - The recovery follow-up retains a complete investigation board through the human resolution decision.
+graders:
+  - type: contains_all
+    of:
+      - "Investigation board:"
+      - "Impact:"
+      - "Open:"
+      - "Checked:"
+      - "Ruled out:"
+      - "Actions:"
+      - "Next:"
+      - "Follow-ups:"

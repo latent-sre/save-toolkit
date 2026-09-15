@@ -46,7 +46,8 @@ Classify first, then check only what the tier needs.
 
 Approval covers only the command, target, and applying actor shown; a material change re-enters
 the gate. During a declared incident the incident commander may approve a bounded envelope instead
-(see the [incident fast path](./references/incident-fast-path.md)).
+(see the [incident fast path](./references/incident-fast-path.md)). For covered actions, its
+short checklist replaces the production table below.
 
 | Item | Passes when |
 |---|---|
