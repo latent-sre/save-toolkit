@@ -117,9 +117,16 @@ stays reviewable, runnable, and inside the `evals_python_lines` ceiling, which c
 oracles there, but not TSX, since it counts `*.py` only.
 
 **The standing regression** comprises the build probes and the contract scenarios carrying
-`split: regression`. The six `build-python-...` probes cover refactoring effects, generator
+`split: regression`. The seven `build-python-...` probes cover refactoring effects, generator
 consumption/lifetime, module moves, stdlib migration contracts, leaving correct code unchanged,
-and a shared calculation boundary usable without files. Their shared
+a shared calculation boundary usable without files, and a medium-sized policy unification across
+three drifted intake entrypoints with a registry, a configured dotted lookup, a legacy re-export,
+and a unit suite that encodes the drift. That oracle checks specification parity over a bounded
+domain for every entrypoint, single ownership through the `policy.normalize_order` patch seam
+(a record the old rules reject must pass once the shared policy accepts it), exception identity,
+input immutability, six fresh-process import orders, and that the fixture suite stays green
+without losing assertions; eleven named partial-ownership and lost-consumer artifacts are
+rejected. It does not grade how the work was staged. Their shared
 [outcome oracle](oracles/python-craft/check_contracts.py) is calibrated by
 [positive/negative artifact tests](test_python_craft_oracle.py): correct implementations pass and
 named behavioral and structural counterexamples fail, including eager reads, adjacent duplicate loss, broken

@@ -9,6 +9,7 @@ import io
 import ipaddress
 from itertools import product
 from pathlib import Path
+import re
 import subprocess
 import sys
 import tempfile
@@ -297,8 +298,98 @@ def modules():
         CHECK.assertEqual(reports.render(["a", "b"]), ["patched:a", "patched:b"])
 
 
+def policy():
+    # Fresh processes: import caches cannot make a broken import order appear valid, and the
+    # fixture's own suite must stay green on the candidate without losing its assertions.
+    if len(sys.argv) == 2:
+        for first in ("policy", "api", "cli", "batch", "legacy", "registry"):
+            subprocess.run([sys.executable, "-I", "-B", str(Path(__file__).resolve()), "policy", first],
+                           check=True, timeout=10)
+        suite = subprocess.run([sys.executable, "-I", "-B", "-m", "unittest", "discover", "-s", "tests", "-t", "."],
+                               capture_output=True, text=True, timeout=60)
+        CHECK.assertEqual(suite.returncode, 0, "fixture test suite failed: " + suite.stderr[-600:])
+        ran = re.search(r"^Ran (\d+) tests?", suite.stderr, re.MULTILINE)
+        CHECK.assertTrue(ran and int(ran.group(1)) >= 10, "fixture tests were removed: " + suite.stderr[-200:])
+        return
+    sys.path.insert(0, str(Path.cwd()))
+    importlib.import_module(sys.argv[2])
+    owner = importlib.import_module("policy")
+    api, cli, batch = (importlib.import_module(name) for name in ("api", "cli", "batch"))
+    legacy, registry, client = (importlib.import_module(name) for name in ("legacy", "registry", "client"))
+    CHECK.assertEqual(owner.normalize_order.__module__, "policy", "policy owner is not policy.py")
+    CHECK.assertEqual((owner.MAX_QUANTITY, legacy.MAX_QUANTITY), (999, 999), "quantity limit drifted")
+    CHECK.assertIs(legacy.submit_order, api.submit, "legacy name rebound")
+    CHECK.assertEqual(registry.INTAKES, {"api": api.submit, "cli": cli.run, "batch": batch.load},
+                      "registry callables changed")
+    CHECK.assertIs(client.configured_intake(), api.submit, "configured lookup changed")
+
+    def expected(sku, quantity, unit_cents):
+        if not isinstance(sku, str) or not re.fullmatch(r"[A-Z]{3}-\d{4}", sku.strip().upper()):
+            return "invalid sku"
+        if isinstance(quantity, bool) or not isinstance(quantity, int) or not 1 <= quantity <= 999:
+            return "invalid quantity"
+        if isinstance(unit_cents, bool) or not isinstance(unit_cents, int) or unit_cents < 0:
+            return "invalid price"
+        return {"sku": sku.strip().upper(), "quantity": quantity, "unit_cents": unit_cents}
+
+    def observe(call):
+        try:
+            return call()
+        except ValueError as exc:
+            return str(exc)
+
+    skus = [" abc-1234 ", "ABC-1234", "abc-12345", "ab-1234", "", None, 7]
+    quantities = [0, 1, 99, 100, 999, 1000, True, "3", None]
+    prices = [0, 250, -1, True, None]
+    for sku, quantity, unit_cents in product(skus, quantities, prices):
+        record = {"sku": sku, "quantity": quantity, "unit_cents": unit_cents}
+        want = expected(sku, quantity, unit_cents)
+        for name, call in (("api.submit", lambda: api.submit(dict(record))),
+                           ("batch.load", lambda: batch.load(iter([dict(record)]))[0]),
+                           ("legacy.submit_order", lambda: legacy.submit_order(dict(record)))):
+            CHECK.assertEqual(observe(call), want, f"{name} disagrees with the specification for {record!r}")
+        if isinstance(sku, str) and all(type(value) is int for value in (quantity, unit_cents)):
+            CHECK.assertEqual(observe(lambda: cli.run(f"{sku},{quantity},{unit_cents}\n")), want,
+                              f"cli.run disagrees with the specification for {record!r}")
+
+    payload = {"sku": " abc-1234 ", "quantity": 2, "unit_cents": 5}
+    snapshot = dict(payload)
+    result = api.submit(payload)
+    CHECK.assertEqual(payload, snapshot, "input mutated")
+    CHECK.assertIsNot(result, payload, "result aliases the input")
+    rows = [dict(payload), {"sku": "XYZ-0001", "quantity": 999, "unit_cents": 0}]
+    snapshot_rows = [dict(row) for row in rows]
+    CHECK.assertEqual([record["sku"] for record in batch.load(iter(rows))], ["ABC-1234", "XYZ-0001"])
+    CHECK.assertEqual(rows, snapshot_rows, "input mutated")
+    CHECK.assertEqual(batch.load(iter([])), [])
+
+    # One owner: a replacement policy must reach every entrypoint, so a record the old rules
+    # reject must pass once the shared policy accepts it; the CLI keeps only its text parsing.
+    marker = {"sku": "ZZZ-0000", "quantity": 5000, "unit_cents": 1}
+    rejected = {"sku": "bad", "quantity": 5000, "unit_cents": -1}
+    with mock.patch.object(owner, "normalize_order", return_value=marker) as shared:
+        CHECK.assertEqual(observe(lambda: api.submit(dict(rejected))), marker,
+                          "api.submit bypassed the shared policy or kept its own rules")
+        CHECK.assertEqual(observe(lambda: cli.run("zzz-0000,5000,-1")), marker,
+                          "cli.run bypassed the shared policy or kept its own rules")
+        CHECK.assertEqual(observe(lambda: batch.load(iter([dict(rejected), dict(rejected)]))), [marker, marker],
+                          "batch.load bypassed the shared policy or kept its own rules")
+        CHECK.assertEqual(shared.call_count, 4, "shared policy call count")
+        with CHECK.assertRaisesRegex(ValueError, "^expected integer quantity and unit_cents$"):
+            cli.run("abc-1234,three,1")
+        with CHECK.assertRaisesRegex(ValueError, "^expected sku,quantity,unit_cents$"):
+            cli.run("abc-1234,1")
+    failure = ValueError("policy failed")
+    with mock.patch.object(owner, "normalize_order", side_effect=failure):
+        for call in (lambda: api.submit(dict(payload)), lambda: cli.run("abc-1234,1,1"),
+                     lambda: batch.load(iter([dict(payload)])), lambda: legacy.submit_order(dict(payload))):
+            with CHECK.assertRaises(ValueError) as raised:
+                call()
+            CHECK.assertIs(raised.exception, failure, "policy exception replaced")
+
+
 if __name__ == "__main__":
     checks = {"refactor": refactor, "generator": generator, "migration": migration,
-              "unchanged": unchanged, "modules": modules, "calculation": calculation}
+              "unchanged": unchanged, "modules": modules, "calculation": calculation, "policy": policy}
     checks[sys.argv[1]]()
     print("contract passed:", sys.argv[1])
