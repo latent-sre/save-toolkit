@@ -8,6 +8,12 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- The build probe resolves a trial's model identity from the main thread (init model plus every
+  top-level assistant turn) and records the CLI's usage table separately as `usage_models`. Claude
+  Code 2.1.271 lists an internal Haiku helper call of a few tokens in that table, which had closed
+  every three-trial batch as INCONCLUSIVE for mixed identities. A parent that changes model
+  mid-trial still resolves to two. Eval ceiling +36 lines. See the
+  [medium Python refactor evidence](docs/reviews/2026-09-16-python-medium-jobs.md).
 - Reviewer evaluation checks now detect path-qualified and common wrapper-prefixed Python/tool
   commands and require the reviewed range in Git diff/history requests. Added positive and negative
   calibration cases; the eval Python ceiling rises by 22 lines to 12,275 for this regression coverage.
@@ -39,6 +45,16 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Added
 
+- A medium-sized Python build probe, `build-python-unify-policy`: seven modules, three drifted
+  intake entrypoints, a registry, a configured dotted lookup, a legacy re-export, and a unit suite
+  that encodes the drift. Its oracle checks specification parity for every entrypoint, single
+  ownership through the `policy.normalize_order` patch seam, exception identity, input
+  immutability, six fresh-process import orders, and a green suite that keeps its assertions;
+  eleven partial-ownership and lost-consumer artifacts are rejected by name. Eval ceiling +223
+  lines. In nine clean-room Sonnet trials the fleet completed the refactor correctly every time,
+  with or without `python-craft`; the skill self-loaded 1/6 on main and 2/3 with the craft-loading
+  edit below, so both batches fail only the reach check. See the
+  [medium Python refactor evidence](docs/reviews/2026-09-16-python-medium-jobs.md).
 - Added conditional symptom comparisons to the human incident advisor for login failures,
   intermittent errors, slow requests, stale/wrong data, and missed jobs with limited telemetry.
   See the [general incident help evidence](docs/reviews/2026-09-06-general-incident-help.md) for
@@ -52,6 +68,9 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- `software-engineer` Process step 1 names `python-craft` beside the backend, frontend, and CLI
+  crafts; it previously appeared only in the on-demand catalogue further down. Projection
+  regenerated. Measured direction only, not proof: see the evidence record above.
 - Retired the standalone `incident-command` skill for the team's investigation role. The advisor
   retains its seven-field board, owns conditional mitigation and severity advice, and prepares
   technical updates for an existing bridge/TLC without opening another or assigning command roles.

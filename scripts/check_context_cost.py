@@ -151,7 +151,7 @@ TASK_BUDGETS: dict[str, int] = {
     "FastAPI upstream change": 61_000,
     # These task paths include choosing the development environment as well as the scoped
     # transformation; the added uv/interpreter depth is conditional elsewhere.
-    "Python automated refactor": 63_000,
+    "Python automated refactor": 64_000,
     "Python library migration": 63_000,
     "Existing UI change": 47_000,
     "Greenfield UI": 53_000,
