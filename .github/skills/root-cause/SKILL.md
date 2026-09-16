@@ -9,9 +9,6 @@ description: >-
 argument-hint: "[the bug or unexpected behavior]"
 ---
 
-> **Copilot adapter:** Fleet component names are bare in this generated copy.
-> Resolve them from the installed plugin using the host's agent or skill picker.
-
 Announce at start: "Using root-cause: reproduce → evidence → hypothesis → verify → fix."
 
 Core rule: **establish the causal mechanism before implementing permanent remediation.** Changing code on a

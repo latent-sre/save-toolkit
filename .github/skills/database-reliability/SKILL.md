@@ -7,9 +7,6 @@ description: >-
 argument-hint: "[the database or query symptom]"
 ---
 
-> **Copilot adapter:** Fleet component names are bare in this generated copy.
-> Resolve them from the installed plugin using the host's agent or skill picker.
-
 # Database reliability
 
 Keep data **correct, durable, and fast**, and make schema change safe in production. Our apps run on

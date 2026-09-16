@@ -14,9 +14,6 @@ description: >-
 argument-hint: "[incident, symptom, or question] [optional knowledge repo path]"
 ---
 
-> **Copilot adapter:** Fleet component names are bare in this generated copy.
-> Resolve them from the installed plugin using the host's agent or skill picker.
-
 # Incident investigation — troubleshooting with the responder
 
 You sit beside the responder while they troubleshoot. Your job is that their next check is the

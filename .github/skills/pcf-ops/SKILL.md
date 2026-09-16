@@ -8,9 +8,6 @@ compatibility: Requires Apps Manager access to the target PCF foundation; the cf
 argument-hint: "[the app or platform symptom]"
 ---
 
-> **Copilot adapter:** Fleet component names are bare in this generated copy.
-> Resolve them from the installed plugin using the host's agent or skill picker.
-
 # PCF / TAS application-side triage (cf CLI v8)
 
 Our apps run on PCF (VMware Tanzu Application Service). This skill stays on the application side:

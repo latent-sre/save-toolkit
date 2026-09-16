@@ -10,8 +10,6 @@ disable-model-invocation: true
 argument-hint: "[the app and target foundation]"
 ---
 
-> **Copilot adapter:** Fleet component names are bare in this generated copy.
-> Resolve them from the installed plugin using the host's agent or skill picker.
 > This skill is explicit-only through Copilot's frontmatter switch.
 
 # PCF / TAS deploy planning (cf CLI v8)

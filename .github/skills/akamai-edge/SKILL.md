@@ -10,9 +10,6 @@ compatibility: Requires Akamai Control Center access; DataStream 2 queries run i
 argument-hint: "[the edge, CDN, WAF, or RUM problem]"
 ---
 
-> **Copilot adapter:** Fleet component names are bare in this generated copy.
-> Resolve them from the installed plugin using the host's agent or skill picker.
-
 # Akamai edge — triage, delivery config, RUM
 
 We are Akamai customers, not Akamai operators: our lane is our properties' configuration, our

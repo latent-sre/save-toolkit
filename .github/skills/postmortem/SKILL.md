@@ -9,9 +9,6 @@ description: >-
 argument-hint: "[the resolved incident]"
 ---
 
-> **Copilot adapter:** Fleet component names are bare in this generated copy.
-> Resolve them from the installed plugin using the host's agent or skill picker.
-
 # Blameless postmortem
 
 Use the [postmortem template](./assets/postmortem-template.md): full for P1/P2 or an explicit full

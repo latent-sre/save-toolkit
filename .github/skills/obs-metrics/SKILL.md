@@ -8,9 +8,6 @@ description: >-
 argument-hint: "[service, metric question, or query goal]"
 ---
 
-> **Copilot adapter:** Fleet component names are bare in this generated copy.
-> Resolve them from the installed plugin using the host's agent or skill picker.
-
 # Metrics — the investigation shape
 
 Match the question, population and time window. Supplied-metric interpretation needs no new query or

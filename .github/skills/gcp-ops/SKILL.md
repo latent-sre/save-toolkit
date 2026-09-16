@@ -11,9 +11,6 @@ compatibility: Requires read access to the target Cloud Run service and logs; us
 argument-hint: "[the GCP service or symptom]"
 ---
 
-> **Copilot adapter:** Fleet component names are bare in this generated copy.
-> Resolve them from the installed plugin using the host's agent or skill picker.
-
 # GCP application-side triage (console or gcloud, read-only)
 
 Observe the named Cloud Run service. Claude's read-only guard allows the reads below; a lane

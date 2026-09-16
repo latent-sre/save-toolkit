@@ -10,9 +10,6 @@ description: >-
 argument-hint: "[service, symptom, or log question]"
 ---
 
-> **Copilot adapter:** Fleet component names are bare in this generated copy.
-> Resolve them from the installed plugin using the host's agent or skill picker.
-
 # Logs — the investigation shape
 
 Match the task: interpret supplied logs, write a query, or investigate. An explanation needs no new

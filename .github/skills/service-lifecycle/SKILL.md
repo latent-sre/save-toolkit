@@ -9,9 +9,6 @@ description: >-
 argument-hint: "[audit|onboard|retire] <service> [environment]"
 ---
 
-> **Copilot adapter:** Fleet component names are bare in this generated copy.
-> Resolve them from the installed plugin using the host's agent or skill picker.
-
 # Service lifecycle
 
 Every mode reads evidence and produces a checklist with owners; a human release owner or separately

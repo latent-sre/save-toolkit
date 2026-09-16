@@ -358,18 +358,14 @@ def _portable_skill(
     fields, body, raw_lines = parse_frontmatter(source)
     explicit = str(fields.get("name")) in MANUAL_ONLY or fields.get("disable-model-invocation") == "true"
     portable_frontmatter = adapt_text("\n".join(raw_lines), host)
-    note = [
-        f"> **{host.capitalize()} adapter:** Fleet component names are bare in this generated copy.",
-        "> Resolve them from the installed plugin using the host's agent or skill picker.",
-    ]
+    note = ""
     if explicit:
-        note.append("> This skill is explicit-only through Copilot's frontmatter switch.")
+        note = "> This skill is explicit-only through Copilot's frontmatter switch.\n\n"
     rendered = (
         "---\n"
         + portable_frontmatter
         + "\n---\n\n"
-        + "\n".join(note)
-        + "\n\n"
+        + note
         + adapt_text(body, host)
     )
     return rendered.encode("utf-8"), explicit
