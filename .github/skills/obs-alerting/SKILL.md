@@ -8,9 +8,6 @@ description: >-
 argument-hint: "[service, SLO, alert, storm, or synthetic check]"
 ---
 
-> **Copilot adapter:** Fleet component names are bare in this generated copy.
-> Resolve them from the installed plugin using the host's agent or skill picker.
-
 # Alert, correlate, page
 
 Page on user-visible symptoms that require action now. Use an SLI and error budget to distinguish a

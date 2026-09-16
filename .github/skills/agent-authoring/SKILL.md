@@ -10,9 +10,6 @@ description: >-
 argument-hint: "[artifact, roster, tool, or context problem]"
 ---
 
-> **Copilot adapter:** Fleet component names are bare in this generated copy.
-> Resolve them from the installed plugin using the host's agent or skill picker.
-
 # Agent authoring
 
 Quick job: apply the method inline. Iterative testing or a full agent/skill suite: name the target

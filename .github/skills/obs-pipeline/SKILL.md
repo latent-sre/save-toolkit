@@ -9,9 +9,6 @@ description: >-
 argument-hint: "[service, missing signal, or telemetry route]"
 ---
 
-> **Copilot adapter:** Fleet component names are bare in this generated copy.
-> Resolve them from the installed plugin using the host's agent or skill picker.
-
 # Ship telemetry end to end
 
 Treat the pipeline as one path with four independently failing boundaries:
