@@ -6,6 +6,8 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ## [Unreleased]
 
+## [0.50.0] - 2026-09-16
+
 ### Fixed
 
 - Reviewer evaluation checks now detect path-qualified and common wrapper-prefixed Python/tool
@@ -52,6 +54,8 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Generated Copilot skill copies no longer open with the adapter banner about bare component
+  names; the explicit-only line remains for manual skills.
 - Retired the standalone `incident-command` skill for the team's investigation role. The advisor
   retains its seven-field board, owns conditional mitigation and severity advice, and prepares
   technical updates for an existing bridge/TLC without opening another or assigning command roles.
