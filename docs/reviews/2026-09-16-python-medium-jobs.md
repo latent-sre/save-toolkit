@@ -109,7 +109,49 @@ Candidate: `0060f85c` (digest `0f0ee6dd…`, unchanged by the later runner commi
 Batch verdicts at the scenario's 1.0 threshold: incumbent FAIL (1/3), candidate FAIL (2/3). Every
 failure is the skill-reach check; the work passed the oracle in all six trials.
 
-## What the nine trials establish
+## Batch 3: the description candidate (`3becb641`, digest `90464da6…`)
+
+The batch-2 transcripts left the description as the one unmeasured reach lever: it opened with
+"Improve difficult Python code", a gate a model can read as a reason to skip the skill on a clean,
+well-specified task. The use-when now covers writing, refactoring, or modernizing any Python,
+"routine or difficult", and says to load before editing; the quoted triggers and the not-for line
+are unchanged (+19 bytes; always-loaded descriptions 16,660 of 17,000). Run after the change only,
+per the description-eval rule; same runner `6aa2c329`, CLI 2.1.271, Sonnet, workspaces on `F:`.
+
+| Trial | Verdict | `python-craft` loaded | Oracle (work) | Suite runs | Turns | Seconds | Cost |
+|---|---|---|---|---|---|---|---|
+| 1 | PASS | yes | pass | 9 | 43 | 195 | $0.58 |
+| 2 | PASS | yes | pass | 8 | 43 | 248 | $0.64 |
+| 3 | PASS | yes | pass | 7 | 38 | 224 | $0.61 |
+
+Batch verdict PASS (3/3, 0 inconclusive). Reach across the round: 1/6 on main, 2/3 with the
+step-1 edit alone, 3/3 with the description as well. The loaded trials ran 38–43 turns against
+29–39 unaided, and $0.58–0.64 against $0.47–0.63; a small tax, inside the spread of nine trials.
+
+Routing scenarios on the same candidate, three Sonnet trials each, after-only per the
+description-eval rule (`iter-3/eval-discovery-python-*/desc-sonnet/`):
+
+| Scenario | Expect | Verdict | Note |
+|---|---|---|---|
+| `discovery-python-refactoring` | fire | PASS 3/3 | |
+| `discovery-python-improvement` | fire | PASS 3/3 | |
+| `discovery-python-modernization` | fire | PASS 3/3 | runs 2–3 re-run after the copied OAuth token expired mid-batch (see below) |
+| `discovery-python-explanation` | fire | FAIL 0/3 | attribution run on main `8f4c11cf`: FAIL 0/3, so pre-existing, not a regression |
+| `discovery-python-defers-live-incident` | not fire | PASS 3/3 | the not-for line still holds |
+
+The explanation prompt ("I'm learning Python. Explain what this function does…") is answered
+directly in one turn on both descriptions; Sonnet does not reach for a skill to explain a
+six-line generator. That scenario has been red on main since it was added schema-validated
+in PR #270 and had no live result until now.
+
+Seven trials of the first routing pass returned INCONCLUSIVE in about 1.3 s with zero tokens:
+the clean room copies the host credential file per trial and a copy cannot refresh an expired
+OAuth token (`Failed to authenticate: OAuth session expired and could not be refreshed`, model
+`<synthetic>`). The affected slots were re-run under the same label, output directory, and
+digest with `--overwrite`, with a one-word host call before each scenario to keep the copied
+credential fresh.
+
+## What the trials establish
 
 - **Capability:** a medium-sized, multi-module Python refactor of this shape is completed correctly
   by Sonnet under `software-engineer` in 9/9 trials, with or without `python-craft`: one owner
@@ -117,11 +159,11 @@ failure is the skill-reach check; the work passed the oracle in all six trials.
   import orders working, the drifted test updated rather than deleted. The claim that stages are
   checkpoints rather than limits is now measured on this fixture; it is not attributable to the
   skill body.
-- **Skill reach is a propensity, not a contract:** `python-craft` self-loaded 1/6 on main and 2/3
-  with the step-1 edit. The direction matches the backend-craft finding that naming a craft in
-  Process step 1 raises Sonnet's load-first rate, but three trials against six cannot separate the
-  edit from noise (Fisher exact p ≈ 0.23). Keep the edit as the cheapest lever; do not cite it as
-  proven.
+- **Skill reach moved with wording, not with the body:** `python-craft` self-loaded 1/6 on main,
+  2/3 with the step-1 edit alone (Fisher exact p ≈ 0.23 against main, direction only), and 3/3
+  once the description stopped gating on "difficult". Three trials per cell are small; 3/3 against
+  1/6 is p ≈ 0.048 by the same test. Both levers are text the host shows the model before it
+  decides, which matches the backend-craft and advisor-trigger findings on Sonnet reach.
 - **No measurable effect of loading the skill on this job:** turns (33–39 loaded, 29–37 not), cost
   ($0.53–0.60 loaded, $0.47–0.63 not), and suite discipline (5–7 runs, one module per stage in
   seven of nine trials) do not move. Candidate trial 1, which read the refactoring reference, wrote
@@ -132,8 +174,9 @@ failure is the skill-reach check; the work passed the oracle in all six trials.
 - Behaviour on Opus, on the VS Code or Copilot hosts, or on a fixture larger than seven modules.
 - Whether the staging table and the parity-test asset drafted for this round would change anything;
   they were not shipped because no trial showed the gap they address.
-- A reliable way to make the agent reach `python-craft`. The scenario keeps its `skill_loaded`
-  check and 1.0 threshold like its six siblings, so it stays red on main until reach is solved or
-  the fleet decides reach is calibration-only, as it already does for agent dispatch.
+- Reach beyond three trials, on Opus, or on the six single-file Python probes. The scenario keeps
+  its `skill_loaded` check and 1.0 threshold like its six siblings; 3/3 on one candidate is a
+  first green, not a contract, and self-load remains a model propensity the fleet should keep
+  treating as calibration.
 - Cost or quality on the six existing single-file Python probes under the step-1 edit; they were
   not run.

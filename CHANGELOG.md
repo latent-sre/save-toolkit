@@ -68,6 +68,13 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- The `python-craft` description leads with writing, refactoring, or modernizing any Python,
+  "routine or difficult", and says to load before editing; it opened with "Improve difficult
+  Python code". Triggers and the not-for line are unchanged. After the change, on Sonnet: the
+  medium probe reaches the skill 3/3 (1/6 on main, 2/3 with the step-1 edit alone), and the
+  refactoring, improvement, modernization, and live-incident-negative routing scenarios pass 3/3;
+  `discovery-python-explanation` fails 0/3 on both this and main's description, a pre-existing
+  red. See the [medium Python refactor evidence](docs/reviews/2026-09-16-python-medium-jobs.md).
 - `software-engineer` Process step 1 names `python-craft` beside the backend, frontend, and CLI
   crafts; it previously appeared only in the on-demand catalogue further down. Projection
   regenerated. Measured direction only, not proof: see the evidence record above.
