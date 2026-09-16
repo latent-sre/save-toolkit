@@ -398,8 +398,8 @@ class RegradeTests(unittest.TestCase):
 class TraceAndCommandTests(unittest.TestCase):
     def test_parse_trace_extracts_tools_and_result(self) -> None:
         events = [
-            {"type": "system", "subtype": "init"},
-            {"type": "assistant", "message": {"content": [
+            {"type": "system", "subtype": "init", "model": "claude-sonnet-5"},
+            {"type": "assistant", "message": {"model": "claude-sonnet-5", "content": [
                 {"type": "tool_use", "id": "tu_s", "name": "Skill", "input": {"skill": "save-toolkit:eng-ladder"}},
                 {"type": "tool_use", "name": "Bash", "input": {"command": "python -m unittest -v"}},
                 {"type": "tool_use", "name": "Task", "input": {"subagent_type": "save-toolkit:reviewer"}},
@@ -408,9 +408,11 @@ class TraceAndCommandTests(unittest.TestCase):
             {"type": "user", "message": {"content": [
                 {"type": "tool_result", "tool_use_id": "tu_s", "content": "eng-ladder loaded"},
             ]}},
+            # The CLI's usage table lists its internal Haiku helper call beside the session model.
             {"type": "result", "result": "done", "duration_ms": 1234, "num_turns": 3,
              "usage": {"input_tokens": 10, "output_tokens": 5, "cache_read_input_tokens": 100},
-             "modelUsage": {"claude-sonnet-5": {}}, "permission_denials": [{"tool_name": "Bash"}]},
+             "modelUsage": {"claude-haiku-4-5-20251001": {"outputTokens": 14}, "claude-sonnet-5": {}},
+             "permission_denials": [{"tool_name": "Bash"}]},
         ]
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "t.jsonl"
@@ -422,9 +424,31 @@ class TraceAndCommandTests(unittest.TestCase):
         self.assertEqual(["python -m unittest -v"], s.bash_commands)
         self.assertEqual(["save-toolkit:reviewer"], s.dispatches)
         self.assertEqual(115, s.total_tokens)
-        self.assertEqual(["claude-sonnet-5"], s.models)
+        self.assertEqual(["claude-sonnet-5"], s.models, "a helper side call is not a resolved identity")
+        self.assertEqual(["claude-haiku-4-5-20251001", "claude-sonnet-5"], s.usage_models)
         self.assertEqual(["Bash"], s.denials)
         self.assertEqual({"Skill": 1, "Bash": 1, "Task": 1}, s.tool_counts)
+
+    def test_resolved_identity_follows_the_main_thread_not_the_usage_table(self) -> None:
+        """A helper side call never splits a batch; a parent that changed model mid-trial still does."""
+        result = {"type": "result", "result": "done", "duration_ms": 1, "num_turns": 2, "usage": {},
+                  "modelUsage": {"claude-haiku-4-5-20251001": {}, "claude-sonnet-5": {}}}
+        turn = lambda model: {"type": "assistant", "message": {"model": model, "content": [{"type": "text", "text": "ok"}]}}
+        steady = self._parse_events([{"type": "system", "subtype": "init", "model": "claude-sonnet-5"},
+                                     turn("claude-sonnet-5"), turn("claude-sonnet-5"), result])
+        self.assertEqual(["claude-sonnet-5"], steady.models)
+        changed = self._parse_events([{"type": "system", "subtype": "init", "model": "claude-sonnet-5"},
+                                      turn("claude-sonnet-5"), turn("claude-opus-4-1"), result])
+        self.assertEqual(["claude-opus-4-1", "claude-sonnet-5"], changed.models)
+        # A subagent's model is the dispatch's identity, not the parent's.
+        child = {"type": "assistant", "parent_tool_use_id": "tu_1",
+                 "message": {"model": "claude-opus-4-1", "content": [{"type": "text", "text": "child"}]}}
+        dispatched = self._parse_events([{"type": "system", "subtype": "init", "model": "claude-sonnet-5"},
+                                         turn("claude-sonnet-5"), child, result])
+        self.assertEqual(["claude-sonnet-5"], dispatched.models)
+        # No main-thread turn recorded (an early abort): the usage table is the only evidence.
+        bare = self._parse_events([result])
+        self.assertEqual(["claude-haiku-4-5-20251001", "claude-sonnet-5"], bare.models)
 
     @staticmethod
     def _parse_events(events: list) -> "build_probe.TraceSummary":

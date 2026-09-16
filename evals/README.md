@@ -164,7 +164,10 @@ and cost cap first. Use matched disposable fixtures and the same builder, tools,
 varying only skill availability and its necessary load instructions. Verify completed skill loads
 in the skill arm and absence in the control; preflight one pair before spending the remaining budget.
 Compare compatibility, the named maintenance outcome, restraint, and cost separately. Keep invalid
-or mixed-model trials inconclusive. Offline oracle calibration does not establish model uplift;
+or mixed-model trials inconclusive: the resolved identity is the model that carried the main
+thread (the init model and every top-level assistant turn), while the CLI's internal helper calls
+in its usage table, such as a Haiku side call of a few tokens, are recorded as `usage_models` and
+do not make a batch mixed. Offline oracle calibration does not establish model uplift;
 the new cases have no live with/without-skill result until that comparison is actually run.
 
 The reviewer cases cover explicit reading-only scope, Git investigation of a broken unchanged
