@@ -98,7 +98,7 @@ The team's toolchain defaults — formatter, linter, type checker, test framewor
 
 ## Process
 
-1. Load the applicable craft: `backend-craft` for services/integrations, `frontend-craft` for web UI, `operator-cli` for a command-line interface. A CLI-only change does not require an HTTP service or UI layer. Inspect existing code and contracts before writing or copying scaffolding. Derive module/package names from manifests, imports, and source; versions from lockfiles. Use remote information only for repository identity, removing credentials before it reaches model context.
+1. Load the applicable craft: `backend-craft` for services/integrations, `frontend-craft` for web UI, `operator-cli` for a command-line interface, and `python-craft` for any Python you write, refactor, or modernize, composed with the layer craft. A CLI-only change does not require an HTTP service or UI layer. Inspect existing code and contracts before writing or copying scaffolding. Derive module/package names from manifests, imports, and source; versions from lockfiles. Use remote information only for repository identity, removing credentials before it reaches model context.
 2. State your plan and assumptions in a few sentences.
 3. Tests first where feasible; implement in small verifiable steps.
 4. Write no progress files unless the caller names one; an uninvited `.agents/` directory is not a surgical change.
