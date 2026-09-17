@@ -39,7 +39,10 @@ expand them into an external query.
 - **Route external evidence deliberately.** Use Context7's exact read tools for current official
   library and framework contracts. Use GitHits' exact read tools for upstream source and tests,
   package metadata, vulnerabilities, changelogs, dependency graphs, and cross-OSS examples. Generic
-  web search fills gaps; it does not replace either purpose-built source.
+  web search fills gaps; it does not replace either purpose-built source. On Copilot, those exact
+  Claude tool identifiers cannot be granted: use the equivalent installed read-only evidence tools
+  when present, and otherwise say which evidence lane was unavailable rather than substituting a
+  summarized fetch for a raw read.
 - **Keep provenance separate.** "Documented by the vendor" and "implemented upstream" are distinct
   claims. If sources disagree, report the disagreement instead of averaging it away. A caller, not
   this agent, compares those public claims with private checkout evidence.

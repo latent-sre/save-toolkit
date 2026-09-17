@@ -13,8 +13,10 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   and the guarded-lane and MCP-evidence paragraphs. A projection is now the canonical body with
   Claude-only addressing removed, nothing prepended. A host limitation that changes what a lane may
   do travels with the rule it qualifies: `sre-assistant` already states in its own body that it has
-  no shell on Copilot. The preface test is inverted to fail if any preface returns, and was proven
-  red against a reintroduced one.
+  no shell on Copilot, and `researcher`'s evidence-routing rule now says in its own body that the
+  exact Context7/GitHits identifiers cannot be granted there, so an unavailable evidence lane is
+  named rather than replaced by a summarized fetch. The preface test is inverted to fail if any
+  preface returns, and was proven red against a reintroduced one.
 
 ## [0.50.0] - 2026-09-16
 
