@@ -6,6 +6,16 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ## [Unreleased]
 
+### Changed
+
+- Generated Copilot/VS Code agent profiles carry no generated preface at all: the whole "Host
+  adapter contract" header is gone, including the bare-names sentence, the inherited-tools caveat,
+  and the guarded-lane and MCP-evidence paragraphs. A projection is now the canonical body with
+  Claude-only addressing removed, nothing prepended. A host limitation that changes what a lane may
+  do travels with the rule it qualifies: `sre-assistant` already states in its own body that it has
+  no shell on Copilot. The preface test is inverted to fail if any preface returns, and was proven
+  red against a reintroduced one.
+
 ## [0.50.0] - 2026-09-16
 
 ### Fixed

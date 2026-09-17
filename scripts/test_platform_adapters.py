@@ -227,27 +227,36 @@ class PlatformAdapterTests(unittest.TestCase):
             self.assertNotIn("save-toolkit:", description, source.name)
         self.assertIn("eng-ladder", adapters.render_copilot_agent(ROOT / "agents/software-engineer.md"))
 
-    def test_copilot_agents_carry_the_inherited_tool_caveat_from_the_preface(self) -> None:
-        """The per-host hedge belongs to the generated preface, not to each canonical body.
+    def test_copilot_agents_get_no_generated_preface(self) -> None:
+        """A generated agent opens with its own body, not a host-contract header.
 
-        `scribe`, `researcher`, and `repository-investigator` each carried their own copy of it,
-        which is three places to edit when the host contract changes. Rendering it once means a
-        body that drops the sentence loses nothing on this host — and this test fails if the
-        preface line goes with it.
+        The preface restated per-host hedges that every agent then repeated. It was removed on the
+        owner's call, so a lane whose behavior actually changes on this host states that in its own
+        body: `sre-assistant` says it has no shell on Copilot. This test fails if a preface returns.
         """
-        caveat = (
-            "This host may not deny inherited tools per agent; a lane's no-execution or "
-            "no-egress rule is cooperative here unless the parent removes those tools, and the "
-            "lane reports that limitation rather than using them."
+        preface_markers = (
+            "Host adapter contract",
+            "deny inherited tools per agent",
+            "This generated profile runs on",
+            "no shell/execute tool",
+            "Context7/GitHits",
         )
         for source in sorted((ROOT / "agents").glob("*.md")):
-            rendered = " ".join(adapters.render_copilot_agent(source).split())
+            rendered = adapters.render_copilot_agent(source)
             with self.subTest(agent=source.stem):
-                self.assertIn(caveat, rendered)
-        for source in sorted((ROOT / "agents").glob("*.md")):
-            body = " ".join(source.read_text(encoding="utf-8").split())
-            with self.subTest(canonical=source.stem):
-                self.assertNotIn("deny inherited tools per agent", body)
+                for marker in preface_markers:
+                    self.assertNotIn(marker, rendered, marker)
+                # The projection body IS the adapted canonical body: nothing is prepended.
+                canonical_body = adapters.parse_frontmatter(source)[1]
+                self.assertEqual(
+                    adapters.adapt_text(canonical_body, "copilot").lstrip("\n"),
+                    rendered.split("---\n", 2)[2].lstrip("\n"),
+                )
+        # The one host limitation that changes behavior still reaches its lane, from its own body.
+        self.assertIn(
+            "On Copilot, this lane has no shell",
+            adapters.render_copilot_agent(ROOT / "agents/sre-assistant.md"),
+        )
 
     def test_copilot_agent_prompt_over_30000_characters_is_rejected(self) -> None:
         agent = (

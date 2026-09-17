@@ -296,40 +296,15 @@ def render_copilot_agent(source: Path) -> str:
     tools = {_tool_base(item) for item in tool_specs}
     delegation_targets = _delegation_targets(tool_specs, source)
     handoffs = _copilot_handoffs(name)
-    has_external_evidence = any(item.startswith("mcp__") for item in tool_specs)
     mapped = {COPILOT_TOOL_MAP[item] for item in tools if item in COPILOT_TOOL_MAP}
     if name in GUARDED_AGENTS:
         mapped.discard("execute")
     ordered = [tool for tool in COPILOT_TOOL_ORDER if tool in mapped]
-    contract = [
-        "## Host adapter contract",
-        "",
-        "This generated profile runs on GitHub Copilot and VS Code. Fleet component names are",
-        "bare on these hosts; resolve them through the installed plugin's agent or skill picker.",
-        "",
-        "This host may not deny inherited tools per agent; a lane's no-execution or no-egress rule",
-        "is cooperative here unless the parent removes those tools, and the lane reports that",
-        "limitation rather than using them.",
-    ]
-    if name in GUARDED_AGENTS:
-        contract += [
-            "",
-            "This profile deliberately receives no shell/execute tool. Claude's source profile",
-            "uses a session-wide read-only Bash guard, but these hosts cannot enforce that same",
-            "agent-specific command allowlist from the plugin contract.",
-        ]
-    if has_external_evidence:
-        contract += [
-            "",
-            "The canonical Claude role has exact read-only Context7/GitHits grants. This host",
-            "adapter cannot declare those Claude MCP identifiers; use equivalent installed read-only",
-            "evidence tools when present, otherwise report the unavailable evidence lane explicitly.",
-        ]
-    prompt_body = (
-        "\n".join(contract)
-        + "\n\n"
-        + adapt_text(body, "copilot")
-    )
+    # No generated preface: the projection is the canonical body with Claude-only addressing
+    # removed. A host limitation that changes what a lane may do is stated in that lane's own
+    # body (`sre-assistant` says it has no shell on Copilot), so it travels with the rule it
+    # qualifies instead of in a header every agent repeats.
+    prompt_body = adapt_text(body, "copilot")
     if len(prompt_body) > COPILOT_AGENT_PROMPT_MAX_CHARS:
         raise ValueError(
             f"{source}: generated Copilot agent prompt body is {len(prompt_body):,} characters; "
