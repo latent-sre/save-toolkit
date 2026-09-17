@@ -9,9 +9,6 @@ description: >-
 argument-hint: "[the change, build, or production action to gate]"
 ---
 
-> **Copilot adapter:** Fleet component names are bare in this generated copy.
-> Resolve them from the installed plugin using the host's agent or skill picker.
-
 # Production change gate
 
 Three questions, one gate. Each has its own checklist and verdict; a later question consumes the

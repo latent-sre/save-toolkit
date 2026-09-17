@@ -9,9 +9,6 @@ description: >-
 argument-hint: "[the runtime, tool, or infrastructure question]"
 ---
 
-> **Copilot adapter:** Fleet component names are bare in this generated copy.
-> Resolve them from the installed plugin using the host's agent or skill picker.
-
 # Stack profile — current facts, not aspirations
 
 Phrased as what is true today. When the ground shifts, update this canonical skill bundle and

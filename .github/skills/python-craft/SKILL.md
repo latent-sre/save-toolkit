@@ -11,9 +11,6 @@ description: >-
 argument-hint: "[Python code, file, or task]"
 ---
 
-> **Copilot adapter:** Fleet component names are bare in this generated copy.
-> Resolve them from the installed plugin using the host's agent or skill picker.
-
 # Python craft
 
 Improve difficult or repetitive Python through better design and implementation. Keep clear code

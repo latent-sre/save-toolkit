@@ -11,9 +11,6 @@ description: >-
 argument-hint: "[component, alert, incident, drill, or audit]"
 ---
 
-> **Copilot adapter:** Fleet component names are bare in this generated copy.
-> Resolve them from the installed plugin using the host's agent or skill picker.
-
 # Operational learning closeout
 
 A conversation did not learn anything durable. A discovery is learned only when evidence and an

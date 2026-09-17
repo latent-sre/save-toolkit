@@ -14,6 +14,36 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   every three-trial batch as INCONCLUSIVE for mixed identities. A parent that changes model
   mid-trial still resolves to two. Eval ceiling +36 lines. See the
   [medium Python refactor evidence](docs/reviews/2026-09-16-python-medium-jobs.md).
+
+### Added
+
+- A medium-sized Python build probe, `build-python-unify-policy`: seven modules, three drifted
+  intake entrypoints, a registry, a configured dotted lookup, a legacy re-export, and a unit suite
+  that encodes the drift. Its oracle checks specification parity for every entrypoint, single
+  ownership through the `policy.normalize_order` patch seam, exception identity, input
+  immutability, six fresh-process import orders, and a green suite that keeps its assertions;
+  eleven partial-ownership and lost-consumer artifacts are rejected by name. Eval ceiling +223
+  lines. Across twelve clean-room Sonnet trials on four candidates the fleet completed the
+  refactor correctly every time, with or without `python-craft`. See the
+  [medium Python refactor evidence](docs/reviews/2026-09-16-python-medium-jobs.md).
+
+### Changed
+
+- The `python-craft` description leads with writing, refactoring, or modernizing any Python,
+  "routine or difficult", and says to load before editing; it opened with "Improve difficult
+  Python code". Triggers and the not-for line are unchanged. After the change, on Sonnet: the
+  medium probe reaches the skill 3/3 (1/6 on main, 2/3 with the step-1 edit alone), and the
+  refactoring, improvement, modernization, and live-incident-negative routing scenarios pass 3/3;
+  `discovery-python-explanation` fails 0/3 on both this and main's description, a pre-existing
+  red. See the [medium Python refactor evidence](docs/reviews/2026-09-16-python-medium-jobs.md).
+- `software-engineer` Process step 1 names `python-craft` beside the backend, frontend, and CLI
+  crafts; it previously appeared only in the on-demand catalogue further down. Projection
+  regenerated. Measured direction only, not proof: see the evidence record above.
+
+## [0.50.0] - 2026-09-16
+
+### Fixed
+
 - Reviewer evaluation checks now detect path-qualified and common wrapper-prefixed Python/tool
   commands and require the reviewed range in Git diff/history requests. Added positive and negative
   calibration cases; the eval Python ceiling rises by 22 lines to 12,275 for this regression coverage.
@@ -45,16 +75,6 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Added
 
-- A medium-sized Python build probe, `build-python-unify-policy`: seven modules, three drifted
-  intake entrypoints, a registry, a configured dotted lookup, a legacy re-export, and a unit suite
-  that encodes the drift. Its oracle checks specification parity for every entrypoint, single
-  ownership through the `policy.normalize_order` patch seam, exception identity, input
-  immutability, six fresh-process import orders, and a green suite that keeps its assertions;
-  eleven partial-ownership and lost-consumer artifacts are rejected by name. Eval ceiling +223
-  lines. In nine clean-room Sonnet trials the fleet completed the refactor correctly every time,
-  with or without `python-craft`; the skill self-loaded 1/6 on main and 2/3 with the craft-loading
-  edit below, so both batches fail only the reach check. See the
-  [medium Python refactor evidence](docs/reviews/2026-09-16-python-medium-jobs.md).
 - Added conditional symptom comparisons to the human incident advisor for login failures,
   intermittent errors, slow requests, stale/wrong data, and missed jobs with limited telemetry.
   See the [general incident help evidence](docs/reviews/2026-09-06-general-incident-help.md) for
@@ -68,16 +88,8 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
-- The `python-craft` description leads with writing, refactoring, or modernizing any Python,
-  "routine or difficult", and says to load before editing; it opened with "Improve difficult
-  Python code". Triggers and the not-for line are unchanged. After the change, on Sonnet: the
-  medium probe reaches the skill 3/3 (1/6 on main, 2/3 with the step-1 edit alone), and the
-  refactoring, improvement, modernization, and live-incident-negative routing scenarios pass 3/3;
-  `discovery-python-explanation` fails 0/3 on both this and main's description, a pre-existing
-  red. See the [medium Python refactor evidence](docs/reviews/2026-09-16-python-medium-jobs.md).
-- `software-engineer` Process step 1 names `python-craft` beside the backend, frontend, and CLI
-  crafts; it previously appeared only in the on-demand catalogue further down. Projection
-  regenerated. Measured direction only, not proof: see the evidence record above.
+- Generated Copilot skill copies no longer open with the adapter banner about bare component
+  names; the explicit-only line remains for manual skills.
 - Retired the standalone `incident-command` skill for the team's investigation role. The advisor
   retains its seven-field board, owns conditional mitigation and severity advice, and prepares
   technical updates for an existing bridge/TLC without opening another or assigning command roles.

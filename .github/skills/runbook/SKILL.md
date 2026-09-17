@@ -10,9 +10,6 @@ description: >-
 argument-hint: "[service or tool]"
 ---
 
-> **Copilot adapter:** Fleet component names are bare in this generated copy.
-> Resolve them from the installed plugin using the host's agent or skill picker.
-
 Write for the tired responder: terse, copy-pasteable, unambiguous. Read actual config, compose/unit
 files, and existing docs before drafting; memory is not configuration evidence.
 

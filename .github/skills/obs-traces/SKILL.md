@@ -8,9 +8,6 @@ description: >-
 argument-hint: "[trace id, service, or latency question]"
 ---
 
-> **Copilot adapter:** Fleet component names are bare in this generated copy.
-> Resolve them from the installed plugin using the host's agent or skill picker.
-
 # Traces — the investigation shape
 
 Traces connect one sampled request across instrumented boundaries; logs give event detail, metrics

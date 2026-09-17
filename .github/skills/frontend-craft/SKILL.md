@@ -8,9 +8,6 @@ description: >-
 argument-hint: "[the UI to build or change]"
 ---
 
-> **Copilot adapter:** Fleet component names are bare in this generated copy.
-> Resolve them from the installed plugin using the host's agent or skill picker.
-
 # Frontend craft
 
 You write the actual code: complete, runnable files (components, styles, config, wiring), never

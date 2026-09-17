@@ -8,9 +8,6 @@ description: >-
 argument-hint: "[the API or service to build or change]"
 ---
 
-> **Copilot adapter:** Fleet component names are bare in this generated copy.
-> Resolve them from the installed plugin using the host's agent or skill picker.
-
 # Backend craft
 
 Load `stack-profile` to distinguish code the team authors from services it

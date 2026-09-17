@@ -8,9 +8,6 @@ description: >-
 argument-hint: "[command or operator workflow]"
 ---
 
-> **Copilot adapter:** Fleet component names are bare in this generated copy.
-> Resolve them from the installed plugin using the host's agent or skill picker.
-
 # Operator CLI craft
 
 Match existing language, framework, flags, exit codes, and consumers. Load `stack-profile` before
