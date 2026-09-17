@@ -21,6 +21,7 @@ SCENARIOS = {
     "unchanged": ("build-python-leaves-correct-code", "predicates.py"),
     "modules": ("build-python-module-move", "reports.py"),
     "calculation": ("build-python-separate-calculation", "totals.py"),
+    "policy": ("build-python-unify-policy", "policy.py"),
 }
 CORRECT = {
     "refactor": '''
@@ -87,6 +88,65 @@ CORRECT["modules"] = {
 }
 
 
+CORRECT["policy"] = {
+    **scenario("policy")["fixture"]["files"],
+    "policy.py": '''
+        import re
+
+        SKU = re.compile(r"[A-Z]{3}-\\d{4}")
+        MAX_QUANTITY = 999
+
+
+        def normalize_order(record):
+            sku = record.get("sku")
+            if not isinstance(sku, str) or not SKU.fullmatch(sku.strip().upper()):
+                raise ValueError("invalid sku")
+            quantity = record.get("quantity")
+            if isinstance(quantity, bool) or not isinstance(quantity, int) or not 1 <= quantity <= MAX_QUANTITY:
+                raise ValueError("invalid quantity")
+            unit_cents = record.get("unit_cents")
+            if isinstance(unit_cents, bool) or not isinstance(unit_cents, int) or unit_cents < 0:
+                raise ValueError("invalid price")
+            return {"sku": sku.strip().upper(), "quantity": quantity, "unit_cents": unit_cents}
+    ''',
+    "api.py": '''
+        import policy
+
+
+        def submit(payload):
+            return policy.normalize_order(payload)
+    ''',
+    "cli.py": '''
+        import policy
+
+
+        def run(line):
+            fields = line.rstrip("\\n").split(",")
+            if len(fields) != 3:
+                raise ValueError("expected sku,quantity,unit_cents")
+            sku, quantity, unit_cents = fields
+            try:
+                quantity, unit_cents = int(quantity), int(unit_cents)
+            except ValueError:
+                raise ValueError("expected integer quantity and unit_cents") from None
+            return policy.normalize_order({"sku": sku, "quantity": quantity, "unit_cents": unit_cents})
+    ''',
+    "batch.py": '''
+        import policy
+
+
+        def load(rows):
+            return [policy.normalize_order(row) for row in rows]
+    ''',
+    "legacy.py": '''
+        from api import submit as submit_order
+        from policy import MAX_QUANTITY
+    ''',
+    "tests/test_cli.py": scenario("policy")["fixture"]["files"]["tests/test_cli.py"].replace(
+        'cli.run("abc-1234,100,250")', 'cli.run("abc-1234,1000,250")'),
+}
+
+
 class PythonCraftOracleTests(unittest.TestCase):
     def test_refactoring_judgment_grader_rejects_each_wrong_decision(self):
         spec = yaml.safe_load((ROOT / "scenarios/python-refactoring-judgment.yaml").read_text(encoding="utf-8"))
@@ -133,7 +193,8 @@ class PythonCraftOracleTests(unittest.TestCase):
                     diagnostic = {"generator": "I/O operation on closed file",
                                   "migration": "stdlib validator was not used",
                                   "modules": "No module named 'formatting'",
-                                  "calculation": "missing in-memory calculation boundary"}[mode]
+                                  "calculation": "missing in-memory calculation boundary",
+                                  "policy": "No module named 'policy'"}[mode]
                     self.assertIn(diagnostic, result.stderr)
 
     def test_generator_open_aliases_remain_valid(self):
@@ -351,6 +412,77 @@ class PythonCraftOracleTests(unittest.TestCase):
         ]:
             with self.subTest(name=name):
                 result = self.run_artifact("refactor", source)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(diagnostic, result.stderr)
+
+    def test_policy_seed_suite_is_green_before_the_refactor(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for name, text in scenario("policy")["fixture"]["files"].items():
+                path = Path(tmp) / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(text, encoding="utf-8")
+            result = subprocess.run([sys.executable, "-I", "-B", "-m", "unittest", "discover", "-s", "tests", "-t", "."],
+                                    cwd=tmp, capture_output=True, text=True, timeout=30)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Ran 10 tests", result.stderr)
+
+    def test_policy_unification_rejects_partial_ownership_and_lost_consumers(self):
+        correct = CORRECT["policy"]
+        seed = scenario("policy")["fixture"]["files"]
+        policy_source = textwrap.dedent(correct["policy.py"])
+        for name, changes, diagnostic in [
+            ("owner keeps the drifted limit", {"policy.py": policy_source.replace("MAX_QUANTITY = 999", "MAX_QUANTITY = 99")},
+             "quantity limit drifted"),
+            ("owner skips the strip", {"policy.py": policy_source.replace("sku.strip().upper()", "sku.upper()")},
+             "disagrees with the specification"),
+            ("api keeps its own rules before delegating", {"api.py": "import policy\n" + seed["api.py"].replace(
+                'return {"sku": sku, "quantity": quantity, "unit_cents": unit_cents}',
+                "return policy.normalize_order(payload)")},
+             "api.submit bypassed the shared policy or kept its own rules"),
+            ("batch copies the rules instead of delegating", {"batch.py": seed["batch.py"].replace(
+                "SKU.match(sku.upper())", "SKU.match(sku.strip().upper())").replace(
+                '"sku": sku.upper()', '"sku": sku.strip().upper()')},
+             "batch.load bypassed the shared policy or kept its own rules"),
+            ("bound-name import defeats the patch seam", {"api.py": '''
+                from policy import normalize_order
+
+
+                def submit(payload):
+                    return normalize_order(payload)
+            '''}, "api.submit bypassed the shared policy or kept its own rules"),
+            ("legacy wraps instead of re-exporting", {"legacy.py": '''
+                import api
+                from policy import MAX_QUANTITY
+
+
+                def submit_order(payload):
+                    return api.submit(payload)
+            '''}, "legacy name rebound"),
+            ("policy exception replaced by a copy", {"api.py": '''
+                import policy
+
+
+                def submit(payload):
+                    try:
+                        return policy.normalize_order(payload)
+                    except ValueError as exc:
+                        raise ValueError(str(exc)) from None
+            '''}, "policy exception replaced"),
+            ("input mutated", {"api.py": '''
+                import policy
+
+
+                def submit(payload):
+                    if isinstance(payload.get("sku"), str):
+                        payload["sku"] = payload["sku"].strip().upper()
+                    return policy.normalize_order(payload)
+            '''}, "input mutated"),
+            ("circular import", {"policy.py": "from api import submit\n" + policy_source}, "partially initialized module"),
+            ("stale drift test kept", {"tests/test_cli.py": seed["tests/test_cli.py"]}, "fixture test suite failed"),
+            ("drift test deleted instead of updated", {"tests/test_cli.py": "import unittest\n"}, "fixture tests were removed"),
+        ]:
+            with self.subTest(name=name):
+                result = self.run_artifact("policy", {**correct, **changes})
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn(diagnostic, result.stderr)
 

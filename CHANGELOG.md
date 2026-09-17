@@ -6,6 +6,27 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ## [Unreleased]
 
+### Fixed
+
+- The build probe resolves a trial's model identity from the main thread (init model plus every
+  top-level assistant turn) and records the CLI's usage table separately as `usage_models`. Claude
+  Code 2.1.271 lists an internal Haiku helper call of a few tokens in that table, which had closed
+  every three-trial batch as INCONCLUSIVE for mixed identities. A parent that changes model
+  mid-trial still resolves to two. Eval ceiling +36 lines. See the
+  [medium Python refactor evidence](docs/reviews/2026-09-16-python-medium-jobs.md).
+
+### Added
+
+- A medium-sized Python build probe, `build-python-unify-policy`: seven modules, three drifted
+  intake entrypoints, a registry, a configured dotted lookup, a legacy re-export, and a unit suite
+  that encodes the drift. Its oracle checks specification parity for every entrypoint, single
+  ownership through the `policy.normalize_order` patch seam, exception identity, input
+  immutability, six fresh-process import orders, and a green suite that keeps its assertions;
+  eleven partial-ownership and lost-consumer artifacts are rejected by name. Eval ceiling +223
+  lines. Across twelve clean-room Sonnet trials on four candidates the fleet completed the
+  refactor correctly every time, with or without `python-craft`. See the
+  [medium Python refactor evidence](docs/reviews/2026-09-16-python-medium-jobs.md).
+
 ### Changed
 
 - Generated Copilot/VS Code agent profiles carry no generated preface at all: the whole "Host
@@ -17,6 +38,16 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   exact Context7/GitHits identifiers cannot be granted there, so an unavailable evidence lane is
   named rather than replaced by a summarized fetch. The preface test is inverted to fail if any
   preface returns, and was proven red against a reintroduced one.
+- The `python-craft` description leads with writing, refactoring, or modernizing any Python,
+  "routine or difficult", and says to load before editing; it opened with "Improve difficult
+  Python code". Triggers and the not-for line are unchanged. After the change, on Sonnet: the
+  medium probe reaches the skill 3/3 (1/6 on main, 2/3 with the step-1 edit alone), and the
+  refactoring, improvement, modernization, and live-incident-negative routing scenarios pass 3/3;
+  `discovery-python-explanation` fails 0/3 on both this and main's description, a pre-existing
+  red. See the [medium Python refactor evidence](docs/reviews/2026-09-16-python-medium-jobs.md).
+- `software-engineer` Process step 1 names `python-craft` beside the backend, frontend, and CLI
+  crafts; it previously appeared only in the on-demand catalogue further down. Projection
+  regenerated. Measured direction only, not proof: see the evidence record above.
 
 ## [0.50.0] - 2026-09-16
 

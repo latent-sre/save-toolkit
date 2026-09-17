@@ -1,10 +1,10 @@
 ---
 name: python-craft
 description: >-
-  Improve difficult Python code in services, CLIs, scripts, libraries, and tests:
-  simplify structure, reduce duplicated logic, fix established defects, and replace
-  custom machinery with suitable maintained libraries. Use for refactoring,
-  modernization, writing new code, explanations, and practical starting designs.
+  Write, refactor, or modernize Python in services, CLIs, scripts, libraries, and tests,
+  routine or difficult: simplify structure, reduce duplicated logic, fix established
+  defects, and replace custom machinery with suitable maintained libraries. Load before
+  editing any Python; also use for explanations and practical starting designs.
   Triggers: 'improve this Python', 'refactor this Python', 'modernize this module',
   'explain this Python'. Not for operating a running service or changing another
   language; backend-craft and operator-cli retain their interface contracts.
