@@ -1,0 +1,185 @@
+id: build-python-unify-policy
+agent: software-engineer
+tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
+prompt: |
+  Refactor this reviewed, team-authored Python 3.11+ fixture so the order policy has one owner.
+  Three intake entrypoints, api.submit(payload), cli.run(line), and batch.load(rows), each embed
+  their own copy of the same normalization and validation rules, and they have drifted. This
+  specification is authoritative: sku is a string, stripped of surrounding whitespace and uppercased,
+  matching three ASCII letters, a hyphen, and four digits; quantity is an int (never bool) from 1
+  through 999 inclusive; unit_cents is an int (never bool) of 0 or more. Invalid values raise
+  ValueError with the existing messages "invalid sku", "invalid quantity", and "invalid price",
+  checked in that order. Every entrypoint returns new {"sku", "quantity", "unit_cents"} dicts and
+  never mutates its input.
+  Put the shared rules in a new policy.py exposing MAX_QUANTITY and normalize_order(record) -> dict,
+  and route every entrypoint through it. Tests patch policy.normalize_order; every entrypoint must
+  honor that lookup and propagate its exception objects unchanged. Keep cli.run's own text parsing
+  and parsing messages. Keep legacy.py's names importable and bound to the same callables and
+  values, registry.INTAKES keys and callables, and the configured lookup in client.py/settings.json.
+  Policy-first and any entrypoint-first import must both work in a fresh process.
+  Work in coherent, verified stages: keep the unittest suite under tests/ green at each stage
+  (python -m unittest discover -s tests -t .), and update any test that encodes drifted behavior
+  rather than deleting its assertion.
+  Use local checks; no network, installs, commits, or external systems. Only change api.py, cli.py,
+  batch.py, policy.py, legacy.py, and files under tests/. Report the stages, what each verified,
+  and the maintenance benefit.
+fixture:
+  files:
+    .gitignore: "__pycache__/\n"
+    api.py: |
+      """HTTP-style order intake."""
+      import re
+
+      SKU = re.compile(r"^[A-Z]{3}-\d{4}$")
+      MAX_QUANTITY = 999
+
+
+      def submit(payload):
+          sku = payload.get("sku")
+          if not isinstance(sku, str):
+              raise ValueError("invalid sku")
+          sku = sku.strip().upper()
+          if not SKU.match(sku):
+              raise ValueError("invalid sku")
+          quantity = payload.get("quantity")
+          if isinstance(quantity, bool) or not isinstance(quantity, int) or not 1 <= quantity <= MAX_QUANTITY:
+              raise ValueError("invalid quantity")
+          unit_cents = payload.get("unit_cents")
+          if isinstance(unit_cents, bool) or not isinstance(unit_cents, int) or unit_cents < 0:
+              raise ValueError("invalid price")
+          return {"sku": sku, "quantity": quantity, "unit_cents": unit_cents}
+    cli.py: |
+      """Command-line order intake: one comma-separated sku,quantity,unit_cents line per order."""
+      import re
+
+      SKU = re.compile(r"^[A-Z]{3}-\d{4}$")
+      MAX_QUANTITY = 99
+
+
+      def run(line):
+          fields = line.rstrip("\n").split(",")
+          if len(fields) != 3:
+              raise ValueError("expected sku,quantity,unit_cents")
+          sku, quantity, unit_cents = fields
+          try:
+              quantity, unit_cents = int(quantity), int(unit_cents)
+          except ValueError:
+              raise ValueError("expected integer quantity and unit_cents") from None
+          sku = sku.strip().upper()
+          if not SKU.match(sku):
+              raise ValueError("invalid sku")
+          if not 1 <= quantity <= MAX_QUANTITY:
+              raise ValueError("invalid quantity")
+          if unit_cents < 0:
+              raise ValueError("invalid price")
+          return {"sku": sku, "quantity": quantity, "unit_cents": unit_cents}
+    batch.py: |
+      """Batch order intake from already-parsed rows."""
+      import re
+
+      SKU = re.compile(r"^[A-Z]{3}-\d{4}$")
+      MAX_QUANTITY = 999
+
+
+      def load(rows):
+          records = []
+          for row in rows:
+              sku = row.get("sku")
+              if not isinstance(sku, str) or not SKU.match(sku.upper()):
+                  raise ValueError("invalid sku")
+              quantity = row.get("quantity")
+              if isinstance(quantity, bool) or not isinstance(quantity, int) or not 1 <= quantity <= MAX_QUANTITY:
+                  raise ValueError("invalid quantity")
+              unit_cents = row.get("unit_cents")
+              if isinstance(unit_cents, bool) or not isinstance(unit_cents, int) or unit_cents < 0:
+                  raise ValueError("invalid price")
+              records.append({"sku": sku.upper(), "quantity": quantity, "unit_cents": unit_cents})
+          return records
+    registry.py: |
+      """Intake entrypoints by channel name; the keys are stable configuration values."""
+      import api
+      import batch
+      import cli
+
+      INTAKES = {"api": api.submit, "cli": cli.run, "batch": batch.load}
+    legacy.py: |
+      """Compatibility names imported by independently released plugins. Keep them importable."""
+      from api import MAX_QUANTITY, submit as submit_order
+    client.py: |
+      import importlib
+      import json
+      from pathlib import Path
+
+
+      def configured_intake():
+          configured = json.loads(Path("settings.json").read_text(encoding="utf-8"))["intake"]
+          module, attribute = configured.rsplit(".", 1)
+          return getattr(importlib.import_module(module), attribute)
+    settings.json: '{"intake": "api.submit"}'
+    tests/__init__.py: ""
+    tests/test_api.py: |
+      import unittest
+
+      import api
+
+
+      class SubmitTests(unittest.TestCase):
+          def test_normalizes_sku_and_keeps_values(self):
+              self.assertEqual(api.submit({"sku": " abc-1234 ", "quantity": 999, "unit_cents": 0}),
+                               {"sku": "ABC-1234", "quantity": 999, "unit_cents": 0})
+
+          def test_rejects_quantity_above_limit(self):
+              with self.assertRaisesRegex(ValueError, "^invalid quantity$"):
+                  api.submit({"sku": "ABC-1234", "quantity": 1000, "unit_cents": 1})
+
+          def test_rejects_bool_quantity(self):
+              with self.assertRaisesRegex(ValueError, "^invalid quantity$"):
+                  api.submit({"sku": "ABC-1234", "quantity": True, "unit_cents": 1})
+    tests/test_cli.py: |
+      import unittest
+
+      import cli
+
+
+      class RunTests(unittest.TestCase):
+          def test_parses_one_line(self):
+              self.assertEqual(cli.run("abc-1234,3,250\n"), {"sku": "ABC-1234", "quantity": 3, "unit_cents": 250})
+
+          def test_reports_malformed_line(self):
+              with self.assertRaisesRegex(ValueError, "^expected sku,quantity,unit_cents$"):
+                  cli.run("abc-1234,3")
+
+          def test_reports_non_integer_fields(self):
+              with self.assertRaisesRegex(ValueError, "^expected integer quantity and unit_cents$"):
+                  cli.run("abc-1234,three,250")
+
+          def test_rejects_quantity_above_limit(self):
+              with self.assertRaisesRegex(ValueError, "^invalid quantity$"):
+                  cli.run("abc-1234,100,250")
+    tests/test_batch.py: |
+      import unittest
+
+      import batch
+
+
+      class LoadTests(unittest.TestCase):
+          def test_keeps_row_order(self):
+              rows = [{"sku": "ABC-1234", "quantity": 1, "unit_cents": 5},
+                      {"sku": "XYZ-0001", "quantity": 2, "unit_cents": 0}]
+              self.assertEqual([record["sku"] for record in batch.load(rows)], ["ABC-1234", "XYZ-0001"])
+
+          def test_rejects_negative_price(self):
+              with self.assertRaisesRegex(ValueError, "^invalid price$"):
+                  batch.load([{"sku": "ABC-1234", "quantity": 1, "unit_cents": -1}])
+
+          def test_empty_input(self):
+              self.assertEqual(batch.load([]), [])
+checks:
+  - {check: skill_loaded, skill: python-craft, text: "Python craft was loaded"}
+  - {check: changes_within, allowed: [api.py, cli.py, batch.py, policy.py, legacy.py, tests], text: "consumers, registry, and configuration stay unchanged"}
+  - {check: no_new_commits, text: "no commits"}
+  - {check: bash_ran, pattern: "unittest|pytest", text: "the fixture suite was run at least once"}
+  - check: command_exit_zero
+    command: "python -I -B _python_oracle.py policy"
+    writes_from: {_python_oracle.py: evals/oracles/python-craft/check_contracts.py}
+    text: "one policy owner reached through every entrypoint, specification parity, unchanged consumers, both import orders, and a green fixture suite"

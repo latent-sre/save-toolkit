@@ -1297,6 +1297,9 @@ class TraceSummary:
     total_tokens: int = 0
     output_tokens: int = 0
     models: list[str] = field(default_factory=list)
+    # Every model in the CLI's usage table, including its internal helper calls (a Haiku side call
+    # of a few tokens). Recorded for cost attribution; `models` is the resolved identity.
+    usage_models: list[str] = field(default_factory=list)
     num_turns: int | None = None
     total_cost_usd: float | None = None
     has_result: bool = False
@@ -1402,7 +1405,8 @@ def parse_trace(path: Path) -> TraceSummary:
             s.total_tokens = sum(int(usage.get(k) or 0) for k in (
                 "input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"))
             s.output_tokens = int(usage.get("output_tokens") or 0)
-            s.models = sorted((ev.get("modelUsage") or {}).keys())
+            s.usage_models = sorted((ev.get("modelUsage") or {}).keys())
+            s.models = list(s.usage_models)  # fallback when no main-thread turn was recorded
             s.num_turns = ev.get("num_turns")
             s.total_cost_usd = ev.get("total_cost_usd")
             for denial in ev.get("permission_denials") or []:
@@ -1492,6 +1496,13 @@ def parse_trace(path: Path) -> TraceSummary:
     for d in s.denial_details:  # the reason lives in the matching error tool result
         d["reason"] = errors_by_id.get(d["id"], "")
     s.main_models = sorted(set(s.main_models))
+    # The resolved identity is whoever carried the main thread: the init model and every top-level
+    # assistant turn. The usage table also lists the CLI's internal helper calls (the judge's
+    # _resolved_model documents the same Haiku side call); those stay in usage_models and do not
+    # make a batch mixed. A parent that changed model mid-trial still resolves to two identities.
+    resolved = [model for model in s.main_models if model]
+    if resolved:
+        s.models = resolved
     return s
 
 
@@ -2708,6 +2719,7 @@ def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, 
             "initial_parent_reference_reads": trace.parent_reads_before_dispatch,
             "initial_parent_skills_before_dispatch": trace.parent_skills_before_dispatch, "main_models": trace.main_models,
             "status": grading["status"], "inconclusive": inconclusive, "models": trace.models,
+            "usage_models": trace.usage_models,
             "num_turns": trace.num_turns, "tool_counts": trace.tool_counts, "skills": trace.skills,
             "skills_failed": trace.skills_failed,
             "advertised_tools": trace.advertised_tools, "mcp_servers": trace.mcp_servers, "permission_mode": trace.permission_mode,
@@ -2948,8 +2960,8 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
         summary.update({
             "initial_parent_reference_reads": trace.parent_reads_before_dispatch,
             "initial_parent_skills_before_dispatch": trace.parent_skills_before_dispatch, "main_models": trace.main_models,
-            "models": trace.models, "num_turns": trace.num_turns, "tool_counts": trace.tool_counts,
-            "skills": trace.skills, "skills_failed": trace.skills_failed,
+            "models": trace.models, "usage_models": trace.usage_models, "num_turns": trace.num_turns,
+            "tool_counts": trace.tool_counts, "skills": trace.skills, "skills_failed": trace.skills_failed,
             "advertised_tools": trace.advertised_tools, "mcp_servers": trace.mcp_servers,
             "permission_mode": trace.permission_mode, "dispatches": trace.dispatches,
             "denials": trace.denials, "bash_commands": trace.bash_commands,
