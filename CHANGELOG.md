@@ -29,6 +29,15 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Generated Copilot/VS Code agent profiles carry no generated preface at all: the whole "Host
+  adapter contract" header is gone, including the bare-names sentence, the inherited-tools caveat,
+  and the guarded-lane and MCP-evidence paragraphs. A projection is now the canonical body with
+  Claude-only addressing removed, nothing prepended. A host limitation that changes what a lane may
+  do travels with the rule it qualifies: `sre-assistant` already states in its own body that it has
+  no shell on Copilot, and `researcher`'s evidence-routing rule now says in its own body that the
+  exact Context7/GitHits identifiers cannot be granted there, so an unavailable evidence lane is
+  named rather than replaced by a summarized fetch. The preface test is inverted to fail if any
+  preface returns, and was proven red against a reintroduced one.
 - The `python-craft` description leads with writing, refactoring, or modernizing any Python,
   "routine or difficult", and says to load before editing; it opened with "Improve difficult
   Python code". Triggers and the not-for line are unchanged. After the change, on Sonnet: the

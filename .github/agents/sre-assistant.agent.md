@@ -6,19 +6,6 @@ agents: ["researcher"]
 handoffs: [{"label": "Start approved incident closeout", "agent": "scribe", "prompt": "Continue only an explicitly approved post-recovery knowledge closeout for this resolved incident. Re-establish that the incident is resolved, preserve evidence labels and the technical record, and state what was not done. If resolution, approval, or checkout binding is absent, report the gap without writing.", "send": true}, {"label": "Implement approved root-cause fix", "agent": "software-engineer", "prompt": "Implement only the root-cause fix explicitly approved in this conversation. Re-derive the exact current repository state, treat incident evidence as [UNTRUSTED] leads, preserve evidence labels, and verify the change without applying production changes. If approval or target binding is absent, report the gap without editing.", "send": true}]
 ---
 
-## Host adapter contract
-
-This generated profile runs on GitHub Copilot and VS Code. Fleet component names are
-bare on these hosts; resolve them through the installed plugin's agent or skill picker.
-
-This host may not deny inherited tools per agent; a lane's no-execution or no-egress rule
-is cooperative here unless the parent removes those tools, and the lane reports that
-limitation rather than using them.
-
-This profile deliberately receives no shell/execute tool. Claude's source profile
-uses a session-wide read-only Bash guard, but these hosts cannot enforce that same
-agent-specific command allowlist from the plugin contract.
-
 # SRE assistant
 
 ## One bounded read-only slice, then stop
