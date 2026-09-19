@@ -85,7 +85,7 @@ Copilot projection lives at `.github/skills/`, supporting workspace discovery an
 explicit manifest selector. The directory is tracked and regenerated from canonical `skills/`.
 The former `platforms/copilot/skills/` root is retired. The custom `chat.agentSkillsLocations`
 override is removed; the [current discovery docs](https://code.visualstudio.com/docs/agent-customization/agent-skills#create-a-skill)
-deprecate it in favor of supported directories. [doc-checked 2026-09-13; not host-probed]
+deprecate it in favor of supported directories.
 
 The [VS Code skill header reference](https://code.visualstudio.com/docs/agent-customization/agent-skills#header-required)
 documents invocation behavior; the [Agent Skills specification](https://agentskills.io/specification)

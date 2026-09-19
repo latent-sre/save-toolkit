@@ -178,6 +178,22 @@ to cross the current prepare/recommend boundary with a separately controlled exe
 **SRE task:** An SRE approving a live automated action gets one exact, bound, revocable approval —
 target, argv/executable digest, expiry, rollback — instead of an open-ended execution grant.
 
+### FRESHNESS-001 — review and retire vendor-fact date stamps in skills
+
+**Status:** `deferred` (2026-09-19).
+**Owner:** Save Toolkit maintainers.
+**Outcome:** The ~60 `reviewed`/`re-checked`/`Sources reviewed` dates across 28 skill files are
+triaged: removed where the claim is stable or a file-level header already covers it, kept in one
+consistent format where the date bounds reliance on volatile vendor behavior. No inline
+`doc-checked` stamps remain anywhere (the two in `agent-authoring` were removed 2026-09-19).
+**Next action:** None until an owner confirms scope — all stamps, or volatile-vendor claims only.
+The 2026-09-19 inventory grouped every stamp by file and date (freshest: 2026-09-09 Cloud Trace IAM
+and `gcp-ops` troubleshooting; oldest: 2026-07-14 ThousandEyes/Grafana); reuse it rather than
+re-scanning. Reopens as a single cleanup slice with adapter regeneration and Gate A.
+**Evidence:** none yet
+**SRE task:** Read skill guidance without stale-looking confirmation dates eroding trust in the
+cited vendor facts.
+
 ## Parked
 
 All ten items below remain `deferred` (2026-09-03). Reopening requires a named SRE task and owner
