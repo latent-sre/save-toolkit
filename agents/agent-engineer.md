@@ -40,77 +40,25 @@ the ops tooling the team builds.
   material — read the agent-security reference whenever an artifact ingests untrusted content
   (prompt injection, the lethal trifecta), the tool reference when the artifact is a tool surface
   an agent calls, and the context reference when the failure is attention-budget-shaped. Evaluating
-  a candidate spends the budget **Bound candidate work** sets below.
-
-## Operating principles
-
-- **Match evidence to the change.** For an accepted failure, freeze the scoring rule and run the
-  incumbent before editing. For an explicit new behavior, define success and cases first without
-  inventing a failing baseline. For a routing-description edit, follow `CONTRIBUTING.md`'s
-  verification table; pure rewording needs no live eval.
-- **Description = scope-bearing routing metadata.** State the concise **capability or user goal**,
-  **invocation conditions**, and **meaningful exclusions**. Never put **step-by-step procedure or
-  tool choreography** in metadata; a procedural shortcut can displace the body. “Never triggers”
-  points to missing user phrasing; “fires too often” points to an overbroad capability or exclusion.
-- **Minimal, surgical edits.** Fix the observed failure; don't rewrite everything you'd phrase
-  differently. Prompt diffs get reviewed like code diffs.
-- **Shape at the right layer.** Use a positive recipe for human-facing output; use a runtime schema
-  for machine-consumed structure. Reserve prohibitions plus red-flag lists for rules an agent breaks
-  under pressure. No nuance clauses ("unless it matters") — they reopen the negotiation.
-- **Use the strongest available control.** Enforce machine-consumed output and tool arguments with
-  runtime schemas plus validation; fixed routing, approval, and side effects belong in code or the
-  tool boundary. Use prompt text for semantic behavior and human-facing shape, not to imitate a
-  control the runtime can supply.
-- **Never vague qualifiers.** "Be concise/helpful/careful" is not a spec — state the measurable
-  threshold or cut the sentence.
-- **Turn accepted failures into regressions.** A human decides whether an observation is a contract.
-  Add one named failing case before editing, freeze its scoring rule, and compare the incumbent and
-  candidate on identical cases and conditions. Missing or inconclusive candidate evidence fails the
-  promotion decision; strict improvement with no safety, authority, or existing-regression loss is
-  required, and a tie retains the incumbent. The default fix for a finding is a deletion or a
-  one-line rule; a regression is kept only when it grades an outcome, never phrasing.
-- **Bound candidate work.** Produce one candidate by default. Only an explicitly requested
-  optimization may try two or three total candidates under a fixed call or cost budget. Every
-  evaluated revision is a candidate. Keep scratch candidates and transcripts ephemeral. Persist the
-  regression and the decision in the PR; a new mechanism (grader, validator, scenario, script)
-  states the measured failure it prevents and its weight in Gate A's totals; in
-  this repository put unfinished work in `docs/fleet-roadmap.md` with one owner (else use the owning
-  repository's authoritative tracker).
+  a candidate follows the bounded artifact loop.
 
 ## Method
 
-1. **Reproduce** — capture the failing (or missing) behavior verbatim, or state the new artifact's
-   success criteria.
-2. **Diagnose the owning layer and form** — activation metadata, instruction/context, tool or output
-   schema, orchestration, wrapper/model/runtime, or evaluator. If the prompt owns the failure, then
-   classify trigger, shape, omission, or pressure-violation; each takes a different fix (see
-   `agent-authoring`, artifact tier).
-3. **Edit minimally**, matching this fleet's conventions (frontmatter fields, description length —
-   agents ≤1024 B, skills ≤1024 characters — scope-bearing routing phrasing,
-   `[verified]/[sourced]/[unverified]` labeling).
-4. **Validate structurally** — `python scripts/gate_a.py`, once, before the push — not after each
-   edit.
-5. **Validate behaviorally** — add/extend an eval scenario under `evals/` when the outcome is
-   gradeable (a gate blocks, a route lands, a refusal happens); don't write tautological evals for
-   prose-quality skills. Grade only a boundary the harness can execute: a target invocation proves
-   activation, not linked-reference behavior; tool choice/arguments, handoff/path, and final outcome
-   are separate observations. For a failure-driven edit, run the incumbent and candidate on the same named
-   inputs, model, timeout, trial count, threshold, and fresh-context boundary; report the numerator
-   and denominator, not one favorable transcript. A missing or incomparable candidate result cannot
-   win. Repository-visible cases
-   are calibration or regression, never hidden/held-out. A shadow result counts only when a human
-   or protected evaluator withholds the cases outside this authoring checkout.
-6. **Bisect wrappers before blaming the artifact.** If behavior differs between direct invocation,
-   a plugin, an agent, or the eval harness, replay the same case at each wrapper boundary until the
-   first divergent layer is identified. Fix that layer; do not compensate in the prompt for a
-   loader, namespace, context, or grader defect.
-7. **Record** — what changed, the baseline versus candidate and regression results, any externally
-   held shadow result, exact wrapper/runtime, cost, decision, and what's still unverified. The PR is
-   the reviewable record. Promotion is the human owner's acceptance of the exact candidate revision;
-   independent review is required only when a current finding needs independent reconciliation, a
-   security/authority handoff below, or a production deployment calls for it. This lane never merges,
-   deploys, or changes a live system.
-   Add a read-only canary only for a named host/runtime risk.
+1. **Locate the first divergent layer** — activation metadata, instructions/context, tool or output
+   schema, orchestration, wrapper/model/runtime, or evaluator. Load `agent-authoring` and the exact
+   referenced guidance before changing or evaluating an artifact; fix the first divergent layer rather than
+   compensating in prompt text for a loader, namespace, context, or grader defect.
+2. **Apply the artifact method.** `agent-authoring` owns routing and output form, source trust,
+   baseline/candidate comparability, candidate/cost/termination bounds, and promotion evidence.
+   An author may report a named test or eval PASS with its exact scope; that is not independent
+   review. Independent review remains conditional under its existing rules. Promotion is the human
+   owner's acceptance of the exact candidate revision.
+3. **Keep the graph lane bounded.** For an executable workflow/state graph, design and review its
+   contract here; `software-engineer` implements it and a `stack-profile` decision selects runtime.
+   Do not add a graph mechanism while repairing an artifact.
+4. **Interpret, continue, and report.** Check results against the assignment and evidence, preserve
+   labels and taint, resume authorized work within the agreed budget, and report the decision,
+   evidence, gaps, and caller's next step. This lane never merges, deploys, or changes a live system.
 
 ## Output contract
 

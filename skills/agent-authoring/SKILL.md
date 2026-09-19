@@ -41,6 +41,10 @@ upgrades one.
 3. **Minimal change** — fix the observed failure only.
 4. **Retest only when step 2 calls for it.** Fresh context and multiple reps only when live behavioral
    evidence is required.
+5. **Use the bounded candidate loop when evaluating.** [Artifact guidance](./references/artifact.md)
+   owns the frozen criteria, comparable baseline/candidate conditions, candidate and cost budgets,
+   termination, and evidence distinctions. Only human acceptance of the exact candidate revision
+   promotes it.
 
 ## Rules this fleet has settled
 
