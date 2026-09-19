@@ -41,9 +41,16 @@ Verify intentional behavior changes separately from behavior-preserving restruct
 | Custom HTTP transport code | Existing client; HTTPX where its capabilities fit | Redirects, phase timeouts, exception hierarchy, streams, pooling, lifecycle |
 | Repeated retry implementation | Existing SDK policy or configured Tenacity | Eligibility, attempt/deadline budget, cancellation, terminal exception |
 | Broad deterministic input coverage | Hypothesis alongside existing tests | Meaningful invariants, independent expectations, input domain |
+| Multi-keyword scanning over many texts | Pinned `pyahocorasick` over per-key substring loops | Encoding, whole-word vs substring, overlaps; stdlib `re` alternation for small sets |
+| Hot JSON encode/decode | Pinned `orjson` where a binary dep fits; stdlib `json` otherwise | Rejected types, bytes-vs-`str` output, key-order determinism |
+| Human-facing CLI tables | Pinned `rich` for output only, never for decisions | Plain-text fallback for pipes/logs; no logic on rendered text |
+| Parallel test execution | Pinned `pytest-xdist` (`-n auto`) for suites | Shared-state collisions, ordering dependence; never for ordered trials |
 | Paths, batching, TOML reading | `pathlib`, `itertools`, `tomllib` where supported | Platform semantics, partial batches, parsing versus writing, Python floor |
 
-These are options to evaluate, not approved additions for every project. Toolchain defaults remain
+These are options to evaluate, not approved additions for every project. The pinned names above
+live in `requirements-dev.txt`, which the CI validate job installs before Gate A, so gate-path
+scripts may import them; the hook guard (`readonly-guard.py`, `python -I -S`) stays
+stdlib-only permanently. Toolchain defaults remain
 in `stack-profile`; version pins belong in the project's dependency files. Recheck package facts at
 adoption rather than freezing "latest" versions into this guidance.
 

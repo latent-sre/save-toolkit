@@ -9,3 +9,7 @@ jsonschema
 inspect-ai
 inspect-swe
 anthropic
+orjson
+pyahocorasick
+pytest-xdist
+rich

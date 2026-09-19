@@ -28,6 +28,11 @@ jobs:
           python-version: '3.14'
           check-latest: true
 
+      # Gate A may import third-party packages; install pins first so a bare
+      # runner never hits an ImportError (see docs/decisions/2026-08-23).
+      - name: Install pinned gate dependencies
+        run: python -m pip install -r requirements-dev.txt
+
       # gate_a.py owns the structural roster; component suites run in the matrix below.
       - name: Gate A -- mechanical audit
         run: python scripts/gate_a.py

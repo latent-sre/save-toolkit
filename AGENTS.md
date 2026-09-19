@@ -9,7 +9,7 @@ advises the human; agents take the bounded jobs the human dispatches; skills ser
 a platform check gives the human the console view and the agent the command beside it.
 The team investigates and recommends fixes while a separate human lead runs the incident. Preserve
 an existing bridge or TLC (Techline Chat); keep the investigation board and prepare technical updates
-for that conversation without asking the responder to establish command or another channel.
+without asking the responder to establish command or another channel.
 
 The team's stack lives in [`stack-profile`](skills/stack-profile/SKILL.md). Skill-capable lanes load
 it before recommending or changing supported runtime, tooling, or infrastructure choices; the
@@ -36,7 +36,7 @@ it before recommending or changing supported runtime, tooling, or infrastructure
 
 The last column is the Claude delegation graph, validated against each agent's frontmatter by
 Gate A. `Agent(...)` enforces an edge only on the main thread; at subagent depth the list is
-silently ignored, so there the graph is documented intent rather than a control — see the
+documented intent rather than a control — see the
 [delegation graph](skills/agent-authoring/references/delegation-graph.md). VS Code handoffs are
 separate.
 
@@ -90,7 +90,7 @@ separate.
   the invoking caller, who owns repair and release decisions.
 - **Learning:** only an invoked operational closeout turns a discovery into repository state; the
   originating agent never approves it.
-- Lead with the conclusion, then evidence and next steps. Use blameless language for incidents.
+- Lead with the conclusion, then evidence and next steps, in blameless language for incidents.
 
 ## Hard rules
 
