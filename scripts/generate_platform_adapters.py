@@ -74,8 +74,6 @@ COPILOT_TOOL_MAP = {
     # projection drops them rather than substituting `execute`, which would widen authority.
 }
 COPILOT_MCP_TOOL_MAP = {
-    "mcp__microsoft_playwright_mcp__browser_click": "microsoft/playwright-mcp/browser_click",
-    "mcp__microsoft_playwright_mcp__browser_navigate": "microsoft/playwright-mcp/browser_navigate",
     "mcp__microsoft_playwright_mcp__browser_snapshot": "microsoft/playwright-mcp/browser_snapshot",
     "mcp__microsoft_playwright_mcp__browser_take_screenshot": "microsoft/playwright-mcp/browser_take_screenshot",
 }

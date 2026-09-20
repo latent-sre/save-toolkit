@@ -34,7 +34,10 @@ authority. The host must load the matching command guard; a skill cannot install
 | Application/change evidence | existing `cf`, `gcloud`, `git`, `gh` read forms | same existing read forms |
 
 Names above are examples, not discovered targets. PowerShell supports the specific `Select-Object`
-and `ConvertTo-Json` output forms in the guard. It rejects assignments, interpolation, script blocks,
+and `ConvertTo-Json` output forms in the guard. Before JSON, explicitly project only approved fields,
+for example `Get-Process -Name python | Select-Object -Property Name,Id,CPU | ConvertTo-Json`.
+`Select-Object -First` alone is not sufficient: serializing an entire process object can expose
+environment credentials through `StartInfo`. It rejects assignments, interpolation, script blocks,
 command chains, redirection, and interpreter wrappers. The authenticated GET below is the one
 explicit environment-variable exception. Preserve named targets and bounded windows from the ask.
 

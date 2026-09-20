@@ -45,6 +45,46 @@ class CrossPlatformReads(unittest.TestCase):
             with self.subTest(command=command):
                 self.assertEqual(43, self.guard(command))
 
+    def test_json_requires_explicit_safe_property_projection(self):
+        for command in (
+            "Get-Process -Name powershell | ConvertTo-Json -Depth 10",
+            "Get-Process | Select-Object -First 1 | ConvertTo-Json",
+            "Get-Service | ConvertTo-Json -Depth 3",
+            "ConvertTo-Json -Depth 10",
+        ):
+            for copilot in (False, True):
+                with self.subTest(command=command, copilot=copilot):
+                    self.assertEqual(43, self.guard(command, copilot=copilot))
+        for command in (
+            "Get-Process -Name powershell | Select-Object -Property Name,Id,CPU | ConvertTo-Json -Depth 10",
+            "Get-Process | Select-Object -Property Name | Select-Object -First 2 | ConvertTo-Json",
+            "Get-Service | Select-Object -First 2 | Select-Object -Property Name,Status | ConvertTo-Json",
+        ):
+            with self.subTest(command=command):
+                self.assertEqual(42, self.guard(command))
+
+    @unittest.skipUnless(os.name == "nt", "Native serialization regression requires Windows")
+    def test_allowed_process_json_does_not_serialize_environment(self):
+        command = "Get-Process -Name powershell | Select-Object -Property Name,Id,CPU | ConvertTo-Json -Depth 10"
+        self.assertEqual(42, self.guard(command))
+        env = {key: value for key, value in os.environ.items() if key.upper() in {
+            "PATH", "PATHEXT", "SYSTEMROOT", "WINDIR", "COMSPEC", "TEMP", "TMP",
+            "USERPROFILE", "APPDATA", "LOCALAPPDATA",
+        }}
+        sentinel = "synthetic-credential-regression-value"
+        env["GRAFANA_SA_TOKEN"] = sentinel
+        result = subprocess.run(["powershell.exe", "-NoProfile", "-Command", command],
+                                env=env, text=True, capture_output=True, timeout=20)
+        self.assertEqual(0, result.returncode)
+        self.assertNotIn(sentinel, result.stdout)
+        self.assertNotIn(sentinel, result.stderr)
+        rows = json.loads(result.stdout)
+        if isinstance(rows, dict):
+            rows = [rows]
+        self.assertTrue(rows)
+        for row in rows:
+            self.assertEqual({"Name", "Id", "CPU"}, set(row))
+
     def test_macos_reads(self):
         for command in ("uname -s", "sw_vers -productVersion", "uptime", "df -h"):
             with self.subTest(command=command):
@@ -99,7 +139,11 @@ class CrossPlatformReads(unittest.TestCase):
     @unittest.skipUnless(os.name == "nt", "Windows PowerShell launcher requires Windows")
     def test_real_powershell_launcher_allows_reads_and_denies_writes(self):
         launcher = ROOT / "scripts/readonly-guard-hook.ps1"
-        for command, denied in (("Get-Date -Format o", False), ("Stop-Service Spooler", True)):
+        for command, denied in (
+            ("Get-Date -Format o", False), ("Stop-Service Spooler", True),
+            ("Get-Process -Name powershell | ConvertTo-Json -Depth 10", True),
+            ("Get-Process -Name powershell | Select-Object -Property Name,Id | ConvertTo-Json", False),
+        ):
             payload = {"tool_name": "run_in_terminal", "tool_input": {"command": command}}
             result = subprocess.run(
                 ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(launcher), "-Copilot"],

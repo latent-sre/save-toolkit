@@ -25,7 +25,7 @@ records do not re-queue work.
 
 ### RELEASE-001 — make the toolkit installable as an immutable, rollback-tested release
 
-**Status:** `active` (2026-09-10).
+**Status:** `active` (2026-09-20).
 **Owner:** Maintainers accept the release; `agent-engineer` owns the plugin contract and
 `software-engineer` owns helper/adapter repairs.
 **Outcome:** An SRE installs a pinned artifact rather than whatever `main` holds, and can roll back
@@ -35,10 +35,13 @@ exact shipping bytes, which the 2026-09-10 local-install run did not exercise.
 for an immutable selector or checksum, then re-run the acceptance cases on those shipping bytes: the
 2026-09-10 pass was against a local `./` install, and a passing run does not carry to bytes it did
 not exercise. The enforcement results that were open on VS Code 1.135.0 are superseded by that run.
-Still unrun: the agent-scoped hook canary, with `hooks/copilot-hooks.json` shipping empty. VS Code
-1.111+ supports `PreToolUse` permission decisions whose payload fields match `readonly-guard.py`, so
-the canary is shorter than the procedure implies -- what does not carry over is the 42/43/44
-exit-code authentication and `agent_type` scoping.
+Still unrun: the agent-scoped terminal-hook canary and the SRE visual-read acceptance cases, with
+`hooks/copilot-hooks.json` shipping empty. Maintainers must run the exact candidate in an isolated
+profile on each supported host, including a dedicated Grafana Viewer browser session. The SRE
+browser grant is snapshot/screenshot only; navigation and clicks are absent. Structural tool checks
+do not prove image delivery or helper invocation. The installed VS Code 1.138 source handles some
+hook failures as warnings; the launcher's 42/43/44 protocol is not authentication or proof of
+fail-closed host behavior. Keep those limits explicit until the host cases are observed.
 **Evidence:** The 2026-09-10 VS Code 1.137.0 acceptance row in the host-support table of
 [`README.md`](../README.md); HOST-002's closure commit records the owner disposition.
 **SRE task:** Install a named version of the toolkit, and go back to the previous one if it regresses.

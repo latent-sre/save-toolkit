@@ -18,6 +18,25 @@ does not rule out browser screenshots; true does not prove a render works. A bro
 no connected browser also does not prove that server rendering is unavailable. Check the available
 path rather than installing infrastructure as part of a read-only task.
 
+## SRE browser observation
+
+The fleet's `sre-assistant` receives only exact `browser_snapshot` and `browser_take_screenshot`
+grants. It can inspect a prepared view; it cannot navigate, click, change time/variables, scroll
+through interactions, evaluate page code, or authenticate. A browser snapshot describes accessible
+page structure; rendered graph claims require inspecting a screenshot, not just snapshot text.
+
+The human opens the requested dashboard and sets the window/variables in a dedicated Viewer
+session connected to the MCP browser. Use a profile containing only the requested Grafana context,
+with host-enforced origin restrictions where available; do not attach a broad personal/admin
+session. The browser credential is separate from an API token. Establish effective read-only
+permissions for that identity and org before accepting the session; a role label alone is not proof.
+Keep captures within the host's private artifact directory, not arbitrary repository paths.
+
+If more panels must be revealed or the wrong page is connected, return the exact view needed for
+the human to prepare, or use supplied screenshots. Do not replace a missing/denied browser tool
+with a shell script or another automation channel. Tool names must match the registered server on
+the actual host; unavailable tools are an access gap. The shell guard does not enforce MCP calls.
+
 ## Bind query and image evidence
 
 1. Resolve the instance/org, dashboard UID, stored model, and actual panel identifier. Capture an

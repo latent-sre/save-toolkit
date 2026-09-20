@@ -105,9 +105,7 @@ EVIDENCE_MCP_TOOLS = {
     "mcp__plugin_githits_githits__search_language",
     "mcp__plugin_githits_githits__search_status",
 }
-BROWSER_READ_MCP_TOOLS = {
-    "mcp__microsoft_playwright_mcp__browser_click",
-    "mcp__microsoft_playwright_mcp__browser_navigate",
+BROWSER_OBSERVATION_MCP_TOOLS = {
     "mcp__microsoft_playwright_mcp__browser_snapshot",
     "mcp__microsoft_playwright_mcp__browser_take_screenshot",
 }
@@ -209,7 +207,7 @@ def _tool_grant_failures(path: Path, specs: list[str]) -> list[str]:
             continue
         base = match.group(1)
         if base.startswith("mcp__"):
-            approved_mcp = EVIDENCE_MCP_TOOLS | BROWSER_READ_MCP_TOOLS
+            approved_mcp = EVIDENCE_MCP_TOOLS | BROWSER_OBSERVATION_MCP_TOOLS
             if base not in approved_mcp:
                 failures.append(f"{path}: MCP authority is not exact-approved: {base}")
             if match.group(2):
@@ -257,7 +255,10 @@ def _authority_failures(name: str, path: Path, specs: list[str], bases: set[str]
     failures: list[str] = []
     authority = EXPECTED_AUTHORITY[name]
     missing = sorted(authority["required"] - bases)
-    forbidden = sorted(authority["forbidden"] & bases)
+    forbidden_tools = authority["forbidden"]
+    if name != "sre-assistant":
+        forbidden_tools = forbidden_tools | BROWSER_OBSERVATION_MCP_TOOLS
+    forbidden = sorted(forbidden_tools & bases)
     if missing:
         failures.append(f"{path}: missing required tool(s): {', '.join(missing)}")
     if forbidden:

@@ -307,6 +307,7 @@ def explain_powershell(command: str) -> "str | None":
         r"select-object -property (?:name|status|id|cpu|ws|handles)(?:,(?:name|status|id|cpu|ws|handles))*",
         r"convertto-json(?: -depth (?:[1-9]|10))?",
     )
+    safe_projection = False
     for index, part in enumerate(command.split("|")):
         part = part.strip()
         if not re.fullmatch(token + r"(?:\s+" + token + r")*", part):
@@ -314,6 +315,12 @@ def explain_powershell(command: str) -> "str | None":
         if any(re.fullmatch(form, part, re.IGNORECASE) for form in native_forms):
             if index and not part.lower().startswith(("select-object ", "convertto-json")):
                 return "PowerShell pipelines may end only in the supported output filters"
+            # Process.StartInfo.EnvironmentVariables includes the current environment. JSON
+            # depth/row limits do not sanitize that object; select only approved scalar fields.
+            if part.lower().startswith("convertto-json") and not safe_projection:
+                return "JSON output requires Select-Object -Property with approved fields first"
+            if part.lower().startswith("select-object -property "):
+                safe_projection = True
             continue
         if index:
             return "PowerShell pipelines may end only in the supported output filters"

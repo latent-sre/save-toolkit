@@ -108,6 +108,13 @@ class PlatformAdapterTests(unittest.TestCase):
             self.assertNotIn("${CLAUDE_PLUGIN_ROOT}", rendered.split("---", 2)[1])
             self.assertIn((ROOT / "scripts").as_posix(), rendered.split("---", 2)[1])
 
+    def test_only_sre_gets_browser_observation_tools(self) -> None:
+        expected = {"microsoft/playwright-mcp/browser_snapshot",
+                    "microsoft/playwright-mcp/browser_take_screenshot"}
+        for source in (ROOT / "agents").glob("*.md"):
+            browser = {t for t in self._copilot_tools(source.stem) if "playwright" in t}
+            self.assertEqual(expected if source.stem == "sre-assistant" else set(), browser, source.stem)
+
     def test_powershell_grant_requires_its_hook_handler(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
