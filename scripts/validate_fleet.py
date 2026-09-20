@@ -105,6 +105,12 @@ EVIDENCE_MCP_TOOLS = {
     "mcp__plugin_githits_githits__search_language",
     "mcp__plugin_githits_githits__search_status",
 }
+BROWSER_READ_MCP_TOOLS = {
+    "mcp__microsoft_playwright_mcp__browser_click",
+    "mcp__microsoft_playwright_mcp__browser_navigate",
+    "mcp__microsoft_playwright_mcp__browser_snapshot",
+    "mcp__microsoft_playwright_mcp__browser_take_screenshot",
+}
 EXTERNAL_EVIDENCE_TOOLS = {"ToolSearch", *WEB_TOOLS, *EVIDENCE_MCP_TOOLS}
 SCRIBE_TOOLS = {"Read", "Grep", "Glob", "Edit", "Write", "Skill"}
 EXPECTED_AUTHORITY = {
@@ -128,7 +134,8 @@ EXPECTED_AUTHORITY = {
     },
     "sre-assistant": {
         "required": {"Read", "Bash", "PowerShell", "Skill", "Agent"},
-        "forbidden": {*WRITE_TOOLS, *WORKTREE_TOOLS, *EXTERNAL_EVIDENCE_TOOLS},
+        "forbidden": {*WRITE_TOOLS, *WORKTREE_TOOLS, *EXTERNAL_EVIDENCE_TOOLS,
+                      "mcp__microsoft_playwright_mcp__run_code_unsafe"},
     },
     "observability-engineer": {
         "required": {"Read", "Bash", "Edit", "Write", "Skill", "Agent"},
@@ -202,7 +209,8 @@ def _tool_grant_failures(path: Path, specs: list[str]) -> list[str]:
             continue
         base = match.group(1)
         if base.startswith("mcp__"):
-            if base not in EVIDENCE_MCP_TOOLS:
+            approved_mcp = EVIDENCE_MCP_TOOLS | BROWSER_READ_MCP_TOOLS
+            if base not in approved_mcp:
                 failures.append(f"{path}: MCP authority is not exact-approved: {base}")
             if match.group(2):
                 failures.append(f"{path}: MCP grants cannot carry scoped arguments: {spec}")

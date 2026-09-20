@@ -73,6 +73,12 @@ COPILOT_TOOL_MAP = {
     # `EnterWorktree`/`ExitWorktree` have no Copilot alias and are deliberately unmapped: the
     # projection drops them rather than substituting `execute`, which would widen authority.
 }
+COPILOT_MCP_TOOL_MAP = {
+    "mcp__microsoft_playwright_mcp__browser_click": "microsoft/playwright-mcp/browser_click",
+    "mcp__microsoft_playwright_mcp__browser_navigate": "microsoft/playwright-mcp/browser_navigate",
+    "mcp__microsoft_playwright_mcp__browser_snapshot": "microsoft/playwright-mcp/browser_snapshot",
+    "mcp__microsoft_playwright_mcp__browser_take_screenshot": "microsoft/playwright-mcp/browser_take_screenshot",
+}
 COPILOT_HANDOFFS_BY_SOURCE = {
     "observability-engineer": (
         {
@@ -297,10 +303,15 @@ def render_copilot_agent(source: Path, *, command_preview: bool = False) -> str:
     tools = {_tool_base(item) for item in tool_specs}
     delegation_targets = _delegation_targets(tool_specs, source)
     handoffs = _copilot_handoffs(name)
-    mapped = {COPILOT_TOOL_MAP[item] for item in tools if item in COPILOT_TOOL_MAP}
+    mapped = {
+        COPILOT_TOOL_MAP[item] for item in tools if item in COPILOT_TOOL_MAP
+    } | {
+        COPILOT_MCP_TOOL_MAP[item] for item in tools if item in COPILOT_MCP_TOOL_MAP
+    }
     if name in GUARDED_AGENTS:
         mapped.discard("execute")
     ordered = [tool for tool in COPILOT_TOOL_ORDER if tool in mapped]
+    ordered.extend(sorted(tool for tool in mapped if tool not in COPILOT_TOOL_ORDER))
     if name in GUARDED_AGENTS and command_preview:
         ordered.extend(["execute/runInTerminal", "execute/getTerminalOutput"])
     # No generated preface: the projection is the canonical body with Claude-only addressing
