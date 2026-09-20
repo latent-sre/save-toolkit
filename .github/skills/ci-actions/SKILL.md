@@ -1,8 +1,9 @@
 ---
 name: ci-actions
 description: >-
-  Design, troubleshoot, and optimize GitHub Actions workflows: fast feedback, caching, test
-  matrices, reusable jobs, reproducible artifacts, and secure delivery. Triggers: 'set up CI',
+  Review, design, troubleshoot, and optimize GitHub Actions workflows: fast feedback, caching, test
+  matrices, reusable jobs, reproducible artifacts, and secure delivery. Includes advice-only
+  workflow reviews when the caller asks for findings without edits. Triggers: 'set up CI',
   'speed up this pipeline', 'why is this workflow failing', 'harden the pipeline'. Not for
   application failures after deployment (pcf-ops, gcp-ops) or runtime bugs (root-cause).
 argument-hint: "[workflow, failure, or optimization goal]"

@@ -1,0 +1,12 @@
+id: discovery-ci-actions-defers-live-incident
+split: regression
+prompt: |
+  Our Python service deployed successfully, but production latency is rising and requests are
+  timing out right now. I am the responder with Apps Manager and logs. Help me decide what to
+  check next; the build and test jobs passed and no workflow or source changes are requested.
+target: {kind: skill, name: ci-actions}
+routing:
+  expect: not_fire
+  expected_alternative: {kind: skill, name: incident-investigation}
+success_criteria:
+  - Selects incident investigation for the live application failure without invoking workflow engineering.

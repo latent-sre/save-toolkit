@@ -80,8 +80,9 @@ request covering it is sufficient authorization, without a repeated approval que
   validation. The applicable create or update checks in `grafana` establish an absent intended
   uid and a human-owned recovery path before a create, which has no prior version or inherited token;
   updates carry the fresh token and rollback content. Dashboard saves carry the change reference and
-  read back with every changed query proved on a real window and the visual check done or stated
-  plainly as not performed. Folder creates and updates use that skill's separate folder checks and
+  read back with every changed query validated against its expected result on a real window under
+  `grafana`'s query-verification procedure, and the visual check done or stated plainly as not
+  performed. Folder creates and updates use that skill's separate folder checks and
   readback. Repository recovery-copy facts belong to `stack-profile`; live dashboard history remains
   separate evidence. A dashboard timeout, dropped response, or crash after dispatch is an **UNKNOWN**
   outcome, not a failed write: stop and reconcile from a fresh read back plus version history before
