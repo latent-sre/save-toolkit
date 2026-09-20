@@ -26,11 +26,16 @@ def available_shell() -> str | None:
 
 
 def available_powershell() -> str | None:
-    for candidate in ("pwsh", "powershell"):
-        discovered = shutil.which(candidate)
-        if discovered:
-            return discovered
-    return None
+    """An interpreter that can run the PowerShell hook command AS WRITTEN, or None.
+
+    `pwsh` on a Linux runner is NOT a substitute. It parses the command string happily and then
+    dies on `powershell.exe`, which exists only on Windows -- so gating on "some PowerShell is
+    installed" turns an inapplicable platform into a red suite instead of a skip. GitHub's
+    ubuntu-latest ships pwsh, which is exactly how that bit this file.
+    """
+    if not sys.platform.startswith("win"):
+        return None
+    return shutil.which("powershell") or shutil.which("pwsh")
 
 
 def rebuild_inline_command(script_lines: list[str]) -> str:
@@ -80,6 +85,11 @@ class HookWiringTests(unittest.TestCase):
         Code substitutes path placeholders into the command string as plain text before the shell
         sees them, and also exports them to the spawned process. This test reproduces that
         substitution so the launch path is exercised rather than argued about.
+
+        SCOPE: the PowerShell handler is Windows-only and every CI job here is ubuntu-latest, so
+        this never runs in CI. It is a Windows developer-host check. A green CI run is therefore
+        NOT evidence for this hook command; only a local Windows run is, which is why the skip is
+        platform-gated rather than made a CI failure the way the POSIX hook's is.
         """
         document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
         entry = next(e for e in document["hooks"]["PreToolUse"] if e["matcher"] == "PowerShell")
