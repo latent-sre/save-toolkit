@@ -30,14 +30,21 @@ The built-in dimensions (browser, OS, device, network, geography, ISP) are the t
 
 1. **Back-End Time moved, Front-End flat** → network/edge/origin side. Correlate with Akamai
    activations (property-config reference), offload changes (Traffic by Hostname), and origin latency
-   (`turnAroundTimeMSec` in DataStream 2). Localized to one geography/ISP → network-shaped;
-   uniform everywhere → origin-shaped.
-2. **Front-End Time moved, Back-End flat** → app-side (new JS, third-party tag, render change).
-   Correlate with app deploys; the Waterfall view names the slow object.
+   from origin telemetry or mPulse's **Origin Time** timer when that measurement is available.
+   DataStream 2 `turnAroundTimeMSec` includes edge/upstream turnaround and cannot isolate the origin.
+   Localized geography/ISP impact raises a path hypothesis; uniform impact leaves shared edge,
+   origin, and population changes open.
+2. **Front-End Time moved, Back-End flat** → inspect post-first-byte work. This includes network
+   and server waits for page assets as well as JS, third-party tags, and rendering. Use the Waterfall
+   to distinguish resource fetch delays from browser execution before choosing an owner; a fast
+   base document does not clear the servers used by later requests.
 3. **Both moved at once** → suspect the measurement or the page itself changed (new page weight,
    new beacon config) before believing two independent regressions landed together.
 4. Always compare **equal-duration windows** and check whether traffic mix changed (a bot wave or a
    campaign changes the population, not the site).
+
+*[sourced: [mPulse timer definitions](https://techdocs.akamai.com/mpulse/docs/use-metrics),
+checked 2026-09-20; target timer availability and causal attribution remain unverified]*
 
 ## Boundaries
 

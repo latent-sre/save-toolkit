@@ -47,9 +47,10 @@ Verify intentional behavior changes separately from behavior-preserving restruct
 | Parallel test execution | Pinned `pytest-xdist` (`-n auto`) for suites | Shared-state collisions, ordering dependence; never for ordered trials |
 | Paths, batching, TOML reading | `pathlib`, `itertools`, `tomllib` where supported | Platform semantics, partial batches, parsing versus writing, Python floor |
 
-These are options to evaluate, not approved additions for every project. The pinned names above
-live in `requirements-dev.txt`, which the CI validate job installs before Gate A, so gate-path
-scripts may import them; the hook guard (`readonly-guard.py`, `python -I -S`) stays
+These are options to evaluate, not approved additions for every project. **When developing Save
+Toolkit itself**, the pinned names above live in its `requirements-dev.txt`, which its CI validate
+job installs before Gate A, so its gate-path scripts may import them. This does not establish
+dependency availability in another project. The toolkit's hook guard (`readonly-guard.py`, `python -I -S`) stays
 stdlib-only permanently. Toolchain defaults remain
 in `stack-profile`; version pins belong in the project's dependency files. Recheck package facts at
 adoption rather than freezing "latest" versions into this guidance.

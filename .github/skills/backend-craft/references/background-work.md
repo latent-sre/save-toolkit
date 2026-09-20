@@ -1,7 +1,8 @@
 # Durable background work
 
 `../SKILL.md` owns the house contract. The repository's queue wins; otherwise load `stack-profile`.
-Defaults until recorded there: ARQ/TaskIQ for async FastAPI, Celery for its ecosystem.
+ARQ/TaskIQ for async FastAPI and Celery for its ecosystem are candidates to assess against the
+workload, not fleet defaults; an accepted stack choice belongs in `stack-profile`.
 
 - **Acceptance:** verify webhook authenticity and durably persist work before accepting. Default
   `202` for new asynchronous receivers; provider acknowledgement contracts win. Expose status for

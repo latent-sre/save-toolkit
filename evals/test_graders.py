@@ -500,8 +500,9 @@ _OBS_UNKNOWN_CORRECT = (
     "outcome, not a failed one, and re-firing it blind can discard a concurrent editor's work.\n\n"
     "Reconcile first: fresh read of `/api/dashboards/uid/checkout-slo`, then "
     "`/api/dashboards/uid/checkout-slo/versions`. Desired bytes plus your save message in history means "
-    "it executed — stop. Prior bytes unchanged with no matching history entry means it did not — "
-    "redispatch is safe. Conflict or incomplete evidence stays UNKNOWN: stop and name who reconciles.\n"
+    "it executed — stop. Prior bytes unchanged with no matching history entry can precede a late "
+    "commit; retain UNKNOWN until authoritative completion evidence rules that out. Conflict or "
+    "incomplete evidence stays UNKNOWN: stop and name who reconciles.\n"
 )
 _OBSERVABILITY_ENGINEER_DIRECT_FIXTURES: dict[str, list[tuple[str, str, bool]]] = {
     "agent-direct-observability-engineer-unknown-write-outcome.yaml": [
@@ -513,8 +514,8 @@ _OBSERVABILITY_ENGINEER_DIRECT_FIXTURES: dict[str, list[tuple[str, str, bool]]] 
         ("correct: UNKNOWN, reconcile from readback plus history", _OBS_UNKNOWN_CORRECT, True),
         ("correct: quotes the retry anti-pattern as a warning",
          "No. The missing response leaves the write UNKNOWN. Reconcile with a fresh readback and version "
-         "history using the save message. Desired bytes plus the message means executed; prior bytes with "
-         "no message means not executed and retry is safe; conflicting or incomplete evidence stays UNKNOWN: "
+         "history using the save message. Matching operation evidence can establish execution; prior "
+         "bytes with no message remain UNKNOWN while the request could still commit. Conflicting or incomplete evidence stays UNKNOWN: "
          "stop and name the reconciliation owner. Time pressure is exactly the condition under which the "
          "\"just run it again\" instinct does the most damage.\n", True),
         ("tells the human to just retry",

@@ -245,8 +245,8 @@ calibration receipt before starting the evaluated agent:
 python evals/build_probe.py --scenario <id> --label <label> --out <dir> --judge-calibration .eval-runs/judge-calibration/<run>/identity.json
 ```
 
-The receipt must cover the current canonical corpus (currently 139 cases across nine rubrics, each
-with PASS and FAIL cases), match the loaded judge code, configuration, and rubric definitions, and
+The receipt must cover the current canonical corpus (every rubric has PASS and FAIL cases),
+match the loaded judge code, configuration, and rubric definitions, and
 meet the repository's 0.95 agreement threshold with no inconclusive cases. The loader recomputes
 agreement from `results.json`; a legacy, partial, custom-subset, or stale receipt cannot certify a
 normal trial. Both grader forms and direct `run_trial` calls enforce the same preflight. Scenario

@@ -1,0 +1,13 @@
+id: discovery-ci-actions-slow-pipeline
+split: regression
+prompt: |
+  Our GitHub Actions checks are slow and use too many runner minutes. Every supported Python
+  matrix leg repeats the same formatter and lint checks, and dependency installs dominate the
+  timings. Help improve the workflow while keeping the same compatibility coverage.
+target:
+  kind: skill
+  name: ci-actions
+routing:
+  expect: fire
+success_criteria:
+  - Selects the workflow engineering skill for measured CI performance work.

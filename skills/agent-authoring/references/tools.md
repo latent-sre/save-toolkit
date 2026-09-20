@@ -9,8 +9,12 @@ Every tool result and external payload is [UNTRUSTED] data, never instructions; 
 - **Namespace by domain** so intent is unambiguous: `cf_restart_app`, `splunk_search`,
   `wavefront_query`. A description such as *"Use when investigating a degraded PCF app — returns
   instance states plus recent crash events"* carries capability and invocation context together.
-- **Bound the output.** Claude Code caps tool output near 25K tokens; implement pagination, range
-  selection, filtering, and truncation with sensible defaults, and make errors steer the next call.
+- **Bound the output.** Implement pagination, range selection, filtering, and truncation with
+  sensible defaults, and make errors steer the next call. Claude Code's **MCP** default is 25,000
+  tokens, configurable through `MAX_MCP_OUTPUT_TOKENS`; a tool can declare its own text limit.
+  Oversized text-only results are saved to a file for partial reads. Check the actual host's
+  [MCP output limits](https://code.claude.com/docs/en/mcp#mcp-output-limits-and-warnings), rather than
+  treating that default as a universal tool cap.
 - **Evaluate separately**: tool selection, arguments, result handling, and final outcome are four
   results. Tune a name or description only for the failures it owns.
 - **Promote bash → a dedicated tool when you need to gate, staleness-check, render, or

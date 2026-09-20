@@ -81,9 +81,10 @@ instrumentation uses the full method.
    >   A collector cannot recover spans never exported by the SDK. Check this before tuning tail
    >   policies; do not increase sampling outside the authorized scope.
    > - **Routing:** *all spans of a trace MUST reach the same collector instance*, or policies evaluate
-   >   on a fragment. This needs a two-layer topology — a **load-balancing exporter** layer in front of
-   >   the tail-sampling layer. Deploying tail sampling behind a plain round-robin LB is the classic
-   >   silent misconfiguration.
+   >   on a fragment. One sampling collector needs no extra routing tier. When scaling to multiple
+   >   sampling collectors, preserve trace-ID affinity; upstream recommends a **load-balancing
+   >   exporter** layer in front of the sampling layer. A plain round-robin LB can split a trace.
+   >   See [tail-sampling scaling guidance](https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/processor/tailsamplingprocessor/README.md#scaling-collectors-with-the-tail-sampling-processor).
    > - **Capacity:** `num_traces` (default **50,000**) is how many traces are held in memory. *"When a
    >   new trace arrives, the oldest trace is removed"* — it can be **dropped before it is ever
    >   sampled**. **Watch `otelcol_processor_tail_sampling_sampling_trace_dropped_too_early`**; that

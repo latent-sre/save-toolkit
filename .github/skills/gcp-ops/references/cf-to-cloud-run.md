@@ -9,8 +9,19 @@ committing a migration decision to a packet.
 
 An app qualifies for the straightforward path when it "must use HTTP or HTTP/2 (including gRPC)
 and listen for traffic based on the PORT environment variable", stateless *[sourced: migration
-overview page]*. TCP-routed apps, apps writing local state, and long-running background workers
-need redesign or Cloud Run jobs — flag them early, don't discover them at cutover.
+overview page]*. TCP-routed apps and apps writing durable local state need separate runtime/storage
+assessment. Distinguish background workload lifecycles before proposing a destination:
+
+- Finite tasks that run to completion are candidates for **Cloud Run jobs**.
+- Continuous, non-HTTP pull workers are candidates for **Cloud Run worker pools**; check regional
+  availability, scaling and recovery requirements. A service with **instance-based billing and
+  minimum instances greater than zero** can also fit background work when its service contract fits;
+  CPU allocation alone does not wake a service from zero without a request.
+
+These are workload candidates, not the team's accepted landing runtime; `stack-profile` retains
+that decision. *[sourced: [Cloud Run resource types](https://docs.cloud.google.com/run/docs/overview/what-is-cloud-run),
+[billing](https://docs.cloud.google.com/run/docs/configuring/cpu-allocation), and
+[autoscaling](https://docs.cloud.google.com/run/docs/about-instance-autoscaling); reviewed 2026-09-20]*
 
 ## The map (and where each row bites)
 

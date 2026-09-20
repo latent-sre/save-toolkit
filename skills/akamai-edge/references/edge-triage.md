@@ -78,11 +78,17 @@ DataStream 2 streams edge request logs to a destination (Splunk, S3, GCS, Elasti
 HTTPS, and others) *[sourced: techdocs.akamai.com/datastream2/docs/stream-logs]*. The fields that
 answer triage questions *[sourced: …/docs/data-set-parameters, …/docs/log-format-1]*:
 
-- `cacheStatus` — cache hit vs not (hit ratio = hits / total); exact per-value enumeration
-  `[unverified — check the data-set page]`.
-- `turnAroundTimeMSec` — the turnaround/origin-time field for latency percentiles; its precise
-  segment definition `[unverified — do not paste a definition without checking]`.
+- `cacheStatus` — `0` means the object was absent from cache; `1` means present. Cached negative
+  responses or stale objects can still be served from upstream, so presence alone does not prove
+  origin offload; correlate cacheability and breadcrumbs when needed.
+- `turnAroundTimeMSec` — milliseconds from the edge receiving the final request header until it
+  writes the first response byte to the client. This interval can include edge and upstream work;
+  it does not isolate origin latency. Compare cache status, breadcrumbs, and origin-side timing
+  before attributing a regression.
 - `errorCode` — edge error detail, e.g. `"ERR_ACCESS_DENIED|fwd_acl"`.
+
+*[sourced: [DataStream 2 data set parameters](https://techdocs.akamai.com/datastream2/docs/data-set-parameters),
+checked 2026-09-20; field availability on the target stream remains unverified]*
 
 Two completeness caveats that change conclusions:
 

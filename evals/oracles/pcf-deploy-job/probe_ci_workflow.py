@@ -20,7 +20,7 @@ never a stricter one:
                       with it, does not cancel the push to main that deploys
   permissions         its effective permissions are an explicit mapping with contents read and no
                       write scope at all; the job needs none, and a shortcut is not explicit
-  pins                every remote `uses:` uses a major tag; docker:// uses a manifest digest
+  pins                fixture policy: remote `uses:` uses a major tag; docker:// uses a digest
   reviewed-pins       every full action reference is on the seeded approved list;
                       editing docs/ci-pins.md does not approve additions
   no-injection        no run step in any workflow interpolates ${{ github.event.* }}
@@ -251,6 +251,7 @@ def _uses_lines() -> list[tuple[str, int, str, str]]:
 
 
 def case_pins() -> str | None:
+    # This fixture deliberately supplies a major-tag policy; this is not a general CI validator.
     lines = _uses_lines()
     if not lines:
         return "no `uses:` lines found"

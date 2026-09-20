@@ -222,7 +222,7 @@ checks:
   - check: command_exit_zero
     command: "python probe_ci_workflow.py pins"
     timeout: 600
-    text: "every remote action uses a published major tag; docker actions retain manifest digests"
+    text: "every remote action follows the fixture's approved major-tag policy; docker actions retain manifest digests"
   - check: command_exit_zero
     command: "python probe_ci_workflow.py reviewed-pins"
     timeout: 600

@@ -30,12 +30,12 @@ host does not support is **ignored, not rejected**, which is why one file serves
 | `tools` | Tool or tool-set names — aliases below. Emitted, mapped from the Claude grant |
 | `agents` | Agent names available as subagents; `*` allows all, `[]` prevents any. Emitted from the same `Agent(...)` grant that feeds the delegation graph |
 | `handoffs` | Human-selected ownership transfer — **VS Code only**; explicitly *"not supported for Copilot cloud agent on GitHub.com"*. Emitted for the five lanes in `COPILOT_HANDOFFS_BY_SOURCE` |
-| `argument-hint` | **VS Code only**; unsupported on Copilot cloud alongside `handoffs`. Not emitted on agents; the fleet uses it on all 26 skills |
+| `argument-hint` | **VS Code only**; unsupported on Copilot cloud alongside `handoffs`. Not emitted on agents; the fleet uses it on all skills |
 | `model` | Single model name or a prioritized array. Unused — mirrors the Claude side, where no agent pins one |
 | `user-invocable` | Boolean, default `true`; `false` hides the agent from the chat dropdown. Unused — every fleet lane is meant to be reachable by the human SRE |
 | `disable-model-invocation` | Boolean, default `false`; prevents the agent being invoked **as a subagent by other agents**. Unused on agents today, and the one host key that could turn the delegation graph's inbound edges into enforcement rather than documented intent |
 | `target` | `vscode` or `github-copilot`. Only the exported SRE command profile sets `vscode`; standard projections leave it unset |
-| `mcp-servers` | MCP server config JSON for Copilot targets. Unused — `researcher`'s 18 exact Claude MCP grants collapse to bare `web`, so the cited-research lane is materially weaker here than on Claude |
+| `mcp-servers` | MCP server config JSON for Copilot targets. Unused — `researcher`'s exact Claude MCP grants collapse to bare `web`, so the cited-research lane is materially weaker here than on Claude |
 | `hooks` | Agent-scoped hooks; the installed 1.138.0 loader requires `chat.useHooks`, workspace trust, and permitted hook sources. The older `chat.useCustomAgentHooks` setting is absent in that build. Emitted only in the separately exported SRE command profile; global `hooks/copilot-hooks.json` stays empty |
 | `infer` | **Deprecated** — replaced by `user-invocable` and `disable-model-invocation`. Never emit |
 
@@ -112,19 +112,19 @@ and personal skills from `~/.copilot/skills`, `~/.claude/skills`, and `~/.agents
 Copilot projection lives at `.github/skills/`, supporting workspace discovery and the plugin's
 explicit manifest selector. The directory is tracked and regenerated from canonical `skills/`.
 The former `platforms/copilot/skills/` root is retired. The custom `chat.agentSkillsLocations`
-override is removed; the [current discovery docs](https://code.visualstudio.com/docs/agent-customization/agent-skills#create-a-skill)
+override is removed; the [current discovery docs](https://code.visualstudio.com/docs/agent-customization/agent-skills#_create-a-skill)
 deprecate it in favor of supported directories.
 
-The [VS Code skill header reference](https://code.visualstudio.com/docs/agent-customization/agent-skills#header-required)
+The [VS Code skill header reference](https://code.visualstudio.com/docs/agent-customization/agent-skills#_header-required)
 documents invocation behavior; the [Agent Skills specification](https://agentskills.io/specification)
 defines portable metadata. Both were checked against the current docs on 2026-09-10, with VS Code
 1.137.0 installed. A valid header does not prove installed-plugin discovery or runtime enforcement.
 
 | Field | Disposition here |
 |---|---|
-| `name` | Required; 1–64 lowercase letters, digits, or hyphens; no leading, trailing, or consecutive hyphens. Must match the parent directory. Emitted on all 26 skills; leave plugin namespacing to the host |
+| `name` | Required; 1–64 lowercase letters, digits, or hyphens; no leading, trailing, or consecutive hyphens. Must match the parent directory. Emitted on all skills; leave plugin namespacing to the host |
 | `description` | Required; what the skill does and when to use it, at most 1,024 characters. Emitted; the fleet enforces the same character limit |
-| `argument-hint` | Emitted on all 26; ignored on Copilot cloud |
+| `argument-hint` | Emitted on all skills; ignored on Copilot cloud |
 | `user-invocable` | Optional, default `true`. `false` hides the skill from the slash-command menu while allowing automatic loading. Unused — keep every fleet skill reachable by the human |
 | `disable-model-invocation` | Optional, default `false`. `true` disables automatic loading; used by `pcf-deploy` for manual-only invocation. Setting this to `true` together with `user-invocable: false` disables both entry paths |
 | `context` | **Experimental**, unused. Default is inline; `fork` runs the skill in a dedicated subagent context and returns only its final result to the parent. Requires `github.copilot.chat.skillTool.enabled`; adopt only after a bounded host check of the skill's ownership and evidence-return contract |

@@ -7,7 +7,8 @@ prompt: |
 success_criteria:
 - Treats a missing response as an UNKNOWN outcome rather than a failed write
 - Reconciles from a fresh read plus version history before any redispatch
-- Names the three readback outcomes and stops on UNKNOWN instead of retrying blind
+- Keeps unchanged state and absent history UNKNOWN while the original request might still commit
+- Requires authoritative completion evidence before permitting a retry; stops when reconciliation remains incomplete
 graders:
 - type: regex
   pattern: (?i)\bunknown\b|\b(?:can.t|cannot|don.t|do not|no way to)\b[^.\n]{0,40}\b(?:know|tell|assume|conclude)\b[^.\n]{0,60}\b(?:landed|applied|succeeded|failed|went
