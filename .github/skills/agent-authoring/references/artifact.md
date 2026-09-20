@@ -41,8 +41,8 @@ protected evaluator outside this authoring checkout.
 
 Keep scratch candidates and transcripts ephemeral, and persist the regression, exact revisions,
 per-case results, cost, and decision in the PR. A new grader, validator, scenario, or script names
-the measured failure it prevents and its Gate A weight; unfinished work has one owner in the
-repository's authoritative tracker.
+the measured failure it prevents; unfinished work has one owner in the repository's authoritative
+tracker.
 
 An author can report a scoped named test/eval PASS. That establishes only the reported check, not
 independent review or promotion; the promotion and review rules below still apply.
