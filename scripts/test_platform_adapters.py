@@ -813,8 +813,8 @@ class PlatformAdapterTests(unittest.TestCase):
 
     def test_installed_dashboard_helper_runs_outside_the_plugin_checkout(self) -> None:
         outputs = adapters.expected_outputs(ROOT)
-        skill_relative = adapters.COPILOT_SKILLS / "obs-dashboards/SKILL.md"
-        script_relative = adapters.COPILOT_SKILLS / "obs-dashboards/scripts/dashboard_hygiene.py"
+        skill_relative = adapters.COPILOT_SKILLS / "grafana/SKILL.md"
+        script_relative = adapters.COPILOT_SKILLS / "grafana/scripts/dashboard_hygiene.py"
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve()
             plugin = root / "installed plugin"
@@ -826,7 +826,7 @@ class PlatformAdapterTests(unittest.TestCase):
                 target.write_bytes(outputs[relative])
             skill = plugin / skill_relative
             skill_text = skill.read_text(encoding="utf-8")
-            self.assertNotIn("python skills/obs-dashboards/scripts/dashboard_hygiene.py", skill_text)
+            self.assertNotIn("python skills/grafana/scripts/dashboard_hygiene.py", skill_text)
             link = re.search(
                 r"\[[^\]\n]*dashboard_hygiene\.py[^\]\n]*\]\(([^)\n]+)\)",
                 skill_text,
@@ -834,7 +834,7 @@ class PlatformAdapterTests(unittest.TestCase):
             self.assertIsNotNone(link, "the installed skill must link its bundled validator")
             helper = (skill.parent / link[1]).resolve()
             self.assertTrue(helper.is_relative_to(skill.parent))
-            shadow = workspace / "skills/obs-dashboards/scripts/dashboard_hygiene.py"
+            shadow = workspace / "skills/grafana/scripts/dashboard_hygiene.py"
             shadow.parent.mkdir(parents=True)
             shadow.write_text("raise SystemExit('workspace shadow executed')\n", encoding="utf-8")
             model = workspace / "dashboard.json"

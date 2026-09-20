@@ -4,7 +4,7 @@ description: >-
   Build or change a web UI — pages, dashboards-as-app-features, forms, admin panels — from a single
   page to a full SPA, including serving it on PCF. Owns UI-layer TypeScript/React idiom — component
   state, interaction, accessibility, resilience UX. Triggers: 'build a UI for', 'add a
-  page/form/table', 'make this dashboard page'. Not for the service behind the UI (backend-craft) or Grafana dashboards (obs-dashboards).
+  page/form/table', 'make this dashboard page'. Not for the service behind the UI (backend-craft) or Grafana dashboards (grafana).
 argument-hint: "[the UI to build or change]"
 ---
 

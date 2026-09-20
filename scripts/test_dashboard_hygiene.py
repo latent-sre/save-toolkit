@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline tests for skills/obs-dashboards/scripts/dashboard_hygiene.py. Stdlib only, no network.
+"""Offline tests for skills/grafana/scripts/dashboard_hygiene.py. Stdlib only, no network.
 
 Fixture-first on purpose. A suite that only asserted "a known-bad dashboard produces violations"
 would still pass if a rule were mutated into always-fire, and one that only asserted "a good
@@ -17,7 +17,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-MODULE = ROOT / "skills" / "obs-dashboards" / "scripts" / "dashboard_hygiene.py"
+MODULE = ROOT / "skills" / "grafana" / "scripts" / "dashboard_hygiene.py"
 
 _spec = importlib.util.spec_from_file_location("dashboard_hygiene", MODULE)
 hygiene = importlib.util.module_from_spec(_spec)

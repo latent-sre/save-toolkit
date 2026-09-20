@@ -28,13 +28,20 @@ Repository recovery copies do not change the requested read-only scope.
    Grafana macros; for LogQL, retain its own interval rules. HTTP 200 alone is insufficient: inspect
    result status, series/frames, and no-data behavior. Do not copy raw logs or trace payloads when
    counts and an access-controlled link suffice.
-6. **Inspect presentation where available.** Use View panel and Inspect to compare queries, data,
-   units, legends, variables, and missing-data presentation. A renderer flag is capability evidence,
-   not a visual review. Record absent browser/renderer access as `[unverified]`.
+6. **Inspect presentation where available.** Follow [visual verification](./visual-verification.md)
+   for browser inspection or a server-rendered image. Compare query and image scope, data, units,
+   legends, variables, and missing-data presentation. A renderer flag is capability evidence;
+   a false flag does not exclude browser inspection. Record the actual path and observations.
 7. **Return evidence and proposed repairs.** Keep source findings, live observations, and unchecked
    claims distinct. Do not save, import, restore, create snapshots/test resources, trigger alerts,
    or alter permissions during this review. Write concurrency, rollback, alert firing/resolution,
    and notification delivery need separate evidence; read-only success does not establish them.
+
+Classify each checker result before proposing a repair: confirmed query/model defect, portability
+warning, presentation improvement, or unverified heuristic. Resolved fixed datasource UIDs in a
+provisioned model are not broken references. Missing descriptions can be useful improvements
+without blocking working queries. Report counts by category rather than calling every emitted
+"violation" an operational failure. `canSave: true` does not override `provisioned: true` ownership.
 
 ## Grafana 13.2 checks
 

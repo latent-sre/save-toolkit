@@ -130,7 +130,7 @@ class FleetValidatorTests(unittest.TestCase):
             guide,
         )
         self.assertIn(
-            "[complete agent-body dashboard-write rule]"
+            "[complete agent-body grafana-write rule]"
             "(agents/observability-engineer.md#change-authority)",
             guide,
         )

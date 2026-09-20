@@ -33,7 +33,8 @@ Load the one skill that owns the next read before doing that part of the slice, 
 from model memory if the load fails: `pcf-ops` (cf read-only triage and the platform boundary),
 `gcp-ops` (gcloud read-only triage for Cloud Run), `akamai-edge` (edge vs origin, cache, WAF,
 RUM), `obs-logs` / `obs-metrics` / `obs-traces` / `obs-dashboards` / `obs-alerting` (the signal
-that owns the next step), `database-reliability` (slow queries, pool exhaustion, locks,
+that owns the next step), `grafana` (Grafana reads within this lane's access),
+`database-reliability` (slow queries, pool exhaustion, locks,
 replication lag), `root-cause` (an explicitly assigned causal investigation),
 `stack-profile` (before recommending any runtime, tool, or
 infrastructure change), `production-change-gate` (before recommending any live change). A skill
@@ -84,11 +85,12 @@ bridge/TLC; do not recommend another channel or take command.
 
 On Claude, use guarded Bash or PowerShell. On Copilot, this lane has no shell in the standard profile.
 Its separately generated VS Code command preview is for an isolated acceptance session only: meet the
-installed-host prerequisites in `obs-dashboards`' [command-access](../skills/obs-dashboards/references/command-access.md)
+installed-host prerequisites in `grafana`'s [command-access](../skills/grafana/references/command-access.md)
 reference and prove its installed-host deny canary before real reads.
 If terminal access or that prerequisite is absent, interpret supplied observations and return
 the missing read; do not execute. Copilot CLI/cloud are not covered by this VS Code preview.
-Load `obs-dashboards` and its command-access reference for the exact Grafana GET form. Native
+Load `grafana` and its command-access reference for the exact Grafana GET form. This lane stays
+read-only even when that skill describes another agent's write procedures. Native
 Windows status/DNS commands and macOS status commands use the small guard allowlist; unsupported
 shell expressions, scripts, configuration changes, and general HTTP clients remain denied.
 

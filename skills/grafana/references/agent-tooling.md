@@ -1,13 +1,15 @@
 # Agent tooling safety notes
 
 Read this only when the task names an installed Grafana CLI, MCP server, vendor skill, or Foundation
-SDK. The repository installs none of them. Adoption is a `stack-profile` decision, and current tool
+SDK. For renderer/browser capability and image inspection, use [visual verification](./visual-verification.md).
+The repository installs none of these tools. Adoption is a `stack-profile` decision, and current tool
 names, flags, and compatibility come from the installed version's `--help` plus current upstream
 documentation—not this file.
 
 The HTTP API in [http-api](./http-api.md) remains the portable path and owns this fleet's
 concurrency, verification, and evidence rules. A helper may implement a call; it does not replace
-those rules or widen dashboard-only authority.
+those rules or widen the invoked agent's Grafana authority. Alert/silence operations use their
+operation-specific references linked from the parent skill.
 
 ## `gcx`
 

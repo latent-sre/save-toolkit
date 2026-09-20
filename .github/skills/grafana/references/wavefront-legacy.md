@@ -43,5 +43,5 @@ inventing one. `[sourced: owner, 2026-08-21]`
 
 Before any create or edit, record in the task evidence: Grafana instance and edition, dashboard and
 folder uids, owner, purpose/SLO, installed data-source names/types/uids, entitlement status, and any
-linked alert/runbook. Unknown values remain `[unverified]`. Alert thresholds, notification routing,
-and evaluation ownership belong to `obs-alerting`.
+linked alert/runbook. Unknown values remain `[unverified]`. `obs-alerting` owns alert intent and
+threshold design; [alerting configuration](./grafana-alerting.md) owns Grafana routing/evaluation details.

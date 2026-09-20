@@ -31,4 +31,4 @@ graders:
   - 'Replay safety: blind-retry-safe'
   - 'Redispatch: ALLOWED'
   - 'Reconciliation: NONE'
-skill: obs-dashboards
+skill: grafana

@@ -1,4 +1,4 @@
-# Observability command access — Windows and macOS
+# Grafana command access — Windows and macOS
 
 Use when the SRE agent has terminal tools and no Grafana MCP. This reference grants no write
 authority. The host must load the matching command guard; a skill cannot install or enforce it.

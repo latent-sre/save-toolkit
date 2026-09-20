@@ -96,7 +96,12 @@ For a read-only review, inspect rule definitions and current evaluation state wi
 condition or sending a notification. Successful rule reads and healthy evaluations do not prove
 firing/resolution or delivery. Record those checks as `[unverified]` until separately exercised.
 
-Submit rule-group and policy changes through a pull request that captures the target Grafana minor,
+For individual live Grafana-managed rule changes, use [alert operations](./alert-operations.md)
+under the invoked `observability-engineer` write rule. Repository/provisioner-owned rules keep their
+source/apply path; a direct API change must not bypass that owner. Temporary silences use the
+[silence procedure](./silences.md).
+
+Submit source-managed rule-group and policy changes through a pull request that captures the target Grafana minor,
 source revision, before and after export, validation result, and notification-path evidence. Roll
 back by reverting the source revision through the same controlled path, then verify the prior rule
 UID, policy, and contact route are active.

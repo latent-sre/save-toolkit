@@ -2,18 +2,18 @@ id: discovery-obs-dashboards-edit-live
 split: regression
 prompt: |
   Prepare the exact execution procedure for adding a p99 request-latency panel to the existing
-  "Checkout / Health" dashboard (uid checkout-health) on self-managed Grafana 13.2. This discovery
+  "Checkout / Health" dashboard (uid checkout-health) on our self-managed monitoring instance. This discovery
   case has no HTTP or file tools, so do not claim the live change was applied. Mark the procedure
   [unverified] and show the panel JSON with its PromQL, the exact read and write calls, how an
   operator avoids clobbering someone else's concurrent save, how they verify the write landed, and
   what record survives afterwards. This is a dashboard edit, not alert design or incident triage.
 success_criteria:
-- Routes a dashboard-edit procedure to the dashboards lane rather than metrics, alerting, or sre-assistant
+- Routes a live dashboard-edit procedure to Grafana operations rather than dashboard design, metrics, or sre-assistant
 - Reads before writing, pins the version it read, refuses overwrite, and verifies after the call
 - Records the dashboard change in its save message and version history; repository recovery copies
   are separate evidence whose freshness, provisioning status, and restore are unverified until checked
 target:
   kind: skill
-  name: obs-dashboards
+  name: grafana
 routing:
   expect: fire

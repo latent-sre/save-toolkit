@@ -96,7 +96,7 @@ concurrency token and a save message, which cannot be added later:
 Never use `overwrite: true` to bypass a conflict. Do not assume a byte-identical reapply creates no
 new history entry on the current target. The same uid and desired bytes identify the intended
 result, not a retry-safe operation: a timeout, dropped response, or crash after
-dispatch is **UNKNOWN** and is reconciled by step 6 of the loop in [SKILL.md](../SKILL.md) before any
+dispatch is **UNKNOWN** and is reconciled by step 6 of the [dashboard operation loop](./dashboard-operations.md) before any
 redispatch.
 
 ## Folder create and update
@@ -138,8 +138,9 @@ Folder HTTP API](https://grafana.com/docs/grafana/latest/developers/http_api/fol
    dashboard's window. `$__rate_interval` is render-time state the query API does not expand:
    substitute a concrete window of at least four scrape intervals and report what verification used.
    Require success plus populated frames; a 200 with zero frames is not a working panel.
-3. If `rendererAvailable` is true, inspect a rendered panel; otherwise record query-only
-   verification and label the visual check `[unverified]`.
+3. Follow [visual verification](./visual-verification.md): inspect a server-rendered panel or use an
+   authorized browser. `rendererAvailable: false` rules out neither browser inspection nor supplied
+   screenshot evidence. If no visual path is available, label presentation `[unverified]`.
 4. Confirm the save message on the new version. App-platform history is served only at an
    enabled stable version such as `v1`, never at the alpha or beta version a row may be stored
    at (a legacy-created `v0alpha1` row answers a history query at `$APIVER` with nothing): list

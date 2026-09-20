@@ -13,6 +13,10 @@ argument-hint: "[service, metric question, or query goal]"
 Match the question, population and time window. Supplied-metric interpretation needs no new query or
 baseline; apply investigation steps only when requested. Read the dialect before writing an expression.
 
+**Grafana pointer:** dashboard/Explore access, panel configuration, datasource selection, and alert
+operations live in `grafana`. This skill owns metric meaning, PromQL/WQL, and result interpretation;
+using a Grafana-backed query does not move those responsibilities or authorize a write.
+
 ## Percentile latency is a distribution question
 
 A percentile across per-instance point values is not a request percentile. If each instance emits an

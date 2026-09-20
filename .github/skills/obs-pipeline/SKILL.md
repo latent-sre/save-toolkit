@@ -3,13 +3,18 @@ name: obs-pipeline
 description: >-
   What ships telemetry where — instrument a service with OTel and route metrics, traces, and
   structured logs through Alloy/collectors to Loki, Mimir, and Tempo. Triggers:
-  'instrument this service', 'add telemetry', 'logs are not showing up in Loki or Grafana',
-  'wire X to Grafana'.
-  Not for reading the signals (obs-logs, obs-metrics, obs-traces).
+  'instrument this service', 'add telemetry', 'logs are not reaching Loki',
+  'configure the Alloy exporter'. Not for reading signals (obs-logs, obs-metrics, obs-traces)
+  or Grafana datasource/dashboard configuration (grafana).
 argument-hint: "[service, missing signal, or telemetry route]"
 ---
 
 # Ship telemetry end to end
+
+**Grafana pointer:** UI/API access, datasource configuration, dashboards, and alert operations live
+in `grafana`. This skill owns emission, collection, and export through Alloy/OTel to the backend.
+If a bounded backend query finds the signal but a panel does not, carry that evidence to `grafana`
+for datasource, variable, query-window, and presentation checks before changing the pipeline.
 
 Treat the pipeline as one path with four independently failing boundaries:
 

@@ -58,7 +58,7 @@ will offer it).
 | Agent | Lane | Routing |
 |---|---|---|
 | `sre-assistant` | One bounded read-only evidence slice during an incident (guarded Bash/PowerShell on Claude), dispatched by the responder or by the `incident-investigation` advisor | Returns the slice and stops; the human owns the incident; delegates only sanitized public fact checks to `researcher` |
-| `observability-engineer` | Steady-state observability (unguarded Bash; applies Grafana dashboards directly) | Delegates docs to `scribe` and sanitized public lookups to `researcher`; the caller separately sends an active incident to the responder with `incident-investigation` (a bounded read to `sre-assistant`) and automation to `software-engineer` |
+| `observability-engineer` | Observability and dispatched Grafana changes (unguarded Bash; applies scoped dashboards, alert rules, and silences) | Delegates docs to `scribe` and sanitized public lookups to `researcher`; active diagnosis stays with the responder using `incident-investigation` (a bounded read to `sre-assistant`), and automation goes to `software-engineer` |
 | `scribe` | Write evidence-bound runbooks, resolved-incident postmortems, and approved service/application/alert knowledge | Local document writer with no shell, web, external MCP, or delegation authority |
 | `software-engineer` | Build, fix, refactor, and test code or operations tooling | Routes requested or risk-triggered review to `reviewer`, operational docs to `scribe`, and sanitized public lookups to `researcher` |
 | `repository-investigator` | Local-only answers about private, current, or uncommitted checkout behavior | Cites `file:line`; no shell, write, web, external MCP, skill, or delegation |
@@ -71,7 +71,7 @@ The skills, by area (each `skills/<name>/SKILL.md` carries its own description a
 - **Incident and operations** — `incident-investigation`, `root-cause`, `postmortem`, `runbook`,
   `operational-learning`, `service-lifecycle` (audit, onboard, and retire modes)
 - **Observability** — `obs-logs`, `obs-metrics`, `obs-traces`, `obs-dashboards`, `obs-alerting`,
-  `obs-pipeline`
+  `obs-pipeline`, `grafana` (Grafana UI/API operations and implementation)
 - **Platform** — `stack-profile`, `pcf-ops`, `pcf-deploy`, `gcp-ops`, `akamai-edge`
 - **Change gates** — `production-change-gate`
 - **Engineering craft** — `backend-craft`, `python-craft`, `frontend-craft`, `operator-cli`,
@@ -104,10 +104,13 @@ agents/ + skills/ (canonical)
   `agent` tool plus the parent's `agents:` allowlist.
 - A VS Code **handoff** is a separate human-selected ownership transition from `handoffs:`. It keeps
   relevant conversation context but does not grant approval or model-delegation authority.
-- Production-facing or materially irreversible effects remain human decisions. The one narrow
-  exception is an invoked [`observability-engineer`](agents/observability-engineer.md#change-authority)
-  applying only Grafana dashboard or folder writes under its complete change-authority rule; a
-  handoff alone does not activate that exception.
+- Production-facing or materially irreversible effects remain human decisions. An invoked
+  [`observability-engineer`](agents/observability-engineer.md#change-authority) may apply requested
+  Grafana dashboard/folder changes, individual Grafana-managed alert-rule create/update or
+  pause/resume, and temporary silence create/update/expire under its complete change-authority
+  rule. The [`grafana`](skills/grafana/SKILL.md) skill covers operational reads and alert/silence
+  procedures and dashboard implementation; `obs-dashboards` owns dashboard design. A handoff alone
+  does not authorize a write.
 - **The team's own inventories are not in this repository.** The log-index, metrics, PCF-foundation,
   and GCP-project references under `skills/obs-logs`, `skills/obs-metrics`, `skills/pcf-ops`, and
   `skills/gcp-ops` ship as `<app>`/`<index>` placeholders, and service cards, alert cards, and
@@ -130,7 +133,7 @@ Treat these as build-bound evidence, and rerun the linked probe after host upgra
 
 ### Other hosts
 
-For read-only observability without MCP, see [Windows/macOS command access](skills/obs-dashboards/references/command-access.md).
+For read-only observability without MCP, see [Windows/macOS command access](skills/grafana/references/command-access.md).
 Claude's candidate supports a small native command set and fixed Grafana GET forms. The standard
 Copilot profile remains without terminal tools; its command preview must pass the
 [installed-host canary](docs/vscode-plugin-acceptance.md#command-preview-canary) before adoption.

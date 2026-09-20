@@ -1,0 +1,12 @@
+id: discovery-grafana-silence
+split: regression
+prompt: |
+  Silence the checkout latency alert in staging for 30 minutes during maintenance. Keep its
+  evaluation running. Explain the target and matching labels before making any change.
+target:
+  kind: skill
+  name: grafana
+routing:
+  expect: fire
+success_criteria:
+- Selects the operational silence skill rather than starting SLO design or incident diagnosis
