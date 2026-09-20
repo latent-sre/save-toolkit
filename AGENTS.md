@@ -58,7 +58,7 @@ separate.
 - `reviewer` has broad Bash and write tools for investigation and scratch verification. Its
   no-candidate-edit rule is cooperative unless the outer host enforces it; code execution needs
   the established isolation in its agent body. The read-only Bash guard does not sandbox it.
-- The fail-closed Bash allowlist applies only to `sre-assistant`, through [`hooks/hooks.json`](hooks/hooks.json)
+- The fail-closed Bash/PowerShell command allowlist applies only to `sre-assistant`, through [`hooks/hooks.json`](hooks/hooks.json)
   and exact `agent_type` values. Plugin agents ignore `hooks:`, `mcpServers:`, `permissionMode:`,
   and unknown frontmatter keys.
 - The guard is not a sandbox; OS identity, credentials, and network controls remain load-bearing,

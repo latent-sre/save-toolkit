@@ -79,6 +79,7 @@ import json
 import re
 import shlex
 import sys
+from urllib.parse import parse_qs, urlsplit
 
 # The namespace Claude Code would prepend if this repo were ever installed as a plugin; guarding
 # both forms means the guard cannot be sidestepped by installing the agents a different way.
@@ -233,6 +234,100 @@ _SIMPLE_READERS = frozenset({
     # outbound network allowlist remains the load-bearing egress control, not this guard.
     "dig",
 })
+
+# Fixed observation forms: do not grant arbitrary flags or a general-purpose HTTP client.
+_OS_READ_FORMS = {
+    "uname": {(), ("-s",), ("-a",), ("-m",), ("-r",)},
+    "sw_vers": {(), ("-productVersion",), ("-productName",), ("-buildVersion",)},
+    "uptime": {()},
+    "df": {(), ("-h",), ("-k",)},
+}
+_GRAFANA_READ_PATH = re.compile(
+    r"/(?:api/(?:health|org|plugins|frontend/settings|access-control/user/permissions|"
+    r"datasources(?:/uid/[A-Za-z0-9_-]+/health)?|search|folders|"
+    r"dashboards/uid/[A-Za-z0-9_-]+(?:/versions(?:/[0-9]+)?)?|"
+    r"v1/provisioning/alert-rules|prometheus/grafana/api/v1/rules)|"
+    r"apis/dashboard\.grafana\.app/(?:v[012](?:(?:alpha|beta)1)?/namespaces/"
+    r"[A-Za-z0-9_-]+/dashboards(?:/[A-Za-z0-9_-]+)?|))"
+)
+
+
+def grafana_curl_allowed(command: str, powershell: bool = False) -> bool:
+    """One credential-safe GET form; human-established env binds the destination and token.
+
+    `-q` first suppresses curlrc; no redirects, output files, uploads, custom methods, verbose
+    headers, TLS bypass, or arbitrary destinations. Only known Grafana resource reads are exposed.
+    Query execution is deliberately absent: raw datasource proxy URLs are not uniformly read-only.
+    """
+    binary = "curl.exe" if powershell else "curl"
+    env = r"\$env:" if powershell else r"\$"
+    pattern = (
+        re.escape(binary) + r' -q --silent --show-error --fail --max-time 20 --max-redirs 0 '
+        r'--proto =https --header "Authorization: Bearer ' + env + r'GRAFANA_SA_TOKEN" "'
+        + env + r'GRAFANA_URL(?P<resource>/[A-Za-z0-9_/?=&%.:+,-]*)"'
+    )
+    match = re.fullmatch(pattern, command.strip())
+    if not match or len(command) > 4096:
+        return False
+    resource = urlsplit(match['resource'])
+    if not _GRAFANA_READ_PATH.fullmatch(resource.path):
+        return False
+    params = parse_qs(resource.query, keep_blank_values=True)
+    if set(params) - {"type", "limit", "page", "query", "labelSelector", "fieldSelector"}:
+        return False
+    if any(len(values) != 1 for values in params.values()):
+        return False
+    for name, maximum in (("limit", 100), ("page", 100)):
+        if name in params and not (params[name][0].isdigit() and 1 <= int(params[name][0]) <= maximum):
+            return False
+    return True
+
+
+def explain_powershell(command: str) -> "str | None":
+    """Small literal-command grammar, not a POSIX parse of general PowerShell code.
+
+    Reject expressions, expansions, scripts, redirection, stop-parsing and command chains.
+    Only fixed cmdlets and the existing external CLI readers may pass. No aliases are inferred.
+    """
+    if grafana_curl_allowed(command, powershell=True):
+        return None
+    if not command.strip():
+        return None
+    if re.search(r"[$`;&{}()<>\r\n@]|--%", command):
+        return "PowerShell expressions, scripts, redirection, expansion and command chains are not allowed"
+    token = r'''(?:"[^"\r\n]*"|'[^'\r\n]*'|[A-Za-z0-9_./:=,?*%+\\-]+)'''
+    native_forms = (
+        r"get-date(?: -format (?:o|s|u))?",
+        r"get-service(?: -name [a-z0-9_.*?-]+)?",
+        r"get-process(?: -name [a-z0-9_.*?-]+)?",
+        r"get-nettcpconnection",
+        r"resolve-dnsname [a-z0-9.-]+(?: -type (?:a|aaaa|cname|txt|mx|ns))?",
+        r"test-netconnection [a-z0-9.-]+ -port [0-9]{1,5}",
+        r"select-object -first [1-9][0-9]{0,2}",
+        r"select-object -property (?:name|status|id|cpu|ws|handles)(?:,(?:name|status|id|cpu|ws|handles))*",
+        r"convertto-json(?: -depth (?:[1-9]|10))?",
+    )
+    for index, part in enumerate(command.split("|")):
+        part = part.strip()
+        if not re.fullmatch(token + r"(?:\s+" + token + r")*", part):
+            return "PowerShell read commands require literal arguments in a supported shape"
+        if any(re.fullmatch(form, part, re.IGNORECASE) for form in native_forms):
+            if index and not part.lower().startswith(("select-object ", "convertto-json")):
+                return "PowerShell pipelines may end only in the supported output filters"
+            continue
+        if index:
+            return "PowerShell pipelines may end only in the supported output filters"
+        words = re.findall(token, part)
+        words = [word[1:-1] if word.startswith(('"', "'")) else word for word in words]
+        binary = words[0].lower()
+        if binary.endswith(".exe"):
+            binary = binary[:-4]
+        if binary not in {"git", "gh", "cf", "gcloud"}:
+            return "this PowerShell command is not an approved observation"
+        reason = _segment_reason([binary, *words[1:]], "sre-assistant")
+        if reason:
+            return reason
+    return None
 # `ag` (the silver searcher) was here and is deliberately GONE: it documents `--pager COMMAND`, the
 # same execute-a-program lever gated on `rg` below, and it is redundant — `rg` and `grep` both cover
 # search. Per this file's own rule the allowlist carries what a reviewer NEEDS; an un-enumerable
@@ -662,6 +757,8 @@ def _segment_reason(segment: list[str], agent: str) -> "str | None":
     unchanged from the boolean helpers this wraps — only the answer got articulate.
     """
     command, args = segment[0], segment[1:]
+    if command in _OS_READ_FORMS:
+        return None if tuple(args) in _OS_READ_FORMS[command] else "unsupported OS observation flags"
     # A path to a binary (`/bin/cat`, `./deploy.sh`, `scripts/setup.sh`) is never allowed: the
     # allowlist names commands, and a path is how you smuggle a different one in.
     if "/" in command or "\\" in command or "=" in command:
@@ -805,8 +902,12 @@ def explain(command: str, agent: str = "") -> "str | None":
     `agent` is the BARE agent name (namespace already stripped). No rule is agent-specific since
     `observability-engineer` left the roster; the seam stays for a future per-agent extra.
     """
+    if grafana_curl_allowed(command):
+        return None
     if not command.strip():
         return None  # nothing to run
+    if re.search(r"\$(?:env:|\{)?GRAFANA_SA_TOKEN\b|\bglsa_", command, re.IGNORECASE):
+        return "Grafana credentials may only be referenced by the fixed authenticated GET form"
     normalized = _SIMPLE_VAR.sub(r"$\1", command)
     structure = _STRUCTURE_DENY.search(normalized)
     if structure:
@@ -978,7 +1079,32 @@ def main() -> None:
         # failed safe by accident of the hook treating a traceback's exit 1 as not-its-guard.
         sys.exit(EXIT_INDETERMINATE)
 
-    if data.get("tool_name") != "Bash":
+    copilot = sys.argv[1:] == ["--copilot"]
+    if sys.argv[1:] and not copilot:
+        sys.exit(EXIT_INDETERMINATE)
+    tool_name = data.get("tool_name")
+    tool_input = data.get("tool_input") or {}
+    if not isinstance(tool_input, dict):
+        sys.exit(EXIT_INDETERMINATE)
+    if copilot:
+        # This entry point is attached to sre-assistant's own VS Code agent hook. It must not
+        # depend on Claude's undocumented agent_type field, nor be installed session-wide.
+        terminals = {"run_in_terminal", "runTerminalCommand", "runInTerminal", "execute/runInTerminal"}
+        if tool_name in terminals or "command" in tool_input:
+            command = tool_input.get("command")
+            if not isinstance(command, str) or not command.strip():
+                sys.exit(EXIT_INDETERMINATE)
+            # Copilot's integrated terminal can be configured independently of host OS. Use
+            # the restricted grammar on every host; POSIX-only observation forms are literal.
+            reason = explain_powershell(command)
+            if reason is not None and (grafana_curl_allowed(command) or
+                    any(command.strip() == " ".join((name, *args))
+                        for name, forms in _OS_READ_FORMS.items() for args in forms)):
+                reason = None
+            if reason:
+                _deny("Blocked by the SRE command guard: " + reason)
+        _allow()
+    if tool_name not in {"Bash", "PowerShell"}:
         _allow()
 
     # The plugin hook is session-wide, so scope here before inspecting the command. The main loop
@@ -1056,7 +1182,9 @@ def main() -> None:
 
     command = (data.get("tool_input") or {}).get("command", "") or ""
     bare_agent = agent.split(":", 1)[-1] if isinstance(agent, str) else ""
-    reason = explain(command, bare_agent)
+    if not isinstance(command, str):
+        sys.exit(EXIT_INDETERMINATE)
+    reason = explain_powershell(command) if tool_name == "PowerShell" else explain(command, bare_agent)
     if reason is not None:
         _deny(f"Blocked by the read-only agent allowlist guard: {reason}. {_GUIDANCE}")
     _allow()

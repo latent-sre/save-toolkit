@@ -3,8 +3,9 @@
 Alert rules are independent operational resources, not legacy per-panel dashboard alerts. Rule
 groups, notification routing, and runbook metadata get the same review as application code.
 
-Grafana documentation reviewed 2026-07-14 and extended 2026-08-07 through indirect retrieval; the
-vulnerability sources reviewed directly 2026-08-22: `[sourced]`
+Grafana documentation reviewed 2026-07-14 and extended 2026-08-07 through indirect retrieval;
+13.2.0 provisioning parser source rechecked 2026-09-19. The vulnerability sources below were last
+reviewed directly 2026-08-22 and require a fresh check for a current security verdict: `[sourced]`
 [configure alert rules](https://grafana.com/docs/grafana/latest/alerting/alerting-rules/),
 [file provisioning](https://grafana.com/docs/grafana/latest/alerting/set-up/provision-alerting-resources/file-provisioning/),
 [labels and annotations](https://grafana.com/docs/grafana/latest/alerting/fundamentals/alert-rules/annotation-label/),
@@ -12,13 +13,10 @@ vulnerability sources reviewed directly 2026-08-22: `[sourced]`
 [CVE-2026-17183](https://cveawg.mitre.org/api/cve/CVE-2026-17183),
 [GHSA-f74r-h7qj-c63f](https://github.com/advisories/GHSA-f74r-h7qj-c63f).
 
-**CVE-2026-17183 `[sourced]` (reviewed 2026-08-22).** Grafana's CNA data lists affected ranges
-`>=8.4.0,<12.3.11`, `>=12.4.0,<12.4.9`, `>=13.0.0,<13.0.7`, and `>=13.1.0,<13.1.4`; the GitHub
-advisory is labelled Unreviewed and is not used to infer a floor. Do not turn 13.2.0 into a universal
-floor. QA is verified at 13.1.4 Enterprise, outside the ranges; production is known only as 13.1.x,
-so its exact patch is `[unverified]`. Until production is confirmed at 13.1.4 or later, treat
-alert-rule edit rights as datasource read rights: a folder where many people can author rules is a
-folder where all of them can read every datasource the rules can reach.
+`stack-profile` owns the current minor. Confirm the exact target patch against the current vendor
+advisory before a security verdict; neither a major/minor label nor an old QA result establishes a
+security floor. Inspect alert-author and datasource grants separately; version evidence alone does
+not establish which data an author can query. Historical advisory details remain in Git history.
 
 Grafana-managed rules are the documented recommendation and are evaluated by Grafana; data
 source-managed rules are stored and evaluated in a Prometheus-family backend. Choose one evaluation
@@ -41,9 +39,9 @@ owner per rule and never duplicate a rule in both paths.
   (`noDataState: NoData|Alerting|OK|KeepLast`, `execErrState: Error|Alerting|OK|KeepLast`).
   `KeepLast` preserves the previous state; it does not establish current health. Literal UI labels
   `Normal` and `Keep Last State` are invalid provisioning values.
-  *[sourced: Grafana 13.1.4 [file loader](https://github.com/grafana/grafana/blob/v13.1.4/pkg/services/provisioning/alerting/rules_types.go#L135)
-  and [state parsers](https://github.com/grafana/grafana/blob/v13.1.4/pkg/services/ngalert/models/alert_rule.go#L67),
-  checked 2026-09-09; the provisioning documentation example omits KeepLast]*.
+  *[sourced: Grafana 13.2.0 [file loader](https://github.com/grafana/grafana/blob/v13.2.0/pkg/services/provisioning/alerting/rules_types.go#L135)
+  and [state parsers](https://github.com/grafana/grafana/blob/v13.2.0/pkg/services/ngalert/models/alert_rule.go#L67),
+  checked 2026-09-19; this source check does not prove a target reload]*.
 
 Review all four per rule; the defaults are not a decision.
 
@@ -93,6 +91,10 @@ point, correlation, acknowledgement, resolution, and runbook link. A green rule 
 not prove notification delivery.
 
 ## Review and rollback
+
+For a read-only review, inspect rule definitions and current evaluation state without forcing a
+condition or sending a notification. Successful rule reads and healthy evaluations do not prove
+firing/resolution or delivery. Record those checks as `[unverified]` until separately exercised.
 
 Submit rule-group and policy changes through a pull request that captures the target Grafana minor,
 source revision, before and after export, validation result, and notification-path evidence. Roll

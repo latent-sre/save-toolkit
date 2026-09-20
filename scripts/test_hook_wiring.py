@@ -55,6 +55,13 @@ class RebuildInlineCommandTests(unittest.TestCase):
 
 
 class HookWiringTests(unittest.TestCase):
+    def test_powershell_has_a_separate_guard_handler(self) -> None:
+        document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
+        entry = next(e for e in document["hooks"]["PreToolUse"] if e["matcher"] == "PowerShell")
+        handler = entry["hooks"][0]
+        self.assertEqual("powershell", handler["shell"])
+        self.assertIn("readonly-guard-hook.ps1", handler["command"])
+
     def test_hook_is_session_wide_and_fail_closed_for_guarded_agents(self) -> None:
         document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
         entry = document["hooks"]["PreToolUse"][0]

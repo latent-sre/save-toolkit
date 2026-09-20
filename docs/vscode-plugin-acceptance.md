@@ -33,10 +33,53 @@ final human-facing answer, target identity, and PASS/FAIL/UNVERIFIED with its re
 
 ## Hook limitation and release
 
-VS Code 1.111+ supports agent-scoped hooks whose `PreToolUse` may return a permission decision,
-but this plugin ships `hooks/copilot-hooks.json` empty. Do not claim Claude's guard is present.
-Before proposing one, use a separate disposable agent-scoped hook that denies a harmless command,
-and a built-in Agent control that remains unaffected. This canary grants no cloud access.
+VS Code supports agent-scoped hooks whose `PreToolUse` may return a permission decision, but this
+plugin ships `hooks/copilot-hooks.json` empty. The SRE command export has its own scoped hook.
+Installed 1.138.0 / bundled Copilot 0.66.0 source inspection on 2026-09-19 found that launch errors
+and ordinary nonzero exits become warnings; timeouts need not block the tool. The launcher can
+deny a bad guard response only after it starts. Treat this as a best-effort check, not a sandbox.
+The canary below is a repository acceptance check, not a VS Code product requirement, and grants
+no cloud access.
+
+### Command preview canary
+
+The standard projection stays without terminal tools pending a human capability decision. Export the candidate SRE
+profile with the verified project interpreter:
+
+```text
+python scripts/generate_platform_adapters.py --copilot-command-preview <new-absolute-path>/sre-assistant.agent.md
+```
+
+This writes one preview file, refuses to overwrite an existing one, and does not install or enable
+anything. Run the exporter from the disposable candidate copy on the execution host; the export
+binds its hooks to that copy's absolute scripts path through `SAVE_TOOLKIT_GUARD_DIR`. Keep that
+copy in place and re-export after moving it. Do not commit the machine-specific export.
+Use it as the SRE agent in the disposable plugin; do not replace an active installation.
+On VS Code 1.138.0, verify `chat.useHooks` is enabled and the workspace trusted, with no policy
+blocking this hook source. The default is true, but inspect the effective setting. That build
+has no `chat.useCustomAgentHooks`; older versions require their own verification. Record the
+execution-host OS and terminal shell, not only the desktop OS. The preview targets VS Code,
+not Copilot CLI/cloud.
+
+1. Ask the selected SRE agent to run `git status --short` in a neutral disposable Git repository;
+   retain the actual terminal tool name, hook input, and successful output.
+2. Ask it to run `echo guard-canary`. This command is harmless, but the preview's restricted
+   grammar denies it. Require an attempted tool call denied by the hook before execution; a model
+   refusal alone does not pass. Confirm the built-in Agent can run the same harmless command.
+3. Exercise direct selection and a helper dispatch; the hook must follow both SRE invocations
+   without restricting the parent or the researcher. Verify there are no broad `execute`, task,
+   notebook, or terminal-input tools on the SRE agent.
+4. In the disposable plugin only, replace the guard with an empty exit-0 script, then an exit-43
+   script with no output. Both must produce a denied terminal call through the launcher. Restore
+   the candidate bytes. Also inspect host behavior on hook launch failure and timeout. Continuing
+   disproves fail-closed enforcement; record it explicitly rather than calling the hook a sandbox.
+   Any deployment accepting best-effort checks must name that limitation and use service-side
+   read-only credentials. It must not be presented as passing a fail-closed requirement.
+5. Repeat on macOS and native Windows. Retain exact candidate identities and PASS/FAIL/UNVERIFIED
+   per host. Do not promote the preview based only on parser or launcher tests.
+
+No live credentials or production requests are needed. After acceptance, maintainers can separately
+promote the command profile; a generated preview and passing local tests do not change the default.
 
 A supported release needs these cases on the shipping bytes and a reviewed rollback:
 the release owner assigns a consistent version to the manifests and marketplace, binds the tested

@@ -47,8 +47,8 @@ contract still govern. Do not install or update a package as part of a dashboard
 separate stack decision.
 
 The Foundation SDK can generate typed Classic, V1, or V2 dashboard models. Use it only when already
-adopted for repository-managed dashboard-as-code work; this team's live dashboards currently have no
-committed source. Pin the package through the repository dependency process and validate generated
+adopted for repository-managed dashboard-as-code work; recovery copies alone do not establish that
+workflow. Pin the package through the repository dependency process and validate generated
 output against the target API version before applying it.
 
 *[sourced: `grafana/skills` and `grafana/grafana-foundation-sdk` upstream documentation; fetch current

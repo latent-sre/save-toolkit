@@ -2,9 +2,11 @@
 
 Read this when holding dashboard JSON: exporting, diffing, adding a panel or variable, or authoring
 a model. Request and concurrency shapes are in [http-api](./http-api.md); generic visualization
-advice is deliberately absent. Sources were reviewed against `grafana/grafana` 13.1.4 and 13.2.0
-and each section carries its label: `[sourced]` for what the source reads say, `[verified: QA
-13.1.4]` for what was exercised there; behavior elsewhere is `[unverified]` until exercised.
+advice is deliberately absent. The 13.2 baseline retains `[sourced]` implementation guidance
+reviewed against `grafana/grafana` 13.2.0; a source claim is not target runtime evidence.
+The 2026-09-19 read-only 13.2.2 check verified six served API versions, Classic storage reported as
+`v0alpha1`, V1 reads at schema 42, and V2 reads with `elements`/`layout`. It did not repeat the write,
+import, concurrency, or rollback probes; their historical evidence is not current acceptance.
 
 ## Six served versions, three shapes
 
@@ -18,7 +20,7 @@ The group's `preferredVersion` is configuration, not a stability promise: an unp
 return a different shape from the stored row.
 
 *[sourced: `apps/dashboard/pkg/apis/dashboard/*/register.go`, `pkg/registry/apis/dashboard/mutate.go`,
-and the dashboard schema validation at 13.1.4 and 13.2.0]*
+and the dashboard schema validation at 13.2.0; target write behavior remains unverified]*
 
 ## Storage and conversion rules
 
@@ -34,16 +36,15 @@ named in its path.
 2. **Never change API versions during a surgical edit.** A converted body written at another
    version rewrites the row's stored schema, and V2 → V1 → V2 is lossy: rows, tabs, and layout kinds
    flatten into Classic panels and cannot be reconstructed.
-3. **Strip `status` before every app-platform `PUT`.** On QA 13.1.4, round-tripping a converted
-   response with `status` permanently preserved a stale `storedVersion` signal after the row had
-   changed versions. Grafana's own handlers strip it; direct clients must.
+3. **Strip `status` before every app-platform `PUT`.** Conversion status describes a read response,
+   not the desired dashboard spec. Do not round-trip it into storage and risk retaining stale
+   `storedVersion` evidence. The current read-only check does not exercise that write path.
 4. **`conversion.failed: false` is not fidelity.** A conversion error can still answer 200. Compare
    source and converted structures; Grafana also emits conversion-loss metrics.
 5. **Legacy `meta.apiVersion` is not storage evidence.** It reports the requested version.
 
 *[sourced: app-platform storage preparation, conversion, browser import and save, and legacy
-import handlers; verified: QA 13.1.4 for the app-platform rows, the `status` round trip, and the
-V1/V2 reads]*
+import handlers reviewed at 13.2.0; verified: 13.2.2 target V1/V2 reads only, 2026-09-19]*
 
 ## Classic / V1 rules this team keeps
 
@@ -60,8 +61,8 @@ V1/V2 reads]*
   Grafana strips `spec.uid` and `spec.version`, injects defaults, and mints a distinct
   `metadata.uid`. Diff the stored readback, not the local body.
 
-*[sourced: dashboard JSON model, V1 schema, and app-platform handlers; verified: QA 13.1.4 for the
-app-platform V1 write behavior; the `editable` and `timezone` rules are this team's, owner 2026-08-22]*
+*[sourced: dashboard JSON model, V1 schema, and app-platform handlers reviewed at 13.2.0;
+target writes unverified; the `editable` and `timezone` rules are this team's, owner 2026-08-22]*
 
 ### The panel shape, with the fields the checker and the on-call reader need
 
@@ -108,20 +109,23 @@ and preserve that shape. The bundled checker refuses V2; use `dashboard-linter` 
   separately typed variables (for example `${metrics_source}` and `${logs_source}`) in corresponding
   panels and targets: a variable cannot translate query languages. Set each variable's plugin type
   and resolve it to a discovered source; scope selection when several sources share that type.
-  For portable exports, leave `current` unpinned: QA stored concrete uids as sent, while `{}`
-  resolved from the target default. Verify selected sources after import.
+  For portable exports, leave `current` unpinned and verify selected sources after import;
+  do not assume a saved concrete uid resolves to the intended source on another instance.
 - Multi-value or All selectors set `allValue: ".+"` and use `${var:regex}` in regex matchers; a
   custom all value is not escaped, and the generated expansion can grow large.
-- `$__rate_interval` for Prometheus `rate()` and `increase()`; the query API does not expand it, so
-  verification substitutes a concrete interval and records that difference.
+- `$__rate_interval` for Prometheus rate panels; `increase(...[$__range])` can deliberately total the
+  selected dashboard window. Preserve fixed-horizon intent when justified by scrape cadence. The
+  query API does not expand these macros, so verification substitutes and records concrete intervals.
+  LogQL has its own interval semantics; do not apply the Prometheus rule to Loki targets.
 - Links preserve time and variables; the deprecated `[[var]]` syntax is not used.
 
 *[sourced: Grafana variable, Prometheus template-variable, and dashboard-linter documentation;
-verified: QA 13.1.4 for the `current` behavior and the import round trip]*
+target import round trip unverified]*
 
 A cross-instance export rewrites data sources to `${DS_*}` and adds `__inputs` and `__requires`,
 which only the import endpoint or the import UI resolves; see the import rule in
-[http-api](./http-api.md). This team does not commit dashboard exports.
+[http-api](./http-api.md). Treat repository recovery copies according to `stack-profile`; preserve
+their provenance and distinguish them from the fresh live export used to prepare a change.
 
 ## Check before writing
 
@@ -129,8 +133,10 @@ which only the import endpoint or the import UI resolves; see the import rule in
 app-platform wrapper, or a legacy GET body, exits 0 when no implemented rule fired, 1 on violations,
 2 when uncheckable, and refuses V2 rather than reporting zero panels. `dashboard-linter lint
 --strict`, when installed, validates more of the real Grafana, PromQL, and LogQL contract; scoped
-exclusions need a reason. On an edit, check the live model first and block only the violations this
-diff introduces. A clean result never proves target permissions, query data, rendering,
+exclusions need a reason. PromQL heuristics require a datasource reference typed `prometheus`;
+untyped references remain unchecked for query semantics. Treat fixed-UID and counter-name findings
+as review prompts as explained in [read-only review](./read-only-review.md). On an edit, check the
+live model first and block only confirmed violations this diff introduces. A clean result never proves target permissions, query data, rendering,
 concurrency, or the durable save record; [http-api](./http-api.md) verifies those.
 
 *[sourced: the bundled checker's docstring and the dashboard-linter documentation]*

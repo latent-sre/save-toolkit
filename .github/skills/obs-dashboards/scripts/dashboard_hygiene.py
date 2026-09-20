@@ -3,6 +3,9 @@
 
 Pure stdlib and offline. Checks textual properties only: no query parsing, datasource resolution,
 or Grafana access. A clean result means no implemented rule fired, not that the dashboard is correct.
+PromQL heuristics run only for a resolved model reference whose type is `prometheus`; other or
+untyped datasource references need their dialect's query validation. Findings need human review:
+fixed UIDs can be intentional in provisioned dashboards, and a `_total` suffix is not type evidence.
 Prefer dashboard-linter where installed for real query/schema validation; this helper is the
 portable fallback for Classic/V1 models.
 
@@ -33,6 +36,9 @@ NON_QUERYING = frozenset({"text", "dashlist", "news", "welcome", "alertlist"})
 RATE_FUNCS = re.compile(r"\b(rate|irate|increase)\s*\(")
 COUNTER_NAME = re.compile(r"\b(\w+_total)\b")
 RANGE_SELECTOR = re.compile(r"\[([^\]]*)\]")
+# Ignore string contents without shifting spans; regex label values may contain brackets,
+# parentheses, counter-like names, or text resembling functions and Grafana macros.
+QUOTED_STRING = re.compile(r'''"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`[^`]*`''')
 # A datasource reference that is a literal uid rather than a variable.
 BUILTIN_DS = frozenset({"-- Grafana --", "-- Mixed --", "-- Dashboard --", "grafana"})
 
@@ -129,22 +135,30 @@ def check(spec: dict) -> list[tuple[str, str, str]]:
                             f"variable so the model is portable"))
 
         for target in panel.get("targets") or []:
+            datasource = target.get("datasource") or panel.get("datasource") or {}
+            if not isinstance(datasource, dict) or datasource.get("type") != "prometheus":
+                continue
             expr = target.get("expr") or target.get("query") or ""
             if not isinstance(expr, str) or not expr:
                 continue
             ref = target.get("refId", "?")
-            spans = rate_call_spans(expr)
+            query_code = QUOTED_STRING.sub(lambda match: " " * len(match.group()), expr)
+            spans = rate_call_spans(query_code)
             for start, end in spans:
                 call = expr[start:end]
-                windows = RANGE_SELECTOR.findall(call)
-                if windows and not any("$__rate_interval" in w for w in windows):
+                windows = RANGE_SELECTOR.findall(query_code[start:end])
+                selected_total = (re.match(r"increase\s*\(", call) is not None
+                                  and windows and all(w.strip() == "$__range" for w in windows))
+                if windows and not selected_total and not any("$__rate_interval" in w for w in windows):
                     out.append(("target-rate-interval", f"{where} [{ref}]",
-                                f"{call[:60]!r} uses a fixed or $__interval window; $__rate_interval "
-                                f"is required or the panel returns No Data when zoomed in"))
-            for match in COUNTER_NAME.finditer(expr):
+                                f"{call[:60]!r} uses a fixed or non-rate window; review the intended "
+                                f"horizon and scrape cadence before choosing $__rate_interval"))
+            for match in COUNTER_NAME.finditer(query_code):
                 if not any(start <= match.start() < end for start, end in spans):
                     out.append(("target-counter-agg", f"{where} [{ref}]",
-                                f"counter {match.group(1)!r} is not inside a rate/irate/increase call"))
+                                f"counter-like name {match.group(1)!r} is outside rate/irate/increase; "
+                                f"verify metric type and intent (presence, counts, resets, and lifetime "
+                                f"totals can legitimately read it directly)"))
                     break
 
     for variable in (spec.get("templating") or {}).get("list") or []:
@@ -154,7 +168,7 @@ def check(spec: dict) -> list[tuple[str, str, str]]:
                         "'Include All' with no custom all value; the expanded expression can grow "
                         "unbounded — set one such as '.+'"))
 
-    # Preserve UI editing: this team's dashboards are not maintained as code.
+    # Tags support discovery regardless of whether the dashboard is provisioned or UI-managed.
     if not (spec.get("tags") or []):
         out.append(("dashboard-tags", "dashboard", "no tags; search and the dashboard list rely on them"))
 

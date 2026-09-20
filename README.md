@@ -57,7 +57,7 @@ will offer it).
 
 | Agent | Lane | Routing |
 |---|---|---|
-| `sre-assistant` | One bounded read-only evidence slice during an incident (guarded read-only Bash), dispatched by the responder or by the `incident-investigation` advisor | Returns the slice and stops; the human owns the incident; delegates only sanitized public fact checks to `researcher` |
+| `sre-assistant` | One bounded read-only evidence slice during an incident (guarded Bash/PowerShell on Claude), dispatched by the responder or by the `incident-investigation` advisor | Returns the slice and stops; the human owns the incident; delegates only sanitized public fact checks to `researcher` |
 | `observability-engineer` | Steady-state observability (unguarded Bash; applies Grafana dashboards directly) | Delegates docs to `scribe` and sanitized public lookups to `researcher`; the caller separately sends an active incident to the responder with `incident-investigation` (a bounded read to `sre-assistant`) and automation to `software-engineer` |
 | `scribe` | Write evidence-bound runbooks, resolved-incident postmortems, and approved service/application/alert knowledge | Local document writer with no shell, web, external MCP, or delegation authority |
 | `software-engineer` | Build, fix, refactor, and test code or operations tooling | Routes requested or risk-triggered review to `reviewer`, operational docs to `scribe`, and sanitized public lookups to `researcher` |
@@ -111,7 +111,8 @@ agents/ + skills/ (canonical)
 - **The team's own inventories are not in this repository.** The log-index, metrics, PCF-foundation,
   and GCP-project references under `skills/obs-logs`, `skills/obs-metrics`, `skills/pcf-ops`, and
   `skills/gcp-ops` ship as `<app>`/`<index>` placeholders, and service cards, alert cards, and
-  runbooks are read from a `docs/operations/` tree in the team's knowledge repository. Until those
+  runbooks are read from `operations/`, `runbooks/`, and `postmortems/` under the team's knowledge
+  repository root. Until those
   are filled in, "where are the dashboards, logs, and runbooks for this service" has no answer
   here by design; the skills say so rather than guess.
 
@@ -128,6 +129,11 @@ Treat these as build-bound evidence, and rerun the linked probe after host upgra
 | First installed VS Code build proven to contain `d679b159` | Upstream adds prepare/invoke rejection outside `agents:` and forwards each child's own list | `[sourced]` The [upstream change](https://github.com/microsoft/vscode/commit/d679b159e16d15d24e364b627ab85e144899ead0) is merged; `[unverified]` the installed plugin path until the `RELEASE-001` acceptance run passes on that exact build (procedure removed 2026-09-02; recover it with `git show e77fc672^:docs/probes/host-002-vscode-agent-delegation.md`) |
 
 ### Other hosts
+
+For read-only observability without MCP, see [Windows/macOS command access](skills/obs-dashboards/references/command-access.md).
+Claude's candidate supports a small native command set and fixed Grafana GET forms. The standard
+Copilot profile remains without terminal tools; its command preview must pass the
+[installed-host canary](docs/vscode-plugin-acceptance.md#command-preview-canary) before adoption.
 
 **VS Code / Copilot Chat (beta plugin):** confirm `chat.plugins.enabled` is on, run
 **Chat: Install Plugin From Source**, and enter `https://github.com/latent-sre/save-toolkit`.

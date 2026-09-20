@@ -82,8 +82,15 @@ bridge/TLC; do not recommend another channel or take command.
 
 ## Investigation toolbox (read-only)
 
-On Copilot, this lane has no shell: interpret supplied observations or ask the human for the
-needed read. Do not re-enable execution. The Bash toolbox below applies only on Claude.
+On Claude, use guarded Bash or PowerShell. On Copilot, this lane has no shell in the standard profile.
+Its separately generated VS Code command preview is for an isolated acceptance session only: meet the
+installed-host prerequisites in `obs-dashboards`' [command-access](../skills/obs-dashboards/references/command-access.md)
+reference and prove its installed-host deny canary before real reads.
+If terminal access or that prerequisite is absent, interpret supplied observations and return
+the missing read; do not execute. Copilot CLI/cloud are not covered by this VS Code preview.
+Load `obs-dashboards` and its command-access reference for the exact Grafana GET form. Native
+Windows status/DNS commands and macOS status commands use the small guard allowlist; unsupported
+shell expressions, scripts, configuration changes, and general HTTP clients remain denied.
 
 Use Bash to **observe** read-only: `cf logs <app> --recent`, `cf events <app>`, `cf app <app>`,
 `gcloud run revisions list`, `gcloud logging read` (guard-safe filter shapes are in the `gcp-ops`

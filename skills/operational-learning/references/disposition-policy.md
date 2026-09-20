@@ -41,15 +41,16 @@ files it.
 
 Prefer the target repository's existing documented paths and index. When none exist, use:
 
-- `docs/operations/index.md`
-- `docs/operations/services/<component>.md`
-- `docs/operations/alerts/<alert>.md`
-- `docs/runbooks/<runbook>.md`
-- `docs/postmortems/<yyyy-mm-dd>-<incident>.md`
+- `operations/index.md`
+- `operations/services/<component>.md`
+- `operations/alerts/<alert>.md`
+- `runbooks/<runbook>.md`
+- `postmortems/<yyyy-mm-dd>-<incident>.md`
 
-These defaults are the authorized roots only when the caller names none. Paths are
-repository-relative. Reject absolute paths, parent traversal, URLs as write targets, and
-paths outside the caller-authorized documentation roots. Update an existing stable identifier
+These defaults are the authorized roots only when the caller names none. They are relative to the
+knowledge-repository root; `operations/`, `runbooks/`, and `postmortems/` are permitted fallback
+roots. Reject absolute paths, parent traversal, URLs as write targets, and paths outside the
+caller-authorized documentation roots. Update an existing stable identifier
 instead of creating a second record.
 
 ## Evidence and review rules

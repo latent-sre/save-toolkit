@@ -74,15 +74,19 @@ rule below.
   their folders only**, create and update over the HTTP API, any environment including production,
   without separate approval; everything else Grafana exposes (alert rules, data sources, contact
   points, permissions) stays Tier 2 recommend-only. Authority is *completing* `obs-dashboards`' loop,
-  not loading it: preflight and provisioning check, live model read at its stored version and kept as
-  the rollback, target and full diff shown before the call, validation, the API family's fresh
-  concurrency token, a save message carrying the change reference, then read back with every changed
-  query proved on a real window and the visual check done or stated plainly as not performed. A
-  timeout, dropped response, or crash after dispatch is an **UNKNOWN** outcome, not a failed write:
-  stop and reconcile from a fresh read back plus version history before any redispatch; conflicting
-  or incomplete evidence stays UNKNOWN — stop and name the reconciliation owner. No committed copy of
-  a dashboard exists, so the handoff says the version history is the record. Any gate that cannot be
-  completed means hand off without applying.
+  not loading it: preflight and provisioning check, live dashboard model read at its stored version
+  and kept as the rollback for a dashboard update, target and full diff shown before the call, and
+  validation. The applicable create or update checks in `obs-dashboards` establish an absent intended
+  uid and a human-owned recovery path before a create, which has no prior version or inherited token;
+  updates carry the fresh token and rollback content. Dashboard saves carry the change reference and
+  read back with every changed query proved on a real window and the visual check done or stated
+  plainly as not performed. Folder creates and updates use that skill's separate folder checks and
+  readback. Repository recovery-copy facts belong to `stack-profile`; live dashboard history remains
+  separate evidence. A dashboard timeout, dropped response, or crash after dispatch is an **UNKNOWN**
+  outcome, not a failed write: stop and reconcile from a fresh read back plus version history before
+  any redispatch. A folder outcome follows the skill's separate readback procedure. Conflicting or
+  incomplete evidence stays UNKNOWN — stop and name the reconciliation owner. Any gate that cannot
+  be completed means hand off without applying.
 
 `production-change-gate` owns approval scope and what re-enters the gate; while approval is pending,
 continue only independent Tier 0 or Tier 1 work, and approval never grants this agent live-change

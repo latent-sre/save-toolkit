@@ -29,13 +29,7 @@ PLUGIN_INERT_AGENT_FIELDS = {"hooks", "mcpServers", "permissionMode"}
 # a tool documented as available to subagents but absent here is refused with "unknown tool grant",
 # so adding one is a deliberate act. Absent on purpose, with the reason each omission carries:
 #
-#   `PowerShell`  THE LOAD-BEARING ONE. The read-only guard sees Bash and nothing else: the
-#                 `hooks/hooks.json` matcher is `"Bash"`, and readonly-guard.py returns early
-#                 unless `tool_name == "Bash"`. Granting `PowerShell` to `sre-assistant` would
-#                 hand the one guarded lane a completely unguarded shell -- and it would look
-#                 like a fix, because PowerShell is a supported language in this team's own
-#                 stack-profile and this is a Windows-first repository. Adding it here requires
-#                 teaching the hook matcher and the guard about it FIRST, in the same change.
+# PowerShell has its own hook matcher and literal-command grammar in readonly-guard.py.
 #   `SendMessage` Peer messaging routes around the delegation graph: a lane could reach an agent
 #                 it holds no `Agent(...)` edge to, and the roster's validated edge list would
 #                 describe a graph the fleet no longer has.
@@ -53,7 +47,7 @@ PLUGIN_INERT_AGENT_FIELDS = {"hooks", "mcpServers", "permissionMode"}
 # dead name, so the grant is harmless on Claude; swap it for the Task* names once one is proven.
 BUILTIN_TOOLS = {
     "Agent", "Bash", "Edit", "EnterWorktree", "ExitWorktree", "Glob", "Grep", "NotebookEdit",
-    "Read", "Skill", "TodoWrite", "ToolSearch", "WebFetch", "WebSearch", "Write",
+    "Read", "Skill", "TodoWrite", "ToolSearch", "WebFetch", "WebSearch", "Write", "PowerShell",
 }
 # Worktree entry/exit creates and removes a checkout. That is a filesystem effect, so it belongs
 # only to lanes that already hold write authority -- never to a lane whose posture is read-only by
@@ -121,19 +115,19 @@ EXPECTED_AUTHORITY = {
     "repository-investigator": {
         "required": LOCAL_READ_TOOLS,
         "forbidden": {
-            "Bash", "Agent", "Skill", *WRITE_TOOLS, *WORKTREE_TOOLS, *EXTERNAL_EVIDENCE_TOOLS,
+            "Bash", "PowerShell", "Agent", "Skill", *WRITE_TOOLS, *WORKTREE_TOOLS, *EXTERNAL_EVIDENCE_TOOLS,
         },
     },
     "researcher": {
         "required": EXTERNAL_EVIDENCE_TOOLS,
-        "forbidden": {"Read", "Grep", "Glob", "Bash", "Agent", "Skill", *WRITE_TOOLS, *WORKTREE_TOOLS},
+        "forbidden": {"Read", "Grep", "Glob", "Bash", "PowerShell", "Agent", "Skill", *WRITE_TOOLS, *WORKTREE_TOOLS},
     },
     "software-engineer": {
         "required": {"Read", "Bash", "Edit", "Write", "Skill", "Agent"},
         "forbidden": EXTERNAL_EVIDENCE_TOOLS,
     },
     "sre-assistant": {
-        "required": {"Read", "Bash", "Skill", "Agent"},
+        "required": {"Read", "Bash", "PowerShell", "Skill", "Agent"},
         "forbidden": {*WRITE_TOOLS, *WORKTREE_TOOLS, *EXTERNAL_EVIDENCE_TOOLS},
     },
     "observability-engineer": {
@@ -278,7 +272,7 @@ def _authority_failures(name: str, path: Path, specs: list[str], bases: set[str]
     if name in adapters.GUARDED_AGENTS and "Bash" not in bases:
         failures.append(f"{path}: guard roster claims an agent without Bash")
     # Both directions matter: a Bash-only lane outside the guard is read-only by promise alone.
-    if "Bash" in bases and not (bases & WRITE_TOOLS) and name not in adapters.GUARDED_AGENTS:
+    if bases & {"Bash", "PowerShell"} and not (bases & WRITE_TOOLS) and name not in adapters.GUARDED_AGENTS:
         failures.append(
             f"{path}: agent holds Bash without a write tool but is not on the guard roster "
             f"(GUARDED_AGENTS in generate_platform_adapters.py / readonly-guard.py); its "

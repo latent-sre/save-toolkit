@@ -1,10 +1,12 @@
 # Grafana dashboard HTTP API — safe live edits
 
 Read this when the invoked `observability-engineer` talks to a live Grafana. The dashboard write
-rule is dashboards and folders only; Grafana's version history plus the save message is the durable
-record, because this team keeps no committed dashboard copy. The traps below were measured on a
-non-production Grafana 13.1.4 Enterprise instance on 2026-08-21 and are `[verified: QA 13.1.4]` only
-there; after an upgrade or on Grafana Cloud they are `[unverified]` until repeated. Grafana 13
+rule is dashboards and folders only; Grafana's version history plus the save message records the live
+edit. `stack-profile` owns the repository recovery-copy facts; a backup is not automatically a
+provisioning source or a tested rollback. For review-only work use [read-only checks](./read-only-review.md).
+The 13.2 baseline below separates current read evidence from write procedures. Create, update,
+conflict, import, and rollback behavior is `[unverified]` on the current target; historical QA
+write results remain in Git history and do not transfer to an upgraded instance. Grafana 13
 deprecates `/api` in favour of `/apis` but still serves both; 13.2 disables scripted dashboards
 (410) by default. *[sourced: Grafana API and dashboard docs, 13.2.0 feature registry; reviewed
 2026-09-01]*
@@ -14,26 +16,28 @@ deprecates `/api` in favour of `/apis` but still serves both; 13.2 disables scri
 Read `$GRAFANA_URL` and `$GRAFANA_SA_TOKEN` at call time; never print the token, use `curl -v`, or
 put it in an evidence packet. Prefer folder-scoped grants; an organization Editor role is not least
 privilege. Read `GET /api/access-control/user/permissions` before trusting search or writing, because
-of two silent traps:
+the current scope is a prerequisite to interpreting either operation:
 
-- A token without `dashboards:read` gets the same empty `/api/search` array as an empty instance.
-- A create-only token received read/write/delete on the object after a *legacy* create, but an
-  app-platform create granted its creator nothing: every readback and cleanup returned 403. Use the
-  legacy create for that grant shape, or obtain folder-scoped read/write/delete first. Never create
-  what the caller cannot verify or roll back.
+- Empty search without `dashboards:read` does not establish an empty instance.
+- Do not assume a create grant also permits readback or rollback, or that the two API families
+  grant the creator identical access. Establish the required folder-scoped rights before an
+  authorized create. Never create what the caller cannot verify or roll back; a review needs no
+  create or write grant.
 
 ## Two API families, one stored version
 
 | Family | Path | Use |
 |---|---|---|
 | App platform | `/apis/dashboard.grafana.app/<version>/namespaces/<ns>/dashboards` for create and list; `…/dashboards/<uid>` for read, update, delete | version-pinned; stable-version history |
-| Legacy | `/api/dashboards/*`, `/api/search`, `/api/folders`, `/api/datasources` | discovery, Classic fallback, create when its managed-permission grant is needed |
+| Legacy | `/api/dashboards/*`, `/api/search`, `/api/folders`, `/api/datasources` | discovery and Classic fallback after checking the target's grants |
 
 The namespace is `default` for org 1, `org-<id>` otherwise, `stacks-<id>` on Grafana Cloud.
 App-platform identity is `metadata.name` (the dashboard uid), not the server-minted `metadata.uid`.
 
-The read URL selects the returned shape, not the stored schema. QA 13.1.4 served all six
-versions with preferred `v2`; an unpinned Classic transform can therefore see no panels.
+The read URL selects the returned shape, not the stored schema. The 13.2.2 read-only target served
+all six versions with preferred `v2`; the sampled stored Classic dashboard returned `elements`
+through V2 and `panels` through V1. `[verified: target reads, 2026-09-19]` An unpinned Classic
+transform can therefore see no panels. This does not verify a converted write or its fidelity.
 
 1. Read at `v0alpha1` (unstructured, no migration). Take `status.conversion.storedVersion`,
    falling back to the returned `apiVersion`.
@@ -70,8 +74,10 @@ stable 8–40 character uid, the folder in the `grafana.app/folder` annotation, 
 in `grafana.app/message`, and no `metadata.resourceVersion` or `generation` (those are the server's
 concurrency fields, absent on a create); success is 201. Legacy: `POST /api/dashboards/db` with `id: null`, `folderUid`, `message`, and
 `overwrite: false`; success is 200. A 409 or `name-exists` means the uid is taken: stop and
-reconcile, never switch to `overwrite: true`. QA 13.1.4 returned 409 for a taken uid where older
-docs say 412.
+reconcile, never switch to `overwrite: true`. Handle both 409 and legacy documented 412 conflict
+responses; the current read-only check does not establish the write response code. Before dispatch,
+name the human or protected executor who owns recovery if removal is needed: a create has no prior
+dashboard version to restore, and this lane has no deletion authority.
 
 **Import** is the only path that binds `__inputs` and `${DS_*}` placeholders to this instance's data
 sources (`POST /api/dashboards/import` with `overwrite: false`, `folderUid`, and an `inputs[]`
@@ -87,11 +93,42 @@ concurrency token and a save message, which cannot be added later:
 | App-platform `PUT` | `metadata.resourceVersion`; strip `status` first | 409 `Conflict` | fresh read, re-diff, retry only after reconciliation |
 | Legacy `POST /api/dashboards/db` | `dashboard.version` from the read just made, `overwrite: false` | 409 with the same "already exists" message as a taken uid (older docs: 412) | fresh read, compare versions |
 
-`overwrite: true` silently defeated the legacy token and discarded the concurrent save in QA.
-Re-applying byte-identical content created no new version, so the write is idempotent-by-target
-only for the same uid and desired bytes, not retry-safe: a timeout, dropped response, or crash after
+Never use `overwrite: true` to bypass a conflict. Do not assume a byte-identical reapply creates no
+new history entry on the current target. The same uid and desired bytes identify the intended
+result, not a retry-safe operation: a timeout, dropped response, or crash after
 dispatch is **UNKNOWN** and is reconciled by step 6 of the loop in [SKILL.md](../SKILL.md) before any
 redispatch.
+
+## Folder create and update
+
+The app-platform folder API has a separate lifecycle from dashboards. Before a folder change, read
+the target's folder permissions and namespace. A create needs `folders:create` and `folders:write`;
+an update needs `folders:write`; both need enough `folders:read` scope to check the target and read
+it back. For a nested folder, confirm that nested folders are enabled and that the parent-specific
+grant applies. These current API contracts are [sourced: Grafana's
+Folder HTTP API](https://grafana.com/docs/grafana/latest/developers/http_api/folder/), reviewed
+2026-09-19; their behavior on the target is `[unverified]` until observed.
+
+- **Create:** list or read the proposed uid and inspect the intended parent for a title collision.
+  `POST /apis/folder.grafana.app/v1/namespaces/<ns>/folders` takes a chosen stable `metadata.name`,
+  optional `grafana.app/folder` parent annotation, and `spec.title`. Do not send
+  `metadata.resourceVersion`: it does not exist before creation. `201`
+  creates; `409` means the uid exists, so stop and reconcile rather than delete or overwrite. Before
+  dispatch, name the human or protected executor who owns recovery if removal is needed; a create has
+  no prior folder version to restore, and this lane has no deletion authority.
+- **Update:** `GET …/folders/<uid>` first; `PUT …/folders/<uid>` uses that same `metadata.name`,
+  current `metadata.resourceVersion`, the existing parent annotation, and `spec.title`. Moving a
+  folder can change inherited access, so it needs a separately authorized path. `404` is an absent
+  target; `412 version-mismatch` is a concurrent update. Keep the pre-change fields as rollback
+  content; a restore reads the current folder and applies those saved fields with its fresh token.
+  In either case stop, fresh-read, and re-diff; do not force.
+- **Outcome:** folder writes have no dashboard version-history or dashboard save-message record.
+  Preserve the successful write receipt, then fresh-read the uid: it must match the intended uid,
+  title, parent, and current returned resource version. A post-dispatch UNKNOWN is reconciled by
+  fresh uid readback plus the intended-parent listing. The desired uid, title, parent, and a current
+  returned resource version establish the observed state, but cannot attribute it to the unanswered
+  dispatch; retain UNKNOWN and name a reconciliation owner. Deletion is outside the dashboard write
+  rule.
 
 ## Verify, then record
 
@@ -109,6 +146,10 @@ redispatch.
    `/apis/dashboard.grafana.app/v1/namespaces/<ns>/dashboards?labelSelector=grafana.app/get-history=true&fieldSelector=metadata.name=<uid>`,
    or fall back to legacy `GET /api/dashboards/uid/<uid>/versions?limit=20` and `/versions/<n>`
    for a full prior model.
+
+   For a read-only review, legacy history can return 403 while stable app-platform history remains
+   readable `[verified: 13.2.2 target, 2026-09-19]`. Preserve the endpoint-specific result; it is
+   not evidence that the dashboard has no versions. A history read cannot verify a new save.
 
 ## Rollback
 
