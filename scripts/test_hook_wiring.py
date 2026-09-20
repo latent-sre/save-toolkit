@@ -25,6 +25,14 @@ def available_shell() -> str | None:
     return None
 
 
+def available_powershell() -> str | None:
+    for candidate in ("pwsh", "powershell"):
+        discovered = shutil.which(candidate)
+        if discovered:
+            return discovered
+    return None
+
+
 def rebuild_inline_command(script_lines: list[str]) -> str:
     """Join the standalone launcher's stripped lines back into one inlined hook command."""
     rebuilt: list[str] = []
@@ -61,6 +69,48 @@ class HookWiringTests(unittest.TestCase):
         handler = entry["hooks"][0]
         self.assertEqual("powershell", handler["shell"])
         self.assertIn("readonly-guard-hook.ps1", handler["command"])
+
+    @unittest.skipUnless(available_powershell(), "PowerShell not available")
+    def test_exact_powershell_hook_command_allows_safe_denies_write(self) -> None:
+        """The only test that runs the real PowerShell hook command string.
+
+        `test_powershell_has_a_separate_guard_handler` asserts the handler is REGISTERED; nothing
+        proved it RUNS. A review of this PR read `${CLAUDE_PLUGIN_ROOT}` as an unset PowerShell
+        variable that would expand to nothing and leave `-File /scripts/...`. It does not: Claude
+        Code substitutes path placeholders into the command string as plain text before the shell
+        sees them, and also exports them to the spawned process. This test reproduces that
+        substitution so the launch path is exercised rather than argued about.
+        """
+        document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
+        entry = next(e for e in document["hooks"]["PreToolUse"] if e["matcher"] == "PowerShell")
+        command = entry["hooks"][0]["command"].replace("${CLAUDE_PLUGIN_ROOT}", str(ROOT))
+        self.assertNotIn("${", command, "a path placeholder went unsubstituted in this test")
+
+        def invoke(payload: dict) -> subprocess.CompletedProcess[str]:
+            return subprocess.run(
+                [available_powershell(), "-NoProfile", "-Command", command],
+                input=json.dumps(payload),
+                text=True,
+                capture_output=True,
+                cwd=ROOT,
+                env=dict(os.environ, CLAUDE_PLUGIN_ROOT=str(ROOT)),
+                timeout=60,
+                check=False,
+            )
+
+        safe = invoke({"tool_name": "PowerShell", "agent_type": "save-toolkit:sre-assistant",
+                       "tool_input": {"command": "Get-Date -Format o"}})
+        denied = invoke({"tool_name": "PowerShell", "agent_type": "save-toolkit:sre-assistant",
+                         "tool_input": {"command": "Remove-Item -Recurse -Force C:\\Windows"}})
+        main = invoke({"tool_name": "PowerShell",
+                       "tool_input": {"command": "Remove-Item -Recurse -Force C:\\Windows"}})
+
+        self.assertEqual((0, ""), (safe.returncode, safe.stdout.strip()), safe.stderr)
+        self.assertEqual(0, denied.returncode, denied.stderr)
+        self.assertEqual(
+            "deny", json.loads(denied.stdout)["hookSpecificOutput"]["permissionDecision"]
+        )
+        self.assertEqual((0, ""), (main.returncode, main.stdout.strip()), main.stderr)
 
     def test_hook_is_session_wide_and_fail_closed_for_guarded_agents(self) -> None:
         document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))

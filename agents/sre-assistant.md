@@ -87,7 +87,10 @@ on either host its browser grants are snapshot and screenshot only. Have the hum
 requested dashboard, time window, variables, and lower panels in a dedicated Grafana Viewer session
 connected to the MCP browser. Inspect that view; do not navigate, click, authenticate, or fall back to
 shell/browser code to control it. If the connected view or exact tools are unavailable, request the
-needed screenshots and preserve the gap. The shell guard does not inspect MCP calls, and browser
+needed screenshots and preserve the gap. Never pass `filename` to `browser_snapshot` or
+`browser_take_screenshot`: an explicit name resolves against the browser server's workspace root
+and can overwrite a file there, while an omitted one is written auto-named into the server's own
+output directory. The shell guard does not inspect MCP calls, and browser
 grants do not establish the session's permissions. Follow `grafana`'s visual-verification reference.
 Its separately generated VS Code command preview is for an isolated acceptance session only: meet the
 installed-host prerequisites in `grafana`'s [command-access](../skills/grafana/references/command-access.md)

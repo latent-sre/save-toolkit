@@ -30,7 +30,28 @@ session connected to the MCP browser. Use a profile containing only the requeste
 with host-enforced origin restrictions where available; do not attach a broad personal/admin
 session. The browser credential is separate from an API token. Establish effective read-only
 permissions for that identity and org before accepting the session; a role label alone is not proof.
-Keep captures within the host's private artifact directory, not arbitrary repository paths.
+
+### Where captures land
+
+`browser_take_screenshot` and `browser_snapshot` both accept an optional `filename`, so neither is
+purely an observation. [sourced] Upstream resolves a relative `filename` against the **workspace
+root**, and writes an omitted one into the server's output directory as `page-{timestamp}.{ext}`;
+`--output-dir` governs only the automatically named files and does not move an explicit one. A
+caller-supplied name can therefore land in — and overwrite — a checked-out repository file.
+
+Two controls, in this order:
+
+| Control | What it does | Who holds it |
+|---|---|---|
+| Workspace root is a dedicated temp capture directory, never the checkout | Bounds every write path, including an explicit `filename` | Host configuration |
+| `--allow-unrestricted-file-access` absent | [sourced] Upstream restricts file access to the workspace roots (or cwd) by default; setting this flag removes that restriction | Host configuration |
+| Never pass `filename` | Captures stay auto-named inside `--output-dir` and do not depend on the boundary holding | This lane |
+
+Omit `filename` on both tools. The lane rule is the weaker of the two: prose cannot constrain a
+tool argument, so it is a habit that keeps captures tidy, not the boundary. The boundary is the
+workspace root, and it is only real once proven on the installed host — the repository's VS Code
+plugin acceptance record carries the capture-boundary canary. A root pointed at the checkout means
+no captures.
 
 If more panels must be revealed or the wrong page is connected, return the exact view needed for
 the human to prepare, or use supplied screenshots. Do not replace a missing/denied browser tool

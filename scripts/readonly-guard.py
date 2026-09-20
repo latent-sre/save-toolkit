@@ -242,6 +242,12 @@ _OS_READ_FORMS = {
     "uptime": {()},
     "df": {(), ("-h",), ("-k",)},
 }
+
+# POSIX observation heads the command-access reference advertises for macOS that the PowerShell
+# grammar has no spelling for: Windows reaches the same two needs through `Get-Date` and
+# `Resolve-DnsName`. Admitted in Copilot mode only, and only through the Bash classifier, so
+# `_date_reason`'s clock-SETTING check and the structural denial of `dig $(...)` still decide.
+_COPILOT_POSIX_READERS = frozenset({"date", "dig"})
 _GRAFANA_READ_PATH = re.compile(
     r"/(?:api/(?:health|org|plugins|frontend/settings|access-control/user/permissions|"
     r"datasources(?:/uid/[A-Za-z0-9_-]+/health)?|search|folders|"
@@ -935,6 +941,39 @@ def explain(command: str, agent: str = "") -> "str | None":
     return None
 
 
+def copilot_read_allowed(command: str) -> bool:
+    """True when a command the PowerShell grammar rejects is still a documented host read.
+
+    Copilot's integrated terminal is one entry point for both hosts, so it classifies with the
+    restricted PowerShell grammar first. That grammar denies the macOS spellings the
+    command-access reference advertises, which would make the documented time and DNS
+    observations unusable on a macOS execution host. Widening is deliberately narrow: the fixed
+    OS forms, the authenticated Grafana GET, and the two POSIX heads above -- never the whole
+    Bash allowlist.
+    """
+    stripped = command.strip()
+    if grafana_curl_allowed(stripped):
+        return True
+    if any(stripped == " ".join((name, *args))
+           for name, forms in _OS_READ_FORMS.items() for args in forms):
+        return True
+    try:
+        tokens = _tokenize(stripped)
+    except ValueError:
+        return False  # unlexable is not a read; the caller's deny stands
+    # The head gates which classifier may speak. Everything after it is still judged by the full
+    # Bash pipeline, so `date -u; rm -rf /` dies on the second segment rather than riding in.
+    if not tokens or tokens[0] not in _COPILOT_POSIX_READERS:
+        return False
+    # `dig` is admitted only in the advertised flagless `dig <name>` shape. Bash's allowlist takes
+    # `dig` from _SIMPLE_READERS and accepts its flags, which includes the batch-file form
+    # `dig -f <path>` -- a file whose every line leaves as a DNS query. That is a pre-existing
+    # Bash-path property, not one this narrower entry point needs to reproduce.
+    if tokens[0] == "dig" and any(token.startswith("-") for token in tokens[1:]):
+        return False
+    return explain(stripped) is None
+
+
 # --- fleet-wide credential deny ---------------------------------------------------------------
 # HONEST SCOPE, stated before the code so nobody mistakes what this buys: it is a DENYLIST, the
 # shape this file argues against for read-only containment, and it is a TRIPWIRE, not a boundary.
@@ -1104,9 +1143,7 @@ def main() -> None:
             # Copilot's integrated terminal can be configured independently of host OS. Use
             # the restricted grammar on every host; POSIX-only observation forms are literal.
             reason = explain_powershell(command)
-            if reason is not None and (grafana_curl_allowed(command) or
-                    any(command.strip() == " ".join((name, *args))
-                        for name, forms in _OS_READ_FORMS.items() for args in forms)):
+            if reason is not None and copilot_read_allowed(command):
                 reason = None
             if reason:
                 _deny("Blocked by the SRE command guard: " + reason)

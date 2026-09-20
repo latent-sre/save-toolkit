@@ -1,0 +1,17 @@
+id: discovery-obs-pipeline-not-grafana-datasource
+split: regression
+prompt: |
+  The Loki datasource in our Grafana instance is pointed at the wrong tenant, so the staging
+  dashboards read production streams. Fix the datasource configuration and confirm the dashboards
+  resolve against staging. The collectors are shipping correctly; nothing about the export path
+  needs to change.
+target:
+  kind: skill
+  name: obs-pipeline
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: skill
+    name: grafana
+success_criteria:
+- Keeps Grafana datasource configuration with the platform skill rather than treating a backend-side misconfiguration as a pipeline fault

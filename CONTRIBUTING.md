@@ -40,8 +40,8 @@ This development default does not raise the installed hook guard's Python 3.11 f
 
 Run the smallest check that exercises the changed behavior. A new contract needs one focused test
 that fails for the named break and passes after the fix. A new mechanism needs the measured failure
-it prevents and its weight in Gate A's totals, stated in the PR; the default response to a finding
-is a deletion or a one-line rule. Keep evidence under `docs/reviews/` while an unresolved roadmap
+it prevents, stated in the PR, plus the byte delta where the growth row below applies; the default
+response to a finding is a deletion or a one-line rule. Keep evidence under `docs/reviews/` while an unresolved roadmap
 decision or a current regression depends on its measurements, including failed results. A changelog
 entry or a comment recording when a test first ran is not a retention reason. Remove completed
 reports, retired eval fixtures, and restoration bundles once their current dependency is gone;
