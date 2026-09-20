@@ -45,7 +45,9 @@ defaults until the owner records a decision here.
 ## Hosts and runners
 
 On-prem hosts and self-hosted Actions runners are **RHEL 9+**. GitHub-hosted Linux runners are
-Ubuntu. Both classes are in active use, so portable shell
+Ubuntu; the house choice for those CI jobs is **`runs-on: ubuntu-latest`**. Preserve that choice
+when authoring or optimizing workflows. *[sourced: operator preference 2026-09-20]*
+Both classes are in active use, so portable shell
 must run on both: the effective **bash floor is 5.1**, past every pre-4.4 workaround.
 *[sourced: operator statement 2026-08-21; confirm exact minor versions on the target]*
 

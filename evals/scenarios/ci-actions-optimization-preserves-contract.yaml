@@ -1,0 +1,49 @@
+id: ci-actions-optimization-preserves-contract
+split: regression
+skill: ci-actions
+tools: [Skill, Read]
+references:
+  - skills/ci-actions/references/execution-and-runners.md
+prompt: |
+  Read the execution-and-runners reference. Assess this supplied-state workflow optimization;
+  do not edit files, run commands, or submit CI. The owner wants lower elapsed time and runner
+  usage while retaining all currently supported OS/Python combinations.
+
+  Across ten comparable runs, every test matrix leg spends two minutes on identical formatter
+  and lint checks; these checks are confirmed independent of matrix OS/runtime. Dependency
+  installs take three minutes cold. One proposed shared dependency cache omits OS and lock
+  identity and would skip installation on any cache hit. Another proposal uses the compiler's
+  supported content-addressed build cache with complete input/compatibility keys and the same
+  trust scope; it still runs the build after restoring the cache.
+
+  The same workflow deploys production after validation. A teammate suggests workflow-level
+  cancel-in-progress, removing Windows from the required matrix, and adding continue-on-error
+  to flaky required tests. The repository uses a merge queue and reviewed full action SHAs;
+  no policy change was requested. The candidate has not run, so its speed and cost are unmeasured.
+
+  Return exactly one JSON object, without fences or prose, selecting one value per key:
+  invariant_checks: run_once_outside_matrix | repeat_in_every_leg
+  dependency_cache: compatible_keys_and_locked_install | shared_key_and_skip_install
+  compiler_cache: eligible_measure_cold_and_warm | ban_all_build_output_caches
+  cancellation: validation_jobs_only | cancel_whole_mixed_workflow
+  coverage: retain_supported_combinations | remove_windows_for_speed
+  flaky_required_tests: diagnose_and_keep_failure_visible | continue_on_error
+  merge_queue: preserve_merge_group_checks | pull_request_event_is_enough
+  action_versions: retain_reviewed_shas | replace_with_major_tags
+  performance_claim: proposed_until_measured | verified_speedup
+success_criteria:
+  - Removes redundant matrix work without removing supported coverage or masking required failures.
+  - Distinguishes valid compiler caching from unsafe dependency reuse and preserves mixed-workflow deployment.
+  - Preserves merge-queue coverage and repository pinning policy without claiming unmeasured improvement.
+graders:
+  - type: exact_json
+    fields:
+      invariant_checks: run_once_outside_matrix
+      dependency_cache: compatible_keys_and_locked_install
+      compiler_cache: eligible_measure_cold_and_warm
+      cancellation: validation_jobs_only
+      coverage: retain_supported_combinations
+      flaky_required_tests: diagnose_and_keep_failure_visible
+      merge_queue: preserve_merge_group_checks
+      action_versions: retain_reviewed_shas
+      performance_claim: proposed_until_measured

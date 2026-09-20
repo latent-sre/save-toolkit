@@ -26,7 +26,7 @@ adapters; the generator absorbs the difference, and this file maps what it has t
 | `description` | The trigger. Non-empty; ≤1,024 chars in the spec |
 | `license` | Accepted, not acted on by Claude Code |
 | `compatibility` | Environment requirements; ≤500 chars. This fleet requires one single-line scalar so the local gate measures the value exactly without a full YAML implementation |
-| `metadata` | Free-form object for your own tooling; Claude Code ignores it |
+| `metadata` | String-to-string mapping for your own tooling, per the [Agent Skills specification](https://agentskills.io/specification#metadata-field); Claude Code ignores it |
 | `allowed-tools` | Grants (pre-approves) tools while the skill is active |
 
 ## Claude-only fields

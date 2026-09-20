@@ -2,6 +2,7 @@ id: discovery-ci-actions-harden-workflow
 split: regression
 prompt: |
   Can you tell me what's wrong with this before I merge it? Don't edit the file — just tell me.
+  This repository explicitly permits reviewed published major tags for official GitHub actions.
 
   ```yaml
   on: [pull_request]

@@ -1,6 +1,9 @@
-# Conditional starter: use only when no project-owned workflow or starter exists; adapt from reviewed requirements.
-# Review action provenance, event trust, permissions and secrets before merge.
-name: ci
+# Python/uv project example: adapt an existing workflow first.
+# Requires uv.lock and ruff, mypy, pytest in the project's selected dependency groups.
+# Pass a nonempty JSON array of supported Python versions, first = static-check interpreter.
+# Adjust groups, commands, timeouts and parallelism to the project; do not change its package manager.
+# Require both checks and test legs: a failed checks job skips its dependent test jobs.
+name: python-ci
 
 on:
   workflow_call:
@@ -9,29 +12,65 @@ on:
         description: Stable identity unique to the caller job and any caller matrix target
         required: true
         type: string
+      python-versions:
+        description: Nonempty JSON array of supported Python versions
+        required: true
+        type: string
+      uv-version:
+        description: Reviewed exact uv release used by the project
+        required: true
+        type: string
+      max-parallel:
+        description: Maximum simultaneous test legs; size for runner and service capacity
+        type: number
+        default: 4
 
 permissions:
   contents: read
 
 jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: ${{ github.workflow_ref }}-${{ github.ref }}-${{ inputs.concurrency-key }}-ci-checks
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: ${{ inputs.uv-version }}
+          python-version: ${{ fromJSON(inputs.python-versions)[0] }}
+          cache-dependency-glob: uv.lock
+      - run: uv sync --locked
+      - run: uv run --locked ruff check .
+      - run: uv run --locked ruff format --check .
+
   test:
-    runs-on: ubuntu-24.04
+    needs: checks
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
-      matrix: { python-version: ["3.11", "3.12"] }
+      fail-fast: false
+      max-parallel: ${{ inputs.max-parallel }}
+      matrix:
+        python-version: ${{ fromJSON(inputs.python-versions) }}
     concurrency:
       # Reserve this suffix for the callee; caller groups must differ.
       group: ${{ github.workflow_ref }}-${{ github.ref }}-${{ inputs.concurrency-key }}-ci-test-${{ matrix.python-version }}
       cancel-in-progress: true
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.0.1 # upstream has no major tag
-        with: { python-version: "${{ matrix.python-version }}" }
-      - run: uv sync --frozen
-      - run: uv run ruff check .
-      - run: uv run ruff format --check .
-      - run: uv run mypy .
-      - run: uv run pytest -q
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: ${{ inputs.uv-version }}
+          python-version: ${{ matrix.python-version }}
+          cache-dependency-glob: uv.lock
+      - run: uv sync --locked
+      - run: uv run --locked mypy .
+      - run: uv run --locked pytest -q
 
   # Deployment belongs in a separate protected-environment job/workflow.
   # See the PCF job reference for its approval, artifact and credential contract.

@@ -205,6 +205,9 @@ class FleetValidatorTests(unittest.TestCase):
         ).replace("*", "")
 
         self.assertIn("github release as the distribution path", checklist)
+        self.assertIn("gh api repos/{owner}/{repo}/releases/tags/{tag}", checklist)
+        self.assertIn('require "immutable": true', checklist)
+        self.assertRegex(checklist, r"shipping asset.s checked digest.*exact candidate.s lower-environment test evidence")
         self.assertIn("gh api repos/{owner}/{repo}/immutable-releases", checklist)
         self.assertIn('"enabled": true', checklist)
         self.assertIn("gh api repos/{owner}/{repo}/rulesets/{ruleset_id}", checklist)

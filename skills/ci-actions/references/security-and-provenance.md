@@ -1,62 +1,77 @@
-# CI security and provenance
+# Security and provenance
 
-Read this reference only when the task designs or changes credential/OIDC handling, action/image
-provenance and version updates, event trust, workflow linting, attestations, or immutable releases. The
-authority and safety contract in `SKILL.md` still applies.
+Read when changing permissions, credentials, event trust, action versions or release evidence.
+Use the repository's established policy; identify a policy change explicitly instead of silently
+rewriting it while optimizing CI. The parent skill owns execution authority.
 
-## Credentials and identity
+## Permissions and untrusted inputs
 
-`SKILL.md` owns the environment-secrets-not-OIDC default *[sourced: operator statement
-2026-08-21]*. Scope each secret to a protected environment so the approval gate and credential
-release are the same control. Rotate long-lived credentials on a schedule and after a runner
-rebuild; their blast radius lasts until rotation.
+Start with explicit read permissions and grant writes to the job that needs them. Inspect both
+the automatic token and other credentials: a read-only `GITHUB_TOKEN` does not limit a separate
+PAT or cloud credential. Keep untrusted validation separate from privileged delivery.
+When later steps need no authenticated Git, use checkout's `persist-credentials: false` so its
+credential is not retained for scripts. This reduces exposure; it does not remove the job token
+from the Actions runtime or sandbox the code being tested.
 
-`permissions: { id-token: write }` only permits GitHub to mint a short-lived OIDC token; the target
-still needs a broker that accepts and exchanges it. CredHub authenticates via UAA and does not
-accept GitHub OIDC JWTs, so do not add `id-token: write` as decorative hardening. For a GCP target,
-load `stack-profile` and confirm the selected runtime and identity broker before proposing an
-exchange.
+Pass PR titles, branch names and other event-derived strings through data inputs or environment
+variables, then quote them for the actual shell. Do not interpolate them into `run:` source. Treat
+downloaded artifacts and workflow output as untrusted too; validate their identity, format and
+paths before a privileged consumer processes them.
 
-## Action versions
+Avoid `pull_request_target` unless its privileged context is needed. Neither it nor `workflow_run`
+may check out and execute untrusted fork code alongside secrets, write permissions or private
+runner access. A preceding low-privilege run does not make its downstream workflow low-privilege.
+Do not bypass checkout protections to repair a blocked privileged fork checkout.
 
-Use published major tags for GitHub Actions. Verify the tag exists before changing a reference;
-if upstream publishes only release tags, use a published release tag and document the exception.
-For example, setup-uv publishes `v10.0.1` but no `v10` tag (verified 2026-09-10).
-Major tags receive upstream updates without a repository edit; review changes to the selected
-major and investigate new failures against the version resolved in the run. Do not label a moving
-tag with a fixed release comment. Keep `docker://image@sha256:<manifest-digest>` for image actions;
-a Git commit does not identify a registry image.
+## Action and tool versions
 
-## Fork checkout under privileged events
+For new workflows without an established policy, pin external actions and reusable workflows to
+reviewed full commit SHAs from the upstream repository, and `docker://` actions to image manifest
+digests. Keep a human-readable release comment beside an immutable pin and use the repository's
+update automation to make upgrades reviewable. A SHA is an identity, not a security review.
 
-`actions/checkout` refuses fork checkout under `pull_request_target`, and under `workflow_run` when
-the triggering `workflow_run.event` is a `pull_request*` event. It fails when `repository` resolves
-to the fork, when `ref` matches `refs/pull/<n>/head` or `/merge`, or when `ref` resolves to the fork
-PR's head or merge SHA.
+An existing approved tag policy remains a repository choice. Verify the tag and record its
+mutability; do not claim reproducibility from a major tag or attach an exact-release comment to
+a moving ref. An upgrade must meet action/runtime compatibility and organization allowlist rules.
+Never replace an existing reviewed SHA with a tag as incidental cleanup.
 
-This shipped in v7.0.0 on 2026-06-18 and was backported to every supported major on 2026-07-16, so
-a workflow resolving to v5 or v6 enforces it too. On a floating major tag such as `@v5` the tag is
-mutable, so unchanged YAML can resolve to newly backported code: read a new failure there as the
-protection engaging rather than hunting for a regression in your own YAML. The
-opt-out input `allow-unsafe-pr-checkout: true` exists; treat finding one in a diff, or an upgrade
-failure that tempts you to add one, as an unsafe design to review, not a fix to reach for.
-*[sourced: GitHub Changelog, ["Safer pull_request_target defaults for GitHub Actions
-checkout"](https://github.blog/changelog/2026-06-18-safer-pull_request_target-defaults-for-github-actions-checkout/),
-and actions/checkout CHANGELOG v7.0.0; reviewed 2026-08-25]*
+Pin installed tools separately from setup actions. Use locked installs and integrity checks where
+supported. A deliberate latest-version compatibility canary is a separate concern from reproducible
+release validation; label it and record the resolved versions. Consider package lifecycle scripts
+as executable dependencies, disabling them only when the project works without them.
 
-## Static security checks
+## Identity and deployment controls
 
-Use the repository's trusted, pinned installation of `actionlint` for workflow syntax and
-expression errors and `zizmor` for risky permissions, injection, and event patterns. Do not
-download or execute a candidate-provided linter or workflow merely to review it. A clean static
-result does not establish runtime or deployment behavior.
+For a new cloud target supporting federation, prefer short-lived OIDC credentials over adding a
+long-lived secret. Verify issuer, audience and subject restrictions against the exact repository,
+ref or environment; `id-token: write` permits minting a token but grants no cloud role by itself.
+Existing identity policy and target support govern the choice. For this fleet, read `stack-profile`
+before proposing an identity change; its current environment-secret policy remains in force.
 
-## Artifact attestations and immutable releases
+When secrets are needed, scope them to the relevant environment/job and avoid broad inheritance
+through reusable workflows. Do not print values or put them in argv, caches or artifacts. A
+credential available in the environment does not authorize its use for a different target.
 
-For releasable artifacts, use major-tagged `actions/attest-build-provenance` and `actions/attest-sbom`
-steps, then verify the result downstream with `gh attestation verify`. The attestation connects an
-artifact to its source and workflow; it does not replace review of the workflow that produced it.
+Check the repository's plan/visibility and actual environment settings before relying on required
+reviewers, branch restrictions, self-review prevention or administrator bypass controls. A job's
+environment name alone is not an approval gate. If a required control is unavailable, name the
+gap and the existing alternative; do not invent protection or weaken it to make YAML run.
 
-Build a release as a draft, attach and check every asset, then publish: with immutable releases on,
-a bad release requires a new one. The `production-change-gate` skill owns the immutable-release
-evidence contract and the API reads that prove it.
+## Verification and supply-chain evidence
+
+Use trusted repository-established `actionlint` and security lint such as `zizmor` when configured.
+Static checks do not execute the workflow or prove a credential boundary. Exercise changed
+permissions/events with scoped evidence; a negative check should test the actual protection.
+
+For release provenance, bind source commit, workflow/run attempt and artifact digest. Add build
+attestations or an SBOM when release policy or a consumer needs them, and verify them at consumption;
+creating an attestation without checking it downstream does not protect the consumer. An attestation
+does not make an unsafe producing workflow safe. For immutable releases, prepare and verify the
+draft and assets before publication; recovery after publication may require a new release.
+Production readiness and execution remain with the existing release owner/process.
+
+Sources: [GitHub secure use](https://docs.github.com/en/actions/reference/security/secure-use),
+[checkout inputs](https://github.com/actions/checkout/blob/3d3c42e5aac5ba805825da76410c181273ba90b1/action.yml),
+[OIDC](https://docs.github.com/en/actions/concepts/security/openid-connect),
+[environment controls](https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments),
+and [artifact attestations](https://docs.github.com/en/actions/concepts/security/artifact-attestations).

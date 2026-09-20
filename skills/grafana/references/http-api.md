@@ -137,7 +137,13 @@ Folder HTTP API](https://grafana.com/docs/grafana/latest/developers/http_api/fol
 2. Run each changed query through `POST /api/ds/query` with real variable values and the
    dashboard's window. `$__rate_interval` is render-time state the query API does not expand:
    substitute a concrete window of at least four scrape intervals and report what verification used.
-   Require success plus populated frames; a 200 with zero frames is not a working panel.
+   Inspect per-query success and expected results; HTTP 200 alone proves neither. For an expected
+   empty result, such as an error-only log panel during a quiet window, check source/window coverage
+   and the panel's empty-state presentation. Use a known populated window when available; otherwise
+   report positive-data behavior `[unverified]`. Do not widen filters just to obtain frames, or
+   mistake missing telemetry for an expected empty result.
+   [sourced: Grafana's [no-data distinction](https://grafana.com/docs/grafana/latest/alerting/guides/missing-data/),
+   checked 2026-09-20; target query behavior remains unverified until exercised.]
 3. Follow [visual verification](./visual-verification.md): inspect a server-rendered panel or use an
    authorized browser. `rendererAvailable: false` rules out neither browser inspection nor supplied
    screenshot evidence. If no visual path is available, label presentation `[unverified]`.
@@ -168,7 +174,7 @@ tool-managed rollback belongs to that owner. Grafana keeps 20 versions by defaul
 | 500 naming a namespace | use the namespace Grafana names; do not repeat the path |
 | empty search | check `dashboards:read` before calling the instance empty |
 | provisioned, plugin, or managed owner | stop and hand the change to that source |
-| zero query frames | fix data source, labels, variables, or window before claiming completion |
+| zero query frames | distinguish expected emptiness from query failure or missing telemetry; report any untested positive-data behavior |
 | a 404 on the app platform | verify uid, version, and served APIs before falling back to legacy |
 
 Deleting dashboards and changing permissions, data sources, alerts, contact points, or platform

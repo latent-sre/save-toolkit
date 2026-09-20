@@ -39,8 +39,9 @@ timestamp >= "2026-08-07T00:00:00Z" timestamp <= "2026-08-07T00:30:00Z"
 - The language is case-insensitive **except** regular expressions and the logical operators —
   `AND`/`OR` must be capitalized.
 - Operators: `=`, `!=`, `:` (substring/has), `=~` / `!~` (regex), and range comparisons.
-- `log_id("run.googleapis.com/stderr")` is the short form of the full
-  `log_name="projects/<project>/logs/…"` — prefer it, the full path invites typos.
+- Prefer `log_id("run.googleapis.com/stderr")`. The full-field form is
+  `logName="projects/<project>/logs/run.googleapis.com%2Fstderr"`: encode the log ID's slash
+  in `logName`, but not in `log_id()`.
 - `SEARCH("text")` matches on **token boundaries** (`SEARCH("world")` matches `world`, not
   `worlds`) and cannot match non-text fields — it is not a substring grep.
 - A structured payload field lives at `jsonPayload.<field>`; plain text at `textPayload`. A filter
@@ -53,8 +54,10 @@ The filter alone cannot bucket. Options, in order of preference for an investiga
 
 1. **Logs Explorer histogram** over the filter — fast visual onset/trend; screenshot or note the
    bucket edges into the packet, the histogram is not exportable evidence by itself.
-2. **Observability Analytics SQL** (below) — real `GROUP BY` over time buckets, complete zero
-   buckets included, exportable.
+2. **Observability Analytics SQL** (below) — exportable aggregation over time buckets.
+   `GROUP BY` returns only populated buckets. For a complete timeline, generate the bounded
+   bucket series and left-join counts; turn missing counts into zero only after confirming
+   source freshness and ingestion coverage. Otherwise preserve the gap as unknown.
 3. **Log-based metrics** for the recurring version — but user-defined log-based metrics are **not
    retroactive** ("data … comes only from log entries received after the metric is created")
    *[sourced: docs.cloud.google.com/logging/docs/logs-based-metrics]* — useless for the incident
@@ -98,8 +101,10 @@ and traces inside Cloud Observability; queries from its UI are included in stand
 pricing, while querying through a **linked BigQuery dataset** (needed only to join with other BQ
 data) bills as BigQuery *[sourced: Google Cloud blog 2026-06-23 "Observability Analytics"; the pricing split is on
 docs.cloud.google.com/logging/docs/log-analytics]*. This is where "top offenders" and
-"before vs after, as rates" get answered with complete buckets. Log buckets must be upgraded for
-it — upgrade state per bucket is `[unverified]`, check before promising a SQL answer.
+"before vs after, as rates" can be answered, with explicit gap filling when a complete timeline
+is needed. Log buckets must be upgraded for it — upgrade state per bucket is `[unverified]`,
+check before promising a SQL answer. See the official
+[SQL aggregation examples](https://docs.cloud.google.com/logging/docs/analyze/query-and-view).
 
 ## Tips & gotchas
 

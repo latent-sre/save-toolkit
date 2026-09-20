@@ -15,8 +15,11 @@ lock assessment. The safe sequence depends on the major:
   `ALTER TABLE t VALIDATE CONSTRAINT t_col_nn;` scans under `SHARE UPDATE EXCLUSIVE` without blocking
   writes. No `CHECK` detour or second `SET NOT NULL` step is needed. *[sourced: PostgreSQL 18 release
   notes and `ALTER TABLE` reference; GA 2025-09-25; reviewed 2026-08-21]*
-- **17 and earlier**: add `CHECK (col IS NOT NULL) NOT VALID`, backfill, validate the constraint, and
+- **12–17**: add `CHECK (col IS NOT NULL) NOT VALID`, backfill, validate the constraint, and
   only then run `SET NOT NULL`; the validated check lets these versions skip the second scan.
+- **Before 12**: do not assume the validated check avoids the final scan; assess that scan and its
+  lock duration on the exact version before scheduling the change. Scan avoidance was introduced in
+  [PostgreSQL 12](https://www.postgresql.org/docs/12/release-12.html).
 
 On PostgreSQL 18+, generated columns are **virtual by default** and computed on read. Adding one no
 longer rewrites the table, but moves computation to queries; specify `STORED` when that is the intended

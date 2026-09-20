@@ -62,13 +62,17 @@ below does not apply to a review. Read-only results cannot verify write concurre
 
    The write is **idempotent-by-target** only for the same dashboard uid and byte-identical desired
    model. Dispatch followed by a timeout, dropped response, or caller crash has outcome **UNKNOWN**.
-   **Before any redispatch**, reconcile with fresh readback plus version history: desired bytes and
-   the save message mean executed; prior bytes and no matching history mean not executed; conflict
-   or incomplete evidence remains UNKNOWN, stops, and names a reconciliation owner.
-7. **Verify behavior, not only storage.** Read back into a new file, prove every changed query returns
-   data on a real window, and follow [visual verification](./visual-verification.md) through an
-   available browser or server renderer. Name unavailable visual evidence; never claim an inspection
-   that did not happen.
+   **Before any redispatch**, reconcile with fresh readback plus version history. Attribute execution
+   only from matching operation evidence; desired bytes alone establish current state. Prior bytes
+   and no matching history do not prove non-execution while an in-flight request could still land.
+   Until authoritative completion evidence resolves that possibility, retain UNKNOWN, stop, and
+   name a reconciliation owner.
+7. **Verify behavior, not only storage.** Read back into a new file and validate each changed query's
+   expected result on a real window using [query verification](./http-api.md#verify-then-record).
+   Expected empty results can be valid; report positive-data behavior unverified when no populated
+   window is available. Follow [visual verification](./visual-verification.md) through an available
+   browser or server renderer. Name unavailable visual evidence; never claim an inspection that
+   did not happen.
 8. **Verify the durable record.** Confirm the save message on the new version in version history.
 9. **Close with evidence.** Label target observations `[verified]`, repository or vendor facts
    `[sourced]`, and every unchecked target property `[unverified]`.

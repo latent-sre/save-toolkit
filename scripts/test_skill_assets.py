@@ -17,6 +17,60 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class SkillAssetTests(unittest.TestCase):
+    def test_python_ci_starter_does_not_keep_git_auth_for_checks(self) -> None:
+        workflow = yaml.safe_load(
+            (ROOT / "skills/ci-actions/assets/ci.reusable.yml").read_text(encoding="utf-8")
+        )
+        for name, job in workflow["jobs"].items():
+            checkouts = [step for step in job["steps"]
+                         if step.get("uses", "").startswith("actions/checkout@")]
+            self.assertTrue(checkouts, name)
+            for checkout in checkouts:
+                self.assertIs(checkout.get("with", {}).get("persist-credentials"), False, name)
+
+    def test_python_ci_starter_preserves_lock_and_caller_toolchain(self) -> None:
+        text = (ROOT / "skills/ci-actions/assets/ci.reusable.yml").read_text(encoding="utf-8")
+        workflow = yaml.safe_load(text)
+        self.assertEqual({job["runs-on"] for job in workflow["jobs"].values()}, {"ubuntu-latest"})
+        # PyYAML's YAML 1.1 loader treats the unquoted Actions key `on` as True.
+        inputs = workflow.get("on", workflow.get(True))["workflow_call"]["inputs"]
+        for name in ("python-versions", "uv-version"):
+            self.assertTrue(inputs[name]["required"], name)
+            self.assertNotIn("default", inputs[name], name)
+        commands = [line for job in workflow["jobs"].values()
+                    for step in job["steps"] for line in step.get("run", "").splitlines()]
+        locked_commands = [shlex.split(line) for line in commands if line.startswith("uv ")]
+        self.assertTrue(locked_commands)
+        for argv in locked_commands:
+            if argv[1] in {"sync", "run"}:
+                self.assertIn("--locked", argv, argv)
+        for job in workflow["jobs"].values():
+            for step in job["steps"]:
+                if "uses" in step:
+                    self.assertRegex(step["uses"], r"^[\w.-]+/[\w.-]+@[0-9a-f]{40}$")
+                if step.get("uses", "").startswith("astral-sh/setup-uv@"):
+                    self.assertEqual(step["with"]["version"], "${{ inputs.uv-version }}")
+
+    def test_python_ci_starter_runs_invariant_checks_outside_matrix(self) -> None:
+        workflow = yaml.safe_load(
+            (ROOT / "skills/ci-actions/assets/ci.reusable.yml").read_text(encoding="utf-8")
+        )
+        jobs = workflow["jobs"]
+        for tool in ("ruff check", "ruff format"):
+            owners = [name for name, job in jobs.items()
+                      if any(tool in step.get("run", "") for step in job["steps"])]
+            self.assertEqual(len(owners), 1, tool)
+            self.assertNotIn("strategy", jobs[owners[0]], tool)
+        test = jobs["test"]
+        self.assertEqual(test["strategy"]["matrix"]["python-version"],
+                         "${{ fromJSON(inputs.python-versions) }}")
+        # Mypy evaluates version-dependent branches using its interpreter by default.
+        # Keep type checks on every supported interpreter rather than treating them as invariant.
+        mypy_jobs = [name for name, job in jobs.items()
+                     if any("mypy" in step.get("run", "") for step in job["steps"])]
+        self.assertEqual(mypy_jobs, ["test"])
+        self.assertTrue(any("pytest" in step.get("run", "") for step in test["steps"]))
+
     def test_ci_starter_cancellation_is_local_to_each_validation_leg(self) -> None:
         workflow = yaml.safe_load(
             (ROOT / "skills/ci-actions/assets/ci.reusable.yml").read_text(encoding="utf-8")
@@ -32,6 +86,8 @@ class SkillAssetTests(unittest.TestCase):
             return re.sub(r"\$\{\{\s*(.*?)\s*\}\}", lambda m: context[m[1]], group)
 
         # Reusable invocations, Python legs, branches and workflows must not cancel each other.
+        # Concrete caller input, independent of the expression used to expand the matrix.
+        versions = ("3.12", "3.14")
         groups = {resolve(workflow_ref, ref, caller, version)
                   for workflow_ref in (
                       "org/repo/.github/workflows/checks.yml@refs/heads/main",
@@ -39,8 +95,12 @@ class SkillAssetTests(unittest.TestCase):
                   )
                   for ref in ("refs/heads/a", "refs/heads/b")
                   for caller in ("api", "worker")
-                  for version in job["strategy"]["matrix"]["python-version"]}
-        self.assertEqual(len(groups), 8 * len(job["strategy"]["matrix"]["python-version"]))
+                  for version in versions}
+        self.assertEqual(len(groups), 8 * len(versions))
+        checks = workflow["jobs"]["checks"]["concurrency"]
+        self.assertTrue(checks["cancel-in-progress"])
+        self.assertIn("inputs.concurrency-key", checks["group"])
+        self.assertNotEqual(checks["group"], group)
 
     def test_pcf_example_pushes_only_the_downloaded_release_paths(self) -> None:
         text = (ROOT / "skills/ci-actions/references/pcf-deploy-job.md").read_text(encoding="utf-8")

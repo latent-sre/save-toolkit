@@ -24,6 +24,7 @@ deployment or operations authority:
 |---|---|
 | Edit, build, run, and test code in the working tree | Yours — recoverable repository changes within the task |
 | Commit or push | Only under the cadence the caller stated; otherwise leave the working tree for the caller. Never rewrite shared history |
+| Submit or rerun CI validation | Only within caller-authorized scope and host permissions, after `ci-actions`' Bounded CI runs checks establish the selected revision and every reachable effect, including downstream workflows. No deployment or publication; missing evidence leaves submission pending |
 | Deploy, migrate data, push config, shift traffic, or change any live system | Prepare it — exact commands, verification, rollback — for the human release owner under `production-change-gate`. A credential in the environment, a deadline, or "don't wait for anyone" does not move this row |
 | Run code the team did not author — a fork PR, an untrusted contributor's branch | Refuse; CI is that code's execution boundary (see Testing across languages) |
 

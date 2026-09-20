@@ -62,17 +62,21 @@ review checks the entry shape, target assumptions, and safety rules.
 ### Which errors started at the same time as the impact?
 
 - **Applies to:** any service emitting structured errors to Splunk
-- **Reads as:** one row per error class per minute, most recent first
-- **Healthy looks like:** a flat count at the service's normal background rate, with no class appearing for the first time
+- **Reads as:** one row per error class per minute containing classified events, most recent first; quiet buckets are absent
+- **Healthy looks like:** returned counts match a known-normal comparison; absent buckets or classes do not establish health
 - **Owner:** `<service on-call>`
 - **Verified:** [unverified: target index and `error_type` extraction]
 
 ```spl
-index=<app_index> earliest=-60m
+index=<app_index> earliest=<start_epoch> latest=<end_epoch>
 | bin _time span=1m
 | stats count by _time, error_type
-| sort - _time
+| sort 0 - _time
 ```
+
+This is an onset shortlist, not a complete baseline. Confirm `error_type` extraction and ingestion
+coverage; use [SPL's complete-bucket method](./spl.md#spot-a-spike-vs-the-baseline-anomaly-detection)
+when the question requires quiet periods and a trailing baseline.
 
 ### Did error rate change across the deploy?
 
@@ -104,10 +108,14 @@ zero. `spl.md` owns the per-error-class variant and its phase-wide denominator.
 - **Verified:** [unverified: correlation-id field name per `indexes.md`]
 
 ```spl
-index=<app_index> <correlation_field>="<request_id>" earliest=-24h
+index=<app_index> <correlation_field>="<validated_and_spl_escaped_id>" earliest=<start_epoch> latest=<end_epoch>
 | table _time, service, status, latency_ms
-| sort _time
+| sort 0 _time
 ```
+
+Keep the request window tight. [Splunk `sort`](https://help.splunk.com/en/splunk-enterprise/spl-search-reference/10.4/search-commands/sort)
+defaults to 10,000 results; `sort 0` preserves the path but can cost more. Missing hops remain
+telemetry gaps until independently explained.
 
 ### Which callers are driving the current load?
 

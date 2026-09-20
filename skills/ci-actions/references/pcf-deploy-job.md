@@ -7,19 +7,22 @@ infrastructure, runtime or identity recommendations.
 
 - A self-hosted runner in an approved runner group with network access to the foundation, and a
   pinned cf CLI v8 installation from an approved, checksum-verified source.
-- A protected GitHub environment with required reviewers and environment-scoped credentials for a
-  least-privilege PCF service account.
+- A GitHub environment whose required reviewers and environment-scoped credentials for a
+  least-privilege PCF service account are configured and available on this repository's plan.
+  Naming the environment in YAML does not establish that protection.
 - A trusted `build` job that uploads `app-build` with `app.zip` and a reviewed single-app
   `manifest.yml`, and exposes their SHA-256 digests as `app_sha256` and `manifest_sha256` outputs.
   The manifest must be self-contained, without credentials or a Docker-image deployment path.
 - Shell tracing off. `cf auth` with no arguments reads `CF_USERNAME` and `CF_PASSWORD` from the
   environment; never put them in argv. *[sourced: cf CLI `command/v7/auth_command.go` help text]*
 - Health checks, rollback commands, and the release-readiness and exact human approval evidence
-  required by `SKILL.md`. Preparing this evidence grants no approval.
+  required by the existing production-change process. Preparing this evidence grants no approval.
 
 ## Planning skeleton
 
-Use published major tags for every GitHub action in this example.
+This example retains the team's existing major-tag policy; those refs are mutable. A repository
+requiring immutable refs must substitute reviewed full commit SHAs. The general skill does not
+impose the PCF example's identity or action-version choices on other workflows.
 
 ```yaml
 deploy-prod:
