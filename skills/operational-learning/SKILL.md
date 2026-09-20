@@ -36,9 +36,10 @@ alert, SLO, and dashboard design stays with `observability-engineer`; code or au
 
 1. **Confirm the event is ready for closeout.** Name the target repository and revision, component,
    trigger, owner, evidence, and requested documentation roots. Roots lie under the repository's
-   documented operations or docs tree — never `agents/`, `skills/`, `hooks/`, `.github/`,
-   `.claude/`, or a fleet guide — and a root outside it is `blocked`; when the caller names none,
-   follow the policy's repository conventions and fallback paths. Before `prepared`, require a caller-supplied
+   documented operations or docs tree, or the policy's `operations/`, `runbooks/`, and
+   `postmortems/` fallback roots — never `agents/`, `skills/`, `hooks/`, `.github/`, `.claude/`, or
+   a fleet guide — and a root outside them is `blocked`; when the caller names none, follow the
+   policy's repository conventions and fallback paths. Before `prepared`, require a caller-supplied
    `[verified]` checkout binding confirming the mounted checkout's current commit matches the target
    revision. A Bash-holding caller or human resolves the target there and supplies
    `git rev-parse --short=8 HEAD` with its output on `Verified:`. Git extends IDs for uniqueness;
@@ -70,7 +71,8 @@ alert, SLO, and dashboard design stays with `observability-engineer`; code or au
 
 "Who owns payments", "how do I page them", "what depends on ledger" are reads, not a closeout.
 Read the repository's documented knowledge index and component-card paths; absent a convention,
-use `docs/operations/index.md` and `docs/operations/services/<app>.md`. Report owner, escalation,
+use `operations/index.md` and `operations/services/<app>.md` relative to the knowledge-repository
+root. Report owner, escalation,
 and dependencies as `[sourced]` with the path, `last_reviewed`, and `evidence_status`. If records
 are missing, name the inspected roots and expected path; do not claim absence outside that scope
 or infer an owner from code paths, commit authors, or alert labels. During an active incident the

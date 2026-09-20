@@ -1,11 +1,12 @@
 # Copilot & VS Code frontmatter — agents & skills
 
-The fleet's single source of truth for VS Code / GitHub Copilot frontmatter facts. On conflict with
-the live docs (code.visualstudio.com/docs/agent-customization/custom-agents,
-docs.github.com/en/copilot/reference/custom-agents-configuration) the docs win — update this file
-and re-verify after host upgrades.
+The fleet's single source of truth for VS Code / GitHub Copilot frontmatter facts. Check live docs
+and the installed host; when they disagree, record the version and evidence instead of assuming
+the documented field is enforced. Re-verify after host upgrades.
 
-Facts below are **doc-checked (2026-09-09; Skills refreshed 2026-09-10), not host-probed**. `RELEASE-001` owns installed-host
+Facts below are **doc-checked (2026-09-09; Skills refreshed 2026-09-10)**. Hook loading and failure
+handling were inspected in installed VS Code 1.138.0 / bundled Copilot Chat 0.66.0 on 2026-09-19;
+that is source evidence, not a live invocation test. `RELEASE-001` owns installed-host
 verification; treat a key's presence here as permission to author, never as proof it enforces.
 
 ## Contents
@@ -33,9 +34,9 @@ host does not support is **ignored, not rejected**, which is why one file serves
 | `model` | Single model name or a prioritized array. Unused — mirrors the Claude side, where no agent pins one |
 | `user-invocable` | Boolean, default `true`; `false` hides the agent from the chat dropdown. Unused — every fleet lane is meant to be reachable by the human SRE |
 | `disable-model-invocation` | Boolean, default `false`; prevents the agent being invoked **as a subagent by other agents**. Unused on agents today, and the one host key that could turn the delegation graph's inbound edges into enforcement rather than documented intent |
-| `target` | `vscode` or `github-copilot`. Unused — one file serves both because unsupported keys are ignored |
+| `target` | `vscode` or `github-copilot`. Only the exported SRE command profile sets `vscode`; standard projections leave it unset |
 | `mcp-servers` | MCP server config JSON for Copilot targets. Unused — `researcher`'s 18 exact Claude MCP grants collapse to bare `web`, so the cited-research lane is materially weaker here than on Claude |
-| `hooks` | **(Preview)** agent-scoped hooks, VS Code 1.111+, gated behind `chat.useCustomAgentHooks`. Same shape as hook config files, and `PreToolUse` may return a permission decision — the mechanism `readonly-guard.py` uses. Unused: `RELEASE-001` keeps `hooks/copilot-hooks.json` empty until its separate canary passes |
+| `hooks` | Agent-scoped hooks; the installed 1.138.0 loader requires `chat.useHooks`, workspace trust, and permitted hook sources. The older `chat.useCustomAgentHooks` setting is absent in that build. Emitted only in the separately exported SRE command profile; global `hooks/copilot-hooks.json` stays empty |
 | `infer` | **Deprecated** — replaced by `user-invocable` and `disable-model-invocation`. Never emit |
 
 Claude grants use full plugin names (`Agent(save-toolkit:reviewer)`); the generator projects the
@@ -64,7 +65,7 @@ and `playwright/*` ship out of the box.
 | `read` | `Read` | yes |
 | `search` | `Grep`, `Glob` | yes |
 | `edit` | `Write`, `Edit`, `NotebookEdit` | yes |
-| `execute` | `Bash` | yes |
+| `execute` | `Bash`, `PowerShell` | yes |
 | `web` | `WebFetch`, `WebSearch` | yes |
 | `agent` | `Agent` | yes |
 | `todo` | `TodoWrite` | yes — builders and the reviewer for bounded investigation. VS Code provisions it [verified by the owner 2026-09-13]; the cloud coding agent does not [sourced: docs.github.com custom-agents-configuration]. `TodoWrite` itself is inert on Claude Code 2.1.268+ and stays only as this mapping's source |
@@ -73,9 +74,36 @@ and `playwright/*` ship out of the box.
 projection drops them rather than substituting `execute`, which would widen authority on a host
 that cannot narrow it again.
 
-`sre-assistant` deliberately receives **no** `execute`. Its Claude profile relies on a session-wide
-read-only Bash guard, and these hosts cannot enforce that agent-specific command allowlist *from the
-plugin contract*; tool absence is the stronger control.
+`sre-assistant` deliberately receives **no** `execute` in the standard projection. Its Claude profile
+uses a session-wide Bash/PowerShell guard; acceptance of the VS Code agent-scoped equivalent has
+not been established, so the default retains tool absence.
+
+The standard projection also withholds individual terminal tools. A separately exported VS Code
+command preview grants only `execute/runInTerminal` and `execute/getTerminalOutput`, sets
+`target: vscode`, and adds agent-scoped hooks with Windows/POSIX launchers. It is not an accepted
+replacement without a human decision on its best-effort guard and installed-host evidence.
+The preview's explicit `--copilot` guard mode uses agent-hook scoping, not Claude's `agent_type`.
+
+### Capability choices
+
+| Lane | Current Copilot capability and reason |
+|---|---|
+| `software-engineer`, `agent-engineer` | Read/search/edit/execute, scoped delegation, and todo; already able to build and test with the host's shell |
+| `observability-engineer` | The same capability groups; already able to query Grafana through commands without a Grafana MCP, under its existing change authority |
+| `reviewer` | Read/search/edit/execute, evidence helpers, and todo; execution stays in its established verification environment |
+| `sre-assistant` | Read/search, researcher delegation, and exact browser snapshot/screenshot grants for a human-prepared Viewer session; the exported profile adds only terminal execution/output for bounded observation |
+| `repository-investigator`, `scribe` | File investigation or document edits; shell execution is outside their assignments |
+| `researcher` | Public web access; no local files or shell. Adding exact Context7/GitHits tools needs the target host's registered tool IDs, not wildcard MCP grants |
+
+Do not broaden `execute` or use `tools: ["*"]` merely to fix a missing interpreter, credential,
+or hook path. Copilot's execution tools use the configured terminal; a separate Claude PowerShell
+grant is not needed to run PowerShell through Copilot. Tool presence permits execution, not
+production changes or access beyond the human's assignment.
+
+Browser observation grants are exclusive to the SRE lane. The fleet does not grant generic browser
+navigation, clicks, or page-code execution: these can cause writes in an authenticated session.
+Snapshots and screenshots require a registered, connected MCP server with those exact tool IDs;
+frontmatter neither installs that server nor proves its effective permissions or image delivery.
 
 ## Skills
 
@@ -85,7 +113,7 @@ Copilot projection lives at `.github/skills/`, supporting workspace discovery an
 explicit manifest selector. The directory is tracked and regenerated from canonical `skills/`.
 The former `platforms/copilot/skills/` root is retired. The custom `chat.agentSkillsLocations`
 override is removed; the [current discovery docs](https://code.visualstudio.com/docs/agent-customization/agent-skills#create-a-skill)
-deprecate it in favor of supported directories. [doc-checked 2026-09-13; not host-probed]
+deprecate it in favor of supported directories.
 
 The [VS Code skill header reference](https://code.visualstudio.com/docs/agent-customization/agent-skills#header-required)
 documents invocation behavior; the [Agent Skills specification](https://agentskills.io/specification)
@@ -107,23 +135,44 @@ defines portable metadata. Both were checked against the current docs on 2026-09
 
 ## Hook events and shape
 
-Unadopted (`RELEASE-001`), documented because the gap is smaller than it looks: the `PreToolUse`
-decision payload is **field-identical** to what `readonly-guard.py` already emits for Claude.
+The SRE command profile uses `PreToolUse`; the standard projection has no hooks. The decision
+payload is compatible with what `readonly-guard.py` emits for Claude.
 
 | Event | Claude equivalent |
 |---|---|
 | `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PreCompact`, `Stop` | same names |
-| `SubagentStart`, `SubagentStop` | no Claude equivalent — subagent-scoped lifecycle |
+| `SubagentStart`, `SubagentStop` | also supported by Claude; payload and scoping need host-specific checks |
 
-A hook entry requires `type: "command"` and `command`; optional `timeout`, `cwd`, `env`, and the
-per-OS overrides `windows` / `linux` / `osx`, which would replace the interpreter-probe loop the
-Claude hook needs today.
+A hook entry declares `type: "command"` and at least one of `command`, `windows`, `linux`, or
+`osx`; an OS-specific command overrides the default. `timeout` (seconds, default 30), `cwd`, and
+`env` are optional. See the [hook reference](https://code.visualstudio.com/docs/agents/reference/hooks-reference).
 
 `PreToolUse` returns `hookSpecificOutput.permissionDecision` — `allow` \| `deny` \| `ask` — with
-`permissionDecisionReason`. The fleet's guard already emits exactly these fields. What does **not**
-carry over is the exit-code authentication (42/43/44) that proves the answer came from the guard
-rather than a PATH-planted stand-in, and `agent_type` payload scoping. A port must re-establish
-both, or it is armor that provides none.
+`permissionDecisionReason`. The launcher translates the guard's 42/43/44 protocol into host JSON;
+those codes distinguish a responding guard from an ordinary interpreter failure, but do not
+authenticate an executable against a malicious PATH replacement. `--copilot` relies on attachment
+to the SRE agent, not Claude's `agent_type`; never register that mode globally.
+
+**[verified, installed source 2026-09-19]** VS Code 1.138.0 registers `chat.useHooks` with default
+`true`; effective settings and organization policy can disable or restrict it. Its agent loader
+also checks workspace trust. The older opt-in setting still appears in retrieved documentation;
+do not prescribe it for 1.138.0. Plugin delivery separately requires enabled plugin support and
+an enabled plugin. `chat.useClaudeHooks` concerns Claude hook files, not this VS Code agent profile.
+
+The installed agent-frontmatter parser does not perform plugin-hook `${CLAUDE_PLUGIN_ROOT}`
+substitution. Export the command profile on the execution host: its hook `env` binds
+`SAVE_TOOLKIT_GUARD_DIR` to the exporting installation's absolute scripts path. Re-export after
+moving that installation or changing host; do not commit that machine-specific profile.
+The inspected Windows hook executor selects PowerShell; its command uses `$env:` expansion.
+The POSIX command uses a quoted shell variable, and each launcher resolves the guard beside itself.
+
+**[verified, installed source; live behavior unverified]** Explicit `deny` and exit 2 block
+PreToolUse. Other nonzero exits and launch exceptions are warnings; timeouts are not guaranteed
+to block. Exit 0 with invalid JSON provides no permission decision. The launcher denies invalid
+guard responses once it runs, but cannot enforce anything when it never starts. This is a
+best-effort command check, not a fail-closed sandbox. Read-only service credentials and the OS
+identity remain the effective bounds on live access; a canary is repository acceptance evidence,
+not a VS Code prerequisite.
 
 ## Plugin manifest formats
 
@@ -146,9 +195,9 @@ would retire the projected bundle entirely.
 |---|---|
 | `model`, handoff `model` | No lane pins a model on any host; a dated pin goes stale silently |
 | `user-invocable` | The fleet serves a human SRE; keep agents in the picker and skills in the slash-command menu through the default `true` |
-| `target` | One emitted file serves both targets because unsupported keys are ignored |
+| `target` | Unset for standard projections; the locally exported command profile targets VS Code explicitly |
 | `license` | Redundant with the manifest, multiplied across every projected bundle |
 | `infer` | Deprecated upstream |
 | Skill `context`, `metadata` | No current adoption requirement; forked execution needs a bounded host check before changing a skill's execution model |
 | `allowed-tools` | Fleet policy avoids tool preapproval; Copilot support is not established by the portable specification |
-| Agent `hooks`, `mcp-servers`, `disable-model-invocation` | Not decided against — unadopted pending `RELEASE-001` verification. The skill invocation flag is already used by `pcf-deploy` |
+| Agent `hooks`, `mcp-servers`, `disable-model-invocation` | Hooks appear only in the SRE command export; MCP mapping and agent invocation flags remain unadopted pending host verification. The skill invocation flag is already used by `pcf-deploy` |

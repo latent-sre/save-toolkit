@@ -1,0 +1,16 @@
+id: discovery-obs-pipeline-not-reading-signals
+split: regression
+prompt: |
+  Checkout latency spiked at 09:40 UTC. Read the traces we already collect in Tempo and tell me
+  which downstream span is carrying the added time. The collectors and exporters are healthy and I
+  do not want any instrumentation or configuration changes — just the analysis of what we have.
+target:
+  kind: skill
+  name: obs-pipeline
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: skill
+    name: obs-traces
+success_criteria:
+- Keeps analysis of already-collected signals with the reading skill rather than loading the emission-and-export lane

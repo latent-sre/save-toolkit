@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline tests for skills/obs-dashboards/scripts/dashboard_hygiene.py. Stdlib only, no network.
+"""Offline tests for skills/grafana/scripts/dashboard_hygiene.py. Stdlib only, no network.
 
 Fixture-first on purpose. A suite that only asserted "a known-bad dashboard produces violations"
 would still pass if a rule were mutated into always-fire, and one that only asserted "a good
@@ -17,7 +17,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-MODULE = ROOT / "skills" / "obs-dashboards" / "scripts" / "dashboard_hygiene.py"
+MODULE = ROOT / "skills" / "grafana" / "scripts" / "dashboard_hygiene.py"
 
 _spec = importlib.util.spec_from_file_location("dashboard_hygiene", MODULE)
 hygiene = importlib.util.module_from_spec(_spec)
@@ -231,6 +231,49 @@ class RuleMutationTest(unittest.TestCase):
 
 
 class StructureTest(unittest.TestCase):
+    def test_logql_rate_is_not_checked_as_promql(self) -> None:
+        model = clean_model()
+        panel = model['panels'][0]
+        panel['datasource'] = {'type': 'loki', 'uid': '${logs_source}'}
+        panel['targets'][0]['expr'] = 'sum(rate({service_name="checkout"}[$__interval]))'
+        self.assertNotIn('target-rate-interval', rules_fired(model))
+
+    def test_target_datasource_type_overrides_panel_type(self) -> None:
+        model = clean_model()
+        target = model['panels'][0]['targets'][0]
+        target['datasource'] = {'type': 'loki', 'uid': '${logs_source}'}
+        target['expr'] = 'rate({service_name="checkout"}[$__interval])'
+        self.assertNotIn('target-rate-interval', rules_fired(model))
+        model['panels'][0]['datasource'] = {'type': 'loki', 'uid': '${logs_source}'}
+        target['datasource'] = {'type': 'prometheus', 'uid': '${metrics_source}'}
+        target['expr'] = 'rate(http_requests_total[$__interval])'
+        self.assertIn('target-rate-interval', rules_fired(model))
+
+    def test_increase_over_selected_range_preserves_total_semantics(self) -> None:
+        model = clean_model()
+        target = model['panels'][0]['targets'][0]
+        target['expr'] = 'sum(increase(http_requests_total[$__range]))'
+        self.assertNotIn('target-rate-interval', rules_fired(model))
+        target['expr'] = 'rate(http_requests_total[$__range])'
+        self.assertIn('target-rate-interval', rules_fired(model))
+
+    def test_label_regex_brackets_are_not_range_selectors(self) -> None:
+        model = clean_model()
+        target = model["panels"][0]["targets"][0]
+        target["expr"] = 'increase(network_bytes_total{device!~"nic[0-9]+"}[$__range])'
+        self.assertNotIn("target-rate-interval", rules_fired(model))
+        target["expr"] = 'rate(network_bytes_total{device!~"nic[0-9]+"}[5m])'
+        self.assertIn("target-rate-interval", rules_fired(model))
+
+    def test_quoted_query_text_cannot_hide_or_invent_rate_checks(self) -> None:
+        model = clean_model()
+        target = model["panels"][0]["targets"][0]
+        target["expr"] = 'rate(http_requests_total{label="foo) [$__rate_interval]"}[5m])'
+        self.assertIn("target-rate-interval", rules_fired(model))
+        target["expr"] = 'up{label="rate(fake_total[5m])"}'
+        self.assertNotIn("target-rate-interval", rules_fired(model))
+        self.assertNotIn("target-counter-agg", rules_fired(model))
+
     def test_panels_inside_a_collapsed_row_are_checked(self) -> None:
         # A row's children are the easiest panels to forget; the walker must descend.
         model = clean_model()

@@ -5,8 +5,8 @@ description: >-
   request across services, compare before/after a deploy. Backends: Splunk (SPL), Loki
   (LogQL), and Cloud Logging on GCP — the reference teaches the dialect. Triggers: 'search
   the logs', 'why are there 500s', 'grep production for', 'write a log query'. Ownership
-  map only—not a load: obs-metrics owns metrics, obs-dashboards owns dashboards, and
-  obs-alerting owns alert design.
+  map only: obs-metrics owns metrics, obs-dashboards owns dashboard design, grafana owns
+  Grafana operations, and obs-alerting owns alert design.
 argument-hint: "[service, symptom, or log question]"
 ---
 
@@ -14,6 +14,10 @@ argument-hint: "[service, symptom, or log question]"
 
 Match the task: interpret supplied logs, write a query, or investigate. An explanation needs no new
 query or baseline; apply methods only to the requested question.
+
+**Grafana pointer:** dashboard/Explore access, datasource selection, panel configuration, and alert
+operations live in `grafana`. This skill retains LogQL/SPL and log interpretation. Return a need
+for Grafana configuration to the caller; a log query does not automatically start another workflow.
 
 ## Start narrow
 

@@ -65,12 +65,17 @@ COPILOT_TOOL_MAP = {
     "Edit": "edit",
     "NotebookEdit": "edit",
     "Bash": "execute",
+    "PowerShell": "execute",
     "WebFetch": "web",
     "WebSearch": "web",
     "Agent": "agent",
     "TodoWrite": "todo",
     # `EnterWorktree`/`ExitWorktree` have no Copilot alias and are deliberately unmapped: the
     # projection drops them rather than substituting `execute`, which would widen authority.
+}
+COPILOT_MCP_TOOL_MAP = {
+    "mcp__microsoft_playwright_mcp__browser_snapshot": "microsoft/playwright-mcp/browser_snapshot",
+    "mcp__microsoft_playwright_mcp__browser_take_screenshot": "microsoft/playwright-mcp/browser_take_screenshot",
 }
 COPILOT_HANDOFFS_BY_SOURCE = {
     "observability-engineer": (
@@ -289,17 +294,24 @@ def _description(fields: dict[str, object], source: Path) -> str:
     return description.strip()
 
 
-def render_copilot_agent(source: Path) -> str:
+def render_copilot_agent(source: Path, *, command_preview: bool = False) -> str:
     fields, body, _ = parse_frontmatter(source)
     name = str(fields.get("name") or "")
     tool_specs = _split_tool_specs(fields.get("tools"))
     tools = {_tool_base(item) for item in tool_specs}
     delegation_targets = _delegation_targets(tool_specs, source)
     handoffs = _copilot_handoffs(name)
-    mapped = {COPILOT_TOOL_MAP[item] for item in tools if item in COPILOT_TOOL_MAP}
+    mapped = {
+        COPILOT_TOOL_MAP[item] for item in tools if item in COPILOT_TOOL_MAP
+    } | {
+        COPILOT_MCP_TOOL_MAP[item] for item in tools if item in COPILOT_MCP_TOOL_MAP
+    }
     if name in GUARDED_AGENTS:
         mapped.discard("execute")
     ordered = [tool for tool in COPILOT_TOOL_ORDER if tool in mapped]
+    ordered.extend(sorted(tool for tool in mapped if tool not in COPILOT_TOOL_ORDER))
+    if name in GUARDED_AGENTS and command_preview:
+        ordered.extend(["execute/runInTerminal", "execute/getTerminalOutput"])
     # No generated preface: the projection is the canonical body with Claude-only addressing
     # removed. A host limitation that changes what a lane may do is stated in that lane's own
     # body (`sre-assistant` says it has no shell on Copilot), so it travels with the rule it
@@ -320,6 +332,18 @@ def render_copilot_agent(source: Path) -> str:
         frontmatter += f"agents: {json.dumps(delegation_targets)}\n"
     if handoffs is not None:
         frontmatter += f"handoffs: {json.dumps(handoffs, ensure_ascii=False)}\n"
+    if name in GUARDED_AGENTS and command_preview:
+        # Agent frontmatter hooks do not get plugin-hook root substitution in VS Code 1.138.
+        # This locally exported profile is bound to this checkout/install on the execution host.
+        guard_dir = (source.resolve().parents[1] / "scripts").as_posix()
+        scoped_hooks = {"PreToolUse": [{
+            "type": "command",
+            "command": 'sh "$SAVE_TOOLKIT_GUARD_DIR/readonly-guard-copilot-hook.sh"',
+            "windows": '& "$env:SAVE_TOOLKIT_GUARD_DIR/readonly-guard-hook.ps1" -Copilot',
+            "env": {"SAVE_TOOLKIT_GUARD_DIR": guard_dir},
+            "timeout": 15,
+        }]}
+        frontmatter += f"target: vscode\nhooks: {json.dumps(scoped_hooks)}\n"
     return (
         frontmatter
         + "---\n\n"
@@ -525,6 +549,13 @@ def validate_platform_contracts(root: Path) -> list[str]:
                 failures.append(f"plugin.json: {field} must be {expected!r}")
     try:
         hook = _manifest(root / "hooks/hooks.json")
+        powershell = next((entry for entry in hook["hooks"]["PreToolUse"]
+                           if entry.get("matcher") == "PowerShell"), None)
+        if powershell is None or not any(
+            item.get("shell") == "powershell" and "readonly-guard-hook.ps1" in item.get("command", "")
+            for item in powershell.get("hooks", [])
+        ):
+            failures.append("hooks/hooks.json: PowerShell requires its native guard handler")
         command = hook["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
         for token in ("${CLAUDE_PLUGIN_ROOT}", "readonly-guard.py", "python3 python py"):
             if token not in command:
@@ -650,6 +681,8 @@ def write_generated_outputs(root: Path) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--write", action="store_true", help="replace generated roots transactionally")
+    parser.add_argument("--copilot-command-preview", type=Path,
+                        help="export an SRE terminal/guard profile for an isolated VS Code canary; does not install it")
     args = parser.parse_args(argv)
     root = Path(__file__).resolve().parents[1]
     try:
@@ -658,6 +691,15 @@ def main(argv: list[str] | None = None) -> int:
             for failure in contract_failures:
                 print(failure)
             return 1
+        if args.copilot_command_preview is not None:
+            if args.write:
+                parser.error("export the command preview separately from --write")
+            destination = args.copilot_command_preview
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            with destination.open("x", encoding="utf-8", newline="\n") as stream:
+                stream.write(render_copilot_agent(root / "agents/sre-assistant.md", command_preview=True))
+            print(f"Exported unaccepted VS Code command preview: {destination}")
+            return 0
         if args.write:
             count = write_generated_outputs(root)
             print(f"Generated {count} adapter file(s).")

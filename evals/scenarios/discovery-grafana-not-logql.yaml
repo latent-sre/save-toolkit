@@ -1,0 +1,16 @@
+id: discovery-grafana-not-logql
+split: regression
+prompt: |
+  Write a LogQL query for the per-service rate of HTTP 500 responses in the last five minutes.
+  The stream selector is app="checkout", env="staging", and each line is JSON with a status field.
+  I only need the query and an explanation of parser errors and missing data; no UI or configuration work.
+target:
+  kind: skill
+  name: grafana
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: skill
+    name: obs-logs
+success_criteria:
+- Keeps query construction with the logs skill rather than loading platform operations

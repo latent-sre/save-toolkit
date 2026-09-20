@@ -1,0 +1,14 @@
+id: discovery-obs-pipeline-alloy-exporter
+split: regression
+prompt: |
+  Our checkout service stopped showing up in Loki after last week's rollout. The app still writes
+  structured JSON to stdout and the Alloy collector is running, but nothing lands in the log
+  backend. Work out where in the export path it is being dropped and what to change in the Alloy
+  configuration. I am not asking about querying the logs or about anything in the Grafana UI.
+target:
+  kind: skill
+  name: obs-pipeline
+routing:
+  expect: fire
+success_criteria:
+- Selects the telemetry pipeline skill for an emission-to-export failure rather than a signal-reading or platform-operations skill

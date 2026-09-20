@@ -15,6 +15,10 @@ population trends. A bounded interpretation needs the answer, supplied scope/evi
 Retrieval, comparison and full-path work below are for requested investigation, not prerequisites for
 explaining a supplied span.
 
+**Grafana pointer:** Grafana navigation, datasource selection, panel configuration, dashboard
+interpretation, and alert operations live in `grafana`. This skill retains TraceQL, waterfall
+analysis, and trace/log correlation; return configuration follow-up to the caller.
+
 ## Know what the waterfall represents
 
 A trace is a causal graph rendered as a timeline. Its spans describe operations; parent/child links

@@ -216,6 +216,7 @@ blast radius, verification, and rollback; the tiers and approval shape are
 | Next step | Lane |
 |---|---|
 | A read-only look at the live target | `sre-assistant` agent, with the exact bounded ask |
+| A read-only visual dashboard or panel check | `sre-assistant` agent, with the exact dashboard URL, panel scope, absolute time window, timezone, and authentication expectation |
 | Platform faults, revisions, instances, platform logs | `pcf-ops` / `gcp-ops` |
 | Logs / metrics / traces; edge/cache; database | `obs-logs` / `obs-metrics` / `obs-traces`; `akamai-edge`; `database-reliability` |
 | External synthetic failure, alert storm, or a Moogsoft Situation | `obs-alerting`, including its `thousandeyes` and `moogsoft` references |

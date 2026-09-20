@@ -52,7 +52,8 @@ restrict it — the map is [skill portability](./skill-portability.md).
 
 Hook matchers can express an agent-scoped hook; the read-only guard deliberately does not use one.
 A matcher can silently stop matching after an upstream rename. The guard instead runs on every
-Bash call and scopes itself in Python. Its canaries deny a guarded name under a changed plugin
+Bash or PowerShell call and scopes itself in Python. PowerShell uses a separate literal-command
+grammar and native launcher; it is not parsed as arbitrary POSIX shell code. Its canaries deny a guarded name under a changed plugin
 namespace, or a recognized guarded identity in another top-level key containing `agent` when
 `agent_type` is absent. A renamed key such as `role` is not detected. Re-probe the live PreToolUse
 payload after host upgrades; offline tests cover known shapes, not every upstream rename.
@@ -86,7 +87,7 @@ Considered, not overlooked; reopen only with a reason.
 
 | Field | Decision |
 |---|---|
-| `when_to_use` | Trigger phrasings live in `description` so routing has one surface to tune; both share the 1,536-character cap |
+| `when_to_use` | Trigger phrasings live in `description` so routing has one surface to tune under the 1,024-character cap |
 | `maxTurns` | Loop bounds are task-shaped prose rules (three-strikes, two-round review caps) that fail with a diagnosis; a turn cap fails mid-thought. Revisit on an observed runaway loop |
 | `memory` | Agents are stateless; durable knowledge lives in the repo. It is not a scratch workspace. Setting it auto-enables Read/Write/Edit, so it must never reach `repository-investigator` or `researcher` |
 | `TodoWrite` in `tools` | Inert on Claude Code 2.1.268+ — disabled by default in favour of `TaskCreate`/`TaskList`/`TaskUpdate`, none yet shown to reach a subagent, and a partially unresolved list launches without it. Kept only as the source of Copilot's `todo`, which VS Code provisions [verified by the owner 2026-09-13] and the cloud coding agent does not [sourced: docs.github.com custom-agents-configuration]. Swap to the Task* names once one is proven |

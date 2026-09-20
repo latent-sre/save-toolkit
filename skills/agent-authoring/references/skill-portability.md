@@ -53,8 +53,8 @@ restricting field is a default there.
 
 | Host / spec | Limit | Scope |
 |---|---|---|
-| GitHub Copilot custom agents [doc-checked 2026-08-24] | 30,000 characters of Markdown below one `.agent.md` frontmatter | Per generated profile, including its host contract — not an aggregate fleet budget, not a skill-body limit; "character" semantics `[unverified]` (GitHub does not define code points vs UTF-16 units), so report the official contract and the counting semantics separately |
-| Agent Skills specification | `description` ≤1,024 characters; `SKILL.md` recommended under 5,000 tokens and 500 lines, resources on demand | Authoring recommendations, not body validators; not equivalent to this repository's 7,800-byte candidate screen |
+| GitHub Copilot custom agents | 30,000 characters of Markdown below one `.agent.md` frontmatter | Per generated profile, including its host contract — not an aggregate fleet budget, not a skill-body limit; "character" semantics `[unverified]` (GitHub does not define code points vs UTF-16 units), so report the official contract and the counting semantics separately |
+| Agent Skills specification | `description` ≤1,024 characters; `SKILL.md` recommended under 5,000 tokens and 500 lines, resources on demand | Authoring recommendations, not body validators |
 | VS Code | No matching body-length check in public source | — |
 
 ## What the generated adapters do
@@ -69,6 +69,9 @@ restricting field is a default there.
 - The root manifest intentionally uses the selector-based Copilot format to point at
   `.github/skills/`. Adding the Agent Plugins 1.0 `$schema` would instead make `skills/`
   the portable discovery root and is a coordinated layout migration, not a metadata-only edit.
+- Codex receives no projection: distribution there was retired as a target on 2026-08-23,
+  so there is nothing to keep portable for it. Codex working inside this repository reads
+  the canonical sources through the root fleet guide like any other agent.
 
 ## Checking a skill before publishing to the portable spec
 

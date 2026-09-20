@@ -49,7 +49,7 @@ docs.cloud.google.com/sdk/gcloud/reference/monitoring]*; the alpha/beta tracks r
 `[unverified as an absence]`. Time-series reads go through the console PromQL editor, Grafana, or
 the Monitoring API. Lanes without the applicable read tools/authority prepare the query for the
 human. The invoked `observability-engineer` retains its existing dashboard-query verification path
-under `obs-dashboards`; this grants no other lane dashboard writes. Do not hunt for a
+under `grafana`; this grants no other lane dashboard writes. Do not hunt for a
 `gcloud monitoring timeseries` command.
 
 ## Gotchas

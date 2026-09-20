@@ -25,7 +25,7 @@ records do not re-queue work.
 
 ### RELEASE-001 — make the toolkit installable as an immutable, rollback-tested release
 
-**Status:** `active` (2026-09-10).
+**Status:** `active` (2026-09-20).
 **Owner:** Maintainers accept the release; `agent-engineer` owns the plugin contract and
 `software-engineer` owns helper/adapter repairs.
 **Outcome:** An SRE installs a pinned artifact rather than whatever `main` holds, and can roll back
@@ -35,10 +35,13 @@ exact shipping bytes, which the 2026-09-10 local-install run did not exercise.
 for an immutable selector or checksum, then re-run the acceptance cases on those shipping bytes: the
 2026-09-10 pass was against a local `./` install, and a passing run does not carry to bytes it did
 not exercise. The enforcement results that were open on VS Code 1.135.0 are superseded by that run.
-Still unrun: the agent-scoped hook canary, with `hooks/copilot-hooks.json` shipping empty. VS Code
-1.111+ supports `PreToolUse` permission decisions whose payload fields match `readonly-guard.py`, so
-the canary is shorter than the procedure implies -- what does not carry over is the 42/43/44
-exit-code authentication and `agent_type` scoping.
+Still unrun: the agent-scoped terminal-hook canary and the SRE visual-read acceptance cases, with
+`hooks/copilot-hooks.json` shipping empty. Maintainers must run the exact candidate in an isolated
+profile on each supported host, including a dedicated Grafana Viewer browser session. The SRE
+browser grant is snapshot/screenshot only; navigation and clicks are absent. Structural tool checks
+do not prove image delivery or helper invocation. The installed VS Code 1.138 source handles some
+hook failures as warnings; the launcher's 42/43/44 protocol is not authentication or proof of
+fail-closed host behavior. Keep those limits explicit until the host cases are observed.
 **Evidence:** The 2026-09-10 VS Code 1.137.0 acceptance row in the host-support table of
 [`README.md`](../README.md); HOST-002's closure commit records the owner disposition.
 **SRE task:** Install a named version of the toolkit, and go back to the previous one if it regresses.
@@ -177,6 +180,22 @@ to cross the current prepare/recommend boundary with a separately controlled exe
 **Evidence:** none yet
 **SRE task:** An SRE approving a live automated action gets one exact, bound, revocable approval —
 target, argv/executable digest, expiry, rollback — instead of an open-ended execution grant.
+
+### FRESHNESS-001 — review and retire vendor-fact date stamps in skills
+
+**Status:** `deferred` (2026-09-19).
+**Owner:** Save Toolkit maintainers.
+**Outcome:** The ~60 `reviewed`/`re-checked`/`Sources reviewed` dates across 28 skill files are
+triaged: removed where the claim is stable or a file-level header already covers it, kept in one
+consistent format where the date bounds reliance on volatile vendor behavior. No inline
+`doc-checked` stamps remain anywhere (the two in `agent-authoring` were removed 2026-09-19).
+**Next action:** None until an owner confirms scope — all stamps, or volatile-vendor claims only.
+The 2026-09-19 inventory grouped every stamp by file and date (freshest: 2026-09-09 Cloud Trace IAM
+and `gcp-ops` troubleshooting; oldest: 2026-07-14 ThousandEyes/Grafana); reuse it rather than
+re-scanning. Reopens as a single cleanup slice with adapter regeneration and Gate A.
+**Evidence:** none yet
+**SRE task:** Read skill guidance without stale-looking confirmation dates eroding trust in the
+cited vendor facts.
 
 ## Parked
 

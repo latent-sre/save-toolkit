@@ -1,0 +1,142 @@
+# Dashboard JSON model — storage, conversion, and safe edits
+
+Read this when holding dashboard JSON: exporting, diffing, adding a panel or variable, or authoring
+a model. Request and concurrency shapes are in [http-api](./http-api.md); generic visualization
+advice is deliberately absent. The 13.2 baseline retains `[sourced]` implementation guidance
+reviewed against `grafana/grafana` 13.2.0; a source claim is not target runtime evidence.
+The 2026-09-19 read-only 13.2.2 check verified six served API versions, Classic storage reported as
+`v0alpha1`, V1 reads at schema 42, and V2 reads with `elements`/`layout`. It did not repeat the write,
+import, concurrency, or rollback probes; their historical evidence is not current acceptance.
+
+## Six served versions, three shapes
+
+| Version | Spec shape | Write behavior |
+|---|---|---|
+| `v0alpha1` | Classic, unstructured | stored verbatim; no migration or validation |
+| `v1`, `v1beta1` | Classic | migrates to final V1 `schemaVersion` 42 and validates; `v1beta1` reports `v1` |
+| `v2alpha1`, `v2beta1`, `v2` | V2 `elements` and `layout` | validates; no `schemaVersion`; later versions restructure data-source references and transformations |
+
+The group's `preferredVersion` is configuration, not a stability promise: an unpinned read can
+return a different shape from the stored row.
+
+*[sourced: `apps/dashboard/pkg/apis/dashboard/*/register.go`, `pkg/registry/apis/dashboard/mutate.go`,
+and the dashboard schema validation at 13.2.0; target write behavior remains unverified]*
+
+## Storage and conversion rules
+
+A row has no independent stored-version column; Grafana serializes with the version of the write,
+and `status.conversion.storedVersion` is computed on a converted read. Legacy `POST /api/dashboards/db`
+and `POST /api/dashboards/import` store `v0alpha1`; a Classic browser save or the UI import page
+stores `v1` (the page writes through the app-platform V1 client, not the legacy import endpoint); a
+dynamic browser save containing `elements` stores `v2`; an app-platform write stores the version
+named in its path.
+
+1. **Probe storage, then pin every read and write to that version.** A Classic `panels[]`
+   transform against an unpinned V2 response can silently see no panels.
+2. **Never change API versions during a surgical edit.** A converted body written at another
+   version rewrites the row's stored schema, and V2 → V1 → V2 is lossy: rows, tabs, and layout kinds
+   flatten into Classic panels and cannot be reconstructed.
+3. **Strip `status` before every app-platform `PUT`.** Conversion status describes a read response,
+   not the desired dashboard spec. Do not round-trip it into storage and risk retaining stale
+   `storedVersion` evidence. The current read-only check does not exercise that write path.
+4. **`conversion.failed: false` is not fidelity.** A conversion error can still answer 200. Compare
+   source and converted structures; Grafana also emits conversion-loss metrics.
+5. **Legacy `meta.apiVersion` is not storage evidence.** It reports the requested version.
+
+*[sourced: app-platform storage preparation, conversion, browser import and save, and legacy
+import handlers reviewed at 13.2.0; verified: 13.2.2 target V1/V2 reads only, 2026-09-19]*
+
+## Classic / V1 rules this team keeps
+
+- `uid` is stable, 8–40 characters, never reused or changed after publication; `id` is `null` on
+  create and dropped from portable exports; `schemaVersion` stays at the exported value (42 is
+  final for V1 in Grafana 13); `version` is the legacy concurrency token; never copy `tags` while
+  duplicating.
+- `editable` is preserved: `false` blocks this team's UI workflow. `timezone` is left unset.
+  Preserve the requested `time` window; do not `refresh` faster than the data changes.
+- A new panel takes `max(existing id) + 1` and goes below the last row at `max(y + h)` on the
+  24-column grid; unrelated panels are not renumbered or moved, because panel ids are link and render
+  targets and a duplicate silently retargets consumers.
+- On app-platform V1 writes, identity is `metadata.name` and concurrency `metadata.resourceVersion`;
+  Grafana strips `spec.uid` and `spec.version`, injects defaults, and mints a distinct
+  `metadata.uid`. Diff the stored readback, not the local body.
+
+*[sourced: dashboard JSON model, V1 schema, and app-platform handlers reviewed at 13.2.0;
+target writes unverified; the `editable` and `timezone` rules are this team's, owner 2026-08-22]*
+
+### The panel shape, with the fields the checker and the on-call reader need
+
+Copy structure from the target and replace only the metric and labels with discovered values:
+
+```json
+{
+  "id": 42,
+  "type": "timeseries",
+  "title": "Is checkout p99 latency breaching target?",
+  "description": "99th percentile request latency; target 300 ms.",
+  "gridPos": {"x": 0, "y": 24, "w": 12, "h": 8},
+  "datasource": {"type": "prometheus", "uid": "${datasource}"},
+  "targets": [{
+    "refId": "A",
+    "datasource": {"type": "prometheus", "uid": "${datasource}"},
+    "expr": "histogram_quantile(0.99, sum by (le) (rate(<discovered_metric>_bucket{<verified_labels>}[$__rate_interval])))",
+    "legendFormat": "p99"
+  }],
+  "fieldConfig": {
+    "defaults": {"unit": "s", "min": 0, "noValue": "no data"},
+    "overrides": []
+  }
+}
+```
+
+The unit comes from the instrumentation (`s` for seconds, `ms` for milliseconds); `obs-metrics`
+owns query construction beyond this shape.
+
+## V2 differences
+
+Panels are `spec.elements.<name>` resources positioned by `spec.layout` (`GridLayout`,
+`RowsLayout`, `AutoGridLayout`, `TabsLayout`); variables are typed `spec.variables[]`;
+`graphTooltip` becomes `cursorSync`; time, timezone, and refresh live under `timeSettings`;
+conditional rendering is V2-only and tied to auto-grid layouts. Do not author V2 element or query
+internals from memory: read a real V2 dashboard at its stored version, or use an adopted typed SDK,
+and preserve that shape. The bundled checker refuses V2; use `dashboard-linter` where installed.
+
+*[sourced: V2 CUE schema, dashboard grouping documentation, and dashboard-linter V2 rules]*
+
+## Variables and portability
+
+- Use `${datasource}` for interchangeable sources of one type. Mixed-backend dashboards need
+  separately typed variables (for example `${metrics_source}` and `${logs_source}`) in corresponding
+  panels and targets: a variable cannot translate query languages. Set each variable's plugin type
+  and resolve it to a discovered source; scope selection when several sources share that type.
+  For portable exports, leave `current` unpinned and verify selected sources after import;
+  do not assume a saved concrete uid resolves to the intended source on another instance.
+- Multi-value or All selectors set `allValue: ".+"` and use `${var:regex}` in regex matchers; a
+  custom all value is not escaped, and the generated expansion can grow large.
+- `$__rate_interval` for Prometheus rate panels; `increase(...[$__range])` can deliberately total the
+  selected dashboard window. Preserve fixed-horizon intent when justified by scrape cadence. The
+  query API does not expand these macros, so verification substitutes and records concrete intervals.
+  LogQL has its own interval semantics; do not apply the Prometheus rule to Loki targets.
+- Links preserve time and variables; the deprecated `[[var]]` syntax is not used.
+
+*[sourced: Grafana variable, Prometheus template-variable, and dashboard-linter documentation;
+target import round trip unverified]*
+
+A cross-instance export rewrites data sources to `${DS_*}` and adds `__inputs` and `__requires`,
+which only the import endpoint or the import UI resolves; see the import rule in
+[http-api](./http-api.md). Treat repository recovery copies according to `stack-profile`; preserve
+their provenance and distinguish them from the fresh live export used to prepare a change.
+
+## Check before writing
+
+`dashboard_hygiene.py` is bundled, stdlib-only, and offline; it accepts a bare Classic/V1 model, an
+app-platform wrapper, or a legacy GET body, exits 0 when no implemented rule fired, 1 on violations,
+2 when uncheckable, and refuses V2 rather than reporting zero panels. `dashboard-linter lint
+--strict`, when installed, validates more of the real Grafana, PromQL, and LogQL contract; scoped
+exclusions need a reason. PromQL heuristics require a datasource reference typed `prometheus`;
+untyped references remain unchecked for query semantics. Treat fixed-UID and counter-name findings
+as review prompts as explained in [read-only review](./read-only-review.md). On an edit, check the
+live model first and block only confirmed violations this diff introduces. A clean result never proves target permissions, query data, rendering,
+concurrency, or the durable save record; [http-api](./http-api.md) verifies those.
+
+*[sourced: the bundled checker's docstring and the dashboard-linter documentation]*

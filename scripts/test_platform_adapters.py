@@ -97,6 +97,78 @@ class PlatformAdapterTests(unittest.TestCase):
     def test_guarded_copilot_agents_do_not_receive_execute(self) -> None:
         for name in sorted(adapters.GUARDED_AGENTS):
             self.assertNotIn("execute", self._copilot_tools(name), name)
+            self.assertNotIn("execute/runInTerminal", self._copilot_tools(name), name)
+            rendered = adapters.render_copilot_agent(ROOT / "agents" / f"{name}.md", command_preview=True)
+            self.assertIn("execute/runInTerminal", rendered)
+            self.assertNotIn('"execute"', rendered.split("---", 2)[1])
+            self.assertIn("target: vscode", rendered)
+            self.assertIn("readonly-guard-copilot-hook.sh", rendered)
+            self.assertIn("readonly-guard-hook.ps1", rendered)
+            self.assertIn('"PreToolUse"', rendered)
+            self.assertNotIn("${CLAUDE_PLUGIN_ROOT}", rendered.split("---", 2)[1])
+            self.assertIn((ROOT / "scripts").as_posix(), rendered.split("---", 2)[1])
+
+    def test_only_sre_gets_browser_observation_tools(self) -> None:
+        expected = {"microsoft/playwright-mcp/browser_snapshot",
+                    "microsoft/playwright-mcp/browser_take_screenshot"}
+        for source in (ROOT / "agents").glob("*.md"):
+            browser = {t for t in self._copilot_tools(source.stem) if "playwright" in t}
+            self.assertEqual(expected if source.stem == "sre-assistant" else set(), browser, source.stem)
+
+    def test_powershell_grant_requires_its_hook_handler(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._copy_platform_contract_files(root)
+            path = root / "hooks/hooks.json"
+            document = json.loads(path.read_text(encoding="utf-8"))
+            document["hooks"]["PreToolUse"] = [entry for entry in document["hooks"]["PreToolUse"]
+                                                if entry.get("matcher") != "PowerShell"]
+            path.write_text(json.dumps(document), encoding="utf-8")
+            self.assertTrue(any("PowerShell requires" in failure
+                                for failure in adapters.validate_platform_contracts(root)))
+
+    def test_exported_hook_runs_from_neutral_directory_without_plugin_environment(self) -> None:
+        """Exercise the exported command, not just the launcher, with an install path containing spaces."""
+        shell = shutil.which("sh")
+        if shell is None and os.name == "nt":
+            candidate = Path("C:/Program Files/Git/bin/sh.exe")
+            shell = str(candidate) if candidate.is_file() else None
+        with tempfile.TemporaryDirectory(prefix="SRE install spaces ") as directory:
+            root = Path(directory)
+            (root / "agents").mkdir()
+            (root / "scripts").mkdir()
+            source = root / "agents/sre-assistant.md"
+            shutil.copy2(ROOT / "agents/sre-assistant.md", source)
+            for name in ("readonly-guard.py", "readonly-guard-hook.ps1", "readonly-guard-copilot-hook.sh"):
+                shutil.copy2(ROOT / "scripts" / name, root / "scripts" / name)
+            rendered = adapters.render_copilot_agent(source, command_preview=True)
+            hooks = json.loads(next(line[7:] for line in rendered.splitlines() if line.startswith("hooks: ")))
+            hook = hooks["PreToolUse"][0]
+            env = {**os.environ, **hook["env"]}
+            env.pop("CLAUDE_PLUGIN_ROOT", None)
+            env["PATH"] = str(Path(sys.executable).parent) + os.pathsep + env.get("PATH", "")
+            invocations = []
+            if os.name == "nt":
+                # Installed VS Code 1.138's hook executor selects PowerShell on native Windows.
+                invocations.append((["powershell.exe", "-ExecutionPolicy", "Bypass", "-NoProfile",
+                                     "-NoLogo", "-Command", hook["windows"]], "windows"))
+            if shell:
+                invocations.append(([shell, "-c", hook["command"]], "posix"))
+            if not invocations:
+                self.skipTest("No supported hook shell available")
+            for invocation, host in invocations:
+                for command, denied in (("git status --short", False), ("git push", True)):
+                    with self.subTest(host=host, command=command):
+                        result = subprocess.run(
+                            invocation, input=json.dumps({"tool_name": "run_in_terminal",
+                                                          "tool_input": {"command": command}}),
+                            env=env, cwd=tempfile.gettempdir(), text=True, capture_output=True, timeout=20,
+                        )
+                        self.assertEqual(0, result.returncode, result.stderr)
+                        if denied:
+                            self.assertEqual("deny", json.loads(result.stdout)["hookSpecificOutput"]["permissionDecision"])
+                        else:
+                            self.assertEqual("", result.stdout)
 
     def test_builder_copilot_agent_keeps_edit_and_execute(self) -> None:
         tools = self._copilot_tools("software-engineer")
@@ -748,8 +820,8 @@ class PlatformAdapterTests(unittest.TestCase):
 
     def test_installed_dashboard_helper_runs_outside_the_plugin_checkout(self) -> None:
         outputs = adapters.expected_outputs(ROOT)
-        skill_relative = adapters.COPILOT_SKILLS / "obs-dashboards/SKILL.md"
-        script_relative = adapters.COPILOT_SKILLS / "obs-dashboards/scripts/dashboard_hygiene.py"
+        skill_relative = adapters.COPILOT_SKILLS / "grafana/SKILL.md"
+        script_relative = adapters.COPILOT_SKILLS / "grafana/scripts/dashboard_hygiene.py"
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve()
             plugin = root / "installed plugin"
@@ -761,7 +833,7 @@ class PlatformAdapterTests(unittest.TestCase):
                 target.write_bytes(outputs[relative])
             skill = plugin / skill_relative
             skill_text = skill.read_text(encoding="utf-8")
-            self.assertNotIn("python skills/obs-dashboards/scripts/dashboard_hygiene.py", skill_text)
+            self.assertNotIn("python skills/grafana/scripts/dashboard_hygiene.py", skill_text)
             link = re.search(
                 r"\[[^\]\n]*dashboard_hygiene\.py[^\]\n]*\]\(([^)\n]+)\)",
                 skill_text,
@@ -769,7 +841,7 @@ class PlatformAdapterTests(unittest.TestCase):
             self.assertIsNotNone(link, "the installed skill must link its bundled validator")
             helper = (skill.parent / link[1]).resolve()
             self.assertTrue(helper.is_relative_to(skill.parent))
-            shadow = workspace / "skills/obs-dashboards/scripts/dashboard_hygiene.py"
+            shadow = workspace / "skills/grafana/scripts/dashboard_hygiene.py"
             shadow.parent.mkdir(parents=True)
             shadow.write_text("raise SystemExit('workspace shadow executed')\n", encoding="utf-8")
             model = workspace / "dashboard.json"

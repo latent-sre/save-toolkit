@@ -1,0 +1,28 @@
+id: grafana-read-state-classification
+split: regression
+skill: grafana
+prompt: |
+  Interpret this read-only evidence. There are 84 visible rules; all report health=ok and seven
+  report state=firing. Four active silences exist, but instance silence associations were not read.
+  A dashboard reports provisioned=true and canSave=true. Its datasource UIDs all resolve and its
+  sampled queries succeed. The hygiene helper flags those fixed UIDs and missing descriptions.
+  No user requested an edit. Return only these Label: value fields:
+  Evaluation health: OK | FAILED
+  Firing rules: 7 | 0
+  Notification delivery: UNVERIFIED | VERIFIED
+  Dashboard edit path: OWNING_SOURCE | DIRECT_SAVE
+  Fixed UID finding: PORTABILITY_WARNING | BROKEN_DATASOURCE
+  Apply repairs now: NO | YES
+success_criteria:
+- Distinguishes healthy evaluation from firing alert conditions and notification delivery
+- Preserves provisioning ownership despite canSave and successful queries
+- Treats resolved fixed UIDs as portability findings and keeps an assessment read-only
+graders:
+- type: exact_fields
+  fields:
+    Evaluation health: OK
+    Firing rules: '7'
+    Notification delivery: UNVERIFIED
+    Dashboard edit path: OWNING_SOURCE
+    Fixed UID finding: PORTABILITY_WARNING
+    Apply repairs now: 'NO'

@@ -1,0 +1,27 @@
+id: grafana-visual-evidence-boundaries
+split: regression
+skill: grafana
+prompt: |
+  Review this supplied evidence without making requests. In case A, frontend settings report
+  rendererAvailable=false, but an authorized logged-in browser is connected to the dashboard.
+  In case B, an image request returned HTTP 200 and valid PNG bytes; nobody has opened the image.
+  In case C, the inspected image covers 09:00-09:15 with env=staging, but the successful query
+  results cover 08:00-08:15 with env=production. No comparison across those environments was requested.
+  The instance is Grafana 13.2.2; a plugin catalog still offers the old image-renderer plugin.
+  Return only these Label: value fields:
+  Case A visual path: BROWSER_AVAILABLE | VISUALS_IMPOSSIBLE
+  Case B visual review: UNVERIFIED | VERIFIED
+  Case C matched evidence: NO | YES
+  Server rendering choice: STANDALONE_SERVICE | LEGACY_PLUGIN
+success_criteria:
+- Does not equate a disabled server renderer with unavailable browser visuals
+- Requires actual image inspection rather than HTTP or PNG success
+- Rejects mismatched query/image windows and environments as paired evidence
+- Applies the Grafana 13 removal boundary rather than catalog availability
+graders:
+- type: exact_fields
+  fields:
+    Case A visual path: BROWSER_AVAILABLE
+    Case B visual review: UNVERIFIED
+    Case C matched evidence: 'NO'
+    Server rendering choice: STANDALONE_SERVICE

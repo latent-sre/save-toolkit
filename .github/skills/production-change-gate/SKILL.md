@@ -14,8 +14,12 @@ argument-hint: "[the change, build, or production action to gate]"
 Three questions, one gate. Each has its own checklist and verdict; a later question consumes the
 earlier verdict as evidence and never re-runs it. The agent classifies, checks, and records. A human
 release owner or separately approved protected automation executes; the agent never does, and no
-approval changes that. The one exception in the fleet is `observability-engineer`'s Grafana
-dashboard write, which its own agent body governs.
+approval changes that. The fleet exception is the invoked `observability-engineer`'s scoped Grafana
+writes: dashboard/folder create/update, individual Grafana-managed alert-rule create/update and
+pause/resume, and temporary silence create/update/expire. Its complete agent-body Change authority
+rule and the `grafana` operation procedures govern those actions, including authorization,
+readback and UNKNOWN reconciliation; the generic executor-only procedure below does not replace
+that exception. Rule deletion and shared notification infrastructure remain on this gate.
 
 > **The checklist is not the enforcement.** It records a human decision. The load-bearing control
 > is the least-privilege production role or credential held by the named human or protected

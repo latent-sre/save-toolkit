@@ -1,0 +1,25 @@
+id: grafana-silence-unknown-write
+split: regression
+skill: grafana
+prompt: |
+  The invoked observability-engineer was asked to silence service=checkout, env=staging on the
+  built-in Grafana Alertmanager from 10:00 to 10:30 UTC. Scope, owner, affected alerts, and recovery
+  were established and shown. The POST was dispatched but timed out before returning a silence ID.
+  A single immediate list read shows no match; no audit evidence or later reconciliation exists.
+  Decide whether to repeat the create, and whether the silence would stop rule evaluation.
+  Return only these fields, one Label: value per line:
+  Write outcome: UNKNOWN | NOT_EXECUTED
+  Redispatch: BLOCKED_PENDING_RECONCILIATION | ALLOWED
+  Evaluation: CONTINUES | STOPS
+  Reconciliation target: SAME_ALERTMANAGER | ANY_ALERTMANAGER
+success_criteria:
+- Preserves UNKNOWN despite one empty read after a dispatched POST
+- Blocks duplicate creation until the same Alertmanager is reconciled
+- Distinguishes notification suppression from rule evaluation
+graders:
+- type: exact_fields
+  fields:
+    Write outcome: UNKNOWN
+    Redispatch: BLOCKED_PENDING_RECONCILIATION
+    Evaluation: CONTINUES
+    Reconciliation target: SAME_ALERTMANAGER

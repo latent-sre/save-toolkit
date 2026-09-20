@@ -1,0 +1,13 @@
+id: discovery-grafana-dashboard-reading
+split: regression
+prompt: |
+  Explain what the Checkout Health dashboard says about the latency increase between 09:00 and
+  09:30 UTC yesterday. Check the selected environment, panel queries, and data before drawing
+  conclusions. This is a retrospective read; do not edit panels or alerts.
+target:
+  kind: skill
+  name: grafana
+routing:
+  expect: fire
+success_criteria:
+- Selects dashboard interpretation rather than authoring, alert design, or active incident triage

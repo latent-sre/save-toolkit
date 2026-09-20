@@ -25,6 +25,19 @@ def available_shell() -> str | None:
     return None
 
 
+def available_powershell() -> str | None:
+    """An interpreter that can run the PowerShell hook command AS WRITTEN, or None.
+
+    `pwsh` on a Linux runner is NOT a substitute. It parses the command string happily and then
+    dies on `powershell.exe`, which exists only on Windows -- so gating on "some PowerShell is
+    installed" turns an inapplicable platform into a red suite instead of a skip. GitHub's
+    ubuntu-latest ships pwsh, which is exactly how that bit this file.
+    """
+    if not sys.platform.startswith("win"):
+        return None
+    return shutil.which("powershell") or shutil.which("pwsh")
+
+
 def rebuild_inline_command(script_lines: list[str]) -> str:
     """Join the standalone launcher's stripped lines back into one inlined hook command."""
     rebuilt: list[str] = []
@@ -55,6 +68,60 @@ class RebuildInlineCommandTests(unittest.TestCase):
 
 
 class HookWiringTests(unittest.TestCase):
+    def test_powershell_has_a_separate_guard_handler(self) -> None:
+        document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
+        entry = next(e for e in document["hooks"]["PreToolUse"] if e["matcher"] == "PowerShell")
+        handler = entry["hooks"][0]
+        self.assertEqual("powershell", handler["shell"])
+        self.assertIn("readonly-guard-hook.ps1", handler["command"])
+
+    @unittest.skipUnless(available_powershell(), "PowerShell not available")
+    def test_exact_powershell_hook_command_allows_safe_denies_write(self) -> None:
+        """The only test that runs the real PowerShell hook command string.
+
+        `test_powershell_has_a_separate_guard_handler` asserts the handler is REGISTERED; nothing
+        proved it RUNS. A review of this PR read `${CLAUDE_PLUGIN_ROOT}` as an unset PowerShell
+        variable that would expand to nothing and leave `-File /scripts/...`. It does not: Claude
+        Code substitutes path placeholders into the command string as plain text before the shell
+        sees them, and also exports them to the spawned process. This test reproduces that
+        substitution so the launch path is exercised rather than argued about.
+
+        SCOPE: the PowerShell handler is Windows-only and every CI job here is ubuntu-latest, so
+        this never runs in CI. It is a Windows developer-host check. A green CI run is therefore
+        NOT evidence for this hook command; only a local Windows run is, which is why the skip is
+        platform-gated rather than made a CI failure the way the POSIX hook's is.
+        """
+        document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
+        entry = next(e for e in document["hooks"]["PreToolUse"] if e["matcher"] == "PowerShell")
+        command = entry["hooks"][0]["command"].replace("${CLAUDE_PLUGIN_ROOT}", str(ROOT))
+        self.assertNotIn("${", command, "a path placeholder went unsubstituted in this test")
+
+        def invoke(payload: dict) -> subprocess.CompletedProcess[str]:
+            return subprocess.run(
+                [available_powershell(), "-NoProfile", "-Command", command],
+                input=json.dumps(payload),
+                text=True,
+                capture_output=True,
+                cwd=ROOT,
+                env=dict(os.environ, CLAUDE_PLUGIN_ROOT=str(ROOT)),
+                timeout=60,
+                check=False,
+            )
+
+        safe = invoke({"tool_name": "PowerShell", "agent_type": "save-toolkit:sre-assistant",
+                       "tool_input": {"command": "Get-Date -Format o"}})
+        denied = invoke({"tool_name": "PowerShell", "agent_type": "save-toolkit:sre-assistant",
+                         "tool_input": {"command": "Remove-Item -Recurse -Force C:\\Windows"}})
+        main = invoke({"tool_name": "PowerShell",
+                       "tool_input": {"command": "Remove-Item -Recurse -Force C:\\Windows"}})
+
+        self.assertEqual((0, ""), (safe.returncode, safe.stdout.strip()), safe.stderr)
+        self.assertEqual(0, denied.returncode, denied.stderr)
+        self.assertEqual(
+            "deny", json.loads(denied.stdout)["hookSpecificOutput"]["permissionDecision"]
+        )
+        self.assertEqual((0, ""), (main.returncode, main.stdout.strip()), main.stderr)
+
     def test_hook_is_session_wide_and_fail_closed_for_guarded_agents(self) -> None:
         document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
         entry = document["hooks"]["PreToolUse"][0]

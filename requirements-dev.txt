@@ -2,9 +2,10 @@
 # Install all with: python -m pip install -r requirements-dev.txt
 # requirements-test.txt selects the fleet and HTTP-starter test dependencies using these
 # constraints; CI installs that subset rather than the sandbox frameworks.
-# Gate A currently needs only the standard library. A third-party import on its path requires
-# an install step in the validate job. The isolated hook guard (python -I -S) remains
-# standard-library-only: installed plugins do not install Python dependencies.
+# Gate A runs after `python -m pip install -r requirements-dev.txt` (the validate job
+# installs it before invoking the gate), so gate-path scripts may import these pins.
+# The isolated hook guard (python -I -S) remains standard-library-only: installed plugins
+# do not install Python dependencies.
 a2a-sdk==1.1.2
 anthropic==1.4.0
 agent-framework-a2a==1.0.0b260821
@@ -17,7 +18,11 @@ inspect-swe==0.2.70
 jsonschema==4.26.0
 langgraph==1.2.11
 langgraph-checkpoint-sqlite==3.1.1
+orjson==3.12.0
+pyahocorasick==2.3.1
 pytest==9.1.1
+pytest-xdist==3.8.0
 pyyaml==6.0.3
+rich==15.0.0
 sse-starlette==3.4.11
 uvicorn==0.52.4

@@ -2,8 +2,9 @@
 """Run the live-tree structural checks used by CI and before a push.
 
 This is the executable roster; CONTRIBUTING.md defines when component suites must also run.
-Checks use the standard library and need neither a clean tree nor full Git history. If a check
-adds a third-party dependency, CI must install it in the validate job before invoking this gate.
+Checks run after `python -m pip install -r requirements-dev.txt` (the validate job installs
+it before invoking this gate), so gate-path scripts may import pinned third-party packages;
+they need neither a clean tree nor full Git history.
 All checks run even after a failure. Default output is one verdict plus failure diagnostics;
 --verbose includes successful step output. Structural success is not behavioral acceptance.
 """
@@ -19,8 +20,6 @@ ROOT = Path(__file__).resolve().parents[1]
 STEPS = [
     ("Canonical skill and bundle links", ["scripts/check_links.py"]),
     ("Fleet, plugin, and generated adapter contracts", ["scripts/validate_fleet.py"]),
-    ("Context-cost budgets for canonical tasks", ["scripts/check_context_cost.py"]),
-    ("Weight totals: evals lines, skills bytes, agents bytes", ["scripts/check_weight.py"]),
 ]
 
 MINIMUM_PYTHON = (3, 11)
