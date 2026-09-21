@@ -6,6 +6,25 @@ investigation without taking incident coordination. Fictional records on Septemb
 source exports use UTC.
 Names/values are not defaults.
 
+## Before an assignment exists
+
+**Human:** "I would like to do a test drill with our new agents and skills. We have issues with Orders."
+
+**Advisor:** "Let's treat this as a simulated incident. What is going wrong with Orders — errors,
+slowness, or something else — and when did it start? Are you providing the scenario, or would you
+like me to create a fictional one?"
+
+No helper is dispatched yet. The advisor does not turn this into an agent evaluation or search
+`evals/`, examples, or design docs to manufacture Orders incident evidence. These worked records
+are instructional examples unless the human explicitly selects them for the drill.
+
+By contrast, "Read the selected exercise exports E1/E2 and compare crashes with the update" is a
+bounded assignment and can dispatch immediately. Unknown impact or human-owner identity need
+not block that read. Likewise, an authorized runbook step naming a dashboard, question and window
+can dispatch without another delegation approval.
+
+## A bounded investigation
+
 **Human:** “I'm Riley, INC-61 owner. Orders/prod was slow 09:40–10:00 UTC. Check E1/E2:
 did its config change cause the crashes, and what next?”
 

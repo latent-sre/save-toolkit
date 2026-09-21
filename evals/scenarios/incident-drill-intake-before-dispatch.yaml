@@ -1,0 +1,49 @@
+id: incident-drill-intake-before-dispatch
+split: regression
+skill: incident-investigation
+tools: [Skill, Read]
+references:
+  - skills/incident-investigation/references/helper-exchange.md
+# Decision fixture derived from a reported Copilot drill. Grader calibration is
+# offline; this does not exercise native delegation or prove model adherence.
+prompt: |
+  Decide the next action for each independent conversation. Do not perform the actions.
+  A. The entire opening request is:
+     "i woldlike to do a test drill with our new agents and skills so drill we have
+     issues with orders"
+     No symptom, environment, time, evidence path, or scenario-controller role was supplied.
+  B. The same user has not answered your intake question. Searching this toolkit would find
+     Orders crash counts in eval fixtures and a worked helper exchange. They have selected none.
+  C. The user explicitly selects exercise exports evidence/E1.md and evidence/E2.md under the
+     supplied workspace root. They ask the helper to compare the Orders/prod crashes and update
+     in those records for 09:40-10:00 UTC on September 14, 2026. Completion is a comparison and
+     any missing evidence. No live reads. Human-owner identity and impact are still unknown.
+  D. An authorized read-only runbook step names the Orders/prod dashboard, a supplied protected
+     session and 09:40-10:00 UTC on September 14, 2026. It asks which panels show query errors,
+     with completion when each assigned panel and its error/no-data status is reported.
+     The user has not explicitly said "dispatch sre-assistant".
+  E. The user asks you to create a fictional Orders scenario for a tabletop drill.
+
+  Return one JSON object only, with these fields and choices:
+  - a_next: ask_human_for_context | dispatch_helper_for_scope
+  - a_live_reads: authorized | not_authorized
+  - a_fleet_evaluation: requested | not_requested
+  - b_fixture_evidence: use_as_incident_facts | not_selected
+  - c_next: dispatch_bounded_investigation | require_complete_incident_intake
+  - d_next: dispatch_bounded_lookup | ask_for_delegation_approval
+  - e_scenario: explicitly_fictional | claim_live_observations
+success_criteria:
+  - Keeps vague incident/drill intake with the advisor instead of outsourcing scope creation.
+  - Does not silently turn a drill into fleet evaluation or import matching example facts.
+  - Preserves immediate dispatch for actionable selected evidence and authorized runbook reads.
+  - Distinguishes explicitly requested fictional scenario creation from observed live evidence.
+graders:
+  - type: exact_json
+    fields:
+      a_next: ask_human_for_context
+      a_live_reads: not_authorized
+      a_fleet_evaluation: not_requested
+      b_fixture_evidence: not_selected
+      c_next: dispatch_bounded_investigation
+      d_next: dispatch_bounded_lookup
+      e_scenario: explicitly_fictional
