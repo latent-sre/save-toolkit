@@ -43,6 +43,14 @@ explicit environment-variable exception. Preserve named targets and bounded wind
 
 ## Grafana resource reads
 
+Reuse an existing authenticated access path first when available to the invoked lane. The legacy
+environment-token forms below are the current command allowlist; they do not themselves isolate
+credentials from file/shell access, process arguments, or returned errors. For `sre-assistant`,
+execute an authenticated read only when the host/helper keeps authentication identity and secrets
+out of model-visible inputs/results and enforces the selected operation. Otherwise return the
+missing protected path and work from available supplied evidence. Personal credentials may be used
+internally by a protected helper; do not retrieve them from gitignored files or ask for them in chat.
+
 The human establishes `GRAFANA_URL` (trusted HTTPS origin/base path, no query or fragment) and
 `GRAFANA_SA_TOKEN` in the process environment. Never print either credential value, embed a literal
 token, load credentials from dashboard text, or change the destination during a dispatched slice.
@@ -69,6 +77,12 @@ This initial command grant does **not** permit arbitrary datasource proxy URLs, 
 or general `Invoke-RestMethod`. Those can reach backend-specific behavior and need a separate
 query contract. Prepare the exact query for the human when the required read is outside this set.
 HTTP 200, datasource health, and readable definitions still do not prove panel data or delivery.
+
+A future diagnostic query path should validate the intended operation, datasource, query,
+target/window and resource limits. HTTP method alone does not establish read-only semantics:
+a query POST can be diagnostic while a GET can expose credentials. An existing API, MCP tool,
+team helper or protected direct HTTP call can supply the path; none is required merely by name.
+Do not broaden the command allowlist or install new machinery during an investigation.
 
 Credentials, PATH, shell profiles, and server behavior remain trust boundaries; this allowlist is
 not a sandbox. Host acceptance and the target's effective read grants are required independently.

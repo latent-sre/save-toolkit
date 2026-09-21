@@ -25,11 +25,18 @@ grants. It can inspect a prepared view; it cannot navigate, click, change time/v
 through interactions, evaluate page code, or authenticate. A browser snapshot describes accessible
 page structure; rendered graph claims require inspecting a screenshot, not just snapshot text.
 
-The human opens the requested dashboard and sets the window/variables in a dedicated Viewer
-session connected to the MCP browser. Use a profile containing only the requested Grafana context,
-with host-enforced origin restrictions where available; do not attach a broad personal/admin
-session. The browser credential is separate from an API token. Establish effective read-only
-permissions for that identity and org before accepting the session; a role label alone is not proof.
+Prefer an existing authenticated session, including personal SSO, when it can be exposed through
+the permitted read path. The human prepares the dashboard and window/variables for this capture
+profile. Establish effective read-only permissions for the target identity/org and keep the session
+limited to the requested Grafana context. A personal account is acceptable; broader account rights
+require an independently enforced diagnostic-only path, which these capture grants do not provide.
+The browser credential is separate from an API token; browser sign-in does not establish API access.
+
+Keep authentication usernames, passwords, cookies and tokens out of results before they reach the
+model. Screenshots, accessible profile labels, console output and login errors can expose identity
+even when the password stays hidden. Use a protected capture/result path or a human-prepared
+cropped image; if this protection is unavailable, return the gap and continue available evidence.
+Do not inspect credential files or copy session cookies to manufacture another access path.
 
 ### Where captures land
 
@@ -57,6 +64,22 @@ If more panels must be revealed or the wrong page is connected, return the exact
 the human to prepare, or use supplied screenshots. Do not replace a missing/denied browser tool
 with a shell script or another automation channel. Tool names must match the registered server on
 the actual host; unavailable tools are an access gap. The shell guard does not enforce MCP calls.
+
+### Interactive viewing upgrade
+
+The intended SRE workflow includes navigation, time/variable changes, scrolling, query inspection
+and visual/API comparison, without saving dashboards or changing alerts. Enable it only through
+exact tools actually granted on that host and a verified read-only and credential-protection
+boundary. The current capture profile does not grant these interactions. Native VS Code browser
+tools and Playwright MCP are distinct access paths; do not substitute one for a denied tool.
+
+For native VS Code, reuse a page the human has shared with the agent through **Share with Agent**.
+An agent-opened page uses separate ephemeral storage and does not inherit other tabs' sign-in state.
+If the session expires, return the normal human sign-in/MFA step and continue independent checks.
+Never ask for credentials in chat. Verify image delivery and permissions for both a directly
+selected agent and a dispatched helper; a registered tool name alone proves neither.
+[sourced: VS Code browser tools](https://code.visualstudio.com/docs/agents/run/browser-tools),
+checked 2026-09-21.
 
 ## Bind query and image evidence
 

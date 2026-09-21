@@ -74,6 +74,32 @@ record-provenance evidence used by merged PR #237. Results apply to those record
 **SRE task:** Get a useful next check or closeout without mistaking a helper's completed assignment
 or an untimed aggregate for evidence of incident recovery or cause.
 
+### SRE-CF-001 — complete protected SRE investigation access
+
+**Status:** `active` (2026-09-21); selected CF reads and authentication without exposing
+credentials are wanted. The agent/caller contract and narrowed CF command grammar are updated;
+protected access implementation and native acceptance remain open.
+**Owner:** Save Toolkit maintainers.
+**Outcome:** Grafana investigation and selected CF application observations work on
+Claude Code and VS Code/Copilot under an agreed, verified access policy, reusing existing SSO/session
+access first and supporting personal-account authentication when needed without exposing credentials
+to the LLM. Deployment actions, other production mutations, and credential-bearing diagnostic reads
+remain excluded.
+**Next action:** Bind the actual Grafana helper and operations-repository paths, then implement and
+verify one complete dashboard investigation alongside its read-only and credential protections.
+Identify the existing SSO/browser/CLI session and credential mechanism, including protected personal
+credentials where needed. Complete CF target/output/time bounds, richer browser tool wiring and an
+isolated analysis path only with their matching controls. Use the
+[expanded host acceptance cases](vscode-plugin-acceptance.md#expanded-investigation-acceptance-pending)
+for both hosts. The source update adds no general browser, HTTP, script or terminal grants;
+Helix/BigQuery remains an unconnected placeholder. INCIDENT-QUALITY-001 retains behavioral acceptance.
+**Evidence:** [Planning context beside the agent](../agents/README.txt);
+[current canonical profile](../agents/sre-assistant.md), [caller](../skills/incident-investigation/SKILL.md),
+[guard source](../scripts/readonly-guard.py), and supplied-state regression fixtures under `evals/scenarios/`.
+Source and offline checks do not establish native acceptance of the access policy.
+**SRE task:** Delegate a scoped application-state or event-history check while investigating another
+part of the incident, without delegating deployment or remediation authority.
+
 ### CONTEXT-001 — establish a generalized SRE operational-context contract
 
 **Status:** `active` (2026-09-07).

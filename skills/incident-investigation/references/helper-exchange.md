@@ -1,17 +1,22 @@
 # Worked helper exchange
 
-Read when a helper overstates the supplied evidence. The parent skill owns authority and the
-board contract. Fictional records on September 14, 2026; source exports use UTC.
+Use for dispatch and reconciliation, including when a helper overstates the supplied evidence.
+The parent skill owns human-facing advice and the board; the helper may interpret an assigned
+investigation without taking incident coordination. Fictional records on September 14, 2026;
+source exports use UTC.
 Names/values are not defaults.
 
 **Human:** “I'm Riley, INC-61 owner. Orders/prod was slow 09:40–10:00 UTC. Check E1/E2:
 did its config change cause the crashes, and what next?”
 
-**After reading symptom comparisons, dispatch `sre-assistant`:** Caller incident advisor; human
-owner Riley; Orders/prod, September 14, 2026, 05:40–06:00 Eastern (EDT), equivalent to
-09:40–10:00 UTC in the exports. Inspect only E1/E2 for crash/change ordering; complete
-when both exports and limits are reported. Return recipient, status, evidence, gaps/non-actions,
-parent question and next step. No live reads/changes.
+**After reading symptom comparisons, dispatch `sre-assistant`:** Invoking caller and return
+recipient incident advisor; human owner Riley. Investigation: does the config change explain
+Orders/prod's crashes, and which observation would distinguish the remaining explanations?
+September 14, 2026, 05:40–06:00 Eastern (EDT), equivalent to 09:40–10:00 UTC in the exports.
+Read `evidence/E1.md` and `evidence/E2.md` under the supplied workspace root; those paths are the
+fictional exports below. One helper, these two sources, no live reads/changes. Complete when both
+records, supported interpretation and limits are returned; a missing record makes the return
+partial. Return recipient, status, evidence, gaps/non-actions, parent question and next step.
 
 **Received, not adopted:** To incident advisor; owner Riley; slice complete, incident open.
 [sourced: E1] two crashes in that window, aggregate CPU 25%; capture/crash times absent.
@@ -42,6 +47,21 @@ Next: timestamped Events rows for 05:40–06:00 Eastern to compare crashes with 
 Follow-ups: Events access/owner unconfirmed; obtain missing timestamps and user-impact scope,
   agree recovery criterion; owners/due times unknown.
 ```
+
+The advisor continues from the returned facts; Riley does not carry a message between agents.
+If another slice fits the existing task and remaining caller limits and the helper has access,
+the advisor dispatches it with its own named sources and completion condition. Otherwise the
+console request states exactly which evidence Riley can obtain.
+
+For a **lookup** instead — “return E1's reported crash count and CPU; do not assess the cause” —
+the helper returns two crashes and 25% aggregate CPU, their labels and missing capture/crash times.
+It does not turn that lookup into the investigation above. An immediate material risk is still
+reported to the caller.
+
+For a slower investigation, an actual host-supported interim channel may carry the useful E1
+findings while E2 is pending. Without that channel, the helper returns the useful partial result,
+names E2 as outstanding, and the advisor continues or dispatches the remaining slice. Neither a
+launch acknowledgment nor completion of E1 establishes E2's contents or a completed investigation.
 
 **Riley later supplies** aligned Orders/prod instance 3, pool P samples, 09:50–09:55 UTC:
 active/limit 20/20, waiters 6 throughout [sourced: E3].

@@ -269,6 +269,8 @@ class PlatformAdapterTests(unittest.TestCase):
                     if handoff["agent"] == "sre-assistant":
                         self.assertIn("[UNTRUSTED]", handoff["prompt"])
                         self.assertIn("without applying production changes", handoff["prompt"])
+                        self.assertIn("human-selected handoff", handoff["prompt"])
+                        self.assertIn("Do not imply automatic return", handoff["prompt"])
 
     def test_copilot_handoffs_are_independent_of_model_called_subagents(self) -> None:
         self.assertNotIn("sre-assistant", self._copilot_agents("observability-engineer") or [])
@@ -345,6 +347,26 @@ class PlatformAdapterTests(unittest.TestCase):
             source.write_text(agent, encoding="utf-8", newline="\n")
             with self.assertRaisesRegex(ValueError, "30,000-character maximum"):
                 adapters.render_copilot_agent(source)
+
+    def test_sre_prompt_budget_is_25000_characters_on_both_profiles(self) -> None:
+        """The owner's SRE budget applies to the rendered body, including the command preview."""
+        with tempfile.TemporaryDirectory() as temporary:
+            source = Path(temporary) / "sre-assistant.md"
+            header = "---\nname: sre-assistant\ndescription: Size boundary.\ntools: Read\n---\n"
+            for preview in (False, True):
+                for length in (25_000, 25_001):
+                    source.write_text(header + "x" * length, encoding="utf-8")
+                    with self.subTest(preview=preview, length=length):
+                        if length == 25_000:
+                            rendered = adapters.render_copilot_agent(source, command_preview=preview)
+                            self.assertEqual("x" * length, rendered.split("---\n", 2)[2].strip())
+                        else:
+                            with self.assertRaisesRegex(ValueError, "25,000-character"):
+                                adapters.render_copilot_agent(source, command_preview=preview)
+            # A larger non-SRE agent still uses the documented Copilot ceiling.
+            source.write_text(header.replace("sre-assistant", "probe-agent") + "x" * 29_000,
+                              encoding="utf-8")
+            self.assertIn("x" * 29_000, adapters.render_copilot_agent(source))
 
     def test_manual_skills_get_host_native_invocation_controls(self) -> None:
         for name in sorted(adapters.MANUAL_ONLY):

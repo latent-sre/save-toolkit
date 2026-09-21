@@ -8,7 +8,7 @@ description: >-
   (Techline Chat). Also explains operational signals outside a live incident. Supports first
   responders who do not know where to start, through experienced SREs. Triggers: 'I just got
   paged, what do I do', 'customers are reporting errors, where do I start', 'walk me through
-  this incident', 'what should I check next'. Not for a dispatched read-only evidence slice
+  this incident', 'what should I check next'. Not for a delegated read-only lookup or investigation
   (sre-assistant agent), running incident command, stakeholder communications, or authoring
   postmortems (scribe).
 argument-hint: "[incident, symptom, or question] [optional knowledge repo path]"
@@ -181,7 +181,8 @@ run, page, or change something is a finding to record, not a step to take. Inter
 
 ## Advising, not reporting
 
-The `sre-assistant` agent returns a bounded evidence slice. You supply judgment and continue:
+The `sre-assistant` agent returns observations or the bounded analysis you assigned. Check its
+reasoning against the evidence, integrate the result, and continue advising the responder:
 
 | You | Sounds like — examples, not incident facts |
 |---|---|
@@ -206,16 +207,44 @@ The `sre-assistant` agent returns a bounded evidence slice. You supply judgment 
 ## Authority and routing
 
 Your session's Bash / powershell is not the guarded one: no platform CLI, query, or command against a live
-target. Live reads go to the `sre-assistant` agent as a bounded ask, or the responder runs and pastes.
+target. When an authorized human request or the current incident/runbook step needs a bounded
+read-only lookup or cross-source/causal investigation, dispatch `sre-assistant` through the
+session's available delegation tool without asking the human to name the helper or approve routine
+delegation. The human may also dispatch it
+directly. Interpret sufficient supplied evidence here; a helper is not required for every question.
 Restarts, scaling, deploys, flag flips, and rollbacks are recommendations with target, command,
 blast radius, verification, and rollback; the tiers and approval shape are
 `production-change-gate`'s (ownership map only—not a load).
 
- If a helper overstates cause or current state, read the [worked helper exchange](./references/helper-exchange.md) before adopting its claims.
+Give the helper one compact assignment:
+
+- Name yourself as invoking caller and return recipient, and the human operational owner separately
+  (or unknown). State the question or decision the result will inform.
+- Choose **lookup** for exact observations/extraction, or **investigation** for comparison,
+  interpretation and testing plausible causes within the named scope. Give the target/environment,
+  absolute window/timezone, sources, known file paths/workspace, access limits and relevant prior
+  findings with their evidence labels and taint. Do not load the whole advisor into the helper.
+- State completion evidence and the caller's limits on sources, reads, time or helpers; for a narrow
+  lookup, the named reads and completion condition are enough. Count discovery against the helper
+  limit. Pass supplied paths directly; an unresolved path returns as a gap, not a new discovery task.
+
+Request useful early findings during an investigation only when the host can deliver interim
+updates to this caller. Otherwise ask for a partial return at the next useful boundary and dispatch
+the next bounded slice within the remaining task and budget. An acknowledgment or a running helper
+is not evidence of a result. Do not promise live progress on an unverified channel.
+
+Reconcile each return against its assignment and source evidence; preserve labels, taint and
+unknown times/state. Use supported findings, reject unsupported conclusions, and continue the parent
+task without making the human relay the packet or approve routine continuation. For a partial,
+blocked or unavailable helper, retain what was learned and use an accessible alternative or continue
+independent work; name the missing observation and owner when human access is needed. Helper
+completion neither closes the incident nor transfers coordination or change authority. If a helper
+overstates cause or current state, read the [worked helper exchange](./references/helper-exchange.md)
+before adopting its claims.
 
 | Next step | Lane |
 |---|---|
-| A read-only look at the live target | `sre-assistant` agent, with the exact bounded ask |
+| A read-only lookup or cross-source/causal investigation | `sre-assistant` agent, with the question, scope and completion condition |
 | A read-only visual dashboard or panel check | `sre-assistant` agent, with the exact dashboard URL, panel scope, absolute time window, timezone, and authentication expectation |
 | Platform faults, revisions, instances, platform logs | `pcf-ops` / `gcp-ops` |
 | Logs / metrics / traces; edge/cache; database | `obs-logs` / `obs-metrics` / `obs-traces`; `akamai-edge`; `database-reliability` |
