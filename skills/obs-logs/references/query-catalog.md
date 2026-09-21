@@ -16,13 +16,16 @@ guess into evidence.
 
 ## Who runs a catalog entry
 
-The `sre-assistant` lane's allowlist covers `cf logs --recent` and `gcloud logging read`, so it can gather
-that evidence directly. It holds **no Splunk CLI**, so every Splunk entry below is a
-*recommendation*: the exact query, what the output means, and what a healthy result looks like, for
-a human to run and paste back. That is why the "reads as" and "healthy looks like" fields are
-required — they let the recommending lane interpret output it could not have produced itself. An
-entry for a backend the lane can query directly still carries them, because the human reading the
-packet needs the same expectation.
+Use a registered, permitted diagnostic API, browser session, or reviewed team helper when the
+invoked lane actually has that access and its credential/result protections. A Splunk CLI is not a
+prerequisite. The standard SRE profile currently has no Splunk query execution path; return the
+exact query and expected result to the caller and continue other useful, authorized evidence.
+Do not claim to have run a catalog entry or widen tool permissions because it appears here.
+
+The "reads as" and "healthy looks like" fields remain required for both executed and proposed
+queries: they let the human and caller assess what the result establishes. Bind the source,
+service, absolute window, filters, limits and completeness; a diagnostic search job is not
+permission to persist results, modify saved searches, or run a query with other write effects.
 
 ## Entry shape
 

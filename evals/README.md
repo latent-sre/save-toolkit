@@ -207,10 +207,15 @@ requires a completed child call and the integrated runbook/README artifacts. Its
 do not identify who edited the README or when; inspect the raw trace before claiming that the
 parent resumed after the child returned.
 
-Agent-target routing is **calibration-only**: main-session dispatch is a model and host propensity,
-not a fleet contract (on 2026-08-22 Opus 5 dispatched 0/3 where Sonnet did 3/3). Record the model
-and host with any such result. See the
+Agent-target routing probes remain **calibration-only** evidence of model/host propensity
+(on 2026-08-22 Opus 5 dispatched 0/3 where Sonnet did 3/3). Record the model
+and host with any such result. See the historical
 [accepted EVAL-002 decision](../docs/decisions/2026-08-22-agent-discovery-calibration.md).
+The expanded SRE workflow now requires an actual unhinted incident/runbook dispatch, helper return
+and caller continuation as a product acceptance case on each claimed host. A routing probe or a
+supplied-state JSON decision alone does not satisfy that requirement; one success does not establish
+general dispatch reliability. The pending cases live in
+[host acceptance](../docs/vscode-plugin-acceptance.md#expanded-investigation-acceptance-pending).
 
 ### Native incident conversation
 

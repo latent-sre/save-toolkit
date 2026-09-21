@@ -5,8 +5,8 @@ Manager), Splunk, Wavefront and PCF App Metrics, Grafana, Akamai, with Cloud Run
 The GCP landing runtime remains undecided in `stack-profile`. It fits together in
 three layers. **You own the work**: the incident, the change, the runbook. **An advisor thinks with
 you**: `incident-investigation` asks what to check next, says what each result means, and tells you
-when to mitigate. **Agents are your helpers**, dispatched for bounded jobs: the `sre-assistant` agent gathers
-one read-only evidence slice, `observability-engineer` tunes an alert, `scribe` writes the runbook
+when to mitigate. **Agents are your helpers**, dispatched by you or the invoking workflow for bounded jobs:
+`sre-assistant` performs a read-only lookup or investigation, `observability-engineer` tunes an alert, `scribe` writes the runbook
 afterward. The skills serve you and the agents alike: the same logs skill hands you a paste-ready
 Splunk search and hands the `sre-assistant` agent the method to build one, which is why a PCF check is always
 the Apps Manager view with the `cf` command beside it. A human executes every production action,
@@ -32,7 +32,10 @@ Routing is by description; there are no commands to memorize.
   mean, when to mitigate, who to page, and a board so nothing learned is lost.
 - *"why is orders 502-ing in prod?"* → `incident-investigation` again; you own it, it advises.
 - *"check cf events and recent logs for orders since 14:00 UTC"* → the `sre-assistant` agent gathers
-  that one read-only evidence slice, with a mitigation stance, and stops.
+  the requested evidence and limits, then returns to its caller.
+- *"investigate the checkout latency dashboard while I check the database"* → `sre-assistant`
+  interprets available evidence, follows related leads within the assignment, and returns findings
+  and recommendations. Missing browser/API access stays explicit; a prompt cannot supply it.
 - *"this alert is too noisy"* → `observability-engineer` with `obs-alerting`.
 - *"write a runbook for the checkout deploy"* → the `scribe` agent with the `runbook` skill.
 - *"is PR #42 ready to merge?"* → `production-change-gate`'s merge-readiness checklist, including
@@ -57,8 +60,8 @@ will offer it).
 
 | Agent | Lane | Routing |
 |---|---|---|
-| `sre-assistant` | One bounded read-only evidence slice during an incident (guarded Bash/PowerShell on Claude), dispatched by the responder or by the `incident-investigation` advisor | Returns the slice and stops; the human owns the incident; delegates only sanitized public fact checks to `researcher` |
-| `observability-engineer` | Observability and dispatched Grafana changes (unguarded Bash; applies scoped dashboards, alert rules, and silences) | Delegates docs to `scribe` and sanitized public lookups to `researcher`; active diagnosis stays with the responder using `incident-investigation` (a bounded read to `sre-assistant`), and automation goes to `software-engineer` |
+| `sre-assistant` | Bounded read-only lookup or investigation (guarded Bash/PowerShell on Claude), dispatched by a human or invoking workflow | Returns findings and recommendations; the caller retains the broader investigation; delegates only sanitized public fact checks to `researcher` |
+| `observability-engineer` | Observability and dispatched Grafana changes (unguarded Bash; applies scoped dashboards, alert rules, and silences) | Delegates docs to `scribe` and sanitized public lookups to `researcher`; active diagnosis stays with the responder using `incident-investigation` (bounded investigative work to `sre-assistant`), and automation goes to `software-engineer` |
 | `scribe` | Write evidence-bound runbooks, resolved-incident postmortems, and approved service/application/alert knowledge | Local document writer with no shell, web, external MCP, or delegation authority |
 | `software-engineer` | Build, fix, refactor, and test code or operations tooling | Routes requested or risk-triggered review to `reviewer`, operational docs to `scribe`, and sanitized public lookups to `researcher` |
 | `repository-investigator` | Local-only answers about private, current, or uncommitted checkout behavior | Cites `file:line`; no shell, write, web, external MCP, skill, or delegation |
@@ -134,7 +137,9 @@ Treat these as build-bound evidence, and rerun the linked probe after host upgra
 ### Other hosts
 
 For read-only observability without MCP, see [Windows/macOS command access](skills/grafana/references/command-access.md).
-Claude's candidate supports a small native command set and fixed Grafana GET forms. The standard
+Claude's candidate supports a small native command set and the bundled Grafana read/query helper.
+Selected native VS Code and Playwright browser interactions require a protected read-only session.
+The standard
 Copilot profile remains without terminal tools; its command preview must pass the
 [installed-host canary](docs/vscode-plugin-acceptance.md#command-preview-canary) before adoption.
 

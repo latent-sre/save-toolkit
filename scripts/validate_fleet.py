@@ -108,6 +108,13 @@ EVIDENCE_MCP_TOOLS = {
 BROWSER_OBSERVATION_MCP_TOOLS = {
     "mcp__microsoft_playwright_mcp__browser_snapshot",
     "mcp__microsoft_playwright_mcp__browser_take_screenshot",
+    "mcp__microsoft_playwright_mcp__browser_navigate",
+    "mcp__microsoft_playwright_mcp__browser_click",
+    "mcp__microsoft_playwright_mcp__browser_hover",
+    "mcp__microsoft_playwright_mcp__browser_type",
+    "mcp__microsoft_playwright_mcp__browser_select_option",
+    "mcp__microsoft_playwright_mcp__browser_press_key",
+    "mcp__microsoft_playwright_mcp__browser_wait_for",
 }
 EXTERNAL_EVIDENCE_TOOLS = {"ToolSearch", *WEB_TOOLS, *EVIDENCE_MCP_TOOLS}
 SCRIBE_TOOLS = {"Read", "Grep", "Glob", "Edit", "Write", "Skill"}

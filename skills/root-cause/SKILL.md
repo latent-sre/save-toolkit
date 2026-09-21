@@ -4,8 +4,8 @@ description: >-
   Use when diagnosing a bug, test failure, or unexpected behavior before permanent remediation, and
   especially after a fix attempt has already failed, or when guessing has started ("maybe it's X,
   let me try changing it"). Triggers: 'debug this failure', 'why did this test fail', 'the fix did
-  not work'. Active user impact belongs to `incident-investigation`; a bounded evidence lookup
-  does not require a full diagnosis.
+  not work'. Active response uses `incident-investigation`; a dispatched causal helper can use
+  this method within its assignment. A bounded evidence lookup does not require a full diagnosis.
 argument-hint: "[the bug or unexpected behavior]"
 ---
 

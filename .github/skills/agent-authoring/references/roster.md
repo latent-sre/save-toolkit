@@ -56,7 +56,7 @@ The contract fields are `../SKILL.md` rule 5. Name the verifier before the work:
 |---|---|
 | `software-engineer` | A failing test or fixture |
 | `reviewer` | Independently traced findings, permitted verification results, and candidate integrity |
-| `sre-assistant` | Requested target/window evidence returned to its caller; complete when the slice is fulfilled, partial for missing requested work, independent of incident status |
+| `sre-assistant` | Assigned lookup or investigative question answered with target/window evidence and limits; partial for missing requested work, independent of incident status |
 | `observability-engineer` | Assigned artifact: alert bad/healthy replay, query/config validation, or authorized dashboard readback |
 | A changed fleet contract | One focused red-first test, plus Gate A once before push |
 
