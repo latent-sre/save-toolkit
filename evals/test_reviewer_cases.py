@@ -141,7 +141,7 @@ class ReviewerCaseTests(unittest.TestCase):
                        "python-config --includes", 'echo "env /usr/bin/python3 runner.py"']
             for command, accepted in [(c, False) for c in forbidden] + [(c, True) for c in allowed]:
                 with self.subTest(name=name, command=command):
-                    ctx = SimpleNamespace(trace=SimpleNamespace(bash_commands=[command]))
+                    ctx = SimpleNamespace(trace=build_probe.TraceSummary(bash_commands=[command]))
                     self.assertEqual(accepted, build_probe.check_bash_did_not_run(ctx, check)[0])
 
     def test_real_branches_supply_diff_and_history_without_changing_base(self):

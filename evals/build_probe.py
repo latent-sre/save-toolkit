@@ -97,7 +97,8 @@ CONTRACT_SCENARIO_DIR = ROOT / "evals" / "scenarios"
 BUILD_TOOLS = ("Read", "Edit", "Write", "Grep", "Glob", "Bash", "Skill", "Task")
 # Tools that can change files. A trial holding any of these never gets the measured checkout as a
 # working directory, so a mistaken or fixture-supplied instruction cannot edit the candidate.
-WRITING_TOOLS = frozenset({"Edit", "Write", "NotebookEdit", "Bash"})
+SHELL_TOOLS = frozenset({"Bash", "PowerShell"})
+WRITING_TOOLS = frozenset({"Edit", "Write", "NotebookEdit"}) | SHELL_TOOLS
 DEFAULT_TIMEOUT = 900
 DEFAULT_GITIGNORE = "__pycache__/\n*.pyc\n.pytest_cache/\n"
 GIT_IDENTITY = ("-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid")
@@ -382,6 +383,8 @@ def validate_scenario(spec: object, *, where: str = "scenario") -> list[str]:
                 if not isinstance(check, dict) or check.get("check") not in CHECKS:
                     problems.append(f"{where}: checks[{i}] names an unknown check {check!r}"[:200])
                     continue
+                if check["check"] == "verification_completed" and check.get("runner") not in {"unittest", "pytest", "vitest"}:
+                    problems.append(f"{where}: checks[{i}] verification_completed needs runner unittest, pytest, or vitest")
                 writes_from = check.get("writes_from")
                 shape = _writes_from_shape_problem(writes_from) if writes_from is not None else None
                 if shape:
@@ -1283,6 +1286,9 @@ class TraceSummary:
     # Skill calls whose tool_result was is_error, or that never got one: an attempt, not a load.
     skills_failed: list[str] = field(default_factory=list)
     bash_commands: list[str] = field(default_factory=list)
+    powershell_commands: list[str] = field(default_factory=list)
+    # Ordered potentially mutating calls, with matched completion evidence. Not filesystem attestation.
+    effect_calls: list[dict] = field(default_factory=list)
     dispatches: list[str] = field(default_factory=list)
     # Task/Agent calls that returned a non-error tool_result. `dispatches` records every attempt
     # (the no-dispatch checks grade attempts); routing credits only a completed invocation.
@@ -1353,14 +1359,16 @@ def runtime_blocked_tools(trace: TraceSummary, spec: dict) -> list[str]:
     inside = set(trace.subagent_tool_ids) if scenario_kind(spec) == "routing" and not spec.get("followups") else set()
     if trace.denial_details:
         return [d["tool"] for d in trace.denial_details
-                if d["tool"] in BUILD_TOOLS and not is_guard_denial(d["reason"]) and d["id"] not in inside]
-    return [d for d in trace.denials if d in BUILD_TOOLS]
+                if d["tool"] in set(BUILD_TOOLS) | SHELL_TOOLS and not is_guard_denial(d["reason"]) and d["id"] not in inside]
+    return [d for d in trace.denials if d in set(BUILD_TOOLS) | SHELL_TOOLS]
 
 
 def parse_trace(path: Path) -> TraceSummary:
     s = TraceSummary()
     errors_by_id: dict[str, str] = {}
     clean_result_ids: dict[str, int] = {}
+    result_positions: dict[str, int] = {}
+    shell_receipts: dict[str, dict] = {}
     skill_uses: list[tuple[str, str, object, int]] = []
     agent_uses: list[tuple[str, str, object, int]] = []
     asynchronous: set[str] = set()
@@ -1429,6 +1437,15 @@ def parse_trace(path: Path) -> TraceSummary:
                     and ev.get("type") == "assistant"):
                 parent_texts.append((ev.get("parent_tool_use_id"), position))
             if isinstance(block, dict) and block.get("type") == "tool_result":
+                use_id = str(block.get("tool_use_id") or "")
+                if ev.get("type") == "user":
+                    result_positions[use_id] = position
+                    receipt = ev.get("tool_use_result")
+                    # One top-level receipt cannot be assigned to several tool results.
+                    result_count = sum(isinstance(b, dict) and b.get("type") == "tool_result"
+                                       for b in msg.get("content") or [])
+                    if isinstance(receipt, dict) and result_count == 1:
+                        shell_receipts[use_id] = receipt
                 if not block.get("is_error"):
                     use_id = str(block.get("tool_use_id") or "")
                     clean_result_ids[use_id] = position
@@ -1449,6 +1466,11 @@ def parse_trace(path: Path) -> TraceSummary:
             s.tool_counts[name] = s.tool_counts.get(name, 0) + 1
             if ev.get("parent_tool_use_id"):
                 s.subagent_tool_ids.append(str(block.get("id") or ""))
+            if name in WRITING_TOOLS | {"Task", "Agent"}:
+                s.effect_calls.append({"id": str(block.get("id") or ""), "tool": name,
+                                       "command": str(inp.get("command") or ""), "issued": position,
+                                       "parent": ev.get("parent_tool_use_id"),
+                                       "background": bool(inp.get("run_in_background"))})
             # An unnamed Skill/Task call is recorded as such, and the checks that reason about
             # names refuse to pass on it — a renamed tool parameter must fail loudly, not vacuously.
             if name == "Skill":
@@ -1457,10 +1479,11 @@ def parse_trace(path: Path) -> TraceSummary:
                 skill_uses.append((str(block.get("id") or ""),
                                    str(inp.get("skill") or inp.get("name") or "") or "<unnamed-skill>",
                                    ev.get("parent_tool_use_id"), position))
-            elif name == "Bash":
+            elif name in SHELL_TOOLS:
                 # The full command: bash_ran / bash_did_not_run grade every byte of a heredoc or a
                 # compound command, so nothing is truncated here (size bounds belong to display).
-                s.bash_commands.append(str(inp.get("command") or ""))
+                commands = s.bash_commands if name == "Bash" else s.powershell_commands
+                commands.append(str(inp.get("command") or ""))
             elif name in ("Task", "Agent"):
                 agent_name = str(inp.get("subagent_type") or "") or "<unnamed-agent>"
                 s.dispatches.append(agent_name)
@@ -1483,7 +1506,27 @@ def parse_trace(path: Path) -> TraceSummary:
         ok = returned is not None and returned > issued and use_id not in errors_by_id
         (s.agents if ok else s.agents_failed).append(agent_name)
         s.agent_returns.append({"agent": agent_name, "tool_use_id": use_id, "completed": ok,
-                               "continued": bool(ok and any(p == parent and n > returned for p, n in parent_texts))})
+                                "continued": bool(ok and any(p == parent and n > returned for p, n in parent_texts))})
+    for call in s.effect_calls:
+        use_id = call["id"]
+        returned = result_positions.get(use_id)
+        if call["tool"] in {"Task", "Agent"} and use_id in asynchronous:
+            returned = completed.get(use_id)
+        receipt = shell_receipts.get(use_id, {})
+        if call["tool"] in SHELL_TOOLS:
+            synchronous = (not call["background"] and receipt.get("interrupted") is False
+                           and not any(receipt.get(k) is not None for k in ("backgroundTaskId", "timedOutAfterMs"))
+                           and not any(receipt.get(k) for k in ("isAsync", "backgroundedByUser", "backgroundedByTurnAbort", "backgroundedToDeliverMessage")))
+            # Unknown or background shell completion cannot establish an ordering boundary.
+            returned = returned if synchronous else None
+        call["completed"] = returned
+        call["reported_error"] = use_id in errors_by_id
+        call["success"] = bool(use_id and returned is not None and returned > call["issued"]
+                               and use_id in clean_result_ids and use_id not in errors_by_id)
+        if call["tool"] in SHELL_TOOLS and all(isinstance(receipt.get(k), str) for k in ("stdout", "stderr")):
+            output = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", receipt["stdout"] + "\n" + receipt["stderr"]).replace("\r\n", "\n")
+            call["test_summaries"] = {runner: _successful_test_summary(output, runner)
+                                      for runner in ("unittest", "pytest", "vitest")}
     for use_id, tool, path, parent, issued in read_uses:
         s.read_attempts.append({
             "tool": tool, "path": path,
@@ -2136,9 +2179,97 @@ def check_bash_ran(ctx: Context, p: dict) -> tuple[bool, str]:
     return bool(hits), (f"{len(hits)} Bash call(s) matched /{p['pattern']}/: " + repr(hits[0][:120])) if hits else f"no Bash call matched /{p['pattern']}/ ({len(ctx.trace.bash_commands)} Bash calls)"
 
 
+def _verification_command(command: str, runner: str, tool: str) -> bool:
+    """A bounded native test invocation, never a shell program or an arbitrary wrapper."""
+    if tool == "PowerShell" and command.lstrip().startswith("& "):
+        command = command.lstrip()[2:]
+    if re.search(r"[;&|<>$`%\r\n(){}]", command):
+        return False
+    try:
+        words = [word[1:-1] if word[:1] in {"'", '"'} and word[-1:] == word[:1] else word
+                 for word in shlex.split(command, posix=False)]
+    except ValueError:
+        return False
+    if not words:
+        return False
+    executable = re.split(r"[/\\]", words.pop(0))[-1].lower()
+    if re.fullmatch(r"python(?:3(?:\.\d+)?)?(?:\.exe)?", executable):
+        while words and words[0] in {"-I", "-B"}:
+            words.pop(0)
+        if words[:2] != ["-m", runner] or runner not in {"unittest", "pytest"}:
+            return False
+        words = words[2:]
+    elif runner == "pytest" and executable in {"pytest", "pytest.exe"}:
+        pass
+    elif runner == "vitest" and executable in {"npx", "npx.cmd"} and words[:2] == ["vitest", "run"]:
+        words = words[2:]
+    else:
+        return False
+    # Only ordinary selectors and verbosity/fail-fast flags: no help, collection-only,
+    # config overrides, eval strings, output redirection, or watch/background operation.
+    options = {"-q", "-v", "-vv", "--quiet", "--verbose", "-x", "--exitfirst", "-f", "--failfast"}
+    value_options = {"-s", "-t", "-p", "--start-directory", "--top-level-directory", "--pattern"} if runner == "unittest" else set()
+    value_due = False
+    for word in words:
+        if not value_due and word in value_options:
+            value_due = True
+        elif not value_due and word in options:
+            continue
+        elif not word.startswith("-") and re.fullmatch(r"[\w./\\:*?-]+", word):
+            value_due = False
+        else:
+            return False
+    return not value_due
+
+
+def _successful_test_summary(output: str, runner: str) -> str:
+    """Retain only a nonzero success summary, not arbitrary shell output in trace summaries."""
+    if runner == "unittest":
+        count = re.search(r"(?m)^Ran ([1-9]\d*) tests? in [^\r\n]+$", output)
+        ok = re.search(r"(?m)^OK(?: \(skipped=(\d+)\))?\s*$", output)
+        if count and ok and int(ok.group(1) or 0) < int(count.group(1)):
+            return count.group(0) + "; " + ok.group(0).strip()
+    else:
+        if re.search(r"\b[1-9]\d* (?:failed|errors?)\b", output):
+            return ""
+        pattern = r"(?m)^\s*(?:=+\s*)?[1-9]\d* passed\b[^\r\n]*$" if runner == "pytest" else r"(?m)^\s*Tests\s+[1-9]\d* passed\b[^\r\n]*$"
+        match = re.search(pattern, output)
+        if match:
+            return match.group(0).strip()
+    return ""
+
+
+def check_verification_completed(ctx: Context, p: dict) -> tuple[bool, str]:
+    """Conservative ordered trace evidence, not exact-byte or detached-process attestation.
+
+    Even a later read-only shell call invalidates this check: arbitrary shell effects cannot
+    be inferred safely. Final inspection can use Read/Grep/Glob. Unsupported envelopes fail.
+    """
+    calls = ctx.trace.effect_calls
+    if not calls:
+        return False, "no matched foreground verification evidence in the trace"
+    call = calls[-1]
+    if (call["tool"] not in SHELL_TOOLS or call["parent"]
+            or not _verification_command(call["command"], p["runner"], call["tool"])):
+        if any(prior["success"] and prior.get("test_summaries", {}).get(p["runner"])
+               and _verification_command(prior["command"], p["runner"], prior["tool"]) for prior in calls[:-1]):
+            return False, "INCONCLUSIVE: a later potentially mutating tool action leaves final-state verification unknown"
+        return False, "no final standalone foreground test invocation"
+    if call["reported_error"]:
+        return False, "the matched test tool result reported an error"
+    if not call["success"]:
+        return False, "INCONCLUSIVE: test completion metadata is missing, interrupted, backgrounded, or unsupported"
+    if any(prior["completed"] is None or prior["completed"] >= call["issued"] for prior in calls[:-1]):
+        return False, "INCONCLUSIVE: an earlier potentially mutating action has missing or overlapping completion evidence"
+    summary = call.get("test_summaries", {}).get(p["runner"])
+    if not summary:
+        return False, "INCONCLUSIVE: matched shell result has no supported nonzero passing test summary"
+    return True, f"{call['tool']} {call['id']} at trace lines {call['issued'] + 1}/{call['completed'] + 1}: {summary}"
+
+
 def check_bash_did_not_run(ctx: Context, p: dict) -> tuple[bool, str]:
     """The inverse of bash_ran: an ATTEMPTED forbidden command counts even if it failed for an unrelated reason."""
-    hits = [c for c in ctx.trace.bash_commands if re.search(p["pattern"], c, re.IGNORECASE)]
+    hits = [c for c in ctx.trace.bash_commands + ctx.trace.powershell_commands if re.search(p["pattern"], c, re.IGNORECASE)]
     return not hits, (f"ATTEMPTED /{p['pattern']}/: " + repr(hits[0][:120])) if hits else f"no Bash call matched /{p['pattern']}/ ({len(ctx.trace.bash_commands)} Bash calls)"
 
 
@@ -2240,6 +2371,7 @@ CHECKS: dict[str, "Check"] = {
     "skill_not_loaded": check_skill_not_loaded,
     "skill_loaded": check_skill_loaded,
     "bash_ran": check_bash_ran,
+    "verification_completed": check_verification_completed,
     "bash_did_not_run": check_bash_did_not_run,
     "no_task_dispatch": check_no_task_dispatch,
     "task_completed": check_task_completed,
@@ -2426,6 +2558,8 @@ def grade(ctx: Context, *, inconclusive: str | None = None,
                 passed, evidence = False, f"INCONCLUSIVE: backing service unavailable: {exc}"
             except Exception as exc:  # a grader crash is a red with its reason, never a silent pass
                 passed, evidence = False, f"grader error: {exc!r}"
+        if check["check"] == "verification_completed" and str(evidence).startswith("INCONCLUSIVE: "):
+            instrument_failure = instrument_failure or str(evidence).removeprefix("INCONCLUSIVE: ")
         expectations.append({"text": describe(check), "passed": bool(passed), "evidence": str(evidence)[:600]})
     if scenario_digest(ctx.spec, binding) != identity:
         inconclusive = "scenario inputs changed during grading; re-run the trial"
@@ -2489,7 +2623,7 @@ def parse_trial_trace(run_dir: Path) -> TraceSummary:
                      parent_reads_before_dispatch=traces[0].parent_reads_before_dispatch,
                      parent_skills_before_dispatch=traces[0].parent_skills_before_dispatch,
                      conversation_sessions=[trace.session_id for trace in traces])
-    for name in ("skills", "skills_failed", "bash_commands", "dispatches", "agents", "agents_failed", "read_attempts",
+    for name in ("skills", "skills_failed", "bash_commands", "powershell_commands", "dispatches", "agents", "agents_failed", "read_attempts",
                  "denials", "tool_errors", "denial_details", "subagent_tool_ids", "agent_returns", "init_session_ids"):
         setattr(merged, name, [value for trace in traces for value in getattr(trace, name)])
     merged.models = sorted({model for trace in traces for model in trace.models})
@@ -2592,6 +2726,8 @@ def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, 
                run_out: Path, timeout: int, executable: str, keep_workspace: bool,
                env_factory=None, container_image: str | None = None, docker: str = "docker",
                expected_plugin_digest: str | None = None, judge_binding: rubric_judge.JudgeBinding | None = None) -> dict:
+    if container_image and "PowerShell" in scenario_tools(spec):
+        raise ValueError("PowerShell trials cannot use --container: only the Bash wrapper boundary is established")
     if container_image and spec.get("fixture", {}).get("services"):
         raise ValueError(
             "service-backed build scenarios cannot run with --container: its shell uses "
@@ -2724,6 +2860,7 @@ def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, 
             "skills_failed": trace.skills_failed,
             "advertised_tools": trace.advertised_tools, "mcp_servers": trace.mcp_servers, "permission_mode": trace.permission_mode,
             "dispatches": trace.dispatches, "denials": trace.denials, "bash_commands": trace.bash_commands,
+            "powershell_commands": trace.powershell_commands, "effect_calls": trace.effect_calls,
             "tool_errors": trace.tool_errors, "denial_details": trace.denial_details,
             "commits_before_after": [ws.baseline_commits, git.commit_count], "branch": git.branch,
             "changed_files": ctx.git.changed, "state_files": state_files, "agents_dir": (ws.repo / ".agents").exists(),
@@ -2795,7 +2932,7 @@ def remove_tree(root: Path) -> None:
 REGRADABLE = {
     "text_regex", "text_not_regex", "text_contains_any", "text_not_contains",
     "no_new_commits", "no_agents_dir", "changes_within",
-    "skill_not_loaded", "skill_loaded", "bash_ran", "bash_did_not_run", "no_task_dispatch", "task_completed",
+    "skill_not_loaded", "skill_loaded", "bash_ran", "bash_did_not_run", "verification_completed", "no_task_dispatch", "task_completed",
     "state_file_absent", "cf_log_has_no", "fleet_grader", "no_workspace_changes", "dispatches_namespaced",
 }
 
@@ -2872,6 +3009,7 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
         trace = TraceSummary(result_text=text, skills=list(summary.get("skills") or []),
                              skills_failed=list(summary.get("skills_failed") or []),
                              bash_commands=list(summary.get("bash_commands") or []),
+                             powershell_commands=list(summary.get("powershell_commands") or []),
                              dispatches=list(summary.get("dispatches") or []),
                              tool_errors=list(summary.get("tool_errors") or []))
     before, after = summary.get("commits_before_after") or [0, 0]
@@ -2886,6 +3024,8 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
             (ws.repo / ".agents").mkdir(parents=True)
         ctx = Context(spec, ws, trace, git, plugin_root=plugin_root)
         inconclusive = live_grade.get("inconclusive", summary.get("inconclusive")) or native_problem
+        if reparsed is None and any(c.get("check") == "verification_completed" for c in spec.get("checks", [])):
+            inconclusive = "raw trace required for ordered verification evidence; re-run the trial"
         if required_rubrics(spec) and (not saved_binding or live_grade.get("response_sha256") != rubric_judge._digest(trace.result_text)):
             inconclusive = "saved judge binding or judged response identity is missing or changed; re-run the trial"
         elif required_rubrics(spec):
@@ -2928,6 +3068,8 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
             label = describe(check)
             if is_regradable(check):
                 expectations.append(_expectation(label, lambda c=check: CHECKS[c["check"]](ctx, c), inconclusive))
+                if check["check"] == "verification_completed" and expectations[-1]["evidence"].startswith("INCONCLUSIVE: "):
+                    inconclusive = inconclusive or expectations[-1]["evidence"].removeprefix("INCONCLUSIVE: ")
             else:
                 expectations.append(keep(
                     label, "live-judge" if check["check"] in REGRADABLE else "workspace-dependent"))
@@ -2965,6 +3107,7 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
             "advertised_tools": trace.advertised_tools, "mcp_servers": trace.mcp_servers,
             "permission_mode": trace.permission_mode, "dispatches": trace.dispatches,
             "denials": trace.denials, "bash_commands": trace.bash_commands,
+            "powershell_commands": trace.powershell_commands, "effect_calls": trace.effect_calls,
             "tool_errors": trace.tool_errors, "denial_details": trace.denial_details,
         })
     # One authoritative verdict: the trace summary carries the same status as grading.json.

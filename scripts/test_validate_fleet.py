@@ -152,6 +152,18 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertNotIn(old_name, validate_fleet.EXPECTED_AUTHORITY)
         self.assertFalse((ROOT / "agents" / f"{old_name}.md").exists())
 
+    def test_builder_has_native_windows_and_posix_shells(self) -> None:
+        fields, _, _ = validate_fleet.adapters.parse_frontmatter(ROOT / "agents/software-engineer.md")
+        grants = validate_fleet._tool_bases(validate_fleet._tool_specs(fields["tools"]))
+        self.assertTrue({"Bash", "PowerShell"} <= grants, grants)
+        for shell in ("Bash", "PowerShell"):
+            with self.subTest(removed=shell):
+                failures = _agent_failures_after_edit(
+                    "software-engineer.md", lambda text: text.replace(f", {shell},", ",", 1),
+                )
+                self.assertTrue(any("missing required tool(s)" in item and shell in item
+                                    for item in failures), failures)
+
     def test_always_loaded_guide_keeps_conditional_authority_complete(self) -> None:
         guide = _normalized((ROOT / "AGENTS.md").read_text(encoding="utf-8"))
         self.assertIn(

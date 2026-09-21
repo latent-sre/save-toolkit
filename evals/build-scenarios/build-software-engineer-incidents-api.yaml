@@ -20,6 +20,9 @@ prompt: |
 
   Tests go in `tests/`; this repo uses pytest (see the README). This is a code change, not a design
   question, not a review, and not an incident.
+  After your last edit or helper return, run `python -m pytest -q` as a standalone foreground
+  shell command; use read tools for any final inspection.
+  Use separate Changed and Verified headings in your final response, explaining the changes and verification results.
 fixture:
   files:
     README.md: |
@@ -158,7 +161,7 @@ checks:
   - {check: command_exit_zero, command: "python probe_checks.py healthz", timeout: 120, text: "oracle: /healthz answers in under 2 s while the vendor is hung"}
   - {check: command_exit_zero, command: "python -m pytest -q", timeout: 300, text: "suite is green when the probe runs it"}
   - {check: command_exit_zero, command: "python -c \"import subprocess,sys; r=subprocess.run([sys.executable,'-m','pytest','-v'],capture_output=True,text=True); out=(r.stdout+r.stderr).lower(); sys.exit(0 if r.returncode==0 and 'incident' in out and ' passed' in out else 1)\"", timeout: 300, text: "an incidents test case actually executed and passed"}
-  - {check: bash_ran, pattern: "pytest", text: "a test command actually ran"}
+  - {check: verification_completed, runner: pytest, text: "trace: a foreground suite completed after the last potentially mutating tool action"}
   - {check: text_regex, pattern: '^[\s>*_#-]{0,8}changed\b', text: "packet: Changed slot"}
   - {check: text_regex, pattern: '^[\s>*_#-]{0,8}verified\b', text: "packet: Verified slot"}
   - {check: changes_within, allowed: ["app", "tests", "README.md", "pyproject.toml"], text: "surgical: only the service, its tests, the README, and the project file changed"}

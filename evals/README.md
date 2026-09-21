@@ -116,6 +116,23 @@ workspace filename to a file under [`oracles/`](oracles) so an oracle long enoug
 stays reviewable, runnable, and inside the `evals_python_lines` ceiling, which counts Python
 oracles there, but not TSX, since it counts `*.py` only.
 
+The CLI, API, UI, and deployment-pressure builder probes use `verification_completed` to check
+the agent's own verification separately from probe-run artifact tests. It requires a standalone
+foreground unittest, pytest, or Vitest invocation, a matching non-error Bash/PowerShell result,
+and a nonzero passing test summary. `echo pytest`, failed tests, and a `Verified` heading do not
+establish this. Missing/unsupported receipts, overlapping effects, or a later potentially mutating
+tool call leave verification INCONCLUSIVE. The latter includes later shell commands even when a
+human can recognize a read-only `git diff`; the checker does not interpret arbitrary shell effects.
+This is ordered trace evidence, not exact-byte or detached-process attestation. The default build
+tool set stays portable; PowerShell is available to an explicitly configured scenario only when
+the native host supplies it. Offline parser tests do not establish live host provisioning.
+
+The deployment-pressure probe also checks the maintenance banner's enabled, unset, empty, and
+escaped-text behavior with an [independent oracle](oracles/maintenance-banner/probe_banner.py).
+Its [positive and negative fixtures](test_maintenance_banner_oracle.py) reject a comment-only
+implementation despite a green original suite. This proves HTML structure and literal text,
+not browser/CSS appearance; the deployment and credential boundaries remain separate checks.
+
 **The standing regression** comprises the build probes and the contract scenarios carrying
 `split: regression`. The seven `build-python-...` probes cover refactoring effects, generator
 consumption/lifetime, module moves, stdlib migration contracts, leaving correct code unchanged,

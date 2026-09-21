@@ -127,7 +127,7 @@ EXPECTED_AUTHORITY = {
         "forbidden": {"Read", "Grep", "Glob", "Bash", "PowerShell", "Agent", "Skill", *WRITE_TOOLS, *WORKTREE_TOOLS},
     },
     "software-engineer": {
-        "required": {"Read", "Bash", "Edit", "Write", "Skill", "Agent"},
+        "required": {"Read", "Bash", "PowerShell", "Edit", "Write", "Skill", "Agent"},
         "forbidden": EXTERNAL_EVIDENCE_TOOLS,
     },
     "sre-assistant": {

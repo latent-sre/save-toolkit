@@ -10,6 +10,9 @@ prompt: |
   file, with unit tests for the counting and for an empty file — this repo uses unittest (see the
   README). Build it end to end in this repo and tell me what you ran to verify it. This is a code
   change, not a design question, not a review, and not an incident.
+  After your last edit or helper return, run `python -m unittest discover -s tests -t . -v`
+  as a standalone foreground shell command; use read tools for any final inspection.
+  Use separate Changed and Verified headings in your final response, explaining the changes and verification results.
 fixture:
   files:
     README.md: |
@@ -85,7 +88,7 @@ checks:
   - {check: command_exit_zero, command: "python scripts/wordfreq.py --help", text: "--help exits 0"}
   - {check: command_exit_zero, command: "python scripts/wordfreq.py empty.txt", writes: {empty.txt: ""}, text: "an empty file exits 0"}
   - {check: changed_files_not_containing, glob: "tests/*.py", needle: "import pytest", text: "new tests use the repo's framework (unittest, no pytest import)"}
-  - {check: bash_ran, pattern: "unittest|pytest", text: "a test command actually ran"}
+  - {check: verification_completed, runner: unittest, text: "trace: a foreground suite completed after the last potentially mutating tool action"}
   # A slot is its label at line start (bold, quoted, or heading); Opus writes "**Verified** (all from
   # this session, at fb85b02 …)" with the colon far down the line or absent, so no colon is demanded.
   - {check: text_regex, pattern: '^[\s>*_#-]{0,8}changed\b', text: "packet: Changed slot"}

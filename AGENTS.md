@@ -43,7 +43,7 @@ separate.
 
 | Agent | Lane | Tools posture | Delegates to |
 |---|---|---|---|
-| `software-engineer` | Code and operator tooling | Local read/write + unguarded Bash for team-authored code; no web | `reviewer`, `scribe`, `researcher` |
+| `software-engineer` | Code and operator tooling | Local read/write + unguarded Bash/PowerShell for team-authored code; no web | `reviewer`, `scribe`, `researcher` |
 | `reviewer` | Independent investigation, verification, and review | Git/PR reads, scratch writes, isolated checks, trusted skills; no direct web tools | `repository-investigator`, `researcher` |
 | `repository-investigator` | Bounded checkout questions | Read/Grep/Glob only; terminal | — |
 | `sre-assistant` | One bounded read-only evidence slice, dispatched by the human or the advisor | Guarded read-only `cf`/`gcloud`/`git`/`gh`; recommends mitigation | `researcher` |
