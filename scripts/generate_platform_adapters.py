@@ -78,6 +78,25 @@ COPILOT_TOOL_MAP = {
 COPILOT_MCP_TOOL_MAP = {
     "mcp__microsoft_playwright_mcp__browser_snapshot": "microsoft/playwright-mcp/browser_snapshot",
     "mcp__microsoft_playwright_mcp__browser_take_screenshot": "microsoft/playwright-mcp/browser_take_screenshot",
+    "mcp__microsoft_playwright_mcp__browser_navigate": "microsoft/playwright-mcp/browser_navigate",
+    "mcp__microsoft_playwright_mcp__browser_click": "microsoft/playwright-mcp/browser_click",
+    "mcp__microsoft_playwright_mcp__browser_hover": "microsoft/playwright-mcp/browser_hover",
+    "mcp__microsoft_playwright_mcp__browser_type": "microsoft/playwright-mcp/browser_type",
+    "mcp__microsoft_playwright_mcp__browser_select_option": "microsoft/playwright-mcp/browser_select_option",
+    "mcp__microsoft_playwright_mcp__browser_press_key": "microsoft/playwright-mcp/browser_press_key",
+    "mcp__microsoft_playwright_mcp__browser_wait_for": "microsoft/playwright-mcp/browser_wait_for",
+}
+# VS Code's integrated browser is independent of Playwright MCP. Derive its exact
+# tool references from the same canonical capabilities; removing a source grant
+# must remove the native equivalent as well. No arbitrary page code or dialogs.
+COPILOT_NATIVE_BROWSER_MAP = {
+    "mcp__microsoft_playwright_mcp__browser_snapshot": ("readPage",),
+    "mcp__microsoft_playwright_mcp__browser_take_screenshot": ("screenshotPage",),
+    "mcp__microsoft_playwright_mcp__browser_navigate": ("openBrowserPage", "navigatePage"),
+    "mcp__microsoft_playwright_mcp__browser_click": ("clickElement",),
+    "mcp__microsoft_playwright_mcp__browser_hover": ("hoverElement",),
+    "mcp__microsoft_playwright_mcp__browser_type": ("typeInPage",),
+    "mcp__microsoft_playwright_mcp__browser_press_key": ("typeInPage",),
 }
 COPILOT_HANDOFFS_BY_SOURCE = {
     "observability-engineer": (
@@ -310,6 +329,8 @@ def render_copilot_agent(source: Path, *, command_preview: bool = False) -> str:
     } | {
         COPILOT_MCP_TOOL_MAP[item] for item in tools if item in COPILOT_MCP_TOOL_MAP
     }
+    if name == "sre-assistant":
+        mapped.update(native for item in tools for native in COPILOT_NATIVE_BROWSER_MAP.get(item, ()))
     if name in GUARDED_AGENTS:
         mapped.discard("execute")
     ordered = [tool for tool in COPILOT_TOOL_ORDER if tool in mapped]

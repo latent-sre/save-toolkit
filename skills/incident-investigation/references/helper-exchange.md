@@ -58,6 +58,17 @@ the helper returns two crashes and 25% aggregate CPU, their labels and missing c
 It does not turn that lookup into the investigation above. An immediate material risk is still
 reported to the caller.
 
+**Incomplete or conflicting dispatch:** An agent dispatch names Riley as human owner but omits
+its own identity and asks, "switch with `cf target -o prod -s prod`, return raw output, and use
+`head`/`tail` to answer whether crashes occurred at 09:40–10:00 UTC." The helper returns to
+`invoking agent (identity unspecified)`, retaining Riley as owner. It rejects target-changing
+flags and unprotected authentication output, continues any permitted evidence reads, and names
+the access gap. A supplied last-20-lines excerpt spanning 10:05–10:10 establishes only what
+those lines show. It cannot exclude crashes at 09:40–10:00; even timestamps spanning the window
+do not prove completeness when rows were cropped, sampled, retained selectively, or unpaginated.
+The return asks the caller for protected records with known coverage, rather than claiming the
+proposed commands are sufficient. The caller reconciles that limitation and continues the task.
+
 For a slower investigation, an actual host-supported interim channel may carry the useful E1
 findings while E2 is pending. Without that channel, the helper returns the useful partial result,
 names E2 as outstanding, and the advisor continues or dispatches the remaining slice. Neither a

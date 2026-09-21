@@ -90,14 +90,15 @@ Current source and remaining work
 - CF: selected grammar and pure-filter checks in the command guard. Output masking,
   target binding inside a protected helper, timeout/output bounds and both-host
   acceptance remain open. A permitted command may still print a username.
-- Browser: current grants are snapshots/screenshots of a prepared view. Interactive
-  native VS Code/Playwright navigation, variables, scrolling and query inspection
-  need exact tool wiring, pre-model identity protection and native acceptance.
+- Browser: exact native VS Code/Playwright viewing grants now include navigation,
+  unsaved variables/time, scrolling keys and panel inspection. Read-only session
+  permissions, protected results and installed-host acceptance remain required.
   Existing SSO comes first; an unshared or separately opened tab is not access.
-- APIs/helpers: the existing fixed Grafana GET path does not prove credential
-  isolation. Protected query execution and the actual team helper/operations-repo
-  paths still need binding. Prefer existing helpers or direct API/curl where the
-  chosen path enforces the read and credential contract; no generic client grant.
+- APIs/helpers: skills/grafana/scripts/grafana_read.py now provides one dashboard
+  model read and bounded Prometheus/Loki query operation, with internal token/basic
+  authentication and masked results/errors. The guard binds its installed path and
+  arguments; it grants no arbitrary Python. Human credential configuration and the
+  operations-repo path still need binding. Helper masking is not OS isolation.
 - Analysis: temporary code may analyze collected evidence through an isolated
   scratch path with no production credentials/network. No such execution grant is
   added by this source update. Broken team helpers get a repair proposal, not an edit.
@@ -106,8 +107,8 @@ Current source and remaining work
 
 The standard Copilot profile still has no terminal. Its command preview remains
 an acceptance candidate, and the shell guard does not filter file or browser tools.
-The source update therefore does not claim hidden-credential access or a working
-interactive browser integration. Finish those boundaries alongside the first real
+The source update therefore does not claim complete credential isolation or verified
+installed-host browser behavior. Finish those boundaries alongside the first real
 Grafana workflow; do not add general shell/Python/browser grants to bypass gaps.
 
 Use ../docs/vscode-plugin-acceptance.md for the pending installed-host cases:

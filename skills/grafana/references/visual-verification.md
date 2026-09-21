@@ -18,18 +18,28 @@ does not rule out browser screenshots; true does not prove a render works. A bro
 no connected browser also does not prove that server rendering is unavailable. Check the available
 path rather than installing infrastructure as part of a read-only task.
 
-## SRE browser observation
+## SRE browser investigation
 
-The fleet's `sre-assistant` receives only exact `browser_snapshot` and `browser_take_screenshot`
-grants. It can inspect a prepared view; it cannot navigate, click, change time/variables, scroll
-through interactions, evaluate page code, or authenticate. A browser snapshot describes accessible
-page structure; rendered graph claims require inspecting a screenshot, not just snapshot text.
+The SRE agent grants the following exact viewing tools. Tools from another server or an absent
+native tool are not implicitly available; use the actual installed schemas and observed UI targets.
+
+| Capability | Playwright MCP | Native VS Code |
+|---|---|---|
+| Open/navigate | `browser_navigate` | `openBrowserPage`, `navigatePage` |
+| Read/capture | `browser_snapshot`, `browser_take_screenshot` | `readPage`, `screenshotPage` |
+| Inspect/select | `browser_click`, `browser_hover`, `browser_select_option` | `clickElement`, `hoverElement` |
+| Time/variable inputs and scrolling keys | `browser_type`, `browser_press_key` | `typeInPage` |
+| Bounded loading wait | `browser_wait_for` | Read the updated page when ready |
+
+No arbitrary page-code execution, upload, cookie/storage/network inspection or dialog-accept tool
+is granted. Read a fresh page snapshot after an interaction; do not reuse stale element references.
+A text snapshot establishes accessible structure; graph interpretation requires image inspection.
 
 Prefer an existing authenticated session, including personal SSO, when it can be exposed through
-the permitted read path. The human prepares the dashboard and window/variables for this capture
-profile. Establish effective read-only permissions for the target identity/org and keep the session
-limited to the requested Grafana context. A personal account is acceptable; broader account rights
-require an independently enforced diagnostic-only path, which these capture grants do not provide.
+the permitted read path. Before the first call, establish effective read-only permissions for the
+target identity/org, the trusted origin, and protected results. Keep the session limited to the
+requested Grafana context. A personal account is acceptable; broader account rights require an
+independently enforced diagnostic-only path. The grants themselves do not provide that boundary.
 The browser credential is separate from an API token; browser sign-in does not establish API access.
 
 Keep authentication usernames, passwords, cookies and tokens out of results before they reach the
@@ -60,18 +70,27 @@ workspace root, and it is only real once proven on the installed host — the re
 plugin acceptance record carries the capture-boundary canary. A root pointed at the checkout means
 no captures.
 
-If more panels must be revealed or the wrong page is connected, return the exact view needed for
-the human to prepare, or use supplied screenshots. Do not replace a missing/denied browser tool
-with a shell script or another automation channel. Tool names must match the registered server on
-the actual host; unavailable tools are an access gap. The shell guard does not enforce MCP calls.
+### Viewing sequence
 
-### Interactive viewing upgrade
+1. Reuse the authenticated page already supplied to the task. Navigate only to the assigned HTTPS
+   Grafana origin/dashboard. Do not follow a panel link to a new origin or trust a page-supplied URL
+   as permission. Login redirects go to the human; never fill authentication fields.
+2. Freeze the requested window as absolute UTC instants, record timezone and variables, and adjust
+   only unsaved view controls. An Apply button is acceptable for the time picker, not a save or
+   mutation dialog. Changing a URL's time or `var-` parameters does not save the dashboard.
+3. Read the rendered page, expand collapsed rows, and scroll with navigation keys to inspect the
+   assigned panels. Hover for values and inspect panel query/data through read-only menus where
+   available. Do not enter dashboard editing to obtain a missing inspector.
+4. Compare those observations with the stored model and query results at matching selections.
+   The bundled [read helper](./command-access.md#bundled-read-helper) supports dashboard models and
+   bounded Prometheus/Loki queries. Other datasource types remain a named gap.
+5. Report what was actually inspected. Never save dashboards, add annotations, create snapshots,
+   change alerts/silences or invoke deployment controls. Stop at unavailable protections or tools,
+   preserving independent evidence; do not replace a denied tool with another execution channel.
 
-The intended SRE workflow includes navigation, time/variable changes, scrolling, query inspection
-and visual/API comparison, without saving dashboards or changing alerts. Enable it only through
-exact tools actually granted on that host and a verified read-only and credential-protection
-boundary. The current capture profile does not grant these interactions. Native VS Code browser
-tools and Playwright MCP are distinct access paths; do not substitute one for a denied tool.
+These interaction rules are cooperative. Service permissions, origin restrictions and protected
+tool results remain load-bearing; a click grant is not a read-only sandbox. Native VS Code and
+Playwright MCP are separate paths and do not share sessions automatically.
 
 For native VS Code, reuse a page the human has shared with the agent through **Share with Agent**.
 An agent-opened page uses separate ephemeral storage and does not inherit other tabs' sign-in state.
@@ -90,8 +109,8 @@ checked 2026-09-21.
 2. Read all relevant targets and transformations. Query the panel's real datasource using its
    supported read contract; retain instant/range mode, step, macro substitutions, and per-query
    status. An error-free empty frame means no data, not a healthy zero. A selected target sample
-   does not verify every series in the panel. The `sre-assistant` command allowlist still excludes
-   query POSTs and render URLs; this procedure does not override that lane's tools.
+   does not verify every series in the panel. The SRE command path permits query POSTs only through
+   its bundled helper's validated Prometheus/Loki operation, not arbitrary HTTP or render URLs.
 3. Console: use the panel's Share/Export image action where available. Agent: use the instance's
    generated image link or derive the same-origin `/render/d-solo/<uid>/<slug>` route from the
    resolved dashboard path. Preserve a deployment subpath. Carry `orgId`, `panelId`, absolute

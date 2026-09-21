@@ -137,7 +137,9 @@ Treat these as build-bound evidence, and rerun the linked probe after host upgra
 ### Other hosts
 
 For read-only observability without MCP, see [Windows/macOS command access](skills/grafana/references/command-access.md).
-Claude's candidate supports a small native command set and fixed Grafana GET forms. The standard
+Claude's candidate supports a small native command set and the bundled Grafana read/query helper.
+Selected native VS Code and Playwright browser interactions require a protected read-only session.
+The standard
 Copilot profile remains without terminal tools; its command preview must pass the
 [installed-host canary](docs/vscode-plugin-acceptance.md#command-preview-canary) before adoption.
 

@@ -227,6 +227,10 @@ Give the helper one compact assignment:
 - State completion evidence and the caller's limits on sources, reads, time or helpers; for a narrow
   lookup, the named reads and completion condition are enough. Count discovery against the helper
   limit. Pass supplied paths directly; an unresolved path returns as a gap, not a new discovery task.
+- Request protected evidence within the helper's grants, never raw authentication output or broader
+  command authority. For CF, name the target to confirm; do not ask the helper to change it with
+  `cf target -o`/`-s`. An unconfirmed target is a gap. Ask for actual time coverage and retrieval limits;
+  available commands or a cropped excerpt do not prove the historical question can be answered.
 
 Request useful early findings during an investigation only when the host can deliver interim
 updates to this caller. Otherwise ask for a partial return at the next useful boundary and dispatch
@@ -239,7 +243,7 @@ task without making the human relay the packet or approve routine continuation. 
 blocked or unavailable helper, retain what was learned and use an accessible alternative or continue
 independent work; name the missing observation and owner when human access is needed. Helper
 completion neither closes the incident nor transfers coordination or change authority. If a helper
-overstates cause or current state, read the [worked helper exchange](./references/helper-exchange.md)
+overstates cause, coverage or current state, read the [worked helper exchange](./references/helper-exchange.md)
 before adopting its claims.
 
 | Next step | Lane |

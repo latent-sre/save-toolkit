@@ -108,12 +108,30 @@ class PlatformAdapterTests(unittest.TestCase):
             self.assertNotIn("${CLAUDE_PLUGIN_ROOT}", rendered.split("---", 2)[1])
             self.assertIn((ROOT / "scripts").as_posix(), rendered.split("---", 2)[1])
 
-    def test_only_sre_gets_browser_observation_tools(self) -> None:
-        expected = {"microsoft/playwright-mcp/browser_snapshot",
-                    "microsoft/playwright-mcp/browser_take_screenshot"}
+    def test_only_sre_gets_selected_browser_tools(self) -> None:
+        expected = {"microsoft/playwright-mcp/" + name for name in (
+            "browser_snapshot", "browser_take_screenshot", "browser_navigate",
+            "browser_click", "browser_hover", "browser_type", "browser_select_option",
+            "browser_press_key", "browser_wait_for",
+        )}
+        native = {"openBrowserPage", "navigatePage", "readPage", "screenshotPage",
+                  "clickElement", "hoverElement", "typeInPage"}
         for source in (ROOT / "agents").glob("*.md"):
-            browser = {t for t in self._copilot_tools(source.stem) if "playwright" in t}
+            tools = set(self._copilot_tools(source.stem))
+            browser = {t for t in tools if "playwright" in t}
             self.assertEqual(expected if source.stem == "sre-assistant" else set(), browser, source.stem)
+            self.assertEqual(native if source.stem == "sre-assistant" else set(), tools & native)
+            self.assertFalse(tools & {"runPlaywrightCode", "handleDialog", "dragElement"})
+
+    def test_native_browser_mapping_cannot_survive_removing_source_grants(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "sre-assistant.md"
+            original = (ROOT / "agents/sre-assistant.md").read_text(encoding="utf-8")
+            source.write_text(re.sub(r", mcp__microsoft_playwright_mcp__\w+", "", original), encoding="utf-8")
+            rendered = adapters.render_copilot_agent(source)
+            frontmatter = rendered.split("---", 2)[1]
+            tools = json.loads(next(line[7:] for line in frontmatter.splitlines() if line.startswith("tools: ")))
+            self.assertEqual(["read", "search", "agent"], tools)
 
     def test_powershell_grant_requires_its_hook_handler(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

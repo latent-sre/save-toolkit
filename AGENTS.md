@@ -46,7 +46,7 @@ separate.
 | `software-engineer` | Code and operator tooling | Local read/write + unguarded Bash/PowerShell for team-authored code; no web | `reviewer`, `scribe`, `researcher` |
 | `reviewer` | Independent investigation, verification, and review | Git/PR reads, scratch writes, isolated checks, trusted skills; no direct web tools | `repository-investigator`, `researcher` |
 | `repository-investigator` | Bounded checkout questions | Read/Grep/Glob only; terminal | — |
-| `sre-assistant` | Bounded read-only lookup or investigation, dispatched by a human or invoking workflow | Guarded selected `cf`/`gcloud`/`git`/`gh` reads; browser captures; recommends mitigation | `researcher` |
+| `sre-assistant` | Bounded read-only lookup or investigation, dispatched by a human or invoking workflow | Guarded selected reads and bundled Grafana helper; scoped browser viewing; recommends mitigation | `researcher` |
 | `observability-engineer` | Observability and dispatched Grafana changes | Unguarded Bash; writes config and scoped Grafana dashboards, alert rules, and silences | `scribe`, `researcher` |
 | `scribe` | Evidence-bound operational documents | Local document write; no Bash or web; terminal | — |
 | `researcher` | Cited public research | External-only; no local read, Bash, Write, Skill, or Agent | — |

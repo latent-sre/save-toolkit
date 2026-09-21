@@ -38,7 +38,7 @@ not exercise. The enforcement results that were open on VS Code 1.135.0 are supe
 Still unrun: the agent-scoped terminal-hook canary and the SRE visual-read acceptance cases, with
 `hooks/copilot-hooks.json` shipping empty. Maintainers must run the exact candidate in an isolated
 profile on each supported host, including a dedicated Grafana Viewer browser session. The SRE
-browser grant is snapshot/screenshot only; navigation and clicks are absent. Structural tool checks
+browser grant now includes selected native/MCP viewing interactions. Structural tool checks
 do not prove image delivery or helper invocation. The installed VS Code 1.138 source handles some
 hook failures as warnings; the launcher's 42/43/44 protocol is not authentication or proof of
 fail-closed host behavior. Keep those limits explicit until the host cases are observed.
@@ -77,21 +77,22 @@ or an untimed aggregate for evidence of incident recovery or cause.
 ### SRE-CF-001 — complete protected SRE investigation access
 
 **Status:** `active` (2026-09-21); selected CF reads and authentication without exposing
-credentials are wanted. The agent/caller contract and narrowed CF command grammar are updated;
-protected access implementation and native acceptance remain open.
+credentials are wanted. The caller/coverage fixes, selected browser tools and bounded Grafana
+read/query helper are implemented; live credential/session binding and native acceptance remain open.
 **Owner:** Save Toolkit maintainers.
 **Outcome:** Grafana investigation and selected CF application observations work on
 Claude Code and VS Code/Copilot under an agreed, verified access policy, reusing existing SSO/session
 access first and supporting personal-account authentication when needed without exposing credentials
 to the LLM. Deployment actions, other production mutations, and credential-bearing diagnostic reads
 remain excluded.
-**Next action:** Bind the actual Grafana helper and operations-repository paths, then implement and
-verify one complete dashboard investigation alongside its read-only and credential protections.
+**Next action:** Configure the bundled Grafana helper through a human-controlled credential launcher,
+bind the operations-repository path, and verify one complete dashboard investigation with its controls.
 Identify the existing SSO/browser/CLI session and credential mechanism, including protected personal
-credentials where needed. Complete CF target/output/time bounds, richer browser tool wiring and an
+credentials where needed. Complete CF target/output/time bounds, browser runtime verification and an
 isolated analysis path only with their matching controls. Use the
 [expanded host acceptance cases](vscode-plugin-acceptance.md#expanded-investigation-acceptance-pending)
-for both hosts. The source update adds no general browser, HTTP, script or terminal grants;
+for both hosts. The source update adds selected browser interactions and one installed helper grant,
+not general HTTP, script, page-code or standard Copilot terminal access;
 Helix/BigQuery remains an unconnected placeholder. INCIDENT-QUALITY-001 retains behavioral acceptance.
 **Evidence:** [Planning context beside the agent](../agents/README.txt);
 [current canonical profile](../agents/sre-assistant.md), [caller](../skills/incident-investigation/SKILL.md),

@@ -76,8 +76,10 @@ component tests.
 """
 import json
 import re
+import runpy
 import shlex
 import sys
+from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
 # The namespace Claude Code would prepend if this repo were ever installed as a plugin; guarding
@@ -276,13 +278,75 @@ def grafana_curl_allowed(command: str, powershell: bool = False) -> bool:
     return True
 
 
+def grafana_helper_allowed(command: str, powershell: bool = False) -> bool:
+    """One installed stdlib helper, with literal args validated by its own parser.
+
+    No general interpreter, workspace script, shell chain, redirection or dynamic
+    expression is admitted. PATH and the installed plugin remain trusted inputs.
+    """
+    # PowerShell treats typographic quotes as delimiters; POSIX shlex does not.
+    # Reject them even inside ASCII quotes before either host can execute this form.
+    if len(command) > 12000 or re.search(r"[\x00-\x1f\x7f\u2018\u2019\u201c\u201d]", command):
+        return False
+    literal = r"(?:[A-Za-z0-9_+/=-]+|'[^'\r\n]*')"
+    match = re.fullmatch(
+        r'''python(?:3|\.exe)? -I -S (?P<path>"[^"$`\r\n]+"|'[^'\r\n]+') '''
+        + r"(?P<args>" + literal + r"(?: " + literal + r")*)", command,
+    )
+    wrapper = False
+    if not match and powershell:
+        match = re.fullmatch(
+            r'''& (?P<path>"[^"$`\r\n]+"|'[^'\r\n]+') '''
+            + r"(?P<args>" + literal + r"(?: " + literal + r")*)", command,
+        )
+        wrapper = True
+    if not match:
+        return False
+    root = Path(__file__).resolve().parents[1]
+    canonical = root / "skills/grafana/scripts/grafana_read.py"
+    projected = root / ".github/skills/grafana/scripts/grafana_read.py"
+    supplied = match["path"][1:-1]
+    # Compare only fixed installed paths, never resolve/load a caller-selected file.
+    installed = (canonical, projected) if not wrapper else (canonical.with_suffix(".ps1"), projected.with_suffix(".ps1"))
+    paths = {str(p): p for p in installed}
+    paths.update({p.as_posix(): p for p in installed})
+    selected = paths.get(supplied)
+    if selected is None:
+        return False
+    try:
+        # A generated copy must still be the reviewed canonical helper, not a stale
+        # or edited same-named program. Missing files fail closed.
+        reviewed = canonical.with_suffix(".ps1") if wrapper else canonical
+        if selected.read_bytes().replace(b"\r\n", b"\n") != reviewed.read_bytes().replace(b"\r\n", b"\n"):
+            return False
+        if wrapper and selected.with_suffix(".py").read_bytes().replace(b"\r\n", b"\n") != canonical.read_bytes().replace(b"\r\n", b"\n"):
+            return False
+        arguments = shlex.split(match["args"], posix=True)
+        if wrapper:
+            flags = {"-Datasource": "--datasource", "-Kind": "--kind", "-From": "--from", "-To": "--to", "-Expr": "--expr"}
+            if len(arguments) != 10 or set(arguments[::2]) != set(flags):
+                return False
+            arguments = ["query"] + [value for flag, value in zip(arguments[::2], arguments[1::2]) for value in (flags[flag], value)]
+        elif powershell and "--expr" in arguments:
+            # Windows PowerShell 5.1 strips embedded quotes at native argv transfer.
+            # The fixed wrapper or already-encoded expression is portable across hosts.
+            return False
+        if not arguments or arguments[0] not in {"dashboard", "query"}:
+            return False
+        helper = runpy.run_path(str(canonical), run_name="_grafana_read_guard")
+        helper["parse_args"](arguments)
+    except (Exception, SystemExit):
+        return False
+    return True
+
+
 def explain_powershell(command: str) -> "str | None":
     """Small literal-command grammar, not a POSIX parse of general PowerShell code.
 
     Reject expressions, expansions, scripts, redirection, stop-parsing and command chains.
     Only fixed cmdlets and the existing external CLI readers may pass. No aliases are inferred.
     """
-    if grafana_curl_allowed(command, powershell=True):
+    if grafana_helper_allowed(command, powershell=True) or grafana_curl_allowed(command, powershell=True):
         return None
     if not command.strip():
         return None
@@ -926,7 +990,7 @@ def explain(command: str, agent: str = "") -> "str | None":
     """
     if re.search(r"[\x00-\x08\x0b-\x1f\x7f]", command):
         return "Bash commands may not contain control characters other than tab and newline"
-    if grafana_curl_allowed(command):
+    if grafana_helper_allowed(command) or grafana_curl_allowed(command):
         return None
     if not command.strip(" \t\n"):
         return None  # nothing to run

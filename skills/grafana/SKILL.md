@@ -24,6 +24,8 @@ instance, organization, permissions, resource identity, and ownership before rel
 | Inspect, create, update, pause, or resume an alert rule; explain missing notifications | [Alert operations](./references/alert-operations.md); load `obs-alerting` for design decisions |
 | Create, inspect, update, or end a temporary silence | [Silence operations](./references/silences.md) |
 | Read resources without MCP from Windows or macOS | [Command access](./references/command-access.md) |
+| Read dashboard models or bounded Prometheus/Loki data with internal authentication | [grafana_read.py](./scripts/grafana_read.py); setup and invocation in [Command access](./references/command-access.md) |
+| Preserve query expressions through native PowerShell argument handling | [grafana_read.ps1](./scripts/grafana_read.ps1); the installed wrapper for the same bounded read helper |
 | Create/edit/import a dashboard or folder | [Dashboard operation loop](./references/dashboard-operations.md); use `obs-dashboards` when design decisions are needed |
 | Review existing dashboards or assess an upgrade without writes | [Read-only review](./references/read-only-review.md) |
 | Dashboard/folder API discovery, concurrency, history, or rollback | [HTTP API](./references/http-api.md) |

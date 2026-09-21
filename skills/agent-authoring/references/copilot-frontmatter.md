@@ -91,7 +91,7 @@ The preview's explicit `--copilot` guard mode uses agent-hook scoping, not Claud
 | `software-engineer`, `agent-engineer` | Read/search/edit/execute, scoped delegation, and todo; already able to build and test with the host's shell |
 | `observability-engineer` | The same capability groups; already able to query Grafana through commands without a Grafana MCP, under its existing change authority |
 | `reviewer` | Read/search/edit/execute, evidence helpers, and todo; execution stays in its established verification environment |
-| `sre-assistant` | Read/search, researcher delegation, and exact browser snapshot/screenshot grants for a human-prepared Viewer session; the exported profile adds only terminal execution/output for bounded observation |
+| `sre-assistant` | Read/search, researcher delegation, and selected native/MCP browser viewing interactions under read-only session controls; the command preview adds only terminal execution/output for reviewed reads |
 | `repository-investigator`, `scribe` | File investigation or document edits; shell execution is outside their assignments |
 | `researcher` | Public web access; no local files or shell. Adding exact Context7/GitHits tools needs the target host's registered tool IDs, not wildcard MCP grants |
 
@@ -100,10 +100,14 @@ or hook path. Copilot's execution tools use the configured terminal; a separate 
 grant is not needed to run PowerShell through Copilot. Tool presence permits execution, not
 production changes or access beyond the human's assignment.
 
-Browser observation grants are exclusive to the SRE lane. The fleet does not grant generic browser
-navigation, clicks, or page-code execution: these can cause writes in an authenticated session.
-Snapshots and screenshots require a registered, connected MCP server with those exact tool IDs;
-frontmatter neither installs that server nor proves its effective permissions or image delivery.
+Browser investigation grants are exclusive to the SRE lane. The generator derives native VS Code
+`openBrowserPage`, `navigatePage`, `readPage`, `screenshotPage`, `clickElement`, `hoverElement` and
+`typeInPage` from the corresponding exact canonical Playwright capabilities. These native names
+were checked against upstream `browserChatToolReferenceNames.ts` on 2026-09-21; installed-host
+availability still needs verification. There is no wildcard, dialog, upload or page-code grant.
+MCP still needs a registered server; native VS Code uses a shared integrated-browser page.
+Neither frontmatter nor a viewing-only prompt enforces read-only account rights, secret masking,
+origin confinement or image delivery. The Grafana visual reference owns those prerequisites.
 
 ## Skills
 
