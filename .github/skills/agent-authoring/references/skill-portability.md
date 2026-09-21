@@ -57,6 +57,10 @@ restricting field is a default there.
 | Agent Skills specification | `description` ≤1,024 characters; `SKILL.md` recommended under 5,000 tokens and 500 lines, resources on demand | Authoring recommendations, not body validators |
 | VS Code | No matching body-length check in public source | — |
 
+The SRE assistant has an owner-selected working budget of 25,000 characters in its generated
+Copilot body, enforced by the generator for both standard and command-preview profiles. This
+repository budget leaves headroom below the provider ceiling; other agents retain the 30,000 limit.
+
 ## What the generated adapters do
 
 - No field-level equivalence is attempted; intent is preserved in each host's own vocabulary and

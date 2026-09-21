@@ -100,7 +100,8 @@ and `[unverified]` gaps.
 - Correlation tuning only: replay, false-merge/missed-cluster examples, rollback criteria.
 
 For current user impact or an unexplained live failure, hand time-bounded evidence to the responder
-with `incident-investigation` (`sre-assistant` only for a dispatched bounded read). Alert design does
-not investigate the live incident.
+with `incident-investigation`; a dispatched `sre-assistant` can investigate the assigned alert
+question and return findings without taking over the incident. Alert design does not grant
+incident ownership or live-change authority.
 Redact sensitive label and tag values from query evidence before it enters the packet; prefer an
 access-controlled link plus the smallest necessary excerpt.

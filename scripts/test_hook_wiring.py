@@ -115,12 +115,22 @@ class HookWiringTests(unittest.TestCase):
         main = invoke({"tool_name": "PowerShell",
                        "tool_input": {"command": "Remove-Item -Recurse -Force C:\\Windows"}})
 
+        builder = invoke({"tool_name": "PowerShell", "agent_type": "save-toolkit:software-engineer",
+                          "tool_input": {"command": "& '.venv\\Scripts\\python.exe' -m unittest"}})
+        credential = invoke({"tool_name": "PowerShell", "agent_type": "save-toolkit:software-engineer",
+                             "tool_input": {"command": "cf env checkout"}})
+
         self.assertEqual((0, ""), (safe.returncode, safe.stdout.strip()), safe.stderr)
         self.assertEqual(0, denied.returncode, denied.stderr)
         self.assertEqual(
             "deny", json.loads(denied.stdout)["hookSpecificOutput"]["permissionDecision"]
         )
         self.assertEqual((0, ""), (main.returncode, main.stdout.strip()), main.stderr)
+        self.assertEqual((0, ""), (builder.returncode, builder.stdout.strip()), builder.stderr)
+        self.assertEqual(0, credential.returncode, credential.stderr)
+        self.assertEqual(
+            "deny", json.loads(credential.stdout)["hookSpecificOutput"]["permissionDecision"]
+        )
 
     def test_hook_is_session_wide_and_fail_closed_for_guarded_agents(self) -> None:
         document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))

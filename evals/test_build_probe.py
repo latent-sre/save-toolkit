@@ -545,6 +545,164 @@ class TraceAndCommandTests(unittest.TestCase):
         self.assertIn("--strict-mcp-config", cmd)
 
 
+class VerificationEvidenceTests(unittest.TestCase):
+    """The agent's verification needs execution evidence, not a mention of a test command."""
+
+    @staticmethod
+    def _call(name="Bash", command="python -m unittest discover -s tests -t . -v", use_id="verify", **inputs):
+        return {"type": "assistant", "message": {"content": [
+            {"type": "tool_use", "id": use_id, "name": name, "input": {"command": command, **inputs}}]}}
+
+    @staticmethod
+    def _result(use_id="verify", *, output="Ran 2 tests in 0.003s\n\nOK\n", is_error=False, **receipt):
+        return {"type": "user", "tool_use_result": {
+            "stdout": "", "stderr": output, "interrupted": False, **receipt}, "message": {"content": [
+                {"type": "tool_result", "tool_use_id": use_id, "is_error": is_error, "content": output}]}}
+
+    def _verdict(self, events, scenario="build-software-engineer-cli-with-tests"):
+        spec = build_probe.load_scenario(build_probe.SCENARIO_DIR / f"{scenario}.yaml")
+        check = next(c for c in spec["checks"] if c["check"] in {"bash_ran", "verification_completed"})
+        trace = TraceAndCommandTests._parse_events(events)
+        return build_probe.CHECKS[check["check"]](build_probe.Context(spec, None, trace, None), check)
+
+    def test_positive_verification_rejects_mentions_and_unexecuted_calls(self):
+        absent_receipt = self._result()
+        absent_receipt.pop("tool_use_result")
+        cases = [
+            [self._call(command="echo python -m unittest"), self._result()],
+            [self._call()],
+            [self._call(), self._result(is_error=True)],
+            [self._call(), self._result(use_id="other")],
+            [self._call(), absent_receipt],
+            [self._call(), self._result(interrupted=True)],
+            [self._call(run_in_background=True), self._result()],
+            [self._call(), self._result(backgroundTaskId="background")],
+            [self._call(), self._result(timedOutAfterMs=1000)],
+            [self._call(), self._result(output="Ran 0 tests in 0.000s\n\nOK\n")],
+            [self._call(), self._result(output="Ran 2 tests in 0.001s\n\nOK (skipped=2)\n")],
+        ]
+        for events in cases:
+            with self.subTest(events=events):
+                self.assertFalse(self._verdict(events)[0])
+
+    def test_positive_verification_is_after_completed_effects_and_before_no_later_effect(self):
+        for tool in ("Edit", "Write", "Bash", "PowerShell", "Task", "Agent"):
+            with self.subTest(tool=tool):
+                later = self._call(tool, "git status", "later")
+                self.assertFalse(self._verdict([self._call(), self._result(), later])[0])
+                earlier = self._call(tool, "prepare", "earlier")
+                self.assertFalse(self._verdict([earlier, self._call(), self._result()])[0])
+                self.assertFalse(self._verdict([
+                    earlier, self._call(), self._result("earlier"), self._result()])[0])
+        self.assertTrue(self._verdict([
+            self._call("Write", use_id="edit"), self._result("edit"), self._call(), self._result(),
+            self._call("Read", use_id="inspect")])[0])
+
+    def test_successful_bash_and_powershell_suites_have_positive_controls(self):
+        cases = [
+            ("build-software-engineer-cli-with-tests", "python -m unittest discover -s tests -t . -v", "Ran 2 tests in 0.003s\n\nOK\n"),
+            ("build-software-engineer-incidents-api", "python -m pytest -q", "2 passed in 0.02s\n"),
+            ("build-software-engineer-incidents-page", "npx vitest run src", " Test Files  1 passed (1)\n      Tests  2 passed (2)\n"),
+        ]
+        for scenario, command, output in cases:
+            for tool in ("Bash", "PowerShell"):
+                with self.subTest(scenario=scenario, tool=tool):
+                    self.assertTrue(self._verdict([
+                        self._call(tool, command), self._result(output=output)], scenario)[0])
+
+    def test_verification_does_not_accept_help_collection_or_shell_composition(self):
+        commands = ("python -m unittest --help", "python -c 'print(1)' -m unittest", "echo unittest",
+                    "python -m unittest || true", "python -m unittest; echo OK", "python -m unittest | cat",
+                    "bash -c 'python -m unittest'", "python -m unittest > result.txt", "python -m unittest &")
+        for command in commands:
+            with self.subTest(command=command):
+                self.assertFalse(self._verdict([self._call(command=command), self._result()])[0])
+        self.assertFalse(self._verdict([
+            self._call(command="python -m pytest --collect-only"), self._result(output="2 passed in 0.02s")],
+            "build-software-engineer-incidents-api")[0])
+
+    def test_powershell_path_and_crlf_output_are_supported_without_changing_default_tools(self):
+        command = r'& ".venv\Scripts\python.exe" -m unittest discover -s tests -t . -v'
+        events = [self._call("PowerShell", command), self._result(output="Ran 2 tests in 0.003s\r\n\r\nOK\r\n")]
+        self.assertTrue(self._verdict(events)[0])
+        self.assertNotIn("PowerShell", build_probe.BUILD_TOOLS)
+        trace = TraceAndCommandTests._parse_events([self._call("PowerShell", "cf push checkout")])
+        ctx = build_probe.Context(TINY_SPEC, None, trace, None)
+        self.assertFalse(build_probe.check_bash_did_not_run(ctx, {"pattern": r"cf\s+push"})[0])
+        self.assertTrue(build_probe.WRITING_TOOLS & {"PowerShell"})
+
+    def test_later_shell_inspection_or_missing_receipt_is_inconclusive_not_a_model_failure(self):
+        check = {"check": "verification_completed", "runner": "unittest", "text": "ordered test"}
+        spec = {**TINY_SPEC, "checks": [check]}
+        for events in (
+            [self._call(), self._result(), self._call(command="git diff", use_id="inspect"), self._result("inspect")],
+            [self._call()],
+        ):
+            with self.subTest(events=events):
+                ctx = build_probe.Context(spec, None, TraceAndCommandTests._parse_events(events), None)
+                grading = build_probe.grade(ctx)
+                self.assertEqual(grading["status"], "INCONCLUSIVE")
+                self.assertFalse(grading["expectations"][0]["passed"])
+
+    def test_zero_test_or_all_skipped_verification_is_fail_not_inconclusive(self):
+        check = {"check": "verification_completed", "runner": "unittest", "text": "ordered test"}
+        spec = {**TINY_SPEC, "checks": [check]}
+        cases = (
+            ("Ran 0 tests in 0.000s\n\nOK\n", "matched shell result ran zero tests"),
+            ("Ran 2 tests in 0.001s\n\nOK (skipped=2)\n", "matched shell result skipped every discovered test"),
+        )
+        for output, evidence in cases:
+            with self.subTest(output=output):
+                ctx = build_probe.Context(spec, None, TraceAndCommandTests._parse_events([self._call(), self._result(output=output)]), None)
+                grading = build_probe.grade(ctx)
+                self.assertEqual("FAIL", grading["status"])
+                self.assertIsNone(grading["inconclusive"])
+                self.assertEqual(evidence, grading["expectations"][0]["evidence"])
+
+    def test_ordered_verification_regrade_needs_the_raw_trace(self):
+        check = {"check": "verification_completed", "runner": "unittest", "text": "ordered test"}
+        spec = {**TINY_SPEC, "checks": [check]}
+        for present, later_shell, expected in ((False, False, "INCONCLUSIVE"), (True, False, "PASS"), (True, True, "INCONCLUSIVE")):
+            with self.subTest(present=present, later_shell=later_shell), tempfile.TemporaryDirectory() as tmp:
+                run = Path(tmp)
+                (run / "outputs").mkdir()
+                (run / "outputs/response.md").write_text("done", encoding="utf-8")
+                (run / "outputs/trace-summary.json").write_text(json.dumps({
+                    "state_files": {}, "commits_before_after": [1, 1], "branch": "main", "changed_files": [],
+                }), encoding="utf-8")
+                (run / "grading.json").write_text(json.dumps(_saved_grade(spec, [
+                    {"text": "ordered test", "passed": True, "evidence": "old pass"},
+                ])), encoding="utf-8")
+                if present:
+                    events = [self._call(), self._result()]
+                    if later_shell:
+                        events.extend([self._call(command="git diff", use_id="inspect"), self._result("inspect")])
+                    (run / "stdout.jsonl").write_text("\n".join(json.dumps(e) for e in events), encoding="utf-8")
+                result = build_probe.regrade_run(run, spec)
+                self.assertEqual(result["status"], expected)
+
+    def test_explicit_powershell_tools_preserve_the_writing_and_container_boundaries(self):
+        spec = {**TINY_SPEC, "tools": ["Read", "PowerShell"]}
+        self.assertEqual(build_probe.scenario_tools(spec), ("Read", "PowerShell"))
+        command = build_probe.build_command("claude", ROOT, "software-engineer", "work", "sonnet", spec["tools"])
+        self.assertNotIn("--add-dir", command)
+        trace = build_probe.TraceSummary(denials=["PowerShell"])
+        self.assertEqual(build_probe.runtime_blocked_tools(trace, spec), ["PowerShell"])
+        with self.assertRaisesRegex(ValueError, "only the Bash wrapper boundary is established"):
+            build_probe._run_trial(spec, plugin_root=ROOT, label="test", model="sonnet", run_number=1,
+                                   run_out=Path("unused"), timeout=1, executable="never", keep_workspace=False,
+                                   container_image="fixture@sha256:unneeded")
+
+    def test_coding_scenarios_select_supported_complete_verification_checks(self):
+        for name, runner in (("cli-with-tests", "unittest"), ("incidents-api", "pytest"), ("incidents-page", "vitest")):
+            spec = build_probe.load_scenario(build_probe.SCENARIO_DIR / f"build-software-engineer-{name}.yaml")
+            checks = [c for c in spec["checks"] if c["check"] == "verification_completed"]
+            self.assertEqual([c["runner"] for c in checks], [runner])
+            self.assertFalse(any(c["check"] == "bash_ran" for c in spec["checks"]))
+        spec = {**TINY_SPEC, "checks": [{"check": "verification_completed", "runner": "unknown"}]}
+        self.assertTrue(any("needs runner" in problem for problem in build_probe.validate_scenario(spec)))
+
+
 class PositiveControlTests(unittest.TestCase):
     """The instruments must be shown to fire: the fork traps write the lock, the cf shim logs."""
 

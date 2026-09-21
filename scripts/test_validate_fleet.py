@@ -57,17 +57,25 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertEqual(sorted(validate_fleet.EXPECTED_AUTHORITY), sorted(names))
         self.assertEqual([], failures)
 
-    def test_sre_browser_grants_are_observation_only(self) -> None:
+    def test_sre_browser_grants_are_selected_interactions_without_code_execution(self) -> None:
         fields, _, _ = validate_fleet.adapters.parse_frontmatter(ROOT / "agents/sre-assistant.md")
         grants = validate_fleet._tool_bases(validate_fleet._tool_specs(fields["tools"]))
         self.assertEqual({
             "mcp__microsoft_playwright_mcp__browser_snapshot",
             "mcp__microsoft_playwright_mcp__browser_take_screenshot",
+            "mcp__microsoft_playwright_mcp__browser_navigate",
+            "mcp__microsoft_playwright_mcp__browser_click",
+            "mcp__microsoft_playwright_mcp__browser_hover",
+            "mcp__microsoft_playwright_mcp__browser_type",
+            "mcp__microsoft_playwright_mcp__browser_select_option",
+            "mcp__microsoft_playwright_mcp__browser_press_key",
+            "mcp__microsoft_playwright_mcp__browser_wait_for",
         }, {tool for tool in grants if tool.startswith("mcp__microsoft_playwright_mcp__")})
 
     def test_browser_observation_grants_are_rejected_outside_sre(self) -> None:
         for name in sorted(set(validate_fleet.EXPECTED_AUTHORITY) - {"sre-assistant"}):
-            for tool in ("browser_snapshot", "browser_take_screenshot"):
+            for tool in ("browser_snapshot", "browser_take_screenshot", "browser_navigate", "browser_click",
+                         "browser_hover", "browser_type", "browser_select_option", "browser_press_key", "browser_wait_for"):
                 grant = "mcp__microsoft_playwright_mcp__" + tool
                 def add_grant(text: str) -> str:
                     if "tools:\n" in text:
@@ -77,8 +85,9 @@ class FleetValidatorTests(unittest.TestCase):
                     failures = _agent_failures_after_edit(name + ".md", add_grant)
                     self.assertTrue(any("forbidden tool" in item and grant in item for item in failures), failures)
 
-    def test_sre_cannot_regain_browser_interaction_through_frontmatter(self) -> None:
-        for tool in ("browser_click", "browser_navigate", "browser_evaluate", "browser_run_code"):
+    def test_sre_cannot_regain_arbitrary_browser_execution_through_frontmatter(self) -> None:
+        for tool in ("browser_evaluate", "browser_run_code", "browser_file_upload",
+                     "browser_install", "browser_handle_dialog", "browser_network_requests", "browser_tabs"):
             grant = "mcp__microsoft_playwright_mcp__" + tool
             with self.subTest(tool=tool):
                 failures = _agent_failures_after_edit(
@@ -151,6 +160,18 @@ class FleetValidatorTests(unittest.TestCase):
         old_name = "s" + "de"
         self.assertNotIn(old_name, validate_fleet.EXPECTED_AUTHORITY)
         self.assertFalse((ROOT / "agents" / f"{old_name}.md").exists())
+
+    def test_builder_has_native_windows_and_posix_shells(self) -> None:
+        fields, _, _ = validate_fleet.adapters.parse_frontmatter(ROOT / "agents/software-engineer.md")
+        grants = validate_fleet._tool_bases(validate_fleet._tool_specs(fields["tools"]))
+        self.assertTrue({"Bash", "PowerShell"} <= grants, grants)
+        for shell in ("Bash", "PowerShell"):
+            with self.subTest(removed=shell):
+                failures = _agent_failures_after_edit(
+                    "software-engineer.md", lambda text: text.replace(f", {shell},", ",", 1),
+                )
+                self.assertTrue(any("missing required tool(s)" in item and shell in item
+                                    for item in failures), failures)
 
     def test_always_loaded_guide_keeps_conditional_authority_complete(self) -> None:
         guide = _normalized((ROOT / "AGENTS.md").read_text(encoding="utf-8"))

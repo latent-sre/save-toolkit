@@ -20,7 +20,11 @@ approval evidence.
 ## First look
 
 Confirm the caller's project, service and region in **Cloud Run → Services**. In the CLI,
-`gcloud config list` shows ambient configuration; use the caller's explicit target in every command.
+`gcloud config get-value project` and `gcloud config get-value run/region` show ambient target
+defaults; use the caller's explicit target in every command. Configuration reads must select one
+reviewed property: `project`, `core/project`, `run/region`, `compute/region`, or `compute/zone`,
+using `config list` or `config get-value` without extra flags. Broad listings, section-wide reads,
+account identity and credential properties are excluded; configuration can contain passwords.
 
 | Question | Cloud Console | `gcloud` equivalent |
 |---|---|---|

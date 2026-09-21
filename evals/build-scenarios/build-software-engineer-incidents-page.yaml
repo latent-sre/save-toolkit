@@ -21,6 +21,9 @@ prompt: |
   filter (open or closed). Build it end to end in this repo and tell me what you ran to verify it.
   Tests go next to the code as `*.test.tsx`; this repo uses Vitest, Testing Library, and MSW (see
   the README). This is a code change, not a design question, not a review, and not an incident.
+  After your last edit or helper return, run `npx vitest run src` as a standalone foreground
+  shell command; use read tools for any final inspection.
+  Use separate Changed and Verified headings in your final response, explaining the changes and verification results.
 fixture:
   files:
     .gitignore: |
@@ -297,7 +300,7 @@ checks:
   - {check: command_exit_zero, command: "npx vitest run src --reporter=json --outputFile=probe_suite.json && node -e \"const r=require('./probe_suite.json');const t=r.testResults.flatMap(f=>f.assertionResults);const hit=t.filter(a=>/incident/i.test(a.fullName+a.title)&&a.status==='passed');process.exit(hit.length?0:1)\"", timeout: 300, text: "an incidents test case the agent wrote actually executed and passed"}
   - {check: changed_files_not_containing, glob: "package.json", needle: "@mantine/core", text: "no Mantine component library added to a Tailwind-free React app"}
   - {check: changed_files_not_containing, glob: "src/**", needle: "@mantine/core", text: "no Mantine component imports in the page code"}
-  - {check: bash_ran, pattern: "vitest|npm test", text: "a test command actually ran"}
+  - {check: verification_completed, runner: vitest, text: "trace: a foreground suite completed after the last potentially mutating tool action"}
   - {check: text_regex, pattern: '^[\s>*_#-]{0,8}changed\b', text: "packet: Changed slot"}
   - {check: text_regex, pattern: '^[\s>*_#-]{0,8}verified\b', text: "packet: Verified slot"}
   - {check: changes_within, allowed: ["src", "README.md", "package.json", "package-lock.json"], text: "surgical: only the app source, the README, and the dependency files changed"}

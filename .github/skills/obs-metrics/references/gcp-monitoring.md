@@ -42,8 +42,10 @@ path before the metrics.
 
 ## Terminal reads
 
-`gcloud config list`, `gcloud run services describe` (limits/concurrency context) are on the
-guard's allowlist `[sourced: scripts/readonly-guard.py, disposition verified 2026-08-19]`. **No GA gcloud command reads metric time series** — the GA `gcloud monitoring`
+`gcloud config get-value project` and `gcloud run services describe` (limits/concurrency context)
+are on the guard's allowlist `[sourced: scripts/readonly-guard.py, disposition verified 2026-09-21]`.
+Broad configuration listings are excluded because configurations can contain credentials.
+**No GA gcloud command reads metric time series** — the GA `gcloud monitoring`
 group holds only `dashboards`, `policies`, `snoozes`, and `uptime` *[sourced:
 docs.cloud.google.com/sdk/gcloud/reference/monitoring]*; the alpha/beta tracks remain
 `[unverified as an absence]`. Time-series reads go through the console PromQL editor, Grafana, or

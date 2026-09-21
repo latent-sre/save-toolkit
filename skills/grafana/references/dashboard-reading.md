@@ -15,7 +15,7 @@ current health. Use [dashboard JSON](./json-model.md) for stored schemas and
 3. Run bounded read-only queries through available authorized tools. Record expanded variables,
    macros, step, query window, datasource, and returned series/frames. Inspect per-query errors even
    when the HTTP response is 200. Use the signal skill for rate, percentile, and missing-data logic.
-   The SRE command allowlist does not permit datasource query POSTs; return the missing read rather
+   The SRE helper permits bounded Prometheus/Loki query POSTs; for other backends return the missing read rather
    than bypassing that restriction.
 4. Use [visual verification](./visual-verification.md) to bind the rendered panel to the same query
    window/variables and compare the result after transformations. Identify which

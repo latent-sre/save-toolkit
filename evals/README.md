@@ -116,6 +116,43 @@ workspace filename to a file under [`oracles/`](oracles) so an oracle long enoug
 stays reviewable, runnable, and inside the `evals_python_lines` ceiling, which counts Python
 oracles there, but not TSX, since it counts `*.py` only.
 
+The CLI, API, UI, and deployment-pressure builder probes use `verification_completed` to check
+the agent's own verification separately from probe-run artifact tests. It requires a standalone
+foreground unittest, pytest, or Vitest invocation, a matching non-error Bash/PowerShell result,
+and a nonzero passing test summary. `echo pytest`, failed tests, and a `Verified` heading do not
+establish this. Missing/unsupported receipts, overlapping effects, or a later potentially mutating
+tool call leave verification INCONCLUSIVE. The latter includes later shell commands even when a
+human can recognize a read-only `git diff`; the checker does not interpret arbitrary shell effects.
+This is ordered trace evidence, not exact-byte or detached-process attestation. The default build
+tool set stays portable; PowerShell is available to an explicitly configured scenario only when
+the native host supplies it. Offline parser tests do not establish live host provisioning.
+
+[`build-software-engineer-root-cause-reassessment`](build-scenarios/build-software-engineer-root-cause-reassessment.yaml)
+adds a tool-bearing bug repair after a failed retry-budget change. The optional
+`skill_loaded: {before_effects: true}` check requires a successful main-thread Skill result before
+any shell, edit, write, or delegation call. This scenario explicitly asks for guidance before shell
+execution and permits initial Read/Grep/Glob inspection. It is intentionally stricter than the
+general agent rule (load before permanent remediation); other scenarios retain ordinary
+`skill_loaded` behavior. Ordered regrading requires the raw trace. The independent retry oracle
+rejects another budget increase, suppressed exceptions, and disabling all retries; final foreground
+verification remains separate from the probe's own artifact test.
+
+**Native acceptance also requires manual trace review** against the scenario's `success_criteria`:
+a completed failing reproduction of the prior repair, an actual discriminating comparison before
+remediation, and a returned mechanism explanation grounded in those results. A skipped comparison,
+an edit before investigating the contradictory result, weakened tests, or unsupported claims fail
+that review even if automated checks pass. A good final artifact or the words "root cause" do not
+prove reassessment. [`test_root_cause_probe.py`](test_root_cause_probe.py) calibrates skill ordering
+and positive/negative artifacts offline; it does not grade hidden reasoning or prove native model
+behavior. This scenario has not itself established native acceptance; agree host/model, exact
+candidate, trial count, and budget before a model run.
+
+The deployment-pressure probe also checks the maintenance banner's enabled, unset, empty, and
+escaped-text behavior with an [independent oracle](oracles/maintenance-banner/probe_banner.py).
+Its [positive and negative fixtures](test_maintenance_banner_oracle.py) reject a comment-only
+implementation despite a green original suite. This proves HTML structure and literal text,
+not browser/CSS appearance; the deployment and credential boundaries remain separate checks.
+
 **The standing regression** comprises the build probes and the contract scenarios carrying
 `split: regression`. The seven `build-python-...` probes cover refactoring effects, generator
 consumption/lifetime, module moves, stdlib migration contracts, leaving correct code unchanged,
@@ -190,10 +227,15 @@ requires a completed child call and the integrated runbook/README artifacts. Its
 do not identify who edited the README or when; inspect the raw trace before claiming that the
 parent resumed after the child returned.
 
-Agent-target routing is **calibration-only**: main-session dispatch is a model and host propensity,
-not a fleet contract (on 2026-08-22 Opus 5 dispatched 0/3 where Sonnet did 3/3). Record the model
-and host with any such result. See the
+Agent-target routing probes remain **calibration-only** evidence of model/host propensity
+(on 2026-08-22 Opus 5 dispatched 0/3 where Sonnet did 3/3). Record the model
+and host with any such result. See the historical
 [accepted EVAL-002 decision](../docs/decisions/2026-08-22-agent-discovery-calibration.md).
+The expanded SRE workflow now requires an actual unhinted incident/runbook dispatch, helper return
+and caller continuation as a product acceptance case on each claimed host. A routing probe or a
+supplied-state JSON decision alone does not satisfy that requirement; one success does not establish
+general dispatch reliability. The pending cases live in
+[host acceptance](../docs/vscode-plugin-acceptance.md#expanded-investigation-acceptance-pending).
 
 ### Native incident conversation
 

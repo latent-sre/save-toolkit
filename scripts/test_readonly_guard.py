@@ -169,11 +169,8 @@ ALLOWED = [
     "gh issue view 3",
     # cf reads — the sre-assistant agent's bread-and-butter triage set
     "cf app my-app",
-    "cf apps",
     "cf events my-app",
     "cf logs my-app --recent",
-    "cf routes",
-    "cf services",
     "cf target",  # bare form only: it PRINTS the current target; the flag forms SET it (see DENIED)
     "cf revisions my-app",  # revision-history metadata only; not prior droplet or environment values
     "cf app my-app | grep -e instances",
@@ -199,8 +196,7 @@ ALLOWED = [
     "cf logs my-app --recent 2>&1 | tail -100",
     "git status >/dev/null",
     "find . -name '*.py' 2>/dev/null | head -20",
-    # `timeout <duration> <allowed command>`: the allowlist permits streaming reads (`cf logs`,
-    # `tail -f`) that never return on their own; flagless `timeout` is the sanctioned bound.
+    # `timeout <duration> <allowed command>` also bounds a slow or streaming read such as tail -f.
     "timeout 30 cf logs my-app --recent",
     "timeout 5s git log --oneline -5",
     # `date` DISPLAY forms; the packet convention demands UTC timestamps in every timeline. Value
@@ -220,7 +216,7 @@ ALLOWED = [
     "grep ERROR \"${LOGFILE}\"",
     "gcloud logging logs list",
     "gcloud projects describe my-project",
-    "gcloud config list",
+    "gcloud config list project",
     "gcloud config get-value project",
     "gcloud run services list | grep -e checkout",
     # DNS triage (egress-shaped; structure rules still kill tunneling forms like `dig $(...)`)
@@ -669,6 +665,165 @@ class ReadonlyGuardTest(unittest.TestCase):
         self.assertEqual(decision(proc), "allow")
 
 
+class ScopedCfReadTest(unittest.TestCase):
+    """The SRE policy grants five CF forms, not every flag on a read-named verb."""
+
+    def assert_commands(self, commands: tuple[str, ...], expected: str) -> None:
+        for tool_name in ("Bash", "PowerShell"):
+            payloads = [json.dumps({"tool_name": tool_name, "agent_type": SRE,
+                                    "tool_input": {"command": command}})
+                        for command in commands]
+            for command, proc in zip(commands, run_guard_batch(payloads)):
+                with self.subTest(tool=tool_name, command=command):
+                    self.assertEqual(decision(proc), expected)
+
+    def test_selected_forms_allow_literal_targets(self) -> None:
+        self.assert_commands((
+            "cf target",
+            "cf app ledger",
+            "cf app ledger-blue.2",
+            "cf app 'ledger blue'",
+            "cf events ledger",
+            "cf logs ledger --recent",
+            "cf logs --recent ledger",
+            "cf revisions ledger",
+        ), "allow")
+
+    def test_inventory_streams_flags_and_extra_targets_are_denied(self) -> None:
+        self.assert_commands((
+            "cf apps", "cf routes", "cf services", "cf spaces", "cf orgs",
+            "cf app", "cf app ledger accounts", "cf app ledger --guid",
+            "cf app --guid ledger", "cf app ledger --help", "cf --help app ledger",
+            "cf events", "cf events ledger --limit 5", "cf events ledger accounts",
+            "cf logs ledger", "cf logs ledger -r", "cf logs ledger --recent=false",
+            "cf logs ledger --recent --recent", "cf logs --recent",
+            "cf logs ledger accounts --recent", "cf logs ledger --recent --unknown",
+            "cf revisions", "cf revisions ledger --guid", "cf revision ledger 1",
+            "cf target other", "cf target -o org", "cf target -s space",
+            "cf restart ledger", "cf rollback ledger --version 1", "cf env ledger",
+            "cf app ''", "cf app --recent", "cf app ledger*", "cf app $APP",
+        ), "deny")
+
+    def test_bash_filters_and_safe_redirects_keep_exact_cf_arguments(self) -> None:
+        commands = (
+            "cf app ledger | head -n 5",
+            "cf target 2>&1",
+            "cf logs ledger --recent 2>&1 | tail -n 20",
+            "cf events ledger 2>/dev/null",
+            "cf app '2' 2>&1",
+            "timeout 30 cf logs ledger --recent",
+        )
+        for command, proc in zip(commands, run_guard_batch([bash_call(c) for c in commands])):
+            with self.subTest(command=command):
+                self.assertEqual(decision(proc), "allow")
+
+    def test_bash_redirects_do_not_hide_real_extra_operands(self) -> None:
+        commands = (
+            "cf app ledger 2 >&1", "cf app ledger '2'>&1",
+            'cf app ledger "2">&1', "cf logs ledger --recent 2 2>&1",
+            r"cf app ledger \2>&1", "cf app 2>/dev/null",
+        )
+        for command, proc in zip(commands, run_guard_batch([bash_call(c) for c in commands])):
+            with self.subTest(command=command):
+                self.assertEqual(decision(proc), "deny")
+
+    def test_quoted_and_escaped_operators_are_not_removed_as_redirects(self) -> None:
+        commands = (
+            "cf app ledger '>&' 1", "cf target '>&' '1'",
+            "cf app ledger '>' /dev/null", r"cf app ledger \> /dev/null",
+            r"cf target 2>\&1", "cf target 2>&'1'",
+        )
+        for command, proc in zip(commands, run_guard_batch([bash_call(c) for c in commands])):
+            with self.subTest(command=command):
+                self.assertEqual(decision(proc), "deny")
+
+
+class UniqFilterTest(unittest.TestCase):
+    def test_stdout_only_filter_forms_remain_allowed(self) -> None:
+        commands = ("uniq", "uniq -c", "uniq -di", "uniq --count --ignore-case",
+                    "cat events.txt | uniq -c")
+        for command, proc in zip(commands, run_guard_batch([bash_call(c) for c in commands])):
+            with self.subTest(command=command):
+                self.assertEqual(decision(proc), "allow")
+
+    def test_file_operands_and_unreviewed_flags_are_denied(self) -> None:
+        # GNU uniq takes an optional OUTPUT positional: no shell redirect is needed to overwrite it.
+        # Keep the supported interface stdin-only so expansion cannot introduce that positional.
+        commands = ("uniq input.txt output.txt", "uniq - output.txt", "uniq -c input.txt output.txt",
+                    "uniq -- input.txt output.txt", "uniq input.txt", "uniq $FILES", "uniq *",
+                    "uniq --unknown", "uniq --count=output.txt")
+        for command, proc in zip(commands, run_guard_batch([bash_call(c) for c in commands])):
+            with self.subTest(command=command):
+                self.assertEqual(decision(proc), "deny")
+
+    def test_quoted_redirect_tokens_cannot_hide_an_output_file(self) -> None:
+        commands = ("uniq '>&' 1", "uniq '>&' '1'", 'uniq -c ">&" 2', r"uniq \> /dev/null")
+        for command, proc in zip(commands, run_guard_batch([bash_call(c) for c in commands])):
+            with self.subTest(command=command):
+                self.assertEqual(decision(proc), "deny")
+
+
+class ShellCommentBoundaryTest(unittest.TestCase):
+    def test_embedded_hash_does_not_hide_a_later_command_or_flag(self) -> None:
+        commands = (
+            "cf app ledger#; cf restart ledger",
+            "cf app ledger# && cf restart ledger",
+            "cf app ledger#\ncf restart ledger",
+            "cf app ledger# --guid", "uniq -c#; cf restart ledger",
+            r"cf app ledger\#; cf restart ledger",
+        )
+        for command, proc in zip(commands, run_guard_batch([bash_call(c) for c in commands])):
+            with self.subTest(command=command):
+                self.assertEqual(decision(proc), "deny")
+
+    def test_hash_in_a_literal_target_remains_an_argument(self) -> None:
+        for command in ("cf app ledger#", "cf app 'ledger#'", r"cf app ledger\#"):
+            with self.subTest(command=command):
+                self.assertEqual(decision(run_guard(bash_call(command))), "allow")
+        # A standalone shell comment is conservatively rejected by the exact CF argument grammar.
+        self.assertEqual(decision(run_guard(bash_call("cf app ledger # comment"))), "deny")
+
+
+class ShellWhitespaceBoundaryTest(unittest.TestCase):
+    def test_unicode_whitespace_cannot_turn_a_file_redirect_into_a_stream_duplicate(self) -> None:
+        commands = tuple(command for space in ("\u00a0", "\u2003", "\u3000") for command in (
+            f"cf target >&{space}1", f"cf target >{space}/dev/null",
+            f"cf target 2>{space}/dev/null",
+        ))
+        for command, proc in zip(commands, run_guard_batch([bash_call(c) for c in commands])):
+            with self.subTest(command=command):
+                self.assertEqual(decision(proc), "deny")
+
+    def test_non_shell_line_separators_cannot_hide_uniq_file_operands(self) -> None:
+        # Bash treats CR and these Unicode separators as literal word characters, not new commands.
+        commands = tuple(f"uniq {separator} {separator}" for separator in (
+            "\r", "\v", "\f", "\x85", "\u2028", "\u2029",
+        )) + ("cf target >&\r1", "cf app ledger\r", "cf app ledger\x00")
+        for command, proc in zip(commands, run_guard_batch([bash_call(c) for c in commands])):
+            with self.subTest(command=command):
+                self.assertEqual(decision(proc), "deny")
+
+
+class ShellOperatorLiteralTest(unittest.TestCase):
+    def test_operator_shaped_argv_cannot_hide_file_operands_or_cf_arguments(self) -> None:
+        commands = (
+            "uniq ';' uniq", "uniq '|' pwd", "uniq '&&' uniq", "uniq '||' uniq",
+            "uniq ';'\"\" uniq", r"uniq \; uniq", r"uniq \|\| uniq",
+            "cf app ledger ';' cf target", "cf app ledger '|' pwd",
+            r"cf app ledger \; cf target",
+        )
+        for command, proc in zip(commands, run_guard_batch([bash_call(c) for c in commands])):
+            with self.subTest(command=command):
+                self.assertEqual(decision(proc), "deny")
+
+    def test_operators_inside_larger_patterns_remain_data(self) -> None:
+        commands = ("grep 'a;b' events.txt", "rg 'foo|bar' .",
+                    '''grep "warning ';' message" events.txt''', "cf app 'ledger;blue'")
+        for command, proc in zip(commands, run_guard_batch([bash_call(c) for c in commands])):
+            with self.subTest(command=command):
+                self.assertEqual(decision(proc), "allow")
+
+
 class ObservabilityUnguardedTest(unittest.TestCase):
     """observability-engineer is deliberately UNGUARDED (docs/decisions/2026-08-21-observability-engineer-unguarded-bash.md).
 
@@ -899,6 +1054,7 @@ class FleetCredentialDenyTest(unittest.TestCase):
             # Data, not a command: quoting keeps it one token, so nothing matches.
             'rg "cf env" docs/',
             'git commit -m "document why cf env is human-only"',
+            "git log # cf env in a comment is not executed",
             # Review finding on PR #216: an assignment SHAPE is not an assignment. Searching for
             # the variable cannot enable tracing, and denying the search was a false positive.
             "rg CF_TRACE=true .",
@@ -999,6 +1155,16 @@ class CopilotTerminalTest(unittest.TestCase):
         ):
             with self.subTest(command=command):
                 self.assertEqual(decision(self.copilot_call(command)), "allow")
+
+    def test_cf_uses_the_same_selected_operation_grammar(self) -> None:
+        for command in ("cf target", "cf app ledger", "cf events ledger",
+                        "cf logs --recent ledger", "cf revisions ledger"):
+            with self.subTest(command=command):
+                self.assertEqual(decision(self.copilot_call(command)), "allow")
+        for command in ("cf apps", "cf app ledger --guid", "cf logs ledger",
+                        "cf logs ledger --recent=false", "cf target -s another-space"):
+            with self.subTest(command=command):
+                self.assertEqual(decision(self.copilot_call(command)), "deny")
 
 
 if __name__ == "__main__":

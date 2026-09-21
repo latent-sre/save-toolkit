@@ -63,9 +63,11 @@ Route origin-side findings through [Handoffs](#handoffs).
 
 ## Handoffs
 
-Origin-side evidence (edge→origin errors, healthy edge with slow turnaround), an actively firing
-alert, or live user impact belongs to the responder with `incident-investigation` — send the leg
-finding, exact portal tool and result, and timestamps; `sre-assistant` only for a dispatched read.
+The responder with `incident-investigation` retains the overall live investigation. A dispatched
+`sre-assistant` may follow origin-side evidence (edge→origin errors, healthy edge with slow
+turnaround) within its assigned question, targets and access; return the leg finding, exact source,
+timestamps, alternatives and gaps to its invoking caller. A related lead does not grant new access
+or transfer incident ownership.
 A recurring query, missing alert, or detection gap goes to `observability-engineer`. For a proposed
 property change, send the human release owner the prepared version and
 [property change packet](./references/property-config.md#property-change-packet). New durable

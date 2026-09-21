@@ -39,10 +39,9 @@ ALLOWLIST, NOT DENYLIST — the load-bearing design decision.
 
   It also means the guard no longer has to out-parse a hostile shell. Anything it cannot confidently
   understand — command substitution, a subshell, an unbalanced quote — is simply not on the list,
-  and is denied. Redirection is judged at the token layer using the same posix lexer the guard
-  already trusts for segmentation: unquoted redirects are denied except the two shapes that cannot
-  touch a real file (`>/dev/null` on any fd, and `2>&1`-style stream duplication), while a `>`
-  inside a quoted argument (a Logging filter, a search pattern) is data and never trips anything.
+  and is denied. Only exact unquoted discard/stream-duplication redirects are removed before
+  tokenization. Other operator-shaped tokens fail closed; a comparison inside a quoted Logging
+  filter remains ordinary argument text.
   Every denial names the rule that fired — a guard that can only say "no" trains people to work
   around it; one that says "no, because X, do Y instead" is policy.
 
@@ -77,8 +76,10 @@ component tests.
 """
 import json
 import re
+import runpy
 import shlex
 import sys
+from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
 # The namespace Claude Code would prepend if this repo were ever installed as a plugin; guarding
@@ -132,13 +133,9 @@ EXIT_INDETERMINATE = 44
 # `$(`/backticks execute even INSIDE double quotes — so for those, mere PRESENCE in the raw string
 # is disqualifying, quoted or not. That is not guessing at shell quoting; it is refusing to.
 #
-# Redirection (`>`, `<`) is different: quotes DO neutralize it, and the same posix `shlex` lexer
-# this guard already trusts for command segmentation reports exactly that — an unquoted redirect
-# always surfaces as its own pure-punctuation token, while a quoted one stays data inside its
-# argument. So redirects are judged at the token layer (see _line_reason): denied by default, with
-# two harmless shapes permitted because they cannot touch a real file — `>/dev/null` (any fd) and
-# stream duplication `2>&1`/`>&2`. This resolves the old quoted-filter false positive
-# (`gcloud logging read "severity>=ERROR"`) without weakening the substitution rules above.
+# Quotes neutralize redirection, but POSIX shlex drops that provenance. Remove only recognized
+# unquoted discard/stream-duplication forms before tokenizing. Any remaining operator-shaped token
+# is denied; comparison operators inside a quoted Logging filter remain ordinary argument text.
 #
 # `${NAME}` (a plain identifier in braces) is byte-for-byte equivalent to `$NAME` and is normalized
 # to it before this scan; every other `${...}` form (defaults, slicing, indirection) stays denied —
@@ -159,11 +156,11 @@ _SEPARATORS = {"|", "||", "&&", ";", "\n"}
 # `git push` became an inert trailing argument. Both spellings are shell syntax errors, so nothing
 # ever executed, but a fail-open inside a fail-closed control is not something to leave sitting.
 _SEPARATOR_CHARS = frozenset(";|&")
-# The characters shlex(punctuation_chars=True) emits as operator tokens. A token made ONLY of these
-# is an unquoted shell operator; a token that merely contains one arrived quoted and is data.
+# After raw harmless redirects are removed, punctuation-only tokens fail closed. shlex loses quote
+# provenance, so literal operator-shaped arguments are denied too; embedded comparisons stay data.
 _PUNCTUATION = frozenset("();<>|&")
-# `timeout <duration> <allowed command>` bounds a stream (the allowlist permits `cf logs` and
-# `tail -f`, which otherwise never return). Only the flagless form is vouched for: `-k`/`-s` take
+# `timeout <duration> <allowed command>` bounds a read (including `tail -f`, which otherwise
+# never returns). Only the flagless form is vouched for: `-k`/`-s` take
 # separate values that would misalign the wrapped-command check, so they fail closed.
 _TIMEOUT_DURATION = re.compile(r"^\d+(\.\d+)?[smhd]?$")
 # `date` earns its slot because the packet convention demands UTC timestamps and the timeline is
@@ -186,32 +183,19 @@ _DATE_DISPLAY_WITH_VALUE = frozenset({
 # `--iso-8601=seconds`) — never as a separate token, so no value is consumed for these.
 _DATE_ISO_PREFIX = "-I"
 _DATE_ISO_LONG = "--iso-8601"
-_DEV_NULL = "/dev/null"
-
-
-def _strip_harmless_redirects(tokens: list[str]) -> list[str]:
-    """Drop redirect forms that cannot write anywhere real, before the operator scan.
-
-    `>/dev/null` and `>>/dev/null` discard output (any fd — a preceding lone-digit token like the
-    `2` of `2>/dev/null` survives as an inert argument, a divergence from shell semantics that can
-    only ever ADD a harmless positional to a read). `>&` followed by a bare stream number
-    duplicates one stream onto another and touches no file. Every other redirect token survives to
-    be denied by _line_reason.
-    """
-    stripped: list[str] = []
-    index = 0
-    while index < len(tokens):
-        token = tokens[index]
-        nxt = tokens[index + 1] if index + 1 < len(tokens) else None
-        if token in {">", ">>"} and nxt == _DEV_NULL:
-            index += 2
-            continue
-        if token == ">&" and nxt in {"1", "2"}:
-            index += 2
-            continue
-        stripped.append(token)
-        index += 1
-    return stripped
+# Skip quoted/escaped text before matching exact harmless redirects. Removing them after shlex
+# would mistake literal argv such as uniq '>&' 1 for redirection, hiding an output-file operand.
+# Only a standalone number attached to the operator is a descriptor; a separated/quoted one stays.
+_READ_REDIRECT = re.compile(
+    r"""'[^']*'|"(?:\\.|[^"\\])*"|\\.|"""
+    r"(?P<redirect>(?:(?<![^ \t])(?<!\\[ \t])[0-9]+)?"
+    r"(?:>>?[ \t]*/dev/null|>&[ \t]*[12]))(?=[ \t]|$|[;|&])"
+)
+# Inspect whole words, including adjacent quote/escape pieces, before shlex drops provenance.
+# Only operator-shaped literal operands are rejected; embedded grep/query punctuation stays data.
+_SHELL_WORD = re.compile(
+    r"""(?:'[^']*'|"(?:\\.|[^"\\])*"|\\.|[^ \t;|&()<>'"\\])+"""
+)
 
 # --- the allowlist --------------------------------------------------------------------------
 # Plain readers and filters: they consume input and print. None can write a file on its own (a
@@ -225,7 +209,7 @@ def _strip_harmless_redirects(tokens: list[str]) -> list[str]:
 # `-T`/`--temporary-directory`, and may write spill files even without either flag. A complete safe
 # flag gate would have to predict runtime spilling, so the command fails closed instead.
 _SIMPLE_READERS = frozenset({
-    "cat", "head", "tail", "nl", "wc", "uniq", "cut", "tr", "column",
+    "cat", "head", "tail", "nl", "wc", "cut", "tr", "column",
     "grep", "egrep", "fgrep", "rg",
     "ls", "file", "stat", "du", "basename", "dirname", "realpath", "pwd",
     "echo", "diff", "cmp", "jq", "true", "false",
@@ -233,6 +217,11 @@ _SIMPLE_READERS = frozenset({
     # a crafted name can tunnel data — which is why `dig $(...)` dies on structure and why the
     # outbound network allowlist remains the load-bearing egress control, not this guard.
     "dig",
+})
+# uniq INPUT OUTPUT writes the second positional without a shell redirect. Keep only stdin-to-
+# stdout filtering with reviewed flag-only forms; use cat INPUT | uniq for a file-backed read.
+_UNIQ_FILTER_FLAGS = frozenset({
+    "--count", "--repeated", "--unique", "--ignore-case", "--zero-terminated",
 })
 
 # Fixed observation forms: do not grant arbitrary flags or a general-purpose HTTP client.
@@ -289,13 +278,75 @@ def grafana_curl_allowed(command: str, powershell: bool = False) -> bool:
     return True
 
 
+def grafana_helper_allowed(command: str, powershell: bool = False) -> bool:
+    """One installed stdlib helper, with literal args validated by its own parser.
+
+    No general interpreter, workspace script, shell chain, redirection or dynamic
+    expression is admitted. PATH and the installed plugin remain trusted inputs.
+    """
+    # PowerShell treats typographic quotes as delimiters; POSIX shlex does not.
+    # Reject them even inside ASCII quotes before either host can execute this form.
+    if len(command) > 12000 or re.search(r"[\x00-\x1f\x7f\u2018\u2019\u201c\u201d]", command):
+        return False
+    literal = r"(?:[A-Za-z0-9_+/=-]+|'[^'\r\n]*')"
+    match = re.fullmatch(
+        r'''python(?:3|\.exe)? -I -S (?P<path>"[^"$`\r\n]+"|'[^'\r\n]+') '''
+        + r"(?P<args>" + literal + r"(?: " + literal + r")*)", command,
+    )
+    wrapper = False
+    if not match and powershell:
+        match = re.fullmatch(
+            r'''& (?P<path>"[^"$`\r\n]+"|'[^'\r\n]+') '''
+            + r"(?P<args>" + literal + r"(?: " + literal + r")*)", command,
+        )
+        wrapper = True
+    if not match:
+        return False
+    root = Path(__file__).resolve().parents[1]
+    canonical = root / "skills/grafana/scripts/grafana_read.py"
+    projected = root / ".github/skills/grafana/scripts/grafana_read.py"
+    supplied = match["path"][1:-1]
+    # Compare only fixed installed paths, never resolve/load a caller-selected file.
+    installed = (canonical, projected) if not wrapper else (canonical.with_suffix(".ps1"), projected.with_suffix(".ps1"))
+    paths = {str(p): p for p in installed}
+    paths.update({p.as_posix(): p for p in installed})
+    selected = paths.get(supplied)
+    if selected is None:
+        return False
+    try:
+        # A generated copy must still be the reviewed canonical helper, not a stale
+        # or edited same-named program. Missing files fail closed.
+        reviewed = canonical.with_suffix(".ps1") if wrapper else canonical
+        if selected.read_bytes().replace(b"\r\n", b"\n") != reviewed.read_bytes().replace(b"\r\n", b"\n"):
+            return False
+        if wrapper and selected.with_suffix(".py").read_bytes().replace(b"\r\n", b"\n") != canonical.read_bytes().replace(b"\r\n", b"\n"):
+            return False
+        arguments = shlex.split(match["args"], posix=True)
+        if wrapper:
+            flags = {"-Datasource": "--datasource", "-Kind": "--kind", "-From": "--from", "-To": "--to", "-Expr": "--expr"}
+            if len(arguments) != 10 or set(arguments[::2]) != set(flags):
+                return False
+            arguments = ["query"] + [value for flag, value in zip(arguments[::2], arguments[1::2]) for value in (flags[flag], value)]
+        elif powershell and "--expr" in arguments:
+            # Windows PowerShell 5.1 strips embedded quotes at native argv transfer.
+            # The fixed wrapper or already-encoded expression is portable across hosts.
+            return False
+        if not arguments or arguments[0] not in {"dashboard", "query"}:
+            return False
+        helper = runpy.run_path(str(canonical), run_name="_grafana_read_guard")
+        helper["parse_args"](arguments)
+    except (Exception, SystemExit):
+        return False
+    return True
+
+
 def explain_powershell(command: str) -> "str | None":
     """Small literal-command grammar, not a POSIX parse of general PowerShell code.
 
     Reject expressions, expansions, scripts, redirection, stop-parsing and command chains.
     Only fixed cmdlets and the existing external CLI readers may pass. No aliases are inferred.
     """
-    if grafana_curl_allowed(command, powershell=True):
+    if grafana_helper_allowed(command, powershell=True) or grafana_curl_allowed(command, powershell=True):
         return None
     if not command.strip():
         return None
@@ -492,15 +543,14 @@ _GH_READ = {
 # `find`'s action flags run commands or delete files — the reason `find` cannot simply be a reader.
 _FIND_ACTIONS = ("-exec", "-execdir", "-ok", "-okdir", "-delete", "-fprint", "-fprintf", "-fls")
 
-# `cf` (Cloud Foundry CLI v8) read verbs for incident triage. `target` is bare-form-only — its
-# flag form WRITES the target; see _cf_allowed. `cf env` is ABSENT by design: it
+# Selected Cloud Foundry CLI v8 observations. _cf_allowed checks their exact arguments, requires
+# --recent for logs, and excludes inventory expansion. `target` is bare-form-only because its
+# flag form WRITES the target. `cf env` is ABSENT by design: it
 # prints the app's full environment — credentials included — to an agent that also holds web
 # egress, and that pairing is exactly the exfiltration shape the fleet's doctrine forbids.
 # `revisions` lists revision metadata, not droplet GUIDs or environment values. A rollback needs
 # separately supplied artifact/configuration evidence; `revision` and `rollback` stay denied.
-_CF_READ = frozenset({
-    "app", "apps", "events", "logs", "routes", "services", "spaces", "orgs", "target", "revisions",
-})
+_CF_READ = frozenset({"app", "events", "logs", "target", "revisions"})
 
 # `gcloud` read-only triage for the GCP migration — the `cf` analog, gated by POSITIONAL PREFIX
 # because gcloud nests groups two or three levels deep (`run services list`). Same philosophy as
@@ -508,8 +558,9 @@ _CF_READ = frozenset({
 # print-access-token` / `print-identity-token` / `application-default print-access-token` and
 # `gcloud secrets versions access` print live credentials or secret payloads to an agent that also
 # holds egress — the `cf env` shape again — and are not on the list, like every unlisted path.
-# `config list` / `config get-value` are the `cf target` analog: they print the active project,
-# region, and account NAME, not credentials. Release-track prefixes (`gcloud beta …`) shift the
+# Configuration can contain credentials. Only exact reads of reviewed noncredential target
+# properties are permitted; broad listings and authentication identity are excluded.
+# Release-track prefixes (`gcloud beta …`) shift the
 # positional path and deny — fail-loud, add the exact tracked path if a read genuinely needs it.
 # A flag value passed as a separate token (`--limit 50`) lands AFTER the matched prefix and is
 # inert. A flag BEFORE the command path is denied outright in _gcloud_allowed: the space-separated
@@ -523,8 +574,10 @@ _GCLOUD_READ_PREFIXES = (
     ("run", "revisions", "list"), ("run", "revisions", "describe"),
     ("logging", "read"), ("logging", "logs", "list"),
     ("projects", "describe"),
-    ("config", "list"), ("config", "get-value"),
 )
+_GCLOUD_TARGET_PROPERTIES = frozenset({
+    "project", "core/project", "run/region", "compute/region", "compute/zone",
+})
 # Flags that make even an allowed gcloud read something we refuse to vouch for:
 # `--impersonate-service-account` performs the read AS another identity (an access-path lever, not
 # a read), and `--flags-file` loads more flags from a file the guard never sees — the same
@@ -736,16 +789,21 @@ def _rg_allowed(args: list[str]) -> bool:
 
 
 def _cf_allowed(args: list[str]) -> bool:
-    positionals = _positionals(args)
-    if not positionals or positionals[0] not in _CF_READ:
+    if not args or args[0] not in _CF_READ:
         return False
-    # `target` is the one _CF_READ verb with a WRITE form: bare `cf target` prints the current
-    # org/space, but `-o`/`-s` SET it — local CLI state that silently points every later guarded
-    # `cf` read at a different target. Allow only the bare, print-only form; any extra argument
-    # (flag or positional) denies, this guard's usual fail-loud direction.
-    if positionals[0] == "target":
+    if args[0] == "target":
         return args == ["target"]
-    return True
+    if args[0] == "logs":
+        if len(args) != 3 or args.count("--recent") != 1:
+            return False
+        app = args[2] if args[1] == "--recent" else args[1]
+    else:
+        if len(args) != 2:
+            return False
+        app = args[1]
+    # Require one literal app, not an option, environment expansion, or glob that can become
+    # multiple arguments after shell parsing. Quoted whitespace/Unicode names remain usable.
+    return bool(app) and not app.startswith("-") and not re.search(r"[$*?\[\]{}~]", app)
 
 
 def _gcloud_allowed(args: list[str]) -> bool:
@@ -756,6 +814,10 @@ def _gcloud_allowed(args: list[str]) -> bool:
         return False
     if _carries_flag(args, _GCLOUD_DENY_FLAGS, frozenset()):
         return False
+    if args[0] == "config":
+        # No section/wildcard listings, alternate configurations, formatting or debug flags.
+        return (len(args) == 3 and args[1] in {"list", "get-value"}
+                and args[2] in _GCLOUD_TARGET_PROPERTIES)
     positionals = tuple(_positionals(args))
     return any(
         positionals[: len(prefix)] == prefix for prefix in _GCLOUD_READ_PREFIXES
@@ -783,7 +845,7 @@ def _segment_reason(segment: list[str], agent: str) -> "str | None":
         if not args or args[0].startswith("-") or not _TIMEOUT_DURATION.match(args[0]):
             return (
                 "`timeout` is allowed only in the flagless form `timeout <duration> <allowed "
-                "command>` (e.g. `timeout 30 cf logs my-app`)"
+                "command>` (e.g. `timeout 30 cf logs my-app --recent`)"
             )
         if len(args) < 2:
             return "`timeout` needs a command to bound: `timeout <duration> <allowed command>`"
@@ -817,6 +879,13 @@ def _segment_reason(segment: list[str], agent: str) -> "str | None":
             "this `rg` form carries an exec-capable flag (`--pre`, `--hostname-bin`, "
             "`-z`/`--search-zip`) that runs a program mid-search — drop the flag"
         )
+    if command == "uniq":
+        if all(arg in _UNIQ_FILTER_FLAGS or re.fullmatch(r"-[cduiz]+", arg) for arg in args):
+            return None
+        return (
+            "`uniq` is stdin-to-stdout only with count/repeated/unique/ignore-case/zero-terminated "
+            "flags; file operands can overwrite an output file — use `cat INPUT | uniq`"
+        )
     if command == "file":
         if not _carries_flag(args, _FILE_WRITE_FLAGS, _FILE_WRITE_SHORT):
             return None
@@ -834,9 +903,9 @@ def _segment_reason(segment: list[str], agent: str) -> "str | None":
                 "egress — a human runs it and pastes the sanitized excerpt"
             )
         return (
-            "this `cf` form is not an allowed read: only app, apps, events, logs, routes, "
-            "services, spaces, orgs, and target are permitted — mitigation commands are "
-            "recommended to a human, never run"
+            "this `cf` form is not an allowed read: use bare `cf target`, `cf app <app>`, "
+            "`cf events <app>`, `cf logs <app> --recent`, or `cf revisions <app>` with one literal "
+            "app and no other flags — inventory, streaming, credentials and mutations are denied"
         )
     if command == "gcloud":
         if _gcloud_allowed(args):
@@ -864,7 +933,7 @@ def _segment_reason(segment: list[str], agent: str) -> "str | None":
     return f"`{command}` is not on the read-only allowlist"
 
 
-def _tokenize(line: str) -> list[str]:
+def _tokenize(line: str, *, comments: bool = True) -> list[str]:
     """Tokenize one line, with shell operators as their OWN tokens.
 
     `shlex.split` is the obvious choice and it is WRONG here: it splits on whitespace only, so
@@ -877,22 +946,33 @@ def _tokenize(line: str) -> list[str]:
     """
     lexer = shlex.shlex(line, posix=True, punctuation_chars=True)
     lexer.whitespace_split = True
+    # The allowlist keeps # literal: shlex otherwise truncates ledger#; and hides a later command.
+    # The separate fleet credential scanner retains its existing comment handling.
+    if not comments:
+        lexer.commenters = ""
+        lexer.whitespace = " \t"
     return list(lexer)
 
 
 def _line_reason(line: str, agent: str) -> "str | None":
     """None if every segment of one line is an allowed read; otherwise the first denial reason."""
     try:
-        tokens = _tokenize(line)
+        for match in _SHELL_WORD.finditer(line):
+            raw_word = match.group()
+            if any(char in raw_word for char in "'\"\\"):
+                word = shlex.split(raw_word, comments=False)[0]
+                if word and all(char in _PUNCTUATION for char in word):
+                    return "quoted or escaped operator-shaped arguments are not supported"
+        line = _READ_REDIRECT.sub(lambda match: "" if match.group("redirect") else match.group(), line)
+        tokens = _tokenize(line, comments=False)
     except ValueError:
         return "unbalanced quotes — the guard cannot parse the command, so it cannot vouch for it"
-    tokens = _strip_harmless_redirects(tokens)
     for token in tokens:
         if token in _SEPARATORS or not token:
             continue
         if all(ch in _PUNCTUATION for ch in token):
-            # An unquoted operator token the separators and harmless-redirect pass did not
-            # consume. Quoted operators never land here — shlex keeps them inside their argument.
+            # Anything not consumed by the raw harmless-redirect pass fails closed. shlex may
+            # have removed quotes, so even a literal operator-shaped argument is ambiguous here.
             if "<" in token or ">" in token:
                 return (
                     f"the redirection `{token}` — only `>/dev/null` (any fd) and `2>&1` are "
@@ -915,9 +995,11 @@ def explain(command: str, agent: str = "") -> "str | None":
     `agent` is the BARE agent name (namespace already stripped). No rule is agent-specific since
     `observability-engineer` left the roster; the seam stays for a future per-agent extra.
     """
-    if grafana_curl_allowed(command):
+    if re.search(r"[\x00-\x08\x0b-\x1f\x7f]", command):
+        return "Bash commands may not contain control characters other than tab and newline"
+    if grafana_helper_allowed(command) or grafana_curl_allowed(command):
         return None
-    if not command.strip():
+    if not command.strip(" \t\n"):
         return None  # nothing to run
     if re.search(r"\$(?:env:|\{)?GRAFANA_SA_TOKEN\b|\bglsa_", command, re.IGNORECASE):
         return "Grafana credentials may only be referenced by the fixed authenticated GET form"
@@ -929,11 +1011,10 @@ def explain(command: str, agent: str = "") -> "str | None":
             "`${...}` beyond a plain `${NAME}`, and backgrounding smuggle a second command past "
             "the allowlist (inside double quotes too), so their presence is disqualifying"
         )
-    # A newline is a command separator just like `;`, and shlex treats it as plain whitespace —
-    # so lines are split off BEFORE tokenizing. A quoted string that genuinely spans a newline is
-    # torn in half by this and fails to lex, which denies. That is the correct direction to err.
-    for line in normalized.splitlines():
-        if not line.strip():
+    # Split only on Bash's LF separator. str.splitlines() would discard literal CR/Unicode
+    # operands. Multiline quoted strings still fail closed instead of being interpreted.
+    for line in normalized.split("\n"):
+        if not line.strip(" \t"):
             continue
         reason = _line_reason(line, agent)
         if reason is not None:
@@ -1041,6 +1122,9 @@ def _gcloud_credential_reason(words: list[str]) -> "str | None":
     if not words:
         return None
     head, rest = words[0], words[1:]
+    if head == "config" and rest and rest[0] in {"list", "get-value", "get"}:
+        if len(rest) != 2 or rest[1] not in _GCLOUD_TARGET_PROPERTIES:
+            return "`gcloud config` reads must select one reviewed noncredential target property"
     if head == "auth" and any(
         word in ("print-access-token", "print-identity-token") for word in rest
     ):
