@@ -40,6 +40,14 @@ output; command approval alone does not supply that protection. Use an establish
 path or supplied Apps Manager evidence when it is unavailable. Existing SSO/session access is
 preferred; never request credentials in chat or retrieve CF credential files.
 
+## Change and revision evidence
+
+`cf revisions <app>` lists revision number, description, deployability, revision GUID and creation
+time; `cf events <app>` supplies recorded event times and actors, subject to output sanitization.
+Neither alone establishes the prior droplet or environment configuration. For a rollback
+recommendation, obtain a credential-free authoritative deployment/configuration record; missing
+binding stays `[unverified]`. These reads do not authorize a rollback.
+
 ## App-side vs platform-side (know your lane)
 
 We operate **our apps**; the **platform** (BOSH, Ops Manager, Diego cells, Gorouter, NTP/certs,
