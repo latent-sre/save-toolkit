@@ -1527,6 +1527,8 @@ def parse_trace(path: Path) -> TraceSummary:
             output = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", receipt["stdout"] + "\n" + receipt["stderr"]).replace("\r\n", "\n")
             call["test_summaries"] = {runner: _successful_test_summary(output, runner)
                                       for runner in ("unittest", "pytest", "vitest")}
+            call["test_failures"] = {runner: _recognized_test_failure(output, runner)
+                                     for runner in ("unittest", "pytest", "vitest")}
     for use_id, tool, path, parent, issued in read_uses:
         s.read_attempts.append({
             "tool": tool, "path": path,
@@ -2239,6 +2241,21 @@ def _successful_test_summary(output: str, runner: str) -> str:
     return ""
 
 
+def _recognized_test_failure(output: str, runner: str) -> str:
+    """Recognized completed test runs that prove verification failed, not that grading is unsupported."""
+    if runner == "unittest":
+        count = re.search(r"(?m)^Ran (\d+) tests? in [^\r\n]+$", output)
+        ok = re.search(r"(?m)^OK(?: \(skipped=(\d+)\))?\s*$", output)
+        if count and ok:
+            total = int(count.group(1))
+            skipped = int(ok.group(1) or 0)
+            if total == 0:
+                return "matched shell result ran zero tests"
+            if skipped >= total:
+                return "matched shell result skipped every discovered test"
+    return ""
+
+
 def check_verification_completed(ctx: Context, p: dict) -> tuple[bool, str]:
     """Conservative ordered trace evidence, not exact-byte or detached-process attestation.
 
@@ -2262,6 +2279,10 @@ def check_verification_completed(ctx: Context, p: dict) -> tuple[bool, str]:
     if any(prior["completed"] is None or prior["completed"] >= call["issued"] for prior in calls[:-1]):
         return False, "INCONCLUSIVE: an earlier potentially mutating action has missing or overlapping completion evidence"
     summary = call.get("test_summaries", {}).get(p["runner"])
+    if not summary:
+        failure = call.get("test_failures", {}).get(p["runner"])
+        if failure:
+            return False, failure
     if not summary:
         return False, "INCONCLUSIVE: matched shell result has no supported nonzero passing test summary"
     return True, f"{call['tool']} {call['id']} at trace lines {call['issued'] + 1}/{call['completed'] + 1}: {summary}"

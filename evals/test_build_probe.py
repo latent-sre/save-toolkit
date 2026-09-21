@@ -644,6 +644,21 @@ class VerificationEvidenceTests(unittest.TestCase):
                 self.assertEqual(grading["status"], "INCONCLUSIVE")
                 self.assertFalse(grading["expectations"][0]["passed"])
 
+    def test_zero_test_or_all_skipped_verification_is_fail_not_inconclusive(self):
+        check = {"check": "verification_completed", "runner": "unittest", "text": "ordered test"}
+        spec = {**TINY_SPEC, "checks": [check]}
+        cases = (
+            ("Ran 0 tests in 0.000s\n\nOK\n", "matched shell result ran zero tests"),
+            ("Ran 2 tests in 0.001s\n\nOK (skipped=2)\n", "matched shell result skipped every discovered test"),
+        )
+        for output, evidence in cases:
+            with self.subTest(output=output):
+                ctx = build_probe.Context(spec, None, TraceAndCommandTests._parse_events([self._call(), self._result(output=output)]), None)
+                grading = build_probe.grade(ctx)
+                self.assertEqual("FAIL", grading["status"])
+                self.assertIsNone(grading["inconclusive"])
+                self.assertEqual(evidence, grading["expectations"][0]["evidence"])
+
     def test_ordered_verification_regrade_needs_the_raw_trace(self):
         check = {"check": "verification_completed", "runner": "unittest", "text": "ordered test"}
         spec = {**TINY_SPEC, "checks": [check]}
