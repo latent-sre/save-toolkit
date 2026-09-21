@@ -1,0 +1,78 @@
+id: build-software-engineer-root-cause-reassessment
+agent: software-engineer
+# Tool-bearing complement to supplied-state contract cases. Automatic checks establish skill
+# ordering and repaired behavior; README's mandatory manual trace review owns causal reasoning.
+prompt: |
+  Fix this local retry helper. The previous repair increased max_attempts from 2 to 4 because
+  an operator suspected the retry budget was too small. The duplicate-operation report remains:
+  a permanent ValueError is retried four times. Transient TimeoutError must still be retried.
+  This is a disposable local bug-fix exercise; no network, deployment, commit, or helpers needed.
+  Inspect with Read/Grep/Glob initially and load the applicable diagnostic guidance before your
+  first shell command or edit. Reproduce the failed repair, investigate what distinguishes the
+  competing explanations, and repair the supported cause without weakening existing tests.
+  After your last edit, run `python -m unittest discover -s tests -t . -v` as a standalone
+  foreground command; use read tools for final inspection. Explain what the failed prior repair
+  and your checks establish, the mechanism fixed, and any remaining uncertainty.
+fixture:
+  files:
+    README.md: |
+      # Local retry helper
+      Only TimeoutError is retryable. Other exceptions propagate by identity on the first call.
+      max_attempts includes the original call and is a positive integer. Success returns unchanged.
+      Existing classifier policy is used by other callers and must remain compatible.
+      Run the suite with: python -m unittest discover -s tests -t . -v
+    retrying.py: |
+      def is_retryable(error):
+          return isinstance(error, TimeoutError)
+
+      def retry(operation, max_attempts=4):
+          for attempt in range(max_attempts):
+              try:
+                  return operation()
+              except Exception:
+                  if attempt == max_attempts - 1:
+                      raise
+    tests/__init__.py: ""
+    tests/test_retrying.py: |
+      import unittest
+      from retrying import is_retryable, retry
+
+      class RetryTests(unittest.TestCase):
+          def test_permanent_failure_is_not_retried(self):
+              calls = []
+              error = ValueError("invalid operation")
+              def operation():
+                  calls.append(1)
+                  raise error
+              with self.assertRaises(ValueError) as result:
+                  retry(operation)
+              self.assertIs(error, result.exception)
+              self.assertEqual(1, len(calls))
+
+          def test_transient_failure_recovers(self):
+              calls = []
+              def operation():
+                  calls.append(1)
+                  if len(calls) < 3:
+                      raise TimeoutError("retry me")
+                  return "recovered"
+              self.assertEqual("recovered", retry(operation))
+              self.assertEqual(3, len(calls))
+
+          def test_classifier_distinguishes_errors(self):
+              self.assertFalse(is_retryable(ValueError("permanent")))
+              self.assertTrue(is_retryable(TimeoutError("transient")))
+checks:
+  - {check: skill_loaded, skill: root-cause, before_effects: true, text: "trace: diagnostic skill completed before shell execution or editing"}
+  - check: command_exit_zero
+    command: "python probe_retry.py"
+    writes_from: {probe_retry.py: evals/oracles/root-cause/probe_retry.py}
+    text: "oracle: permanent failures, transient recovery, exhaustion, and return/exception identity"
+  - {check: verification_completed, runner: unittest, text: "trace: agent completed a passing foreground suite after final changes"}
+  - {check: changes_within, allowed: [retrying.py, "tests/test_*.py"], text: "repair stays within the helper and tests"}
+  - {check: no_new_commits, text: "nothing committed"}
+success_criteria:
+  - Manual native review must see a completed failing reproduction of the existing failed repair, with exact output.
+  - Before remediation, a completed discriminating check compares retry counts or classifier behavior for transient versus permanent errors, rather than assuming a larger budget helps.
+  - The returned explanation ties that counterevidence and the overbroad exception handler to the repair; merely mentioning root cause or claiming reassessment is insufficient.
+  - Manual review confirms existing tests/assertions were retained, and no mutation occurred before the required skill load through a shell, alternate tool, or helper.

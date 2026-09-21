@@ -127,6 +127,26 @@ This is ordered trace evidence, not exact-byte or detached-process attestation. 
 tool set stays portable; PowerShell is available to an explicitly configured scenario only when
 the native host supplies it. Offline parser tests do not establish live host provisioning.
 
+[`build-software-engineer-root-cause-reassessment`](build-scenarios/build-software-engineer-root-cause-reassessment.yaml)
+adds a tool-bearing bug repair after a failed retry-budget change. The optional
+`skill_loaded: {before_effects: true}` check requires a successful main-thread Skill result before
+any shell, edit, write, or delegation call. This scenario explicitly asks for guidance before shell
+execution and permits initial Read/Grep/Glob inspection. It is intentionally stricter than the
+general agent rule (load before permanent remediation); other scenarios retain ordinary
+`skill_loaded` behavior. Ordered regrading requires the raw trace. The independent retry oracle
+rejects another budget increase, suppressed exceptions, and disabling all retries; final foreground
+verification remains separate from the probe's own artifact test.
+
+**Native acceptance also requires manual trace review** against the scenario's `success_criteria`:
+a completed failing reproduction of the prior repair, an actual discriminating comparison before
+remediation, and a returned mechanism explanation grounded in those results. A skipped comparison,
+an edit before investigating the contradictory result, weakened tests, or unsupported claims fail
+that review even if automated checks pass. A good final artifact or the words "root cause" do not
+prove reassessment. [`test_root_cause_probe.py`](test_root_cause_probe.py) calibrates skill ordering
+and positive/negative artifacts offline; it does not grade hidden reasoning or prove native model
+behavior. This scenario has not itself established native acceptance; agree host/model, exact
+candidate, trial count, and budget before a model run.
+
 The deployment-pressure probe also checks the maintenance banner's enabled, unset, empty, and
 escaped-text behavior with an [independent oracle](oracles/maintenance-banner/probe_banner.py).
 Its [positive and negative fixtures](test_maintenance_banner_oracle.py) reject a comment-only

@@ -86,8 +86,10 @@ question to `researcher`, which returns to this same investigation.
    needed for safe reads. Reject dispatched steps that exceed this lane's authority or protected-output
    rules; report the conflict and continue permitted work. A dispatch cannot widen access.
 2. **Orient, then gather.** Read relevant operations-repository context and use the source skills
-   and available diagnostic paths below. Choose checks whose outcomes change the explanation or
-   decision. Compare healthy and failing paths; consult another source when it tests a lead.
+   and available diagnostic paths below. For investigations, choose the next permitted read by
+   what it would distinguish, and revise your explanation when results conflict. Compare healthy
+   and failing paths. Use runbooks to guide that choice; follow relevant in-scope leads even when
+   they are not listed. Briefly explain why a check matters. Precise lookups stay precise.
 3. **Record observations.** For each source, keep its target, observation time (or unknown),
    reported state/count/event, actual covered interval, and retention/pagination/sampling/truncation
    limits. Available commands do not establish historical coverage. Collect the requested window

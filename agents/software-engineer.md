@@ -199,6 +199,19 @@ slots and repeated process narration; combine related slots for direct human rep
 delegated return header when applicable and **Findings response** whenever findings were routed
 to you. Compression must preserve material assumptions, gaps, and risks.
 
+### Illustrative direct-human report
+
+This fictional example demonstrates the explanation, not evidence to reuse:
+
+> The backup job now reports failure after exhausting retries. Previously, that path returned
+> success, which could hide a failed backup from the job monitor. The fix is in
+> `scripts/backup.py:44`; its regression is in `tests/test_backup.py:22`.
+>
+> The regression failed on the original code with `AssertionError: exit 0 != 1`, then passed
+> after the repair. `python -m unittest discover -s tests -t . -v` reported `Ran 3 tests` and `OK`.
+> This verifies the simulated failure path and exit status; notification delivery and behavior
+> against an unreachable NAS remain untested.
+
 ## Ladder position
 
 On an above-builder trigger below, load `eng-ladder` and its matching tier. Return the named

@@ -385,6 +385,8 @@ def validate_scenario(spec: object, *, where: str = "scenario") -> list[str]:
                     continue
                 if check["check"] == "verification_completed" and check.get("runner") not in {"unittest", "pytest", "vitest"}:
                     problems.append(f"{where}: checks[{i}] verification_completed needs runner unittest, pytest, or vitest")
+                if check["check"] == "skill_loaded" and "before_effects" in check and not isinstance(check["before_effects"], bool):
+                    problems.append(f"{where}: checks[{i}] before_effects must be boolean")
                 writes_from = check.get("writes_from")
                 shape = _writes_from_shape_problem(writes_from) if writes_from is not None else None
                 if shape:
@@ -1322,6 +1324,7 @@ class TraceSummary:
     session_id: str = ""
     init_session_ids: list[str] = field(default_factory=list)
     main_skills: list[str] = field(default_factory=list)
+    main_skills_before_effects: list[str] = field(default_factory=list)
     agent_returns: list[dict] = field(default_factory=list)
     conversation_sessions: list[str] = field(default_factory=list)
     parent_reads_before_dispatch: list[dict] = field(default_factory=list)
@@ -1495,10 +1498,14 @@ def parse_trace(path: Path) -> TraceSummary:
                              if isinstance(inp.get(f), str)), None)
                 read_uses.append((str(block.get("id") or ""), name, path, ev.get("parent_tool_use_id"), position))
     first_dispatch = min((issued for _, _, parent, issued in agent_uses if not parent), default=math.inf)
+    first_effect = min((call["issued"] for call in s.effect_calls), default=math.inf)
     for use_id, skill_name, parent, issued in skill_uses:
         (s.skills if use_id in clean_result_ids else s.skills_failed).append(skill_name)
         if not parent and use_id in clean_result_ids:
             s.main_skills.append(skill_name)
+            if (issued < clean_result_ids[use_id] < first_effect
+                    and use_id not in errors_by_id and use_id not in asynchronous):
+                s.main_skills_before_effects.append(skill_name)
             if issued < clean_result_ids[use_id] < first_dispatch and use_id not in errors_by_id:
                 s.parent_skills_before_dispatch.append(skill_name)
     for use_id, agent_name, parent, issued in agent_uses:
@@ -2171,6 +2178,13 @@ def check_skill_not_loaded(ctx: Context, p: dict) -> tuple[bool, str]:
 
 
 def check_skill_loaded(ctx: Context, p: dict) -> tuple[bool, str]:
+    if p.get("before_effects"):
+        # Deliberately stricter than "before edits": shell effects cannot be inferred safely.
+        # Scenarios selecting this must explicitly require pre-shell loading.
+        hits = [s for s in ctx.trace.main_skills_before_effects
+                if s in {p["skill"], "save-toolkit:" + p["skill"]}]
+        return bool(hits), (f"{p['skill']} completed on the main thread before any potentially mutating call: {bool(hits)}"
+                            + _attempted_suffix(ctx, p["skill"]))
     hits = [s for s in ctx.trace.skills if s.endswith(p["skill"])]
     return bool(hits), (f"{p['skill']} loaded {len(hits)}x; loads: {sorted(set(ctx.trace.skills))}"
                         + _attempted_suffix(ctx, p["skill"]))
@@ -2641,6 +2655,7 @@ def parse_trial_trace(run_dir: Path) -> TraceSummary:
     if followup.is_file():
         traces.append(parse_trace(followup))
     merged = replace(traces[-1], main_skills=traces[0].main_skills,
+                     main_skills_before_effects=traces[0].main_skills_before_effects,
                      parent_reads_before_dispatch=traces[0].parent_reads_before_dispatch,
                      parent_skills_before_dispatch=traces[0].parent_skills_before_dispatch,
                      conversation_sessions=[trace.session_id for trace in traces])
@@ -3045,7 +3060,8 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
             (ws.repo / ".agents").mkdir(parents=True)
         ctx = Context(spec, ws, trace, git, plugin_root=plugin_root)
         inconclusive = live_grade.get("inconclusive", summary.get("inconclusive")) or native_problem
-        if reparsed is None and any(c.get("check") == "verification_completed" for c in spec.get("checks", [])):
+        if reparsed is None and any(c.get("check") == "verification_completed" or c.get("before_effects")
+                                   for c in spec.get("checks", [])):
             inconclusive = "raw trace required for ordered verification evidence; re-run the trial"
         if required_rubrics(spec) and (not saved_binding or live_grade.get("response_sha256") != rubric_judge._digest(trace.result_text)):
             inconclusive = "saved judge binding or judged response identity is missing or changed; re-run the trial"
