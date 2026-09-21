@@ -558,8 +558,9 @@ _CF_READ = frozenset({"app", "events", "logs", "target", "revisions"})
 # print-access-token` / `print-identity-token` / `application-default print-access-token` and
 # `gcloud secrets versions access` print live credentials or secret payloads to an agent that also
 # holds egress — the `cf env` shape again — and are not on the list, like every unlisted path.
-# `config list` / `config get-value` are the `cf target` analog: they print the active project,
-# region, and account NAME, not credentials. Release-track prefixes (`gcloud beta …`) shift the
+# Configuration can contain credentials. Only exact reads of reviewed noncredential target
+# properties are permitted; broad listings and authentication identity are excluded.
+# Release-track prefixes (`gcloud beta …`) shift the
 # positional path and deny — fail-loud, add the exact tracked path if a read genuinely needs it.
 # A flag value passed as a separate token (`--limit 50`) lands AFTER the matched prefix and is
 # inert. A flag BEFORE the command path is denied outright in _gcloud_allowed: the space-separated
@@ -573,8 +574,10 @@ _GCLOUD_READ_PREFIXES = (
     ("run", "revisions", "list"), ("run", "revisions", "describe"),
     ("logging", "read"), ("logging", "logs", "list"),
     ("projects", "describe"),
-    ("config", "list"), ("config", "get-value"),
 )
+_GCLOUD_TARGET_PROPERTIES = frozenset({
+    "project", "core/project", "run/region", "compute/region", "compute/zone",
+})
 # Flags that make even an allowed gcloud read something we refuse to vouch for:
 # `--impersonate-service-account` performs the read AS another identity (an access-path lever, not
 # a read), and `--flags-file` loads more flags from a file the guard never sees — the same
@@ -811,6 +814,10 @@ def _gcloud_allowed(args: list[str]) -> bool:
         return False
     if _carries_flag(args, _GCLOUD_DENY_FLAGS, frozenset()):
         return False
+    if args[0] == "config":
+        # No section/wildcard listings, alternate configurations, formatting or debug flags.
+        return (len(args) == 3 and args[1] in {"list", "get-value"}
+                and args[2] in _GCLOUD_TARGET_PROPERTIES)
     positionals = tuple(_positionals(args))
     return any(
         positionals[: len(prefix)] == prefix for prefix in _GCLOUD_READ_PREFIXES
@@ -1115,6 +1122,9 @@ def _gcloud_credential_reason(words: list[str]) -> "str | None":
     if not words:
         return None
     head, rest = words[0], words[1:]
+    if head == "config" and rest and rest[0] in {"list", "get-value", "get"}:
+        if len(rest) != 2 or rest[1] not in _GCLOUD_TARGET_PROPERTIES:
+            return "`gcloud config` reads must select one reviewed noncredential target property"
     if head == "auth" and any(
         word in ("print-access-token", "print-identity-token") for word in rest
     ):

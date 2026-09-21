@@ -216,7 +216,7 @@ ALLOWED = [
     "grep ERROR \"${LOGFILE}\"",
     "gcloud logging logs list",
     "gcloud projects describe my-project",
-    "gcloud config list",
+    "gcloud config list project",
     "gcloud config get-value project",
     "gcloud run services list | grep -e checkout",
     # DNS triage (egress-shaped; structure rules still kill tunneling forms like `dig $(...)`)

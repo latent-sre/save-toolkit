@@ -59,7 +59,8 @@ its result boundary, not all host processes, files or other tools; retain the ho
 protections and do not claim OS isolation. Private telemetry remains private evidence.
 
 Substitute the actual installed path and discovered UIDs. The dashboard form works in both shells.
-The direct query examples below are for **Bash**; do not use raw `--expr` through native PowerShell:
+The raw `--expr` query examples below are for **Claude Code's Bash tool**. PowerShell uses the
+wrapper below; Copilot's command preview uses the encoded form in its dedicated section.
 
 ```text
 python -I -S "<absolute-installed-path>/grafana_read.py" dashboard --uid dashboard-uid
@@ -98,6 +99,21 @@ out failures outside sampled coverage. Query-level errors count as failure even 
 Exit 0 means the selected API operation succeeded, not that the investigation is complete. Exit 2
 returns a safe error category. Missing authentication or unsupported data is a gap; continue browser
 or supplied evidence rather than rewriting the helper during an incident.
+
+### Copilot command-preview queries
+
+After the preview's host prerequisites pass, use `--expr-base64` for direct Python queries on
+**every terminal shell**, including Bash on macOS. The hook cannot establish which shell the
+terminal uses, so it rejects raw `--expr` everywhere. For example, `dXA=` encodes the UTF-8 query `up`:
+
+```text
+python -I -S "<absolute-installed-path>/grafana_read.py" query --datasource metrics-uid --kind prometheus --from 1758400000000 --to 1758403600000 --expr-base64 dXA=
+```
+
+Use an exact encoding supplied by trusted tooling; do not invent or alter an encoded query.
+In a confirmed PowerShell terminal, the installed wrapper above performs that encoding internally.
+If neither path is available, report the missing query path and continue independent evidence.
+This adds no terminal grant to the standard Copilot profile and does not authorize an encoder script.
 
 ## Supported native observations
 

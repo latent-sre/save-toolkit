@@ -15,15 +15,40 @@ WRAPPER = f"& '{HELPER.with_suffix('.ps1').as_posix()}'"
 PS_QUERY = "-Datasource logs -Kind loki -From 1758400000000 -To 1758403600000 -Expr '{service=\"edge\"} |= \"error\"'"
 
 
-def decision(command, tool):
+def decision(command, tool, *, copilot=False):
+    payload = {"tool_name": tool, "tool_input": {"command": command}}
+    if not copilot:
+        payload["agent_type"] = "save-toolkit:sre-assistant"
     result = subprocess.run(
-        [sys.executable, "-I", "-S", str(GUARD)],
-        input=json.dumps({"agent_type": "save-toolkit:sre-assistant", "tool_name": tool,
-                          "tool_input": {"command": command}}),
+        [sys.executable, "-I", "-S", str(GUARD), *(["--copilot"] if copilot else [])],
+        input=json.dumps(payload),
         text=True, capture_output=True, timeout=10,
     )
     assert result.returncode in (42, 43), result.stderr
     return result.returncode
+
+
+def test_documented_copilot_query_passes_shell_independent_guard():
+    reference = (ROOT / "skills/grafana/references/command-access.md").read_text(encoding="utf-8")
+    assert "### Copilot command-preview queries\n" in reference, "Missing shell-independent Copilot query guidance"
+    section = reference.split("### Copilot command-preview queries\n", 1)[1]
+    command = section.split("```text\n", 1)[1].split("\n```", 1)[0]
+    command = command.replace("<absolute-installed-path>/grafana_read.py", HELPER.as_posix())
+    assert decision(command, "execute/runInTerminal", copilot=True) == 42
+
+
+@pytest.mark.parametrize("arguments,expected", [
+    ("--expr 'up'", 43),
+    ('--expr \'{service="edge"} |= "error"\'', 43),
+    ("--expr-base64 dXA=", 42),
+    ("--expr-base64 " + base64.b64encode(b'{service="edge"} |= "error"').decode(), 42),
+    ("--expr-base64 !", 43),
+    ("--expr-base64 " + base64.b64encode(b"$__interval").decode(), 43),
+    ("--expr-base64 dXA=; cf restart edge", 43),
+])
+def test_copilot_query_transport_keeps_shell_and_expression_checks(arguments, expected):
+    command = f"{PREFIX} query --datasource logs --kind loki --from 1000 --to 61000 {arguments}"
+    assert decision(command, "execute/runInTerminal", copilot=True) == expected
 
 
 @pytest.mark.parametrize("tool", ["Bash", "PowerShell"])
