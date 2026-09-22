@@ -599,6 +599,17 @@ class FleetValidatorTests(unittest.TestCase):
         )
         self.assertIn("forbidden tool(s): Read", "\n".join(failures))
 
+    def test_external_researcher_can_load_githits_guidance_without_skills(self) -> None:
+        fields, _, _ = validate_fleet.adapters.parse_frontmatter(ROOT / "agents/researcher.md")
+        grants = validate_fleet._tool_bases(validate_fleet._tool_specs(fields["tools"]))
+        bootstrap = "mcp__plugin_githits_githits__quick_start"
+        self.assertIn(bootstrap, grants)
+        self.assertNotIn("Skill", grants)
+        failures = _agent_failures_after_edit(
+            "researcher.md", lambda text: text.replace(f"  - {bootstrap}\n", ""),
+        )
+        self.assertIn(f"missing required tool(s): {bootstrap}", "\n".join(failures))
+
     def test_local_agent_direct_web_access_is_rejected(self) -> None:
         # Anchor on the tools line: adjacent tool names previously drifted and made this a no-op.
         failures = _agent_failures_after_edit(

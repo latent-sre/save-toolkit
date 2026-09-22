@@ -290,6 +290,31 @@ class PlatformAdapterTests(unittest.TestCase):
                         self.assertIn("human-selected handoff", handoff["prompt"])
                         self.assertIn("Do not imply automatic return", handoff["prompt"])
 
+    def test_sre_incident_closeout_handoff_preserves_the_authorized_artifact(self) -> None:
+        handoff = next(
+            item for item in self._copilot_handoffs("sre-assistant") or []
+            if item["agent"] == "scribe"
+        )
+        prompt = handoff["prompt"]
+        self.assertRegex(
+            prompt,
+            r"For full incident closeout, .*postmortem first, then .*knowledge dispositions",
+        )
+        self.assertIn("requested primary artifact", prompt)
+        self.assertIn("same Follow-ups record", prompt)
+        self.assertRegex(
+            prompt,
+            r"For a knowledge-only request, .*knowledge closeout mode .*do not add a postmortem",
+        )
+        self.assertIn("explicitly approved", prompt)
+        self.assertIn("Re-establish that the incident is resolved", prompt)
+        self.assertIn("preserve evidence labels and the technical record", prompt)
+        self.assertIn(
+            "If resolution, approval, or checkout binding is absent, report the gap without writing",
+            prompt,
+        )
+        self.assertIs(handoff["send"], True)
+
     def test_copilot_handoffs_are_independent_of_model_called_subagents(self) -> None:
         self.assertNotIn("sre-assistant", self._copilot_agents("observability-engineer") or [])
         self.assertEqual(["software-engineer"], [

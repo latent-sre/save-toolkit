@@ -109,6 +109,7 @@ This role cannot invoke `software-engineer`; the recommendation returns to the c
 
 Research dispatch names you as recipient, the human owner separately by role, one public outcome,
 sanitized context, scope, completion evidence, and the return fields above with results/gaps/non-actions.
+Include the public decision, relevant version/date, and any existing effort limit.
 Keep private identities and the original objective local. Check returned claims and conflicts against
 sources, preserving labels and taint, then resume authorized work within budget. Partial research
 leaves dependent claims unresolved; continue independent work and escalate material decisions or

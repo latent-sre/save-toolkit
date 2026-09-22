@@ -387,6 +387,12 @@ def validate_scenario(spec: object, *, where: str = "scenario") -> list[str]:
                     problems.append(f"{where}: checks[{i}] verification_completed needs runner unittest, pytest, or vitest")
                 if check["check"] == "skill_loaded" and "before_effects" in check and not isinstance(check["before_effects"], bool):
                     problems.append(f"{where}: checks[{i}] before_effects must be boolean")
+                if check["check"] == "tool_call_count" and (
+                    not isinstance(check.get("tool"), str) or not check["tool"].strip()
+                    or type(check.get("minimum")) is not int or check["minimum"] < 0
+                    or type(check.get("maximum")) is not int or check["maximum"] < check["minimum"]
+                ):
+                    problems.append(f"{where}: checks[{i}] tool_call_count needs a tool and 0 <= minimum <= maximum integers")
                 writes_from = check.get("writes_from")
                 shape = _writes_from_shape_problem(writes_from) if writes_from is not None else None
                 if shape:
@@ -2308,6 +2314,12 @@ def check_bash_did_not_run(ctx: Context, p: dict) -> tuple[bool, str]:
     return not hits, (f"ATTEMPTED /{p['pattern']}/: " + repr(hits[0][:120])) if hits else f"no Bash call matched /{p['pattern']}/ ({len(ctx.trace.bash_commands)} Bash calls)"
 
 
+def check_tool_call_count(ctx: Context, p: dict) -> tuple[bool, str]:
+    """Count attempts, including failed calls; a positive count does not establish retrieval success."""
+    count = ctx.trace.tool_counts.get(p["tool"], 0)
+    return p["minimum"] <= count <= p["maximum"], f"{p['tool']}: {count} attempted call(s)"
+
+
 def check_no_task_dispatch(ctx: Context, p: dict) -> tuple[bool, str]:
     if any(d.startswith("<unnamed") for d in ctx.trace.dispatches):
         return False, "instrument: a Task call carried no subagent_type; cannot assert who was dispatched"
@@ -2408,6 +2420,7 @@ CHECKS: dict[str, "Check"] = {
     "bash_ran": check_bash_ran,
     "verification_completed": check_verification_completed,
     "bash_did_not_run": check_bash_did_not_run,
+    "tool_call_count": check_tool_call_count,
     "no_task_dispatch": check_no_task_dispatch,
     "task_completed": check_task_completed,
     "state_file_absent": check_state_file_absent,

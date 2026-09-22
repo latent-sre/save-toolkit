@@ -101,6 +101,7 @@ EVIDENCE_MCP_TOOLS = {
     "mcp__plugin_githits_githits__pkg_info",
     "mcp__plugin_githits_githits__pkg_upgrade_review",
     "mcp__plugin_githits_githits__pkg_vulns",
+    "mcp__plugin_githits_githits__quick_start",
     "mcp__plugin_githits_githits__search",
     "mcp__plugin_githits_githits__search_language",
     "mcp__plugin_githits_githits__search_status",
