@@ -1,0 +1,13 @@
+id: discovery-reliability-defers-accepted-implementation
+split: regression
+prompt: |
+  The service owner has accepted the reviewed design and assigned this implementation: propagate
+  the request deadline through the checkout worker, cancel the ledger call, add focused tests, and
+  run the suite. Change the application code now; no further design assessment is requested.
+target: {kind: agent, name: reliability-engineer}
+routing:
+  expect: not_fire
+  expected_alternative: {kind: agent, name: software-engineer}
+tools: [Glob, Grep, Read, Skill, Task]
+success_criteria:
+  - Routes accepted application implementation to software-engineer rather than reopening design.

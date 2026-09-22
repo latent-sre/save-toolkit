@@ -1,0 +1,11 @@
+id: discovery-resilience-analysis
+split: regression
+prompt: |
+  Assess whether the proposed worker design can tolerate a slow downstream system, queue growth
+  and redelivery after a partial write. Identify the actual protection mechanisms and what evidence
+  would distinguish a real weakness from an already-contained failure. No incident is active.
+target: {kind: skill, name: resilience-analysis}
+routing: {expect: fire}
+success_criteria:
+  - Uses failure propagation and existing controls to assess the proposed design.
+  - Distinguishes source-supported risk from observed runtime failure.

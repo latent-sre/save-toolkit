@@ -1,0 +1,11 @@
+id: discovery-toil-reduction
+split: regression
+prompt: |
+  Our team repeatedly handles the same operational tickets. Compare removing the task, simplifying
+  it and automating it. Include frequency, human effort, rework and the maintenance burden that
+  would move to the development team. Tell me how to measure whether the chosen change helped.
+target: {kind: skill, name: toil-reduction}
+routing: {expect: fire}
+success_criteria:
+  - Compares total operational work and alternatives before recommending automation.
+  - Retains uncertainty in frequency, effort and future maintenance estimates.

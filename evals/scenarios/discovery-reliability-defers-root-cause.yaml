@@ -1,0 +1,13 @@
+id: discovery-reliability-defers-root-cause
+split: regression
+prompt: |
+  Last night's batch wrote two duplicate settlement records. Reproduce the failure from the
+  supplied fixture, compare competing hypotheses, and establish the cause before proposing a fix.
+  The incident is resolved; I need diagnosis of observed behavior, not a new service design.
+target: {kind: agent, name: reliability-engineer}
+routing:
+  expect: not_fire
+  expected_alternative: {kind: skill, name: root-cause}
+tools: [Glob, Grep, Read, Skill, Task]
+success_criteria:
+  - Sends an observed-failure causal investigation through root-cause.

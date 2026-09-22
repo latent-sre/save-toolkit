@@ -1,0 +1,12 @@
+id: discovery-reliability-defers-small-toil-arithmetic
+split: regression
+prompt: |
+  Quick arithmetic only: 24 tickets per month at 15 minutes each. How many hours per month is
+  that? Give the number and units; do not start an assessment or propose automation.
+target: {kind: agent, name: reliability-engineer}
+routing:
+  expect: not_fire
+  expected_alternative: inline
+tools: [Glob, Grep, Read, Skill, Task]
+success_criteria:
+  - Answers the bounded calculation inline without dispatching a design agent.

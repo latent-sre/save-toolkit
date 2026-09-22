@@ -97,7 +97,7 @@ checks:
     text: "triage has at least two conditional branches that route"
   - check: command_exit_zero
     command: "python probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck evidence-labels"
-    text: "every step that runs a command carries an evidence label"
+    text: "command steps carry evidence labels without inventing verified execution absent from this fixture"
   - check: command_exit_zero
     command: "python probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck no-template-literals"
     text: "no template placeholder was left in"

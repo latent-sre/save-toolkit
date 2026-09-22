@@ -250,7 +250,9 @@ def rule_triage_routes(text: str, alert: str) -> str | None:
 
 
 def rule_evidence_labels(text: str, alert: str) -> str | None:
-    """Every step that runs a command carries a label saying what stands behind that command."""
+    """Command steps need labels; this fixture supplies no incoming verified claims anywhere."""
+    if re.search(r"\[verified(?:\s*:|\])", text, re.I):
+        return "fixture has no incoming verified claims; verified labels are not permitted"
     body = section(text, "Triage") + section(text, "Procedure")
     unlabeled = [title(s) for s in steps(body) if commands(s).strip() and not LABEL.search(s)]
     if not LABEL.search(text):

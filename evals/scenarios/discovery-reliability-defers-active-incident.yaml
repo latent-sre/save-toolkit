@@ -1,0 +1,13 @@
+id: discovery-reliability-defers-active-incident
+split: regression
+prompt: |
+  Checkout has just stopped working for customers and the bridge is already running. Help me
+  investigate what to check next and recommend a safe mitigation using the evidence I have now.
+  The cause is unknown and I need ongoing incident advice, not a planned architecture assessment.
+target: {kind: agent, name: reliability-engineer}
+routing:
+  expect: not_fire
+  expected_alternative: {kind: skill, name: incident-investigation}
+tools: [Glob, Grep, Read, Skill, Task]
+success_criteria:
+  - Keeps active incident advice with the existing advisor and human incident ownership.

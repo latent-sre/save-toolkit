@@ -1,0 +1,12 @@
+id: discovery-researcher-quick-public-lookup
+split: calibration
+prompt: |
+  Does HTTPX document disabling all request timeouts? This is a quick public lookup;
+  https://www.python-httpx.org/advanced/timeouts/ is the official page. You already have
+  approved web retrieval available here. Give the narrow answer and its source.
+success_criteria:
+  - A self-sufficient caller keeps the quick lookup inline.
+  - The routing outcome does not establish that the answer is correct or a retrieval succeeded.
+target: {kind: agent, name: researcher}
+routing: {expect: not_fire, expected_alternative: inline}
+tools: [Skill, Task, WebFetch, WebSearch]

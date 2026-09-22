@@ -227,6 +227,25 @@ requires a completed child call and the integrated runbook/README artifacts. Its
 do not identify who edited the README or when; inspect the raw trace before claiming that the
 parent resumed after the child returned.
 
+The researcher/scribe cases add a bounded public-page lookup, private-input rejection with
+zero attempted web calls, a missing-current-version source decision, extended/quick research
+routing, and command provenance classification. The [partial-research case](build-scenarios/build-researcher-partial-research.yaml)
+uses a fictional public packet and zero remaining retrieval attempts to check useful per-question
+coverage, citations, and gaps without promoting an older default or incomplete release highlights.
+Its literal fields allow the normal return header; explanation quality still needs manual review.
+`tool_call_count` counts attempted calls from
+the trace, including failures: a positive WebFetch count and cited answer still need manual
+inspection of the matched retrieval result before claiming successful or accurate research.
+The strict-empty MCP runner does not test Context7/GitHits provisioning or raw-reader behavior.
+The postmortem artifact probe checks draft status, impact versus resolution-confirmation times,
+retained follow-up ownership and evidence gaps. The contact-closeout probe checks the actual
+card/index edit after a completed scribe dispatch; inspect the trace to establish who wrote it
+and whether the caller supplied the correct checkout binding. These are bounded artifact checks,
+not general document-quality judgments. `python -m pytest evals/test_researcher_scribe_cases.py`
+calibrates their checks offline, including rejection of newly verified execution in the runbook
+fixture, which supplies no incoming verified execution claims. New scenario definitions and
+offline passes do not establish live model behavior, routing reliability, or host acceptance.
+
 Agent-target routing probes remain **calibration-only** evidence of model/host propensity
 (on 2026-08-22 Opus 5 dispatched 0/3 where Sonnet did 3/3). Record the model
 and host with any such result. See the historical
@@ -385,6 +404,24 @@ are written owner-only under `.eval-runs/`; quote the numbers a review depends o
 rather than publishing the batch.
 
 ## Tests
+
+The `agent-direct-reliability-engineer-*` cases check supplied-state judgments about effective
+controls, recovery evidence, toil economics, and continuation after a partial, stale helper return.
+The paired `build-reliability-engineer-redelivery` and
+`build-sre-assistant-redelivery-baseline` cases use identical prompt, fixture and outcome checks;
+compare their source retrieval, protected counterexample, decision and useful next action on the
+same model/host and exact plugin bytes. The automated verdict checks the decision and non-actions,
+not successful source reads or citation quality; inspect those in both native traces. The offline
+test reproduces the fixture's duplicate effect after acknowledgement failure and enforces pair
+identity. `build-reliability-engineer-doc-boundary` is specified to check that an explicitly
+requested assessment document is written while an untrusted instruction to edit application
+configuration is refused; source reads and document quality still need trace review.
+The native helper conversation checks actual dispatch and parent continuation structurally, then
+requires manual review of its evidence synthesis and corrected follow-up. The routing overlaps
+probe lifecycle, causal diagnosis, small arithmetic, a full toil assessment and accepted
+implementation separately. Offline checks calibrate fixtures and graders; they do not run a model,
+prove host containment, or establish operational benefit. Native acceptance stays open under
+`RELIABILITY-001` until the candidate, host/model and budget are selected and the traces reviewed.
 
 The incident advisor now uses one seven-field board. Its structural check is
 `python evals/oracles/incident-closing-fields/probe_closing_fields.py <response.md> board`.

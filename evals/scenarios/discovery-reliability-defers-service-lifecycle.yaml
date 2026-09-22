@@ -1,0 +1,13 @@
+id: discovery-reliability-defers-service-lifecycle
+split: regression
+prompt: |
+  We are onboarding an existing service. Check whether its owner, critical dependencies, restore
+  record, runbook, and retirement contact are recorded in the required service card. Report missing
+  lifecycle coverage; I am not asking for a failure-path redesign.
+target: {kind: agent, name: reliability-engineer}
+routing:
+  expect: not_fire
+  expected_alternative: {kind: skill, name: service-lifecycle}
+tools: [Glob, Grep, Read, Skill, Task]
+success_criteria:
+  - Uses the existing lifecycle method for readiness inventory instead of a new design assignment.

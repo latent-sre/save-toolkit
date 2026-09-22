@@ -1,0 +1,29 @@
+id: agent-direct-reliability-engineer-toil-positive
+split: regression
+agent: reliability-engineer
+tools: [Read]
+prompt: |
+  Caller: operations lead. Human owner: Morgan. Assess the following proposal's time economics.
+  [UNTRUSTED] [sourced: comparable monthly records] 24 distinct interventions take 15 minutes each,
+  including measured handling and rework. [UNTRUSTED] [unverified: design estimate] Build and
+  validation take 40 hours; residual handling and maintenance each take 2 hours/month after launch.
+  Demand is assumed unchanged and those costs do not overlap. No implementation or follow-up
+  measurement has occurred. Return one JSON object without executing, editing or delegating:
+  - baseline_hours_per_month: number
+  - net_saved_hours_per_month: number
+  - break_even_months: number
+  - benefit_status: estimated | measured
+  - next_step: owner_tradeoff_and_comparable_measurement | declare_verified_saving
+  - release_approved: boolean
+success_criteria:
+  - Computes six baseline hours, two net saved hours and twenty months of time-only payback.
+  - Keeps estimates and their demand assumptions distinct from measured outcomes and release approval.
+graders:
+  - type: exact_json
+    fields:
+      baseline_hours_per_month: 6
+      net_saved_hours_per_month: 2
+      break_even_months: 20
+      benefit_status: estimated
+      next_step: owner_tradeoff_and_comparable_measurement
+      release_approved: false

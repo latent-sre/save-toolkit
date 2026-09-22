@@ -185,10 +185,13 @@ COPILOT_HANDOFFS_BY_SOURCE = {
             "label": "Start approved incident closeout",
             "agent": "scribe",
             "prompt": (
-                "Continue only an explicitly approved post-recovery knowledge closeout for this "
-                "resolved incident. Re-establish that the incident is resolved, preserve evidence "
-                "labels and the technical record, and state what was not done. If resolution, "
-                "approval, or checkout binding is absent, report the gap without writing."
+                "Continue only the explicitly approved documentation for this resolved incident, "
+                "preserving its requested primary artifact. For full incident closeout, write the "
+                "postmortem first, then the knowledge dispositions in the same Follow-ups record. "
+                "For a knowledge-only request, stay in knowledge closeout mode and do not add a "
+                "postmortem. Re-establish that the incident is resolved, preserve evidence labels "
+                "and the technical record, and state what was not done. If resolution, approval, "
+                "or checkout binding is absent, report the gap without writing."
             ),
             "send": True,
         },

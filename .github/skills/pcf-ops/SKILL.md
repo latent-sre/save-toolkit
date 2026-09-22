@@ -34,11 +34,16 @@ presentation. If the requested history is missing, obtain it through another per
 report the gap; absence from recent or incomplete records cannot exclude an event or cause.
 
 For `sre-assistant`, the command grant is limited to bare `cf target`, `cf app <app>`,
-`cf events <app>`, `cf logs <app> --recent`, and `cf revisions <app>`. Its authentication
-identity must be hidden before tool output reaches the model, including the username in target
-output; command approval alone does not supply that protection. Use an established protected read
-path or supplied Apps Manager evidence when it is unavailable. Existing SSO/session access is
-preferred; never request credentials in chat or retrieve CF credential files.
+`cf events <app>`, `cf logs <app> --recent`, and `cf revisions <app>` for the named app. No live
+tail, target-changing flags, inventory expansion, or remediation is implied. The guard checks
+command syntax; it does not bind the runtime target, mask output, or establish assignment scope.
+Confirm foundation/org/space through a protected masked result or caller-supplied sanitized target
+evidence before app reads. Authentication identity, including the username in target output, must
+be hidden before tool output reaches the model. Do not run raw `cf target` to discover whether
+masking exists. Without an established protected output path, do not run raw CF commands; request
+the needed Apps Manager view or sanitized observation instead. An absent or unauthenticated CLI is
+an access gap, never an observed platform failure. Existing SSO/session access is preferred; never
+request credentials in chat or retrieve CF credential files.
 
 ## Change and revision evidence
 
@@ -47,6 +52,7 @@ time; `cf events <app>` supplies recorded event times and actors, subject to out
 Neither alone establishes the prior droplet or environment configuration. For a rollback
 recommendation, obtain a credential-free authoritative deployment/configuration record; missing
 binding stays `[unverified]`. These reads do not authorize a rollback.
+Do not substitute singular `cf revision`, which can print environment variables.
 
 ## App-side vs platform-side (know your lane)
 

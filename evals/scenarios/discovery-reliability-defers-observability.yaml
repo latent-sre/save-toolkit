@@ -1,0 +1,12 @@
+id: discovery-reliability-defers-observability
+split: regression
+prompt: |
+  Create a Grafana dashboard and burn-rate alerts for the checkout SLO we already agreed on.
+  I need the monitoring implementation, not a redesign of the application's failure behavior.
+target: {kind: agent, name: reliability-engineer}
+routing:
+  expect: not_fire
+  expected_alternative: {kind: agent, name: observability-engineer}
+tools: [Glob, Grep, Read, Skill, Task]
+success_criteria:
+  - Keeps observability implementation with its existing owner.

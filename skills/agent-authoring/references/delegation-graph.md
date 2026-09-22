@@ -1,6 +1,6 @@
 # The delegation and handoff graphs
 
-The fleet has two directed graphs over the eight canonical agents. A model-call edge `A → B` is an
+The fleet has two directed graphs over the nine canonical agents. A model-call edge `A → B` is an
 `Agent(save-toolkit:B)` grant in `A`'s canonical `tools:` frontmatter and becomes Copilot `agents:` metadata. A
 VS Code handoff edge is a separate human-selected ownership transition emitted only by the Copilot
 generator. This file owns their distinction and change procedures.
@@ -30,6 +30,7 @@ Read the current edges from the validated roster table, not from memory.
 | Role | Agents | Why |
 |---|---|---|
 | Evidence orchestration | `reviewer` dispatches bounded local questions to `repository-investigator` and sanitized public questions to `researcher` | Helpers gather facts; reviewer retains severity and verdict |
+| Reliability assessment | `reliability-engineer` gathers local facts, protected observations and public research through its named evidence helpers | The assessment retains synthesis; implementation and independent review return to the caller |
 | Other orchestrators | `software-engineer` (build lane); `sre-assistant` dispatches only a sanitized public question to `researcher` | The lanes that dispatch work |
 | Universal sink | `researcher` | Every orchestrating lane reaches it for sanitized public fact-finding |
 | Terminal for model calls | `repository-investigator`, `scribe` | No `Agent` grant, so the model cannot dispatch onward; a user may still select a declared VS Code handoff, which starts a new owner without giving the source delegation authority |
