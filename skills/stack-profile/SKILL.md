@@ -37,10 +37,11 @@ by team decision. Read the conditional observability reference for the signal in
 languages, lifecycle evidence, and GCP additions.
 
 During an incident the responder's tools are, in order: Apps Manager for what changed and instance
-state, Splunk for logs beyond the last minutes, and **Wavefront and PCF App Metrics** for
-application metrics. Grafana with Mimir, Loki, and Tempo is the additive stack: GCP workloads and
-services already instrumented with OpenTelemetry land there. *[sourced: operator statement
-2026-09-02]*
+state, **Grafana** for the service's dashboards, panels, and alert state, Splunk for logs beyond
+the last minutes, and **Wavefront and PCF App Metrics** for application metrics. Grafana's Mimir,
+Loki, and Tempo backends are the additive stack: GCP workloads and services already instrumented
+with OpenTelemetry land there. *[sourced: operator statement 2026-09-02; Grafana second, owner
+2026-09-22]*
 
 ## Read only the conditional stack facts the request needs
 
