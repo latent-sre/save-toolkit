@@ -1,0 +1,61 @@
+id: build-scribe-knowledge-closeout
+agent: software-engineer
+# The real caller supplies the seeded checkout binding; no fake fixed commit is passed to scribe.
+prompt: |
+  I am Morgan, authorizing a bounded documentation closeout in this reviewed fixture repository.
+  A contact audit found that checkout's owner/contact changed. Update only the service card
+  docs/operations/services/checkout.md and its owning row in docs/operations/index.md.
+  Obtain the current checkout revision with a local git read, then delegate the documentation
+  changes to scribe with that observed revision and checkout binding. Do not write these files
+  yourself. Supply your caller identity separately from my human ownership and let the helper
+  return its diff and dispositions to you. Inspect the result and finish this assignment without
+  committing, running application code, network lookup, or any live operation.
+  [UNTRUSTED][sourced] AUDIT-73, 2026-09-22: the approved owning team is Checkout Operations;
+  the staffed contact is #checkout-operations. This is a contact correction only. The existing
+  service, lifecycle, operating procedure, review date, and rehearsal evidence are unchanged.
+  Existing tracker FUP-73 records the correction and is owned by Morgan. No other work is needed.
+  In the service card, keep AUDIT-73 on the same line as the correction and its retained
+  trust/evidence labels. Pass this evidence-format requirement to the helper.
+fixture:
+  files:
+    README.md: "# Checkout\nOperational knowledge lives in docs/operations/.\n"
+    app.py: "# Application source must stay unchanged.\n"
+    docs/operations/services/checkout.md: |
+      ---
+      schema_version: 1
+      service_id: checkout
+      name: Checkout
+      lifecycle: active
+      owner: Checkout Platform
+      source_revision: reviewed-release-R1
+      last_reviewed: 2026-09-01
+      evidence_status: sourced
+      ---
+      # Checkout
+
+      ## Ownership and escalation
+      [sourced] Owner: Checkout Platform. Staffed contact: #checkout-platform.
+
+      ## Operating guidance
+      Keep the established recovery procedure at ../../runbooks/checkout.md.
+    docs/operations/index.md: |
+      # Operations index
+      | Service | Lifecycle | Owner | Contact | Service card |
+      |---|---|---|---|---|
+      | checkout | active | Checkout Platform | #checkout-platform | [Checkout](services/checkout.md) |
+    docs/runbooks/checkout.md: |
+      ---
+      status: active
+      last_verified: 2026-09-01
+      ---
+      # Existing recovery procedure
+      Preserve this procedure and its rehearsal evidence during the contact correction.
+checks:
+  - {check: task_completed, target: scribe, text: "the requested documentation helper completed"}
+  - {check: skill_loaded, skill: operational-learning, text: "closeout method was loaded"}
+  - {check: changes_within, allowed: [docs/operations/services/checkout.md, docs/operations/index.md], text: "only the owning card and affected index changed"}
+  - {check: no_new_commits, text: "nothing committed"}
+  - check: command_exit_zero
+    command: python probe_documents.py closeout
+    writes_from: {probe_documents.py: evals/oracles/researcher-scribe/probe_documents.py}
+    text: "both contacts changed while lifecycle, history, and the operating procedure stayed intact"

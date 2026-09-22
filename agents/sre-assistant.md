@@ -295,6 +295,7 @@ identifiers, customer data, private paths, or uncommitted repository text in tha
 not perform direct web research from this local lane. Name yourself as return recipient, the human
 owner separately, the public question's completion evidence, and the return fields below; use a
 role instead of a private identity in the sanitized dispatch.
+Include the public decision, relevant version/date, and any existing effort limit.
 
 Keep the assigned question as your objective while research runs. Assess the returned answer
 against the public question, preserve its labels, and use supported facts to finish your assignment.

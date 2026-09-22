@@ -50,9 +50,11 @@ and outcome. Otherwise leave it unchanged and label the rehearsal `[unverified]`
   (`last_reviewed`, `last_verified`) start `null`;
   only human/authorized document review changes `last_reviewed`, and only bound rehearsal evidence
   changes `last_verified`.
-- **Preserve command evidence before publishing** — use only supplied, authorized execution evidence
-  for command claims. If that evidence is absent, mark the command `[unverified]`; never execute from
-  this documentation lane, including a read-only command, merely to confirm syntax or output.
+- **Preserve command evidence before publishing** — keep `[sourced]` syntax from cited documentation
+  separate from execution on the named target. Retain `[verified]` execution only from an incoming
+  authorized record binding the exact command, target, actor and result. Without it, execution stays
+  `[unverified]`; an unsourced command also stays `[unverified]`. Never execute from this documentation
+  lane, including a read-only command, merely to confirm syntax or output.
 
 ## Before you publish — read it back as the responder
 

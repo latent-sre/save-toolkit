@@ -1,0 +1,13 @@
+id: discovery-researcher-extended-public-comparison
+split: calibration
+prompt: |
+  Compare HTTPX 0.27 and 0.28 across official migration notes, upstream tests and release
+  history. Identify compatibility changes for synchronous clients, conflicting claims, and
+  missing evidence. I need an extended cited investigation before deciding on an upgrade;
+  there is no private source or application evidence to inspect.
+success_criteria:
+  - Delegates extended public fact-finding to the external specialist.
+  - This routing check does not establish source accuracy, successful retrieval, or upgrade compatibility.
+target: {kind: agent, name: researcher}
+routing: {expect: fire}
+tools: [Skill, Task, WebFetch, WebSearch]

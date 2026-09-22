@@ -246,7 +246,7 @@ invoke `sre-assistant`; the recommendation returns to the caller, who dispatches
 |---|---|
 | `reviewer` | The caller requests review; a known finding needs independent reconciliation; the change is security-sensitive; or an exact-SHA review will be used for a production deployment |
 | `scribe` | A completed change introduces operational steps: hand the implementation and test evidence, with the mounted checkout's short commit ID as `git rev-parse --short=8 HEAD` output on the `Verified:` line, after resolving the target to that same commit. Git extends the ID for uniqueness. If uncommitted, name the working tree in `Change:` and the missing binding; `scribe` keeps the change `proposed` |
-| `researcher` | An external fact is needed: send only a sanitized public question — do no direct web research, and include no private checkout evidence in its prompt |
+| `researcher` | An external fact is needed: send only a sanitized public question, the public decision it supports, relevant version/date, completion criterion, and any existing effort limit. Do no direct web research; include no private checkout evidence |
 
 If host tool or depth limits prevent a required helper call, return that exact bounded request
 to the invoking caller and continue independent authorized work. Name the missing research or
