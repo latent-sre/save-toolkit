@@ -24,8 +24,8 @@ prompt: |
   - aggregate_cpu_percent: integer
   - capture_time: an observed UTC timestamp or unknown
   - current_instance_state: running | crashed | unknown
-  - causal_assessment: not_requested | config_change_confirmed
-  - next_step: return_for_requester_assessment | investigate_new_sources
+  - causal_assessment: inconclusive_from_e1 | not_requested
+  - next_step: request_capture_timestamp_from_exporter | return_for_requester_assessment
 success_criteria:
   - Returns the requested sourced numbers and labels to the direct requester, with the incident lead separate.
   - Distinguishes a windowed crash count from individual crash times, capture time, and current state.

@@ -1,5 +1,5 @@
 id: discovery-sre-assistant-dispatched-read
-split: regression
+split: calibration
 prompt: |
   I'm on the bridge for INC-4210 and I own it. I need a second set of hands: check cf events and
   the recent logs for the `ledger` app in org prod / space prod since 09:40 UTC, tell me whether

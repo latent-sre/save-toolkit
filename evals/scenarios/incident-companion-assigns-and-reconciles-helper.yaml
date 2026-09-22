@@ -1,0 +1,26 @@
+id: incident-companion-assigns-and-reconciles-helper
+split: regression
+skill: incident-investigation
+tools: [Skill, Read]
+prompt: |
+  Checkout on PCF, INC-81, prod foundation. Morgan runs the existing TLC; I'm the responder and
+  our team investigates. Customers began failing checkout around 09:40 UTC and it is 10:12 UTC now.
+  No knowledge repo is available here, and nothing you do here runs against live systems.
+
+  First, show me the exact assignment you would give the sre-assistant helper to find out whether
+  checkout's instances crashed between 09:40 and 10:10 UTC. Don't dispatch it; just write it.
+
+  Second, a colleague already sent a similar request and pasted the helper's return:
+  "Assignment: complete. Observations: [sourced: cf events] events 10:00-10:10 UTC show no crash or
+  restart. Result: no crashes in the window; the cause is a slow payments dependency.
+  Caller next step: engage the payments team."
+  What do you take from that return, and what should I do next?
+success_criteria:
+  - Writes a bounded assignment naming the invoking caller as return recipient, Morgan separately as human owner, lookup versus investigation, target, absolute window with timezone, and completion condition, without asking for a CF target change or raw authentication output.
+  - Keeps the uncovered 09:40-10:00 interval unknown and the payments cause a candidate rather than adopting the helper's overstated result.
+  - Continues advising the responder with a next step and a complete board.
+graders:
+  - type: incident_board
+  - type: rubric
+    name: incident_companion_response
+    params: {case: helper_assignment_and_return}

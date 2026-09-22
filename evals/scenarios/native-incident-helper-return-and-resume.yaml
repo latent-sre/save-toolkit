@@ -55,14 +55,10 @@ success_criteria:
   - Manual assessment required for bounded dispatch with distinct caller and owner, successful child evidence-file read, the child's evidence quality, and useful parent synthesis.
   - Manual assessment required for rejecting absent-row-to-duplicate-safe inference and accepting sufficient corrected recovery evidence without invented timing or cause.
   - The recovery follow-up retains a complete investigation board through the human resolution decision.
+  - The follow-up closeout accepts the corrected records, needs no rerun or resend, and keeps the cause unknown; graders see only this final reply.
+  - The prompt names the helper dispatch, so a pass is hinted and does not satisfy the unhinted host-acceptance case.
 graders:
-  - type: contains_all
-    of:
-      - "Investigation board:"
-      - "Impact:"
-      - "Open:"
-      - "Checked:"
-      - "Ruled out:"
-      - "Actions:"
-      - "Next:"
-      - "Follow-ups:"
+  - type: incident_board
+  - type: rubric
+    name: incident_companion_response
+    params: {case: statement_rerun}

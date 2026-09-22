@@ -1,0 +1,13 @@
+id: discovery-incident-investigation-explains-signal-no-incident
+split: calibration
+prompt: |
+  Nothing is broken right now. Yesterday during a quiet period I saw our checkout p99 latency
+  climb while error rate stayed flat and CPU stayed low. What could that pattern mean, and what
+  would I look at next time to tell the explanations apart?
+success_criteria:
+- Uses the incident advisor to explain an operational signal outside a live incident
+target:
+  kind: skill
+  name: incident-investigation
+routing:
+  expect: fire

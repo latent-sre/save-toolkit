@@ -12,3 +12,8 @@ success_criteria:
   - Ends with all seven investigation-board fields; the bridge's own timeline does not replace the board.
 target: {kind: skill, name: incident-investigation}
 routing: {expect: fire}
+graders:
+  - type: incident_board
+  - type: rubric
+    name: incident_companion_response
+    params: {case: existing_bridge}

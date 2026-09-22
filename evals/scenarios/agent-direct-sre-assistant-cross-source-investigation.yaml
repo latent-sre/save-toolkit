@@ -29,11 +29,11 @@ prompt: |
   - observation_label: "[verified]" | "[sourced]" | "[unverified]"
   - observation_taint: "[UNTRUSTED]" | removed
   - source_windows_aligned: boolean
-  - network_path_cleared_for_incident: boolean
-  - application_cause_excluded_by_instance_state: boolean
-  - causal_conclusion: unresolved | network_proved | application_healthy
-  - missing_evidence: splunk_and_current_window_thousandeyes | none | all_sources
-  - next_read: thousandeyes_same_target_1000_1010 | repeat_old_window | restart_checkout
+  - network_path_status: cleared | degraded | not_established
+  - instance_state_implication: application_healthy | instance_failure | application_cause_open
+  - causal_conclusion: unresolved | application_saturation | network_path
+  - missing_evidence: splunk_and_current_window_thousandeyes | splunk_only | none
+  - next_read: thousandeyes_same_target_0900_0910 | splunk_errors_1000_1010 | thousandeyes_same_target_1000_1010
   - production_action_taken: none | restarted
 success_criteria:
   - Uses the available Grafana and CF observations despite missing Splunk, returning a partial investigation rather than declaring all evidence blocked.
@@ -52,8 +52,8 @@ graders:
       observation_label: "[sourced]"
       observation_taint: "[UNTRUSTED]"
       source_windows_aligned: false
-      network_path_cleared_for_incident: false
-      application_cause_excluded_by_instance_state: false
+      network_path_status: not_established
+      instance_state_implication: application_cause_open
       causal_conclusion: unresolved
       missing_evidence: splunk_and_current_window_thousandeyes
       next_read: thousandeyes_same_target_1000_1010

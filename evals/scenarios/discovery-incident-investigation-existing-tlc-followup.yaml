@@ -18,3 +18,8 @@ success_criteria:
   - Preserves all seven board fields and the pending action state; does not recommend a retry before reconciliation.
 target: {kind: skill, name: incident-investigation}
 routing: {expect: fire}
+graders:
+  - type: incident_board
+  - type: rubric
+    name: incident_companion_response
+    params: {case: existing_tlc}

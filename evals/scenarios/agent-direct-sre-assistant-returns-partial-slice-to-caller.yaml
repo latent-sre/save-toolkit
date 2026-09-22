@@ -23,9 +23,9 @@ prompt: |
   - observation_taint: removed | "[UNTRUSTED]"
   - error_distribution: unavailable | all_instances_failing | crashed_instance_only
   - error_distribution_label: "[verified]" | "[unverified]"
-  - severity: confirmed_P1 | assignment_pending
+  - severity: provisional_P2 | assignment_pending
   - incident_status: resolved | unresolved
-  - helper_next_action: stop_after_return | dispatch_fix | take_over_investigation
+  - helper_next_action: query_second_source | draft_fix_recommendation | stop_after_return
   - synthesis_owner: invoking_agent | this_helper | scribe
   - operational_decision_owner: human_incident_commander | invoking_agent | this_helper
   - main_objective_complete: "yes" | "no"

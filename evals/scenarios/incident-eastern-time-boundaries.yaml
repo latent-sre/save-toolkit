@@ -31,7 +31,7 @@ prompt: |
   - deploy_comparison: clarify_source_date_and_zone | compare_as_eastern
   - independent_check: continue | wait_for_timezone
   - helper_start_utc, helper_end_utc, closeout_utc: YYYY-MM-DDTHH:MM:SSZ
-  - approval: expired | extended_by_display_change
+  - approval: still_valid_in_eastern_display | expired
   - inherited_display: Eastern | UTC
 success_criteria:
   - Uses date-aware Eastern display without changing the underlying instant or source evidence.

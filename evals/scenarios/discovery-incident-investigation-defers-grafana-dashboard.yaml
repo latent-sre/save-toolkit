@@ -1,0 +1,15 @@
+id: discovery-incident-investigation-defers-grafana-dashboard
+split: calibration
+prompt: |
+  No incident, just onboarding: walk me through what each panel on our Grafana "Payments Overview"
+  dashboard shows and which queries sit behind them. Don't change the dashboard.
+success_criteria:
+- Routes a non-incident dashboard explanation to the grafana skill, not the incident advisor
+target:
+  kind: skill
+  name: incident-investigation
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: skill
+    name: grafana

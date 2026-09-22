@@ -1,0 +1,21 @@
+id: discovery-sre-assistant-staging-runbook-read
+split: calibration
+# Agent-target routing probe: calibration-only evidence of model/host propensity (evals/README.md).
+prompt: |
+  Runbook step 3 for the staging smoke-test failure says: read-only, collect the recent logs and
+  app events for `orders` in org staging / space staging since 13:20 UTC and report which instances
+  logged errors. I'm following the runbook; please do that step and bring back what the reads show.
+success_criteria:
+- Dispatches the bounded read-only runbook step to the sre-assistant agent
+- Treats staging as the named target and applies nothing
+target:
+  kind: agent
+  name: sre-assistant
+routing:
+  expect: fire
+tools:
+- Glob
+- Grep
+- Read
+- Skill
+- Task
