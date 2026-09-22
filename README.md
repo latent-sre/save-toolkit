@@ -65,6 +65,7 @@ will offer it).
 | `scribe` | Write evidence-bound runbooks, resolved-incident postmortems, and approved service/application/alert knowledge | Local document writer with no shell, web, external MCP, or delegation authority |
 | `software-engineer` | Build, fix, refactor, and test code or operations tooling | Routes requested or risk-triggered review to `reviewer`, operational docs to `scribe`, and sanitized public lookups to `researcher` |
 | `repository-investigator` | Local-only answers about private, current, or uncommitted checkout behavior | Cites `file:line`; no shell, write, web, external MCP, skill, or delegation |
+| `reliability-engineer` | Service reliability assessment, resilience design, and toil reduction | Local evidence and design documents; bounded facts from `repository-investigator`, protected observations from `sre-assistant`, and sanitized research from `researcher`; implementation stays with its existing owner |
 | `researcher` | External-only research against official docs, upstream code, packages, and advisories | No local file access; returns cited public evidence to caller |
 | `reviewer` *(for maintainers and builders)* | Independent investigation, isolated verification, and correctness/security review | Gathers Git/PR evidence and uses focused evidence helpers; owns the verdict, while its caller dispatches fixes to `software-engineer` |
 | `agent-engineer` *(for maintainers)* | The fleet's prompts, agents, skills, descriptions, evals, bounded prompt/eval loops, roster/delegation graphs, and portable executable workflow-graph designs | Delegates only sanitized public lookups to `researcher`; the caller separately dispatches helper code to `software-engineer` and injection-surface review to `reviewer` |
@@ -77,6 +78,7 @@ The skills, by area (each `skills/<name>/SKILL.md` carries its own description a
   `obs-pipeline`, `grafana` (Grafana UI/API operations and implementation)
 - **Platform** — `stack-profile`, `pcf-ops`, `pcf-deploy`, `gcp-ops`, `akamai-edge`
 - **Change gates** — `production-change-gate`
+- **Reliability improvement** — `resilience-analysis`, `toil-reduction`; existing readiness coverage stays in `service-lifecycle`
 - **Engineering craft** — `backend-craft`, `python-craft`, `frontend-craft`, `operator-cli`,
   `ci-actions`, `database-reliability`, `eng-ladder`
 - **For maintainers: the fleet itself and the graphs it designs** — `agent-authoring`

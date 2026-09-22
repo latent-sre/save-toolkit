@@ -206,6 +206,7 @@ class PlatformAdapterTests(unittest.TestCase):
         expected = {
             "agent-engineer": ["researcher"],
             "observability-engineer": ["scribe", "researcher"],
+            "reliability-engineer": ["repository-investigator", "sre-assistant", "researcher"],
             "repository-investigator": None,
             "researcher": None,
             "reviewer": ["repository-investigator", "researcher"],
@@ -254,6 +255,7 @@ class PlatformAdapterTests(unittest.TestCase):
         expected_targets = {
             "agent-engineer": [],
             "observability-engineer": ["sre-assistant", "scribe"],
+            "reliability-engineer": [],
             "repository-investigator": [],
             "researcher": [],
             "reviewer": ["software-engineer"],

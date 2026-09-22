@@ -118,7 +118,12 @@ BROWSER_OBSERVATION_MCP_TOOLS = {
 }
 EXTERNAL_EVIDENCE_TOOLS = {"ToolSearch", *WEB_TOOLS, *EVIDENCE_MCP_TOOLS}
 SCRIBE_TOOLS = {"Read", "Grep", "Glob", "Edit", "Write", "Skill"}
+RELIABILITY_TOOLS = {*SCRIBE_TOOLS, "Agent"}
 EXPECTED_AUTHORITY = {
+    "reliability-engineer": {
+        "required": RELIABILITY_TOOLS,
+        "forbidden": {*(BUILTIN_TOOLS - RELIABILITY_TOOLS), *EXTERNAL_EVIDENCE_TOOLS},
+    },
     "reviewer": {
         "required": {*LOCAL_READ_TOOLS, "Bash", "Write", "Edit", "TodoWrite", "Skill", "Agent"},
         "forbidden": {"NotebookEdit", *WORKTREE_TOOLS, *EXTERNAL_EVIDENCE_TOOLS},
@@ -156,6 +161,7 @@ EXPECTED_AUTHORITY = {
     },
 }
 EXPECTED_DELEGATION = {
+    "reliability-engineer": {"repository-investigator", "sre-assistant", "researcher"},
     "reviewer": {"repository-investigator", "researcher"},
     "repository-investigator": set(),
     "researcher": set(),

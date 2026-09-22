@@ -1,0 +1,12 @@
+id: discovery-reliability-defers-change-review
+split: regression
+prompt: |
+  Independently review this pull request against its base. Find correctness and security regressions
+  and return a merge verdict with evidence. The candidate and base are available in the checkout.
+target: {kind: agent, name: reliability-engineer}
+routing:
+  expect: not_fire
+  expected_alternative: {kind: agent, name: reviewer}
+tools: [Glob, Grep, Read, Skill, Task]
+success_criteria:
+  - Routes independent change judgment and merge verdict ownership to reviewer.

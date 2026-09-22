@@ -23,6 +23,7 @@ it before recommending or changing supported runtime, tooling, or infrastructure
 | Agent or skill frontmatter | [`claude-code-frontmatter.md`](skills/agent-authoring/references/claude-code-frontmatter.md); for the VS Code/Copilot projection, [`copilot-frontmatter.md`](skills/agent-authoring/references/copilot-frontmatter.md) |
 | Skills or the ADR command | [`skills/`](skills) and [`commands/adr.md`](commands/adr.md); link bundled references from `SKILL.md` |
 | A live incident, a firing alert, or "what should I check next" | [`incident-investigation`](skills/incident-investigation/SKILL.md) advises the human responder and can dispatch a bounded lookup or investigation to `sre-assistant` |
+| Proactive service reliability, failure behavior, engineering improvements, or recurring toil | [`reliability-engineer`](agents/reliability-engineer.md), with [`resilience-analysis`](skills/resilience-analysis/SKILL.md) and [`toil-reduction`](skills/toil-reduction/SKILL.md) |
 | Grafana dashboard interpretation, alert-rule operations, or temporary silences | [`grafana`](skills/grafana/SKILL.md); live writes belong to the invoked `observability-engineer` under its complete rule |
 | Guard behavior or wiring | [`readonly-guard.py`](scripts/readonly-guard.py) and [`hooks.json`](hooks/hooks.json); exit codes stay 42 allow / 43 deny / 44 indeterminate |
 | Repository changes, dependencies, or verification | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
@@ -46,6 +47,7 @@ separate.
 | `software-engineer` | Code and operator tooling | Local read/write + unguarded Bash/PowerShell for team-authored code; no web | `reviewer`, `scribe`, `researcher` |
 | `reviewer` | Independent investigation, verification, and review | Git/PR reads, scratch writes, isolated checks, trusted skills; no direct web tools | `repository-investigator`, `researcher` |
 | `repository-investigator` | Bounded checkout questions | Read/Grep/Glob only; terminal | — |
+| `reliability-engineer` | Service reliability analysis, design, and toil reduction | Local reads + design-document writes; no execution or direct external access | `repository-investigator`, `sre-assistant`, `researcher` |
 | `sre-assistant` | Bounded read-only lookup or investigation, dispatched by a human or invoking workflow | Guarded selected reads and bundled Grafana helper; scoped browser viewing; recommends mitigation | `researcher` |
 | `observability-engineer` | Observability and dispatched Grafana changes | Unguarded Bash; writes config and scoped Grafana dashboards, alert rules, and silences | `scribe`, `researcher` |
 | `scribe` | Evidence-bound operational documents | Local document write; no Bash or web; terminal | — |

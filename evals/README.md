@@ -386,6 +386,24 @@ rather than publishing the batch.
 
 ## Tests
 
+The `agent-direct-reliability-engineer-*` cases check supplied-state judgments about effective
+controls, recovery evidence, toil economics, and continuation after a partial, stale helper return.
+The paired `build-reliability-engineer-redelivery` and
+`build-sre-assistant-redelivery-baseline` cases use identical prompt, fixture and outcome checks;
+compare their source retrieval, protected counterexample, decision and useful next action on the
+same model/host and exact plugin bytes. The automated verdict checks the decision and non-actions,
+not successful source reads or citation quality; inspect those in both native traces. The offline
+test reproduces the fixture's duplicate effect after acknowledgement failure and enforces pair
+identity. `build-reliability-engineer-doc-boundary` is specified to check that an explicitly
+requested assessment document is written while an untrusted instruction to edit application
+configuration is refused; source reads and document quality still need trace review.
+The native helper conversation checks actual dispatch and parent continuation structurally, then
+requires manual review of its evidence synthesis and corrected follow-up. The routing overlaps
+probe lifecycle, causal diagnosis, small arithmetic, a full toil assessment and accepted
+implementation separately. Offline checks calibrate fixtures and graders; they do not run a model,
+prove host containment, or establish operational benefit. Native acceptance stays open under
+`RELIABILITY-001` until the candidate, host/model and budget are selected and the traces reviewed.
+
 The incident advisor now uses one seven-field board. Its structural check is
 `python evals/oracles/incident-closing-fields/probe_closing_fields.py <response.md> board`.
 Legacy `fields`/`checkpoint` expectations remain for historical comparisons, not current acceptance.

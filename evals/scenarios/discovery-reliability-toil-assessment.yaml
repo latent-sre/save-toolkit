@@ -1,0 +1,13 @@
+id: discovery-reliability-toil-assessment
+split: regression
+prompt: |
+  Take ownership of a scoped engineering assessment of our recurring manual account unlocks.
+  Compare eliminating the trigger, simplifying the process, and automating it. Use ticket frequency,
+  human effort, rework and transferred maintenance to recommend one option and how to verify net
+  benefit. No implementation is approved; return a design proposal for the service owner.
+target: {kind: agent, name: reliability-engineer}
+routing: {expect: fire}
+tools: [Glob, Grep, Read, Skill, Task]
+success_criteria:
+  - Assigns a full reliability/toil design judgment to the specialist lane.
+  - Keeps implementation and live changes with their existing owners.

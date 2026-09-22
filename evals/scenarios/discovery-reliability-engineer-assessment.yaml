@@ -1,0 +1,13 @@
+id: discovery-reliability-engineer-assessment
+split: regression
+prompt: |
+  Give me a dedicated engineering assessment of why this service is fragile under dependency
+  slowdown. Trace how faults could spread, check whether the current controls already contain
+  them, and propose the smallest justified design improvement with a meaningful test. There is
+  no active outage; I want a scoped specialist assignment and a report before implementation.
+target: {kind: agent, name: reliability-engineer}
+routing: {expect: fire}
+tools: [Glob, Grep, Read, Skill, Task]
+success_criteria:
+  - Dispatches the service reliability design question to the dedicated reliability lane.
+  - Keeps implementation and live actions outside the assessment.

@@ -23,6 +23,23 @@ records do not re-queue work.
 
 ## Repository work
 
+### RELIABILITY-001 — accept the reliability engineering lane on representative tasks
+
+**Status:** `active` (2026-09-21); implementation approved, native acceptance pending.
+**Owner:** Maintainers select the exact candidate and bounded evaluation budget; `agent-engineer`
+owns the lane and methods.
+**Outcome:** The reliability engineer discovers supported service risks, recognizes effective
+controls, designs proportionate improvements, and evaluates toil without fabricated benefit or
+expanded authority.
+**Next action:** After source and offline checks, select candidate/model/host and trial budget.
+Compare with the current agent/skill arrangement on the same service evidence. Include protected
+helper return/continuation and free-form assessment; supplied-state and grader calibration alone
+cannot establish useful investigation, tool enforcement or measured operational benefit.
+**Evidence:** [Lane decision and source map](decisions/2026-09-21-reliability-engineer.md), canonical
+agent and skills, authority tests and reliability cases in `evals/`.
+**SRE task:** Turn a service weakness or repeated manual intervention into supported engineering
+work with an owner and a meaningful proof-of-improvement check.
+
 ### RELEASE-001 — make the toolkit installable as an immutable, rollback-tested release
 
 **Status:** `active` (2026-09-20).
