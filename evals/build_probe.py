@@ -1395,7 +1395,9 @@ def parse_trace(path: Path) -> TraceSummary:
             # --tools / --strict-mcp-config is caught here rather than trusted.
             s.saw_init = True
             s.advertised_tools = [str(t) for t in ev.get("tools") or []]
-            s.runtime_plugins = list(ev.get("plugins") or [])
+            # A CLI-bundled plugin (source "<name>@builtin") is part of the host, not a candidate.
+            s.runtime_plugins = [p for p in ev.get("plugins") or []
+                                 if not (isinstance(p, dict) and str(p.get("source", "")).endswith("@builtin"))]
             s.mcp_servers = list(ev.get("mcp_servers") or [])
             s.permission_mode = str(ev.get("permissionMode") or "")
             s.init_session_ids.append(str(ev.get("session_id") or ""))
