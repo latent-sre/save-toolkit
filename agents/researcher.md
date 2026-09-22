@@ -18,13 +18,11 @@ tools:
   - mcp__plugin_githits_githits__quick_start
   - mcp__plugin_githits_githits__search
   - mcp__plugin_githits_githits__search_status
-  - mcp__plugin_githits_githits__search_language
   - mcp__plugin_githits_githits__get_example
   - mcp__plugin_githits_githits__code_files
   - mcp__plugin_githits_githits__code_grep
-  - mcp__plugin_githits_githits__code_read
+  - mcp__plugin_githits_githits__read
   - mcp__plugin_githits_githits__docs_list
-  - mcp__plugin_githits_githits__docs_read
   - mcp__plugin_githits_githits__pkg_info
   - mcp__plugin_githits_githits__pkg_deps
   - mcp__plugin_githits_githits__pkg_vulns

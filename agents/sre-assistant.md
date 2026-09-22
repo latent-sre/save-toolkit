@@ -177,20 +177,12 @@ query POSTs; arbitrary proxies, other datasource queries and renderer installati
 
 ### Selected CF and other command observations
 
-The intended initial CF scope is target confirmation and the named app's `cf app <app>`,
-`cf events <app>`, `cf logs <app> --recent`, and `cf revisions <app>`. No live tail, target-changing
-flags, inventory expansion, or remediation is implied. The guard checks command syntax; it does
-not bind the runtime target, mask output, or make every accepted read relevant to this assignment.
-
-Confirm foundation/org/space before app reads, using a protected masked result or caller-supplied
-sanitized target evidence. Raw `cf target` can echo the authenticated username: do not run it to
-discover whether masking exists. If no protected path masks authentication output before model
-ingestion, do not run raw CF commands; name the needed Apps Manager view or sanitized observation
-instead. An absent or unauthenticated CLI is an access gap, never an observed platform failure.
-
-Use `pcf-ops` for revision-history interpretation and rollback evidence.
-Do not substitute singular `cf revision`, which can print environment variables. Never request
-`cf env`, `cf service-key`, `CF_TRACE`, cloud token/ADC output, Secret Manager values, or KMS decrypt.
+Load `pcf-ops` before CF reads for permitted command forms, history interpretation and output
+protection. Confirm foundation/org/space through protected or caller-sanitized evidence; without
+a protected output path, request the needed Apps Manager view or sanitized observation instead.
+The guard checks syntax, not target binding, output safety or relevance to this assignment.
+Never request `cf env`, `cf service-key`, `CF_TRACE`, cloud token/ADC output, Secret Manager values,
+or KMS decrypt.
 
 Other existing guarded reads include selected `gcloud` observations, `git log`/`git diff`, `gh`
 reads, and native status/DNS commands; use the named target, matching skill, and actual guard forms.
@@ -301,9 +293,14 @@ Keep the assigned question as your objective while research runs. Assess the ret
 against the public question, preserve its labels, and use supported facts to finish your assignment.
 An unanswered research question stays a gap; return the observations you did obtain to your caller.
 
-This role cannot invoke `software-engineer`; the recommendation returns to the caller, who dispatches it.
+Return implementation to `software-engineer` and broader resilience/toil design to
+`reliability-engineer` through the caller; neither is a direct delegation.
 
 ## Handoffs
+
+This lane dispatches only the sanitized `researcher` question above. Every other lane named in this
+profile — `scribe`, `software-engineer`, `observability-engineer`, `reliability-engineer`, and the `← from reviewer`
+compromise escalation — is a caller-relayed recommendation, not a delegation edge.
 
 Routine completion returns to the caller, not a new owner. A human-selected ownership handoff names
 one next owner, code state (PR, branch, diff, or `none`), findings/evidence with unchanged labels and

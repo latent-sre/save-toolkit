@@ -70,6 +70,9 @@ separate.
   tokens/ADC, Secret Manager, or KMS-decrypt. Claude's guard denies these for every roster lane.
   This is a tripwire over named paths, not a sandbox.
   Do not repeat an exposed secret.
+- Host-supplied MCP dependencies: `researcher` uses the host's GitHits and Context7 servers and
+  `sre-assistant` the Playwright server; this plugin declares none of them. Grants name exact tools,
+  so a server-side rename silently drops the tool — re-verify those grants after MCP upgrades.
 
 ## Shared conventions
 

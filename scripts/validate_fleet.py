@@ -92,9 +92,7 @@ EVIDENCE_MCP_TOOLS = {
     "mcp__claude_ai_Context7__resolve-library-id",
     "mcp__plugin_githits_githits__code_files",
     "mcp__plugin_githits_githits__code_grep",
-    "mcp__plugin_githits_githits__code_read",
     "mcp__plugin_githits_githits__docs_list",
-    "mcp__plugin_githits_githits__docs_read",
     "mcp__plugin_githits_githits__get_example",
     "mcp__plugin_githits_githits__pkg_changelog",
     "mcp__plugin_githits_githits__pkg_deps",
@@ -102,8 +100,8 @@ EVIDENCE_MCP_TOOLS = {
     "mcp__plugin_githits_githits__pkg_upgrade_review",
     "mcp__plugin_githits_githits__pkg_vulns",
     "mcp__plugin_githits_githits__quick_start",
+    "mcp__plugin_githits_githits__read",
     "mcp__plugin_githits_githits__search",
-    "mcp__plugin_githits_githits__search_language",
     "mcp__plugin_githits_githits__search_status",
 }
 BROWSER_OBSERVATION_MCP_TOOLS = {
