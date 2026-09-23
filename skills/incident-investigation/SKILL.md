@@ -108,6 +108,23 @@ console path and the relevant observability skill for its query dialect.
    short one from the board for the responder to post; never claim it was sent.
 6. **Board.** Update the current state below so the next reply starts from what was learned.
 
+### Investigation board
+
+Every turn every line (`none` for a known absence; `unknown` for missing or unchecked information), labelled, never written to the repository. It is what prevents the responder from looping back to a excluded candidate: the board is the single source of truth for what has been observed and decided.  This appears until the incident is fully resolved and the closeout packet is completed.
+
+```
+Investigation board:
+
+Impact:     <user outcome · scope · onset/trend · observation time · recovery criterion/window>
+Open:       <candidates · evidence for/against · owner/gap · ranking, only if supported>
+Checked:    <What was run · what is showed · what was expected · observation · source/label · scope · time/window · result or gap>
+Ruled out:  <every candidate the text has ruled out — with the evidence that eliminated it; none if no candidates have been excluded>
+Actions:    <recommended/not approved · approved/not attempted · attempted UNKNOWN · confirmed applied;
+             human · target · time · evidence/outcome · whether it has held>
+Next:       <the discriminating check · why now · outcome meanings, including inconclusive>
+Follow-ups: <discoveries for the knowledge repo · actions: what, owner, due · decisions — including the ones others pressed for: who asked, who decided, ET from the incident's clock, on what evidence · unknowns: checks nobody could run>
+```
+
 ## Building the differential
 
 Five questions open every investigation: 
@@ -271,23 +288,6 @@ before adopting its claims.
 | Deeper causal method once the symptom is confirmed | `root-cause` |
 | Grafana dashboard interpretation, alert-rule state, or a temporary silence | `grafana`; live Grafana changes belong to `observability-engineer` |
 | Which backend serves which signal, and query dialect | `stack-profile` |
-
-### Investigation board
-
-Every turn every line (`none` for a known absence; `unknown` for missing or unchecked information), labelled, never written to the repository. It is what prevents the responder from looping back to a excluded candidate: the board is the single source of truth for what has been observed and decided.  This appears until the incident is fully resolved and the closeout packet is completed.
-
-```
-Investigation board:
-
-Impact:     <user outcome · scope · onset/trend · observation time · recovery criterion/window>
-Open:       <candidates · evidence for/against · owner/gap · ranking, only if supported>
-Checked:    <What was run · what is showed · what was expected · observation · source/label · scope · time/window · result or gap>
-Ruled out:  <every candidate the text has ruled out — with the evidence that eliminated it; none if no candidates have been excluded>
-Actions:    <recommended/not approved · approved/not attempted · attempted UNKNOWN · confirmed applied;
-             human · target · time · evidence/outcome · whether it has held>
-Next:       <the discriminating check · why now · outcome meanings, including inconclusive>
-Follow-ups: <discoveries for the knowledge repo · actions: what, owner, due · decisions — including the ones others pressed for: who asked, who decided, ET from the incident's clock, on what evidence · unknowns: checks nobody could run>
-```
 
 ## Handover and after
 
