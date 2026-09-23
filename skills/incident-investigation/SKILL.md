@@ -183,8 +183,15 @@ whether the telemetry is usable. For missing access, give an accessible alternat
 request naming target, observation, window, and why it matters. A helper's name does not
 establish its access.
 
-Rule out a candidate only when the evidence excludes it for the scope and time checked. Missing or unavailable evidence leaves it open; confirm coverage before treating an empty result as evidence. Reopen it when new evidence or changed scope warrants it.
-When checks stop producing useful information, involve the appropriate owner. If app-side causes are excluded, investigate the network, edge, or platform with that layer’s owner.
+Rule out a candidate only when the evidence excludes it for the scope and time checked; weakening
+is not exclusion. Missing or unavailable evidence leaves it open; confirm coverage before treating
+an empty result as evidence. Reopen it when new evidence or changed scope warrants it. After three
+checks that move no candidate, say the investigation is stuck and bring in the SME for the
+application.
+
+When every in-app candidate is excluded — no change, no saturation, dependencies healthy, and data
+or state tested too (a bad row, expired state) — the next check is outside the app (load-balancer
+request logs, a read-only direct call that bypasses it); check with the dependency teams.
 
 ## Reading what comes back
 
