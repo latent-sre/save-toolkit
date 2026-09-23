@@ -42,6 +42,12 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- The Copilot/VS Code plugin declares Agent Plugins 1.0. VS Code ranks `.claude-plugin/plugin.json`
+  above a schema-less root manifest, so it had been loading the canonical Claude agents and hooks
+  instead of the Copilot projection. The plugin now reads canonical `skills/` and takes the
+  generated agents and hooks from `com.github.copilot/`; `.github/agents/` and `.github/skills/`
+  remain as workspace customizations. Copilot CLI needs v1.0.85 or later. Installed-host behavior
+  is unverified until the new Format acceptance case passes.
 - Generated Copilot/VS Code agent profiles carry no generated preface at all: the whole "Host
   adapter contract" header is gone, including the bare-names sentence, the inherited-tools caveat,
   and the guarded-lane and MCP-evidence paragraphs. A projection is now the canonical body with

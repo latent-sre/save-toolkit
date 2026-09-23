@@ -2,8 +2,9 @@
 """Generate Copilot/VS Code adapters from canonical plugin sources.
 
 ``agents/*.md`` and ``skills/**`` are the only authored fleet definitions. Claude Code reads
-them directly from the plugin. Other hosts have different agent schemas and enforcement limits,
-so their projections are generated, committed, and checked byte-for-byte.
+them directly from the plugin, and the Agent Plugins 1.0 plugin reads canonical ``skills/`` too.
+Copilot agents have a different schema and enforcement limits, so their projections are
+generated, committed, and checked byte-for-byte.
 """
 
 from __future__ import annotations
@@ -21,9 +22,22 @@ import fleet_frontmatter
 
 
 PLUGIN_NAME = "save-toolkit"
+# Workspace customizations: opening this repository in VS Code discovers these directly.
 COPILOT_AGENTS = Path(".github/agents")
 COPILOT_SKILLS = Path(".github/skills")
-GENERATED_ROOTS = (COPILOT_AGENTS, COPILOT_SKILLS)
+# Agent Plugins 1.0 plugin layout: the root plugin.json declares the schema and nothing else, VS
+# Code and Copilot CLI read canonical `skills/`, and Copilot-only components come from here.
+COPILOT_PLUGIN_COMPONENTS = Path("com.github.copilot")
+COPILOT_PLUGIN_AGENTS = COPILOT_PLUGIN_COMPONENTS / "agents"
+COPILOT_PLUGIN_HOOKS = COPILOT_PLUGIN_COMPONENTS / "hooks/hooks.json"
+COPILOT_HOOKS_SOURCE = Path("hooks/copilot-hooks.json")
+GENERATED_ROOTS = (COPILOT_AGENTS, COPILOT_SKILLS, COPILOT_PLUGIN_COMPONENTS)
+AGENT_PLUGINS_SCHEMA = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
+# The 1.0 schema's complete top-level property set (`additionalProperties: false`).
+AGENT_PLUGINS_FIELDS = {
+    "$schema", "name", "version", "description", "author", "homepage", "repository", "license",
+    "keywords", "extensions",
+}
 # Generated roots this fleet used to emit. A retired root left on disk may still be loaded by
 # an older host configuration, so its presence is a validation failure.
 #
@@ -465,7 +479,12 @@ def expected_outputs(root: Path) -> dict[Path, bytes]:
     for source in agents:
         if _is_link_or_reparse(source):
             raise ValueError(f"{source}: canonical source must not be a link/reparse point")
-        outputs[COPILOT_AGENTS / f"{source.stem}.agent.md"] = render_copilot_agent(source).encode("utf-8")
+        rendered = render_copilot_agent(source).encode("utf-8")
+        outputs[COPILOT_AGENTS / f"{source.stem}.agent.md"] = rendered
+        outputs[COPILOT_PLUGIN_AGENTS / f"{source.stem}.agent.md"] = rendered
+    hooks = root / COPILOT_HOOKS_SOURCE
+    _assert_no_indirection_below(root, hooks, "canonical source")
+    outputs[COPILOT_PLUGIN_HOOKS] = hooks.read_text(encoding="utf-8").encode("utf-8")
 
     skill_files = _canonical_skill_files(root)
     if not any(path.name == "SKILL.md" for path in skill_files):
@@ -559,23 +578,18 @@ def validate_platform_contracts(root: Path) -> list[str]:
         claude, copilot = manifests
         if claude.get("name") != PLUGIN_NAME:
             failures.append(f"{paths[0]}: name must match adapter PLUGIN_NAME {PLUGIN_NAME!r}")
-        if "$schema" in copilot:
+        # Without this schema VS Code ranks `.claude-plugin/plugin.json` first and loads the
+        # canonical Claude agents and hooks instead of the Copilot projection.
+        if copilot.get("$schema") != AGENT_PLUGINS_SCHEMA:
+            failures.append(f"plugin.json: $schema must be {AGENT_PLUGINS_SCHEMA!r} (Agent Plugins 1.0)")
+        for field in sorted(set(copilot) - AGENT_PLUGINS_FIELDS):
             failures.append(
-                "plugin.json: selector-based Copilot format must not declare $schema without "
-                "migrating skills to skills/ and Copilot-specific components to "
-                "com.github.copilot/"
+                f"plugin.json: {field!r} is not an Agent Plugins 1.0 manifest field; components "
+                "are discovered from skills/ and com.github.copilot/"
             )
         for field in IDENTITY_FIELDS:
             if copilot.get(field) != claude.get(field):
                 failures.append(f"{paths[1]}: identity field {field!r} differs from Claude manifest")
-        expected_components = {
-            "agents": "./.github/agents/",
-            "skills": "./.github/skills/",
-            "hooks": "./hooks/copilot-hooks.json",
-        }
-        for field, expected in expected_components.items():
-            if copilot.get(field) != expected:
-                failures.append(f"plugin.json: {field} must be {expected!r}")
     try:
         hook = _manifest(root / "hooks/hooks.json")
         powershell = next((entry for entry in hook["hooks"]["PreToolUse"]

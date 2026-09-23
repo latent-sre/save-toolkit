@@ -37,7 +37,7 @@ the highest-value findings in this repo:
   eyeball, and not a reflexive before/after pair. For an **agent** target, discovery is optional,
   model-labelled calibration: the headless main session may answer inline, so a red there means
   "not dispatched", never "the agent is broken", and it is not a merge gate.
-- **Generated roots are byte-validated.** `.github/agents/` and `.github/skills/` must
+- **Generated roots are byte-validated.** `.github/agents/`, `.github/skills/`, and `com.github.copilot/` must
   match the generator byte for byte. Any change there must trace to a canonical or generator edit plus a regeneration — never a
   hand-fix.
 

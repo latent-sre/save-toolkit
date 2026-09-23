@@ -25,3 +25,4 @@ Dockerfile text eol=lf
 # collapse the copies without changing their runtime behavior.
 /.github/agents/** linguist-generated=true
 /.github/skills/** linguist-generated=true
+/com.github.copilot/** linguist-generated=true

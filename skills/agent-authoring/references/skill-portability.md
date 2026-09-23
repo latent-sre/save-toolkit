@@ -70,9 +70,9 @@ repository budget leaves headroom below the provider ceiling; other agents retai
   adapter. Stating a difference is not claiming a control: the omitted `execute` narrows a default
   the user can override and the picker can rewrite — read the VS Code limit in `AGENTS.md` before
   citing it as authority. A fleet control is only as strong as the host it is proven on.
-- The root manifest intentionally uses the selector-based Copilot format to point at
-  `.github/skills/`. Adding the Agent Plugins 1.0 `$schema` would instead make `skills/`
-  the portable discovery root and is a coordinated layout migration, not a metadata-only edit.
+- The root manifest declares Agent Plugins 1.0, so the installed plugin reads canonical `skills/`
+  and takes Copilot agents and hooks from `com.github.copilot/`. Without that schema VS Code ranks
+  `.claude-plugin/plugin.json` first and loads the Claude agents instead.
 - Codex receives no projection: distribution there was retired as a target on 2026-08-23,
   so there is nothing to keep portable for it. Codex working inside this repository reads
   the canonical sources through the root fleet guide like any other agent.

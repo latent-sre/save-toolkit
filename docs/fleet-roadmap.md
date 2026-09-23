@@ -48,7 +48,9 @@ work with an owner and a meaningful proof-of-improvement check.
 **Outcome:** An SRE installs a pinned artifact rather than whatever `main` holds, and can roll back
 to a previously accepted one. The [acceptance cases](vscode-plugin-acceptance.md) pass on those
 exact shipping bytes, which the 2026-09-10 local-install run did not exercise.
-**Next action:** Retire the mutable `"source": "./"` selector in `.claude-plugin/marketplace.json`
+**Next action:** Run the new Format acceptance case first: the plugin now declares Agent Plugins
+1.0 because VS Code ranks `.claude-plugin/plugin.json` above a schema-less selector manifest, and no
+installed run has yet shown which layout loads. Retire the mutable `"source": "./"` selector in `.claude-plugin/marketplace.json`
 for an immutable selector or checksum, then re-run the acceptance cases on those shipping bytes: the
 2026-09-10 pass was against a local `./` install, and a passing run does not carry to bytes it did
 not exercise. The enforcement results that were open on VS Code 1.135.0 are superseded by that run.

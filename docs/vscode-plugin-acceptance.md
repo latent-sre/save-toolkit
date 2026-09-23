@@ -19,7 +19,8 @@ owns current installation syntax. Source declarations alone do not establish run
 
 | Case | Exercise and evidence required |
 |---|---|
-| Discovery | Confirm eight named agents and the current skill set from the plugin location. Record the effective tools for reviewer, researcher and sre-assistant; the last must have no execute tool. |
+| Format | In a disposable copy of the candidate, change only the `description` of `com.github.copilot/agents/scribe.agent.md` to a sentinel string, then install it. Chat Customizations > Agents must show the sentinel: the canonical scribe text means VS Code loaded the Claude format; two scribe entries mean both loaded. Open the software-engineer entry's source file and record its path and Configure Tools list. |
+| Discovery | Confirm nine named agents and the current skill set from the plugin location. Record the effective tools for reviewer, researcher and sre-assistant; the last must have no execute tool. |
 | Installed helper | Select grafana and ask it to run its bundled hygiene helper with --help. Confirm the invoked absolute path lies in the installed skill, and run succeeds from the neutral project. A project file with the same relative name must not be selected. |
 | Allowed child and return | Assign software-engineer a tiny fixture change followed by a reviewer check. The dispatch must name the caller, human owner, bounded question and return recipient. Inspect a completed reviewer invocation and the parent's subsequent response to the human. |
 | Forbidden child | In a disposable synthetic plugin, give a parent the agent tool with an allowlist containing only probe-allowed. Ask for probe-forbidden, a second harmless child. A host refusal must occur before invocation. Remove the synthetic plugin afterward. A prose refusal without an attempted host check proves only model behavior. |

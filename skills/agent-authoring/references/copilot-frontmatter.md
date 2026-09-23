@@ -113,8 +113,8 @@ origin confinement or image delivery. The Grafana visual reference owns those pr
 
 Copilot discovers workspace skills from `.github/skills`, `.claude/skills`, and `.agents/skills`,
 and personal skills from `~/.copilot/skills`, `~/.claude/skills`, and `~/.agents/skills`. This fleet's
-Copilot projection lives at `.github/skills/`, supporting workspace discovery and the plugin's
-explicit manifest selector. The directory is tracked and regenerated from canonical `skills/`.
+workspace projection lives at `.github/skills/`; the installed plugin reads canonical `skills/`
+under Agent Plugins 1.0. The directory is tracked and regenerated from canonical `skills/`.
 The former `platforms/copilot/skills/` root is retired. The custom `chat.agentSkillsLocations`
 override is removed; the [current discovery docs](https://code.visualstudio.com/docs/agent-customization/agent-skills#_create-a-skill)
 deprecate it in favor of supported directories.
@@ -180,18 +180,23 @@ not a VS Code prerequisite.
 
 ## Plugin manifest formats
 
-Two formats are live. VS Code auto-detects by inspecting the root manifest; the Copilot format is
-the fallback when no other marker is found.
+VS Code detects the format in this order: a root `plugin.json` declaring the Agent Plugins 1.0
+`$schema`; then `.claude-plugin/plugin.json` (Claude format); then `.plugin/plugin.json`; then a
+root `plugin.json` without a schema (Copilot selector format). *[verified:
+code.visualstudio.com/docs/agent-customization/agent-plugins, 2026-09-23]* A repository that ships
+`.claude-plugin/plugin.json` and a schema-less root manifest is therefore loaded as a Claude plugin:
+canonical agents and hooks, not the Copilot projection.
 
 | Format | Shape | Status |
 |---|---|---|
-| Copilot (selector) | Root `plugin.json` naming component paths — `agents`, `skills`, `hooks`. **What this fleet ships** | Supported: *"Existing Copilot-format plugins that don't declare the Agent Plugins schema remain supported"* |
-| Agent Plugins 1.0 | `$schema: https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`; skills auto-discovered from `skills/`, MCP from `mcp.json`, Copilot-specific agents/hooks/commands under `com.github.copilot/` | Published 2026-08-12; forward-compatible standard |
+| Agent Plugins 1.0 | Root `plugin.json` with `$schema: https://agent-plugins.org/schemas/1.0.0/plugin.schema.json` and metadata only (the schema forbids other top-level keys); skills from `skills/`, MCP from `mcp.json`, Copilot-specific agents, commands, rules and `hooks/hooks.json` under `com.github.copilot/`. **What this fleet ships** | Published 2026-08-12; Copilot CLI discovers `com.github.copilot/agents/` from v1.0.85 |
+| Copilot (selector) | Root `plugin.json` naming component paths — `agents`, `skills`, `hooks` | Supported, but outranked by `.claude-plugin/plugin.json` |
 
-`generate_platform_adapters.py` fails the build on a `$schema` added without also moving skills to
-`skills/` and Copilot components to `com.github.copilot/` — a half-migration is the failure it
-prevents. Under 1.0 the canonical `skills/` directory would itself be the discovery path, which
-would retire the projected bundle entirely.
+`generate_platform_adapters.py` requires the 1.0 `$schema`, rejects any other top-level manifest
+key, writes the projected agents to `com.github.copilot/agents/`, and copies
+`hooks/copilot-hooks.json` to `com.github.copilot/hooks/hooks.json`. The plugin reads canonical
+`skills/`, so plugin skills keep their `save-toolkit:` names; the `.github/` copies are workspace
+customizations for this repository and keep the bare-name rewrite.
 
 ## Fleet decisions on unused fields
 
