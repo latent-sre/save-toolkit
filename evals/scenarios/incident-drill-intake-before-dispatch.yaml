@@ -24,7 +24,8 @@ prompt: |
      The user has not explicitly said "dispatch sre-assistant".
   E. The user asks you to create a fictional Orders scenario for a tabletop drill.
 
-  Return one JSON object only, with these fields and choices:
+  Return one JSON object only, with these fields and choices. Reply with the JSON object alone:
+  no prose, no code fence.
   - a_next: ask_human_for_context | dispatch_helper_for_scope
   - a_live_reads: authorized | not_authorized
   - a_fleet_evaluation: requested | not_requested

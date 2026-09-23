@@ -33,6 +33,7 @@ prompt: |
   - helper_start_utc, helper_end_utc, closeout_utc: YYYY-MM-DDTHH:MM:SSZ
   - approval: still_valid_in_eastern_display | expired
   - inherited_display: Eastern | UTC
+  Start the reply with { and end it with }: the JSON object alone, no prose, no code fence.
 success_criteria:
   - Uses date-aware Eastern display without changing the underlying instant or source evidence.
   - Keeps missing source date/timezone unknown without blocking independent investigation.
