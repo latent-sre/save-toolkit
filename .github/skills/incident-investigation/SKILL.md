@@ -153,7 +153,8 @@ answered questions.
 
 Five classes help find candidates: a change, a dependency, saturation (pool, threads, memory,
 quota), data or state (expiry, a bad row, a cache), and outside the app (load balancer, edge, DNS,
-provider). Two incidents in the same window are not evidence of one cause until a mechanism
+provider). Until impact is confirmed, "not real" — a noisy alert, a monitoring gap, a test — is a
+candidate too. Two incidents in the same window are not evidence of one cause until a mechanism
 connects them; assuming a shared cause merges two differentials and can hide the second failure.
 
 For login failures, intermittent errors, slowness, stale/wrong data, or missed jobs with an unknown
@@ -169,7 +170,7 @@ What to ask the responder for, by phase:
 | Report | expected behaviour, actual behaviour, how to reproduce; what fired, when, and its window |
 | Triage | user-visible impact and traffic share; still happening and trend; service owner and on-call |
 | Examine | the golden signals as time series (latency, traffic, errors, saturation); logs for one failing request; the service's own state (thread dump, pool and queue metrics); changes with times |
-| Diagnose | the one observation that would remove each remaining candidate |
+| Diagnose | the observation whose outcomes separate the remaining candidates |
 | Mitigate | reversible action, rollback, effective-state readback, and the user outcome that proves recovery |
 | Compromise | preserve first — images, dumps, the attacker timeline, what data was reachable — and touch nothing; escalate to the human security incident owner, via ITO once a TLC is open. Mitigation-first does not apply |
 | Handover | the receiver's read-back and explicit acknowledgment |
