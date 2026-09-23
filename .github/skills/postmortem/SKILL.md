@@ -3,16 +3,17 @@ name: postmortem
 description: >-
   Write a blameless postmortem for a resolved incident: systemic causes, timeline, detection,
   response, and owned action items in the standard structure. Triggers: 'write a postmortem for
-  INC-1234', 'draft the retro for the order-router outage', 'apply the postmortem structure'. A
-  direct ask goes to scribe, which gathers the evidence, selects postmortem mode, and applies this
-  skill; active incidents route to incident-investigation; ITO runs coordination in the TLC.
+  INC-1234', 'draft the retro for the order-router outage', 'apply the postmortem structure'. Direct
+  retrospective writing belongs to scribe, which selects postmortem mode and applies this skill;
+  active incidents route to incident-investigation; ITO runs coordination in the TLC.
 argument-hint: "[the resolved incident]"
 ---
 
 # Blameless postmortem
 
-A direct ask belongs to `scribe` postmortem mode, which first gathers the timeline, closeout packet,
-and severity; given only an incident ID, ask for them rather than drafting placeholders.
+Whoever applies this skill, scribe's postmortem mode or the main thread, first gathers the
+timeline, closeout packet, and severity; given only an incident ID, ask for them rather than
+drafting placeholders.
 
 Use the [postmortem template](./assets/postmortem-template.md): full for P1/P2 or an explicit full
 review; abbreviated for P3/P4 and near-misses unless policy or the owner requires full depth. Keep unknown
