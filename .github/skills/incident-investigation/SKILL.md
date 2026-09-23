@@ -77,19 +77,17 @@ console path and the relevant observability skill for its query dialect.
    certainty. A leading candidate is not an established cause. Until impact is confirmed, "not
    real" — a noisy alert, a monitoring gap, or a test — is one of the candidates, tested like the
    rest.
-3. **Do now.** Mitigation comes before the next diagnostic, and before intake is finished, when
-   users are hurting and a reversible action exists that the leading explanation predicts will
-   help. Name the evidence it would destroy: capture it, or record the named human's explicit
-   decision to forgo unavailable capture for that reversible reliability mitigation. Unavailable
-   capture does not delay that approved action.
-   When recommending an action, include target, source-backed command, blast radius,
-   rollback, and recovery criterion:
-   the affected user outcome, scope, and required window or completion check. Agree the criterion
-   even without a metric baseline or mitigation; one green point or process exit is not recovery.
-   Reconcile any interrupted earlier attempt before recommending a retry. The release owner
-   executes with sign-off. The fast-path approval shape applies only to a declared incident;
-   without one, the change goes to the human lead and `production-change-gate`'s full checklist.
-   If no supported mitigation exists, say"change nothing yet", why, and which diagnostic moves the investigation forward.
+3. **Do now.** When users are hurting and a reversible action exists that the leading explanation
+   predicts will help, mitigation comes first — before the next diagnostic and before intake is
+   finished. A reversible action no candidate explains adds impact and destroys attribution. For a
+   self-sustaining loop, try the reversible levers first (pause retries, throttle intake, warm the
+   cache). Name the evidence the action would destroy, and capture it or record the human's
+   decision to forgo it. Recovery is the agreed user outcome holding for its window; one green
+   point is not recovery. Reconcile any interrupted earlier attempt before recommending a retry.
+   Read [mitigation selection](./references/mitigation-selection.md) before recommending an action
+   or judging one already attempted. A human release owner executes; the fast path needs a
+   declared incident. If no supported mitigation exists, say "change nothing yet", why, and the
+   diagnostic that moves it forward.
 4. **Next check.** The one Apps Manager view, Grafana dashboard or panel, Splunk search, Wavefront
    or PCF App Metrics chart, or command that separates the top candidates. Give it as: what to run,
    with target and window · what it does · *if it shows X, A leads and the next check or owner
@@ -100,18 +98,15 @@ console path and the relevant observability skill for its query dialect.
    discriminator. Say what to bring back: the values or a sanitized excerpt, observation time, and
    range. A second check only when it runs in parallel and access and help make both feasible.
 5. **The call.** Recommend who to involve from the escalation path and the evidence or decision
-   needed. Flag growing impact, blocked investigation, or a need for another team's help to the
-   incident lead in the existing bridge/TLC, and ask about coordination only when it changes the
-   immediate advice. If no bridge/TLC exists and impact is growing, customer-visible, or needs
-   another team, recommend the responder start one through the team's incident process and name
-   the teams to bring in from the service card's escalation path; you open nothing and page nobody
-   yourself. Declaration, command roles, and stakeholder updates stay with the incident lead.
-   Asked what to say on the bridge/TLC, draft a short update from the board for the responder to
-   post; never claim it was sent.
+   needed. If a bridge/TLC exists, raise growing impact, a blocked investigation, or a need for
+   another team's help there, and ask ITO to page the teams you name; ask about coordination only
+   when it changes the immediate advice. If none exists and impact is growing, customer-visible,
+   or needs another team, recommend the responder start one through the team's incident process
+   and name the teams to bring in from the service card's escalation path; you open nothing and
+   page nobody yourself. ITO runs the TLC: it asks for updates and pages people, and the
+   investigation and its recommendations stay with the responder. Asked for an update, draft a
+   short one from the board for the responder to post; never claim it was sent.
 6. **Board.** Update the current state below so the next reply starts from what was learned.
-
-For mitigation selection or readback of an attempted change, read
-[mitigation selection](./references/mitigation-selection.md).
 
 ## Building the differential
 
