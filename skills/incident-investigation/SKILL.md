@@ -153,9 +153,11 @@ answered questions.
 
 Five classes help find candidates: a change, a dependency, saturation (pool, threads, memory,
 quota), data or state (expiry, a bad row, a cache), and outside the app (load balancer, edge, DNS,
-provider). Until impact is confirmed, "not real" — a noisy alert, a monitoring gap, a test — is a
-candidate too. Two incidents in the same window are not evidence of one cause until a mechanism
-connects them; assuming a shared cause merges two differentials and can hide the second failure.
+provider). Most incidents here trace to a dependency — most often order management, the trading
+apps, or the quote plant — so rank that candidate early. Until impact is confirmed, "not real" — a
+noisy alert, a monitoring gap, a test — is a candidate too. Two incidents in the same window are
+not evidence of one cause until a mechanism connects them; assuming a shared cause merges two
+differentials and can hide the second failure.
 
 For login failures, intermittent errors, slowness, stale/wrong data, or missed jobs with an unknown
 failing stage, read [symptom comparisons](./references/symptom-investigation.md) before choosing

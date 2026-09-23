@@ -20,7 +20,8 @@ records the decision here.
 
 ## The business
 The firm is a stock trading firm; use trading examples (orders, accounts, markets, exchanges),
-never retail ones. *[sourced: operator statement 2026-09-22]*
+never retail ones. Most incidents trace to dependencies, most often order management, the trading
+apps, and the quote plant. *[sourced: operator statement 2026-09-22]*
 
 ## Runtime
 On-prem servers + PCF (VMware Tanzu Application Service); this is what runs today. **The team
