@@ -70,6 +70,17 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   staging hostname rule, and a DataStream 2 hostname/region query in `obs-logs`' catalog whose
   destination stays an owner fact. A new discovery scenario checks that a Cloud Run 503 routes to
   `gcp-ops`.
+- `python-craft` matches its method to the request: a fix reproduces the defect, changes only
+  what the fix needs, and ends with a **Noticed, not changed** line; bug hunting and new code use
+  a new defects reference (a `ruff --extend-select B,S110,S113,BLE001,DTZ,PLW1510,ASYNC,RUF006,RUF032`
+  pass plus the classes a linter misses: zero-count slices, float money, wall-clock deadlines,
+  failure reported as success). Refactors first show the tests reach the moved code. `TaskGroup`
+  failures are documented as `ExceptionGroup` (existing `except X` stops matching), the
+  modernization table covers 3.10–3.14 idioms with a ruff `UP` pass, the toolkit's own pins left
+  the shipped reference, and the worked example is a `Decimal` fills calculation instead of the
+  eval fixture. A new build probe, `build-python-fix-stays-scoped`, scored 0/3 on the previous
+  body and 3/3 on this one (Sonnet): both fixed the bug without touching the duplicated code, and
+  only this one named the duplication it left.
 - The build probe resolves a trial's model identity from the main thread (init model plus every
   top-level assistant turn) and records the CLI's usage table separately as `usage_models`. Claude
   Code 2.1.271 lists an internal Haiku helper call of a few tokens in that table, which had closed

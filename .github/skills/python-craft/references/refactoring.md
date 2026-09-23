@@ -70,38 +70,50 @@ the decomposition or data model. Keep the direct expression when a wrapper adds 
 
 ## Example: make a calculation usable without files
 
-Here a preview caller and calculation tests need in-memory input, but the rule is trapped in I/O:
+Here a pre-trade preview and calculation tests need in-memory rows, but the rule is trapped in I/O:
 
 ```python
-def total_from_file(path):
-    with open(path, encoding="utf-8") as source:
-        total = 0
-        for line in source:
-            if line.strip():
-                total += int(line)
+import csv
+from decimal import Decimal
+
+
+def filled_notional_from_file(path):
+    with open(path, newline="", encoding="utf-8") as source:
+        total = Decimal("0")
+        for row in csv.DictReader(source):
+            if row["status"] == "FILLED":
+                total += Decimal(row["qty"]) * Decimal(row["price"])
         return total
 ```
 
 Keep the existing file interface and give the calculation one reusable boundary:
 
 ```python
-def total_from_lines(lines):
-    return sum(int(line) for line in lines if line.strip())
+def filled_notional(rows):
+    return sum(
+        (Decimal(row["qty"]) * Decimal(row["price"]) for row in rows if row["status"] == "FILLED"),
+        Decimal("0"),
+    )
 
 
-def total_from_file(path):
-    with open(path, encoding="utf-8") as source:
-        return total_from_lines(source)
+def filled_notional_from_file(path):
+    with open(path, newline="", encoding="utf-8") as source:
+        return filled_notional(csv.DictReader(source))
 ```
 
-The benefit is independent calculation and shared policy; an explicit loop is equally valid.
-Check empty/blank input, signed values, duplicates, one-pass
-iterables, parse errors, string/keyword path callers, and file cleanup on failure. If no caller or
+The benefit is independent calculation and shared policy; an explicit loop is equally valid. The
+`Decimal("0")` start keeps an empty result a `Decimal`. Check empty input, other statuses, signed
+quantities, one-pass iterables, malformed numbers (`decimal.InvalidOperation` still propagates), a
+missing column (`KeyError`), string and `Path` callers, and file cleanup on failure. If no caller or
 test benefits from the new boundary, do not manufacture one merely to split a short function.
 
 ## Verify compatibility and improvement
 
-Use existing tests and characterize missing contracts; working behavior needs no artificial red.
+Use existing tests and characterize missing contracts; working behavior needs no red-first test,
+but a green run proves nothing about code the tests never reach. Before restructuring, show the net
+reaches the code you will move: run branch coverage over it when the project has coverage tooling,
+or break one expression in it, confirm a named test fails, and undo that edit by hand (`git checkout`
+would also discard uncommitted work). Add characterization tests for unreached branches first.
 Compare old/new code on equivalent fresh inputs and controlled state. Check values/types,
 serialization, aliasing, mutation, accepted/rejected call forms, errors, and ordered effects.
 When propagation is required, preserve the exception object, not only its type/message.

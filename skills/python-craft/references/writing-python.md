@@ -25,6 +25,7 @@ Apply the choices below where they help; avoid arbitrary size/count limits.
 | Preserve a dictionary interface with static field checking | `TypedDict`; it remains a dict at runtime |
 | Validate external input | The project's boundary validator; evaluate a maintained library for substantial custom validation |
 | Consumer access to a collection | An iterable/sequence interface matching repeatability and indexing requirements |
+| Money, timestamps, and durations | `Decimal` built from strings; aware UTC `datetime` (`datetime.now(UTC)`); `time.monotonic()` for elapsed time and deadlines |
 
 - Type meaningful boundaries; narrow uncertain inputs rather than spreading `Any`. Annotations
   are not runtime validation. Distinguish missing, `None`, zero, false, and empty values deliberately.
@@ -45,7 +46,10 @@ Apply the choices below where they help; avoid arbitrary size/count limits.
   thread startup, or application configuration effects.
 - Use async when beneficial, without blocking the event loop. Own tasks, bound concurrency and
   queued work, and propagate cancellation after cleanup. `TaskGroup` is neither a concurrency
-  limit nor a behavior-equivalent replacement for every use of `gather`.
+  limit nor a behavior-equivalent replacement for every use of `gather`: its failures arrive as
+  `ExceptionGroup`, so an existing `except X` stops matching. Use `except* X`, whose block cannot
+  `return`, `break`, or `continue`, or handle the error inside each task. Put one deadline over
+  several awaits with `asyncio.timeout()`.
 
 [sourced] [typing](https://docs.python.org/3/library/typing.html),
 [dataclasses](https://docs.python.org/3/library/dataclasses.html),

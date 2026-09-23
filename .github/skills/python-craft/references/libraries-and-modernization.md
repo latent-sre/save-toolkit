@@ -41,17 +41,13 @@ Verify intentional behavior changes separately from behavior-preserving restruct
 | Custom HTTP transport code | Existing client; HTTPX where its capabilities fit | Redirects, phase timeouts, exception hierarchy, streams, pooling, lifecycle |
 | Repeated retry implementation | Existing SDK policy or configured Tenacity | Eligibility, attempt/deadline budget, cancellation, terminal exception |
 | Broad deterministic input coverage | Hypothesis alongside existing tests | Meaningful invariants, independent expectations, input domain |
-| Multi-keyword scanning over many texts | Pinned `pyahocorasick` over per-key substring loops | Encoding, whole-word vs substring, overlaps; stdlib `re` alternation for small sets |
-| Hot JSON encode/decode | Pinned `orjson` where a binary dep fits; stdlib `json` otherwise | Rejected types, bytes-vs-`str` output, key-order determinism |
-| Human-facing CLI tables | Pinned `rich` for output only, never for decisions | Plain-text fallback for pipes/logs; no logic on rendered text |
-| Parallel test execution | Pinned `pytest-xdist` (`-n auto`) for suites | Shared-state collisions, ordering dependence; never for ordered trials |
+| Multi-keyword scanning over many texts | `pyahocorasick` over per-key substring loops | Encoding, whole-word vs substring, overlaps; stdlib `re` alternation for small sets |
+| Hot JSON encode/decode | `orjson` where a binary dependency fits; stdlib `json` otherwise | Rejected types, bytes-vs-`str` output, key-order determinism |
+| Human-facing CLI tables | `rich` for output only, never for decisions | Plain-text fallback for pipes/logs; no logic on rendered text |
+| Parallel test execution | `pytest-xdist` (`-n auto`) for suites | Shared-state collisions; not for tests that depend on run order |
 | Paths, batching, TOML reading | `pathlib`, `itertools`, `tomllib` where supported | Platform semantics, partial batches, parsing versus writing, Python floor |
 
-These are options to evaluate, not approved additions for every project. **When developing Save
-Toolkit itself**, the pinned names above live in its `requirements-dev.txt`, which its CI validate
-job installs before Gate A, so its gate-path scripts may import them. This does not establish
-dependency availability in another project. The toolkit's hook guard (`readonly-guard.py`, `python -I -S`) stays
-stdlib-only permanently. Toolchain defaults remain
+These are options to evaluate, not approved additions for every project. Toolchain defaults remain
 in `stack-profile`; version pins belong in the project's dependency files. Recheck package facts at
 adoption rather than freezing "latest" versions into this guidance.
 
@@ -77,15 +73,26 @@ adoption rather than freezing "latest" versions into this guidance.
 | Feature | Minimum version | Semantic check |
 |---|---|---|
 | `zip(..., strict=True)` | 3.10 | Unequal lengths now raise rather than truncate |
+| `match` statement | 3.10 | Structural dispatch, not ranges; a bare name in `case` captures instead of comparing, so use dotted constants |
+| `X \| None` unions at runtime | 3.10 | Earlier runtimes accept it only in postponed annotations |
+| `dataclass(slots=True, kw_only=True)` | 3.10 | Slots remove the instance `__dict__`, breaking ad-hoc attributes and `cached_property`; keyword-only breaks positional callers |
 | `tomllib` | 3.11 | Reads TOML; does not write it |
-| `asyncio.TaskGroup` | 3.11 | Changes task ownership, sibling failure, and cancellation handling |
+| `asyncio.TaskGroup` and `except*` | 3.11 | Changes task ownership, sibling failure, and cancellation; failures surface as `ExceptionGroup`, so existing `except X` handlers stop matching |
+| `asyncio.timeout()` | 3.11 | One deadline over several awaits; raises `TimeoutError` outside the block |
+| `datetime.UTC`, `enum.StrEnum`, `typing.Self` | 3.11 | `UTC` aliases `timezone.utc`; a `StrEnum` member's `str()` is its value |
 | `type Alias = ...` / type-parameter syntax | 3.12 | Older runtimes cannot parse it; runtime annotation consumers still matter |
+| `typing.override` | 3.12 | Checked by type checkers, not at runtime |
 | `itertools.batched` | 3.12; `strict` in 3.13 | Decide whether the last partial batch is accepted |
+| `warnings.deprecated`, `copy.replace` | 3.13 | Mark a moved public name for callers and type checkers; build a changed copy of a frozen record |
 | Deferred annotation evaluation default | 3.14 | Check frameworks/tools that inspect annotations at runtime |
+| `except A, B:` without parentheses | 3.14 | Older runtimes cannot parse it |
 
 A feature's availability does not make it behavior-equivalent. Keep component-specific floors,
 optional-dependency paths, and isolated standard-library entrypoints intact. Validate the actual
-deployment versions, not only the developer's interpreter.
+deployment versions, not only the developer's interpreter. For the mechanical part of an upgrade,
+`ruff check --no-fix --select UP --target-version <floor> <paths>` lists the rewrites, where
+`<floor>` is the oldest supported runtime (for example `py311`); review them as fixes under
+Refactoring tools.
 
 [sourced] [Pydantic migration](https://docs.pydantic.dev/latest/migration/),
 [strict mode](https://docs.pydantic.dev/latest/concepts/strict_mode/),
