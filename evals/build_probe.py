@@ -2203,8 +2203,40 @@ def check_bash_ran(ctx: Context, p: dict) -> tuple[bool, str]:
     return bool(hits), (f"{len(hits)} Bash call(s) matched /{p['pattern']}/: " + repr(hits[0][:120])) if hits else f"no Bash call matched /{p['pattern']}/ ({len(ctx.trace.bash_commands)} Bash calls)"
 
 
-def _verification_command(command: str, runner: str, tool: str) -> bool:
+def _normalized_dir(text: str) -> str:
+    """One spelling for a directory named in a command: unquoted, forward slashes, MSYS `/f/` → `f:`, no trailing slash, casefolded."""
+    path = text.strip().strip("'\"").replace("\\", "/")
+    msys = re.fullmatch(r"/([a-zA-Z])(/.*)?", path)
+    if msys:
+        path = f"{msys.group(1)}:{msys.group(2) or '/'}"
+    return path.rstrip("/").casefold() or "/"
+
+
+def _strip_workdir_prefix(command: str, tool: str, workdirs: tuple[str, ...]) -> str | None:
+    """Remove one leading change-directory step that only positions the suite, or reject the command.
+
+    Returns the remaining command (unchanged when there is no prefix) for the strict matcher below,
+    or None when a prefix is present but not an accepted one. `workdirs` holds the trial repository's
+    host path and, in container mode, its container path; compare them with `_normalized_dir`.
+    The remainder is still checked by `_verification_command`, so a prefix can never admit a second command.
+    Accepted: `cd` or `Set-Location` into the trial repository, joined by `&&` so the suite runs only
+    after the change succeeded. Any other target, `;`, `||`, or a missing command rejects.
+    """
+    if not re.match(r"\s*(?:cd|set-location)\b", command, re.IGNORECASE):
+        return command
+    m = re.fullmatch(r"\s*(?:cd|set-location)\s+(\"[^\"]+\"|'[^']+'|[^\s\"';&|]+)\s*&&\s*(\S.*)",
+                     command, re.IGNORECASE | re.DOTALL)
+    if not m or _normalized_dir(m.group(1)) not in {_normalized_dir(w) for w in workdirs}:
+        return None
+    return m.group(2)
+
+
+def _verification_command(command: str, runner: str, tool: str, workdirs: tuple[str, ...] = ()) -> bool:
     """A bounded native test invocation, never a shell program or an arbitrary wrapper."""
+    stripped = _strip_workdir_prefix(command, tool, workdirs)
+    if stripped is None:
+        return False
+    command = stripped
     if tool == "PowerShell" and command.lstrip().startswith("& "):
         command = command.lstrip()[2:]
     if re.search(r"[;&|<>$`%\r\n(){}]", command):
@@ -2288,10 +2320,13 @@ def check_verification_completed(ctx: Context, p: dict) -> tuple[bool, str]:
     if not calls:
         return False, "no matched foreground verification evidence in the trace"
     call = calls[-1]
+    workdirs = ()
+    if ctx.ws:
+        workdirs = (str(ctx.ws.repo),) + ((container_root(ctx.ws) + "/repo",) if ctx.container else ())
     if (call["tool"] not in SHELL_TOOLS or call["parent"]
-            or not _verification_command(call["command"], p["runner"], call["tool"])):
+            or not _verification_command(call["command"], p["runner"], call["tool"], workdirs)):
         if any(prior["success"] and prior.get("test_summaries", {}).get(p["runner"])
-               and _verification_command(prior["command"], p["runner"], prior["tool"]) for prior in calls[:-1]):
+               and _verification_command(prior["command"], p["runner"], prior["tool"], workdirs) for prior in calls[:-1]):
             return False, "INCONCLUSIVE: a later potentially mutating tool action leaves final-state verification unknown"
         return False, "no final standalone foreground test invocation"
     if call["reported_error"]:
