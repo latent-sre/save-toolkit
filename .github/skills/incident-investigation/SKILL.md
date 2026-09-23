@@ -86,7 +86,7 @@ console path and the relevant observability skill for its query dialect.
    point is not recovery. Reconcile any interrupted earlier attempt before recommending a retry.
    Read [mitigation selection](./references/mitigation-selection.md) before recommending an action
    or judging one already attempted. A human release owner executes; the fast path needs a
-   declared incident and approval in the TLC. If no supported mitigation exists, say "change nothing yet", why, and the
+   declared incident and ITO's approval in the TLC. If no supported mitigation exists, say "change nothing yet", why, and the
    diagnostic that moves it forward.
 4. **Next check.** The one Apps Manager view, Grafana dashboard or panel, Splunk search, Wavefront
    or PCF App Metrics chart, or command that separates the top candidates. Give it as: what to run,
@@ -103,8 +103,8 @@ console path and the relevant observability skill for its query dialect.
    when it changes the immediate advice. If none exists and impact is growing, customer-visible,
    or needs another team, recommend the responder start one through the team's incident process
    and name the teams to bring in from the service card's escalation path; you open nothing and
-   page nobody yourself. ITO runs the TLC: it asks for updates and pages people, and the
-   investigation and its recommendations stay with the responder. Asked for an update, draft a
+   page nobody yourself. ITO runs the TLC: it asks for updates, pages people, and approves
+   changes; the investigation and its recommendations stay with the responder. Asked for an update, draft a
    short one from the board for the responder to post; never claim it was sent.
 6. **Board.** Update the current state below so the next reply starts from what was learned.
 

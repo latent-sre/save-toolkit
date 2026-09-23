@@ -61,8 +61,8 @@ verification. The entrypoint rules remain authoritative after a reference is loa
 A formal on-call rotation is in place. *[sourced: operator statement 2026-08-21]*
 The team investigates and recommends fixes. An existing bridge or TLC (Techline Chat) is the
 coordination channel, not a request to open another. *[sourced: operator statement 2026-09-12]*
-ITO (Infra Tech Org) runs the TLC once one is open: it asks for updates and pages teams, and does
-not run the investigation. There is no standing incident lead or commander.
+ITO (Infra Tech Org) runs the TLC once one is open: it asks for updates, pages teams, and approves
+changes, and does not run the investigation. There is no standing incident lead or commander.
 *[sourced: operator statement 2026-09-22]* `incident-investigation` owns technical advice, the
 investigation board, and recommendations based on supplied impact and policy. Who sets severity is
 not recorded. *[unverified — record the owner]*

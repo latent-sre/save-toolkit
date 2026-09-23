@@ -91,7 +91,7 @@ the executor before a retry.
    remains the closed list of what blocks covered execution.
 
 The approval shape is the `production-change-gate` incident fast path: human confirmation of the
-exact command or a bounded envelope approved in the TLC, blast radius, backout, and named decider. Other
+exact command or a bounded envelope ITO approves in the TLC, blast radius, backout, and named decider. Other
 gate records reconcile after resolution and never delay a reversible mitigation. Shipping a new
 artifact, and every destructive or access-path action, remain on the full gate with required
 recovery evidence.

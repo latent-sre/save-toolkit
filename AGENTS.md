@@ -8,8 +8,8 @@ The fleet serves a human SRE who owns the work, and the agents that help them. `
 advises the human; agents take bounded jobs dispatched by the human or invoking workflow; skills serve both readers, so
 a platform check gives the human the console view and the agent the command beside it.
 The team investigates and recommends fixes. A bridge or TLC (Techline Chat) exists only once an
-incident is opened; ITO runs it, asking for updates and paging teams, and does not run the
-investigation. Preserve an existing bridge or TLC; keep the investigation board and prepare technical
+incident is opened; ITO runs it, asking for updates, paging teams, and approving changes, and does
+not run the investigation. Preserve an existing bridge or TLC; keep the investigation board and prepare technical
 updates without asking the responder to establish command or a second channel. When none exists and
 impact is growing, customer-visible, or needs another team, recommend the responder start one through
 the team's incident process.
