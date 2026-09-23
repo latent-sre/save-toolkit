@@ -18,6 +18,11 @@ intact in transit; describe an inference in prose and label it `[unverified]` ra
 fourth state. A planned or candidate technology is never a current-stack fact until a human owner
 records the decision here.
 
+## The business
+The firm is a stock trading firm; use trading examples (orders, accounts, markets, exchanges),
+never retail ones. Most incidents trace to dependencies, most often order management, the trading
+apps, and the quote plant. *[sourced: operator statement 2026-09-22]*
+
 ## Runtime
 On-prem servers + PCF (VMware Tanzu Application Service); this is what runs today. **The team
 operates PCF through Apps Manager**, not the command line: many SREs do not have the `cf` CLI
@@ -37,10 +42,11 @@ by team decision. Read the conditional observability reference for the signal in
 languages, lifecycle evidence, and GCP additions.
 
 During an incident the responder's tools are, in order: Apps Manager for what changed and instance
-state, Splunk for logs beyond the last minutes, and **Wavefront and PCF App Metrics** for
-application metrics. Grafana with Mimir, Loki, and Tempo is the additive stack: GCP workloads and
-services already instrumented with OpenTelemetry land there. *[sourced: operator statement
-2026-09-02]*
+state, **Grafana** for the service's dashboards, panels, and alert state, Splunk for logs beyond
+the last minutes, and **Wavefront and PCF App Metrics** for application metrics. Grafana's Mimir,
+Loki, and Tempo backends are the additive stack: GCP workloads and services already instrumented
+with OpenTelemetry land there. *[sourced: operator statement 2026-09-02; Grafana second, owner
+2026-09-22]*
 
 ## Read only the conditional stack facts the request needs
 
@@ -58,12 +64,13 @@ verification. The entrypoint rules remain authoritative after a reference is loa
 
 ## Incident response
 A formal on-call rotation is in place. *[sourced: operator statement 2026-08-21]*
-The team investigates and recommends fixes; someone else runs the incident. An existing bridge or
-TLC (Techline Chat) is the coordination channel, not a request to open another.
-*[sourced: operator statement 2026-09-12]* `incident-investigation` owns technical advice, the
-investigation board, and recommendations based on supplied impact and policy. The human lead owns
-severity and escalation decisions. Preserve
-the human lead's declared tier, roles, update requests, and authoritative record.
+The team investigates and recommends fixes. An existing bridge or TLC (Techline Chat) is the
+coordination channel, not a request to open another. *[sourced: operator statement 2026-09-12]*
+ITO (Infra Tech Org) runs the TLC once one is open: it asks for updates, pages teams, and approves
+changes, and does not run the investigation. There is no standing incident lead or commander.
+*[sourced: operator statement 2026-09-22]* `incident-investigation` owns technical advice, the
+investigation board, and recommendations based on supplied impact and policy. Who sets severity is
+not recorded. *[unverified — record the owner]*
 
 ## Change management
 Change records live in **both BMC Remedy and Jira**. `production-change-gate` refers to "the formal

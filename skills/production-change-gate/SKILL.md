@@ -46,7 +46,7 @@ Classify first, then check only what the tier needs.
 | 3 | Destructive or access-path change: data deletion, storage or backup, credential or identity, DNS, firewall, VPN, proxy, remote access | As Tier 2 plus a proven backup or recovery path; stop until the named action and target are approved |
 
 Approval covers only the command, target, and applying actor shown; a material change re-enters
-the gate. During a declared incident the incident commander may approve a bounded envelope instead
+the gate. During a declared incident, ITO's approval in the TLC may cover a bounded envelope instead
 (see the [incident fast path](./references/incident-fast-path.md)). For covered actions, its
 short checklist replaces the production table below.
 
@@ -59,7 +59,7 @@ short checklist replaces the production table below.
 | Blast radius | Affected apps, routes, spaces, users or traffic share, and the worst credible failure are recorded. |
 | Backout / recovery | Exact rollback where feasible; otherwise state what cannot be undone and provide an evidence-backed recovery path, verification and stop conditions. The human release owner owns execution; unresolved recovery evidence blocks approval. Prefer reversible actions; recovery does not make an action reversible or lower its tier. |
 | Plan shown | Every command and the manifest or configuration diff are shown; approval covers no undisclosed side effect. |
-| Timing, monitoring, comms | Peak and freeze periods considered; a named human watches the golden signals with agreed abort criteria; stakeholders and on-call are told before and after. During an incident the commander's roles and comms cadence satisfy these; never delay a mitigation for a notification. |
+| Timing, monitoring, comms | Peak and freeze periods considered; a named human watches the golden signals with agreed abort criteria; stakeholders and on-call are told before and after. During an incident ITO's TLC and update cadence satisfy these; never delay a mitigation for a notification. |
 
 ## Verdict
 

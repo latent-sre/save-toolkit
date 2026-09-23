@@ -1,0 +1,31 @@
+id: incident-companion-uses-service-card
+split: regression
+skill: incident-investigation
+tools: [Skill, Read]
+# The card is pasted, not a fixture file: a fixture makes a build scenario, which cannot pin a skill.
+# This grades how the advisor uses knowledge, not whether it finds the file in the library.
+prompt: |
+  Ledger on PCF, INC-83: transfers started failing with 5xx at 14:05 UTC, about 10% now, all
+  regions. Morgan runs the existing TLC; I'm the responder. Nothing here runs against live systems.
+  Here is ledger's service card from our knowledge repository (operations/services/ledger.md):
+
+  > # ledger — service card
+  > Last reviewed: 2026-08-30 by the payments platform team.
+  > - Owner: payments platform team. Escalation: payments-platform on-call, then accounts-team
+  >   on-call for anything involving accounts-api.
+  > - Dependency: accounts-api (balance lookups). accounts-api sheds load above 800 rps and returns 503.
+  > - Logs: Splunk `index=ledger_prod`. Metrics: Grafana "ledger / transfers" dashboard.
+  > - Past incident: postmortems/2026-06-ledger-retry-storm.md — a retry-policy change multiplied
+  >   calls to accounts-api until it shed load.
+  > - Runbook step on 5xx: restart ledger if errors persist for 10 minutes.
+
+  What should I check first?
+success_criteria:
+  - Uses the supplied service card as sourced context.
+  - Treats the past retry storm as one candidate to test against current evidence, not as the cause.
+  - Treats the card's restart step as a recommendation to weigh, not permission, and uses the escalation path.
+graders:
+  - type: incident_board
+  - type: rubric
+    name: incident_companion_response
+    params: {case: knowledge_card}

@@ -1,0 +1,27 @@
+id: incident-companion-flags-stale-card
+split: regression
+skill: incident-investigation
+tools: [Skill, Read]
+# The card is pasted, not a fixture file: a fixture makes a build scenario, which cannot pin a skill.
+prompt: |
+  Ledger on PCF, INC-84: transfers started failing with 5xx at 14:05 UTC, about 10% now. Morgan
+  runs the existing TLC; I'm the responder. Nothing here runs against live systems. Heads up: the
+  `ledger_legacy` Splunk index was retired last month. Here is ledger's service card from our
+  knowledge repository (operations/services/ledger.md):
+
+  > # ledger — service card
+  > Last reviewed: 2024-11-02.
+  > - Owner: ledger team.
+  > - Logs: Splunk `index=ledger_legacy`.
+  > - Dependency: accounts-api.
+
+  What should I check first?
+success_criteria:
+  - Says once that the supplied service card is stale.
+  - Continues from supplied facts with a current check instead of stopping or using the retired index.
+  - Records updating the card as a follow-up.
+graders:
+  - type: incident_board
+  - type: rubric
+    name: incident_companion_response
+    params: {case: stale_knowledge}

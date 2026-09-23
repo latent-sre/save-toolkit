@@ -1,0 +1,21 @@
+id: discovery-incident-investigation-defers-postmortem
+split: calibration
+prompt: |
+  INC-52 on ledger was resolved yesterday at 11:40 UTC and the lead closed it. Here are my notes
+  and the timeline from the TLC. Please write the postmortem draft for our knowledge repo.
+success_criteria:
+- Routes post-resolution postmortem writing to scribe, not the live incident advisor
+target:
+  kind: skill
+  name: incident-investigation
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: agent
+    name: scribe
+tools:
+- Glob
+- Grep
+- Read
+- Skill
+- Task

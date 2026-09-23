@@ -428,15 +428,26 @@ The incident advisor now uses one seven-field board. Its structural check is
 Legacy `fields`/`checkpoint` expectations remain for historical comparisons, not current acceptance.
 Completeness does not establish useful advice, factual accuracy, or continuity across turns;
 those require assessment of the conversation against the supplied incident evidence.
-The three `incident-companion-*` scenarios use the `incident_board` grader for structure and
-the companion rubric for advice quality. Rubric calibration examples assess semantics alone;
-they need not contain a board and are not complete scenario passes.
+The `incident-companion-*` scenarios use the `incident_board` grader for structure and
+the companion rubric for advice quality; they cover explanation, missing access, handover
+read-back, helper assignment and return reconciliation, and current and stale service cards.
+Rubric calibration examples assess semantics alone; they need not contain a board and are not
+complete scenario passes. The board is the reply's last step (the skill's step 6), so a line
+after it fails the board grader by design.
 
 The `discovery-incident-investigation-existing-bridge` and
 `discovery-incident-investigation-existing-tlc-followup` scenarios cover a current bridge and
-supplied prior-turn TLC context. Their automated verdict checks routing only; manually assess
-the listed response criteria and board. The follow-up scenario is a conversation snapshot,
+supplied prior-turn TLC context. Beyond routing, they grade the board and the companion rubric's
+`existing_bridge`/`existing_tlc` cases. The follow-up scenario is a conversation snapshot,
 not a native resumed session, so it does not establish runtime continuity.
+
+The sre-assistant build probes grade the agent's return packet (`Returning to:` through
+`Caller next step:`), mitigation choice through the `mitigation_recommendation` rubric, refusal
+of evidence-destroying actions through `compromise_preserves_evidence`, and masking of the echoed
+session username. Three sre-assistant paths cannot run in this harness and stay host-acceptance
+items, not regression coverage: the Playwright/Grafana visual path (strict MCP supplies no
+servers), the dispatched child's reads in routing trials (the child runs without Bash), and
+researcher dispatch from the agent.
 
 `python -m pytest evals/` covers the runner, graders, and judge without a model. Gate A is
 structural and does not run them; CI does.

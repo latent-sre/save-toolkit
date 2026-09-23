@@ -1,7 +1,7 @@
 # Mitigation selection
 
 Use for mitigation selection or readback of an attempted change.
-Prepare a recommendation for the existing incident lead and human release owner, with the approval
+Prepare a recommendation for ITO's approval and the human release owner, with the approval
 packet below. This reference neither takes command nor executes a change.
 
 ## Contents
@@ -38,7 +38,7 @@ fast-path classification, not other confirmed already-live rollback options.
 | Errors begin at a bad deploy and the previously live app still exists | Remap the production route to the previous app | Inspect both apps' **Routes**, including hostname, domain, path, and current mappings; use the confirmed map/unmap controls | `cf map-route <previous-app> <domain> --hostname <app>` then `cf unmap-route <current-app> …`; first identify the live and previous apps, not assumed blue/green names |
 | Bad deploy with revisions enabled | Revision rollback | Inspect **Revisions** and the last good row; use **Redeploy** only when the owner confirms it performs the intended rollback | `cf revisions <app>` — pick a row marked `deployable` — then `cf rollback <app> --version <n>`. Rollback redeploys that revision's droplet, environment variables, and start command as a NEW revision described `Rolled back to revision <n>`, so it also reverts any variable changed since `<n>` (including a mid-incident `set-env`); it does not touch service bindings, routes, or instance count [sourced: https://docs.cloudfoundry.org/devguide/revisions.html] |
 | Rolling or canary deployment is still in progress | Abort the active deployment | Have the release owner confirm the active deployment and its pipeline cancellation path; a revisions list alone does not prove deployment completion | `cf cancel-deployment <app>` only while active (a rollback in progress is itself an active deployment — cancelling it puts the bad droplet back); after completion use revision rollback. Cancellation does not revert variables or service bindings |
-| Instances are hung, wedged, or leaking with no recent change | Restart as a time-buying stopgap | Inspect the affected process/instance on **Overview**; use a per-instance restart control if the console exposes one `[unverified]` — the console **Restart** is whole-app `[unverified]`, so otherwise ask the release owner for the per-instance path. Do not substitute **Restage** | `cf restart-app-instance <app> <i> --process <process-type>` for the affected instance (preferred when the remaining instances have serving headroom for the restarted instance's share, which keeps rule 2's held-back instance possible; a single-instance app or already-saturated survivors have no such headroom — then any restart is an outage for its duration and needs the commander's explicit call, not a fast-path classification). `<i>` is the zero-based instance index: `cf app` counts from 0, and so does the console's instance table `[unverified]` — confirm which row "instance #3" means before restarting. Whole-app `cf restart <app>` stops every instance before starting any — downtime for the whole start-up window unless the CLI supports `--strategy rolling` [sourced: https://cli.cloudfoundry.org/en-US/v8/restart.html]; state that blast radius in the packet. Confirm existing-droplet reuse and preserve or disposition diagnostic state under rule 2 |
+| Instances are hung, wedged, or leaking with no recent change | Restart as a time-buying stopgap | Inspect the affected process/instance on **Overview**; use a per-instance restart control if the console exposes one `[unverified]` — the console **Restart** is whole-app `[unverified]`, so otherwise ask the release owner for the per-instance path. Do not substitute **Restage** | `cf restart-app-instance <app> <i> --process <process-type>` for the affected instance (preferred when the remaining instances have serving headroom for the restarted instance's share, which keeps rule 2's held-back instance possible; a single-instance app or already-saturated survivors have no such headroom — then any restart is an outage for its duration and needs ITO's explicit approval, not a fast-path classification). `<i>` is the zero-based instance index: `cf app` counts from 0, and so does the console's instance table `[unverified]` — confirm which row "instance #3" means before restarting. Whole-app `cf restart <app>` stops every instance before starting any — downtime for the whole start-up window unless the CLI supports `--strategy rolling` [sourced: https://cli.cloudfoundry.org/en-US/v8/restart.html]; state that blast radius in the packet. Confirm existing-droplet reuse and preserve or disposition diagnostic state under rule 2 |
 | Bad variable read only at process start | Revert and restart | Human executor uses **Settings** privately for the exact approved variable, then the confirmed restart path; carry no secret value into the incident packet | `cf set-env <app> KEY <old>` then `cf restart <app>` (`--strategy rolling` where the CLI supports it; a plain restart stops every instance first — see the restart row); first confirm the consumer and package/droplet state |
 | Bad buildpack or staging-time configuration | Revert and restage through the full release gates | Human executor uses the approved configuration/pipeline path; a **Restage** control creates new staged bytes | `cf set-env <app> KEY <old>` then `cf restage <app>`; unknown consumer blocks the restart/restage choice |
 | Load or capacity saturation | Scale out | On **Overview**, select the affected process's **Scale** control and approved **Instances** count, if exposed | `cf scale <app> --process <process-type> -i <approved-count>`; preserve the selected process because the CLI defaults to `web` |
@@ -82,7 +82,7 @@ the executor before a retry.
    input, or dependency hypothesis and continue investigation with the human on-call, advised by
    `incident-investigation`.
 5. **Record every decision and result using the parent skill's time rule** in the investigation board; prepare the technical
-   update for the existing bridge/TLC. The human incident lead's record remains authoritative.
+   update for the existing bridge/TLC.
 6. **Confirm before executing.** The packet names the exact target, change, command, blast radius,
    verification window, rollback, human executor, and approving decider. It also records the
    perishable diagnostic evidence captured or knowingly forgone — recorded, never gating. Missing
@@ -91,10 +91,10 @@ the executor before a retry.
    remains the closed list of what blocks covered execution.
 
 The approval shape is the `production-change-gate` incident fast path: human confirmation of the
-exact command or an IC-approved bounded envelope, blast radius, backout, and named decider. Other
-gate records reconcile after resolution and never delay a reversible mitigation. Shipping a new
-artifact, and every destructive or access-path action, remain on the full gate with required
-recovery evidence.
+exact command or a bounded envelope ITO approves in the TLC, blast radius, backout, and named
+decider. Other gate records reconcile after resolution and never delay a reversible mitigation.
+Shipping a new artifact, and every destructive or access-path action, remain on the full gate with
+required recovery evidence.
 
 After mitigation, confirm user impact has ended but keep the incident open through the sustained
 recovery window. The human on-call continues root-cause work with `incident-investigation`

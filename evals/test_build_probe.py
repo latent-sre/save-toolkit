@@ -450,6 +450,17 @@ class TraceAndCommandTests(unittest.TestCase):
         bare = self._parse_events([result])
         self.assertEqual(["claude-haiku-4-5-20251001", "claude-sonnet-5"], bare.models)
 
+    def test_a_cli_builtin_plugin_is_not_a_second_candidate(self) -> None:
+        """CLI 2.1.280 lists telemetry@builtin beside --plugin-dir; only a real second plugin is ambiguous."""
+        candidate = {"name": "save-toolkit", "path": str(ROOT), "source": "save-toolkit@inline"}
+        builtin = {"name": "telemetry", "path": "builtin", "source": "telemetry@builtin"}
+        s = self._parse_events([{"type": "system", "subtype": "init", "plugins": [builtin, candidate]}])
+        self.assertIsNone(build_probe.plugin_identity_problem(s, ROOT))
+        self.assertEqual("save-toolkit", build_probe.runtime_namespace(s, ROOT))
+        other = {"name": "other", "path": str(ROOT), "source": "other@inline"}
+        s = self._parse_events([{"type": "system", "subtype": "init", "plugins": [candidate, builtin, other]}])
+        self.assertIn("exactly one", build_probe.plugin_identity_problem(s, ROOT))
+
     @staticmethod
     def _parse_events(events: list) -> "build_probe.TraceSummary":
         with tempfile.TemporaryDirectory() as tmp:
