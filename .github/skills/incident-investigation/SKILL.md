@@ -110,17 +110,28 @@ console path and the relevant observability skill for its query dialect.
 
 ### Investigation board
 
-Every turn every line (`none` for a known absence; `unknown` for missing or unchecked information), labelled, never written to the repository. It is what prevents the responder from looping back to a excluded candidate: the board is the single source of truth for what has been observed and decided.  This appears until the incident is fully resolved and the closeout packet is completed.
+End every reply with the board. The only exception is a question with no problem being worked —
+learning how something works, a postmortem, or a what-if — which gets a direct answer and no
+board; when unsure, show it. Keep it until the incident is resolved and the closeout packet is
+filled, or the human confirms `no-incident`. Every field, every time, one line each (two only when
+an open item would otherwise drop): `none` for a known absence, `unknown` for missing or unchecked
+information. Carry it across turns and wrap an open item rather than drop it; it is never written
+to the repository. It is the single record of what was observed and decided, so the prose above it
+does not repeat it, and it stops the responder looping back to an excluded candidate.
+
+Mark status after the colon, never before the field name: Impact starts with 🔴 users still
+affected, 🟡 unclear or recovering, or 🟢 recovered and holding; each action starts with 🟢
+confirmed applied, 🟡 recommended or approved but not done, or 🔴 attempted with outcome UNKNOWN.
+The words still carry the meaning; the marker is for scanning.
 
 ```
 Investigation board:
 
-Impact:     <user outcome · scope · onset/trend · observation time · recovery criterion/window>
+Impact:     <🔴/🟡/🟢> <user outcome · scope · onset/trend · observation time · recovery criterion/window>
 Open:       <candidates · evidence for/against · owner/gap · ranking, only if supported>
-Checked:    <What was run · what is showed · what was expected · observation · source/label · scope · time/window · result or gap>
-Ruled out:  <every candidate the text has ruled out — with the evidence that eliminated it; none if no candidates have been excluded>
-Actions:    <recommended/not approved · approved/not attempted · attempted UNKNOWN · confirmed applied;
-             human · target · time · evidence/outcome · whether it has held>
+Checked:    <what was run · what it showed vs. expected · source/label · scope · time/window>
+Ruled out:  <each excluded candidate · the evidence that excluded it · the scope and time it covers; none if none>
+Actions:    <per action: 🟢/🟡/🔴 · what · human · target · time · evidence/outcome · whether it has held>
 Next:       <the discriminating check · why now · outcome meanings, including inconclusive>
 Follow-ups: <discoveries for the knowledge repo · actions: what, owner, due · decisions — including the ones others pressed for: who asked, who decided, ET from the incident's clock, on what evidence · unknowns: checks nobody could run>
 ```
