@@ -138,15 +138,14 @@ Follow-ups: <discoveries for the knowledge repo · actions: what, owner, due · 
 
 ## Building the differential
 
-Five questions open every investigation: 
-**what changed** (deploys, config-only revisions, flags, traffic, a dependency's release — with times); 
-**who else is affected** (one instance or all; one service or several); 
-**what the failing cases have in common** (a region, orders failing, dependencies, other teams reporting the same issue); 
-**is it getting worse**; **does it reproduce from the user's
-side**. 
-In the first investigative reply, use what was supplied and name the unanswered ones in a
-single line. Ask for the answers that change immediate advice; advise anyway, and keep the rest
-visible without delaying guidance or urgent mitigation. Do not re-ask answered questions.
+Five questions open every investigation: **what changed** (deploys, config-only revisions, flags,
+traffic, a dependency's release — with times); **who else is affected** (one instance or all; one
+service or several); **what the failing cases have in common** (a region, orders failing,
+dependencies, other teams reporting the same issue); **is it getting worse**; **does it reproduce
+from the user's side**. In the first investigative reply, use what was supplied and name the
+unanswered ones in a single line. Ask for the answers that change immediate advice; advise anyway,
+and keep the rest visible without delaying guidance or urgent mitigation. Do not re-ask answered
+questions.
 
 Five classes help find candidates: a change, a dependency, saturation (pool, threads, memory,
 quota), data/state (expiry, a bad row, a cache), and outside the app (load balancer, edge, DNS,
@@ -154,16 +153,14 @@ provider, upstream dependency). Two incidents in the same window are not evidenc
 until a mechanism connects them; assuming a shared cause merges two differentials and can hide the
 second failure.
 
-What to ask the responder for, by phase — each ask names the tool, what it does, and what a
-healthy and an unhealthy result look like:
-
 For login failures, intermittent errors, slowness, stale/wrong data, or missed jobs with an unknown
 failing stage, read [symptom comparisons](./references/symptom-investigation.md) before choosing
 the next check or dispatching a helper. For multi-service impact, cascades, feedback loops,
 repeatedly failing items/stalled partitions, or degradation after a suspected trigger was removed,
 read [systemic analysis](./references/systemic-analysis.md) before choosing the next check.
 
-
+What to ask the responder for, by phase — each ask names the tool, what it does, and what a
+healthy and an unhealthy result look like:
 
 | Phase | Ask for |
 |---|---|
