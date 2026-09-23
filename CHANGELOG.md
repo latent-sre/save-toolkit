@@ -27,6 +27,12 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   current `maxTurns` behavior are recorded; subagent model resolution names both environment
   variables. The method adds a listing-budget check before description edits, a new-skill
   admission test, first-match evidence rows, and one return-header core with named lane fields.
+- `frontend-craft` covers SSE auth with in-memory tokens, confirmed and idempotent UI writes, an
+  SPA fallback that never swallows API paths, and a browser check that names the gap when no
+  browser tool exists. `backend-craft` adds object-level authorization tests, PCF request ids
+  (`X-Vcap-Request-Id`) on every log line and problem body, PCF health-check wiring and the 10 s
+  drain window, a starter test that no longer passes on a router 404, and a replay/in-progress
+  contract for the starter POST.
 - The build probe resolves a trial's model identity from the main thread (init model plus every
   top-level assistant turn) and records the CLI's usage table separately as `usage_models`. Claude
   Code 2.1.271 lists an internal Haiku helper call of a few tokens in that table, which had closed

@@ -1,0 +1,17 @@
+id: discovery-frontend-craft-defers-observability-dashboard
+split: regression
+prompt: |
+  Make a dashboard page for the fx-quotes service so on-call can see its health at a glance:
+  request rate, error ratio, p99 latency, and saturation, with drill-downs to the logs. We already
+  run Grafana with Mimir and Loki; this is an observability dashboard, not a page in our app.
+success_criteria:
+- Routes observability dashboard design to the dashboards lane, not the web UI lane
+- Does not plan a React page or an app build for an on-call health view
+target:
+  kind: skill
+  name: frontend-craft
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: skill
+    name: obs-dashboards

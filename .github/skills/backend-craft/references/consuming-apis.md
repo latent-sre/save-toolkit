@@ -47,7 +47,9 @@ This section owns only the *integration mechanics* — the call shape that diffe
 GET. If a name here disagrees with `stack-profile`, `stack-profile` wins and this file is stale.
 
 - **PCF / cf (CAPI V3, cf CLI v8):** prefer the `cf` CLI for one-shot ops; for programmatic work hit
-  CAPI V3 JSON with a **UAA** token; page via `pagination.next.href`. **State-changing writes**
+  CAPI V3 JSON with a **UAA** token; page via `pagination.next.href`. A CAPI V3 client gets its UAA
+  token by a client-credentials grant from its bound or environment secrets; never run or paste
+  `cf oauth-token` output. **State-changing writes**
   (restart/scale/route) are gated — an already-approved change record must name the exact target,
   action, and rollback, with a human release owner executing the change.
 - **Splunk (SPL):** create a **search job**, then *poll* it to completion and page results — don't

@@ -16,7 +16,8 @@ from fastapi.testclient import TestClient
 
 APP = "app.main:create_app"      # "module:factory" returning the app, or "module:app"
 LIST_PATH = "/v1/incidents"      # one cursor-paginated collection
-MISSING_PATH = "/v1/incidents/does-not-exist"   # a 404 on that resource
+UNKNOWN_PATH = "/v1/no-such-route"   # matches no route: the framework's own 404
+MISSING_ITEM_PATH = None   # with an item route: a well-formed id that does not exist; malformed is 422
 
 @pytest.fixture(scope="module")
 def app():
@@ -57,6 +58,10 @@ def assert_problem(response, status: int) -> None:
     assert body["status"] == status, (
         f"house rule: the problem body's status must match the HTTP status ({body['status']} != {status})"
     )
+    assert body.get("request_id"), (
+        "house rule: a problem body carries request_id (Gorouter's X-Vcap-Request-Id on PCF, else a "
+        "validated ingress id or a generated one) so the caller's error joins the log line"
+    )
 
 
 def test_collection_is_a_cursor_page(client, auth_headers):
@@ -74,9 +79,21 @@ def test_collection_is_a_cursor_page(client, auth_headers):
     assert one.status_code == 200, f"limit=1 must be accepted; got {one.status_code}"
     assert len(one.json()["data"]) <= 1, "house rule: limit is honoured, not ignored"
 
-def test_missing_resource_is_a_problem(client, auth_headers):
-    response = client.get(MISSING_PATH, headers=auth_headers)
-    assert response.status_code == 404, f"{MISSING_PATH} must be a 404; got {response.status_code}"
+def test_unknown_path_is_a_problem(client, auth_headers):
+    response = client.get(UNKNOWN_PATH, headers=auth_headers)
+    assert response.status_code == 404, (
+        f"{UNKNOWN_PATH} must be a 404; got {response.status_code} (a SPA fallback swallowing API paths?)"
+    )
+    assert_problem(response, 404)
+
+
+def test_missing_item_is_a_problem(app, client, auth_headers):
+    items = [r.path for r in app.routes if getattr(r, "path", "").startswith(LIST_PATH + "/{")]
+    if MISSING_ITEM_PATH is None:
+        assert not items, f"{items} exist: set MISSING_ITEM_PATH to a well-formed id that does not exist"
+        pytest.skip("this contract has no item route")
+    response = client.get(MISSING_ITEM_PATH, headers=auth_headers)
+    assert response.status_code == 404, f"{MISSING_ITEM_PATH} must be a 404; got {response.status_code}"
     assert_problem(response, 404)
 
 

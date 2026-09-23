@@ -36,6 +36,9 @@ Adapt [write acceptance tests](../assets/test_api_write_contract.py) to a compat
 contract or translate to native tests. Inspect authoritative effects and detached stable business
 state, independently of response/receipt caches; matching IDs alone miss corruption.
 
+Crash-boundary evidence applies when a duplicate or lost response has a business effect (a page,
+ticket, order, or external call); a natural-key upsert or idempotent PUT needs only a
+duplicate-request test.
 Cover duplicates, conflicting payloads, authorized scope isolation and both commit-boundary crashes.
 The second request must reach server arbitration before the first commits. Confirm failpoint arrival
 and killed-worker exit; client/response overlap and caught exceptions do not prove those boundaries.
