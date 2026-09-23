@@ -10,12 +10,12 @@ Keep the application manifest in version control and review its exact diff:
 
 ```yaml
 applications:
-  - name: checkout
+  - name: order-router
     instances: 3
     memory: 1G
     buildpacks: [java_buildpack_offline]
     routes:
-      - route: checkout.apps.example.com
+      - route: order-router.apps.example.com
     env:
       SPRING_PROFILES_ACTIVE: prod
 ```
@@ -28,21 +28,21 @@ when the repository owns neither a manifest nor a starter.
 ## Classic blue-green plan
 
 Before each push, resolve both app names, identities, and route mappings. The live app must be
-`checkout`; never reuse a production-serving `checkout-green` as the candidate. Reconcile an
+`order-router`; never reuse a production-serving `order-router-green` as the candidate. Reconcile an
 interrupted or unknown delete/rename outcome under the approved recovery plan before restarting
 this sequence. Rotate names after soak to restore that starting state.
 
 ```bash
-cf push checkout-green -f manifest.yml --no-route
-cf map-route checkout-green apps.example.com --hostname checkout-test
+cf push order-router-green -f manifest.yml --no-route
+cf map-route order-router-green apps.example.com --hostname order-router-test
 # smoke-test green on the test route
-cf map-route checkout-green apps.example.com --hostname checkout
+cf map-route order-router-green apps.example.com --hostname order-router
 # confirm production traffic and telemetry meet approved criteria before unmapping the old app
-cf unmap-route checkout apps.example.com --hostname checkout
-# soak; rollback here re-maps checkout and unmaps green
-cf unmap-route checkout-green apps.example.com --hostname checkout-test
-cf delete checkout -f
-cf rename checkout-green checkout
+cf unmap-route order-router apps.example.com --hostname order-router
+# soak; rollback here re-maps order-router and unmaps green
+cf unmap-route order-router-green apps.example.com --hostname order-router-test
+cf delete order-router -f
+cf rename order-router-green order-router
 ```
 
 The human release owner runs only commands named in the approved packet. Before the production map,
@@ -57,7 +57,7 @@ bounded non-production evidence for the exact CLI/CAPI versions. *[sources revie
 
 ## Manifest-name interaction
 
-The example manifest pins `name: checkout`, while the playbook pushes `checkout-green`. The v7+ CLI
+The example manifest pins `name: order-router`, while the playbook pushes `order-router-green`. The v7+ CLI
 applies the app-name argument before the rest of the manifest: if that name is absent and the
 manifest contains exactly one application, the CLI renames the stanza to the argument and proceeds;
 if it contains multiple applications, it fails with `AppNotInManifestError`. Check that the approved

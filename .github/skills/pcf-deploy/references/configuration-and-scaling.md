@@ -7,9 +7,9 @@ rules in `SKILL.md` still apply.
 ## Planning commands
 
 ```bash
-cf set-env checkout KEY value && cf restart checkout --strategy rolling
-cf set-env checkout JBP_CONFIG_X value && cf restage checkout --strategy rolling
-cf scale checkout -i 5
+cf set-env order-router KEY value && cf restart order-router --strategy rolling
+cf set-env order-router JBP_CONFIG_X value && cf restage order-router --strategy rolling
+cf scale order-router -i 5
 ```
 
 A memory or disk change uses the no-downtime resize row in `pcf-ops`, not `cf scale -m/-k`.

@@ -17,6 +17,7 @@ be waived, and any other waiver is a recorded human decision.
 | Docs and ops | Changed behaviour or operations update the docs: a `scribe` handoff for runbooks or postmortems, an `observability-engineer` handoff for dashboards, alerts, or SLOs, or a recorded reason neither is needed. |
 
 Severity: P0/P1 block; a P2 blocks only when the candidate introduced or worsened it; P3 never
-blocks. This repository's ruleset requires a pull request and zero approvals, so this checklist
-never claims independent review is enforced; exact-commit independent review belongs to a
-production deployment, not to every merge.
+blocks. Read the candidate repository's active rules (`gh api repos/{owner}/{repo}/rules/branches/{branch}`)
+and classic protection (`gh api repos/{owner}/{repo}/branches/{branch}/protection`; a 404 without
+admin rights means unknown, not unprotected), and record the approvals they actually enforce; never claim independent review is enforced unless that record shows
+it. Exact-commit independent review belongs to a production deployment, not to every merge.

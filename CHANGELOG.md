@@ -27,6 +27,13 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   current `maxTurns` behavior are recorded; subagent model resolution names both environment
   variables. The method adds a listing-budget check before description edits, a new-skill
   admission test, first-match evidence rows, and one return-header core with named lane fields.
+- `production-change-gate`'s only worked approval packet now carries every checklist slot
+  (execution boundary, change record, watcher, timing) and the real `cf app` output shape. Merge
+  readiness reads the candidate repository's own rules instead of asserting this repository's.
+  Tier 0 reads go only through a lane's granted read path, and a dispatched readback is evidence
+  for the reconciliation owner, never the executor's receipt. Examples use a trading app
+  (`order-router`), and the restart-classification eval grades a plain whole-app restart off the
+  fast path, with ITO approving in the TLC. ITO is spelled out as IT Operations.
 - `frontend-craft` covers SSE auth with in-memory tokens, confirmed and idempotent UI writes, an
   SPA fallback that never swallows API paths, and a browser check that names the gap when no
   browser tool exists. `backend-craft` adds object-level authorization tests, PCF request ids
