@@ -20,8 +20,9 @@ Give the helper one compact assignment:
   limit. Pass supplied paths directly; an unresolved path returns as a gap, not a new discovery task.
 - Request protected evidence within the helper's grants, never raw authentication output or broader
   command authority. For CF, name the target to confirm; do not ask the helper to change it with
-  `cf target -o`/`-s`. An unconfirmed target is a gap. Ask for actual time coverage and retrieval limits;
-  available commands or a cropped excerpt do not prove the historical question can be answered.
+  `cf target -o`/`-s`. An unconfirmed target is a gap. Ask for actual time coverage and retrieval
+  limits; available commands or a cropped excerpt do not prove the historical question can be
+  answered.
 
 Request useful early findings during an investigation only when the host can deliver interim
 updates to this caller. Otherwise ask for a partial return at the next useful boundary and dispatch

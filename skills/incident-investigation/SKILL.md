@@ -86,9 +86,9 @@ console path and the relevant observability skill for its query dialect.
    decision to forgo it. Recovery is the agreed user outcome holding for its window; one green
    point is not recovery. Reconcile any interrupted earlier attempt before recommending a retry.
    Read [mitigation selection](./references/mitigation-selection.md) before recommending an action
-   or judging one already attempted. A human release owner executes; the fast path needs a
-   declared incident and ITO's approval in the TLC. If no supported mitigation exists, say "change nothing yet", why, and the
-   diagnostic that moves it forward.
+   or judging one already attempted. A human release owner executes; the fast path needs a declared
+   incident and ITO's approval in the TLC. If no supported mitigation exists, say "change nothing
+   yet", why, and the diagnostic that moves it forward.
 4. **Next check.** The one Apps Manager view, Grafana dashboard or panel, Splunk search, Wavefront
    or PCF App Metrics chart, or command that separates the top candidates. Give it as: what to run,
    with target and window · what it does · *if it shows X, A leads and the next check or owner
@@ -101,11 +101,11 @@ console path and the relevant observability skill for its query dialect.
 5. **The call.** Recommend who to involve from the escalation path and the evidence or decision
    needed. If a bridge/TLC exists, raise growing impact, a blocked investigation, or a need for
    another team's help there, and ask ITO to page the teams you name; ask about coordination only
-   when it changes the immediate advice. If none exists and impact is growing, customer-visible,
-   or needs another team, recommend the responder start one through the team's incident process
-   and name the teams to bring in from the service card's escalation path; you open nothing and
-   page nobody yourself. ITO runs the TLC: it asks for updates, pages people, and approves
-   changes; the investigation and its recommendations stay with the responder. Asked for an update, draft a
+   when it changes the immediate advice. If none exists and impact is growing, customer-visible, or
+   needs another team, recommend the responder start one through the team's incident process and
+   name the teams to bring in from the service card's escalation path; you open nothing and page
+   nobody yourself. ITO runs the TLC: it asks for updates, pages people, and approves changes; the
+   investigation and its recommendations stay with the responder. Asked for an update, draft a
    short one from the board for the responder to post; never claim it was sent.
 6. **Board.** Update the current state below so the next reply starts from what was learned.
 
@@ -260,8 +260,8 @@ time. Missing facts that no named source can supply stay with you to clarify; ne
 examples or send the helper to establish scope and pick a first check. A bounded lookup can itself
 resolve a named unknown, such as the owner of a supplied route.
 
-Before writing an assignment or reconciling a return, read the
-[helper exchange](./references/helper-exchange.md): it holds the assignment fields, protected-evidence
+Before writing an assignment or reconciling a return, read the [helper
+exchange](./references/helper-exchange.md): it holds the assignment fields, protected-evidence
 limits, partial returns, reconciliation, and worked examples. Helper completion neither closes the
 incident nor transfers change authority, and an acknowledgment or a running helper is not a result.
 
@@ -278,9 +278,13 @@ incident nor transfers change authority, and an acknowledgment or a running help
 
 ## Handover and after
 
-A handover to another human gets the first screen and the board — its Actions line is what stops
-the receiver repeating or reversing an action already taken — and ends with their explicit
-acknowledgment. When the Do-now recovery signal has held for its window — not one green sample — and the responder calls it resolved, fill the [closeout packet](./assets/closeout-packet.md).
-Route it to `scribe` — postmortem mode first, then knowledge closeout with Follow-ups. You author
-neither: a discovery is learned only when the closeout turns it into a reviewable change.
-`scribe` writes the follow-ups and lessons learned to the knowledge repository through that closeout.
+A handover to another human names who is handing to whom, the INC, and the existing TLC, then gives
+the first screen and the board — its Actions line stops the receiver repeating or reversing an
+action already taken. It ends with the receiver's read-back and explicit acknowledgment; preparing
+it does not mean it was accepted, and it hands over the investigation, not change approval or
+release authority.
+
+When the agreed recovery criterion has held for its window — not one green sample — and the
+responder calls it resolved, fill the [closeout packet](./assets/closeout-packet.md). Route it to
+`scribe` — postmortem mode first, then knowledge closeout with Follow-ups. You author neither: a
+discovery is learned only when the closeout turns it into a reviewable change.
