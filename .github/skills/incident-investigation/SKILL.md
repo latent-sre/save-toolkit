@@ -149,7 +149,7 @@ answered questions.
 | Who else is affected? | one instance or all; one service or several; other teams reporting the same issue |
 | What do the failing cases have in common? | a region, an order or account type, a market or exchange, one instance, one dependency |
 | Is it getting worse? | the error or latency trend since onset |
-| Does it reproduce from the user's side? | the same failure from a user's request or a direct call |
+| Does it reproduce from the user's side? | the same failure a user sees, or a safe reproduction — never a real order, trade, or account change |
 
 Five classes help find candidates: a change, a dependency, saturation (pool, threads, memory,
 quota), data or state (expiry, a bad row, a cache), and outside the app (load balancer, edge, DNS,
@@ -167,7 +167,7 @@ What to ask the responder for, by phase:
 
 | Phase | Ask for |
 |---|---|
-| Report | expected behaviour, actual behaviour, how to reproduce; what fired, when, and its window |
+| Report | expected behaviour, actual behaviour, safe reproduction (never a real order, trade, or account change); what fired, when, and its window |
 | Triage | user-visible impact and traffic share; still happening and trend; service owner and on-call |
 | Examine | the golden signals as time series (latency, traffic, errors, saturation); logs for one failing request; the service's own state (thread dump, pool and queue metrics); changes with times |
 | Diagnose | the observation whose outcomes separate the remaining candidates |
