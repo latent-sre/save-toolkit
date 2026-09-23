@@ -138,20 +138,23 @@ Follow-ups: <discoveries for the knowledge repo · actions: what, owner, due · 
 
 ## Building the differential
 
-Five questions open every investigation: **what changed** (deploys, config-only revisions, flags,
-traffic, a dependency's release — with times); **who else is affected** (one instance or all; one
-service or several); **what the failing cases have in common** (a region, orders failing,
-dependencies, other teams reporting the same issue); **is it getting worse**; **does it reproduce
-from the user's side**. In the first investigative reply, use what was supplied and name the
-unanswered ones in a single line. Ask for the answers that change immediate advice; advise anyway,
-and keep the rest visible without delaying guidance or urgent mitigation. Do not re-ask answered
-questions.
+Five questions open every investigation. In the first investigative reply, use what was supplied and
+name the unanswered ones in a single line. Ask for the answers that change immediate advice; advise
+anyway, and keep the rest visible without delaying guidance or urgent mitigation. Do not re-ask
+answered questions.
+
+| Question | For example |
+|---|---|
+| What changed? | deploys, config-only revisions, flags, traffic, a dependency's release — with times |
+| Who else is affected? | one instance or all; one service or several; other teams reporting the same issue |
+| What do the failing cases have in common? | a region, an order or account type, a market or exchange, one instance, one dependency |
+| Is it getting worse? | the error or latency trend since onset |
+| Does it reproduce from the user's side? | the same failure from a user's request or a direct call |
 
 Five classes help find candidates: a change, a dependency, saturation (pool, threads, memory,
-quota), data/state (expiry, a bad row, a cache), and outside the app (load balancer, edge, DNS,
-provider, upstream dependency). Two incidents in the same window are not evidence of one cause
-until a mechanism connects them; assuming a shared cause merges two differentials and can hide the
-second failure.
+quota), data or state (expiry, a bad row, a cache), and outside the app (load balancer, edge, DNS,
+provider). Two incidents in the same window are not evidence of one cause until a mechanism
+connects them; assuming a shared cause merges two differentials and can hide the second failure.
 
 For login failures, intermittent errors, slowness, stale/wrong data, or missed jobs with an unknown
 failing stage, read [symptom comparisons](./references/symptom-investigation.md) before choosing
@@ -159,14 +162,13 @@ the next check or dispatching a helper. For multi-service impact, cascades, feed
 repeatedly failing items/stalled partitions, or degradation after a suspected trigger was removed,
 read [systemic analysis](./references/systemic-analysis.md) before choosing the next check.
 
-What to ask the responder for, by phase — each ask names the tool, what it does, and what a
-healthy and an unhealthy result look like:
+What to ask the responder for, by phase:
 
 | Phase | Ask for |
 |---|---|
 | Report | expected behaviour, actual behaviour, how to reproduce; what fired, when, and its window |
 | Triage | user-visible impact and traffic share; still happening and trend; service owner and on-call |
-| Examine | available latency/traffic/error/saturation series; one failing request; thread/pool/queue state; changes with times |
+| Examine | the golden signals as time series (latency, traffic, errors, saturation); logs for one failing request; the service's own state (thread dump, pool and queue metrics); changes with times |
 | Diagnose | the one observation that would remove each remaining candidate |
 | Mitigate | reversible action, rollback, effective-state readback, and the user outcome that proves recovery |
 | Compromise | preserve first — images, dumps, the attacker timeline, what data was reachable — and touch nothing; escalate to the human security incident owner, via ITO once a TLC is open. Mitigation-first does not apply |
