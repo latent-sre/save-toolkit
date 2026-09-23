@@ -61,7 +61,8 @@ for the human release owner; Java source changes belong to the application's dev
 - **The Java buildpack's memory calculator sizes the JVM from the container's `$MEMORY_LIMIT` before
   every start**: heap (`-Xmx`/`-Xms`), metaspace, thread stacks (`-Xss` × `stack_threads`, default
   250), code cache, direct memory. Three consequences:
-  1. `cf scale -m` needs a **restart, not a restage** — the numbers are recomputed at start.
+  1. `cf scale -m/-k` stops and starts every instance itself; no restage is needed — the numbers
+     are recomputed at start.
   2. Pinning `-Xmx` yourself does not opt out: since calculator v4 the container must still fit
      heap **plus** non-heap, or the app fails at start with `required memory … is greater than …
      available for allocation`. Fix the thread count or the container size, not the heap flag.

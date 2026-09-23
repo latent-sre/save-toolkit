@@ -7,11 +7,12 @@ rules in `SKILL.md` still apply.
 ## Planning commands
 
 ```bash
-cf set-env checkout KEY value && cf restart checkout
-cf set-env checkout JBP_CONFIG_X value && cf restage checkout
+cf set-env checkout KEY value && cf restart checkout --strategy rolling
+cf set-env checkout JBP_CONFIG_X value && cf restage checkout --strategy rolling
 cf scale checkout -i 5
-cf scale checkout -m 2G -k 2G
 ```
+
+A memory or disk change uses the no-downtime resize row in `pcf-ops`, not `cf scale -m/-k`.
 
 These are planning examples, never agent execution authority. The human release owner selects only
 the exact approved command and supplies any secret through the approved credential path.
@@ -39,7 +40,9 @@ containers start. It is also a human-only credential-bearing read — `pcf-ops` 
 
 ## Scale effects and rollback
 
-Horizontal scaling changes instance count. Memory or disk changes restart instances and can affect
+Horizontal scaling changes instance count. `cf scale -m/-k/-l` stops the whole app and then starts
+it: an outage for the start-up window. For a no-downtime web resize, use the existing-droplet
+deployment in `pcf-ops`; a `cf push -m/-k` is a new artifact. Memory or disk changes can affect
 placement or quota. Record current and proposed values, capacity/quota evidence, expected restart
 behavior, health thresholds, and the exact command that restores the prior scale. Revision rollback
 does not restore scale, so scale recovery must be a separate step.

@@ -99,6 +99,7 @@ Retry permission: <ALLOWED | BLOCKED_PENDING_RECONCILIATION>
 | Preparing a Tier 2 or 3 approval-request packet, or an explicit ask for the template | [Tier 2 approval example](./references/tier-2-approval-example.md) |
 | A declared incident needing reversible Tier 0–2 mitigation, a bounded envelope, rollback to the live artifact, or post-incident reconciliation | [Incident fast path](./references/incident-fast-path.md) |
 | Proving a release artifact is the immutable one that was tested | [Release artifact evidence](./references/release-artifact-evidence.md) |
+| A `cf` state-changing command (restart, restage, scale, set-env, push, rollback) | Load `pcf-ops` and read its state-changing command effects reference for blast radius and for whether the action creates a new artifact |
 
 Urgency without a declared incident does not open the fast path. A new artifact and every Tier 3
 action stay on the full checklist at any severity.

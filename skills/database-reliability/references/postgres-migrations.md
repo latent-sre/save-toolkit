@@ -4,6 +4,17 @@ Read only for PostgreSQL-specific migration mechanics. The compatibility, recove
 output contracts in `../SKILL.md` remain binding. Confirm the deployed major with
 `SHOW server_version;`; it is `[unverified]` until observed.
 
+## Bound every lock wait
+
+Each DDL here first waits for its table lock, and every later query on the table queues behind the
+waiting DDL. `ADD COLUMN`, `ADD CONSTRAINT … NOT VALID`, `SET NOT NULL`, and `ALTER … TYPE` take
+`ACCESS EXCLUSIVE`; `ADD FOREIGN KEY` takes `SHARE ROW EXCLUSIVE` on both tables. First get the
+transactions open on the table (`pg_stat_activity`, through the DBA). Then run the migration session
+with `SET lock_timeout = '<seconds, below the app's request timeout>'` (session or `SET LOCAL`, never
+`postgresql.conf`) and retry with backoff on timeout. A timed-out or failed `CREATE INDEX
+CONCURRENTLY` leaves an INVALID index: `DROP INDEX CONCURRENTLY` it before the retry. *[sourced:
+PostgreSQL 18 `ALTER TABLE` and `lock_timeout` references]*
+
 ## Constraints and columns
 
 Adding `NOT NULL` to an existing column can scan the table while validating every row. Do not run a

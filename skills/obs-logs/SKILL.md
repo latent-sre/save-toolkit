@@ -4,7 +4,7 @@ description: >-
   The answer is in the logs — find error spikes, read them over time, correlate one
   request across services, compare before/after a deploy. Backends: Splunk (SPL), Loki
   (LogQL), and Cloud Logging on GCP — the reference teaches the dialect. Triggers: 'search
-  the logs', 'why are there 500s', 'grep production for', 'write a log query'. Ownership
+  the logs', 'why are there 500s', 'write a log query', 'follow this correlation id'. Ownership
   map only: obs-metrics owns metrics, obs-dashboards owns dashboard design, grafana owns
   Grafana operations, and obs-alerting owns alert design.
 argument-hint: "[service, symptom, or log question]"
@@ -63,8 +63,7 @@ Bounded interpretation: answer, supplied source/target/window, limits and a usef
 missing metadata stays unknown. Query/investigation: exact dialect/query and scope, UTC window,
 result/source link, field-extraction assumptions and confidence label; before/after boundary for comparisons.
 Separate observations from interpretations. Hand
-recurring-query or correlation evidence to the `observability-engineer` agent; do not load another skill from
-this one.
+recurring-query or correlation evidence to the `observability-engineer` agent.
 
 Minimize copied telemetry. Redact credentials, tokens, secrets, personal data, authentication or session
 values, user identifiers, sensitive headers, request bodies, and database query literals. Prefer an

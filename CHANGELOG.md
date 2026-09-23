@@ -8,6 +8,19 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- A new `pcf-ops` reference states what each state-changing `cf` command does to serving: `cf scale
+  -m/-k/-l`, plain `cf restart`, and plain `cf restage` stop the whole app; `--strategy rolling`
+  rolls `web` only; a no-downtime resize is an existing-droplet deployment, never `cf push`. The
+  incident fast path now admits only instance-count scale, and `production-change-gate` loads the
+  reference for any `cf` state-changing command.
+- A correlation id with no trace id now routes to `obs-logs` instead of dead-ending in
+  `obs-traces`, which had claimed the trigger while forbidding the skill that maps it. Two
+  discovery scenarios cover the split.
+- `database-reliability` bounds every migration lock wait: PostgreSQL `lock_timeout` with retry
+  and INVALID-index cleanup; SQL Server `WAIT_AT_LOW_PRIORITY` where allowed, otherwise
+  `LOCK_TIMEOUT` with `XACT_ABORT ON`.
+- The `ci-actions` PCF production-deploy example runs only when a human dispatches it from `main`,
+  and requires a deployment-branch rule on the environment.
 - The build probe resolves a trial's model identity from the main thread (init model plus every
   top-level assistant turn) and records the CLI's usage table separately as `usage_models`. Claude
   Code 2.1.271 lists an internal Haiku helper call of a few tokens in that table, which had closed

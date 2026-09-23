@@ -10,6 +10,10 @@ infrastructure, runtime or identity recommendations.
 - A GitHub environment whose required reviewers and environment-scoped credentials for a
   least-privilege PCF service account are configured and available on this repository's plan.
   Naming the environment in YAML does not establish that protection.
+- A deployment-branch rule on that environment limiting deploys to the reviewed branch or tags,
+  verified in the repository settings. GitHub's default is no restriction, and on Free, Pro, or Team
+  plans required reviewers exist only for public repositories, so without the rule and the job's
+  `if:` guard a pull-request run can deploy unmerged code with production credentials.
 - A trusted `build` job that uploads `app-build` with `app.zip` and a reviewed single-app
   `manifest.yml`, and exposes their SHA-256 digests as `app_sha256` and `manifest_sha256` outputs.
   The manifest must be self-contained, without credentials or a Docker-image deployment path.
@@ -27,6 +31,7 @@ impose the PCF example's identity or action-version choices on other workflows.
 ```yaml
 deploy-prod:
   needs: build
+  if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'  # a human starts each deploy, from main only
   runs-on: [self-hosted, pcf]          # runner group with foundation network access
   timeout-minutes: 20
   environment: production

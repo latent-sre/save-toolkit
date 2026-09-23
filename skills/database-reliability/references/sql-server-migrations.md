@@ -4,6 +4,22 @@ Read only for SQL Server-specific migration mechanics. The compatibility, recove
 output contracts in `../SKILL.md` remain binding. The target edition is `[unverified]` until observed;
 do not plan on an online operation merely because the syntax exists.
 
+## Bound every lock wait
+
+DDL waiting at normal priority blocks every later request on the table, so bound every wait:
+
+- Index create on 2022+ and online index rebuild on 2014+: `WITH (ONLINE = ON (WAIT_AT_LOW_PRIORITY
+  (MAX_DURATION = <n ≥ 1> MINUTES, ABORT_AFTER_WAIT = SELF)))`. Never use `BLOCKERS`: it kills user
+  transactions, which is a query kill needing its own approval.
+- Online `ALTER COLUMN` rejects `WAIT_AT_LOW_PRIORITY`. For it, for `ADD` column/constraint, other
+  offline DDL, and index builds before 2022, run `SET LOCK_TIMEOUT <ms>` and `SET XACT_ABORT ON` in
+  the migration session, so a lock timeout (error 1222) fails the whole migration instead of leaving
+  its transaction open, then retry with backoff. `LOCK_TIMEOUT` still waits at normal priority, so
+  keep it to seconds.
+
+*[sourced: SQL Server `ALTER TABLE`, `CREATE INDEX`, `SET LOCK_TIMEOUT`, and `SET XACT_ABORT`
+references]*
+
 ## Columns
 
 The cheap path is a **new** column, not tightening an existing nullable column. `ADD col ... NOT NULL

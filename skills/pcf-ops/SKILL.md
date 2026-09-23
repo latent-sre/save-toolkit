@@ -108,6 +108,7 @@ evidence gathered so far in this triage, and no others.
 | App crashes, status 137, OOM evidence, JVM memory sizing, `$PORT`, or liveness/readiness health checks | [Application crashes and health checks](./references/application-crashes-and-health-checks.md) |
 | `X-Cf-RouterError`, 404/502/503 interpretation, keep-alive failures, connection limits, route services, or certificate/clock-skew symptoms | [Router errors](./references/router-errors.md) |
 | The task requires repository-owned foundation/API, org/space, app inventory, route, owner, or runbook values, or the target to confirm before reading | [Foundations and app inventory](./references/foundations.md) |
+| Recommending or classifying a restart, restage, scale, push, or rollback, or a memory/disk resize | [State-changing command effects](./references/state-changing-effects.md) |
 
 These references supply interpretation and inventory only. They do not widen the application-side
 lane, turn repository values into trusted target evidence, or authorize a state-changing command.
@@ -137,8 +138,12 @@ and hand the human release owner the exact target, purpose, and rollback/exit pl
 
 ## State-changing — human execution only
 
-`cf set-health-check` / `cf restart` / `cf restage` / `cf scale` / `cf push` / `cf map-route` / `cf unmap-route` /
-`cf set-env` / `cf stop` / `cf delete` / `cf cancel-deployment` / `cf continue-deployment` / `cf ssh`.
+Every `cf` verb outside the read rows above is human-run: `cf set-health-check` / `cf restart` /
+`cf restage` / `cf scale` / `cf push` / `cf map-route` / `cf unmap-route` / `cf set-env` / `cf stop` /
+`cf delete` / `cf cancel-deployment` / `cf continue-deployment` / `cf ssh`. `cf scale -m/-k/-l`, a
+plain `cf restart`, and a plain `cf restage` stop the whole app before starting it; read
+[State-changing command effects](./references/state-changing-effects.md) before recommending or
+classifying any of them.
 
 The `incident-investigation` skill advises the responder on mitigation choice for ITO's approval, and the human-invoked `/save-toolkit:pcf-deploy` workflow owns the deployment plan the human release owner executes; this read-only skill stops and hands off. Require an
 already-approved Tier-2/3 evidence packet naming the exact target, action, actor, blast radius,

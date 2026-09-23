@@ -6,10 +6,12 @@ parent `SKILL.md` still owns classification and execution authority.
 
 ## Scope
 
-Covered actions include route remaps, revision rollback, scale, flags, and per-instance or rolling
-restarts with confirmed serving headroom and existing-droplet reuse without staging. Unknown
-package/droplet state or a whole-app stop/start does not qualify; use the mitigation-selection
-reference in `incident-investigation` for selection.
+Covered actions include route remaps, revision rollback, instance-count scale, flags, and
+per-instance or rolling restarts with confirmed serving headroom and existing-droplet reuse without
+staging. Unknown package/droplet state or a whole-app stop/start does not qualify; a memory, disk,
+or log-rate scale stops and starts the whole app, so it does not qualify either. Use the
+mitigation-selection reference in `incident-investigation` for selection. While a deployment is
+deploying or paused, scaling the `web` process fails: wait for it, or cancel it knowingly.
 New artifacts (including restage) retain the full release and production gates. Tier 3 destructive
 or access-path actions retain the full gate and proven backup/recovery requirement.
 Suspected compromise or integrity loss exits this path: preserve evidence and follow the human

@@ -1,0 +1,17 @@
+id: discovery-obs-traces-defers-correlation-id
+split: regression
+prompt: |
+  Follow correlation id 7f3c9a2e-51d4-4b8e-9c0a-2d6f1e8b4a17 through checkout and payments and
+  tell me which service failed that request. There is no trace id; the correlation id is what the
+  customer's error page shows. This is a lookup, not an incident.
+success_criteria:
+- Starts a correlation id with no trace id in the logs lane, not the traces lane
+- Does not treat the correlation id as a trace id
+target:
+  kind: skill
+  name: obs-traces
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: skill
+    name: obs-logs
