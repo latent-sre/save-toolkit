@@ -81,8 +81,8 @@ Times below: September 14, 2026, Eastern (EDT); E2's 09:45 UTC is 05:45 Eastern.
 E1: two crashes, aggregate CPU 25%, capture/crash times absent; E2: config 05:45
 [sourced]. Neither current state nor ordering/cause follows. Low CPU leaves waits/limits open;
 refreshing cannot recover E1's time. Open Apps Manager → Orders/prod → Events for 05:40–06:00
-Eastern (09:40–10:00 if the view uses UTC); confirm the view's timezone. Bring back the crash and update
-rows with times: a crash before 05:45 Eastern weakens the change as the
+Eastern (09:40–10:00 if the view uses UTC); confirm the view's timezone. Bring back the crash
+and update rows with times: a crash before 05:45 Eastern weakens the change as the
 trigger; crashes only after it are consistent with cause but do not prove it. Missing coverage
 leaves ordering unknown.
 
