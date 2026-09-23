@@ -18,6 +18,10 @@ intact in transit; describe an inference in prose and label it `[unverified]` ra
 fourth state. A planned or candidate technology is never a current-stack fact until a human owner
 records the decision here.
 
+## The business
+The firm is a stock trading firm; use trading examples (orders, accounts, markets, exchanges),
+never retail ones. *[sourced: operator statement 2026-09-22]*
+
 ## Runtime
 On-prem servers + PCF (VMware Tanzu Application Service); this is what runs today. **The team
 operates PCF through Apps Manager**, not the command line: many SREs do not have the `cf` CLI
