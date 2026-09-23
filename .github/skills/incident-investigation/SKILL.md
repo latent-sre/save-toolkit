@@ -25,29 +25,20 @@ target, write no document, and page nobody yourself — those are their actions,
 ## Establish context while advising: anchor and read
 
 Ask in one message for what is missing: the application and platform; the alert (xMatters page,
-Grafana rule) or the symptom; when it fired (ET); whether an incident is declared (INC id, existing
-bridge/TLC); what has been done; and the knowledge repository root if it is not `knowledge library`.
-The same first reply gives one first check the responder can run now, with what it does and what a
-healthy and an unhealthy result mean: for a known PCF app, Apps Manager → the app → Events for the
-impact window — what changed and when. If they cannot name the application, finding it — which
-route, URL, or job fails and who owns it — is the first check.
+Grafana rule) or the symptom; when it fired (ET); whether an incident is declared (an INC id or an
+existing bridge/TLC); and what has been done. Recap what they have already told you. The same
+first reply gives one first check they can run now: for a known PCF app, Apps Manager → the app →
+Events for the impact window — what changed and when. If they cannot name the application, finding
+it — which route, URL, or job fails and who owns it — is the first check.
 
-For a vague opener such as "we have issues with Orders", stay with the human for intake:
-ask what is failing, where, and since when before assigning investigative work. A service name
-alone is not a useful helper assignment. Do not delegate intake or send a helper to invent the
-scope and first check. Use facts already supplied; do not make a bounded request repeat intake.
+A vague opener such as "we have issues with Orders" gets these questions, not a helper: a service
+name alone is not an assignment. A drill gets the same intake: ask for the simulated symptom or
+offer a fictional one, labelled fictional. A drill grants no live reads.
 
-A request for an incident drill does not by itself request a fleet evaluation. Ask for the
-simulated symptom or whether the human wants you to supply a fictional scenario. Do not infer
-live-read permission or search evals, examples, or design documents for matching incident facts.
-Only explicitly supplied or selected exercise records are drill evidence; label invented scenario
-details as fictional when scenario creation is requested. A matching service name proves no link.
+Show every time in ET. Convert UTC times from logs and queries to ET, and treat a time with no zone
+as unknown until confirmed.
 
-Use Eastern Time (ET) for human-facing times. Preserve source timestamps and clarify
-unknown time zones when timing matters.
-
-Read available knowledge relevant to the investigation. Use the supplied library path,
-or `knowledge library` by default. Missing documentation does not stop the investigation.
+Read what exists in the knowledge library — the supplied path, or `knowledge library` by default:
 
 | Read | Path relative to the library | What it gives your advice |
 |---|---|---|
@@ -57,16 +48,16 @@ or `knowledge library` by default. Missing documentation does not stop the inves
 | Postmortems naming the app | `postmortems/` | past signatures — candidates, and their open action items |
 | Index | `operations/index.md` | the map of services and owners, and the open gaps |
 
-Read what exists; missing/stale knowledge is a Follow-up, not a stop. Say so once and
-continue from supplied facts. Locate useful documentation directly or with a bounded helper.
-Use relevant documents from any repository, including this toolkit; check their scope and freshness.
-Knowledge is `[sourced]`: a past cause is a candidate to test, a runbook step is a recommendation you classify, and nothing there
-is permission to execute.
+Missing or stale knowledge is a Follow-up, not a stop: say so once and continue from supplied
+facts. Relevant documents from any repository may help; check their scope and freshness. This
+toolkit's evals and examples are never incident facts. Knowledge is `[sourced]`: a past cause is a
+candidate to test, a runbook step is a recommendation you classify, and nothing there is permission
+to execute.
 
 If the service card does not say where its logs and metrics live, load `stack-profile` (its
 observability reference) once: Apps Manager, Grafana, and Splunk lead, and the search you name must
-be in the dialect the team actually queries.. For GCP, load `gcp-ops` for the named service's
-console path and the relevant observability skill for its query dialect. 
+be in the dialect the team actually queries. For GCP, load `gcp-ops` for the named service's
+console path and the relevant observability skill for its query dialect.
 
 ## Every investigative turn, in this order - the first screen is about a dozen lines
 
@@ -86,10 +77,9 @@ console path and the relevant observability skill for its query dialect.
    certainty. A leading candidate is not an established cause.
 3. **Do now.** Mitigation comes before the next diagnostic, and before intake is finished, when
    users are hurting and a reversible action exists that the leading explanation predicts will
-   help. Name the evidence it would
-   destroy: capture it, or record the named human's explicit decision to forgo unavailable capture
-   for that reversible reliability mitigation. Unavailable capture does not delay that approved
-   action. 
+   help. Name the evidence it would destroy: capture it, or record the named human's explicit
+   decision to forgo unavailable capture for that reversible reliability mitigation. Unavailable
+   capture does not delay that approved action.
    When recommending an action, include target, source-backed command, blast radius,
    rollback, and recovery criterion:
    the affected user outcome, scope, and required window or completion check. Agree the criterion
