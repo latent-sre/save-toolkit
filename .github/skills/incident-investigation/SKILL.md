@@ -260,35 +260,10 @@ time. Missing facts that no named source can supply stay with you to clarify; ne
 examples or send the helper to establish scope and pick a first check. A bounded lookup can itself
 resolve a named unknown, such as the owner of a supplied route.
 
-Give the helper one compact assignment:
-
-- Name yourself as invoking caller and return recipient, and the human operational owner separately
-  (or unknown). State the question or decision the result will inform.
-- Choose **lookup** for exact observations/extraction, or **investigation** for comparison,
-  interpretation and testing plausible causes within the named scope. Give the target/environment,
-  absolute window/timezone, sources, known file paths/workspace, access limits and relevant prior
-  findings with their evidence labels and taint. Do not load the whole advisor into the helper.
-- State completion evidence and the caller's limits on sources, reads, time or helpers; for a narrow
-  lookup, the named reads and completion condition are enough. Count discovery against the helper
-  limit. Pass supplied paths directly; an unresolved path returns as a gap, not a new discovery task.
-- Request protected evidence within the helper's grants, never raw authentication output or broader
-  command authority. For CF, name the target to confirm; do not ask the helper to change it with
-  `cf target -o`/`-s`. An unconfirmed target is a gap. Ask for actual time coverage and retrieval limits;
-  available commands or a cropped excerpt do not prove the historical question can be answered.
-
-Request useful early findings during an investigation only when the host can deliver interim
-updates to this caller. Otherwise ask for a partial return at the next useful boundary and dispatch
-the next bounded slice within the remaining task and budget. An acknowledgment or a running helper
-is not evidence of a result. Do not promise live progress on an unverified channel.
-
-Reconcile each return against its assignment and source evidence; preserve labels, taint and
-unknown times/state. Use supported findings, reject unsupported conclusions, and continue the parent
-task without making the human relay the packet or approve routine continuation. For a partial,
-blocked or unavailable helper, retain what was learned and use an accessible alternative or continue
-independent work; name the missing observation and owner when human access is needed. Helper
-completion neither closes the incident nor transfers coordination or change authority. If a helper
-overstates cause, coverage or current state, read the [worked helper exchange](./references/helper-exchange.md)
-before adopting its claims.
+Before writing an assignment or reconciling a return, read the
+[helper exchange](./references/helper-exchange.md): it holds the assignment fields, protected-evidence
+limits, partial returns, reconciliation, and worked examples. Helper completion neither closes the
+incident nor transfers change authority, and an acknowledgment or a running helper is not a result.
 
 | Next step | Lane |
 |---|---|

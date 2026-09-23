@@ -1,12 +1,43 @@
-# Worked helper exchange
+# Helper exchange
 
-Use for dispatch and reconciliation, including when a helper overstates the supplied evidence.
-The parent skill owns human-facing advice and the board; the helper may interpret an assigned
-investigation without taking incident coordination. Fictional records on September 14, 2026;
-source exports use UTC.
-Names/values are not defaults.
+Read before writing an `sre-assistant` assignment or reconciling its return. The parent skill owns
+human-facing advice and the board; the helper may interpret an assigned investigation but never
+coordinates the incident. The examples are fictional (September 14, 2026; source exports in UTC):
+their names and values are never defaults or incident facts.
 
-## Before an assignment exists
+## Assignment and reconciliation rules
+
+Give the helper one compact assignment:
+
+- Name yourself as invoking caller and return recipient, and the human operational owner separately
+  (or unknown). State the question or decision the result will inform.
+- Choose **lookup** for exact observations/extraction, or **investigation** for comparison,
+  interpretation and testing plausible causes within the named scope. Give the target/environment,
+  absolute window/timezone, sources, known file paths/workspace, access limits and relevant prior
+  findings with their evidence labels and taint. Do not load the whole advisor into the helper.
+- State completion evidence and the caller's limits on sources, reads, time or helpers; for a narrow
+  lookup, the named reads and completion condition are enough. Count discovery against the helper
+  limit. Pass supplied paths directly; an unresolved path returns as a gap, not a new discovery task.
+- Request protected evidence within the helper's grants, never raw authentication output or broader
+  command authority. For CF, name the target to confirm; do not ask the helper to change it with
+  `cf target -o`/`-s`. An unconfirmed target is a gap. Ask for actual time coverage and retrieval limits;
+  available commands or a cropped excerpt do not prove the historical question can be answered.
+
+Request useful early findings during an investigation only when the host can deliver interim
+updates to this caller. Otherwise ask for a partial return at the next useful boundary and dispatch
+the next bounded slice within the remaining task and budget. An acknowledgment or a running helper
+is not evidence of a result. Do not promise live progress on an unverified channel.
+
+Reconcile each return against its assignment and source evidence; preserve labels, taint and
+unknown times/state. Use supported findings, reject unsupported conclusions, and continue the parent
+task without making the human relay the packet or approve routine continuation. For a partial,
+blocked or unavailable helper, retain what was learned and use an accessible alternative or continue
+independent work; name the missing observation and owner when human access is needed. Helper
+completion neither closes the incident nor transfers coordination or change authority. If a helper
+overstates cause, coverage or current state, compare it with the examples below before adopting
+its claims.
+
+## Example: before an assignment exists
 
 **Human:** "I would like to do a test drill with our new agents and skills. We have issues with Orders."
 
@@ -14,16 +45,16 @@ Names/values are not defaults.
 slowness, or something else — and when did it start? Are you providing the scenario, or would you
 like me to create a fictional one?"
 
-No helper is dispatched yet. The advisor does not turn this into an agent evaluation or search
-`evals/`, examples, or design docs to manufacture Orders incident evidence. These worked records
-are instructional examples unless the human explicitly selects them for the drill.
+No helper is dispatched yet: nothing names a source to read. If the Orders runbook or service card
+listed a Grafana dashboard, the advisor would send the helper to read it for the reported window —
+in a drill as in a live incident.
 
 By contrast, "Read the selected exercise exports E1/E2 and compare crashes with the update" is a
 bounded assignment and can dispatch immediately. Unknown impact or human-owner identity need
 not block that read. Likewise, an authorized runbook step naming a dashboard, question and window
 can dispatch without another delegation approval.
 
-## A bounded investigation
+## Example: a bounded investigation
 
 **Human:** “I'm Riley, INC-61 owner. Orders/prod was slow 09:40–10:00 UTC. Check E1/E2:
 did its config change cause the crashes, and what next?”
@@ -48,21 +79,24 @@ caused it; capacity clear” and proposes a fresh read to recover E1's capture t
 Times below: September 14, 2026, Eastern (EDT); E2's 09:45 UTC is 05:45 Eastern.
 E1: two crashes, aggregate CPU 25%, capture/crash times absent; E2: config 05:45
 [sourced]. Neither current state nor ordering/cause follows. Low CPU leaves waits/limits open;
-refreshing cannot recover E1's time. Open Apps Manager → Orders/prod → Events for 05:40–06:00 Eastern
-(09:40–10:00 if the view uses UTC); confirm the view's timezone. Bring back the crash and update
+refreshing cannot recover E1's time. Open Apps Manager → Orders/prod → Events for 05:40–06:00
+Eastern (09:40–10:00 if the view uses UTC); confirm the view's timezone. Bring back the crash and update
 rows with times: a crash before 05:45 Eastern weakens the change as the
 trigger; crashes only after it are consistent with cause but do not prove it. Missing coverage
 leaves ordering unknown.
 
-Impact: Orders/prod slow 05:40–06:00 [sourced: Riley]; affected share, trend and recovery
-  criterion unknown.
+Investigation board:
+
+Impact:     🟡 Orders/prod slow 05:40–06:00 [sourced: Riley]; affected share, trend and recovery
+            criterion unknown.
 Open: config-change trigger — 05:45 update, crash ordering unknown; resource pressure — low CPU
   does not exclude waits/limits. Both unowned; no supported ranking.
 Checked: E1 crash count/CPU and E2 update time [sourced]; capture/crash times absent.
 Ruled out: none.
 Actions: no mitigation reported.
-Next: timestamped Events rows for 05:40–06:00 Eastern to compare crashes with the update; earlier weakens
-  that trigger, later is consistent but not proof; missing coverage leaves ordering unknown.
+Next: timestamped Events rows for 05:40–06:00 Eastern to compare crashes with the update;
+  earlier weakens that trigger, later is consistent but not proof; missing coverage leaves
+  ordering unknown.
 Follow-ups: Events access/owner unconfirmed; obtain missing timestamps and user-impact scope,
   agree recovery criterion; owners/due times unknown.
 ```
@@ -105,17 +139,19 @@ would weaken it; missing counts leave it unknown. Ask the owner for this scope's
 and calls/request: slow calls versus extra calls distinguish connection occupancy. Unavailable
 evidence stays open; pressure is not recovery or restart approval.
 
-Impact: Orders/prod slow 05:40–06:00 [sourced: Riley]; affected share, trend and recovery
-  criterion still unknown.
+Investigation board:
+
+Impact:     🟡 Orders/prod slow 05:40–06:00 [sourced: Riley]; affected share, trend and recovery
+            criterion still unknown.
 Open: instance-3 pool-P pressure supported by E3; slow calls versus extra calls may explain it;
   the config-change trigger remains unresolved. Owners unassigned; no causal ranking established.
 Checked: E3 active/limit 20/20, waiters 6 for 05:50–05:55 [sourced: Riley]; E1 crash count/CPU,
   E2 config 05:45 [sourced]. E1 still lacks capture/crash times.
 Ruled out: none.
 Actions: no mitigation reported.
-Next: request instance-3 pool-P duration and calls/request for 05:50–05:55 Eastern from its evidence
-  owner (unidentified) to distinguish slow calls from extra calls; both may coexist. Missing
-  observations leave the mechanism open.
+Next: request instance-3 pool-P duration and calls/request for 05:50–05:55 Eastern from its
+  evidence owner (unidentified) to distinguish slow calls from extra calls; both may coexist.
+  Missing observations leave the mechanism open.
 Follow-ups: Events ordering check still outstanding; acquire its timestamps without reopening
   completed export reads. Evidence owners/due times, impact scope and recovery criterion unknown.
 ```
