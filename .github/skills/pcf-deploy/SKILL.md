@@ -56,7 +56,7 @@ Design schema changes as expand → backfill → dual-write, and do not contract
 permanently gone. `database-reliability` owns operational migration safety; this is an ownership map,
 not permission to load it. "We can roll back" remains `[unverified]` until rehearsed evidence proves
 the exact artifact and target can be restored. During an incident, `incident-investigation` advises
-the responder on mitigation; the existing human incident lead retains the decision.
+the responder on mitigation; ITO approves the change in the TLC.
 
 ## Route context only when it matches
 

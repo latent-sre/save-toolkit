@@ -169,7 +169,7 @@ recommendations return to that caller without granting authority.
   `sre-assistant` cannot invoke this lane, and this lane never confirms live incident recovery.
 - ← from the human responder or invoking caller during an incident: one explicitly scoped Grafana
   rule or silence change under the write rule; return its effect to that caller and preserve the
-  existing incident lead, bridge/TLC, and recovery owner.
+  existing bridge/TLC, ITO's role in it, and the recovery owner.
 - → `scribe`: every approved new or changed alert, including non-paging alerts. Send the authoritative definition, its
   exact revision, the trusted approval record, evidence labels and trust, verification state, and
   the recommended first action — enough for the alert card, service-card link, knowledge index, and

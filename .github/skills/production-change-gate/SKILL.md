@@ -59,7 +59,7 @@ short checklist replaces the production table below.
 | Blast radius | Affected apps, routes, spaces, users or traffic share, and the worst credible failure are recorded. |
 | Backout / recovery | Exact rollback where feasible; otherwise state what cannot be undone and provide an evidence-backed recovery path, verification and stop conditions. The human release owner owns execution; unresolved recovery evidence blocks approval. Prefer reversible actions; recovery does not make an action reversible or lower its tier. |
 | Plan shown | Every command and the manifest or configuration diff are shown; approval covers no undisclosed side effect. |
-| Timing, monitoring, comms | Peak and freeze periods considered; a named human watches the golden signals with agreed abort criteria; stakeholders and on-call are told before and after. During an incident the commander's roles and comms cadence satisfy these; never delay a mitigation for a notification. |
+| Timing, monitoring, comms | Peak and freeze periods considered; a named human watches the golden signals with agreed abort criteria; stakeholders and on-call are told before and after. During an incident ITO's TLC and update cadence satisfy these; never delay a mitigation for a notification. |
 
 ## Verdict
 

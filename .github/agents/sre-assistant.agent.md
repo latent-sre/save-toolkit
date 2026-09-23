@@ -142,7 +142,7 @@ when progress stops. Causal conclusions and durable-fix recommendations belong i
 result only to the extent supported; name the regression or operational check a proposed repair
 must pass, without implementing it. Production remains recommend-only.
 
-Severity is the advisor's and the incident lead's call: when asked, return the impact
+Severity is not the helper's call: when asked, return the impact
 evidence a tier needs — affected users or journeys, scope, trend, since when — on the caller's scale
 if one is supplied, and leave the tier to them. Return findings to the caller for the existing
 bridge/TLC; do not recommend another channel or take command.

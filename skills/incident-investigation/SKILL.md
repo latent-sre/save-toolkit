@@ -144,7 +144,7 @@ read [systemic analysis](./references/systemic-analysis.md) before choosing the 
 | Examine | available latency/traffic/error/saturation series; one failing request; thread/pool/queue state; changes with times |
 | Diagnose | the one observation that would remove each remaining candidate |
 | Mitigate | reversible action, rollback, effective-state readback, and the user outcome that proves recovery |
-| Compromise | preserve first — images, dumps, the attacker timeline, what data was reachable — and touch nothing; escalate to the human security incident owner through the incident lead. Mitigation-first does not apply |
+| Compromise | preserve first — images, dumps, the attacker timeline, what data was reachable — and touch nothing; escalate to the human security incident owner, via ITO once a TLC is open. Mitigation-first does not apply |
 | Handover | the receiver's read-back and explicit acknowledgment |
 
 ## Picking the next check

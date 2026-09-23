@@ -183,7 +183,7 @@ Hand over: trigger, evidence, attempted steps, current state, and the current ow
 
 ## Communication
 - Notify: `#payments-oncall`, and `#status-internal` if customer-visible · Cadence while active: 30 min
-- Initial / update / resolved stakeholder message owner: human incident lead; the responder supplies technical findings in the existing bridge/TLC
+- Initial / update / resolved stakeholder message owner: ITO, in the TLC; the responder supplies technical findings in the existing bridge/TLC
 
 ## Post-Incident
 - [ ] Append an Incident history row: version used, steps that held, steps that failed or were
