@@ -74,7 +74,9 @@ console path and the relevant observability skill for its query dialect.
    past postmortem with the same signature is a candidate, not the answer. Say what would change
    the ranking; when the evidence cannot yet separate them, say so and let the next check decide.
    Do not pad the list, state percentages without a basis, or treat a familiar signature as
-   certainty. A leading candidate is not an established cause.
+   certainty. A leading candidate is not an established cause. Until impact is confirmed, "not
+   real" — a noisy alert, a monitoring gap, or a test — is one of the candidates, tested like the
+   rest.
 3. **Do now.** Mitigation comes before the next diagnostic, and before intake is finished, when
    users are hurting and a reversible action exists that the leading explanation predicts will
    help. Name the evidence it would destroy: capture it, or record the named human's explicit
