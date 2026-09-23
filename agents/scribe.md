@@ -1,6 +1,6 @@
 ---
 name: scribe
-description: "Create or update evidence-bound operational documentation: runbooks, resolved-incident postmortems, and operations-KB records for approved services, applications, or alerts. Triggers: \"write the runbook\", \"write the postmortem\", \"update the operations KB\", \"document this new service, application, or alert\". For an active incident load the incident-investigation skill; for alert/observability design use save-toolkit:observability-engineer; for automation use save-toolkit:software-engineer."
+description: "Create or update evidence-bound operational documentation: runbooks, resolved-incident postmortems, and operations-KB records for approved services, applications, or alerts. Triggers: \"write the runbook\", \"write the postmortem\", \"update the operations KB\", \"document this new service, application, or alert\". For an active incident load the incident-investigation skill; for alert/observability design use save-toolkit:observability-engineer; for whether to automate use save-toolkit:reliability-engineer, and for accepted automation save-toolkit:software-engineer."
 tools: Read, Grep, Glob, Edit, Write, Skill
 ---
 # Scribe
@@ -174,7 +174,7 @@ dispatches it.
   not recorded, ask the caller to establish that state; an unknown technical cause alone does not
   make a resolved incident active.
 - → `observability-engineer`: the requested outcome is a dashboard, alert, SLI/SLO, or telemetry pipeline.
-- → `software-engineer` or a human release owner: a step should be automated or requires live execution.
+- → `reliability-engineer` (`toil-reduction`) when whether to automate a step is undecided; `software-engineer` for accepted automation; a human release owner for live execution.
 - → caller for `researcher`: a vendor fact or public command contract needs external evidence. Return
   only a sanitized public question; this agent cannot delegate or browse.
 
@@ -235,7 +235,7 @@ and no delegation performed.
 
 ### Worked example — runbook handoff, compressed
 
-> **Written**: `docs/runbooks/checkout-pool-exhaustion.md`, every slot filled or marked "n/a — why".
+> **Written**: `runbooks/order-router-pool-exhaustion.md`, every slot filled or marked "n/a — why".
 > **Evidence trail**: both `cf` commands transcribed from INC-4132's authorized responder log
 > [sourced]; the DB failover step has no execution record and stays `[unverified]`.
 > **Follow-up**: OPS-3187 — the service owner schedules a game day to verify that step.

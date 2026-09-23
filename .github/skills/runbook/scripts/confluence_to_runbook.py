@@ -3,9 +3,10 @@
 
 Mechanical assistance for the import flow in ../references/confluence-import.md — a HUMAN (or the
 software-engineer agent) runs this on an exported page; scribe then edits the draft into a reviewable runbook.
-The script never fetches anything: its input is a file the human already exported (view/export
-HTML converts best; storage-format XHTML is handled best-effort, with its macro elements counted
-as losses rather than mangled).
+The script never fetches anything: its input is a file the human already exported. The REST v2
+page JSON (`?body-format=view`) converts best, because it carries the title, version, and modified
+date beside the body; view/export HTML is next; storage-format XHTML is handled best-effort, with
+its macro elements counted as losses rather than mangled.
 
 The draft retains source sections, links and image references, marks commands unverified, and
 reports unsupported content and uncopied attachments. It never fetches linked resources or turns
@@ -38,20 +39,26 @@ SLOTS = (
     "Communication",
 )
 
-# Source-heading keywords → template slot. Matched against the lowercased heading text; first hit
-# wins in this order. Deliberately narrow: a wrong guess buries content in the wrong slot, while a
-# miss lands it — visibly — in "Imported content (unmapped)". Err toward the miss.
+# Source-heading keywords → template slot. Each keyword must start a word in the lowercased heading
+# ("fix" matches "Fix it", never "prefix"); first hit wins in this order. Escalation and
+# Communication come first because their headings often carry procedure or alert words ("Escalation
+# process", "Alert contacts"). Deliberately narrow: a wrong guess buries content in the wrong slot,
+# while a miss lands it — visibly — in "Imported content (unmapped)". Err toward the miss.
 SLOT_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("Escalation", ("escalat", "on-call", "on call", "paging", "contact", "support")),
+    ("Communication", ("communicat", "notif", "stakeholder", "comms")),
     ("Trigger", ("when to use", "trigger", "symptom", "alert")),
     ("Prerequisites", ("before you start", "prerequisite", "requirement", "access", "tooling", "tools")),
     ("Triage / first checks", ("triage", "first check", "diagnos", "impact")),
     ("Rollback / cleanup", ("rollback", "roll back", "revert", "undo", "backout", "back out", "cleanup")),
     ("Verification", ("verif", "validat", "confirm")),
     ("Procedure", ("step", "procedure", "resolution", "remediat", "instruction", "process", "fix")),
-    ("Escalation", ("escalat", "on-call", "on call", "paging", "contact", "support")),
-    ("Communication", ("communicat", "notif", "stakeholder", "comms")),
     ("Purpose & scope", ("purpose", "overview", "scope", "about", "goal", "summary")),
     ("References", ("reference", "related", "see also", "links")),
+)
+_SLOT_PATTERNS = tuple(
+    (slot, re.compile("|".join(r"\b" + re.escape(keyword) for keyword in keywords)))
+    for slot, keywords in SLOT_KEYWORDS
 )
 
 UNVERIFIED_MARK = "*Imported command — [unverified] until rehearsed on the target.*"
@@ -103,9 +110,13 @@ class _Extractor(HTMLParser):
     active; the failure direction is suppressing too much into the loss count, never inventing content.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, title: str | None = None) -> None:
         super().__init__(convert_charrefs=True)
-        self.title = ""
+        # A title supplied from outside the body (--title or the page JSON) is final: every body h1
+        # then stays a section, except one that repeats the title.
+        self.title = title or ""
+        self._title_fixed = bool(title)
+        self.title_source = "supplied" if title else None
         self.sections: list[tuple[str, list[tuple[str, str]]]] = [("", [])]
         self.macro_count = 0
         self.image_count = 0
@@ -226,6 +237,7 @@ class _Extractor(HTMLParser):
             self._heading = None
             if tag == "h1" and heading and not self.title:
                 self.title = heading
+                self.title_source = "first heading"
             elif heading and heading != self.title:
                 self.sections.append((heading, []))
         elif tag == "pre" and self._pre is not None:
@@ -245,7 +257,9 @@ class _Extractor(HTMLParser):
         if self._ac_depth or self._media:
             return
         if self._in_title:
-            self.title += data.strip()
+            if not self._title_fixed:
+                self.title += data.strip()
+                self.title_source = "title element" if self.title else None
         elif self._heading is not None:
             self._heading += data
         elif self._pre is not None:
@@ -266,7 +280,7 @@ def slugify(title: str) -> str:
 
 
 def service_id(value: str) -> str:
-    """Accept only the stable slug shape required by runbook-frontmatter-v1."""
+    """Accept only the template's stable slug shape (assets/runbook-template.md)."""
     if not SERVICE_ID_RE.fullmatch(value):
         raise argparse.ArgumentTypeError(
             "service-id must match ^[a-z0-9][a-z0-9-]*$"
@@ -285,10 +299,45 @@ def owner(value: str) -> str:
 
 def map_slot(heading: str) -> str | None:
     lowered = heading.lower()
-    for slot, keywords in SLOT_KEYWORDS:
-        if any(keyword in lowered for keyword in keywords):
+    for slot, pattern in _SLOT_PATTERNS:
+        if pattern.search(lowered):
             return slot
     return None
+
+
+@dataclass
+class _Page:
+    html: str
+    title: str | None = None
+    version: str | None = None
+    modified: str | None = None
+
+
+def read_page(source: Path) -> _Page:
+    """Read an export. A page JSON supplies its title, version, and modified date: Cloud REST v2
+    `?body-format=view` (`version.createdAt`), or Data Center v1 `?expand=body.view,version`
+    (`version.when`)."""
+    text = source.read_text(encoding="utf-8", errors="replace")
+    if source.suffix.lower() != ".json":
+        return _Page(text)
+    try:
+        page = json.loads(text)
+        body = page["body"]["view"]["value"]
+    except (ValueError, KeyError, TypeError):
+        raise ValueError(
+            f"{source}: not a Confluence page JSON with body.view.value; export with ?body-format=view"
+        ) from None
+    if not isinstance(body, str) or not body.strip():
+        raise ValueError(f"{source}: body.view.value is empty")
+    version = page.get("version") if isinstance(page.get("version"), dict) else {}
+    title = page.get("title")
+    modified = version.get("createdAt") or version.get("when")
+    return _Page(
+        body,
+        title.strip() if isinstance(title, str) and title.strip() else None,
+        str(version["number"]) if "number" in version else None,
+        str(modified) if modified else None,
+    )
 
 
 def render_blocks(blocks: list[tuple[str, str]]) -> list[str]:
@@ -303,10 +352,12 @@ def render_blocks(blocks: list[tuple[str, str]]) -> list[str]:
     return lines
 
 
-def convert(source: Path, source_url: str | None, service_id: str, owner: str) -> tuple[str, str]:
-    """Return (draft_markdown, stdout_report)."""
-    parser = _Extractor()
-    parser.feed(source.read_text(encoding="utf-8", errors="replace"))
+def convert(source: Path, source_url: str | None, service_id: str, owner: str,
+            title: str | None = None) -> tuple[str, str]:
+    """Return (draft_markdown, stdout_report). Raises ValueError on an unusable page JSON."""
+    page = read_page(source)
+    parser = _Extractor(title or page.title)
+    parser.feed(page.html)
     parser.close()
 
     title = " ".join((parser.title or source.stem).split())
@@ -314,6 +365,12 @@ def convert(source: Path, source_url: str | None, service_id: str, owner: str) -
     mapped: dict[str, list[str]] = {}
     unmapped: list[str] = []
     report: list[str] = [f"Converted: {source.name} — “{title}”"]
+    if parser.title_source is None:
+        report.append(f"  warning: no page title found; runbook_id comes from the file name "
+                      f"“{source.stem}” — pass --title, or convert the page JSON")
+    elif parser.title_source == "first heading":
+        report.append("  warning: title taken from the first heading; if that heading is a section, "
+                      "pass --title so it stays in the draft")
     for heading, blocks in parser.sections:
         if not blocks:
             continue
@@ -394,23 +451,46 @@ def convert(source: Path, source_url: str | None, service_id: str, owner: str) -
     ]
     if source_url:
         lines.append(f"- Source page URL: {json.dumps(source_url, ensure_ascii=False)}")
-    lines += [f"- Converted: {today}"] + [f"- Conversion losses: {loss}" for loss in losses] + [""]
+    lines += [
+        f"- Source page version: {page.version or '<fill in — page history>'}",
+        f"- Source page last modified: {page.modified or '<fill in — page history>'}",
+        f"- Converted: {today}",
+    ] + [f"- Conversion losses: {loss}" for loss in losses] + [""]
     return "\n".join(lines), "\n".join(report)
 
 
 def main(argv: list[str] | None = None) -> int:
+    # The report echoes source headings; captured stdout (an agent's Bash, CI, `> log`) may default
+    # to a legacy code page that cannot encode them, and the draft is already written by then.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("source", type=Path, help="exported Confluence page (view/export HTML preferred)")
+    parser.add_argument("source", type=Path,
+                        help="exported Confluence page: REST v2 page JSON (preferred) or view/export HTML")
     parser.add_argument("-o", "--output", type=Path, required=True, help="draft runbook path to write")
     parser.add_argument("--source-url", default=None, help="original page URL for provenance")
     parser.add_argument("--service-id", required=True, type=service_id)
     parser.add_argument("--owner", default="<team/role>", type=owner)
+    parser.add_argument("--title", default=None,
+                        help="page title, when the export is a bare body fragment without one")
+    parser.add_argument("--force", action="store_true",
+                        help="replace an existing draft; a runbook's history rows are evidence")
     args = parser.parse_args(argv)
 
     if not args.source.is_file():
         print(f"error: cannot read {args.source}", file=sys.stderr)
         return 1
-    draft, report = convert(args.source, args.source_url, args.service_id, args.owner)
+    if args.output.exists() and not args.force:
+        print(f"error: {args.output} exists; pass --force to replace it (its history rows are "
+              f"evidence — convert to a new path and merge by hand instead)", file=sys.stderr)
+        return 1
+    try:
+        draft, report = convert(args.source, args.source_url, args.service_id, args.owner,
+                                args.title.strip() if args.title and args.title.strip() else None)
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
     try:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(draft, encoding="utf-8")

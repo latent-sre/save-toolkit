@@ -11,9 +11,9 @@ configuration. The linked version-controlled source remains authoritative.
 
 ## Services
 
-| Service | Lifecycle | Owner | Criticality | Service card | SLO/dashboard | Open gaps |
-|---|---|---|---|---|---|---|
-|  |  |  |  |  |  |  |
+| Service | Lifecycle | Owner | Criticality | Service card | SLO/dashboard | Open gaps | Lifecycle since / record |
+|---|---|---|---|---|---|---|---|
+|  |  |  |  |  |  |  |  |
 
 ## Alerts
 
@@ -32,6 +32,6 @@ or the repository's equivalent lifecycle state).
 
 ## Recent learning updates
 
-| PR / revision / evidence reference | Trigger | Summary | Dispositions | Reviewed change |
-|---|---|---|---|---|
-|  |  |  |  |  |
+| Date | PR / revision / evidence reference | Trigger | Summary | Dispositions | Reviewed change |
+|---|---|---|---|---|---|
+|  |  |  |  |  |  |

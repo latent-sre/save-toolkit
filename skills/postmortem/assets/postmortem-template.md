@@ -4,6 +4,7 @@ incident_id: <stable incident/ticket ID>
 status: draft | final
 severity: null # P1 | P2 | P3 | P4; null when unknown/unassigned
 service_ids: []
+alerts: [] # exact alert names that fired
 started_at: null # evidenced start of impact
 resolved_at: null # evidenced end of impact, not the resolution call
 resolution_confirmed_at: null # when the human confirmed resolution
@@ -24,6 +25,8 @@ Duration uses `started_at`/`resolved_at`, never confirmation. Missing endpoints 
 unknown, not the human-confirmed incident reopened.
 
 ## Summary
+
+Signature: <alert(s), key error string or status, dashboard/panel that showed it>
 
 <Affected services/user outcome, scope and impact interval; detection and response; recovery
 evidence/time and separate human resolution confirmation/time. State data-integrity evidence or

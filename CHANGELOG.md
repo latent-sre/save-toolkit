@@ -34,6 +34,20 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   for the reconciliation owner, never the executor's receipt. Examples use a trading app
   (`order-router`), and the restart-classification eval grades a plain whole-app restart off the
   fast path, with ITO approving in the TLC. ITO is spelled out as IT Operations.
+- `runbook`'s template approval banner, which every runbook copies, says in plain terms what Tier 2
+  and Tier 3 mean and who approves: ITO in the TLC during a declared incident, the full production
+  process otherwise. The exemplar is a trading service (`order-router`) that verifies recovery on
+  its SLI rather than p95 and states when a multi-window burn alert clears. The rules demote a wrong
+  runbook instead of deleting it, bump `version` on step changes, and move `last_verified` only on a
+  passing drill of the stamped version. The Confluence converter reads the page JSON (title,
+  version, modified date), keeps every body `h1` as a section, refuses to overwrite an existing
+  runbook, prints on legacy code pages, and matches headings on word starts; nine new tests fail on
+  the previous converter.
+- `postmortem` routes resilience and automation decisions to `reliability-engineer`, has a form rule
+  for unknown severity and a searchable signature field, and the closeout packet carries severity
+  and impact start. `operational-learning` finds a component's dependents across every card and
+  defers retrospectives to `postmortem`; closeout bindings carry `git status --porcelain`, which
+  `observability-engineer` and `software-engineer` now send.
 - `obs-dashboards` warns against `or vector(0)` and null-to-zero on error ratios, asks for a
   denominator panel and a telemetry-present stat, names the backend holding each signal, and
   applies the team's dashboard conventions, which now live in their own `grafana` reference

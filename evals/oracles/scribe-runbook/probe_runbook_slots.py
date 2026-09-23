@@ -24,13 +24,13 @@ STRING_KEYS = ("runbook_id", "service_id", "owner", "severity", "source_revision
 # Every placeholder the template carries (assets/runbook-template.md), so a copied slot left
 # unfilled is caught whichever one it is. evals/test_build_probe.py holds this list to the template.
 TEMPLATE_LITERALS = (
-    "<Apps Manager view, Splunk search, or Wavefront chart>",
-    "<Apps Manager, Splunk, Wavefront or PCF App Metrics; cf CLI v8 only if installed>",
-    "<N min or N attempts>", "<P1|P2|P3|P4 / page | ticket>", "<PR, evidence link, prepared, or proposed>",
+    "<Apps Manager view, Grafana panel, Splunk search, or Wavefront chart>",
+    "<Apps Manager or Cloud Console, Grafana, Splunk, Wavefront or PCF App Metrics; cf CLI v8 or gcloud only if installed>",
+    "<N min or N attempts>", "<P1|P2|P3|P4 / page | ticket>", "<PR or evidence reference; closeout disposition id if one exists>",
     "<PR, target revision, and evidence references>", "<YYYY-MM-DD>",
     "<alert name + condition, or observed symptom>", "<channel / stakeholders>",
     "<command/dashboard + expected healthy state>", "<concise title / the alert this answers>",
-    "<cf command — equivalent of the console action, for responders who have the CLI>",
+    "<cf or gcloud command — the console action's equivalent, for responders who have the CLI>",
     "<org / space → app → view → control and value>",
     "<condition A>", "<condition B>", "<dashboard, saved search, prior postmortem>",
     "<e.g. not resolved in 15 min, or blast radius growing>",

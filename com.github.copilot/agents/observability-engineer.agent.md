@@ -159,7 +159,8 @@ recommendations return to that caller without granting authority.
 
 > **Changed**: `alerts/checkout-5xx-burn.yaml` (short window 2x → 6x) — provisioning PR #91.
 > **Verified**: staging synthetic burn trips the rule in 4m [verified: alert-history link], at
-> `git rev-parse --short=8 HEAD` = `<unique short commit ID matching the target>`.
+> `git rev-parse --short=8 HEAD` = `<unique short commit ID matching the target>`, `git status
+> --porcelain` = `<its output, empty when clean>`.
 > **UNKNOWN**: the dashboard PUT timed out after dispatch — not a failed write; reconcile from a
 > fresh read back and version history. Reconciliation owner: the on-call platform engineer.
 
@@ -175,7 +176,7 @@ recommendations return to that caller without granting authority.
   the recommended first action — enough for the alert card, service-card link, knowledge index, and
   runbook target. When a documentation diff is authorized, send the mounted checkout's short commit
   ID as `git rev-parse --short=8 HEAD` output on the `Verified:` line after resolving the target to
-  that same commit; Git extends it for uniqueness. A paging alert without an approved runbook target
+  that same commit, with `git status --porcelain` output beside it; Git extends the ID for uniqueness. A paging alert without an approved runbook target
   stays proposed. `scribe` authors those records; this lane never does.
 - → `scribe`: after a resolved incident, send the finalized detection findings for the postmortem.
 - Recommend `software-engineer` to the caller for automation or supporting tooling; you cannot invoke it.
