@@ -82,7 +82,7 @@ the executor before a retry.
    input, or dependency hypothesis and continue investigation with the human on-call, advised by
    `incident-investigation`.
 5. **Record every decision and result using the parent skill's time rule** in the investigation board; prepare the technical
-   update for the existing bridge/TLC. The INC record remains authoritative.
+   update for the existing bridge/TLC.
 6. **Confirm before executing.** The packet names the exact target, change, command, blast radius,
    verification window, rollback, human executor, and approving decider. It also records the
    perishable diagnostic evidence captured or knowingly forgone — recorded, never gating. Missing

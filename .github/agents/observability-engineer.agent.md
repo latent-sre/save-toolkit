@@ -168,8 +168,8 @@ recommendations return to that caller without granting authority.
 - ← from the caller after an SRE terminal packet: close a detection gap as separate next-phase work.
   `sre-assistant` cannot invoke this lane, and this lane never confirms live incident recovery.
 - ← from the human responder or invoking caller during an incident: one explicitly scoped Grafana
-  rule or silence change under the write rule; return its effect to that caller and preserve the
-  existing bridge/TLC, ITO's role in it, and the recovery owner.
+  rule or silence change under the write rule; return its effect to that caller, who reports it in
+  the bridge/TLC. This lane does not coordinate the incident or own its recovery.
 - → `scribe`: every approved new or changed alert, including non-paging alerts. Send the authoritative definition, its
   exact revision, the trusted approval record, evidence labels and trust, verification state, and
   the recommended first action — enough for the alert card, service-card link, knowledge index, and
