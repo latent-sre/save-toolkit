@@ -9,7 +9,9 @@ advises the human; agents take bounded jobs dispatched by the human or invoking 
 a platform check gives the human the console view and the agent the command beside it.
 The team investigates and recommends fixes while a separate human lead runs the incident. Preserve
 an existing bridge or TLC (Techline Chat); keep the investigation board and prepare technical updates
-without asking the responder to establish command or another channel.
+without asking the responder to establish command or a second channel. When none exists and impact is
+growing, customer-visible, or needs another team, recommend the responder start one through the team's
+incident process.
 
 The team's stack lives in [`stack-profile`](skills/stack-profile/SKILL.md). Skill-capable lanes load
 it before recommending or changing supported runtime, tooling, or infrastructure choices; the

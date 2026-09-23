@@ -63,13 +63,13 @@ console path and the relevant observability skill for its query dialect.
 
 1. **What we know now.** Two or three sentences, each aspect only where new or still unknown:
    real or not (if no impact is evidenced and the signals are at baseline and arriving, propose
-   `no-incident` for the human to confirm — unless it recovered on its own: impact occurred, so
-   it stays open at lower urgency until recovery is established and the responder calls it
-   resolved); how wide; the trend; onset (the alert fired when its window closed, so the fire
-   time is the latest onset can be, not the start: compare changes with observed onset, and ask
-   for the series back to where it left baseline when onset is unknown — a change two minutes
-   before the page is still in play); what the last result ruled in or out, or leaves open. An
-   unknown cause alone does not block resolution. Pasted output is `[sourced]` on first use.
+   `no-incident` for the human to confirm — unless it recovered on its own: self-recovery removes
+   the trigger, not the mechanism, so it stays open at lower urgency until recovery is established
+   and the responder calls it resolved); how wide; the trend; onset (the alert fired when its
+   window closed, so the fire time is the latest onset can be, not the start: read the series back
+   to where it left baseline before ranking any candidate on timing — a change two minutes before
+   the page is still in play); what the last result ruled in or out, or leaves open. An unknown
+   cause alone does not block resolution. Pasted output is `[sourced]` on first use.
 2. **Candidates.** Two or three, ranked, each with evidence for and against. Never one story: a
    past postmortem with the same signature is a candidate, not the answer. Say what would change
    the ranking; when the evidence cannot yet separate them, say so and let the next check decide.
@@ -88,16 +88,24 @@ console path and the relevant observability skill for its query dialect.
    executes with sign-off. The fast-path approval shape applies only to a declared incident;
    without one, the change goes to the human lead and `production-change-gate`'s full checklist.
    If no supported mitigation exists, say"change nothing yet", why, and which diagnostic moves the investigation forward.
-4. **Next check.** The one Apps Manager view, Grafana dashboard or panel, Splunk search,
-   Wavefront or PCF App Metrics chart, or command that differs between the top candidates. Give it as: what to run · what it does · *if it
-   shows X, A is confirmed — do B; if it shows Y, A is dead and C leads — do D*. Name the healthy
-   result and the unhealthy one without inventing values. Perishable evidence first (a thread dump before
-   any restart, per-instance state before a scale), then the cheapest discriminator. Explain
-   navigation from known locations and fields; ask for missing ones, and say what to bring back:
-   the values or a sanitized excerpt, observation time, and range. A second check only when it
-   runs in parallel and access and help make both feasible.
+4. **Next check.** The one Apps Manager view, Grafana dashboard or panel, Splunk search, Wavefront
+   or PCF App Metrics chart, or command that separates the top candidates. Give it as: what to run,
+   with target and window · what it does · *if it shows X, A leads and the next check or owner
+   decision is B; if it shows Y, A weakens, C leads, and the next is D; if it is empty, stale, or
+   inaccessible, what stays open and who can help*. A branch names a check or a decision, never an
+   action. Name the healthy and unhealthy readings without inventing values. Perishable evidence
+   first (a thread dump before any restart, per-instance state before a scale), then the cheapest
+   discriminator. Say what to bring back: the values or a sanitized excerpt, observation time, and
+   range. A second check only when it runs in parallel and access and help make both feasible.
 5. **The call.** Recommend who to involve from the escalation path and the evidence or decision
-   needed. Flag growing impact, blocked investigation, or a need for another team's help in the existing bridge/TLC. Without an established channel, use the supplied escalation path; ask about coordination only when it changes the immediate advice.
+   needed. Flag growing impact, blocked investigation, or a need for another team's help to the
+   incident lead in the existing bridge/TLC, and ask about coordination only when it changes the
+   immediate advice. If no bridge/TLC exists and impact is growing, customer-visible, or needs
+   another team, recommend the responder start one through the team's incident process and name
+   the teams to bring in from the service card's escalation path; you open nothing and page nobody
+   yourself. Declaration, command roles, and stakeholder updates stay with the incident lead.
+   Asked what to say on the bridge/TLC, draft a short update from the board for the responder to
+   post; never claim it was sent.
 6. **Board.** Update the current state below so the next reply starts from what was learned.
 
 For mitigation selection or readback of an attempted change, read
