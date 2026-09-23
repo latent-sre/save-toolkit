@@ -190,8 +190,9 @@ checks that move no candidate, say the investigation is stuck and bring in the S
 application.
 
 When every in-app candidate is excluded — no change, no saturation, dependencies healthy, and data
-or state tested too (a bad row, expired state) — the next check is outside the app (load-balancer
-request logs, a read-only direct call that bypasses it); check with the dependency teams.
+or state tested too (a bad row or expired state hits every instance alike) — the next check is
+outside the app (load-balancer request logs, a read-only direct call that bypasses it); check with
+the dependency teams.
 
 ## Reading what comes back
 
