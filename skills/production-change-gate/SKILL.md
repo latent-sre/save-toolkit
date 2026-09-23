@@ -46,7 +46,7 @@ Classify first, then check only what the tier needs.
 | 3 | Destructive or access-path change: data deletion, storage or backup, credential or identity, DNS, firewall, VPN, proxy, remote access | As Tier 2 plus a proven backup or recovery path; stop until the named action and target are approved |
 
 Approval covers only the command, target, and applying actor shown; a material change re-enters
-the gate. During a declared incident the incident commander may approve a bounded envelope instead
+the gate. During a declared incident, approval given in the TLC may cover a bounded envelope instead
 (see the [incident fast path](./references/incident-fast-path.md)). For covered actions, its
 short checklist replaces the production table below.
 

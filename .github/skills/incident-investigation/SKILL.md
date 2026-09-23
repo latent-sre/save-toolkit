@@ -86,7 +86,7 @@ console path and the relevant observability skill for its query dialect.
    point is not recovery. Reconcile any interrupted earlier attempt before recommending a retry.
    Read [mitigation selection](./references/mitigation-selection.md) before recommending an action
    or judging one already attempted. A human release owner executes; the fast path needs a
-   declared incident. If no supported mitigation exists, say "change nothing yet", why, and the
+   declared incident and approval in the TLC. If no supported mitigation exists, say "change nothing yet", why, and the
    diagnostic that moves it forward.
 4. **Next check.** The one Apps Manager view, Grafana dashboard or panel, Splunk search, Wavefront
    or PCF App Metrics chart, or command that separates the top candidates. Give it as: what to run,

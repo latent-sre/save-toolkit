@@ -21,7 +21,7 @@ Record together in the incident timeline:
 
 - **Scope and approval:** tier, exact target, command and artifact/configuration identity, human
   executor or separately approved protected automation, and approving human. Approval covers the
-  exact command or an incident-commander-approved bounded envelope, with `Valid until` UTC or an
+  exact command or a bounded envelope approved in the TLC, with `Valid until` UTC or an
   explicit incident-lifecycle end. Before each attempt the executor checks that approval is current
   and target, action, actor and identity still match. No repeat approval within that envelope;
   expiry, mismatch or action outside it requires new approval.
