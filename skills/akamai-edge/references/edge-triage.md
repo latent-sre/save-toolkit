@@ -63,7 +63,13 @@ property, don't assume.
 | `TCP_MEM_HIT` | served from edge memory — hot object |
 | `TCP_MISS` | not in cache — fetched from origin |
 | `TCP_REFRESH_HIT` | stale in cache; origin returned 304, served refreshed copy |
-| `TCP_REFRESH_MISS` / `TCP_IMS_HIT` | `[unverified — third-party sources only; confirm on the pragma-headers page]` |
+| `TCP_REFRESH_MISS` | stale in cache; the refresh got a new object from origin |
+| `TCP_REFRESH_FAIL_HIT` | stale in cache and origin unreachable, so the stale object was served |
+| `TCP_IMS_HIT` | client sent `If-Modified-Since`; object fresh in cache and served |
+| `TCP_NEGATIVE_HIT` | a cached negative response (e.g. Not found) served again |
+
+`TCP_REFRESH_FAIL_HIT` on a debug request means the origin is unreachable while the edge serves
+stale content — an origin-leg finding, not a healthy edge; a delete purge removes that stale copy.
 
 `akamai-x-cache-remote-on` adds `X-Cache-Remote` for tiered distribution / SiteShield: child-miss +
 parent-hit reads as a miss on `X-Cache` and a hit on `X-Cache-Remote` — offload is working even
@@ -75,7 +81,9 @@ like every network probe; show the exact `curl -H "Akamai-Debug: …"` line and 
 ## DataStream 2 — the sustained/fleet-wide evidence
 
 DataStream 2 streams edge request logs to a destination (Splunk, S3, GCS, Elasticsearch, custom
-HTTPS, and others) *[sourced: techdocs.akamai.com/datastream2/docs/stream-logs]*. The fields that
+HTTPS, and others) *[sourced: techdocs.akamai.com/datastream2/docs/stream-logs]*. Which one ours
+uses is `stack-profile`'s edge row; hand the query to `obs-logs`, whose team query catalog holds
+the hostname and region error/cache-share shape, rather than inventing an index. The fields that
 answer triage questions *[sourced: …/docs/data-set-parameters, …/docs/log-format-1]*:
 
 - `cacheStatus` — `0` means the object was absent from cache; `1` means present. Cached negative
@@ -86,6 +94,9 @@ answer triage questions *[sourced: …/docs/data-set-parameters, …/docs/log-fo
   it does not isolate origin latency. Compare cache status, breadcrumbs, and origin-side timing
   before attributing a regression.
 - `errorCode` — edge error detail, e.g. `"ERR_ACCESS_DENIED|fwd_acl"`.
+- `statusCode` (`0` when the client connection ended before a response), `reqHost`, `country`
+  (where the request originated) and `serverCountry` (where it was served) — split error share by
+  these to test a regional report.
 
 *[sourced: [DataStream 2 data set parameters](https://techdocs.akamai.com/datastream2/docs/data-set-parameters),
 checked 2026-09-20; field availability on the target stream remains unverified]*

@@ -11,10 +11,12 @@ version to **staging** or **production** *[sourced:
 techdocs.akamai.com/property-mgr/docs/how-activation-works]*:
 
 - **Staging** activations "usually finish within 3 minutes" — smaller network, no end-user
-  traffic. The human resolves the staging edge hostname to an IP, then requests the **public
+  traffic. The human resolves the staging edge hostname (the edge hostname with `-staging` before
+  the final `.net`, e.g. `<host>.edgekey-staging.net`) to an IP, then requests the **public
   property hostname** with that connection destination, preserving Host, SNI and TLS verification:
   `curl --resolve '<public-host>:443:<staging-ip>' 'https://<public-host>/<safe-path>' -D - -o /dev/null`.
-  Verify `X-Akamai-Staging` in the response; a request to the edge hostname tests the wrong host
+  Verify `X-Akamai-Staging` in the response (`ESSL` for Enhanced TLS, `EdgeSuite` for Standard
+  TLS); a request to the edge hostname tests the wrong host
   *[sourced: techdocs.akamai.com/property-mgr/docs/test-https; reviewed 2026-09-09]*.
 - **Production** activation is **two-phased**: phase 1 rolls out to live-traffic servers — but
   users mapped to fresh edge locations "may still reach Akamai servers with the previous property
@@ -39,6 +41,27 @@ property), verification (the exact debug-header or report check), **which rollba
 now**, and the fast-fallback expiry once
 activated. Production activation is Tier 2 minimum, human release owner, through
 `production-change-gate`; a WAF/security-config change is a security change with its own owner.
+Origin, hostname, or security-config activations are Tier 3 access-path changes (proxy and
+firewall in the gate's Tier 3 row); the proven recovery path is a property's fast fallback inside
+its window or a tested previous-version activation.
+
+## Cache purge
+
+A purge changes what live users receive: classify it through `production-change-gate` and give
+the human release owner the exact URLs, tags or CP code, method, network, expected origin load
+and verification *[sourced: techdocs.akamai.com/purge-cache/docs/purge-methods;
+…/purge-cache/reference/post-invalidate-url]*.
+
+| Choice | Default | Why |
+|---|---|---|
+| Method | **Invalidate**, "the default and most popular behavior": the next request revalidates with origin (`If-Modified-Since`), and stale content can still be served if the origin is unreachable | **Delete** removes the object and "can increase the load and bandwidth on your origin more than invalidate"; keep it for content that must not be served (compliance, copyright) |
+| Scope | Narrowest that covers the change: URL, then cache tag, then CP code (ARL also exists) | A wide scope revalidates everything under it at once — state the expected origin load |
+| Network | `staging` to rehearse; `production` (the API default) for users | A production purge has no undo; origin refetches the content |
+
+Never delete during an origin brownout: it removes the stale copies users are being served
+(`TCP_REFRESH_FAIL_HIT`). Verify with a debug request; inferred from the X-Cache definitions
+`[unverified]`: after invalidate, a server that held the object answers `TCP_REFRESH_HIT` or
+`TCP_REFRESH_MISS`; after delete, `TCP_MISS`.
 
 ## Config-as-code paths
 

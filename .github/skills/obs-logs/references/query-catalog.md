@@ -135,6 +135,27 @@ index=<app_index> earliest=-30m
 | head 20
 ```
 
+### Is the Akamai edge failing or missing cache for one hostname or region?
+
+- **Applies to:** Akamai DataStream 2 JSON logs, only once `stack-profile`'s edge row records that they land in Splunk; another destination needs the same fields in its own dialect
+- **Reads as:** per 5-minute bucket and hostname: requests, 5xx share, and not-in-cache share (`cacheStatus=0`); `statusCode=0` (client left before a response) is in `requests` but not in `errors_5xx`; quiet buckets are absent
+- **Healthy looks like:** shares near a known-normal window for the same hostname; a missing bucket can be a delivery gap, not zero traffic
+- **Owner:** `<edge on-call>`
+- **Verified:** [unverified: destination, index, sourcetype, JSON field extraction]
+
+```spl
+index=<datastream_index> sourcetype=<datastream_sourcetype> earliest=<start_epoch> latest=<end_epoch>
+| bin _time span=5m
+| stats count AS requests, count(eval(statusCode>=500 AND statusCode<600)) AS errors_5xx, count(eval(cacheStatus=0)) AS not_in_cache by _time, reqHost
+| eval pct_5xx=round(100*errors_5xx/requests, 2), pct_not_in_cache=round(100*not_in_cache/requests, 2)
+```
+
+For a regional report, add `country` (where the request originated) or `serverCountry` (where it
+was served) to the `by` clause; break a spike down with `stats count by errorCode` over the same
+scope. Check the `reqHost` value shape in one raw event before filtering on it (it mirrors the Host
+header). The `akamai-edge` skill's DataStream caveats apply: low-latency streams deliver less
+complete data, and delivery failures lose lines.
+
 ## Loki (LogQL)
 
 No entries yet. Add them under this heading using the same shape; `logql.md` owns the dialect and

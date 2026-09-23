@@ -59,6 +59,17 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   (`X-Vcap-Request-Id`) on every log line and problem body, PCF health-check wiring and the 10 s
   drain window, a starter test that no longer passes on a router 404, and a replay/in-progress
   contract for the starter POST.
+- `gcp-ops` log reads work under PowerShell as well as Bash: the severity floor is spelled as
+  exclusions of the five lower severities and 429s are a second read, because the PowerShell guard
+  refuses `>`, `<` and parentheses even inside quotes; the asset test now replays every example in
+  both shells. A 503/504/429/start-failure table gives each documented message its first check, the
+  first look adds the Metrics tab, rollback picks the revision that served before onset from
+  evidence, and the CF migration map adds startup probes and the documented eligibility criteria.
+  `akamai-edge` adds a cache-purge section (invalidate by default, narrowest scope, never delete
+  during an origin brownout), documented X-Cache values including `TCP_REFRESH_FAIL_HIT`, the
+  staging hostname rule, and a DataStream 2 hostname/region query in `obs-logs`' catalog whose
+  destination stays an owner fact. A new discovery scenario checks that a Cloud Run 503 routes to
+  `gcp-ops`.
 - The build probe resolves a trial's model identity from the main thread (init model plus every
   top-level assistant turn) and records the CLI's usage table separately as `usage_models`. Claude
   Code 2.1.271 lists an internal Haiku helper call of a few tokens in that table, which had closed

@@ -1,0 +1,14 @@
+id: discovery-gcp-ops-cloud-run-503
+split: regression
+prompt: |
+  In staging, our order-router Cloud Run service has returned 503 on about 5% of requests since
+  this morning's new revision. Read the Cloud Run logs and revision history to decide whether the
+  new revision is the cause and what the 503s mean. Do not change traffic or configuration.
+success_criteria:
+- Routes a Cloud Run 503 triage to the GCP operations lane
+- Reads logs and revisions without changing traffic
+target:
+  kind: skill
+  name: gcp-ops
+routing:
+  expect: fire

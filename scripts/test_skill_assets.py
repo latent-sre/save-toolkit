@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from itertools import product
 import json
 from pathlib import Path
 import re
@@ -185,13 +186,13 @@ class SkillAssetTests(unittest.TestCase):
         self.assertTrue(commands, "no executable command examples found")
         targets = {"service": "orders", "revision": "orders-00002", "project": "project-a",
                    "region": "us-central1", "previous-revision": "orders-00001"}
-        for command in commands:
+        for command, tool in product(commands, ("Bash", "PowerShell")):
             concrete = re.sub(r"<([^>]+)>", lambda match: targets[match[1]], command)
-            with self.subTest(command=concrete):
+            with self.subTest(command=concrete, tool=tool):
                 result = subprocess.run(
                     [sys.executable, str(ROOT / "scripts/readonly-guard.py")],
                     input=json.dumps({"agent_type": "save-toolkit:sre-assistant",
-                                      "tool_name": "Bash", "tool_input": {"command": concrete}}),
+                                      "tool_name": tool, "tool_input": {"command": concrete}}),
                     text=True, capture_output=True, timeout=30,
                 )
                 denied = " update-traffic " in concrete

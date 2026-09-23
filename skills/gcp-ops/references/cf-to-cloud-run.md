@@ -7,10 +7,19 @@ committing a migration decision to a packet.
 
 ## Eligibility first
 
-An app qualifies for the straightforward path when it "must use HTTP or HTTP/2 (including gRPC)
-and listen for traffic based on the PORT environment variable", stateless *[sourced: migration
-overview page]*. TCP-routed apps and apps writing durable local state need separate runtime/storage
-assessment. Distinguish background workload lifecycles before proposing a destination:
+Google's overview says an app "cannot be migrated unless it meets the following criteria"
+*[sourced: migration overview page]*:
+
+- Uses HTTP or HTTP/2 (including gRPC).
+- Listens for traffic based on the `PORT` environment variable.
+- Doesn't require routing on different paths to different applications.
+- Doesn't require legacy Cloud Foundry "route services" for proxying traffic.
+- Doesn't require an instance ID or a particular startup order.
+- Doesn't need individual instances to be addressable.
+- Can be started without side-effects to the environment, for example, starting a database migration.
+
+TCP-routed apps and apps writing durable local state need separate runtime/storage assessment.
+Distinguish background workload lifecycles before proposing a destination:
 
 - Finite tasks that run to completion are candidates for **Cloud Run jobs**.
 - Continuous, non-HTTP pull workers are candidates for **Cloud Run worker pools**; check regional
@@ -37,6 +46,8 @@ that decision. *[sourced: [Cloud Run resource types](https://docs.cloud.google.c
 | `cf scale -i N` | `--min-instances` / `--max-instances`, concurrency per instance | CF thinking sizes instances; Cloud Run sizes **concurrency × instances** — retune, don't transliterate |
 | Reaching the on-prem databases (all of them are on-prem per `stack-profile`) | **Direct VPC egress** (`--network`, `--subnet`, `--vpc-egress=private-ranges-only` or `all-traffic`) over the interconnect/VPN — no connector, and network cost scales to zero with the service *[sourced: run/docs/configuring/vpc-direct-vpc; reviewed 2026-08-21]* | Each instance takes an IP: "reserve at least 2X the number of IP addresses, plus a buffer", `/26` subnet minimum, ~1 Gbps per instance, and "connection establishment delays of a minute or more on instance startup" have been observed. With Cloud NAT in the path the docs steer back to a Serverless VPC Access connector (30 s+ cold starts otherwise). Size the subnet before the first migration, not after the first outage |
 | JVM warm-up on a `cf push` (instance stays warm) | `--cpu-boost`: extra CPU "during instance startup time and for 10 seconds after the instance has started"; `--no-cpu-boost` to disable *[sourced: run/docs/configuring/services/cpu; reviewed 2026-08-21]* | A Spring Boot service that scaled to zero pays its startup on the next request; boost is the cheap lever and is billed only for the startup window. Pair with `--min-instances` for anything latency-sensitive |
+| Health check (`cf set-health-check`, manifest `health-check-type`) | **Startup probe** (a TCP probe with a 240 s timeout unless configured; `failureThreshold` × `periodSeconds` at most 600 s) plus an optional **liveness probe**, off unless configured *[sourced: run/docs/configuring/healthchecks]* | Size the startup probe for JVM start plus the Direct VPC egress connect delay above; Google recommends "a HTTP startup probe that tests a connection to an egress destination" *[sourced: run/docs/configuring/vpc-direct-vpc]* |
+| Run-on-start migrations (Flyway/Liquibase) or `CF_INSTANCE_INDEX`-gated singleton work | A **Cloud Run job** run before the deploy for migrations; a job or worker pool for singleton work | Every autoscaled instance runs the startup code, so each new instance attempts a start-time migration; Google's criteria above exclude both patterns |
 | Buildpack-injected agent / sidecar process in one container | **Multi-container service**: one *ingress* container (its port must be set explicitly — "no default port for the ingress container"), up to 10 containers sharing a network namespace, a shared in-memory volume, and startup ordering that **requires health checks** on the dependencies *[sourced: run/docs/deploying, sidecars; reviewed 2026-08-21]* | The OTel collector the `obs-pipeline` skill runs beside the app becomes a sidecar here; declare the app as depending on it and give the collector a health check or the app can start first and drop its early spans |
 | Container OOM → exit 137 in `cf events` | Read [OOM evidence](../SKILL.md#oom-evidence) | Cloud Logging replaces exit-code grepping |
 | `cf rollback` / blue-green | Read the [revision traffic rollback procedure](../SKILL.md#mitigation-you-recommend-never-run-traffic-rollback) | Stable `update-traffic` supports `--set-tags` / `--update-tags` for revision URLs and `--to-tags` for traffic percentages. Assigning a tag alone does not move percentage traffic; `--set-tags` replaces existing tags *[sourced: docs.cloud.google.com/sdk/gcloud/reference/run/services/update-traffic]* |
