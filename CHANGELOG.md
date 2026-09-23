@@ -34,6 +34,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   for the reconciliation owner, never the executor's receipt. Examples use a trading app
   (`order-router`), and the restart-classification eval grades a plain whole-app restart off the
   fast path, with ITO approving in the TLC. ITO is spelled out as IT Operations.
+- `obs-dashboards` warns against `or vector(0)` and null-to-zero on error ratios, asks for a
+  denominator panel and a telemetry-present stat, names the backend holding each signal, and
+  applies the team's dashboard conventions, which now live in their own `grafana` reference
+  (read on every create) instead of under a "legacy" data-source title. App-UI dashboards route
+  to `frontend-craft`, with a discovery scenario for the split.
 - `frontend-craft` covers SSE auth with in-memory tokens, confirmed and idempotent UI writes, an
   SPA fallback that never swallows API paths, and a browser check that names the gap when no
   browser tool exists. `backend-craft` adds object-level authorization tests, PCF request ids

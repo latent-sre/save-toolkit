@@ -34,7 +34,8 @@ instance, organization, permissions, resource identity, and ownership before rel
 | Grafana provisioning, evaluation settings, rule groups, contact points, or policies | [Alerting configuration](./references/grafana-alerting.md) |
 | Installed Grafana CLI, MCP, vendor skills, or Foundation SDK | [Agent tooling](./references/agent-tooling.md) |
 | Viewer/Editor workflows, sharing, annotations, or ownership-aware restore | [Viewer/editor workflows](./references/viewer-editor-workflows.md) |
-| Wavefront/Splunk plugins, entitlement, or team dashboard conventions | [Datasource and team conventions](./references/wavefront-legacy.md) |
+| Wavefront/Splunk plugins or entitlement | [Wavefront and Splunk data sources](./references/wavefront-legacy.md) |
+| Team dashboard conventions: folders, names, uids, tags, time, variables | [Dashboard conventions](./references/dashboard-conventions.md) |
 | Repair or interpret a query | Load `obs-metrics`, `obs-logs`, or `obs-traces` for that signal |
 
 Read only the matching references. An explanation does not start a change workflow. Give console

@@ -5,7 +5,8 @@ description: >-
   useful panels, units, comparisons, missing-data presentation, and drill-downs. Triggers:
   'design a dashboard', 'what should we dashboard', 'which panels do we need',
   'make this dashboard easier to read'. Grafana reads, saves, JSON/API details, and alert
-  operations belong to grafana; alert/SLO design belongs to obs-alerting.
+  operations belong to grafana; alert/SLO design belongs to obs-alerting. Not for dashboards
+  built into an application UI (frontend-craft).
 argument-hint: "[service, audience, dashboard question, or design change]"
 ---
 
@@ -29,12 +30,22 @@ bundled helper. This skill supplies design decisions and grants no live-write au
    not establish user impact.
 3. Choose a representation that preserves the signal: latency percentiles or distributions,
    request/error rates with traffic context, and saturation against a meaningful capacity limit.
-   Use `obs-metrics`, `obs-logs`, or `obs-traces` for query semantics and interpretation.
+   Use `obs-metrics`, `obs-logs`, or `obs-traces` for query semantics and interpretation. Name the
+   backend that holds each signal (per `stack-profile`: Wavefront for PCF application metrics today,
+   Mimir/Loki/Tempo for OpenTelemetry-instrumented and GCP services) and flag any panel that needs
+   the Wavefront or Splunk Grafana plugin.
 4. Give each panel a question or clear signal name, correct units, understandable series labels,
    and relevant comparison window. Keep linked views on the same population and time range;
-   disclose intentional differences rather than making unlike windows look comparable.
+   disclose intentional differences rather than making unlike windows look comparable. Apply the
+   team's folder, naming, time, and variable conventions: load `grafana` and read its dashboard
+   conventions reference.
 5. Distinguish no traffic, zero, missing telemetry, and query failure. A blank panel must not look
    healthy. Color or a threshold is a visual cue, not proof that an alert rule exists or fires.
+   Never append `or vector(0)` or map null to zero on an error ratio or its numerator; put the
+   request-rate (denominator) panel beside every ratio; add a telemetry-present stat such as
+   `count(up{job="<job>"} == 1) or on() vector(0)` with 0 mapped to red "no telemetry" — here zero
+   is the alarm, not the all-clear `[unverified against the team's Mimir labels; Wavefront needs its
+   obs-metrics equivalent]`.
 6. Link the next useful evidence, service context, and runbook without embedding sensitive data.
    Match refresh cadence to the decision and source cadence; avoid unnecessary query load.
 
