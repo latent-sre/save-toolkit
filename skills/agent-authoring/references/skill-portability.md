@@ -27,7 +27,7 @@ adapters; the generator absorbs the difference, and this file maps what it has t
 | `license` | Accepted, not acted on by Claude Code |
 | `compatibility` | Environment requirements; ≤500 chars. This fleet requires one single-line scalar so the local gate measures the value exactly without a full YAML implementation |
 | `metadata` | String-to-string mapping for your own tooling, per the [Agent Skills specification](https://agentskills.io/specification#metadata-field); Claude Code ignores it |
-| `allowed-tools` | Grants (pre-approves) tools while the skill is active |
+| `allowed-tools` | Grants (pre-approves) tools while the skill is active; an inert hint in VS Code skills. Not used here |
 
 ## Claude-only fields
 
@@ -36,13 +36,12 @@ Verify against the host you ship to.
 
 | Field | Fleet use | Off-Claude behavior |
 |---|---|---|
-| `argument-hint` | Most skills | Dropped by the portable spec; recognized by VS Code |
+| `argument-hint` | Every skill | Dropped by the portable spec; recognized by VS Code |
 | `disable-model-invocation` | `pcf-deploy` | Dropped by the portable spec, so the side-effect gate does **not** travel there; VS Code honors it (default `false`), which makes the Copilot copies explicit-only |
 | `user-invocable` | not used | Dropped by the portable spec; recognized by VS Code (default `true`) |
 | `disallowed-tools` | not used | Dropped by the portable spec; VS Code has `disallowedTools` (different spelling), runtime effect unconfirmed |
 | `context`, `agent`, `background` | not used | Dropped; `context: fork` exists in VS Code behind an experimental setting |
 | `paths`, `shell`, `model`, `effort`, `hooks`, `when_to_use`, `arguments` | not used | Dropped by the portable spec; VS Code recognizes `hooks` on agent files |
-| `allowed-tools` | not used | Travels in the portable spec; an inert hint in VS Code skills |
 
 **The portable set can only grant, never restrict.** Authority expressed through a field the target
 host ignores vanishes silently at publication. A field a host happens to honor is a convenience,
@@ -68,8 +67,8 @@ repository budget leaves headroom below the provider ceiling; other agents retai
 - A skill marked `disable-model-invocation` keeps that frontmatter in the Copilot projection.
 - Host authority differences (Copilot's omitted `execute`, for one) are stated in every generated
   adapter. Stating a difference is not claiming a control: the omitted `execute` narrows a default
-  the user can override and the picker can rewrite — read the VS Code limit in `AGENTS.md` before
-  citing it as authority. A fleet control is only as strong as the host it is proven on.
+  the user can override and the picker can rewrite — read [Capability choices](./copilot-frontmatter.md#capability-choices)
+  before citing it as authority. A fleet control is only as strong as the host it is proven on.
 - The root manifest declares Agent Plugins 1.0, so the installed plugin reads canonical `skills/`
   and takes Copilot agents and hooks from `com.github.copilot/`. Without that schema VS Code ranks
   `.claude-plugin/plugin.json` first and loads the Claude agents instead.

@@ -21,6 +21,12 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   `LOCK_TIMEOUT` with `XACT_ABORT ON`.
 - The `ci-actions` PCF production-deploy example runs only when a human dispatches it from `main`,
   and requires a deployment-branch rule on the environment.
+- `agent-authoring` platform facts match the current docs: the listing budget is 1% of the context
+  window (8,000 characters only as the fallback); plugin skills load beside same-named personal
+  skills instead of being shadowed; `compatibility`, `omitClaudeMd`, `initialPrompt` and the
+  current `maxTurns` behavior are recorded; subagent model resolution names both environment
+  variables. The method adds a listing-budget check before description edits, a new-skill
+  admission test, first-match evidence rows, and one return-header core with named lane fields.
 - The build probe resolves a trial's model identity from the main thread (init model plus every
   top-level assistant turn) and records the CLI's usage table separately as `usage_models`. Claude
   Code 2.1.271 lists an internal Haiku helper call of a few tokens in that table, which had closed
