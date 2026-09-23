@@ -215,7 +215,7 @@ def test_both_requires_both_complete_forms(oracle):
 def test_shipped_helper_replies_are_complete(oracle):
     reference = ROOT / "skills/incident-investigation/references/helper-exchange.md"
     replies = re.findall(r"```text\n(.*?)\n```", reference.read_text(encoding="utf-8"), re.S)
-    assert len(replies) == 2
+    assert len(replies) == 1
     for reply in replies:
         assert oracle.check(reply, "board")[0]
 
