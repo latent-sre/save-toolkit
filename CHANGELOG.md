@@ -29,6 +29,18 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- `software-engineer`'s body returns to its PR #282 state (`834dafd1`), undoing PR #284's
+  consolidation into an eight-step Working method. Step 1 again loads the craft skills before the
+  code is read and names `python-craft` and `frontend-craft`. This is an owner preference, not a
+  measured gain: on 2026-09-23 (Sonnet) `build-python-unify-policy` loaded `python-craft` in 3/3
+  trials on the 09-16 body, 3/5 on this body, and 2/3 on the consolidated body; no pairing is
+  distinguishable (Fisher p >= 0.46), and the refactor passed its oracle in every trial on every body.
+  The workspace, shell, `root-cause`, consumer-check, and CI-submission rules from PRs #281 and #282
+  stay. PR #284's researcher dispatch row stays because the researcher agent reads those fields.
+  Reverted with the rest: the default of one reviewer dispatch and the safe local reproducer for
+  incoming `sre-assistant` evidence. See the
+  [medium Python refactor evidence](docs/reviews/2026-09-16-python-medium-jobs.md).
+
 - Generated Copilot/VS Code agent profiles carry no generated preface at all: the whole "Host
   adapter contract" header is gone, including the bare-names sentence, the inherited-tools caveat,
   and the guarded-lane and MCP-evidence paragraphs. A projection is now the canonical body with
