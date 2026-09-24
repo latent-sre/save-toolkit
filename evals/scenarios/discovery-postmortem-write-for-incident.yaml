@@ -1,8 +1,8 @@
 id: discovery-postmortem-write-for-incident
 split: regression
 prompt: |
-  INC-4210 is closed: checkout returned 502s for 40 minutes on Tuesday after the 14:02 deploy and
-  the rollback at 14:42 fixed it. Can you draft the retro for that checkout outage? I have the
+  INC-4210 is closed: order-router returned 502s for 40 minutes on Tuesday after the 14:02 deploy and
+  the rollback at 14:42 fixed it. Can you draft the retro for that order-router outage? I have the
   timeline, the rollback record, and the on-call notes ready to paste, and I want the follow-ups
   to end up with named owners.
 success_criteria:

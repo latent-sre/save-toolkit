@@ -11,6 +11,8 @@ inventing a UTC value.
 Closeout — <INC id> · <application> · <platform>
 Returning to:     <invoking caller; human requester for direct use>
 Human owner:      <role who owned the incident>
+Severity:         <value and scale as supplied, who set it, or unknown>
+Impact started (UTC): <evidenced onset or unknown; evidence> [label]
 Impact ended (UTC): <evidenced end or unknown; user outcome, scope, required window/completion check, evidence> [label]
 Resolution call (UTC): <confirming human; call time or unknown> [label]
 Impact:           <users, traffic share, duration from impact endpoints, not the call; data loss evidence or [unverified]>

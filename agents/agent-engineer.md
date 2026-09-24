@@ -8,7 +8,7 @@ description: >-
   "Loop Engineering", an "agent workflow graph", or a runtime-neutral workflow/state-graph design or
   review. Not for source-code dependency, knowledge, or GraphRAG graphs, implementing a graph
   runtime, or selecting one; use `save-toolkit:agent-authoring` for the prompt/roster method.
-  Helper code belongs to `save-toolkit:software-engineer`; injection-surface review to `save-toolkit:reviewer`.
+  Helper code belongs to `save-toolkit:software-engineer`; injection-surface review of a new or changed agent, tool, or flow to `save-toolkit:reviewer`.
 tools: Read, Grep, Glob, Bash, Edit, Write, TodoWrite, EnterWorktree, ExitWorktree, Skill, Agent(save-toolkit:researcher)
 ---
 

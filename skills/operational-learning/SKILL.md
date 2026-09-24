@@ -7,7 +7,7 @@ description: >-
   ledger', 'capture durable operational lessons', 'apply the operational-learning closeout'.
   Direct KB writing belongs to scribe, which selects closeout mode and applies this skill; active
   incidents route to incident-investigation, alert design to observability-engineer, and fleet
-  prompt failures to agent-engineer.
+  prompt failures to agent-engineer. Retrospective write-ups use postmortem.
 argument-hint: "[component, alert, incident, drill, or audit]"
 ---
 
@@ -42,7 +42,9 @@ alert, SLO, and dashboard design stays with `observability-engineer`; code or au
    policy's repository conventions and fallback paths. Before `prepared`, require a caller-supplied
    `[verified]` checkout binding confirming the mounted checkout's current commit matches the target
    revision. A Bash-holding caller or human resolves the target there and supplies
-   `git rev-parse --short=8 HEAD` with its output on `Verified:`. Git extends IDs for uniqueness;
+   `git rev-parse --short=8 HEAD` with its output on `Verified:`, plus `git status --porcelain`:
+   name each path it lists as pre-existing and keep it out of the prepared diff; without the
+   status, the tree state is `[unverified]`. Git extends IDs for uniqueness;
    full IDs (`git rev-parse HEAD`) remain valid. A bare assertion is `[unverified]`;
    missing, unresolved, ambiguous, or mismatched binding permits no prepared diff; requested changes
    stay `proposed` or `blocked`.
@@ -59,8 +61,8 @@ alert, SLO, and dashboard design stays with `observability-engineer`; code or au
    knowledge index, observability, automation, code, and accepted risk. For affected artifacts choose
    `prepared`, `proposed`, `blocked`, or `duplicate`; group unaffected categories as `not_applicable`
    with a shared reason. Enrich the existing Follow-ups record using its IDs; consolidate repeated
-   copies, preserving distinct scope, owners, status, prerequisites, and evidence. No parallel action
-   list, nine-row quota, or work invented for unaffected categories.
+   copies, preserving distinct scope, owners, status, prerequisites, and evidence. Report only
+   affected artifacts plus that one grouped `not_applicable` line; no parallel action list.
 5. **Prepare the smallest coherent documentation diff.** A service or alert closeout may update its
    cards, index links, and a missing or stale runbook. Load `runbook` before writing a procedure.
    A postmortem remains its own primary artifact.
@@ -73,7 +75,10 @@ alert, SLO, and dashboard design stays with `observability-engineer`; code or au
 Read the repository's documented knowledge index and component-card paths; absent a convention,
 use `operations/index.md` and `operations/services/<app>.md` relative to the knowledge-repository
 root. Report owner, escalation,
-and dependencies as `[sourced]` with the path, `last_reviewed`, and `evidence_status`. If records
+and dependencies as `[sourced]` with the path, `last_reviewed`, and `evidence_status`. For "what
+depends on X", also search every component card's dependency table for X as outbound; name the
+cards searched and any disagreement with X's inbound rows, and mark a dependency whose reverse row
+is missing `[unverified]`, not absent. If records
 are missing, name the inspected roots and expected path; do not claim absence outside that scope
 or infer an owner from code paths, commit authors, or alert labels. During an active incident the
 same read belongs to `incident-investigation`.
@@ -93,7 +98,8 @@ same read belongs to `incident-investigation`.
   established, use `proposed` or `blocked`.
 - `last_reviewed` starts `null` and changes only after human or separately authorized document
   review. `last_verified` changes only from incoming execution evidence bound to the exact
-  artifact/version, target, actor, timestamp, and outcome.
+  artifact/version, target, actor, timestamp, and a passing outcome for every step claimed, on the
+  version being stamped; a drill that exposed a bad step never moves it.
 - Credential checks and human diff review remain required before accepting a KB change. Never place
   secrets or unrelated transcript content in the documentation.
 - Tier 2 or 3 recommendations name explicit human approval and rollback or recovery; agents do not
@@ -114,8 +120,6 @@ link it when the recipient can access it, otherwise include the needed rows. The
 5. limitations and one tracked next action;
 6. explicit non-actions: no execution, external lookup, delegation, approval, or verification inferred.
 
-Without an authorized, revision-bound checkout, do not prepare a diff. An evidenced `duplicate`
-needs no checkout. Without a reviewable diff or evidenced duplicate, return `proposed` or `blocked`.
-Do not invent a persistent packet, schema, procedure, or approval. Honor a
-caller-supplied bounded output shape, but it grants no authority and is not stored as a parallel
-record.
+Step 1's binding gates `prepared`; an evidenced `duplicate` needs no checkout. Do not invent a
+persistent packet, schema, procedure, or approval. Honor a caller-supplied bounded output shape,
+but it grants no authority and is not stored as a parallel record.

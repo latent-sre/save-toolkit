@@ -15,7 +15,9 @@ Python and dependency versions from the project's actual manifests and lockfiles
   `from_attributes=True` only for attribute extraction, not as a default on every model.
   A returned `Response` bypasses model validation/serialization; enforce its own contract explicitly.
 - **Authentication and authorization as chained dependencies**: `get_current_user` → `401` with
-  `WWW-Authenticate`, then a role check → `403`.
+  `WWW-Authenticate`, then a role check → `403`. Role checks gate the operation; item and write
+  routes also load the object through a caller-scoped query (owner/tenant) and return the project's
+  404 (or 403) for another principal's object.
 - **Domain errors are FastAPI-free**, translated by one global `@app.exception_handler` into the
   single problem+json shape.
 - **Concurrency:** `async def` fits awaitable libraries; synchronous `def` routes/dependencies are

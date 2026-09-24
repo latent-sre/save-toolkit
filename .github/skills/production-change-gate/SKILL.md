@@ -14,12 +14,9 @@ argument-hint: "[the change, build, or production action to gate]"
 Three questions, one gate. Each has its own checklist and verdict; a later question consumes the
 earlier verdict as evidence and never re-runs it. The agent classifies, checks, and records. A human
 release owner or separately approved protected automation executes; the agent never does, and no
-approval changes that. The fleet exception is the invoked `observability-engineer`'s scoped Grafana
-writes: dashboard/folder create/update, individual Grafana-managed alert-rule create/update and
-pause/resume, and temporary silence create/update/expire. Its complete agent-body Change authority
-rule and the `grafana` operation procedures govern those actions, including authorization,
-readback and UNKNOWN reconciliation; the generic executor-only procedure below does not replace
-that exception. Rule deletion and shared notification infrastructure remain on this gate.
+approval changes that. The one exception is the invoked `observability-engineer`'s scoped Grafana
+writes, governed by that agent's Change authority rule and the `grafana` operation procedures;
+rule deletion and shared notification infrastructure remain on this gate.
 
 > **The checklist is not the enforcement.** It records a human decision. The load-bearing control
 > is the least-privilege production role or credential held by the named human or protected
@@ -40,7 +37,7 @@ Classify first, then check only what the tier needs.
 
 | Tier | Action | Who may proceed |
 |---|---|---|
-| 0 | Observe: reads, health checks, config validation, dry runs | The agent, reporting commands and evidence |
+| 0 | Observe: reads, health checks, config validation, dry runs | The agent, only through its lane's granted, output-protected read path, reporting commands and evidence; otherwise it names the read for the human |
 | 1 | Prepare: edit version-controlled config, docs, or an unapplied artifact | The agent, never applying it to a live target |
 | 2 | Reversible live change | A human or protected automation, after explicit approval of the exact command shown |
 | 3 | Destructive or access-path change: data deletion, storage or backup, credential or identity, DNS, firewall, VPN, proxy, remote access | As Tier 2 plus a proven backup or recovery path; stop until the named action and target are approved |
@@ -78,10 +75,11 @@ Blocking items: <the NOs, each with what clears it>   Waivers: <item, approving 
 ## Execution result
 
 Approval records a decision, not whether the effect happened. After every Tier 2 or 3 attempt the
-executor returns the result; the agent records it and never invents a receipt, runs a verification
-query, or upgrades an ambiguous result. A missing response is not `not executed`: if dispatch may
+executor returns the result; the agent records it and never invents a receipt, substitutes its own
+read for the executor's receipt, or upgrades an ambiguous result. A dispatched Tier 0 readback is
+evidence for the reconciliation owner. A missing response is not `not executed`: if dispatch may
 have occurred and no durable result exists, record `UNKNOWN`, and nothing is retried or re-issued
-until the named reconciliation owner runs the read-after-write query and resolves it.
+until the named reconciliation owner resolves it and grants retry.
 
 ```text
 Execution outcome: <executed | not executed | UNKNOWN>
@@ -99,6 +97,7 @@ Retry permission: <ALLOWED | BLOCKED_PENDING_RECONCILIATION>
 | Preparing a Tier 2 or 3 approval-request packet, or an explicit ask for the template | [Tier 2 approval example](./references/tier-2-approval-example.md) |
 | A declared incident needing reversible Tier 0–2 mitigation, a bounded envelope, rollback to the live artifact, or post-incident reconciliation | [Incident fast path](./references/incident-fast-path.md) |
 | Proving a release artifact is the immutable one that was tested | [Release artifact evidence](./references/release-artifact-evidence.md) |
+| A `cf` state-changing command (restart, restage, scale, set-env, push, rollback) | Load `pcf-ops` and read its state-changing command effects reference for blast radius and for whether the action creates a new artifact |
 
 Urgency without a declared incident does not open the fast path. A new artifact and every Tier 3
 action stay on the full checklist at any severity.

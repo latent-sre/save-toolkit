@@ -14,6 +14,7 @@ import sys
 from types import SimpleNamespace
 
 import pytest
+from httpx import Response
 
 
 ASSET = Path(__file__).resolve().parents[1] / 'skills/backend-craft/assets/test_api_write_contract.py'
@@ -105,6 +106,36 @@ def test_control_effect_snapshots_are_detached():
     snapshot[0]['id'] = 'changed'
     snapshot[0]['state']['amount'] = 999
     assert case.effects() == [{'id': 'owner-1', 'state': {'amount': 1}}]
+
+
+@pytest.mark.parametrize('first_header', [None, 'false'])
+@pytest.mark.parametrize('replay_header', ['true', None, 'false'])
+def test_starter_adapter_checks_replay_marker_without_requiring_initial_header(first_header, replay_header):
+    case = controlled_case()
+    submit = case.submit
+    first = None
+
+    def starter_submit(key, payload, scope='owner'):
+        nonlocal first
+        result = submit(key, payload, scope)
+        marker = first_header if first is None else replay_header
+        response = Response(201, json={'id': result['result_id'], 'status': 'open', 'title': 'Probe'},
+                            headers={} if marker is None else {'Idempotent-Replayed': marker})
+        if first is None:
+            first = response
+        else:
+            contract.assert_starter_replay_response(first, response)
+        return result
+
+    # The project adapter opts into its native HTTP contract; generic effect checks stay portable.
+    case.submit = starter_submit
+    case.race = lambda key, payload: [starter_submit(key, payload), starter_submit(key, payload)]
+    case.overlap_observed = True
+    if replay_header == 'true':
+        contract.test_concurrent_duplicates_have_one_effect(case)
+    else:
+        with pytest.raises(AssertionError, match='Idempotent-Replayed'):
+            contract.test_concurrent_duplicates_have_one_effect(case)
 
 
 @pytest.mark.parametrize('fault,check,message', [

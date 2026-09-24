@@ -25,22 +25,30 @@ Dashboard: <link>  ·  Source/repo: <link>
 
 ## Prerequisites
 - Access: <roles, Apps Manager org/space, VPN, tools>
-- Tools: <Apps Manager, Splunk, Wavefront or PCF App Metrics; cf CLI v8 only if installed>
+- Tools: <Apps Manager or Cloud Console, Grafana, Splunk, Wavefront or PCF App Metrics; cf CLI v8 or gcloud only if installed>
 - Useful links: <dashboard, saved search, prior postmortem>
 
 ## Triage / first checks
-1. Confirm impact (golden signals): <Apps Manager view, Splunk search, or Wavefront chart>
+1. Confirm impact (golden signals): <Apps Manager view, Grafana panel, Splunk search, or Wavefront chart>
 2. Decision tree:
    - If <condition A> → go to Procedure step <n>.
    - If <condition B> → this isn't the right runbook; see <other runbook> / escalate.
 
 ## Procedure
-> Mark destructive steps ⚠️. Tier 2/3: record explicit human approval for the exact command/target plus rollback evidence before execution.
+> Mark destructive steps ⚠️. A Tier 2 step (reversible live change) or Tier 3 step (destructive or
+> access-path change) needs approval before you run it. In a declared incident, ITO approves the
+> exact command, or a bounded set of them, in the TLC. Use `production-change-gate`'s incident
+> fast-path checklist only for eligible actions. All other actions retain the full process,
+> including a whole-app restart or resize, restage, a new artifact, unknown droplet state, and Tier 3.
+> Suspected compromise or integrity loss exits the shortcut to the human security owner.
+> Outside an incident, use the full process.
+> Record approver, time, and rollback with the change. Impact growing or customer-visible and no
+> incident open → start one through the team's incident process first.
 
 1. <imperative step>
-   Apps Manager: <org / space → app → view → control and value>, or
+   Apps Manager (PCF) or Cloud Console (Cloud Run): <org / space → app → view → control and value>, or
    ```bash
-   <cf command — equivalent of the console action, for responders who have the CLI>
+   <cf or gcloud command — the console action's equivalent, for responders who have the CLI>
    ```
    Expected: <what you should see, in console terms first>, sorted into worked / partly worked / failed, each with where to go
    If not within <N min or N attempts>: → <the step or escalation row to go to> (every step that
@@ -74,7 +82,8 @@ Hand over: trigger, evidence, attempted steps, current state, and the current ow
 - [ ] Change `last_verified` only when incoming rehearsal evidence binds this exact runbook version,
       target, actor, timestamp, and outcome; otherwise leave it unchanged (including `null`) and
       record the gap.
-- [ ] File follow-up **automation candidates** (Crawl→Walk→Run) as tickets.
+- [ ] File follow-up **automation candidates** (Crawl→Walk→Run) as tickets after a toil assessment
+      of frequency, effort, and maintenance cost.
 - [ ] If this was an incident, after recovery, hand the timeline and evidence to the `scribe` agent for retrospective documentation.
 
 ## Incident history (living-runbook accretion)
@@ -84,7 +93,7 @@ Hand over: trigger, evidence, attempted steps, current state, and the current ow
 
 | Date (UTC) | Incident / drill ref | Version used | Steps that held | Steps that failed / were missing | Follow-up (disposition / PR or evidence reference) |
 |---|---|---|---|---|---|
-| <YYYY-MM-DD> | <postmortem or drill link> | <n> | <e.g. steps 1–3> | <e.g. step 4 output differed; no rollback for step 5> | <PR, evidence link, prepared, or proposed> |
+| <YYYY-MM-DD> | <postmortem or drill link> | <n> | <e.g. steps 1–3> | <e.g. step 4 output differed; no rollback for step 5> | <PR or evidence reference; closeout disposition id if one exists> |
 
 ## References
 - Related runbooks: <…>

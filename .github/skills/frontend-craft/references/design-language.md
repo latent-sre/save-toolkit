@@ -27,9 +27,11 @@ character suited to its audience. Decoration should earn its place in the workfl
 
 - **Dark-first, layered surfaces.** Dark is the designed-for theme; light stays fully supported
   through the same tokens, with a manual light/dark/system toggle, persisted and defaulting to the
-  OS setting. Deep page background, cards a step lighter, raised elements a step lighter again;
+  OS setting. A deep page background tinted from the design plan's palette, not a neutral
+  near-black; cards a step lighter, raised elements a step lighter again;
   depth from layering plus low-alpha borders and soft shadows, not heavy lines.
-- **Accent with purpose**: use a clear accent for primary actions and active states. Gradients or a
+- **Accent with purpose**: derive the accent from the design plan and use it for primary actions
+  and active states, never one saturated acid hue on near-black. Gradients or a
   hero treatment are optional when they help communicate the product. Status stays distinct and
   paired with text or an icon.
 - **Categorical KPI accents**, when they help distinguish metric groups: draw a small set of hues

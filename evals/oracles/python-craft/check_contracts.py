@@ -4,6 +4,7 @@ These inspect candidate modules in a disposable fixture, not arbitrary repositor
 They are public regression oracles, not hidden evaluations or a sandbox.
 """
 
+import ast
 import importlib.util
 import io
 import ipaddress
@@ -192,6 +193,39 @@ def unchanged():
     predicate = load("predicates.py").is_nonnegative
     for value, expected in [(-10**100, False), (-1, False), (0, True), (1, True), (10**100, True)]:
         CHECK.assertIs(predicate(value), expected)
+
+
+SCOPED_UNTOUCHED = {
+    "filled_notional": '''def filled_notional(fills):
+    total = Decimal("0")
+    for fill in fills:
+        if fill["status"] == "FILLED":
+            total += Decimal(fill["qty"]) * Decimal(fill["price"])
+    return total''',
+    "rejected_notional": '''def rejected_notional(fills):
+    total = Decimal("0")
+    for fill in fills:
+        if fill["status"] == "REJECTED":
+            total += Decimal(fill["qty"]) * Decimal(fill["price"])
+    return total''',
+}
+
+
+def scoped():
+    source = Path("fills.py").read_text(encoding="utf-8")
+    defined = {node.name: ast.get_source_segment(source, node)
+               for node in ast.parse(source).body if isinstance(node, ast.FunctionDef)}
+    for name, original in SCOPED_UNTOUCHED.items():
+        CHECK.assertEqual(defined.get(name), original, f"{name} changed although the fix did not need it")
+    latest = load("fills.py").latest_fills
+    fills = [{"ts": 3, "id": "c"}, {"ts": 1, "id": "a"}, {"ts": 2, "id": "b"}, {"ts": 2, "id": "b2"}]
+    before = [dict(fill) for fill in fills]
+    for count, expected in [(0, []), (1, ["c"]), (2, ["b2", "c"]), (4, ["a", "b", "b2", "c"]),
+                            (5, ["a", "b", "b2", "c"]), (9, ["a", "b", "b2", "c"])]:
+        CHECK.assertEqual([fill["id"] for fill in latest(fills, count)], expected, f"latest_fills(fills, {count})")
+    for count in (0, 3):
+        CHECK.assertEqual(list(latest([], count)), [], f"latest_fills([], {count})")
+    CHECK.assertEqual(fills, before, "input mutated")
 
 
 def calculation():
@@ -390,6 +424,7 @@ def policy():
 
 if __name__ == "__main__":
     checks = {"refactor": refactor, "generator": generator, "migration": migration,
-              "unchanged": unchanged, "modules": modules, "calculation": calculation, "policy": policy}
+              "unchanged": unchanged, "modules": modules, "calculation": calculation, "policy": policy,
+              "scoped": scoped}
     checks[sys.argv[1]]()
     print("contract passed:", sys.argv[1])

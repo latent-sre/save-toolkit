@@ -533,6 +533,117 @@ class ConfluenceContentTest(unittest.TestCase):
         self.assertEqual(frontmatter_fields(draft)['runbook_id'], 'restart-payments')
 
 
+def run_on(name: str, content: str, *args: str, env: dict[str, str] | None = None,
+           existing: str | None = None) -> tuple[subprocess.CompletedProcess, str]:
+    """Run the converter on a source file called `name`; its suffix selects page JSON or HTML."""
+    with tempfile.TemporaryDirectory() as tmp:
+        src = Path(tmp) / name
+        out = Path(tmp) / "draft.md"
+        src.write_text(content, encoding="utf-8")
+        if existing is not None:
+            out.write_text(existing, encoding="utf-8")
+        proc = subprocess.run(
+            [sys.executable, str(CONVERTER), str(src), "-o", str(out), "--service-id", "order-router", *args],
+            capture_output=True, text=True, encoding="utf-8", env=env or child_env(), timeout=30,
+        )
+        draft = out.read_text(encoding="utf-8") if out.exists() else ""
+    return proc, draft
+
+
+def slot_text(draft: str, slot: str) -> str:
+    return draft.split(f"## {slot}\n\n", 1)[1].split("\n## ", 1)[0]
+
+
+class ConfluenceImportPathTest(unittest.TestCase):
+    """The documented import path: page JSON in, provenance kept, nothing silently lost or replaced."""
+
+    PAGE_JSON = json.dumps({
+        "id": "123",
+        "title": "Restart the order router",
+        "version": {"number": 7, "createdAt": "2026-09-01T10:00:00.000Z"},
+        "body": {"view": {"value": "<h1>Symptoms</h1><p>Order queue depth keeps growing.</p>"
+                                    "<h1>Steps</h1><ol><li>Check the router state.</li></ol>"}},
+    })
+
+    def test_page_json_supplies_title_version_and_keeps_every_h1_section(self) -> None:
+        proc, draft = run_on("page.json", self.PAGE_JSON)
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        self.assertEqual("restart-the-order-router", frontmatter_fields(draft)["runbook_id"])
+        self.assertIn("Order queue depth keeps growing.", slot_text(draft, "Trigger"))
+        self.assertIn("Check the router state.", slot_text(draft, "Procedure"))
+        self.assertIn("- Source page version: 7", draft)
+        self.assertIn("- Source page last modified: 2026-09-01T10:00:00.000Z", draft)
+        self.assertNotIn("warning", proc.stdout)
+
+    def test_data_center_page_json_supplies_its_modified_date(self) -> None:
+        page = json.loads(self.PAGE_JSON)
+        page["version"] = {"number": 3, "when": "2025-11-02T08:30:00.000Z"}
+        proc, draft = run_on("page.json", json.dumps(page))
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        self.assertIn("- Source page version: 3", draft)
+        self.assertIn("- Source page last modified: 2025-11-02T08:30:00.000Z", draft)
+
+    def test_page_json_without_a_view_body_fails_without_a_draft(self) -> None:
+        storage_only = json.dumps({"title": "Restart", "body": {"storage": {"value": "<p>x</p>"}}})
+        proc, draft = run_on("page.json", storage_only)
+        self.assertEqual(1, proc.returncode)
+        self.assertIn("body-format=view", proc.stderr)
+        self.assertEqual("", draft)
+
+    def test_html_without_version_leaves_visible_fill_in_lines(self) -> None:
+        proc, draft = run_on("page.html", VIEW_HTML)
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        self.assertIn("- Source page version: <fill in — page history>", draft)
+        self.assertIn("- Source page last modified: <fill in — page history>", draft)
+
+    def test_title_flag_keeps_a_bare_fragments_first_h1_as_a_section(self) -> None:
+        fragment = "<h1>Symptoms</h1><p>Order queue depth keeps growing.</p>"
+        proc, draft = run_on("page.html", fragment, "--title", "Restart the order router")
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        self.assertEqual("restart-the-order-router", frontmatter_fields(draft)["runbook_id"])
+        self.assertIn("Order queue depth keeps growing.", slot_text(draft, "Trigger"))
+
+    def test_an_untitled_fragment_warns_instead_of_silently_naming_it_after_the_file(self) -> None:
+        proc, _ = run_on("page.html", "<h2>Steps</h2><p>Check the router state.</p>")
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        self.assertIn("no page title found", proc.stdout)
+        self.assertIn("--title", proc.stdout)
+
+    def test_existing_output_is_refused_unless_forced(self) -> None:
+        history = "| 2026-02-18 | INC-8841 | 3 | steps 1-2 | — | PR #412 |\n"
+        proc, draft = run_on("page.json", self.PAGE_JSON, existing=history)
+        self.assertEqual(1, proc.returncode)
+        self.assertIn("--force", proc.stderr)
+        self.assertEqual(history, draft, "an existing runbook and its history must survive")
+        proc, draft = run_on("page.json", self.PAGE_JSON, "--force", existing=history)
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        self.assertIn("restart-the-order-router", draft)
+
+    def test_report_prints_non_ascii_headings_on_a_legacy_stdout(self) -> None:
+        # Captured stdout (an agent's Bash, CI, `> log`) can default to a legacy code page; the draft
+        # is written before the report prints, so an encode error there left a draft and exit 1.
+        env = {**os.environ, "PYTHONIOENCODING": "ascii"}
+        html = "<h1>Recovery</h1><h2>⚠️ Rollback → safe path</h2><p>Undo the change.</p>"
+        proc, _ = run_on("page.html", html, env=env)
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        self.assertIn("⚠️ Rollback → safe path", proc.stdout)
+
+    def test_headings_match_word_starts_and_contacts_outrank_alerts(self) -> None:
+        proc, draft = run_on(
+            "page.html",
+            "<h1>Recovery</h1>"
+            "<h2>Escalation process</h2><p>Page the trading lead.</p>"
+            "<h2>Alert contacts</h2><p>Trading on-call rota.</p>"
+            "<h2>Prefix conventions</h2><p>Queue names use the desk prefix.</p>",
+        )
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        escalation = slot_text(draft, "Escalation")
+        self.assertIn("Page the trading lead.", escalation)
+        self.assertIn("Trading on-call rota.", escalation)
+        self.assertNotIn("desk prefix", slot_text(draft, "Procedure"))
+        self.assertIn("desk prefix", draft.split("Imported content (unmapped)", 1)[1])
+
+
 class ConfluenceImportReferenceTest(unittest.TestCase):
     def test_export_example_prompts_for_token_instead_of_putting_it_in_argv(self) -> None:
         reference = IMPORT_REFERENCE.read_text(encoding="utf-8")
@@ -540,9 +651,11 @@ class ConfluenceImportReferenceTest(unittest.TestCase):
         self.assertIn('--user "user@example.com"', reference)
         self.assertIn("prompts for the API token", reference)
         self.assertIn("--fail-with-body", reference)
-        self.assertIn("--exit-status --raw-output", reference)
-        self.assertIn(".body.view.value", reference)
-        self.assertIn("> page.html", reference)
+        # The page JSON goes to the converter whole, so the title, version, and modified date
+        # survive and a missing view body fails in the converter (tested above), not in a jq step.
+        self.assertIn("?body-format=view", reference)
+        self.assertIn('"<resolved converter path>" page.json', reference)
+        self.assertIn("refuses a JSON without a view body", reference)
 
 
 if __name__ == "__main__":

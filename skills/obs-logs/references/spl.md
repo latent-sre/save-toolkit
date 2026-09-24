@@ -22,6 +22,7 @@ comment macro; SPL2's `//` and `/* */` belong to a different language.
 ## Contents
 
 - Start narrow
+- Is the source current?
 - Read it over time
 - Top offenders
 - Spot a spike vs the baseline (anomaly detection)
@@ -42,17 +43,37 @@ index=<app_index> host=<...> sourcetype=<...> earliest=-1h latest=now
 Confirm field extraction before filtering (`status>=500`, `error_type=...`); use `rex` if needed.
 A predicate on an absent field can match nothing, so an empty result alone cannot establish health.
 
+## Is the source current?
+
+Run this before reading "no events" or a quiet bucket as healthy, and when logs seem not to reach
+Splunk:
+
+````spl
+| tstats count max(_time) AS last_event max(_indextime) AS last_indexed WHERE index=<app_index> sourcetype=<request_completion_sourcetype> earliest=-4h latest=now BY host
+| eval since_last_event_s=now()-last_event, since_last_indexed_s=now()-last_indexed
+````
+
+A large `since_last_indexed_s`, or an expected host missing from the rows, means nothing is
+arriving: the source went quiet or ingestion stopped (platform-fed PCF logs are a `pcf-ops`
+question), not a healthy service. A recent `last_indexed` beside an old `last_event` means events
+arrive late; measure that lag on raw events with `| eval delay_s=_indextime-_time`.
+*[sourced: Splunk `tstats` (indexed fields in tsidx) and Splunk's event-indexing-delay
+troubleshooting page (`_indextime-_time`); `max(_indextime)` inside `tstats` is `[unverified]` —
+if the search head rejects it, run the same `stats` over a raw search]*
+
 ## Read it over time
 
 ````spl
-index=<app_index>
-| where status>=500     ```status must be an extracted field, else this matches nothing```
-| timechart span=1m count     ```5xx per minute — find the exact onset```
+index=<app_index> sourcetype=<request_completion_sourcetype> earliest=<start_epoch> latest=<end_epoch>
+| timechart span=1m count AS total count(status) AS classified count(eval(status>=500 AND status<600)) AS errors
+```count inside each bucket: a quiet minute keeps its traffic; classified<total means status is not extracted everywhere```
 ````
 
 ````spl
-index=<app_index>
-| timechart span=1m count by status     ```split by HTTP status to see 5xx vs 4xx```
+index=<app_index> sourcetype=<request_completion_sourcetype> earliest=<start_epoch> latest=<end_epoch>
+| eval status_class=if(match(status, "^[1-5][0-9]{2}$"), substr(status, 1, 1)."xx", "invalid")
+| timechart span=1m limit=0 count by status_class
+```limit=0 keeps every series; for exact codes, split by status and keep limit=0```
 ````
 
 ## Top offenders
@@ -75,6 +96,8 @@ Group by stable fields (`error_type`, `service`, `route`), not raw `message`.
 Use a request-completion sourcetype with one event per eligible request/attempt. Confirm source
 freshness, ingestion coverage, and a single three-digit HTTP status per event before interpreting
 an anomaly. A ratio needs the complete request population; errors/sec or counts alone measure volume.
+On PCF that source is normally the Gorouter `RTR` line, emitted per routed request; `APP` lines are
+app output, not a request count. Take the selector from the inventory's PCF table.
 
 **Complete five-minute buckets, preceding-hour baseline:** choose absolute bounds aligned to five
 minutes, excluding the current incomplete bucket. `timechart cont=t` retains empty buckets;
@@ -159,10 +182,13 @@ the class grouping. Use the catalog's overall-rate query when no error classific
 ## Extract fields ad hoc
 
 ````spl
-index=<app_index> sourcetype=<...> earliest=-1h     ```scope the base search — never start bare```
+index=<app_index> sourcetype=<...> earliest=-1h latest=now     ```scope the base search — never start bare```
 | rex field=_raw "latency=(?<latency_ms>[\d.]+)"    ```[\d.]+ keeps fractional ms; \d+ truncates them```
-| stats p95(latency_ms), max(latency_ms) by uri
+| stats count AS requests p95(latency_ms) AS p95_ms max(latency_ms) AS max_ms by route
 ````
+
+Take `route` from the inventory. If only a raw URI exists, normalize ids before grouping, and keep
+`requests` beside each p95: the p95 of one request is that request.
 
 ## Fast paths at scale — tstats, data models, TERM/PREFIX
 
@@ -183,8 +209,9 @@ metadata (tsidx files), not raw events** — orders faster, with two strings att
   simply absent, a mid-incident false all-clear. Default (`summariesonly=f`) falls back to raw
   data for the unsummarized remainder: complete but slower. Say which mode produced any
   tstats-based claim in the packet.
-- Search filters cannot be applied to accelerated data models — constraints go in `WHERE`/`BY`
-  against dataset fields.
+- Role- and user-based search filters are not applied to accelerated data models, so a role filter
+  does not constrain `tstats` over one; apply the packet redaction rules to its results. Put query
+  constraints in `WHERE`/`BY` against dataset fields.
 - **`TERM()`** matches a term containing minor breakers as one indexed term
   (`TERM(www.example.com)`, `TERM(10.0.0.5)`) instead of letting the segmenter split it — the
   cheap way to hunt one IP/host across a big index. **`PREFIX()`** (with tstats) aggregates on a
@@ -212,8 +239,11 @@ filter isn't index-time-selective (that's what `TERM()`/`tstats` fix).
 - **Fields are case-sensitive and only exist after extraction.** `table status` shows nothing if the
   field was never extracted; `rex` it first. `_time` is in the search TZ, not necessarily the event's.
   *[sourced: Splunk field/search behavior; unverified target extractions]*
+- **`timechart`/`chart … by <field>` keeps only the top 10 series** by the sum of the aggregation
+  and folds the rest into `OTHER`, so early 503s or one low-volume host can vanish. Set `limit=0`, or
+  state the limit, whenever a rare value is the point of the search.
+  *[sourced: Splunk `timechart` and `chart` `limit`/`useother`]*
 - `stats`/`timechart`/`tstats` aggregate; `transaction` groups events but is expensive — prefer
   `stats by <id>` for correlation. *[unverified performance guidance for target data]*
 - Record every change and symptom in one UTC incident timeline; hand it to the responder (or the `sre-assistant` slice they dispatched) with
   confidence labels.
-- Hand correlated evidence to the `observability-engineer` agent.

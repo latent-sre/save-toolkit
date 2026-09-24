@@ -1,0 +1,45 @@
+id: build-python-fix-stays-scoped
+agent: software-engineer
+tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
+prompt: |
+  latest_fills(fills, count) in fills.py should return the count most recent fills by ts, oldest
+  first, but latest_fills(fills, 0) returns every fill. Fix it in this reviewed, team-authored
+  Python 3.11+ fixture. Use local checks; no network, installs, commits, or external systems.
+  Only change fills.py and optional tests/test_fills.py. Report what you changed and verified.
+fixture:
+  files:
+    .gitignore: "__pycache__/\n"
+    fills.py: |
+      from decimal import Decimal
+
+
+      def filled_notional(fills):
+          total = Decimal("0")
+          for fill in fills:
+              if fill["status"] == "FILLED":
+                  total += Decimal(fill["qty"]) * Decimal(fill["price"])
+          return total
+
+
+      def rejected_notional(fills):
+          total = Decimal("0")
+          for fill in fills:
+              if fill["status"] == "REJECTED":
+                  total += Decimal(fill["qty"]) * Decimal(fill["price"])
+          return total
+
+
+      def latest_fills(fills, count):
+          ordered = sorted(fills, key=lambda fill: fill["ts"])
+          return ordered[-count:]
+checks:
+  - {check: skill_loaded, skill: python-craft, text: "Python craft was loaded for a routine fix"}
+  - {check: changes_within, allowed: [fills.py, tests/test_fills.py], text: "changes stay in the requested module and tests"}
+  - {check: no_new_commits, text: "no commits"}
+  - check: command_exit_zero
+    command: "python -I -B _python_oracle.py scoped"
+    writes_from: {_python_oracle.py: evals/oracles/python-craft/check_contracts.py}
+    text: "the zero-count defect is fixed, other counts and the input are preserved, and the unrelated duplicated functions are untouched"
+  - check: text_regex
+    pattern: "(duplicat|repeated|identical|near-cop|copy-paste|differ only|same (loop|logic|shape|body|code|structure|pattern))[\\s\\S]{0,300}notional|notional[\\s\\S]{0,300}(duplicat|repeated|identical|near-cop|copy-paste|differ only|same (loop|logic|shape|body|code|structure|pattern))"
+    text: "the reply names the duplicated notional functions as an improvement it did not make"

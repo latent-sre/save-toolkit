@@ -22,14 +22,17 @@ closeout, per the disposition policy.
    `status: draft` so nobody follows a known-wrong step at 3 a.m. A known-wrong active runbook is
    worse than none.
 3. **Incident use is only a rehearsal when it binds.** `last_verified` moves only when the incident
-   record captures the exact command, target, actor, timestamp, and outcome for this runbook
-   version — the same binding rule as a game day. "We basically followed it" moves nothing.
+   record captures the exact command, target, actor, timestamp, and a passing outcome for every
+   step claimed on this runbook version — the same binding rule as a game day. "We basically
+   followed it" moves nothing, and neither does a run that exposed a bad step.
 4. **Missing steps route through the learning loop.** A missing, contradicted, or newly required
    runbook step surfaces in the incident's record as a durable discovery candidate (the advisor's
    Follow-ups line, or the `sre-assistant` slice's `Durable discovery candidates`); the invoked
    operational closeout turns it into a disposition ("… → `scribe` prepares or proposes the
-   update"), and that disposition is the intake. A chat-only observation that never becomes a
-   disposition is a lost accretion.
+   update"), and that disposition is the intake. A direct request that supplies the resolved
+   incident's record is also an intake: edit in runbook mode and cite the PR or evidence reference;
+   `prepared` and `proposed` appear only when a closeout produced them. A chat-only observation that
+   never becomes a disposition or a direct edit is a lost accretion.
 5. **Three incidents, same manual fix → automation candidate.** Recurring identical steps are the
    Crawl → Walk → Run trigger (parent skill); record the candidate in the history row's follow-up
-   column so the pattern is visible in one place.
+   column so the pattern is visible in one place, and assess it with `toil-reduction` before filing.

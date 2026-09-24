@@ -1,0 +1,17 @@
+id: discovery-obs-dashboards-defers-app-ui-dashboard
+split: regression
+prompt: |
+  Design a dashboard page inside our settlements ops portal (a React app) that lists pending
+  settlements with filters, per-row actions, and a summary header. The team uses it to work the
+  queue during the trading day. This is a page in our application, not a Grafana dashboard.
+success_criteria:
+- Routes an application-UI dashboard page to the web UI lane, not the observability dashboard lane
+- Does not plan Grafana panels, datasources, or a Grafana save for an in-app page
+target:
+  kind: skill
+  name: obs-dashboards
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: skill
+    name: frontend-craft

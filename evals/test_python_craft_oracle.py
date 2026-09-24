@@ -22,6 +22,7 @@ SCENARIOS = {
     "modules": ("build-python-module-move", "reports.py"),
     "calculation": ("build-python-separate-calculation", "totals.py"),
     "policy": ("build-python-unify-policy", "policy.py"),
+    "scoped": ("build-python-fix-stays-scoped", "fills.py"),
 }
 CORRECT = {
     "refactor": '''
@@ -147,6 +148,10 @@ CORRECT["policy"] = {
 }
 
 
+CORRECT["scoped"] = scenario("scoped")["fixture"]["files"]["fills.py"].replace(
+    "return ordered[-count:]", "return ordered[-count:] if count > 0 else []")
+
+
 class PythonCraftOracleTests(unittest.TestCase):
     def test_refactoring_judgment_grader_rejects_each_wrong_decision(self):
         spec = yaml.safe_load((ROOT / "scenarios/python-refactoring-judgment.yaml").read_text(encoding="utf-8"))
@@ -194,7 +199,8 @@ class PythonCraftOracleTests(unittest.TestCase):
                                   "migration": "stdlib validator was not used",
                                   "modules": "No module named 'formatting'",
                                   "calculation": "missing in-memory calculation boundary",
-                                  "policy": "No module named 'policy'"}[mode]
+                                  "policy": "No module named 'policy'",
+                                  "scoped": "latest_fills(fills, 0)"}[mode]
                     self.assertIn(diagnostic, result.stderr)
 
     def test_generator_open_aliases_remain_valid(self):
@@ -483,6 +489,44 @@ class PythonCraftOracleTests(unittest.TestCase):
         ]:
             with self.subTest(name=name):
                 result = self.run_artifact("policy", {**correct, **changes})
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(diagnostic, result.stderr)
+
+    def test_scoped_fix_rejects_unrequested_refactors_and_fix_regressions(self):
+        correct = CORRECT["scoped"]
+        start, end = correct.index("def filled_notional"), correct.index("def latest_fills")
+        for name, source, diagnostic in [
+            ("duplication folded into a helper", correct[:start] + '''def _notional(fills, status):
+    return sum((Decimal(f["qty"]) * Decimal(f["price"]) for f in fills if f["status"] == status), Decimal("0"))
+
+
+def filled_notional(fills):
+    return _notional(fills, "FILLED")
+
+
+def rejected_notional(fills):
+    return _notional(fills, "REJECTED")
+
+
+''' + correct[end:], "filled_notional changed although the fix did not need it"),
+            ("unrelated annotations added", correct.replace(
+                "def rejected_notional(fills):", "def rejected_notional(fills: list[dict]) -> Decimal:"),
+             "rejected_notional changed although the fix did not need it"),
+            ("length arithmetic wraps", correct.replace(
+                "return ordered[-count:] if count > 0 else []", "return ordered[len(ordered) - count:]"),
+             "latest_fills(fills, 5)"),
+            ("newest first", correct.replace(
+                "return ordered[-count:] if count > 0 else []",
+                "return sorted(fills, key=lambda fill: fill[\"ts\"], reverse=True)[:count]"),
+             "latest_fills(fills, 2)"),
+            ("input sorted in place", correct.replace(
+                "ordered = sorted(fills, key=lambda fill: fill[\"ts\"])",
+                "fills.sort(key=lambda fill: fill[\"ts\"])\n    ordered = fills"),
+             "input mutated"),
+        ]:
+            with self.subTest(name=name):
+                self.assertNotEqual(source, correct)
+                result = self.run_artifact("scoped", source)
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn(diagnostic, result.stderr)
 

@@ -52,10 +52,20 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/IncidentCreate" }
       responses:
-        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Incident" } } } }
+        "201":              # a replay repeats the first completed request's status and body, flagged by the header.
+          description: Created, or a replay of the first completed request with this key.
+          headers:
+            Idempotent-Replayed: { schema: { type: boolean }, description: "Required with value true on replay; omitted or false on the initial creation. The header is optional across all 201 responses because only replays require it." }
+          content: { application/json: { schema: { $ref: "#/components/schemas/Incident" } } }
         "400": { $ref: "#/components/responses/Problem" }
         "401": { $ref: "#/components/responses/Problem" }
-        "409": { $ref: "#/components/responses/Problem" }
+        "409":              # the Problem type separates a key reused with another payload from one still in progress.
+          description: Key reused with a different payload, or the first request with this key is still in progress.
+          headers:
+            Retry-After: { schema: { type: integer }, description: "Seconds before retrying with the same key; sent while the first request is in progress." }
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
         "422": { $ref: "#/components/responses/Problem" }
         "429": { $ref: "#/components/responses/RateLimited" }
 components:
@@ -86,7 +96,7 @@ components:
         status: { type: integer }
         detail: { type: string }
         instance: { type: string }
-        request_id: { type: string, description: Correlates this response with the request log line. }
+        request_id: { type: string, minLength: 1, description: Correlates this response with the request log line. }
         errors:             # your extension for field-level validation
           type: array
           items:
@@ -95,7 +105,7 @@ components:
               loc: { type: array, items: { type: string } }
               msg: { type: string }
             required: [loc, msg]
-      required: [type, title, status]
+      required: [type, title, status, request_id]
     Incident:
       type: object
       properties:

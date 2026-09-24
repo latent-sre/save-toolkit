@@ -45,10 +45,10 @@ operability and failure rules that fit a worker, scheduler, or client without ad
 | API writes | Before retryable or concurrent writes, read [API writes](./references/api-writes.md); adapt [write acceptance tests](./assets/test_api_write_contract.py) to compatible Python contracts |
 | Rate limits | `429` with `Retry-After` and `X-RateLimit-Limit`/`-Remaining`/`-Reset` |
 | Outbound calls | A timeout on every one; retries only for idempotent operations with backoff and jitter; one typed client per upstream; long-lived clients use an upstream breaker when repeated failures need shared suppression and recovery probes |
-| Health | `/healthz` process-only; `/readyz` includes a dependency only when withdrawing the instance improves behaviour; public health endpoints carry no auth |
-| Observability | Request ID on every log line; RED on the request path |
+| Health | `/healthz` process-only; `/readyz` includes a dependency only when withdrawing the instance improves behaviour; public health endpoints carry no auth. On PCF the manifest sets `health-check-type: http` with `health-check-http-endpoint: /healthz` and `readiness-health-check-type: http` with `readiness-health-check-http-endpoint: /readyz` (defaults: `port`, `process`, endpoint `/`); never point liveness at a dependency |
+| Observability | Request ID on every log line and problem body: Gorouter's `X-Vcap-Request-Id` on PCF, else a validated ingress id or a generated one; RED on the request path |
 | Config | From the environment, validated at startup, fail loud |
-| Shutdown | Graceful: stop accepting, drain, finish or requeue jobs, stop the scheduler, close streams |
+| Shutdown | Graceful: stop accepting, drain, finish or requeue jobs, stop the scheduler, close streams, all inside the platform grace period (PCF: 10 s from SIGTERM to SIGKILL by default); requeue work that cannot finish in it |
 | Secrets and input | Secrets from env or a store and never in logs; CORS allowlist; body and param bounds; never log bodies or tokens |
 | Auth | On every non-public route; authorize the object, not the session; a `reviewer` pass for auth changes |
 | Streaming | SSE for one-way push, keep-alives every 15–30 s, event ids with `Last-Event-ID`, bounded streams |
@@ -63,8 +63,10 @@ operability and failure rules that fit a worker, scheduler, or client without ad
   id and schema assertion, or job/client inputs, outcome and failure handling. Never include
   headers, cookies, credentials, or full bodies.
 - Changed HTTP shapes are checked against the established API contract; preserve existing auth
-  coverage. For a new HTTP service, test its chosen OpenAPI contract and include breaking-change
-  detection in CI. A worker or client change does not owe a served OpenAPI document.
+  coverage. An item or write route has a test in which a second authorized principal is refused
+  the first principal's object. For a new HTTP service, test its chosen OpenAPI contract and
+  include breaking-change detection in CI. A worker or client change does not owe a served OpenAPI
+  document.
 
 ## Before you write it — load the reference for what you're building
 
@@ -74,6 +76,8 @@ operability and failure rules that fit a worker, scheduler, or client without ad
 | building in Python + FastAPI | [FastAPI mechanics](./references/fastapi.md) |
 | calling any upstream or third-party API, including our platform and observability APIs | [consuming-apis](./references/consuming-apis.md) |
 | a new HTTP contract with no project-owned one | [openapi.starter.yaml](./assets/openapi.starter.yaml) |
+| writing or changing a schema migration on a table that holds data | Load `database-reliability` for the expand → contract design rules; running the migration stays with the human owner |
+| emitting RED metrics, traces, or request-id log context | Load `obs-pipeline` |
 | choosing a stack for a greenfield service | Load `stack-profile` |
 
 Trips two predicates? Read both. Trips none? The core above is the whole job.

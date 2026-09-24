@@ -35,7 +35,8 @@ below does not apply to a review. Read-only results cannot verify write concurre
    types and uids, renderer availability, feature toggles, and the real target. For a create, prove
    the intended dashboard uid is absent and stop on a uid or target collision; for an edit, resolve
    the real target. Empty search without `dashboards:read` is not evidence of an empty instance.
-   Metric names, labels, folder uids, and data-source uids come from the target.
+   Metric names, labels, folder uids, and data-source uids come from the target. On every create,
+   apply the [team dashboard conventions](./dashboard-conventions.md).
 3. **For an edit, read the live model at its stored API version and export it.** The export is rollback content,
    not a replayable request: a write advances the concurrency token, so rollback rebases the saved
    spec onto a fresh read. Stop if the dashboard is provisioned or managed by another tool. A create
@@ -114,8 +115,8 @@ advice:
 
 Wavefront and Splunk data-source plugins require Enterprise entitlement. ThousandEyes has no Grafana
 data-source plugin; its OpenTelemetry signals are queried through the installed metrics, trace, or
-log backend. Confirm edition, entitlement, and `GET /api/plugins` on the target; the team-specific
-facts are in [legacy data-source conventions](./wavefront-legacy.md).
+log backend. Confirm edition, entitlement, and `GET /api/plugins` on the target; the plugin and
+licence facts are in [Wavefront and Splunk data sources](./wavefront-legacy.md).
 
 ## Handoff
 

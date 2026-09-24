@@ -32,6 +32,13 @@ framework choice in the review packet; omitting an unused optional dependency ne
 Build hashed static assets with the repository's production build command (`vite build` in the
 greenfield stack). Serve via the **`staticfile`/`nginx` buildpack** or co-serve
 from the API app; add the **SPA fallback** (rewrite unknown paths → `index.html`) so deep links and
-refresh work, and cache-bust on the hashed filenames. Before handoff, verify the production build,
+refresh work, and cache-bust on the hashed filenames. On the Staticfile buildpack, a `Staticfile`
+with `pushstate: enabled` is the SPA fallback, plus `root: dist` when the push holds the whole
+project ([Staticfile options](https://docs.cloudfoundry.org/buildpacks/staticfile/index.html)).
+When co-serving, apply the fallback only to non-API paths: `/v1/*`, `/healthz`, and `/readyz` keep
+the API's 404 problem response. Run backend-craft's `test_unknown_path_is_a_problem` against the app
+with the built UI (or a stub `index.html`) mounted; a fallback mounted only when `dist/` exists is
+untested in a CI without a UI build. Before handoff, verify the production build,
 static route, SPA fallback, cache behavior, and health endpoint; deployment execution belongs to the human release owner.
-Capture browser error, latency, and navigation telemetry using approved correlation fields.
+Capture browser error, latency, and navigation telemetry: real-user monitoring through mPulse
+(load `akamai-edge`), trace and correlation headers through `obs-pipeline`.

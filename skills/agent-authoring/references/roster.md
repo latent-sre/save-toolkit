@@ -73,17 +73,20 @@ attempt; it does not replace outcome evidence. This fleet carries no `model:` pi
 Dispatch: invoking caller, separate human owner, outcome, context/trust, scope, completion evidence,
 return fields. Retain pending work; use [context guidance](./context.md).
 
-Keep these fields in the requested format, including short returns:
+Every agent opens its return with this core, including short returns:
 
 ```text
 Returning to: <one invoking caller>
 Assignment: <complete | partial | blocked | inconclusive> — <bounded task and status evidence>
-Result/evidence: <answer or artifact paths; labels, taint, target, window and observed values>
-Gaps/non-actions: <missing requested evidence, conflicts, actions not performed>
 Parent objective: <remaining work or unknown; helper completion alone does not close it>
 Human owner: <separately supplied name/role, unknown, or not applicable>
 Caller next step: <supported continuation or decision; prerequisite gap if blocked>
 ```
+
+A lane adds its own named fields before `Caller next step`: `reviewer` Reviewed state;
+`reliability-engineer` Target/evidence; `sre-assistant` Observations, Result, and Unknowns and
+non-actions, with its owner line reading Human operational owner. The result, evidence and gaps
+follow in the body or in those lane fields; a new lane defines its extension in its own file.
 
 Select the invoking agent, or the human for a direct ask; use a role if unnamed, never a stakeholder.
 Complete concerns the assigned slice. A recommendation returns to the caller without transferring
@@ -115,7 +118,7 @@ budget, failure handling. Model tiering:
 | Allowed pin | A generation alias (`haiku`/`sonnet`/`opus`/`fable`/`inherit`) where a lane's cost or latency profile justifies it; `validate_fleet.py` rejects a full model ID |
 | Tier down | High-volume, mechanical lanes — mechanical executors, graders, routing trials |
 | Keep inheriting | Judgment-heavy lanes — review, root cause, authority decisions |
-| Per strand | A spawned agent inherits the session model unless the call names one; a fork cannot be tiered down |
+| Per strand | Resolution order: the call's `model`, then the agent's frontmatter `model`, then `CLAUDE_CODE_SUBAGENT_MODEL`, then the session model; with `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` the variable overrides the first two [sourced: code.claude.com/docs/en/sub-agents]. Check both variables before attributing a lane result to the session model. A fork cannot be tiered down |
 | A pin is a claim about difficulty | State why in the same change; drop it when the reason stops holding; Copilot adapters carry no model concept |
 
 Single-artifact wording is [artifact guidance](./artifact.md)'s, not a roster change.

@@ -1,0 +1,14 @@
+id: discovery-obs-logs-correlation-id
+split: regression
+prompt: |
+  Follow correlation id 7f3c9a2e-51d4-4b8e-9c0a-2d6f1e8b4a17 through checkout and payments in
+  Splunk and show where that one request failed. I have no trace id, only the correlation id from
+  the customer's error page. This is a log question; no alert is firing.
+success_criteria:
+- Routes correlation-id lookup across services to the logs lane
+- Treats the correlation id as a quoted, untrusted log field value rather than a trace id
+target:
+  kind: skill
+  name: obs-logs
+routing:
+  expect: fire

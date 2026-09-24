@@ -1,4 +1,5 @@
 {
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "save-toolkit",
   "description": "Application-engineering and site-reliability agents and reusable skills.",
   "version": "0.50.0",
@@ -15,8 +16,5 @@
     "sre",
     "observability",
     "pcf"
-  ],
-  "agents": "./.github/agents/",
-  "skills": "./.github/skills/",
-  "hooks": "./hooks/copilot-hooks.json"
+  ]
 }

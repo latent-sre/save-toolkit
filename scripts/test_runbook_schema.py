@@ -17,8 +17,9 @@ property is required, and that a catalog entry matches the file on disk -- were 
 rather than reimplemented against a file that no longer exists. Restoring the schema restores them
 from git.
 
-Shape-sync only. Pure stdlib; run directly when the template, the exemplar, or the converter's
-frontmatter contract changes. Gate A does not run component tests.
+Shape and copied-approval-boundary checks only; these do not establish model behavior. Pure stdlib;
+run directly when the template, exemplar, or converter contract changes. Gate A does not run
+component tests.
 """
 
 from __future__ import annotations
@@ -68,6 +69,24 @@ def template_status_enum() -> list[str]:
 
 
 class RunbookFrontmatterContractTest(unittest.TestCase):
+    def test_copied_approval_banner_preserves_fast_path_eligibility(self) -> None:
+        """A standalone runbook must not turn every incident change into a fast-path action."""
+        banners = []
+        for path in (TEMPLATE_PATH, EXAMPLE_PATH):
+            procedure = path.read_text(encoding="utf-8").split("## Procedure", 1)[1].strip().split("\n\n", 1)[0]
+            banner = " ".join(line.removeprefix("> ") for line in procedure.splitlines()
+                              if line.startswith("> "))
+            banners.append(banner)
+            with self.subTest(path=path.name):
+                self.assertIn("only for eligible actions", banner)
+                self.assertIn("production-change-gate", banner)
+                for exclusion in ("whole-app restart", "resize", "restage", "new artifact",
+                                  "unknown droplet", "Tier 3"):
+                    self.assertIn(exclusion, banner)
+                self.assertIn("retain the full process", banner)
+                self.assertIn("security owner", banner)
+        self.assertEqual(banners[0], banners[1], "the exemplar must preserve the template's approval boundary")
+
     def test_exemplar_carries_the_same_frontmatter_contract_as_the_template(self) -> None:
         """The worked exemplar is a runbook, so it is bound by the runbook contract.
 

@@ -25,6 +25,7 @@ Apply the choices below where they help; avoid arbitrary size/count limits.
 | Preserve a dictionary interface with static field checking | `TypedDict`; it remains a dict at runtime |
 | Validate external input | The project's boundary validator; evaluate a maintained library for substantial custom validation |
 | Consumer access to a collection | An iterable/sequence interface matching repeatability and indexing requirements |
+| Money, timestamps, and durations | `Decimal` built from strings; aware UTC `datetime` (`datetime.now(timezone.utc)` on 3.10; `datetime.now(UTC)` on 3.11+); `time.monotonic()` for elapsed time and deadlines |
 
 - Type meaningful boundaries; narrow uncertain inputs rather than spreading `Any`. Annotations
   are not runtime validation. Distinguish missing, `None`, zero, false, and empty values deliberately.
@@ -44,10 +45,15 @@ Apply the choices below where they help; avoid arbitrary size/count limits.
 - Initialize resources at the application lifecycle boundary, avoiding import-time network calls,
   thread startup, or application configuration effects.
 - Use async when beneficial, without blocking the event loop. Own tasks, bound concurrency and
-  queued work, and propagate cancellation after cleanup. `TaskGroup` is neither a concurrency
-  limit nor a behavior-equivalent replacement for every use of `gather`.
+  queued work, and propagate cancellation after cleanup. On Python 3.11+, `TaskGroup` is neither a
+  concurrency limit nor a behavior-equivalent replacement for every use of `gather`: its failures arrive as
+  `ExceptionGroup`, so an existing `except X` stops matching. Use `except* X`, whose block cannot
+  `return`, `break`, or `continue`, or handle the error inside each task. Put one deadline over
+  several awaits with `asyncio.timeout()` on 3.11+. On 3.10, wrap the combined operation in one
+  coroutine and apply `asyncio.wait_for()` to it; do not reset the deadline at each await.
 
 [sourced] [typing](https://docs.python.org/3/library/typing.html),
 [dataclasses](https://docs.python.org/3/library/dataclasses.html),
+[datetime](https://docs.python.org/3/library/datetime.html#datetime.UTC),
 [exceptions](https://docs.python.org/3/tutorial/errors.html), and
 [async tasks](https://docs.python.org/3/library/asyncio-task.html).

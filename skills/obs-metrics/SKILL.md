@@ -5,6 +5,8 @@ description: >-
   missing-data traps. Backends: Wavefront (WQL), Mimir/Prometheus (PromQL), and Cloud
   Monitoring on GCP (PromQL; MQL is deprecated). Triggers: 'query the metrics', 'graph the
   error rate', 'is latency up', 'write a metric alert query'. Not for alert design (obs-alerting) or logs (obs-logs).
+  Deciding what a live page means or what to do next belongs to incident-investigation, which
+  routes query work here.
 argument-hint: "[service, metric question, or query goal]"
 ---
 

@@ -21,23 +21,26 @@ verification; treat a key's presence here as permission to author, never as proo
 
 ## Agents
 
-VS Code loads any `.md` file under `.github/agents/`; the fleet emits `<name>.agent.md`. A key the
-host does not support is **ignored, not rejected**, which is why one file serves both targets.
+VS Code loads agent `.md` files from `.github/agents/` in a workspace and from
+`com.github.copilot/agents/` in an Agent Plugins 1.0 plugin; the fleet emits the same
+`<name>.agent.md` to both. A key the host does not support is **ignored, not rejected**, which is
+why one file serves both targets.
 
 | Field | Disposition here |
 |---|---|
-| `name`, `description` | Required. Emitted. `description` is the trigger and the chat-input placeholder |
+| `name`, `description` | Both emitted. `name` is optional (VS Code falls back to the file name; GitHub marks it optional); `description` is the trigger and the chat-input placeholder |
 | `tools` | Tool or tool-set names — aliases below. Emitted, mapped from the Claude grant |
 | `agents` | Agent names available as subagents; `*` allows all, `[]` prevents any. Emitted from the same `Agent(...)` grant that feeds the delegation graph |
 | `handoffs` | Human-selected ownership transfer — **VS Code only**; explicitly *"not supported for Copilot cloud agent on GitHub.com"*. Emitted for the five lanes in `COPILOT_HANDOFFS_BY_SOURCE` |
 | `argument-hint` | **VS Code only**; unsupported on Copilot cloud alongside `handoffs`. Not emitted on agents; the fleet uses it on all skills |
 | `model` | Single model name or a prioritized array. Unused — mirrors the Claude side, where no agent pins one |
 | `user-invocable` | Boolean, default `true`; `false` hides the agent from the chat dropdown. Unused — every fleet lane is meant to be reachable by the human SRE |
-| `disable-model-invocation` | Boolean, default `false`; prevents the agent being invoked **as a subagent by other agents**. Unused on agents today, and the one host key that could turn the delegation graph's inbound edges into enforcement rather than documented intent |
+| `disable-model-invocation` | Boolean, default `false`. In VS Code it prevents the agent being invoked **as a subagent by other agents**; on GitHub it stops Copilot cloud agent from selecting the agent automatically. Unused on agents today, and the one host key that could turn the delegation graph's inbound edges into enforcement rather than documented intent |
 | `target` | `vscode` or `github-copilot`. Only the exported SRE command profile sets `vscode`; standard projections leave it unset |
 | `mcp-servers` | MCP server config JSON for Copilot targets. Unused — `researcher`'s exact Claude MCP grants collapse to bare `web`, so the cited-research lane is materially weaker here than on Claude |
 | `hooks` | Agent-scoped hooks; the installed 1.138.0 loader requires `chat.useHooks`, workspace trust, and permitted hook sources. The older `chat.useCustomAgentHooks` setting is absent in that build. Emitted only in the separately exported SRE command profile; global `hooks/copilot-hooks.json` stays empty |
-| `infer` | **Deprecated** — replaced by `user-invocable` and `disable-model-invocation`. Never emit |
+| `metadata` | GitHub only; not used by VS Code or other IDE custom agents. Unused |
+| `infer` | **Retired** — replaced by `user-invocable` and `disable-model-invocation`. Never emit |
 
 Claude grants use full plugin names (`Agent(reviewer)`); the generator projects the
 same targets to bare Copilot names. The delegation-graph reference owns the edge list.
@@ -66,7 +69,7 @@ and `playwright/*` ship out of the box.
 | `search` | `Grep`, `Glob` | yes |
 | `edit` | `Write`, `Edit`, `NotebookEdit` | yes |
 | `execute` | `Bash`, `PowerShell` | yes |
-| `web` | `WebFetch`, `WebSearch` | yes |
+| `web` | `WebFetch`, `WebSearch` | yes — VS Code only; not applicable on Copilot cloud agent [sourced: docs.github.com custom-agents-configuration] |
 | `agent` | `Agent` | yes |
 | `todo` | `TodoWrite` | yes — builders and the reviewer for bounded investigation. VS Code provisions it [verified by the owner 2026-09-13]; the cloud coding agent does not [sourced: docs.github.com custom-agents-configuration]. `TodoWrite` itself is inert on Claude Code 2.1.268+ and stays only as this mapping's source |
 
@@ -93,7 +96,7 @@ The preview's explicit `--copilot` guard mode uses agent-hook scoping, not Claud
 | `reviewer` | Read/search/edit/execute, evidence helpers, and todo; execution stays in its established verification environment |
 | `sre-assistant` | Read/search, researcher delegation, and selected native/MCP browser viewing interactions under read-only session controls; the command preview adds only terminal execution/output for reviewed reads |
 | `repository-investigator`, `scribe` | File investigation or document edits; shell execution is outside their assignments |
-| `researcher` | Public web access; no local files or shell. Adding exact Context7/GitHits tools needs the target host's registered tool IDs, not wildcard MCP grants |
+| `researcher` | Public web access; no local files or shell. Adding exact Context7/GitHits tools needs the target host's registered tool IDs, not wildcard MCP grants. On Copilot cloud agent `web` does not apply, so researcher has no working tool there; route cited research through VS Code or Claude |
 
 Do not broaden `execute` or use `tools: ["*"]` merely to fix a missing interpreter, credential,
 or hook path. Copilot's execution tools use the configured terminal; a separate Claude PowerShell
@@ -113,8 +116,8 @@ origin confinement or image delivery. The Grafana visual reference owns those pr
 
 Copilot discovers workspace skills from `.github/skills`, `.claude/skills`, and `.agents/skills`,
 and personal skills from `~/.copilot/skills`, `~/.claude/skills`, and `~/.agents/skills`. This fleet's
-Copilot projection lives at `.github/skills/`, supporting workspace discovery and the plugin's
-explicit manifest selector. The directory is tracked and regenerated from canonical `skills/`.
+workspace projection lives at `.github/skills/`; the installed plugin reads canonical `skills/`
+under Agent Plugins 1.0. The directory is tracked and regenerated from canonical `skills/`.
 The former `platforms/copilot/skills/` root is retired. The custom `chat.agentSkillsLocations`
 override is removed; the [current discovery docs](https://code.visualstudio.com/docs/agent-customization/agent-skills#_create-a-skill)
 deprecate it in favor of supported directories.
@@ -180,18 +183,32 @@ not a VS Code prerequisite.
 
 ## Plugin manifest formats
 
-Two formats are live. VS Code auto-detects by inspecting the root manifest; the Copilot format is
-the fallback when no other marker is found.
+VS Code detects the format in this order: a root `plugin.json` declaring the Agent Plugins 1.0
+`$schema`; then `.claude-plugin/plugin.json` (Claude format); then `.plugin/plugin.json`; then a
+root `plugin.json` without a schema (Copilot selector format). *[verified:
+code.visualstudio.com/docs/agent-customization/agent-plugins, 2026-09-23]* A repository that ships
+`.claude-plugin/plugin.json` and a schema-less root manifest is therefore loaded as a Claude plugin:
+canonical agents and hooks, not the Copilot projection.
 
 | Format | Shape | Status |
 |---|---|---|
-| Copilot (selector) | Root `plugin.json` naming component paths — `agents`, `skills`, `hooks`. **What this fleet ships** | Supported: *"Existing Copilot-format plugins that don't declare the Agent Plugins schema remain supported"* |
-| Agent Plugins 1.0 | `$schema: https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`; skills auto-discovered from `skills/`, MCP from `mcp.json`, Copilot-specific agents/hooks/commands under `com.github.copilot/` | Published 2026-08-12; forward-compatible standard |
+| Agent Plugins 1.0 | Root `plugin.json` with `$schema: https://agent-plugins.org/schemas/1.0.0/plugin.schema.json` and metadata only (the schema forbids other top-level keys); skills from `skills/`, MCP from `mcp.json`, Copilot-specific agents, commands, rules and `hooks/hooks.json` under `com.github.copilot/`. **What this fleet ships** | Published 2026-08-12; Copilot CLI discovers `com.github.copilot/agents/` from v1.0.85 |
+| Copilot (selector) | Root `plugin.json` naming component paths — `agents`, `skills`, `hooks` | Supported, but outranked by `.claude-plugin/plugin.json` |
 
-`generate_platform_adapters.py` fails the build on a `$schema` added without also moving skills to
-`skills/` and Copilot components to `com.github.copilot/` — a half-migration is the failure it
-prevents. Under 1.0 the canonical `skills/` directory would itself be the discovery path, which
-would retire the projected bundle entirely.
+`generate_platform_adapters.py` requires the 1.0 `$schema`, rejects any other top-level manifest
+key, writes the projected agents to `com.github.copilot/agents/`, projects canonical `commands/*.md`
+to `com.github.copilot/commands/`, and copies
+`hooks/copilot-hooks.json` to `com.github.copilot/hooks/hooks.json`. The plugin reads canonical
+`skills/`, so plugin skills keep their `save-toolkit:` names; the `.github/` copies are workspace
+customizations for this repository and keep the bare-name rewrite.
+
+The ADR command projection preserves its manual invocation metadata and selected-agent/write-scope
+preflight; it adds no tool grant or agent selection. Package parity does not prove that preflight
+or argument handling on an installed host. Verify the installed ADR command from a neutral project using
+the repository's `docs/vscode-plugin-acceptance.md` cases. The command directory is
+documented by the [plugin guide](https://code.visualstudio.com/docs/agent-customization/agent-plugins)
+and confirmed in [upstream discovery tests](https://github.com/microsoft/vscode/blob/0857030/src/vs/workbench/contrib/chat/test/common/plugins/agentPluginFormatDetection.test.ts)
+on 2026-09-23; those are documentation/source evidence, not native invocation evidence.
 
 ## Fleet decisions on unused fields
 

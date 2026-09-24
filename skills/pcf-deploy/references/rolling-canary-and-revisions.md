@@ -7,10 +7,10 @@ rollback, and evidence rules in `SKILL.md` still apply.
 ## Built-in strategies
 
 ```bash
-cf push checkout -f manifest.yml --strategy rolling
-cf push checkout -f manifest.yml --strategy canary
-cf continue-deployment checkout
-cf cancel-deployment checkout
+cf push order-router -f manifest.yml --strategy rolling
+cf push order-router -f manifest.yml --strategy canary
+cf continue-deployment order-router
+cf cancel-deployment order-router
 ```
 
 A canary can advance through `--instance-steps 5,10,20`, where values are successive percentages of
@@ -41,7 +41,7 @@ unsupported flags in an approved production plan.
 With application revisions enabled:
 
 ```bash
-cf rollback checkout --version <n>
+cf rollback order-router --version <n>
 ```
 
 Revisions and rollback are GA in cf CLI v8.10.0 and later; older v8 releases label them

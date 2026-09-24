@@ -24,9 +24,12 @@ ROOT = Path(__file__).resolve().parents[1]
 class PlatformAdapterTests(unittest.TestCase):
     @staticmethod
     def _copy_canonical_sources(root: Path) -> None:
-        """Copy the authored agents/ and skills/ into a temp root — the generator's inputs."""
+        """Copy authored agents/, skills/, commands/ and Copilot hooks — the generator's inputs."""
         shutil.copytree(ROOT / "agents", root / "agents")
         shutil.copytree(ROOT / "skills", root / "skills")
+        shutil.copytree(ROOT / "commands", root / "commands")
+        (root / adapters.COPILOT_HOOKS_SOURCE).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(ROOT / adapters.COPILOT_HOOKS_SOURCE, root / adapters.COPILOT_HOOKS_SOURCE)
 
     @staticmethod
     def _copy_platform_contract_files(root: Path) -> None:
@@ -79,7 +82,7 @@ class PlatformAdapterTests(unittest.TestCase):
         self.assertEqual(source_skills, projected_skills)
         self.assertFalse(any(path.is_relative_to("platforms/copilot/skills") for path in outputs))
         manifest = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))
-        self.assertEqual("./.github/skills/", manifest["skills"])
+        self.assertNotIn("skills", manifest, "Agent Plugins 1.0 discovers canonical skills/")
         self.assertNotIn(Path(".github/skills"), adapters.RETIRED_GENERATED_ROOTS)
         self.assertIn(Path("platforms/copilot/skills"), adapters.RETIRED_GENERATED_ROOTS)
 
@@ -422,34 +425,114 @@ class PlatformAdapterTests(unittest.TestCase):
     def test_platform_manifests_agree(self) -> None:
         self.assertEqual([], adapters.validate_platform_contracts(ROOT))
 
-    def test_copilot_manifest_cannot_declare_schema_before_layout_migration(self) -> None:
+    def test_copilot_manifest_must_declare_agent_plugins_1_0(self) -> None:
         """The Agent Plugins schema is a format discriminator, not inert metadata.
 
-        Under Agent Plugins 1.0, skills are discovered from the root ``skills/`` directory and
-        Copilot-specific agents and hooks live under ``com.github.copilot/``.  This fleet instead
-        uses the supported legacy Copilot manifest selectors for generated host adapters.  Adding
-        the new schema while retaining those selectors would make a plausible-looking manifest
-        load the wrong component layout.
+        VS Code ranks a root ``plugin.json`` with the 1.0 ``$schema`` first; without it,
+        ``.claude-plugin/plugin.json`` wins and VS Code loads the canonical Claude agents and hooks.
+        The 1.0 schema forbids unknown top-level keys, so the old component selectors must be gone.
         """
 
-        schemas = (
-            "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
-            "https://agent-plugins.org/schemas/future/plugin.schema.json",
-        )
-        for schema in schemas:
-            with self.subTest(schema=schema), tempfile.TemporaryDirectory() as temporary:
+        def mutated(change) -> list[str]:
+            with tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary).resolve()
                 self._copy_platform_contract_files(root)
                 target = root / "plugin.json"
                 manifest = json.loads(target.read_text(encoding="utf-8"))
-                manifest["$schema"] = schema
+                change(manifest)
                 target.write_text(json.dumps(manifest), encoding="utf-8", newline="\n")
-                failures = adapters.validate_platform_contracts(root)
+                return adapters.validate_platform_contracts(root)
 
+        for schema in (None, "https://agent-plugins.org/schemas/future/plugin.schema.json"):
+            with self.subTest(schema=schema):
+                def set_schema(manifest, schema=schema):
+                    manifest.pop("$schema")
+                    if schema is not None:
+                        manifest["$schema"] = schema
+                failures = mutated(set_schema)
+                self.assertTrue(any("$schema must be" in failure for failure in failures), failures)
+        for field, value in (("agents", "./.github/agents/"), ("skills", "./.github/skills/"),
+                             ("hooks", "./hooks/copilot-hooks.json")):
+            with self.subTest(field=field):
+                failures = mutated(lambda manifest, f=field, v=value: manifest.__setitem__(f, v))
                 self.assertTrue(
-                    any("selector-based Copilot format" in failure for failure in failures),
+                    any(f"{field!r} is not an Agent Plugins 1.0 manifest field" in failure for failure in failures),
                     failures,
                 )
+
+    def test_plugin_layout_carries_the_copilot_agents_and_hooks(self) -> None:
+        outputs = adapters.expected_outputs(ROOT)
+        for source in sorted((ROOT / "agents").glob("*.md")):
+            with self.subTest(agent=source.stem):
+                name = f"{source.stem}.agent.md"
+                self.assertEqual(outputs[adapters.COPILOT_AGENTS / name],
+                                 outputs[adapters.COPILOT_PLUGIN_AGENTS / name])
+        self.assertEqual(json.loads((ROOT / adapters.COPILOT_HOOKS_SOURCE).read_text(encoding="utf-8")),
+                         json.loads(outputs[adapters.COPILOT_PLUGIN_HOOKS]))
+        self.assertFalse(any(path.is_relative_to(adapters.COPILOT_PLUGIN_COMPONENTS / "skills")
+                             for path in outputs), "1.0 reads canonical skills/, not a copy")
+
+    def test_plugin_commands_preserve_the_canonical_inventory_and_adr_preflight(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            self._copy_canonical_sources(root)
+            # A second command proves generation discovers sources instead of special-casing ADR.
+            (root / "commands/probe.md").write_text(
+                '---\ndescription: "Probe command"\n---\nRead the supplied input.\n', encoding="utf-8"
+            )
+            outputs = adapters.expected_outputs(root)
+            command_root = Path("com.github.copilot/commands")
+            canonical = {path.name for path in (root / "commands").glob("*.md")}
+            projected = {path.name for path in outputs if path.parent == command_root}
+            self.assertEqual(canonical, projected)
+            adr = outputs[command_root / "adr.md"].decode("utf-8")
+            # ADR currently needs no addressing rewrite: its full body and metadata must survive.
+            self.assertEqual((root / "commands/adr.md").read_text(encoding="utf-8"), adr)
+            self.assertIn("exactly `software-engineer`", adr)
+            self.assertIn("exclusive create-new operation", adr)
+            self.assertIn("symlink, junction, or reparse point", adr)
+            self.assertIn("disable-model-invocation: true", adr)
+            self.assertNotRegex(adr.split("---", 2)[1], r"(?m)^(?:agent|tools|allowed-tools):")
+            self.assertLess(adr.index("selected-agent preflight"), adr.index("Accepted argument grammar"))
+
+    def test_missing_packaged_command_is_detected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            self._copy_canonical_sources(root)
+            adapters.write_generated_outputs(root)
+            target = root / "com.github.copilot/commands/adr.md"
+            self.assertTrue(target.is_file(), "ADR must be packaged before checking its removal")
+            target.unlink()
+            self.assertEqual(
+                ["com.github.copilot/commands/adr.md: generated output is missing; run adapter generator --write"],
+                adapters.validate_generated_outputs(root),
+            )
+
+    def test_plugin_commands_reject_indirection_before_writing(self) -> None:
+        for relative in ("commands", "commands/adr.md"):
+            with self.subTest(path=relative), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary).resolve()
+                self._copy_canonical_sources(root)
+                sentinel = root / "com.github.copilot/sentinel.txt"
+                sentinel.parent.mkdir()
+                sentinel.write_text("unchanged", encoding="utf-8")
+                real_check = adapters._is_link_or_reparse
+
+                def mark_as_indirection(path: Path) -> bool:
+                    return path == root / relative or real_check(path)
+
+                with mock.patch.object(adapters, "_is_link_or_reparse", side_effect=mark_as_indirection):
+                    with self.assertRaisesRegex(ValueError, "link/reparse point"):
+                        adapters.write_generated_outputs(root)
+                self.assertEqual("unchanged", sentinel.read_text(encoding="utf-8"))
+
+    def test_installed_skill_names_remain_namespaced_and_workspace_names_are_bare(self) -> None:
+        canonical = (ROOT / "skills/pcf-deploy/SKILL.md").read_text(encoding="utf-8")
+        outputs = adapters.expected_outputs(ROOT)
+        workspace = outputs[Path(".github/skills/pcf-deploy/SKILL.md")].decode("utf-8")
+        self.assertIn("/save-toolkit:pcf-deploy", canonical)
+        self.assertNotIn("save-toolkit:pcf-deploy", workspace)
+        self.assertIn("/pcf-deploy", workspace)
 
     def test_each_platform_manifest_is_required(self) -> None:
         manifests = (
@@ -488,12 +571,9 @@ class PlatformAdapterTests(unittest.TestCase):
             self.assertEqual([], adapters.validate_platform_contracts(root))
             shutil.copy2(root / ".claude-plugin/plugin.json", root / "plugin.json")
             failures = adapters.validate_platform_contracts(root)
-        for field in ("agents", "skills", "hooks"):
-            with self.subTest(field=field):
-                self.assertTrue(
-                    any(f"plugin.json: {field} must be" in failure for failure in failures),
-                    failures,
-                )
+        for expected in ("$schema must be", "'displayName' is not an Agent Plugins 1.0 manifest field"):
+            with self.subTest(expected=expected):
+                self.assertTrue(any(expected in failure for failure in failures), failures)
 
     def test_byte_drift_is_detected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -555,7 +635,8 @@ class PlatformAdapterTests(unittest.TestCase):
             target = root / ".github/agents/software-engineer.agent.md"
             drift = target.read_bytes() + b"\nmanual edit\n"
             target.write_bytes(drift)
-            failure = "plugin.json: agents must be './.github/agents/'"
+            failure = ("plugin.json: 'agents' is not an Agent Plugins 1.0 manifest field; components "
+                       "are discovered from skills/ and com.github.copilot/")
             self.assertEqual([failure, ".github/agents/software-engineer.agent.md: generated output drift"],
                              adapters.validate_platform_support(root))
             with mock.patch.object(adapters, "write_generated_outputs", side_effect=AssertionError("must not write")):

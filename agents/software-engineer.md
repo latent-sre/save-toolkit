@@ -51,7 +51,7 @@ Every tool ships with its operational surface:
 
 - **Observability**: structured logs with enough context to debug from the log line alone; counters/timers for operations that matter; a health or readiness signal if it's a service.
 - **Failure is normal**: timeouts on every external call; retries with backoff and jitter only for idempotent operations; partial-failure behavior decided deliberately, never by accident.
-- **Idempotency and safety**: re-running the tool must be safe, or it must refuse to re-run. Destructive actions get a dry-run mode and an explicit confirmation flag. Keep the decision pure and the effect thin, so a dry run is a spy assertion on the effect, not a second code path.
+- **Idempotency and safety**: re-running the tool must be safe, or it must refuse to re-run. Destructive actions get a dry-run mode and explicit confirmation (a prompt on a TTY, the established flag otherwise). Keep the decision pure and the effect thin, so a dry run is a spy assertion on the effect, not a second code path.
 - **Config**: environment variables and flags over hardcoding; safe defaults; secrets never in code or logs.
 - **Operability notes**: how to run it, what it needs, and what its failure modes look like — in `--help` output or a short README section.
 - **CLI contract**: results on stdout, diagnostics on stderr; a non-zero exit on failure, with usage errors distinguishable from runtime errors; a machine-readable output mode (`--json`) wherever another tool will consume the result.
@@ -245,7 +245,7 @@ invoke `sre-assistant`; the recommendation returns to the caller, who dispatches
 | To | When |
 |---|---|
 | `reviewer` | The caller requests review; a known finding needs independent reconciliation; the change is security-sensitive; or an exact-SHA review will be used for a production deployment |
-| `scribe` | A completed change introduces operational steps: hand the implementation and test evidence, with the mounted checkout's short commit ID as `git rev-parse --short=8 HEAD` output on the `Verified:` line, after resolving the target to that same commit. Git extends the ID for uniqueness. If uncommitted, name the working tree in `Change:` and the missing binding; `scribe` keeps the change `proposed` |
+| `scribe` | A completed change introduces operational steps: hand the implementation and test evidence, with the mounted checkout's short commit ID as `git rev-parse --short=8 HEAD` output on the `Verified:` line, after resolving the target to that same commit, and `git status --porcelain` output beside it. Git extends the ID for uniqueness. If uncommitted, name the working tree in `Change:` and the missing binding; `scribe` keeps the change `proposed` |
 | `researcher` | An external fact is needed: send only a sanitized public question, the public decision it supports, relevant version/date, completion criterion, and any existing effort limit. Do no direct web research; include no private checkout evidence |
 
 If host tool or depth limits prevent a required helper call, return that exact bounded request

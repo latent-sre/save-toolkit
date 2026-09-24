@@ -9,20 +9,20 @@ disposition-state definitions, default paths, and the evidence rules.
 | Observed event | Required disposition |
 |---|---|
 | An application, service, worker, job, datastore, platform, or other component is approved or materially changes | Create or update its component card and knowledge index; propose missing alert, runbook, ownership, dependency, backup/restore, or SLO work. |
-| A component is decommissioned | Move its component card to `lifecycle: retired` and set its knowledge-index lifecycle cell to `retired` with it, dated and citing the authorizing record; move dependent alert cards to `status: retired` and their knowledge-index `Status` cells to `retired`, and its runbooks to `status: retired` rather than deleting any of them; name every artifact and dependent component still referencing it. Removing live alerts, telemetry, dashboards, or platform resources is a production change under the existing gate, never a documentation disposition. |
+| A component is decommissioned | Move its component card to `lifecycle: retired` and set its knowledge-index lifecycle cell to `retired` with it, dated and citing the authorizing record in `Lifecycle since / record`; move dependent alert cards to `status: retired` and their knowledge-index `Status` cells to `retired`, and its runbooks to `status: retired` rather than deleting any of them; name every artifact and dependent component still referencing it. Removing live alerts, telemetry, dashboards, or platform resources is a production change under the existing gate, never a documentation disposition. |
 | An audit finds an operational gap on an otherwise unchanged component | Disposition affected cards, index and runbook; propose missing operational work under one owner. Record the dated verdict in the component card's open-gaps table and index's recent-updates row. This is document review, at most `[sourced]` to the audit, never moving `last_verified`; retain incoming finding labels. |
 | Only documentation is wrong, such as a stale contact found in an audit or drill | Correct the owning artifact and affected links from dated evidence; no unrelated cards, index rows, or operational work. Preserve evidence labels and `last_verified`. |
 | An alert is approved or materially changes | Create or update the alert card and the alert's knowledge-index row, including its `Status` cell; link its service card and authoritative alert definition; and require a valid runbook target before paging. |
 | An alert fires | Active event: route investigation to the responder with `incident-investigation` (`sre-assistant` only for a dispatched read); prepare no retrospective or KB change until resolution. |
 | A runbook is missing or contradicted by evidence | Create or update it through `scribe` plus `runbook`; retain unsupported commands as `[unverified]`. |
-| A drill exposes a bad or missing step | Update the runbook from the supplied drill record; change `last_verified` only when evidence binds artifact/version, target, actor, time, and outcome. |
+| A drill exposes a bad or missing step | Update the runbook from the supplied drill record; change `last_verified` only when evidence binds artifact/version, target, actor, time, and a passing outcome on the version being stamped; the drill that exposed the bad step does not move it. |
 | A resolved incident reveals a systemic lesson | Disposition a missing postmortem to a separate postmortem-mode assignment with an owner; continue the authorized knowledge closeout and its affected follow-ups. |
 | A fleet prompt, agent, or skill has an accepted behavioral failure | Route the observed divergence, evidence, and proposed named regression to `agent-engineer`; operational content never rewrites fleet definitions directly. |
 
 ## One-time disposition states
 
-`prepared` requires the body's caller-supplied `[verified]` checkout binding: the mounted checkout's
-current commit matches the target revision. Its short-ID and ambiguity rules apply. `duplicate`
+`prepared` requires the `[verified]` checkout binding in the body's step 1: the mounted checkout's
+current commit matches the target revision. `duplicate`
 requires the existing owning artifact and supporting evidence. The rest:
 
 - `proposed` — the owner and next action are named, but no reviewable artifact change exists.

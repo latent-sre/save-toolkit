@@ -25,8 +25,8 @@ persistence and migration code; this skill owns operating it safely, diagnosing 
 
 ### Migration safety
 
-- Prefer backward-compatible, online changes with no long table locks, assessed on production-scale
-  data rather than a tiny development table.
+- Prefer backward-compatible, online changes with no long table locks and no unbounded lock waits,
+  assessed on production-scale data rather than a tiny development table.
 - Every migration needs a tested recovery strategy, not necessarily a reverse script. Choose the
   path that preserves writes and data: a demonstrably lossless backout, a roll-forward or
   compensating fix, restore/PITR, or an expand/contract transition. Never offer a destructive

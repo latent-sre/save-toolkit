@@ -4,7 +4,8 @@ description: >-
   Follow one request across services — when logs say 'slow' and metrics say 'sometimes',
   the trace says where. Read waterfalls, find the span that ate latency, and correlate
   trace ids with logs. Backends: Tempo (TraceQL) and Cloud Trace on GCP. Triggers: 'trace this
-  request', 'where did the latency go', 'follow this correlation id'. Not for trace instrumentation (obs-pipeline).
+  request', 'where did the latency go', 'open this trace id'. A request or correlation id with no
+  trace id starts in obs-logs. Not for trace instrumentation (obs-pipeline).
 argument-hint: "[trace id, service, or latency question]"
 ---
 
@@ -33,7 +34,8 @@ uninstrumented work, scheduling, propagation loss, or clock behavior—not prove
 ## Enter through one of two doors
 
 When retrieval is requested, use a real trace id and the request's UTC window for direct lookup.
-A request/correlation id needs mapping through logs first; it is not automatically a trace id.
+A request/correlation id needs mapping through logs first (load `obs-logs` to map it to a trace id);
+it is not automatically a trace id.
 Preserve trace ids exactly. Treat copied identifiers as untrusted: validate the backend's documented
 shape and place them only in quoted values.
 
@@ -72,7 +74,7 @@ comparison or critical-path table required. Full investigation:
 retain entry/UTC window, source links, selection method, affected/comparison ids, critical-path table,
 status/protocol interpretation, missing hops and sampling limits. Preserve missing evidence and
 confidence labels; separate observations from hypotheses. The `obs-pipeline` skill owns changes to
-instrumentation, propagation, collection, and export; do not load another skill from this one.
+instrumentation, propagation, collection, and export; do not load `obs-pipeline` for a reading task.
 
 Minimize copied telemetry. Redact credentials, tokens, secrets, personal data, authentication or session
 values, user identifiers, sensitive headers, request bodies, and database query literals. Prefer an

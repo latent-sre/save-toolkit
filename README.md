@@ -147,9 +147,11 @@ Copilot profile remains without terminal tools; its command preview must pass th
 
 **VS Code / Copilot Chat (beta plugin):** confirm `chat.plugins.enabled` is on, run
 **Chat: Install Plugin From Source**, and enter `https://github.com/latent-sre/save-toolkit`.
-VS Code clones the repository and loads the generated agents and skills selected by the root
-[`plugin.json`](plugin.json). Alternatively, install the same marketplace through GitHub Copilot
-CLI; VS Code automatically discovers Copilot CLI-installed plugins:
+VS Code clones the repository and loads it as an Agent Plugins 1.0 plugin, which the root
+[`plugin.json`](plugin.json) declares: canonical `skills/` plus the generated Copilot agents and
+hooks in `com.github.copilot/`. Alternatively, install the same marketplace through GitHub Copilot
+CLI v1.0.85 or later (earlier versions do not discover `com.github.copilot/agents/`); VS Code
+automatically discovers Copilot CLI-installed plugins:
 
 ```sh
 copilot plugin marketplace add latent-sre/save-toolkit

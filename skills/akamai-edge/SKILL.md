@@ -4,8 +4,9 @@ description: >-
   Akamai edge work in three lanes — triage (edge vs origin, Reference # error strings, cache
   status, WAF denials, DataStream 2), delivery config (Property Manager versions, staging-first
   activation, fast fallback), and mPulse RUM (network-side vs app-side slowdowns). Triggers: 'is
-  it the CDN or the origin', 'Reference #9.', 'is the WAF blocking real users', 'mPulse shows
-  slow pages'. Not for backend log queries (obs-logs) or a firing alert (incident-investigation).
+  it the CDN or the origin', 'an Akamai error page with Reference #<n>.<hex>.<epoch>.<hex>', 'is
+  the WAF blocking real users', 'mPulse shows slow pages'. Not for backend log queries (obs-logs)
+  or a firing alert (incident-investigation).
 compatibility: Requires Akamai Control Center access; DataStream 2 queries run in the configured log backend
 argument-hint: "[the edge, CDN, WAF, or RUM problem]"
 ---
@@ -32,9 +33,9 @@ fix differs completely by leg. Establish the leg **before** hypothesizing:
 3. **Cache behavior in question** → read the cache-status response headers via the debug-header
    mechanism the property actually supports (Enhanced Debug vs legacy Pragma — the reference
    explains which and why it changed).
-4. **Sustained or fleet-wide questions** → DataStream 2 fields (`cacheStatus`,
-   `turnAroundTimeMSec`, `errorCode`) in the configured log backend, and Traffic by Hostname for
-   offload trends.
+4. **Sustained, fleet-wide or regional questions** → DataStream 2 fields (`statusCode`,
+   `cacheStatus`, `turnAroundTimeMSec`, `errorCode`, `country`) in the log backend `stack-profile`
+   records, with `obs-logs` writing the query, and Traffic by Hostname for offload trends.
 
 Edge-side evidence (WAF deny, cache misconfiguration, edge 5xx) stays in this skill's lanes.
 Route origin-side findings through [Handoffs](#handoffs).
@@ -59,6 +60,7 @@ Route origin-side findings through [Handoffs](#handoffs).
 |---|---|
 | Edge vs origin evidence: Edge Diagnostics, reference numbers, cache status, debug headers, DataStream 2, offload reports, WAF events | [Edge triage](./references/edge-triage.md) |
 | Property Manager change flow: versions, staging/production activation, fast fallback, PAPI/Terraform/CLI, Sandbox | [Property config](./references/property-config.md) |
+| Cache purge, a live change: invalidate vs delete, scope, network, origin load | [Cache purge](./references/property-config.md#cache-purge) |
 | Real-user monitoring: beacons, Core Web Vitals, back-end vs front-end time, slicing a regression | [mPulse RUM](./references/mpulse-rum.md) |
 
 ## Handoffs
@@ -68,6 +70,8 @@ The responder with `incident-investigation` retains the overall live investigati
 turnaround) within its assigned question, targets and access; return the leg finding, exact source,
 timestamps, alternatives and gaps to its invoking caller. A related lead does not grant new access
 or transfer incident ownership.
+Origin leg outside an incident: `pcf-ops` or `gcp-ops` for the origin app, `obs-traces` or
+`obs-metrics` for origin latency.
 A recurring query, missing alert, or detection gap goes to `observability-engineer`. For a proposed
 property change, send the human release owner the prepared version and
 [property change packet](./references/property-config.md#property-change-packet). New durable

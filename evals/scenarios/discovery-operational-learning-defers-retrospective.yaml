@@ -1,0 +1,17 @@
+id: discovery-operational-learning-defers-retrospective
+split: regression
+prompt: |
+  Write up the lessons from last night's order-router outage as the retrospective: timeline,
+  impact, what detected it, what we changed, and follow-ups with named owners. INC-5102 is
+  resolved and I have the timeline and on-call notes to paste.
+success_criteria:
+- Routes a resolved-incident retrospective write-up to the postmortem lane, not knowledge closeout
+- Asks for or uses the supplied timeline instead of inventing causes
+target:
+  kind: skill
+  name: operational-learning
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: skill
+    name: postmortem

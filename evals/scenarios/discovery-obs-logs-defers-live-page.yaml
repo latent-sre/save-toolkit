@@ -1,0 +1,13 @@
+id: discovery-obs-logs-defers-live-page
+split: regression
+prompt: |
+  I just got paged: settlement-api in production has been returning 500s since 14:05 ET and the
+  alert is still firing. Why are there 500s, and what should I do first? I'm the on-call responder
+  with Apps Manager and logs; nothing has been changed yet.
+target: {kind: skill, name: obs-logs}
+routing:
+  expect: not_fire
+  expected_alternative: {kind: skill, name: incident-investigation}
+success_criteria:
+  - Routes a paged responder's live "why are there 500s" question to incident-investigation, not the log-query lane
+  - Gives the responder a first check and what its result would mean rather than only a log query

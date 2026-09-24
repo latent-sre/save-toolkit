@@ -20,10 +20,12 @@ either inert in a plugin or decided against below.
 | Field | Disposition here |
 |---|---|
 | `name`, `description` | Required; `description` is the trigger and is capped at **1,024 UTF-8 bytes** by `validate_fleet.py` |
-| `tools` | Allowlist for built-ins **and MCP tools**. **Omitting it inherits every tool**; `tools: []` launches a zero-tool agent (doc-checked through 2.1.223). Exact MCP names are `mcp__<server>__<tool>`; `mcp__<server>` and `mcp__<server>__*` silently acquire tools the server adds later — grant exact entries and include `ToolSearch` when approved MCP tools may be deferred. `Agent(worker)` scoping enforces only for a main-thread agent (`claude --agent`); a subagent ignores the type list. Scoped specifiers such as `Bash(git diff:*)` are **inert on agents** (probed) — per-command scoping exists only via a `PreToolUse` hook, which is what `readonly-guard.py` is. **Removed from every subagent regardless of `tools:`** — `AskUserQuestion`, `EndConversation`, `EnterPlanMode`, `ExitPlanMode` (unless the subagent's `permissionMode` is `plan`), `ScheduleWakeup`, `TaskOutput`, `WaitForMcpServers`, `Workflow`; and `Agent` at the depth limit. A **background** subagent keeps `Agent` below that limit and `TaskStop`, subject to its grants; its other built-ins are filtered as listed in [Available tools](https://code.claude.com/docs/en/sub-agents#available-tools). This is the documented contract, not a fresh installed-host probe. A **fork** skips tool filtering entirely and receives the main conversation's exact pool, so a fork is not a way to bound authority |
+| `tools` | Allowlist for built-ins **and MCP tools**. **Omitting it inherits every tool**; `tools: []` launches a zero-tool agent (doc-checked through 2.1.223). Exact MCP names are `mcp__<server>__<tool>`; `mcp__<server>` and `mcp__<server>__*` silently acquire tools the server adds later — grant exact entries and include `ToolSearch` when approved MCP tools may be deferred. `Agent(worker)` scoping enforces only for a main-thread agent (`claude --agent`); a subagent ignores the type list. Scoped specifiers such as `Bash(git diff:*)` are **inert on agents** (probed) — per-command scoping exists only via a `PreToolUse` hook, which is what `readonly-guard.py` is. **Removed from every subagent regardless of `tools:`** — `AskUserQuestion`, `EndConversation`, `EnterPlanMode`, `ExitPlanMode` (unless the subagent's `permissionMode` is `plan`), `ScheduleWakeup`, `WaitForMcpServers`, `Workflow`; and `Agent` at the depth limit. A **background** subagent keeps `Agent` below that limit and `TaskStop`, subject to its grants; its other built-ins are filtered as listed in [Available tools](https://code.claude.com/docs/en/sub-agents#available-tools). This is the documented contract, not a fresh installed-host probe. A **fork** skips tool filtering entirely and receives the main conversation's exact pool, so a fork is not a way to bound authority |
 | `model` | Generation aliases `haiku \| sonnet \| opus \| fable \| inherit` only — `validate_fleet.py` rejects a full ID (a dated pin goes stale silently). No agent pins one today; tiering a routine lane down is allowed when its cost profile justifies it |
 | `hooks`, `mcpServers`, `permissionMode` | Plugin-packaged agents **ignore** all three (probed). The fleet ships `hooks/hooks.json` session-wide, self-scoped to exact guarded `agent_type` values; canonical frontmatter containing `hooks` fails validation |
-| `disallowedTools`, `skills`, `maxTurns`, `memory`, `background`, `effort`, `isolation`, `color`, `initialPrompt` | Real on the platform, unused here. `skills:` preloads full skill content at startup — prefer it over `Skill` in `tools` if an agent ever needs a skill every run, and never list a `disable-model-invocation: true` skill. `maxTurns` and `memory` are decided against below |
+| `initialPrompt` | Ignored for plugin subagents `[sourced: code.claude.com/docs/en/sub-agents]` |
+| `omitClaudeMd` | Real from Claude Code v2.1.271: launches the subagent without user, project, and local CLAUDE.md files. A candidate for `reviewer`, whose trusted-base review cannot stop a candidate's fleet guide from auto-loading; plugin-subagent behavior is `[unverified]`, and adopting it needs a `validate_fleet.py` key decision |
+| `disallowedTools`, `skills`, `maxTurns`, `memory`, `background`, `effort`, `isolation`, `color`, `experimental` | Real on the platform, unused here. `skills:` preloads full skill content at startup — prefer it over `Skill` in `tools` if an agent ever needs a skill every run, and never list a `disable-model-invocation: true` skill. `maxTurns` and `memory` are decided against below |
 
 Canonical plugin delegation grants use full names: `Agent(save-toolkit:reviewer, save-toolkit:scribe)`.
 Bare targets do not match plugin agent identities on the probed Claude Code 2.1.261 host; the
@@ -37,14 +39,16 @@ host execution capability, not a promise that Bash is installed.
 
 ## Skills
 
-Precedence for same-named non-namespaced skills is the **reverse** of agents — a personal skill
-carrying a fleet skill's name silently shadows it, so check there first when a fleet skill "never
-fires"; plugin skills are namespaced (`plugin:name`) and sit outside that chain.
+Plugin skills are namespaced (`plugin:name`) and always load beside personal and project skills,
+even under the same name `[sourced: code.claude.com/docs/en/skills]`. A fleet skill that "never
+fires" usually lost to a personal or other-plugin skill with overlapping triggers, or had its
+description dropped from the discovery listing (see the listing budget below).
 
 | Field | Disposition here |
 |---|---|
 | `name`, `description`, `argument-hint` | The fleet's set. `description` is the trigger and loads every session; `check_links.py` caps it at the portable **1,024-character** maximum and requires a literal `Triggers:` list carrying 2–4 quoted user phrasings |
-| `disable-model-invocation: true` | Side-effect skills (deploy, onboard): user-only invocation via `/plugin:name`, description removed from the model's context, unavailable for agent `skills:` preloading. `[verified 2026-08-25, CLI 2.1.243]` by a paired disposable-plugin canary; earlier builds (2.1.29, 2.1.212) ignored it for plugin-shipped skills, so the skill body still defers authority rather than trusting the flag |
+| `compatibility` | Descriptive only: up to 500 characters that Claude Code accepts but does not act on. The fleet uses it for host and access prerequisites (akamai-edge, gcp-ops, pcf-ops, pcf-deploy); `check_links.py` allows it |
+| `disable-model-invocation: true` | Side-effect skills (deploy): user-only invocation via `/plugin:name`, description removed from the model's context, unavailable for agent `skills:` preloading. `[verified 2026-08-25, CLI 2.1.243]` by a paired disposable-plugin canary; earlier builds (2.1.29, 2.1.212) ignored it for plugin-shipped skills, so the skill body still defers authority rather than trusting the flag |
 | `allowed-tools`, `disallowed-tools` | `allowed-tools` **grants** (pre-approves) while the skill is active and cannot restrict; `disallowed-tools` **removes** tools while the skill is active, clearing on the next user message — the only restricting field. Neither is used here |
 | `user-invocable: false`, `when_to_use`, `arguments`, `model`, `effort`, `context`, `agent`, `hooks`, `paths`, `shell` | Available on the platform, unused here; `when_to_use` is decided against below |
 
@@ -63,7 +67,7 @@ namespace, or a recognized guarded identity in another top-level key containing 
 `agent_type` is absent. A renamed key such as `role` is not detected. Re-probe the live PreToolUse
 payload after host upgrades; offline tests cover known shapes, not every upstream rename.
 
-### Authoring rules that are checkable
+### Authoring rules (only the direct-link rule is enforced)
 
 | Rule | Failure it prevents |
 |---|---|
@@ -74,8 +78,14 @@ payload after host upgrades; offline tests cover known shapes, not every upstrea
 
 ### Discovery and invoked-content budgets are different contracts
 
-The discovery listing (every model-invocable name and description together, 1% of context — 8,000
-characters by default) `[verified against the installed CLI 2.1.241, 2026-08-24]` is one budget. An
+The discovery listing (every model-invocable name and description together) is one budget: 1% of
+the model's context window by default (`skillListingBudgetFraction`), or a fixed character count
+from `SLASH_COMMAND_TOOL_CHAR_BUDGET`; 8,000 characters is only the fallback. On overflow every
+name stays and the least-invoked skills lose their descriptions, visible only in the `/context`
+Skills row, `/doctor`, or the `--debug` log `[sourced: code.claude.com/docs/en/skills, settings,
+env-vars]`. The installed CLI computes about 6,000 characters for a current 200K-window model and
+30,000 for 1M `[unverified: read from the 2.1.280 bundle, undocumented]`; the fleet's descriptions
+alone exceed 6,000, so on a 200K host some drop. An
 invoked skill body is a separate contract: it loads whole into the conversation as a single message
 and stays there across later turns. The 5,000-tokens-per-skill / 25,000-combined figures apply only
 when a summary compacts the conversation — Claude Code then re-attaches the most recent invocation
@@ -93,9 +103,9 @@ Considered, not overlooked; reopen only with a reason.
 | Field | Decision |
 |---|---|
 | `when_to_use` | Trigger phrasings live in `description` so routing has one surface to tune under the 1,024-character cap |
-| `maxTurns` | Loop bounds are task-shaped prose rules (three-strikes, two-round review caps) that fail with a diagnosis; a turn cap fails mid-thought. Revisit on an observed runaway loop |
+| `maxTurns` | Since Claude Code v2.1.246 a capped subagent returns partial output marked as partial, and Claude can resume it. Still unused: loop bounds are task-shaped prose rules (three-strikes, two-round review caps) that fail with a diagnosis. Revisit on an observed runaway loop |
 | `memory` | Agents are stateless; durable knowledge lives in the repo. It is not a scratch workspace. Setting it auto-enables Read/Write/Edit, so it must never reach `repository-investigator` or `researcher` |
-| `TodoWrite` in `tools` | Inert on Claude Code 2.1.268+ — disabled by default in favour of `TaskCreate`/`TaskList`/`TaskUpdate`, none yet shown to reach a subagent, and a partially unresolved list launches without it. Kept only as the source of Copilot's `todo`, which VS Code provisions [verified by the owner 2026-09-13] and the cloud coding agent does not [sourced: docs.github.com custom-agents-configuration]. Swap to the Task* names once one is proven |
+| `TodoWrite` in `tools` | Inert on Claude Code 2.1.268+ — disabled by default in favour of `TaskCreate`/`TaskList`/`TaskUpdate`, none yet shown to reach a subagent, and a partially unresolved list launches without it. Kept only as the source of Copilot's `todo`, which VS Code provisions [verified by the owner 2026-09-13] and the cloud coding agent does not [sourced: docs.github.com custom-agents-configuration]. No swap to the Task* names is planned: on current models they are off by default too, until the session opts in with `CLAUDE_CODE_ENABLE_TODO_TOOLS=1` [sourced: code.claude.com/docs/en/tools-reference] |
 
 ## Quote description scalars that contain a colon
 

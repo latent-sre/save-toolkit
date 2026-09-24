@@ -25,8 +25,9 @@ hash and diff, commands, blast radius, verification, and rollback.
   or a question, never an assumed foundation, org, space, app, or artifact.
 - Before marking the plan `ready` or a human executes it, require evidence for the applicable
   production-change path, including the incident fast path for covered actions. New-artifact
-  deployment or staging requires the full release and production gates; confirmed existing-droplet
-  restart, scale, or already-live rollback retains the incident fast path's deferrals. Bind the
+  deployment or staging requires the full release and production gates; in a declared incident, a
+  confirmed existing-droplet rolling or per-instance restart, instance-count scale, or already-live
+  rollback retains the incident fast path's deferrals. Bind the
   exact target, action, actor, artifact/configuration identity, verification, and recovery required
   by that path. Missing or stale required evidence blocks readiness and execution; continue the
   draft and name what clears each gap. This skill does not load or run either gate.

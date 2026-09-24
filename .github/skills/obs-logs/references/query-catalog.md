@@ -68,10 +68,10 @@ review checks the entry shape, target assumptions, and safety rules.
 - **Reads as:** one row per error class per minute containing classified events, most recent first; quiet buckets are absent
 - **Healthy looks like:** returned counts match a known-normal comparison; absent buckets or classes do not establish health
 - **Owner:** `<service on-call>`
-- **Verified:** [unverified: target index and `error_type` extraction]
+- **Verified:** [unverified: target index, sourcetype, and `error_type` extraction]
 
 ```spl
-index=<app_index> earliest=<start_epoch> latest=<end_epoch>
+index=<app_index> sourcetype=<error_sourcetype> earliest=<start_epoch> latest=<end_epoch>
 | bin _time span=1m
 | stats count by _time, error_type
 | sort 0 - _time
@@ -126,14 +126,49 @@ telemetry gaps until independently explained.
 - **Reads as:** request counts by caller over the window, largest first
 - **Healthy looks like:** the usual caller mix; no single new caller dominating
 - **Owner:** `<service on-call>`
-- **Verified:** [unverified: caller field name per `indexes.md`]
+- **Verified:** [unverified: request-completion sourcetype and caller field name per `indexes.md`]
 
 ```spl
-index=<app_index> earliest=-30m
-| stats count by <caller_field>
-| sort - count
+index=<app_index> sourcetype=<request_completion_sourcetype> earliest=-30m latest=now
+| stats count AS requests by <caller_field>
+| sort - requests
 | head 20
 ```
+
+`stats by` drops events without the caller field; compare `count(<caller_field>)` with `count` over
+the same search before reading the mix.
+
+### Is the Akamai edge failing or missing cache for one hostname or region?
+
+- **Applies to:** Akamai DataStream 2 JSON client-request logs, only once `stack-profile`'s edge row records that they land in Splunk and the client population below is verified; another destination needs the same fields in its own dialect
+- **Reads as:** per 5-minute bucket and hostname: client requests, 5xx share, and not-in-cache share (`cacheStatus=0`); `statusCode=0` (client left before a response) is in `requests` but not in `errors_5xx`; quiet buckets are absent
+- **Healthy looks like:** shares near a known-normal window for the same hostname; a missing bucket can be a delivery gap, not zero traffic
+- **Owner:** `<edge on-call>`
+- **Verified:** [unverified: destination, index, sourcetype, client-request population, JSON field extraction]
+
+Confirm stream composition before computing rates. With midgress collection enabled, log the
+`isMidgress` field and select `0` (client-to-edge); `1` is internal edge-to-edge traffic. The query
+below requires that field. Omit its predicate only when the stream is independently verified to
+contain client requests only and does not emit the field. A missing flag is not evidence of `0`:
+if composition or extraction is unknown, report the gap and withhold the rates.
+[sourced: Akamai's midgress definition and missing-flag caveat](https://techdocs.akamai.com/datastream2/docs/data-set-parameters#midgress-traffic).
+
+```spl
+index=<datastream_index> sourcetype=<datastream_sourcetype> earliest=<start_epoch> latest=<end_epoch> isMidgress=0
+| bin _time span=5m
+| stats count AS requests, count(eval(statusCode>=500 AND statusCode<600)) AS errors_5xx, count(eval(cacheStatus=0)) AS not_in_cache by _time, reqHost
+| eval pct_5xx=round(100*errors_5xx/requests, 2), pct_not_in_cache=round(100*not_in_cache/requests, 2)
+```
+
+Acceptance example: 100 client responses, all 200 with 80 cache hits, plus 20 internal 503/cache-miss
+records in the same bucket must yield 100 requests, 0% 5xx and 20% not-in-cache. Verify that case and
+the unknown/missing-flag refusal before using the recipe; the example does not prove live extraction.
+
+For a regional report, add `country` (where the request originated) or `serverCountry` (where it
+was served) to the `by` clause; break a spike down with `stats count by errorCode` over the same
+scope. Check the `reqHost` value shape in one raw event before filtering on it (it mirrors the Host
+header). The `akamai-edge` skill's DataStream caveats apply: low-latency streams deliver less
+complete data, and delivery failures lose lines.
 
 ## Loki (LogQL)
 

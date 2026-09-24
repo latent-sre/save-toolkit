@@ -9,20 +9,38 @@ Needs only pytest, fastapi, and httpx, all of which a FastAPI service already ha
 from __future__ import annotations
 
 import importlib
+import inspect
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-APP = "app.main:create_app"      # "module:factory" returning the app, or "module:app"
+APP = "app.main:create_app"      # zero-argument factory or exported ASGI app, including middleware
 LIST_PATH = "/v1/incidents"      # one cursor-paginated collection
-MISSING_PATH = "/v1/incidents/does-not-exist"   # a 404 on that resource
+UNKNOWN_PATH = "/v1/no-such-route"   # matches no route: the framework's own 404
+MISSING_ITEM_PATH = None   # with an item route: a well-formed id that does not exist; malformed is 422
 
 @pytest.fixture(scope="module")
 def app():
     module_name, _, attribute = APP.partition(":")
     obj = getattr(importlib.import_module(module_name), attribute)
-    return obj if isinstance(obj, FastAPI) else obj()
+    try:
+        inspect.signature(obj).bind()
+    except TypeError:  # an ASGI callable requires scope/receive/send; it is not a factory
+        return obj
+    return obj()
+
+
+@pytest.fixture(scope="module")
+def api(app):
+    """Locate routing beneath standard ASGI wrappers; client still uses the complete stack."""
+    inner = app
+    seen = set()
+    while not isinstance(inner, FastAPI):
+        assert inner is not None and id(inner) not in seen, "adapt api fixture to expose the FastAPI router"
+        seen.add(id(inner))
+        inner = getattr(inner, "app", None)
+    return inner
 
 
 @pytest.fixture(scope="module")
@@ -57,6 +75,10 @@ def assert_problem(response, status: int) -> None:
     assert body["status"] == status, (
         f"house rule: the problem body's status must match the HTTP status ({body['status']} != {status})"
     )
+    assert body.get("request_id"), (
+        "house rule: a problem body carries request_id (Gorouter's X-Vcap-Request-Id on PCF, else a "
+        "validated ingress id or a generated one) so the caller's error joins the log line"
+    )
 
 
 def test_collection_is_a_cursor_page(client, auth_headers):
@@ -74,9 +96,21 @@ def test_collection_is_a_cursor_page(client, auth_headers):
     assert one.status_code == 200, f"limit=1 must be accepted; got {one.status_code}"
     assert len(one.json()["data"]) <= 1, "house rule: limit is honoured, not ignored"
 
-def test_missing_resource_is_a_problem(client, auth_headers):
-    response = client.get(MISSING_PATH, headers=auth_headers)
-    assert response.status_code == 404, f"{MISSING_PATH} must be a 404; got {response.status_code}"
+def test_unknown_path_is_a_problem(client, auth_headers):
+    response = client.get(UNKNOWN_PATH, headers=auth_headers)
+    assert response.status_code == 404, (
+        f"{UNKNOWN_PATH} must be a 404; got {response.status_code} (a SPA fallback swallowing API paths?)"
+    )
+    assert_problem(response, 404)
+
+
+def test_missing_item_is_a_problem(api, client, auth_headers):
+    items = [r.path for r in api.routes if getattr(r, "path", "").startswith(LIST_PATH + "/{")]
+    if MISSING_ITEM_PATH is None:
+        assert not items, f"{items} exist: set MISSING_ITEM_PATH to a well-formed id that does not exist"
+        pytest.skip("this contract has no item route")
+    response = client.get(MISSING_ITEM_PATH, headers=auth_headers)
+    assert response.status_code == 404, f"{MISSING_ITEM_PATH} must be a 404; got {response.status_code}"
     assert_problem(response, 404)
 
 
@@ -88,15 +122,23 @@ def test_invalid_query_is_a_problem(client, auth_headers):
     assert_problem(response, response.status_code)
 
 
-def test_unexpected_error_is_a_problem(app, client, auth_headers):
+def test_unexpected_error_is_a_problem(api, client, auth_headers):
     path = "/__contract_boom"
-    try:
-        @app.get(path)
-        def boom():
-            raise RuntimeError("contract probe")
-    except Exception as exc:  # pragma: no cover - an app that refuses a late route
-        pytest.skip(f"cannot register a probe route on this app after startup: {exc!r}")
+    reached = False
 
-    response = client.get(path, headers=auth_headers)
-    assert response.status_code == 500, f"an unhandled error must be a 500; got {response.status_code}"
-    assert_problem(response, 500)
+    @api.get(path, include_in_schema=False)
+    async def boom():
+        nonlocal reached
+        reached = True
+        raise RuntimeError("contract probe")
+
+    # Register on the real router ahead of mounts/fallbacks, retaining the complete middleware stack.
+    probe = api.router.routes.pop()
+    api.router.routes.insert(0, probe)
+    try:
+        response = client.get(path, headers=auth_headers)
+        assert reached, "the request did not reach the failing route; adapt the probe's auth/path"
+        assert response.status_code == 500, f"an unhandled error must be a 500; got {response.status_code}"
+        assert_problem(response, 500)
+    finally:
+        api.router.routes.remove(probe)

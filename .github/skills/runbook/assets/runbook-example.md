@@ -1,65 +1,65 @@
 ---
 schema_version: 1
-runbook_id: checkout-p95-burn-fast
-service_id: checkout
+runbook_id: order-router-p95-burn-fast
+service_id: order-router
 status: active
-alert_names: [checkout-p95-burn-fast]
-owner: payments-oncall
+alert_names: [order-router-p95-burn-fast]
+owner: trading-oncall
 severity: P2 / page
-source_revision: checkout@4f2b9c1e8a7d6350fa1c2b9e4d7a8c3f5e6b1902
+source_revision: order-router@4f2b9c1e8a7d6350fa1c2b9e4d7a8c3f5e6b1902
 last_reviewed: "2026-02-18"
 last_verified: null
 verification_evidence: []
 version: 4
 ---
 
-> **This is a teaching exemplar, not a live runbook.** `checkout` is a fictional service. The
+> **This is a teaching exemplar, not a live runbook.** `order-router` is a fictional service. The
 > dates, evidence ids, and history illustrate the [template](./runbook-template.md); they bind
 > nothing. A copy starts with `last_reviewed: null`, `last_verified: null`, and an empty history;
 > this exemplar's `last_verified` is null because its last drill ran against version 3.
 
-# Runbook: checkout p95 latency burning fast error budget
+# Runbook: order-router p95 latency burning fast error budget
 
 ## Purpose & scope
-Handles `checkout-p95-burn-fast`: requests slower than 0.8 s consuming the 30-day latency budget at
+Handles `order-router-p95-burn-fast`: requests slower than 0.8 s consuming the 30-day latency budget at
 the 14.4× fast-burn threshold.
 
-**Out of scope** (do NOT use this for): checkout returning 5xx (that is
-`checkout-error-rate`); payment-path investigation (see `payments-vendor-degraded`).
+**Out of scope** (do NOT use this for): order-router returning 5xx (that is
+`order-router-error-rate`); exchange-gateway investigation (see `exchange-gateway-degraded`).
 
 ## Trigger
-Alert `checkout-p95-burn-fast` fires when the slow-request ratio exceeds 14.4 times the allowed ratio
+Alert `order-router-p95-burn-fast` fires when the slow-request ratio exceeds 14.4 times the allowed ratio
 over both 1 hour and 5 minutes: 2% of a 30-day budget per hour, or 50 hours to exhaust a full budget
 if sustained. p95 remains a diagnostic.
-Dashboard: `https://grafana.example.internal/d/checkout-slo`  ·  Source/repo: `git@example.internal:payments/checkout`
+Dashboard: `https://grafana.example.internal/d/order-router-slo`  ·  Source/repo: `git@example.internal:trading/order-router`
 
 ## Prerequisites
 - Approved target from the service card and change packet: `pcf-east` /
-  `https://api.pcf-east.example.internal` / `payments` / `prod` / `checkout`.
-- Access: Apps Manager for that foundation/org/space; Splunk `payments_*` index; Wavefront
+  `https://api.pcf-east.example.internal` / `trading` / `prod` / `order-router`.
+- Access: Apps Manager for that foundation/org/space; Splunk `trading_*` index; Wavefront
   or PCF App Metrics; Grafana viewer. `cf` CLI v8 only if you have it.
 - Tools: Before starting, Apps Manager must match the approved foundation, org, and space; `cf
   target` must match the approved API, org, and space. An API mismatch stops for target
-  reconciliation; on the correct API, select `payments` / `prod`. Every command below assumes that
+  reconciliation; on the correct API, select `trading` / `prod`. Every command below assumes that
   target.
-- Useful links: SLO definition `checkout-availability`, prior postmortem `2026-01-19-checkout-pool`.
+- Useful links: SLO definition `order-router-availability`, prior postmortem `2026-01-19-order-router-pool`.
 
 ## Triage / first checks
 
 1. **Which requests are slow?** Open the SLO dashboard, panel "p95 by route", for the reported
    impact window. Confirm it includes affected user requests, not just probes.
-   - Elevated on `/checkout/submit` only → focus on that path; continue.
+   - Elevated on `/orders/submit` only → focus on that path; continue.
    - Elevated across routes, including `/healthz` → compare the `platform-router-latency` panel
      and other apps. A matching cross-app pattern merits platform escalation, not proven platform
-     fault; shared dependencies remain possible. With only checkout affected, continue app-side.
+     fault; shared dependencies remain possible. With only order-router affected, continue app-side.
    - Missing/stale data → impact and scope unknown. Ask for an affected request and timestamp;
      escalate if unavailable, not a healthy-traffic conclusion.
 
 2. **Are all instances serving?**
-   Apps Manager → `payments` / `prod` → `checkout` → **Overview**: the instance table shows 6
+   Apps Manager → `trading` / `prod` → `order-router` → **Overview**: the instance table shows 6
    instances, all `running`.
    ```bash
-   cf app checkout
+   cf app order-router
    ```
    Expected: 6 running in the Overview table; with the CLI, `instances:      6/6` and six `running`
    rows.
@@ -71,7 +71,7 @@ Dashboard: `https://grafana.example.internal/d/checkout-slo`  ·  Source/repo: `
 3. **Is one instance dragging the percentile, or all of them?**
    Same Overview table: compare the `cpu` and `memory` columns across instances.
    ```bash
-   cf app checkout
+   cf app order-router
    ```
    Expected: one per-instance row each, with `cpu` and `memory`.
    - One instance higher → Procedure step 1; this snapshot alone cannot justify a restart.
@@ -81,29 +81,36 @@ Dashboard: `https://grafana.example.internal/d/checkout-slo`  ·  Source/repo: `
 
 ## Procedure
 
-> Mark destructive steps ⚠️. Tier 2/3: record explicit human approval for the exact command/target
-> plus rollback or recovery evidence before execution.
+> Mark destructive steps ⚠️. A Tier 2 step (reversible live change) or Tier 3 step (destructive or
+> access-path change) needs approval before you run it. In a declared incident, ITO approves the
+> exact command, or a bounded set of them, in the TLC. Use `production-change-gate`'s incident
+> fast-path checklist only for eligible actions. All other actions retain the full process,
+> including a whole-app restart or resize, restage, a new artifact, unknown droplet state, and Tier 3.
+> Suspected compromise or integrity loss exits the shortcut to the human security owner.
+> Outside an incident, use the full process.
+> Record approver, time, and rollback with the change. Impact growing or customer-visible and no
+> incident open → start one through the team's incident process first.
 
 1. **Escalate the restart decision.** No serving-headroom check for the remaining five is supplied.
    **Do not restart.** Use the immediate Escalation row with triage 3's index, target/window,
-   CPU/memory and unknown readiness/capacity. Expected: the payments engineering lead obtains the
+   CPU/memory and unknown readiness/capacity. Expected: the trading engineering lead obtains the
    check and owns a separately approved procedure. No reply or incomplete evidence keeps restart
    blocked; continue only read-only step 2. Approval does not replace evidence.
 
-2. **Check the downstream payment path before scaling.** Extra app instances can increase
+2. **Check the downstream exchange gateway before scaling.** Extra app instances can increase
    pressure on a constrained dependency; this read checks for that risk, not just timeout counts.
-   Apps Manager → `checkout` → **Logs**: filter the recent stream for `vendor_timeout` and note the
-   count and the time span covered; or in Splunk, `index=payments_* sourcetype=<checkout>
-   vendor_timeout earliest=-30m | stats count` (fields `[unverified]`).
+   Apps Manager → `order-router` → **Logs**: filter the recent stream for `gateway_timeout` and note the
+   count and the time span covered; or in Splunk, `index=trading_* sourcetype=<order-router>
+   gateway_timeout earliest=-30m | stats count` (fields `[unverified]`).
    ```bash
-   cf logs checkout --recent > /tmp/checkout-recent.log &&
-     awk '/vendor_timeout/ {n++} END {print n+0}' /tmp/checkout-recent.log
+   cf logs order-router --recent > /tmp/order-router-recent.log &&
+     awk '/gateway_timeout/ {n++} END {print n+0}' /tmp/order-router-recent.log
    ```
    Expected: a count within 30 s. Bind the captured log window and request volume; raw abundance
    alone does not locate the delay, and this short buffer may omit the affected requests.
-   - Elevated timeouts → use `payments-vendor-degraded` to check client pool, network, and vendor.
+   - Elevated timeouts → use `exchange-gateway-degraded` to check client pool, network, and gateway.
      **Do not scale** while dependency pressure remains plausible.
-   - Few or no timeouts → the vendor is not cleared. Compare dependency latency and app saturation
+   - Few or no timeouts → the gateway is not cleared. Compare dependency latency and app saturation
      over the impact window; go to step 3 only when its prerequisites are established.
    - No count, error, incomplete coverage, or a hang past 30 s → inconclusive observation, not
      platform fault. Stop this check; use historical Splunk logs or escalate with the gap.
@@ -111,10 +118,10 @@ Dashboard: `https://grafana.example.internal/d/checkout-slo`  ·  Source/repo: `
 3. ⚠️ **Scale out.** (Tier 2 — needs approval naming the target instance count.) Proceed only with
    evidence of app capacity pressure and dependency headroom over the impact window. Without those
    observations, escalate rather than treating a low timeout count as permission to scale.
-   Apps Manager → `checkout` → **Overview** → **Scale** → Instances `9` (Tier 2 approval names this
-   count).
+   Apps Manager → `order-router` → **Overview** → **Scale** → Instances `9` → **Apply Changes** (Tier 2
+   approval names this count).
    ```bash
-   cf scale checkout -i 9
+   cf scale order-router -i 9
    ```
    Expected: 9 running in the Overview table within 3 min (`instances:      9/9` with the CLI).
    p95 should fall within 10 min of the last instance reaching `running` — not before, so do not
@@ -131,10 +138,10 @@ Dashboard: `https://grafana.example.internal/d/checkout-slo`  ·  Source/repo: `
 
 4. **Instances are missing, starting, or crashing (from triage step 2).** Do not restart.
    Capture evidence before process replacement loses transient state:
-   Apps Manager → `checkout` → **Logs**, then **Events** for the crash/restart rows and times; save
-   the view before instances are replaced.
+   Apps Manager → `order-router` → **Overview** → Events section for the crash/restart rows and
+   times, then **Logs**; save both views before instances are replaced.
    ```bash
-   cf logs checkout --recent > /tmp/checkout-crash-$(date -u +%Y%m%dT%H%M%SZ).log
+   cf logs order-router --recent > /tmp/order-router-crash-$(date -u +%Y%m%dT%H%M%SZ).log
    ```
    Expected: a non-empty file within 30 s.
    - Non-empty → inspect events/logs for the affected instances, attach them, and escalate per the
@@ -143,20 +150,22 @@ Dashboard: `https://grafana.example.internal/d/checkout-slo`  ·  Source/repo: `
      third time.
 
 ## Verification
-p95 under 0.8 s for 15 continuous minutes on the SLO dashboard's "p95 by route" panel, **and** the
-burn-rate panel back under 1.0. The alert auto-resolves ~5 min after the second condition holds.
+The five-minute slow-request ratio (requests over 0.8 s) within the SLO allowance for 15 continuous
+minutes on the SLO dashboard's "slow-request ratio" panel, with p95 by route under 0.8 s as a
+diagnostic cross-check. The alert clears about 5 min after slow requests stop, because its short
+window is 5 minutes.
 
-If p95 is healthy but the burn-rate panel is still above 1.0, the budget is still being consumed by
-the earlier damage — that is expected and not a reason to keep acting.
+The 1-hour burn panel stays elevated for up to an hour as earlier slow minutes age out of its
+window. That is not ongoing budget consumption and not a reason to keep acting.
 
 ## Rollback / cleanup
 - Step 1 requests escalation only. If a human already restarted outside this procedure, no rollback
   restores the old process or interrupted work; report observed readiness/requests and escalate.
   Missing/starting/crashing instances go to step 4, not another restart.
 - Step 3 (scale out): return to the baseline count once p95 has been healthy for 30 min.
-  Apps Manager → **Scale** → Instances `6`.
+  Apps Manager → **Scale** → Instances `6` → **Apply Changes**.
   ```bash
-  cf scale checkout -i 6
+  cf scale order-router -i 6
   ```
   Expected: 6 running within 3 min; p95 and the five-minute slow-request ratio stay below their
   alert thresholds for 10 min.
@@ -172,17 +181,17 @@ the earlier damage — that is expected and not a reason to keep acting.
 ## Escalation
 | When (condition / time elapsed) | Escalate to | How to reach |
 |---|---|---|
-| Restart headroom unknown (step 1): immediately | payments engineering lead | pager `payments-lead`, `#payments-oncall` |
-| Not resolved 20 min after Procedure step 2 | payments engineering lead | pager `payments-lead`, `#payments-oncall` |
-| Scale-out has not reached 9 running after 3 min, or p95 is still above 0.8 s 10 min after reaching it | payments engineering lead | pager `payments-lead`, `#payments-oncall` |
-| Scale-down or its approved recovery fails or remains unknown | payments engineering lead | same, with requested and observed counts plus current latency |
-| Instances missing/starting/crashing, or observation unavailable (Procedure step 4) | payments engineering lead | same, with captured evidence and gaps |
+| Restart headroom unknown (step 1): immediately | trading engineering lead | pager `trading-lead`, `#trading-oncall` |
+| Not resolved 20 min after Procedure step 2 | trading engineering lead | pager `trading-lead`, `#trading-oncall` |
+| Scale-out has not reached 9 running after 3 min, or p95 is still above 0.8 s 10 min after reaching it | trading engineering lead | pager `trading-lead`, `#trading-oncall` |
+| Scale-down or its approved recovery fails or remains unknown | trading engineering lead | same, with requested and observed counts plus current latency |
+| Instances missing/starting/crashing, or observation unavailable (Procedure step 4) | trading engineering lead | same, with captured evidence and gaps |
 | Multiple unrelated apps slow in the same space | platform on-call | pager `tas-platform`, `#platform-oncall` |
 
 Hand over: trigger, evidence, attempted steps, current state, and the current owner.
 
 ## Communication
-- Notify: `#payments-oncall`, and `#status-internal` if customer-visible · Cadence while active: 30 min
+- Notify: `#trading-oncall`, and `#status-internal` if customer-visible · Cadence while active: 30 min
 - Initial / update / resolved stakeholder message owner: ITO, in the TLC; the responder supplies technical findings in the existing bridge/TLC
 
 ## Post-Incident
@@ -202,13 +211,13 @@ Hand over: trigger, evidence, attempted steps, current state, and the current ow
 | Date (UTC) | Incident / drill ref | Version used | Steps that held | Steps that failed / were missing | Follow-up (disposition / PR or evidence reference) |
 |---|---|---|---|---|---|
 | 2026-02-18 | review — version 4 | 4 | — | Procedure 1 (restart) replaced by escalation because no serving-headroom check was available; the version-3 `<idx>` note went with it; `last_verified` cleared until a version-4 drill binds it | this revision |
-| 2026-02-11 | drill-2026-02-11-checkout-restart | 3 | Triage 1–3, Procedure 1 | — | `prepared` — added the zero-based `<idx>` note after the responder guessed wrong twice |
-| 2026-01-19 | postmortem 2026-01-19-checkout-pool | 2 | Triage 1–2 | Procedure 2 had no rollback; responder left checkout at 9 instances for six days | PR #412 — added the Rollback entry and the 30-min wait |
-| 2025-12-03 | INC-8841 | 1 | Triage 1 | No vendor check existed; 40 min spent scaling against a slow vendor | PR #388 — added Procedure step 2 |
+| 2026-02-11 | drill-2026-02-11-order-router-restart | 3 | Triage 1–3, Procedure 1 | — | PR #401 — added the zero-based `<idx>` note after the responder guessed wrong twice |
+| 2026-01-19 | postmortem 2026-01-19-order-router-pool | 2 | Triage 1–2 | Procedure 2 had no rollback; responder left order-router at 9 instances for six days | PR #412 — added the Rollback entry and the 30-min wait |
+| 2025-12-03 | INC-8841 | 1 | Triage 1 | No gateway check existed; 40 min spent scaling against a slow gateway | PR #388 — added Procedure step 2 |
 
 ## References
-- Related runbooks: `checkout-error-rate`, `payments-vendor-degraded`, `platform-router-latency`
-- Postmortems: `2026-01-19-checkout-pool`
-- Alert definition / SLO: `checkout-availability` (SLO), `checkout-p95-burn-fast` (alert rule)
-- Service card / alert card / knowledge index: service card `checkout`
-- Provenance: PR #412, `checkout@4f2b9c1e`, drill evidence `drill-2026-02-11-checkout-restart`
+- Related runbooks: `order-router-error-rate`, `exchange-gateway-degraded`, `platform-router-latency`
+- Postmortems: `2026-01-19-order-router-pool`
+- Alert definition / SLO: `order-router-availability` (SLO), `order-router-p95-burn-fast` (alert rule)
+- Service card / alert card / knowledge index: service card `order-router`
+- Provenance: PR #412, `order-router@4f2b9c1e`, drill evidence `drill-2026-02-11-order-router-restart`

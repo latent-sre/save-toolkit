@@ -34,7 +34,7 @@ it before recommending or changing supported runtime, tooling, or infrastructure
 | Unfinished work | [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md), the only live backlog |
 | Evals and eval evidence | [`evals/README.md`](evals/README.md) |
 | Production change, deployment, or release | [`production-change-gate`](skills/production-change-gate/SKILL.md); the Grafana exception is below |
-| Runbooks, service cards, or knowledge disposition | [`operational-learning`](skills/operational-learning/SKILL.md) |
+| Runbooks, service cards, or knowledge disposition | [`runbook`](skills/runbook/SKILL.md) for runbooks; [`operational-learning`](skills/operational-learning/SKILL.md) for service cards and knowledge disposition |
 | Decisions, reviews, and historical evidence | [`docs/decisions/`](docs/decisions) and [`docs/reviews/`](docs/reviews) |
 
 ## The roster

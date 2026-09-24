@@ -47,6 +47,8 @@ long-lived secret. Verify issuer, audience and subject restrictions against the 
 ref or environment; `id-token: write` permits minting a token but grants no cloud role by itself.
 Existing identity policy and target support govern the choice. For this fleet, read `stack-profile`
 before proposing an identity change; its current environment-secret policy remains in force.
+For a GCP target, deliver under this policy and name Workload Identity Federation as a policy option
+for the owner; never create a service-account key yourself.
 
 When secrets are needed, scope them to the relevant environment/job and avoid broad inheritance
 through reusable workflows. Do not print values or put them in argv, caches or artifacts. A
@@ -69,6 +71,13 @@ creating an attestation without checking it downstream does not protect the cons
 does not make an unsafe producing workflow safe. For immutable releases, prepare and verify the
 draft and assets before publication; recovery after publication may require a new release.
 Production readiness and execution remain with the existing release owner/process.
+
+For a distributable Python package, also test the built wheel in a clean environment without the
+checkout shadowing the installed package. Exercise imports, entry points and required package data;
+if shipping an sdist, check that it builds too. Editable-install tests alone do not establish release
+contents. Preserve the project's dependency groups/extras and requirements/constraints workflow;
+this is a release check, not a reason to migrate every project to uv. See
+[pytest's installed-package guidance](https://docs.pytest.org/en/stable/explanation/goodpractices.html).
 
 Sources: [GitHub secure use](https://docs.github.com/en/actions/reference/security/secure-use),
 [checkout inputs](https://github.com/actions/checkout/blob/3d3c42e5aac5ba805825da76410c181273ba90b1/action.yml),
