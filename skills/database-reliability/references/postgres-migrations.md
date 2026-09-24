@@ -12,8 +12,11 @@ waiting DDL. `ADD COLUMN`, `ADD CONSTRAINT … NOT VALID`, `SET NOT NULL`, and `
 transactions open on the table (`pg_stat_activity`, through the DBA). Then run the migration session
 with `SET lock_timeout = '<seconds, below the app's request timeout>'` (session or `SET LOCAL`, never
 `postgresql.conf`) and retry with backoff on timeout. A timed-out or failed `CREATE INDEX
-CONCURRENTLY` leaves an INVALID index: `DROP INDEX CONCURRENTLY` it before the retry. *[sourced:
-PostgreSQL 18 `ALTER TABLE` and `lock_timeout` references]*
+CONCURRENTLY` may leave an INVALID index. Inspect the catalog and migration record first; use
+`DROP INDEX CONCURRENTLY` only for the invalid index created by that failed attempt, before retrying.
+Do not drop a pre-existing valid index merely because creation failed. *[sourced:
+PostgreSQL 18 `ALTER TABLE`, `lock_timeout`, and
+[concurrent index creation](https://www.postgresql.org/docs/18/sql-createindex.html#SQL-CREATEINDEX-CONCURRENTLY) references]*
 
 ## Constraints and columns
 

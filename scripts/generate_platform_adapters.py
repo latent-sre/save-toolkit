@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate Copilot/VS Code adapters from canonical plugin sources.
 
-``agents/*.md`` and ``skills/**`` are the only authored fleet definitions. Claude Code reads
+``agents/*.md``, ``commands/*.md`` and ``skills/**`` are the authored fleet definitions. Claude Code reads
 them directly from the plugin, and the Agent Plugins 1.0 plugin reads canonical ``skills/`` too.
 Copilot agents have a different schema and enforcement limits, so their projections are
 generated, committed, and checked byte-for-byte.
@@ -29,6 +29,7 @@ COPILOT_SKILLS = Path(".github/skills")
 # Code and Copilot CLI read canonical `skills/`, and Copilot-only components come from here.
 COPILOT_PLUGIN_COMPONENTS = Path("com.github.copilot")
 COPILOT_PLUGIN_AGENTS = COPILOT_PLUGIN_COMPONENTS / "agents"
+COPILOT_PLUGIN_COMMANDS = COPILOT_PLUGIN_COMPONENTS / "commands"
 COPILOT_PLUGIN_HOOKS = COPILOT_PLUGIN_COMPONENTS / "hooks/hooks.json"
 COPILOT_HOOKS_SOURCE = Path("hooks/copilot-hooks.json")
 GENERATED_ROOTS = (COPILOT_AGENTS, COPILOT_SKILLS, COPILOT_PLUGIN_COMPONENTS)
@@ -482,6 +483,17 @@ def expected_outputs(root: Path) -> dict[Path, bytes]:
         rendered = render_copilot_agent(source).encode("utf-8")
         outputs[COPILOT_AGENTS / f"{source.stem}.agent.md"] = rendered
         outputs[COPILOT_PLUGIN_AGENTS / f"{source.stem}.agent.md"] = rendered
+    command_root = root / "commands"
+    _assert_no_indirection_below(root, command_root, "canonical source")
+    commands = sorted(command_root.glob("*.md"))
+    if not commands:
+        raise ValueError(f"{command_root}: no canonical commands found")
+    for source in commands:
+        _assert_no_indirection_below(root, source, "canonical source")
+        # Preserve the command's metadata and selected-agent/write preflight; packaging must
+        # neither select an agent nor widen its tools. Normalize line endings as with prose assets.
+        rendered = adapt_text(source.read_text(encoding="utf-8"), "copilot")
+        outputs[COPILOT_PLUGIN_COMMANDS / source.name] = rendered.encode("utf-8")
     hooks = root / COPILOT_HOOKS_SOURCE
     _assert_no_indirection_below(root, hooks, "canonical source")
     outputs[COPILOT_PLUGIN_HOOKS] = hooks.read_text(encoding="utf-8").encode("utf-8")

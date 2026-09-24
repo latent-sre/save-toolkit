@@ -83,10 +83,13 @@ Dashboard: `https://grafana.example.internal/d/order-router-slo`  ·  Source/rep
 
 > Mark destructive steps ⚠️. A Tier 2 step (reversible live change) or Tier 3 step (destructive or
 > access-path change) needs approval before you run it. In a declared incident, ITO approves the
-> exact command, or a bounded set of them, in the TLC; Tier 3 always goes through the full
-> production change process. Outside an incident, use the full process. Record approver, time, and
-> rollback with the change. Impact growing or customer-visible and no incident open → start one
-> through the team's incident process first.
+> exact command, or a bounded set of them, in the TLC. Use `production-change-gate`'s incident
+> fast-path checklist only for eligible actions. All other actions retain the full process,
+> including a whole-app restart or resize, restage, a new artifact, unknown droplet state, and Tier 3.
+> Suspected compromise or integrity loss exits the shortcut to the human security owner.
+> Outside an incident, use the full process.
+> Record approver, time, and rollback with the change. Impact growing or customer-visible and no
+> incident open → start one through the team's incident process first.
 
 1. **Escalate the restart decision.** No serving-headroom check for the remaining five is supplied.
    **Do not restart.** Use the immediate Escalation row with triage 3's index, target/window,

@@ -69,21 +69,25 @@ def main(argv=None):
     signal.signal(signal.SIGINT, _stop)
     signal.signal(signal.SIGTERM, _stop)
     plan = jobs_api.list_failed()
+    items = [{"id": job_id, "status": "skipped"} for job_id in plan]
     if args.dry_run:
-        print(json.dumps({"plan": plan}) if args.json else "\\n".join(plan))
+        report(items, args.json)
         return 0
     if not args.yes:
         if not sys.stdin.isatty():
             print("error: pass --yes or run on a terminal", file=sys.stderr)
             return 2
-        if input(f"Requeue {len(plan)} jobs? [y/N] ").strip().lower() != "y":
+        print(f"Requeue {len(plan)} jobs? [y/N] ", end="", file=sys.stderr, flush=True)
+        if input().strip().lower() != "y":
             return 2
-    items = [{"id": job_id, "status": "skipped"} for job_id in plan]
-    LOCK.write_text("locked", encoding="utf-8")
+    with LOCK.open("x", encoding="utf-8") as lock:
+        lock.write("locked")
     try:
         for item in items:
             item["status"] = "unknown"
             item["status"] = requeue_one(item["id"])
+            if item["status"] != "succeeded":
+                break
     except Stopped as stop:
         report(items, args.json)
         return 128 + stop.signum
@@ -165,6 +169,48 @@ class OperatorCliOracleTests(unittest.TestCase):
         self.assertTrue(any(check["check"] == "skill_loaded" and check["skill"] == "operator-cli"
                             for check in spec["checks"]))
         self.assertNotIn("signal", spec["fixture"]["files"]["jobs_api.py"].lower())
+
+    def test_interrupted_receipts_reject_missing_or_extra_targets(self):
+        report = '        report(items, args.json)\n        return 128 + stop.signum'
+        for replacement in ('items[:2]', 'items + [{"id": "j4", "status": "skipped"}]'):
+            with self.subTest(replacement=replacement):
+                source = CORRECT.replace(report, f'        report({replacement}, args.json)\n        return 128 + stop.signum')
+                self.assertNotEqual(CORRECT, source, "mutation did not apply")
+                result = self.run_oracle(source)
+                self.assertNotEqual(0, result.returncode)
+                self.assertIn("SIGINT: expected exactly the planned jobs", result.stderr)
+
+    def test_dry_run_json_and_operational_exit_mutants_are_rejected(self):
+        dry_print = '    if args.dry_run:\n        report(items, args.json)\n'
+        mutants = [
+            ("text-only dry run", CORRECT.replace(dry_print, '    if args.dry_run:\n        print("j1 j2 j3")\n'),
+             "dry run: stdout is not the README's --json object"),
+            ("wrong dry-run schema", CORRECT.replace(dry_print, '    if args.dry_run:\n        print(json.dumps({"plan": plan}))\n'),
+             "dry run: stdout is not the README's --json object"),
+            ("dry run claims success", CORRECT.replace(dry_print,
+                '    if args.dry_run:\n        report([{"id": job, "status": "succeeded"} for job in plan], args.json)\n'),
+             "dry run: expected exactly the planned jobs as skipped"),
+            ("dry run extra target", CORRECT.replace(dry_print,
+                '    if args.dry_run:\n        report(items + [{"id": "j4", "status": "skipped"}], args.json)\n'),
+             "dry run: expected exactly the planned jobs as skipped"),
+            ("dry run duplicate target", CORRECT.replace(dry_print,
+                '    if args.dry_run:\n        report(items + [items[0]], args.json)\n'),
+             "duplicate item id"),
+            ("operational exit 4", CORRECT.replace(' else 1\n', ' else 4\n'),
+             "partial failure: exit 4, expected 1"),
+            ("unknown exits usage", CORRECT.replace(
+                '            return "succeeded" if jobs_api.get_status(job_id) == "queued" else "unknown"\n',
+                '            return "unknown"\n').replace(
+                    '    return 0 if all(',
+                    '    if any(item["status"] == "unknown" for item in items):\n        return 2\n    return 0 if all('),
+             "timeout: an UNKNOWN item exited 2, expected 1"),
+        ]
+        for name, source, diagnostic in mutants:
+            with self.subTest(mutant=name):
+                self.assertNotEqual(CORRECT, source, "mutation did not apply")
+                result = self.run_oracle(source)
+                self.assertNotEqual(0, result.returncode)
+                self.assertIn(diagnostic, result.stderr)
 
 
 if __name__ == "__main__":

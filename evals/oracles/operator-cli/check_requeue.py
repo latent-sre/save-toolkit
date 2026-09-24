@@ -41,6 +41,8 @@ def list_failed():
 
 
 def get_status(job_id):
+    if _load()["jobs"][job_id].get("fault") == "unknown":
+        raise TimeoutError("read-back unavailable")
     return _load()["jobs"][job_id]["status"]
 
 
@@ -53,7 +55,7 @@ def requeue(job_id):
         raise JobServiceError(job_id + " is locked by another settlement run")
     job["status"] = "queued"
     _save(data)
-    if job.get("fault") == "timeout":
+    if job.get("fault") in ("timeout", "unknown"):
         raise TimeoutError("no response for " + job_id)
     if job.get("fault") in ("SIGINT", "SIGTERM"):
         signal.raise_signal(getattr(signal, job["fault"]))
@@ -96,7 +98,17 @@ def run_case(candidate, faults, args, stdin=""):
 def outcomes(result, case):
     try:
         document = json.loads(result.stdout)
-        return {item["id"]: item["status"] for item in document["items"]}
+        if not isinstance(document, dict) or not isinstance(document.get("items"), list):
+            raise ValueError("expected an object with an items array")
+        seen = {}
+        for item in document["items"]:
+            if (not isinstance(item, dict) or not isinstance(item.get("id"), str)
+                    or item.get("status") not in ("succeeded", "failed", "unknown", "skipped")):
+                raise ValueError("each item needs a string id and a documented status")
+            if item["id"] in seen:
+                raise ValueError("duplicate item id")
+            seen[item["id"]] = item["status"]
+        return seen
     except (ValueError, KeyError, TypeError) as exc:
         raise ContractFailure(f"{case}: stdout is not the README's --json object ({exc}): {result.stdout[:300]!r}") from None
 
@@ -105,25 +117,35 @@ def check(candidate):
     result, calls, _ = run_case(candidate, {}, ["--dry-run", "--json"])
     expect(result.returncode == 0, f"dry run: exit {result.returncode}, expected 0; stderr {result.stderr[-300:]!r}")
     expect(calls == [], f"dry run: requeued {calls}")
-    for job_id in ("j1", "j2", "j3"):
-        expect(job_id in result.stdout, f"dry run: {job_id} missing from the plan on stdout")
+    seen = outcomes(result, "dry run")
+    expect(seen == {"j1": "skipped", "j2": "skipped", "j3": "skipped"},
+           f"dry run: expected exactly the planned jobs as skipped, got {seen}")
 
     result, calls, _ = run_case(candidate, {}, [], stdin="y\n")
     expect(result.returncode == 2, f"piped confirmation: exit {result.returncode}, expected 2 (usage)")
     expect(calls == [], f"piped confirmation: a pipe confirmed and requeued {calls}")
 
     result, calls, _ = run_case(candidate, {"j2": "locked"}, ["--yes", "--json"])
-    expect(result.returncode not in (0, 2), f"partial failure: exit {result.returncode}, expected an operational failure")
+    expect(result.returncode == 1, f"partial failure: exit {result.returncode}, expected 1")
     seen = outcomes(result, "partial failure")
-    expect({job: seen.get(job) for job in ("j1", "j2", "j3")} == {"j1": "succeeded", "j2": "failed", "j3": "succeeded"},
+    expect(seen == {"j1": "succeeded", "j2": "failed", "j3": "skipped"},
            f"partial failure: outcomes {seen}")
+    expect(calls == ["j1", "j2"], f"partial failure: expected work to stop at the first failure, got {calls}")
 
-    result, calls, _ = run_case(candidate, {"j2": "timeout"}, ["--yes", "--json"])
-    expect(calls.count("j2") == 1, f"timeout: j2 requeued {calls.count('j2')} times; an effect of unknown outcome was replayed")
-    seen = outcomes(result, "timeout")
-    expect(seen.get("j2") in ("succeeded", "unknown"), f"timeout: j2 reported {seen.get('j2')!r}; the effect may have happened")
-    if seen.get("j2") == "unknown":
-        expect(result.returncode != 0, "timeout: an UNKNOWN item exited 0")
+    for fault in ("timeout", "unknown"):
+        result, calls, _ = run_case(candidate, {"j2": fault}, ["--yes", "--json"])
+        expect(calls.count("j2") == 1, f"{fault}: j2 requeued {calls.count('j2')} times; an effect of unknown outcome was replayed")
+        seen = outcomes(result, fault)
+        allowed = ("unknown",) if fault == "unknown" else ("succeeded", "unknown")
+        expect(seen.get("j2") in allowed, f"{fault}: j2 reported {seen.get('j2')!r}; the effect may have happened")
+        if seen.get("j2") == "unknown":
+            expect(result.returncode == 1, f"{fault}: an UNKNOWN item exited {result.returncode}, expected 1")
+            expect(seen == {"j1": "succeeded", "j2": "unknown", "j3": "skipped"}, f"{fault}: outcomes {seen}")
+            expect(calls == ["j1", "j2"], f"{fault}: work did not stop at the UNKNOWN item: {calls}")
+        else:
+            expect(result.returncode == 0, f"{fault}: reconciled success exited {result.returncode}, expected 0")
+            expect(seen == {"j1": "succeeded", "j2": "succeeded", "j3": "succeeded"}, f"{fault}: outcomes {seen}")
+            expect(calls == ["j1", "j2", "j3"], f"{fault}: unexpected effect calls {calls}")
 
     for signame, code in (("SIGINT", 130), ("SIGTERM", 143)):
         result, calls, locked = run_case(candidate, {"j2": signame}, ["--yes", "--json"])
@@ -131,9 +153,10 @@ def check(candidate):
         expect(calls == ["j1", "j2"], f"{signame}: requeue calls {calls}; work continued after the signal")
         expect(not locked, f"{signame}: requeue.lock was left behind")
         seen = outcomes(result, signame)
+        expect(set(seen) == {"j1", "j2", "j3"}, f"{signame}: expected exactly the planned jobs, got {sorted(seen)}")
         expect(seen.get("j1") == "succeeded", f"{signame}: j1 reported {seen.get('j1')!r}")
         expect(seen.get("j2") in ("succeeded", "unknown"), f"{signame}: j2 reported {seen.get('j2')!r}")
-        expect(seen.get("j3") in (None, "skipped"), f"{signame}: j3 reported {seen.get('j3')!r}")
+        expect(seen.get("j3") == "skipped", f"{signame}: j3 reported {seen.get('j3')!r}")
 
 
 if __name__ == "__main__":

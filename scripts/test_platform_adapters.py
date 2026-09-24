@@ -24,9 +24,10 @@ ROOT = Path(__file__).resolve().parents[1]
 class PlatformAdapterTests(unittest.TestCase):
     @staticmethod
     def _copy_canonical_sources(root: Path) -> None:
-        """Copy the authored agents/, skills/ and Copilot hooks into a temp root — the generator's inputs."""
+        """Copy authored agents/, skills/, commands/ and Copilot hooks — the generator's inputs."""
         shutil.copytree(ROOT / "agents", root / "agents")
         shutil.copytree(ROOT / "skills", root / "skills")
+        shutil.copytree(ROOT / "commands", root / "commands")
         (root / adapters.COPILOT_HOOKS_SOURCE).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(ROOT / adapters.COPILOT_HOOKS_SOURCE, root / adapters.COPILOT_HOOKS_SOURCE)
 
@@ -470,6 +471,68 @@ class PlatformAdapterTests(unittest.TestCase):
                          json.loads(outputs[adapters.COPILOT_PLUGIN_HOOKS]))
         self.assertFalse(any(path.is_relative_to(adapters.COPILOT_PLUGIN_COMPONENTS / "skills")
                              for path in outputs), "1.0 reads canonical skills/, not a copy")
+
+    def test_plugin_commands_preserve_the_canonical_inventory_and_adr_preflight(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            self._copy_canonical_sources(root)
+            # A second command proves generation discovers sources instead of special-casing ADR.
+            (root / "commands/probe.md").write_text(
+                '---\ndescription: "Probe command"\n---\nRead the supplied input.\n', encoding="utf-8"
+            )
+            outputs = adapters.expected_outputs(root)
+            command_root = Path("com.github.copilot/commands")
+            canonical = {path.name for path in (root / "commands").glob("*.md")}
+            projected = {path.name for path in outputs if path.parent == command_root}
+            self.assertEqual(canonical, projected)
+            adr = outputs[command_root / "adr.md"].decode("utf-8")
+            # ADR currently needs no addressing rewrite: its full body and metadata must survive.
+            self.assertEqual((root / "commands/adr.md").read_text(encoding="utf-8"), adr)
+            self.assertIn("exactly `software-engineer`", adr)
+            self.assertIn("exclusive create-new operation", adr)
+            self.assertIn("symlink, junction, or reparse point", adr)
+            self.assertIn("disable-model-invocation: true", adr)
+            self.assertNotRegex(adr.split("---", 2)[1], r"(?m)^(?:agent|tools|allowed-tools):")
+            self.assertLess(adr.index("selected-agent preflight"), adr.index("Accepted argument grammar"))
+
+    def test_missing_packaged_command_is_detected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            self._copy_canonical_sources(root)
+            adapters.write_generated_outputs(root)
+            target = root / "com.github.copilot/commands/adr.md"
+            self.assertTrue(target.is_file(), "ADR must be packaged before checking its removal")
+            target.unlink()
+            self.assertEqual(
+                ["com.github.copilot/commands/adr.md: generated output is missing; run adapter generator --write"],
+                adapters.validate_generated_outputs(root),
+            )
+
+    def test_plugin_commands_reject_indirection_before_writing(self) -> None:
+        for relative in ("commands", "commands/adr.md"):
+            with self.subTest(path=relative), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary).resolve()
+                self._copy_canonical_sources(root)
+                sentinel = root / "com.github.copilot/sentinel.txt"
+                sentinel.parent.mkdir()
+                sentinel.write_text("unchanged", encoding="utf-8")
+                real_check = adapters._is_link_or_reparse
+
+                def mark_as_indirection(path: Path) -> bool:
+                    return path == root / relative or real_check(path)
+
+                with mock.patch.object(adapters, "_is_link_or_reparse", side_effect=mark_as_indirection):
+                    with self.assertRaisesRegex(ValueError, "link/reparse point"):
+                        adapters.write_generated_outputs(root)
+                self.assertEqual("unchanged", sentinel.read_text(encoding="utf-8"))
+
+    def test_installed_skill_names_remain_namespaced_and_workspace_names_are_bare(self) -> None:
+        canonical = (ROOT / "skills/pcf-deploy/SKILL.md").read_text(encoding="utf-8")
+        outputs = adapters.expected_outputs(ROOT)
+        workspace = outputs[Path(".github/skills/pcf-deploy/SKILL.md")].decode("utf-8")
+        self.assertIn("/save-toolkit:pcf-deploy", canonical)
+        self.assertNotIn("save-toolkit:pcf-deploy", workspace)
+        self.assertIn("/pcf-deploy", workspace)
 
     def test_each_platform_manifest_is_required(self) -> None:
         manifests = (

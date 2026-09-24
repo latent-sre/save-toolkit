@@ -13,11 +13,13 @@ DDL waiting at normal priority blocks every later request on the table, so bound
   transactions, which is a query kill needing its own approval.
 - Online `ALTER COLUMN` rejects `WAIT_AT_LOW_PRIORITY`. For it, for `ADD` column/constraint, other
   offline DDL, and index builds before 2022, run `SET LOCK_TIMEOUT <ms>` and `SET XACT_ABORT ON` in
-  the migration session, so a lock timeout (error 1222) fails the whole migration instead of leaving
-  its transaction open, then retry with backoff. `LOCK_TIMEOUT` still waits at normal priority, so
-  keep it to seconds.
+  the migration session. Handle lock timeout (error 1222) in the migration tool's error path;
+  roll back any still-open migration transaction and confirm cleanup before retrying with backoff.
+  Do not infer cleanup from `XACT_ABORT` alone; verify the tool's transaction and error behavior.
+  `LOCK_TIMEOUT` still waits at normal priority, so keep it to seconds.
 
-*[sourced: SQL Server `ALTER TABLE`, `CREATE INDEX`, `SET LOCK_TIMEOUT`, and `SET XACT_ABORT`
+*[sourced: SQL Server `ALTER TABLE`, `CREATE INDEX`, `SET LOCK_TIMEOUT`, `SET XACT_ABORT`, and
+[lock-timeout error handling](https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-transaction-locking-and-row-versioning-guide#customize-the-lock-time-out)
 references]*
 
 ## Columns

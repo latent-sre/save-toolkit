@@ -196,10 +196,19 @@ canonical agents and hooks, not the Copilot projection.
 | Copilot (selector) | Root `plugin.json` naming component paths — `agents`, `skills`, `hooks` | Supported, but outranked by `.claude-plugin/plugin.json` |
 
 `generate_platform_adapters.py` requires the 1.0 `$schema`, rejects any other top-level manifest
-key, writes the projected agents to `com.github.copilot/agents/`, and copies
+key, writes the projected agents to `com.github.copilot/agents/`, projects canonical `commands/*.md`
+to `com.github.copilot/commands/`, and copies
 `hooks/copilot-hooks.json` to `com.github.copilot/hooks/hooks.json`. The plugin reads canonical
 `skills/`, so plugin skills keep their `save-toolkit:` names; the `.github/` copies are workspace
 customizations for this repository and keep the bare-name rewrite.
+
+The ADR command projection preserves its manual invocation metadata and selected-agent/write-scope
+preflight; it adds no tool grant or agent selection. Package parity does not prove that preflight
+or argument handling on an installed host. Verify the installed ADR command from a neutral project using
+the repository's `docs/vscode-plugin-acceptance.md` cases. The command directory is
+documented by the [plugin guide](https://code.visualstudio.com/docs/agent-customization/agent-plugins)
+and confirmed in [upstream discovery tests](https://github.com/microsoft/vscode/blob/0857030/src/vs/workbench/contrib/chat/test/common/plugins/agentPluginFormatDetection.test.ts)
+on 2026-09-23; those are documentation/source evidence, not native invocation evidence.
 
 ## Fleet decisions on unused fields
 

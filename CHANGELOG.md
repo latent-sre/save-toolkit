@@ -8,6 +8,14 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- PR review corrections: the operator CLI validates positive bounds, caps plans, stops at the
+  first failed or UNKNOWN item, preserves lock ownership, and keeps interactive prompts off JSON
+  stdout. Its evaluator now rejects invalid dry-run JSON and incorrect operational exit codes.
+- Backend starters preserve a project's selected correlation ID, support an explicit correlation
+  owner and outer CORS wrapper, require nonempty request IDs in both schemas, and exercise the
+  unexpected-error handler ahead of catch-all routes. Replay-only headers have an explicit contract.
+- Agent Plugins 1.0 now packages the canonical ADR command with its preflight intact; generated
+  command completeness is checked. Python examples distinguish 3.10 from 3.11+ APIs.
 - A new `pcf-ops` reference states what each state-changing `cf` command does to serving: `cf scale
   -m/-k/-l`, plain `cf restart`, and plain `cf restage` stop the whole app; `--strategy rolling`
   rolls `web` only; a no-downtime resize is an existing-droplet deployment, never `cf push`. The
@@ -17,8 +25,9 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   `obs-traces`, which had claimed the trigger while forbidding the skill that maps it. Two
   discovery scenarios cover the split.
 - `database-reliability` bounds every migration lock wait: PostgreSQL `lock_timeout` with retry
-  and INVALID-index cleanup; SQL Server `WAIT_AT_LOW_PRIORITY` where allowed, otherwise
-  `LOCK_TIMEOUT` with `XACT_ABORT ON`.
+  and cleanup only of an observed invalid index from the failed build; SQL Server
+  `WAIT_AT_LOW_PRIORITY` where allowed, otherwise `LOCK_TIMEOUT` with `XACT_ABORT ON` and
+  explicit error handling and transaction cleanup before retry.
 - The `ci-actions` PCF production-deploy example runs only when a human dispatches it from `main`,
   and requires a deployment-branch rule on the environment.
 - `agent-authoring` platform facts match the current docs: the listing budget is 1% of the context
@@ -35,8 +44,9 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   (`order-router`), and the restart-classification eval grades a plain whole-app restart off the
   fast path, with ITO approving in the TLC. ITO is spelled out as IT Operations.
 - `runbook`'s template approval banner, which every runbook copies, says in plain terms what Tier 2
-  and Tier 3 mean and who approves: ITO in the TLC during a declared incident, the full production
-  process otherwise. The exemplar is a trading service (`order-router`) that verifies recovery on
+  and Tier 3 mean and who approves: ITO in the TLC during a declared incident, with the shortened
+  checklist limited to eligible actions; all other actions retain the full production process.
+  The exemplar is a trading service (`order-router`) that verifies recovery on
   its SLI rather than p95 and states when a multi-window burn alert clears. The rules demote a wrong
   runbook instead of deleting it, bump `version` on step changes, and move `last_verified` only on a
   passing drill of the stamped version. The Confluence converter reads the page JSON (title,

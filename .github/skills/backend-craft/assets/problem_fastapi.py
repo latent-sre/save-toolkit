@@ -1,13 +1,15 @@
 """One RFC 9457 problem+json shape on a FastAPI app.
 
     from fastapi import FastAPI
+    from starlette.middleware.cors import CORSMiddleware
+    from starlette.types import ASGIApp
     from problem_fastapi import install_problem_handlers, problem_responses
 
-    def create_app() -> FastAPI:
+    def create_app() -> ASGIApp:
         app = FastAPI(responses=problem_responses(400, 422, 500))
         install_problem_handlers(app)
         # Register routes/routers here; add their applicable errors (e.g. 401, 409, 429).
-        return app
+        return CORSMiddleware(app, allow_origins=["https://console.example.internal"])
 
 Choose applicable status codes at app, router, or operation scope using responses=.
 Handlers alone do not update OpenAPI. Configure response metadata before registering routes;
@@ -15,14 +17,19 @@ retain project-specific response descriptions, headers, and schemas when combini
 Use application/problem+json and the protocol-header allowlist below.
 `type` is the contract; `title` is display text that may be reworded or localized, so the type
 comes from a stable slug, never from a caller's title.
-install_problem_handlers also adds RequestIdMiddleware: one id per request from Gorouter's
-X-Vcap-Request-Id on PCF, else X-Request-ID from a validating trusted ingress, else a generated
-uuid4. It lands on request.state.request_id, every problem body, the X-Request-ID response header,
-and log records once RequestIdLogFilter is added to the app's log handlers. An app with its own
-correlation middleware sets request.state.request_id there instead.
-Starlette serves unhandled errors from ServerErrorMiddleware, outside CORSMiddleware: a
-cross-origin browser sees a CORS failure instead of the 500 body unless _unhandled adds the app's
-allowlisted CORS headers.
+install_problem_handlers also adds RequestIdMiddleware. It uses an already selected, validated
+request.state.request_id, else Gorouter's X-Vcap-Request-Id on PCF, else X-Request-ID from a
+validating trusted ingress, else a generated uuid4. The same id reaches request state, problem
+bodies, X-Request-ID response headers, and logs filtered by RequestIdLogFilter.
+Choose one correlation owner. Middleware that only selects the project's id must run OUTSIDE
+RequestIdMiddleware (add it after install_problem_handlers) and must not rewrite it downstream.
+If the project already owns correlation end to end, use install_request_id=False. That owner must
+validate its id against [A-Za-z0-9._:-]{1,128}, set request.state.request_id, bind request_id_var
+with set()/reset(token) in try/finally, and set the X-Request-ID response header. Add
+RequestIdLogFilter to the app's log handlers; exception logging preserves its explicit id.
+For cross-origin clients, wrap the ENTIRE exported app with CORSMiddleware as above, using the
+project's allowlist. app.add_middleware(CORSMiddleware, ...) is inside ServerErrorMiddleware and
+cannot add CORS headers to unhandled 500s. A service without cross-origin clients can return app.
 """
 from __future__ import annotations
 
@@ -83,7 +90,8 @@ _PROBLEM_SCHEMA = {
         "detail": {"type": "string"},
         "instance": {"type": "string"},
         "request_id": {
-            "type": "string", "description": "Correlates this response with the request log line.",
+            "type": "string", "minLength": 1,
+            "description": "Correlates this response with the request log line.",
         },
         "errors": {
             "type": "array",
@@ -97,7 +105,7 @@ _PROBLEM_SCHEMA = {
             },
         },
     },
-    "required": ["type", "title", "status"],
+    "required": ["type", "title", "status", "request_id"],
 }
 
 
@@ -136,14 +144,18 @@ class RequestIdMiddleware:
             await self.app(scope, receive, send)
             return
         headers = Headers(scope=scope)
-        candidates = (headers.get(name, "") for name in _REQUEST_ID_SOURCES)
-        request_id = next((v for v in candidates if _REQUEST_ID_SHAPE.fullmatch(v)), str(uuid4()))
-        scope.setdefault("state", {})["request_id"] = request_id  # request.state.request_id
+        state = scope.setdefault("state", {})
+        candidates = [state.get("request_id"), *(headers.get(name, "") for name in _REQUEST_ID_SOURCES)]
+        request_id = next(
+            (v for v in candidates if isinstance(v, str) and _REQUEST_ID_SHAPE.fullmatch(v)),
+            str(uuid4()),
+        )
+        state["request_id"] = request_id
         token = request_id_var.set(request_id)
 
         async def send_with_id(message: Message) -> None:
             if message["type"] == "http.response.start":
-                MutableHeaders(scope=message).setdefault(REQUEST_ID_HEADER, request_id)
+                MutableHeaders(scope=message)[REQUEST_ID_HEADER] = request_id
             await send(message)
 
         try:
@@ -173,10 +185,10 @@ def problem(
         "detail": detail,
         "instance": request.url.path,
     }
+    body.update(extensions)
     request_id = getattr(request.state, "request_id", None)
     if request_id:
         body["request_id"] = request_id
-    body.update(extensions)
     # Rebuild body metadata; append protocol fields so repeated cookies/challenges survive.
     response = JSONResponse(body, status_code=status, media_type=PROBLEM_MEDIA_TYPE)
     for key, value in (headers or {}).items():
@@ -187,10 +199,10 @@ def problem(
     return response
 
 
-def install_problem_handlers(app: FastAPI) -> None:
-    """Normalize HTTP/validation/unhandled exceptions and add RequestIdMiddleware; configure
-    OpenAPI separately above."""
-    app.add_middleware(RequestIdMiddleware)
+def install_problem_handlers(app: FastAPI, *, install_request_id: bool = True) -> None:
+    """Install handlers and, by default, correlation; see the integration contract above."""
+    if install_request_id:
+        app.add_middleware(RequestIdMiddleware)
 
     @app.exception_handler(StarletteHTTPException)
     async def _http_exception(request: Request, exc: StarletteHTTPException) -> JSONResponse:

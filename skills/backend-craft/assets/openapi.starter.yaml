@@ -55,7 +55,7 @@ paths:
         "201":              # a replay repeats the first completed request's status and body, flagged by the header.
           description: Created, or a replay of the first completed request with this key.
           headers:
-            Idempotent-Replayed: { schema: { type: boolean }, description: "true when this response replays the first completed request for this key." }
+            Idempotent-Replayed: { schema: { type: boolean }, description: "Required with value true on replay; omitted or false on the initial creation. The header is optional across all 201 responses because only replays require it." }
           content: { application/json: { schema: { $ref: "#/components/schemas/Incident" } } }
         "400": { $ref: "#/components/responses/Problem" }
         "401": { $ref: "#/components/responses/Problem" }
@@ -96,7 +96,7 @@ components:
         status: { type: integer }
         detail: { type: string }
         instance: { type: string }
-        request_id: { type: string, description: Correlates this response with the request log line. }
+        request_id: { type: string, minLength: 1, description: Correlates this response with the request log line. }
         errors:             # your extension for field-level validation
           type: array
           items:
@@ -105,7 +105,7 @@ components:
               loc: { type: array, items: { type: string } }
               msg: { type: string }
             required: [loc, msg]
-      required: [type, title, status]
+      required: [type, title, status, request_id]
     Incident:
       type: object
       properties:

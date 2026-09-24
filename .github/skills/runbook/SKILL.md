@@ -42,8 +42,10 @@ the rehearsal `[unverified]`.
 - **Verify and recover** — every state-changing action says how to confirm its effect and undo it,
   or what cannot be undone and how to recover. Mark destructive steps with a warning. Classify
   each state-changing step by `production-change-gate`'s tiers and copy the template's approval
-  banner unchanged: in a declared incident ITO approves the exact command or a bounded envelope in
-  the TLC, and Tier 3 always takes the full gate; otherwise the full gate. The runbook records
+  banner unchanged: only actions eligible under its incident-fast-path checklist use that path.
+  In a declared incident ITO approves the exact command or bounded envelope in the TLC;
+  ineligible actions and Tier 3 retain the full gate. Suspected compromise or integrity loss
+  goes to the human security owner. Outside an incident use the full gate. The runbook records
   approver, time, and rollback or recovery evidence before execution.
 - **Trigger-anchored** — starts from a concrete trigger (this alert/symptom/task), ends at "resolved or
   escalate to <whom>."

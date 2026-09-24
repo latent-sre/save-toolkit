@@ -25,7 +25,11 @@ fixture:
       - `--yes` confirms without a prompt.
       - `--json` prints one JSON object on stdout:
         `{"items": [{"id": "<job id>", "status": "succeeded|failed|unknown|skipped"}]}`.
+        Dry runs use this same schema, with each planned job marked `skipped`.
       - Results go to stdout and diagnostics to stderr.
+      - Exit 0 for complete success or dry run, 1 for operational failure (including UNKNOWN),
+        2 for usage or missing confirmation, and 128+signal for interruption.
+      - Stop scheduling at the first failed or UNKNOWN job; report remaining jobs as `skipped`.
 
       `requeue_failed.py` holds `requeue.lock` in the working directory while it runs.
       `jobs_api.py` is the job service client; tests point it at a local JSON store with

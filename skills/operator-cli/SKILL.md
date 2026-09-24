@@ -76,11 +76,19 @@ Start from the [contract test](./assets/test_cli_contract.py) and the
 and effect seam to the task, and keep every case. Use the repo's test runner at the command
 boundary, against disposable targets or controlled effects:
 
+The reference requires positive `--older-than` minutes and a positive `--max-items` (default 100).
+It refuses an oversized plan before effects, then stops at the first failed or UNKNOWN item and
+reports the remainder as `skipped`. Dry-run JSON uses the same `items` schema, all `skipped`.
+An exclusive local lock protects selection revalidation and apply; an existing or changed owner
+causes refusal. This cooperative lock is scoped to the working directory, not a distributed API lock.
+
 | Case | Evidence needed |
 |---|---|
 | Help and success | Useful usage; documented precedence; machine output parses without diagnostic chatter |
 | Partial failure | Item outcomes preserved; exit 1; no blind replay of successful or UNKNOWN effects |
 | Dry run and non-TTY destructive request | Effect calls stay zero; piped input never confirms; missing confirmation exits 2 promptly |
 | Target set changes before apply | Refused, or apply uses the saved plan |
+| Invalid bounds, oversized plan, first failure/UNKNOWN | Positive bounds required; oversized plan makes no effects; later items stay skipped |
+| Existing, concurrent, or replaced lock | No overlapping apply; another owner's lock remains intact |
 | SIGINT and SIGTERM during work | 130 and 143; owned resources released; completed items reported; unresolved effects UNKNOWN |
 | Reader closes stdout early | No traceback |

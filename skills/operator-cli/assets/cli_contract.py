@@ -8,11 +8,14 @@ effects, confirmation only from a terminal or --yes, one outcome per item, exit 
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 import json
 import os
 import signal
+import stat
 import sys
 from pathlib import Path
+from uuid import uuid4
 
 import orders_client  # effect seam: list_stale(minutes), cancel(order_id), status(order_id), OrderError
 
@@ -36,6 +39,71 @@ def _stop(signum, frame):
     raise Stopped(signum)
 
 
+@contextmanager
+def defer_stop():
+    """Finish a short local lock transition before unwinding; a second signal still stops now."""
+    pending = []
+
+    def defer(signum, frame):
+        pending.append(signum)
+        signal.signal(signum, signal.SIG_DFL)
+
+    previous = {}
+    for signum in (signal.SIGINT, signal.SIGTERM):
+        if signal.getsignal(signum) is _stop:
+            previous[signum] = signal.signal(signum, defer)
+    try:
+        yield
+    finally:
+        for signum, handler in previous.items():
+            if signum not in pending:
+                signal.signal(signum, handler)
+        if pending:
+            raise Stopped(pending[0])
+
+
+@contextmanager
+def owned_lock():
+    """Exclusive cooperative lock; never remove a file another run put in its place."""
+    owner = f"{os.getpid()}:{uuid4().hex}"
+    identity = None
+    written = False
+
+    def check_owner():
+        current = LOCK.lstat()
+        if (not stat.S_ISREG(current.st_mode) or (current.st_dev, current.st_ino) != identity
+                or (written and LOCK.read_text(encoding="utf-8") != owner)):
+            raise OSError(f"{LOCK}: ownership changed; stop and inspect the lock before re-running")
+
+    try:
+        with defer_stop():
+            with LOCK.open("x", encoding="utf-8") as stream:
+                info = os.fstat(stream.fileno())
+                identity = (info.st_dev, info.st_ino)
+                stream.write(owner)
+                stream.flush()
+                written = True
+        yield check_owner
+    finally:
+        if identity is not None:
+            interrupted = isinstance(sys.exc_info()[1], Stopped)
+            try:
+                with defer_stop():
+                    check_owner()
+                    LOCK.unlink()
+            except OSError as exc:
+                if not interrupted:
+                    raise
+                print(f"error: cleanup: {exc}", file=sys.stderr)
+
+
+def positive_int(value: str) -> int:
+    number = int(value)
+    if number <= 0:
+        raise argparse.ArgumentTypeError("must be greater than zero")
+    return number
+
+
 def parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Cancel open orders older than a threshold.",
@@ -43,7 +111,10 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
                "2 usage or missing confirmation; 130/143 interrupted. "
                "Example: cancel_stale_orders --older-than 30 --dry-run",
     )
-    parser.add_argument("--older-than", type=int, default=30, metavar="MINUTES")
+    parser.add_argument("--older-than", type=positive_int, default=30, metavar="MINUTES",
+                        help="age threshold greater than zero (default: 30 minutes)")
+    parser.add_argument("--max-items", type=positive_int, default=100,
+                        help="refuse plans above this positive cap (default: 100); stop on the first failed or unknown item")
     parser.add_argument("--dry-run", action="store_true", help="show the orders; cancel nothing")
     parser.add_argument("--yes", action="store_true", help="confirm without a prompt")
     parser.add_argument("--no-input", action="store_true", help="never prompt")
@@ -75,37 +146,48 @@ def report(items: list[dict], args: argparse.Namespace) -> None:
 
 
 def run(args: argparse.Namespace) -> int:
-    plan = orders_client.list_stale(args.older_than)
+    plan = sorted(set(orders_client.list_stale(args.older_than)))
+    items = [{"id": order_id, "status": "skipped"} for order_id in plan]
+    if len(plan) > args.max_items:
+        print(f"error: {len(plan)} orders exceeds --max-items {args.max_items}; narrow the selection or review a larger cap",
+              file=sys.stderr)
+        report(items, args)
+        return EXIT_FAILED
     if args.dry_run:
-        if args.json:
-            print(json.dumps({"plan": plan}))
-        else:
-            print("\n".join(plan))
-        sys.stdout.flush()
+        report(items, args)
         return EXIT_OK
     if not args.yes:
         if args.no_input or not sys.stdin.isatty():
             print("error: confirmation required: pass --yes or run on a terminal", file=sys.stderr)
             return EXIT_USAGE
         print("\n".join(plan), file=sys.stderr)
-        if input(f"Cancel these {len(plan)} orders? [y/N] ").strip().lower() != "y":
+        print(f"Cancel these {len(plan)} orders? [y/N] ", end="", file=sys.stderr, flush=True)
+        if input().strip().lower() != "y":
             return EXIT_USAGE
-        if orders_client.list_stale(args.older_than) != plan:
-            print("error: the stale set changed after it was shown; re-run to review it", file=sys.stderr)
-            return EXIT_FAILED
-    items = [{"id": order_id, "status": "skipped"} for order_id in plan]
-    LOCK.write_text(str(os.getpid()), encoding="utf-8")
+    code = EXIT_OK
     try:
-        for item in items:
-            item["status"] = "unknown"  # in flight until the call returns
-            item["status"] = cancel_one(item["id"])
+        with owned_lock() as check_owner:
+            if sorted(set(orders_client.list_stale(args.older_than))) != plan:
+                print("error: the stale set changed after selection; re-run to review it", file=sys.stderr)
+                code = EXIT_FAILED
+            else:
+                for item in items:
+                    check_owner()
+                    item["status"] = "unknown"  # in flight until the call returns
+                    item["status"] = cancel_one(item["id"])
+                    if item["status"] != "succeeded":
+                        code = EXIT_FAILED
+                        break
     except Stopped as stop:
-        report(items, args)
-        return 128 + stop.signum
-    finally:
-        LOCK.unlink(missing_ok=True)
+        code = 128 + stop.signum
+    except FileExistsError:
+        print(f"error: {LOCK} already exists; check the owning run before retrying", file=sys.stderr)
+        code = EXIT_FAILED
+    except OSError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        code = EXIT_FAILED
     report(items, args)
-    return EXIT_OK if all(item["status"] == "succeeded" for item in items) else EXIT_FAILED
+    return code
 
 
 def main(argv: list[str] | None = None) -> int:
