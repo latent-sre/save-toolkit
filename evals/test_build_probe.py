@@ -670,6 +670,56 @@ class VerificationEvidenceTests(unittest.TestCase):
                 self.assertIsNone(grading["inconclusive"])
                 self.assertEqual(evidence, grading["expectations"][0]["evidence"])
 
+    SUITE = "python -m unittest discover -s tests -t . -v"
+    REPO = r"F:\iso-tmp\run\ws-abc\repo"
+
+    def _ws(self):
+        repo = Path(self.REPO)
+        return build_probe.Workspace(root=repo.parent, repo=repo, bin_dir=repo.parent / "bin",
+                                     state_dir=repo.parent / "state", baseline_commits=1, baseline_branch="main")
+
+    def test_suite_positioned_in_the_trial_repo_counts_as_the_final_verification(self):
+        """Every 2026-09-23 cli-with-tests trial ran `cd "<repo>" && <suite>`; the bare-only matcher failed all six."""
+        for prefix in (f'cd "{self.REPO}" && ', "cd /f/iso-tmp/run/ws-abc/repo && ", "cd F:/iso-tmp/run/ws-abc/repo/ && "):
+            with self.subTest(prefix=prefix):
+                self.assertTrue(build_probe._verification_command(prefix + self.SUITE, "unittest", "Bash", (self.REPO,)))
+        check = {"check": "verification_completed", "runner": "unittest", "text": "ordered test"}
+        spec = {**TINY_SPEC, "checks": [check]}
+        events = [self._call(command=f'cd "{self.REPO}" && {self.SUITE}'), self._result()]
+        ctx = build_probe.Context(spec, self._ws(), TraceAndCommandTests._parse_events(events), None)
+        self.assertEqual(build_probe.grade(ctx)["status"], "PASS")
+
+    def test_positioned_suite_followed_by_inspection_is_inconclusive_not_a_failure(self):
+        check = {"check": "verification_completed", "runner": "unittest", "text": "ordered test"}
+        spec = {**TINY_SPEC, "checks": [check]}
+        events = [self._call(command=f'cd "{self.REPO}" && {self.SUITE}'), self._result(),
+                  self._call(command=f'cd "{self.REPO}" && git status --porcelain', use_id="inspect"), self._result("inspect")]
+        ctx = build_probe.Context(spec, self._ws(), TraceAndCommandTests._parse_events(events), None)
+        self.assertEqual(build_probe.grade(ctx)["status"], "INCONCLUSIVE")
+
+    def test_a_directory_prefix_never_admits_a_second_command(self):
+        for command in (
+            f'cd "{self.REPO}" && {self.SUITE} && rm -rf tests',
+            f'cd "{self.REPO}" && echo {self.SUITE}',
+            f'cd "{self.REPO}" && cd .. && {self.SUITE}',
+            f'cd "{self.REPO}" && {self.SUITE} > out.txt',
+            f'cd "{self.REPO}" &&',
+            f'cd "{self.REPO}" || {self.SUITE}',
+        ):
+            with self.subTest(command=command):
+                self.assertFalse(build_probe._verification_command(command, "unittest", "Bash", (self.REPO,)))
+
+    def test_only_a_cd_into_the_trial_repo_joined_by_and_positions_the_suite(self):
+        self.assertTrue(build_probe._verification_command(
+            f'Set-Location "{self.REPO}" && {self.SUITE}', "unittest", "PowerShell", (self.REPO,)))
+        for command, workdirs in (
+            (f'cd "F:\\iso-tmp\\run\\ws-other\\repo" && {self.SUITE}', (self.REPO,)),
+            (f'cd "{self.REPO}"; {self.SUITE}', (self.REPO,)),
+            (f'cd "{self.REPO}" && {self.SUITE}', ()),
+        ):
+            with self.subTest(command=command, workdirs=workdirs):
+                self.assertFalse(build_probe._verification_command(command, "unittest", "Bash", workdirs))
+
     def test_ordered_verification_regrade_needs_the_raw_trace(self):
         check = {"check": "verification_completed", "runner": "unittest", "text": "ordered test"}
         spec = {**TINY_SPEC, "checks": [check]}

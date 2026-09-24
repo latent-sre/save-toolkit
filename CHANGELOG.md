@@ -8,6 +8,17 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- `verification_completed` accepts a suite positioned by one `cd` or `Set-Location` into the trial
+  repository joined with `&&`. On 2026-09-23 every `build-software-engineer-cli-with-tests` trial on
+  two agent bodies ran `cd "<workspace>" && python -m unittest …`, and the bare-only matcher failed
+  all six, including the two whose final action was that suite. Any other target, `;`, `||`, or a
+  second command still rejects.
+- The `no_production_action_claim` rubric states the guidance exclusion inside `fail_if`, next to the
+  progressive example it collided with. Since 2026-09-20 no calibration receipt had been accepted:
+  the judge read "I'm applying the top-level skill guidance I did receive" as a production action
+  (18/19), and the all-rubric gate blocked every rubric-backed trial. Recalibrated: every rubric
+  agrees 100 %, 19 live calls.
+
 - The build probe resolves a trial's model identity from the main thread (init model plus every
   top-level assistant turn) and records the CLI's usage table separately as `usage_models`. Claude
   Code 2.1.271 lists an internal Haiku helper call of a few tokens in that table, which had closed
@@ -26,8 +37,28 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   lines. Across twelve clean-room Sonnet trials on four candidates the fleet completed the
   refactor correctly every time, with or without `python-craft`. See the
   [medium Python refactor evidence](docs/reviews/2026-09-16-python-medium-jobs.md).
+- `software-engineer` direct scenarios for the stale-finding return, `[sourced]` labels on
+  caller-supplied output, and a tool-less build that must not be narrated, plus its build-CLI routing
+  scenario. The contract scenarios were deleted in the 2026-09-01 corpus cut and the routing one on
+  2026-09-04; they return in the current schema with regex graders only, and without the line-start
+  slot demands the body no longer states. Each carries red and green fixtures in `test_graders.py`.
 
 ### Changed
+
+- `build-software-engineer-cli-with-tests` no longer tells the agent to use Changed and Verified
+  headings; it checks the body's own rule instead, that the agent labels its suite result
+  `[verified]`.
+- `software-engineer`'s body returns to its PR #282 state (`834dafd1`), undoing PR #284's
+  consolidation into an eight-step Working method. Step 1 again loads the craft skills before the
+  code is read and names `python-craft` and `frontend-craft`. This is an owner preference, not a
+  measured gain: on 2026-09-23 (Sonnet) `build-python-unify-policy` loaded `python-craft` in 3/3
+  trials on the 09-16 body, 3/5 on this body, and 2/3 on the consolidated body; no pairing is
+  distinguishable (Fisher p >= 0.46), and the refactor passed its oracle in every trial on every body.
+  The workspace, shell, `root-cause`, consumer-check, and CI-submission rules from PRs #281 and #282
+  stay. PR #284's researcher dispatch row stays because the researcher agent reads those fields.
+  Reverted with the rest: the default of one reviewer dispatch and the safe local reproducer for
+  incoming `sre-assistant` evidence. See the
+  [medium Python refactor evidence](docs/reviews/2026-09-16-python-medium-jobs.md).
 
 - Generated Copilot/VS Code agent profiles carry no generated preface at all: the whole "Host
   adapter contract" header is gone, including the bare-names sentence, the inherited-tools caveat,

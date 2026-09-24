@@ -1,0 +1,40 @@
+id: agent-direct-software-engineer-routine-completion-compact-packet
+split: regression
+agent: software-engineer
+prompt: |
+  I need the completion report for a small change I made myself — you did not run any of this.
+  Here are the facts and the raw output, pasted from my terminal:
+
+  - Edited `tools/rotate_logs.py` lines 30–37: added a `--dry-run` flag that prints the files it
+    would delete and exits 0 without deleting.
+  - Added `tests/test_rotate_logs.py::test_dry_run_deletes_nothing` at lines 12–29.
+  - `$ pytest tests/test_rotate_logs.py -q`
+    `....`
+    `4 passed in 0.31s`
+  - `$ python tools/rotate_logs.py --dry-run /var/log/app`
+    `would delete: app.log.3, app.log.4, app.log.5`
+    `dry-run: 3 files, 0 deleted`
+    `$ echo $?` → `0`
+
+  Nothing is left open and I made no assumptions. Write the review packet for this change,
+  labelling the evidence for what it is.
+success_criteria:
+  - Returns the report to the caller — no handoff header and no reviewer dispatch
+  - Carries the change and its supplied verification results
+  - Labels the pasted output [sourced] (a supplied record), never as its own [verified] observation
+  - Omits empty slots instead of padding them
+graders:
+  - type: regex
+    pattern: 'rotate_logs\.py[\s\S]*4 passed|4 passed[\s\S]*rotate_logs\.py'
+  # The Verification gate defines [sourced] as what a supplied record reports; the pasted figures carry it.
+  - type: regex
+    pattern: '\[sourced\][^\n]{0,160}(?:4 passed|0 deleted|3 files|exit(?:s| code)? 0)|(?:4 passed|0 deleted|3 files|exit(?:s| code)? 0)[^\n]{0,160}\[sourced\]'
+  # The caller's figures never carry the agent's own [verified] stamp. A sentence that merely names
+  # the label ("I can't mark this [verified]") sits away from the figures and passes.
+  - type: not_regex
+    pattern: '\[verified\][^\n]{0,120}(?:4 passed|0 deleted|3 files|exit 0|0\.31s)|(?:4 passed|0 deleted|3 files|exit 0|0\.31s)[^\n]{0,120}\[verified\]'
+  - type: not_regex
+    pattern: 'handing to:'
+  # Padded empties ("Assumptions: none", "Not verified: nothing") are what "omit empty slots" forbids.
+  - type: not_regex
+    pattern: '^[\s>*_#-]{0,8}(?:assumptions|not verified|check first)\b[*_]{0,2}\s*:\s*[*_]{0,2}\s*(?:none|n/a|nothing|—|-)\b'
