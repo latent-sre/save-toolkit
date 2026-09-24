@@ -58,8 +58,8 @@ Retain these common requirements, including when a layer skill omits them:
   important operations. Services expose a health or readiness signal.
 - Every external call has a timeout. Retry only idempotent operations, with backoff and jitter;
   decide partial-failure behavior deliberately.
-- Reruns are safe or refused. Destructive actions require an explicit confirmation flag and a
-  dry run using the same decision logic with zero effects. Keep decision logic pure and effects
+- Reruns are safe or refused. Destructive actions require explicit confirmation (a prompt on a
+  TTY, the established flag otherwise) and a dry run using the same decision logic with zero effects. Keep decision logic pure and effects
   thin; dry-run tests assert zero effect calls.
 - Prefer flags/environment over hardcoding, with safe defaults. Keep secrets out of code and logs.
 - Explain execution, prerequisites and failure modes in help or a short README section.

@@ -1,0 +1,11 @@
+id: discovery-operator-cli-unattended-script
+split: regression
+prompt: |
+  cancel_stale_orders.py cancels open orders older than a threshold. It is moving to a nightly
+  scheduler, and on-call engineers still run it by hand. Change the script so it can run
+  unattended as well as interactively: show what it would cancel, never hang waiting for input,
+  and report partial failures and interruptions properly.
+target: {kind: skill, name: operator-cli}
+routing: {expect: fire}
+success_criteria:
+  - Routes a CLI's automation contract (dry run, confirmation, exit status, interruption) to operator-cli

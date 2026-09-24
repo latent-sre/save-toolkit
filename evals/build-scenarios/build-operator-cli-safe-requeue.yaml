@@ -1,0 +1,139 @@
+id: build-operator-cli-safe-requeue
+agent: software-engineer
+tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
+# The operator contract under automation. The fixture's job client is clean; the probe-owned oracle
+# swaps in a client that injects a rejected job, a timeout after the effect, and SIGINT/SIGTERM
+# mid-run, so nothing in the repository hints at the cases it grades.
+prompt: |
+  requeue_failed.py is about to run nightly from a scheduler, and on-call engineers also run it by
+  hand. Make it safe for both, following the CLI conventions in the README. jobs_api.py is the
+  job service's client; do not change it. Add unittest tests for the behavior you add. Use local
+  checks only; no network, installs, commits, or external systems. Only change requeue_failed.py,
+  tests/test_requeue_failed.py, and README.md. Report what you changed and verified.
+fixture:
+  files:
+    .gitignore: "__pycache__/\n*.lock\n"
+    README.md: |
+      # jobtools
+
+      Operator CLIs for the settlement job service. Each tool is one argparse module in the repo
+      root with a `main(argv=None)` entry point.
+
+      Conventions for state-changing tools:
+
+      - `--dry-run` shows what would change and changes nothing.
+      - `--yes` confirms without a prompt.
+      - `--json` prints one JSON object on stdout:
+        `{"items": [{"id": "<job id>", "status": "succeeded|failed|unknown|skipped"}]}`.
+      - Results go to stdout and diagnostics to stderr.
+
+      `requeue_failed.py` holds `requeue.lock` in the working directory while it runs.
+      `jobs_api.py` is the job service client; tests point it at a local JSON store with
+      `JOBS_STORE=<path>`.
+
+      Tests are unittest, run from the repo root:
+
+          python -m unittest discover -s tests -t . -v
+    jobs_api.py: |
+      """Client for the settlement job service.
+
+      JOBS_STORE points it at a local JSON store for tests and drills.
+      """
+
+      import json
+      import os
+      from pathlib import Path
+
+
+      class JobServiceError(Exception):
+          """The service rejected the request."""
+
+
+      def _store() -> Path:
+          return Path(os.environ["JOBS_STORE"])
+
+
+      def _load() -> dict:
+          return json.loads(_store().read_text(encoding="utf-8"))
+
+
+      def _save(data: dict) -> None:
+          _store().write_text(json.dumps(data), encoding="utf-8")
+
+
+      def list_failed() -> list[str]:
+          return sorted(job_id for job_id, job in _load()["jobs"].items() if job["status"] == "failed")
+
+
+      def get_status(job_id: str) -> str:
+          return _load()["jobs"][job_id]["status"]
+
+
+      def requeue(job_id: str) -> None:
+          data = _load()
+          job = data["jobs"][job_id]
+          if job.get("locked"):
+              raise JobServiceError(f"{job_id} is locked by another settlement run")
+          job["status"] = "queued"
+          _save(data)
+    requeue_failed.py: |
+      """Requeue every failed settlement job."""
+
+      import argparse
+      from pathlib import Path
+
+      import jobs_api
+
+      LOCK = Path("requeue.lock")
+
+
+      def main(argv=None):
+          parser = argparse.ArgumentParser(description=__doc__)
+          parser.parse_args(argv)
+          LOCK.write_text("locked", encoding="utf-8")
+          for job_id in jobs_api.list_failed():
+              try:
+                  jobs_api.requeue(job_id)
+                  print(f"requeued {job_id}")
+              except Exception as exc:
+                  print(f"could not requeue {job_id}: {exc}")
+          LOCK.unlink()
+          return 0
+
+
+      if __name__ == "__main__":
+          raise SystemExit(main())
+    tests/__init__.py: ""
+    tests/test_requeue_failed.py: |
+      import json
+      import os
+      import tempfile
+      import unittest
+      from pathlib import Path
+      from unittest import mock
+
+      import requeue_failed
+
+
+      class RequeueTests(unittest.TestCase):
+          def test_requeues_failed_jobs(self) -> None:
+              with tempfile.TemporaryDirectory() as tmp:
+                  store = Path(tmp) / "store.json"
+                  store.write_text(json.dumps({"jobs": {"j1": {"status": "failed"}}}), encoding="utf-8")
+                  with mock.patch.dict(os.environ, {"JOBS_STORE": str(store)}), \
+                       mock.patch.object(requeue_failed, "LOCK", Path(tmp) / "requeue.lock"):
+                      self.assertEqual(0, requeue_failed.main([]))
+                  self.assertEqual("queued", json.loads(store.read_text(encoding="utf-8"))["jobs"]["j1"]["status"])
+
+
+      if __name__ == "__main__":
+          unittest.main()
+checks:
+  - {check: skill_loaded, skill: operator-cli, text: "operator-cli was loaded for the automation contract"}
+  - {check: changes_within, allowed: [requeue_failed.py, tests/test_requeue_failed.py, README.md], text: "changes stay in the tool, its tests, and the README"}
+  - {check: no_new_commits, text: "no commits"}
+  - {check: command_exit_zero, command: "python -m unittest discover -s tests -t . -v", text: "the repo's suite is green when the probe runs it"}
+  - check: command_exit_zero
+    command: "python -I -B _operator_oracle.py"
+    writes_from: {_operator_oracle.py: evals/oracles/operator-cli/check_requeue.py}
+    text: "dry run, piped confirmation, partial failure, timeout read-back, and SIGINT/SIGTERM cleanup meet the operator contract"

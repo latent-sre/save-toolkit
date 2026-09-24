@@ -97,6 +97,15 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   action-pinning policy (SHAs when none exists), keeps existing runner labels, adds a `gh run list`
   timing recipe and a caller for the reusable starter, routes live outages to
   `incident-investigation`, and moves the wheel-release check to the security reference.
+- `operator-cli` has a default exit-code table (0/1/2/128+N), defines `skipped` (never attempted)
+  against `failed`, handles SIGINT and SIGTERM with cleanup and a report (Python handles only SIGINT
+  by default), prompts only when stdin is a TTY and never takes confirmation from a pipe, ends
+  quietly when stdout closes, binds confirmation to the set shown, batches bulk effects, writes a
+  per-run receipt, and maps dry run and confirmation onto PowerShell's `-WhatIf`/`ConfirmImpact`.
+  A copyable contract test and reference command ship in `assets/` and run in CI.
+  `software-engineer`'s fallback now allows a TTY prompt as confirmation. A new build probe,
+  `build-operator-cli-safe-requeue`, whose oracle injects a rejected job, a timeout after the
+  effect, and SIGINT/SIGTERM mid-run, scored 0/3 on the previous skill and 3/3 on this one.
 - The build probe resolves a trial's model identity from the main thread (init model plus every
   top-level assistant turn) and records the CLI's usage table separately as `usage_models`. Claude
   Code 2.1.271 lists an internal Haiku helper call of a few tokens in that table, which had closed
