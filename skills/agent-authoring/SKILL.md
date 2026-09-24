@@ -136,7 +136,7 @@ authorizes a self-modifying loop.
 | Delegation | Canonical Claude uses `Agent(target, …)`: an ungranted main-thread edge does not exist, while depth is documented intent. Generated VS Code profiles use `agent` plus `agents:` for model calls and a separately pinned `handoffs:` graph for human-selected ownership changes; enforcement is build-specific and tracked under `RELEASE-001` |
 | Agent keys that do nothing in a plugin | `hooks`, `mcpServers`, `permissionMode`, `initialPrompt` — the read-only Bash guard lives once in `hooks/hooks.json`, scoped to the exact `agent_type` |
 | Skill frontmatter this fleet uses | `name`, `description`, `argument-hint`, `disable-model-invocation`, `compatibility`; depth in `references/`, `assets/`, `scripts/`, each linked from the body |
-| Invocation | Claude calls a plugin skill through its namespace (`/save-toolkit:pcf-deploy`); Copilot shows plugin skills by bare name `[unverified under Agent Plugins 1.0]`, and the generator rewrites fleet names to bare forms in projected agents and the `.github/` workspace copies |
+| Invocation | Explicit commands for installed Claude and Copilot plugin skills use the plugin-name prefix; bare commands belong to workspace skills ([Copilot details](./references/copilot-frontmatter.md)). The generator rewrites fleet references in projected agents and the `.github/` workspace copies; native plugin acceptance remains unverified |
 
 ## Promotion and composition
 

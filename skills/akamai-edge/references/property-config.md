@@ -58,8 +58,11 @@ and verification *[sourced: techdocs.akamai.com/purge-cache/docs/purge-methods;
 | Scope | Narrowest that covers the change: URL, then cache tag, then CP code (ARL also exists) | A wide scope revalidates everything under it at once — state the expected origin load |
 | Network | `staging` to rehearse; `production` (the API default) for users | A production purge has no undo; origin refetches the content |
 
-Never delete during an origin brownout: it removes the stale copies users are being served
-(`TCP_REFRESH_FAIL_HIT`). Verify with a debug request; inferred from the X-Cache definitions
+During an origin brownout, avoid deletion while serving stale content remains acceptable: it
+removes the available copies (`TCP_REFRESH_FAIL_HIT`). If content must no longer be served, give
+the responsible human/security owner a narrowly scoped deletion for approval through the change
+gate, with the availability consequence explicit; invalidation can keep serving that content.
+Verify with a debug request; inferred from the X-Cache definitions
 `[unverified]`: after invalidate, a server that held the object answers `TCP_REFRESH_HIT` or
 `TCP_REFRESH_MISS`; after delete, `TCP_MISS`.
 

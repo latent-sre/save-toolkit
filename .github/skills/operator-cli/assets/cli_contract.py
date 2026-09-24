@@ -146,46 +146,48 @@ def report(items: list[dict], args: argparse.Namespace) -> None:
 
 
 def run(args: argparse.Namespace) -> int:
-    plan = sorted(set(orders_client.list_stale(args.older_than)))
-    items = [{"id": order_id, "status": "skipped"} for order_id in plan]
-    if len(plan) > args.max_items:
-        print(f"error: {len(plan)} orders exceeds --max-items {args.max_items}; narrow the selection or review a larger cap",
-              file=sys.stderr)
-        report(items, args)
-        return EXIT_FAILED
-    if args.dry_run:
-        report(items, args)
-        return EXIT_OK
-    if not args.yes:
-        if args.no_input or not sys.stdin.isatty():
-            print("error: confirmation required: pass --yes or run on a terminal", file=sys.stderr)
-            return EXIT_USAGE
-        print("\n".join(plan), file=sys.stderr)
-        print(f"Cancel these {len(plan)} orders? [y/N] ", end="", file=sys.stderr, flush=True)
-        if input().strip().lower() != "y":
-            return EXIT_USAGE
+    items = []
+    plan_known = False
     code = EXIT_OK
     try:
-        with owned_lock() as check_owner:
-            if sorted(set(orders_client.list_stale(args.older_than))) != plan:
-                print("error: the stale set changed after selection; re-run to review it", file=sys.stderr)
-                code = EXIT_FAILED
-            else:
-                for item in items:
-                    check_owner()
-                    item["status"] = "unknown"  # in flight until the call returns
-                    item["status"] = cancel_one(item["id"])
-                    if item["status"] != "succeeded":
-                        code = EXIT_FAILED
-                        break
+        plan = sorted(set(orders_client.list_stale(args.older_than)))
+        items = [{"id": order_id, "status": "skipped"} for order_id in plan]
+        plan_known = True
+        if len(plan) > args.max_items:
+            print(f"error: {len(plan)} orders exceeds --max-items {args.max_items}; narrow the selection or review a larger cap",
+                  file=sys.stderr)
+            code = EXIT_FAILED
+        elif not args.dry_run:
+            if not args.yes:
+                if args.no_input or not sys.stdin.isatty():
+                    print("error: confirmation required: pass --yes or run on a terminal", file=sys.stderr)
+                    return EXIT_USAGE
+                print("\n".join(plan), file=sys.stderr)
+                print(f"Cancel these {len(plan)} orders? [y/N] ", end="", file=sys.stderr, flush=True)
+                if input().strip().lower() != "y":
+                    return EXIT_USAGE
+            with owned_lock() as check_owner:
+                if sorted(set(orders_client.list_stale(args.older_than))) != plan:
+                    print("error: the stale set changed after selection; re-run to review it", file=sys.stderr)
+                    code = EXIT_FAILED
+                else:
+                    for item in items:
+                        check_owner()
+                        item["status"] = "unknown"  # in flight until the call returns
+                        item["status"] = cancel_one(item["id"])
+                        if item["status"] != "succeeded":
+                            code = EXIT_FAILED
+                            break
     except Stopped as stop:
         code = 128 + stop.signum
     except FileExistsError:
         print(f"error: {LOCK} already exists; check the owning run before retrying", file=sys.stderr)
         code = EXIT_FAILED
-    except OSError as exc:
+    except (orders_client.OrderError, OSError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         code = EXIT_FAILED
+    if not plan_known:
+        print("error: plan unavailable; no targets attempted; re-run to select and review targets", file=sys.stderr)
     report(items, args)
     return code
 

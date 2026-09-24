@@ -9,7 +9,16 @@
         app = FastAPI(responses=problem_responses(400, 422, 500))
         install_problem_handlers(app)
         # Register routes/routers here; add their applicable errors (e.g. 401, 409, 429).
-        return CORSMiddleware(app, allow_origins=["https://console.example.internal"])
+        return CORSMiddleware(
+            app,
+            allow_origins=["https://console.example.internal"],
+            allow_methods=["GET", "POST"],
+            allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "X-Request-ID"],
+            expose_headers=[
+                "X-Request-ID", "Retry-After", "Idempotent-Replayed",
+                "X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset",
+            ],
+        )
 
 Choose applicable status codes at app, router, or operation scope using responses=.
 Handlers alone do not update OpenAPI. Configure response metadata before registering routes;
@@ -28,7 +37,10 @@ validate its id against [A-Za-z0-9._:-]{1,128}, set request.state.request_id, bi
 with set()/reset(token) in try/finally, and set the X-Request-ID response header. Add
 RequestIdLogFilter to the app's log handlers; exception logging preserves its explicit id.
 For cross-origin clients, wrap the ENTIRE exported app with CORSMiddleware as above, using the
-project's allowlist. app.add_middleware(CORSMiddleware, ...) is inside ServerErrorMiddleware and
+project's allowlist. The example permits the paired OpenAPI starter's bearer-authenticated GET and
+JSON POST with Idempotency-Key, and exposes its correlation, replay, and rate-limit response headers
+to browser code. Adapt methods and headers to the project's contract.
+app.add_middleware(CORSMiddleware, ...) is inside ServerErrorMiddleware and
 cannot add CORS headers to unhandled 500s. A service without cross-origin clients can return app.
 """
 from __future__ import annotations

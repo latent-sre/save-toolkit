@@ -47,6 +47,16 @@ def list_stale(minutes):
     checks = data.setdefault("selection_locks", [])
     checks.append(Path("cancel_stale_orders.lock").exists())
     _save(data)
+    if len(checks) == int(os.environ.get("CLI_LOOKUP_NUMBER", "1")):
+        fault = os.environ.get("CLI_LOOKUP_FAULT")
+        if fault in ("SIGINT", "SIGTERM"):
+            signal.raise_signal(getattr(signal, fault))
+        if fault == "TimeoutError":
+            raise TimeoutError("order lookup timed out")
+        if fault == "OrderError":
+            raise OrderError("order lookup rejected")
+        if fault == "TypeError":
+            raise TypeError("programming bug in order lookup")
     plan = sorted(o for o, v in data["orders"].items() if v["state"] == "open" and v["age"] >= minutes)
     if len(checks) > 1 and os.environ.get("SECOND_PLAN") == "changed":
         return plan + ["new-order"]
@@ -113,9 +123,17 @@ class OperatorContractTests(unittest.TestCase):
                     **extra: str) -> subprocess.CompletedProcess:
         command = [sys.executable, "-B", "command.py", *args]
         if tty:
-            command = [sys.executable, "-B", "-c",
-                       "import runpy,sys; sys.stdin.isatty=lambda: True; "
-                       "sys.argv[0]='command.py'; runpy.run_path('command.py',run_name='__main__')", *args]
+            wrapper = '''
+import builtins, os, runpy, signal, sys
+sys.stdin.isatty = lambda: True
+if os.environ.get("CLI_PROMPT_SIGNAL"):
+    def interrupted_input():
+        signal.raise_signal(getattr(signal, os.environ["CLI_PROMPT_SIGNAL"]))
+    builtins.input = interrupted_input
+sys.argv[0] = "command.py"
+runpy.run_path("command.py", run_name="__main__")
+'''
+            command = [sys.executable, "-B", "-c", wrapper, *args]
         return subprocess.run(command, cwd=self.work, env=self.environment(**extra), input=stdin or "",
                               capture_output=True, text=True, timeout=30)
 
@@ -277,6 +295,52 @@ class OperatorContractTests(unittest.TestCase):
                 self.assertEqual(["o1", "o2"], self.calls())
                 self.assertFalse((self.work / LOCK).exists())
                 self.assertEqual({"o1": "succeeded", "o2": "unknown", "o3": "skipped"}, self.outcomes(result))
+
+    def test_signals_before_apply_report_the_known_plan_and_make_no_effects(self) -> None:
+        for signame, code in (("SIGINT", 130), ("SIGTERM", 143)):
+            for phase in ("selection", "prompt", "recheck"):
+                with self.subTest(signal=signame, phase=phase):
+                    self.store()
+                    if phase == "prompt":
+                        result = self.run_command("--json", tty=True, CLI_PROMPT_SIGNAL=signame)
+                    else:
+                        result = self.run_command("--yes", "--json", CLI_LOOKUP_FAULT=signame,
+                                                  CLI_LOOKUP_NUMBER="2" if phase == "recheck" else "1")
+                    self.assertEqual(code, result.returncode, result.stderr)
+                    expected = {} if phase == "selection" else {"o1": "skipped", "o2": "skipped", "o3": "skipped"}
+                    self.assertEqual(expected, self.outcomes(result))
+                    self.assertEqual([], self.calls())
+                    self.assertFalse((self.work / LOCK).exists())
+                    self.assertNotIn("Traceback", result.stderr)
+                    if phase == "selection":
+                        self.assertIn("plan unavailable", result.stderr)
+
+    def test_lookup_failures_report_skipped_or_unavailable_plan_without_traceback(self) -> None:
+        for number in ("1", "2"):
+            for fault in ("TimeoutError", "OrderError"):
+                with self.subTest(lookup=number, fault=fault):
+                    self.store()
+                    result = self.run_command("--yes", "--json", CLI_LOOKUP_NUMBER=number, CLI_LOOKUP_FAULT=fault)
+                    self.assertEqual(1, result.returncode, result.stderr)
+                    expected = {} if number == "1" else {"o1": "skipped", "o2": "skipped", "o3": "skipped"}
+                    self.assertEqual(expected, self.outcomes(result))
+                    self.assertEqual([], self.calls())
+                    self.assertFalse((self.work / LOCK).exists())
+                    self.assertIn("order lookup", result.stderr)
+                    self.assertNotIn("Traceback", result.stderr)
+                    if number == "1":
+                        self.assertIn("plan unavailable", result.stderr)
+
+    def test_lookup_programming_errors_are_not_classified_as_service_failures(self) -> None:
+        for number in ("1", "2"):
+            with self.subTest(lookup=number):
+                self.store()
+                result = self.run_command("--yes", "--json", CLI_LOOKUP_NUMBER=number, CLI_LOOKUP_FAULT="TypeError")
+                self.assertNotEqual(0, result.returncode)
+                self.assertIn("TypeError: programming bug in order lookup", result.stderr)
+                self.assertIn("Traceback", result.stderr)
+                self.assertEqual([], self.calls())
+                self.assertFalse((self.work / LOCK).exists())
 
     def test_signals_during_lock_transitions_do_not_strand_owned_resources(self) -> None:
         # Inject a real signal after exclusive creation, and after unlink. These are the narrow

@@ -79,6 +79,9 @@ boundary, against disposable targets or controlled effects:
 The reference requires positive `--older-than` minutes and a positive `--max-items` (default 100).
 It refuses an oversized plan before effects, then stops at the first failed or UNKNOWN item and
 reports the remainder as `skipped`. Dry-run JSON uses the same `items` schema, all `skipped`.
+Discovery errors and interruptions before apply also produce a receipt: known targets stay
+`skipped`; if discovery never completed, `items: []` means the plan is unavailable, not empty,
+with that distinction on stderr and a failure or signal exit code.
 An exclusive local lock protects selection revalidation and apply; an existing or changed owner
 causes refusal. This cooperative lock is scoped to the working directory, not a distributed API lock.
 

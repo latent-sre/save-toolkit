@@ -140,18 +140,29 @@ the same search before reading the mix.
 
 ### Is the Akamai edge failing or missing cache for one hostname or region?
 
-- **Applies to:** Akamai DataStream 2 JSON logs, only once `stack-profile`'s edge row records that they land in Splunk; another destination needs the same fields in its own dialect
-- **Reads as:** per 5-minute bucket and hostname: requests, 5xx share, and not-in-cache share (`cacheStatus=0`); `statusCode=0` (client left before a response) is in `requests` but not in `errors_5xx`; quiet buckets are absent
+- **Applies to:** Akamai DataStream 2 JSON client-request logs, only once `stack-profile`'s edge row records that they land in Splunk and the client population below is verified; another destination needs the same fields in its own dialect
+- **Reads as:** per 5-minute bucket and hostname: client requests, 5xx share, and not-in-cache share (`cacheStatus=0`); `statusCode=0` (client left before a response) is in `requests` but not in `errors_5xx`; quiet buckets are absent
 - **Healthy looks like:** shares near a known-normal window for the same hostname; a missing bucket can be a delivery gap, not zero traffic
 - **Owner:** `<edge on-call>`
-- **Verified:** [unverified: destination, index, sourcetype, JSON field extraction]
+- **Verified:** [unverified: destination, index, sourcetype, client-request population, JSON field extraction]
+
+Confirm stream composition before computing rates. With midgress collection enabled, log the
+`isMidgress` field and select `0` (client-to-edge); `1` is internal edge-to-edge traffic. The query
+below requires that field. Omit its predicate only when the stream is independently verified to
+contain client requests only and does not emit the field. A missing flag is not evidence of `0`:
+if composition or extraction is unknown, report the gap and withhold the rates.
+[sourced: Akamai's midgress definition and missing-flag caveat](https://techdocs.akamai.com/datastream2/docs/data-set-parameters#midgress-traffic).
 
 ```spl
-index=<datastream_index> sourcetype=<datastream_sourcetype> earliest=<start_epoch> latest=<end_epoch>
+index=<datastream_index> sourcetype=<datastream_sourcetype> earliest=<start_epoch> latest=<end_epoch> isMidgress=0
 | bin _time span=5m
 | stats count AS requests, count(eval(statusCode>=500 AND statusCode<600)) AS errors_5xx, count(eval(cacheStatus=0)) AS not_in_cache by _time, reqHost
 | eval pct_5xx=round(100*errors_5xx/requests, 2), pct_not_in_cache=round(100*not_in_cache/requests, 2)
 ```
+
+Acceptance example: 100 client responses, all 200 with 80 cache hits, plus 20 internal 503/cache-miss
+records in the same bucket must yield 100 requests, 0% 5xx and 20% not-in-cache. Verify that case and
+the unknown/missing-flag refusal before using the recipe; the example does not prove live extraction.
 
 For a regional report, add `country` (where the request originated) or `serverCountry` (where it
 was served) to the `by` clause; break a spike down with `stats count by errorCode` over the same

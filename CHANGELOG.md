@@ -8,6 +8,10 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- Follow-up PR review: CLI receipts cover discovery failures and pre-apply interruption; the
+  CORS starter permits its authenticated API contract; deployment discovery stops on failure.
+  DataStream rates separate client traffic, purge guidance preserves approved mandatory removal,
+  and installed-plugin invocation wording agrees across the authoring references.
 - PR review corrections: the operator CLI validates positive bounds, caps plans, stops at the
   first failed or UNKNOWN item, preserves lock ownership, and keeps interactive prompts off JSON
   stdout. Its evaluator now rejects invalid dry-run JSON and incorrect operational exit codes.

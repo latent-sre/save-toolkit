@@ -8,6 +8,7 @@ import logging
 from pathlib import Path
 import sys
 from types import ModuleType
+from textwrap import dedent
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, FastAPI, HTTPException, Request
@@ -401,14 +402,37 @@ def test_invalid_preselected_request_id_uses_valid_ingress_id(state_id):
 def test_cors_wrapper_loads_and_exposes_only_allowed_unhandled_errors(monkeypatch, attribute):
     problems = load_asset("problem_fastapi")
     contract = load_asset("test_http_contract")
-    api = FastAPI()
-    problems.install_problem_handlers(api)
+    # Execute the copyable setup itself so its policy cannot drift from a test-only wrapper.
+    snippet = problems.__doc__.split("\n\n", 1)[1].split("\nChoose applicable", 1)[0]
+    monkeypatch.setitem(sys.modules, "problem_fastapi", problems)
+    example = {}
+    exec(compile(dedent(snippet), "problem_fastapi.py:documented-example", "exec"), example)
+    wrapped = example["create_app"]()
+    api = contract.api.__wrapped__(wrapped)
+
+    @api.get("/v1/incidents")
+    async def incidents(request: Request):
+        assert request.headers["Authorization"] == "Bearer test-token"
+        return JSONResponse({"data": [], "next_cursor": None}, headers={
+            "X-RateLimit-Limit": "100", "X-RateLimit-Remaining": "99", "X-RateLimit-Reset": "12345",
+        })
+
+    @api.post("/v1/incidents")
+    async def create_incident(request: Request):
+        assert request.headers["Authorization"] == "Bearer test-token"
+        assert request.headers["Idempotency-Key"] == "test-key"
+        payload = await request.json()
+        return JSONResponse({"id": "incident-1", "status": "open", "title": payload["title"]},
+                            status_code=201, headers={"Idempotent-Replayed": "true"})
+
+    @api.get("/limited")
+    async def limited():
+        raise HTTPException(429, "Wait", headers={"Retry-After": "30"})
 
     @api.get("/boom")
     async def boom():
         raise RuntimeError("private detail")
 
-    wrapped = CORSMiddleware(api, allow_origins=["https://allowed.example"])
     module = ModuleType("cors_fixture_app")
     module.app = wrapped
     module.create_app = lambda: wrapped
@@ -418,14 +442,56 @@ def test_cors_wrapper_loads_and_exposes_only_allowed_unhandled_errors(monkeypatc
     assert loaded is wrapped
     assert contract.api.__wrapped__(loaded) is api
     with TestClient(loaded, raise_server_exceptions=False) as client:
-        for origin in ("https://allowed.example", "https://denied.example"):
+        allowed_origin = "https://console.example.internal"
+        for method, requested_headers in (
+            ("GET", "authorization"),
+            ("POST", "authorization,content-type,idempotency-key"),
+        ):
+            for origin in (allowed_origin, "https://denied.example"):
+                response = client.options("/v1/incidents", headers={
+                    "Origin": origin,
+                    "Access-Control-Request-Method": method,
+                    "Access-Control-Request-Headers": requested_headers,
+                })
+                if origin == allowed_origin:
+                    assert response.status_code == 200, response.text
+                    assert response.headers["access-control-allow-origin"] == origin
+                    assert method in response.headers["access-control-allow-methods"].split(", ")
+                    assert set(requested_headers.split(",")) <= {
+                        value.strip().lower()
+                        for value in response.headers["access-control-allow-headers"].split(",")
+                    }
+                else:
+                    assert response.status_code == 400
+                    assert "access-control-allow-origin" not in response.headers
+
+        request_headers = {"Origin": allowed_origin, "Authorization": "Bearer test-token"}
+        responses = (
+            (client.get("/v1/incidents", headers=request_headers), 200,
+             {"x-ratelimit-limit", "x-ratelimit-remaining", "x-ratelimit-reset", "x-request-id"}),
+            (client.post("/v1/incidents", json={"title": "Probe"},
+                         headers={**request_headers, "Idempotency-Key": "test-key"}), 201,
+             {"idempotent-replayed", "x-request-id"}),
+            (client.get("/limited", headers=request_headers), 429, {"retry-after", "x-request-id"}),
+        )
+        for response, status, readable_headers in responses:
+            assert response.status_code == status
+            assert response.headers["access-control-allow-origin"] == allowed_origin
+            assert readable_headers <= set(response.headers)
+            assert readable_headers <= {
+                value.strip().lower()
+                for value in response.headers.get("access-control-expose-headers", "").split(",")
+            }
+
+        for origin in (allowed_origin, "https://denied.example"):
             response = client.get("/boom", headers={"Origin": origin})
             assert response.status_code == 500
             contract.assert_problem(response, 500)
             assert "private detail" not in response.text
-            if origin == "https://allowed.example":
+            if origin == allowed_origin:
                 assert response.headers["access-control-allow-origin"] == origin
                 assert "Origin" in response.headers["vary"]
+                assert "x-request-id" in response.headers["access-control-expose-headers"].lower()
             else:
                 assert "access-control-allow-origin" not in response.headers
 

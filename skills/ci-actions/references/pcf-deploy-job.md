@@ -8,7 +8,8 @@ infrastructure, runtime or identity recommendations.
 - A self-hosted runner in an approved runner group with network access to the foundation, selected
   by that group and its labels (labels alone match any runner the repository can reach with them;
   take the group name from the runner owner, never invent one), and a pinned cf CLI v8 installation
-  from an approved, checksum-verified source.
+  from an approved, checksum-verified source. The runner also supplies an approved pinned Python 3
+  interpreter as `python3`; the discovery parser below uses only its standard library.
 - A GitHub environment whose required reviewers and environment-scoped credentials for a
   least-privilege PCF service account are configured and available on this repository's plan.
   Naming the environment in YAML does not establish that protection.
@@ -74,9 +75,42 @@ deploy-prod:
         cf api "$CF_API"
         cf auth
         cf target -o "$CF_ORG" -s "$CF_SPACE"
-        if cf app "$APP_NAME" >/dev/null 2>&1; then   # a first deploy has no revision to return to
-          cf revisions "$APP_NAME"       # its "(deployed)" revision is the rollback target
+        # Parse complete CAPI lists, never localized `cf app` output or its failure as absence.
+        read_resource() {
+          python3 -I - "$1" "$2" <<'PY'
+        import json, sys, uuid
+        try:
+            with open(sys.argv[1], encoding="utf-8") as stream:
+                data = json.load(stream)
+            rows, page = data["resources"], data["pagination"]
+            if (type(rows) is not list or len(rows) > 1
+                    or type(page["total_results"]) is not int
+                    or page["total_results"] != len(rows) or page["next"] is not None):
+                raise ValueError("incomplete or ambiguous list")
+            if sys.argv[2] == "app":
+                print(str(uuid.UUID(rows[0]["guid"])) if rows else "")
+            else:
+                version = rows[0]["version"]
+                if type(version) is not int or version < 1 or rows[0]["deployable"] is not True:
+                    raise ValueError("no usable deployed revision")
+                print(version)
+        except (OSError, ValueError, KeyError, IndexError, TypeError, AttributeError):
+            raise SystemExit("Discovery failed: expected a complete app list or one deployable revision")
+        PY
+        }
+        space_guid="$(cf space "$CF_SPACE" --guid)"
+        query="$(python3 -I -c 'import os,sys,uuid; from urllib.parse import urlencode; print(urlencode({"names": os.environ["APP_NAME"], "space_guids": str(uuid.UUID(sys.argv[1]))}))' "$space_guid")"
+        cf curl "/v3/apps?$query" --fail > "$CF_HOME/apps.json"
+        app_guid="$(read_resource "$CF_HOME/apps.json" app)"
+        previous_revision=""
+        first_deploy=true
+        if [[ -n "$app_guid" ]]; then
+          cf curl "/v3/apps/$app_guid/revisions/deployed" --fail > "$CF_HOME/revisions.json"
+          previous_revision="$(read_resource "$CF_HOME/revisions.json" revision)"
+          first_deploy=false
+          echo "Prior deployed revision: $previous_revision"
         fi
+        printf 'first_deploy=%s\nprevious_revision=%s\n' "$first_deploy" "$previous_revision" >> "$GITHUB_OUTPUT"
         cf push -f "$RELEASE_DIR/manifest.yml" -p "$RELEASE_DIR/app.zip" --strategy rolling
         cf app "$APP_NAME"
     - name: Verify health
@@ -87,10 +121,19 @@ deploy-prod:
     - name: Recovery handoff
       if: ${{ (failure() || cancelled()) && steps.deploy.outcome != 'skipped' }}
       shell: bash
+      env:
+        FIRST_DEPLOY: ${{ steps.deploy.outputs.first_deploy }}
+        PREVIOUS_REVISION: ${{ steps.deploy.outputs.previous_revision }}
       run: |
         echo "::error::Deploy or health check did not succeed. The release owner chooses the recovery:"
-        echo "rollout still running: cf cancel-deployment $APP_NAME"
-        echo "rollout finished: cf rollback $APP_NAME --version <deployed revision logged above>"
+        if [[ "$FIRST_DEPLOY" == true ]]; then
+          echo "First deploy: no previous revision exists; inspect the app and use the approved first-deploy recovery plan."
+        elif [[ "$FIRST_DEPLOY" == false && "$PREVIOUS_REVISION" =~ ^[1-9][0-9]*$ ]]; then
+          echo "rollout still running: cf cancel-deployment $APP_NAME"
+          echo "rollout finished: cf rollback $APP_NAME --version $PREVIOUS_REVISION"
+        else
+          echo "Discovery incomplete or outputs unavailable: inspect the job and app state before choosing recovery."
+        fi
     - name: Dispose release bytes
       if: ${{ always() }}
       shell: bash
@@ -108,8 +151,18 @@ alone does not erase the filesystem. Record that cleanup evidence before runner 
 ## Verification and rollback handoff
 
 The authored job must name the post-deploy health checks and the rollback action, as the example's
-`cf revisions`, `Verify health` and `Recovery handoff` steps do; it prints recovery commands and
-never runs them. `cf rollback <app> --version <n>` requires the version and prompts unless `-f`.
+discovery, `Verify health` and `Recovery handoff` steps do; it prints recovery commands and
+never runs them. A successful, complete empty app list establishes a first deploy; lookup errors,
+malformed responses, multiple apps, or missing/non-deployable/multiple current revisions stop
+before `cf push`. First-deploy approval must include recovery without revision rollback (for example,
+the release owner's approved stop/isolation of the newly created app and routes); the job never
+invents a prior revision. Scope the list to the targeted space and URL-encode the name.
+The [CAPI app list](https://v3-apidocs.cloudfoundry.org/version/3.219.0/index.html#list-apps) and
+[deployed-revision list](https://v3-apidocs.cloudfoundry.org/version/3.219.0/index.html#list-deployed-revisions-for-an-app)
+supply the machine contract; [cf CLI v8 curl](https://cli.cloudfoundry.org/en-US/v8/curl.html)
+provides `--fail` for HTTP errors. This is an observation before the push, not a remote lock;
+exclude concurrent deployments to this app through other jobs or humans during the approved window.
+`cf rollback <app> --version <n>` requires the version and prompts unless `-f`.
 `cf cancel-deployment <app>` resets the droplet but not environment-variable or binding changes, and
 does not guarantee zero downtime. *[verified: cf CLI v8 source, `rollback_command.go` and
 `command_list_v7.go`; Cloud Foundry rolling-deploy docs]* Revision retention limits the rollback;
