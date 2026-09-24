@@ -12,7 +12,6 @@ prompt: |
   change, not a design question, not a review, and not an incident.
   After your last edit or helper return, run `python -m unittest discover -s tests -t . -v`
   as a standalone foreground shell command; use read tools for any final inspection.
-  Use separate Changed and Verified headings in your final response, explaining the changes and verification results.
 fixture:
   files:
     README.md: |
@@ -89,10 +88,9 @@ checks:
   - {check: command_exit_zero, command: "python scripts/wordfreq.py empty.txt", writes: {empty.txt: ""}, text: "an empty file exits 0"}
   - {check: changed_files_not_containing, glob: "tests/*.py", needle: "import pytest", text: "new tests use the repo's framework (unittest, no pytest import)"}
   - {check: verification_completed, runner: unittest, text: "trace: a foreground suite completed after the last potentially mutating tool action"}
-  # A slot is its label at line start (bold, quoted, or heading); Opus writes "**Verified** (all from
-  # this session, at fb85b02 …)" with the colon far down the line or absent, so no colon is demanded.
-  - {check: text_regex, pattern: '^[\s>*_#-]{0,8}changed\b', text: "packet: Changed slot"}
-  - {check: text_regex, pattern: '^[\s>*_#-]{0,8}verified\b', text: "packet: Verified slot"}
+  # The report format is the body's, not the prompt's: its Verification gate labels a direct
+  # observation [verified], so the agent's own suite result carries that label on its line.
+  - {check: text_regex, pattern: '\[verified\][^\n]{0,200}(?:\bran [1-9]\d* tests?\b|\b[1-9]\d* (?:tests? )?passed\b|unittest discover)|(?:\bran [1-9]\d* tests?\b|\b[1-9]\d* (?:tests? )?passed\b|unittest discover)[^\n]{0,200}\[verified\]', text: "report: the agent's own suite result is labelled [verified]"}
   - {check: changes_within, allowed: ["scripts/wordfreq.py", "tests/test_wordfreq*.py", "README.md"], text: "surgical: only the new tool, its own test module, and the README changed"}
   - {check: no_new_commits, text: "nothing committed uninvited"}
   - {check: no_agents_dir, text: "no .agents/ progress litter"}

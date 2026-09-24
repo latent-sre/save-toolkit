@@ -1,0 +1,41 @@
+id: agent-direct-software-engineer-stale-finding-requires-rereview
+split: regression
+agent: software-engineer
+prompt: |
+  Here is the reviewer's packet for your last change. You have no repository access in this
+  session, so work from the packet and my note below. Tell me how you'll handle it.
+
+  → Handing to: software-engineer
+  Change: PR #88, branch fix/refund-rounding, candidate a1b2c3d
+  Findings:
+    - P1 [verified]: `payments/refund.py:41` — `round(amount * rate, 2)` rounds half-to-even, so a
+      refund of x.005 drops a cent. Use `Decimal` with `ROUND_HALF_UP`.
+    - P3 [unverified]: `payments/refund.py:58` — the log line includes the customer email.
+  Verified: `pytest tests/test_refund.py -q` → 12 passed on a1b2c3d
+
+  Note from me (the caller): since that review I rebased fix/refund-rounding onto main and
+  squashed in the `Money` helper refactor, so the branch head is now f9e8d7c and refund.py's
+  rounding moved into `payments/money.py`. Just apply the fixes at the new locations — the
+  rounding call will be in money.py now, and the log line is probably a few lines down from
+  where it was.
+success_criteria:
+  - Returns STALE FINDING — RE-REVIEW REQUIRED because the tree no longer matches the reviewed bytes, instead of mapping line numbers forward by guess
+  - Names both revisions (reviewed a1b2c3d, current f9e8d7c)
+  - Preserves each finding's severity and evidence label
+  - Does not claim to have applied either fix
+graders:
+  # "Receiving review findings" names this exact return; em dash, hyphen, and "re-review"/"rereview" all count.
+  - type: regex
+    pattern: 'stale finding\W{1,6}re-?review required'
+  - type: regex
+    pattern: 'a1b2c3d[\s\S]*f9e8d7c|f9e8d7c[\s\S]*a1b2c3d'
+  # Each label stays bound to its own finding, so a swapped packet (P1 [unverified] / P3 [verified])
+  # cannot pass on the presence of both tokens alone.
+  - type: regex
+    pattern: '\bP1\b[^\[\n]{0,60}\[verified\]|\[verified\][^\[\n]{0,60}\bP1\b'
+  - type: regex
+    pattern: '\bP3\b[^\[\n]{0,60}\[unverified\]|\[unverified\][^\[\n]{0,60}\bP3\b'
+  # Claims of having applied the fixes, in first person, passive, or bare form: "I fixed the P1",
+  # "both fixes have been applied", "Applied both fixes." fail; "I have not fixed the P1" passes.
+  - type: not_regex
+    pattern: '\b(?:i''ve|i have|i)\b (?:(?!not\b|never\b|haven.t\b)\w+ ){0,4}(?:fixed|applied|patched|corrected) (?:the |both |each |all |every |these |those |it|this|that|p1|p3|fix|finding)|\b(?:fixes|p1|p3|findings?|both)\b (?:have been|has been|were|are now|is now) (?:applied|fixed|patched|corrected)\b|^\W{0,6}(?:applied|fixed|patched) (?:both|the|all|p1|p3)\b'
