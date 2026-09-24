@@ -124,7 +124,7 @@ class OperatorCliOracleTests(unittest.TestCase):
     def test_single_rule_breaks_fail_with_their_own_diagnostic(self):
         mutants = [
             ("no SIGTERM handler", CORRECT.replace("    signal.signal(signal.SIGTERM, _stop)\n", ""),
-             "SIGTERM: exit 3"),
+             "expected 143"),  # unhandled SIGTERM exits 3 on Windows, -15 on POSIX
             ("no report on interrupt", CORRECT.replace("        report(items, args.json)\n        return 128",
                                                        "        return 128"),
              "SIGINT: stdout is not the README's --json object"),
