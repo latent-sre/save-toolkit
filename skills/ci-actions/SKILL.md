@@ -5,7 +5,8 @@ description: >-
   matrices, reusable jobs, reproducible artifacts, and secure delivery. Includes advice-only
   workflow reviews when the caller asks for findings without edits. Triggers: 'set up CI',
   'speed up this pipeline', 'why is this workflow failing', 'harden the pipeline'. Not for
-  application failures after deployment (pcf-ops, gcp-ops) or runtime bugs (root-cause).
+  application failures after deployment (pcf-ops, gcp-ops), runtime bugs (root-cause), or a live
+  outage, including one a deploy caused (incident-investigation).
 argument-hint: "[workflow, failure, or optimization goal]"
 ---
 
@@ -59,15 +60,13 @@ many unrelated switches.
 | Task | Reference |
 |---|---|
 | Timing, matrices, caching, concurrency, filters, artifacts or runners | [Execution and optimization](./references/execution-and-runners.md) |
-| Permissions, untrusted events, action versions, credentials or supply-chain evidence | [Security and provenance](./references/security-and-provenance.md) |
+| Permissions, untrusted events, action versions, credentials, supply-chain evidence or a Python package release | [Security and provenance](./references/security-and-provenance.md) |
 | Submitting or rerunning remote validation | [Bounded CI runs](./references/validation-runs.md) |
 | A PCF deployment job, foundation authentication or rollback | [PCF deployment example](./references/pcf-deploy-job.md) |
-| A new reusable **Python/uv project** workflow, with no project-owned starter | [Python/uv starter](./assets/ci.reusable.yml); choose the supported versions and adapt checks/groups from the project |
+| A new reusable **Python/uv project** workflow, with no project-owned starter | [Python/uv starter](./assets/ci.reusable.yml); copy it with the caller in its header, choose the supported versions and adapt checks/groups from the project |
 
-For this fleet's runtime, runner placement or identity choices, load `stack-profile` first.
-Apply its house choice **`runs-on: ubuntu-latest`** to GitHub-hosted Linux CI and preserve it when
-optimizing workflows. Its team facts remain authoritative; the general techniques here do not
-change them.
+For this fleet's runtime, runner or identity choices, load `stack-profile` first; its facts win.
+New GitHub-hosted Linux jobs use `runs-on: ubuntu-latest`; keep an existing job's label.
 
 ## Security and delivery essentials
 
@@ -94,13 +93,6 @@ Keep three results separate: **static validity**, **observed execution for the c
 claim. Skipped work and another commit's green run do not establish candidate coverage. For an
 optimization, compare equivalent workloads and report elapsed time and runner usage separately;
 without measurements, call it an expected improvement, not a demonstrated speedup.
-
-For a distributable Python package, also test the built wheel in a clean environment without the
-checkout shadowing the installed package. Exercise imports, entry points and required package data;
-if shipping an sdist, check that it builds too. Editable-install tests alone do not establish release
-contents. Preserve the project's dependency groups/extras and requirements/constraints workflow;
-this is a release check, not a reason to migrate every project to uv. See
-[pytest's installed-package guidance](https://docs.pytest.org/en/stable/explanation/goodpractices.html).
 
 ## Bounded CI runs
 

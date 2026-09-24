@@ -90,6 +90,13 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   `incident-investigation`, and remote_write queue detail moved to `obs-pipeline`. A new live-page
   routing scenario and an eight-key query-shape contract (1/3 on the previous skill, 3/3 on this
   one; the miss was handing correlation evidence to `observability-engineer`) cover the changes.
+- `ci-actions`' PCF deploy example lists revisions before the push (skipped on a first deploy),
+  verifies health, and on failure prints the release owner's `cf cancel-deployment` or `cf
+  rollback` choice without running either. It selects its runner by group and labels, pins
+  `download-artifact` to a reviewed SHA, and asserts cf CLI v8. The skill follows repository
+  action-pinning policy (SHAs when none exists), keeps existing runner labels, adds a `gh run list`
+  timing recipe and a caller for the reusable starter, routes live outages to
+  `incident-investigation`, and moves the wheel-release check to the security reference.
 - The build probe resolves a trial's model identity from the main thread (init model plus every
   top-level assistant turn) and records the CLI's usage table separately as `usage_models`. Claude
   Code 2.1.271 lists an internal Haiku helper call of a few tokens in that table, which had closed

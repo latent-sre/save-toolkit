@@ -3,6 +3,20 @@
 # Pass a nonempty JSON array of supported Python versions, first = static-check interpreter.
 # Adjust groups, commands, timeouts and parallelism to the project; do not change its package manager.
 # Require both checks and test legs: a failed checks job skips its dependent test jobs.
+# Copy it with a caller; nothing runs it until one exists, e.g. .github/workflows/ci.yml:
+#   name: ci
+#   on:
+#     pull_request:
+#     push: { branches: [main] }
+#     merge_group:                          # only when a merge queue requires these checks
+#   permissions: { contents: read }
+#   jobs:
+#     ci:
+#       uses: ./.github/workflows/ci.reusable.yml
+#       with:
+#         concurrency-key: ci                 # unique per caller job and caller matrix target
+#         python-versions: '["3.13", "3.14"]' # the project's supported versions
+#         uv-version: <reviewed exact uv release>
 name: python-ci
 
 on:

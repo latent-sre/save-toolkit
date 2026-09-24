@@ -17,6 +17,12 @@ Separate queue delay from execution. From comparable run attempts, record the cr
 checkout/setup/install/test/upload durations, cache hit/miss, retries, runner class and concurrency.
 Compare normal and slow runs rather than treating one warm-cache run as the baseline.
 
+Baseline recipe: `gh run list -w <workflow file> -b <default branch> -e <event> -s success -L 20
+--json databaseId,attempt,createdAt,updatedAt` lists comparable runs. For each, `gh api --paginate
+repos/{owner}/{repo}/actions/runs/<id>/jobs` gives job `created_at`/`started_at`/`completed_at` and
+step `started_at`/`completed_at`; queue time is `started_at − created_at`. Compare the median and the
+slow tail, not one run. *[verified: gh 2.94.0 against this fleet's validate workflow]*
+
 | Dominant cost | Try first | Check the tradeoff |
 |---|---|---|
 | Queue time | Remove duplicate event runs; cancel superseded validation; adjust concurrency or capacity | More workers may raise cost without reducing serial work |
@@ -94,11 +100,10 @@ the candidate before promotion rather than treating concurrency as a durable dep
 
 ## Runner choice
 
-Follow the project's runner policy; this fleet uses **`ubuntu-latest`** for GitHub-hosted Linux,
-as recorded in `stack-profile`.
-Keep that rolling-image choice when optimizing rather than substituting a fixed OS release as
-routine hardening. Record the resolved image when diagnosing failures; a runner label is not an
-immutable image. Use a reviewed container digest when the workload needs fixed userspace.
+Follow the project's runner policy. New GitHub-hosted Linux jobs in this fleet use
+**`ubuntu-latest`** (`stack-profile`); keep an existing job's label, and do not substitute a fixed OS
+release as routine hardening. Record the resolved image when diagnosing failures; a runner label
+is not an immutable image. Use a reviewed container digest when the workload needs fixed userspace.
 Larger runners, local caches and self-hosting need measured benefit or a network/hardware requirement.
 
 For self-hosted runners, load the team's stack boundary, record the owner and network access, and
