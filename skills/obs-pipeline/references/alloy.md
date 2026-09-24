@@ -180,6 +180,10 @@ grafana.com/docs/alloy/latest/reference/components/otelcol/otelcol.auth.google; 
   `min_keepalive_time = "5m"`, `max_keepalive_time = "8h"`. An unreachable endpoint grows disk
   until truncation, and samples older than max keepalive are force-purged — an outage longer than
   ~8h loses the tail silently. *[sourced: reference/components/prometheus/prometheus.remote_write]*
+- Its **`queue_config`** defaults: `capacity` 10000 samples per shard, `max_shards` 50,
+  `max_samples_per_send` 2000, `batch_send_deadline` `"5s"`. When every shard is full, new samples
+  are not read from the WAL, so a slow endpoint shows as WAL growth.
+  *[sourced: reference/components/prometheus/prometheus.remote_write]*
 - **`loki.write`** retries with backoff (defaults: 500ms → 5m, 10 retries, retry on 429) and then
   **drops the batch**, logging "final error sending batch, no retries left, dropping data" — that
   log line is the loss evidence to grep for. *[sourced: loki write client source]*

@@ -1,0 +1,50 @@
+id: obs-logs-query-shape-contract
+split: regression
+skill: obs-logs
+tools: [Skill, Read]
+references:
+  - skills/obs-logs/references/spl.md
+  - skills/obs-logs/references/gcp-logging.md
+prompt: |
+  Read the SPL and Cloud Logging references. Assess this supplied-state log work; do not run
+  queries or edit files. The on-call responder dispatched you to review a teammate's searches for
+  settlement-api, a PCF app whose request logs are in Splunk, and quote-gateway, a Cloud Run service.
+
+  The teammate's onset search is `index=<app_index> | where status>=500 | timechart span=1m count`,
+  run over whatever range the search picker holds. A second search is
+  `index=<app_index> | timechart span=1m count by status` as written. settlement-api returns about
+  fourteen distinct status codes in an ordinary hour, and the first 503s arrived at a few per minute
+  against thousands of 200s. A top-offender search grouped by `error_type` returned no rows for the
+  incident window; `error_type` extraction has been checked on other apps' sourcetypes but never on
+  settlement-api's. A search for settlement-api request completions over the last 15 minutes
+  returned zero events, while Apps Manager shows the app running.
+
+  You also traced one failing settlement request across order-router and settlement-api and hold
+  the ordered hop list. For quote-gateway, the owner wants its 5xx rate for 14:00-14:30 UTC from
+  Cloud Logging. The before/after comparison needs settlement-api's deploy time: a dashboard shows
+  a deploy annotation near 13:58, and Apps Manager's Events tab is available.
+
+  Return exactly one JSON object, without fences or prose, selecting one value per key:
+  onset_counting: total_and_errors_per_bucket | filter_failures_then_count
+  time_bounds: picker_range_index_only | explicit_epochs_scoped_sourcetype
+  status_split: status_class_all_series | exact_status_as_drafted
+  empty_error_type: no_classified_errors | unknown_until_extraction_proven
+  zero_recent_events: check_source_freshness_first | report_no_recent_traffic
+  hop_evidence: hand_to_observability_engineer | return_to_caller
+  cloud_run_denominator: request_log_entries | all_service_log_entries
+  deploy_time: dashboard_annotation | apps_manager_events
+success_criteria:
+  - Counts failures inside complete, explicitly bounded buckets on a scoped base and keeps rare status series visible.
+  - Treats an empty result on an unproven field, or from a source not shown current, as unknown rather than healthy.
+  - Returns correlation evidence to the caller and takes rate denominators and deploy times from their platform records.
+graders:
+  - type: exact_json
+    fields:
+      onset_counting: total_and_errors_per_bucket
+      time_bounds: explicit_epochs_scoped_sourcetype
+      status_split: status_class_all_series
+      empty_error_type: unknown_until_extraction_proven
+      zero_recent_events: check_source_freshness_first
+      hop_evidence: return_to_caller
+      cloud_run_denominator: request_log_entries
+      deploy_time: apps_manager_events

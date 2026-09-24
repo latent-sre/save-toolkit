@@ -81,6 +81,15 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   eval fixture. A new build probe, `build-python-fix-stays-scoped`, scored 0/3 on the previous
   body and 3/3 on this one (Sonnet): both fixed the bug without touching the duplicated code, and
   only this one named the duplication it left.
+- `obs-logs` timelines count total and errors in explicitly bounded buckets on a scoped base, split
+  status by class with `limit=0` (a `timechart … by status` folds early low-volume 503s into
+  `OTHER`), and check source freshness before reading "no events" as healthy. Cloud Run rates use
+  the request log as denominator, PCF request counts the Gorouter `RTR` line, and deploy times come
+  from Apps Manager Events or the Cloud Run traffic shift; correlation evidence returns to the
+  caller. The `obs-logs` and `obs-metrics` descriptions send live-page decisions to
+  `incident-investigation`, and remote_write queue detail moved to `obs-pipeline`. A new live-page
+  routing scenario and an eight-key query-shape contract (1/3 on the previous skill, 3/3 on this
+  one; the miss was handing correlation evidence to `observability-engineer`) cover the changes.
 - The build probe resolves a trial's model identity from the main thread (init model plus every
   top-level assistant turn) and records the CLI's usage table separately as `usage_models`. Claude
   Code 2.1.271 lists an internal Haiku helper call of a few tokens in that table, which had closed

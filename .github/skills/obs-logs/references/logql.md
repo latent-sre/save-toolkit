@@ -6,11 +6,9 @@ and [metric-query reference](https://grafana.com/docs/loki/latest/query/metric_q
 [string-quoting guidance](https://grafana.com/docs/loki/latest/query/log_queries/). Confirm the
 deployed Loki version, tenant, labels, parsers, and alert-engine behavior before use.
 
-**Verification scope.** Earlier examples parsed against a non-production Loki source on
-2026-08-22, using illustrative selectors that matched no streams. Revised queries below are
-`[unverified]` until executed against the target; that historical run does not validate their bytes.
-It also showed that `or on() vector(0)` turns a selector matching nothing into zero-valued samples.
-That fallback cannot distinguish a quiet service from wrong labels, a wrong tenant, or lost ingestion.
+Examples are `[unverified]` for the target until executed there. `or on() vector(0)` turns a
+selector matching nothing into zero-valued samples, so it cannot distinguish a quiet service from
+wrong labels, a wrong tenant, or lost ingestion.
 
 ## Contents
 
@@ -35,6 +33,16 @@ values from the log line instead of promoting them to labels.
 
 Widen one selector at a time. An empty result can mean the selector is wrong, the tenant is wrong, or
 the stream is absent; it is not by itself evidence that the application emitted no failures.
+Before reading it as quiet, check that the stream is current:
+
+```logql
+absent_over_time({app="settlement-api", env="prod"}[10m])
+```
+
+It returns 1 when the selector matched no lines in the range and nothing when lines exist. A 1 means
+a wrong selector or tenant, a silent source, or lost ingestion; widen the range to find the last line
+before calling it a pipeline finding for `obs-pipeline`. *[sourced: Loki metric-query reference,
+`absent_over_time`; unverified for target labels]*
 
 ## Line filters versus parsers
 
@@ -179,8 +187,11 @@ rendered query.
 *[sourced: Grafana Loki `json` parser and label-filter syntax; unverified for target correlation field]*
 
 ```logql
-{env="prod", app=~"checkout|payments"} | json | request_id="<validated_and_logql_escaped_id>"
+{env="prod", app=~"checkout|payments"} |= "<validated_and_logql_escaped_id>" | json | request_id="<validated_and_logql_escaped_id>"
 ```
+
+The line filter drops non-matching lines before `| json` parses anything; the label filter then keeps
+only lines where the id is the request-id field.
 
 ## Errors that are limits, not bugs
 

@@ -68,10 +68,10 @@ review checks the entry shape, target assumptions, and safety rules.
 - **Reads as:** one row per error class per minute containing classified events, most recent first; quiet buckets are absent
 - **Healthy looks like:** returned counts match a known-normal comparison; absent buckets or classes do not establish health
 - **Owner:** `<service on-call>`
-- **Verified:** [unverified: target index and `error_type` extraction]
+- **Verified:** [unverified: target index, sourcetype, and `error_type` extraction]
 
 ```spl
-index=<app_index> earliest=<start_epoch> latest=<end_epoch>
+index=<app_index> sourcetype=<error_sourcetype> earliest=<start_epoch> latest=<end_epoch>
 | bin _time span=1m
 | stats count by _time, error_type
 | sort 0 - _time
@@ -126,14 +126,17 @@ telemetry gaps until independently explained.
 - **Reads as:** request counts by caller over the window, largest first
 - **Healthy looks like:** the usual caller mix; no single new caller dominating
 - **Owner:** `<service on-call>`
-- **Verified:** [unverified: caller field name per `indexes.md`]
+- **Verified:** [unverified: request-completion sourcetype and caller field name per `indexes.md`]
 
 ```spl
-index=<app_index> earliest=-30m
-| stats count by <caller_field>
-| sort - count
+index=<app_index> sourcetype=<request_completion_sourcetype> earliest=-30m latest=now
+| stats count AS requests by <caller_field>
+| sort - requests
 | head 20
 ```
+
+`stats by` drops events without the caller field; compare `count(<caller_field>)` with `count` over
+the same search before reading the mix.
 
 ### Is the Akamai edge failing or missing cache for one hostname or region?
 

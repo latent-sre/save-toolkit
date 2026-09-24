@@ -10,9 +10,7 @@ Primary references: [querying basics](https://prometheus.io/docs/prometheus/late
 [histogram practices](https://prometheus.io/docs/practices/histograms/),
 [Grafana Mimir HTTP API](https://grafana.com/docs/mimir/latest/references/http-api/).
 
-Earlier query blocks parsed against a non-production Prometheus through Grafana on 2026-08-22,
-with illustrative selectors returning no series. Added examples and target semantics remain
-`[unverified]`; historical execution does not validate revised bytes or the deployed Mimir tenant.
+Examples are `[unverified]` for the target Mimir tenant until executed there.
 
 ## Encode copied label values
 
@@ -88,18 +86,11 @@ the deployed Prometheus and Mimir versions]*
   (`promql-extended-range-selectors`, which change `rate()` extrapolation) from v3.7 and still
   experimental in v3.14. Keep both out of shared rules until the deployed version and flags are
   confirmed.
-- **remote_write `queue_config` defaults**: `capacity` 10000, `max_shards` 50,
-  `max_samples_per_send` 2000, `batch_send_deadline` 5s; sustained `prometheus_remote_storage_*`
-  failures mean the query may be missing recent samples at the receiving end, a finding for the
-  `obs-pipeline` skill, not a query rewrite.
-- **Mimir 3.2.0 changed query-path defaults**: remote execution is on by default and every querier
-  must be on 3.1 before the upgrade; query sharding is on by default
-  (`-query-frontend.parallelize-shardable-queries=false` disables it), so a query whose cost or
-  result shape changed after the upgrade may be sharded now; ingester request hedging is off
-  (`-querier.minimize-ingester-requests-hedging-delay=3s` restores it), so one slow ingester shows as
-  tail latency it previously hid; and query-planning metrics moved from `component="querier"` to
-  `engine="querier"`, so a borrowed self-monitoring dashboard on the old label goes empty. The
-  deployed Mimir version is `[unverified]`.
+- **Sustained `prometheus_remote_storage_*` failures** mean the query may be missing recent samples
+  at the receiving end, a finding for the `obs-pipeline` skill, not a query rewrite.
+- **After a Mimir ≥3.2 upgrade**, a query whose cost or result shape changed may now be sharded
+  (query sharding is on by default), and query-planning self-metrics moved from
+  `component="querier"` to `engine="querier"`. The deployed Mimir version is `[unverified]`.
 
 ## Mimir per-tenant limits
 

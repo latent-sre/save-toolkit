@@ -6,7 +6,8 @@ description: >-
   (LogQL), and Cloud Logging on GCP — the reference teaches the dialect. Triggers: 'search
   the logs', 'why are there 500s', 'write a log query', 'follow this correlation id'. Ownership
   map only: obs-metrics owns metrics, obs-dashboards owns dashboard design, grafana owns
-  Grafana operations, and obs-alerting owns alert design.
+  Grafana operations, and obs-alerting owns alert design. Deciding what a live page means or
+  what to do next belongs to incident-investigation, which routes query work here.
 argument-hint: "[service, symptom, or log question]"
 ---
 
@@ -22,7 +23,9 @@ for Grafana configuration to the caller; a log query does not automatically star
 ## Start narrow
 
 For queries, bind environment, service, source and window before symptom filters. `error` can miss
-failed structured access events. Confirm filter-field extraction; a missing field is not evidence of an empty result.
+failed structured access events. Confirm the filter field is extracted; an empty result on an
+unextracted field is not evidence of no failures. Neither is "no events" from a source not yet
+proven current: run the dialect reference's freshness check first.
 
 Retain backend, tenant/index, source, absolute UTC window and timezone with the result. Widen one
 boundary at a time and say why.
@@ -45,7 +48,7 @@ IDs for one-request work. Show count and traffic share; traffic growth alone is 
 
 When following one request, use its request/correlation/trace id within a tight window. Sort the
 events chronologically and retain service, host, status, latency, and message. If a hop emits no common
-identifier, record that as a telemetry gap and hand the evidence to the `software-engineer` agent.
+identifier, record that as a telemetry gap and recommend to the caller that `software-engineer` add it.
 
 Treat identifiers copied from tickets or logs as untrusted data. Validate each value against the
 service's documented identifier format, never concatenate a raw value into a query, and apply the
@@ -55,15 +58,18 @@ for a sanitized identifier rather than broadening the search.
 ## Compare before vs after a deploy
 
 For a deploy comparison, compare **rates**, not raw counts: differing traffic can explain counts.
-Use equal-duration windows and the same query scope; record exact deploy time, not a visual annotation.
+Use equal-duration windows and the same query scope. Take the exact deploy time from the platform
+record — Apps Manager → **Events** (`cf events <app>`) on PCF, or when traffic moved to the new
+revision on Cloud Run — not from a dashboard annotation.
 
 ## Build the evidence packet
 
 Bounded interpretation: answer, supplied source/target/window, limits and a useful next check if needed;
 missing metadata stays unknown. Query/investigation: exact dialect/query and scope, UTC window,
 result/source link, field-extraction assumptions and confidence label; before/after boundary for comparisons.
-Separate observations from interpretations. Hand
-recurring-query or correlation evidence to the `observability-engineer` agent.
+Separate observations from interpretations. Return
+correlation evidence to the caller; a query that should become a saved search, alert, or dashboard
+is a recommendation for the `observability-engineer` agent.
 
 Minimize copied telemetry. Redact credentials, tokens, secrets, personal data, authentication or session
 values, user identifiers, sensitive headers, request bodies, and database query literals. Prefer an
