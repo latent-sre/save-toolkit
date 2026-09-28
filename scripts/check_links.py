@@ -232,7 +232,8 @@ ALLOWED_KEYS = {
 # explicit-only because autonomous invocation would be an effect or a cost the caller did not ask
 # for: `pcf-deploy` coordinates approved production effects. Adding a name here is a decision:
 # state why the skill cannot be model-invoked, and keep the message below in sync.
-MANUAL_ONLY = {"pcf-deploy"}
+# Single-sourced from fleet_frontmatter; kept as a module attribute for test compatibility.
+MANUAL_ONLY = fleet_frontmatter.MANUAL_ONLY
 YAML_NON_STRING = re.compile(
     r"^(?:"
     r"~|null|true|false|yes|no|on|off|"

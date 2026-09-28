@@ -67,7 +67,9 @@ GITATTRIBUTES_REQUIRED_EOL = (
     ".gitattributes", "*.md", "*.py", "*.sh", "*.ps1", "*.yml", "*.yaml", "*.json",
     "*.toml", "*.patch",
 )
-MANUAL_ONLY = {"pcf-deploy"}
+# Single-sourced from fleet_frontmatter so validation and projection cannot drift.
+# Kept as a module attribute because tests reference adapters.MANUAL_ONLY.
+MANUAL_ONLY = fleet_frontmatter.MANUAL_ONLY
 GUARDED_AGENTS = {"sre-assistant"}
 COPILOT_AGENT_PROMPT_MAX_CHARS = 30_000
 # Owner's working budget for this expanded investigator; the provider ceiling remains above.
@@ -224,7 +226,6 @@ COPILOT_HANDOFFS_BY_SOURCE = {
         },
     ),
 }
-WRITE_TOOLS = {"Write", "Edit", "NotebookEdit"}
 IDENTITY_FIELDS = (
     "name", "version", "description", "author", "homepage", "repository", "license", "keywords"
 )
@@ -243,8 +244,20 @@ PLUGIN_PATH_RE = re.compile(
 )
 RUNTIME_SUFFIXES = {".pyc", ".pyo"}
 
+
+def decode_scalar(raw: str) -> str:
+    """Public alias for the shared frontmatter scalar decoder."""
+    return fleet_frontmatter.decode_scalar(raw)
+
+
+def split_tool_specs(raw: object) -> list[str]:
+    """Public alias for the shared tool-grant splitter."""
+    return fleet_frontmatter.split_tool_specs(raw)
+
+
+# Backward-compatible aliases; the public names above are preferred.
 _yaml_scalar = fleet_frontmatter.decode_scalar
-_split_tool_specs = fleet_frontmatter.split_tool_specs
+_split_tool_specs = split_tool_specs
 
 
 def parse_frontmatter(path: Path) -> tuple[dict[str, object], str, list[str]]:
@@ -253,11 +266,17 @@ def parse_frontmatter(path: Path) -> tuple[dict[str, object], str, list[str]]:
     return parsed.fields, parsed.body, list(parsed.raw_lines)
 
 
-def _tool_base(spec: str) -> str:
+def tool_base(spec: str) -> str:
+    """Public base name of one tool grant (drops any ``(args)`` suffix)."""
     return spec.split("(", 1)[0].strip()
 
 
-def _delegation_targets(specs: list[str], source: Path) -> list[str] | None:
+def _tool_base(spec: str) -> str:
+    """Backward-compatible alias; prefer tool_base."""
+    return tool_base(spec)
+
+
+def delegation_targets(specs: list[str], source: Path) -> list[str] | None:
     """Translate exact plugin-qualified ``Agent(plugin:target, ...)`` grants to bare Copilot names.
 
     Omitting Copilot's ``agents:`` field allows every eligible subagent, so a canonical Agent
@@ -269,7 +288,7 @@ def _delegation_targets(specs: list[str], source: Path) -> list[str] | None:
 
     targets: list[str] = []
     for spec in specs:
-        if _tool_base(spec) != "Agent":
+        if tool_base(spec) != "Agent":
             continue
         match = re.fullmatch(r"Agent\(([^()]*)\)", spec)
         if match is None:
@@ -282,6 +301,11 @@ def _delegation_targets(specs: list[str], source: Path) -> list[str] | None:
                 raise ValueError(f"{source}: duplicate Agent target {target!r}")
             targets.append(target)
     return targets or None
+
+
+def _delegation_targets(specs: list[str], source: Path) -> list[str] | None:
+    """Backward-compatible alias; prefer delegation_targets."""
+    return delegation_targets(specs, source)
 
 
 def _copilot_handoffs(source_agent: str) -> list[dict[str, object]] | None:
@@ -338,9 +362,9 @@ def _description(fields: dict[str, object], source: Path) -> str:
 def render_copilot_agent(source: Path, *, command_preview: bool = False) -> str:
     fields, body, _ = parse_frontmatter(source)
     name = str(fields.get("name") or "")
-    tool_specs = _split_tool_specs(fields.get("tools"))
-    tools = {_tool_base(item) for item in tool_specs}
-    delegation_targets = _delegation_targets(tool_specs, source)
+    tool_specs = split_tool_specs(fields.get("tools"))
+    tools = {tool_base(item) for item in tool_specs}
+    allowed_targets = delegation_targets(tool_specs, source)
     handoffs = _copilot_handoffs(name)
     mapped = {
         COPILOT_TOOL_MAP[item] for item in tools if item in COPILOT_TOOL_MAP
@@ -372,8 +396,8 @@ def render_copilot_agent(source: Path, *, command_preview: bool = False) -> str:
         f"description: {json.dumps(adapt_text(_description(fields, source), 'copilot'), ensure_ascii=False)}\n"
         f"tools: {json.dumps(ordered)}\n"
     )
-    if delegation_targets is not None:
-        frontmatter += f"agents: {json.dumps(delegation_targets)}\n"
+    if allowed_targets is not None:
+        frontmatter += f"agents: {json.dumps(allowed_targets)}\n"
     if handoffs is not None:
         frontmatter += f"handoffs: {json.dumps(handoffs, ensure_ascii=False)}\n"
     if name in GUARDED_AGENTS and command_preview:
@@ -570,11 +594,17 @@ def validate_generated_outputs(root: Path) -> list[str]:
     return failures
 
 
-def _manifest(path: Path) -> dict:
+def read_manifest(path: Path) -> dict:
+    """Public JSON-object manifest reader shared with fleet validation."""
     value = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(value, dict):
         raise ValueError(f"{path}: manifest must be a JSON object")
     return value
+
+
+def _manifest(path: Path) -> dict:
+    """Backward-compatible alias; prefer read_manifest."""
+    return read_manifest(path)
 
 
 def validate_platform_contracts(root: Path) -> list[str]:
@@ -583,7 +613,7 @@ def validate_platform_contracts(root: Path) -> list[str]:
     manifests: list[dict] = []
     for path in paths:
         try:
-            manifests.append(_manifest(path))
+            manifests.append(read_manifest(path))
         except (OSError, json.JSONDecodeError, ValueError) as exc:
             failures.append(str(exc))
     if len(manifests) == len(paths):
@@ -603,7 +633,7 @@ def validate_platform_contracts(root: Path) -> list[str]:
             if copilot.get(field) != claude.get(field):
                 failures.append(f"{paths[1]}: identity field {field!r} differs from Claude manifest")
     try:
-        hook = _manifest(root / "hooks/hooks.json")
+        hook = read_manifest(root / "hooks/hooks.json")
         powershell = next((entry for entry in hook["hooks"]["PreToolUse"]
                            if entry.get("matcher") == "PowerShell"), None)
         if powershell is None or not any(
