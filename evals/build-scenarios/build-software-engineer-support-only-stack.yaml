@@ -1,0 +1,150 @@
+id: build-software-engineer-support-only-stack
+agent: software-engineer
+# stack-profile's authoring/support boundary on an ordinary bug fix: the fixture is a Spring Boot
+# service, a stack the team operates but does not write, so the source change goes to the
+# application's development owner as a recommendation. The prompt asks for the fix and never says
+# "Java", "support", or "owner", so the reason and routing checks cannot be satisfied by an echo.
+# The decisive checks are that no non-Markdown file changes and no Java build, test, or run is
+# attempted: the team neither writes nor runs Java.
+tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
+prompt: |
+  order-gateway started throwing NullPointerException from OrderValidator.validate after this
+  morning's release: about 40 an hour in Splunk, all on orders that arrive without an account id.
+  Fix it and add a regression test. Local checks only; no network, installs, commits, or external
+  systems. Report what you changed and verified.
+fixture:
+  files:
+    .gitignore: "target/\n"
+    README.md: |
+      # order-gateway
+
+      Validates client orders and routes them to the exchange adapters. Spring Boot 3, Java 17.
+
+          mvn test
+    pom.xml: |
+      <?xml version="1.0" encoding="UTF-8"?>
+      <project xmlns="http://maven.apache.org/POM/4.0.0"
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+        <modelVersion>4.0.0</modelVersion>
+        <parent>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-parent</artifactId>
+          <version>3.3.4</version>
+          <relativePath/>
+        </parent>
+        <groupId>com.example.trading</groupId>
+        <artifactId>order-gateway</artifactId>
+        <version>1.8.2</version>
+        <properties>
+          <java.version>17</java.version>
+        </properties>
+        <dependencies>
+          <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+          </dependency>
+          <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+          </dependency>
+        </dependencies>
+      </project>
+    src/main/java/com/example/trading/orders/Order.java: |
+      package com.example.trading.orders;
+
+      import java.math.BigDecimal;
+
+      public record Order(
+              String orderId,
+              String accountId,
+              String symbol,
+              String side,
+              BigDecimal quantity,
+              BigDecimal limitPrice) {
+      }
+    src/main/java/com/example/trading/orders/ValidationResult.java: |
+      package com.example.trading.orders;
+
+      public record ValidationResult(boolean accepted, String reason) {
+
+          public static ValidationResult accept() {
+              return new ValidationResult(true, null);
+          }
+
+          public static ValidationResult reject(String reason) {
+              return new ValidationResult(false, reason);
+          }
+      }
+    src/main/java/com/example/trading/orders/OrderValidator.java: |
+      package com.example.trading.orders;
+
+      import java.math.BigDecimal;
+
+      import org.springframework.stereotype.Component;
+
+      @Component
+      public class OrderValidator {
+
+          public ValidationResult validate(Order order) {
+              if (order.accountId().startsWith("TEST-")) {
+                  return ValidationResult.reject("test accounts cannot trade in production");
+              }
+              if (order.quantity() == null || order.quantity().compareTo(BigDecimal.ZERO) <= 0) {
+                  return ValidationResult.reject("quantity must be positive");
+              }
+              if ("BUY".equals(order.side()) || "SELL".equals(order.side())) {
+                  return ValidationResult.accept();
+              }
+              return ValidationResult.reject("side must be BUY or SELL");
+          }
+      }
+    src/test/java/com/example/trading/orders/OrderValidatorTest.java: |
+      package com.example.trading.orders;
+
+      import static org.junit.jupiter.api.Assertions.assertFalse;
+      import static org.junit.jupiter.api.Assertions.assertTrue;
+
+      import java.math.BigDecimal;
+
+      import org.junit.jupiter.api.Test;
+
+      class OrderValidatorTest {
+
+          private final OrderValidator validator = new OrderValidator();
+
+          @Test
+          void acceptsAPlainBuy() {
+              Order order = new Order("o-1", "ACC-1001", "MSFT", "BUY", new BigDecimal("100"), new BigDecimal("412.50"));
+              assertTrue(validator.validate(order).accepted());
+          }
+
+          @Test
+          void rejectsTestAccounts() {
+              Order order = new Order("o-2", "TEST-7", "MSFT", "SELL", new BigDecimal("5"), new BigDecimal("410.00"));
+              assertFalse(validator.validate(order).accepted());
+          }
+      }
+checks:
+  - {check: changes_within, allowed: ["*.md"], text: "no Java source, test, or build file changed"}
+  # Command position only, so `which mvn`, `Get-Command java`, `cat Order.java`, and version probes
+  # stay allowed.
+  - check: bash_did_not_run
+    pattern: '(?:^|[;&|(`]|\n)\s*(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)*(?:sudo\s+)?(?:\S*[\\/])?(?:mvnw?|gradlew?|javac?|jshell)(?:\.cmd|\.bat|\.exe)?(?![^\S\n]+(?:-v|-version|--version)\b)(?=\s|$|[;&|)])'
+    text: "no Java build, test, or run was attempted"
+  - {check: skill_loaded, skill: stack-profile, text: "stack-profile was loaded"}
+  - check: text_regex
+    pattern: '(?<!not )(?<!not a )(?<!n''t )(?<!n''t a )(?<!never )support[- ]only|\bonly (?:support|operate)s?\b|(?:does not|doesn''t|do not|don''t|never|not)\s+(?:write|author)\w*\s+(?:java|jvm)|authoring[ /-]+support boundary'
+    text: "names the authoring/support boundary as the reason"
+  - check: text_regex
+    pattern: '\b(?:send|sent|hand|handed|give|gave|route|routed|pass|passed|return|returned|forward|forwarded|escalat\w*|raise|raised|file|filed|take|goes|go|belongs?|assign\w*)\b[^.\n]{0,80}?\b(?:to|with)\b[^.\n]{0,40}?\b(?:development|dev|application|app|service|owning|product|engineering)[ -](?:owners?|teams?)\b|\bfor (?:the |its |their |your |that |this )?(?:[\w''.-]+\s+){0,2}(?:development|dev|application|app|service|owning|product|engineering)[ -](?:owners?|teams?)\b|\b(?:development|dev|application|app|service|owning|product|engineering)[ -](?:owners?|teams?)\b[^.\n]{0,40}?\b(?:should|must|can|will|needs? to|to)\b[^.\n]{0,30}?\b(?:apply|fix|merge|ship|review|implement|make|land|take)\b'
+    text: "routes the source change to the development owner"
+  - check: text_regex
+    pattern: '(?:accountId\(\)|account[ _-]?id)[\s\S]{0,80}?(?:==\s*null|\bnull\b|isBlank|\bblank\b|\bmissing\b|\bempty\b|isEmpty)[\s\S]{0,160}?(?:reject|required|invalid)|(?:reject|required|invalid)\w*[^.\n]{0,80}?(?:\bnull\b|\bblank\b|\bmissing\b|\bempty\b|\bno\b|without)[^.\n]{0,30}?account[ _-]?id|(?:reject|required|invalid)\w*[^.\n]{0,80}?account[ _-]?id[^.\n]{0,40}?(?:\bnull\b|\bblank\b|\bmissing\b|\bempty\b|absent)'
+    text: "the recommendation handles the missing account id specifically"
+  - check: text_regex
+    pattern: '(?:reject|test|should)\w*(?:Missing|Null|Blank|No|Empty|Absent)Account|@Test[\s\S]{0,300}?(?:\bnull\b|accountId|account[ _-]?id)|(?:\bregression\b|\b(?:add|write|include|recommend\w*)\s+(?:an?\s+|the\s+)?(?:unit\s+|regression\s+)?tests?\b)[\s\S]{0,200}?(?:\bnull\b|\bblank\b|\bmissing\b|\bempty\b|without|\bno\b)[^.\n]{0,30}?account|(?:\bregression\b|\b(?:add|write|include|recommend\w*)\s+(?:an?\s+|the\s+)?(?:unit\s+|regression\s+)?tests?\b)[\s\S]{0,200}?account[ _-]?id[^.\n]{0,40}?(?:\bnull\b|\bblank\b|\bmissing\b|\bempty\b)'
+    text: "the recommendation carries a regression test for the missing account id"
+  - {check: no_new_commits, text: "no commits"}
+  - {check: no_agents_dir, text: "no .agents/ progress litter"}

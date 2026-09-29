@@ -1,9 +1,10 @@
 ---
 name: stack-profile
 description: >-
-  The single stack-definition point — what this team runs today, the stay-in-lane rule, and the
-  platform boundary. Load before recommending any runtime, tool, or infrastructure change, and when
-  choosing between observability backends. Triggers: "what's our stack", "should we use X for this",
+  The single stack-definition point — what this team runs today, which stacks it authors versus
+  only supports, the stay-in-lane rule, and the platform boundary. Load before editing code in a
+  support-only stack (Java/JVM), before recommending any runtime, tool, or infrastructure change,
+  and when choosing between observability backends. Triggers: "what's our stack", "should we use X for this",
   "can we move this to Kubernetes / the cloud", "which backend do I query". This skill bundle changes
   when the ground shifts.
 argument-hint: "[the runtime, tool, or infrastructure question]"
