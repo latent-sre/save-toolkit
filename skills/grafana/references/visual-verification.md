@@ -50,22 +50,23 @@ Do not inspect credential files or copy session cookies to manufacture another a
 
 ### Where captures land
 
-`browser_take_screenshot` and `browser_snapshot` both accept an optional `filename`, so neither is
-purely an observation. [sourced] Upstream resolves a relative `filename` against the **workspace
-root**, and writes an omitted one into the server's output directory as `page-{timestamp}.{ext}`;
-`--output-dir` governs only the automatically named files and does not move an explicit one. A
-caller-supplied name can therefore land in — and overwrite — a checked-out repository file.
+[sourced] Both tools accept an optional `filename`; relative names resolve against the **workspace
+root** and can overwrite a checked-out repository file. When `filename` is omitted,
+`browser_snapshot` returns the accessibility snapshot in the response; `browser_take_screenshot`
+saves an automatically named image in the server's output directory. `--output-dir` governs the
+automatically named files, not explicit filenames. These response defaults do not guarantee that
+the server makes no other filesystem writes. See the [Playwright MCP tool reference](https://github.com/microsoft/playwright-mcp#tools).
 
-Two controls, in this order:
+Host controls and the lane's argument rule:
 
 | Control | What it does | Who holds it |
 |---|---|---|
 | Workspace root is a dedicated temp capture directory, never the checkout | Bounds every write path, including an explicit `filename` | Host configuration |
 | `--allow-unrestricted-file-access` absent | [sourced] Upstream restricts file access to the workspace roots (or cwd) by default; setting this flag removes that restriction | Host configuration |
-| Never pass `filename` | Captures stay auto-named inside `--output-dir` and do not depend on the boundary holding | This lane |
+| Never pass `filename` | Snapshots return inline; screenshots use automatically named files in the output directory | This lane |
 
-Omit `filename` on both tools. The lane rule is the weaker of the two: prose cannot constrain a
-tool argument, so it is a habit that keeps captures tidy, not the boundary. The boundary is the
+Omit `filename` on both tools. This argument rule is cooperative: prose cannot constrain a tool
+argument or enforce isolation. The filesystem boundary is the
 workspace root, and it is only real once proven on the installed host — the repository's VS Code
 plugin acceptance record carries the capture-boundary canary. A root pointed at the checkout means
 no captures.
