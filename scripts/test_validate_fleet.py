@@ -340,7 +340,7 @@ class FleetValidatorTests(unittest.TestCase):
             "software-engineer": _markdown_section(
                 Path("agents/software-engineer.md"), "## Untrusted input boundary"
             ),
-            "sre-assistant": _markdown_section(Path("agents/sre-assistant.md"), "## Working doctrine"),
+            "sre-assistant": _markdown_section(Path("agents/sre-assistant.md"), "## Evidence"),
         }
         for agent, section in sections.items():
             with self.subTest(agent=agent):
