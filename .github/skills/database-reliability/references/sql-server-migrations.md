@@ -6,7 +6,8 @@ do not plan on an online operation merely because the syntax exists.
 
 ## Bound every lock wait
 
-DDL waiting at normal priority blocks every later request on the table, so bound every wait:
+Normal-priority DDL can form a blocking chain when its requested lock conflicts with other work.
+Assess the operation's lock phases and bound each wait:
 
 - Index create on 2022+ and online index rebuild on 2014+: `WITH (ONLINE = ON (WAIT_AT_LOW_PRIORITY
   (MAX_DURATION = <n ≥ 1> MINUTES, ABORT_AFTER_WAIT = SELF)))`. Never use `BLOCKERS`: it kills user
@@ -24,11 +25,15 @@ references]*
 
 ## Columns
 
-The cheap path is a **new** column, not tightening an existing nullable column. `ADD col ... NOT NULL
-DEFAULT <constant>` is metadata-only and near-instant on Enterprise edition: the default is written
-to a row when the row is next updated or the index rebuilt. It is not online for `varchar(max)`,
-`xml`, or CLR types, and falls back to an offline rewrite if the addition pushes a row past 8,060
-bytes.
+For a **new** column, SQL Server 2012+ Enterprise can add `NOT NULL DEFAULT <runtime constant>`
+without updating existing rows immediately; the default is initially metadata and is materialized
+when a row is updated or the table/clustered index is rebuilt. This path excludes `varchar(max)`,
+`nvarchar(max)`, `varbinary(max)`, `xml`, `text`, `ntext`, `image`, `hierarchyid`, `geometry`, `geography`,
+and CLR user-defined types. It also falls back to an offline operation if the **maximum possible**
+row size exceeds 8,060 bytes, even when current rows are short. A per-row default such as `NEWID()`
+is not a runtime constant. Check type, default, edition/version, and row-size eligibility before
+calling the addition metadata-only; it still needs a schema lock. *[sourced:
+[Microsoft's online-add restrictions](https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-table-transact-sql#add-not-null-columns-as-an-online-operation)]*
 
 Tightening an existing nullable column to `NOT NULL` still scans. Backfill in bounded batches and
 alter in a quiet window, or use `ALTER COLUMN ... WITH (ONLINE = ON)` only after confirming the
@@ -37,9 +42,10 @@ edition and roughly twice the free space for the hidden replacement column. *[so
 
 ## Index and tool behavior
 
-`CREATE INDEX ... WITH (ONLINE = ON)` takes short locks at its boundaries but is Enterprise-only and
-waits for every open transaction on the table before it begins; a long-running report can stall the
-migration. *[sourced: SQL Server `ALTER TABLE` reference; reviewed 2026-08-21]*
+`CREATE INDEX ... WITH (ONLINE = ON)` needs a supporting edition and short boundary locks.
+Conflicting transactions or long-running queries can delay those locks and form a blocking chain;
+the required locks vary by index operation and phase. *[sourced:
+[online index phases](https://learn.microsoft.com/en-us/sql/relational-databases/indexes/how-online-index-operations-work)]*
 
 Add the exact edition, row-size and LOB facts, table/index size, open-transaction risk, expected
 duration, space, and cancellation behavior to the migration handoff defined in `../SKILL.md`.

@@ -1,7 +1,7 @@
 # Query-plan safety
 
 Read only when selecting or interpreting a database execution plan. Start with plan-only evidence;
-an actual/analyzed plan is execution and inherits the production-change boundary in `../SKILL.md`.
+an actual/analyzed plan is execution: classify its effects and load under `../SKILL.md`'s authority rule.
 
 | Engine | Plan only | Executes the statement |
 |---|---|---|
@@ -10,8 +10,9 @@ an actual/analyzed plan is execution and inherits the production-change boundary
 
 On a `SELECT`, the executing form creates load. On `INSERT`, `UPDATE`, `DELETE`, or `MERGE`, it makes
 the data change. Default to the plan-only column. Use an executing form only after confirming the
-statement and side effects, preferably on a non-production copy or read replica, with DBA sign-off
-and the exact approved packet for production.
+statement and side effects. Prefer an isolated copy; a read replica suits compatible read-only queries.
+Production diagnostics need the existing DBA-authorized read path and load bounds; live changes use
+`production-change-gate`.
 
 PostgreSQL documents this diagnostic pattern for ordinary mutating DML:
 

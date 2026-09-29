@@ -1,8 +1,9 @@
 # Saturation triage
 
 Read only for a DB-driven incident involving connection, lock, replication, storage, or recent-change
-signals. Diagnose read-only; any pool change, query kill, failover, scaling, or other live mitigation
-still requires the exact human-approved incident packet in `../SKILL.md`.
+signals. Diagnose read-only under `../SKILL.md`'s access rule. Pool changes, query kills, failover,
+scaling, and other live mitigations use `production-change-gate`; reuse its incident envelope only
+for actions it covers. The human owner or approved protected automation applies them.
 
 Name the engine/version, database, affected app, UTC window, and available access. Start in the
 app's pool dashboard: active/idle connections, pending borrowers, wait time and timeouts over the
@@ -25,5 +26,5 @@ Use the first evidence to choose the next discriminator:
   responder with `incident-investigation` without upgrading correlation into root cause.
 
 Return current impact, verified signals, competing hypotheses, the next read-only discriminator, and
-the named owner. If mitigation is requested, reference the safety packet from `../SKILL.md` and
+the named owner. If mitigation is requested, reference the applicable gate record and
 report its approval state and gaps; never execute mitigation.
