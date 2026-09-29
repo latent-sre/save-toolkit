@@ -1,12 +1,14 @@
 # Restore drill — turn a backup into recovery evidence
 
-For recovery rehearsals or RTO/RPO claims. Changes require `../SKILL.md`'s exact approved packet.
+For recovery rehearsals or RTO/RPO claims, within `../SKILL.md`'s authority rule.
 
 ## Restore into scratch by default
 
-Use a throwaway database name, container, or temporary path. Never overwrite the live service just
-to test a backup. An in-place rehearsal is exceptional, production-facing, and requires an approved
-plan plus a second recovery copy.
+For an explicitly assigned isolated drill, use the assignment's disposable target, permitted backup
+data, and authorized actor; no separate production-change packet is needed. Isolate restored jobs,
+integrations, and network access from live systems. A scratch name alone does not establish isolation.
+Live or production-connected changes use `production-change-gate`. Never overwrite the live service
+just to test a backup; an in-place rehearsal also needs a second recovery copy.
 
 ## Drill sequence
 

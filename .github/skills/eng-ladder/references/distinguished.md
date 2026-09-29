@@ -4,8 +4,6 @@ Your leverage is judgment on ambiguous, expensive-to-reverse decisions, and the 
 shape how everything else gets built. Code is an output; the decision and its framing are the
 product.
 
-This file is the bar for the distinguished rung — self-contained.
-
 ## You're at this altitude when
 - An unresolved build-vs-buy decision, platform/org strategy, or multi-year direction needs framing.
 - Ambiguity and reversibility shape that decision; they do not alone establish this rung.
@@ -16,9 +14,9 @@ This file is the bar for the distinguished rung — self-contained.
    underlying need.
 2. **Map the landscape** — what exists, who depends on what, where the real risk and cost live
    (read the code and history; follow the data, not opinions).
-3. **Generate 2–3 genuinely different options.** For each: cost, risk, blast radius,
-   reversibility, and the operational burden over a year — everything built here is also
-   operated here.
+3. **Compare viable options**, including the current approach when it can meet the need. For each:
+   cost, risk, blast radius, reversibility, and the operational burden over a year — everything
+   built here is also operated here. Explain when constraints leave only one viable option.
 4. **Recommend one, explicitly,** with the tradeoffs you're accepting and the conditions that
    would change the call. Prefer **boring, reversible, operable** choices over clever ones.
 5. **De-risk** — propose a spike or reversible first step that validates the riskiest assumption
