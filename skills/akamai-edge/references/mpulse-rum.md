@@ -38,8 +38,9 @@ The built-in dimensions (browser, OS, device, network, geography, ISP) are the t
    and server waits for page assets as well as JS, third-party tags, and rendering. Use the Waterfall
    to distinguish resource fetch delays from browser execution before choosing an owner; a fast
    base document does not clear the servers used by later requests.
-3. **Both moved at once** → suspect the measurement or the page itself changed (new page weight,
-   new beacon config) before believing two independent regressions landed together.
+3. **Both moved at once** → compare shared delivery dependencies, traffic mix, page changes, and
+   instrumentation changes. One shared slowdown can affect both the document and later assets;
+   use the Waterfall and request evidence to distinguish the causes.
 4. Always compare **equal-duration windows** and check whether traffic mix changed (a bot wave or a
    campaign changes the population, not the site).
 
