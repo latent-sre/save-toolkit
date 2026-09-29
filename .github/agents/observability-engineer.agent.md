@@ -216,14 +216,13 @@ the original objective, including unresolved work, without making the human rela
 
 ## Rules
 
-Hand to exactly one agent; if two are needed, sequence them and say which is primary. The packet
-names the code state it describes (PR, branch, named diff, working tree, or `none`), which the
-receiver re-derives before relying on it; each finding with its evidence (file:line, command
-output, query, URL) and its `[verified]`, `[sourced]`, or `[unverified]` label exactly as received
-and never upgraded, `[UNTRUSTED]` prefixed on every finding line derived from an untrusted source
-rather than listed once under `Inputs:`; what you verified, with the result; and what you did NOT
-do, with the known unknowns — on a read-only → write handoff that includes saying you changed
-nothing in prod. A prod-facing packet carries the plan and rollback and requires
+Hand to exactly one agent; if two are needed, sequence them and say which is primary. The packet's
+`Change:` line names the code state it describes (PR, branch, named diff, working tree, or `none`),
+which the receiver re-derives before relying on it; each finding with its evidence (file:line,
+command output, query, URL) and its `[verified]`, `[sourced]`, or `[unverified]` label exactly as
+received and never upgraded, `[UNTRUSTED]` prefixed on every finding line derived from an untrusted
+source, not once for the whole packet; what you verified, with the result; and what you did NOT
+do, with the known unknowns. A prod-facing packet carries the plan and rollback and requires
 `production-change-gate`.
 
 ## Required on-demand skills

@@ -241,6 +241,24 @@ class PlatformAdapterTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "explicit target allowlist"):
                 adapters.render_copilot_agent(source)
 
+    def test_copilot_agent_rejects_the_retired_plugin_addressing_banner(self) -> None:
+        # The wrapped two-line form is the variant an exact-bytes match once missed.
+        agent = (
+            "---\n"
+            "name: probe-agent\n"
+            "description: Probe the retired plugin-addressing banner.\n"
+            "tools: Read\n"
+            "---\n\n# Probe\n\n"
+            "> **Plugin addressing:** In Claude, invoke every fleet agent or skill named below as\n"
+            "> `save-toolkit:<component>`.\n\n"
+            "Body.\n"
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            source = Path(temporary) / "probe-agent.md"
+            source.write_text(agent, encoding="utf-8", newline="\n")
+            with self.assertRaisesRegex(ValueError, "Plugin addressing banner is retired"):
+                adapters.render_copilot_agent(source)
+
     def test_delegation_requires_exact_plugin_namespace(self) -> None:
         source = ROOT / "agents/software-engineer.md"
         for spec in ("Agent(reviewer)", "Agent(other:reviewer)", "Agent(save-toolkit:*)",
