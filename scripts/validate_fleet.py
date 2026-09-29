@@ -173,15 +173,15 @@ EXPECTED_DELEGATION = {
 
 
 def _tool_specs(raw: object) -> list[str]:
-    return adapters._split_tool_specs(raw)  # shared grammar with the generator
+    return adapters.split_tool_specs(raw)  # shared grammar with the generator
 
 
 def _tool_bases(specs: list[str]) -> set[str]:
-    return {spec.split("(", 1)[0] for spec in specs}
+    return {adapters.tool_base(spec) for spec in specs}
 
 
 def _delegates(specs: list[str], source: Path) -> set[str]:
-    return set(adapters._delegation_targets(specs, source) or ())
+    return set(adapters.delegation_targets(specs, source) or ())
 
 
 def _metadata_failures(path: Path, fields: dict[str, object]) -> list[str]:
@@ -386,7 +386,7 @@ def validate_guard_wiring(root: Path, agent_names: list[str]) -> list[str]:
 
     plugin_name = getattr(guard, "PLUGIN_NAME", None)
     try:
-        manifest_name = adapters._manifest(root / ".claude-plugin/plugin.json").get("name")
+        manifest_name = adapters.read_manifest(root / ".claude-plugin/plugin.json").get("name")
     except (OSError, ValueError) as exc:
         failures.append(f".claude-plugin/plugin.json: cannot read to check guard PLUGIN_NAME: {exc}")
         manifest_name = None
