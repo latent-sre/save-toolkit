@@ -1,8 +1,9 @@
 # Artifact altitude — author and optimize one LLM-facing artifact
 
-Locate the layer that owns the failure first: routing metadata, instructions, context assembly,
+For a repair, locate the layer that owns the failure first: routing metadata, instructions, context assembly,
 tool/output schema, orchestration, wrapper/model/runtime, or the evaluator. When the artifact owns
-it, edit it like code: reproduce, minimal fix, verify. `../SKILL.md`'s source-trust gate,
+it, edit it like code: reproduce, minimal fix, verify. New work starts from the requested behavior
+and success criteria, without an invented failure. `../SKILL.md`'s source-trust gate,
 untrusted-data rules, and method govern every step here; a clean-context subagent is not
 a sandbox.
 
@@ -60,9 +61,10 @@ independent review or promotion; the promotion and review rules below still appl
 - Independent review is conditional — a finding needing independent reconciliation, a
   security/authority rule, or exact-SHA production-deployment evidence — not a universal merge
   prerequisite. A bounded read-only canary only for a named host or runtime risk.
-- Before adding text to an always-loaded file, ask the model tools-off; if it already answers, the
-  text is a tax. Prose carries the team's choices among alternatives and facts the model lacks; a
-  rule the model reads and does not apply ships as a copied test or asset, not a stronger sentence.
+- Omit explanations the model already knows; retain the team's choices, missing facts, and
+  decision-changing instructions. A tools-off knowledge answer does not establish task compliance.
+  Remove a behavioral instruction only when representative task evidence or an enforced replacement
+  supports the removal; known facts and reliable execution are different claims.
 
 ## Examples and thresholds
 
