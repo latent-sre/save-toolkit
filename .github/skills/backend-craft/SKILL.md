@@ -60,11 +60,13 @@ operability and failure rules that fit a worker, scheduler, or client without ad
 - The changed behavior and relevant failure paths pass the project's tests. Exercise changed HTTP
   endpoints with requests; exercise workers, schedulers, and clients through their own entrypoints.
 - Record bounded, redacted evidence appropriate to that surface: HTTP method/path, status, request
-  id and schema assertion, or job/client inputs, outcome and failure handling. Never include
-  headers, cookies, credentials, or full bodies.
+  id and schema assertion, or job/client inputs, outcome and failure handling. Include only
+  allowlisted, sanitized protocol headers (e.g. `Content-Type`, `Retry-After`); exclude credentials,
+  cookies, sensitive header values, and full bodies.
 - Changed HTTP shapes are checked against the established API contract; preserve existing auth
-  coverage. An item or write route has a test in which a second authorized principal is refused
-  the first principal's object. For a new HTTP service, test its chosen OpenAPI contract and
+  coverage. For an item or write route, test that an authenticated principal without permission
+  for the object is refused, and that intended owner, shared, or administrative access succeeds.
+  For a new HTTP service, test its chosen OpenAPI contract and
   include breaking-change detection in CI. A worker or client change does not owe a served OpenAPI
   document.
 

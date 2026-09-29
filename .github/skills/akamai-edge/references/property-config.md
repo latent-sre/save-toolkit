@@ -4,6 +4,15 @@ Sources reviewed 2026-08-07 against official `techdocs.akamai.com` pages via ind
 (search extraction and indexed snapshots — not byte-level fetches). Re-verify timings and API
 shapes against the live pages for the target contract before relying on them.
 
+## Contents
+
+- The change unit: a property version
+- Rollback — check eligibility as well as time
+- Property change packet
+- Cache purge
+- Config-as-code paths
+- Review checklist for a property diff
+
 ## The change unit: a property version
 
 Properties are versioned; editing never touches live traffic — **activation** does. Activate a
@@ -18,32 +27,34 @@ techdocs.akamai.com/property-mgr/docs/how-activation-works]*:
   Verify `X-Akamai-Staging` in the response (`ESSL` for Enhanced TLS, `EdgeSuite` for Standard
   TLS); a request to the edge hostname tests the wrong host
   *[sourced: techdocs.akamai.com/property-mgr/docs/test-https; reviewed 2026-09-09]*.
-- **Production** activation is **two-phased**: phase 1 rolls out to live-traffic servers — but
-  users mapped to fresh edge locations "may still reach Akamai servers with the previous property
-  configuration" for a few minutes after phase 1 completes *[sourced: how-activation-works,
-  re-checked 2026-08-19]*; phase 2 ("Pending - Full Rollout") continues to
-  the rest of the network and can auto-cancel if the system detects a problem. "The total
-  activation process takes up to 15 minutes on the production network."
+- **Production** activation first updates live-traffic servers, then the remaining network
+  ("Pending - Full Rollout"); users mapped to new edge locations can still receive the previous
+  configuration during rollout. Akamai can cancel if it detects a problem. The normal estimate is
+  up to 15 minutes; exceptions can take up to 60 minutes: changes to more than 10 hostnames at once,
+  custom/advanced configurations requiring Akamai intervention, or legacy Configuration Manager
+  hostname migrations. *[sourced: [activation phases and exceptions](https://techdocs.akamai.com/property-mgr/docs/how-activation-works)]*
 
-## Rollback — know which of the two you have
+## Rollback — check eligibility as well as time
 
-- **Fast Fallback**: for **60 minutes after an activation completes**, revert to the most recent
-  previously-active version, faster than a standard activation. In PAPI it is `useFastFallback` on
-  `POST /papi/v1/properties/{propertyId}/activations`, gated by `canFastFallback` (with an
-  expiration timestamp) *[sourced: techdocs.akamai.com/property-mgr/reference/post-property-activations]*.
-- **After the window**: rollback = a normal production activation of the previous version — plan
-  for the full activation time in the rollback estimate, not the fast-fallback time.
+- **Fast Fallback, when eligible**: available for 60 minutes after full rollout. Read the current
+  activation's `fallbackInfo`: `canFastFallback`, `fallbackVersion`, and `fastFallbackExpirationTime`.
+  Use the returned version with `useFastFallback` on `POST /papi/v1/properties/{propertyId}/activations`
+  only while eligibility and expiry permit it. First activations, hostname-set changes, and the
+  documented activation exceptions cannot use Fast Fallback. *[sourced: [PAPI recovery](https://techdocs.akamai.com/property-mgr/reference/property-activation-error-handling)
+  and [Fast Fallback limitations](https://techdocs.akamai.com/property-mgr/docs/how-activation-works#fast-fallback-considerations)]*
+- **Unavailable or expired**: normally activate a known-good previous version and budget the full
+  activation time. For a first activation with no previous version, prepare another recovery path.
 
 ## Property change packet
 
 The packet states: the version diff, staging evidence, blast radius (hostnames/CP codes on the
 property), verification (the exact debug-header or report check), **which rollback applies right
-now**, and the fast-fallback expiry once
-activated. Production activation is Tier 2 minimum, human release owner, through
-`production-change-gate`; a WAF/security-config change is a security change with its own owner.
+now**, and its expected duration. Prepare recovery before activation; afterward confirm current
+fallback eligibility, version, and expiry. Production activation is Tier 2 minimum, with a human
+release owner through `production-change-gate`; a WAF/security-config change has its own owner.
 Origin, hostname, or security-config activations are Tier 3 access-path changes (proxy and
-firewall in the gate's Tier 3 row); the proven recovery path is a property's fast fallback inside
-its window or a tested previous-version activation.
+firewall in the gate's Tier 3 row); the recovery path must fit the change: eligible Fast Fallback
+inside its window, a tested previous-version activation, or another proven path when neither exists.
 
 ## Cache purge
 
@@ -90,8 +101,8 @@ Verify with a debug request; inferred from the X-Cache definitions
   stampede origin on activation; state the expected offload delta.
 - Origin settings (hostname, ports, SNI, timeouts) — a typo here is a total outage that staging
   won't catch if staging points elsewhere.
-- Rule ordering/criteria — Property Manager rules cascade; a new rule above an existing one can
-  shadow it silently.
+- Rule ordering/criteria — conflicting behaviors use the bottom-most match; complementary behaviors
+  can accumulate. A child rule applies only when its parent matches. *[sourced: [behavior resolution](https://techdocs.akamai.com/property-mgr/docs/config-best-practices)]*
 - Behaviors that change debugging itself (Enhanced Debug key rotation, `disablePragma`, GRN) —
   check that debug access remains available after the change.
 - Hostnames added/removed from the property — that is blast radius, list them in the packet.

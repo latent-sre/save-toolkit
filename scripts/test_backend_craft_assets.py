@@ -14,6 +14,7 @@ from urllib.parse import urlsplit
 from fastapi import APIRouter, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
+from httpx import Response
 from jsonschema import Draft202012Validator
 from pydantic import BaseModel
 import pytest
@@ -40,7 +41,7 @@ class Payload(BaseModel):
 def client():
     problems = load_asset("problem_fastapi")
     app = FastAPI(responses=problems.problem_responses(400, 422, 500))
-    problems.install_problem_handlers(app)
+    problems.install_problem_handlers(app, trusted_request_id_header="X-Request-ID")
 
     @app.get("/auth", responses=problems.problem_responses(401))
     def auth():
@@ -210,6 +211,116 @@ def test_unexpected_error_is_redacted_and_correlated(client):
     assert "private diagnostic" not in response.text
 
 
+def test_unhandled_log_keeps_diagnostics_without_exception_values(caplog):
+    problems = load_asset("problem_fastapi")
+    app = FastAPI()
+    problems.install_problem_handlers(app)
+
+    @app.get("/failure")
+    def failure():
+        try:
+            raise ValueError("SYNTHETIC_CAUSE_TOKEN")
+        except ValueError as cause:
+            error = RuntimeError("SYNTHETIC_EXCEPTION_TOKEN")
+            error.add_note("SYNTHETIC_NOTE_TOKEN")
+            raise error from cause
+
+    with caplog.at_level(logging.ERROR), TestClient(app, raise_server_exceptions=False) as client:
+        response = client.get("/failure")
+    records = [record for record in caplog.records if record.name == problems.logger.name]
+    assert response.status_code == 500
+    assert len(records) == 1
+    record = records[0]
+    rendered = logging.Formatter("%(request_id)s %(message)s").format(record)
+    assert "SYNTHETIC_" not in rendered
+    assert "RuntimeError" in rendered and "failure" in rendered
+    assert "test_backend_craft_assets.py" in rendered
+    assert record.request_id == response.headers["X-Request-ID"]
+    assert record.exc_info is None  # another handler must not reformat the raw exception
+
+
+def test_request_id_defaults_to_generated_without_a_trusted_ingress():
+    from uuid import UUID
+
+    problems = load_asset("problem_fastapi")
+    app = FastAPI()
+    problems.install_problem_handlers(app)
+    with TestClient(app) as client:
+        response = client.get("/missing", headers={
+            "X-Request-ID": "client-request-id", "X-Vcap-Request-Id": "client-vcap-id",
+        })
+    request_id = response.headers["X-Request-ID"]
+    assert request_id not in {"client-request-id", "client-vcap-id"}
+    assert UUID(request_id).version == 4
+    assert response.json()["request_id"] == request_id
+
+
+@pytest.mark.parametrize("trusted_header", ["X-Request-ID", "X-Vcap-Request-Id"])
+@pytest.mark.parametrize("trusted_id", ["ingress-id", "bad id", None])
+def test_only_the_configured_ingress_header_can_supply_an_id(trusted_header, trusted_id):
+    from uuid import UUID
+
+    problems = load_asset("problem_fastapi")
+    app = FastAPI()
+    problems.install_problem_handlers(app, trusted_request_id_header=trusted_header)
+    headers = {name: "client-alternative" for name in ("X-Request-ID", "X-Vcap-Request-Id")}
+    if trusted_id is None:
+        del headers[trusted_header]
+    else:
+        headers[trusted_header] = trusted_id
+    with TestClient(app) as client:
+        response = client.get("/missing", headers=headers)
+    request_id = response.headers["X-Request-ID"]
+    if trusted_id == "ingress-id":
+        assert request_id == trusted_id
+    else:
+        assert request_id != "client-alternative"
+        assert UUID(request_id).version == 4
+    assert response.json()["request_id"] == request_id
+
+
+@pytest.mark.parametrize("media_type", [
+    "application/problem+json", "Application/Problem+Json; charset=utf-8",
+])
+def test_problem_assertion_accepts_valid_contract(media_type):
+    contract = load_asset("test_http_contract")
+    body = {
+        "type": "about:blank", "title": "Validation failed", "status": 422,
+        "request_id": "request-1", "detail": "Invalid input", "instance": "/data",
+        "errors": [{"loc": ["body", "count"], "msg": "Must be an integer"}],
+        "project_extension": {"code": "invalid-count"},
+    }
+    contract.assert_problem(Response(422, json=body, headers={"Content-Type": media_type}), 422)
+
+
+@pytest.mark.parametrize("field,value", [
+    ("type", []), ("title", False), ("status", "422"),
+    ("request_id", ["not-a-string"]), ("request_id", ""),
+    ("detail", []), ("instance", {}), ("errors", {}),
+    ("errors", [None]), ("errors", [{"loc": [0], "msg": "Invalid"}]),
+    ("errors", [{"loc": [], "msg": False}]), ("errors", [{"msg": "Missing loc"}]),
+])
+def test_problem_assertion_rejects_malformed_fields(field, value):
+    contract = load_asset("test_http_contract")
+    body = {"type": "about:blank", "title": "Error", "status": 422, "request_id": "request-1"}
+    body[field] = value
+    response = Response(422, json=body, headers={"Content-Type": "application/problem+json"})
+    with pytest.raises(AssertionError):
+        contract.assert_problem(response, 422)
+
+
+@pytest.mark.parametrize("media_type,status", [
+    ("application/problem+json-extra", 422), ("application/problem+json", 500),
+])
+def test_problem_assertion_rejects_wrong_media_type_or_http_status(media_type, status):
+    contract = load_asset("test_http_contract")
+    response = Response(status, headers={"Content-Type": media_type}, json={
+        "type": "about:blank", "title": "Error", "status": 422, "request_id": "request-1",
+    })
+    with pytest.raises(AssertionError):
+        contract.assert_problem(response, 422)
+
+
 def test_starter_urls_and_page_shape_match_the_house_contract():
     schema = yaml.safe_load((ASSETS / "openapi.starter.yaml").read_text(encoding="utf-8"))
     base = urlsplit(schema["servers"][0]["url"]).path.rstrip("/")
@@ -364,7 +475,7 @@ def test_request_id_context_is_restored_in_same_task(raises):
                     messages.append(message)
 
                 scope = {"type": "http", "headers": [(b"x-request-id", request_id.encode())]}
-                middleware = problems.RequestIdMiddleware(app)
+                middleware = problems.RequestIdMiddleware(app, trusted_request_id_header="X-Request-ID")
                 if raises:
                     with pytest.raises(RuntimeError, match="probe"):
                         await middleware(scope, None, send)
@@ -382,7 +493,7 @@ def test_request_id_context_is_restored_in_same_task(raises):
 def test_invalid_preselected_request_id_uses_valid_ingress_id(state_id):
     problems = load_asset("problem_fastapi")
     app = FastAPI()
-    problems.install_problem_handlers(app)
+    problems.install_problem_handlers(app, trusted_request_id_header="X-Request-ID")
 
     class IngressState:
         def __init__(self, app):

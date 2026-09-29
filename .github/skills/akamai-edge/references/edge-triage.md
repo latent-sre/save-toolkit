@@ -75,8 +75,9 @@ stale content — an origin-leg finding, not a healthy edge; a delete purge remo
 parent-hit reads as a miss on `X-Cache` and a hit on `X-Cache-Remote` — offload is working even
 though the child missed.
 
-From this fleet, a debug-header request against production is a **recommend-for-human** command
-like every network probe; show the exact `curl -H "Akamai-Debug: …"` line and the expected headers.
+Production debug-header requests remain **recommend-for-human** under current grants; show the
+exact `curl -H "Akamai-Debug: …"` line and expected headers. Other observations follow the invoking
+agent's granted, scoped, output-protected read paths.
 
 ## DataStream 2 — the sustained/fleet-wide evidence
 

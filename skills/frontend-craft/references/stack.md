@@ -29,16 +29,30 @@ framework choice in the review packet; omitting an unused optional dependency ne
 
 ## Build & serve on PCF
 
-Build hashed static assets with the repository's production build command (`vite build` in the
-greenfield stack). Serve via the **`staticfile`/`nginx` buildpack** or co-serve
-from the API app; add the **SPA fallback** (rewrite unknown paths → `index.html`) so deep links and
-refresh work, and cache-bust on the hashed filenames. On the Staticfile buildpack, a `Staticfile`
-with `pushstate: enabled` is the SPA fallback, plus `root: dist` when the push holds the whole
-project ([Staticfile options](https://docs.cloudfoundry.org/buildpacks/staticfile/index.html)).
-When co-serving, apply the fallback only to non-API paths: `/v1/*`, `/healthz`, and `/readyz` keep
-the API's 404 problem response. Run backend-craft's `test_unknown_path_is_a_problem` against the app
-with the built UI (or a stub `index.html`) mounted; a fallback mounted only when `dist/` exists is
-untested in a CI without a UI build. Before handoff, verify the production build,
-static route, SPA fallback, cache behavior, and health endpoint; deployment execution belongs to the human release owner.
+Build hashed assets with the repository's production build (`vite build` for greenfield).
+Serve through the `staticfile`/`nginx` buildpack or the API app. Fall back to `index.html` for
+client routes, including deep links, only after reserving asset paths and backend routes:
+missing JS/CSS, images and other static files must return 404, never HTML with 200. Include public
+files outside the bundler's asset prefix. Co-served `/v1/*`, `/healthz` and `/readyz` retain their
+backend handlers and status codes, including problem responses for unknown API routes.
+
+Staticfile's `pushstate: enabled` rewrites **all missing paths**; it alone does not enforce those
+boundaries. Use the buildpack's supported custom configuration, an explicit NGINX configuration,
+or the API's router to reserve them. `root: dist` selects the built directory when pushing the
+whole project. [sourced: [Staticfile options](https://docs.cloudfoundry.org/buildpacks/staticfile/index.html)
+and [rewrite implementation](https://github.com/cloudfoundry/staticfile-buildpack/blob/22b502fd325f5725e0a1d5972f9b59ca9ec6d8c2/src/staticfile/finalize/data.go#L123); reviewed 2026-09-29]
+
+Revalidate HTML (`Cache-Control: no-cache`); immutable, content-hashed assets can use long cache
+lifetimes. Keep prior chunks available during rollout or use bounded, user-visible recovery for
+missing imports that protects unsaved work; avoid reload loops. Prefer an existing framework's
+solution; Vite exposes `vite:preloadError`. [sourced: [Vite deployment failures](https://vite.dev/guide/build.html#load-error-handling)
+and [HTTP caching](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Caching#cache_busting); reviewed 2026-09-29]
+
+Verify the production build, deep-link refreshes, asset content types/statuses and cache headers.
+When co-serving, use the project's contract tests to check API 404s and healthy health endpoints
+with the built UI mounted; testing without `dist/` misses conditional fallback wiring. Compatible
+FastAPI services can reuse backend-craft's `test_unknown_path_is_a_problem`.
+In a local or staging rollout check, keep a tab open across versions and navigate to a lazy-loaded
+view. Deployment execution belongs to the human release owner; report unperformed checks as gaps.
 Capture browser error, latency, and navigation telemetry: real-user monitoring through mPulse
 (load `akamai-edge`), trace and correlation headers through `obs-pipeline`.

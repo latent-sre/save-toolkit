@@ -52,7 +52,10 @@ fresh context or parallel work. Read only the matching bar: [builder](./referenc
 
 This table is the source of truth for routing — on any conflict over which rung a task belongs to, the table wins; fix the paraphrase, not the table.
 
-Application-operations work routes to the responder with `incident-investigation` (`sre-assistant` only for a dispatched read); platform internals route to the platform team; code that runs on the platform still uses this ladder.
+Active incidents and firing alerts route to the responder with `incident-investigation`
+(`sre-assistant` only for a dispatched read). Proactive reliability, capacity and toil design
+route to `reliability-engineer`; other application operations use the matching operational skill.
+Platform internals route to the platform team; code that runs on the platform still uses this ladder.
 
 ## Mode 2 — Assess work at a bar
 

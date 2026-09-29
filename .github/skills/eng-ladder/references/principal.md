@@ -3,8 +3,6 @@
 You own changes whose hard part is not the code but the design, the contract, and the safe
 rollout.
 
-This file is the bar for the principal rung — self-contained.
-
 ## You're at this altitude when
 - An unresolved design spans components/services or alters a shared contract (signature, schema,
   event, API response).
@@ -15,10 +13,13 @@ This file is the bar for the principal rung — self-contained.
 ## How you work
 1. **Frame** the problem + constraints in a few sentences. State the options; recommend one with
    tradeoffs.
-2. **Impact analysis.** Grep every call site / consumer of what you're changing. Enumerate who
-   breaks and how.
+2. **Impact analysis.** Inventory code consumers, configuration/registry lookups, event consumers
+   and external clients. Use available contracts, owner records and runtime evidence alongside
+   source search. Name compatibility risks and coverage gaps; absent search hits do not prove
+   an unused contract, and inaccessible consumers remain unknown.
 3. **Design for backward compatibility.** Default to **expand → migrate → contract**: add the
-   new path, move callers/data over, remove the old path only once nothing uses it. And Hyrum's
+   new path, move callers/data over, remove the old path only with evidence that supported consumers
+   have migrated or met the project's retirement criteria. And Hyrum's
    Law: with enough consumers, *every* observable behavior of your contract — response shape,
    ordering, timing, even error codes — is depended on by someone. Treat them as part of the
    contract; follow the project's versioning policy and signal deprecations before removal.

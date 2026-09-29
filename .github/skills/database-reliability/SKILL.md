@@ -15,11 +15,11 @@ not an operated engine — the one rule that matters is in `stack-profile`) — 
 *application + data* layer, not the DB platform internals. Canonical `backend-craft` owns writing
 persistence and migration code; this skill owns operating it safely, diagnosing it, and proving recovery.
 
-> **Safety rule:** inspect only within existing tool, access, and production-read permissions.
-> A state-changing action (migration, `UPDATE`/`DELETE`, query kill, failover, scaling) requires an
-> existing human-approved exact change and recovery packet naming the target, commands, blast radius,
-> verification, recovery strategy, and actor. Reuse it while the target, commands, and current
-> conditions still match; if absent or materially different, stop and hand it to the human release owner.
+> **Authority:** inspect only through the lane's granted, output-protected read paths.
+> Live changes use `production-change-gate`, including its current
+> approval, incident-envelope, recovery, and re-entry rules. The human owner or approved protected
+> automation applies them; the agent diagnoses and prepares. An explicitly assigned isolated scratch
+> rehearsal follows its target, data-use, and actor scope; this skill grants no tools or live authority.
 
 ## Core decision rules
 
@@ -41,12 +41,12 @@ persistence and migration code; this skill owns operating it safely, diagnosing 
 
 ### Performance, durability, and ownership
 
-- An actual/analyzed plan **executes the statement**. Default to a plan-only form; an executing plan
-  inherits the production-change boundary, and wrapping it in a transaction is not a universal
-  rollback because effects may escape the transaction.
-- Application diagnosis and DBA operations are different lanes. Reading a plan and fixing a query
-  are ours; production SQL execution, including diagnostics, needs DBA sign-off and the safety
-  packet above, as do parameter changes. Existing dashboard access does not grant SQL execution.
+- An actual/analyzed plan **executes the statement**. Default to a plan-only form; assess execution
+  load and side effects before classifying it as a read or live change. A transaction is not a
+  universal rollback because effects may escape it.
+- Production SQL needs DBA-authorized access and bounded load and output. Existing authorization
+  can cover read-only diagnostics without a change/recovery packet; mutations and parameter changes
+  use the live-change gate above. Dashboard access alone does not grant SQL execution.
 - Index for measured query patterns, avoid N+1 access and unbounded result sets, and verify any fix
   with before/after evidence. Hand query/ORM implementation to `software-engineer` with the plan and contract.
 - Backups must be monitored **and restored in a drill**. An untested backup does not prove recovery,
@@ -54,7 +54,7 @@ persistence and migration code; this skill owns operating it safely, diagnosing 
 - Use scoped database credentials, never an application admin role. No unbounded `UPDATE`/`DELETE`:
   require a predicate and row-count sanity check, plus the tested recovery strategy.
 - During a DB-driven incident, the agent diagnoses and hands off; the human release owner may
-  mitigate under the safety rule above.
+  mitigate under the live-change gate above.
 
 ## Read only the conditional procedure the request needs
 
@@ -79,5 +79,5 @@ labels and taint; refresh it when the target, state, or time window changes.
   to `software-engineer`.
 - **Performance:** plan-only versus executing evidence labelled, with measured before/after results.
 - **Incidents/recovery:** current evidence, hypothesis labels, human action boundary, and measured
-  recovery gaps. For a proposed change, reference the safety packet and identify missing approval
+  recovery gaps. For a proposed live change, reference the gate record and identify missing approval
   or recovery evidence.

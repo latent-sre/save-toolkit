@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+import hashlib
+from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
 import os
 from pathlib import Path
@@ -9,6 +12,7 @@ import re
 import shutil
 import subprocess
 import sys
+from threading import Thread
 
 import pytest
 import yaml
@@ -35,7 +39,9 @@ def response(resources, total=None, next_page=None):
     print(json.dumps({"pagination": {"total_results": len(resources) if total is None else total,
                                     "next": next_page}, "resources": resources}))
 
-if args[0] in {"api", "auth", "target"}:
+if args[0] == "version":
+    print("cf version 8.0.0+fixture")
+elif args[0] in {"api", "auth", "target"}:
     pass
 elif args[0] == "push":
     recovery = dict(line.split("=", 1) for line in Path(os.environ["GITHUB_OUTPUT"]).read_text().splitlines())
@@ -111,12 +117,20 @@ def shell():
     return executable
 
 
-def run_example(tmp_path, shell, script, mode, *, outputs=None):
+def run_example(tmp_path, shell, script, mode, *, outputs=None, manifest=None, timeout=20):
     fake = tmp_path / "fake_cf.py"
     fake.write_text(CF_FIXTURE, encoding="utf-8")
     calls = tmp_path / "calls.jsonl"
     output = tmp_path / "github-output"
     output.write_text("", encoding="utf-8")
+    release = tmp_path / "release"
+    release.mkdir()
+    app_bytes = b"fixture application"
+    manifest_bytes = yaml.safe_dump(
+        {"applications": [{"name": "order-router"}]} if manifest is None else manifest
+    ).encode()
+    (release / "app.zip").write_bytes(app_bytes)
+    (release / "manifest.yml").write_bytes(manifest_bytes)
     environment = {
         **os.environ,
         "CF_CASE": mode,
@@ -129,8 +143,10 @@ def run_example(tmp_path, shell, script, mode, *, outputs=None):
         "CF_ORG": "fixture-org",
         "CF_SPACE": "fixture-space",
         "APP_NAME": "order-router",
+        "APP_SHA256": hashlib.sha256(app_bytes).hexdigest(),
+        "MANIFEST_SHA256": hashlib.sha256(manifest_bytes).hexdigest(),
         "RUNNER_TEMP": tmp_path.as_posix(),
-        "RELEASE_DIR": (tmp_path / "release").as_posix(),
+        "RELEASE_DIR": release.as_posix(),
         "GITHUB_OUTPUT": output.as_posix(),
         **(outputs or {}),
     }
@@ -141,7 +157,7 @@ def run_example(tmp_path, shell, script, mode, *, outputs=None):
     wrapper += 'python3() { "$TEST_PYTHON" "$@"; }\n'
     result = subprocess.run(
         [shell, "--noprofile", "--norc", "-c", wrapper + script],
-        cwd=tmp_path, env=environment, capture_output=True, text=True, timeout=20,
+        cwd=tmp_path, env=environment, capture_output=True, text=True, timeout=timeout,
     )
     observed = [json.loads(line) for line in calls.read_text().splitlines()] if calls.exists() else []
     recorded = dict(line.split("=", 1) for line in output.read_text().splitlines())
@@ -170,6 +186,81 @@ def test_confirmed_target_records_recovery_before_push(tmp_path, shell, example_
     assert sum(call[0] == "push" for call in calls) == 1
     assert outputs == expected
     assert any(call[0] == "curl" for call in calls)
+    push = next(call for call in calls if call[0] == "push")
+    assert push[1] == "order-router", "deployment must use the discovery/recovery identity"
+
+
+@pytest.mark.parametrize("manifest", [
+    {"applications": [{"name": "quotes"}]},
+    {"applications": [{"name": "order-router"}, {"name": "quotes"}]},
+    {"applications": []},
+    {"applications": [{"memory": "256M"}]},
+    {"applications": {"name": "order-router"}},
+    [],
+])
+def test_inconsistent_manifest_stops_before_credentials(tmp_path, shell, example_steps, manifest):
+    script = (example_steps["Verify release bytes and cf CLI v8"]["run"]
+              + "\n" + example_steps["Deploy"]["run"])
+    result, calls, _ = run_example(tmp_path, shell, script, "existing", manifest=manifest)
+    assert result.returncode != 0, (result.stdout, calls)
+    assert not any(call[0] in {"api", "auth", "target", "push"} for call in calls), calls
+
+
+def test_matching_manifest_reaches_bound_deploy(tmp_path, shell, example_steps):
+    script = (example_steps["Verify release bytes and cf CLI v8"]["run"]
+              + "\n" + example_steps["Deploy"]["run"])
+    result, calls, _ = run_example(tmp_path, shell, script, "existing")
+    assert result.returncode == 0, result.stderr
+    assert next(call for call in calls if call[0] == "push")[1] == "order-router"
+
+
+@contextmanager
+def health_endpoint(statuses):
+    requests = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            status = statuses[min(len(requests), len(statuses) - 1)]
+            requests.append(self.path)
+            self.send_response(status)
+            if status == 302:
+                self.send_header("Location", "/login")
+            self.end_headers()
+
+        def log_message(self, *_args):
+            pass
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_port}/health", requests
+    finally:
+        server.shutdown()
+        thread.join(timeout=5)
+        server.server_close()
+
+
+@pytest.mark.parametrize("statuses, succeeds, attempts", [
+    ([200], True, 1),
+    ([302], False, 1),
+    ([401], False, 1),
+    ([503, 200], True, 2),
+    ([503], False, 6),
+])
+def test_health_requires_ready_status_and_preserves_bounded_retries(
+    tmp_path, shell, example_steps, statuses, succeeds, attempts
+):
+    with health_endpoint(statuses) as (url, requests):
+        result, calls, _ = run_example(
+            tmp_path, shell, example_steps["Verify health"]["run"], "existing",
+            outputs={"HEALTH_URL": url, "NO_PROXY": "127.0.0.1", "no_proxy": "127.0.0.1",
+                     "CURL_HOME": tmp_path.as_posix()},
+            timeout=40,
+        )
+    assert (result.returncode == 0) is succeeds, (result.stdout, result.stderr)
+    assert requests == ["/health"] * attempts
+    assert not calls
 
 
 @pytest.mark.parametrize("first, revision, expected, forbidden", [

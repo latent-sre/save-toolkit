@@ -20,8 +20,9 @@ with evidence, not something to debug past the portal.
 
 ## The first question: which side of the edge?
 
-Every "site is slow / erroring" report crosses Akamai twice — client→edge and edge→origin — and the
-fix differs completely by leg. Establish the leg **before** hypothesizing:
+Establish which parts of the request path were exercised: client/DNS/TLS, edge/cache/WAF, and
+origin. Not every request reaches the origin; a cache hit can be served at the edge. Use evidence
+to distinguish the candidate causes:
 
 1. **An Akamai error page with `Reference #…`** → decode it in Edge Diagnostics' Translate Error
    String **promptly** — the logs behind a reference number survive roughly 6–24 hours
@@ -43,12 +44,12 @@ Route origin-side findings through [Handoffs](#handoffs).
 ## Three lanes, three authority postures
 
 - **Triage is read-only, portal-first.** Edge Diagnostics, Web Security Analytics, Reporting, and
-  DataStream 2 queries change nothing. Debug-header requests against production URLs are ordinary
-  HTTP reads — but from this fleet they are **recommend-for-human** commands, like every network
-  probe.
+  DataStream 2 queries change nothing. Production debug-header requests remain
+  **recommend-for-human** under current grants. Other observations, including selected DNS reads,
+  require the invoking agent's granted, scoped, output-protected read path.
 - **Delivery config is change-managed work.** A property version edit is Tier 1 (prepare); any
-  activation — staging included — is a live change with an approval gate and a named rollback
-  (fast fallback or previous-version activation). Production activation additionally runs through
+  activation — staging included — is a live change with an approval gate and a named, proven
+  rollback or recovery path. Production activation additionally runs through
   `production-change-gate` with a human release owner.
 - **WAF policy changes are security changes.** Evidence of a false positive goes to the human
   security policy owner with the sampled requests attached; this fleet never loosens a protection

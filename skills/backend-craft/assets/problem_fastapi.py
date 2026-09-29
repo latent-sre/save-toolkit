@@ -26,9 +26,11 @@ retain project-specific response descriptions, headers, and schemas when combini
 Use application/problem+json and the protocol-header allowlist below.
 `type` is the contract; `title` is display text that may be reworded or localized, so the type
 comes from a stable slug, never from a caller's title.
-install_problem_handlers also adds RequestIdMiddleware. It uses an already selected, validated
-request.state.request_id, else Gorouter's X-Vcap-Request-Id on PCF, else X-Request-ID from a
-validating trusted ingress, else a generated uuid4. The same id reaches request state, problem
+install_problem_handlers also adds RequestIdMiddleware. It uses a validated request.state.request_id,
+else the configured trusted_request_id_header, else a generated uuid4. No inbound header is trusted
+by default. On PCF set trusted_request_id_header="X-Vcap-Request-Id"; for another ingress, select
+the header it overwrites (e.g. "X-Request-ID") and ensure requests cannot bypass that ingress.
+Shape validation alone does not establish trust. The same id reaches request state, problem
 bodies, X-Request-ID response headers, and logs filtered by RequestIdLogFilter.
 Choose one correlation owner. Middleware that only selects the project's id must run OUTSIDE
 RequestIdMiddleware (add it after install_problem_handlers) and must not rewrite it downstream.
@@ -36,6 +38,10 @@ If the project already owns correlation end to end, use install_request_id=False
 validate its id against [A-Za-z0-9._:-]{1,128}, set request.state.request_id, bind request_id_var
 with set()/reset(token) in try/finally, and set the X-Request-ID response header. Add
 RequestIdLogFilter to the app's log handlers; exception logging preserves its explicit id.
+Unhandled logs retain exception class and stack locations, omitting messages, source lines and
+locals. Richer diagnostics need the project's redacting logger. Starlette re-raises after this
+handler, so configure and test server/error-reporting redaction too; this handler cannot sanitize
+those separate outputs. Keep production debug mode off.
 For cross-origin clients, wrap the ENTIRE exported app with CORSMiddleware as above, using the
 project's allowlist. The example permits the paired OpenAPI starter's bearer-authenticated GET and
 JSON POST with Idempotency-Key, and exposes its correlation, replay, and rate-limit response headers
@@ -50,6 +56,7 @@ from contextvars import ContextVar
 from copy import deepcopy
 import logging
 import re
+from traceback import walk_tb
 from typing import Any
 from uuid import uuid4
 
@@ -65,9 +72,6 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 PROBLEM_TYPE_BASE = "https://errors.example.internal"
 PROBLEM_MEDIA_TYPE = "application/problem+json"
 REQUEST_ID_HEADER = "X-Request-ID"
-# Gorouter sets X-Vcap-Request-Id on every request, overwriting any client value; X-Request-ID
-# counts only from a validating ingress. Both must match the bounded shape.
-_REQUEST_ID_SOURCES = ("X-Vcap-Request-Id", REQUEST_ID_HEADER)
 _REQUEST_ID_SHAPE = re.compile(r"[A-Za-z0-9._:-]{1,128}")
 request_id_var: ContextVar[str] = ContextVar("request_id", default="-")
 logger = logging.getLogger(__name__)
@@ -148,8 +152,9 @@ class RequestIdLogFilter(logging.Filter):
 class RequestIdMiddleware:
     """Pure ASGI, so streamed and SSE responses pass through unbuffered."""
 
-    def __init__(self, app: ASGIApp) -> None:
+    def __init__(self, app: ASGIApp, *, trusted_request_id_header: str | None = None) -> None:
         self.app = app
+        self.trusted_request_id_header = trusted_request_id_header
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -157,7 +162,8 @@ class RequestIdMiddleware:
             return
         headers = Headers(scope=scope)
         state = scope.setdefault("state", {})
-        candidates = [state.get("request_id"), *(headers.get(name, "") for name in _REQUEST_ID_SOURCES)]
+        ingress_id = headers.get(self.trusted_request_id_header, "") if self.trusted_request_id_header else ""
+        candidates = [state.get("request_id"), ingress_id]
         request_id = next(
             (v for v in candidates if isinstance(v, str) and _REQUEST_ID_SHAPE.fullmatch(v)),
             str(uuid4()),
@@ -211,10 +217,12 @@ def problem(
     return response
 
 
-def install_problem_handlers(app: FastAPI, *, install_request_id: bool = True) -> None:
+def install_problem_handlers(
+    app: FastAPI, *, install_request_id: bool = True, trusted_request_id_header: str | None = None,
+) -> None:
     """Install handlers and, by default, correlation; see the integration contract above."""
     if install_request_id:
-        app.add_middleware(RequestIdMiddleware)
+        app.add_middleware(RequestIdMiddleware, trusted_request_id_header=trusted_request_id_header)
 
     @app.exception_handler(StarletteHTTPException)
     async def _http_exception(request: Request, exc: StarletteHTTPException) -> JSONResponse:
@@ -235,12 +243,15 @@ def install_problem_handlers(app: FastAPI, *, install_request_id: bool = True) -
 
     @app.exception_handler(Exception)
     async def _unhandled(request: Request, exc: Exception) -> JSONResponse:
-        # Never the exception text: it leaks internals to the caller. Log it with the request id,
-        # which RequestIdMiddleware has already reset in the context by the time this runs.
+        # Exception text, chains, notes and source lines can contain credentials. Keep only code
+        # locations and the type; no raw exception remains for another log handler to format.
+        stack = [(frame.f_code.co_filename, line, frame.f_code.co_name)
+                 for frame, line in walk_tb(exc.__traceback__)]
+        # RequestIdMiddleware has reset the context before this handler runs.
         request_id = getattr(request.state, "request_id", "-")
         logger.error(
-            "Unhandled error on %s %s", request.method, request.url.path,
-            exc_info=exc, extra={"request_id": request_id},
+            "Unhandled %s; stack=%s", type(exc).__name__, stack,
+            extra={"request_id": request_id},
         )
         return problem(
             500, "Internal server error", "The request could not be completed.", request
