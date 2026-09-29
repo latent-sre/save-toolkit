@@ -9,7 +9,8 @@ infrastructure, runtime or identity recommendations.
   by that group and its labels (labels alone match any runner the repository can reach with them;
   take the group name from the runner owner, never invent one), and a pinned cf CLI v8 installation
   from an approved, checksum-verified source. The runner also supplies an approved pinned Python 3
-  interpreter as `python3`; the discovery parser below uses only its standard library.
+  interpreter as `python3`, with PyYAML pinned in its managed environment for manifest validation
+  (this repository's reviewed pin is in `requirements-dev.txt`). Discovery uses the standard library.
 - A GitHub environment whose required reviewers and environment-scoped credentials for a
   least-privilege PCF service account are configured and available on this repository's plan.
   Naming the environment in YAML does not establish that protection.
@@ -54,6 +55,18 @@ deploy-prod:
         set -euo pipefail
         [[ "$APP_SHA256" =~ ^[[:xdigit:]]{64}$ && "$MANIFEST_SHA256" =~ ^[[:xdigit:]]{64}$ ]]
         printf '%s  %s\n' "$APP_SHA256" "$RELEASE_DIR/app.zip" "$MANIFEST_SHA256" "$RELEASE_DIR/manifest.yml" | sha256sum --check --status
+        python3 -I - "$RELEASE_DIR/manifest.yml" <<'PY'
+        import os, sys, yaml
+        try:
+            with open(sys.argv[1], encoding="utf-8") as stream:
+                manifest = yaml.safe_load(stream)
+            apps = manifest["applications"]
+            if (type(apps) is not list or len(apps) != 1 or not os.environ["APP_NAME"]
+                    or apps[0]["name"] != os.environ["APP_NAME"]):
+                raise ValueError("inconsistent application identity")
+        except (OSError, ValueError, KeyError, TypeError, yaml.YAMLError):
+            raise SystemExit("Manifest must contain exactly one application named APP_NAME")
+        PY
         v="$(cf version)"; echo "$v"; [[ "$v" == *" version 8."* ]]
     - name: Deploy
       id: deploy
@@ -111,13 +124,16 @@ deploy-prod:
           echo "Prior deployed revision: $previous_revision"
         fi
         printf 'first_deploy=%s\nprevious_revision=%s\n' "$first_deploy" "$previous_revision" >> "$GITHUB_OUTPUT"
-        cf push -f "$RELEASE_DIR/manifest.yml" -p "$RELEASE_DIR/app.zip" --strategy rolling
+        cf push "$APP_NAME" -f "$RELEASE_DIR/manifest.yml" -p "$RELEASE_DIR/app.zip" --strategy rolling
         cf app "$APP_NAME"
     - name: Verify health
       shell: bash
       env:
         HEALTH_URL: https://<app route>/health
-      run: curl --fail --silent --show-error --max-time 10 --retry 5 --retry-delay 5 "$HEALTH_URL"
+      run: |
+        set -euo pipefail
+        status="$(curl --disable --fail --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 10 --retry 5 --retry-delay 5 "$HEALTH_URL")"
+        [[ "$status" == 200 ]] || { echo "::error::Expected HTTP 200 from readiness endpoint; received $status"; exit 1; }
     - name: Recovery handoff
       if: ${{ (failure() || cancelled()) && steps.deploy.outcome != 'skipped' }}
       shell: bash
@@ -152,7 +168,14 @@ alone does not erase the filesystem. Record that cleanup evidence before runner 
 
 The authored job must name the post-deploy health checks and the rollback action, as the example's
 discovery, `Verify health` and `Recovery handoff` steps do; it prints recovery commands and
-never runs them. A successful, complete empty app list establishes a first deploy; lookup errors,
+never runs them. Before credential use, require the reviewed manifest's sole application name to
+equal `APP_NAME`; pass that identity to discovery, [push](https://cli.cloudfoundry.org/en-US/v8/push.html),
+inspection and recovery. This example expects a direct HTTP 200 from the app's readiness endpoint;
+adapt the URL and success contract to the service, including response content when required.
+Redirects fail, response bodies stay out of logs, and transient failures retain curl's bounded retries.
+`--disable` prevents a runner's curl configuration from silently changing that behavior; `--fail`
+alone accepts redirects. See [curl's options](https://curl.se/docs/manpage.html).
+A successful, complete empty app list establishes a first deploy; lookup errors,
 malformed responses, multiple apps, or missing/non-deployable/multiple current revisions stop
 before `cf push`. First-deploy approval must include recovery without revision rollback (for example,
 the release owner's approved stop/isolation of the newly created app and routes); the job never

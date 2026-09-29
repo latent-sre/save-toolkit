@@ -65,20 +65,29 @@ def auth_headers():
 def assert_problem(response, status: int) -> None:
     """RFC 9457: one problem+json shape everywhere — media type included."""
     content_type = response.headers.get("content-type", "")
-    assert content_type.startswith("application/problem+json"), (
+    assert content_type.partition(";")[0].strip().lower() == "application/problem+json", (
         f"house rule: a {status} must be served as application/problem+json; got {content_type!r}. "
         "A JSON body with the right keys is not enough - the media type is part of the contract."
     )
+    assert response.status_code == status, "the HTTP status must match the expected error"
     body = response.json()
-    missing = [key for key in ("type", "title", "status") if key not in body]
-    assert not missing, f"house rule: a problem body needs type/title/status; missing {missing}"
+    assert isinstance(body, dict), "a problem body must be an object"
+    for key in ("type", "title", "request_id"):
+        assert isinstance(body.get(key), str), f"problem {key} must be a string"
+    assert isinstance(body.get("status"), (int, float)) and not isinstance(body["status"], bool)
     assert body["status"] == status, (
-        f"house rule: the problem body's status must match the HTTP status ({body['status']} != {status})"
+        "house rule: the problem body's status must match the HTTP status"
     )
-    assert body.get("request_id"), (
-        "house rule: a problem body carries request_id (Gorouter's X-Vcap-Request-Id on PCF, else a "
-        "validated ingress id or a generated one) so the caller's error joins the log line"
-    )
+    assert body["request_id"], "a problem body needs a nonempty request_id to join the log line"
+    for key in ("detail", "instance"):
+        if key in body:
+            assert isinstance(body[key], str), f"problem {key} must be a string"
+    if "errors" in body:
+        assert isinstance(body["errors"], list), "problem errors must be an array"
+        for error in body["errors"]:
+            assert isinstance(error, dict), "each error must be an object"
+            assert isinstance(error.get("loc"), list) and all(isinstance(p, str) for p in error["loc"])
+            assert isinstance(error.get("msg"), str), "each error needs a string msg"
 
 
 def test_collection_is_a_cursor_page(client, auth_headers):
