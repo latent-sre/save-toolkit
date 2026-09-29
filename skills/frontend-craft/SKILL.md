@@ -10,10 +10,8 @@ argument-hint: "[the UI to build or change]"
 
 # Frontend craft
 
-You write the actual code: complete, runnable files (components, styles, config, wiring), never
-pseudo-code or TODO stubs. Any web UI, held to one bar: failure-first, verifiable, operable. What
-the product has already decided (brand, design system, framework, conventions) wins over every
-default below.
+Write complete, runnable UI code, including styles, configuration and wiring. The product's
+existing brand, design system, framework and conventions take precedence over defaults below.
 
 Before any UI code change, load `stack-profile` and its application-and-data reference; read the
 TypeScript/JavaScript row under "Toolchain by language".
@@ -29,7 +27,7 @@ That table owns language and test-tool defaults; the repository's existing tooli
 | Failure-first | Loading, error, and empty states are designed before the happy path; one failing panel shows an inline error in its own card. |
 | Every view is a composition | Use hierarchy and spacing to serve the workflow; focused tasks and empty states can use deliberate whitespace. |
 | Real content | Real copy, never lorem or filler. |
-| Accessibility is baseline | Semantic HTML, every input labelled, keyboard reachable with visible focus. Move focus to the main heading on actual page navigation; preserve keyboard focus during same-view filter and tab updates. |
+| Accessibility is baseline | Semantic HTML, labelled inputs, keyboard access and visible focus. Move focus to the main heading on page navigation; preserve it during same-view filter/tab updates. Make displayed saving, completion and error status available to assistive technology without stealing focus. |
 
 ## Decisions this fleet has made
 
@@ -42,11 +40,9 @@ That table owns language and test-tool defaults; the repository's existing tooli
 | Forms | `react-hook-form` or `@mantine/form` when React form state needs a library; `v-model` plus the repo's validation layer in Vue; the server is the validation truth. |
 | State-changing actions | Show the exact target and count before a destructive or bulk action and require an explicit confirm; disable the control while the write is pending; send one `Idempotency-Key` per user intent where the API accepts one, reused on retry; show per-item outcomes (including unknown) for bulk actions. |
 | Charts | Recharts v3 by default in React, visx for a bespoke one-off, uPlot for dense real-time series; streamed series batch or throttle redraws per frame and keep a rolling window; never `@mantine/charts`; charts read theme tokens; give every chart a text or data-table alternative. |
-| Tables | TanStack Table when table behavior needs it; virtualised past a few hundred rows. Apply the shareable URL-state rule to sort/filter/page. |
-| Auth | Preserve the project's auth contract; for new corp SSO flows use OIDC Authorization Code + PKCE; a `reviewer` pass for sensitive flows. |
-| BFF and cookie sessions | A BFF keeps OAuth tokens on the backend. Use Secure, HttpOnly session cookies with SameSite set for the flow, and a CSRF defense for state-changing cookie-authenticated requests. |
-| Browser-held tokens | When browser JavaScript calls APIs with bearer tokens, keep access tokens in memory, never `localStorage`. Use the project's auth client for renewal; retry once after a refreshable auth failure only when replay is safe or the original operation was rejected before effects. Failed renewal returns to sign-in without a retry loop. |
-| Live data | SSE for one-way live data via the query cache; close subscriptions when their view or session ends, show stale/disconnected state, and resynchronize after gaps on reconnect. Native `EventSource` sends cookies, never an `Authorization` header: use it with the BFF session cookie (`withCredentials` cross-origin); with in-memory bearer tokens, use a fetch-based SSE reader that sets the header and implements reconnect and `Last-Event-ID` itself. Never put a token in the stream URL. |
+| Tables | TanStack Table when needed; choose pagination or virtualization from rendered rows, interaction needs and measured cost. Virtualization does not reduce fetched data; use server-side operations or incremental fetching when the dataset is too large. Keep sort/filter/page shareable in the URL. |
+| Auth and sessions | Preserve the project's auth contract. Never put browser bearer tokens in `localStorage` or URLs; cookie-authenticated writes need CSRF protection. Read the conditional network reference below for auth and session mechanics. |
+| Live data | SSE for one-way live data via the query cache; close subscriptions on view/session end, show stale/disconnected state, and resynchronize after reconnect gaps. |
 
 ## Done means
 
@@ -56,9 +52,12 @@ browser automation for changed critical flows. For a bug, prove the failing regr
 Run the relevant checks. If the repository already has Playwright or you have a browser tool,
 render the affected view and inspect its screenshot; otherwise rely on component and existing
 accessibility tests, name the missing browser pass as a gap, and never add Playwright or download
-browsers without the caller's approval. Do a keyboard-only pass on changed interactions. Scale the
-checks to the change and include the evidence and any gaps in the review packet. A UI that was
-never rendered is written, not verified.
+browsers without the caller's approval. Check changed interactions by keyboard and displayed status
+with assistive technology or the available accessibility tooling. Check affected layouts at 320 CSS
+pixels wide (e.g. 400% zoom from 1280); genuinely two-dimensional tables may scroll, but surrounding
+controls must reflow. Scale checks to the change and report gaps. A UI never rendered is written, not verified.
+The [status-message](https://www.w3.org/WAI/WCAG22/Understanding/status-messages.html) and
+[reflow](https://www.w3.org/WAI/WCAG22/Understanding/reflow.html) criteria define these checks.
 
 ## Before you write it — load the reference for what you're building
 
@@ -66,6 +65,6 @@ never rendered is written, not verified.
 |---|---|
 | a greenfield or unbranded UI — nothing to match | [design language](./references/design-language.md) |
 | choosing a stack for a greenfield UI, or serving a SPA on PCF | Load `stack-profile` first, then [stack](./references/stack.md) |
-| a chart, graph, or metric visualization | the Charts row in the decisions table above |
+| API requests, query caching, authentication, sessions or live updates | [network and sessions](./references/network-and-sessions.md) |
 
 Load every matching row. The language guidance above applies to every UI code change.
