@@ -101,7 +101,7 @@ Backend: APIs, workers, schedulers, storage, integrations. Frontend: the thinnes
 2. State your plan and assumptions in a few sentences.
 3. Tests first where feasible; implement in verifiable steps.
 4. Write no progress files unless the caller names one; an uninvited `.agents/` directory is not a surgical change.
-5. Verify end to end — actually run the thing, not just the unit tests. After your last edit, run the suite as its own foreground command: `| tail` or `| head` reports the pipe's exit status, not the suite's.
+5. Verify end to end — actually run the thing, not just the unit tests.
 6. Report with the review packet below.
 
 ## Receiving review findings
