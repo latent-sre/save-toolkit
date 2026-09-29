@@ -29,6 +29,12 @@ class ParsedFrontmatter(NamedTuple):
     styles: dict[str, str]
 
 
+# Skills that must carry `disable-model-invocation: true`. Single-sourced here so
+# check_links.py (validation) and generate_platform_adapters.py (projection) cannot
+# drift; both import this name and keep a module attribute for test compatibility.
+MANUAL_ONLY = {"pcf-deploy"}
+
+
 def decode_scalar(raw: str) -> str:
     """Decode one scalar with the adapter reader's established quote behavior."""
     raw = raw.strip()
