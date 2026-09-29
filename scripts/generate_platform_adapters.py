@@ -230,6 +230,7 @@ IDENTITY_FIELDS = (
     "name", "version", "description", "author", "homepage", "repository", "license", "keywords"
 )
 
+# Matched by shape, not exact bytes: a two-line wrapped variant once slipped past an exact match.
 PLUGIN_BANNER_RE = re.compile(
     r"^> \*\*Plugin addressing:\*\*(?:.*\n)+?\n", re.MULTILINE
 )
@@ -341,9 +342,6 @@ def adapt_text(text: str, host: str) -> str:
 
     if host != "copilot":
         raise ValueError(f"unknown host {host!r}")
-    # Strip the Claude-only addressing banner by shape, not by exact bytes: a two-line wrapped
-    # variant once slipped past an exact-string match and shipped into both host projections.
-    text = PLUGIN_BANNER_RE.sub("", text, count=1)
     text = PLUGIN_TOKEN_RE.sub("", text)
     text = PLUGIN_PATH_RE.sub(_installed_resource, text)
     text = text.replace("`.claude/agents/", "`agents/")
@@ -361,6 +359,8 @@ def _description(fields: dict[str, object], source: Path) -> str:
 
 def render_copilot_agent(source: Path, *, command_preview: bool = False) -> str:
     fields, body, _ = parse_frontmatter(source)
+    if PLUGIN_BANNER_RE.search(body):
+        raise ValueError(f"{source}: the Plugin addressing banner is retired; delete it")
     name = str(fields.get("name") or "")
     tool_specs = split_tool_specs(fields.get("tools"))
     tools = {tool_base(item) for item in tool_specs}

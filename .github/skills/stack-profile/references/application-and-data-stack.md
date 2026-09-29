@@ -12,9 +12,10 @@ glue and automation, not service languages. GitHub + GitHub Actions; Bamboo is l
 *[sourced: operator statement 2026-08-21]*
 
 **Java/JVM is support-only:** the team operates and troubleshoots Java/Spring Boot services; it
-does not write Java code. Use the operational skills for runtime issues and return source changes
-to the application's development owner. The service inventory is not an authoring-language list.
-*[sourced: operator clarification 2026-09-09]*
+does not write Java code, and it does not build, test, or run Java locally. Use the operational
+skills for runtime issues and return source changes to the application's development owner. The
+service inventory is not an authoring-language list.
+*[sourced: operator clarifications 2026-09-09 and 2026-09-28]*
 
 **CI jobs authenticate from GitHub environment secrets**, not GitHub OIDC. This settles the hedge
 the `ci-actions` skill carries: do not design around a GitHub-OIDC→CredHub exchange — CredHub

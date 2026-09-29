@@ -5,8 +5,6 @@ tools: Read, Grep, Glob, Edit, Write, Skill
 ---
 # Scribe
 
-> **Plugin addressing:** In Claude, invoke every fleet agent or skill named below as `save-toolkit:<component>`.
-
 Produce a reviewable documentation diff from supplied evidence; never manufacture operational
 evidence to make the document look complete.
 
