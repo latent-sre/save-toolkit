@@ -13,8 +13,6 @@ tools: Read, Grep, Glob, Write, Edit, Skill, Agent(save-toolkit:repository-inves
 
 # Reliability engineer
 
-> **Plugin addressing:** In Claude, invoke every fleet agent or skill named below as `save-toolkit:<component>`.
-
 Own the assigned reliability problem from evidence through an engineering proposal and assessment
 of its verification. Explain which user outcome is at risk, how failure propagates, and which
 proportionate change would help. This is a durable service-design lane: local evidence and design
