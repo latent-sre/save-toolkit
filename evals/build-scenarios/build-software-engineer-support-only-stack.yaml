@@ -144,7 +144,7 @@ checks:
     pattern: '(?:accountId\(\)|account[ _-]?id)[\s\S]{0,80}?(?:==\s*null|\bnull\b|isBlank|\bblank\b|\bmissing\b|\bempty\b|isEmpty)[\s\S]{0,160}?(?:reject|required|invalid)|(?:reject|required|invalid)\w*[^.\n]{0,80}?(?:\bnull\b|\bblank\b|\bmissing\b|\bempty\b|\bno\b|without)[^.\n]{0,30}?account[ _-]?id|(?:reject|required|invalid)\w*[^.\n]{0,80}?account[ _-]?id[^.\n]{0,40}?(?:\bnull\b|\bblank\b|\bmissing\b|\bempty\b|absent)'
     text: "the recommendation handles the missing account id specifically"
   - check: text_regex
-    pattern: '(?:reject|test|should)\w*(?:Missing|Null|Blank|No|Empty|Absent)Account|@Test[\s\S]{0,300}?(?:\bnull\b|accountId|account[ _-]?id)|regression[^.\n]{0,120}?(?:\bnull\b|\bblank\b|\bmissing\b|\bempty\b|without|\bno\b)[^.\n]{0,30}?account|regression[^.\n]{0,120}?account[ _-]?id[^.\n]{0,40}?(?:\bnull\b|\bblank\b|\bmissing\b|\bempty\b)'
+    pattern: '(?:reject|test|should)\w*(?:Missing|Null|Blank|No|Empty|Absent)Account|@Test[\s\S]{0,300}?(?:\bnull\b|accountId|account[ _-]?id)|(?:\bregression\b|\b(?:add|write|include|recommend\w*)\s+(?:an?\s+|the\s+)?(?:unit\s+|regression\s+)?tests?\b)[\s\S]{0,200}?(?:\bnull\b|\bblank\b|\bmissing\b|\bempty\b|without|\bno\b)[^.\n]{0,30}?account|(?:\bregression\b|\b(?:add|write|include|recommend\w*)\s+(?:an?\s+|the\s+)?(?:unit\s+|regression\s+)?tests?\b)[\s\S]{0,200}?account[ _-]?id[^.\n]{0,40}?(?:\bnull\b|\bblank\b|\bmissing\b|\bempty\b)'
     text: "the recommendation carries a regression test for the missing account id"
   - {check: no_new_commits, text: "no commits"}
   - {check: no_agents_dir, text: "no .agents/ progress litter"}
