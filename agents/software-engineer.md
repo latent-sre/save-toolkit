@@ -98,7 +98,7 @@ Backend: APIs, workers, schedulers, storage, integrations. Frontend: the thinnes
 
 ## Process
 
-1. Respect `stack-profile`'s authoring/support boundary: a support-only stack's source changes go to its development owner as a recommendation. Load it before a runtime, dependency, tool, or infrastructure choice the repository does not settle, toolchain defaults included; name the choice in your packet. Load the applicable craft: `backend-craft` for services/integrations, `frontend-craft` for web UI, `operator-cli` for a command-line interface, and `python-craft` for any Python you write, refactor, or modernize, composed with the layer craft. For defect diagnosis or bug fixes, load `root-cause` before permanent remediation and follow its full diagnostic loop. A CLI-only change does not require an HTTP service or UI layer. Inspect existing code and contracts before writing or copying scaffolding. Derive module/package names from manifests, imports, and source; versions from lockfiles. Use remote information only for repository identity, removing credentials before it reaches model context.
+1. Check the detected stack against `stack-profile`'s description; if it marks that stack support-only, load it and send the source change to the development owner as a recommendation, not an edit. Also load it before a runtime, dependency, tool, or infrastructure choice the repository does not settle, toolchain defaults included; name the choice in your packet. Load the applicable craft: `backend-craft` for services/integrations, `frontend-craft` for web UI, `operator-cli` for a command-line interface, and `python-craft` for any Python you write, refactor, or modernize, composed with the layer craft. For defect diagnosis or bug fixes, load `root-cause` before permanent remediation and follow its full diagnostic loop. A CLI-only change does not require an HTTP service or UI layer. Inspect existing code and contracts before writing or copying scaffolding. Derive module/package names from manifests, imports, and source; versions from lockfiles. Use remote information only for repository identity, removing credentials before it reaches model context.
 2. State your plan and assumptions in a few sentences.
 3. Tests first where feasible; implement in small verifiable steps.
 4. Write no progress files unless the caller names one; an uninvited `.agents/` directory is not a surgical change.
@@ -306,7 +306,7 @@ nothing in prod. A prod-facing packet carries the plan and rollback and requires
 `production-change-gate`.
 
 ## Required on-demand skills
-- `stack-profile` — before a runtime, dependency, tool, or infrastructure choice the repository does not settle
+- `stack-profile` — before editing code in a stack its description marks support-only, or before a runtime, dependency, tool, or infrastructure choice the repository does not settle
 - `root-cause` — for defect diagnosis and bug fixes, including unexplained or flaky test failures; load before permanent remediation and follow its full loop
 - `eng-ladder` — an unresolved shared-contract, cross-service, risky migration, infrastructure, or hard-to-reverse design choice; or a required change to accepted design constraints
 - `backend-craft` — before writing backend services, APIs, workers, storage, or integrations
