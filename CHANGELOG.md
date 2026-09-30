@@ -12,7 +12,10 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   and chained and grouped exception types, collapses recursion, and survives a project record
   factory that sets `request_id`; a trusted header without the request-id middleware is rejected.
   Its docs name the server log that still carries raw exception text and when Gorouter's request
-  id can be trusted.
+  id can be trusted. The PCF deploy example's health step annotates every failure, including curl
+  errors, bounds its total retry wait, and probes the readiness path; tests now fail if
+  `--disable` or `--output /dev/null` is dropped, and a runner without PyYAML stops with a named
+  requirement instead of a traceback.
 - Follow-up PR review: CLI receipts cover discovery failures and pre-apply interruption; the
   CORS starter permits its authenticated API contract; deployment discovery stops on failure.
   DataStream rates separate client traffic, purge guidance preserves approved mandatory removal,

@@ -206,6 +206,22 @@ def test_inconsistent_manifest_stops_before_credentials(tmp_path, shell, example
     assert not any(call[0] in {"api", "auth", "target", "push"} for call in calls), calls
 
 
+def test_missing_pyyaml_stops_with_a_named_requirement(tmp_path, shell, example_steps):
+    import venv
+
+    bare = tmp_path / "python-without-pyyaml"
+    venv.create(bare, with_pip=False)
+    python = bare / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    script = (example_steps["Verify release bytes and cf CLI v8"]["run"]
+              + "\n" + example_steps["Deploy"]["run"])
+    # run_example also fails on any Traceback, which an unguarded import would print.
+    result, calls, _ = run_example(tmp_path, shell, script, "existing",
+                                   outputs={"TEST_PYTHON": python.as_posix()})
+    assert result.returncode != 0
+    assert "PyYAML" in result.stderr, result.stderr
+    assert not any(call[0] in {"api", "auth", "target", "push"} for call in calls), calls
+
+
 def test_matching_manifest_reaches_bound_deploy(tmp_path, shell, example_steps):
     script = (example_steps["Verify release bytes and cf CLI v8"]["run"]
               + "\n" + example_steps["Deploy"]["run"])
@@ -214,18 +230,29 @@ def test_matching_manifest_reaches_bound_deploy(tmp_path, shell, example_steps):
     assert next(call for call in calls if call[0] == "push")[1] == "order-router"
 
 
+HEALTH_BODY = "readiness-body-marker"
+
+
 @contextmanager
 def health_endpoint(statuses):
     requests = []
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
-            status = statuses[min(len(requests), len(statuses) - 1)]
+            if self.path == "/login":  # a followed redirect would find a healthy-looking page
+                status, headers = 200, {}
+            else:
+                entry = statuses[min(len(requests), len(statuses) - 1)]
+                status, headers = entry if isinstance(entry, tuple) else (entry, {})
             requests.append(self.path)
             self.send_response(status)
             if status == 302:
                 self.send_header("Location", "/login")
+            for name, value in headers.items():
+                self.send_header(name, value)
+            self.send_header("Content-Length", str(len(HEALTH_BODY)))
             self.end_headers()
+            self.wfile.write(HEALTH_BODY.encode())
 
         def log_message(self, *_args):
             pass
@@ -234,7 +261,7 @@ def health_endpoint(statuses):
     thread = Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
-        yield f"http://127.0.0.1:{server.server_port}/health", requests
+        yield f"http://127.0.0.1:{server.server_port}/readyz", requests
     finally:
         server.shutdown()
         thread.join(timeout=5)
@@ -247,19 +274,30 @@ def health_endpoint(statuses):
     ([401], False, 1),
     ([503, 200], True, 2),
     ([503], False, 6),
+    # A Retry-After past --retry-max-time ends the retries; without that bound curl sleeps it out.
+    ([(503, {"Retry-After": "65"}), 200], False, 1),
 ])
 def test_health_requires_ready_status_and_preserves_bounded_retries(
     tmp_path, shell, example_steps, statuses, succeeds, attempts
 ):
+    curl_home = tmp_path / "curl-home"
+    curl_home.mkdir()
+    (curl_home / ".curlrc").write_text("location\n", encoding="utf-8")  # a runner's curl config
     with health_endpoint(statuses) as (url, requests):
         result, calls, _ = run_example(
             tmp_path, shell, example_steps["Verify health"]["run"], "existing",
             outputs={"HEALTH_URL": url, "NO_PROXY": "127.0.0.1", "no_proxy": "127.0.0.1",
-                     "CURL_HOME": tmp_path.as_posix()},
+                     "CURL_HOME": curl_home.as_posix()},
             timeout=40,
         )
     assert (result.returncode == 0) is succeeds, (result.stdout, result.stderr)
-    assert requests == ["/health"] * attempts
+    assert requests == ["/readyz"] * attempts
+    assert HEALTH_BODY not in result.stdout + result.stderr
+    if not succeeds:
+        last = statuses[min(attempts, len(statuses)) - 1]
+        final = last[0] if isinstance(last, tuple) else last
+        annotation = f"::error::Expected HTTP 200 from readiness endpoint; received {final}"
+        assert annotation in result.stdout, result.stdout
     assert not calls
 
 
