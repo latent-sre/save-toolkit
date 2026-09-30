@@ -15,7 +15,7 @@ from dataclasses import dataclass, replace
 from functools import lru_cache
 from pathlib import PurePosixPath as Path
 from types import MappingProxyType
-from typing import Mapping
+from typing import Callable, Mapping
 from urllib.parse import unquote, urlsplit
 
 import fleet_frontmatter
@@ -59,6 +59,31 @@ class Record:
     family: str
     proof_kind: PK = PK.EXTRACTED
     evidence_class: EC = EC.EXTRACTED
+
+
+@dataclass(frozen=True)
+class StageOutput:
+    """A producer returns immutable data, never a graph or shared record builder."""
+    records: tuple[Record, ...] = ()
+    buckets: tuple[Bucket, ...] = ()
+
+    def __post_init__(self):
+        if not isinstance(self.records, tuple) or not all(isinstance(r, Record) for r in self.records):
+            raise TypeError('stage records must be a tuple of Record values')
+        if not isinstance(self.buckets, tuple) or not all(isinstance(b, Bucket) for b in self.buckets):
+            raise TypeError('stage buckets must be a tuple of Bucket values')
+
+
+@dataclass(frozen=True)
+class ExtractionStage:
+    name: str
+    requires: tuple[str, ...]
+    produce: Callable[[Snapshot, Mapping[str, StageOutput]], StageOutput]
+
+    def __post_init__(self):
+        if (not isinstance(self.requires, tuple) or len(set(self.requires)) != len(self.requires)
+                or not all(isinstance(name, str) for name in self.requires)):
+            raise TypeError('stage prerequisites must be unique immutable names')
 
 
 def stable_id(prefix: str, *parts: str) -> str:
@@ -223,13 +248,27 @@ def _record(node_id, node_type, name, path, evidence, *, authority='canonical', 
                   freeze(attrs or {}), evidence, family, kind, cls)
 
 
-def _catalog(snapshot: Snapshot) -> tuple[Record, ...]:
-    sources = {s.path: s for s in snapshot.sources}
-    records: dict[str, Record] = {}
+def _record_builder(inputs):
+    """Private construction state; only frozen records cross a stage boundary."""
+    records = {}
     def add(record):
         if record.node.id in records and records[record.node.id] != record:
             raise ValueError(f'conflicting source declarations: {record.node.id}')
         records[record.node.id] = record
+    for output in inputs.values():
+        for record in output.records:
+            add(record)
+    return records, add
+
+
+def _new_records(records, inputs):
+    inherited = {record.node.id for output in inputs.values() for record in output.records}
+    return StageOutput(tuple(records[key] for key in sorted(records) if key not in inherited))
+
+
+def _component_records(snapshot, inputs):
+    sources = {s.path: s for s in snapshot.sources}
+    records, add = _record_builder(inputs)
     for source in snapshot.sources:
         path, p = source.path, Path(source.path)
         if path.startswith(('agents/', 'commands/')) and len(p.parts) == 2 and p.suffix == '.md':
@@ -293,6 +332,12 @@ def _catalog(snapshot: Snapshot) -> tuple[Record, ...]:
             add(_record(f'probe:{p.stem}', 'probe', p.stem, path, spans(whole(source), links or (whole(roadmap) if roadmap else ())),
                 authority='live-contract' if links else 'historical-evidence', state='live' if links else 'historical',
                 attrs={'linked_from_roadmap': bool(links)}, family='probes', kind=PK.JOINED))
+    return _new_records(records, inputs)
+
+
+def _roadmap_records(snapshot, inputs):
+    sources = {s.path: s for s in snapshot.sources}
+    records, add = _record_builder(inputs)
     roadmap = sources.get('docs/fleet-roadmap.md')
     if roadmap:
         for item, start, end, fields, positions in records_for_roadmap(roadmap):
@@ -323,6 +368,12 @@ def _catalog(snapshot: Snapshot) -> tuple[Record, ...]:
                 if f'roadmap-item:{item}' not in records:
                     add(_record(f'roadmap-item:{item}', 'roadmap-item', item, closed.path, (closed.span(i, i),),
                         authority='historical-evidence', state='historical', attrs={'closed': cells[1].strip(), 'disposition': plain(cells[2])[:200]}, family='roadmap', selector=item))
+    return _new_records(records, inputs)
+
+
+def _rule_records(snapshot, inputs):
+    sources = {s.path: s for s in snapshot.sources}
+    records, add = _record_builder(inputs)
     rules = sources.get('docs/rules.md')
     if rules:
         section, section_line = '', None
@@ -337,6 +388,12 @@ def _catalog(snapshot: Snapshot) -> tuple[Record, ...]:
             statement = plain(cells[0]); key = stable_id('rule', rules.path, statement)
             proof = (rules.span(i, i),) + ((rules.span(section_line, section_line),) if section_line else ())
             add(_record(key, 'rule', statement[:80], rules.path, spans(proof), authority='live-contract', attrs={'section': section, 'statement': statement, 'source_text': plain(cells[1])}, family='rules', selector=key))
+    return _new_records(records, inputs)
+
+
+def _schema_records(snapshot, inputs):
+    sources = {s.path: s for s in snapshot.sources}
+    records, add = _record_builder(inputs)
     catalog = sources.get('schemas/catalog-v1.json')
     if catalog:
         data = json.loads(catalog.text)
@@ -366,6 +423,12 @@ def _catalog(snapshot: Snapshot) -> tuple[Record, ...]:
         add(_record(f'schema-projection:{projection}', 'schema-projection', projection, projection, proof,
                     authority='generated', state='generated', attrs={'schema': schema_id.removeprefix('schema:')},
                     family='schemas', cls=EC.CONTRACT, kind=PK.JOINED))
+    return _new_records(records, inputs)
+
+
+def _roster_records(snapshot, inputs):
+    sources = {s.path: s for s in snapshot.sources}
+    records, add = _record_builder(inputs)
     roster = sources.get('AGENTS.md')
     if roster:
         for i, cells in roster_rows(roster):
@@ -376,6 +439,12 @@ def _catalog(snapshot: Snapshot) -> tuple[Record, ...]:
             if key not in records:
                 add(_record(key, 'capability', lane, roster.path, (roster.span(i, i),), attrs={'lane': lane},
                     selector=key, family='owners', kind=PK.INFERRED, cls=EC.INFERRED))
+    return _new_records(records, inputs)
+
+
+def _contract_records(snapshot, inputs):
+    sources = {s.path: s for s in snapshot.sources}
+    records, add = _record_builder(inputs)
     hook = sources.get('hooks/hooks.json')
     if hook and 'readonly-guard.py' in hook.text:
         add(_record('hook:readonly-guard', 'hook', 'readonly-guard', hook.path, whole(hook), authority='live-contract', attrs={'matcher': 'Bash'}, selector='hook:readonly-guard', family='contracts', cls=EC.CONTRACT))
@@ -384,6 +453,13 @@ def _catalog(snapshot: Snapshot) -> tuple[Record, ...]:
             add(_record('generated-projection:' + projection, 'generated-projection', projection, projection,
                 spans(proof, whole(sources[projection]), whole(sources[canonical])), authority='generated', state='generated',
                 attrs={'bytes': len(sources[projection].content)}, family='generated', cls=EC.CONTRACT, kind=PK.JOINED))
+    return _new_records(records, inputs)
+
+
+def _resolve_catalog(snapshot, inputs):
+    sources = {s.path: s for s in snapshot.sources}
+    records, add = _record_builder(inputs)
+    catalog = sources.get('schemas/catalog-v1.json')
     # A unique catalog schema represents its complete canonical file. If another
     # domain record already owns that whole-file selector, keep the typed schema ID.
     for key, record in tuple(records.items()):
@@ -419,7 +495,7 @@ def _catalog(snapshot: Snapshot) -> tuple[Record, ...]:
             live_guide = path in LIVE_DOCS or (Path(path).name in ('README.md', 'CHANGELOG.md') and not path.startswith('docs/reviews/'))
             authority = 'live-contract' if live_guide else 'historical-evidence' if path.startswith('docs/') else 'canonical'
             add(_record(f'{typ}:{path}', typ, path, path, whole(sources[path]), authority=authority))
-    return tuple(records[k] for k in sorted(records))
+    return StageOutput(tuple(records[k] for k in sorted(records)))
 
 
 def _table_data(lines, i):
@@ -1272,8 +1348,8 @@ def _guidance(snapshot, records):
     return tuple(output)
 
 
-def _derive(snapshot):
-    records = _catalog(snapshot)
+def _record_facts(snapshot, inputs):
+    records = inputs['catalog'].records
     buckets = {}
     for record in records:
         nodes, facts = buckets.setdefault(record.family, ([], []))
@@ -1296,10 +1372,64 @@ def _derive(snapshot):
                 kind = PK.COMPUTED  # The donor's bounded display value, not the entire field.
             facts.append(Fact(stable_id('fact', record.node.id, predicate), record.node.id, predicate, value,
                 record.evidence_class, Proof(kind, record.spans, EVALUATOR)))
-    buckets['relationships'] = ([], list(_relations(snapshot, records)))
-    buckets['guidance'] = ([], list(_guidance(snapshot, records)))
-    return tuple(Bucket(name, tuple(sorted(nodes)), tuple(sorted(facts, key=lambda f: f.id)))
-                 for name, (nodes, facts) in sorted(buckets.items()))
+    return StageOutput(buckets=tuple(Bucket(name, tuple(sorted(nodes)), tuple(sorted(facts, key=lambda f: f.id)))
+                 for name, (nodes, facts) in sorted(buckets.items())))
+
+
+def _relationship_facts(snapshot, inputs):
+    return StageOutput(buckets=(Bucket('relationships', (), _relations(snapshot, inputs['catalog'].records)),))
+
+
+def _guidance_facts(snapshot, inputs):
+    facts = _guidance(snapshot, inputs['catalog'].records)
+    return StageOutput(buckets=(Bucket('guidance', (), tuple(sorted(facts, key=lambda fact: fact.id))),))
+
+
+# Dependency names are the complete input contract for each producer. Source-only
+# declarations are independent; resolution explicitly waits for every declaration
+# family. No producer is passed the mutable scheduler state or an assembled graph.
+EXTRACTION_STAGES = (
+    ExtractionStage('components', (), _component_records),
+    ExtractionStage('roadmap', ('components',), _roadmap_records),
+    ExtractionStage('rules', (), _rule_records),
+    ExtractionStage('schemas', (), _schema_records),
+    ExtractionStage('roster', ('components',), _roster_records),
+    ExtractionStage('contracts', (), _contract_records),
+    ExtractionStage('catalog', ('components', 'roadmap', 'rules', 'schemas', 'roster', 'contracts'), _resolve_catalog),
+    ExtractionStage('record-facts', ('catalog',), _record_facts),
+    ExtractionStage('relationships', ('catalog',), _relationship_facts),
+    ExtractionStage('guidance', ('catalog',), _guidance_facts),
+)
+
+
+def _derive(snapshot, stages=EXTRACTION_STAGES):
+    registered = {}
+    for stage in stages:
+        if stage.name in registered:
+            raise ValueError(f'duplicate extraction stage: {stage.name}')
+        registered[stage.name] = stage
+    for stage in registered.values():
+        missing = set(stage.requires) - registered.keys()
+        if missing:
+            raise ValueError(f'missing extraction prerequisites for {stage.name}: {sorted(missing)}')
+    # Validate the complete dependency plan before invoking any producer.
+    pending, plan, available = dict(registered), [], set()
+    while pending:
+        ready = sorted(name for name, stage in pending.items() if set(stage.requires) <= available)
+        if not ready:
+            raise ValueError(f'extraction dependency cycle: {sorted(pending)}')
+        for name in ready:
+            plan.append(pending.pop(name))
+            available.add(name)
+    completed = {}
+    for stage in plan:
+        inputs = MappingProxyType({name: completed[name] for name in stage.requires})
+        output = stage.produce(snapshot, inputs)
+        if not isinstance(output, StageOutput):
+            raise TypeError(f'extraction stage {stage.name} did not return frozen StageOutput')
+        completed[stage.name] = output
+    return tuple(sorted((bucket for output in completed.values() for bucket in output.buckets),
+                        key=lambda bucket: bucket.extractor))
 
 
 @lru_cache(maxsize=2)
@@ -1315,8 +1445,8 @@ def replay(fact, snapshot, _verified_premises):
     return Derivation(expected.object, expected.evidence_class, expected.proof, expected.qualifiers)
 
 
-def extract(snapshot: Snapshot) -> Extraction:
-    buckets = _derive(snapshot)
+def extract(snapshot: Snapshot, *, stages=EXTRACTION_STAGES) -> Extraction:
+    buckets = _derive(snapshot, stages)
     fields = {f.predicate for b in buckets for f in b.facts} - EDGE_TYPES
     # All source spans are replayed; joined proofs may include canonical targets and
     # controlling validators in addition to their declaration source.

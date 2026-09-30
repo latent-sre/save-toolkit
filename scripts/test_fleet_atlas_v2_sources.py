@@ -118,6 +118,35 @@ class GitSourceTests(unittest.TestCase):
         self.assertEqual(original, current_snapshot(self.root))
         self.assertEqual(b"# Fixture\n", read_revision(self.root, "HEAD").source("README.md").content)
 
+    def test_same_corpus_accepts_divergent_rebased_and_merged_history(self):
+        initial = current_snapshot(self.root)
+        self.run_git("checkout", "-qb", "topic")
+        self.write("history-not-in-corpus/topic.txt", "topic\n")
+        topic = self.commit("topic outside atlas corpus")
+        self.run_git("checkout", "-qb", "integration", initial.revision)
+        self.write("history-not-in-corpus/integration.txt", "integration\n")
+        integration = self.commit("integration outside atlas corpus")
+        current = current_snapshot(self.root)
+        self.assertEqual(initial.tree_digest, current.tree_digest)
+        verify_revision(self.root, topic, current)
+        self.run_git("checkout", "-q", "topic")
+        self.run_git("rebase", "integration")
+        rebased = current_snapshot(self.root)
+        self.assertNotEqual(topic, rebased.revision)
+        self.assertEqual(initial.tree_digest, rebased.tree_digest)
+        verify_revision(self.root, topic, rebased)
+        self.run_git("checkout", "-qb", "merge-side", initial.revision)
+        self.write("history-not-in-corpus/side.txt", "side\n")
+        self.commit("merge side outside atlas corpus")
+        self.run_git("checkout", "-q", "topic")
+        self.run_git("merge", "--no-ff", "--no-edit", "merge-side")
+        merged = current_snapshot(self.root)
+        self.assertEqual(3, len(self.run_git("rev-list", "--parents", "-n", "1", "HEAD").split()))
+        self.assertEqual(initial.tree_digest, merged.tree_digest)
+        for recorded in (initial.revision, topic, integration, rebased.revision):
+            with self.subTest(recorded=recorded):
+                verify_revision(self.root, recorded, merged)
+
 
 if __name__ == "__main__":
     unittest.main()

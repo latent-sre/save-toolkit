@@ -299,11 +299,69 @@ def test_fixture():
                 self.assertEqual((), _file_reads(Source('scripts/test_fixture.py', text.encode())))
 
     def test_shuffled_extractor_registration_is_byte_identical(self):
-        source, result, graph = build({'agents/sre-assistant.md': agent('sre-assistant'), 'skills/a/SKILL.md': skill('a')})
-        buckets = list(result.buckets)
-        random.Random(4).shuffle(buckets)
-        self.assertEqual(graph, assemble(tuple(buckets), result.predicates))
-        verify_facts(graph, source, result.predicates, result.evaluators)
+        from fleet_atlas_v2_extract import EXTRACTION_STAGES
+        from fleet_atlas_v2_artifacts import render_files
+        from fleet_atlas_v2_format import graph_dict
+        from fleet_atlas_v2_model import canonical_bytes
+
+        source = snapshot({
+            'agents/sre-assistant.md': agent('sre-assistant'),
+            'skills/alpha/SKILL.md': skill('alpha') + '\nBody-only dependency symptoms.\n',
+            'AGENTS.md': '# Roster\n| Agent | Lane | Tools | Delegates to |\n|---|---|---|---|\n| `sre-assistant` | observe | read | — |\n',
+            'docs/fleet-roadmap.md': '# Roadmap\n### GRAPH-004 current\n**Owner:** `sre-assistant` owns the `alpha` skill.\n**Evidence:** [choice](decisions/choice.md)\n',
+            'docs/roadmap-closed.md': '# Closed\n| `GRAPH-004` | old | superseded entry |\n',
+            'docs/decisions/choice.md': '# Decision\n**Status:** accepted\n',
+            'schemas/catalog-v1.json': '{"schemas":[{"id":"choice","canonical_path":"docs/decisions/choice.md","status":"active","version":1}]}',
+        })
+
+        def materialize(registration):
+            calls = []
+            wrapped = []
+            for stage in registration:
+                def producer(current, inputs, stage=stage):
+                    self.assertEqual(set(stage.requires), set(inputs))
+                    self.assertTrue(set(inputs) <= set(calls))
+                    with self.assertRaises(TypeError):
+                        inputs['injected'] = None
+                    result = stage.produce(current, inputs)
+                    with self.assertRaises(dataclasses.FrozenInstanceError):
+                        result.records = ()
+                    calls.append(stage.name)
+                    return result
+                wrapped.append(dataclasses.replace(stage, produce=producer))
+            result = extract(source, stages=tuple(wrapped))
+            graph = assemble(result.buckets, result.predicates)
+            checked = verify_facts(graph, source, result.predicates, result.evaluators)
+            self.assertEqual(len(EXTRACTION_STAGES), len(calls))
+            self.assertNotIn('owner:alpha', {node.id for node in graph.nodes})
+            self.assertIn('capability:observe', {node.id for node in graph.nodes})
+            self.assertEqual('live', next(f.object for f in graph.facts
+                                         if f.subject == 'roadmap-item:GRAPH-004' and f.predicate == 'state'))
+            self.assertTrue(any(f.predicate == 'owns' and f.object == 'skill:alpha' for f in graph.facts))
+            return canonical_bytes(graph_dict(graph)), render_files(checked), calls
+
+        expected = materialize(EXTRACTION_STAGES)
+        self.assertIn('manifest.json', expected[1])
+        self.assertIn('atlas.json', expected[1])
+        registrations = [tuple(reversed(EXTRACTION_STAGES))]
+        for seed in range(12):
+            shuffled = list(EXTRACTION_STAGES)
+            random.Random(seed).shuffle(shuffled)
+            registrations.append(tuple(shuffled))
+        for registration in registrations:
+            with self.subTest(order=[stage.name for stage in registration]):
+                self.assertEqual(expected, materialize(registration))
+
+    def test_extraction_stage_dependencies_reject_missing_cycles_and_duplicates(self):
+        from fleet_atlas_v2_extract import EXTRACTION_STAGES
+        first = EXTRACTION_STAGES[0]
+        for registration, message in (
+            ((*EXTRACTION_STAGES, first), 'duplicate'),
+            ((dataclasses.replace(first, requires=('absent',)),), 'missing'),
+            ((dataclasses.replace(first, requires=(first.name,)),), 'cycle'),
+        ):
+            with self.subTest(message=message), self.assertRaisesRegex(ValueError, message):
+                extract(snapshot({}), stages=registration)
 
     def test_replay_rejects_changed_value_class_proof_and_subject(self):
         source, result, graph = build({'skills/a/SKILL.md': skill('a'), 'skills/b/SKILL.md': skill('b')})

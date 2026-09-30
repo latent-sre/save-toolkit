@@ -28,13 +28,13 @@ class ArtifactDrift(ValueError):
 
 
 VIEWS = {
-    "capability-owner-map.md": frozenset({"owns", "routes_to"}),
-    "claim-to-eval-map.md": frozenset({"verified_by", "constrained_by"}),
-    "decision-supersession-map.md": frozenset({"supersedes"}),
+    "capability-owner-map.md": frozenset({"owns", "delegates_to", "constrained_by"}),
+    "claim-to-eval-map.md": frozenset({"verified_by", "near_miss_for"}),
+    "decision-supersession-map.md": frozenset({"supersedes", "governed_by"}),
     "roadmap-dependency-map.md": frozenset({"depends_on", "blocks", "evidenced_by"}),
-    "skill-reference-loading-map.md": frozenset({"loads_when", "cites"}),
-    "contradictions-and-stale-evidence.md": frozenset({"contradicts", "unknown", "state", "attr.status", "attr.neededEvidence"}),
-    "source-and-projection-map.md": frozenset({"generated_from", "governed_by", "delegates_to"}),
+    "skill-reference-loading-map.md": frozenset({"loads_when"}),
+    "contradictions-and-stale-evidence.md": frozenset({"contradicts", "unknown"}),
+    "source-and-projection-map.md": frozenset({"generated_from", "governed_by", "delegates_to", "cites", "routes_to"}),
 }
 
 
@@ -89,9 +89,23 @@ def render_files(checked: VerifiedFacts) -> dict[str, bytes]:
               f"Source revision: `{snapshot.revision}`; input digest: `{snapshot.tree_digest}`.\n"
               "Repository relationships only; operational state and execution authority are not established.")
     files = {}
+    nodes = {node.id: node for node in checked.graph.nodes}
     for filename, predicates in VIEWS.items():
-        files[filename] = bounded_text(header, (fact_line(fact, checked) for fact in checked.graph.facts
-                                               if fact.predicate in predicates), DETAIL_BUDGET)
+        selected = []
+        for fact in checked.graph.facts:
+            include = fact.predicate in predicates
+            if filename == "decision-supersession-map.md":
+                include |= (nodes[fact.subject].type == "decision" and fact.predicate in
+                            {"name", "state", "authority", "attr.date", "attr.status_text"})
+                include |= (fact.predicate == "unknown" and str(dict(fact.qualifiers).get("code", ""))
+                            .startswith(("extract.supersedes", "extract.rule-source")))
+            elif filename == "roadmap-dependency-map.md":
+                include |= (nodes[fact.subject].type == "roadmap-item" and fact.predicate in
+                            {"name", "state", "authority", "attr.status", "attr.closed", "attr.owner"})
+            if include:
+                selected.append(fact)
+        selected.sort(key=lambda fact: (fact.subject, fact.predicate, fact.id))
+        files[filename] = bounded_text(header, (fact_line(fact, checked) for fact in selected), DETAIL_BUDGET)
     files["INDEX.md"] = bounded_text(
         header,
         ["# Fleet knowledge atlas", "Run `check` before trusting any view; stale output is unverified.",

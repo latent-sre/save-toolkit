@@ -39,15 +39,14 @@ class Parser(argparse.ArgumentParser):
 def _matched(document: VerifiedDocument, term: str) -> set[str]:
     needle = term.casefold()
     nodes = document.facts.graph.nodes
+    names = {fact.subject: str(fact.object).casefold() for fact in document.facts.graph.facts
+             if fact.predicate == "name"}
     exact = {node.id for node in nodes if needle in (node.id.casefold(), node.path.casefold(),
-                                                     node.selector.casefold())}
+                                                     node.selector.casefold(), names.get(node.id))}
     if exact:
         return exact
-    matches = {node.id for node in nodes if needle in node.id.casefold() or needle in node.path.casefold()}
-    for fact in document.facts.graph.facts:
-        if fact.predicate in {"name", "attr.description", "attr.statement"} and needle in str(fact.object).casefold():
-            matches.add(fact.subject)
-    return matches
+    return {node.id for node in nodes if needle in node.id.casefold() or needle in node.path.casefold()
+            or needle in names.get(node.id, "")}
 
 
 def select(document: VerifiedDocument, verb: str, terms: list[str]) -> tuple[Fact, ...]:
@@ -57,12 +56,22 @@ def select(document: VerifiedDocument, verb: str, terms: list[str]) -> tuple[Fac
         raise UsageError("a supported verb and nonempty search term are required")
     if len(" ".join(terms).encode("utf-8")) > 2048:
         raise UsageError("query terms exceed 2048 encoded bytes")
-    if verb not in {"guidance", "loads-for"} and len(terms) != 1:
+    if verb not in {"guidance", "loads-for", "governs", "state"} and len(terms) != 1:
         raise UsageError(f"{verb} requires one quoted term")
-    if verb == "loads-for" and len(terms) > 2:
-        raise UsageError("loads-for takes a skill and optional quoted predicate")
     graph = document.facts.graph
-    selected = _matched(document, terms[0])
+    selected = _matched(document, " ".join(terms) if verb == "state" else terms[0])
+    if verb == "governs":
+        phrase = " ".join(terms).casefold()
+        rules = {node.id for node in graph.nodes if node.type == "rule"}
+        searchable: dict[str, list[str]] = {}
+        for fact in graph.facts:
+            if fact.subject in rules and fact.predicate in {"name", "attr.section", "attr.statement", "attr.source_text"}:
+                searchable.setdefault(fact.subject, []).append(str(fact.object))
+        selected = {identity for identity in rules if phrase == identity.casefold()
+                    or phrase in "\n".join(searchable.get(identity, ())).casefold()}
+        return tuple(fact for fact in graph.facts if fact.subject in selected and
+                     (fact.predicate in {"governed_by", "name", "authority", "state", "unknown"}
+                      or fact.predicate.startswith("attr.")))
     if verb == "guidance":
         words = " ".join(terms).casefold().split()
         source_nodes = {node.id for node in graph.nodes if node.type in
@@ -129,8 +138,8 @@ def select(document: VerifiedDocument, verb: str, terms: list[str]) -> tuple[Fac
             matches = isinstance(endpoint, str) and endpoint in selected
         if not matches:
             continue
-        if verb == "loads-for" and len(terms) == 2:
-            if terms[1].casefold() not in str(dict(fact.qualifiers).get("predicate", "")).casefold():
+        if verb == "loads-for" and len(terms) >= 2:
+            if " ".join(terms[1:]).casefold() not in str(dict(fact.qualifiers).get("predicate", "")).casefold():
                 continue
         result.append(fact)
     # A recorded unresolved relationship is not a verified negative. Preserve the
@@ -193,8 +202,7 @@ def main(argv: list[str] | None = None, loader: Callable = extraction) -> int:
         if args.command == "query":
             if (not args.terms or any(not term.strip() for term in args.terms)
                     or len(" ".join(args.terms).encode("utf-8")) > 2048
-                    or (args.verb not in {"guidance", "loads-for"} and len(args.terms) != 1)
-                    or (args.verb == "loads-for" and len(args.terms) > 2)):
+                    or (args.verb not in {"guidance", "loads-for", "governs", "state"} and len(args.terms) != 1)):
                 raise UsageError("invalid query arguments")
         document = build(args.root, loader) if args.command == "build" else verify(args.root, loader)
         if args.command == "query":

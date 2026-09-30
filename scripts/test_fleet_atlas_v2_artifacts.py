@@ -105,6 +105,51 @@ class ArtifactTests(unittest.TestCase):
         self.assertEqual("agent:操作 team", mermaid_label("agent:操作 team"))
         self.assertEqual("agent:bad#34;#93; --#62; forged", mermaid_label('agent:bad"] --> forged'))
 
+    def test_named_views_preserve_donor_state_and_negative_routing_facts(self):
+        payloads = [
+            ("f:decision-state", "decision:choice", "state", "proposed"),
+            ("f:decision-date", "decision:choice", "attr.date", "2026-09-30"),
+            ("f:decision-authority", "decision:choice", "authority", "historical-evidence"),
+            ("f:roadmap-state", "roadmap-item:GRAPH-004", "state", "live"),
+            ("f:roadmap-status", "roadmap-item:GRAPH-004", "attr.status", "active"),
+            ("f:roadmap-owner", "roadmap-item:GRAPH-004", "attr.owner", "maintainers"),
+            ("e:negative", "scenario:negative", "near_miss_for", "skill:demo"),
+            ("e:delegate", "agent:a", "delegates_to", "agent:b"),
+            ("e:guard", "agent:a", "constrained_by", "hook:guard"),
+        ]
+        source = Source("docs/example.md", b"".join(canonical_bytes(row) for row in payloads))
+        subjects = {subject for _, subject, _, _ in payloads}
+        subjects.update({"skill:demo", "agent:b", "hook:guard"})
+        nodes = tuple(Node(subject, subject.split(":", 1)[0], source.path, subject) for subject in sorted(subjects))
+        facts = tuple(Fact(identity, subject, predicate, value, EvidenceClass.EXTRACTED,
+                           Proof(ProofKind.EXTRACTED, (source.span(i, i),), "view-fixture/v1"))
+                      for i, (identity, subject, predicate, value) in enumerate(payloads, 1))
+        kinds = frozenset(node.type for node in nodes)
+        relations = {"near_miss_for", "delegates_to", "constrained_by"}
+        rules = tuple(Predicate(predicate, kinds, kinds if predicate in relations else None, (source.path,))
+                      for predicate in sorted({row[2] for row in payloads}))
+
+        def replay(fact, snapshot, premises):
+            current = snapshot.source(source.path)
+            i, row = next((i, json.loads(line)) for i, line in enumerate(current.lines, 1)
+                          if json.loads(line)[0] == fact.id)
+            return Derivation(row[3], EvidenceClass.EXTRACTED,
+                              Proof(ProofKind.EXTRACTED, (current.span(i, i),), "view-fixture/v1"))
+
+        checked = verify_facts(assemble((Bucket("views", nodes, facts),), rules),
+                               Snapshot("1" * 40, (source,)), rules, {"view-fixture/v1": replay})
+        views = render_files(checked)
+        expected = {
+            "decision-supersession-map.md": ("f:decision-state", "f:decision-date", "f:decision-authority"),
+            "roadmap-dependency-map.md": ("f:roadmap-state", "f:roadmap-status", "f:roadmap-owner"),
+            "claim-to-eval-map.md": ("e:negative",),
+            "capability-owner-map.md": ("e:delegate", "e:guard"),
+        }
+        for filename, identities in expected.items():
+            for identity in identities:
+                with self.subTest(view=filename, fact=identity):
+                    self.assertIn(identity, views[filename].decode())
+
     def test_tampered_view_and_forged_manifest_fail_regenerated_projection(self):
         build(self.root, fixture_extract)
         path = self.output("INDEX.md")

@@ -23,6 +23,38 @@ class CliTests(unittest.TestCase):
     git = fixtures.ArtifactTests.git
     output = fixtures.ArtifactTests.output
 
+    def query_fixture(self, identities, rows):
+        (self.root / "README.md").write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+        self.git("add", "README.md")
+        self.git("commit", "-qm", "query contract fixture")
+
+        def loader(snapshot):
+            source = snapshot.source("README.md")
+            declarations = [json.loads(line) for line in source.lines]
+            nodes = tuple(Node(identity, identity.split(":", 1)[0], source.path, identity) for identity in identities)
+            facts = tuple(Fact(identity, subject, predicate, value, EvidenceClass.EXTRACTED,
+                               Proof(ProofKind.EXTRACTED, (source.span(i, i),), "query-fixture/v1"),
+                               tuple(sorted(qualifiers.items())))
+                          for i, (identity, subject, predicate, value, qualifiers) in enumerate(declarations, 1))
+            kinds = frozenset(node.type for node in nodes)
+            relations = {"verified_by", "governed_by", "loads_when"}
+            rules = tuple(Predicate(predicate, kinds, kinds if predicate in relations else None, (source.path,))
+                          for predicate in sorted({row[2] for row in declarations}))
+
+            def evaluate(fact, sources, premises):
+                current = sources.source(source.path)
+                i, row = next((i, json.loads(line)) for i, line in enumerate(current.lines, 1)
+                              if json.loads(line)[0] == fact.id)
+                return Derivation(row[3], EvidenceClass.EXTRACTED,
+                                  Proof(ProofKind.EXTRACTED, (current.span(i, i),), "query-fixture/v1"),
+                                  tuple(sorted(row[4].items())))
+
+            return SimpleNamespace(buckets=(Bucket("query", nodes, facts),), predicates=rules,
+                                   evaluators={"query-fixture/v1": evaluate})
+
+        self.assertEqual(0, self.call("build", loader=loader)[0])
+        return loader
+
     def call(self, *args, loader=fixtures.fixture_extract):
         stdout = io.StringIO()
         with redirect_stdout(stdout):
@@ -34,7 +66,7 @@ class CliTests(unittest.TestCase):
         code, record, _ = self.call("check")
         self.assertEqual(1, code)
         self.assertEqual("unverified", record["outcome"])
-        for args in (("query", "unsupported", "x"), ("query", "state", "one", "two"), ("query", "state")):
+        for args in (("query", "unsupported", "x"), ("query", "owner-of", "one", "two"), ("query", "state")):
             code, record, _ = self.call(*args)
             self.assertEqual(2, code)
             self.assertEqual("usage", record["outcome"])
@@ -163,6 +195,47 @@ class CliTests(unittest.TestCase):
                 self.assertEqual("results", data["outcome"])
                 self.assertEqual("decision:new", data["results"][0]["subject"])
                 self.assertEqual("decision:old", data["results"][0]["object"])
+
+    def test_legacy_lookup_uses_exact_name_before_substrings_or_descriptions(self):
+        loader = self.query_fixture(
+            ("agent:target", "skill:other-target", "skill:other", "test:a", "test:b", "test:c"),
+            [("n:a", "agent:target", "name", "target", {}),
+             ("n:b", "skill:other-target", "name", "other-target", {}),
+             ("n:c", "skill:other", "name", "other", {}),
+             ("d:c", "skill:other", "attr.description", "target", {}),
+             ("e:a", "agent:target", "verified_by", "test:a", {}),
+             ("e:b", "skill:other-target", "verified_by", "test:b", {}),
+             ("e:c", "skill:other", "verified_by", "test:c", {})])
+        code, data, _ = self.call("query", "verified-by", "target", loader=loader)
+        self.assertEqual(0, code)
+        self.assertEqual(["test:a"], [fact["object"] for fact in data["results"]])
+
+    def test_governs_retains_section_source_text_and_rule_facts(self):
+        loader = self.query_fixture(("rule:first", "document:policy"),
+            [("n:r", "rule:first", "name", "short label", {}),
+             ("s:r", "rule:first", "attr.section", "Dependency governance", {}),
+             ("t:r", "rule:first", "attr.statement", "Use reviewed source contracts", {}),
+             ("p:r", "rule:first", "attr.source_text", "Package decision", {}),
+             ("e:r", "rule:first", "governed_by", "document:policy", {})])
+        for terms in (("Dependency governance",), ("Package", "decision")):
+            with self.subTest(terms=terms):
+                code, data, _ = self.call("query", "governs", *terms, loader=loader)
+                self.assertEqual(0, code)
+                self.assertEqual("results", data["outcome"])
+                self.assertTrue(any(fact["predicate"] == "attr.statement" for fact in data["results"]))
+                self.assertTrue(any(fact["object"] == "document:policy" for fact in data["results"]))
+
+    def test_multiword_state_and_loading_predicate_match_joined_terms(self):
+        loader = self.query_fixture(("skill:demo", "reference:doc"),
+            [("n:s", "skill:demo", "name", "demo skill", {}),
+             ("s:s", "skill:demo", "state", "live", {}),
+             ("e:s", "skill:demo", "loads_when", "reference:doc", {"predicate": "dependency is slow"})])
+        for arguments in (("state", "demo", "skill"),
+                          ("loads-for", "demo skill", "dependency", "is", "slow")):
+            with self.subTest(arguments=arguments):
+                code, data, _ = self.call("query", *arguments, loader=loader)
+                self.assertEqual(0, code)
+                self.assertEqual("results", data["outcome"])
 
 
 class RealCliFailureTests(unittest.TestCase):
