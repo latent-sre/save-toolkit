@@ -1,7 +1,9 @@
 # GRAPH-004: selected workflows and recovery evidence
 
-Status: implementation in progress. This packet supports GRAPH-004 and its GRAPH-006
-prerequisite in the [live roadmap](../../fleet-roadmap.md); it does not accept a candidate.
+Status: implementation and expanded comparison completed and independently approved;
+exact-candidate human acceptance remains open. Earlier incomplete receipts remain preserved and
+are explicitly superseded below. This packet supports GRAPH-004 and its GRAPH-006 prerequisite
+in the [live roadmap](../../fleet-roadmap.md); it does not accept a candidate.
 
 ## Owner-selected outcome
 
@@ -34,7 +36,7 @@ explicit. A source change is not proof that every graph neighbor needs an edit.
 
 The implementation follows the revision-2 design's separate-surface migration. Canonical fleet
 files remain authoritative; no generated v1 content is edited. New runtime code is
-`scripts/fleet_atlas_v2*.py`, with tests `scripts/test_fleet_atlas_v2*.py`. The planned CLI is
+`scripts/fleet_atlas_v2*.py`, with tests `scripts/test_fleet_atlas_v2*.py`. The implemented CLI is
 `fleet_atlas_v2.py [--root ROOT] {build,check,query}`, with output under `docs/fleet-atlas/v2/`.
 The ten donor query verbs remain: `governs`, `owner-of`, `loads-for`, `supersedes`, `depends-on`,
 `blocks`, `verified-by`, `evidence-for`, `generated-from`, and `state`. The selected uses add
@@ -48,7 +50,7 @@ The ten donor query verbs remain: `governs`, `owner-of`, `loads-for`, `supersede
 | Labels | Every projected fact carries class, evidence label, and complete citations. |
 | Outcomes | Exit 0 means verified results or verified empty; 1 means unavailable, invalid, stale, unverified, or drifted; 2 means usage error. All paths emit an envelope. |
 | Limits | Compact query/detail views are capped at 20,000 encoded bytes; index at 4,000. Truncation reserves its own bytes and reports omitted records and actual budget. |
-| Generated artifacts | Separate v2 directory and entrypoint; no v1 consumer switches until parity and acceptance. Reverting dependent slices in reverse order is the rollback. |
+| Generated artifacts | Separate v2 directory and entrypoint; v1 was never installed on main. This is first adoption with canonical-source fallback, subject to the explicit compatibility disposition and exact-candidate acceptance below. |
 | Freshness | Content-age findings remain advisory unknowns. A stale atlas cannot produce a verified answer. |
 | Investigation guidance | Direct source citations and conditional loading predicates; no inferred operational diagnosis or live-state claim. |
 | Change impact | Explain the recorded relation/path connecting each affected artifact; preserve uncertainty and avoid claiming the graph is a complete runtime dependency map. |
@@ -96,9 +98,9 @@ as each slice becomes verifiable.
   dirty-source refusal, nonancestor revision comparison, proof completeness and source authority,
   debt refusal, strict graph shape, complete labeled citations, byte limits, real-Git artifact
   verification and tampering, and enveloped CLI outcomes.
-- [unverified] These checks do not prove complete donor extraction, semantic parity, either
+- [unverified at this foundation checkpoint] These checks did not prove complete donor extraction, semantic parity, either
   selected end-to-end workflow, real-tree integration, hosted CI, or exact-candidate acceptance.
-  The extraction, compatibility and integration work must complete before those claims change.
+  Later comparison and integration results below have their own revision and scope.
 
 ## First donor comparison and repairs it exposed
 
@@ -179,11 +181,317 @@ supported. These are concrete contract repairs, not completion of the open compa
   snapshot's scope; they do not verify the later repairs.
 - [sourced: root verification] Later isolated candidate
   `3e34095e85482732ef5acb3a684589440caeefed` failed its real-tree build on a conflicting extracted
-  relationship (`edge:f4109224559f6913`). The extractor owner is repairing the duplicate-source
-  relationship handling; final candidate integration results remain pending.
+  relationship (`edge:f4109224559f6913`). The repair preserves different target anchors in the
+  relationship identity. Its full suite independently passed 1,363 tests and 2,130 subtests,
+  with eight skips and one existing Starlette/AnyIO warning; a green full suite did not hide
+  the failing real-tree build.
 - [verified] Projection comparison found readable Mermaid entity names had become opaque hashed
   boxes. A focused test reproduced the loss; display labels are now retained separately from safe
   internal IDs, with complete evidence comments and the same encoded-byte limit. Label escaping
   uses the official Mermaid flowchart decimal entity contract, fetched through Context7 from
   [Mermaid's flowchart documentation](https://github.com/mermaid-js/mermaid/blob/develop/docs/syntax/flowchart.md).
   The targeted rendering test passed; browser-rendered visual acceptance remains unverified.
+
+- [sourced: root verification] Exact candidate `2ffc6151` passed all seven real-tree CI
+  build/check/query commands, isolated `python -B -I -S` verification, Gate A 2/2, and scenario
+  validation (181 specifications / 630 expectations). Its full suite passed 1,365 tests and
+  2,137 subtests, with eight skips and one existing Starlette/AnyIO warning, in 349.28 seconds.
+  The real `service-lifecycle` impact query returned 19 relationships / 17,313 bytes without
+  truncation, including the affected reliability agent, verification references, and generated
+  projections. The independent approval at that revision covered four repaired findings only:
+  writer lineage, anchor identity, readable Mermaid labels, and reliability integration.
+- [verified] The full donor CLI/view rehearsal `full-comparison-03` used clean synthetic
+  shared-source revision `7507c58ecc257eba1f41ea8b03e316c88e1ef9b7`. Both real CLIs built and
+  checked successfully under isolated stdlib Python. All ten legacy verbs, both supersession
+  directions, empty/invalid/drift outcomes, and both selected additions were captured alongside
+  every generated file. This exposed missing projection families and lookup semantics; repairs
+  retained delegation/constraints, near-miss coverage, decision and roadmap metadata, and
+  readable diagrams. Further red regressions restored exact-name precedence, rule section and
+  source-text lookup with rule facts, and joined multiword state/loading arguments. The final
+  focused CLI run passed 13 tests and nine subtests in 26.97 seconds.
+- [sourced: root verification] The intermediate affected suite passed 100 tests and 62 subtests
+  before those last lookup repairs. The later producer-order/budget/history/lookup checkpoint is
+  `46abca05dd012cc6d0ab07371e438094224aa41e`; final comparison and exact-revision checks below
+  supersede narrower intermediate measurements, without retroactively changing their results.
+
+## First-adoption consumer rollback
+
+The preserved donor is a comparison and recovery source. Installing its known evidence defects
+on main would not demonstrate a useful production migration. The concrete disposition is to
+keep both runtimes independently executable in the shared-source comparison fixture and keep
+the exact donor checkout recoverable; current adoption enables the v2 skill and CI consumer only.
+Canonical guidance remains the operational fallback. This adapts the historical migration plan
+to the verified fact that PR #205 was closed unmerged; human acceptance of this disposition is
+still required, and no v1-to-v2 production cutover is claimed.
+
+[sourced: root verification] A 19-command rollback/resume rehearsal at `37bf6a6d` in
+`F:/iso-tmp/atlas-consumer-rollback-37bf6a6d` removed exactly six consumer paths: the new atlas
+skill and generated mirror, three discovery scenarios, and the CI invocation. It retained the
+offline runtime and canonical incident/service guidance. Adapter regeneration, Gate A, and
+scenario validation passed. After the rollback commit, the old atlas query returned exit 1 with
+an unverified envelope and no results. Restoring the six paths and regenerating produced a tree
+identical to the base; Gate A and atlas `check` passed without rebuilding. Private command and
+result artifacts are `.eval-runs/backlog-four-atlas/consumer_rollback.py` and
+`consumer-rollback.json`. This proves repository consumer stop/resume at those bytes, not a
+live-host rollback or complete runtime uninstall.
+
+## Requirement-to-evidence map
+
+This map names actual test bodies and retained artifacts. Passing component tests establish the
+stated local contracts; they do not supply human acceptance, hosted CI, or operational truth.
+`scripts/test_fleet_atlas_v2_` is the common prefix for the test modules abbreviated below.
+
+| GRAPH-006 requirement | Concrete evidence and remaining boundary |
+|---|---|
+| 1. Full observable parity and explicit corrections | `compat.py` preserves supplemental facts; `compare.py` tests exact path/before/after exceptions, missing-vs-null and duplicate identities. Private `full-comparison-07` combines 25 fresh ordinary/usage cases with nine required refusal cases and exact restoration, for 35 actual CLI cases per version. Final counts and hashes are below; proposal matching is not owner acceptance. |
+| 2. Shuffled producer registration gives identical bytes | `extract.py::test_shuffled_extractor_registration_is_byte_identical` reverses and applies 12 seeded permutations before ten real registered producers execute. It verifies prerequisite outputs/frozen results, graph serialization and all 12 rendered files including manifests. `test_extraction_stage_dependencies_reject_missing_cycles_and_duplicates` checks invalid schedules. The earlier bucket-only test was insufficient and was replaced by this producer-level test. |
+| 3. Selector-safe resolution | `model.py::test_evidence_link_resolves_by_selector_not_path` and `test_ambiguous_selector_names_candidates_without_picking_first`; extractor tests cover decision links, valid section witnesses and multiple selectors in one evidence file. |
+| 4. Complete determining spans | Extractor catalog, joined-batch, guard, mapping-body, function-local-root and standalone-writer tests inspect required inputs; proof tests reject wrong values, irrelevant spans and missing/extra joined inputs. Full comparison verifies every exported evidence span against the frozen source bytes. |
+| 5. Source authority and actual test reads | `extract.py::test_ast_verification_rejects_literals_and_fixture_reads`, rooted-fixture-write and helper-write tests; `proofs.py::test_test_fixture_literal_does_not_establish_agent_fact`. Direct/keyword/transitive helper writes are negative controls. These establish static attribution, not executed test coverage. |
+| 6. One artifact verifier | Artifact tests alter facts, views, membership and manifests; `cli.py::test_query_rejects_drift_using_same_verifier_as_check` exercises query refusal. Full comparison tampers with each runtime's INDEX and records actual exit 1. |
+| 7. Determinism and Git provenance | Artifact deterministic-build and generated-only-commit tests; `sources.py::test_same_corpus_accepts_divergent_rebased_and_merged_history` creates real divergent, rebased and merged histories. The differing nonancestor-corpus negative test remains. |
+| 8. Labels and citations on every projection | `format.py::test_every_projected_fact_carries_class_label_and_all_citations`, CLI label tests, readable-Mermaid evidence test and model control-character rejection. Inferred claims remain unverified; unknown advisory text does not become verified absence. |
+| 9. Encoded byte limits | Format query/index/oversized-record tests; CLI crowded-guidance regression; `budgets.py::test_large_multibyte_details_and_mermaid_account_for_omitted_facts` runs actual rendering with hundreds of multibyte relationships and verifies all view limits, reported bytes and omissions. Final actual CLI/view measurements are retained separately. |
+| 10. Named donor regressions | The 17-row mapping below names the corresponding bodies/artifacts. New findings from comparison and independent review added further regressions; names alone are not treated as proof. |
+| 11. Recoverability and consumer rollback | Exact v1 donor remains recoverable; both runtimes execute in the shared-source fixture. The 19-command first-adoption consumer rollback/resume rehearsal passed. Acceptance of this disposition remains a human decision; v1 was never a main consumer. |
+| 12. Durable design and compatibility decision | Historical revision-2 design is preserved by exact commit/path; this packet records source authority, selected tasks, exact differences, rollback and verification boundaries. It is a proposed current adoption decision, not a claim that historical design acceptance approves today's candidate. |
+| 13. Tests, structural checks, CI and independent review | Exact-revision root results and scoped independent review are recorded above and in the final checkpoint section. Hosted CI and exact-candidate human acceptance remain separate gates. |
+
+| Named revision-2 regression | Test or actual-run artifact |
+|---|---|
+| Evidence link selects the decision entity | `extract.py::test_evidence_link_resolves_by_selector_not_path`; actual `evidence-selector-repair` query |
+| Component owner emits ownership edge | `extract.py::test_owner_field_naming_a_component_emits_owner_to_component_edge`; workflow owner query and actual `owner-missing-component-repair` |
+| Catalog proof covers every determining field | `extract.py::test_catalog_node_proof_is_extracted_over_every_contributing_field` |
+| Batch edge cites both joined sides | `extract.py::test_batch_edge_proof_is_joined_and_cites_both_sides` |
+| Guard relation cites roster and hook wiring | `extract.py::test_guard_edge_proof_is_joined_over_roster_and_hook_wiring` |
+| Generation proof cites mapping body | `extract.py::test_generated_from_proof_cites_mapping_span_not_signature`; standalone writer/dataflow negative controls |
+| Roadmap state facts project class, label and all citations | `format.py::test_every_projected_fact_carries_class_label_and_all_citations` covers the design's named projection regression. Additional `extract.py::test_roadmap_state_cites_status_or_closure_and_rejects_missing_support` checks exact live Status/historical closure spans and rejects omitted or irrelevant support. |
+| Nonancestor revision checked for identical inputs | `sources.py::test_reachable_non_ancestor_revision_with_differing_inputs_is_rejected` and actual merge/rebase-history test |
+| Every dated live state gets advisory age check | `extract.py::test_staleness_applies_to_every_dated_live_status_as_unknown`; exact added GRADER-009/GRAPH-004/GRAPH-006 donor advisories |
+| Query cap uses encoded bytes | `format.py::test_query_bounded_by_encoded_bytes_with_truncation_record`; real state/guidance query byte counts |
+| CLI preserves evidence labels | `cli.py::test_cli_results_carry_evidence_labels`; captured inferred dependency results remain `[unverified]` |
+| Missing locator needle fails | `sources.py::test_locator_raises_when_needle_absent`; donor line-1 fallback reproduced before implementation |
+| Registration shuffle is deterministic | Actual ten-producer permutation test described in requirement 2, including graph and rendered bytes |
+| Index truncation reports index budget | `format.py::test_index_truncation_reports_its_own_budget`; actual rendered index budget checks |
+| Empty flagship queries fail CI | `scripts/test_check_fleet_atlas_v2.py::test_ci_contract_run_fails_on_empty_flagship_queries`; actual donor/v2 owner, evidence and loading queries plus real-tree impact/guidance CI and body-only workflow tests establish positive behavior separately. |
+| Generated-input paths enter source digest | `sources.py::test_canonical_digest_covers_github_and_platforms`; root dependency-contract corpus test |
+| Dangling relationships fail | `model.py::test_no_dangling_edges`; predicate endpoint-type/cardinality tests |
+
+## Checkpoint verification
+
+[sourced: root verification] At exact implementation checkpoint
+`46abca05dd012cc6d0ab07371e438094224aa41e`, the affected atlas suite passed **105 tests and
+92 subtests in 58.11 seconds**, including the real producer-permutation, oversized-rendering,
+Git-history, query, extractor and artifact regressions. All seven real-tree atlas CI commands
+passed. The independent cumulative static review against base `65daa521` returned **APPROVE**
+for atlas runtime, schema, skill, CI and tests at tree
+`005936634265b62918d7ebe158ed371346a1a7fb`. That review explicitly excluded the full compatibility
+disposition/report, eval behavior, generated parity, runtime execution and hosted CI; these are
+not inferred from its verdict. The full repository suite above was at `2ffc6151`; the later
+atlas changes receive their own affected-suite and real-tree checks rather than a retroactive
+full-suite claim.
+
+[sourced: extractor-owner verification] The producer-stage refactor independently compared the
+old and new implementations over the same `37bf6a6d` source corpus: 665 nodes / 7,240 facts,
+byte-identical serialized graph and all 12 rendered files. The new scheduler uses explicit
+prerequisites and immutable stage outputs; registration-order tests execute the producers after
+permutation. This result establishes that bounded scheduling refactor's behavior on that corpus;
+the donor comparison still uses its separately frozen shared-source fixture.
+
+## Exact comparison disposition method
+
+The comparison does not normalize away evidence, returned facts, text, exit codes, or file
+membership. It compares complete v1-shaped semantic exports plus raw actual command envelopes,
+stdout/stderr/encoded lengths, every generated file's text/hash/length, and all additional v2
+selectors, facts and proofs. Only entity array ordering is normalized. A proposed exception names
+one exact JSON pointer and its complete before/after values; unused or changed exceptions fail.
+Each exception has a separate reason and source evidence. No wildcard or broad ignore rule is
+used, and a comparator match does not approve those proposals.
+
+The private `dispose_comparison.py` verifies the frozen implementation manifest and invokes the
+complete artifact verifier before classification. It separately checks every exported citation
+against its exact source excerpt, requires common entity values/attributes to remain identical,
+and restricts additions/removals to the individually reviewed inventory. Five rule-source edges
+move from duplicate generic document nodes to their existing typed decisions; two review
+citations preserve their explicit target anchors. One donor verification edge is removed because
+its cited read is of temporary fixture output. These are explicit corrections, not parity by
+count. Complete proof/selector records, body guidance and the two new selected queries are
+versioned additions.
+
+For each legacy query, the checker compares the donor's returned relationships with the complete
+v2 selection before applying its byte budget. On untruncated relation queries it also rejects
+extra retained donor relationships. That additional precision control rejected the intermediate
+`full-comparison-03` implementation: `verified-by software-engineer` had 33 unrelated matches
+from broad description search. Its earlier coverage-only exception match is marked rejected in
+the private disposition summary. Focused red tests and checkpoint `46abca05` fixed the lookup;
+the final actual query returns the same 12 relationships, with v2 output 10,765 bytes versus
+40,554 donor bytes, without truncation. This failed intermediate evidence remains retained.
+
+All v2 command envelopes are checked for actual exit code, UTF-8 bytes, outcome, complete result
+count plus omitted count, and source-bound selected fact IDs. Every generated file is compared
+with fresh rendering from verified facts; compact Markdown and Mermaid outputs additionally
+check their exact reported byte budgets and omissions. Full graph/manifest artifacts are explicit
+offline data and are not described as compact model views.
+
+[sourced: extractor-owner verification] A final coverage audit found the named roadmap-state
+regression was only indirectly covered at `46abca05`. The added test-only regression now checks
+the exact live-status and historical-closure source lines and rejects omitted or irrelevant
+support. The full extractor module passed 27 tests and 47 subtests in 0.19 seconds. No runtime
+bytes changed; this later test evidence is recorded separately from the checkpoint suite.
+
+## Earlier comparison result: required failure paths were incomplete
+
+[verified] `full-comparison-04` used donor `21dc443b55527d5955713c471fe6168644fac12b` plus
+the exact `46abca05` v2 implementation in one clean synthetic source fixture,
+`e3250f25d086f6a0a00af456a51780177e9dc7e5`, at
+`F:/iso-tmp/atlas-donor-v2-bv3b_x2n`. Its 11-file implementation manifest has SHA-256
+`151efa0b14fa475edf06475876c86c2ca8b19fa09657963a811e403055f34756`.
+Both real CLIs ran under `python -I -S`: 22 command cases per version, including build/check,
+all ten legacy verbs, positive name/section and multiword loading lookups, empty/invalid/drift
+cases, both supersession directions, and the two selected new tasks. Every generated artifact
+was captured: 11 v1 files and 12 v2 files. This fixture is comparison evidence, not a main or
+release revision.
+
+The undisposed strict result was **DIFFERENT: 2,110 exact deltas**. After the independently checked,
+individually named proposed corrections/additions, the strict comparator returned **MATCH**:
+**2,110 matched expected deltas, zero unexpected deltas, zero unused exceptions**. No source
+entity's common value or attribute changed silently. V1 has 815 nodes / 975 edges / seven
+unknowns; v2 has 844 nodes / 1,018 edges / eleven unknowns on this shared corpus. The four v2
+implementation/schema entities in this fixture explain why these counts differ from the earlier
+donor-only extraction comparison.
+
+| Exact delta family | Count and disposition |
+|---|---|
+| Complete source proofs on common entities | 1,778; common claims remain equal, source spans and per-fact derivations are explicit and replay-verified. |
+| Source-supported additions | 84 complete added entities/relationships, each bound to its individual source evidence and reviewed identity. |
+| Selector and false-evidence repairs | 11 duplicate/less-specific identity removals plus one temporary-fixture false-coverage removal; corresponding replacements are explicit additions. |
+| Owner location, metadata and advisory changes | One declared owner source path; four digest/count fields; one complete unknown array preserving all seven donor messages and adding four advisory cases. |
+| Typed pipeline additions | Three complete supplemental fact/selector/proof collections, retained rather than hidden from comparison. |
+| Actual CLI and projection representations | 193 command-field deltas and 34 generated-file deltas; complete before/after records plus result precision/coverage, byte, label and truncation checks. |
+
+The selected change-impact query returned 12 relations / 10,271 bytes without truncation in
+this donor fixture. Guidance returned ten source-bound facts / 19,002 bytes and explicitly
+reported 211 omitted facts. Broad rule-section lookup returned 39 facts / 19,621 bytes with
+85 omissions; the donor emitted 46,853 bytes. These results prove bounded navigation of this
+recorded corpus. They do not establish that a symptom has a particular operational cause or
+that all affected artifacts are known.
+
+Full private artifacts are retained under
+`F:/repos/sre-agents/.eval-runs/backlog-four-atlas/full-comparison-04/`: raw v1/v2 observables,
+unclassified report, `proposed-exact-deltas.json`, `delta-rationales.json`, command precision and
+coverage checks, projection budget checks, disposed report, implementation manifest, and packet
+hash manifest. Replay drivers and exact engine files are bundled in
+`F:/repos/sre-agents/.eval-runs/backlog-four-atlas/graph-004-comparison-46abca05.zip`
+(23,911,187 bytes); ZIP CRCs and every recorded artifact hash were verified after packaging.
+
+| Retained artifact | SHA-256 |
+|---|---|
+| Full archive | `6178ef3499f6b1ec65214c265a61153778c5af179517853ccd21578584763f71` |
+| Packet hash manifest | `2cca6c6c306899950567688cb3a3ef4ba8ca8864c55980d26d8e1da856503042` |
+| Exact proposed exceptions | `63c0f9955788b0deb7af4e3fea217ec24373b04ab37ec6608b151fa1a026cecc` |
+| Disposed strict report | `dd8531144d18973550dfd8c452200c714e4baa01a850735b28eba64faa7c6c3b` |
+
+At this checkpoint, the independent static code approval excluded this detailed
+compatibility disposition; the owner still needs to accept the exact candidate and its deliberate
+API/evidence/first-adoption rollback changes. Hosted CI and browser-rendered Mermaid visual
+acceptance are not claimed. No atlas query grants execution authority, and no generated output
+promotes repository evidence into current operational truth.
+
+Independent disposition review subsequently identified missing enumerated observable categories:
+missing atlas, malformed atlas JSON, wrong API version, stale canonical provenance, query refusal
+on projection drift, and invalid/missing/blank query terms. `full-comparison-04` remains valid for
+the cases it measured, but its earlier full-completion claim is withdrawn. The review also
+reproduced a real arity regression: actual donor `loads-for agent-authoring` returned exit 2,
+while v2 returned exit 0 with seven facts. The exact receipt is
+`.eval-runs/backlog-four-atlas/loads-for-arity-red.json`. A named regression reproduced wrong
+outcomes with an absent atlas, a built atlas and direct query selection; the three-line repair
+requires both skill and predicate before verification and inside selection. Joined multiword
+predicates remain supported. The focused CLI suite passed 14 tests and eleven subtests in
+28.39 seconds after repair. The following expanded measurement supersedes the earlier completion
+claim rather than treating this unrequested behavior as an accepted extension.
+
+[sourced: root verification] The repaired runtime checkpoint
+`c9fb5bf7a1b244e6b36e6bfee002025626306aab` passed the full repository suite: **1,374 tests and
+2,188 subtests**, eight skips and one existing Starlette/AnyIO warning, in 355.31 seconds.
+`SRE_CONTEXT_ROOT` was bound to the clean producer revision `3433f98e`. All seven real-tree atlas
+CI commands, Gate A 2/2, and 181 scenario / 630 expectation validation also passed. These results
+are for that exact repaired checkpoint; earlier counts are left unchanged. Root also verified
+two byte-identical 12-file builds and strict plugin/marketplace validation at the earlier
+`46abca05` checkpoint, including an isolated stdlib build; those checks have that earlier scope.
+
+## Expanded final comparison after disposition review
+
+[verified] The expanded measurement uses the repaired `c9fb5bf7` engine in clean synthetic
+shared-source fixture `6bfd625495a729278de6e4fbe40a5187186fbf3e`, located at
+`F:/iso-tmp/atlas-donor-v2-xsjiiwdf`. The base remains exact donor `21dc443b`.
+`full-comparison-06` freshly captured 25 cases per version, including missing search term, blank
+quoted term and missing loading predicate: all three returned **exit 2 on both actual CLIs**.
+The arity repair therefore restores the donor contract rather than accepting an unrequested
+expansion. `full-comparison-07` preserves all 25 receipts and every generated artifact exactly,
+and adds nine required failure cases plus a restoration check per version: **35 cases each,
+70 actual CLI observations total**, all executed under `python -I -S`.
+
+| Required failure state | Actual commands and observed outcomes |
+|---|---|
+| Missing `atlas.json` | `check` and a previously positive `query verified-by software-engineer`: exit 1 on both runtimes. |
+| Unparsable atlas JSON | Same two commands: exit 1 on both runtimes. |
+| Wrong atlas `apiVersion` | Same two commands: exit 1 on both runtimes. |
+| Projection drift | Append the recorded comment to `INDEX.md`; the previously positive query refuses with exit 1 on both runtimes. The earlier check-drift case remains captured separately. |
+| Committed canonical-source staleness | Append the recorded comment to `README.md` and commit it without rebuilding either atlas; `check` and the positive query both return exit 1 on both runtimes. This distinguishes stale committed provenance from dirty-source refusal. |
+| Exact restoration | Restore original source revision and every changed artifact byte; both actual `check` commands return exit 0 without rebuilding. |
+
+Every v2 refusal emitted a bounded `unverified` or `drift` envelope with zero results; there were
+no tracebacks or unbounded error messages. The donor's stderr/text behavior is retained verbatim
+in the comparison. Each mutation records its exact path, operation, before/after SHA-256, commands,
+exit codes and restored SHA-256 in `failure-mutations.json`. The committed stale-source probe is
+retained as `d93f7a2d5aa45e4a62e7b9edeab9201aae2d5812` on the private fixture's
+`atlas-stale-provenance-probe` branch. The source was restored to `6bfd625495a729278de6e4fbe40a5187186fbf3e`;
+all original source/artifact hashes matched, and the canonical input tree was clean. The preserved
+donor and production checkout were not mutated by these probes.
+
+[verified] The expanded undisposed result is **DIFFERENT: 2,161 exact deltas**. The strict result
+with individually justified exact proposals is **MATCH: 2,161 matched, zero unexpected, zero
+unused**. Owner acceptance remains false. The entity counts remain 815/975/seven for donor
+nodes/edges/unknowns and 844/1,018/eleven for v2. The earlier 1,778 evidence corrections, 84
+source-supported additions, 12 selector/false-evidence removals, owner/metadata/advisory and
+typed-proof changes, and 34 file-representation deltas remain explicit. The complete CLI surface
+now accounts for **244 command-field deltas**, including the additional usage/refusal/restoration
+records. The checker requires the exact enumerated failure and invalid-term cases, validates
+their refusal outcomes and restoration receipts, and retains the earlier positive-query precision,
+coverage, labels, encoded-byte and projection checks. The runtime needed no further correction
+after the arity repair.
+
+The final private packet is
+`F:/repos/sre-agents/.eval-runs/backlog-four-atlas/full-comparison-07/`.
+`extension-source.json` binds the inherited 25-case receipts by hash; the original 04 packet and
+archive remain untouched. The archive below contains final raw observables, all exact proposed
+exceptions and per-delta rationales, mutation/restoration receipts, engine files, capture/disposition
+drivers, the explicit reviewed-addition identity inventory, the actual arity red receipt and inherited
+06 receipts. ZIP CRCs and all **41 recorded artifact-member hashes** passed after packaging.
+
+| Final retained artifact | SHA-256 |
+|---|---|
+| `graph-004-comparison-c9fb5bf7.zip` (28,906,654 bytes) | `0f434ba8e4514766ce0adc15b0755a5593a3cfb75d6523ef3738dac418a1563c` |
+| Packet hash manifest | `c3a27be3df317023bb8b0cc27da70f72e75c973aa46145cccb49242a0efbc388` |
+| Exact proposed exceptions | `283f7df5790fe9b28e468eca8a99d64a1194953611ed5bdedc04478894ab6eb5` |
+| Disposed strict report | `b45d72d8a8b6f0b9c02484e46069f61a28d6cd77cbdae4ab95f5add7da86e479` |
+| Failure mutation/restoration receipt | `ab501176ebd2d43c82804db0aa6967765f5cc4c8a62bf962132bf06a39d9805b` |
+| Eleven-file implementation manifest | `173d8ffa1991936fc5d285ba15dc28d1183b0646780407369be63121056b81d4` |
+
+The archive is under `F:/repos/sre-agents/.eval-runs/backlog-four-atlas/`.
+
+## Final independent disposition
+
+[sourced: independent reviewer] The bounded follow-up approved the `10d4c61d..c9fb5bf7`
+predicate-validation correction and regression, plus the hash-bound `full-comparison-07` packet.
+It verified all 41 packet hashes, eleven fixture implementation hashes, the 25 inherited cases,
+nine added failure cases and restoration per runtime, and all 2,161 exact proposed dispositions.
+No remaining concrete defect was found. This closes the earlier comparison-coverage finding;
+the reviewer inspected source and recorded evidence without executing candidate code or tests.
+The previously approved implementation audit retains its original scope.
+
+The reviewed report before this disposition paragraph had SHA-256
+`ac4860b5e2a531e43e0696ed5fe1831d67ef323af8417d77d871956ff4bc9cf6`;
+the archive retains the final hash recorded above. Human acceptance of the exact candidate and
+its explicit compatibility corrections remains required. Neither the measured match nor the
+independent review approves adoption or establishes current operational truth.

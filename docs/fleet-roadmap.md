@@ -188,7 +188,8 @@ the existing 7,800-byte screen (the old list of three is obsolete):
 
 ### LIFECYCLE-001 — a service record stays true for the whole service life
 
-**Status:** `active` (2026-09-30); consumer/producer repairs verified on fixtures; real-service acceptance pending.
+**Status:** `blocked` (2026-09-30); consumer/producer repairs verified and independently reviewed;
+real-service records are unavailable for operational acceptance.
 **Owner:** Save Toolkit maintainers.
 **Outcome:** Change, remediation, refresh, and retirement each have an owner who keeps the service
 record current or visibly marks it stale.
@@ -197,8 +198,10 @@ record current or visibly marks it stale.
 prerequisite commits ahead of refreshed producer main `903ac830`). The producer now projects
 service/deployment lifecycle and owners through immutable `v1alpha6`; the consumer rejects missing
 service lifecycle/owner fields. Then use the owner's selected service, environment and record
-repository to verify change, remediation, refresh and retirement ownership/readback. Catalog dates
-do not establish execution-backed `last_verified`; fixture-only resolution grants no live authority.
+repository to verify change, remediation, refresh and retirement ownership/readback. The owner has
+confirmed that no such records are currently available; resume that acceptance when they exist.
+Catalog dates do not establish execution-backed `last_verified`; fixture-only resolution grants
+no live authority.
 **Evidence:** [Consumer/producer tests and remaining acceptance](reviews/2026-09-30-backlog-four/lifecycle.md)
 and [lifecycle requirements](../skills/service-lifecycle/context-requirements.yaml).
 **SRE task:** Know whether a service record still applies to the deployment being operated.
@@ -223,27 +226,33 @@ Akamai purge, and a Wavefront alert from the skills instead of from memory.
 
 ### GRAPH-004 — use the fleet knowledge atlas for change impact and investigation guidance
 
-**Status:** `active` (2026-09-30); owner reopened both workflows; v2 implementation and parity in progress.
+**Status:** `decision-needed` (2026-09-30); both workflows implemented; expanded compatibility
+comparison independently approved; exact-candidate human acceptance pending.
 **Owner:** Save Toolkit maintainers; the implementing lane owns the atlas and `agent-engineer` its consumer guidance.
 **Outcome:** An SRE can trace affected fleet guidance and verification before a change, or find
 relevant canonical guidance during an investigation, with bounded, current, cited results.
-**Next action:** Complete GRAPH-006's typed v2 pipeline, full donor compatibility comparison and
-named defect regressions before enabling either workflow. Preserve exact donor `21dc443b` from
-closed-unmerged PR #205. Its sixty tests pass but still miss reproduced evidence/ownership and false
-span defects; restoring that implementation is not acceptance. Review both owner-selected tasks
-against the exact integrated candidate; generated navigation cannot establish live service state.
+**Next action:** Obtain human acceptance of the exact integrated candidate for both workflows and
+its independently reviewed compatibility corrections.
+Runtime `c9fb5bf7` passes the full suite and all seven real-tree atlas checks. The comparison captures
+35 actual CLI cases per version; 2,161 individually justified proposals match with zero unexpected
+or unused exceptions. Preserve exact donor `21dc443b` from closed-unmerged PR #205 and the failed
+intermediate observations. First-adoption consumer stop/resume is verified; generated navigation
+cannot establish live service state, and measured compatibility does not promote the candidate.
 **Evidence:** [Recovered donor, selected uses and acceptance matrix](reviews/2026-09-30-backlog-four/graph-004.md).
 **SRE task:** Find the right operational guidance and understand the recorded consequences of changing it.
 
 ### GRAPH-006 — complete the typed atlas prerequisite for GRAPH-004
 
-**Status:** `active` (2026-09-30); reopened only as the required GRAPH-004 implementation dependency.
+**Status:** `decision-needed` (2026-09-30); typed pipeline and regression requirements implemented;
+compatibility disposition independently approved; GRAPH-004 human acceptance pending.
 **Owner:** Save Toolkit maintainers; implementing lane owns the typed extraction/verification pipeline.
 **Outcome:** One selector-safe typed pipeline and shared artifact verifier serve build, check and
 query, preserving donor semantics with explicit reviewed corrections and reversible v2 output.
-**Next action:** Implement the recovered revision-2 design's thirteen acceptance requirements and
-seventeen named regressions, including complete evidence proofs, bounded projections, semantic
-comparison and a real-tree CI contract. Foundation tests alone cannot establish a usable atlas.
+**Next action:** Obtain the same exact-candidate human acceptance as GRAPH-004.
+The recovered revision-2 design's thirteen requirements and seventeen named regressions have
+mapped evidence, including typed proof replay, bounded projections, source-history checks,
+semantic comparison and a real-tree CI contract. Retain the measured limits and rollback scope;
+offline test results do not establish human acceptance or live operational truth.
 **Evidence:** [Design recovery and compatibility contract](reviews/2026-09-30-backlog-four/graph-004.md).
 **SRE task:** Trust atlas citations, ownership, freshness and missing-result distinctions while navigating guidance.
 
