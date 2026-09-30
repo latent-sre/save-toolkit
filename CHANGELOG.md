@@ -16,6 +16,20 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- PR #293 review follow-ups: the FastAPI starter's unhandled-error log keeps the method, path,
+  and chained and grouped exception types, collapses recursion, and survives a project record
+  factory that sets `request_id`; a trusted header without the request-id middleware is rejected.
+  Its docs name the server log that still carries raw exception text and when Gorouter's request
+  id can be trusted. The PCF deploy example's health step annotates every failure, including curl
+  errors, bounds its total retry wait, and probes the readiness path; tests now fail if
+  `--disable` or `--output /dev/null` is dropped, and a runner without PyYAML stops with a named
+  requirement instead of a traceback. `database-reliability` treats an executing plan of a
+  mutating statement on production as a live change even when rolled back, gives the two safe
+  NOT NULL orders separately, and no longer puts a short `lock_timeout` on `CREATE INDEX
+  CONCURRENTLY`, whose snapshot waits it would cancel into an INVALID index. Agent authoring
+  escapes every default-ignorable code point in the model's view of untrusted text, says a
+  permissions deny rule matches command text rather than the program, and restores the copied-test
+  rule; Akamai production debug-header requests stay human-run whatever tools a lane holds.
 - Follow-up PR review: CLI receipts cover discovery failures and pre-apply interruption; the
   CORS starter permits its authenticated API contract; deployment discovery stops on failure.
   DataStream rates separate client traffic, purge guidance preserves approved mandatory removal,
@@ -36,8 +50,9 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 - A correlation id with no trace id now routes to `obs-logs` instead of dead-ending in
   `obs-traces`, which had claimed the trigger while forbidding the skill that maps it. Two
   discovery scenarios cover the split.
-- `database-reliability` bounds every migration lock wait: PostgreSQL `lock_timeout` with retry
-  and cleanup only of an observed invalid index from the failed build; SQL Server
+- `database-reliability` bounds migration lock waits that can queue traffic: PostgreSQL
+  `lock_timeout` with retry, a long-transaction check before `CREATE INDEX CONCURRENTLY`, and
+  cleanup only of an observed invalid index from the failed build; SQL Server
   `WAIT_AT_LOW_PRIORITY` where allowed, otherwise `LOCK_TIMEOUT` with `XACT_ABORT ON` and
   explicit error handling and transaction cleanup before retry.
 - The `ci-actions` PCF production-deploy example runs only when a human dispatches it from `main`,
@@ -47,7 +62,8 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   skills instead of being shadowed; `compatibility`, `omitClaudeMd`, `initialPrompt` and the
   current `maxTurns` behavior are recorded; subagent model resolution names both environment
   variables. The method adds a listing-budget check before description edits, a new-skill
-  admission test, first-match evidence rows, and one return-header core with named lane fields.
+  admission test, evidence rows combined across every changed surface, and one return-header core
+  with named lane fields.
 - `production-change-gate`'s only worked approval packet now carries every checklist slot
   (execution boundary, change record, watcher, timing) and the real `cf app` output shape. Merge
   readiness reads the candidate repository's own rules instead of asserting this repository's.
@@ -77,8 +93,9 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   to `frontend-craft`, with a discovery scenario for the split.
 - `frontend-craft` covers SSE auth with in-memory tokens, confirmed and idempotent UI writes, an
   SPA fallback that never swallows API paths, and a browser check that names the gap when no
-  browser tool exists. `backend-craft` adds object-level authorization tests, PCF request ids
-  (`X-Vcap-Request-Id`) on every log line and problem body, PCF health-check wiring and the 10 s
+  browser tool exists. `backend-craft` adds object-level authorization tests, request ids on
+  every log line and problem body (generated unless a trusted ingress header such as PCF's
+  `X-Vcap-Request-Id` is configured), PCF health-check wiring and the 10 s
   drain window, a starter test that no longer passes on a router 404, and a replay/in-progress
   contract for the starter POST.
 - `gcp-ops` log reads work under PowerShell as well as Bash: the severity floor is spelled as

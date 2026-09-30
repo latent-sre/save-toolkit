@@ -7,7 +7,7 @@
 
     def create_app() -> ASGIApp:
         app = FastAPI(responses=problem_responses(400, 422, 500))
-        install_problem_handlers(app)
+        install_problem_handlers(app)  # on PCF, decide trusted_request_id_header (below)
         # Register routes/routers here; add their applicable errors (e.g. 401, 409, 429).
         return CORSMiddleware(
             app,
@@ -28,8 +28,11 @@ Use application/problem+json and the protocol-header allowlist below.
 comes from a stable slug, never from a caller's title.
 install_problem_handlers also adds RequestIdMiddleware. It uses a validated request.state.request_id,
 else the configured trusted_request_id_header, else a generated uuid4. No inbound header is trusted
-by default. On PCF set trusted_request_id_header="X-Vcap-Request-Id"; for another ingress, select
-the header it overwrites (e.g. "X-Request-ID") and ensure requests cannot bypass that ingress.
+by default. Trust a header only when every request passes an ingress that overwrites it. On PCF,
+Gorouter overwrites X-Vcap-Request-Id, but container-to-container traffic and TCP routes bypass
+Gorouter, and with its Zipkin or W3C tracing on the id derives from a client-sent trace id; set
+trusted_request_id_header="X-Vcap-Request-Id" only when those paths are closed or acceptable. For
+another ingress, select the header it overwrites (e.g. "X-Request-ID").
 Shape validation alone does not establish trust. The same id reaches request state, problem
 bodies, X-Request-ID response headers, and logs filtered by RequestIdLogFilter.
 Choose one correlation owner. Middleware that only selects the project's id must run OUTSIDE
@@ -38,10 +41,13 @@ If the project already owns correlation end to end, use install_request_id=False
 validate its id against [A-Za-z0-9._:-]{1,128}, set request.state.request_id, bind request_id_var
 with set()/reset(token) in try/finally, and set the X-Request-ID response header. Add
 RequestIdLogFilter to the app's log handlers; exception logging preserves its explicit id.
-Unhandled logs retain exception class and stack locations, omitting messages, source lines and
-locals. Richer diagnostics need the project's redacting logger. Starlette re-raises after this
-handler, so configure and test server/error-reporting redaction too; this handler cannot sanitize
-those separate outputs. Keep production debug mode off.
+Unhandled logs keep the method, path, and the class and code locations of the exception, its
+cause/context chain and group members, omitting messages, notes, source lines and locals; a
+recursive frame collapses to a repeat count. Richer diagnostics need the project's redacting
+logger. Starlette re-raises after this handler, so the server still logs the raw exception (under
+uvicorn, the "Exception in ASGI application" record on the uvicorn.error logger, with messages,
+causes and notes); configure and test that redaction and any error reporter's too. Keep
+production debug mode off.
 For cross-origin clients, wrap the ENTIRE exported app with CORSMiddleware as above, using the
 project's allowlist. The example permits the paired OpenAPI starter's bearer-authenticated GET and
 JSON POST with Idempotency-Key, and exposes its correlation, replay, and rate-limit response headers
@@ -56,7 +62,9 @@ from contextvars import ContextVar
 from copy import deepcopy
 import logging
 import re
+import sys
 from traceback import walk_tb
+from types import TracebackType
 from typing import Any
 from uuid import uuid4
 
@@ -217,10 +225,67 @@ def problem(
     return response
 
 
+def _locations(tb: TracebackType | None) -> list[object]:
+    """Code locations, outermost first; a repeated frame (recursion) collapses to a count."""
+    locations: list[object] = []
+    previous, repeats = None, 0
+    for frame, line in walk_tb(tb):
+        location = (frame.f_code.co_filename, line, frame.f_code.co_name)
+        if location == previous:
+            repeats += 1
+            continue
+        if repeats:
+            locations.append(f"previous repeated {repeats} times")
+            repeats = 0
+        locations.append(location)
+        previous = location
+    if repeats:
+        locations.append(f"previous repeated {repeats} times")
+    return locations
+
+
+def _exception_summary(exc: BaseException) -> list[tuple[str, list[object]]]:
+    """Type and locations of exc, its group members, and its cause/context chain; no values."""
+    summary: list[tuple[str, list[object]]] = []
+    pending, seen = [exc], set()
+    while pending:
+        current = pending.pop(0)
+        if id(current) in seen:
+            continue
+        seen.add(id(current))
+        summary.append((type(current).__name__, _locations(current.__traceback__)))
+        members = getattr(current, "exceptions", None)  # an exception group, on any Python 3
+        if isinstance(members, (tuple, list)):
+            pending.extend(m for m in members if isinstance(m, BaseException))
+        if current.__cause__ is not None:
+            pending.append(current.__cause__)
+        elif current.__context__ is not None and not current.__suppress_context__:
+            pending.append(current.__context__)
+    return summary
+
+
+def _error_with_request_id(request_id: str, msg: str, *args: object) -> None:
+    """logger.error with an explicit request_id. extra= would raise KeyError when the project's
+    LogRecord factory already sets request_id, so the id is set after the record exists."""
+    if logger.isEnabledFor(logging.ERROR):
+        caller = sys._getframe(1)
+        record = logger.makeRecord(
+            logger.name, logging.ERROR, caller.f_code.co_filename, caller.f_lineno, msg, args,
+            None, caller.f_code.co_name,
+        )
+        record.request_id = request_id
+        logger.handle(record)
+
+
 def install_problem_handlers(
     app: FastAPI, *, install_request_id: bool = True, trusted_request_id_header: str | None = None,
 ) -> None:
     """Install handlers and, by default, correlation; see the integration contract above."""
+    if trusted_request_id_header and not install_request_id:
+        raise ValueError(
+            "trusted_request_id_header needs install_request_id=True; a project that owns "
+            "correlation selects its own ingress header"
+        )
     if install_request_id:
         app.add_middleware(RequestIdMiddleware, trusted_request_id_header=trusted_request_id_header)
 
@@ -243,15 +308,13 @@ def install_problem_handlers(
 
     @app.exception_handler(Exception)
     async def _unhandled(request: Request, exc: Exception) -> JSONResponse:
-        # Exception text, chains, notes and source lines can contain credentials. Keep only code
-        # locations and the type; no raw exception remains for another log handler to format.
-        stack = [(frame.f_code.co_filename, line, frame.f_code.co_name)
-                 for frame, line in walk_tb(exc.__traceback__)]
+        # Exception text, notes and source lines can contain credentials, so this record keeps
+        # the method, path, and each exception's type and code locations. It is not the only
+        # output: Starlette re-raises after this handler and the server logs the raw exception.
         # RequestIdMiddleware has reset the context before this handler runs.
-        request_id = getattr(request.state, "request_id", "-")
-        logger.error(
-            "Unhandled %s; stack=%s", type(exc).__name__, stack,
-            extra={"request_id": request_id},
+        _error_with_request_id(
+            getattr(request.state, "request_id", "-"), "Unhandled %s on %s %s; exceptions=%s",
+            type(exc).__name__, request.method, request.url.path, _exception_summary(exc),
         )
         return problem(
             500, "Internal server error", "The request could not be completed.", request

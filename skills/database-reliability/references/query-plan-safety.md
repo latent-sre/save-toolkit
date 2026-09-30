@@ -11,10 +11,13 @@ an actual/analyzed plan is execution: classify its effects and load under `../SK
 On a `SELECT`, the executing form creates load. On `INSERT`, `UPDATE`, `DELETE`, or `MERGE`, it makes
 the data change. Default to the plan-only column. Use an executing form only after confirming the
 statement and side effects. Prefer an isolated copy; a read replica suits compatible read-only queries.
-Production diagnostics need the existing DBA-authorized read path and load bounds; live changes use
-`production-change-gate`.
+On production, the existing DBA-authorized read path and load bounds cover executing read-only
+statements only. Executing a mutating statement there is a live change even inside a rolled-back
+transaction: it takes row locks, fires triggers, consumes sequences, and writes WAL. It uses
+`production-change-gate` with the DBA's sign-off.
 
-PostgreSQL documents this diagnostic pattern for ordinary mutating DML:
+On an isolated copy, or inside an approved production change, PostgreSQL documents this pattern for
+measuring ordinary mutating DML:
 
 ```sql
 BEGIN;

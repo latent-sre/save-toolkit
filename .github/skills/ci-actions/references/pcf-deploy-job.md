@@ -9,8 +9,9 @@ infrastructure, runtime or identity recommendations.
   by that group and its labels (labels alone match any runner the repository can reach with them;
   take the group name from the runner owner, never invent one), and a pinned cf CLI v8 installation
   from an approved, checksum-verified source. The runner also supplies an approved pinned Python 3
-  interpreter as `python3`, with PyYAML pinned in its managed environment for manifest validation
-  (this repository's reviewed pin is in `requirements-dev.txt`). Discovery uses the standard library.
+  interpreter as `python3`, with PyYAML pinned in its managed environment for manifest validation.
+  The steps run `python3 -I`, which ignores user site-packages and `PYTHONPATH`, so only that
+  environment counts. Discovery uses the standard library.
 - A GitHub environment whose required reviewers and environment-scoped credentials for a
   least-privilege PCF service account are configured and available on this repository's plan.
   Naming the environment in YAML does not establish that protection.
@@ -56,7 +57,11 @@ deploy-prod:
         [[ "$APP_SHA256" =~ ^[[:xdigit:]]{64}$ && "$MANIFEST_SHA256" =~ ^[[:xdigit:]]{64}$ ]]
         printf '%s  %s\n' "$APP_SHA256" "$RELEASE_DIR/app.zip" "$MANIFEST_SHA256" "$RELEASE_DIR/manifest.yml" | sha256sum --check --status
         python3 -I - "$RELEASE_DIR/manifest.yml" <<'PY'
-        import os, sys, yaml
+        import os, sys
+        try:
+            import yaml
+        except ImportError:
+            raise SystemExit("PyYAML is missing from the runner's managed python3 environment")
         try:
             with open(sys.argv[1], encoding="utf-8") as stream:
                 manifest = yaml.safe_load(stream)
@@ -129,11 +134,11 @@ deploy-prod:
     - name: Verify health
       shell: bash
       env:
-        HEALTH_URL: https://<app route>/health
+        HEALTH_URL: https://<app route>/readyz  # the service's readiness path
       run: |
         set -euo pipefail
-        status="$(curl --disable --fail --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 10 --retry 5 --retry-delay 5 "$HEALTH_URL")"
-        [[ "$status" == 200 ]] || { echo "::error::Expected HTTP 200 from readiness endpoint; received $status"; exit 1; }
+        status="$(curl --disable --fail --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 10 --retry 5 --retry-delay 5 --retry-max-time 60 "$HEALTH_URL")" && rc=0 || rc=$?
+        [[ "$rc" == 0 && "$status" == 200 ]] || { echo "::error::Expected HTTP 200 from readiness endpoint; received ${status:-no response} (curl exit $rc)"; exit 1; }
     - name: Recovery handoff
       if: ${{ (failure() || cancelled()) && steps.deploy.outcome != 'skipped' }}
       shell: bash
@@ -172,9 +177,12 @@ never runs them. Before credential use, require the reviewed manifest's sole app
 equal `APP_NAME`; pass that identity to discovery, [push](https://cli.cloudfoundry.org/en-US/v8/push.html),
 inspection and recovery. This example expects a direct HTTP 200 from the app's readiness endpoint;
 adapt the URL and success contract to the service, including response content when required.
-Redirects fail, response bodies stay out of logs, and transient failures retain curl's bounded retries.
-`--disable` prevents a runner's curl configuration from silently changing that behavior; `--fail`
-alone accepts redirects. See [curl's options](https://curl.se/docs/manpage.html).
+Redirects fail, response bodies stay out of logs, and every failure, including a curl error, reaches
+the `::error::` annotation. Transient failures retain curl's retries, bounded in count and, through
+`--retry-max-time`, in total wait, because a server's `Retry-After` overrides `--retry-delay`.
+`--disable` prevents a runner's curl configuration from silently changing that behavior, and works
+only as curl's first argument; `--fail` alone accepts redirects. See
+[curl's options](https://curl.se/docs/manpage.html).
 A successful, complete empty app list establishes a first deploy; lookup errors,
 malformed responses, multiple apps, or missing/non-deployable/multiple current revisions stop
 before `cf push`. First-deploy approval must include recovery without revision rollback (for example,

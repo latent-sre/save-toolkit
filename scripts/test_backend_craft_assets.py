@@ -234,9 +234,94 @@ def test_unhandled_log_keeps_diagnostics_without_exception_values(caplog):
     rendered = logging.Formatter("%(request_id)s %(message)s").format(record)
     assert "SYNTHETIC_" not in rendered
     assert "RuntimeError" in rendered and "failure" in rendered
+    assert "ValueError" in rendered  # the cause's type survives without its text
+    assert "GET /failure" in rendered
     assert "test_backend_craft_assets.py" in rendered
     assert record.request_id == response.headers["X-Request-ID"]
     assert record.exc_info is None  # another handler must not reformat the raw exception
+
+
+def _unhandled_record(caplog, problems, app, path):
+    with caplog.at_level(logging.ERROR), TestClient(app, raise_server_exceptions=False) as client:
+        response = client.get(path)
+    records = [record for record in caplog.records if record.name == problems.logger.name]
+    assert len(records) == 1
+    return response, records[0]
+
+
+def test_unhandled_log_names_grouped_and_context_exceptions(caplog):
+    problems = load_asset("problem_fastapi")
+    app = FastAPI()
+    problems.install_problem_handlers(app)
+
+    @app.get("/grouped")
+    def grouped():
+        try:
+            raise KeyError("SYNTHETIC_CONTEXT_TOKEN")
+        except KeyError:
+            raise ExceptionGroup("SYNTHETIC_GROUP_TOKEN", [
+                OSError("SYNTHETIC_MEMBER_TOKEN"), LookupError("SYNTHETIC_MEMBER_TOKEN"),
+            ])
+
+    _, record = _unhandled_record(caplog, problems, app, "/grouped")
+    message = record.getMessage()
+    assert "SYNTHETIC_" not in message
+    for name in ("ExceptionGroup", "OSError", "LookupError", "KeyError"):
+        assert name in message
+
+
+def test_unhandled_log_collapses_recursion(caplog):
+    problems = load_asset("problem_fastapi")
+    app = FastAPI()
+    problems.install_problem_handlers(app)
+
+    def recurse(depth):
+        return recurse(depth + 1)
+
+    @app.get("/deep")
+    def deep():
+        return recurse(0)
+
+    _, record = _unhandled_record(caplog, problems, app, "/deep")
+    message = record.getMessage()
+    assert "RecursionError" in message
+    assert message.count("'recurse')") == 1  # one location and a repeat count, not ~1,000 frames
+    assert "repeated" in message
+    assert len(message) < 10_000  # stays inside common per-event truncation limits
+
+
+def test_unhandled_log_keeps_its_request_id_beside_a_project_record_factory(caplog):
+    problems = load_asset("problem_fastapi")
+    app = FastAPI()
+    problems.install_problem_handlers(app)
+
+    @app.get("/boom")
+    def boom():
+        raise RuntimeError("private diagnostic")
+
+    original = logging.getLogRecordFactory()
+
+    def stamping_factory(*args, **kwargs):
+        record = original(*args, **kwargs)
+        record.request_id = "factory-context-value"
+        return record
+
+    logging.setLogRecordFactory(stamping_factory)
+    try:
+        response, record = _unhandled_record(caplog, problems, app, "/boom")
+    finally:
+        logging.setLogRecordFactory(original)
+    assert response.status_code == 500
+    assert response.headers["content-type"] == "application/problem+json"
+    assert record.request_id == response.headers["X-Request-ID"] == response.json()["request_id"]
+
+
+def test_trusted_header_requires_the_request_id_middleware():
+    problems = load_asset("problem_fastapi")
+    with pytest.raises(ValueError, match="install_request_id"):
+        problems.install_problem_handlers(
+            FastAPI(), install_request_id=False, trusted_request_id_header="X-Request-ID",
+        )
 
 
 def test_request_id_defaults_to_generated_without_a_trusted_ingress():
