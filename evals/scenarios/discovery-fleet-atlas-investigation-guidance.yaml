@@ -1,0 +1,12 @@
+id: discovery-fleet-atlas-investigation-guidance
+split: regression
+prompt: |
+  Locate the canonical guidance in this toolkit about caller deadlines and dependency delays.
+  Use its bounded repository knowledge index, including the conditions for loading a reference.
+  I only want source navigation; no diagnosis of a real incident or live platform access.
+target: {kind: skill, name: fleet-atlas}
+routing: {expect: fire}
+tools: [Read, Skill, Task]
+success_criteria:
+  - Invokes repository guidance navigation for the requested source lookup.
+  - Reference-body search and loading predicates are verified separately through the actual CLI.

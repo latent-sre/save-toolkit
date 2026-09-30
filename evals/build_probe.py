@@ -146,10 +146,11 @@ with Server(("0.0.0.0", 8080), Relay) as server:
 # --------------------------------------------------------------------------- scenario specs
 
 REQUIRED_KEYS = ("id", "prompt")
-# A scenario is one of three kinds, decided by the keys it carries:
+# A scenario's kind is decided by the keys it carries:
 #   build    -- `fixture` + `checks`: seed a repo, run a pinned agent, grade outcomes in code.
 #   contract -- `agent` + `graders`: pin the agent, grade the returned text.
 #   routing  -- `routing`: run the main session, grade which component fired.
+#   native   -- `agent` + `followups`: pin the parent lane, observe one helper and resume.
 # `agent` pins the session; without it the trial runs as the main session with `tools`.
 DEFAULT_MAIN_SESSION_TOOLS = ("Skill", "Task")
 SLUG = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
@@ -161,6 +162,8 @@ SPLITS = ("calibration", "regression")
 def scenario_kind(spec: dict) -> str:
     if spec.get("routing"):
         return "routing"
+    if spec.get("followups") and spec.get("agent"):
+        return "native"
     if spec.get("fixture"):
         return "build"
     return "contract"
@@ -418,8 +421,15 @@ def validate_scenario(spec: object, *, where: str = "scenario") -> list[str]:
         followups = spec["followups"]
         if not isinstance(followups, list) or len(followups) != 1 or not isinstance(followups[0], str) or not followups[0].strip():
             problems.append(f"{where}: followups must contain exactly one non-empty human prompt")
-        if kind != "routing" or (spec.get("routing") or {}).get("expect") != "fire":
-            problems.append(f"{where}: followups require a positive main-session routing scenario")
+        if kind == "native":
+            agent = spec["agent"]
+            if not isinstance(agent, str) or not SLUG.fullmatch(agent) or not (ROOT / "agents" / f"{agent}.md").is_file():
+                problems.append(f"{where}: native conversation agent must name a canonical agent")
+        elif kind != "routing" or (spec.get("routing") or {}).get("expect") != "fire":
+            problems.append(f"{where}: followups require a pinned `agent` or positive skill-routing scenario")
+        elif (spec.get("target") or {}).get("kind") == "agent":
+            problems.append(f"{where}: native agent routing conflicts with the sole-helper boundary; "
+                            "pin `agent`, remove `target`/`routing`, and measure discovery separately")
         if tools != ["Skill", "Read", "Task"]:
             problems.append(f"{where}: native conversation tools must be [Skill, Read, Task]")
         if not isinstance(fixture, dict) or set(fixture) != {"files"}:
@@ -3055,6 +3065,14 @@ def native_regrade_problem(run_dir: Path, spec: dict, plugin_root: Path) -> str 
             if (metadata.get("resume") != resume or metadata["expected_model"] != spec.get("expected_model")
                     or (workspace is not None and recorded_workspace != workspace)):
                 return "native invocation session, workspace, or model binding changed; re-run the trial"
+            argv = metadata.get("argv")
+            if not isinstance(argv, list) or not all(isinstance(arg, str) for arg in argv):
+                return "native invocation agent command evidence missing; re-run the trial"
+            pins = [argv[i + 1] if i + 1 < len(argv) else None
+                    for i, arg in enumerate(argv) if arg == "--agent"]
+            expected_pins = [f"save-toolkit:{spec['agent']}"] if spec.get("agent") else []
+            if pins != expected_pins:
+                return "native invocation agent pin differs from scenario; re-run the trial"
             trace = parse_trace(trace_path)
             if credential_markers(trace.result_text, trace_path):
                 return "native credential marker detected; re-run the trial"

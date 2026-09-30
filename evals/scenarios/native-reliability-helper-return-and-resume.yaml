@@ -1,10 +1,9 @@
 id: native-reliability-helper-return-and-resume
 split: regression
-target: {kind: agent, name: reliability-engineer}
-routing: {expect: fire}
+agent: reliability-engineer
 tools: [Skill, Read, Task]
 helper: sre-assistant
-expected_model: claude-sonnet-5
+expected_model: claude-sonnet-5-5
 prompt: |
   Give me a scoped reliability design assessment for the checkout worker's slow-ledger path.
   Morgan is the human service owner; you are reporting to me as the invoking caller. There is no
@@ -38,7 +37,9 @@ followups:
     ran. What does this change in the scoped assessment? Give the caller the remaining uncertainty,
     owner and next step without claiming whole-service readiness or deployment approval.
 success_criteria:
-  - Structurally verify one completed reliability-agent invocation, exactly one completed SRE helper, parent continuation, and same-session follow-up.
+  - Run the parent with the pinned reliability-agent CLI identity; structurally verify exactly one completed SRE helper, parent continuation, and same-session follow-up. Discovery is measured separately.
   - Manually inspect the trace for a bounded helper request, actual evidence read, source provenance, and synthesis after helper return.
   - The old r7 override must not close r8 risk; the corrected r8 evidence may close the slow-ledger pool lead only within tested scope.
   - Keep Morgan as human owner, the invoking caller as recipient, and untested redelivery and load as unknown.
+  - Match any claimed post-helper reread to an actual completed parent Read after helper return; distinguish earlier reads and supplied records.
+  - Preserve ambiguous retry count, backoff and slot-release assumptions in timing claims; a per-attempt maximum does not prove later attempts unreachable before the overall deadline.

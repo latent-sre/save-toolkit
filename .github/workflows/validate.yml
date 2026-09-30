@@ -37,6 +37,9 @@ jobs:
       - name: Gate A -- mechanical audit
         run: python scripts/gate_a.py
 
+      - name: Fleet atlas -- real-tree build and query contract
+        run: python scripts/check_fleet_atlas_v2.py --build
+
   component-tests:
     # Preserve the required-check identity while running only Linux.
     name: component-tests (ubuntu-latest)

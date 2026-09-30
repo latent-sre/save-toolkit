@@ -1,6 +1,6 @@
 # Fleet evals
 
-The native fleet runner, [`build_probe.py`](build_probe.py), grades three kinds of scenario, decided by the
+The native fleet runner, [`build_probe.py`](build_probe.py), grades four kinds of scenario, decided by the
 keys a spec carries rather than by a mode field.
 
 | Kind | Where | Session | Graded on |
@@ -8,6 +8,7 @@ keys a spec carries rather than by a mode field.
 | **routing** | [`scenarios/`](scenarios) | main session, `--tools Skill,Task` (a spec may widen it), no `--agent` | one check: did the named component complete a non-error invocation — or, for a negative, stay out of the way |
 | **contract** | [`scenarios/`](scenarios) | `agent:` pinned with `--agent`, or `skill:` pinned by instruction | `graders:` over the returned text |
 | **build** | [`build-scenarios/`](build-scenarios) | `agent:` pinned, its real tools pre-approved, in a seeded fixture repo | `checks:` over **outcomes** in code |
+| **native** | [`scenarios/`](scenarios) | `agent:` pinned with one `followups:` turn, read-only tools and one helper | completed helper, parent continuation and same-session resume; semantic review remains manual |
 
 Two directories because the build fixtures carry inline repos hundreds of lines long and would bury
 the short routing specs. The runner does not care which one a spec came from.
@@ -38,6 +39,12 @@ refuses any other bytes. `--overwrite` replaces the selected run slots; use a ne
 the candidate or scenario. `--regrade` re-grades saved traces offline only when the original scenario
 identity matches, and `--container IMAGE@sha256:…` runs every shell call inside a pinned, network-less
 container for a candidate that is not team-authored.
+
+Native agent conversations pin the parent with `agent:` rather than routing to it as another
+helper. Their sole-helper boundary cannot also permit a second agent dispatch. Skill-based native
+conversations retain positive main-session routing. Measure agent discovery with a separate unhinted
+routing scenario. Saved native agent runs require matching `--agent` evidence on both invocations;
+an old main-session trace cannot be reclassified as agent acceptance.
 
 ## Inspect AI + Inspect SWE pilot
 

@@ -73,6 +73,10 @@ record exists at all.
 
 ## Knowledge closeout
 
+For a change, remediation, freshness review, or retirement, read
+[record transitions](./references/record-transitions.md) to name who retains ownership until the
+reviewed record is read back, and when evidence becomes stale. Reuse the existing follow-up record.
+
 After onboarding execution—or after retirement's live-resource receipts but before final record
 verification—send `scribe` an evidence-bound handoff for affected cards, index entries, and runbooks.
 Include the authorizing record, exact repository revision, caller's `[verified]` checkout binding,
@@ -98,4 +102,5 @@ or merely planned, and close an onboarding by recommending its own audit as owed
 A caller with a compatible resolver may resolve [this skill's context
 requirements](./context-requirements.yaml) under the SRE operational-context contract ADR. Resolved
 context is routing input only: it never supplies a plan, an approval, or a credential, and missing
-context is a gap, not a guess.
+context is a gap, not a guess. Before relying on freshness, read the same record-transitions
+reference: catalog `lastVerified` is not execution-backed `last_verified`.

@@ -1,0 +1,9 @@
+id: discovery-fleet-atlas-defers-code-imports
+split: regression
+prompt: |
+  Here is the entire example: module a imports module b, and module b imports module c.
+  Explain inline which module depends on which. No repository inspection or tool is needed.
+target: {kind: skill, name: fleet-atlas}
+routing: {expect: not_fire, expected_alternative: inline}
+success_criteria:
+  - Explains the supplied code-import relationships inline without invoking repository guidance navigation.
