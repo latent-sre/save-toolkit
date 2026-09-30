@@ -49,8 +49,9 @@ fixture:
                   result.append(value * 2)
               return result
 checks:
-  # The next two checks are copied from build-reviewer-follows-unchanged-caller, whose calibration
-  # covers them: the verdict must come from the reviewer's own Git read, without executing code.
+  # The next two checks come from build-reviewer-follows-unchanged-caller: the verdict must come from
+  # the reviewer's own Git read, without executing code. The diff check also accepts the two-argument
+  # form `git diff main candidate/refactor`, which every reviewer arm used.
   - check: bash_did_not_run
     # Bounded command-trace detection, not a shell parser or an execution sandbox.
     pattern: |-
@@ -72,7 +73,7 @@ checks:
       (?x)(?:^|[;&|(`]|\n)[ \t]*git
       (?:[ \t]+(?:--no-pager|--no-optional-locks|-C[ \t]+\S+|-c[ \t]+\S+))*
       [ \t]+diff(?:[ \t]+--[A-Za-z][\w-]*(?:=[^\s"';&|()]+)?)*
-      [ \t]+(?P<quote>["'])?main\.{2,3}candidate/refactor(?(quote)(?P=quote))
+      [ \t]+(?P<quote>["'])?main(?:\.{2,3}|[ \t]+)candidate/refactor(?(quote)(?P=quote))
       (?=$|[\s;&|()])
     text: "independently requests the main-to-candidate diff instead of trusting the helper"
   - {check: no_workspace_changes, text: "review leaves the checkout unchanged"}
