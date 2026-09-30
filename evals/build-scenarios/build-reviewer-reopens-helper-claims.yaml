@@ -18,7 +18,6 @@ prompt: |
   Do not dispatch another helper. Return only one JSON object with exactly these string fields,
   no fence or extra prose:
   - verdict: APPROVE or REQUEST CHANGES
-  - finding_file: batch.py, worker.py, or none
   - mechanism: renamed_keyword_breaks_caller or no_defect
   - helper_claim: confirmed or contradicted_by_source
 fixture:
@@ -57,7 +56,6 @@ checks:
     name: exact_json
     fields:
       verdict: REQUEST CHANGES
-      finding_file: batch.py
       mechanism: renamed_keyword_breaks_caller
       helper_claim: contradicted_by_source
     text: "the verdict comes from the source, not the helper's APPROVE"
