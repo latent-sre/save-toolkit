@@ -245,21 +245,6 @@ comparison and a real-tree CI contract. Foundation tests alone cannot establish 
 **Evidence:** [Design recovery and compatibility contract](reviews/2026-09-30-backlog-four/graph-004.md).
 **SRE task:** Trust atlas citations, ownership, freshness and missing-result distinctions while navigating guidance.
 
-### GRAPH-005 — accept the verified offline Agent Framework/AutoGen A2A bridge
-
-**Status:** `ready` (2026-09-30); exact offline candidate accepted by the human owner; closure record pending integration.
-**Owner:** Save Toolkit maintainers.
-**Outcome:** The offline bridge reconciles bounded synthetic canary evidence and presents one
-revision-bound recommendation for a final human decision, without executing a release.
-**Next action:** Record the owner's accepted disposition in the integration/closure commit for source
-`41383e3dff84465d5e41923707a82eb0c6ef512c` and image
-`sha256:eee25f145f9b51530d01ff731e7f7252317f47120549539900c98db40f4d042f`.
-The owner accepted those exact bytes on 2026-09-30. Fresh six-case lifecycle, host and pinned-image
-tests, replay/conflicting replay and cleanup passed.
-Historical bridge findings were already repaired; no duplicate runtime change was needed.
-**Evidence:** [Exact-revision verification and finding reconciliation](reviews/2026-09-30-backlog-four/graph-005.md).
-**SRE task:** Inspect a reconciled synthetic canary recommendation and make the final bounded decision.
-
 ## Deferred
 
 ### HANDOFF-002 — restated helper claims keep their labels, and the handoff graders stop false-redding
