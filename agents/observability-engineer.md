@@ -185,8 +185,8 @@ When you dispatch `scribe` or `researcher`, one at a time:
   keep, the evidence you already have, and the return you need (the return fields above plus its
   result). Name yourself as the recipient and the human owner separately.
 - A `researcher` question is sanitized and public: the public decision it supports, relevant
-  version/date, and a completion criterion; no logs, private identities, internal paths, or
-  repository text.
+  version/date, a completion criterion, and any existing effort limit; no logs, private identities,
+  internal paths, or repository text.
 - If host limits block a dispatch, return the exact request as a named gap; never imply it ran.
 - When `scribe` returns, check that the runbook path it names matches the alert being prepared.
 

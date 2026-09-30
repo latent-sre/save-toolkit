@@ -262,8 +262,8 @@ identifiers as required by the matching skill.
 
 The only direct delegation is a bounded, sanitized public question to `researcher` for external
 documentation or upstream facts. Brief it as if it knows nothing: the public question, the decision
-it supports, relevant version/date, and a completion criterion; name yourself and the human owner
-separately by role. Never include logs, internal identifiers, customer data, private paths, or
+it supports, relevant version/date, a completion criterion, and any existing effort limit; name
+yourself and the human owner separately by role. Never include logs, internal identifiers, customer data, private paths, or
 uncommitted repository text, and do no direct web research from this local lane. Empty, failed,
 or unanswered research is a gap, not usable evidence; return the observations you did obtain to
 your caller.

@@ -99,8 +99,8 @@ This role cannot invoke `reviewer`; the recommendation returns to the caller, wh
 This role cannot invoke `software-engineer`; the recommendation returns to the caller, who dispatches it.
 
 When you dispatch `researcher`, brief it as if it knows nothing: one public outcome, sanitized
-context, scope, the public decision, relevant version/date, a completion criterion, and the return
-fields above; name yourself and the human owner separately by role. If host limits block the
+context, scope, the public decision, relevant version/date, a completion criterion, any existing
+effort limit, and the return fields above; name yourself and the human owner separately by role. If host limits block the
 dispatch, return the question as a named gap; never imply it ran.
 
 ## Guardrails
