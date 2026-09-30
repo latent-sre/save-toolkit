@@ -1,9 +1,5 @@
 # Akamai Property Manager as code — versions, activation, rollback
 
-Sources reviewed 2026-08-07 against official `techdocs.akamai.com` pages via indirect retrieval
-(search extraction and indexed snapshots — not byte-level fetches). Re-verify timings and API
-shapes against the live pages for the target contract before relying on them.
-
 ## Contents
 
 - The change unit: a property version
@@ -17,7 +13,7 @@ shapes against the live pages for the target contract before relying on them.
 
 Properties are versioned; editing never touches live traffic — **activation** does. Activate a
 version to **staging** or **production** *[sourced:
-techdocs.akamai.com/property-mgr/docs/how-activation-works]*:
+[Activation behavior](https://techdocs.akamai.com/property-mgr/docs/how-activation-works)]*:
 
 - **Staging** activations "usually finish within 3 minutes" — smaller network, no end-user
   traffic. The human resolves the staging edge hostname (the edge hostname with `-staging` before
@@ -26,7 +22,7 @@ techdocs.akamai.com/property-mgr/docs/how-activation-works]*:
   `curl --resolve '<public-host>:443:<staging-ip>' 'https://<public-host>/<safe-path>' -D - -o /dev/null`.
   Verify `X-Akamai-Staging` in the response (`ESSL` for Enhanced TLS, `EdgeSuite` for Standard
   TLS); a request to the edge hostname tests the wrong host
-  *[sourced: techdocs.akamai.com/property-mgr/docs/test-https; reviewed 2026-09-09]*.
+  *[sourced: [Test HTTPS](https://techdocs.akamai.com/property-mgr/docs/test-https); reviewed 2026-09-09]*.
 - **Production** activation first updates live-traffic servers, then the remaining network
   ("Pending - Full Rollout"); users mapped to new edge locations can still receive the previous
   configuration during rollout. Akamai can cancel if it detects a problem. The normal estimate is
@@ -60,8 +56,8 @@ inside its window, a tested previous-version activation, or another proven path 
 
 A purge changes what live users receive: classify it through `production-change-gate` and give
 the human release owner the exact URLs, tags or CP code, method, network, expected origin load
-and verification *[sourced: techdocs.akamai.com/purge-cache/docs/purge-methods;
-…/purge-cache/reference/post-invalidate-url]*.
+and verification *[sourced: [Purge methods](https://techdocs.akamai.com/purge-cache/docs/purge-methods);
+[Invalidate URL](https://techdocs.akamai.com/purge-cache/reference/post-invalidate-url)]*.
 
 | Choice | Default | Why |
 |---|---|---|
@@ -80,19 +76,19 @@ Verify with a debug request; inferred from the X-Cache definitions
 ## Config-as-code paths
 
 - **PAPI** (Property Manager API) — the programmatic interface for rule trees, versions, and
-  activations; everything else is built on it *[sourced: techdocs.akamai.com/property-mgr/reference/api]*.
+  activations; everything else is built on it *[sourced: [PAPI](https://techdocs.akamai.com/property-mgr/reference/api)]*.
 - **Terraform** — the actively versioned path: the Akamai provider's property provisioning
   requires rule format ≥ `v2023-01-05`, and **`cli-terraform` exports an existing property to
   Terraform config plus an import script** — an import path for a property maintained in the
-  UI *[sourced: techdocs.akamai.com/terraform/docs/set-up-property-provisioning,
-  …/docs/import-and-export-assets]*. No official page crowns Terraform as "the" recommended path
+  UI *[sourced: [Property provisioning](https://techdocs.akamai.com/terraform/docs/set-up-property-provisioning),
+  [Import and export assets](https://techdocs.akamai.com/terraform/docs/import-and-export-assets)]*. No official page crowns Terraform as "the" recommended path
   over the Property Manager CLI — `[unverified]`; choose per team and record the choice.
 - **Akamai CLI `property-manager`** — local snippet-based editing and the multi-environment
   pipeline workflow; current maintenance status `[unverified]`.
 - **Akamai Sandbox** — an isolated environment to test a development version of a property before
   any activation: the Sandbox CLI builds it from the property's rule tree and the local Sandbox
   Client serves it at `http://localhost:<connector_port>` *[sourced:
-  techdocs.akamai.com/sandbox/docs]*. Sandbox-first beats staging-first for iteration; staging
+  [Sandbox](https://techdocs.akamai.com/sandbox/docs)]*. Sandbox-first beats staging-first for iteration; staging
   remains the pre-production gate.
 
 ## Review checklist for a property diff

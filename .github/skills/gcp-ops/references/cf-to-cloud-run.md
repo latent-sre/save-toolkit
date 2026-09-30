@@ -1,14 +1,12 @@
 # Cloud Foundry → Cloud Run — the concept map and its traps
 
-Google publishes an official migration guide set for exactly this move *[sourced:
-docs.cloud.google.com/run/docs/migrate/cloud-foundry/migrate-from-cloud-foundry-to-cloud-run]*.
-Sources reviewed 2026-08-07 via indirect retrieval of the official pages; re-verify before
-committing a migration decision to a packet.
+Google's [Cloud Foundry migration guide](https://docs.cloud.google.com/run/docs/migrate/cloud-foundry/migrate-from-cloud-foundry-to-cloud-run)
+provides a migration recipe. Check its assumptions against the workload and current platform
+capabilities before committing a migration decision to a packet.
 
 ## Eligibility first
 
-Google's overview says an app "cannot be migrated unless it meets the following criteria"
-*[sourced: migration overview page]*:
+The guide's migration path assumes the application:
 
 - Uses HTTP or HTTP/2 (including gRPC).
 - Listens for traffic based on the `PORT` environment variable.
@@ -18,6 +16,9 @@ Google's overview says an app "cannot be migrated unless it meets the following 
 - Doesn't need individual instances to be addressable.
 - Can be started without side-effects to the environment, for example, starting a database migration.
 
+These are this migration path's assumptions, not Cloud Run's entire capability envelope. An
+unmet assumption calls for routing or workload redesign assessment; it is not automatic rejection
+of the platform. For example, an [Application Load Balancer can route paths to multiple Cloud Run services](https://docs.cloud.google.com/run/docs/mapping-custom-domains#mapping_custom_domains_with_a_global_external_application_load_balancer).
 TCP-routed apps and apps writing durable local state need separate runtime/storage assessment.
 Distinguish background workload lifecycles before proposing a destination:
 
@@ -47,8 +48,8 @@ that decision. *[sourced: [Cloud Run resource types](https://docs.cloud.google.c
 | Reaching the on-prem databases (all of them are on-prem per `stack-profile`) | **Direct VPC egress** (`--network`, `--subnet`, `--vpc-egress=private-ranges-only` or `all-traffic`) over the interconnect/VPN — no connector, and network cost scales to zero with the service *[sourced: run/docs/configuring/vpc-direct-vpc; reviewed 2026-08-21]* | Each instance takes an IP: "reserve at least 2X the number of IP addresses, plus a buffer", `/26` subnet minimum, ~1 Gbps per instance, and "connection establishment delays of a minute or more on instance startup" have been observed. With Cloud NAT in the path the docs steer back to a Serverless VPC Access connector (30 s+ cold starts otherwise). Size the subnet before the first migration, not after the first outage |
 | JVM warm-up on a `cf push` (instance stays warm) | `--cpu-boost`: extra CPU "during instance startup time and for 10 seconds after the instance has started"; `--no-cpu-boost` to disable *[sourced: run/docs/configuring/services/cpu; reviewed 2026-08-21]* | A Spring Boot service that scaled to zero pays its startup on the next request; boost is the cheap lever and is billed only for the startup window. Pair with `--min-instances` for anything latency-sensitive |
 | Health check (`cf set-health-check`, manifest `health-check-type`) | **Startup probe** (a TCP probe with a 240 s timeout unless configured; `failureThreshold` × `periodSeconds` at most 600 s) plus an optional **liveness probe**, off unless configured *[sourced: run/docs/configuring/healthchecks]* | Size the startup probe for JVM start plus the Direct VPC egress connect delay above; Google recommends "a HTTP startup probe that tests a connection to an egress destination" *[sourced: run/docs/configuring/vpc-direct-vpc]* |
-| Run-on-start migrations (Flyway/Liquibase) or `CF_INSTANCE_INDEX`-gated singleton work | A **Cloud Run job** run before the deploy for migrations; a job or worker pool for singleton work | Every autoscaled instance runs the startup code, so each new instance attempts a start-time migration; Google's criteria above exclude both patterns |
-| Buildpack-injected agent / sidecar process in one container | **Multi-container service**: one *ingress* container (its port must be set explicitly — "no default port for the ingress container"), up to 10 containers sharing a network namespace, a shared in-memory volume, and startup ordering that **requires health checks** on the dependencies *[sourced: run/docs/deploying, sidecars; reviewed 2026-08-21]* | The OTel collector the `obs-pipeline` skill runs beside the app becomes a sidecar here; declare the app as depending on it and give the collector a health check or the app can start first and drop its early spans |
+| Run-on-start migrations (Flyway/Liquibase) or `CF_INSTANCE_INDEX`-gated singleton work | A **Cloud Run job** completed before the deploy for migrations; a job or worker pool is a candidate for singleton work | Every instance can run startup code. Runtime choice is not a singleton guarantee: preserve the workload's migration lock or coordination contract and [retry-safe/idempotent effects](https://docs.cloud.google.com/run/docs/jobs-retries) across duplicate launches, retries and replacement instances; one task or pool instance is insufficient |
+| Buildpack-injected agent / sidecar process in one container | **Multi-container service**: one ingress container with an explicit port; up to 10 containers share a network namespace. A shared in-memory volume is optional and needs [explicit volume mounts](https://docs.cloud.google.com/run/docs/configuring/services/in-memory-volume-mounts). Startup ordering requires health checks on dependencies *[sourced: [multi-container services](https://docs.cloud.google.com/run/docs/deploying#sidecars)]* | Make the app depend on the collector's startup health check to reduce early span loss. A collector needing CPU between requests after startup requires [instance-based billing](https://docs.cloud.google.com/run/docs/configuring/cpu-allocation); startup ordering alone does not provide idle-time CPU. Verify mounts and idle-time collection in the chosen deployment |
 | Container OOM → exit 137 in `cf events` | Read [OOM evidence](../SKILL.md#oom-evidence) | Cloud Logging replaces exit-code grepping |
 | `cf rollback` / blue-green | Read the [revision traffic rollback procedure](../SKILL.md#mitigation-you-recommend-never-run-traffic-rollback) | Stable `update-traffic` supports `--set-tags` / `--update-tags` for revision URLs and `--to-tags` for traffic percentages. Assigning a tag alone does not move percentage traffic; `--set-tags` replaces existing tags *[sourced: docs.cloud.google.com/sdk/gcloud/reference/run/services/update-traffic]* |
 

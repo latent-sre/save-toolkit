@@ -35,7 +35,8 @@ mutability; do not claim reproducibility from a major tag or attach an exact-rel
 a moving ref. An upgrade must meet action/runtime compatibility and organization allowlist rules.
 Never replace an existing reviewed SHA with a tag as incidental cleanup.
 
-Pin installed tools separately from setup actions. Use locked installs and integrity checks where
+Pin installed tools separately from setup actions. Reject a stale lock when freshness is required.
+Use locked installs and integrity checks where
 supported. A deliberate latest-version compatibility canary is a separate concern from reproducible
 release validation; label it and record the resolved versions. Consider package lifecycle scripts
 as executable dependencies, disabling them only when the project works without them.
@@ -51,7 +52,7 @@ For a GCP target, deliver under this policy and name Workload Identity Federatio
 for the owner; never create a service-account key yourself.
 
 When secrets are needed, scope them to the relevant environment/job and avoid broad inheritance
-through reusable workflows. Do not print values or put them in argv, caches or artifacts. A
+through reusable workflows. Keep values out of prompts, logs, argv, caches and artifacts. A
 credential available in the environment does not authorize its use for a different target.
 
 Check the repository's plan/visibility and actual environment settings before relying on required

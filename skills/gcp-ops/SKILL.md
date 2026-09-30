@@ -13,9 +13,12 @@ argument-hint: "[the GCP service or symptom]"
 
 # GCP application-side triage (console or gcloud, read-only)
 
-Observe the named Cloud Run service. Claude's read-only guard allows the reads below; a lane
-without shell access asks the human to run them. Changes require the human release owner's exact
-approval evidence.
+Observe the named Cloud Run service through an authorized, protected read/output path. Before
+`describe` or log reads, establish that credentials in environment variables (including
+`VCAP_SERVICES`), logs and errors are removed before reaching the model. The guard admits command
+syntax; it does not mask output. Without that protection or shell access, the human uses the
+console or CLI and returns scoped, sanitized observations. Never request raw configuration or
+credential dumps. Changes require the human release owner's exact approval evidence.
 
 ## First look
 
@@ -55,7 +58,9 @@ When the caller has not supplied the project, region or service, read the human-
 Every deploy creates an immutable **revision** (image + env + limits + concurrency). A new
 deployment takes traffic only while the service still tracks the latest revision:
 an existing traffic split or previous-revision assignment persists across later deployments,
-and `--no-traffic` keeps the new revision unrouted until traffic is explicitly assigned.
+and `--no-traffic` keeps the new revision out of the service URL's percentage-based allocation.
+A [tagged revision URL](https://docs.cloud.google.com/run/docs/rollouts-rollbacks-traffic-migration#tags)
+can still receive requests at zero percent; inspect tags, ingress and IAM before claiming isolation.
 A human stages a rollout with
 `gcloud run services update-traffic <service> --to-revisions <revision>=<percentage> --region <region> --project <project>`; `--to-latest`
 instead sends 100% to the latest revision and restores automatic promotion on later deploys
@@ -102,8 +107,8 @@ docs.cloud.google.com/run/docs/troubleshooting; liveness probes are off unless c
 |---|---|---|
 | Start fails | "Container failed to start. Failed to start and then listen on the port defined by the PORT environment variable." (search `listen on the port`) | The app must listen on `0.0.0.0:$PORT`, not `127.0.0.1`; the PCF `$PORT` discipline transfers exactly |
 | 429 | "…aborted because there was no available instance." | Container instance count against max instances (Metrics); a raise is a change to recommend |
-| 503 | "…the HTTP response was malformed or connection to the instance had an error." | In order: an [OOM](#oom-evidence) line; `LIVENESS HTTP probe failed` if a liveness probe is configured; a framework timeout shorter than the request (Node `server.setTimeout`, Gunicorn `WORKER TIMEOUT`); a Serverless VPC Access connector's throughput; over 800 requests/s per instance exhausts TCP sockets — turn on HTTP/2 |
-| 504 | "…reached the maximum request timeout." | The revision's request timeout against the slow downstream call; find that call before raising the timeout |
+| 503 | "…the HTTP response was malformed or connection to the instance had an error." | In order: an [OOM](#oom-evidence) line; `LIVENESS HTTP probe failed` if configured; a framework timeout shorter than the request (Node `server.setTimeout`, Gunicorn `WORKER TIMEOUT`); VPC connector throughput. Over 800 requests/s per instance is a TCP socket-pressure lead, not proof. Confirm that bottleneck and container support for [cleartext HTTP/2 (`h2c`)](https://docs.cloud.google.com/run/docs/configuring/http2#before_you_configure) before recommending HTTP/2, with a tested rollout and backout |
+| 504 | "…reached the maximum request timeout." | Compare the revision's request timeout with the slow downstream call before raising it. A [504 does not terminate the container and work may continue](https://docs.cloud.google.com/run/docs/configuring/request-timeout); reconcile an unknown write outcome and use the API's idempotency contract before retrying |
 
 - **Cold starts** — min-instances is a billed change to recommend, not assume.
 - **Concurrency/saturation** — exact defaults vary by deploy path: `[unverified]`, read them from

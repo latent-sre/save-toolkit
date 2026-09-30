@@ -33,6 +33,26 @@ def load_asset(name):
     return module
 
 
+@pytest.mark.parametrize("seed_count,honours_limit,passes", [
+    (3, True, True), (3, False, False), (1, False, False), (0, True, False),
+])
+def test_collection_limit_contract_requires_distinguishing_data(seed_count, honours_limit, passes):
+    contract = load_asset("test_http_contract")
+    app = FastAPI()
+    records = [{"id": n} for n in range(seed_count)]
+
+    @app.get(contract.LIST_PATH)
+    def collection(limit: int = 100):
+        return {"data": records[:limit] if honours_limit else records, "next_cursor": None}
+
+    with TestClient(app) as client:
+        if passes:
+            contract.test_collection_is_a_cursor_page(client, {})
+        else:
+            with pytest.raises(AssertionError):
+                contract.test_collection_is_a_cursor_page(client, {})
+
+
 class Payload(BaseModel):
     count: int
 

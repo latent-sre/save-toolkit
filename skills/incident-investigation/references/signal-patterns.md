@@ -20,9 +20,10 @@ dependency's team.
   many times it is called — count the calls instead; its own flat dashboard clears only the series
   it covers, so it stays open until timings split by the failing region, route, or account type
   are compared;
-- throttling (429), connection refused or reset, or certificate errors from a dependency point at
-  its limits, availability, or credentials rather than the app's code — unless your own call volume
-  rose: check its status, recent changes, and certificate dates with its team;
+- throttling (429), connection refused or reset, or certificate errors leave both the dependency
+  and its client open: compare failing and healthy clients' call volume, versions, endpoints,
+  pool behavior, trust stores, SNI/hostnames, and recent configuration changes alongside the
+  dependency's limits, availability, and certificate dates with its team;
 - retries against a struggling dependency multiply its load and can keep it down after the trigger
   is gone: compare the caller's retry rate with the dependency's load;
 - a dependency's maintenance window or change can land as your incident: ask its team what changed
@@ -43,8 +44,10 @@ dependency's team.
   that the pool is the bottleneck: wait duration and the pool's active, maximum, and waiting
   counts settle that, and without them exhaustion is a candidate, not a finding; a thread
   *holding* a connection while it waits on a socket says why the pool is held;
-- a load balancer that sees seconds where the container logs milliseconds is time spent outside
-  the container;
+- a load balancer that sees seconds where the app logs milliseconds indicates different measured
+  intervals until the same request and timer boundaries are matched: separate admission/queueing,
+  handler, downstream, and transfer time; queueing inside the process before a handler timer starts
+  or streaming after it stops can explain the gap without time outside the container;
 - low aggregate CPU with high latency leaves waiting, per-core saturation, and CPU throttling
   open — a blocked pool, one hot instance, or one saturated thread hides under a low average, so
   check the affected requests' waits and the instance's CPU limit or per-core usage;

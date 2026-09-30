@@ -1,0 +1,509 @@
+{
+  "date": "2026-09-30",
+  "baseline_commit": "f505da5cacc4679a6eebe9ceebfd07108ecb226f",
+  "branch": "work/first-ten-selected-fixes",
+  "candidate": "uncommitted working tree",
+  "scope": "Changed canonical sources, regression tests and regenerated adapters; documentation evidence excluded to avoid self-reference.",
+  "delta_convention": "UTF-8 bytes with CRLF normalized to LF; sha256 hashes exact filesystem bytes.",
+  "totals": {
+    "generated": {
+      "files": 25,
+      "bytes": 7539,
+      "lines": 73
+    },
+    "regression_tests": {
+      "files": 3,
+      "bytes": 1993,
+      "lines": 44
+    },
+    "canonical_prose": {
+      "files": 23,
+      "bytes": 5242,
+      "lines": 18
+    },
+    "canonical_executable": {
+      "files": 2,
+      "bytes": 2297,
+      "lines": 55
+    }
+  },
+  "files": [
+    {
+      "path": ".github/skills/agent-authoring/references/artifact.md",
+      "category": "generated",
+      "sha256": "8cf8ee2e6229d7353f96c7e9d580c647d5f5b29e7fcb5f0a180118874b7db5f6",
+      "normalized_before_bytes": 6473,
+      "normalized_after_bytes": 5891,
+      "byte_delta": -582,
+      "line_delta": -12
+    },
+    {
+      "path": ".github/skills/akamai-edge/SKILL.md",
+      "category": "generated",
+      "sha256": "bb4eaad9d414fd0850119fcd4c542279227c1680ea150098ae4eb56ebcb2be14",
+      "normalized_before_bytes": 5211,
+      "normalized_after_bytes": 5541,
+      "byte_delta": 330,
+      "line_delta": 3
+    },
+    {
+      "path": ".github/skills/akamai-edge/references/edge-triage.md",
+      "category": "generated",
+      "sha256": "1e20277d4cd44cbeba85655a76d22dcb73bcdb1560ba3eb1cbe8ac20c8981a8f",
+      "normalized_before_bytes": 10110,
+      "normalized_after_bytes": 10895,
+      "byte_delta": 785,
+      "line_delta": 0
+    },
+    {
+      "path": ".github/skills/akamai-edge/references/mpulse-rum.md",
+      "category": "generated",
+      "sha256": "4aba7fbd7bde91b6ef73bd2a8a381c1c93893ef3d579a8811556836cd0255761",
+      "normalized_before_bytes": 3979,
+      "normalized_after_bytes": 3956,
+      "byte_delta": -23,
+      "line_delta": -3
+    },
+    {
+      "path": ".github/skills/akamai-edge/references/property-config.md",
+      "category": "generated",
+      "sha256": "a7bb8204628be83211d8b0242e060db93e8b27d3c3fbaea21f096124c67039cb",
+      "normalized_before_bytes": 7788,
+      "normalized_after_bytes": 7767,
+      "byte_delta": -21,
+      "line_delta": -4
+    },
+    {
+      "path": ".github/skills/backend-craft/assets/test_http_contract.py",
+      "category": "generated",
+      "sha256": "8d5f3e99b1ed928bedbcf9fb89990be8a6075a03075e47a2219a8138e342d8db",
+      "normalized_before_bytes": 7021,
+      "normalized_after_bytes": 7358,
+      "byte_delta": 337,
+      "line_delta": 6
+    },
+    {
+      "path": ".github/skills/backend-craft/references/api-writes.md",
+      "category": "generated",
+      "sha256": "5b12661d02508e0498d68e975f44a7326aef2804e63b0f5099902786f20909c3",
+      "normalized_before_bytes": 3615,
+      "normalized_after_bytes": 3740,
+      "byte_delta": 125,
+      "line_delta": 1
+    },
+    {
+      "path": ".github/skills/ci-actions/SKILL.md",
+      "category": "generated",
+      "sha256": "fcf0740070c279783023f87c69ed014e73b80d48dbcb49cf48f1c31b6811ede5",
+      "normalized_before_bytes": 7627,
+      "normalized_after_bytes": 7150,
+      "byte_delta": -477,
+      "line_delta": -7
+    },
+    {
+      "path": ".github/skills/ci-actions/references/execution-and-runners.md",
+      "category": "generated",
+      "sha256": "e195a7bcb3c1b1d061c2a25f83184a3adebe74c3c7955d610d7abac747717a86",
+      "normalized_before_bytes": 8703,
+      "normalized_after_bytes": 8746,
+      "byte_delta": 43,
+      "line_delta": 0
+    },
+    {
+      "path": ".github/skills/ci-actions/references/security-and-provenance.md",
+      "category": "generated",
+      "sha256": "d4841df8ccf119f5dc8c5bcc5330627462144c97e69a09a460238ba8d68b419f",
+      "normalized_before_bytes": 6061,
+      "normalized_after_bytes": 6109,
+      "byte_delta": 48,
+      "line_delta": 1
+    },
+    {
+      "path": ".github/skills/database-reliability/references/postgres-migrations.md",
+      "category": "generated",
+      "sha256": "9f706ef9a6065871846003d6b471eaa5ab249926f8c67d79720fb3e9c7d2f819",
+      "normalized_before_bytes": 4186,
+      "normalized_after_bytes": 4497,
+      "byte_delta": 311,
+      "line_delta": 3
+    },
+    {
+      "path": ".github/skills/database-reliability/references/sql-server-migrations.md",
+      "category": "generated",
+      "sha256": "8cd08ba0f9cce1a04a3bfbd3340be576e00634df903950246f304399db5508b2",
+      "normalized_before_bytes": 3572,
+      "normalized_after_bytes": 4371,
+      "byte_delta": 799,
+      "line_delta": 6
+    },
+    {
+      "path": ".github/skills/eng-ladder/SKILL.md",
+      "category": "generated",
+      "sha256": "39923a072dab8f7705c85acf9d00f437a647354ee1e2e11aaa5e63eb012df494",
+      "normalized_before_bytes": 4954,
+      "normalized_after_bytes": 4997,
+      "byte_delta": 43,
+      "line_delta": 0
+    },
+    {
+      "path": ".github/skills/frontend-craft/SKILL.md",
+      "category": "generated",
+      "sha256": "c097c044b5275c43ddf6c0daeb02cca49b4356055643a1d4e47f1b09f4737a4f",
+      "normalized_before_bytes": 6562,
+      "normalized_after_bytes": 7646,
+      "byte_delta": 1084,
+      "line_delta": 6
+    },
+    {
+      "path": ".github/skills/frontend-craft/references/design-language.md",
+      "category": "generated",
+      "sha256": "d79a08a1237168905e4a007c7de3f9598efa71b68e9e221be85840000568dccb",
+      "normalized_before_bytes": 3693,
+      "normalized_after_bytes": 2894,
+      "byte_delta": -799,
+      "line_delta": -9
+    },
+    {
+      "path": ".github/skills/frontend-craft/references/stack.md",
+      "category": "generated",
+      "sha256": "1a65a6817df0c3a595cef46acbe1bbe1155b490b50a8627670d7c4ddfdc5b809",
+      "normalized_before_bytes": 3431,
+      "normalized_after_bytes": 4600,
+      "byte_delta": 1169,
+      "line_delta": 15
+    },
+    {
+      "path": ".github/skills/gcp-ops/SKILL.md",
+      "category": "generated",
+      "sha256": "5bdaa4ee5e0e0ec69837187c2a0eb5aa9f2af0fc788a225adabe3b1427531698",
+      "normalized_before_bytes": 11376,
+      "normalized_after_bytes": 12314,
+      "byte_delta": 938,
+      "line_delta": 5
+    },
+    {
+      "path": ".github/skills/gcp-ops/references/cf-to-cloud-run.md",
+      "category": "generated",
+      "sha256": "10642642681b95dcc53ab436b399254fd0bb6e020b51e26be4275a1413f20d27",
+      "normalized_before_bytes": 7687,
+      "normalized_after_bytes": 8480,
+      "byte_delta": 793,
+      "line_delta": 1
+    },
+    {
+      "path": ".github/skills/grafana/references/dashboard-operations.md",
+      "category": "generated",
+      "sha256": "4c8d60accd501d286d14319ba699e0796401ada3f4c28a486cfb901683e2b3cc",
+      "normalized_before_bytes": 9033,
+      "normalized_after_bytes": 8479,
+      "byte_delta": -554,
+      "line_delta": -6
+    },
+    {
+      "path": ".github/skills/grafana/references/http-api.md",
+      "category": "generated",
+      "sha256": "dde58e46bd5a791944cce8471d250a70617dc987e5801a6df4337d8c33becb2c",
+      "normalized_before_bytes": 12929,
+      "normalized_after_bytes": 13943,
+      "byte_delta": 1014,
+      "line_delta": 15
+    },
+    {
+      "path": ".github/skills/grafana/references/json-model.md",
+      "category": "generated",
+      "sha256": "34ad3de102b4eeb1e997b03de1b7480329adac54f91f0bf1a6a6b94fde2a2055",
+      "normalized_before_bytes": 8879,
+      "normalized_after_bytes": 8656,
+      "byte_delta": -223,
+      "line_delta": -2
+    },
+    {
+      "path": ".github/skills/grafana/references/read-only-review.md",
+      "category": "generated",
+      "sha256": "f4c49ce0ae6247e5d32b65fbaded6a7acd209e0dc64652d3202ff64658107130",
+      "normalized_before_bytes": 5086,
+      "normalized_after_bytes": 4966,
+      "byte_delta": -120,
+      "line_delta": 0
+    },
+    {
+      "path": ".github/skills/grafana/references/visual-verification.md",
+      "category": "generated",
+      "sha256": "a3cc6c564f891b95f0f84a0861080571dbfd8551179a9023283e40bf2bc2475b",
+      "normalized_before_bytes": 11673,
+      "normalized_after_bytes": 11885,
+      "byte_delta": 212,
+      "line_delta": 2
+    },
+    {
+      "path": ".github/skills/grafana/scripts/dashboard_hygiene.py",
+      "category": "generated",
+      "sha256": "edc4cc65c1d11f392e3f494f3fc5179f87a5b3c883ca412e21c00d365116d9ba",
+      "normalized_before_bytes": 10822,
+      "normalized_after_bytes": 12782,
+      "byte_delta": 1960,
+      "line_delta": 49
+    },
+    {
+      "path": ".github/skills/incident-investigation/references/signal-patterns.md",
+      "category": "generated",
+      "sha256": "45fa65fd5fa66cadcd16b338967ad63aa89047bfbf39bb06965af1817ab9ca8c",
+      "normalized_before_bytes": 3896,
+      "normalized_after_bytes": 4243,
+      "byte_delta": 347,
+      "line_delta": 3
+    },
+    {
+      "path": "scripts/test_backend_craft_assets.py",
+      "category": "regression_tests",
+      "sha256": "787e5ffd98314e8b45e88bd2d868da2905a37c8913eab0fd065a14f3de2a3cd1",
+      "normalized_before_bytes": 28086,
+      "normalized_after_bytes": 28869,
+      "byte_delta": 783,
+      "line_delta": 20
+    },
+    {
+      "path": "scripts/test_dashboard_hygiene.py",
+      "category": "regression_tests",
+      "sha256": "49b6bcf0495fc1fb4d738b496af9084db1515e8e2b21fb041da91f0953302404",
+      "normalized_before_bytes": 16158,
+      "normalized_after_bytes": 17218,
+      "byte_delta": 1060,
+      "line_delta": 20
+    },
+    {
+      "path": "scripts/test_validate_fleet.py",
+      "category": "regression_tests",
+      "sha256": "07263fd60ce0285baac6f8cfc1fe698e61a686f9c1b4f4576f5097ef042e7bef",
+      "normalized_before_bytes": 47363,
+      "normalized_after_bytes": 47513,
+      "byte_delta": 150,
+      "line_delta": 4
+    },
+    {
+      "path": "skills/agent-authoring/references/artifact.md",
+      "category": "canonical_prose",
+      "sha256": "8cf8ee2e6229d7353f96c7e9d580c647d5f5b29e7fcb5f0a180118874b7db5f6",
+      "normalized_before_bytes": 6473,
+      "normalized_after_bytes": 5891,
+      "byte_delta": -582,
+      "line_delta": -12
+    },
+    {
+      "path": "skills/akamai-edge/SKILL.md",
+      "category": "canonical_prose",
+      "sha256": "bb4eaad9d414fd0850119fcd4c542279227c1680ea150098ae4eb56ebcb2be14",
+      "normalized_before_bytes": 5211,
+      "normalized_after_bytes": 5541,
+      "byte_delta": 330,
+      "line_delta": 3
+    },
+    {
+      "path": "skills/akamai-edge/references/edge-triage.md",
+      "category": "canonical_prose",
+      "sha256": "1e20277d4cd44cbeba85655a76d22dcb73bcdb1560ba3eb1cbe8ac20c8981a8f",
+      "normalized_before_bytes": 10110,
+      "normalized_after_bytes": 10895,
+      "byte_delta": 785,
+      "line_delta": 0
+    },
+    {
+      "path": "skills/akamai-edge/references/mpulse-rum.md",
+      "category": "canonical_prose",
+      "sha256": "4aba7fbd7bde91b6ef73bd2a8a381c1c93893ef3d579a8811556836cd0255761",
+      "normalized_before_bytes": 3979,
+      "normalized_after_bytes": 3956,
+      "byte_delta": -23,
+      "line_delta": -3
+    },
+    {
+      "path": "skills/akamai-edge/references/property-config.md",
+      "category": "canonical_prose",
+      "sha256": "a7bb8204628be83211d8b0242e060db93e8b27d3c3fbaea21f096124c67039cb",
+      "normalized_before_bytes": 7788,
+      "normalized_after_bytes": 7767,
+      "byte_delta": -21,
+      "line_delta": -4
+    },
+    {
+      "path": "skills/backend-craft/assets/test_http_contract.py",
+      "category": "canonical_executable",
+      "sha256": "8d5f3e99b1ed928bedbcf9fb89990be8a6075a03075e47a2219a8138e342d8db",
+      "normalized_before_bytes": 7021,
+      "normalized_after_bytes": 7358,
+      "byte_delta": 337,
+      "line_delta": 6
+    },
+    {
+      "path": "skills/backend-craft/references/api-writes.md",
+      "category": "canonical_prose",
+      "sha256": "5b12661d02508e0498d68e975f44a7326aef2804e63b0f5099902786f20909c3",
+      "normalized_before_bytes": 3615,
+      "normalized_after_bytes": 3740,
+      "byte_delta": 125,
+      "line_delta": 1
+    },
+    {
+      "path": "skills/ci-actions/SKILL.md",
+      "category": "canonical_prose",
+      "sha256": "fcf0740070c279783023f87c69ed014e73b80d48dbcb49cf48f1c31b6811ede5",
+      "normalized_before_bytes": 7627,
+      "normalized_after_bytes": 7150,
+      "byte_delta": -477,
+      "line_delta": -7
+    },
+    {
+      "path": "skills/ci-actions/references/execution-and-runners.md",
+      "category": "canonical_prose",
+      "sha256": "e195a7bcb3c1b1d061c2a25f83184a3adebe74c3c7955d610d7abac747717a86",
+      "normalized_before_bytes": 8703,
+      "normalized_after_bytes": 8746,
+      "byte_delta": 43,
+      "line_delta": 0
+    },
+    {
+      "path": "skills/ci-actions/references/security-and-provenance.md",
+      "category": "canonical_prose",
+      "sha256": "d4841df8ccf119f5dc8c5bcc5330627462144c97e69a09a460238ba8d68b419f",
+      "normalized_before_bytes": 6061,
+      "normalized_after_bytes": 6109,
+      "byte_delta": 48,
+      "line_delta": 1
+    },
+    {
+      "path": "skills/database-reliability/references/postgres-migrations.md",
+      "category": "canonical_prose",
+      "sha256": "9f706ef9a6065871846003d6b471eaa5ab249926f8c67d79720fb3e9c7d2f819",
+      "normalized_before_bytes": 4186,
+      "normalized_after_bytes": 4497,
+      "byte_delta": 311,
+      "line_delta": 3
+    },
+    {
+      "path": "skills/database-reliability/references/sql-server-migrations.md",
+      "category": "canonical_prose",
+      "sha256": "8cd08ba0f9cce1a04a3bfbd3340be576e00634df903950246f304399db5508b2",
+      "normalized_before_bytes": 3572,
+      "normalized_after_bytes": 4371,
+      "byte_delta": 799,
+      "line_delta": 6
+    },
+    {
+      "path": "skills/eng-ladder/SKILL.md",
+      "category": "canonical_prose",
+      "sha256": "39923a072dab8f7705c85acf9d00f437a647354ee1e2e11aaa5e63eb012df494",
+      "normalized_before_bytes": 4954,
+      "normalized_after_bytes": 4997,
+      "byte_delta": 43,
+      "line_delta": 0
+    },
+    {
+      "path": "skills/frontend-craft/SKILL.md",
+      "category": "canonical_prose",
+      "sha256": "c097c044b5275c43ddf6c0daeb02cca49b4356055643a1d4e47f1b09f4737a4f",
+      "normalized_before_bytes": 6562,
+      "normalized_after_bytes": 7646,
+      "byte_delta": 1084,
+      "line_delta": 6
+    },
+    {
+      "path": "skills/frontend-craft/references/design-language.md",
+      "category": "canonical_prose",
+      "sha256": "d79a08a1237168905e4a007c7de3f9598efa71b68e9e221be85840000568dccb",
+      "normalized_before_bytes": 3693,
+      "normalized_after_bytes": 2894,
+      "byte_delta": -799,
+      "line_delta": -9
+    },
+    {
+      "path": "skills/frontend-craft/references/stack.md",
+      "category": "canonical_prose",
+      "sha256": "1a65a6817df0c3a595cef46acbe1bbe1155b490b50a8627670d7c4ddfdc5b809",
+      "normalized_before_bytes": 3431,
+      "normalized_after_bytes": 4600,
+      "byte_delta": 1169,
+      "line_delta": 15
+    },
+    {
+      "path": "skills/gcp-ops/SKILL.md",
+      "category": "canonical_prose",
+      "sha256": "5bdaa4ee5e0e0ec69837187c2a0eb5aa9f2af0fc788a225adabe3b1427531698",
+      "normalized_before_bytes": 11376,
+      "normalized_after_bytes": 12314,
+      "byte_delta": 938,
+      "line_delta": 5
+    },
+    {
+      "path": "skills/gcp-ops/references/cf-to-cloud-run.md",
+      "category": "canonical_prose",
+      "sha256": "10642642681b95dcc53ab436b399254fd0bb6e020b51e26be4275a1413f20d27",
+      "normalized_before_bytes": 7687,
+      "normalized_after_bytes": 8480,
+      "byte_delta": 793,
+      "line_delta": 1
+    },
+    {
+      "path": "skills/grafana/references/dashboard-operations.md",
+      "category": "canonical_prose",
+      "sha256": "4c8d60accd501d286d14319ba699e0796401ada3f4c28a486cfb901683e2b3cc",
+      "normalized_before_bytes": 9033,
+      "normalized_after_bytes": 8479,
+      "byte_delta": -554,
+      "line_delta": -6
+    },
+    {
+      "path": "skills/grafana/references/http-api.md",
+      "category": "canonical_prose",
+      "sha256": "dde58e46bd5a791944cce8471d250a70617dc987e5801a6df4337d8c33becb2c",
+      "normalized_before_bytes": 12929,
+      "normalized_after_bytes": 13943,
+      "byte_delta": 1014,
+      "line_delta": 15
+    },
+    {
+      "path": "skills/grafana/references/json-model.md",
+      "category": "canonical_prose",
+      "sha256": "34ad3de102b4eeb1e997b03de1b7480329adac54f91f0bf1a6a6b94fde2a2055",
+      "normalized_before_bytes": 8879,
+      "normalized_after_bytes": 8656,
+      "byte_delta": -223,
+      "line_delta": -2
+    },
+    {
+      "path": "skills/grafana/references/read-only-review.md",
+      "category": "canonical_prose",
+      "sha256": "f4c49ce0ae6247e5d32b65fbaded6a7acd209e0dc64652d3202ff64658107130",
+      "normalized_before_bytes": 5086,
+      "normalized_after_bytes": 4966,
+      "byte_delta": -120,
+      "line_delta": 0
+    },
+    {
+      "path": "skills/grafana/references/visual-verification.md",
+      "category": "canonical_prose",
+      "sha256": "a3cc6c564f891b95f0f84a0861080571dbfd8551179a9023283e40bf2bc2475b",
+      "normalized_before_bytes": 11673,
+      "normalized_after_bytes": 11885,
+      "byte_delta": 212,
+      "line_delta": 2
+    },
+    {
+      "path": "skills/grafana/scripts/dashboard_hygiene.py",
+      "category": "canonical_executable",
+      "sha256": "edc4cc65c1d11f392e3f494f3fc5179f87a5b3c883ca412e21c00d365116d9ba",
+      "normalized_before_bytes": 10822,
+      "normalized_after_bytes": 12782,
+      "byte_delta": 1960,
+      "line_delta": 49
+    },
+    {
+      "path": "skills/incident-investigation/references/signal-patterns.md",
+      "category": "canonical_prose",
+      "sha256": "45fa65fd5fa66cadcd16b338967ad63aa89047bfbf39bb06965af1817ab9ca8c",
+      "normalized_before_bytes": 3896,
+      "normalized_after_bytes": 4243,
+      "byte_delta": 347,
+      "line_delta": 3
+    }
+  ]
+}

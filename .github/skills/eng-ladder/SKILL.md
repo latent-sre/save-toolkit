@@ -18,7 +18,7 @@ change, or the selected tier's escalation rule.
 | | Builder | Principal | Distinguished |
 |---|---|---|---|
 | **Scope** | a tool, feature, service, or bounded implementation of an accepted cross-service design | unresolved shared-contract, cross-service/team, migration or hard-to-reverse design | unresolved build/buy, platform/org or multi-year strategy |
-| **Horizon** | this release | 6–18 months | 3–5 years |
+| **Typical horizon (illustrative, not a routing test)** | this release | 6–18 months | 3–5 years |
 | **Core question** | does it work, and can it be operated? | is this the right design, and what's the blast radius? | is this the right problem, and will the solution survive the org? |
 | **Artifacts** | working, verified code + tests | design docs, decision records, phased plans | ADRs, north-star architecture, build/buy analyses |
 | **Failure lens** | handles errors, timeouts, retries | failure modes, rollout/rollback | failure domains, blast-radius containment |

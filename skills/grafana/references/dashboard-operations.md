@@ -15,10 +15,8 @@ copy is a backup or a provisioning source; its existence alone does not decide o
 Use `obs-dashboards` only when the task also needs dashboard design decisions. This reference
 owns Grafana dashboard/folder operations; the parent `grafana` skill owns access and routing.
 
-Load `stack-profile` for the current minor. Probe the target rather than assuming its API or stored
-schema: Grafana 13 deprecates `/api` in favour of `/apis` but still serves both, and 13.2 disables
-scripted dashboards by default. Version- and upgrade-specific details live in
-[http-api](./http-api.md).
+Probe the target rather than assuming its API or stored schema. Version observations and
+upgrade-specific details live in [http-api](./http-api.md#version-and-target-evidence).
 
 ## Read-only review
 
@@ -30,16 +28,15 @@ below does not apply to a review. Read-only results cannot verify write concurre
 ## Dashboard create or edit loop
 
 1. **Name the job** — one sentence saying which question this dashboard answers for whom.
-2. **Preflight and discover; never invent.** Use [http-api](./http-api.md) to establish
-   version/edition, effective token grants, org/namespace, served dashboard API versions, data-source
-   types and uids, renderer availability, feature toggles, and the real target. For a create, prove
+2. **Preflight and discover; never invent.** Complete the [API preflight](./http-api.md#preflight-once-per-target-and-after-every-upgrade).
+   For a create, prove
    the intended dashboard uid is absent and stop on a uid or target collision; for an edit, resolve
    the real target. Empty search without `dashboards:read` is not evidence of an empty instance.
    Metric names, labels, folder uids, and data-source uids come from the target. On every create,
    apply the [team dashboard conventions](./dashboard-conventions.md).
-3. **For an edit, read the live model at its stored API version and export it.** The export is rollback content,
-   not a replayable request: a write advances the concurrency token, so rollback rebases the saved
-   spec onto a fresh read. Stop if the dashboard is provisioned or managed by another tool. A create
+3. **For an edit, read the live model at its stored API version and export it.** Follow
+   [read/export](./http-api.md#read-and-export) and retain the export for [rollback](./http-api.md#rollback).
+   Stop if the dashboard is provisioned or managed by another tool. A create
    has no prior model or concurrency token: choose its stable uid, name the human or protected
    executor who owns recovery if removal is needed, and author the requested model only.
 4. **Author only the requested change.** On an edit preserve unknown fields and the existing schema; use
@@ -54,15 +51,12 @@ below does not apply to a review. Read-only results cannot verify write concurre
    silently expanding scope. V2 requires a V2-capable linter on the actual candidate; do not
    substitute a converted V1 model. If the candidate cannot be checked, report the gap and stop
    before writing.
-6. **Show the target and full diff, then write once.** An update carries the API family's fresh
-   concurrency token: `metadata.resourceVersion` on app-platform `PUT`, or `dashboard.version` with
-   `overwrite: false` on legacy `POST`. A create carries neither token and uses its API family's
-   create path (`overwrite: false` only on the legacy request); a collision stops and reconciles.
-   Include a save message naming the dashboard change because it cannot be added later. A conflict
-   re-reads and re-diffs; it never forces.
+6. **Show the target and full diff, then write once.** Use the applicable
+   [create/import/update procedure](./http-api.md#create-import-update), including its concurrency
+   token and save message. A collision or conflict stops for a fresh read and re-diff; never force.
 
-   The write is **idempotent-by-target** only for the same dashboard uid and byte-identical desired
-   model. Dispatch followed by a timeout, dropped response, or caller crash has outcome **UNKNOWN**.
+   The dashboard uid and desired model identify the intended state; they do not make a write
+   retry-safe. Dispatch followed by a timeout, dropped response, or caller crash has outcome **UNKNOWN**.
    **Before any redispatch**, reconcile with fresh readback plus version history. Attribute execution
    only from matching operation evidence; desired bytes alone establish current state. Prior bytes
    and no matching history do not prove non-execution while an in-flight request could still land.

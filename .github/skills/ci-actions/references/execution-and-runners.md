@@ -48,8 +48,8 @@ events and runners. A shorter critical path can consume more total runner minute
   gathers the remaining compatibility results. Mark an experimental leg non-blocking only when
   that is the agreed policy; keep ordinary failures visible.
 - Give every job a timeout based on observed slow runs. Preserve the failing exit code through
-  wrappers and pipelines. Retry known transient operations with a bound, not the entire suite
-  until green; track flakes instead of converting them to success.
+  wrappers and pipelines, including the first failure when retrying. Retry known transient operations
+  with a bound, not the entire suite until green; track flakes instead of converting them to success.
 
 ## Caches are accelerators, artifacts are outputs
 

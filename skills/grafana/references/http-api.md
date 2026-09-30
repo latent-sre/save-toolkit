@@ -4,12 +4,22 @@ Read this when the invoked `observability-engineer` talks to a live Grafana. The
 rule is dashboards and folders only; Grafana's version history plus the save message records the live
 edit. `stack-profile` owns the repository recovery-copy facts; a backup is not automatically a
 provisioning source or a tested rollback. For review-only work use [read-only checks](./read-only-review.md).
-The 13.2 baseline below separates current read evidence from write procedures. Create, update,
+## Version and target evidence
+
+This section owns API-version observations; [json-model](./json-model.md) owns schema rules.
+The 13.2 baseline separates dated read evidence from write procedures. Create, update,
 conflict, import, and rollback behavior is `[unverified]` on the current target; historical QA
 write results remain in Git history and do not transfer to an upgraded instance. Grafana 13
 deprecates `/api` in favour of `/apis` but still serves both; 13.2 disables scripted dashboards
 (410) by default. *[sourced: Grafana API and dashboard docs, 13.2.0 feature registry; reviewed
 2026-09-01]*
+
+The read-only 13.2.2 target check on 2026-09-19 served all six dashboard API versions with
+preferred `v2`. The sampled stored Classic dashboard reported `v0alpha1`, returned `panels`
+and schema 42 through V1, and `elements`/`layout` through V2. Legacy history returned 403 while
+stable app-platform history returned 200 with entries. `[verified: that target/date only]`
+These observations establish reads, not converted-write fidelity, write concurrency, import, or
+rollback. Refresh after a Grafana/plugin upgrade, permission change, or conflicting observation.
 
 ## Credentials and effective scope
 
@@ -34,10 +44,9 @@ the current scope is a prerequisite to interpreting either operation:
 The namespace is `default` for org 1, `org-<id>` otherwise, `stacks-<id>` on Grafana Cloud.
 App-platform identity is `metadata.name` (the dashboard uid), not the server-minted `metadata.uid`.
 
-The read URL selects the returned shape, not the stored schema. The 13.2.2 read-only target served
-all six versions with preferred `v2`; the sampled stored Classic dashboard returned `elements`
-through V2 and `panels` through V1. `[verified: target reads, 2026-09-19]` An unpinned Classic
-transform can therefore see no panels. This does not verify a converted write or its fidelity.
+The read URL selects the returned shape, not the stored schema. An unpinned Classic transform
+can therefore see no panels; the dated [target evidence](#version-and-target-evidence) does not
+verify converted writes.
 
 1. Read at `v0alpha1` (unstructured, no migration). Take `status.conversion.storedVersion`,
    falling back to the returned `apiVersion`.
@@ -136,7 +145,14 @@ Folder HTTP API](https://grafana.com/docs/grafana/latest/developers/http_api/fol
    `version` or `generation`.
 2. Run each changed query through `POST /api/ds/query` with real variable values and the
    dashboard's window. `$__rate_interval` is render-time state the query API does not expand:
-   substitute a concrete window of at least four scrape intervals and report what verification used.
+   reproduce the panel's `max($__interval + scrape_interval, 4 * scrape_interval)`.
+   Here `scrape_interval` is the query's Min step when set, otherwise the datasource's configured
+   scrape interval; the panel's Min interval does not redefine it. Record the effective
+   `$__interval`, window/resolution, Min step, and substituted value. Obtain the expanded query
+   from the panel inspector when available. If those inputs are unavailable, label the chosen
+   window an approximation; four scrape intervals alone need not reproduce the panel.
+   [sourced: Grafana's [Prometheus interval variables](https://grafana.com/docs/grafana/latest/datasources/prometheus/template-variables/),
+   checked 2026-09-30.]
    Inspect per-query success and expected results; HTTP 200 alone proves neither. For an expected
    empty result, such as an error-only log panel during a quiet window, check source/window coverage
    and the panel's empty-state presentation. Use a known populated window when available; otherwise
@@ -154,8 +170,7 @@ Folder HTTP API](https://grafana.com/docs/grafana/latest/developers/http_api/fol
    or fall back to legacy `GET /api/dashboards/uid/<uid>/versions?limit=20` and `/versions/<n>`
    for a full prior model.
 
-   For a read-only review, legacy history can return 403 while stable app-platform history remains
-   readable `[verified: 13.2.2 target, 2026-09-19]`. Preserve the endpoint-specific result; it is
+   For a read-only review, preserve the endpoint-specific history result; a legacy 403 is
    not evidence that the dashboard has no versions. A history read cannot verify a new save.
 
 ## Rollback

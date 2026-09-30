@@ -109,7 +109,9 @@ checked 2026-09-21.
    claim that the two describe the same configuration.
 2. Read all relevant targets and transformations. Query the panel's real datasource using its
    supported read contract; retain instant/range mode, step, macro substitutions, and per-query
-   status. An error-free empty frame means no data, not a healthy zero. A selected target sample
+   status. For Prometheus, reproduce the [panel's rate interval](./http-api.md#verify-then-record)
+   at the image's resolution; label an unmatched macro substitution an approximation, not matching
+   query/image evidence. An error-free empty frame means no data, not a healthy zero. A selected target sample
    does not verify every series in the panel. The SRE command path permits query POSTs only through
    its bundled helper's validated Prometheus/Loki operation, not arbitrary HTTP or render URLs.
 3. Console: use the panel's Share/Export image action where available. Agent: use the instance's

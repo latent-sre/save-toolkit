@@ -29,7 +29,7 @@ That table owns language and test-tool defaults; the repository's existing tooli
 | Failure-first | Loading, error, and empty states are designed before the happy path; one failing panel shows an inline error in its own card. |
 | Every view is a composition | Use hierarchy and spacing to serve the workflow; focused tasks and empty states can use deliberate whitespace. |
 | Real content | Real copy, never lorem or filler. |
-| Accessibility is baseline | Semantic HTML, every input labelled, keyboard reachable with visible focus. Move focus to the main heading on actual page navigation; preserve keyboard focus during same-view filter and tab updates. |
+| Accessibility is baseline | Semantic HTML, labelled inputs, keyboard access and visible focus. Move focus to the main heading on page navigation; preserve it during same-view filter/tab updates. Make displayed saving, completion and error status available to assistive technology without stealing focus. |
 
 ## Decisions this fleet has made
 
@@ -38,11 +38,12 @@ That table owns language and test-tool defaults; the repository's existing tooli
 | Mantine | React targets never import `@mantine/core` or any styled Mantine component — a house styling policy that avoids another styled component system. Mantine can integrate with Tailwind through deliberate CSS setup; this policy is not a compatibility claim. |
 | Mantine hooks/form | `@mantine/hooks` and `@mantine/form` are fine in React; never recommended for Vue. |
 | State | Server state lives in the query/cache layer (TanStack Query in the greenfield stack); UI state stays local — no global store until two distant components genuinely share state. |
+| Cache identity | Query keys include the non-secret account, tenant, environment and other inputs that determine the response. On logout or scope change, cancel affected requests, close old streams and clear or isolate the old cache; late responses must not populate the new scope. |
 | API client | A typed API client generated from the OpenAPI contract; CI fails on drift. |
 | Forms | `react-hook-form` or `@mantine/form` when React form state needs a library; `v-model` plus the repo's validation layer in Vue; the server is the validation truth. |
 | State-changing actions | Show the exact target and count before a destructive or bulk action and require an explicit confirm; disable the control while the write is pending; send one `Idempotency-Key` per user intent where the API accepts one, reused on retry; show per-item outcomes (including unknown) for bulk actions. |
 | Charts | Recharts v3 by default in React, visx for a bespoke one-off, uPlot for dense real-time series; streamed series batch or throttle redraws per frame and keep a rolling window; never `@mantine/charts`; charts read theme tokens; give every chart a text or data-table alternative. |
-| Tables | TanStack Table when table behavior needs it; virtualised past a few hundred rows. Apply the shareable URL-state rule to sort/filter/page. |
+| Tables | TanStack Table when table behavior needs it; choose pagination or virtualization from interaction needs and measured rendering cost. Virtualization does not reduce fetched data. Apply the shareable URL-state rule to sort/filter/page. |
 | Auth | Preserve the project's auth contract; for new corp SSO flows use OIDC Authorization Code + PKCE; a `reviewer` pass for sensitive flows. |
 | BFF and cookie sessions | A BFF keeps OAuth tokens on the backend. Use Secure, HttpOnly session cookies with SameSite set for the flow, and a CSRF defense for state-changing cookie-authenticated requests. |
 | Browser-held tokens | When browser JavaScript calls APIs with bearer tokens, keep access tokens in memory, never `localStorage`. Use the project's auth client for renewal; retry once after a refreshable auth failure only when replay is safe or the original operation was rejected before effects. Failed renewal returns to sign-in without a retry loop. |
@@ -56,9 +57,14 @@ browser automation for changed critical flows. For a bug, prove the failing regr
 Run the relevant checks. If the repository already has Playwright or you have a browser tool,
 render the affected view and inspect its screenshot; otherwise rely on component and existing
 accessibility tests, name the missing browser pass as a gap, and never add Playwright or download
-browsers without the caller's approval. Do a keyboard-only pass on changed interactions. Scale the
-checks to the change and include the evidence and any gaps in the review packet. A UI that was
-never rendered is written, not verified.
+browsers without the caller's approval. Check changed interactions by keyboard and displayed status
+with assistive technology or available accessibility tooling. Check affected layouts at 320 CSS
+pixels wide (e.g. 400% zoom from 1280); genuinely two-dimensional tables may scroll, but surrounding
+controls must reflow. For session/cache changes, delay a response across logout or a scope switch
+and verify that old data stays out of the new view. Scale checks to the change and report gaps.
+A UI never rendered is written, not verified. The W3C [status-message](https://www.w3.org/WAI/WCAG22/Understanding/status-messages.html)
+and [reflow](https://www.w3.org/WAI/WCAG22/Understanding/reflow.html) criteria define the accessibility checks;
+[TanStack query keys](https://tanstack.com/query/latest/docs/framework/react/guides/query-keys) document cache identity.
 
 ## Before you write it — load the reference for what you're building
 

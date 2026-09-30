@@ -18,6 +18,9 @@ security policies, and the evidence the portal and DataStream 2 expose. The edge
 Akamai's platform — a suspected platform-wide Akamai problem is an escalation to Akamai support
 with evidence, not something to debug past the portal.
 
+Citations describe vendor behavior; any checked date applies only to its adjacent claim. Target
+account features, timing and API behavior remain `[unverified]` until observed on the scoped target.
+
 ## The first question: which side of the edge?
 
 Establish which parts of the request path were exercised: client/DNS/TLS, edge/cache/WAF, and
@@ -26,11 +29,11 @@ to distinguish the candidate causes:
 
 1. **An Akamai error page with `Reference #…`** → decode it in Edge Diagnostics' Translate Error
    String **promptly** — the logs behind a reference number survive roughly 6–24 hours
-   [sourced: techdocs.akamai.com/edge-diagnostics/docs/translate-error-string].
+   [sourced: [Translate Error String](https://techdocs.akamai.com/edge-diagnostics/docs/translate-error-string)].
 2. **No reference number** → Edge Diagnostics' Get Error Statistics splits errors into the
    client→edge and edge→origin legs per URL/CP code; URL Health Check bundles grep + dig + curl +
-   MTR for one URL in one job [sourced: techdocs.akamai.com/edge-diagnostics/docs/get-error-statistics,
-   …/url-health-check].
+   MTR for one URL in one job [sourced: [Get Error Statistics](https://techdocs.akamai.com/edge-diagnostics/docs/get-error-statistics),
+   [URL Health Check](https://techdocs.akamai.com/edge-diagnostics/docs/url-health-check)].
 3. **Cache behavior in question** → read the cache-status response headers via the debug-header
    mechanism the property actually supports (Enhanced Debug vs legacy Pragma — the reference
    explains which and why it changed).

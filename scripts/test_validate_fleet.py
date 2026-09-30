@@ -291,9 +291,13 @@ class FleetValidatorTests(unittest.TestCase):
                 "agent-authoring",
                 _markdown_section(
                     Path("skills/agent-authoring/references/artifact.md"),
-                    "## Learn from an encountered failure",
+                    "## The bounds on the loop",
                 ),
-                ("human acceptance of the exact candidate revision is promotion",),
+                (
+                    "promotion authority",
+                    "human acceptance of the exact candidate pr revision",
+                    "the authoring loop never merges, deploys, or changes a live system",
+                ),
                 ("pr approval on the exact candidate revision is promotion",),
             ),
             (

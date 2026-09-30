@@ -1,27 +1,24 @@
 # mPulse RUM — reading real-user evidence
 
-Sources reviewed 2026-08-07 against official `techdocs.akamai.com/mpulse` pages via indirect
-retrieval (search extraction and indexed snapshots — not byte-level fetches).
-
 ## What it measures
 
 mPulse is Akamai's real-user monitoring: the **boomerang** JavaScript library collects performance
 and business data from real browsers and sends **beacons** to mPulse for aggregation
-*[sourced: techdocs.akamai.com/mpulse/docs/how-mpulse-works,
-…/mpulse-boomerang/docs/whats-in-an-mpulse-beacon]*. It carries:
+*[sourced: [How mPulse works](https://techdocs.akamai.com/mpulse/docs/how-mpulse-works),
+[Beacon contents](https://techdocs.akamai.com/mpulse-boomerang/docs/whats-in-an-mpulse-beacon)]*. It carries:
 
 - **Page timing** split into **Back-End Time** (page request until the first byte of the response
   — where CDN, network, and origin latency land) and **Front-End Time** (loading the HTML page and
   all embedded content — where client-side/app work lands) *[sourced:
-  …/mpulse/docs/use-metrics — the definitions live there, not on key-concepts-terms;
+  [Metric definitions](https://techdocs.akamai.com/mpulse/docs/use-metrics);
   re-checked 2026-08-19]*.
-- **Core Web Vitals** dashboard — LCP, FID, CLS at feature launch (2020-10-09 changelog); the
-  Core Web Vitals 2024 dashboard **replaced FID with INP** *[sourced: mPulse changelog 2024-02-20,
-  re-checked 2026-08-19]*. Cite INP, not FID, for responsiveness.
+- **Core Web Vitals** — LCP, INP and CLS; the 2024 dashboard **replaced FID with INP** *[sourced:
+  [INP release note](https://techdocs.akamai.com/mpulse/changelog/feb-20-2024-interaction-to-next-paint-dashboard),
+  checked 2026-09-30]*. Cite INP, not FID, for responsiveness.
 - **Custom timers and metrics** — any measurable user-defined duration or business event; the
-  Query API (REST/JSON) pulls aggregates programmatically *[sourced: …/mpulse/reference/api]*.
+  Query API (REST/JSON) pulls aggregates programmatically *[sourced: [Query API](https://techdocs.akamai.com/mpulse/reference/api)]*.
 - **Waterfall view** — object-level component timings (DNS lookup, TCP connect, SSL connect,
-  request time, response time) from the W3C Resource Timing API *[sourced: …/mpulse/docs/waterfall]*.
+  request time, response time) from the W3C Resource Timing API *[sourced: [Waterfall](https://techdocs.akamai.com/mpulse/docs/waterfall)]*.
 
 ## Diagnosing a regression — the slicing method
 

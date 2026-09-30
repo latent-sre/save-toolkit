@@ -321,6 +321,26 @@ class ExitCodeTest(unittest.TestCase):
     def test_clean_exits_zero(self) -> None:
         self.assertEqual(0, self._run(clean_model()))
 
+    def test_malformed_shapes_are_uncheckable(self) -> None:
+        malformed = [None, [], 1, "dashboard",
+                     {"apiVersion": "v1", "spec": []},
+                     {"meta": {}, "dashboard": 1},
+                     {"panels": None}, {"panels": {"id": 1}}, {"panels": [1]},
+                     {"panels": [{"type": "row", "panels": [None]}]},
+                     {"panels": [{"title": 3}]},
+                     {"panels": [{"type": []}]},
+                     {"panels": [{"description": ["text"]}]},
+                     {"panels": [{"fieldConfig": {"defaults": []}}]},
+                     {"panels": [{"targets": [1]}]},
+                     {"panels": [], "templating": {"list": [None]}},
+                     {"panels": [], "templating": {"list": [{"allValue": 1}]}}]
+        for model in malformed:
+            with self.subTest(model=model):
+                self.assertEqual(2, self._run(model))
+
+    def test_empty_dashboard_is_checkable(self) -> None:
+        self.assertEqual(0, self._run({"panels": [], "tags": ["service"]}))
+
     def test_violations_exit_one(self) -> None:
         model = clean_model()
         model["panels"][0].pop("description")   # any real rule will do; this one is stable

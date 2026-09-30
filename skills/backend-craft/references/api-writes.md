@@ -36,13 +36,14 @@ Adapt [write acceptance tests](../assets/test_api_write_contract.py) to a compat
 contract or translate to native tests. Inspect authoritative effects and detached stable business
 state, independently of response/receipt caches; matching IDs alone miss corruption.
 
-Crash-boundary evidence applies when a duplicate or lost response has a business effect (a page,
-ticket, order, or external call); a natural-key upsert or idempotent PUT needs only a
-duplicate-request test.
-Cover duplicates, conflicting payloads, authorized scope isolation and both commit-boundary crashes.
-The second request must reach server arbitration before the first commits. Confirm failpoint arrival
-and killed-worker exit; client/response overlap and caught exceptions do not prove those boundaries.
-Restart workers/clients against unchanged storage; bound every wait and use disposable targets.
+For a natural-key upsert or idempotent PUT with no replay ledger or additional non-idempotent effect,
+a duplicate-request test suffices for the retry claim. For an effectful create, a replay ledger, or
+an additional non-idempotent effect (a page, ticket, notification, or external call), cover duplicates,
+conflicting payloads, authorized scope isolation and both commit-boundary crashes. For that
+concurrency/recovery evidence, the second request must reach server arbitration before the first
+commits. Confirm failpoint arrival and killed-worker exit; client/response overlap and caught
+exceptions do not prove those boundaries. Restart workers and clients against unchanged storage;
+bound every wait and use disposable targets.
 Add expiry, revoked authorization and stale-update cases where applicable. Offline controls prove
 assertion behavior; adapted application tests must establish database concurrency and recovery.
 

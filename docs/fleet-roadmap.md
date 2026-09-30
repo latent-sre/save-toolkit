@@ -212,6 +212,19 @@ behaviourally confirmed misses, and the open list); the lane reports are private
 **SRE task:** Get correct first checks for a PCF crash loop, a Splunk alert window, a Cloud Run 429, an
 Akamai purge, and a Wavefront alert from the skills instead of from memory.
 
+### SKILL-REVIEW-010 — disposition the first ten skills review
+
+**Status:** `decision-needed` (2026-09-30); selected repairs implemented; acceptance and three unselected items remain.
+**Owner:** Save Toolkit maintainers.
+**Outcome:** Disposition the ten confirmed findings and twenty recommendations from the sequential
+review of the first ten alphabetical skill bundles, preserving useful safeguards and current evidence.
+**Next action:** Owner reviews confirmed findings 1–9 and recommendations 1–18 on
+`work/first-ten-selected-fixes`, then dispositions II-03, II-04 and II-05 separately.
+No live or model run is authorized.
+**Evidence:** [Selected repairs, validation and baseline review](reviews/2026-09-30-first-ten-skills/remediation.md).
+**SRE task:** Receive accurate SPA, Cloud Run, Grafana, and incident guidance, with less repeated
+instruction and clear distinctions between documented behavior and unverified target behavior.
+
 ## Deferred
 
 ### EFFECT-001 — effect-bound execution broker

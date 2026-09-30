@@ -1,0 +1,502 @@
+{
+  "review_date": "2026-09-30",
+  "baseline_commit": "f505da5cacc4679a6eebe9ceebfd07108ecb226f",
+  "order": [
+    "agent-authoring",
+    "akamai-edge",
+    "backend-craft",
+    "ci-actions",
+    "database-reliability",
+    "eng-ladder",
+    "frontend-craft",
+    "gcp-ops",
+    "grafana",
+    "incident-investigation"
+  ],
+  "scope": "Tracked canonical bundles; excluded generated adapters and ignored bytecode",
+  "files": [
+    {
+      "path": "skills/agent-authoring/SKILL.md",
+      "sha256": "26484dcf0222a09a8ab0e124a6139b9184146f4d2e978266ea84ba214d0bb5d9",
+      "bytes": 11350,
+      "lines": 157
+    },
+    {
+      "path": "skills/agent-authoring/references/agent-security.md",
+      "sha256": "d889ee3219f09d0078d6434e42da87dea6557009021c1173f8c1637b234f2dc4",
+      "bytes": 6759,
+      "lines": 100
+    },
+    {
+      "path": "skills/agent-authoring/references/artifact.md",
+      "sha256": "4dc075373329219c0ca7ca2bf5141d927cb24ad2a60a5b91a628fdcfe6cc601e",
+      "bytes": 6473,
+      "lines": 99
+    },
+    {
+      "path": "skills/agent-authoring/references/claude-code-frontmatter.md",
+      "sha256": "bfd5dd60ded765775d531102224c0fc6f28c960990e25d1248f1fcb66ec7f947",
+      "bytes": 12068,
+      "lines": 125
+    },
+    {
+      "path": "skills/agent-authoring/references/context.md",
+      "sha256": "18d21e96a6c8e2014c3a4f7b52dd39c856a5558b9b77f31c3bf9f0c0ba9422bf",
+      "bytes": 1948,
+      "lines": 29
+    },
+    {
+      "path": "skills/agent-authoring/references/copilot-frontmatter.md",
+      "sha256": "3637a0e931c61a53c10ae418e054a0ffc25108cc9848ab1a162f0c989114cb12",
+      "bytes": 17885,
+      "lines": 224
+    },
+    {
+      "path": "skills/agent-authoring/references/delegation-graph.md",
+      "sha256": "4f83bf2d38d298763fa51dc900e8ea3d00330ad8147988d84256d625ce007f72",
+      "bytes": 5405,
+      "lines": 76
+    },
+    {
+      "path": "skills/agent-authoring/references/roster.md",
+      "sha256": "641799965ec1e2ced1372fe3a731cfba8d3977e2c2d03d88454fa95a2175f3fc",
+      "bytes": 8875,
+      "lines": 142
+    },
+    {
+      "path": "skills/agent-authoring/references/skill-portability.md",
+      "sha256": "3e98270bbeb81eb90373d7df279b11574b3cab54127ef281e862dda4bce4f152",
+      "bytes": 5733,
+      "lines": 83
+    },
+    {
+      "path": "skills/agent-authoring/references/tools.md",
+      "sha256": "16e89779874ae8ad7875eaa6e89d56708edb2aaaa5b526210f23bdb38ceebc77",
+      "bytes": 2728,
+      "lines": 41
+    },
+    {
+      "path": "skills/akamai-edge/SKILL.md",
+      "sha256": "5cc9410ad384071ec5a4236993b9995ded70d95976c26632f6bab1a4061cb55c",
+      "bytes": 5211,
+      "lines": 79
+    },
+    {
+      "path": "skills/akamai-edge/references/edge-triage.md",
+      "sha256": "46d441c29cb62765e863927052163ce80f4abe8d7818391a0545a27d76922ff1",
+      "bytes": 10110,
+      "lines": 153
+    },
+    {
+      "path": "skills/akamai-edge/references/mpulse-rum.md",
+      "sha256": "8e349fbf8a89f7158a8242a333d86ed612b8242967acaed37dfaf38b606df376",
+      "bytes": 3979,
+      "lines": 59
+    },
+    {
+      "path": "skills/akamai-edge/references/property-config.md",
+      "sha256": "e379daf7866293702c99012bf09846aa2d3b1fc4293484344e9de6d7ec3be2b0",
+      "bytes": 7788,
+      "lines": 108
+    },
+    {
+      "path": "skills/backend-craft/SKILL.md",
+      "sha256": "4c55dc2971406559098bfba522a00bcaed8f8bbbf853fef8f77d0fe1875ba0c4",
+      "bytes": 7105,
+      "lines": 85
+    },
+    {
+      "path": "skills/backend-craft/assets/openapi.starter.yaml",
+      "sha256": "9d8a2784b142642731f5c7eeffc6b98317ce54e9855b791a6218c6e49fe70426",
+      "bytes": 6382,
+      "lines": 126
+    },
+    {
+      "path": "skills/backend-craft/assets/problem_fastapi.py",
+      "sha256": "00da647e1e53d0c4f0f95f33c8b99c3c7080619a0fa0a0fcd54519ba36e6e24e",
+      "bytes": 12233,
+      "lines": 258
+    },
+    {
+      "path": "skills/backend-craft/assets/test_api_write_contract.py",
+      "sha256": "54d70fffd5f40a8cef1f894e9339d4ebccb6378ad9fde9edebd9a6aacb214361",
+      "bytes": 6955,
+      "lines": 120
+    },
+    {
+      "path": "skills/backend-craft/assets/test_http_contract.py",
+      "sha256": "b4b46e0b60deea56cf5164569ca44f4ae7d1ed4fe96210f655680cbe57b73f1c",
+      "bytes": 7021,
+      "lines": 153
+    },
+    {
+      "path": "skills/backend-craft/references/api-writes.md",
+      "sha256": "5d249c87f360256503642cda1a7271b9af13759bb4be1c8975646462f8082b63",
+      "bytes": 3615,
+      "lines": 51
+    },
+    {
+      "path": "skills/backend-craft/references/background-work.md",
+      "sha256": "db73e247cb2058e2649bfe91570de4d208951cd1d2ca51208eef02af1f318c85",
+      "bytes": 2958,
+      "lines": 38
+    },
+    {
+      "path": "skills/backend-craft/references/consuming-apis.md",
+      "sha256": "c1ca19ddfe2148efe7e9511718d1f21a22b6c644cd92fd96862c06692448b852",
+      "bytes": 4484,
+      "lines": 63
+    },
+    {
+      "path": "skills/backend-craft/references/fastapi.md",
+      "sha256": "92f06ee02704b56ac54047d963e50b39bf23984f3b2f9f49447100855676763b",
+      "bytes": 3318,
+      "lines": 39
+    },
+    {
+      "path": "skills/ci-actions/SKILL.md",
+      "sha256": "644c3b79b1c079d42193f47cb4be915733c393493b793745c98ce9fbd3111989",
+      "bytes": 7627,
+      "lines": 107
+    },
+    {
+      "path": "skills/ci-actions/assets/ci.reusable.yml",
+      "sha256": "b7ce49ae3d74c175ab82927a45c9c2e86c6879e846fd7b948d2904781a860a09",
+      "bytes": 3537,
+      "lines": 90
+    },
+    {
+      "path": "skills/ci-actions/references/execution-and-runners.md",
+      "sha256": "85718afa21d3e734a161d4729ab7a2e399ae3ea4358eb4db47edde3287c7b855",
+      "bytes": 8703,
+      "lines": 118
+    },
+    {
+      "path": "skills/ci-actions/references/pcf-deploy-job.md",
+      "sha256": "3b441271f750979ccecb4a278bc142df20aaa7b597ef2ab050a5ba9f31e06ec5",
+      "bytes": 12044,
+      "lines": 197
+    },
+    {
+      "path": "skills/ci-actions/references/security-and-provenance.md",
+      "sha256": "5c33bbbbc9b37929677bc1dcd3af0e119962a9786431fd0a0387b23a70855f71",
+      "bytes": 6061,
+      "lines": 86
+    },
+    {
+      "path": "skills/ci-actions/references/validation-runs.md",
+      "sha256": "88ec84666b7b6012e086cee44a5702265be0b36002a404af20be7cdf99421f13",
+      "bytes": 4585,
+      "lines": 51
+    },
+    {
+      "path": "skills/database-reliability/SKILL.md",
+      "sha256": "e017e7d65541d0bc8e2aa79887183e0deee9625adb4b3190f0ae535469aac280",
+      "bytes": 5721,
+      "lines": 83
+    },
+    {
+      "path": "skills/database-reliability/references/postgres-migrations.md",
+      "sha256": "982df3cf7e69fe5e23592f68253f0cf1f87b233f83244ab09604907a17834aa4",
+      "bytes": 4186,
+      "lines": 60
+    },
+    {
+      "path": "skills/database-reliability/references/query-plan-safety.md",
+      "sha256": "64bb2e12d7d95ad834415a5378b5c85a5c0ae3320a03ffc1a00d8e6a008e9178",
+      "bytes": 1880,
+      "lines": 35
+    },
+    {
+      "path": "skills/database-reliability/references/restore-drill.md",
+      "sha256": "879fef8180e790738761a124d7cb703b2c888cd03ff2ed8e83581cd77d1f3f29",
+      "bytes": 2688,
+      "lines": 42
+    },
+    {
+      "path": "skills/database-reliability/references/saturation-triage.md",
+      "sha256": "558526d100bc2ee0ddbd7c0a0587196be37865da9140c009919def283e8f887b",
+      "bytes": 2239,
+      "lines": 30
+    },
+    {
+      "path": "skills/database-reliability/references/sql-server-migrations.md",
+      "sha256": "071c486952fecf03d578c8ae4e5cdc511daf4f583565440521b66c92ecb8ef4e",
+      "bytes": 3572,
+      "lines": 52
+    },
+    {
+      "path": "skills/eng-ladder/SKILL.md",
+      "sha256": "d3200f928e257b89517b6b0dc22c6b1fb6186a55ab1119a2b200395afc89daa5",
+      "bytes": 4954,
+      "lines": 74
+    },
+    {
+      "path": "skills/eng-ladder/references/builder.md",
+      "sha256": "2a6656e5ab1817649166c152bcbd7cd3cd23e7e51476953875c90c80ada85743",
+      "bytes": 2828,
+      "lines": 46
+    },
+    {
+      "path": "skills/eng-ladder/references/distinguished.md",
+      "sha256": "ae69b63110a4d72b8364804d8f4f7461f0792dbd4e74f418df9871ce59e2b085",
+      "bytes": 2079,
+      "lines": 34
+    },
+    {
+      "path": "skills/eng-ladder/references/principal.md",
+      "sha256": "fb499078b189b71cab5c70e5cc4e4802679584a405dc654a4b752f70dbb80347",
+      "bytes": 3834,
+      "lines": 56
+    },
+    {
+      "path": "skills/frontend-craft/SKILL.md",
+      "sha256": "60303930bf2e46d586e6cdf19daa7c2eef2ee36e33b50497da2bdbe532dd995e",
+      "bytes": 6562,
+      "lines": 71
+    },
+    {
+      "path": "skills/frontend-craft/references/design-language.md",
+      "sha256": "26965f0b10651cd1bd21cbd047ccf4dc6acd30c52e56feb3769c943733236734",
+      "bytes": 3693,
+      "lines": 57
+    },
+    {
+      "path": "skills/frontend-craft/references/stack.md",
+      "sha256": "8fd1e2544e4146a33ab8494efcdbccaad40bb9978719e30998748b65880fe75e",
+      "bytes": 3431,
+      "lines": 44
+    },
+    {
+      "path": "skills/gcp-ops/SKILL.md",
+      "sha256": "006329f6e7fc689e30c29b4aadbf3a41bcf18a400bb1ccb5a08ce65e32342632",
+      "bytes": 11376,
+      "lines": 166
+    },
+    {
+      "path": "skills/gcp-ops/references/cf-to-cloud-run.md",
+      "sha256": "87d9b4030dd3a20639b456a3734fced9fda27c64869d5edcd61f725d9551d5ae",
+      "bytes": 7687,
+      "lines": 60
+    },
+    {
+      "path": "skills/gcp-ops/references/projects.md",
+      "sha256": "131fcb62a43042a1040b6cbfe064faf7b945df1cd4a836f024f2cc67649987ca",
+      "bytes": 888,
+      "lines": 24
+    },
+    {
+      "path": "skills/grafana/SKILL.md",
+      "sha256": "20f7fbfb04daf88e7ad2859e3ae5573571997984a9aba66039f5b3db7b8ee016",
+      "bytes": 6812,
+      "lines": 85
+    },
+    {
+      "path": "skills/grafana/references/agent-tooling.md",
+      "sha256": "b46607f408b8607427faf0add043e46ba8e70c67d5cf03b57088ba990ebf3fa1",
+      "bytes": 3345,
+      "lines": 57
+    },
+    {
+      "path": "skills/grafana/references/alert-operations.md",
+      "sha256": "ac49f5bc292c07818e61d83470163f658dcac038b778b48878cd81a29d5f6a4c",
+      "bytes": 7476,
+      "lines": 99
+    },
+    {
+      "path": "skills/grafana/references/command-access.md",
+      "sha256": "93cf29224a43802c816a18b2fcdab7b15cd3d6552d58160393212451f3acfbfd",
+      "bytes": 12375,
+      "lines": 179
+    },
+    {
+      "path": "skills/grafana/references/dashboard-conventions.md",
+      "sha256": "011a3eed2fd6f2019d3b3e0c5b06c8e1bbd08c3f7bd4d8f26ecb0428aeb47b78",
+      "bytes": 2044,
+      "lines": 28
+    },
+    {
+      "path": "skills/grafana/references/dashboard-operations.md",
+      "sha256": "5decded7d800523d58eb80fbd16e8b5ffb456e3e61a218a4dfc8005c257fc24d",
+      "bytes": 9033,
+      "lines": 132
+    },
+    {
+      "path": "skills/grafana/references/dashboard-reading.md",
+      "sha256": "fc34a4e6ca66e3d8ac6acd3eb909843b79a27037612952f32d267d8e1eaa729c",
+      "bytes": 2743,
+      "lines": 34
+    },
+    {
+      "path": "skills/grafana/references/grafana-alerting.md",
+      "sha256": "068c63185ae8b27683ad22190d7fe77158f526901f3784bdbe2ad690dfb8427a",
+      "bytes": 7267,
+      "lines": 107
+    },
+    {
+      "path": "skills/grafana/references/http-api.md",
+      "sha256": "33608ff860cd52746d02d8aaddd99a2523b0956212e544fbaa7be04e4ea19a81",
+      "bytes": 12929,
+      "lines": 181
+    },
+    {
+      "path": "skills/grafana/references/json-model.md",
+      "sha256": "4ab582d0e1e9c741de2991e4d4e87f5ae9cc573048d7d77ab101bd9b09dce91f",
+      "bytes": 8879,
+      "lines": 142
+    },
+    {
+      "path": "skills/grafana/references/read-only-review.md",
+      "sha256": "96cbeddb5989fb5c85aa8d3a8893ed9850f611f89a1870948e3755cdfd9972a2",
+      "bytes": 5086,
+      "lines": 59
+    },
+    {
+      "path": "skills/grafana/references/silences.md",
+      "sha256": "5d98d4c891a1460fcbb29e0c51386e4fb5081f6b48610be6dc5ae5d9b8b9b350",
+      "bytes": 5249,
+      "lines": 70
+    },
+    {
+      "path": "skills/grafana/references/viewer-editor-workflows.md",
+      "sha256": "07b46ff4b5d040bd2ad5a6a21d2848718150a298d4d57ed83ba197054a106332",
+      "bytes": 2502,
+      "lines": 42
+    },
+    {
+      "path": "skills/grafana/references/visual-verification.md",
+      "sha256": "9e80cb30d177e5dfc616c79814be8f1cc4e495de3409d30856ddadc14b821912",
+      "bytes": 11673,
+      "lines": 158
+    },
+    {
+      "path": "skills/grafana/references/wavefront-legacy.md",
+      "sha256": "7b026730a5454fb634bb0fd1c47be88022221669dececf6eb15d05852c952aad",
+      "bytes": 1433,
+      "lines": 23
+    },
+    {
+      "path": "skills/grafana/scripts/dashboard_hygiene.py",
+      "sha256": "8a109e921332b2da99885cda111ad6b6e7d22965291fd2bc4ddd0199876ec5b2",
+      "bytes": 10822,
+      "lines": 214
+    },
+    {
+      "path": "skills/grafana/scripts/grafana_read.ps1",
+      "sha256": "fd0337a0f8f01a59b2a61074768357082b2c3a9b7954cb279252a94213392cf5",
+      "bytes": 931,
+      "lines": 23
+    },
+    {
+      "path": "skills/grafana/scripts/grafana_read.py",
+      "sha256": "1c1711d8bd1c70e49e5715813506a0a4389021041f457d9d6b1a95a39f8fc3f7",
+      "bytes": 12900,
+      "lines": 261
+    },
+    {
+      "path": "skills/incident-investigation/SKILL.md",
+      "sha256": "4140a27ca878af6963433d98aacd5c0450a7a63223160a3b33f4bfcd69fa8bb1",
+      "bytes": 21691,
+      "lines": 290
+    },
+    {
+      "path": "skills/incident-investigation/assets/closeout-packet.md",
+      "sha256": "fae2ea79a4d68e21704d9831644ecf4eaae2f9a8fea42bc707a3dfdf39dec580",
+      "bytes": 2607,
+      "lines": 33
+    },
+    {
+      "path": "skills/incident-investigation/references/helper-exchange.md",
+      "sha256": "5b0b75dc60743de981f616e97ea23e5cbf0db1a9be8a3af4e319449ada3d998e",
+      "bytes": 7640,
+      "lines": 119
+    },
+    {
+      "path": "skills/incident-investigation/references/mitigation-selection.md",
+      "sha256": "8de77f908bda519d098c2536e11898db13d1054e65d78cd47659ddfb709a9160",
+      "bytes": 12268,
+      "lines": 123
+    },
+    {
+      "path": "skills/incident-investigation/references/signal-patterns.md",
+      "sha256": "0ce6a475f4d27d85ec552d2ca4729c949cd704790d71c87c30df44e6cbec3277",
+      "bytes": 3896,
+      "lines": 56
+    },
+    {
+      "path": "skills/incident-investigation/references/symptom-investigation.md",
+      "sha256": "823ba99463b660ba25cfb040ed155c0730715e3c3f280d4c8de6658df5906643",
+      "bytes": 5851,
+      "lines": 59
+    },
+    {
+      "path": "skills/incident-investigation/references/systemic-analysis.md",
+      "sha256": "37ba1f7a41dd51acf59200f7da329df6c5af45fe5a5867fff9d996ec91da812d",
+      "bytes": 3291,
+      "lines": 44
+    }
+  ],
+  "supporting_files": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "7c449f272fe036b3eb7bd8b05ea40a09873b9217981158546d04c6aef80c8f35",
+      "bytes": 9344,
+      "lines": 109
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "sha256": "d9c1e58514bfa4269a6da247a983826c19bc24cddf34ea2e3b1f69bf39d061ae",
+      "bytes": 6393,
+      "lines": 119
+    },
+    {
+      "path": "agents/sre-assistant.md",
+      "sha256": "69f98000bb6895d4129a41870be8710fc51864b447d1d894bec78454fd9be0b6",
+      "bytes": 22862,
+      "lines": 325
+    },
+    {
+      "path": "skills/stack-profile/SKILL.md",
+      "sha256": "ead248fcb38ddd3c5f556ca71fa2fad7cb62967b088895dcd8ba58f27ee5558f",
+      "bytes": 8021,
+      "lines": 117
+    },
+    {
+      "path": "skills/stack-profile/references/application-and-data-stack.md",
+      "sha256": "cbb6c8610bb7cd9d2817e4dc0df4fc462785ab5edf6a33298f211fe412189429",
+      "bytes": 5168,
+      "lines": 64
+    },
+    {
+      "path": "skills/stack-profile/references/observability-stack.md",
+      "sha256": "662d7615263aefdc7e1dda490c896249004f2cda05491b5cb6d554fd4c41c6f0",
+      "bytes": 2298,
+      "lines": 30
+    },
+    {
+      "path": "scripts/check_links.py",
+      "sha256": "6eb58815cb44a008f9453e1bc41665d6d00b96b17fbef29f128c99c26b770488",
+      "bytes": 27180,
+      "lines": 606
+    },
+    {
+      "path": "scripts/validate_fleet.py",
+      "sha256": "cb1b2747de8c118f83183b6fe1f1db55d40daecd0186f952a59cd9b8e40f2a74",
+      "bytes": 23535,
+      "lines": 484
+    },
+    {
+      "path": "scripts/generate_platform_adapters.py",
+      "sha256": "1a4ee0032e00d626edf664a5729d726212db96c36d4e9173fefec99dd11756ef",
+      "bytes": 38508,
+      "lines": 805
+    },
+    {
+      "path": "scripts/readonly-guard.py",
+      "sha256": "fb3c1482b97bc7656a60333183ca649e2a177672ef0edd1409a08754cd70ecea",
+      "bytes": 74038,
+      "lines": 1322
+    }
+  ],
+  "preexisting_modified_file": "CONTRIBUTING.md"
+}

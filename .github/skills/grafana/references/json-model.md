@@ -2,11 +2,9 @@
 
 Read this when holding dashboard JSON: exporting, diffing, adding a panel or variable, or authoring
 a model. Request and concurrency shapes are in [http-api](./http-api.md); generic visualization
-advice is deliberately absent. The 13.2 baseline retains `[sourced]` implementation guidance
-reviewed against `grafana/grafana` 13.2.0; a source claim is not target runtime evidence.
-The 2026-09-19 read-only 13.2.2 check verified six served API versions, Classic storage reported as
-`v0alpha1`, V1 reads at schema 42, and V2 reads with `elements`/`layout`. It did not repeat the write,
-import, concurrency, or rollback probes; their historical evidence is not current acceptance.
+advice is deliberately absent. Schema guidance below is `[sourced]` from `grafana/grafana` 13.2.0;
+it is not target runtime evidence. Dated reads and their limits live in the
+[API evidence baseline](./http-api.md#version-and-target-evidence); writes remain unverified.
 
 ## Six served versions, three shapes
 
@@ -44,7 +42,7 @@ named in its path.
 5. **Legacy `meta.apiVersion` is not storage evidence.** It reports the requested version.
 
 *[sourced: app-platform storage preparation, conversion, browser import and save, and legacy
-import handlers reviewed at 13.2.0; verified: 13.2.2 target V1/V2 reads only, 2026-09-19]*
+import handlers reviewed at 13.2.0; target write behavior remains unverified]*
 
 ## Classic / V1 rules this team keeps
 

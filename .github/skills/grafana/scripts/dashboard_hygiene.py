@@ -77,12 +77,52 @@ def rate_call_spans(expr):
 
 def unwrap(model: dict) -> dict:
     """Return the dashboard spec whether the caller passed a bare model or a k8s wrapper."""
+    require_type(model, dict, "dashboard")
     if "spec" in model and "apiVersion" in model:
-        return model["spec"] or {}
+        return require_type(model["spec"], dict, "spec")
     # a legacy GET returns {dashboard, meta}
     if "dashboard" in model and "meta" in model:
-        return model["dashboard"] or {}
+        return require_type(model["dashboard"], dict, "dashboard")
     return model
+
+
+def require_type(value, expected, where):
+    if not isinstance(value, expected):
+        raise ValueError(f"{where} must be {expected.__name__}")
+    return value
+
+
+def validate_shape(spec: dict) -> None:
+    """Validate only fields traversed by this checker, not the full Grafana schema."""
+    def optional(obj, key, expected, where):
+        value = obj.get(key)
+        if value is not None:
+            require_type(value, expected, f"{where}.{key}")
+        return value
+
+    def panels(items, where):
+        require_type(items, list, where)
+        for index, panel in enumerate(items):
+            path = f"{where}[{index}]"
+            require_type(panel, dict, path)
+            for key in ("type", "title", "description"):
+                optional(panel, key, str, path)
+            fields = optional(panel, "fieldConfig", dict, path)
+            if fields is not None:
+                optional(fields, "defaults", dict, f"{path}.fieldConfig")
+            targets = optional(panel, "targets", list, path)
+            for target in targets or []:
+                require_type(target, dict, f"{path}.targets item")
+            if "panels" in panel:
+                panels(panel["panels"], f"{path}.panels")
+
+    panels(spec["panels"], "panels")
+    templating = optional(spec, "templating", dict, "dashboard")
+    if templating is not None:
+        variables = optional(templating, "list", list, "templating")
+        for variable in variables or []:
+            require_type(variable, dict, "templating.list item")
+            optional(variable, "allValue", str, "templating.list item")
 
 
 def iter_panels(spec: dict):
@@ -188,7 +228,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"cannot check {args.path}: {exc}", file=sys.stderr)
         return 2
 
-    spec = unwrap(model)
+    try:
+        spec = unwrap(model)
+    except ValueError as exc:
+        print(f"cannot check input: {exc}", file=sys.stderr)
+        return 2
     if "elements" in spec or "layout" in spec:
         print("refusing to check a V2 (dynamic) dashboard: its panels live under spec.elements, which "
               "this checker does not read. Validate the actual V2 candidate with a V2-capable linter "
@@ -198,6 +242,11 @@ def main(argv: list[str] | None = None) -> int:
         print("no `panels` key: this does not look like a Classic/V1 dashboard model", file=sys.stderr)
         return 2
 
+    try:
+        validate_shape(spec)
+    except ValueError as exc:
+        print(f"cannot check input: {exc}", file=sys.stderr)
+        return 2
     violations = check(spec)
     panel_count = sum(1 for _ in iter_panels(spec))
     if not args.quiet:

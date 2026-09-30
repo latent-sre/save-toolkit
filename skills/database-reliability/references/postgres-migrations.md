@@ -18,7 +18,8 @@ Run the migration session with `SET lock_timeout = '<seconds, below the app's re
 CONCURRENTLY` may leave an INVALID index. Inspect the catalog and migration record first; use
 `DROP INDEX CONCURRENTLY` only for the invalid index created by that failed attempt, before retrying.
 Do not drop a pre-existing valid index merely because creation failed. *[sourced:
-PostgreSQL 18 [lock modes](https://www.postgresql.org/docs/18/explicit-locking.html), `lock_timeout`, and
+PostgreSQL 18 [lock modes](https://www.postgresql.org/docs/18/explicit-locking.html),
+[`lock_timeout`](https://www.postgresql.org/docs/18/runtime-config-client.html#GUC-LOCK-TIMEOUT), and
 [concurrent index creation](https://www.postgresql.org/docs/18/sql-createindex.html#SQL-CREATEINDEX-CONCURRENTLY) references]*
 
 ## Constraints and columns
@@ -41,14 +42,16 @@ The constraint syntax depends on the major:
   `SET NOT NULL` step is needed. *[sourced: PostgreSQL 18
   [ALTER TABLE](https://www.postgresql.org/docs/18/sql-altertable.html)]*
 - **12–17**: add `CHECK (col IS NOT NULL) NOT VALID`, backfill, validate the constraint, and
-  only then run `SET NOT NULL`; the validated check lets these versions skip the second scan.
+  only then run `SET NOT NULL`; the validated check lets these versions skip the second scan
+  ([PostgreSQL 17 ALTER TABLE](https://www.postgresql.org/docs/17/sql-altertable.html)).
 - **Before 12**: do not assume the validated check avoids the final scan; assess that scan and its
   lock duration on the exact version before scheduling the change. Scan avoidance was introduced in
   [PostgreSQL 12](https://www.postgresql.org/docs/12/release-12.html).
 
 On PostgreSQL 18+, generated columns are **virtual by default** and computed on read. Adding one no
 longer rewrites the table, but moves computation to queries; specify `STORED` when that is the intended
-behavior. *[sourced: PostgreSQL 18 release notes; reviewed 2026-08-21]*
+behavior. *[sourced: PostgreSQL 18 [generated columns](https://www.postgresql.org/docs/18/ddl-generated-columns.html)
+and [release notes](https://www.postgresql.org/docs/18/release-18.html); reviewed 2026-09-30]*
 
 ## Index and tool behavior
 

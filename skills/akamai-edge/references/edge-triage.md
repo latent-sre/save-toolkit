@@ -1,9 +1,5 @@
 # Akamai edge triage — evidence surfaces and how to read them
 
-Sources reviewed 2026-08-07 against official `techdocs.akamai.com` pages via indirect retrieval
-(search extraction and indexed snapshots — not byte-level fetches). Re-verify byte-exact values
-against the live page before treating any of them as `[verified]` for the target account.
-
 ## Contents
 
 - Edge Diagnostics (Control Center → Test & troubleshoot)
@@ -15,21 +11,21 @@ against the live page before treating any of them as `[verified]` for the target
 ## Edge Diagnostics (Control Center → Test & troubleshoot)
 
 The read-only triage suite; it also has an API (Edge Diagnostics API). The four tools that matter
-mid-incident *[sourced: techdocs.akamai.com/edge-diagnostics/docs/…]*:
+mid-incident:
 
-- **Translate Error String** — paste the error reference from an Akamai error page (for
+- **[Translate Error String](https://techdocs.akamai.com/edge-diagnostics/docs/translate-error-string)** — paste the error reference from an Akamai error page (for
   "Reference #9.6f64d440.1318965461.2f2b078" enter `#9.6f64d440.1318965461.2f2b078`, letters
   lowercase, up to 10 at once) and get the error summary plus edge logs. **Decode promptly: the
   logs behind a reference number survive only ~6–24 hours** depending on server and traffic.
   Enable *Trace forward logs* to include every edge server in the request path, not just the one
   that errored. Also accepts a Global Request Number (GRN, same format).
-- **Get Error Statistics** — per URL or CP code, splits errors into the two legs: **client→edge**
+- **[Get Error Statistics](https://techdocs.akamai.com/edge-diagnostics/docs/get-error-statistics)** — per URL or CP code, splits errors into the two legs: **client→edge**
   (edge response to client) and **edge→origin** (edge forward request), with HTTP codes and their
   share of traffic. Caveat: it is a ~9-second traffic sample from the last 2 minutes — a
   low-traffic property can sample to zero without being healthy.
-- **URL Health Check** — one async job running GREP, dig, curl, MTR, and URL translation for a
+- **[URL Health Check](https://techdocs.akamai.com/edge-diagnostics/docs/url-health-check)** — one async job running GREP, dig, curl, MTR, and URL translation for a
   single URL simultaneously.
-- **GREP (View Logs)** — raw edge-server log search when you already know which server/time.
+- **[GREP (View Logs)](https://techdocs.akamai.com/edge-diagnostics/docs/view-logs-grep)** — raw edge-server log search when you already know which server/time.
 
 ## Cache status via debug headers — know which mechanism the property supports
 
@@ -37,7 +33,7 @@ mid-incident *[sourced: techdocs.akamai.com/edge-diagnostics/docs/…]*:
 behavior: requests carry an `Akamai-Debug` header with a **time-limited token** generated from the
 property's configured 64-byte hex debug key, and the behavior's *Disable Pragma Debugging* option
 defaults to disabling the legacy unauthenticated `Pragma` headers *[sourced:
-techdocs.akamai.com/property-mgr/docs/enhanced-debug]*. Whether legacy `Pragma` still answers on a
+[Enhanced Debug](https://techdocs.akamai.com/property-mgr/docs/enhanced-debug)]*. Whether legacy `Pragma` still answers on a
 property that never adopted Enhanced Debug is property-dependent — `[unverified]`; test per
 property, don't assume.
 
@@ -52,10 +48,10 @@ property, don't assume.
 - The behavior can also emit an `Akamai-GRN` response header — feed it straight into Translate
   Error String.
 - Staging responses carry `X-Akamai-Staging` (e.g. `ESSL`) — the header that proves you hit
-  staging, not production *[sourced: techdocs.akamai.com/property-mgr/docs/test-configs-vars]*.
+  staging, not production *[sourced: [Test configuration variables](https://techdocs.akamai.com/property-mgr/docs/test-configs-vars)]*.
 
-**X-Cache values** *[sourced: techdocs.akamai.com/edge-diagnostics/docs/pragma-headers;
-…/property-mgr/docs/return-cache-status]*:
+**X-Cache values** *[sourced: [Pragma headers](https://techdocs.akamai.com/edge-diagnostics/docs/pragma-headers);
+[Return cache status](https://techdocs.akamai.com/property-mgr/docs/return-cache-status)]*:
 
 | Value | Means |
 |---|---|
@@ -82,10 +78,11 @@ agent's granted, scoped, output-protected read paths.
 ## DataStream 2 — the sustained/fleet-wide evidence
 
 DataStream 2 streams edge request logs to a destination (Splunk, S3, GCS, Elasticsearch, custom
-HTTPS, and others) *[sourced: techdocs.akamai.com/datastream2/docs/stream-logs]*. Which one ours
+HTTPS, and others) *[sourced: [Stream logs](https://techdocs.akamai.com/datastream2/docs/stream-logs)]*. Which one ours
 uses is `stack-profile`'s edge row; hand the query to `obs-logs`, whose team query catalog holds
 the hostname and region error/cache-share shape, rather than inventing an index. The fields that
-answer triage questions *[sourced: …/docs/data-set-parameters, …/docs/log-format-1]*:
+answer triage questions *[sourced: [field definitions](https://techdocs.akamai.com/datastream2/docs/data-set-parameters),
+[log format](https://techdocs.akamai.com/datastream2/docs/log-format-1)]*:
 
 - `cacheStatus` — `0` means the object was absent from cache; `1` means present. Cached negative
   responses or stale objects can still be served from upstream, so presence alone does not prove
@@ -112,27 +109,30 @@ Two completeness caveats that change conclusions:
   unsuccessful retries. The FAQ separately says destination connection problems are lost after 3
   failed retries. The exact retry budget is therefore `[unverified]` for a given failure mode, but
   the operational conclusion is firm: there is no backup copy, so alert on upload failures and
-  never treat missing lines as proof of missing traffic *[sourced: …/docs/faq;
-  …/docs/troubleshooting, re-checked 2026-08-24]*.
+  never treat missing lines as proof of missing traffic *[sourced: [FAQ](https://techdocs.akamai.com/datastream2/docs/faq);
+  [Troubleshooting](https://techdocs.akamai.com/datastream2/docs/troubleshooting), re-checked 2026-08-24]*.
 
 ## Offload and error reports (Control Center → Reporting)
 
 Use **Traffic by Hostname** in Control Center. The legacy **Traffic report** is discontinued;
 do not describe its retired filters as current UI controls *[sourced:
-techdocs.akamai.com/reporting/docs/traffic-rpts, reviewed 2026-08-24]*. The offload arithmetic
+[Traffic reports](https://techdocs.akamai.com/reporting/docs/traffic-rpts), reviewed 2026-08-24]*. The offload arithmetic
 `(edge − origin) / edge × 100` is a working
 definition, not a quoted formula — the API defines `offloadedHitsPercentage` in prose. The
 Reporting API v2 exposes the data as `delivery/traffic/current`; the CP-code filter is
 **optional** — omitted, the report covers all available CP codes *[sourced:
-…/reporting/reference/delivery-traffic-current, re-checked 2026-08-19]*.
+[Delivery traffic](https://techdocs.akamai.com/reporting/reference/delivery-traffic-current), re-checked 2026-08-19]*.
 
-An offload drop with rising origin traffic and no config change is a cache-key or TTL question —
-check recent property activations *before* blaming origin capacity.
+An offload drop with rising origin traffic leaves several candidates: cache-key or TTL changes,
+purges, origin response cacheability, cold caches, and changed request/object mix. Compare like
+hostnames, objects and time windows; check activations and purge history alongside response headers
+and cache evidence. A clean activation history does not clear the other candidates, and the
+aggregate alone establishes neither a cache cause nor an origin-capacity cause.
 
 ## App & API Protector (WAF) — "is the WAF blocking real users?"
 
-Read-only triage path *[sourced: techdocs.akamai.com/security-ctr/docs/web-security-analytics-ov-new;
-…/cloud-security/docs/monitor-activity]*:
+Read-only triage path *[sourced: [Web Security Analytics](https://techdocs.akamai.com/security-ctr/docs/web-security-analytics-ov-new);
+[Monitor activity](https://techdocs.akamai.com/cloud-security/docs/monitor-activity)]*:
 
 1. **Web Security Analytics** (Security Center) — unified security events, drill-down by
    dimension, pivot views, and **sampled request-level logs** with headers and the attack types
@@ -146,7 +146,7 @@ Read-only triage path *[sourced: techdocs.akamai.com/security-ctr/docs/web-secur
    `[unverified]` — try it, don't assert it.
 4. Security events can also flow to Splunk via the **SIEM Integration** (offset-based or
    time-based fetch; the collector replays the last **12 hours** only) *[sourced:
-   techdocs.akamai.com/siem-integration/docs/welcome-siem-integration]* — if the events are older
+   [SIEM Integration](https://techdocs.akamai.com/siem-integration/docs/welcome-siem-integration)]* — if the events are older
    than that and were never ingested, the portal is the only record.
 
 Evidence of a false positive — the sampled requests, the rule id, the affected user share — goes to

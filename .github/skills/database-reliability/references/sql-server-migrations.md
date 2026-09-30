@@ -19,8 +19,13 @@ Assess the operation's lock phases and bound each wait:
   Do not infer cleanup from `XACT_ABORT` alone; verify the tool's transaction and error behavior.
   `LOCK_TIMEOUT` still waits at normal priority, so keep it to seconds.
 
-*[sourced: SQL Server `ALTER TABLE`, `CREATE INDEX`, `SET LOCK_TIMEOUT`, `SET XACT_ABORT`, and
-[lock-timeout error handling](https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-transaction-locking-and-row-versioning-guide#customize-the-lock-time-out)
+*[sourced: SQL Server 2025 documentation with operation-specific version restrictions:
+[`ALTER TABLE`](https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-table-transact-sql?view=sql-server-ver17),
+[`CREATE INDEX`](https://learn.microsoft.com/en-us/sql/t-sql/statements/create-index-transact-sql?view=sql-server-ver17),
+[`ALTER INDEX`](https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-index-transact-sql?view=sql-server-ver17),
+[`SET LOCK_TIMEOUT`](https://learn.microsoft.com/en-us/sql/t-sql/statements/set-lock-timeout-transact-sql?view=sql-server-ver17),
+[`SET XACT_ABORT`](https://learn.microsoft.com/en-us/sql/t-sql/statements/set-xact-abort-transact-sql?view=sql-server-ver17), and
+[lock-timeout error handling](https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-transaction-locking-and-row-versioning-guide?view=sql-server-ver17#customize-the-lock-time-out)
 references]*
 
 ## Columns
@@ -33,19 +38,20 @@ and CLR user-defined types. It also falls back to an offline operation if the **
 row size exceeds 8,060 bytes, even when current rows are short. A per-row default such as `NEWID()`
 is not a runtime constant. Check type, default, edition/version, and row-size eligibility before
 calling the addition metadata-only; it still needs a schema lock. *[sourced:
-[Microsoft's online-add restrictions](https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-table-transact-sql#add-not-null-columns-as-an-online-operation)]*
+[Microsoft's online-add restrictions](https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-table-transact-sql?view=sql-server-ver17#add-not-null-columns-as-an-online-operation)]*
 
 Tightening an existing nullable column to `NOT NULL` still scans. Backfill in bounded batches and
 alter in a quiet window, or use `ALTER COLUMN ... WITH (ONLINE = ON)` only after confirming the
-edition and roughly twice the free space for the hidden replacement column. *[sourced: SQL Server
-`ALTER TABLE` reference; reviewed 2026-08-21]*
+edition and roughly twice the free space for the hidden replacement column. *[sourced:
+[SQL Server 2025 online ALTER COLUMN restrictions](https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-table-transact-sql?view=sql-server-ver17);
+reviewed 2026-09-30]*
 
 ## Index and tool behavior
 
 `CREATE INDEX ... WITH (ONLINE = ON)` needs a supporting edition and short boundary locks.
 Conflicting transactions or long-running queries can delay those locks and form a blocking chain;
 the required locks vary by index operation and phase. *[sourced:
-[online index phases](https://learn.microsoft.com/en-us/sql/relational-databases/indexes/how-online-index-operations-work)]*
+[online index phases](https://learn.microsoft.com/en-us/sql/relational-databases/indexes/how-online-index-operations-work?view=sql-server-ver17)]*
 
 Add the exact edition, row-size and LOB facts, table/index size, open-transaction risk, expected
 duration, space, and cancellation behavior to the migration handoff defined in `../SKILL.md`.

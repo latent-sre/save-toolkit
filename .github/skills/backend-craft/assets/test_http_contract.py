@@ -1,6 +1,7 @@
 """Starter checks for a compatible FastAPI collection and problem-response contract.
 
 Adapt paths and the `auth_headers` fixture to the project; preserve existing passing contracts.
+Seed at least two records visible to that identity for the collection-limit check.
 Reproduce the changed behavior before fixing it. Add a project-owned maximum-limit test with
 more seeded records than the chosen cap: a sparse collection cannot prove a cap is enforced.
 
@@ -101,9 +102,14 @@ def test_collection_is_a_cursor_page(client, auth_headers):
     assert isinstance(body.get("data"), list), 'house rule: the envelope carries a "data" list'
     assert "next_cursor" in body, 'house rule: the envelope carries "next_cursor", even when null'
 
+    two = client.get(LIST_PATH, params={"limit": 2}, headers=auth_headers)
+    assert two.status_code == 200
+    assert len(two.json()["data"]) >= 2, (
+        "seed at least two records visible to auth_headers; sparse data cannot prove the limit"
+    )
     one = client.get(LIST_PATH, params={"limit": 1}, headers=auth_headers)
     assert one.status_code == 200, f"limit=1 must be accepted; got {one.status_code}"
-    assert len(one.json()["data"]) <= 1, "house rule: limit is honoured, not ignored"
+    assert len(one.json()["data"]) == 1, "house rule: limit is honoured, not ignored"
 
 def test_unknown_path_is_a_problem(client, auth_headers):
     response = client.get(UNKNOWN_PATH, headers=auth_headers)
