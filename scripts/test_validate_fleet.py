@@ -272,7 +272,7 @@ class FleetValidatorTests(unittest.TestCase):
             ),
             (
                 "software-engineer-boundary",
-                _markdown_section(Path("agents/software-engineer.md"), "## Delegation"),
+                _markdown_section(Path("agents/software-engineer.md"), "## Handoffs"),
                 (
                     "routine completion returns the evidence packet to the caller without spawning a review",
                     "caller requests review",
