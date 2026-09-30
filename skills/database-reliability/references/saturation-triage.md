@@ -1,7 +1,7 @@
 # Saturation triage
 
 Read only for a DB-driven incident involving connection, lock, replication, storage, or recent-change
-signals. Diagnose read-only under `../SKILL.md`'s access rule. Pool changes, query kills, failover,
+signals. Diagnose read-only under `../SKILL.md`'s authority rule. Pool changes, query kills, failover,
 scaling, and other live mitigations use `production-change-gate`; reuse its incident envelope only
 for actions it covers. The human owner or approved protected automation applies them.
 

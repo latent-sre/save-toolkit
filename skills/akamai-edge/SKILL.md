@@ -44,9 +44,10 @@ Route origin-side findings through [Handoffs](#handoffs).
 ## Three lanes, three authority postures
 
 - **Triage is read-only, portal-first.** Edge Diagnostics, Web Security Analytics, Reporting, and
-  DataStream 2 queries change nothing. Production debug-header requests remain
-  **recommend-for-human** under current grants. Other observations, including selected DNS reads,
-  require the invoking agent's granted, scoped, output-protected read path.
+  DataStream 2 queries change nothing. Production debug-header requests stay
+  **recommend-for-human** whatever tools the invoking lane holds; the human runs them with their
+  own debug token. Other observations, including selected DNS reads, require the invoking agent's
+  granted, scoped, output-protected read path.
 - **Delivery config is change-managed work.** A property version edit is Tier 1 (prepare); any
   activation — staging included — is a live change with an approval gate and a named, proven
   rollback or recovery path. Production activation additionally runs through

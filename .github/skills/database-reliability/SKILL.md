@@ -41,20 +41,22 @@ persistence and migration code; this skill owns operating it safely, diagnosing 
 
 ### Performance, durability, and ownership
 
-- An actual/analyzed plan **executes the statement**. Default to a plan-only form; assess execution
-  load and side effects before classifying it as a read or live change. A transaction is not a
-  universal rollback because effects may escape it.
+- An actual/analyzed plan **executes the statement**. Default to a plan-only form. An executing
+  plan of `INSERT`/`UPDATE`/`DELETE`/`MERGE` on production is a live change even when rolled back;
+  a transaction is not a universal rollback because effects may escape it.
 - Production SQL needs DBA-authorized access and bounded load and output. Existing authorization
-  can cover read-only diagnostics without a change/recovery packet; mutations and parameter changes
-  use the live-change gate above. Dashboard access alone does not grant SQL execution.
+  can cover read-only diagnostics, including an executing plan of a read-only query, without a
+  change/recovery packet; mutations, their executing plans, and parameter changes use
+  `production-change-gate` under the authority rule. Dashboard access alone does not grant SQL
+  execution.
 - Index for measured query patterns, avoid N+1 access and unbounded result sets, and verify any fix
   with before/after evidence. Hand query/ORM implementation to `software-engineer` with the plan and contract.
 - Backups must be monitored **and restored in a drill**. An untested backup does not prove recovery,
   RPO, or RTO. Verify replication and failover rather than assuming them.
 - Use scoped database credentials, never an application admin role. No unbounded `UPDATE`/`DELETE`:
   require a predicate and row-count sanity check, plus the tested recovery strategy.
-- During a DB-driven incident, the agent diagnoses and hands off; the human release owner may
-  mitigate under the live-change gate above.
+- During a DB-driven incident, the agent diagnoses and hands off; mitigation follows
+  `production-change-gate`, applied by the human owner or approved protected automation.
 
 ## Read only the conditional procedure the request needs
 

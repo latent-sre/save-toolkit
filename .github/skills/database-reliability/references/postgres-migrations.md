@@ -10,16 +10,27 @@ Blocking depends on the requested lock. `ADD COLUMN`, `ADD CHECK`/`NOT NULL`, `S
 `ALTER … TYPE` take `ACCESS EXCLUSIVE`; a waiting request can queue later reads and writes.
 `ADD FOREIGN KEY` takes `SHARE ROW EXCLUSIVE` on both tables, conflicting with writers but not
 ordinary `SELECT`. `CREATE INDEX CONCURRENTLY` and `VALIDATE CONSTRAINT` use `SHARE UPDATE EXCLUSIVE`,
-which permits ordinary reads and writes but conflicts with some maintenance and DDL. Inspect the
-actual blockers (`pg_stat_activity`, `pg_locks`, through the DBA), not merely all open transactions.
-Run the migration session with `SET lock_timeout = '<seconds, below the app's request timeout>'`
-(session or `SET LOCAL`, never
-`postgresql.conf`) and retry with backoff on timeout. A timed-out or failed `CREATE INDEX
-CONCURRENTLY` may leave an INVALID index. Inspect the catalog and migration record first; use
-`DROP INDEX CONCURRENTLY` only for the invalid index created by that failed attempt, before retrying.
-Do not drop a pre-existing valid index merely because creation failed. *[sourced:
-PostgreSQL 18 [lock modes](https://www.postgresql.org/docs/18/explicit-locking.html), `lock_timeout`, and
-[concurrent index creation](https://www.postgresql.org/docs/18/sql-createindex.html#SQL-CREATEINDEX-CONCURRENTLY) references]*
+which permits ordinary reads and writes but conflicts with some maintenance and DDL. For these
+table locks, inspect the actual blockers (`pg_stat_activity`, `pg_locks`, through the DBA), not
+merely all open transactions. Run those statements with
+`SET lock_timeout = '<seconds, below the app's request timeout>'` (session or `SET LOCAL`, never
+`postgresql.conf`) and retry with backoff on timeout.
+
+`CREATE INDEX CONCURRENTLY` also waits for transactions, not only for its lock: before each of its
+two table scans for those that modified the table, and after the second scan for every transaction
+whose snapshot predates it, including ones that touch only other tables. A seconds-scale
+`lock_timeout` cancels those waits after the scans and leaves an INVALID index, and each retry fails
+the same way while the old transaction lives. Before starting it, have the DBA check the whole
+database for long-running transactions (`pg_stat_activity` `xact_start` and `backend_xmin`); run it
+without a short `lock_timeout`, since its waiting lock blocks no ordinary reads or writes (it does
+hold off vacuum and other DDL on that table), and have the DBA watch the waits and cancel the build
+if one persists. A failed or cancelled build may leave an INVALID index. Inspect the catalog and
+migration record first; use `DROP INDEX CONCURRENTLY` only for the invalid index created by that
+failed attempt, before retrying. Do not drop a pre-existing valid index merely because creation
+failed. *[sourced: PostgreSQL 18 [ALTER TABLE](https://www.postgresql.org/docs/18/sql-altertable.html)
+lock levels, [lock modes](https://www.postgresql.org/docs/18/explicit-locking.html),
+[`lock_timeout`](https://www.postgresql.org/docs/18/runtime-config-client.html#GUC-LOCK-TIMEOUT),
+and [concurrent index creation](https://www.postgresql.org/docs/18/sql-createindex.html#SQL-CREATEINDEX-CONCURRENTLY)]*
 
 ## Constraints and columns
 
@@ -28,20 +39,26 @@ direct `ALTER COLUMN ... SET NOT NULL` against a hot, large table without the ex
 lock assessment.
 
 `NOT VALID` skips the initial scan, not enforcement on subsequent inserts and updates. An unrelated
-field update still fails if the resulting row retains a legacy NULL. Before adding the constraint,
-make all active writers compatible, including updates of old rows: backfill first or correct the NULL
-in the same update. Test that path while a backfill is incomplete. Commit the short constraint-add
-transaction before backfill/validation so its stronger lock does not span those phases.
-The constraint syntax depends on the major:
+field update still fails if the resulting row retains a legacy NULL. First make every insert supply
+the value, then keep to one of two orders:
+
+- **Backfill first:** correct every legacy NULL in bounded batches, then add the `NOT VALID`
+  constraint and validate it. No legacy row remains for an update to trip over.
+- **Constraint first:** make every update of an old row also correct its NULL, then add the
+  `NOT VALID` constraint, backfill, and validate. Test that update path while the backfill is
+  incomplete.
+
+Commit the short constraint-add transaction on its own so its stronger lock does not span the
+backfill or validation. The constraint syntax depends on the major:
 
 - **18+**: `NOT NULL` is a catalogued, nameable constraint that accepts `NOT VALID` directly.
   `ALTER TABLE t ADD CONSTRAINT t_col_nn NOT NULL col NOT VALID;` enforces inserts and updates.
-  Correct remaining NULLs in bounded batches, then `ALTER TABLE t VALIDATE CONSTRAINT t_col_nn;`
-  scans under `SHARE UPDATE EXCLUSIVE`, compatible with ordinary writes. No `CHECK` detour or second
+  After the backfill, `ALTER TABLE t VALIDATE CONSTRAINT t_col_nn;` scans under
+  `SHARE UPDATE EXCLUSIVE`, compatible with ordinary writes. No `CHECK` detour or second
   `SET NOT NULL` step is needed. *[sourced: PostgreSQL 18
   [ALTER TABLE](https://www.postgresql.org/docs/18/sql-altertable.html)]*
-- **12–17**: add `CHECK (col IS NOT NULL) NOT VALID`, backfill, validate the constraint, and
-  only then run `SET NOT NULL`; the validated check lets these versions skip the second scan.
+- **12–17**: use `CHECK (col IS NOT NULL) NOT VALID`; after the backfill, validate it and only then
+  run `SET NOT NULL`; the validated check lets these versions skip the second scan.
 - **Before 12**: do not assume the validated check avoids the final scan; assess that scan and its
   lock duration on the exact version before scheduling the change. Scan avoidance was introduced in
   [PostgreSQL 12](https://www.postgresql.org/docs/12/release-12.html).

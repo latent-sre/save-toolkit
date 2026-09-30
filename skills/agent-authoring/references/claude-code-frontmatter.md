@@ -31,8 +31,10 @@ Scoped Bash specifiers in agent `tools:` do not narrow commands (probed). In `di
 `Bash(git push *)` removes Bash entirely. The same entry in settings `permissions.deny`
 instead denies matching commands while retaining Bash;
 it applies to both the main conversation and subagents
-([available tools](https://code.claude.com/docs/en/sub-agents#available-tools)). The fleet's
-`PreToolUse` hook supplies its agent-specific command policy through `readonly-guard.py`.
+([available tools](https://code.claude.com/docs/en/sub-agents#available-tools)). Such a rule
+matches the command text, not the program, so it is not a security boundary: `git -C . push origin
+main` passes a `Bash(git push *)` deny ([Bash rule limits](https://code.claude.com/docs/en/permissions#bash-rule-limits)).
+The fleet's `PreToolUse` hook supplies its agent-specific command policy through `readonly-guard.py`.
 
 Canonical plugin delegation grants use full names: `Agent(save-toolkit:reviewer, save-toolkit:scribe)`.
 Bare targets do not match plugin agent identities on the probed Claude Code 2.1.261 host; the
