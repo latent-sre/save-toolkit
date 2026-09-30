@@ -13,6 +13,10 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   trigger, and one skill-trigger list. 25,847 -> 23,356 bytes, measured against main on Sonnet.
   Two build scenarios now grade resuming after a partial helper return and withholding a reviewer
   when candidate instructions would auto-load.
+- `observability-engineer`, `reliability-engineer`, `reviewer`, `agent-engineer`, and
+  `sre-assistant` carry the same short handoff core, 1,837 bytes smaller across the five. Five build
+  probes give those lanes handoff coverage; main, the core, and a no-handoff control matched on
+  every behavioral check.
 
 ### Fixed
 

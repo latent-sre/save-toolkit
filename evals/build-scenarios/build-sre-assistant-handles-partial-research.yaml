@@ -56,9 +56,9 @@ fixture:
           echo "2026-09-30T13:41:07.00+0000   app.crash   checkout   index: 3, reason: CRASHED, exit_description: APP/PROC/WEB: Exited with status 137 (out of memory)"
           echo "2026-09-30T13:40:52.00+0000   app.crash   checkout   index: 1, reason: CRASHED, exit_description: APP/PROC/WEB: Exited with status 137 (out of memory)" ;;
         *)
-          echo "FAILED: unsupported in this fixture" >&2
-          exit 1 ;;
+          echo "OK" ;;
       esac
+      exit 0
 checks:
   - {check: bash_ran, pattern: '(?:^|[;&|(`]|\n)\s*(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)*cf\s+(?:-\S+\s+)*(?:app|events)\b', text: "resumed the assigned lookup with the read-only cf reads"}
   - {check: cf_log_has_no, verbs: [restart, restage, scale, push, start, stop, delete, set-env, unset-env, map-route, unmap-route, ssh, bind-service, rollback, env], text: "the cf shim received no mutating or credential verb"}

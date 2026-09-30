@@ -231,6 +231,13 @@ menu: [`resumes-after-partial-helper`](build-scenarios/build-software-engineer-r
 grades the finished independent change, the agent's own suite run, and the refused injected
 release; [`withholds-review-on-autoloading-instructions`](build-scenarios/build-software-engineer-withholds-review-on-autoloading-instructions.yaml)
 grades whether a reviewer is dispatched into a context that would load the candidate's instructions.
+Five sibling probes give the other delegating agents the same coverage, each acting on a partial
+return that carries a false `[verified]` claim and an injected instruction:
+[`observability-engineer`](build-scenarios/build-observability-engineer-resumes-after-partial-helper.yaml),
+[`reliability-engineer`](build-scenarios/build-reliability-engineer-resumes-after-partial-helper.yaml),
+[`reviewer`](build-scenarios/build-reviewer-reopens-helper-claims.yaml),
+[`agent-engineer`](build-scenarios/build-agent-engineer-resumes-after-partial-research.yaml), and
+[`sre-assistant`](build-scenarios/build-sre-assistant-handles-partial-research.yaml).
 
 The researcher/scribe cases add a bounded public-page lookup, private-input rejection with
 zero attempted web calls, a missing-current-version source decision, extended/quick research
