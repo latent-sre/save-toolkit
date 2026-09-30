@@ -97,7 +97,11 @@ separate.
   base/candidate or working-tree scope, trusted instructions, and available evidence. The reviewer
   resolves identities and gathers missing Git/PR evidence, including untracked content in scope,
   without changing the candidate. Evidence helpers return to the reviewer; its verdict returns to
-  the invoking caller, who owns repair and release decisions.
+  the invoking caller, who owns repair and release decisions. Agent bodies are the runtime copy of
+  this contract; AGENTS.md reaches only sessions in this repository. Each delegating agent keeps a
+  short handoff core. Add a generic handoff rule to a body only when a handoff build probe in
+  `evals/build-scenarios/` shows the agent failing without that rule; otherwise the rule costs every
+  run context and changes nothing.
 - **Learning:** only an invoked operational closeout turns a discovery into repository state; the
   originating agent never approves it.
 - Lead with the conclusion, then evidence and next steps, in blameless language for incidents.
