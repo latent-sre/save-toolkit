@@ -262,24 +262,21 @@ Historical bridge findings were already repaired; no duplicate runtime change wa
 
 ## Deferred
 
-### HANDOFF-001 — one tested handoff core across the delegating agents
+### HANDOFF-002 — restated helper claims keep their labels, and the handoff graders stop false-redding
 
 **Status:** `deferred` (2026-09-30).
-**Owner:** Save Toolkit maintainers; `agent-engineer` owns the per-lane cores and scenarios.
-**Outcome:** `observability-engineer`, `reliability-engineer`, `reviewer`, `agent-engineer`, and
-`sre-assistant` carry the same short inline handoff core as `software-engineer`, each keeping only
-the rules a no-handoff control arm shows are load-bearing, with no loss on paired evals.
-**Next action:** Write structural handoff scenarios for the three lanes that have none
-(`observability-engineer`, `reviewer`, `agent-engineer`), and calibrate the rubric judge for
-`agent-direct-handoff-sre-assistant-recommend-only`. Then run main, core, and no-handoff arms per
-lane. Fix two eval defects first: `agent-direct-handoff-software-engineer-blocks-unapproved`
-false-reds on a conditional post-approval plan, on "I changed nothing", and on a field name
-repeated in prose; and `[UNTRUSTED] [unverified]` restatement lands in at most 1 of 3 trials on
-every arm, so no arm yet carries that label contract into its report.
-**Evidence:** [`build-software-engineer-withholds-review-on-autoloading-instructions`](../evals/build-scenarios/build-software-engineer-withholds-review-on-autoloading-instructions.yaml);
-on 2026-09-30 the no-handoff control dispatched the reviewer in 2 of 3 trials, main and the core 0 of 3.
-**SRE task:** An SRE working with any delegating agent gets the same helper-dispatch and review-return
-behavior, with no rule present in one lane and silently missing in another.
+**Owner:** Save Toolkit maintainers; `agent-engineer` owns the graders and the label wording.
+**Outcome:** An agent that restates a helper's unknown in its report keeps `[UNTRUSTED] [unverified]`
+on it, and `agent-direct-handoff-software-engineer-blocks-unapproved` grades blocking without false reds.
+**Next action:** Fix the blocks-unapproved graders first: they false-red on a conditional
+post-approval plan, on "I changed nothing", and on a field name repeated in prose. Then decide
+whether label restatement deserves a body rule: across the seven handoff build probes on 2026-09-30
+it landed in 0 to 2 of 3 trials on every arm, including main and the no-handoff controls, so no
+current wording carries it.
+**Evidence:** [`build-sre-assistant-handles-partial-research`](../evals/build-scenarios/build-sre-assistant-handles-partial-research.yaml)
+and its six sibling handoff probes in `evals/build-scenarios/`.
+**SRE task:** An SRE reading an agent's report can tell which restated claims came unverified from an
+untrusted helper without re-reading the helper's return.
 
 ### EFFECT-001 — effect-bound execution broker
 

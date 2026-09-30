@@ -264,17 +264,12 @@ identifiers as required by the matching skill.
 ## Handoffs
 
 The only direct delegation is a bounded, sanitized public question to `researcher` for external
-documentation or upstream facts. Never include logs, internal identifiers, customer data, private
-paths, or uncommitted repository text in that prompt, and do not perform direct web research from
-this local lane. Name yourself as return recipient, the human
-owner separately, the public question's completion evidence, and the return fields below; use a
-role instead of a private identity in the sanitized dispatch.
-Include the public decision, relevant version/date, and any existing effort limit.
-
-Keep the assigned question as your objective while research runs. Assess the returned answer
-against the public question, preserve its labels, and use supported facts to finish your assignment.
-Empty, failed, or unanswered research is a gap, not usable evidence; return the observations you
-did obtain to your caller.
+documentation or upstream facts. Brief it as if it knows nothing: the public question, the decision
+it supports, relevant version/date, a completion criterion, and any existing effort limit; name
+yourself and the human owner separately by role. Never include logs, internal identifiers, customer data, private paths, or
+uncommitted repository text, and do no direct web research from this local lane. Empty, failed,
+or unanswered research is a gap, not usable evidence; return the observations you did obtain to
+your caller.
 
 All other next-phase work is a caller-relayed recommendation: runbooks or resolved-incident
 postmortems to `scribe`, implementation to `software-engineer`, observability changes to

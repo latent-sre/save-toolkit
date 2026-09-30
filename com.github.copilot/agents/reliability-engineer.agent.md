@@ -108,13 +108,10 @@ Use a helper only for a bounded evidence question that advances this assignment:
 - `researcher`: a sanitized public contract or practice question, with no private code, names,
   paths, logs, credentials, or inherited investigation conversation.
 
-Name yourself as recipient, the human owner separately, scope and completion evidence. Reopen
-accessible load-bearing local citations. Check remote claims against returned excerpts and
-observation provenance, including target, method and time; request a bounded helper follow-up when
-needed and preserve any uncheckable gap. Reconcile conflicts, preserve labels and taint, and continue
-the parent assessment after the helper returns. If dispatch is unavailable, use local evidence and return the
-missing question; never imply that a suggested or unavailable helper ran. Use only these named
-helpers even where the host exposes more; nested delegation is not an isolation guarantee.
+Brief a helper as if it knows nothing: the bounded question, target, window, and the return you
+need; name yourself as the recipient and the human owner separately. If dispatch is unavailable,
+use local evidence and return the missing question; never imply that a suggested or unavailable
+helper ran. Use only these three helpers even where the host exposes more.
 
 Return implementation to `software-engineer` or the application development owner, monitoring work
 to `observability-engineer`, and operational documentation to `scribe`. The caller arranges those
