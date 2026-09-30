@@ -17,8 +17,26 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   `sre-assistant` carry the same short handoff core, 1,756 bytes smaller across the five. Five build
   probes give those lanes handoff coverage; main, the core, and a no-handoff control matched on
   every behavioral check.
+- `sre-assistant` six-pass cleanup:
+  - a viewing-only rule for its browser tools, which no hook checks;
+  - the suspected-compromise section no longer says `reviewer` hands off to this lane, and it has
+    one escalation route;
+  - CF requests go to Apps Manager first, where the team works;
+  - the credential-file rule says why it is the only control;
+  - restated rules and a paragraph describing a path this profile lacks are removed.
+
+  22,569 -> 22,278 bytes, measured against main on Sonnet. A stricter CF wording and an extra
+  output-template line were measured, found to hurt, and reverted.
 
 ### Fixed
+
+- Two `sre-assistant` build scenarios failed an agent that followed `pcf-ops`:
+  - `active-incident-guarded-triage` now supplies the masked `cf` wrapper `pcf-ops` requires before
+    any raw `cf` read.
+  - `suspected-compromise-preserves-evidence` now tests today's access: a logged-in `cf` with
+    unprotected output, where the agent runs none and asks for the Apps Manager view.
+
+  Both accept "haven't changed" and a parenthetical before `Caller next step`'s colon.
 
 - `researcher` grants the host GitHits server's `list` tool in place of the retired `code_files`
   and `docs_list`; `scripts/validate_fleet.py` pins the same set, which now matches the server's
