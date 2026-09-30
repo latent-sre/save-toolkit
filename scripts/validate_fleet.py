@@ -90,10 +90,9 @@ WEB_TOOLS = {"WebFetch", "WebSearch"}
 EVIDENCE_MCP_TOOLS = {
     "mcp__claude_ai_Context7__query-docs",
     "mcp__claude_ai_Context7__resolve-library-id",
-    "mcp__plugin_githits_githits__code_files",
     "mcp__plugin_githits_githits__code_grep",
-    "mcp__plugin_githits_githits__docs_list",
     "mcp__plugin_githits_githits__get_example",
+    "mcp__plugin_githits_githits__list",
     "mcp__plugin_githits_githits__pkg_changelog",
     "mcp__plugin_githits_githits__pkg_deps",
     "mcp__plugin_githits_githits__pkg_info",

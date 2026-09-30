@@ -16,6 +16,9 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- `researcher` grants the host GitHits server's `list` tool in place of the retired `code_files`
+  and `docs_list`; `scripts/validate_fleet.py` pins the same set, which now matches the server's
+  twelve tools.
 - PR #293 review follow-ups: the FastAPI starter's unhandled-error log keeps the method, path,
   and chained and grouped exception types, collapses recursion, and survives a project record
   factory that sets `request_id`; a trusted header without the request-id middleware is rejected.
