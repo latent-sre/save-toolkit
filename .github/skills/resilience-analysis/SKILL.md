@@ -76,6 +76,8 @@ independent change review and live execution retain their existing owners.
 For calculations, show units, measured versus assumed inputs, the equation, uncertainty and validity
 conditions. Account for shared demand and failure capacity. Use existing permitted calculators when
 available; no tool capability may be invented. A model estimate is not measured load-test evidence.
+For retry timing, distinguish retries from total attempts and maximum from actual duration; keep
+backoff and resource-release assumptions explicit. A deadline alone does not prove slot release.
 
 Verification names the target/version, stimulus, expected user and resource behavior, discriminating
 measurements, bounds/stop conditions, and recovery checks. Preserve actual results separately from
