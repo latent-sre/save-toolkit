@@ -64,7 +64,8 @@ independent review or promotion; the promotion and review rules below still appl
 - Omit explanations the model already knows; retain the team's choices, missing facts, and
   decision-changing instructions. A tools-off knowledge answer does not establish task compliance.
   Remove a behavioral instruction only when representative task evidence or an enforced replacement
-  supports the removal; known facts and reliable execution are different claims.
+  supports the removal; known facts and reliable execution are different claims. A rule the model
+  reads and does not apply ships as a copied test or asset, not a stronger sentence.
 
 ## Examples and thresholds
 

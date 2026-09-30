@@ -33,7 +33,7 @@ review rules live in `.github/copilot-instructions.md`. -->
 |---|---|
 | a canonical agent, skill, or command change | adapters regenerated (`python scripts/generate_platform_adapters.py --write`) and the projections committed |
 | a newly asserted contract | one focused test red-then-green |
-| text added to an always-loaded file (an agent body, a `SKILL.md` core, or `AGENTS.md`) | the tools-off probe, or the failing trial that shows the model needed it |
+| text added to an always-loaded file (an agent body, a `SKILL.md` core, or `AGENTS.md`) | the team choice or missing fact it carries, or the failing trial that shows the model needed it |
 | a scenario or build probe change under `evals/` | `python evals/build_probe.py --validate` green |
 
 ## Risk

@@ -67,9 +67,12 @@ forensic evidence, and route coordination to the human security incident owner.
 - **Secrets stay out of model context.** Inject at the boundary (a credential proxy); never paste a
   token where injected text could read it back.
 - **Envelope tool results; preserve evidence.** Fence with a named source (`<untrusted_tool_result source="web_fetch">`)
-  and escape forged sentinels. Keep originals under access/redaction rules; show suspicious invisible
-  Unicode as code-point escapes in a derived view and record the transformation. Do not blanket-strip
-  zero-width, bidi, or tag characters: [legitimate text](https://www.unicode.org/reports/tr51/#Emoji_Sequences) and attack evidence can depend on them.
+  and escape forged sentinels. Keep originals under access/redaction rules as evidence. The model
+  reads only a derived view in which every [default-ignorable](https://www.unicode.org/reports/tr44/#Default_Ignorable_Code_Point)
+  code point (zero-width, bidi-control, tag, and variation-selector characters) appears as a
+  code-point escape, including inside emoji tag sequences; record the transformation. Escape rather
+  than strip: [legitimate text](https://www.unicode.org/reports/tr51/#Emoji_Sequences) and attack
+  evidence depend on these characters, and the original keeps them.
   Envelopes, escaping, and injection matchers do not establish trust.
 - **Know what each Claude Code layer does.** Denying `WebFetch` does not stop access through Bash;
   only OS-level sandboxing enforces a network allowlist. The fleet's enforcement order, tool absence

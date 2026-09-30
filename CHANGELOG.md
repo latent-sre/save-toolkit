@@ -18,7 +18,10 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   requirement instead of a traceback. `database-reliability` treats an executing plan of a
   mutating statement on production as a live change even when rolled back, gives the two safe
   NOT NULL orders separately, and no longer puts a short `lock_timeout` on `CREATE INDEX
-  CONCURRENTLY`, whose snapshot waits it would cancel into an INVALID index.
+  CONCURRENTLY`, whose snapshot waits it would cancel into an INVALID index. Agent authoring
+  escapes every default-ignorable code point in the model's view of untrusted text, says a
+  permissions deny rule matches command text rather than the program, and restores the copied-test
+  rule; Akamai production debug-header requests stay human-run whatever tools a lane holds.
 - Follow-up PR review: CLI receipts cover discovery failures and pre-apply interruption; the
   CORS starter permits its authenticated API contract; deployment discovery stops on failure.
   DataStream rates separate client traffic, purge guidance preserves approved mandatory removal,
@@ -51,7 +54,8 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   skills instead of being shadowed; `compatibility`, `omitClaudeMd`, `initialPrompt` and the
   current `maxTurns` behavior are recorded; subagent model resolution names both environment
   variables. The method adds a listing-budget check before description edits, a new-skill
-  admission test, first-match evidence rows, and one return-header core with named lane fields.
+  admission test, evidence rows combined across every changed surface, and one return-header core
+  with named lane fields.
 - `production-change-gate`'s only worked approval packet now carries every checklist slot
   (execution boundary, change record, watcher, timing) and the real `cf app` output shape. Merge
   readiness reads the candidate repository's own rules instead of asserting this repository's.
