@@ -80,6 +80,19 @@ class CliTests(unittest.TestCase):
         self.assertEqual("README.md", data["results"][0]["citations"][0]["path"])
         self.assertEqual(len(content), data["encodedBytes"])
 
+    def test_loads_for_requires_predicate_before_verification_and_in_query_api(self):
+        for built in (False, True):
+            if built:
+                self.assertEqual(0, self.call("build")[0])
+            with self.subTest(atlas_built=built):
+                code, data, _ = self.call("query", "loads-for", "agent-authoring")
+                self.assertEqual(2, code)
+                self.assertEqual("usage", data["outcome"])
+                self.assertEqual([], data["results"])
+        document = cli.verify(self.root, fixtures.fixture_extract)
+        with self.assertRaises(cli.UsageError):
+            cli.select(document, "loads-for", ["agent-authoring"])
+
     def test_verified_empty_is_success_with_explicit_scope(self):
         self.call("build")
         code, data, _ = self.call("query", "owner-of", "no-such-capability")

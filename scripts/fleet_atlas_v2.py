@@ -56,6 +56,8 @@ def select(document: VerifiedDocument, verb: str, terms: list[str]) -> tuple[Fac
         raise UsageError("a supported verb and nonempty search term are required")
     if len(" ".join(terms).encode("utf-8")) > 2048:
         raise UsageError("query terms exceed 2048 encoded bytes")
+    if verb == "loads-for" and len(terms) < 2:
+        raise UsageError("loads-for requires a skill and a predicate")
     if verb not in {"guidance", "loads-for", "governs", "state"} and len(terms) != 1:
         raise UsageError(f"{verb} requires one quoted term")
     graph = document.facts.graph
@@ -202,6 +204,7 @@ def main(argv: list[str] | None = None, loader: Callable = extraction) -> int:
         if args.command == "query":
             if (not args.terms or any(not term.strip() for term in args.terms)
                     or len(" ".join(args.terms).encode("utf-8")) > 2048
+                    or (args.verb == "loads-for" and len(args.terms) < 2)
                     or (args.verb not in {"guidance", "loads-for", "governs", "state"} and len(args.terms) != 1)):
                 raise UsageError("invalid query arguments")
         document = build(args.root, loader) if args.command == "build" else verify(args.root, loader)
