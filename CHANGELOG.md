@@ -14,7 +14,7 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   Two build scenarios now grade resuming after a partial helper return and withholding a reviewer
   when candidate instructions would auto-load.
 - `observability-engineer`, `reliability-engineer`, `reviewer`, `agent-engineer`, and
-  `sre-assistant` carry the same short handoff core, 1,837 bytes smaller across the five. Five build
+  `sre-assistant` carry the same short handoff core, 1,756 bytes smaller across the five. Five build
   probes give those lanes handoff coverage; main, the core, and a no-handoff control matched on
   every behavioral check.
 
