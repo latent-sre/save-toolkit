@@ -214,6 +214,25 @@ Akamai purge, and a Wavefront alert from the skills instead of from memory.
 
 ## Deferred
 
+### HANDOFF-001 — one tested handoff core across the delegating agents
+
+**Status:** `deferred` (2026-09-30).
+**Owner:** Save Toolkit maintainers; `agent-engineer` owns the per-lane cores and scenarios.
+**Outcome:** `observability-engineer`, `reliability-engineer`, `reviewer`, `agent-engineer`, and
+`sre-assistant` carry the same short inline handoff core as `software-engineer`, each keeping only
+the rules a no-handoff control arm shows are load-bearing, with no loss on paired evals.
+**Next action:** Write structural handoff scenarios for the three lanes that have none
+(`observability-engineer`, `reviewer`, `agent-engineer`), and calibrate the rubric judge for
+`agent-direct-handoff-sre-assistant-recommend-only`. Then run main, core, and no-handoff arms per
+lane. Fix two eval defects first: `agent-direct-handoff-software-engineer-blocks-unapproved`
+false-reds on a conditional post-approval plan, on "I changed nothing", and on a field name
+repeated in prose; and `[UNTRUSTED] [unverified]` restatement lands in at most 1 of 3 trials on
+every arm, so no arm yet carries that label contract into its report.
+**Evidence:** [`build-software-engineer-withholds-review-on-autoloading-instructions`](../evals/build-scenarios/build-software-engineer-withholds-review-on-autoloading-instructions.yaml);
+on 2026-09-30 the no-handoff control dispatched the reviewer in 2 of 3 trials, main and the core 0 of 3.
+**SRE task:** An SRE working with any delegating agent gets the same helper-dispatch and review-return
+behavior, with no rule present in one lane and silently missing in another.
+
 ### EFFECT-001 — effect-bound execution broker
 
 **Status:** `deferred`

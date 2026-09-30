@@ -6,6 +6,14 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ## [Unreleased]
 
+### Changed
+
+- `software-engineer` carries one short inline handoff core in place of three handoff sections,
+  plus six-pass fixes: a credential-values row, a test-integrity rule, a `database-reliability`
+  trigger, and one skill-trigger list. 25,847 -> 23,356 bytes, measured against main on Sonnet.
+  Two build scenarios now grade resuming after a partial helper return and withholding a reviewer
+  when candidate instructions would auto-load.
+
 ### Fixed
 
 - Follow-up PR review: CLI receipts cover discovery failures and pre-apply interruption; the
