@@ -4,18 +4,12 @@ These fictional examples teach claim boundaries; their numbers are not service d
 
 ## Retry duration with and without an overall deadline
 
-Local configuration permits three total attempts, each taking at most 12 seconds. Their timeout
-budgets sum to 36 seconds; that is not a bound on elapsed time or slot occupancy unless backoff,
-other work and resource-release behavior are also bounded. "Three retries" may instead mean four
-total attempts; resolve that contract before calculating. Keep these assumptions attached whenever
-reusing the result, including in a findings table.
-
-A 20-second overall deadline does not make a third attempt unreachable: early failures can allow
-all three attempts before it expires. Conversely, a caller returning at 20 seconds does not prove
-underlying work stopped or released a shared slot. Inspect deadline propagation and cancellation.
-Same-revision evidence of cancellation, slot release and protected unrelated work can close this
-particular resource-retention lead within the tested conditions. Without it, source can support a
-conditional risk; a dated, representative experiment is needed to claim observed impact or capacity.
+Local configuration permits three attempts of up to 12 seconds under a 30-second caller deadline.
+The per-attempt settings permit up to 36 seconds before backoff. That is a lead: inspect the caller,
+effective overrides and whether a shared deadline cancels the underlying request and releases
+resources. A 20-second overall cap with working cancellation can disprove this particular lead.
+Without those controls, source can support a conditional resource-retention risk. A dated,
+representative experiment is needed to claim the risk occurred or estimate affected capacity.
 
 An improvement must explain deadline propagation and resource release; naming a circuit breaker
 does not establish that it addresses this failure. Verify behavior while the dependency is slow
