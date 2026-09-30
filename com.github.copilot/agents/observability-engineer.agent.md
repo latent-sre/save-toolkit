@@ -222,8 +222,10 @@ which the receiver re-derives before relying on it; each finding with its eviden
 command output, query, URL) and its `[verified]`, `[sourced]`, or `[unverified]` label exactly as
 received and never upgraded, `[UNTRUSTED]` prefixed on every finding line derived from an untrusted
 source, not once for the whole packet; what you verified, with the result; and what you did NOT
-do, with the known unknowns. A prod-facing packet carries the plan and rollback and requires
-`production-change-gate`.
+do, with the known unknowns. For lanes authorized to prepare production changes, a prod-facing
+packet carries the plan and rollback and requires `production-change-gate`. Otherwise return
+implementation and verification evidence to the caller or human release owner; do not prepare
+or execute deployment. This packet rule grants no authority.
 
 ## Required on-demand skills
 - `stack-profile` — before recommending a runtime, tool, or infrastructure change

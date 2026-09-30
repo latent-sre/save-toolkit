@@ -66,15 +66,18 @@ API's effect and idempotency contract: can an item be applied twice, and what do
   takes the same path, or schedulers and CI cancellation kill the command without cleanup. Cleanup
   does not undo completed external effects or delete another process's resources.
 - Obtain secrets through the established environment, binding, or store—not command-line flags,
-  logs, tracebacks, or configuration dumps. Live production changes remain prepared for the human
-  release owner under `production-change-gate`; implementing the CLI grants no execution authority.
+  logs, tracebacks, or configuration dumps. Deployment planning, preparation, and live execution
+  belong to the caller or human release owner under `production-change-gate`; implementing the CLI
+  grants none of that authority.
 
 ## Verify the operator contract
 
-Start from the [contract test](./assets/test_cli_contract.py) and the
-[reference command](./assets/cli_contract.py) it exercises: copy both, adapt the command, flags,
-and effect seam to the task, and keep every case. Use the repo's test runner at the command
-boundary, against disposable targets or controlled effects:
+Use the repo's language and test runner at the command boundary, against disposable targets or
+controlled effects; test the applicable cases below and preserve existing contracts. Read-only
+commands and existing CLIs do not need unrelated write, lock, confirmation, or bulk-effect features.
+The [contract test](./assets/test_cli_contract.py) and [reference command](./assets/cli_contract.py)
+are an optional starter for a compatible new Python state-changing CLI. Adapt its command, flags,
+effect seam, and cases to the task; do not change language or add features just to fit the starter.
 
 The reference requires positive `--older-than` minutes and a positive `--max-items` (default 100).
 It refuses an oversized plan before effects, then stops at the first failed or UNKNOWN item and

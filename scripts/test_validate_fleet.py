@@ -173,6 +173,20 @@ class FleetValidatorTests(unittest.TestCase):
                 self.assertTrue(any("missing required tool(s)" in item and shell in item
                                     for item in failures), failures)
 
+    def test_builder_returns_release_work_without_preparing_it(self) -> None:
+        path = ROOT / "agents/software-engineer.md"
+        fields, body, _ = validate_fleet.adapters.parse_frontmatter(path)
+        description = _normalized(fields["description"])
+        authority = _markdown_section(Path("agents/software-engineer.md"), "## Effect authority")
+        skills = _markdown_section(Path("agents/software-engineer.md"), "## Required on-demand skills")
+        self.assertIn("deployment planning, preparation, and execution belong to the caller or human release owner", description)
+        self.assertIn("return implementation and verification evidence", authority)
+        self.assertIn("do not prepare or execute deployment", authority)
+        self.assertNotIn("prepare it — exact commands", authority)
+        self.assertNotIn("`production-change-gate`", skills)
+        self.assertIn("compatibility", body.lower())
+        self.assertIn("recovery", body.lower())
+
     def test_always_loaded_guide_keeps_conditional_authority_complete(self) -> None:
         guide = _normalized((ROOT / "AGENTS.md").read_text(encoding="utf-8"))
         self.assertIn(
