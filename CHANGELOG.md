@@ -15,7 +15,10 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   id can be trusted. The PCF deploy example's health step annotates every failure, including curl
   errors, bounds its total retry wait, and probes the readiness path; tests now fail if
   `--disable` or `--output /dev/null` is dropped, and a runner without PyYAML stops with a named
-  requirement instead of a traceback.
+  requirement instead of a traceback. `database-reliability` treats an executing plan of a
+  mutating statement on production as a live change even when rolled back, gives the two safe
+  NOT NULL orders separately, and no longer puts a short `lock_timeout` on `CREATE INDEX
+  CONCURRENTLY`, whose snapshot waits it would cancel into an INVALID index.
 - Follow-up PR review: CLI receipts cover discovery failures and pre-apply interruption; the
   CORS starter permits its authenticated API contract; deployment discovery stops on failure.
   DataStream rates separate client traffic, purge guidance preserves approved mandatory removal,
@@ -36,8 +39,9 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 - A correlation id with no trace id now routes to `obs-logs` instead of dead-ending in
   `obs-traces`, which had claimed the trigger while forbidding the skill that maps it. Two
   discovery scenarios cover the split.
-- `database-reliability` bounds every migration lock wait: PostgreSQL `lock_timeout` with retry
-  and cleanup only of an observed invalid index from the failed build; SQL Server
+- `database-reliability` bounds migration lock waits that can queue traffic: PostgreSQL
+  `lock_timeout` with retry, a long-transaction check before `CREATE INDEX CONCURRENTLY`, and
+  cleanup only of an observed invalid index from the failed build; SQL Server
   `WAIT_AT_LOW_PRIORITY` where allowed, otherwise `LOCK_TIMEOUT` with `XACT_ABORT ON` and
   explicit error handling and transaction cleanup before retry.
 - The `ci-actions` PCF production-deploy example runs only when a human dispatches it from `main`,
