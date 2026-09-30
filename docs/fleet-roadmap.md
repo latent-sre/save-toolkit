@@ -1,6 +1,6 @@
 # Fleet roadmap
 
-> **Status: live; refreshed 2026-09-07 against `ed321035`.** This is the only backlog.
+> **Status: live; working update 2026-09-30, integrated with `65daa521`.** This is the only backlog.
 > Historical records supply evidence, not new work or authorization. Cleanup does not close an
 > unresolved item, approve a model budget, or establish behavioral acceptance.
 
@@ -31,14 +31,16 @@ owns the lane and methods.
 **Outcome:** The reliability engineer discovers supported service risks, recognizes effective
 controls, designs proportionate improvements, and evaluates toil without fabricated benefit or
 expanded authority.
-**Next action:** Retain the native instrument repair and review the unaccepted JSON-only candidate.
+**Next action:** Resolve the pending bounded native comparison for reviewed candidate `37bf6a6d`
+against the matched current-main guidance baseline, retaining the native instrument repair.
 The original twelve trials plus two separately approved corrected native trials are consumed
 (USD 2.06 reported cost). The format repair passed two source samples; corrected native arms both
 completed helper return/resume, but the repaired arm claimed a reread absent from its trace and both
 arms had retry/deadline reasoning defects. Do not promote from structural PASS. The next source
-candidate clarifies actual-access provenance and conditional timing semantics; offline asset and
-scenario checks pass, but no model has exercised it. Complete source review, then select the exact
-integrated candidate and a new bounded behavioral decision. Preserve the impossible old native case
+candidate clarifies actual-access provenance and conditional timing semantics, including in the
+loaded skill entrypoint; independent source review, offline asset and scenario checks pass, but no
+model has exercised it. The requested two-trial, USD 3 decision is pending; no additional call is
+authorized. Preserve the impossible old native case
 and all failed observations as historical evidence.
 **Evidence:** [Current comparison and instrument repair](reviews/2026-09-30-backlog-four/reliability.md);
 the [lane decision](decisions/2026-09-21-reliability-engineer.md) retains its acceptance scope.
@@ -191,7 +193,7 @@ the existing 7,800-byte screen (the old list of three is obsolete):
 **Outcome:** Change, remediation, refresh, and retirement each have an owner who keeps the service
 record current or visibly marks it stale.
 **Next action:** Review and integrate both exact candidates: this consumer and the separate
-`sre-context` branch `work/lifecycle-001-status-projection` based on `be29c942` (seven unmerged
+`sre-context` candidate `3433f98e` on `work/lifecycle-001-status-projection`, based on `be29c942` (seven unmerged
 prerequisite commits ahead of refreshed producer main `903ac830`). The producer now projects
 service/deployment lifecycle and owners through immutable `v1alpha6`; the consumer rejects missing
 service lifecycle/owner fields. Then use the owner's selected service, environment and record

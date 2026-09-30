@@ -396,6 +396,39 @@ def test_fixture():
         self.assertEqual(ProofKind.NORMALIZED, facts['roadmap-item:GRAPH-004', 'attr.status'].proof.kind)
         self.assertEqual(ProofKind.NORMALIZED, facts['skill:a', 'state'].proof.kind)
 
+    def test_roadmap_state_cites_status_or_closure_and_rejects_missing_support(self):
+        source, result, graph = build({
+            'docs/fleet-roadmap.md': '# Roadmap\n### GRAPH-004 current\n\n**Status:** `active` (2026-09-30)\n**Outcome:** Find guidance.\n',
+            'docs/roadmap-closed.md': '# Closed roadmap\n\n| Item | Closed | Disposition |\n| `GRAPH-003` | 2026-09-29 | Completed |\n',
+        })
+        for subject, path, state, evidence_class in (
+            ('roadmap-item:GRAPH-004', 'docs/fleet-roadmap.md', 'live', EvidenceClass.CONTRACT),
+            ('roadmap-item:GRAPH-003', 'docs/roadmap-closed.md', 'historical', EvidenceClass.EXTRACTED),
+        ):
+            with self.subTest(subject=subject):
+                original = next(f for f in graph.facts if f.subject == subject and f.predicate == 'state')
+                determining = source.source(path).span(4, 4)
+                self.assertEqual(state, original.object)
+                self.assertEqual(evidence_class, original.evidence_class)
+                self.assertEqual(ProofKind.NORMALIZED, original.proof.kind)
+                self.assertIn(determining, original.proof.inputs)
+                omitted = tuple(p for p in original.proof.inputs if p != determining)
+                irrelevant = (source.source(path).span(1, 1),)
+                for inputs in (omitted, irrelevant):
+                    with self.subTest(inputs=inputs):
+                        if not inputs:
+                            # A closure row is the sole witness: removing it is
+                            # rejected at the immutable proof boundary itself.
+                            with self.assertRaisesRegex(ValueError, 'nonempty'):
+                                dataclasses.replace(original.proof, inputs=inputs)
+                            continue
+                        changed = dataclasses.replace(original,
+                            proof=dataclasses.replace(original.proof, inputs=inputs))
+                        candidate = dataclasses.replace(graph,
+                            facts=tuple(changed if f.id == original.id else f for f in graph.facts))
+                        with self.assertRaises(ValueError):
+                            verify_facts(candidate, source, result.predicates, result.evaluators)
+
     def test_scenario_subset_matches_yaml_identity_and_ignores_prompt_fixture_tokens(self):
         import yaml  # Test oracle only; the installed atlas runtime remains stdlib-only.
         from fleet_atlas_v2_extract import yaml_fields

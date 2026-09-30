@@ -95,3 +95,43 @@ reference. A synthetic walkthrough cannot substitute for those four actual owner
 No live reads/writes, paid model calls, deployments, commits, pushes, or acceptance were performed.
 The original producer worktrees and their source remain unchanged. Save Toolkit adapters are owned
 by the caller's final regeneration step.
+
+## Candidate checkpoint
+
+The previously verified producer bytes are now committed locally at
+`8316a220fabd5319974eacb77158a6a344f888cc` on `work/lifecycle-001-status-projection`.
+The branch is clean; no push or merge was performed. Its seven earlier compatibility commits
+remain prerequisites. Save Toolkit's candidate checkpoint is `c6a27d39`, subsequently integrated
+with main `65daa521` in `115f6f6c`; the post-integration verification checkout is `2ffc6151`.
+These commits make review targets stable and do not accept the generic alpha or real-service use.
+
+Independent read-only review approved the lifecycle source delta at producer `8316a220` against
+`be29c942`, and the consumer source at `37bf6a6d` against `41383e3d`. It confirmed separate target
+status/owner projection, the unchanged v1alpha5 reader, matching requirements, fixture/action
+boundaries, and accountable transition/date semantics. No concrete defect was found. This scoped
+approval does not silently approve the seven producer prerequisite commits against `903ac830`,
+nor establish operational acceptance. Runtime evidence remains the explicitly scoped checks above.
+
+## Prerequisite freshness defect and repair
+
+Review of the full producer integration from `903ac830` found a P2 in the existing freshness
+aggregation: checking only the oldest selected date allowed another selected record to be future
+dated. This contradicts the every-selected-object contract even though the current consumer's
+single deployment policy does not trigger it.
+
+The real checkout fixture has two selected repositories. With one date `2026-08-24`, another
+`2026-09-01`, a repository freshness policy of `P30D`, and `--as-of 2026-08-30`, the old code
+incorrectly returned success. New resolver subcases reproduced the failure with either repository
+carrying the future date; an actual module CLI invocation also returned 0 instead of 5. An initial
+test-helper argument omission was corrected before these three genuine failing assertions were
+recorded; it was not counted as a product failure.
+
+Producer commit `3433f98e53cb824d183c097ee433a0d35c374ee8` now rejects any future date before
+computing the oldest date and maximum age. Valid mixed dates still report age 6 from `2026-08-24`;
+future evidence returns exit 5 with empty stdout. All **95 producer tests** passed on Python
+3.12.10. The actual producer CLI cross-repository checks and consumer assets passed **24 tests
+and 91 subtests** from Save Toolkit `46abca05`. Source diff checks passed; the producer branch is
+clean and unpushed. This commit supersedes `8316a220` as the producer candidate. Independent
+read-only review approved the full scoped integration from `903ac830` through `3433f98e`, including
+all seven prerequisites and the freshness repair; no remaining concrete defect was found.
+Real-service records and transition acceptance remain unavailable.

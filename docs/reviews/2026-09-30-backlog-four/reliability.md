@@ -155,3 +155,34 @@ regression in the relocation; agent hash
 `b07e823fe001240edc5c1da5d331cb49fa3dd66c6dd95010123c7ef978e721fb`.
 [unverified] No model run has exercised this new source candidate. An exact integrated revision,
 a new bounded evaluation decision, and human acceptance remain open.
+
+## Prepared comparison on the integrated candidate
+
+The integrated candidate is frozen at `2ffc6151ae2847b1115a63d7954805d17c81c60e`, plugin digest
+`4d3ff1855ca2d947d1bf478fe7c9a0f2c08e445e353e7607f76f3f1a2f331005`, in
+`F:/iso-tmp/backlog-2ffc6151`. Independent static follow-up approved the scoped evidence-rule
+integration while retaining main's shortened handoff core; this is not native acceptance.
+
+The paired baseline is synthetic commit `cecadc1b`, rooted in the same candidate, with only the
+reliability agent and resilience worked contrast restored from current main `65daa521` and their
+adapters regenerated. Its plugin digest is
+`9029bc992be9d36272961d0969bd42ff44aa31dcc33953def636ee9ba878ee70`, at
+`F:/iso-tmp/reliability-baseline-2ffc6151`. Other plugin inputs and the corrected native scenario
+are matched. The comparison would measure the combined targeted corrections, not independently
+attribute effects to each sentence or establish a population reliability rate.
+
+A new owner decision was requested for one native trial per arm on `claude-sonnet-5-5`, no retries,
+synthetic evidence only, maximum USD 3 additional reported cost. It is pending; no new call has run.
+The earlier authorizations and failed observations remain unchanged.
+
+Before any new call, trace inspection confirmed that the failed repaired arm loaded the
+`resilience-analysis` Skill but never read its worked-contrasts reference. Therefore commit
+`37bf6a6d90e9f9ed5b25322213b2077992c1ad96` adds the essential timing distinctions to the loaded
+skill entrypoint as well. Its regenerated adapters and 11 asset tests / 89 subtests pass.
+The proposed candidate is now frozen at `F:/iso-tmp/reliability-candidate-37bf6a6d`, digest
+`dcbcf3eb964751f7eb5ae64cdf399470550d03b33523ed1c836e9a8c52e5bbcd`; it supersedes the prepared
+`2ffc6151` arm before execution. The same baseline remains valid: the only changed canonical
+plugin inputs are the reliability agent, resilience entrypoint and worked contrast. The pending
+budget remains two trials, the same model, no retries and maximum USD 3; no extra trial is implied.
+Independent read-only review approved the exact two-line entrypoint change and generated mirror
+at `37bf6a6d`; no concrete defect or authority expansion was found. This remains static approval.
