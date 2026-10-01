@@ -37,7 +37,7 @@ from app.runbooks import runbook_url
 
 INBOX = INBOX_SQL
 INSERT_INCIDENT = ("INSERT INTO incidents (id, title, service, status, runbook_url, created_at)"
-                   " VALUES (?, ?, ?, 'open', ?, ?)")
+                   " VALUES (?, ?, ?, INCIDENT_STATUS, ?, ?)")
 
 
 def _incident_args(event: dict, url: str) -> tuple:
@@ -119,18 +119,43 @@ HOUSE = {
                '                         " VALUES (?, ?, ?)", (event["event_id"], event["service"], event["summary"]))\n'
                '            conn.commit()'),
     "ACK_STATUS": "202",
+    "INCIDENT_STATUS": "'open'",
 }
+_INBOX = ('"CREATE TABLE IF NOT EXISTS pager_events ({cols}, service TEXT, summary TEXT{pk},'
+          ' status TEXT NOT NULL DEFAULT \'pending\')"')
+# name: (check that must fail, overrides, expected failure text)
 MUTANTS = {
-    # check that must fail: the one house rule the mutant breaks
-    "signature": {"SIGNATURE_REJECTS": "False"},
-    "fast_ack": {"ACCEPT": "_process_one(event)", "WORKER_ENABLED": "False"},
-    "accepted": {"ACK_STATUS": "200"},
-    "completes": {"WORKER_ENABLED": "False"},
-    "redelivery": {"INBOX_SQL": ('"CREATE TABLE IF NOT EXISTS pager_events (n INTEGER PRIMARY KEY AUTOINCREMENT,'
-                                 ' event_id TEXT, service TEXT, summary TEXT, status TEXT NOT NULL DEFAULT \'pending\')"'),
+    "no_signature_check": ("signature", {"SIGNATURE_REJECTS": "False"}, "signature ->"),
+    "signature_checked_after_processing": (
+        "signature",
+        {"SIGNATURE_REJECTS": ('(threading.Thread(target=_process_one, args=(json.loads(raw),), daemon=True).start()'
+                               ' or True) and not hmac.compare_digest(request.headers.get("x-pager-signature", ""),'
+                               ' expected)')},
+        "was stored or processed"),
+    "inline_processing": ("fast_ack", {"ACCEPT": "_process_one(event)", "WORKER_ENABLED": "False"},
+                          "needs a 2xx within"),
+    "status_200": ("accepted", {"ACK_STATUS": "200"}, "answers 202 Accepted"),
+    "no_worker": ("completes", {"WORKER_ENABLED": "False"}, "no incident titled"),
+    "incident_closed": ("completes", {"INCIDENT_STATUS": "'closed'"}, "must start open"),
+    "no_dedupe": ("redelivery",
+                  {"INBOX_SQL": _INBOX.format(cols="n INTEGER PRIMARY KEY AUTOINCREMENT, event_id TEXT", pk=""),
                    "ACCEPT": HOUSE["ACCEPT"].replace("INSERT OR IGNORE", "INSERT")},
-    "durable": {"ACCEPT": "threading.Thread(target=_process_one, args=(event,), daemon=True).start()",
-                "WORKER_ENABLED": "False"},
+                  "incidents; expected 2"),
+    "dedupe_by_summary": ("redelivery",
+                          {"INBOX_SQL": _INBOX.format(cols="event_id TEXT", pk=" PRIMARY KEY")},
+                          "incidents; expected 2"),
+    "in_memory_task": ("durable",
+                       {"ACCEPT": "threading.Thread(target=_process_one, args=(event,), daemon=True).start()",
+                        "WORKER_ENABLED": "False"},
+                       "had not stored it"),
+    "audit_row_only": ("durable",
+                       {"ACCEPT": ('with connect() as conn:\n'
+                                   '            conn.execute("CREATE TABLE IF NOT EXISTS webhook_audit (event_id TEXT)")\n'
+                                   '            conn.execute("INSERT INTO webhook_audit VALUES (?)", (event["event_id"],))\n'
+                                   '            conn.commit()\n'
+                                   '        threading.Thread(target=_process_one, args=(event,), daemon=True).start()'),
+                        "WORKER_ENABLED": "False"},
+                       "never turned it into an incident"),
 }
 
 
@@ -161,22 +186,13 @@ def test_house_reference_passes(tmp_path, check):
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-# Each mutant must fail for the rule it breaks, not because the app crashed.
-REASONS = {
-    "signature": "signature ->",
-    "fast_ack": "needs a 2xx within",
-    "accepted": "answers 202 Accepted",
-    "completes": "no incident titled",
-    "redelivery": "three deliveries of one event made",
-    "durable": "had not stored it",
-}
-
-
-@pytest.mark.parametrize("check", sorted(MUTANTS))
-def test_mutant_fails_its_check(tmp_path, check):
-    result = run(materialize(tmp_path, MUTANTS[check]), check)
+@pytest.mark.parametrize("name", sorted(MUTANTS))
+def test_mutant_fails_its_check(tmp_path, name):
+    # Each mutant must fail for the rule it breaks, not because the app crashed.
+    check, overrides, reason = MUTANTS[name]
+    result = run(materialize(tmp_path, overrides), check)
     assert result.returncode == 1, result.stdout + result.stderr
-    assert REASONS[check] in result.stdout, result.stdout + result.stderr
+    assert reason in result.stdout, result.stdout + result.stderr
 
 
 ENRICH_LATER = {

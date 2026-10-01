@@ -61,11 +61,11 @@ def free_port():
         return sock.getsockname()[1]
 
 
-def start():
-    """A runbook stub, then the app as a uvicorn subprocess on a fresh SQLite file."""
+def start(db=None):
+    """A runbook stub, then the app as a uvicorn subprocess on a SQLite file (fresh unless given)."""
     runbooks = ThreadingHTTPServer(("127.0.0.1", 0), _Runbooks)
     threading.Thread(target=runbooks.serve_forever, daemon=True).start()
-    db = os.path.join(tempfile.mkdtemp(prefix="webhook-probe-"), "probe.db")
+    db = db or os.path.join(tempfile.mkdtemp(prefix="webhook-probe-"), "probe.db")
     port = free_port()
     env = dict(os.environ, DB_PATH=db, PAGER_WEBHOOK_SECRET=SECRET, PYTHONDONTWRITEBYTECODE="1",
                RUNBOOK_BASE_URL="http://127.0.0.1:%d" % runbooks.server_address[1])
@@ -107,7 +107,7 @@ def deliver(base, event, signature="valid"):
 
 def incidents(db, title=None):
     with sqlite3.connect(db, timeout=10) as conn:
-        rows = conn.execute("SELECT title, service, runbook_url FROM incidents").fetchall()
+        rows = conn.execute("SELECT title, service, runbook_url, status FROM incidents").fetchall()
     return [r for r in rows if title is None or r[0] == title]
 
 
@@ -143,19 +143,23 @@ def is_problem(resp):
 
 
 def check_signature(proc, base, db):
+    refused = []
     for mode in ("forged", "missing"):
         event = new_event()
+        refused.append((mode, event))
         resp, _ = deliver(base, event, signature=mode)
         if resp.status_code not in (401, 403):
             fail("%s signature -> %d; expected 401 or 403" % (mode, resp.status_code))
         good, why = is_problem(resp)
         if not good:
             fail("%s-signature refusal is not problem+json: %s" % (mode, why))
-        time.sleep(1.0)
+    # Outlast any processing a faulty handler started before rejecting the signature.
+    time.sleep(RUNBOOK_DELAY + 3)
+    for mode, event in refused:
         where = stored_anywhere(db, event["event_id"])
         if where or incidents(db, event["summary"]):
-            fail("a %s-signature event was stored (table %s)" % (mode, where))
-    ok("forged and missing signatures -> refused as problem+json; nothing stored")
+            fail("a %s-signature event was stored or processed (table %s)" % (mode, where))
+    ok("forged and missing signatures -> refused as problem+json; nothing stored or processed")
 
 
 def check_fast_ack(proc, base, db):
@@ -189,28 +193,36 @@ def check_completes(proc, base, db):
         time.sleep(0.25)
     if not found:
         fail("no incident titled %r appeared within %.0fs" % (event["summary"], RUNBOOK_DELAY + 20))
-    title, service, url = found[0]
+    title, service, url, status = found[0]
     if service != "checkout" or url != expected:
         fail("within %.0fs the incident carries service %r and runbook link %r"
              % (RUNBOOK_DELAY + 20, service, url))
-    ok("incident created with its runbook link")
+    if status != "open":
+        fail("a new incident must start open; it is %r" % status)
+    ok("open incident created with its runbook link")
 
 
 def check_redelivery(proc, base, db):
+    # Dedupe must key on the event id: a different event with the same summary is a new incident.
     event = new_event()
+    sibling = dict(new_event(summary=event["summary"]))
     for attempt in range(3):
         resp, _ = deliver(base, event)
         if not 200 <= resp.status_code < 300:
             fail("delivery %d of one event -> %d; a redelivery is acknowledged too"
                  % (attempt + 1, resp.status_code))
         time.sleep(1.0)
+    resp, _ = deliver(base, sibling)
+    if not 200 <= resp.status_code < 300:
+        fail("a second event with the same summary -> %d" % resp.status_code)
     if not wait_for_incident(db, event["summary"]):
         fail("no incident appeared for the redelivered event")
-    time.sleep(RUNBOOK_DELAY + 3)
+    time.sleep(2 * RUNBOOK_DELAY + 3)
     count = len(incidents(db, event["summary"]))
-    if count != 1:
-        fail("three deliveries of one event made %d incidents" % count)
-    ok("three deliveries of one event -> one incident")
+    if count != 2:
+        fail("three deliveries of one event plus one different event with the same summary made %d "
+             "incidents; expected 2 (dedupe by event id)" % count)
+    ok("three deliveries of one event -> one incident; a different event id -> its own incident")
 
 
 def check_durable(proc, base, db):
@@ -224,7 +236,12 @@ def check_durable(proc, base, db):
     if where is None:
         fail("the app acknowledged the event (%d in %.1fs) but had not stored it when killed"
              % (resp.status_code, elapsed))
-    ok("event stored in %r before the acknowledgement" % where)
+    # Stored is not enough: restart on the same database and require the work to finish.
+    start(db)
+    if not wait_for_incident(db, event["summary"], seconds=RUNBOOK_DELAY + 25):
+        fail("the event was stored in %r but a restarted app never turned it into an incident: "
+             "the acknowledged work was not recoverable" % where)
+    ok("event stored in %r before the acknowledgement and recovered after a restart" % where)
 
 
 CHECKS = {

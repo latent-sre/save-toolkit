@@ -24,12 +24,51 @@ def ok(msg):
     sys.exit(0)
 
 
+# Server-side overlap control for the concurrency check: the first armed write waits inside the
+# write path until a second write arrives there (proving overlap) or 1.5 s pass (a serializing
+# implementation keeps the second request out, which is the correct outcome).
+GATE = {"armed": False, "inside": 0, "max_inside": 0, "first_in": threading.Event(),
+        "lock": threading.Lock(), "instrumented": False}
+
+
+def instrument_store():
+    """Wrap the fixture's store.create_incident before the app imports it."""
+    try:
+        import app.store as store
+    except Exception:
+        return
+    original = getattr(store, "create_incident", None)
+    if not callable(original):
+        return
+
+    def held(*args, **kwargs):
+        with GATE["lock"]:
+            GATE["inside"] += 1
+            GATE["max_inside"] = max(GATE["max_inside"], GATE["inside"])
+            first = GATE["armed"] and not GATE["first_in"].is_set()
+            if GATE["armed"]:
+                GATE["first_in"].set()
+        try:
+            if first:
+                deadline = time.monotonic() + 1.5
+                while time.monotonic() < deadline and GATE["max_inside"] < 2:
+                    time.sleep(0.01)
+            return original(*args, **kwargs)
+        finally:
+            with GATE["lock"]:
+                GATE["inside"] -= 1
+
+    store.create_incident = held
+    GATE["instrumented"] = True
+
+
 def start_app():
     """Run the real app under uvicorn on a free loopback port with a fresh SQLite file."""
     db = os.path.join(tempfile.mkdtemp(prefix="writes-probe-"), "probe.db")
     os.environ["DB_PATH"] = db
     sys.path.insert(0, os.getcwd())
     import uvicorn
+    instrument_store()
     from app.main import create_app
 
     with socket.socket() as sock:
@@ -47,7 +86,7 @@ def start_app():
 
 def rows(db):
     with sqlite3.connect(db, timeout=10) as conn:
-        return conn.execute("SELECT id, title, service FROM incidents ORDER BY created_at").fetchall()
+        return conn.execute("SELECT id, title, service, status FROM incidents ORDER BY created_at").fetchall()
 
 
 def post(base, body, key):
@@ -81,24 +120,29 @@ def check_create(base, db):
     body = created(post(base, BODY, str(uuid.uuid4())), "keyed create")
     if body.get("title") != BODY["title"] or body.get("service") != BODY["service"]:
         fail("create echoed the wrong incident: %s" % body)
+    if body.get("status") != "open":
+        fail("a new incident must start open; the response says %r" % body.get("status"))
     r = httpx.get(base + "/v1/incidents/" + body["id"], timeout=10)
     if r.status_code != 200 or r.json().get("title") != BODY["title"]:
         fail("created incident is not readable by id: %d %s" % (r.status_code, r.text[:200]))
-    if len(rows(db)) != 1:
-        fail("one create left %d rows" % len(rows(db)))
-    ok("keyed create -> 201 %s, readable by id" % body["id"])
+    stored = rows(db)
+    if len(stored) != 1:
+        fail("one create left %d rows" % len(stored))
+    if stored[0][3] != "open":
+        fail("the stored incident starts %r, not open" % stored[0][3])
+    ok("keyed create -> 201 %s, open, readable by id" % body["id"])
 
 
 def check_replay(base, db):
     key = str(uuid.uuid4())
     first = created(post(base, BODY, key), "first request")
     second = post(base, BODY, key)
-    if second.status_code != 201 or second.json().get("id") != first["id"]:
-        fail("resend -> %d %s; expected the first result (201, id %s)"
-             % (second.status_code, second.text[:200], first["id"]))
+    if second.status_code != 201 or second.json() != first:
+        fail("resend -> %d %s; expected the first result exactly (201, %s)"
+             % (second.status_code, second.text[:200], first))
     if len(rows(db)) != 1:
         fail("a resend with the same key left %d rows" % len(rows(db)))
-    ok("resend replayed %s without a second row" % first["id"])
+    ok("resend replayed %s exactly, without a second row" % first["id"])
 
 
 def check_replay_header(base, db):
@@ -144,28 +188,30 @@ def check_missing_key(base, db):
 
 def check_concurrent(base, db):
     key = str(uuid.uuid4())
-    barrier = threading.Barrier(2)
     results = []
 
     def send():
-        barrier.wait()
         try:
             results.append(post(base, BODY, key))
         except Exception as exc:
             results.append(exc)
 
-    threads = [threading.Thread(target=send) for _ in range(2)]
-    for t in threads:
-        t.start()
-    for t in threads:
+    # Send the second request only once the first is provably inside the write path, uncommitted.
+    GATE["armed"] = True
+    first = threading.Thread(target=send)
+    first.start()
+    overlap = GATE["instrumented"] and GATE["first_in"].wait(15)
+    second = threading.Thread(target=send)
+    second.start()
+    for t in (first, second):
         t.join(30)
     errors = [r for r in results if isinstance(r, Exception)]
     if errors or len(results) != 2:
         fail("overlapping requests did not both return: %s" % (errors or results))
     if len(rows(db)) != 1:
         fail("two overlapping requests with one key left %d rows" % len(rows(db)))
-    ids = {r.json().get("id") for r in results if r.status_code == 201}
-    if len(ids) != 1:
+    bodies = [created(r, "an overlapping request") for r in results if r.status_code == 201]
+    if not bodies or len({b["id"] for b in bodies}) != 1:
         fail("overlapping requests returned %s; at least one 201 and one id expected"
              % [r.status_code for r in results])
     for r in results:
@@ -175,7 +221,9 @@ def check_concurrent(base, db):
                 fail("the in-progress 409 is not problem+json: " + why)
         elif r.status_code != 201:
             fail("an overlapping request -> %d; expected 201 or an in-progress 409" % r.status_code)
-    ok("overlapping requests -> %s, one row" % sorted(r.status_code for r in results))
+    how = ("second request sent while the first was inside store.create_incident" if overlap
+           else "overlap not instrumented: the app does not write through store.create_incident")
+    ok("overlapping requests -> %s, one row (%s)" % (sorted(r.status_code for r in results), how))
 
 
 def check_distinct_keys(base, db):

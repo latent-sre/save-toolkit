@@ -15,8 +15,9 @@ datastore, auth and native tests.
   `Retry-After`. Say in the problem `type` which case applies.
 - Scope keys to the authenticated caller or tenant and to the operation. Authorize every attempt,
   replays included. Fingerprint the normalized, validated intent: payload, target and API version.
-- Return the committed identity and the documented replay status, body and headers; flag a replay
-  with `Idempotent-Replayed: true`, as the OpenAPI starter does. While the first
+- Return the committed identity and the documented replay status, body and headers. A project
+  contract's own replay indicator wins; with the OpenAPI starter or no existing indicator, flag a
+  replay with `Idempotent-Replayed: true`. While the first
   request is pending, wait for a bounded time or return an explicit in-progress response; never
   claim completion before commit. Store replay-safe business data only, never credentials, session
   cookies or per-attempt trace headers.
