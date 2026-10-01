@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -91,6 +92,15 @@ An old aggregate cannot establish current recovery. Keep the observation time an
 
 The atlas locates canonical guidance; it is not live service evidence.
 """,
+    "evals/scenarios/incident-reader-not-fire.yaml": """id: incident-reader-not-fire
+target: {kind: skill, name: incident-investigation}
+mode: direct
+routing:
+  expect: not_fire
+  expected_alternative: {kind: agent, name: investigation-reader}
+prompt: |
+  Discuss weekend hobbies with no operational question.
+""",
 }
 
 
@@ -153,6 +163,13 @@ class WorkflowTests(unittest.TestCase):
                             for item in result["results"]),
                         "reference changes must reach an agent that explicitly selects its owning skill")
         self.assertTrue(all(item["citations"] for item in edges))
+
+    def test_impact_includes_recorded_negative_routing_regression(self):
+        result = self.result("impact", "incident-investigation")
+        near_miss = [item for item in result["results"] if item["predicate"] == "near_miss_for"]
+        self.assertTrue(near_miss, "a routing description change must surface recorded not_fire regressions")
+        self.assertEqual(["scenario:incident-reader-not-fire"],
+                         sorted(item["subject"] for item in near_miss))
 
     def test_recorded_owner_and_roadmap_evidence_are_resolvable(self):
         owner = self.result("owner-of", "fleet-atlas")

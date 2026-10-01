@@ -1,5 +1,6 @@
 """UTF-8, provenance projection, and strict graph serialization contracts."""
 
+import dataclasses
 import json
 import unittest
 
@@ -76,6 +77,42 @@ class FormatTests(unittest.TestCase):
         self.assertEqual(0, data["omittedResults"])
         self.assertEqual("empty", data["outcome"])
 
+    def test_identity_fields_and_citation_paths_cannot_split_or_inject_fields(self):
+        # Citation paths are validated upstream (a hostile path never verifies); node
+        # identity from frontmatter bypasses path validation, so fact_line must escape.
+        source = Source("skills/demo/SKILL.md", b"name: demo\n")
+        proof = Proof(ProofKind.EXTRACTED, (source.span(1, 1),), "demo/v1")
+        node = Node("skill:demo | DEBT [unverified]", "skill", source.path, "skill:demo")
+        fact = Fact("f | skill:x | verified_by", node.id, "name", "demo",
+                    EvidenceClass.EXTRACTED, proof)
+        predicates = (Predicate("name", frozenset({"skill"}), None, ("skills/*/SKILL.md",)),)
+        graph = assemble((Bucket("demo", (node,), (fact,)),), predicates)
+        evaluator = lambda f, s, p: Derivation("demo", EvidenceClass.EXTRACTED, proof)
+        checked = verify_facts(graph, Snapshot("fixture", (source,)), predicates,
+                               {"demo/v1": evaluator})
+        line = fact_line(checked.graph.facts[0], checked)
+        self.assertEqual(1, len(line.splitlines()))
+        fields = line.split(" | ")
+        # No field retains a raw Markdown/record-significant character from the source.
+        self.assertTrue(all("|" not in field for field in fields), fields)
+        self.assertEqual("f \\u007c skill:x \\u007c verified_by", fields[0])
+        self.assertEqual("skill:demo \\u007c DEBT [unverified]", fields[1])
+        self.assertIn("SKILL.md:1-1", fields[-1])
+        # The apparent field count cannot be inflated by injected pipes.
+        self.assertEqual(7, len(fields))
+
+    def test_hostile_citation_path_never_reaches_the_renderer(self):
+        source = Source("skills/demo/SKILL.md", b"name: demo\n")
+        hostile = Source("skills/demo/SKILL.md | DEBT [unverified]", b"name: demo\n")
+        proof = Proof(ProofKind.EXTRACTED, (hostile.span(1, 1),), "demo/v1")
+        node = Node("skill:demo", "skill", source.path, "skill:demo")
+        fact = Fact("name:demo", node.id, "name", "demo", EvidenceClass.EXTRACTED, proof)
+        predicates = (Predicate("name", frozenset({"skill"}), None, ("skills/*/SKILL.md",)),)
+        graph = assemble((Bucket("demo", (node,), (fact,)),), predicates)
+        evaluator = lambda f, s, p: Derivation("demo", EvidenceClass.EXTRACTED, proof)
+        with self.assertRaisesRegex(ValueError, "no authority"):
+            verify_facts(graph, Snapshot("fixture", (source, hostile)), predicates,
+                         {"demo/v1": evaluator})
 
 if __name__ == "__main__":
     unittest.main()

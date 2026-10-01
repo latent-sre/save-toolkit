@@ -128,6 +128,12 @@ def whole(source: Source) -> tuple[Span, ...]:
     return (source.span(1, len(source.lines)),)
 
 
+# Full YAML block-scalar header: style character plus any chomping (+/-) and
+# indentation (1-9) indicators. A missed indicator leaves prompt content parsing
+# as top-level keys, which could fabricate routing or verification identity.
+BLOCK_SCALAR = re.compile(r'^[|>][+-]?[1-9]?[+-]?$')
+
+
 def yaml_fields(source: Source, frontmatter=False):
     if frontmatter:
         parsed = fleet_frontmatter.parse(source.text, source.path, mode='lenient')
@@ -151,7 +157,7 @@ def yaml_fields(source: Source, frontmatter=False):
         while stack[-1][0] >= indent:
             stack.pop()
         parent, value = stack[-1][1], value.strip()
-        if value in ('|', '|-', '>', '>-'):
+        if BLOCK_SCALAR.fullmatch(value):
             block_indent = indent
         elif not value:
             parent[key] = {}

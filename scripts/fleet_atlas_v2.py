@@ -111,7 +111,10 @@ def select(document: VerifiedDocument, verb: str, terms: list[str]) -> tuple[Fac
     if verb == "impact":
         # Follow declared dependents backwards, then include their verification and
         # evidence attachments. Every returned edge explains why it is included.
-        dependent_relations = {"depends_on", "loads_when", "governed_by", "generated_from", "cites"}
+        # near_miss_for is a recorded negative routing regression: a description
+        # change on the target must surface the scenario that asserts non-firing.
+        dependent_relations = {"depends_on", "loads_when", "governed_by", "generated_from",
+                               "cites", "near_miss_for"}
         seen = set(selected)
         result: dict[str, Fact] = {}
         while True:

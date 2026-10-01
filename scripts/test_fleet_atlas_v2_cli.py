@@ -261,6 +261,9 @@ class RealCliFailureTests(unittest.TestCase):
             for path in [*runtime.glob("fleet_atlas_v2*.py"), runtime / "fleet_frontmatter.py"]:
                 shutil.copyfile(path, scripts / path.name)
             (root / "README.md").write_bytes(b"# Runtime error fixture\n")
+            # The fixture's own interpreter bytecode is an untracked canonical input;
+            # like the real repository's .gitignore, exclude it so builds verify.
+            (root / ".gitignore").write_bytes(b"__pycache__/\n*.pyc\n")
 
             def git(*args):
                 subprocess.run(["git", *args], cwd=root, check=True, capture_output=True)

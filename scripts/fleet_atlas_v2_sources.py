@@ -1,7 +1,7 @@
 """Closed, revision-bound source snapshots for the fleet knowledge atlas.
 
 Reads Git objects and repository files; never imports or executes inspected sources.
-Untracked files and generated atlas output do not enter the corpus.
+Generated atlas output never enters the corpus; untracked canonical inputs fail closed.
 """
 
 from __future__ import annotations
@@ -133,17 +133,23 @@ def read_revision(root: Path, revision: str) -> Snapshot:
 
 
 def current_snapshot(root: Path) -> Snapshot:
-    """Refuse modified tracked inputs, including index changes and removed inputs."""
+    """Refuse modified tracked inputs and untracked canonical inputs alike."""
     before = git(root, "rev-parse", "HEAD").decode().strip()
     # -z --name-only avoids display quoting, spaces and rename-arrow ambiguity.
     changes = git(root, "diff", "--no-renames", "--name-only", "-z", "HEAD", "--").split(b"\0")
-    dirty = [raw.decode("utf-8") for raw in changes if raw and is_source(raw.decode("utf-8"))]
+    # Tracked diffs omit a newly created, never-added canonical file, which would
+    # otherwise yield a verified snapshot that silently drops that guidance.
+    untracked = git(root, "ls-files", "--others", "--exclude-standard", "-z").split(b"\0")
+    dirty = [raw.decode("utf-8") for raw in changes + untracked
+             if raw and is_source(raw.decode("utf-8"))]
     if dirty:
         raise ValueError(f"dirty canonical inputs: {sorted(dirty)}")
     snapshot = read_revision(root, before)
     after = git(root, "rev-parse", "HEAD").decode().strip()
-    changes_after = git(root, "diff", "--no-renames", "--name-only", "-z", "HEAD", "--")
-    if before != after or changes_after != b"\0".join(changes):
+    changed_after = git(root, "diff", "--no-renames", "--name-only", "-z", "HEAD", "--")
+    untracked_after = git(root, "ls-files", "--others", "--exclude-standard", "-z")
+    if (before != after or changed_after != b"\0".join(changes)
+            or untracked_after != b"\0".join(untracked)):
         raise ValueError("repository changed while reading atlas inputs")
     return snapshot
 

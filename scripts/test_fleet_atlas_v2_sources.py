@@ -75,14 +75,26 @@ class GitSourceTests(unittest.TestCase):
 
     def test_tracked_only_and_no_generated_feedback(self):
         snapshot = current_snapshot(self.root)
-        self.write("skills/untracked/SKILL.md", "untracked must not enter\n")
+        self.write("history-not-in-corpus/untracked.txt", "outside corpus may stay untracked\n")
         self.assertEqual(snapshot, current_snapshot(self.root))
         self.write("docs/fleet-atlas/v2/atlas.json", "{}\n")
+        self.assertEqual(snapshot, current_snapshot(self.root),
+                         "generated atlas output stays outside the corpus even untracked")
         self.run_git("add", "docs/fleet-atlas/v2/atlas.json")
         self.run_git("commit", "-qm", "generated only")
         current = current_snapshot(self.root)
         self.assertEqual(snapshot.tree_digest, current.tree_digest)
         verify_revision(self.root, snapshot.revision, current)
+
+    def test_untracked_canonical_input_fails_closed(self):
+        self.write("skills/untracked/SKILL.md", "untracked must not verify\n")
+        with self.assertRaisesRegex(ValueError, "dirty canonical"):
+            current_snapshot(self.root)
+        self.run_git("add", "skills/untracked/SKILL.md")
+        with self.assertRaisesRegex(ValueError, "dirty canonical"):
+            current_snapshot(self.root)
+        self.commit("add skill")
+        current_snapshot(self.root)
 
     def test_dirty_staged_deleted_and_renamed_inputs_fail_closed(self):
         self.write("README.md", "changed\n")

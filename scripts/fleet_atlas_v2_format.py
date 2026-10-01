@@ -129,16 +129,31 @@ def fact_line(fact: Fact, checked: VerifiedFacts) -> str:
     record = fact_record(fact, checked)
     # JSON escaping preserves newlines/control characters without permitting a source
     # value to introduce a second fact line, Markdown heading, or evidence label.
+    # Every projected field is escaped: a Markdown-significant path or identity must
+    # not split record fields or visually inject a class, label, or citation.
+    # Per-character escaping; canonical_bytes would wrap the whole value in quotes.
+    # Unicode controls/separators get JSON escapes; Markdown/record-significant
+    # characters (| < >) need an explicit \uXXXX escape because json.dumps leaves
+    # them literal, which would let them split the pipe-delimited record.
     def inline(value):
-        encoded = canonical_bytes(value).decode().strip()
-        return "".join(json.dumps(char, ensure_ascii=True)[1:-1] if unsafe_identifier(char) else char
-                       for char in encoded)
+        out = []
+        for char in str(value):
+            if char in '|<>':
+                out.append(f"\\u{ord(char):04x}")
+            elif unsafe_identifier(char):
+                out.append(json.dumps(char, ensure_ascii=True)[1:-1])
+            else:
+                out.append(char)
+        return "".join(out)
 
+    identity = inline(record["id"])
+    subject = inline(record["subject"])
+    predicate = inline(record["predicate"])
     value = inline(record["object"])
     qualifier = inline(record["qualifiers"])
-    where = ", ".join(f"{span['path']}:{span['start']}-{span['end']}"
+    where = ", ".join(f"{inline(span['path'])}:{span['start']}-{span['end']}"
                       for span in record["citations"])
-    return (f"{fact.id} | {fact.subject} | {fact.predicate} | {value} | {qualifier} | "
+    return (f"{identity} | {subject} | {predicate} | {value} | {qualifier} | "
             f"{record['class']} [{record['label']}] | {where}")
 
 
