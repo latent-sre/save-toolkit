@@ -1,8 +1,8 @@
 # Python environment and checks
 
-Read before selecting an interpreter, installing development tools, or running checks. The existing
-project workflow wins; `stack-profile` supplies defaults where none exists. uv manages Python
-versions, environments, and packages; it does not replace the Python interpreter or prove a refactor.
+Read when the interpreter, dependency environment, or check workflow needs establishing or changing.
+Use the target project's workflow and supported versions; a script, application, and published
+library need not use the same package manager, test runner, or dependency policy.
 
 ## Bind the environment before the baseline
 
@@ -10,29 +10,20 @@ Inspect the runtime floor, CI matrix, `.python-version`, manifests, lock/constra
 existing virtual environment. A developer's newest Python is not necessarily a supported target.
 Record the selected interpreter's `sys.executable` and `sys.version`; run baseline and candidate
 checks through that same environment. Bare `python`, `py`, `pip`, and an editor may select different
-installations. Use `python -m pytest` through the verified interpreter rather than an unrelated
-`pytest` on PATH. Verify changed syntax on the component's actual runtime floor too.
+installations. Invoke the project's test runner through the intended environment; for pytest,
+`<verified-python> -m pytest` avoids an unrelated `pytest` on PATH. Verify changed syntax on the
+component's actual runtime floor too, including any isolated standard-library-only entrypoints.
 
 | Existing workflow | Use | Preserve |
 |---|---|---|
-| uv project with `pyproject.toml` and `uv.lock` | `uv run --locked python -m pytest`, with the project's test paths/options | Required extras/groups and locked dependencies; a missing/stale lock is an error to resolve explicitly |
+| uv project with `pyproject.toml` and `uv.lock` | `uv run --locked <project-check-command>` | Required extras/groups and locked dependencies; a missing/stale lock is an error to resolve explicitly |
 | Requirements and constraints | Create/reuse a project venv, install the intended requirements set with `uv pip install --python <venv-python> -r <requirements-file>`, then run that interpreter | Constraints, markers, indexes, and separate test/development requirements |
 | Poetry, another manager, or a supplied environment | The repository's documented commands | Do not migrate the package manager as part of cleanup |
 
-For a Windows project that explicitly requires Python 3.14, with no existing venv:
-
-```powershell
-uv venv --python 3.14 .venv
-uv pip install --python .venv\Scripts\python.exe -r requirements-test.txt
-.venv\Scripts\python.exe -c "import sys; print(sys.executable); print(sys.version)"
-.venv\Scripts\python.exe -m pytest -q
-```
-
-Choose the project's actual version and requirements file; on POSIX use `.venv/bin/python`.
 Reuse an existing matching environment rather than recreating it. Install/download only within
-the task's authority; absence of the required interpreter is a gap, not a reason to test a substitute.
+the task's authority; absence of a required interpreter is a gap, not evidence from a substitute.
 
-## Keep environment changes visible
+## When using uv
 
 - `uv run` normally locks and syncs before running. `--locked` prevents a lockfile rewrite and
   checks freshness, but can still change the environment. `--frozen` skips the freshness check;
@@ -50,11 +41,9 @@ the task's authority; absence of the required interpreter is a gap, not a reason
 
 ## Compare useful evidence
 
-Run affected tests plus the configured lint/type checks before and after the change. Preserve
-baseline failures as named gaps; do not silence rules, weaken annotations, or broadly rewrite tests
-to make the new result green. Tests coupled to changed internals may move with them; preserve the
-behavioral assertions, including coverage of existing callers. Test relevant failure paths, then the appropriate
-broader suite. Report tool/interpreter versions when they change the result.
+Preserve baseline failures as named gaps. An environment or dependency change can explain a
+different test result; distinguish it from the source change. Report tool/interpreter versions
+when they affect the conclusion, and do not weaken checks to conceal a regression.
 
 [sourced] [uv project locking and syncing](https://docs.astral.sh/uv/concepts/projects/sync/),
 [environment selection](https://docs.astral.sh/uv/pip/environments/), and

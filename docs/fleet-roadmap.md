@@ -256,6 +256,57 @@ offline test results do not establish human acceptance or live operational truth
 **Evidence:** [Design recovery and compatibility contract](reviews/2026-09-30-backlog-four/graph-004.md).
 **SRE task:** Trust atlas citations, ownership, freshness and missing-result distinctions while navigating guidance.
 
+### EVAL-010 — choose the rubric judge by a calibration bake-off
+
+**Status:** `decision-needed` (2026-09-30). This item authorizes no dependency change, model run, or
+API spend.
+**Owner:** Maintainers approve any new dependency, the API budget, and the credential used;
+`agent-engineer` runs the bake-off with independent review.
+**Outcome:** The rubric judge is the one that best agrees with the human-labelled calibration corpus
+at equal or lower cost. Either `evals/judge.py` stays, or a library judge replaces its model-call
+half under a new ADR that amends the judge contract.
+**Next action:**
+
+1. Thicken the thinnest calibration sets first. `mitigation_recommendation` and
+   `compromise_preserves_evidence` have three labelled cases each (one pass, two fail). At the 0.95
+   agreement threshold that means 3/3, which cannot separate two judges. New cases change the corpus
+   digest, so the current judge must be recalibrated too.
+2. Recalibrate the current judge on the thickened corpus with the repository `.venv` interpreter.
+   The execution identity records the Python version, so a receipt made under one interpreter is
+   rejected under another.
+3. Score the same corpus with the same judge model and rubric text through two candidates:
+   - Inspect AI's `model_graded_qa` scorer (already pinned: `inspect-ai==0.3.263` in
+     `requirements-dev.txt`);
+   - Pydantic Evals' LLM-judge evaluator (`pydantic-evals`, a new dependency with six runtime
+     dependencies).
+
+   Report per-rubric agreement, inconclusive judgments, cost, and the lines of `judge.py` each would
+   replace.
+4. Adopt a candidate only if it matches the current judge on every rubric and removes code or cost.
+
+Limits that hold whichever judge wins:
+- Both candidates call a provider API with an API key. The current judge runs `claude -p` in the
+  clean room on subscription authentication.
+- Structural checks stay deterministic in `evals/graders.py`; a library takes only the rubric half.
+- Few-shot examples inside a library's judge prompt are not calibration evidence.
+
+Surveyed on 2026-09-30 and left out of the comparison:
+- OpenAI Evals (`evals`): last PyPI release two years ago, and OpenAI-centric.
+- DeepEval: 15 runtime dependencies, including an analytics client. Whether its telemetry is on by
+  default is unconfirmed.
+- OpenEvals: requires `langchain`, `langchain-openai`, and `langsmith`. Reconsider it only for
+  LLM-judged agent tool-call trajectories, which the build probes grade deterministically today.
+
+**Evidence:** [Judge contract](decisions/2026-09-01-rubric-judge-evaluation-contract.md).
+- The last accepted calibration receipt (2026-09-23, `claude-sonnet-5`) covers 164 labelled cases
+  across eleven rubrics. Every rubric was at or above 0.95 agreement; the run made 19 live calls for
+  USD 0.51.
+- That receipt still binds on `65daa521` under the `.venv` Python 3.14.7, and is rejected under
+  3.12.10.
+- Sixteen scenarios carry rubric checks.
+**SRE task:** Trust an agent's mitigation recommendation or suspected-compromise escalation because a
+judge proven against human-labelled cases graded it, not because its scenario went unrun.
+
 ## Deferred
 
 ### HANDOFF-002 — restated helper claims keep their labels, and the handoff graders stop false-redding

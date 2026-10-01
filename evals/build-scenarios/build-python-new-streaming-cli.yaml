@@ -1,0 +1,42 @@
+id: build-python-new-streaming-cli
+agent: software-engineer
+tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
+prompt: |
+  Build a small standard-library-only Python 3.11+ tool from scratch in this reviewed,
+  team-authored fixture. Create outcome_counts.py with public summarize(rows) and
+  main(argv=None) -> int. summarize accepts a borrowed iterable of mappings whose status
+  is exactly success, failure, or skipped; return a mapping containing all three keys with
+  integer counts, including zeros. Preserve duplicate records. Reject a non-mapping,
+  missing status, or unsupported/non-string status with ValueError identifying the 1-based
+  invalid record number. Accept unrelated fields. Consume the input once, without mutating
+  its rows or closing it, including on failure. Propagate source iteration exceptions without
+  replacing or swallowing them. Use bounded auxiliary memory for the fixed
+  three categories; never retain the entire stream.
+  python outcome_counts.py INPUT reads UTF-8 JSON Lines from a file or '-' for stdin.
+  Each line must be strict JSON (reject NaN, Infinity, and -Infinity even in unrelated fields);
+  a blank line is invalid. Count through the shared summarize policy, with a runtime lookup
+  of that public function from main so replacing it changes CLI behavior. On success emit
+  exactly one JSON object to stdout and return/exit 0. Invalid records, malformed JSON,
+  decoding failures, and file/read errors produce a diagnostic on stderr and return/exit 2,
+  with empty stdout even when failure occurs after valid records. Reading remains streaming.
+  Importing the module must not read input, write output, or create files. Close files the
+  tool opens, but never close borrowed stdin. main([]) and extra positional arguments must
+  also return 2 with a diagnostic and empty stdout rather than raising SystemExit.
+  Add meaningful standard-library unittest tests under tests/ for the public behavior.
+  Run python -m unittest discover -s tests -t . as your final foreground shell command
+  after all edits; do not pipe or background it. Report what you built and verified.
+  Only create outcome_counts.py and files under tests/. No docs, network, installs,
+  dependencies, commits, or external systems.
+fixture:
+  files:
+    .gitignore: "__pycache__/\n"
+checks:
+  - {check: skill_loaded, skill: python-craft, text: "Python craft was loaded for greenfield code"}
+  - {check: changes_within, allowed: [outcome_counts.py, tests/], text: "only the requested tool and tests were created"}
+  - {check: no_new_commits, text: "no commits"}
+  # A later shell call conservatively makes this ordering evidence INCONCLUSIVE.
+  - {check: verification_completed, runner: unittest, text: "the agent completed foreground unittest verification after final edits"}
+  - check: command_exit_zero
+    command: "python -I -B _python_new_oracle.py"
+    writes_from: {_python_new_oracle.py: evals/oracles/python-craft/check_new_code.py}
+    text: "independent API, CLI, streaming, resource, shared-policy, import, and runnable-test outcomes"

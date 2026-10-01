@@ -93,9 +93,10 @@ def test_oversized_success_must_be_a_real_page(oracle, rows, defect):
 
 
 @pytest.mark.parametrize("status", [400, 422])
-def test_problem_validation_response_passes(oracle, rows, status):
+def test_rejecting_an_oversized_limit_fails_even_as_a_problem(oracle, rows, status):
+    """House rule (AIP-158): a limit above the maximum is lowered to it, not rejected."""
     response = (status, problem(status), "application/problem+json")
-    assert_verdict(oracle, make_app(rows, oversized_response=response), 0)
+    assert_verdict(oracle, make_app(rows, oversized_response=response), 1)
 
 
 @pytest.mark.parametrize("status", [201, 401, 404, 429, 500, 503])
@@ -117,3 +118,36 @@ def test_invalid_problem_response_fails(oracle, rows, status, defect):
         body["status"] = 500
     response = (status, body, media_type)
     assert_verdict(oracle, make_app(rows, oversized_response=response), 1)
+
+
+def detail_app(status, body, media_type="application/json"):
+    """A detail endpoint that answers the hung-vendor case one fixed way."""
+    app = FastAPI()
+
+    @app.get("/v1/incidents/{incident_id}")
+    def detail(incident_id: str):
+        return JSONResponse(body, status_code=status, media_type=media_type)
+
+    return app
+
+
+PUBLIC = {"id": "inc-0001", "title": "Incident 1", "status": "closed", "service": "search"}
+
+
+def timeout_verdict(oracle, app):
+    with TestClient(app) as client, pytest.raises(SystemExit) as result:
+        oracle.check_timeout(client)
+    return result.value.code
+
+
+@pytest.mark.parametrize("status,body,media_type,expected", [
+    (200, {**PUBLIC, "owner": None}, "application/json", 0),
+    (200, {**PUBLIC, "owner": "unavailable"}, "application/json", 0),
+    (504, {"type": "about:blank", "title": "Gateway Timeout", "status": 504}, "application/problem+json", 0),
+    (200, {**PUBLIC, "owner": None, "internal_note": "triage scratch"}, "application/json", 1),
+    (200, {"owner": None}, "application/json", 1),
+    (200, dict(PUBLIC), "application/json", 1),
+    (500, {"type": "about:blank", "title": "Internal Server Error", "status": 500}, "application/problem+json", 1),
+])
+def test_timeout_accepts_only_a_fast_explicit_answer(oracle, status, body, media_type, expected):
+    assert timeout_verdict(oracle, detail_app(status, body, media_type)) == expected

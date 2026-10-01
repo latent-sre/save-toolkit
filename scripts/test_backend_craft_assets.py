@@ -409,13 +409,14 @@ def test_problem_assertion_rejects_wrong_media_type_or_http_status(media_type, s
 def test_starter_urls_and_page_shape_match_the_house_contract():
     schema = yaml.safe_load((ASSETS / "openapi.starter.yaml").read_text(encoding="utf-8"))
     base = urlsplit(schema["servers"][0]["url"]).path.rstrip("/")
-    assert {base + path for path in schema["paths"]} == {"/healthz", "/readyz", "/v1/incidents"}
+    assert {base + path for path in schema["paths"]} == {"/health/live", "/health/ready", "/v1/incidents"}
+    assert not any(path.endswith("z") for path in schema["paths"]), "Cloud Run reserves some paths ending in z"
     page = schema["components"]["schemas"]["IncidentPage"]
     assert set(page["required"]) == {"data", "next_cursor"}
 
 
 @pytest.mark.parametrize("field,accepted,rejected", [
-    ("limit", [1, 50, 200], [-1, 0, 201]),
+    ("limit", [1, 50, 200, 201, 100000], [-1, 0]),   # above 200 is lowered by the server, not rejected
     ("cursor", ["a", "x" * 2048], ["", "x" * 2049]),
     ("idempotency_key", ["a", "x" * 255], ["", "x" * 256]),
     ("title", ["a", "x" * 200], ["", "x" * 201]),
@@ -610,7 +611,8 @@ def test_cors_wrapper_loads_and_exposes_only_allowed_unhandled_errors(monkeypatc
     async def incidents(request: Request):
         assert request.headers["Authorization"] == "Bearer test-token"
         return JSONResponse({"data": [], "next_cursor": None}, headers={
-            "X-RateLimit-Limit": "100", "X-RateLimit-Remaining": "99", "X-RateLimit-Reset": "12345",
+            "RateLimit-Policy": '"default";q=100;w=60', "RateLimit": '"default";r=99;t=30',
+            "X-RateLimit-Limit": "100", "X-RateLimit-Remaining": "99", "X-RateLimit-Reset": "30",
         })
 
     @api.post("/v1/incidents")
@@ -664,7 +666,8 @@ def test_cors_wrapper_loads_and_exposes_only_allowed_unhandled_errors(monkeypatc
         request_headers = {"Origin": allowed_origin, "Authorization": "Bearer test-token"}
         responses = (
             (client.get("/v1/incidents", headers=request_headers), 200,
-             {"x-ratelimit-limit", "x-ratelimit-remaining", "x-ratelimit-reset", "x-request-id"}),
+             {"ratelimit", "ratelimit-policy", "x-ratelimit-limit", "x-ratelimit-remaining",
+              "x-ratelimit-reset", "x-request-id"}),
             (client.post("/v1/incidents", json={"title": "Probe"},
                          headers={**request_headers, "Idempotency-Key": "test-key"}), 201,
              {"idempotent-replayed", "x-request-id"}),

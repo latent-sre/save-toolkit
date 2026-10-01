@@ -1,0 +1,85 @@
+id: build-python-indexed-membership
+agent: software-engineer
+tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
+prompt: |
+  Refactor this reviewed, team-authored Python 3.11+ fixture to reduce repeated membership searches.
+  selection.iter_selected(rows, allowed_ids) must remain an iterator preserving input order,
+  duplicate rows and original row identities. Rows are a possibly unbounded, one-pass iterable
+  of mappings; stream them without materializing or deduplicating the rows. IDs are strings
+  with ordinary stable hashing/equality semantics. allowed_ids is stable, finite and fits in
+  memory. Its baseline contract was a list; intentionally add support for a one-pass iterable,
+  which may be consumed once to build a bounded index. The index can be built at call time or
+  at first iteration; no rows may be consumed or accessed until the output is advanced.
+  Each next output must stop at its matching row, without reading ahead. Missing row['id']
+  must raise its original KeyError only when that row is reached, including with empty
+  allowed_ids. Do not mutate inputs or close caller-owned iterators, even if output is closed.
+  Keep the import and call signature used by consumer.py, which cannot be changed.
+  Demonstrate the repeated-search improvement using deterministic counted string comparison
+  and hash operations, including index construction, rather than wall-clock timing. No
+  particular index implementation is required. Extend the existing unittest suite in
+  tests/test_selection.py with focused tests, retaining its regression assertions.
+  Add deterministic assertions bounding both index construction and repeated lookup work;
+  the tests must catch a return to linear membership scans or quadratic index construction.
+  After your last edit or helper return, run python -m unittest discover -s tests as your final
+  standalone foreground shell command; use read tools for any final inspection. Report the behavior
+  and cost benefit.
+  Use local checks; no network, installs, commits, or external systems. Only change selection.py
+  and tests/test_selection.py.
+fixture:
+  files:
+    .gitignore: "__pycache__/\n"
+    selection.py: |
+      def iter_selected(rows, allowed_ids):
+          for row in rows:
+              if row['id'] in allowed_ids:
+                  yield row
+    consumer.py: |
+      from selection import iter_selected
+
+      def selected(rows, allowed_ids):
+          return iter_selected(rows=rows, allowed_ids=allowed_ids)
+    tests/__init__.py: ""
+    tests/test_selection.py: |
+      import unittest
+
+      from consumer import selected
+
+
+      class ExistingSelectionTests(unittest.TestCase):
+          def test_order_duplicates_and_identity(self):
+              a, b, excluded = {'id': 'a'}, {'id': 'b'}, {'id': 'x'}
+              rows = [a, excluded, b, a, b]
+              output = list(selected(rows, ['b', 'a', 'b']))
+              expected = [a, b, a, b]
+              self.assertEqual(len(output), len(expected))
+              for actual, original in zip(output, expected):
+                  self.assertIs(actual, original)
+
+          def test_missing_key_is_deferred_even_with_empty_allowlist(self):
+              for allowed in (['a'], []):
+                  with self.subTest(allowed=allowed):
+                      failure = KeyError('id')
+
+                      class MissingId(dict):
+                          def __getitem__(self, key):
+                              raise failure
+
+                      first = {'id': 'a'}
+                      rows = iter([first, MissingId(), {'id': 'later'}])
+                      output = selected(rows, allowed)
+                      if allowed:
+                          self.assertIs(next(output), first)
+                      with self.assertRaises(KeyError) as caught:
+                          next(output)
+                      self.assertIs(caught.exception, failure)
+                      self.assertEqual(next(rows), {'id': 'later'})
+checks:
+  - {check: skill_loaded, skill: python-craft, text: "Python craft was loaded"}
+  - {check: changes_within, allowed: [selection.py, tests/test_selection.py], text: "consumer and import contract stay unchanged"}
+  - {check: no_new_commits, text: "no commits"}
+  - {check: verification_completed, runner: unittest, text: "agent completed a passing foreground suite after final changes"}
+  - check: command_exit_zero
+    command: "python -I -B _python_index_oracle.py"
+    inconclusive_exit_code: 3
+    writes_from: {_python_index_oracle.py: evals/oracles/python-craft/check_indexed_membership.py}
+    text: "mapping and streaming contracts, one-pass input, bounded search cost and effective cost tests hold"
