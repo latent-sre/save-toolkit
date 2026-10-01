@@ -7,68 +7,46 @@ description: >-
   editing any Python; also use for explanations and practical starting designs.
   Triggers: 'improve this Python', 'refactor this Python', 'modernize this module',
   'explain this Python'. Not for operating a running service or changing another
-  language; backend-craft and operator-cli retain their interface contracts.
+  language.
 argument-hint: "[Python code, file, or task]"
 ---
 
 # Python craft
 
-Write, fix, and improve Python so it is correct, clear, and cheap to change. Keep clear code when a
-change offers no benefit.
+Make Python easier to understand, use, and change. Keep clear code when a change offers no benefit.
+The task and project constraints set scope; this skill adds no tools or authority. Explanation,
+design, and review requests stop at those outputs unless implementation is requested. For a defect,
+establish the cause and expected behavior, reproduce it, and verify the repair. Keep small changes
+scoped; report material adjacent findings separately.
 
-## Match the request
+## Build or improve
 
-| Request | Do | Stop at |
-|---|---|---|
-| Fix a defect or make a small change | Reproduce it with a failing test or one-line command, change only what the fix needs, rerun it green. Load `root-cause` first when the cause is not established | The fix and its regression check; name other improvements in the return instead of making them |
-| Improve, refactor, or modernize | Follow Improve the code below | The agreed scope, with obsolete code removed |
-| Write new code or a starting design | Choose a useful approach, explain its main tradeoff, and avoid the classes in [Finding defects](./references/finding-defects.md) | Working code with tests for its failure paths |
-| Hunt for bugs or review for defects | Run the detector and read for the classes in [Finding defects](./references/finding-defects.md) | Findings with `file:line`, a reproduction, and a label; source changes only when asked |
-| Explain code | Stay read-only; trace behavior at the reader's level, running a snippet to show real output when an interpreter is available | The explanation |
+1. For new code, establish expected behavior and a realistic consumer. For existing code, trace the
+   operation and locate coupled state, copied policy, awkward calls, tangled effects, or repeated work.
+2. Choose the design or transformation that fits: representations, algorithms, control flow,
+   interfaces, extraction or inlining. Compare direct code, the standard library, existing
+   dependencies, and maintained packages where relevant.
+3. Deliver a complete path through its entrypoint, then cover remaining cases and affected callers.
+   Stage work by risk; a justified rewrite may replace all in-scope implementation.
+   Preserve supported contracts; separate intentional behavior changes from
+   restructuring and resolve uncertain requirements rather than guessing.
+4. Check required behavior through intended entrypoints. For refactoring, show the benefit: one policy
+   owner, fewer facts callers must coordinate, removed machinery, or an easier real change. Remove obsolete
+   code/dependencies; passing tests or reducing line count alone does not establish improvement.
 
-This skill adds no tools or authority beyond the caller's task. Load `backend-craft` too when the
-change touches an HTTP service, client, or integration contract, and `operator-cli` when it touches
-a command's flags, output, or exit codes; their contract sets the scope, and this skill governs the
-Python inside it.
-
-## Improve the code
-
-- Establish required behavior from the request, callers, specifications, and tests. Existing behavior
-  is evidence, not proof of correctness. Reproduce defects and confirm expected fixes; distinguish
-  intentional behavior changes from restructuring rather than guessing intent.
-- Find the highest-value problem: duplicated policy, tangled responsibilities, awkward data flow,
-  fragile effects, or unnecessary machinery. Choose a coherent solution, not a line-count target.
-- Work in medium-sized, coherent stages: complete a meaningful improvement across related files,
-  then verify it. Stages are checkpoints, not a limit on how much code may ultimately change.
-- Reshape or rewrite any or all code in scope when justified, including controlled callers. Remove
-  obsolete layers and use suitable libraries within project constraints. Preserve supported contracts;
-  seek direction for unresolved requirements or material compatibility, runtime, framework, or
-  live-system changes not already authorized.
-- Compare direct code, standard-library features, existing dependencies, and maintained packages.
-  Before choosing a library, tool, or runtime, load `stack-profile`; preserve project conventions and
-  component-specific floors, including isolated standard-library-only entrypoints.
-
-## Load the detail that applies
+## Load relevant detail
 
 | Task | Read |
 |---|---|
-| Running code/checks, environment setup, or unexpected check results | [Environment and checks](./references/environment-and-checks.md) |
-| Function/data design, typing, errors, or resource ownership | [Writing Python](./references/writing-python.md) |
-| Improving existing code, reducing duplication, or restructuring | [Refactoring](./references/refactoring.md) |
-| Adopting libraries, replacing custom infrastructure, or changing dependency/runtime APIs | [Libraries and modernization](./references/libraries-and-modernization.md) |
-| Automated refactoring, repeated migration, or lint fixes | [Refactoring tools](./references/refactoring-tools.md) |
-| Bug hunting, defect review, or code that calls HTTP, subprocesses, clocks, money, or async | [Finding defects](./references/finding-defects.md) |
+| Starting a new script, module, library, or service | [New code](./references/new-code.md) |
+| Interpreter/dependencies uncertain or changing | [Environment and checks](./references/environment-and-checks.md) |
+| Calls, functions, modules, data, or resource ownership | [Writing Python](./references/writing-python.md) |
+| Structural improvement or Pythonic replacements | [Refactoring](./references/refactoring.md) |
+| Need a worked comparison for flattening nested control flow | [Guard-clause example](./references/guard-clause-example.md) |
+| Library adoption or dependency/runtime migration | [Libraries and modernization](./references/libraries-and-modernization.md) |
+| Automated transformations or lint fixes | [Refactoring tools](./references/refactoring-tools.md) |
+| Bug hunting, review, or a suspected failure | [Finding defects](./references/finding-defects.md) |
 
-Load matching references, not the entire bundle.
-
-## Verify and return
-
-For changes, verify affected behavior and failure paths through existing callers, plus the claimed
-improvement. Before restructuring, show that the tests reach the code being moved (Refactoring
-covers how). Fewer lines or a successful tool run proves neither. Use project checks; profile and
-benchmark performance claims separately. Remove code and dependencies made obsolete by the change.
-
-Return the benefit or fix, intentional behavior changes, checks/results, and gaps with
-`[verified]`, `[sourced]`, or `[unverified]`. After a fix or small change, add a **Noticed, not
-changed** line naming each defect, duplication, or cleanup you saw in the files you read but left
-alone, or `none`. Explain the useful decision, not every mechanical edit.
+Load matching references only. Use project checks in the intended environment and supported Python
+versions. Report the change's benefit, intentional behavior differences, verification, and remaining
+uncertainty; measure performance claims separately.

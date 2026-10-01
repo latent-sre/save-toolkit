@@ -4,6 +4,7 @@ skill: python-craft
 tools: [Skill, Read]
 references:
   - skills/python-craft/references/refactoring.md
+  - skills/python-craft/references/writing-python.md
   - skills/eng-ladder/references/builder.md
 prompt: |-
   Assess these independent Python improvement cases; do not edit code. The supplied consumer
@@ -35,18 +36,43 @@ prompt: |-
      required behavior is established, compatibility checks exist, and all affected callers are
      controlled. No runtime, framework, or public-contract change is needed. The replacement can be
      verified in coherent stages. Must old code be retained merely because the rewrite covers it all?
-  Return only a JSON object with case_a through case_k string values, choosing independently from:
+  L. A loop checks each row with audit_and_accept(row), records every check in input order, and
+     returns whether all rows were accepted. All rows must be audited even after a rejection.
+     Would replacing the loop with all(audit_and_accept(row) for row in rows) preserve the contract?
+  M. All callers of render(rows, compact, include_header) are controlled. Both booleans are independent
+     supported options, but calls such as render(rows, True, False) are hard to read. There is no
+     shared configuration lifecycle or additional renderer state. Choose the simplest call-interface change.
+  N. A local CSV report has an abstract writer, one concrete writer, a factory supporting only CSV,
+     and a forwarding manager. There are no external consumers, hooks, lifecycle policies, or planned
+     formats; the layers only forward arguments. The file-writing operation is a useful boundary.
+  O. Three parallel lists hold item IDs, quantities, and prices for each input line. Duplicate IDs
+     are valid, order matters, and the lists must currently be updated together. Choose a representation.
+  P. A report repeatedly searches a stable list of allowed string IDs for every row. Input is a
+     one-pass iterator; output order and duplicate rows must be preserved. The allowed-ID set fits
+     in memory and cannot change during iteration. Choose an improvement to the repeated search.
+  Q. CLI and HTTP entrypoints duplicate one required policy. Their input/output contracts differ,
+     but the decision needs only normalized values. Both entrypoints and all internal callers can
+     change together. Choose a module boundary that shares the decision without coupling transports.
+  Return only a JSON object with case_a through case_q string values, choosing independently from:
   share_policy, keep_separate, change_internal_and_callers, preserve_compatibility, no_change,
   coherent_stages, replace_custom_with_library, fix_established_defect, explain_without_changes,
   clarify_behavior, stop_because_large, require_one_function_per_step, request_redundant_approval,
   preserve_known_bug, guess_intent, rewrite_during_explanation, rewrite_implementation,
-  only_rearrange_existing_code.
+  only_rearrange_existing_code, preserve_effects_with_loop, short_circuit_audited_checks,
+  name_independent_options, hide_options_in_context_object, remove_empty_layers,
+  retain_factory_for_hypothetical_formats, keep_ordered_records, key_records_by_item_id,
+  index_membership_stream_rows, deduplicate_output_rows, separate_policy_from_transport,
+  put_transport_parsing_in_shared_policy.
 success_criteria:
   - Selects coherent improvements without an occurrence-count ban or speculative abstraction.
   - Distinguishes controlled internal changes from independently supported consumers.
   - Allows substantial staged work and authorized library adoption without redundant approval.
   - Separates established defects from guessed intent and respects explanation-only requests.
   - Permits a justified whole-codebase rewrite in scope without treating the old code as a contract.
+  - Preserves required effects when a Pythonic replacement would short-circuit them.
+  - Simplifies calls and removes unhelpful layers without inventing configuration objects or future needs.
+  - Improves representation and repeated lookup while preserving order, duplicates, and streaming.
+  - Chooses a shared policy boundary independent of transport-specific behavior.
 graders:
   - type: exact_json
     fields:
@@ -61,3 +87,9 @@ graders:
       case_i: explain_without_changes
       case_j: clarify_behavior
       case_k: rewrite_implementation
+      case_l: preserve_effects_with_loop
+      case_m: name_independent_options
+      case_n: remove_empty_layers
+      case_o: keep_ordered_records
+      case_p: index_membership_stream_rows
+      case_q: separate_policy_from_transport

@@ -112,9 +112,12 @@ skill completed.
 
 A build check that grades with a probe-owned oracle stages the oracle into the workspace before it
 runs the command: `writes:` carries a line or two of data inline, while `writes_from:` maps the
-workspace filename to a file under [`oracles/`](oracles) so an oracle long enough to be a program
-stays reviewable, runnable, and inside the `evals_python_lines` ceiling, which counts Python
-oracles there, but not TSX, since it counts `*.py` only.
+workspace filename to a file under [`oracles/`](oracles), keeping a substantial oracle reviewable
+and runnable without duplicating its program inside YAML.
+
+`command_exit_zero` can declare `inconclusive_exit_code` (an integer from 1 to 255) for a
+probe-owned unavailable measurement. That exit makes the trial INCONCLUSIVE; zero passes and
+all other nonzero exits fail. Without the declaration, every nonzero exit fails.
 
 The CLI, API, UI, and deployment-pressure builder probes use `verification_completed` to check
 the agent's own verification separately from probe-run artifact tests. It requires a foreground
@@ -155,11 +158,12 @@ implementation despite a green original suite. This proves HTML structure and li
 not browser/CSS appearance; the deployment and credential boundaries remain separate checks.
 
 **The standing regression** comprises the build probes and the contract scenarios carrying
-`split: regression`. The seven `build-python-...` probes cover refactoring effects, generator
+`split: regression`. The `build-python-...` probes cover refactoring effects, generator
 consumption/lifetime, module moves, stdlib migration contracts, leaving correct code unchanged,
 a shared calculation boundary usable without files, and a medium-sized policy unification across
 three drifted intake entrypoints with a registry, a configured dotted lookup, a legacy re-export,
-and a unit suite that encodes the drift. That oracle checks specification parity over a bounded
+and a unit suite that encodes the drift, plus a scoped zero-count fix that leaves adjacent code
+untouched without requiring a cleanup inventory in the reply. The policy oracle checks specification parity over a bounded
 domain for every entrypoint, single ownership through the `policy.normalize_order` patch seam
 (a record the old rules reject must pass once the shared policy accepts it), exception identity,
 input immutability, six fresh-process import orders, and that the fixture suite stays green
@@ -176,26 +180,60 @@ registry and configured dotted lookup. The generator oracle observes unbounded r
 uses the source position to detect logical EOF before first yield, allowing bounded chunks and
 readline iteration. These common API
 paths are covered; this is not a memory benchmark or proof against every possible read mechanism.
-Migration checks exercise a stdlib adapter, not package discovery. The oracle and tests count
-toward the eval ceiling; their outcome-level evidence does not establish live model performance.
+Migration checks exercise a stdlib adapter, not package discovery. These outcome checks do not
+establish live model performance.
 Run `python -m pytest evals/test_python_craft_oracle.py` for offline calibration.
 
 The calculation probe verifies a specified maintenance outcome: the in-memory boundary works
 without ordinary Python file opens, and a policy replacement there reaches the existing file
 entrypoint, including input rejected by the old parsing policy. It checks that actual helper parse
 exceptions propagate by identity and rejects duplicated parsing before or after delegation.
-These checks and their positive/negative calibration account for the 33-line review-fix eval increase.
 It is not an arbitrary-I/O sandbox or a general design-quality score. The original
 effect probe checks compatibility plus a source edit, not whether that edit improves design.
 `python-refactoring-judgment` checks supplied-state choices about shared policy, independent rules,
 internal callers, supported plugin imports, no-change restraint, coherent stages for large work,
 authorized library adoption, established versus uncertain defects, explanation-only scope, and
-justified whole-codebase rewrites in scope that preserve required contracts. It loads both the Python
-refactoring reference and the builder bar so their abstraction guidance is assessed together.
-It does not prove execution or consumer discovery. `discovery-python-improvement` checks routing
-for an outcome-driven request; it does not grade implementation quality. These focused oracles
-and calibration tests justify the accompanying eval
-line-ceiling increase; no new grader, dependency, or evaluation framework is introduced.
+justified whole-codebase rewrites in scope that preserve required contracts. It also checks effect-aware
+control flow, simpler calls, layer removal, ordered records, indexed membership with streaming, and
+transport-independent policy boundaries. It loads the Python refactoring/writing references and the
+builder bar so their design guidance is assessed together. `python-new-code-judgment` checks a
+direct implementation for a bounded task, an importable core serving CLI and notebook consumers,
+bounded streaming with publication after validation, and an unresolved partial-failure contract.
+These supplied-state decisions do not prove execution or consumer discovery. `discovery-python-improvement` checks routing
+for an outcome-driven request; it does not grade implementation quality.
+
+Two additional build evaluations exercise implementation outcomes:
+
+| Evaluation | What its artifact checks establish |
+|---|---|
+| [New streaming CLI](build-scenarios/build-python-new-streaming-cli.yaml) | One importable counting policy serves the CLI; checks cover file/stdin inputs, UTF-8, invalid records, late failures, ownership, and measured storage growth. |
+| [Indexed membership](build-scenarios/build-python-indexed-membership.yaml) | Starts from a passing consumer regression suite; measured searches fit a deterministic operation budget, preserving lazy access, order, duplicates, identity, errors, and release of consumed rows. |
+
+Their [new-code calibration](test_python_new_code_probe.py) and
+[index calibration](test_python_index_probe.py) accept valid alternative implementations and reject
+named broken artifacts. They reuse the native runner and standard-library checks. Run them offline:
+
+```bash
+python -m pytest evals/test_python_craft_oracle.py evals/test_python_new_code_probe.py evals/test_python_index_probe.py -q
+python evals/build_probe.py --validate
+```
+
+The storage checks observe growth on two supplied workloads. The cost check includes construction
+and requires the supplied index inputs and every query to be observable; unmeasured work returns
+the declared exit 3, making the
+native trial INCONCLUSIVE and requiring separate profiling. These are bounded observations, not
+proofs of universal time or space complexity.
+
+For an agreed native preflight, select each case separately and pin the model:
+
+```bash
+python evals/build_probe.py --scenario build-python-new-streaming-cli --label candidate --model sonnet --trials 1 --out .eval-runs/python-craft-builds
+python evals/build_probe.py --scenario build-python-indexed-membership --label candidate --model sonnet --trials 1 --out .eval-runs/python-craft-builds
+```
+
+The new probes also require the agent's own final foreground unittest receipt; later shell actions
+can make that receipt inconclusive under the verification contract above. Artifact checks alone do
+not establish the quality of the agent's own tests, broad design expertise, or skill-driven uplift.
 
 For a live Python-skill comparison, agree the native host/model, exact candidate, cases, repetitions,
 and cost cap first. Use matched disposable fixtures and the same builder, tools, prompt, and checks,

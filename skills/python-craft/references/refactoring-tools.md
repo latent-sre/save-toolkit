@@ -43,7 +43,9 @@ Use the project's configured rules and Python target. Ruff's safe fixes are inte
 runtime behavior; unsafe fixes may change it or remove comments. Review their applicability before
 opting in. A blanket unsafe-fix sweep is not a behavior-preserving refactoring strategy.
 
-Start with `ruff check --no-fix <paths>` and `ruff format --check <paths>`. Preview eligible fixes with
+Start with `ruff check --no-fix --no-fix-only <paths>` and `ruff format --check <paths>`.
+Both disabling flags matter: inherited `fix-only = true` can otherwise apply fixes and hide remaining
+violations even with `--no-fix`. Preview eligible fixes with
 `ruff check --diff <paths>`; this writes no source and returns nonzero when there are diffs, but
 implies `--fix-only`, so a clean diff does not establish a clean lint run. Review configuration for
 unsafe-fix opt-ins and rule-specific applicability overrides; use `--no-unsafe-fixes` when checking

@@ -385,6 +385,12 @@ def validate_scenario(spec: object, *, where: str = "scenario") -> list[str]:
                     continue
                 if check["check"] == "verification_completed" and check.get("runner") not in {"unittest", "pytest", "vitest"}:
                     problems.append(f"{where}: checks[{i}] verification_completed needs runner unittest, pytest, or vitest")
+                if "inconclusive_exit_code" in check and (
+                    check["check"] != "command_exit_zero"
+                    or type(check["inconclusive_exit_code"]) is not int
+                    or not 1 <= check["inconclusive_exit_code"] <= 255
+                ):
+                    problems.append(f"{where}: checks[{i}] inconclusive_exit_code needs command_exit_zero and an integer from 1 to 255")
                 if check["check"] == "skill_loaded" and "before_effects" in check and not isinstance(check["before_effects"], bool):
                     problems.append(f"{where}: checks[{i}] before_effects must be boolean")
                 if check["check"] == "tool_call_count" and (
@@ -1827,7 +1833,11 @@ def check_command_exit_zero(ctx: Context, p: dict) -> tuple[bool, str]:
     except subprocess.TimeoutExpired:
         return False, f"{p['command']!r} timed out"
     tail = (proc.stdout + proc.stderr).strip()[-300:].replace("\n", " | ")
-    return proc.returncode == 0, f"{p['command']!r} exit {proc.returncode}: {tail}"
+    evidence = f"{p['command']!r} exit {proc.returncode}: {tail}"
+    unavailable = p.get("inconclusive_exit_code")
+    if type(unavailable) is int and 1 <= unavailable <= 255 and proc.returncode == unavailable:
+        return False, "INCONCLUSIVE: " + evidence
+    return proc.returncode == 0, evidence
 
 
 def check_command_output_regex(ctx: Context, p: dict) -> tuple[bool, str]:
@@ -2643,7 +2653,7 @@ def grade(ctx: Context, *, inconclusive: str | None = None,
                 passed, evidence = False, f"INCONCLUSIVE: backing service unavailable: {exc}"
             except Exception as exc:  # a grader crash is a red with its reason, never a silent pass
                 passed, evidence = False, f"grader error: {exc!r}"
-        if check["check"] == "verification_completed" and str(evidence).startswith("INCONCLUSIVE: "):
+        if check["check"] in {"verification_completed", "command_exit_zero"} and str(evidence).startswith("INCONCLUSIVE: "):
             instrument_failure = instrument_failure or str(evidence).removeprefix("INCONCLUSIVE: ")
         expectations.append({"text": describe(check), "passed": bool(passed), "evidence": str(evidence)[:600]})
     if scenario_digest(ctx.spec, binding) != identity:
@@ -3155,11 +3165,11 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
             label = describe(check)
             if is_regradable(check):
                 expectations.append(_expectation(label, lambda c=check: CHECKS[c["check"]](ctx, c), inconclusive))
-                if check["check"] == "verification_completed" and expectations[-1]["evidence"].startswith("INCONCLUSIVE: "):
-                    inconclusive = inconclusive or expectations[-1]["evidence"].removeprefix("INCONCLUSIVE: ")
             else:
                 expectations.append(keep(
                     label, "live-judge" if check["check"] in REGRADABLE else "workspace-dependent"))
+            if check["check"] in {"verification_completed", "command_exit_zero"} and expectations[-1]["evidence"].startswith("INCONCLUSIVE: "):
+                inconclusive = inconclusive or expectations[-1]["evidence"].removeprefix("INCONCLUSIVE: ")
     if scenario_digest(spec, saved_binding) != identity:
         inconclusive = "scenario inputs changed during regrade; re-run the trial"
         for expectation in expectations:
