@@ -11,9 +11,9 @@ Python and dependency versions from the project's actual manifests and lockfiles
   the validate-at-startup rule. Read required PCF service bindings from `VCAP_SERVICES`.
 - **Alembic for schema changes**; `create_all` is dev-only. Live migration mechanics on a database
   with data belong to the `database-reliability` skill.
-- **Request bodies:** since FastAPI 0.132, a JSON body must arrive with a JSON `Content-Type`. The
-  opt-out, `FastAPI(strict_content_type=False)`, is app-wide, so serve a webhook whose sender omits
-  the header from a mounted sub-application and validate that body explicitly.
+- **Request bodies:** since FastAPI 0.132, a JSON body must arrive with a JSON `Content-Type`. For a
+  webhook whose sender omits the header, put its route on `APIRouter(strict_content_type=False)`,
+  which keeps the rest of the app strict, and validate that body explicitly.
 - **Streaming:** on FastAPI 0.135 or later, use `EventSourceResponse` and `ServerSentEvent` from
   `fastapi.sse`. They send the 15 s keep-alive and set `Cache-Control: no-cache` and
   `X-Accel-Buffering: no`.

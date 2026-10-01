@@ -121,7 +121,8 @@ fixture:
               "title": HTTPStatus(status).phrase,
               "status": status,
               "detail": detail,
-              "request_id": request.headers.get("x-request-id") or str(uuid.uuid4()),
+              # Only state a trusted middleware validated; never a raw client header.
+              "request_id": getattr(request.state, "request_id", None) or str(uuid.uuid4()),
               **extensions,
           }
           return JSONResponse(body, status_code=status, media_type="application/problem+json")
@@ -199,13 +200,13 @@ checks:
   - check: command_exit_zero
     command: "python probe_checks.py pagination"
     timeout: 120
-    text: "oracle: cursor pagination walks 501 unique incidents, default page is bounded, oversized limit is capped or rejected"
+    text: "oracle: cursor pagination walks 501 unique incidents, default page is bounded, oversized limit is lowered to the cap"
     writes_from: {probe_checks.py: evals/oracles/incidents-api/probe_checks.py}
-  - {check: command_exit_zero, command: "python probe_checks.py filter", timeout: 120, text: "oracle: ?status= filters, and an invalid value is a 4xx problem+json, never 200"}
+  - {check: command_exit_zero, command: "python probe_checks.py filter", timeout: 120, text: "oracle: ?status= filters, and an invalid value is a 422 problem+json"}
   - {check: command_exit_zero, command: "python probe_checks.py problem_json", timeout: 120, text: "oracle: unknown id is a 404 in the one RFC 9457 shape"}
   - {check: command_exit_zero, command: "python probe_checks.py no_leak", timeout: 120, text: "oracle: the store's internal_note never crosses the API boundary (response model as allowlist)"}
   - {check: command_exit_zero, command: "python probe_checks.py owner", timeout: 120, text: "oracle: the detail endpoint carries the on-call owner fetched from the vendor"}
-  - {check: command_exit_zero, command: "python probe_checks.py timeout", timeout: 120, text: "oracle: a vendor that sleeps 20 s surfaces as a fast 5xx problem+json, not a hang"}
+  - {check: command_exit_zero, command: "python probe_checks.py timeout", timeout: 120, text: "oracle: a vendor that sleeps 20 s is answered fast: a 502/504 problem+json, or a leak-free 200 with the owner explicitly unavailable"}
   - {check: command_exit_zero, command: "python probe_checks.py healthz", timeout: 120, text: "oracle: /healthz answers in under 2 s while the vendor is hung"}
   - {check: command_exit_zero, command: "python -m pytest -q", timeout: 300, text: "suite is green when the probe runs it"}
   - {check: command_exit_zero, command: "python -c \"import subprocess,sys; r=subprocess.run([sys.executable,'-m','pytest','-v'],capture_output=True,text=True); out=(r.stdout+r.stderr).lower(); sys.exit(0 if r.returncode==0 and 'incident' in out and ' passed' in out else 1)\"", timeout: 300, text: "an incidents test case actually executed and passed"}
