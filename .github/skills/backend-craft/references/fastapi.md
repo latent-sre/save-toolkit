@@ -5,11 +5,18 @@ Python and dependency versions from the project's actual manifests and lockfiles
 
 - **Layout and lifecycle:** preserve the app's existing modules, factory and dependency patterns.
   For a new app, keep the layout small; use `create_app()` and a `lifespan` context to own startup
-  validation, shared engines/clients and their shutdown cleanup.
+  validation, shared engines/clients and their shutdown cleanup. Declare dependencies and
+  parameters with `Annotated`.
 - **Config via `pydantic-settings`**: one `Settings(BaseSettings)` loaded once from env — this *is*
   the validate-at-startup rule. Read required PCF service bindings from `VCAP_SERVICES`.
 - **Alembic for schema changes**; `create_all` is dev-only. Live migration mechanics on a database
   with data belong to the `database-reliability` skill.
+- **Request bodies:** since FastAPI 0.132, a JSON body must arrive with a JSON `Content-Type`. The
+  opt-out, `FastAPI(strict_content_type=False)`, is app-wide, so serve a webhook whose sender omits
+  the header from a mounted sub-application and validate that body explicitly.
+- **Streaming:** on FastAPI 0.135 or later, use `EventSourceResponse` and `ServerSentEvent` from
+  `fastapi.sse`. They send the 15 s keep-alive and set `Cache-Control: no-cache` and
+  `X-Accel-Buffering: no`.
 - **Public response contracts:** typed JSON uses `response_model=` or a return annotation describing
   the public output; separate input/output models when their contracts differ. Use
   `from_attributes=True` only for attribute extraction, not as a default on every model.

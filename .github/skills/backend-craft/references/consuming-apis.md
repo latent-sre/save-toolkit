@@ -46,10 +46,9 @@ Apply the actual provider/client contract, not another vendor's status-code list
 This section owns only the *integration mechanics* — the call shape that differs from a plain REST
 GET. If a name here disagrees with `stack-profile`, `stack-profile` wins and this file is stale.
 
-- **PCF / cf (CAPI V3, cf CLI v8):** prefer the `cf` CLI for one-shot ops; for programmatic work hit
-  CAPI V3 JSON with a **UAA** token; page via `pagination.next.href`. A CAPI V3 client gets its UAA
-  token by a client-credentials grant from its bound or environment secrets; never run or paste
-  `cf oauth-token` output. **State-changing writes**
+- **PCF (CAPI V3):** a programmatic client calls CAPI V3 JSON with a **UAA** token from a
+  client-credentials grant using its bound or environment secrets; never run or paste
+  `cf oauth-token` output. Page via `pagination.next.href`. **State-changing writes**
   (restart/scale/route) are gated — an already-approved change record must name the exact target,
   action, and rollback, with a human release owner executing the change.
 - **Splunk (SPL):** create a **search job**, then *poll* it to completion and page results — don't
@@ -57,7 +56,9 @@ GET. If a name here disagrees with `stack-profile`, `stack-profile` wins and thi
 - **Broadcom DX OpenExplore (WQL)** — the platform formerly presented as Wavefront / Aria Operations
   for Applications: query `ts()` via the API with an API token; mind per-token rate limits and the
   max time window.
-- **Moogsoft (Dell APEX AIOps, on-prem v9.x):** the Graze/REST API for alerts and Situations; auth
-  per its token flow.
-- **ThousandEyes / Grafana:** bearer or service-account token over their HTTP APIs; same
-  timeout/retry rules as anything else.
+- **Moogsoft Onprem (v9.x, Dell):** the Graze/REST API for alerts and Situations; auth per its token
+  flow. The cloud product was renamed APEX AIOps Incident Management; that name does not apply to
+  on-prem.
+- **ThousandEyes:** the v7 API in `obs-alerting`'s ThousandEyes reference. **Grafana:** load
+  `grafana` for its HTTP API and service-account tokens. Both follow the same timeout and retry
+  rules as any upstream.

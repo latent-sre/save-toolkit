@@ -125,10 +125,10 @@ def test_missing_item_is_a_problem(api, client, auth_headers):
 
 def test_invalid_query_is_a_problem(client, auth_headers):
     response = client.get(LIST_PATH, params={"limit": "not-a-number"}, headers=auth_headers)
-    assert response.status_code in (400, 422), (
-        f"house rule: a bad query value is 400 (malformed) or 422 (validation); got {response.status_code}"
+    assert response.status_code == 422, (
+        f"house rule: a well-formed request with an invalid value is 422; got {response.status_code}"
     )
-    assert_problem(response, response.status_code)
+    assert_problem(response, 422)
 
 
 def test_unexpected_error_is_a_problem(api, client, auth_headers):

@@ -134,7 +134,7 @@ deploy-prod:
     - name: Verify health
       shell: bash
       env:
-        HEALTH_URL: https://<app route>/readyz  # the service's readiness path
+        HEALTH_URL: https://<app route>/health/ready  # the service's readiness path
       run: |
         set -euo pipefail
         status="$(curl --disable --fail --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 10 --retry 5 --retry-delay 5 --retry-max-time 60 "$HEALTH_URL")" && rc=0 || rc=$?

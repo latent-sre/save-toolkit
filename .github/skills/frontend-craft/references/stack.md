@@ -33,7 +33,7 @@ Build hashed assets with the repository's production build (`vite build` for gre
 Serve through the `staticfile`/`nginx` buildpack or the API app. Fall back to `index.html` for
 client routes, including deep links, only after reserving asset paths and backend routes:
 missing JS/CSS, images and other static files must return 404, never HTML with 200. Include public
-files outside the bundler's asset prefix. Co-served `/v1/*`, `/healthz` and `/readyz` retain their
+files outside the bundler's asset prefix. Co-served `/v1/*`, `/health/live` and `/health/ready` retain their
 backend handlers and status codes, including problem responses for unknown API routes.
 
 Staticfile's `pushstate: enabled` rewrites **all missing paths**; it alone does not enforce those
