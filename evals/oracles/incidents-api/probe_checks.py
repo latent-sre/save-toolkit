@@ -194,10 +194,17 @@ def check_timeout(client):
     # to an explicitly unavailable owner; otherwise the upstream failure is a 502/504 problem.
     status = result["status"]
     if status == 200:
-        marked, why = owner_marked_unavailable(result["resp"])
+        resp = result["resp"]
+        marked, why = owner_marked_unavailable(resp)
         if not marked:
             fail("detail returned 200 without the vendor's owner and without marking it unavailable: "
                  + why)
+        # The degraded response is still the public incident: same shape, same allowlist.
+        if "internal_note" in resp.text:
+            fail("the degraded 200 leaks internal_note")
+        body = resp.json()
+        if body.get("id") != "inc-0001" or not body.get("title"):
+            fail("the degraded 200 is not the incident's public shape: %s" % resp.text[:200])
         ok("vendor timeout degraded to 200 in %.1fs with the owner %s" % (elapsed, why))
     if status not in (502, 504):
         fail("detail -> %d after %.1fs; expected 502/504 problem+json or 200 with the owner "
