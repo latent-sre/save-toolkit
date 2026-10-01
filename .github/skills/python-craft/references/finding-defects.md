@@ -1,63 +1,46 @@
 # Finding Python defects
 
-Hunt in two passes: a detector for the patterns a linter can see, then a read for the ones it
-cannot. A hit is a lead, not a verdict, and a clean run does not clear the code. Reproduce a
-suspected defect before reporting it as one; hand an observed failure with an unknown cause to
-`root-cause`.
+Inspect the relevant code and use an available detector for patterns it can recognize. A hit is a
+lead, not a verdict, and a clean run does not clear the code. Establish expected behavior and the
+cause of a suspected failure; reproduce it where possible and distinguish evidence from uncertainty.
 
-## Run the detector
+## Optional Ruff detector
 
-Use the project's ruff version and configuration, adding the defect rules for this pass only:
+When Ruff is available, use the project's version and configuration. This selection adds common
+defect leads for the current pass without editing rule configuration:
 
 ```text
-ruff check --no-fix --extend-select B,S110,S113,BLE001,DTZ,PLW1510,ASYNC,RUF006,RUF032 <paths>
+ruff check --no-fix --no-fix-only --extend-select B,S110,S113,BLE001,DTZ,PLW1510,ASYNC,RUF006,RUF032 <paths>
 ```
 
-Report hits outside the task instead of fixing them, and leave the project's rule configuration
-alone. Without an installed ruff, `uvx ruff check ...` runs it in an isolated tool environment
-when the task allows a download.
-
-| Rule | Defect | Operational effect |
-|---|---|---|
-| `S113` | `requests` call without `timeout` | Requests never times out by default; one stalled peer hangs the job |
-| `PLW1510` | `subprocess.run` without `check` | A failed command returns normally and the script reports success |
-| `DTZ` | Naive `datetime` (`now()`, `utcnow()`, `strptime` without `%z`) | Stamps shift across hosts and DST; ordering naive against aware values raises `TypeError` |
-| `B023` | Closure reads a loop variable | Every callback sees the last value |
-| `B006`, `B008` | Mutable default, or a call in a default | State leaks between calls; the default is evaluated once, at definition |
-| `B904` | `raise` in `except` without `from` | The traceback reads as a second failure during handling |
-| `B012` | `return`, `break`, or `continue` in `finally` | Silences the in-flight exception; Python 3.14 warns at compile time |
-| `BLE001`, `S110` | Blind `except Exception`, or `except ...: pass` | Failures become silence or success |
-| `ASYNC2xx` | Blocking call (`time.sleep`, `requests`, `open`) in `async def` | Stalls every task on the event loop |
-| `RUF006` | `asyncio.create_task` result not kept | The loop holds tasks weakly, so an unreferenced task can vanish mid-flight |
-| `RUF032` | `Decimal` from a float literal | `Decimal(0.1)` carries binary error into money |
-
-`PLW1514` (text-mode `open` without `encoding`) is preview-only; on Windows the default is the
-locale code page, not UTF-8, so check text I/O that crosses platforms by reading it.
+Both disabling flags are required for a check-only run when a project may configure `fix-only`.
+Check the installed version's rule availability and ignored/excluded paths before relying on the
+result. Read individual findings in context: a subprocess caller may inspect `returncode`, a loop
+closure may be consumed immediately, and a naive datetime may represent an intentional local value.
+Use existing tools when Ruff is absent; acquiring a new tool is a separate environment decision.
 
 ## Read for what the detector cannot see
 
 | Class | Look for | Check |
 |---|---|---|
 | Edge values | A computed slice start (`items[-n:]` returns everything when `n == 0`), off-by-one ranges, empty input | Call with 0, 1, empty, and more than available |
-| Failure reported as success | A handler that logs and returns `None` or `[]`; a loop that continues past failed items; exit 0 after partial failure | Force one item to fail; the caller and exit status must see it (`operator-cli` owns exit codes) |
-| Money and rounding | `float` prices or quantities; `round()` on money (half-to-even: `round(2.5) == 2`); `sum()` without a `Decimal` start | Build `Decimal` from strings; quantize with the contract's rounding mode |
+| Failure reported as success | A handler that logs and returns an empty result, ignored command status, or partial failure hidden from the caller | Force one item to fail; check the specified partial-result and error/exit contract |
+| Numeric contracts | Binary-float error in exact decimal work, wrong rounding policy, empty totals changing type | Use an appropriate representation; `Decimal` from strings avoids float conversion error, and a `Decimal` sum start preserves the empty-result type |
 | Durations and deadlines | `time.time()` differences for timeouts or elapsed time | Use `time.monotonic()`; wall clocks jump |
-| Retries | No attempt cap or total deadline; retried non-idempotent calls | One retry owner with a budget; `backend-craft` owns eligibility |
+| Retries and timeouts | Missing I/O timeouts, no attempt/deadline budget, or retried non-idempotent effects | Establish eligibility and a bounded overall operation; account for nested retry owners |
 | Resource lifetime | An iterator returned from inside `with`; a client created per call; a file opened without `with` | Consume the result after the function returns; assert cleanup on failure |
 | Shared state | Globals or class attributes mutated from threads or tasks; unbounded caches | Name the owner; bound or lock it |
-| Async failures | `gather` raising the first failure while its siblings keep running; `except X` around a `TaskGroup`, which raises `ExceptionGroup` | Force one task to fail and assert the handled path runs |
+| Async failures | Unowned tasks, swallowed cancellation, or an individual-error handler around grouped failures | Force one task to fail; check sibling lifetime, cleanup, and handling of the actual exception shape |
+| Text I/O | An implicit encoding where files cross machines or processes | Read and write non-ASCII text under the required encoding; do not assume the host's default |
 | Validation by `assert` | `assert` guarding input outside tests | `python -O` strips it; raise an explicit error |
 
 ## Fix what you found
 
-Write the failing check first at the public entrypoint the defect reaches: a `pytest` case
-parametrized over the boundary values, using `tmp_path`, `monkeypatch`, and an injected clock
-rather than real files, environment, or time. Make the smallest change that turns it green, rerun
-the affected tests, and report other hits as findings rather than folding them into the fix.
+When a fix is requested, capture a failing check at the entrypoint the defect reaches, using the
+project's test conventions and independent expected behavior. Control irrelevant time, randomness,
+and external effects, while keeping real boundaries that the check needs to exercise. Verify the
+smallest sufficient repair and relevant failure paths; report material adjacent findings separately.
 
-[verified] ruff 0.16.8 fired each listed rule on a scratch fixture, `PLW1514` only with `--preview`;
-Python 3.11–3.14 showed `items[-0:]` returning every item, `round(2.5) == 2`, `Decimal(0.1)` carrying
-binary error, and naive/aware ordering raising `TypeError`.
 [sourced] [ruff rules](https://docs.astral.sh/ruff/rules/),
 [Requests timeouts](https://requests.readthedocs.io/en/latest/user/advanced/#timeouts),
 [asyncio tasks](https://docs.python.org/3/library/asyncio-task.html),

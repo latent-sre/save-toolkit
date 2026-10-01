@@ -181,6 +181,70 @@ class WorkspaceAndCheckTests(unittest.TestCase):
         self.assertTrue(build_probe.check_changed_files_not_containing(ctx, {"glob": "pkg/*.py", "needle": "import pytest"})[0])
         self.assertFalse(build_probe.check_changed_files_not_containing(ctx, {"glob": "pkg/*.py", "needle": "x = 1"})[0])
 
+    def test_command_measurement_exit_is_inconclusive_only_when_declared(self) -> None:
+        for exit_code, declared, expected in ((0, 3, "PASS"), (1, 3, "FAIL"),
+                                               (3, None, "FAIL"), (3, 3, "INCONCLUSIVE")):
+            with self.subTest(exit_code=exit_code, declared=declared):
+                check = {"check": "command_exit_zero", "text": "measurement outcome",
+                         "command": f'"{sys.executable}" -c "raise SystemExit({exit_code})"'}
+                if declared is not None:
+                    check["inconclusive_exit_code"] = declared
+                spec = {**TINY_SPEC, "checks": [check]}
+                result = build_probe.grade(_ctx(spec, self.ws))
+                self.assertEqual(result["status"], expected, result)
+                self.assertEqual(result["expectations"][0]["passed"], exit_code == 0)
+                if expected == "INCONCLUSIVE":
+                    self.assertIn("exit 3", result["inconclusive"])
+
+    def test_measurement_exit_declaration_is_validated(self) -> None:
+        for value in (0, -1, 256, True, "3", [3]):
+            with self.subTest(value=value):
+                check = {"check": "command_exit_zero", "command": "python probe.py",
+                         "inconclusive_exit_code": value}
+                problems = build_probe.validate_scenario({**TINY_SPEC, "checks": [check]})
+                self.assertTrue(any("inconclusive_exit_code" in p for p in problems), problems)
+        check = {"check": "no_new_commits", "inconclusive_exit_code": 3}
+        self.assertTrue(any("inconclusive_exit_code" in p for p in
+                            build_probe.validate_scenario({**TINY_SPEC, "checks": [check]})))
+
+    def test_indexed_candidate_exit_is_failure_not_measurement_unavailability(self) -> None:
+        scenario = build_probe.load_scenario(
+            build_probe.SCENARIO_DIR / "build-python-indexed-membership.yaml")
+        outcome = next(c for c in scenario["checks"] if c["check"] == "command_exit_zero")
+        check = {**outcome, "command": f'"{sys.executable}" -I -B _python_index_oracle.py'}
+        spec = {**TINY_SPEC, "checks": [check]}
+        for code in (0, 3):
+            for phase in ("import", "iteration"):
+                with self.subTest(code=code, phase=phase):
+                    source = (f"raise SystemExit({code})\n" if phase == "import" else
+                              f"def iter_selected(rows, allowed_ids):\n"
+                              f"    raise SystemExit({code})\n    yield\n")
+                    (self.ws.repo / "selection.py").write_text(source, encoding="utf-8")
+                    result = build_probe.grade(_ctx(spec, self.ws))
+                    self.assertEqual(result["status"], "FAIL", result)
+                    self.assertFalse(result["expectations"][0]["passed"])
+
+    def test_regrade_keeps_unavailable_command_measurement_inconclusive(self) -> None:
+        check = {"check": "command_exit_zero", "text": "cost measurement",
+                 "command": "python cost.py", "inconclusive_exit_code": 3}
+        spec = {**TINY_SPEC, "checks": [check]}
+        with tempfile.TemporaryDirectory() as tmp:
+            run = Path(tmp) / "eval-tiny" / "candidate" / "run-1"
+            (run / "outputs").mkdir(parents=True)
+            (run / "outputs/response.md").write_text("", encoding="utf-8")
+            (run / "outputs/trace-summary.json").write_text(json.dumps({
+                "commits_before_after": [1, 1], "branch": "main", "inconclusive": None,
+            }), encoding="utf-8")
+            saved = _saved_grade(spec, [{"text": "cost measurement", "passed": False,
+                                        "evidence": "INCONCLUSIVE: exit 3: cost measurement unavailable"}])
+            (run / "grading.json").write_text(json.dumps(saved), encoding="utf-8")
+            with mock.patch.object(build_probe, "_run", side_effect=AssertionError("cannot rerun a removed workspace")):
+                build_probe.regrade(Path(tmp), [spec])
+            result = json.loads((run / "grading.json").read_text(encoding="utf-8"))
+        self.assertEqual(result["status"], "INCONCLUSIVE", result)
+        self.assertFalse(result["expectations"][0]["passed"])
+        self.assertIn("cost measurement unavailable", result["inconclusive"])
+
     def test_command_file_and_text_checks(self) -> None:
         ctx = _ctx(TINY_SPEC, self.ws, text="**Verified**: `python -m unittest` -> OK. I did not deploy; rollback = revert.",
                    skills=["save-toolkit:backend-craft"], bash=["python -m unittest discover -s tests -t . -v"],

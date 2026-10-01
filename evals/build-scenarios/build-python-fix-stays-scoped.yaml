@@ -40,6 +40,3 @@ checks:
     command: "python -I -B _python_oracle.py scoped"
     writes_from: {_python_oracle.py: evals/oracles/python-craft/check_contracts.py}
     text: "the zero-count defect is fixed, other counts and the input are preserved, and the unrelated duplicated functions are untouched"
-  - check: text_regex
-    pattern: "(duplicat|repeated|identical|near-cop|copy-paste|differ only|same (loop|logic|shape|body|code|structure|pattern))[\\s\\S]{0,300}notional|notional[\\s\\S]{0,300}(duplicat|repeated|identical|near-cop|copy-paste|differ only|same (loop|logic|shape|body|code|structure|pattern))"
-    text: "the reply names the duplicated notional functions as an improvement it did not make"

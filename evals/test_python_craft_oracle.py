@@ -160,12 +160,27 @@ class PythonCraftOracleTests(unittest.TestCase):
                     "case_e": "no_change", "case_f": "coherent_stages",
                     "case_g": "replace_custom_with_library", "case_h": "fix_established_defect",
                     "case_i": "explain_without_changes", "case_j": "clarify_behavior",
-                    "case_k": "rewrite_implementation"}
+                    "case_k": "rewrite_implementation", "case_l": "preserve_effects_with_loop",
+                    "case_m": "name_independent_options", "case_n": "remove_empty_layers",
+                    "case_o": "keep_ordered_records", "case_p": "index_membership_stream_rows",
+                    "case_q": "separate_policy_from_transport"}
         fields = spec["graders"][0]["fields"]
         self.assertTrue(exact_json(json.dumps(expected), fields)[0])
         for key in expected:
             with self.subTest(case=key):
                 self.assertFalse(exact_json(json.dumps(expected | {key: "incorrect"}), fields)[0])
+                self.assertFalse(exact_json(json.dumps({k: v for k, v in expected.items() if k != key}), fields)[0])
+
+    def test_new_code_judgment_grader_rejects_wrong_or_missing_decisions(self):
+        spec = yaml.safe_load((ROOT / "scenarios/python-new-code-judgment.yaml").read_text(encoding="utf-8"))
+        expected = {"case_a": "direct_synchronous_path", "case_b": "importable_core_cli_adapter",
+                    "case_c": "stream_aggregate_then_publish", "case_d": "clarify_failure_contract"}
+        fields = spec["graders"][0]["fields"]
+        self.assertTrue(exact_json(json.dumps(expected), fields)[0])
+        for key in expected:
+            with self.subTest(case=key):
+                self.assertFalse(exact_json(json.dumps(expected | {key: "incorrect"}), fields)[0])
+                self.assertFalse(exact_json(json.dumps({k: v for k, v in expected.items() if k != key}), fields)[0])
 
     def run_artifact(self, mode, source):
         with tempfile.TemporaryDirectory() as tmp:

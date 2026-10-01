@@ -151,8 +151,8 @@ implications when relevant.
 that keep the reason, effect, and verification meaning; expand for subtle causes, material
 trade-offs, operational impact, or unresolved risk even when the diff is small. Omit empty slots and
 repeated process narration, but keep the delegated return header when it applies, **Findings
-response** whenever findings were routed to you, any line a loaded skill requires (such as
-`python-craft`'s **Noticed, not changed**), and every material assumption, gap, and risk.
+response** whenever findings were routed to you, any line a loaded skill requires,
+and every material assumption, gap, and risk.
 
 ## Untrusted input boundary
 

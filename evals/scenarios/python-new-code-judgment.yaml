@@ -1,0 +1,41 @@
+id: python-new-code-judgment
+split: regression
+skill: python-craft
+tools: [Skill, Read]
+references:
+  - skills/python-craft/references/new-code.md
+  - skills/python-craft/references/writing-python.md
+prompt: |-
+  Assess these independent new Python implementation cases; do not edit code. The supplied
+  requirements are complete except for the explicitly unresolved failure policy in case D.
+  A. A local utility converts a few hundred records into a report. It has one consumer, no
+     network calls, no extension points, and no concurrency or packaging requirement. Choose
+     the initial implementation shape that delivers the complete requested operation.
+  B. A calculation must serve both an installed CLI and notebook callers. Notebook callers
+     need to receive values and catch errors without parsing terminal output or exiting their
+     process. Both interfaces must use the same calculation. Choose the implementation boundary.
+  C. A job counts records by a fixed, small set of categories from a very large one-pass input.
+     Input order does not affect the counts. Any malformed record must fail the job without
+     publishing a successful report. The report publisher is called only after successful
+     validation of the entire input. Choose how to process the input and produce the report.
+  D. A requested batch operation writes to an external system and may fail after some writes
+     have succeeded. The request does not establish whether earlier writes should be undone,
+     retained with explicit per-item outcomes, or handled another way. That decision changes
+     required behavior. Choose the next action for this unresolved part; independent work can
+     continue without assuming a failure policy.
+  Return only a JSON object with case_a through case_d string values, choosing independently from:
+  direct_synchronous_path, async_plugin_framework, importable_core_cli_adapter,
+  cli_only_calculation, stream_aggregate_then_publish, materialize_all_input,
+  skip_invalid_and_publish, clarify_failure_contract, guess_partial_success.
+success_criteria:
+  - Starts a bounded local operation with a complete direct implementation and no speculative framework.
+  - Separates reusable calculation from CLI parsing, display, and process behavior.
+  - Uses bounded streaming state and publishes only after the required input validation succeeds.
+  - Clarifies consequential unknown failure behavior while allowing independent work to continue.
+graders:
+  - type: exact_json
+    fields:
+      case_a: direct_synchronous_path
+      case_b: importable_core_cli_adapter
+      case_c: stream_aggregate_then_publish
+      case_d: clarify_failure_contract
