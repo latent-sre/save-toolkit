@@ -20,6 +20,11 @@ SECRET = "probe-webhook-secret"
 # The runbook lookup must outlast the vendor's 3 s window; CI shortens it to keep the suite fast.
 RUNBOOK_DELAY = float(os.environ.get("PROBE_RUNBOOK_DELAY", "8"))
 ACK_WINDOW_S = 3.0
+# How long processing may take beyond the runbook lookup, and how long a restarted app may take to
+# reclaim acknowledged work (a lease-based reclaim of up to ~60 s fits).
+PROCESSING_ALLOWANCE_S = float(os.environ.get("PROBE_PROCESSING_ALLOWANCE", "20"))
+RECOVERY_ALLOWANCE_S = float(os.environ.get("PROBE_RECOVERY_ALLOWANCE", "70"))
+RUNBOOK_LINK = "https://runbooks.example.invalid/checkout"
 _PROCS = []
 
 
@@ -131,6 +136,18 @@ def wait_for_incident(db, title, seconds=RUNBOOK_DELAY + 20):
     return []
 
 
+def wait_for_runbook_link(db, title, seconds):
+    """Poll until the incident carries the runbook link; return the last rows seen."""
+    deadline = time.monotonic() + seconds
+    found = []
+    while time.monotonic() < deadline:
+        found = incidents(db, title)
+        if found and found[0][2] == RUNBOOK_LINK:
+            return found
+        time.sleep(0.25)
+    return found
+
+
 def is_problem(resp):
     ctype = resp.headers.get("content-type", "")
     if not ctype.startswith("application/problem+json"):
@@ -153,8 +170,9 @@ def check_signature(proc, base, db):
         good, why = is_problem(resp)
         if not good:
             fail("%s-signature refusal is not problem+json: %s" % (mode, why))
-    # Outlast any processing a faulty handler started before rejecting the signature.
-    time.sleep(RUNBOOK_DELAY + 3)
+    # Outlast any processing a faulty handler started before rejecting the signature, using the same
+    # allowance real processing gets in check_completes.
+    time.sleep(RUNBOOK_DELAY + PROCESSING_ALLOWANCE_S)
     for mode, event in refused:
         where = stored_anywhere(db, event["event_id"])
         if where or incidents(db, event["summary"]):
@@ -183,20 +201,13 @@ def check_completes(proc, base, db):
     resp, _ = deliver(base, event)
     if not 200 <= resp.status_code < 300:
         fail("valid event -> %d" % resp.status_code)
-    expected = "https://runbooks.example.invalid/checkout"
-    deadline = time.monotonic() + RUNBOOK_DELAY + 20
-    found = []
-    while time.monotonic() < deadline:
-        found = incidents(db, event["summary"])
-        if found and found[0][2] == expected:
-            break
-        time.sleep(0.25)
+    budget = RUNBOOK_DELAY + PROCESSING_ALLOWANCE_S
+    found = wait_for_runbook_link(db, event["summary"], budget)
     if not found:
-        fail("no incident titled %r appeared within %.0fs" % (event["summary"], RUNBOOK_DELAY + 20))
+        fail("no incident titled %r appeared within %.0fs" % (event["summary"], budget))
     title, service, url, status = found[0]
-    if service != "checkout" or url != expected:
-        fail("within %.0fs the incident carries service %r and runbook link %r"
-             % (RUNBOOK_DELAY + 20, service, url))
+    if service != "checkout" or url != RUNBOOK_LINK:
+        fail("within %.0fs the incident carries service %r and runbook link %r" % (budget, service, url))
     if status != "open":
         fail("a new incident must start open; it is %r" % status)
     ok("open incident created with its runbook link")
@@ -236,12 +247,15 @@ def check_durable(proc, base, db):
     if where is None:
         fail("the app acknowledged the event (%d in %.1fs) but had not stored it when killed"
              % (resp.status_code, elapsed))
-    # Stored is not enough: restart on the same database and require the work to finish.
+    # Stored is not enough: restart on the same database and require the work to finish, runbook
+    # link included. The budget covers a lease-based reclaim of up to about a minute.
     start(db)
-    if not wait_for_incident(db, event["summary"], seconds=RUNBOOK_DELAY + 25):
-        fail("the event was stored in %r but a restarted app never turned it into an incident: "
-             "the acknowledged work was not recoverable" % where)
-    ok("event stored in %r before the acknowledgement and recovered after a restart" % where)
+    budget = RUNBOOK_DELAY + RECOVERY_ALLOWANCE_S
+    found = wait_for_runbook_link(db, event["summary"], budget)
+    if not found or found[0][2] != RUNBOOK_LINK:
+        fail("the event was stored in %r but within %.0fs of a restart it never became a complete "
+             "incident (found %s): the acknowledged work was not recoverable" % (where, budget, found))
+    ok("event stored in %r before the acknowledgement and finished after a restart" % where)
 
 
 CHECKS = {

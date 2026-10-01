@@ -52,7 +52,8 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
   It now names `Idempotent-Replayed` and leads webhook acceptance with `202`. The trimmed skill met
   or beat the current one on every check of all three probes; the replay header went 2/3 -> 3/3 and
-  202 went 2/3 -> 3/3.
+  202 went 2/3 -> 3/3. No arm makes acknowledged webhook work recoverable after a crash (0/12 under
+  the restart check), so the persist-before-ack line that was cut produced no recovery either.
 
 ### Fixed
 
@@ -237,9 +238,10 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   - `pager-webhook`: a signed webhook whose processing outlasts the vendor's 3 s window.
 
   Against a no-skill control the skill scored 20/21 vs 11/21 on writes, mostly from requiring the
-  key, using 422 for a changed payload, and repeating 201 on replay. On the webhook it scored 17/18
-  vs 15/18: the model already authenticates, acknowledges fast, persists first and deduplicates on
-  its own.
+  key, using 422 for a changed payload, and repeating 201 on replay. On the webhook it scored 14/18
+  vs 12/18. The model already authenticates, acknowledges fast, persists first and deduplicates on
+  its own. With or without the skill, none of the 6 trials finishes the acknowledged work after a
+  kill and restart: each attaches the runbook link in memory.
 - A medium-sized Python build probe, `build-python-unify-policy`: seven modules, three drifted
   intake entrypoints, a registry, a configured dotted lookup, a legacy re-export, and a unit suite
   that encodes the drift. Its oracle checks specification parity for every entrypoint, single

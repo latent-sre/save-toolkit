@@ -7,7 +7,9 @@ agent: software-engineer
 # real port against its own SQLite file and grades the outcome: a replay returns the first result
 # without a second row, a reused key with a different payload is refused, a write without a key is
 # refused, two overlapping requests with one key leave one row, and two alerts with the same title
-# but different keys stay two incidents. Inserts sleep 300 ms so overlapping requests really overlap.
+# but different keys stay two incidents. For the overlap, the oracle holds the first write inside
+# store.create_incident, uncommitted, and sends the second; an app that writes without that
+# function is raced from a client-side barrier instead. Inserts sleep 300 ms.
 # The fixture is stdlib plus fastapi/httpx/uvicorn, which requirements-dev.txt pins.
 prompt: |
   Add `POST /v1/incidents` to this FastAPI service: it creates an incident from a JSON body
@@ -248,9 +250,9 @@ checks:
   - check: command_exit_zero
     command: "python probe_checks.py create"
     timeout: 120
-    text: "oracle: a keyed create returns 201 with the new incident, readable by id"
+    text: "oracle: a keyed create returns 201 with the new open incident, readable by id"
     writes_from: {probe_checks.py: evals/oracles/incident-writes/probe_checks.py}
-  - {check: command_exit_zero, command: "python probe_checks.py replay", timeout: 120, text: "oracle: a resend with the same key and payload returns the first result and adds no row"}
+  - {check: command_exit_zero, command: "python probe_checks.py replay", timeout: 120, text: "oracle: a resend with the same key and payload returns the first response exactly and adds no row"}
   - {check: command_exit_zero, command: "python probe_checks.py replay_header", timeout: 120, text: "oracle: the replay is flagged Idempotent-Replayed: true and the first response is not"}
   - {check: command_exit_zero, command: "python probe_checks.py conflict", timeout: 120, text: "oracle: the same key with a different payload is a 422 problem and changes nothing"}
   - {check: command_exit_zero, command: "python probe_checks.py missing_key", timeout: 120, text: "oracle: a write without Idempotency-Key is a 400 problem and adds no row"}

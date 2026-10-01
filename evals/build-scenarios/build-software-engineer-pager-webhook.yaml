@@ -5,11 +5,12 @@ agent: software-engineer
 # a 3 s wait for a 2xx, then redelivery of the same event) and the runbook lookup is slow, without
 # saying how the receiver should work. The probe-owned oracle (probe_checks.py, never seen by the
 # agent) runs the app as a uvicorn subprocess against its own SQLite file and a runbook stub that
-# answers in 8 s, and grades: a forged signature is refused and stores nothing; a valid event is
-# acknowledged within 3 s, with 202; the incident appears with its runbook link; three deliveries
-# of one event make one incident; and the event is already in the database when the app is killed
-# right after acknowledging it. The fixture is stdlib plus fastapi/httpx/uvicorn, which
-# requirements-dev.txt pins.
+# answers in 8 s, and grades: a forged or missing signature is refused, and nothing is stored or
+# processed even after the runbook delay; a valid event is acknowledged within 3 s, with 202; an
+# open incident appears with its runbook link; three deliveries of one event make one incident
+# while a different event id with the same summary makes its own; and when the app is killed right
+# after acknowledging, the event is already stored and a restarted app finishes it, runbook link
+# included. The fixture is stdlib plus fastapi/httpx/uvicorn, which requirements-dev.txt pins.
 prompt: |
   Add `POST /v1/webhooks/pager` to this FastAPI service: each pager event becomes an incident (title
   from the event's summary, status `open`) carrying the runbook link that `app/runbooks.py` looks up
@@ -258,13 +259,13 @@ checks:
   - check: command_exit_zero
     command: "python probe_checks.py signature"
     timeout: 120
-    text: "oracle: a forged or missing signature is refused as a problem and stores nothing"
+    text: "oracle: a forged or missing signature is refused as a problem; nothing is stored or processed"
     writes_from: {probe_checks.py: evals/oracles/pager-webhook/probe_checks.py}
   - {check: command_exit_zero, command: "python probe_checks.py fast_ack", timeout: 120, text: "oracle: a valid event is acknowledged with a 2xx within 3 s while the runbook lookup takes 8 s"}
   - {check: command_exit_zero, command: "python probe_checks.py accepted", timeout: 120, text: "oracle: the acknowledgement is 202 Accepted"}
-  - {check: command_exit_zero, command: "python probe_checks.py completes", timeout: 120, text: "oracle: the incident appears with the summary as title and the runbook link"}
-  - {check: command_exit_zero, command: "python probe_checks.py redelivery", timeout: 120, text: "oracle: three deliveries of one event make exactly one incident"}
-  - {check: command_exit_zero, command: "python probe_checks.py durable", timeout: 120, text: "oracle: the event is already stored when the app is killed right after acknowledging it"}
+  - {check: command_exit_zero, command: "python probe_checks.py completes", timeout: 120, text: "oracle: an open incident appears with the summary as title and the runbook link"}
+  - {check: command_exit_zero, command: "python probe_checks.py redelivery", timeout: 120, text: "oracle: three deliveries of one event make one incident; a different event id with the same summary makes its own"}
+  - {check: command_exit_zero, command: "python probe_checks.py durable", timeout: 180, text: "oracle: killed right after acknowledging, the event is already stored and a restarted app finishes it with its runbook link"}
   - {check: command_exit_zero, command: "python -m pytest -q", timeout: 300, text: "suite is green when the probe runs it"}
   - {check: verification_completed, runner: pytest, text: "trace: a foreground suite completed after the last potentially mutating tool action"}
   - {check: text_regex, pattern: '^[\s>*_#-]{0,8}changed\b', text: "packet: Changed slot"}

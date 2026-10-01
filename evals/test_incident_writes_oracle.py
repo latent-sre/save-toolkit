@@ -34,6 +34,18 @@ from app.schemas import IncidentOut
 KEYS = "CREATE TABLE IF NOT EXISTS idempotency_keys (key TEXT PRIMARY KEY, fingerprint TEXT, body TEXT)"
 
 
+def _own_insert(conn, title: str, service: str) -> dict:
+    """Writes with its own SQL, bypassing store.create_incident (and its 300 ms delay)."""
+    import time, uuid
+    from datetime import datetime, timezone
+    row = {"id": f"inc-{uuid.uuid4().hex[:12]}", "title": title, "service": service, "status": "open",
+           "created_at": datetime.now(timezone.utc).isoformat()}
+    time.sleep(0.3)
+    conn.execute("INSERT INTO incidents (id, title, service, status, created_at)"
+                 " VALUES (:id, :title, :service, :status, :created_at)", row)
+    return row
+
+
 class IncidentIn(BaseModel):
     title: str
     service: str
@@ -71,7 +83,7 @@ def create_app() -> FastAPI:
                 if FINGERPRINT_CHECK:
                     raise HTTPException(422, "Idempotency-Key reused with a different payload")
                 return JSONResponse(REPLAY_BODY, status_code=201, headers=REPLAY_HEADERS)
-            row = store.create_incident(conn, payload.title, payload.service)
+            row = CREATE_CALL
             body = IncidentOut(**row).model_dump()
             conn.execute("INSERT OR IGNORE INTO idempotency_keys VALUES (?, ?, ?)",
                          (idempotency_key, fingerprint, json.dumps(body)))
@@ -88,6 +100,7 @@ HOUSE = {
     "FINGERPRINT_CHECK": 'seen["fingerprint"] != fingerprint',
     "REPLAY_BODY": 'json.loads(seen["body"])',
     "REPLAY_HEADERS": '{"Idempotent-Replayed": "true"}',
+    "CREATE_CALL": "store.create_incident(conn, payload.title, payload.service)",
 }
 # store.create_incident commits by itself; the reference defers that commit so the incident and its
 # key commit together, which is what makes the lock above sufficient.
@@ -108,6 +121,11 @@ MUTANTS = {
     "replay_partial": ("replay", {"REPLAY_BODY": '{"id": json.loads(seen["body"])["id"]}'},
                        "expected the first result exactly", {}),
     "status_closed": ("create", {}, "must start open", {"status": "closed"}),
+    # Own SQL, no lock: the gate cannot hold it, so the barrier fallback must still catch the race.
+    "own_sql_unlocked": ("concurrent",
+                         {"CREATE_CALL": "_own_insert(conn, payload.title, payload.service); conn.commit()",
+                          "LOCK": "pass"},
+                         "left 2 rows (client-side barrier fallback", {}),
 }
 
 
@@ -146,7 +164,15 @@ def test_concurrency_overlap_is_observed_server_side(tmp_path):
     """The oracle sends the second request only once the first is inside the write path."""
     result = run(materialize(tmp_path, {}), "concurrent")
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "second request sent while the first was inside store.create_incident" in result.stdout
+    assert "second request sent while the first was held inside store.create_incident" in result.stdout
+
+
+def test_own_sql_locked_design_passes_through_the_fallback(tmp_path):
+    """A correct app that bypasses store.create_incident is raced from a barrier, not failed."""
+    overrides = {"CREATE_CALL": "_own_insert(conn, payload.title, payload.service)"}
+    result = run(materialize(tmp_path, overrides), "concurrent")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "client-side barrier fallback" in result.stdout
 
 
 @pytest.mark.parametrize("name", sorted(MUTANTS))

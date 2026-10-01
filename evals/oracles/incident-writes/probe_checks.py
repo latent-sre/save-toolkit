@@ -186,6 +186,26 @@ def check_missing_key(base, db):
     ok("write without a key -> 400 problem; no row")
 
 
+def race_from_barrier(base, key):
+    """Two requests with one key, released together from a client-side barrier."""
+    barrier = threading.Barrier(2)
+    results = []
+
+    def send():
+        barrier.wait()
+        try:
+            results.append(post(base, BODY, key))
+        except Exception as exc:
+            results.append(exc)
+
+    threads = [threading.Thread(target=send) for _ in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(30)
+    return results
+
+
 def check_concurrent(base, db):
     key = str(uuid.uuid4())
     results = []
@@ -196,20 +216,34 @@ def check_concurrent(base, db):
         except Exception as exc:
             results.append(exc)
 
-    # Send the second request only once the first is provably inside the write path, uncommitted.
+    # Hold the first request inside the store's write path, uncommitted, then send the second.
     GATE["armed"] = True
     first = threading.Thread(target=send)
     first.start()
-    overlap = GATE["instrumented"] and GATE["first_in"].wait(15)
-    second = threading.Thread(target=send)
-    second.start()
-    for t in (first, second):
-        t.join(30)
+    while GATE["instrumented"] and not GATE["first_in"].is_set() and first.is_alive():
+        time.sleep(0.01)
+    if GATE["first_in"].is_set():
+        second = threading.Thread(target=send)
+        second.start()
+        for t in (first, second):
+            t.join(30)
+        new_rows = len(rows(db))
+        how = "second request sent while the first was held inside store.create_incident, uncommitted"
+    else:
+        # The app writes without store.create_incident, so the gate cannot hold it. Never fall back
+        # to sequential requests: race two fresh ones from a barrier, as before the gate existed.
+        first.join(30)
+        GATE["armed"] = False
+        before = len(rows(db))
+        results = race_from_barrier(base, str(uuid.uuid4()))
+        new_rows = len(rows(db)) - before
+        how = ("client-side barrier fallback: the app does not write through store.create_incident,"
+               " so overlap is likely but not proven")
     errors = [r for r in results if isinstance(r, Exception)]
     if errors or len(results) != 2:
         fail("overlapping requests did not both return: %s" % (errors or results))
-    if len(rows(db)) != 1:
-        fail("two overlapping requests with one key left %d rows" % len(rows(db)))
+    if new_rows != 1:
+        fail("two overlapping requests with one key left %d rows (%s)" % (new_rows, how))
     bodies = [created(r, "an overlapping request") for r in results if r.status_code == 201]
     if not bodies or len({b["id"] for b in bodies}) != 1:
         fail("overlapping requests returned %s; at least one 201 and one id expected"
@@ -221,8 +255,6 @@ def check_concurrent(base, db):
                 fail("the in-progress 409 is not problem+json: " + why)
         elif r.status_code != 201:
             fail("an overlapping request -> %d; expected 201 or an in-progress 409" % r.status_code)
-    how = ("second request sent while the first was inside store.create_incident" if overlap
-           else "overlap not instrumented: the app does not write through store.create_incident")
     ok("overlapping requests -> %s, one row (%s)" % (sorted(r.status_code for r in results), how))
 
 

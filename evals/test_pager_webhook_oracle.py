@@ -155,7 +155,24 @@ MUTANTS = {
                                    '            conn.commit()\n'
                                    '        threading.Thread(target=_process_one, args=(event,), daemon=True).start()'),
                         "WORKER_ENABLED": "False"},
-                       "never turned it into an incident"),
+                       "never became a complete incident"),
+    # Incident now, runbook link in memory: a restart loses the link.
+    "link_in_memory": ("durable",
+                       {"ACCEPT": ('with connect() as conn:\n'
+                                   '            conn.execute("INSERT OR IGNORE INTO pager_events'
+                                   ' (event_id, service, summary, status) VALUES (?, ?, ?, \'done\')",\n'
+                                   '                         (event["event_id"], event["service"], event["summary"]))\n'
+                                   '            conn.execute(INSERT_INCIDENT, _incident_args(event, None))\n'
+                                   '            conn.commit()\n'
+                                   '        threading.Thread(target=_enrich_later, args=(event,), daemon=True).start()')},
+                       "never became a complete incident"),
+    # Processing starts 5 s after a forged request, beyond a short fixed wait.
+    "signature_checked_after_delayed_processing": (
+        "signature",
+        {"SIGNATURE_REJECTS": ('(threading.Timer(5, _process_one, args=(json.loads(raw),)).start() or True)'
+                               ' and not hmac.compare_digest(request.headers.get("x-pager-signature", ""),'
+                               ' expected)')},
+        "was stored or processed"),
 }
 
 
@@ -175,7 +192,10 @@ def materialize(tmp_path: Path, overrides: dict[str, str]) -> Path:
 
 def run(workspace: Path, check: str) -> subprocess.CompletedProcess:
     # A 4 s runbook lookup still outlasts the vendor's 3 s window, so the timing checks discriminate.
-    env = dict(os.environ, PROBE_RUNBOOK_DELAY="4", PYTHONDONTWRITEBYTECODE="1")
+    # Shorter allowances keep CI fast and still discriminate: the delayed-processing mutant finishes
+    # at about 9 s, inside the 4 + 10 s signature wait, and the reference recovers at once.
+    env = dict(os.environ, PROBE_RUNBOOK_DELAY="4", PROBE_PROCESSING_ALLOWANCE="10",
+               PROBE_RECOVERY_ALLOWANCE="15", PYTHONDONTWRITEBYTECODE="1")
     return subprocess.run([sys.executable, "-B", "probe_checks.py", check], cwd=workspace, env=env,
                           capture_output=True, text=True, timeout=180)
 
