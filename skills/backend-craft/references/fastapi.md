@@ -17,10 +17,8 @@ Python and dependency versions from the project's actual manifests and lockfiles
 - **Streaming:** on FastAPI 0.135 or later, use `EventSourceResponse` and `ServerSentEvent` from
   `fastapi.sse`. They send the 15 s keep-alive and set `Cache-Control: no-cache` and
   `X-Accel-Buffering: no`.
-- **Public response contracts:** typed JSON uses `response_model=` or a return annotation describing
-  the public output; separate input/output models when their contracts differ. Use
-  `from_attributes=True` only for attribute extraction, not as a default on every model.
-  A returned `Response` bypasses model validation/serialization; enforce its own contract explicitly.
+- **Public response contracts:** a returned `Response` bypasses model validation and serialization;
+  enforce its contract explicitly. Use `from_attributes=True` only for attribute extraction.
 - **Authentication and authorization as chained dependencies**: `get_current_user` → `401` with
   `WWW-Authenticate`, then a role check → `403`. Role checks gate the operation; item and write
   routes also enforce the object's access policy (owner, tenant, sharing, or administrative rights)

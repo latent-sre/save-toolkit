@@ -4,9 +4,8 @@
 ARQ or TaskIQ for async FastAPI, and Celery for its ecosystem, are candidates to assess against the
 workload, not fleet defaults; an accepted stack choice belongs in `stack-profile`.
 
-- **Acceptance:** verify a webhook's authenticity and durably persist the work before accepting it.
-  New asynchronous receivers default to `202`; a provider's acknowledgement contract wins. Expose
-  status for long-running work: acceptance is not completion.
+- **Acceptance:** new asynchronous receivers answer `202`; a provider's acknowledgement contract
+  wins. Expose status for long-running work: acceptance is not completion.
 - **Dispatch:** when a business transaction must enqueue work, commit the business state and the
   dispatch intent atomically, through an existing transactional queue or an outbox. Add an outbox
   only for that boundary. Publish outside the transaction and mark the message sent only after the

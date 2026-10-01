@@ -1,0 +1,269 @@
+id: build-software-engineer-incident-writes
+agent: software-engineer
+# backend-craft's API-writes rules with real tools. The prompt asks only for a create endpoint; the
+# README describes the calling bot (a fresh Idempotency-Key per alert, a resend on a 5 s timeout,
+# sometimes while the first request is still running) without saying what the server should do.
+# The probe-owned oracle (probe_checks.py, never seen by the agent) runs the app under uvicorn on a
+# real port against its own SQLite file and grades the outcome: a replay returns the first result
+# without a second row, a reused key with a different payload is refused, a write without a key is
+# refused, two overlapping requests with one key leave one row, and two alerts with the same title
+# but different keys stay two incidents. For the overlap, the oracle holds the first write inside
+# store.create_incident, uncommitted, and sends the second; an app that writes without that
+# function is raced from a client-side barrier instead. Inserts sleep 300 ms.
+# The fixture is stdlib plus fastapi/httpx/uvicorn, which requirements-dev.txt pins.
+prompt: |
+  Add `POST /v1/incidents` to this FastAPI service: it creates an incident from a JSON body
+  `{"title": ..., "service": ...}` (status starts `open`) and returns it with its new id. The paging
+  bot is its caller; the README describes how the bot behaves. Build it end to end in this repo,
+  and tell me what you ran to verify it.
+
+  Tests go in `tests/`; this repo uses pytest (see the README). This is a code change, not a design
+  question, not a review, and not an incident.
+  After your last edit or helper return, run `python -m pytest -q` as a standalone foreground
+  shell command; use read tools for any final inspection.
+  Use separate Changed and Verified headings in your final response, explaining the changes and verification results.
+fixture:
+  files:
+    README.md: |
+      # opsapi
+
+      Small FastAPI service behind the on-call tooling. `app/main.py` builds the app in
+      `create_app()`; settings come from the environment via `app/config.py`. Incidents live in the
+      SQLite database at `DB_PATH` (`app/db.py`, `app/store.py`). Every error is an RFC 9457
+      `application/problem+json` body, installed by `app/errors.py`.
+
+      ## Callers
+
+      The paging bot creates incidents. Each alert it reports carries a fresh `Idempotency-Key`
+      header (a UUID). When it gets no answer within 5 seconds it sends the same request with the
+      same key again, sometimes while the first is still being processed. A different alert gets a
+      different key, even when its title and service repeat.
+
+      Dependencies (fastapi, httpx, pytest) are already installed on this machine. Run the tests
+      from the repo root:
+
+          python -m pytest -q
+    pyproject.toml: |
+      [project]
+      name = "opsapi"
+      version = "0.1.0"
+      requires-python = ">=3.12"
+
+      [tool.pytest.ini_options]
+      testpaths = ["tests"]
+      pythonpath = ["."]
+    app/__init__.py: ""
+    app/config.py: |
+      """Runtime settings, read from the environment."""
+      from __future__ import annotations
+
+      import os
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Settings:
+          db_path: str
+
+
+      def get_settings() -> Settings:
+          return Settings(db_path=os.environ.get("DB_PATH", "opsapi.db"))
+    app/db.py: |
+      """SQLite access: one connection per use; the schema is created at startup."""
+      from __future__ import annotations
+
+      import sqlite3
+      from collections.abc import Iterator
+      from contextlib import contextmanager
+
+      from app.config import get_settings
+
+      SCHEMA = """
+      CREATE TABLE IF NOT EXISTS incidents (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          service TEXT NOT NULL,
+          status TEXT NOT NULL,
+          created_at TEXT NOT NULL
+      );
+      """
+
+
+      @contextmanager
+      def connect() -> Iterator[sqlite3.Connection]:
+          conn = sqlite3.connect(get_settings().db_path, timeout=10)
+          conn.row_factory = sqlite3.Row
+          try:
+              yield conn
+          finally:
+              conn.close()
+
+
+      def init_schema() -> None:
+          with connect() as conn:
+              conn.executescript(SCHEMA)
+    app/store.py: |
+      """Incident persistence."""
+      from __future__ import annotations
+
+      import sqlite3
+      import time
+      import uuid
+      from datetime import datetime, timezone
+
+      # The production database is remote: a write takes about 300 ms. Tests keep the delay.
+      WRITE_LATENCY_S = 0.3
+
+
+      def get_incident(conn: sqlite3.Connection, incident_id: str) -> dict | None:
+          row = conn.execute("SELECT * FROM incidents WHERE id = ?", (incident_id,)).fetchone()
+          return dict(row) if row else None
+
+
+      def create_incident(conn: sqlite3.Connection, title: str, service: str) -> dict:
+          row = {
+              "id": f"inc-{uuid.uuid4().hex[:12]}",
+              "title": title,
+              "service": service,
+              "status": "open",
+              "created_at": datetime.now(timezone.utc).isoformat(),
+          }
+          time.sleep(WRITE_LATENCY_S)
+          conn.execute(
+              "INSERT INTO incidents (id, title, service, status, created_at)"
+              " VALUES (:id, :title, :service, :status, :created_at)",
+              row,
+          )
+          conn.commit()
+          return row
+    app/schemas.py: |
+      from __future__ import annotations
+
+      from pydantic import BaseModel
+
+
+      class IncidentOut(BaseModel):
+          id: str
+          title: str
+          service: str
+          status: str
+          created_at: str
+    app/errors.py: |
+      """RFC 9457 problem+json for every error this service returns."""
+      from __future__ import annotations
+
+      import uuid
+      from http import HTTPStatus
+
+      from fastapi import FastAPI, Request
+      from fastapi.exceptions import RequestValidationError
+      from fastapi.responses import JSONResponse
+      from starlette.exceptions import HTTPException as StarletteHTTPException
+
+
+      def problem(request: Request, status: int, detail: str, **extensions) -> JSONResponse:
+          body = {
+              "type": "about:blank",
+              "title": HTTPStatus(status).phrase,
+              "status": status,
+              "detail": detail,
+              # Only state a trusted middleware validated; never a raw client header.
+              "request_id": getattr(request.state, "request_id", None) or str(uuid.uuid4()),
+              **extensions,
+          }
+          return JSONResponse(body, status_code=status, media_type="application/problem+json")
+
+
+      def install_problem_handlers(app: FastAPI) -> None:
+          @app.exception_handler(StarletteHTTPException)
+          async def http_error(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+              response = problem(request, exc.status_code, str(exc.detail))
+              response.headers.update(exc.headers or {})
+              return response
+
+          @app.exception_handler(RequestValidationError)
+          async def invalid(request: Request, exc: RequestValidationError) -> JSONResponse:
+              errors = [{"loc": [str(p) for p in e["loc"]], "msg": e["msg"]} for e in exc.errors()]
+              return problem(request, 422, "The request failed validation.", errors=errors)
+
+          @app.exception_handler(Exception)
+          async def unexpected(request: Request, exc: Exception) -> JSONResponse:
+              return problem(request, 500, "An unexpected error occurred.")
+    app/main.py: |
+      """opsapi application factory."""
+      from __future__ import annotations
+
+      from contextlib import asynccontextmanager
+
+      from fastapi import FastAPI, HTTPException
+
+      from app import store
+      from app.db import connect, init_schema
+      from app.errors import install_problem_handlers
+      from app.schemas import IncidentOut
+
+
+      def create_app() -> FastAPI:
+          @asynccontextmanager
+          async def lifespan(app: FastAPI):
+              init_schema()
+              yield
+
+          app = FastAPI(title="opsapi", lifespan=lifespan)
+          install_problem_handlers(app)
+
+          @app.get("/healthz")
+          def healthz() -> dict:
+              return {"status": "ok"}
+
+          @app.get("/v1/incidents/{incident_id}", response_model=IncidentOut)
+          def get_incident(incident_id: str) -> IncidentOut:
+              with connect() as conn:
+                  row = store.get_incident(conn, incident_id)
+              if row is None:
+                  raise HTTPException(status_code=404, detail="unknown incident")
+              return IncidentOut(**row)
+
+          return app
+    tests/__init__.py: ""
+    tests/conftest.py: |
+      import pytest
+      from fastapi.testclient import TestClient
+
+      from app.main import create_app
+
+
+      @pytest.fixture
+      def client(tmp_path, monkeypatch):
+          monkeypatch.setenv("DB_PATH", str(tmp_path / "test.db"))
+          with TestClient(create_app()) as c:
+              yield c
+    tests/test_incidents.py: |
+      def test_unknown_incident_is_404(client):
+          r = client.get("/v1/incidents/inc-missing")
+          assert r.status_code == 404
+          assert r.headers["content-type"].startswith("application/problem+json")
+checks:
+  # The oracle is written by this first check and reused by the ones below (the workspace persists
+  # between checks). Each check starts the real app under uvicorn on a free loopback port with a
+  # fresh SQLite file, drives it over HTTP, and counts rows in the incidents table directly.
+  - check: command_exit_zero
+    command: "python probe_checks.py create"
+    timeout: 120
+    text: "oracle: a keyed create returns 201 with the new open incident, readable by id"
+    writes_from: {probe_checks.py: evals/oracles/incident-writes/probe_checks.py}
+  - {check: command_exit_zero, command: "python probe_checks.py replay", timeout: 120, text: "oracle: a resend with the same key and payload returns the first response exactly and adds no row"}
+  - {check: command_exit_zero, command: "python probe_checks.py replay_header", timeout: 120, text: "oracle: the replay is flagged Idempotent-Replayed: true and the first response is not"}
+  - {check: command_exit_zero, command: "python probe_checks.py conflict", timeout: 120, text: "oracle: the same key with a different payload is a 422 problem and changes nothing"}
+  - {check: command_exit_zero, command: "python probe_checks.py missing_key", timeout: 120, text: "oracle: a write without Idempotency-Key is a 400 problem and adds no row"}
+  - {check: command_exit_zero, command: "python probe_checks.py concurrent", timeout: 120, text: "oracle: two overlapping requests with one key leave exactly one incident"}
+  - {check: command_exit_zero, command: "python probe_checks.py distinct_keys", timeout: 120, text: "oracle: two alerts with the same title but different keys stay two incidents"}
+  - {check: command_exit_zero, command: "python -m pytest -q", timeout: 300, text: "suite is green when the probe runs it"}
+  - {check: verification_completed, runner: pytest, text: "trace: a foreground suite completed after the last potentially mutating tool action"}
+  - {check: text_regex, pattern: '^[\s>*_#-]{0,8}changed\b', text: "packet: Changed slot"}
+  - {check: text_regex, pattern: '^[\s>*_#-]{0,8}verified\b', text: "packet: Verified slot"}
+  - {check: changes_within, allowed: ["app", "tests", "README.md", "pyproject.toml"], text: "surgical: only the service, its tests, the README, and the project file changed"}
+  - {check: no_new_commits, text: "nothing committed uninvited"}
+  - {check: no_agents_dir, text: "no .agents/ progress litter"}
+  - {check: skill_loaded, skill: backend-craft, text: "backend-craft was loaded for backend code"}
+  - {check: no_task_dispatch, target: reviewer, text: "routine completion spawns no reviewer"}

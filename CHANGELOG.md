@@ -44,6 +44,16 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   403 and 500 responses, and a documented `X-Request-ID`. SKILL.md is 7,105 -> 7,799 bytes. On the
   repaired `incidents-api` probe, main rejected the oversized limit 6/6 and the candidate capped it
   6/6; every other oracle check passed on both arms.
+- `backend-craft` trimmed where a no-skill control showed the model already complies (Sonnet,
+  3 trials per arm):
+  - the response-model allowlist (no leaks 3/3 without the skill);
+  - the generic test-running bullet;
+  - webhook authentication and persist-before-ack (3/3 without the skill).
+
+  It now names `Idempotent-Replayed` and leads webhook acceptance with `202`. The trimmed skill met
+  or beat the current one on every check of all three probes; the replay header went 2/3 -> 3/3 and
+  202 went 2/3 -> 3/3. No arm makes acknowledged webhook work recoverable after a crash (0/12 under
+  the restart check), so the persist-before-ack line that was cut produced no recovery either.
 
 ### Fixed
 
@@ -222,6 +232,16 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Added
 
+- Two `backend-craft` build probes with probe-owned oracles, each proven by a no-model test
+  (a house-rule reference plus targeted mutants):
+  - `incident-writes`: an idempotent create whose caller resends on timeout.
+  - `pager-webhook`: a signed webhook whose processing outlasts the vendor's 3 s window.
+
+  Against a no-skill control the skill scored 20/21 vs 11/21 on writes, mostly from requiring the
+  key, using 422 for a changed payload, and repeating 201 on replay. On the webhook it scored 14/18
+  vs 12/18. The model already authenticates, acknowledges fast, persists first and deduplicates on
+  its own. With or without the skill, none of the 6 trials finishes the acknowledged work after a
+  kill and restart: each attaches the runbook link in memory.
 - A medium-sized Python build probe, `build-python-unify-policy`: seven modules, three drifted
   intake entrypoints, a registry, a configured dotted lookup, a legacy re-export, and a unit suite
   that encodes the drift. Its oracle checks specification parity for every entrypoint, single
