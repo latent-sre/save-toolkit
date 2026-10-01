@@ -175,7 +175,8 @@ fixture:
               "title": HTTPStatus(status).phrase,
               "status": status,
               "detail": detail,
-              "request_id": request.headers.get("x-request-id") or str(uuid.uuid4()),
+              # Only state a trusted middleware validated; never a raw client header.
+              "request_id": getattr(request.state, "request_id", None) or str(uuid.uuid4()),
               **extensions,
           }
           return JSONResponse(body, status_code=status, media_type="application/problem+json")
