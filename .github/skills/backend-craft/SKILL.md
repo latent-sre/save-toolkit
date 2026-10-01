@@ -1,9 +1,9 @@
 ---
 name: backend-craft
 description: >-
-  Build or change an API or backend service — HTTP endpoints, workers, schedulers, the service behind
-  a UI — and consume third-party APIs safely (clients, SDK wrappers, sync jobs, webhooks), including
-  our platform/obs APIs. Triggers: 'add an endpoint', 'wrap X behind an API', 'write a client for Y'.
+  Builds or changes an API or backend service — HTTP endpoints, workers, schedulers, the service
+  behind a UI — and consumes third-party APIs safely (clients, SDK wrappers, sync jobs, webhooks),
+  including our platform/obs APIs. Triggers: 'add an endpoint', 'wrap X behind an API', 'write a client for Y'.
   Not for UI work (frontend-craft), live-data operations (database-reliability).
 argument-hint: "[the API or service to build or change]"
 ---
@@ -38,20 +38,21 @@ operability and failure rules that fit a worker, scheduler, or client without ad
 |---|---|
 | API contract | For an HTTP interface, keep its OpenAPI contract current; use [openapi.starter.yaml](./assets/openapi.starter.yaml) only for a compatible new interface with no project-owned contract |
 | Errors | Top-level RFC 9457 `application/problem+json` with `errors[]` and `request_id` extensions — one shape everywhere |
-| Validation failures | `422`; `400` only for malformed |
-| Versioning | `/v1` from day one, at most two live versions, dated `Sunset` then `410` |
-| Collections | `{ "data": [...], "next_cursor": ... }`; cursor by default, `limit` capped server-side, fetch `limit + 1`, filters and sorts allowlisted, no total counts unless cheap |
+| Validation failures | `422` for a well-formed request with invalid values; `400` only for malformed syntax or an unparseable body |
+| Versioning | `/v1` from day one, at most two live versions; announce retirement with `Deprecation` (RFC 9745) and a later `Sunset` (RFC 8594) header plus a `deprecation` link, then `410` |
+| Collections | `{ "data": [...], "next_cursor": ... }`, opaque cursor, `null` on the last page; a `limit` above the maximum is lowered, not rejected; fetch `limit + 1`; allowlisted filters and sorts; no total counts unless cheap |
 | Long-running work | `202` plus a status resource the client polls |
 | API writes | Before retryable or concurrent writes, read [API writes](./references/api-writes.md); adapt [write acceptance tests](./assets/test_api_write_contract.py) to compatible Python contracts |
-| Rate limits | `429` with `Retry-After` and `X-RateLimit-Limit`/`-Remaining`/`-Reset` |
-| Outbound calls | A timeout on every one; retries only for idempotent operations with backoff and jitter; one typed client per upstream; long-lived clients use an upstream breaker when repeated failures need shared suppression and recovery probes |
-| Health | `/healthz` process-only; `/readyz` includes a dependency only when withdrawing the instance improves behaviour; public health endpoints carry no auth. On PCF the manifest sets `health-check-type: http` with `health-check-http-endpoint: /healthz` and `readiness-health-check-type: http` with `readiness-health-check-http-endpoint: /readyz` (defaults: `port`, `process`, endpoint `/`); never point liveness at a dependency |
-| Observability | Request ID on every log line and problem body: Gorouter's `X-Vcap-Request-Id` on PCF, else a validated ingress id or a generated one; RED on the request path |
+| Rate limits | `429` with `Retry-After`, always. Optional quota headers use the IETF `RateLimit-Policy`/`RateLimit` draft fields as the starter shows; `X-RateLimit-*` (`-Reset` in seconds) only for clients that already parse them |
+| Outbound calls | One deadline per logical operation, not just per call; retry only documented transient failures of idempotent operations, with capped backoff, jitter and `Retry-After`; one typed client per upstream; a breaker for long-lived clients ([consuming-apis](./references/consuming-apis.md)) |
+| Dependency failure | Fail fast; never hang or drop data silently. An upstream that only enriches: return the resource with that field marked unavailable. An essential one: `502` (bad answer) or `504` (timeout) problem. Document which |
+| Health | `/health/live` is process-only; `/health/ready` includes a dependency only when withdrawing the instance helps; no auth; no health path ends in `z` (Cloud Run reserves some). PCF manifest: `health-check-type: http`, `health-check-http-endpoint: /health/live`, `readiness-health-check-type: http`, `readiness-health-check-http-endpoint: /health/ready`; a routeless worker uses `process`. Cloud Run: HTTP liveness probe on `/health/live`. Never point liveness at a dependency |
+| Observability | A request ID on every log line and problem body, echoed as `X-Request-ID`: generated, or read from a header only a trusted ingress overwrites (on PCF, Gorouter's `X-Vcap-Request-Id`, when nothing bypasses Gorouter). RED on the request path |
 | Config | From the environment, validated at startup, fail loud |
-| Shutdown | Graceful: stop accepting, drain, finish or requeue jobs, stop the scheduler, close streams, all inside the platform grace period (PCF: 10 s from SIGTERM to SIGKILL by default); requeue work that cannot finish in it |
-| Secrets and input | Secrets from env or a store and never in logs; CORS allowlist; body and param bounds; never log bodies or tokens |
+| Shutdown | Graceful: stop accepting, drain, finish or requeue jobs, stop the scheduler, close streams, all inside the platform grace period (PCF and Cloud Run: 10 s from SIGTERM to SIGKILL by default); requeue work that cannot finish in it |
+| Secrets and input | Secrets from env or a store; CORS allowlist; body and param bounds; never log secrets, bodies or tokens |
 | Auth | On every non-public route; authorize the object, not the session; a `reviewer` pass for auth changes |
-| Streaming | SSE for one-way push, keep-alives every 15–30 s, event ids with `Last-Event-ID`, bounded streams |
+| Streaming | SSE for one-way push, a keep-alive comment about every 15 s, event ids with `Last-Event-ID`, bounded streams |
 | Persistence | The existing datastore wins, otherwise load `stack-profile`; parameterized queries only; short explicit transactions, never held across an outbound call; migration safety belongs to `database-reliability` |
 | Background work | Before durable jobs, schedulers, or webhooks, read [background work](./references/background-work.md); acceptance, redelivery, and recovery must preserve the business effect |
 
@@ -59,16 +60,14 @@ operability and failure rules that fit a worker, scheduler, or client without ad
 
 - The changed behavior and relevant failure paths pass the project's tests. Exercise changed HTTP
   endpoints with requests; exercise workers, schedulers, and clients through their own entrypoints.
-- Record bounded, redacted evidence appropriate to that surface: HTTP method/path, status, request
-  id and schema assertion, or job/client inputs, outcome and failure handling. Include only
-  allowlisted, sanitized protocol headers (e.g. `Content-Type`, `Retry-After`); exclude credentials,
-  cookies, sensitive header values, and full bodies.
+- Record bounded, redacted evidence for that surface: HTTP method/path, status, request id and
+  schema assertion, or job/client inputs, outcome and failure handling. Keep only allowlisted
+  protocol headers such as `Retry-After`; never credentials, cookies or full bodies.
 - Changed HTTP shapes are checked against the established API contract; preserve existing auth
   coverage. For an item or write route, test that an authenticated principal without permission
   for the object is refused, and that intended owner, shared, or administrative access succeeds.
-  For a new HTTP service, test its chosen OpenAPI contract and
-  include breaking-change detection in CI. A worker or client change does not owe a served OpenAPI
-  document.
+  For a new HTTP service, test its chosen OpenAPI contract and include breaking-change detection in
+  CI. A worker or client change owes no served OpenAPI document.
 
 ## Before you write it — load the reference for what you're building
 
@@ -77,9 +76,8 @@ operability and failure rules that fit a worker, scheduler, or client without ad
 | writing, refactoring, or modernizing Python | Load `python-craft` for language and library choices |
 | building in Python + FastAPI | [FastAPI mechanics](./references/fastapi.md) |
 | calling any upstream or third-party API, including our platform and observability APIs | [consuming-apis](./references/consuming-apis.md) |
-| a new HTTP contract with no project-owned one | [openapi.starter.yaml](./assets/openapi.starter.yaml) |
 | writing or changing a schema migration on a table that holds data | Load `database-reliability` for the expand → contract design rules; running the migration stays with the human owner |
-| emitting RED metrics, traces, or request-id log context | Load `obs-pipeline` |
-| choosing a stack for a greenfield service | Load `stack-profile` |
+| emitting RED metrics or traces | Load `obs-pipeline` |
+| request-id log correlation | `RequestIdMiddleware` in [problem_fastapi.py](./assets/problem_fastapi.py); `obs-logs` for the Gorouter `vcap_request_id` join |
 
 Trips two predicates? Read both. Trips none? The core above is the whole job.

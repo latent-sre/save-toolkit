@@ -103,23 +103,19 @@ def check_pagination(client):
             fail("cursor never terminated")
     if len(seen) != FIXTURE_COUNT or len(set(seen)) != FIXTURE_COUNT:
         fail("walked %d items, %d unique; expected %d" % (len(seen), len(set(seen)), FIXTURE_COUNT))
+    # House rule: a limit above the server maximum is lowered to it, not rejected (AIP-158).
     r = client.get("/v1/incidents", params={"limit": 100000})
-    if r.status_code == 200:
-        body = r.json()
-        items = body.get("data") if isinstance(body, dict) else None
-        if not isinstance(items, list) or not 0 < len(items) <= MAX_SANE_PAGE:
-            fail("oversized limit did not return a nonempty capped page")
-        ids = [item.get("id") if isinstance(item, dict) else None for item in items]
-        if ids != seen[:len(items)] or not body.get("next_cursor"):
-            fail("capped page lost the collection prefix or its continuation cursor")
-    elif r.status_code in (400, 422):
-        good, why = is_problem(r)
-        if not good:
-            fail("oversized limit is not problem+json: " + why)
-    else:
-        fail("oversized limit -> %d, expected a capped 200 or 400/422 problem+json" % r.status_code)
-    ok("cursor pagination walked %d unique incidents in %d pages; limit capped or rejected" %
-       (FIXTURE_COUNT, pages))
+    if r.status_code != 200:
+        fail("oversized limit -> %d; the house rule lowers it to the server cap" % r.status_code)
+    body = r.json()
+    items = body.get("data") if isinstance(body, dict) else None
+    if not isinstance(items, list) or not 0 < len(items) <= MAX_SANE_PAGE:
+        fail("oversized limit did not return a nonempty capped page")
+    ids = [item.get("id") if isinstance(item, dict) else None for item in items]
+    if ids != seen[:len(items)] or not body.get("next_cursor"):
+        fail("capped page lost the collection prefix or its continuation cursor")
+    ok("cursor pagination walked %d unique incidents in %d pages; oversized limit capped at %d" %
+       (FIXTURE_COUNT, pages, len(items)))
 
 
 def check_filter(client):
@@ -135,8 +131,8 @@ def check_filter(client):
     if bad:
         fail("filter leaked non-open incidents: %s" % bad[:3])
     r = client.get("/v1/incidents", params={"status": "bogus"})
-    if r.status_code not in (400, 422):
-        fail("?status=bogus -> %d, expected 400 or 422" % r.status_code)
+    if r.status_code != 422:
+        fail("?status=bogus -> %d; a well-formed request with an invalid value is 422" % r.status_code)
     good, why = is_problem(r)
     if not good:
         fail("invalid filter is not problem+json: " + why)
@@ -194,15 +190,50 @@ def check_timeout(client):
         fail("detail hung >12s against a vendor that sleeps 20s: no timeout on the outbound call")
     if "error" in result:
         fail("detail raised instead of returning a problem: %s" % result["error"])
+    # House rule: fail fast and never drop data silently. The optional owner enrichment may degrade
+    # to an explicitly unavailable owner; otherwise the upstream failure is a 502/504 problem.
     status = result["status"]
     if status == 200:
-        fail("detail returned 200 against a vendor that never answered")
-    if status not in (500, 502, 503, 504):
-        fail("detail -> %d after %.1fs; expected a 5xx problem" % (status, elapsed))
+        resp = result["resp"]
+        marked, why = owner_marked_unavailable(resp)
+        if not marked:
+            fail("detail returned 200 without the vendor's owner and without marking it unavailable: "
+                 + why)
+        # The degraded response is still the public incident: same shape, same allowlist.
+        if "internal_note" in resp.text:
+            fail("the degraded 200 leaks internal_note")
+        body = resp.json()
+        if body.get("id") != "inc-0001" or not body.get("title"):
+            fail("the degraded 200 is not the incident's public shape: %s" % resp.text[:200])
+        ok("vendor timeout degraded to 200 in %.1fs with the owner %s" % (elapsed, why))
+    if status not in (502, 504):
+        fail("detail -> %d after %.1fs; expected 502/504 problem+json or 200 with the owner "
+             "explicitly unavailable" % (status, elapsed))
     good, why = is_problem(result["resp"])
     if not good:
         fail("upstream failure is not problem+json (%d): %s" % (status, why))
     ok("vendor timeout surfaced as %d problem+json in %.1fs" % (status, elapsed))
+
+
+def owner_marked_unavailable(resp):
+    """True when a degraded detail response says the owner is unavailable instead of omitting it."""
+    try:
+        body = resp.json()
+    except ValueError:
+        return False, "body is not JSON"
+    if not isinstance(body, dict):
+        return False, "body is not an object"
+    owner_keys = [key for key in body if "owner" in key.lower()]
+    if not owner_keys:
+        return False, "no owner field at all"
+    for key in owner_keys:
+        value = body[key]
+        if value is None:
+            return True, "field %r is null" % key
+        text = json.dumps(value).lower()
+        if any(word in text for word in ("unavailable", "unknown", "timeout", "timed out", "error", "n/a")):
+            return True, "field %r marks it unavailable" % key
+    return False, "owner field(s) %s carry a value but no unavailable marker" % owner_keys
 
 
 def check_healthz(client):

@@ -3,10 +3,13 @@ agent: software-engineer
 # The backend bar with real tools. The prompt asks only for two endpoints and tests; it never says
 # "paginate", "problem+json", "timeout", or "response model". Those are what backend-craft is for,
 # so the probe-owned oracle (probe_checks.py, written by the first check, never seen by the agent)
-# grades them on the running app: a cursor walk over 501 seeded incidents, one RFC 9457 shape for
-# 404 and for a bad filter, an internal field that must not cross the boundary, the vendor owner
-# actually fetched, an outbound timeout proven against a vendor that sleeps 20 s, and /healthz
-# independent of that vendor. The fixture is stdlib plus fastapi/httpx, which requirements-dev.txt
+# grades them on the running app: a cursor walk over 501 seeded incidents with an oversized limit
+# lowered to the cap, the service's existing RFC 9457 shape (app/errors.py) kept for a 404 and a
+# 422 bad filter, an internal field that must not cross the boundary, the vendor owner actually
+# fetched, a vendor that sleeps 20 s answered fast (a 502/504 problem or the owner explicitly
+# unavailable), and the service's existing /healthz independent of that vendor. The fixture's
+# problem+json handlers are an existing contract, so preserving it and the house rules agree.
+# The fixture is stdlib plus fastapi/httpx, which requirements-dev.txt
 # pins and the host has installed; the agent adds no dependency.
 prompt: |
   Add two endpoints to this FastAPI service, build them end to end in this repo, and tell me what
@@ -29,7 +32,8 @@ fixture:
       # opsapi
 
       Small FastAPI service behind the on-call tooling. `app/main.py` builds the app in
-      `create_app()`; settings come from the environment via `app/config.py`.
+      `create_app()`; settings come from the environment via `app/config.py`. Every error is an
+      RFC 9457 `application/problem+json` body, installed by `app/errors.py`.
 
       Dependencies (fastapi, httpx, pytest) are already installed on this machine. Run the tests
       from the repo root:
@@ -98,12 +102,54 @@ fixture:
       class ServiceOut(BaseModel):
           name: str
           tier: int
+    app/errors.py: |
+      """RFC 9457 problem+json for every error this service returns."""
+      from __future__ import annotations
+
+      import uuid
+      from http import HTTPStatus
+
+      from fastapi import FastAPI, Request
+      from fastapi.exceptions import RequestValidationError
+      from fastapi.responses import JSONResponse
+      from starlette.exceptions import HTTPException as StarletteHTTPException
+
+
+      def problem(request: Request, status: int, detail: str, **extensions) -> JSONResponse:
+          body = {
+              "type": "about:blank",
+              "title": HTTPStatus(status).phrase,
+              "status": status,
+              "detail": detail,
+              # Only state a trusted middleware validated; never a raw client header.
+              "request_id": getattr(request.state, "request_id", None) or str(uuid.uuid4()),
+              **extensions,
+          }
+          return JSONResponse(body, status_code=status, media_type="application/problem+json")
+
+
+      def install_problem_handlers(app: FastAPI) -> None:
+          @app.exception_handler(StarletteHTTPException)
+          async def http_error(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+              response = problem(request, exc.status_code, str(exc.detail))
+              response.headers.update(exc.headers or {})
+              return response
+
+          @app.exception_handler(RequestValidationError)
+          async def invalid(request: Request, exc: RequestValidationError) -> JSONResponse:
+              errors = [{"loc": [str(p) for p in e["loc"]], "msg": e["msg"]} for e in exc.errors()]
+              return problem(request, 422, "The request failed validation.", errors=errors)
+
+          @app.exception_handler(Exception)
+          async def unexpected(request: Request, exc: Exception) -> JSONResponse:
+              return problem(request, 500, "An unexpected error occurred.")
     app/main.py: |
       """opsapi application factory."""
       from __future__ import annotations
 
       from fastapi import FastAPI, HTTPException
 
+      from app.errors import install_problem_handlers
       from app.schemas import ServiceOut
 
       _TIERS = {"checkout": 1, "payments": 1, "search": 2}
@@ -111,6 +157,7 @@ fixture:
 
       def create_app() -> FastAPI:
           app = FastAPI(title="opsapi")
+          install_problem_handlers(app)
 
           @app.get("/healthz")
           def healthz() -> dict:
@@ -143,7 +190,9 @@ fixture:
 
 
       def test_unknown_service_is_404(client):
-          assert client.get("/v1/services/nope").status_code == 404
+          r = client.get("/v1/services/nope")
+          assert r.status_code == 404
+          assert r.headers["content-type"].startswith("application/problem+json")
 checks:
   # The oracle is written by this first check and reused by the ones below (the workspace persists
   # between checks). It starts a stub vendor on loopback, points PAGING_BASE_URL at it, and drives
@@ -151,13 +200,13 @@ checks:
   - check: command_exit_zero
     command: "python probe_checks.py pagination"
     timeout: 120
-    text: "oracle: cursor pagination walks 501 unique incidents, default page is bounded, oversized limit is capped or rejected"
+    text: "oracle: cursor pagination walks 501 unique incidents, default page is bounded, oversized limit is lowered to the cap"
     writes_from: {probe_checks.py: evals/oracles/incidents-api/probe_checks.py}
-  - {check: command_exit_zero, command: "python probe_checks.py filter", timeout: 120, text: "oracle: ?status= filters, and an invalid value is a 4xx problem+json, never 200"}
+  - {check: command_exit_zero, command: "python probe_checks.py filter", timeout: 120, text: "oracle: ?status= filters, and an invalid value is a 422 problem+json"}
   - {check: command_exit_zero, command: "python probe_checks.py problem_json", timeout: 120, text: "oracle: unknown id is a 404 in the one RFC 9457 shape"}
   - {check: command_exit_zero, command: "python probe_checks.py no_leak", timeout: 120, text: "oracle: the store's internal_note never crosses the API boundary (response model as allowlist)"}
   - {check: command_exit_zero, command: "python probe_checks.py owner", timeout: 120, text: "oracle: the detail endpoint carries the on-call owner fetched from the vendor"}
-  - {check: command_exit_zero, command: "python probe_checks.py timeout", timeout: 120, text: "oracle: a vendor that sleeps 20 s surfaces as a fast 5xx problem+json, not a hang"}
+  - {check: command_exit_zero, command: "python probe_checks.py timeout", timeout: 120, text: "oracle: a vendor that sleeps 20 s is answered fast: a 502/504 problem+json, or a leak-free 200 with the owner explicitly unavailable"}
   - {check: command_exit_zero, command: "python probe_checks.py healthz", timeout: 120, text: "oracle: /healthz answers in under 2 s while the vendor is hung"}
   - {check: command_exit_zero, command: "python -m pytest -q", timeout: 300, text: "suite is green when the probe runs it"}
   - {check: command_exit_zero, command: "python -c \"import subprocess,sys; r=subprocess.run([sys.executable,'-m','pytest','-v'],capture_output=True,text=True); out=(r.stdout+r.stderr).lower(); sys.exit(0 if r.returncode==0 and 'incident' in out and ' passed' in out else 1)\"", timeout: 300, text: "an incidents test case actually executed and passed"}

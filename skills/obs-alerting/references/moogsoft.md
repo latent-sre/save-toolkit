@@ -1,4 +1,4 @@
-# Moogsoft / Dell APEX AIOps correlation and noise reduction
+# Moogsoft Onprem correlation and noise reduction
 
 The fleet target is on-prem Moogsoft v9.x, and of that line only **v9.2** (GA 2025-05-15) is a
 currently supported release; v9.1 and v9.0 are past end of support, and a patch release does not

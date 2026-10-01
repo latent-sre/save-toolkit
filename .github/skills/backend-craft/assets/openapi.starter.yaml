@@ -3,7 +3,8 @@
 # rate-limit response with Retry-After, and split liveness/readiness endpoints.
 # Validate/lint in CI (e.g. `redocly lint` or `spectral lint`) and generate the typed
 # client for the UI consumer contract from this file.
-# Example bounds: limit 1-200, title 1-200 characters, cursor 1-2048, key 1-255.
+# Example bounds: limit >= 1 (the server lowers anything above 200 to 200), title 1-200 characters,
+# cursor 1-2048, key 1-255.
 # Adapt these with runtime validation and ingress/body byte limits; a schema is not enforcement.
 openapi: 3.1.0
 info:
@@ -14,13 +15,15 @@ servers:
 security:
   - bearerAuth: []        # validated on EVERY request; authorize per-object in the handler.
 paths:
-  /healthz:
+  /health/live:           # no health path ends in "z": Cloud Run reserves some of those.
     get:
+      operationId: getLiveness
       summary: Liveness probe; process-local and independent of external systems.
       security: []        # health is unauthenticated.
       responses: { "200": { description: OK } }
-  /readyz:
+  /health/ready:
     get:
+      operationId: getReadiness
       summary: Readiness probe; whether this instance should receive new traffic.
       security: []        # readiness is unauthenticated.
       responses:
@@ -28,21 +31,27 @@ paths:
         "503": { description: Not ready to receive traffic }
   /v1/incidents:
     get:
+      operationId: listIncidents
       summary: List incidents (cursor-paginated).
       parameters:
         - { name: cursor, in: query, schema: { type: string, minLength: 1, maxLength: 2048 }, description: Opaque cursor from next_cursor; omit on the first page. }
-        - { name: limit, in: query, schema: { type: integer, default: 50, minimum: 1, maximum: 200 } }
+        - { name: limit, in: query, schema: { type: integer, default: 50, minimum: 1 }, description: Page size; the server lowers values above 200 to 200 rather than rejecting them. }
         - { name: status, in: query, schema: { type: string, enum: [open, closed] }, description: Allowlisted filter. }
       responses:
         "200":
           description: A page of incidents.
+          headers:
+            X-Request-ID: { $ref: "#/components/headers/X-Request-ID" }
           content:
             application/json:
               schema: { $ref: "#/components/schemas/IncidentPage" }
-        "401": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Problem" }
         "422": { $ref: "#/components/responses/Problem" }
         "429": { $ref: "#/components/responses/RateLimited" }
+        "500": { $ref: "#/components/responses/Problem" }
     post:
+      operationId: createIncident
       summary: Create an incident (idempotent via Idempotency-Key).
       parameters:
         - { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 1, maxLength: 255 } }
@@ -56,24 +65,44 @@ paths:
           description: Created, or a replay of the first completed request with this key.
           headers:
             Idempotent-Replayed: { schema: { type: boolean }, description: "Required with value true on replay; omitted or false on the initial creation. The header is optional across all 201 responses because only replays require it." }
+            X-Request-ID: { $ref: "#/components/headers/X-Request-ID" }
           content: { application/json: { schema: { $ref: "#/components/schemas/Incident" } } }
-        "400": { $ref: "#/components/responses/Problem" }
-        "401": { $ref: "#/components/responses/Problem" }
-        "409":              # the Problem type separates a key reused with another payload from one still in progress.
-          description: Key reused with a different payload, or the first request with this key is still in progress.
+        "400":              # a missing Idempotency-Key, or a body that is not valid JSON.
+          $ref: "#/components/responses/Problem"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "409":              # IETF Idempotency-Key draft: the first request with this key is still in progress.
+          description: The first request with this key is still in progress.
           headers:
-            Retry-After: { schema: { type: integer }, description: "Seconds before retrying with the same key; sent while the first request is in progress." }
+            Retry-After: { schema: { type: integer }, description: "Seconds before retrying with the same key." }
+            X-Request-ID: { $ref: "#/components/headers/X-Request-ID" }
           content:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
-        "422": { $ref: "#/components/responses/Problem" }
+        "422":              # invalid values, or a key reused with a different payload (the Problem type says which).
+          $ref: "#/components/responses/Problem"
         "429": { $ref: "#/components/responses/RateLimited" }
+        "500": { $ref: "#/components/responses/Problem" }
 components:
   securitySchemes:
     bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }   # OIDC/OAuth2 via corp SSO/UAA.
+  headers:
+    X-Request-ID:
+      description: Correlates this response with the request log line; equals the problem body's request_id.
+      schema: { type: string, minLength: 1 }
   responses:
     Problem:
       description: RFC 9457 problem+json. `type`/codes are part of the contract.
+      headers:
+        X-Request-ID: { $ref: "#/components/headers/X-Request-ID" }
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    Unauthorized:
+      description: Missing or invalid credentials.
+      headers:
+        WWW-Authenticate: { required: true, schema: { type: string }, description: 'The auth scheme challenge, e.g. `Bearer`.' }
+        X-Request-ID: { $ref: "#/components/headers/X-Request-ID" }
       content:
         application/problem+json:
           schema: { $ref: "#/components/schemas/Problem" }
@@ -81,9 +110,9 @@ components:
       description: Rate limited. Retry-After is required so a well-behaved client can self-throttle.
       headers:
         Retry-After: { required: true, schema: { type: integer }, description: Seconds to wait. }
-        X-RateLimit-Limit: { schema: { type: integer } }
-        X-RateLimit-Remaining: { schema: { type: integer } }
-        X-RateLimit-Reset: { schema: { type: integer }, description: Unix seconds when the window resets. }
+        RateLimit-Policy: { schema: { type: string }, description: 'Optional quota policy, per draft-ietf-httpapi-ratelimit-headers-11 (not yet an RFC), e.g. `"default";q=100;w=60`.' }
+        RateLimit: { schema: { type: string }, description: 'Optional remaining quota, per the same draft, e.g. `"default";r=50;t=30`.' }
+        X-Request-ID: { $ref: "#/components/headers/X-Request-ID" }
       content:
         application/problem+json:
           schema: { $ref: "#/components/schemas/Problem" }
@@ -122,5 +151,5 @@ components:
       type: object
       properties:
         data: { type: array, items: { $ref: "#/components/schemas/Incident" } }
-        next_cursor: { type: [string, "null"], minLength: 1, maxLength: 2048, description: "Pass back as ?cursor= for the next page." }
+        next_cursor: { type: [string, "null"], minLength: 1, maxLength: 2048, description: "Pass back as ?cursor= for the next page; null on the last page." }
       required: [data, next_cursor]

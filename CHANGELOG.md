@@ -27,8 +27,40 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
   22,569 -> 22,278 bytes, measured against main on Sonnet. A stricter CF wording and an extra
   output-template line were measured, found to hurt, and reverted.
+- `backend-craft` house contract brought to current practice:
+  - health endpoints move to `/health/live` and `/health/ready`, because Cloud Run reserves some
+    paths ending in `z`;
+  - versioning adds the RFC 9745 `Deprecation` header beside `Sunset`;
+  - rate limits require only `Retry-After`, with optional IETF `RateLimit` draft fields;
+  - an oversized `limit` is lowered to the cap rather than rejected (AIP-158);
+  - idempotency keys follow the IETF draft's status codes;
+  - SSE keep-alives are about every 15 s;
+  - outbound calls get one deadline per operation;
+  - a new dependency-failure rule: fail fast, and mark an optional field unavailable or return
+    `502`/`504`.
+
+  The references are rewritten in plain sentences, and `fastapi.md` covers FastAPI 0.132's strict
+  `Content-Type` and 0.135's native SSE. The OpenAPI starter gains `operationId`s, `WWW-Authenticate`,
+  403 and 500 responses, and a documented `X-Request-ID`. SKILL.md is 7,105 -> 7,799 bytes. On the
+  repaired `incidents-api` probe, main rejected the oversized limit 6/6 and the candidate capped it
+  6/6; every other oracle check passed on both arms.
 
 ### Fixed
+
+- `backend-craft` corrections:
+  - `consuming-apis.md` no longer says to prefer the `cf` CLI;
+  - request-id guidance no longer points at `obs-pipeline`, which has none, and states when
+    Gorouter's id can be trusted;
+  - the starter test requires 422 for validation failures;
+  - the Celery link resolves.
+
+  Moogsoft on-prem is named "Moogsoft Onprem" in `backend-craft`, `stack-profile`, and
+  `obs-alerting`; APEX AIOps Incident Management is the cloud product's name.
+- `build-software-engineer-incidents-api` graded problem+json on a fixture whose existing errors
+  were plain JSON, while the skill says to keep an existing contract. The fixture now carries the
+  house problem+json handlers. The oracle requires 422 and a capped `limit`, and accepts a fast
+  `502`/`504` or an explicitly unavailable owner. It was proven offline against two reference
+  implementations and seven mutants.
 
 - Two `sre-assistant` build scenarios failed an agent that followed `pcf-ops`:
   - `active-incident-guarded-triage` now supplies the masked `cf` wrapper `pcf-ops` requires before

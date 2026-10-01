@@ -15,7 +15,7 @@
             allow_methods=["GET", "POST"],
             allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "X-Request-ID"],
             expose_headers=[
-                "X-Request-ID", "Retry-After", "Idempotent-Replayed",
+                "X-Request-ID", "Retry-After", "Idempotent-Replayed", "RateLimit", "RateLimit-Policy",
                 "X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset",
             ],
         )
@@ -87,7 +87,7 @@ logger = logging.getLogger(__name__)
 # Extend for the app's protocol contract, never stale representation or framing metadata.
 _PROTOCOL_HEADERS = {
     "www-authenticate", "proxy-authenticate", "allow", "retry-after", "location",
-    "cache-control", "expires", "pragma", "vary", "set-cookie",
+    "cache-control", "expires", "pragma", "vary", "set-cookie", "ratelimit", "ratelimit-policy",
     "x-ratelimit-limit", "x-ratelimit-remaining", "x-ratelimit-reset",
 }
 

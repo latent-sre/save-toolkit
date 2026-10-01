@@ -32,7 +32,7 @@ human approval, and the state-changing-command stop; this file grants no executi
 - **Readiness** (default type `process`): on failure CF removes the instance from the route pool but
   does not restart it.
 - Slow `/health` timing out? A human release owner may propose raising the invocation timeout:
-  `cf set-health-check <app> http --endpoint /healthz --invocation-timeout 10`.
+  `cf set-health-check <app> http --endpoint /health/live --invocation-timeout 10`.
 
 These are documented behavior shapes, not live observations. Exact target-foundation behavior
 remains `[unverified]`. Changing a health check requires the exact approved-change packet in the
