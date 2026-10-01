@@ -207,6 +207,23 @@ class WorkspaceAndCheckTests(unittest.TestCase):
         self.assertTrue(any("inconclusive_exit_code" in p for p in
                             build_probe.validate_scenario({**TINY_SPEC, "checks": [check]})))
 
+    def test_indexed_candidate_exit_is_failure_not_measurement_unavailability(self) -> None:
+        scenario = build_probe.load_scenario(
+            build_probe.SCENARIO_DIR / "build-python-indexed-membership.yaml")
+        outcome = next(c for c in scenario["checks"] if c["check"] == "command_exit_zero")
+        check = {**outcome, "command": f'"{sys.executable}" -I -B _python_index_oracle.py'}
+        spec = {**TINY_SPEC, "checks": [check]}
+        for code in (0, 3):
+            for phase in ("import", "iteration"):
+                with self.subTest(code=code, phase=phase):
+                    source = (f"raise SystemExit({code})\n" if phase == "import" else
+                              f"def iter_selected(rows, allowed_ids):\n"
+                              f"    raise SystemExit({code})\n    yield\n")
+                    (self.ws.repo / "selection.py").write_text(source, encoding="utf-8")
+                    result = build_probe.grade(_ctx(spec, self.ws))
+                    self.assertEqual(result["status"], "FAIL", result)
+                    self.assertFalse(result["expectations"][0]["passed"])
+
     def test_regrade_keeps_unavailable_command_measurement_inconclusive(self) -> None:
         check = {"check": "command_exit_zero", "text": "cost measurement",
                  "command": "python cost.py", "inconclusive_exit_code": 3}

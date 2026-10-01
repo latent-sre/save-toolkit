@@ -207,7 +207,7 @@ Two additional build evaluations exercise implementation outcomes:
 | Evaluation | What its artifact checks establish |
 |---|---|
 | [New streaming CLI](build-scenarios/build-python-new-streaming-cli.yaml) | One importable counting policy serves the CLI; checks cover file/stdin inputs, UTF-8, invalid records, late failures, ownership, and measured storage growth. |
-| [Indexed membership](build-scenarios/build-python-indexed-membership.yaml) | Starts from a passing consumer regression suite; measured searches fit a deterministic operation budget, preserving lazy access, order, duplicates, identity, errors, and release of consumed rows. |
+| [Indexed membership](build-scenarios/build-python-indexed-membership.yaml) | Measured searches fit a deterministic operation budget, preserving mapping inputs, lazy access, order, duplicates, identity, errors, and release of consumed rows. Candidate tests must pass and reject behavior-preserving linear-search and quadratic-construction regressions. |
 
 Their [new-code calibration](test_python_new_code_probe.py) and
 [index calibration](test_python_index_probe.py) accept valid alternative implementations and reject
@@ -218,11 +218,14 @@ python -m pytest evals/test_python_craft_oracle.py evals/test_python_new_code_pr
 python evals/build_probe.py --validate
 ```
 
-The storage checks observe growth on two supplied workloads. The cost check includes construction
-and requires the supplied index inputs and every query to be observable; unmeasured work returns
-the declared exit 3, making the
-native trial INCONCLUSIVE and requiring separate profiling. These are bounded observations, not
-proofs of universal time or space complexity.
+The storage checks observe growth on two supplied workloads, calibrated against whole-row and
+compact per-record retention as well as valid constant buffers. File checks preserve imported
+`open` aliases and inject late read failures through owned files as well as borrowed stdin.
+The cost check includes construction and requires the supplied index inputs and every query to
+be observable. Candidate `SystemExit` is a failure; only the oracle's unavailable-measurement path
+returns the declared exit 3, making the native trial INCONCLUSIVE and requiring separate profiling.
+These are bounded observations, not proofs of universal time or space complexity or adversarial
+attestation.
 
 For an agreed native preflight, select each case separately and pin the model:
 
@@ -233,7 +236,9 @@ python evals/build_probe.py --scenario build-python-indexed-membership --label c
 
 The new probes also require the agent's own final foreground unittest receipt; later shell actions
 can make that receipt inconclusive under the verification contract above. Artifact checks alone do
-not establish the quality of the agent's own tests, broad design expertise, or skill-driven uplift.
+not establish general test quality, broad design expertise, or skill-driven uplift. The indexed
+probe replays candidate tests against two cost regressions in disposable fixtures; this measures
+those tests' sensitivity to the requested improvement, not exhaustive coverage of every contract.
 
 For a live Python-skill comparison, agree the native host/model, exact candidate, cases, repetitions,
 and cost cap first. Use matched disposable fixtures and the same builder, tools, prompt, and checks,

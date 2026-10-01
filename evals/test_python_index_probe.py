@@ -30,6 +30,35 @@ SORTED = '''
             if offset < len(index) and index[offset] == key:
                 yield row
 '''
+FOCUSED_TESTS = '''
+
+class SearchCostTests(unittest.TestCase):
+    def test_build_and_search_cost(self):
+        class Key(str):
+            operations = 0
+
+            def __hash__(self):
+                Key.operations += 1
+                return str.__hash__(self)
+
+            def __eq__(self, other):
+                Key.operations += 1
+                return str.__eq__(self, other)
+
+            def __lt__(self, other):
+                Key.operations += 1
+                return str.__lt__(self, other)
+
+        allowed = [Key(f'allowed-{i:03}') for i in range(128)]
+        rows = [{'id': Key('allowed-000')}] + [
+            {'id': Key(f'missing-{i:03}')} for i in range(512)]
+        output = selected(iter(rows), iter(allowed))
+        self.assertIs(next(output), rows[0])
+        build = Key.operations
+        self.assertLessEqual(build, 4096)
+        self.assertEqual(list(output), [])
+        self.assertLessEqual(Key.operations - build, 8192)
+'''
 
 
 class IndexedMembershipTests(unittest.TestCase):
@@ -47,7 +76,7 @@ class IndexedMembershipTests(unittest.TestCase):
             self.assertIn('test_order_duplicates_and_identity', result.stderr)
             self.assertIn('test_missing_key_is_deferred_even_with_empty_allowlist', result.stderr)
 
-    def run_artifact(self, source):
+    def run_artifact(self, source, tests=None):
         check = next(c for c in SPEC['checks'] if c['check'] == 'command_exit_zero')
         with tempfile.TemporaryDirectory() as tmp:
             for name, content in SPEC['fixture']['files'].items():
@@ -55,11 +84,72 @@ class IndexedMembershipTests(unittest.TestCase):
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_text(content, encoding='utf-8')
             (Path(tmp) / 'selection.py').write_text(textwrap.dedent(source), encoding='utf-8')
+            if tests is None:
+                tests = SPEC['fixture']['files']['tests/test_selection.py'] + FOCUSED_TESTS
+            (Path(tmp) / 'tests/test_selection.py').write_text(tests, encoding='utf-8')
             for name, oracle in check['writes_from'].items():
                 (Path(tmp) / name).write_bytes((ROOT.parent / oracle).read_bytes())
             # Execute precisely the staged scenario command with the verified interpreter.
             return subprocess.run([sys.executable, *check['command'].split()[1:]], cwd=tmp,
                                   capture_output=True, text=True, timeout=15)
+
+    def test_candidate_system_exit_is_always_failure(self):
+        for code in (0, 3):
+            for phase, source in [('import', f'raise SystemExit({code})'),
+                                  ('iteration', SET.replace('index = set(allowed_ids)',
+                                                           f'raise SystemExit({code})'))]:
+                with self.subTest(code=code, phase=phase):
+                    result = self.run_artifact(source)
+                    self.assertEqual(result.returncode, 1, result.stderr)
+                    self.assertIn('candidate raised SystemExit', result.stderr)
+
+    def test_seed_or_cosmetic_test_extensions_do_not_establish_cost_coverage(self):
+        seed = SPEC['fixture']['files']['tests/test_selection.py']
+        for tests in (seed, seed + '\n# Tests reviewed.\n', seed + '''
+class CosmeticTests(unittest.TestCase):
+    def test_true(self):
+        self.assertTrue(True)
+'''):
+            with self.subTest(tests=tests):
+                result = self.run_artifact(SET, tests)
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertIn('candidate tests did not reject repeated linear search', result.stderr)
+
+    def test_nondict_mappings_are_covered(self):
+        source = SET.replace("if row['id'] in index:",
+                             "if not isinstance(row, dict):\n            raise TypeError('dict required')\n        if row['id'] in index:")
+        result = self.run_artifact(source)
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn('dict required', result.stderr)
+
+    def test_replays_preserve_candidate_helpers_imported_by_tests(self):
+        source = SET + '\ndef supported_helper():\n    return 42\n'
+        tests = SPEC['fixture']['files']['tests/test_selection.py'] + FOCUSED_TESTS + '''
+from selection import supported_helper
+
+class HelperTests(unittest.TestCase):
+    def test_helper(self):
+        self.assertEqual(supported_helper(), 42)
+'''
+        result = self.run_artifact(source, tests)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_tests_must_cover_index_construction_too(self):
+        tests = SPEC['fixture']['files']['tests/test_selection.py'] + FOCUSED_TESTS.replace(
+            'self.assertLessEqual(build, 4096)', 'pass')
+        result = self.run_artifact(SET, tests)
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn('candidate tests did not reject quadratic index construction', result.stderr)
+
+    def test_errors_or_skips_do_not_establish_cost_coverage(self):
+        for replacement in ("if Key.operations - build > 8192: raise RuntimeError('over budget')",
+                            "if Key.operations - build > 8192: self.skipTest('over budget')"):
+            with self.subTest(replacement=replacement):
+                tests = SPEC['fixture']['files']['tests/test_selection.py'] + FOCUSED_TESTS.replace(
+                    'self.assertLessEqual(Key.operations - build, 8192)', replacement)
+                result = self.run_artifact(SET, tests)
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertIn('candidate tests did not reject repeated linear search', result.stderr)
 
     def test_distinct_index_implementations_pass(self):
         repeated_lookup = SET.replace("if row['id'] in index:",

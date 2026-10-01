@@ -124,6 +124,124 @@ class NewCodeProbeTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("invalid UTF-8 stdin: failure exit status", result.stderr)
 
+    def test_candidate_exits_cannot_skip_contract_checks(self):
+        for code in (0, 3):
+            for phase, source in (
+                ("import", f"raise SystemExit({code})\n"),
+                ("API", CORRECT.replace("def summarize(rows):", f"def summarize(rows):\n    raise SystemExit({code})")),
+            ):
+                with self.subTest(phase=phase, code=code):
+                    result = self.run_artifact(source)
+                    self.assertEqual(result.returncode, 1, result.stdout)
+                    self.assertIn("candidate exited before contract checks completed", result.stderr)
+
+    def test_retained_open_aliases_and_path_open_pass(self):
+        for imported, expression in (
+            ("from builtins import open as file_open", "file_open(argv[0], encoding=\"utf-8\")"),
+            ("from io import open as file_open", "file_open(argv[0], encoding=\"utf-8\")"),
+            ("from pathlib import Path", "Path(argv[0]).open(encoding=\"utf-8\")"),
+        ):
+            with self.subTest(imported=imported):
+                source = imported + "\n" + CORRECT.replace('open(argv[0], encoding="utf-8")', expression)
+                result = self.run_artifact(source)
+                self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_compact_stream_retention_fails(self):
+        api = API.replace("    for index, row", "    retained = bytearray()\n    for index, row").replace(
+            '        counts[row["status"]] += 1', '        retained.append(CATEGORIES.index(row["status"]))').replace(
+            "    return counts", "    return {status: retained.count(index) for index, status in enumerate(CATEGORIES)}")
+        cases = (
+            (SHELL.format(api=api), "summarize retained the stream"),
+            (CORRECT.replace("    for index, line", "    retained = bytearray()\n    for index, line").replace(
+                "        try:\n            yield", "        retained.append(0)\n        try:\n            yield"), "CLI retained the stream"),
+        )
+        for source, diagnostic in cases:
+            with self.subTest(diagnostic=diagnostic):
+                result = self.run_artifact(source)
+                self.assertNotEqual(result.returncode, 0, result.stdout)
+                self.assertIn(diagnostic, result.stderr)
+
+    def test_large_constant_buffers_pass(self):
+        source = CORRECT.replace("def summarize(rows):", "def summarize(rows):\n    buffer = bytearray(2_000_000)")
+        result = self.run_artifact(source)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_binary_and_chunked_file_readers_pass(self):
+        binary = CORRECT.replace('open(argv[0], encoding="utf-8")',
+                                 'io.TextIOWrapper(open(argv[0], "rb"), encoding="utf-8")')
+        chunked = CORRECT.replace("def parsed(source):", """def lines(source):
+    pending = ""
+    while chunk := source.read(4096):
+        pending += chunk
+        while "\\n" in pending:
+            line, pending = pending.split("\\n", 1)
+            yield line
+    if pending:
+        yield pending
+
+def parsed(source):""").replace("enumerate(source, 1)", "enumerate(lines(source), 1)")
+        for source in (binary, chunked, chunked.replace("4096", "1_048_576")):
+            with self.subTest(source=source):
+                result = self.run_artifact(source)
+                self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_retained_open_aliases_still_expose_import_io_and_leaks(self):
+        for library in ("builtins", "io"):
+            alias = f"from {library} import open as file_open\n" + CORRECT.replace(
+                'open(argv[0], encoding="utf-8")', 'file_open(argv[0], encoding="utf-8")')
+            for source, diagnostic in (
+                (alias + '\nfile_open("outcome_counts.py")\n', "import performed file I/O"),
+                (alias.replace('else file_open(argv[0], encoding="utf-8")',
+                               'else contextlib.nullcontext(file_open(argv[0], encoding="utf-8"))'),
+                 "owned file handle leaked"),
+            ):
+                with self.subTest(library=library, diagnostic=diagnostic):
+                    result = self.run_artifact(source)
+                    self.assertNotEqual(result.returncode, 0, result.stdout)
+                    self.assertIn(diagnostic, result.stderr)
+
+    def test_file_text_wrapper_buffer_reader_passes(self):
+        source = "import codecs\n" + CORRECT.replace(
+            "result = summarize(parsed(stream))",
+            'result = summarize(parsed(codecs.iterdecode(stream.buffer, "utf-8") if argv[0] != "-" else stream))')
+        result = self.run_artifact(source)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_owned_file_must_close_after_late_read_failure(self):
+        wrapper = '''
+@contextlib.contextmanager
+def file_source(path):
+    stream = open(path, encoding="utf-8")
+    try:
+        yield stream
+    except OSError:
+        raise
+    except BaseException:
+        stream.close()
+        raise
+    else:
+        stream.close()
+
+'''
+        source = CORRECT.replace("def main(", wrapper + "def main(").replace(
+            'else open(argv[0], encoding="utf-8")', "else file_source(argv[0])")
+        result = self.run_artifact(source)
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("owned file handle leaked on read failure", result.stderr)
+
+    def test_owned_file_late_read_errors_cannot_be_swallowed(self):
+        source = CORRECT.replace("    for index, line in enumerate(source, 1):", """    try:
+        yield from parsed_inner(source)
+    except OSError:
+        if source is sys.stdin:
+            raise
+
+def parsed_inner(source):
+    for index, line in enumerate(source, 1):""")
+        result = self.run_artifact(source)
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("file read error: failure exit status", result.stderr)
+
     def test_semantic_mutants_fail_for_the_named_defect(self):
         # Each mutation is independently executed in a fresh external temporary workspace.
         cases = [

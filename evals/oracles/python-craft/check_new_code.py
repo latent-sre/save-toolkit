@@ -1,11 +1,12 @@
 """Independent public-behavior checks for the greenfield streaming CLI fixture.
 
 Staged only after the model turn. Standard library only; not an OS sandbox.
-The traced-storage growth allowance detects whole-stream retention across two
+The traced-storage growth allowance detects calibrated compact retention across two
 workloads; it is neither a universal bounded-memory proof nor a benchmark.
 """
 
 from collections.abc import Mapping
+import builtins
 import contextlib
 import copy
 import importlib.util
@@ -23,6 +24,7 @@ from unittest import TestCase, mock
 CHECK = TestCase()
 CATEGORIES = ("success", "failure", "skipped")
 ZERO = dict.fromkeys(CATEGORIES, 0)
+STORAGE_GROWTH_ALLOWANCE = 32_768
 
 
 def counts(actual, expected):
@@ -56,7 +58,9 @@ class ReadFailure(io.StringIO):
         return super().readline(*args)
 
     def read(self, *args):
-        raise OSError("injected read failure")
+        if self.tell():
+            raise OSError("injected late read failure")
+        return super().read(*args)
 
 
 class ImportInput(io.StringIO):
@@ -67,6 +71,88 @@ class ImportInput(io.StringIO):
 
     def __iter__(self):
         raise AssertionError("import read stdin")
+
+
+class FileAccess:
+    """Keep retained open aliases usable as checks move from import to runtime."""
+
+    def __init__(self):
+        self.importing = True
+        self.observing = False
+        self.inject_failure = False
+        self.handles = []
+        self.real_builtin_open = builtins.open
+        self.real_io_open = io.open
+
+    def open(self, opener, *args, **kwargs):
+        CHECK.assertFalse(self.importing, "import performed file I/O")
+        if self.inject_failure:
+            mode = args[1] if len(args) > 1 else kwargs.get("mode", "r")
+            # Text and binary readers both receive a valid first record. A binary
+            # TextIOWrapper may request read1; all subsequent reads fail alike.
+            binary = BinaryReadFailure()
+            binary.name = str(args[0] if args else kwargs["file"])
+            handle = binary if "b" in mode else io.TextIOWrapper(
+                binary,
+                encoding=args[3] if len(args) > 3 else kwargs.get("encoding"),
+                errors=args[4] if len(args) > 4 else kwargs.get("errors"),
+                newline=args[5] if len(args) > 5 else kwargs.get("newline"),
+            )
+        else:
+            handle = opener(*args, **kwargs)
+        if self.observing:
+            self.handles.append(handle)
+        return handle
+
+    def builtin_open(self, *args, **kwargs):
+        return self.open(self.real_builtin_open, *args, **kwargs)
+
+    def io_open(self, *args, **kwargs):
+        return self.open(self.real_io_open, *args, **kwargs)
+
+    @contextlib.contextmanager
+    def patched(self):
+        with mock.patch("builtins.open", self.builtin_open), mock.patch("io.open", self.io_open):
+            yield
+
+    @contextlib.contextmanager
+    def observe(self, *, inject_failure=False):
+        self.handles.clear()
+        self.observing = True
+        self.inject_failure = inject_failure
+        try:
+            yield
+        finally:
+            self.observing = self.inject_failure = False
+
+
+class BinaryReadFailure(io.BytesIO):
+    def __init__(self):
+        super().__init__(b'{"status":"success"}\n')
+
+    def __next__(self):
+        # BytesIO's native iterator bypasses an overridden readline method.
+        line = self.readline()
+        if not line:
+            raise StopIteration
+        return line
+
+    def read(self, *args):
+        if self.tell():
+            raise OSError("injected late read failure")
+        return super().read(*args)
+
+    read1 = read
+
+    def readline(self, *args):
+        if self.tell():
+            raise OSError("injected late read failure")
+        return super().readline(*args)
+
+    def readinto(self, buffer):
+        if self.tell():
+            raise OSError("injected late read failure")
+        return super().readinto(buffer)
 
 
 def measured(action):
@@ -107,14 +193,14 @@ def load():
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module  # supports dataclasses and postponed annotations.
     out, err = io.StringIO(), io.StringIO()
+    files = FileAccess()
     with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-        with mock.patch("builtins.open", side_effect=AssertionError("import performed file I/O")), \
-                mock.patch("io.open", side_effect=AssertionError("import performed file I/O")), \
-                mock.patch.object(sys, "stdin", ImportInput()):
+        with files.patched(), mock.patch.object(sys, "stdin", ImportInput()):
             spec.loader.exec_module(module)
+    files.importing = False
     CHECK.assertEqual(out.getvalue() + err.getvalue(), "", "import wrote output")
     CHECK.assertEqual({str(p) for p in Path.cwd().rglob("*")}, before, "import created files")
-    return module
+    return module, files
 
 
 def api(module):
@@ -158,11 +244,13 @@ def api(module):
              for size in (4_000, 80_000)]
     # Fresh per-row mappings prevent a repeated single object from hiding retention.
     # Compare growth rather than rejecting a large constant buffer or interpreter overhead.
-    CHECK.assertLess(peaks[1] - peaks[0], 2_000_000,
-                     "summarize retained the stream (storage growth exceeds 2 MB)")
+    # The 76,000-record delta exposes even one-byte-per-record retention while
+    # leaving room for allocator noise. Large fixed buffers cancel in the delta.
+    CHECK.assertLess(peaks[1] - peaks[0], STORAGE_GROWTH_ALLOWANCE,
+                     f"summarize retained the stream (storage peaks: {peaks})")
 
 
-def cli(module):
+def cli(module, files):
     def run(argv, text=None):
         return subprocess.run([sys.executable, "-I", "-B", "outcome_counts.py", *argv],
                               input=text, capture_output=True, text=True, encoding="utf-8", timeout=15)
@@ -198,30 +286,28 @@ def cli(module):
         failure(real([str(path) + ".missing"]), "file open error")
         path.write_bytes(valid.encode("utf-8") + b"\xff\n")
         failure(real([str(path)]), "UTF-8 decoding error")
-        real_open = io.open
-        handles = []
-
-        def tracked(*args, **kwargs):
-            handle = real_open(*args, **kwargs)
-            handles.append(handle)
-            return handle
-
         for content in (valid, valid + '{}\n'):
             path.write_text(content, encoding="utf-8")
-            handles.clear()
-            with mock.patch("builtins.open", tracked), mock.patch("io.open", tracked):
+            with files.observe():
                 result = invoke(module, [str(path)])
             (success(result, expected) if content == valid else failure(result, "file validation"))
-            CHECK.assertTrue(handles, "file entrypoint did not open source")
-            CHECK.assertTrue(all(h.closed for h in handles), "owned file handle leaked")
+            CHECK.assertTrue(files.handles, "file entrypoint did not open source")
+            CHECK.assertTrue(all(h.closed for h in files.handles), "owned file handle leaked")
+        with files.observe(inject_failure=True):
+            result = invoke(module, [str(path)])
+        failure(result, "file read error")
+        CHECK.assertTrue(files.handles, "file read failure was not injected")
+        CHECK.assertTrue(all(h.closed for h in files.handles), "owned file handle leaked on read failure")
         peaks = []
-        for size in (4_000, 80_000):
-            with real_open(path, "w", encoding="utf-8") as stream:
+        # Both files exceed a 1 MiB chunk so calibrated fixed-size readers fill
+        # their buffers at both sizes. This is still a workload-specific check.
+        for size in (80_000, 160_000):
+            with files.real_io_open(path, "w", encoding="utf-8") as stream:
                 for _ in range(size):
                     stream.write('{"status":"success","unused":"' + 'x' * 128 + '"}\n')
             peaks.append(measured(lambda: success(invoke(module, [str(path)]), {**ZERO, "success": size})))
-        CHECK.assertLess(peaks[1] - peaks[0], 2_000_000,
-                         "CLI retained the stream (storage growth exceeds 2 MB)")
+        CHECK.assertLess(peaks[1] - peaks[0], STORAGE_GROWTH_ALLOWANCE,
+                         f"CLI retained the stream (storage peaks: {peaks})")
     for source in (io.StringIO(valid), ReadFailure(), io.StringIO(valid + '{}\n')):
         result = invoke(module, ["-"], source)
         CHECK.assertFalse(source.closed, "borrowed stdin closed")
@@ -284,8 +370,12 @@ def self_tests():
 
 
 if __name__ == "__main__":
-    candidate = load()
-    api(candidate)
-    cli(candidate)
-    self_tests()
+    try:
+        candidate, file_access = load()
+        api(candidate)
+        with file_access.patched():
+            cli(candidate, file_access)
+        self_tests()
+    except SystemExit as exc:
+        raise AssertionError("candidate exited before contract checks completed") from exc
     print("greenfield Python public contracts passed")

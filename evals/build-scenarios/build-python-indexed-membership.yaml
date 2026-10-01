@@ -18,6 +18,8 @@ prompt: |
   and hash operations, including index construction, rather than wall-clock timing. No
   particular index implementation is required. Extend the existing unittest suite in
   tests/test_selection.py with focused tests, retaining its regression assertions.
+  Add deterministic assertions bounding both index construction and repeated lookup work;
+  the tests must catch a return to linear membership scans or quadratic index construction.
   After your last edit or helper return, run python -m unittest discover -s tests as your final
   standalone foreground shell command; use read tools for any final inspection. Report the behavior
   and cost benefit.
@@ -80,4 +82,4 @@ checks:
     command: "python -I -B _python_index_oracle.py"
     inconclusive_exit_code: 3
     writes_from: {_python_index_oracle.py: evals/oracles/python-craft/check_indexed_membership.py}
-    text: "streaming identity/order/error contracts, one-pass allowed input and bounded search cost hold"
+    text: "mapping and streaming contracts, one-pass input, bounded search cost and effective cost tests hold"

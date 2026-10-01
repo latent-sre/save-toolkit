@@ -9,8 +9,14 @@ String comparison/hash overrides only count calls and retain normal string seman
 import gc
 import importlib.util
 import inspect
+import json
 from pathlib import Path
+import subprocess
 import sys
+import tempfile
+from collections import UserDict
+from collections.abc import Mapping
+from types import MappingProxyType
 from unittest import TestCase
 import weakref
 
@@ -97,6 +103,23 @@ class Row(dict):
         return super().__getitem__(key)
 
 
+class MappingRow(Mapping):
+    def __init__(self, values):
+        self._values = values
+        self.missing = KeyError('id')
+
+    def __getitem__(self, key):
+        if key not in self._values:
+            raise self.missing
+        return self._values[key]
+
+    def __iter__(self):
+        return iter(self._values)
+
+    def __len__(self):
+        return len(self._values)
+
+
 def load(name):
     spec = importlib.util.spec_from_file_location(name, Path(name + '.py').resolve())
     module = importlib.util.module_from_spec(spec)
@@ -178,6 +201,30 @@ def supplied_string_contract(select):
         CHECK.assertIs(actual[0], row, 'supplied string match copied the row')
 
 
+def mapping_contract(select):
+    for wrap in (MappingProxyType, UserDict, MappingRow):
+        a, b, miss = wrap({'id': 'a'}), wrap({'id': 'b'}), wrap({'id': 'x'})
+        actual = list(select(OnePass([a, miss, b, a]), OnePass(['a', 'b'])))
+        CHECK.assertEqual(len(actual), 3)
+        for result, expected in zip(actual, [a, b, a]):
+            CHECK.assertIs(result, expected, 'mapping order, duplicates or identity changed')
+        CHECK.assertEqual([dict(row) for row in (a, b, miss)],
+                          [{'id': 'a'}, {'id': 'b'}, {'id': 'x'}], 'mapping input mutated')
+        for allowed in ([], ['a']):
+            bad, tail = wrap({}), wrap({'id': 'later'})
+            rows = OnePass([a, bad, tail])
+            output = select(rows, allowed)
+            CHECK.assertEqual(rows.pulls, 0, 'mapping accessed before iteration')
+            if allowed:
+                CHECK.assertIs(next(output), a)
+            with CHECK.assertRaises(KeyError) as raised:
+                next(output)
+            if isinstance(bad, MappingRow):
+                CHECK.assertIs(raised.exception, bad.missing, 'mapping KeyError replaced')
+            CHECK.assertEqual(rows.pulls, 2, 'mapping error consumed later rows')
+            CHECK.assertIs(next(rows), tail)
+
+
 def storage_contract(select):
     def retained_count(width, matching):
         references = []
@@ -241,7 +288,73 @@ def empty_and_closure_contract(select):
     CHECK.assertEqual(list(select(OnePass([]), OnePass(['a']))), [])
 
 
-def main():
+INDEXED = """\
+def iter_selected(rows, allowed_ids):
+    index = set(allowed_ids)
+    for row in rows:
+        if row['id'] in index:
+            yield row
+"""
+
+# These implementations retain the public contract except for the named fault.
+# The cost mutants also accept one-pass allowed input, so semantic/API failures
+# cannot stand in for the requested cost assertions.
+TEST_MUTANTS = {
+    'repeated linear search': INDEXED.replace('set(allowed_ids)', 'list(allowed_ids)'),
+    'quadratic index construction': INDEXED.replace(
+        'index = set(allowed_ids)',
+        'values = list(allowed_ids)\n    index = set(value for value in values if value in values)'),
+}
+
+SUITE_RUNNER = """\
+import json
+from pathlib import Path
+import sys
+import unittest
+sys.path.insert(0, str(Path.cwd()))
+import selection
+mutation = Path('_cost_mutant.py')
+if mutation.is_file():
+    exec(compile(mutation.read_text(encoding='utf-8'), str(mutation), 'exec'), selection.__dict__)
+suite = unittest.defaultTestLoader.discover('tests', top_level_dir='.')
+result = unittest.TextTestRunner(verbosity=0).run(suite)
+Path('_suite_result.json').write_text(json.dumps({
+    'run': result.testsRun, 'failures': len(result.failures),
+    'errors': len(result.errors), 'skipped': len(result.skipped),
+    'successful': result.wasSuccessful(),
+}), encoding='utf-8')
+"""
+
+
+def test_coverage_contract():
+    # Each replay gets its own scratch fixture and interpreter, avoiding cached
+    # imports or candidate-file replacement in the actual evaluation workspace.
+    def replay(source=None):
+        with tempfile.TemporaryDirectory(prefix='index-suite-') as temporary:
+            root = Path(temporary)
+            (root / 'tests').mkdir()
+            for name in ('selection.py', 'consumer.py', 'tests/__init__.py', 'tests/test_selection.py'):
+                (root / name).write_bytes(Path(name).read_bytes())
+            if source is not None:
+                (root / '_cost_mutant.py').write_text(source, encoding='utf-8')
+            result = subprocess.run([sys.executable, '-I', '-B', '-c', SUITE_RUNNER],
+                                    cwd=root, capture_output=True, text=True, timeout=10)
+            report = root / '_suite_result.json'
+            CHECK.assertEqual(result.returncode, 0, 'candidate test runner failed: ' + result.stderr)
+            CHECK.assertTrue(report.is_file(), 'candidate tests exited without results')
+            return json.loads(report.read_text(encoding='utf-8')), result.stderr
+
+    real, diagnostic = replay()
+    CHECK.assertTrue(real['successful'] and real['run'] > 0, 'candidate tests failed: ' + diagnostic)
+    for name, source in TEST_MUTANTS.items():
+        result, diagnostic = replay(source)
+        # Cost mutants preserve behavior, so only assertion failures establish
+        # cost coverage. Import/runtime errors and skips cannot substitute.
+        CHECK.assertTrue(result['failures'] > 0 and result['errors'] == 0,
+                         'candidate tests did not reject ' + name + ': ' + diagnostic)
+
+
+def candidate_contract():
     select = load('selection').iter_selected
     parameters = list(inspect.signature(select).parameters.values())
     CHECK.assertEqual([(p.name, p.kind, p.default) for p in parameters],
@@ -255,6 +368,16 @@ def main():
     supplied_string_contract(consumer)
     storage_contract(consumer)
     empty_and_closure_contract(consumer)
+    mapping_contract(consumer)
+    test_coverage_contract()
+    return cost_available
+
+
+def main():
+    try:
+        cost_available = candidate_contract()
+    except SystemExit as exc:
+        raise AssertionError(f'candidate raised SystemExit({exc.code!r})') from exc
     if not cost_available:
         print('cost measurement unavailable: instrumented construction/query work was not fully observed', file=sys.stderr)
         raise SystemExit(3)
