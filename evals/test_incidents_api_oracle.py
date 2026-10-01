@@ -93,9 +93,10 @@ def test_oversized_success_must_be_a_real_page(oracle, rows, defect):
 
 
 @pytest.mark.parametrize("status", [400, 422])
-def test_problem_validation_response_passes(oracle, rows, status):
+def test_rejecting_an_oversized_limit_fails_even_as_a_problem(oracle, rows, status):
+    """House rule (AIP-158): a limit above the maximum is lowered to it, not rejected."""
     response = (status, problem(status), "application/problem+json")
-    assert_verdict(oracle, make_app(rows, oversized_response=response), 0)
+    assert_verdict(oracle, make_app(rows, oversized_response=response), 1)
 
 
 @pytest.mark.parametrize("status", [201, 401, 404, 429, 500, 503])
