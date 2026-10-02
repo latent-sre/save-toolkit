@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import importlib.util
 import re
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -242,6 +243,241 @@ class ValidateWorkflowTests(unittest.TestCase):
         triggers = workflow.partition("\npermissions:")[0]
         self.assertRegex(triggers, re.compile(r"^  schedule:\n    - cron: ", re.MULTILINE))
         self.assertIn("workflow_dispatch:", triggers)
+
+
+class ArtifactPromotionOracleTests(unittest.TestCase):
+    """Run the real probe on the build scenario's manifest and workflow files; no shell executes."""
+
+    ORACLE = ROOT / "evals/oracles/pcf-deploy-job/probe_ci_workflow.py"
+    SCENARIO = ROOT / "evals/build-scenarios/build-software-engineer-adds-pcf-deploy-job.yaml"
+
+    def probe(self, steps, *, defaults=None, workflow_defaults=None, env=None, manifest=None, additional_jobs=None):
+        fixture = yaml.safe_load(self.SCENARIO.read_text(encoding="utf-8"))["fixture"]["files"]
+        workflow = yaml.safe_load(fixture[".github/workflows/ci.yml"])
+        job = {"steps": steps}
+        if defaults:
+            job["defaults"] = {"run": defaults}
+        if workflow_defaults:
+            workflow["defaults"] = {"run": workflow_defaults}
+        if env:
+            job["env"] = env
+        workflow["jobs"]["deploy"] = job
+        workflow["jobs"].update(additional_jobs or {})
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            destination = root / ".github/workflows/ci.yml"
+            destination.parent.mkdir(parents=True)
+            destination.write_text(yaml.safe_dump(workflow), encoding="utf-8")
+            (root / "manifest.yml").write_text(
+                fixture["manifest.yml"] if manifest is None else manifest, encoding="utf-8",
+            )
+            return subprocess.run(
+                [sys.executable, str(self.ORACLE), "artifact-promoted"], cwd=root,
+                capture_output=True, text=True, timeout=20,
+            )
+
+    @staticmethod
+    def checkout(**inputs):
+        return {"uses": "actions/checkout@v7", "with": inputs}
+
+    @staticmethod
+    def download(path="dist", **step_fields):
+        inputs = {"name": "checkout-build"}
+        if path is not None:
+            inputs["path"] = path
+        return {"uses": "actions/download-artifact@v8", "with": inputs, **step_fields}
+
+    def test_downloaded_payload_paths_and_reviewed_manifest_are_accepted(self):
+        cases = [
+            ("manifest path", "dist", {"run": "cf push checkout --strategy rolling"}, {}),
+            ("explicit path", "reviewed-artifact",
+             {"run": "cf push checkout -p reviewed-artifact/checkout.zip -f ./manifest.yml"}, {}),
+            ("long options", "dist",
+             {"run": "cf push checkout --path=dist/checkout.zip --manifest=manifest.yml"}, {}),
+            ("manifest directory", "dist",
+             {"run": "cf push checkout -f ."}, {}),
+            ("default download destination", None,
+             {"run": "cf push checkout -p checkout.zip"}, {}),
+            ("step directory", "dist",
+             {"working-directory": "dist", "run": "cf push checkout -f ../manifest.yml -p checkout.zip"}, {}),
+            ("job directory and manifest-relative payload", "dist",
+             {"run": "cf push checkout -f ../manifest.yml"}, {"defaults": {"working-directory": "dist"}}),
+            ("workflow directory", "dist", {"run": "cf push checkout -f ../manifest.yml"},
+             {"workflow_defaults": {"working-directory": "dist"}}),
+            ("step directory overrides defaults", "dist",
+             {"working-directory": ".", "run": "cf push checkout -p dist/checkout.zip"},
+             {"defaults": {"working-directory": "other"}, "workflow_defaults": {"working-directory": "wrong"}}),
+            ("literal cd", "dist",
+             {"run": "set -euo pipefail\ncd dist && cf push checkout -f ../manifest.yml -p checkout.zip"}, {}),
+            ("separator followed by newline", "dist",
+             {"run": "echo deploying;\ncf api https://api.example.invalid &&\ncf push checkout"}, {}),
+            ("comment keeps command boundary", "dist",
+             {"run": 'echo "# deployment" # comment\ncf push checkout # reviewed bytes'}, {}),
+            ("workspace expression", "${{ github.workspace }}/dist",
+             {"run": 'cf push checkout -f "$GITHUB_WORKSPACE/manifest.yml" -p "${GITHUB_WORKSPACE}/dist/checkout.zip"'}, {}),
+            ("literal environment path", "${{ env.ARTIFACT_DIR }}",
+             {"run": 'cf push checkout -p "$ARTIFACT_DIR/checkout.zip"'}, {"env": {"ARTIFACT_DIR": "dist"}}),
+            ("quoted path and continuation", "reviewed artifact",
+             {"run": "cf push checkout \\\n  -p 'reviewed artifact/checkout.zip' --strategy rolling # reviewed bytes\n"}, {}),
+        ]
+        for name, path, push, options in cases:
+            with self.subTest(name=name):
+                result = self.probe([self.checkout(), self.download(path), push], **options)
+                self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
+    def test_checkout_path_and_step_shell_directory_are_resolved_separately(self):
+        result = self.probe([
+            self.checkout(path="source"), self.download("source/dist"),
+            {"run": "cd source/dist"},
+            {"run": "cf push checkout -f source/manifest.yml -p source/dist/checkout.zip"},
+        ])
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        result = self.probe([
+            self.checkout(), self.download(None),
+            {"run": "cf push checkout -f ../manifest.yml -p ../checkout.zip"},
+        ], defaults={"working-directory": "dist"})
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
+    def test_unrelated_ignored_and_unresolved_payloads_are_rejected(self):
+        cases = [
+            ("reported unrelated payload", "reviewed-artifact", "cf push checkout -p /tmp/unrelated-bytes"),
+            ("ignored download", "reviewed-artifact", "cf push checkout"),
+            ("wrong archive", "dist", "cf push checkout -p dist/unreviewed.zip"),
+            ("unresolved variable", "dist", 'cf push checkout -p "$PUSH_PATH"'),
+            ("literal variable", "dist", "cf push checkout -p '$ARTIFACT_DIR/checkout.zip'"),
+            ("unreviewed manifest", "dist", "cf push checkout -f other.yml -p dist/checkout.zip"),
+            ("no manifest", "dist", "cf push checkout --no-manifest -p dist/checkout.zip"),
+            ("docker replacement", "dist", "cf push checkout -p dist/checkout.zip --docker-image unrelated"),
+            ("second push", "dist", "cf push checkout\ncf push checkout -p /tmp/unrelated-bytes"),
+            ("first push", "dist", "cf push checkout -p /tmp/unrelated-bytes\ncf push checkout"),
+            ("unknown download expression", "${{ inputs.destination }}", "cf push checkout"),
+            ("repeated payload option", "dist", "cf push checkout -p dist/checkout.zip --path /tmp/unrelated"),
+        ]
+        for name, path, command in cases:
+            with self.subTest(name=name):
+                result = self.probe([
+                    self.checkout(), self.download(path), {"run": command},
+                ], env={"ARTIFACT_DIR": "dist"})
+                self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+                self.assertIn("artifact-promoted", result.stdout)
+
+    def test_replacement_rebuild_and_opaque_shell_before_push_are_rejected(self):
+        for command in (
+            "cp /tmp/unrelated-bytes dist/checkout.zip",
+            "printf unrelated > dist/checkout.zip",
+            "scripts/build.sh",
+            "scripts/repackage.sh",
+            "python3 -c 'from pathlib import Path; Path(\"dist/checkout.zip\").write_bytes(b\"other\")'",
+            "ln -sf /tmp/unrelated-bytes dist/checkout.zip",
+            "echo $(cp /tmp/unrelated-bytes dist/checkout.zip)",
+            "if true; then cp /tmp/unrelated-bytes dist/checkout.zip; fi",
+            "echo deploying;\ncp /tmp/unrelated-bytes dist/checkout.zip",
+            "echo deploying &&\ncp /tmp/unrelated-bytes dist/checkout.zip",
+            "echo unrelated >& dist/checkout.zip",
+            'echo "${ARTIFACT_DIR:=/tmp/unrelated}"',
+            "echo deploying # comment\ncp /tmp/unrelated-bytes dist/checkout.zip",
+            "echo deploying # comment \\\ncp /tmp/unrelated-bytes dist/checkout.zip",
+        ):
+            with self.subTest(command=command):
+                result = self.probe([
+                    self.checkout(), self.download(), {"run": command + "\ncf push checkout"},
+                ])
+                self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+                self.assertIn("unsupported", result.stdout)
+
+    def test_download_and_reviewed_checkout_must_precede_every_push(self):
+        push = {"run": "cf push checkout"}
+        cases = [
+            ("absent download", [self.checkout(), push]),
+            ("late download", [self.checkout(), push, self.download()]),
+            ("skipped download", [self.checkout(), self.download(**{"if": False}), push]),
+            ("tolerated download failure", [self.checkout(), self.download(**{"continue-on-error": True}), push]),
+            ("checkout replaces bytes", [self.checkout(), self.download(), self.checkout(), push]),
+            ("absent checkout", [self.download(), push]),
+            ("unreviewed checkout", [self.checkout(ref="other"), self.download(), push]),
+            ("retained stale manifest", [self.checkout(clean=False), self.download(), push]),
+            ("unsupported shell", [self.checkout(), self.download(), {**push, "shell": "pwsh"}]),
+        ]
+        for name, steps in cases:
+            with self.subTest(name=name):
+                result = self.probe(steps)
+                self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+                self.assertIn("artifact-promoted:", result.stdout)
+
+    def test_opaque_trailing_pushes_and_option_substitutions_are_rejected(self):
+        for trailing in (
+            "bash -c 'cf push checkout -p /tmp/unrelated-bytes'",
+            "./deploy-again.sh",
+        ):
+            for same_step in (False, True):
+                with self.subTest(trailing=trailing, same_step=same_step):
+                    runs = ([{"run": "cf push checkout\n" + trailing}] if same_step else
+                            [{"run": "cf push checkout"}, {"run": trailing}])
+                    result = self.probe([self.checkout(), self.download(), *runs])
+                    self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+                    self.assertIn("unsupported", result.stdout)
+        for option in ("--strategy", "-b", "-c"):
+            with self.subTest(option=option):
+                result = self.probe([
+                    self.checkout(), self.download(),
+                    {"run": f'cf push checkout {option} "$(cp /tmp/unrelated-bytes dist/checkout.zip)"'},
+                ])
+                self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+                self.assertIn("unsupported", result.stdout)
+        result = self.probe([
+            self.checkout(), self.download(),
+            {"run": "cf push checkout\ncf app checkout"}, {"run": "echo deployment complete"},
+        ])
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
+    def test_modified_manifest_and_an_additional_bad_deploy_job_are_rejected(self):
+        result = self.probe([
+            self.checkout(), self.download(), {"run": "cf push checkout -p dist/checkout.zip"},
+        ], manifest="applications:\n  - name: checkout\n    path: /tmp/unrelated\n")
+        self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+        self.assertIn("reviewed fixture manifest", result.stdout)
+        result = self.probe([
+            self.checkout(), self.download(), {"run": "cf push checkout"},
+        ], additional_jobs={"other": {"steps": [
+            self.checkout(), self.download("ignored"), {"run": "cf push checkout"},
+        ]}})
+        self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+        self.assertIn("job other: cf push payload", result.stdout)
+
+    def test_every_option_value_must_be_one_resolved_shell_word(self):
+        for option in ("--strategy", "-b", "-m", "-i", "-k", "-t", "-c"):
+            with self.subTest(option=option):
+                result = self.probe([
+                    self.checkout(), self.download(), {"run": f"cf push checkout {option} $BUILDPACK"},
+                ], env={"BUILDPACK": "null -p /tmp/unrelated-bytes"})
+                self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+                self.assertIn("unsupported", result.stdout)
+        for value in (None, "", "*", "?", "[abc]"):
+            with self.subTest(value=value):
+                result = self.probe([
+                    self.checkout(), self.download(), {"run": "cf push checkout -b $BUILDPACK"},
+                ], env={} if value is None else {"BUILDPACK": value})
+                self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+                self.assertIn("unsupported", result.stdout)
+        for value in ("null -p /tmp/unrelated-bytes", "*", "?", "[abc]"):
+            with self.subTest(quoted_value=value):
+                result = self.probe([
+                    self.checkout(), self.download(), {"run": 'cf push checkout -b "$BUILDPACK"'},
+                ], env={"BUILDPACK": value})
+                self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        for option in ("--no-start", "--no-route", "--random-route", "--no-wait"):
+            with self.subTest(inline_option=option):
+                result = self.probe([
+                    self.checkout(), self.download(), {"run": f"cf push checkout {option}=$FLAGS"},
+                ], env={"FLAGS": "true -p /tmp/unrelated-bytes"})
+                self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+                self.assertIn("unsupported", result.stdout)
+        for value in ("true", "false"):
+            with self.subTest(boolean_value=value):
+                result = self.probe([
+                    self.checkout(), self.download(), {"run": f"cf push checkout --no-start={value}"},
+                ])
+                self.assertEqual(0, result.returncode, result.stdout + result.stderr)
 
 
 if __name__ == "__main__":

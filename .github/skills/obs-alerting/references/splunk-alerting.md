@@ -43,9 +43,13 @@ alert.suppress.period = 30m
 alert.suppress.fields = service,alert_type
 ```
 
-*[sourced: savedsearches.conf reference]* `alert.suppress.fields` scopes the suppression key so one
-noisy service does not mute the alert for every service; `alert.suppress.group_name` extends it
-across similar alerts. A suppression period longer than the runbook's escalation time-box hides a
+`alert.suppress.fields` scopes the suppression key so one noisy service does not mute the alert
+for every service. `alert.suppress.group_name` can suppress other alerts in the same group only
+when they have the same user owner. For example, alerts A and B owned by the same user can share
+suppression; alert C owned by a different user cannot join it just by using the same group name.
+*[sourced: Splunk Enterprise 10.4
+[savedsearches.conf](https://help.splunk.com/en/splunk-enterprise/administer/admin-manual/10.4/configuration-file-reference/10.4.0-configuration-file-reference/savedsearches.conf),
+re-checked 2026-10-02]* A suppression period longer than the runbook's escalation time-box hides a
 still-burning condition; check the pair together.
 
 ## Actions carry results outward
@@ -73,5 +77,7 @@ updates every alert at once.
 ## Verification, Splunk-shaped
 
 Force the condition with a test search or fixture events and observe trigger, throttle, and action
-delivery end to end; a green "search ran" is not delivery evidence. Splunk-side throttling is per
-alert; Moogsoft owns cross-alert dedup and correlation, so do not build both for the same storm.
+delivery end to end; a green "search ran" is not delivery evidence. Check both per-alert throttling
+and any same-owner suppression group, including its effect on other member alerts. Moogsoft owns
+cross-alert dedup and correlation in this team's stack; coordinate Splunk suppression with that
+policy so the same storm is not hidden twice.

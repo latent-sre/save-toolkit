@@ -1421,7 +1421,7 @@ class NativeConversationRunTests(unittest.TestCase):
 
 
 STUB_CLAUDE = '''
-import json, sys
+import json, os, sys
 argv = sys.argv
 root = argv[argv.index("--plugin-dir") + 1] if "--plugin-dir" in argv else ""
 plugins = PLUGINS
@@ -1429,7 +1429,7 @@ for p in plugins:
     if p.get("path") is None:
         p["path"] = root
 events = [
-    {"type": "system", "subtype": "init", "tools": TOOLS, "plugins": plugins, "mcp_servers": [], "permissionMode": "dontAsk"},
+    {"type": "system", "subtype": "init", "cwd": os.getcwd(), "tools": TOOLS, "plugins": plugins, "mcp_servers": [], "permissionMode": "dontAsk"},
     {"type": "assistant", "message": {"content": [
         {"type": "tool_use", "name": "Skill", "input": {"skill": "save-toolkit:backend-craft"}},
         {"type": "tool_use", "name": "Bash", "input": {"command": "python -m unittest discover -s tests -t . -v"}},
@@ -1494,6 +1494,9 @@ class EndToEndStubTests(unittest.TestCase):
         run = out / "eval-tiny" / "new_skill" / "run-1"
         for name in ("grading.json", "timing.json", "stdout.jsonl", "outputs/response.md", "outputs/workspace.patch", "outputs/trace-summary.json"):
             self.assertTrue((run / name).exists(), name)
+        recorded = json.loads((run / "outputs/trace-summary.json").read_text(encoding="utf-8"))
+        init = json.loads((run / "stdout.jsonl").read_text(encoding="utf-8").splitlines()[0])
+        self.assertEqual(Path(init["cwd"]), Path(recorded["workspace"]))
         timing = json.loads((run / "timing.json").read_text(encoding="utf-8"))
         self.assertEqual(["stub-model"], timing["models"])
         self.assertEqual(120, timing["total_tokens"])
@@ -2933,17 +2936,49 @@ class ReferenceReadTests(unittest.TestCase):
     def test_a_successful_read_of_the_named_reference_passes(self) -> None:
         passed, detail = build_probe.reference_read(self._trace([
             {"tool": "Read", "path": str(ROOT / "skills/agent-authoring/references/agent-security.md"),
-             "outcome": "allowed"}]), self.SPEC["references"][0])
+             "outcome": "allowed"}]), self.SPEC["references"][0], ROOT)
         self.assertTrue(passed, detail)
 
     def test_no_read_and_a_denied_read_both_fail(self) -> None:
-        never, detail = build_probe.reference_read(self._trace([]), self.SPEC["references"][0])
+        never, detail = build_probe.reference_read(self._trace([]), self.SPEC["references"][0], ROOT)
         self.assertFalse(never)
         self.assertIn("never read", detail)
         denied, detail = build_probe.reference_read(self._trace([
-            {"tool": "Read", "path": "skills/agent-authoring/references/agent-security.md",
-             "outcome": "denied"}]), self.SPEC["references"][0])
+            {"tool": "Read", "path": str(ROOT / self.SPEC["references"][0]),
+             "outcome": "denied"}]), self.SPEC["references"][0], ROOT)
         self.assertFalse(denied, detail)
+
+    def test_contract_and_build_grade_only_the_measured_canonical_reference(self) -> None:
+        reference = self.SPEC["references"][0]
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp) / "workspace"
+            plugin_root = workspace / "candidate"
+            ws = build_probe.Workspace(Path(tmp), workspace, Path(tmp) / "bin", Path(tmp) / "state", 0, "main")
+            for spec in (self.SPEC, {**TINY_SPEC, "references": [reference]}):
+                for path, outcome, expected in (
+                    (str(plugin_root / reference), "allowed", True),
+                    (f"candidate/{reference}", "allowed", True),
+                    (f"candidate/{reference}".replace("/", "\\"), "allowed", True),
+                    (str(plugin_root / ".github" / reference), "allowed", False),
+                    (str(workspace / reference), "allowed", False),
+                    (reference, "allowed", False),
+                    (str(ROOT / reference), "allowed", False),
+                    (str(plugin_root / reference), "denied", False),
+                    (None, None, False),
+                ):
+                    with self.subTest(kind=build_probe.scenario_kind(spec), path=path, outcome=outcome):
+                        reads = [] if path is None else [{"tool": "Read", "path": path, "outcome": outcome}]
+                        ctx = build_probe.Context(spec, ws, self._trace(reads),
+                                                  build_probe.GitFacts(0, "main", [], ""), plugin_root=plugin_root)
+                        verdict = next(e for e in build_probe.grade(ctx)["expectations"]
+                                       if e["text"] == f"reference {reference} read")
+                        self.assertEqual(expected, verdict["passed"], verdict["evidence"])
+
+    def test_relative_reference_without_a_known_workspace_fails_closed(self) -> None:
+        reference = self.SPEC["references"][0]
+        trace = self._trace([{"tool": "Read", "path": reference, "outcome": "allowed"}])
+        verdicts = dict(build_probe.scenario_expectations(self.SPEC, trace, ROOT))
+        self.assertFalse(verdicts[f"reference {reference} read"]()[0])
 
     def test_references_are_graded_as_their_own_expectation(self) -> None:
         ws = build_probe.Workspace(Path("."), Path("."), Path("."), Path("."), 0, "main")
@@ -3005,18 +3040,73 @@ class ReferenceReadTests(unittest.TestCase):
 class UnifiedRegradeTests(unittest.TestCase):
     """Codex review of PR #222: --regrade now sees routing and contract runs, not only build runs."""
 
-    def _saved(self, tmp: Path, spec: dict, *, label: str, text: str, events: list[dict] | None = None) -> Path:
+    def _saved(self, tmp: Path, spec: dict, *, label: str, text: str, events: list[dict] | None = None,
+               plugin_root: Path = ROOT, workspace: Path | None = None) -> Path:
         run = tmp / "eval-batch-contract" / label / "run-1"
         (run / "outputs").mkdir(parents=True)
         (run / "outputs" / "response.md").write_text(text, encoding="utf-8")
         (run / "outputs" / "trace-summary.json").write_text(json.dumps({
             "state_files": {}, "commits_before_after": [1, 1], "branch": "main", "changed_files": [],
             "skills": [], "dispatches": [], "bash_commands": [], "agents_dir": False, "inconclusive": None,
+            "plugin": {"plugin_root": str(plugin_root)}, "workspace": str(workspace) if workspace else None,
         }), encoding="utf-8")
         (run / "grading.json").write_text(json.dumps(_saved_grade(spec, [])), encoding="utf-8")
         if events is not None:
             (run / "stdout.jsonl").write_text("\n".join(json.dumps(e) for e in events), encoding="utf-8")
         return run
+
+    def test_reference_regrade_binds_the_saved_plugin_and_workspace(self) -> None:
+        reference = ReferenceReadTests.SPEC["references"][0]
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp) / "deleted-workspace"
+            plugin_root = workspace / "candidate"
+            for spec in ({**CONTRACT_SPEC, "references": [reference]},
+                         {**TINY_SPEC, "references": [reference], "checks": []}):
+                for index, (path, outcome, known_workspace, expected) in enumerate((
+                    (str(plugin_root / reference), "allowed", None, True),
+                    (f"candidate/{reference}", "allowed", workspace, True),
+                    (f"candidate/{reference}".replace("/", "\\"), "allowed", workspace, True),
+                    (str(plugin_root / ".github" / reference), "allowed", workspace, False),
+                    (str(workspace / reference), "allowed", workspace, False),
+                    (reference, "allowed", workspace, False),
+                    (str(ROOT / reference), "allowed", workspace, False),
+                    (f"candidate/{reference}", "allowed", None, False),
+                    (str(plugin_root / reference), "denied", workspace, False),
+                    (str(plugin_root / reference), None, workspace, False),
+                    (None, None, workspace, False),
+                )):
+                    with self.subTest(kind=build_probe.scenario_kind(spec), path=path, outcome=outcome):
+                        events = [] if path is None else [{"type": "assistant", "message": {"content": [
+                            {"type": "tool_use", "id": "ref", "name": "Read", "input": {"file_path": path}}]}}]
+                        if outcome is not None:
+                            events.append({"type": "user", "message": {"content": [
+                                {"type": "tool_result", "tool_use_id": "ref", "content": "reference",
+                                 "is_error": outcome == "denied"}]}})
+                        run = self._saved(Path(tmp) / build_probe.scenario_kind(spec), spec, label=str(index),
+                                          text="latency", events=events, plugin_root=plugin_root, workspace=known_workspace)
+                        grading = build_probe.regrade_run(run, spec)
+                        verdict = next(e for e in grading["expectations"] if e["text"] == f"reference {reference} read")
+                        self.assertEqual(expected, verdict["passed"], verdict["evidence"])
+                        self.assertEqual("PASS" if expected else "FAIL", grading["status"])
+
+    def test_reference_regrade_without_recorded_plugin_root_fails_closed(self) -> None:
+        reference = ReferenceReadTests.SPEC["references"][0]
+        spec = {**CONTRACT_SPEC, "references": [reference]}
+        events = [
+            {"type": "assistant", "message": {"content": [
+                {"type": "tool_use", "id": "ref", "name": "Read", "input": {"file_path": str(ROOT / reference)}}]}},
+            {"type": "user", "message": {"content": [
+                {"type": "tool_result", "tool_use_id": "ref", "content": "reference"}]}},
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            run = self._saved(Path(tmp), spec, label="cand", text="latency", events=events)
+            summary_path = run / "outputs" / "trace-summary.json"
+            summary = json.loads(summary_path.read_text(encoding="utf-8"))
+            summary.pop("plugin")
+            summary_path.write_text(json.dumps(summary), encoding="utf-8")
+            grading = build_probe.regrade_run(run, spec)
+        self.assertEqual("INCONCLUSIVE", grading["status"])
+        self.assertFalse(any(e["passed"] for e in grading["expectations"]))
 
     def test_a_contract_run_regrades_its_graders_instead_of_crashing(self) -> None:
         spec = {"id": "batch-contract", "agent": "sre-assistant", "prompt": "p",

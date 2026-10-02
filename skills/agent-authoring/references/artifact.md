@@ -81,8 +81,9 @@ schema or the output is intentionally free-form.
 
 ## In this fleet
 
-- `name` matches the directory and uses `[a-z0-9-]`; descriptions are ≤1,024 characters with 2–4
-  quoted trigger phrasings. Canonical validation enforces both.
+- For skills, `name` matches the directory and uses `[a-z0-9-]`; descriptions are ≤1,024 characters
+  with 2–4 quoted trigger phrasings. Canonical validation enforces both. Agent metadata follows the
+  [agent frontmatter rules](./claude-code-frontmatter.md#agents).
 - Add an eval scenario only for a gradeable outcome — a gate blocks, routing lands, a refusal
   happens. No tautological prose evals.
 - Every repository-visible eval is calibration or regression; "shadow" only when its cases are

@@ -2764,14 +2764,21 @@ def grade_skill_fired(spec: dict, trace: TraceSummary, plugin_root: Path) -> tup
     return False, f"pinned skill {expected} did not complete; saw skills={sorted(actual)}"
 
 
-def reference_read(trace: TraceSummary, reference: str, plugin_root: Path | None = None) -> tuple[bool, str]:
-    """Did the trial actually read the reference its contract requires, with a non-error result?"""
-    wanted = reference.replace("\\", "/").lstrip("/")
-    attempts = [a for a in trace.read_attempts
-                if a["tool"] == "Read" and str(a["path"] or "").replace("\\", "/").endswith(wanted)]
-    if plugin_root is not None:
-        expected = (plugin_root / reference).resolve()
-        attempts = [a for a in attempts if _is_rooted(a["path"]) and Path(a["path"]).resolve() == expected]
+def reference_read(trace: TraceSummary, reference: str, plugin_root: Path,
+                   workspace: Path | None = None) -> tuple[bool, str]:
+    """Require a successful read of the measured canonical file, resolving relatives only from its cwd."""
+    expected = (plugin_root / reference).resolve()
+    attempts = []
+    for attempt in trace.read_attempts:
+        if attempt["tool"] != "Read" or not attempt["path"]:
+            continue
+        candidate = Path(str(attempt["path"]).replace("\\", "/"))
+        if not _is_rooted(candidate):
+            if workspace is None or candidate.drive:
+                continue
+            candidate = workspace / candidate
+        if candidate.resolve() == expected:
+            attempts.append(attempt)
     if any(a["outcome"] == "allowed" for a in attempts):
         return True, f"read {reference}"
     if attempts:
@@ -2781,7 +2788,8 @@ def reference_read(trace: TraceSummary, reference: str, plugin_root: Path | None
 
 
 def scenario_expectations(spec: dict, trace: TraceSummary,
-                          plugin_root: Path, judge_binding=None) -> list[tuple[str, object]]:
+                          plugin_root: Path, judge_binding=None, *,
+                          workspace: Path | None = None) -> list[tuple[str, object]]:
     """Every trace-graded expectation as (text, thunk), in the order grade() evaluates them.
 
     The `checks` are not here: they need a live workspace, which regrade does not have. One list
@@ -2800,7 +2808,7 @@ def scenario_expectations(spec: dict, trace: TraceSummary,
     for reference in spec.get("references") or []:
         scope = " by initial parent before helper dispatch" if spec.get("followups") else ""
         graded.append((f"reference {reference} read{scope}",
-                       lambda r=reference: reference_read(reference_trace, r, plugin_root if spec.get("followups") else None)))
+                       lambda r=reference: reference_read(reference_trace, r, plugin_root, workspace)))
     for grader in spec.get("graders") or []:
         graded.append((f"grader {grader.get('type')}",
                        lambda g=grader: fleet_graders.run_grader(dict(g), trace.result_text, judge_binding=judge_binding)))
@@ -2851,7 +2859,8 @@ def grade(ctx: Context, *, inconclusive: str | None = None,
             inconclusive = str(exc)
     expectations = []
     instrument_failure: str | None = None
-    for text, live in scenario_expectations(ctx.spec, ctx.trace, ctx.plugin_root, ctx.judge_binding):
+    for text, live in scenario_expectations(ctx.spec, ctx.trace, ctx.plugin_root, ctx.judge_binding,
+                                            workspace=ctx.ws.repo if ctx.ws is not None else None):
         expectations.append(_expectation(text, live, inconclusive))
     for check in ctx.spec.get("checks") or []:
         if inconclusive:
@@ -3172,7 +3181,7 @@ def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, 
             "tool_errors": trace.tool_errors, "denial_details": trace.denial_details,
             "commits_before_after": [ws.baseline_commits, git.commit_count], "branch": git.branch,
             "changed_files": ctx.git.changed, "state_files": state_files, "agents_dir": (ws.repo / ".agents").exists(),
-            "plugin": provenance, "judge_binding": binding,
+            "plugin": provenance, "workspace": str(ws.repo.resolve()), "judge_binding": binding,
             "scenario_sha256": grading["scenario_sha256"],
             "isolation": {"mode": "container", "image": container_image} if container_image else {"mode": "host"},
             "services": [{"name": s.name, "image": s.image, "base_url": s.base_url} for s in ctx.services],
@@ -3316,8 +3325,15 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
     identity = scenario_digest(spec, saved_binding)
     identity_matches = live_grade.get("scenario_sha256") == identity
     text = (run_dir / "outputs" / "response.md").read_text(encoding="utf-8")
-    plugin_root = Path((summary.get("plugin") or {}).get("plugin_root") or ROOT)
+    saved_plugin_root = (summary.get("plugin") or {}).get("plugin_root")
+    has_plugin_root = isinstance(saved_plugin_root, str) and _is_rooted(saved_plugin_root)
+    plugin_root = Path(saved_plugin_root) if has_plugin_root else ROOT
     native_problem = native_regrade_problem(run_dir, spec, plugin_root) if spec.get("followups") else None
+    saved_workspace = summary.get("workspace")
+    if spec.get("followups") and native_problem is None:
+        # Native invocation metadata already passed the per-turn boundary checks above.
+        saved_workspace = json.loads((run_dir / "invocation.json").read_text(encoding="utf-8"))["workspace"]
+    recorded_workspace = Path(saved_workspace) if isinstance(saved_workspace, str) and _is_rooted(saved_workspace) else None
     # The raw trace is the truth: a saved summary carries whatever the parser of the day recorded,
     # so re-parse it with the live path's own parser and fall back only when the trace is absent.
     stdout_path = run_dir / "stdout.jsonl"
@@ -3346,6 +3362,8 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
             (ws.repo / ".agents").mkdir(parents=True)
         ctx = Context(spec, ws, trace, git, plugin_root=plugin_root)
         inconclusive = live_grade.get("inconclusive", summary.get("inconclusive")) or native_problem
+        if spec.get("references") and not has_plugin_root:
+            inconclusive = "reference plugin root evidence missing or invalid; re-run the trial"
         if reparsed is None and any(c.get("check") == "verification_completed" or c.get("before_effects")
                                    for c in spec.get("checks", [])):
             inconclusive = "raw trace required for ordered verification evidence; re-run the trial"
@@ -3384,7 +3402,7 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
         # spend a live judge call, so it keeps the verdict the live batch paid for.
         rubric_texts = {f"grader {g.get('type')}" for g in spec.get("graders") or []
                         if g.get("type") == "rubric"}
-        for label, live in scenario_expectations(spec, trace, ctx.plugin_root):
+        for label, live in scenario_expectations(spec, trace, ctx.plugin_root, workspace=recorded_workspace):
             expectations.append(keep(label, "live-judge") if label in rubric_texts
                                 else _expectation(label, live, inconclusive))
         for check in spec.get("checks") or []:

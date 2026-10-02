@@ -20,18 +20,18 @@ time units. For request SLIs, this time-based estimate assumes comparable reques
 actual consumed budget from eligible requests. At 28 days, the pairs represent about 2.14%, 5.36%,
 and 10.71%, not 2%, 5%, and 10%.
 
-A pair is one unit: both windows must meet the pair's threshold (AND, never OR), and no row
-lends its window or threshold to another. Low-traffic services need separate judgment: a tiny
+A pair is one unit: both windows must meet or exceed the pair's threshold (`>=`; AND, never OR).
+No row lends its window or threshold to another. Low-traffic services need separate judgment: a tiny
 denominator turns one failure into an extreme burn.
 
 ## Verdict boundary
 
-- Both windows over the threshold: emit that pair's page or ticket.
-- Only the long window over: do not page; the short window has recovered. Say that budget may
+- Both windows at or above the threshold: emit that pair's page or ticket.
+- Only the long window at or above: do not page; the short window has recovered. Say that budget may
   already be spent and calculate budget status separately.
-- Only the short window over: do not page; treat it as an unconfirmed spike and re-check.
-- Neither over: say only that the pair is below its threshold. That does not prove the service is
-  within budget; alert state and consumed-budget status answer different questions.
+- Only the short window at or above: do not page; treat it as an unconfirmed spike and re-check.
+- Neither meets the threshold: say only that the pair is below its threshold. That does not prove
+  the service is within budget; alert state and consumed-budget status answer different questions.
 
 ## Calculator
 

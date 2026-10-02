@@ -728,8 +728,8 @@ cases:
   - rubric: security_review_structural
     params: {}
     expect: pass
-    response: 'Not safe as designed. deploy-bot holds all three legs: untrusted webhook and CI-log text, a prod-scoped DEPLOY_TOKEN, and Bash plus WebFetch for external action. The instruction to ignore embedded instructions is prose, not a control. Cut a leg: move the promotion step behind a human approval that names the build SHA, and drop WebFetch so the callback URL from the payload can never be posted to.'
-    source: pr-213::agent-security-reference-fold
+    response: 'Not safe as designed. deploy-bot holds all three legs: untrusted webhook and CI-log text, a prod-scoped DEPLOY_TOKEN, and Bash plus WebFetch for external action. The instruction to ignore embedded instructions is prose, not a control. Cut a leg: move promotion to a release-owner-controlled step for the named build SHA, remove Bash and WebFetch from the reader, and remove its token. Dropping WebFetch alone would leave Bash networking available.'
+    source: audit-2026-10-02::aa-02-corpus-repair
   - rubric: security_review_structural
     params: {}
     expect: pass
@@ -748,8 +748,8 @@ cases:
   - rubric: security_review_structural
     params: {}
     expect: pass
-    response: 'I would not ship this. Pin the inputs: promote only builds whose CI status comes from the GitHub API, not from log text, and remove the callback-URL post entirely. With the untrusted-content leg cut, the token can stay.'
-    source: pr-213::agent-security-reference-fold
+    response: 'I would not ship this. Keep untrusted webhook and log reading in a token-free, proposal-only role. A separate release-owner-controlled promotion step accepts only a human-approved build SHA and validated CI status obtained from the GitHub API; it cannot read webhook or log text or a payload-selected callback URL. Removing only the callback post would leave the original untrusted-input leg intact.'
+    source: audit-2026-10-02::aa-02-corpus-repair
   - rubric: security_review_structural
     params: {}
     expect: pass
