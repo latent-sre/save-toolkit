@@ -19,6 +19,8 @@ component tests.
 
 from __future__ import annotations
 
+import importlib.util
+import io
 import json
 import os
 import re
@@ -27,6 +29,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 CONVERTER = ROOT / "skills" / "runbook" / "scripts" / "confluence_to_runbook.py"
@@ -380,6 +383,40 @@ class ConfluenceImportTest(unittest.TestCase):
 
 
 class ConfluenceContentTest(unittest.TestCase):
+    def test_code_line_breaks_preserve_exact_command_lines(self) -> None:
+        commands = ("cf app demo", "  cf events demo", "", "cf logs demo --recent")
+        expected = "\n".join(commands)
+        for line_break in ("\n", "<br>", "<br/>"):
+            for nested_code in (False, True):
+                with self.subTest(line_break=line_break, nested_code=nested_code):
+                    content = line_break.join(commands)
+                    if nested_code:
+                        content = f"<code>{content}</code>"
+                    proc, draft = run_converter(
+                        "<h1>Recovery</h1><h2>Procedure</h2><pre>" + content + "</pre>"
+                    )
+                    self.assertEqual(0, proc.returncode, proc.stderr)
+                    procedure = slot_text(draft, "Procedure")
+                    self.assertEqual([expected], re.findall(r"(?ms)^```\n(.*?)\n```$", procedure))
+                    self.assertEqual(1, procedure.count(
+                        "*Imported command — [unverified] until rehearsed on the target.*"
+                    ))
+
+    def test_suppressed_code_content_does_not_add_line_breaks(self) -> None:
+        proc, draft = run_converter(
+            "<h1>Recovery</h1><h2>Procedure</h2><pre>cf app demo"
+            "<svg>hidden<br/></svg>"
+            "<ac:structured-macro>hidden<br></ac:structured-macro>"
+            "\ncf events demo</pre>"
+        )
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        self.assertEqual(
+            ["cf app demo\ncf events demo"],
+            re.findall(r"(?ms)^```\n(.*?)\n```$", slot_text(draft, "Procedure")),
+        )
+        self.assertIn("Unsupported media dropped: 1", proc.stdout)
+        self.assertIn("Confluence macros dropped (not convertible): 1", proc.stdout)
+
     def test_titles_remain_one_literal_heading_before_the_import_warning(self) -> None:
         cases = (
             ("Restart payments", "Restart payments", "Restart payments", "restart-payments"),
@@ -618,6 +655,38 @@ class ConfluenceImportPathTest(unittest.TestCase):
         proc, draft = run_on("page.json", self.PAGE_JSON, "--force", existing=history)
         self.assertEqual(0, proc.returncode, proc.stderr)
         self.assertIn("restart-the-order-router", draft)
+
+    def test_output_created_during_conversion_is_preserved(self) -> None:
+        spec = importlib.util.spec_from_file_location("confluence_import_race_test", CONVERTER)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        converter = importlib.util.module_from_spec(spec)
+        with patch.dict(sys.modules, {spec.name: converter}):
+            spec.loader.exec_module(converter)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "page.json"
+            output = Path(tmp) / "draft.md"
+            source.write_text(self.PAGE_JSON, encoding="utf-8")
+            history = "Another writer's café runbook\r\n| INC-8841 | preserve history |\r\n".encode("utf-8")
+            real_convert = converter.convert
+
+            def convert_with_competing_output(*args, **kwargs):
+                result = real_convert(*args, **kwargs)
+                self.assertFalse(output.exists())
+                output.write_bytes(history)
+                return result
+
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with patch.object(converter, "convert", side_effect=convert_with_competing_output), \
+                    patch.object(sys, "stdout", stdout), patch.object(sys, "stderr", stderr):
+                returncode = converter.main([
+                    str(source), "-o", str(output), "--service-id", "order-router",
+                ])
+            self.assertEqual(history, output.read_bytes(), "the competing runbook must survive byte-for-byte")
+            self.assertEqual(1, returncode)
+            self.assertIn("--force", stderr.getvalue())
+            self.assertNotIn("Draft written:", stdout.getvalue())
 
     def test_report_prints_non_ascii_headings_on_a_legacy_stdout(self) -> None:
         # Captured stdout (an agent's Bash, CI, `> log`) can default to a legacy code page; the draft

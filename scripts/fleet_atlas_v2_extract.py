@@ -412,7 +412,8 @@ def _component_records(snapshot, inputs):
             attrs = {'date': date.group() if date else '', 'banner': 'Status' in '\n'.join(source.lines[:8]), 'batches': sorted(set(BATCH.findall(source.text)))}
             if batch:
                 attrs['batch'] = batch.group(1)
-            add(_record(f'review:{p.stem}', 'review', p.stem, path, whole(source), attrs=attrs,
+            review_id = p.relative_to('docs/reviews').with_suffix('').as_posix()
+            add(_record(f'review:{review_id}', 'review', p.stem, path, whole(source), attrs=attrs,
                 authority='generated' if batch else 'historical-evidence', state='generated' if batch else 'historical', family='reviews'))
         elif path.startswith(('evals/scenarios/', 'evals/build-scenarios/')) and p.suffix in ('.yaml', '.yml'):
             data, _ = yaml_fields(source)
@@ -1551,7 +1552,7 @@ def extract(snapshot: Snapshot, *, stages=EXTRACTION_STAGES) -> Extraction:
     fields = {f.predicate for b in buckets for f in b.facts} - EDGE_TYPES
     # All source spans are replayed; joined proofs may include canonical targets and
     # controlling validators in addition to their declaration source.
-    authority = ('*.md', '*.py', '*.json', '*.yaml', '*.yml', '*.toml', '*.txt', '*.sh', '*.ps1', '*.js', '*.ts', '*.html', '*.css', '*.svg', '*.ini', '*.cfg')
+    authority = ('*.md', '*.py', '*.json', '*.csv', '*.yaml', '*.yml', '*.toml', '*.txt', '*.sh', '*.ps1', '*.js', '*.ts', '*.html', '*.css', '*.svg', '*.ini', '*.cfg')
     predicates = tuple(Predicate(name, frozenset(source), frozenset(target), authority)
                        for name, (source, target) in sorted(EDGE_ENDPOINTS.items()))
     predicates += tuple(Predicate(name, NODE_TYPES, None, authority, None if name in ('unknown', 'guidance') else 1)

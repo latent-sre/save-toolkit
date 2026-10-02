@@ -60,6 +60,12 @@ def _ctx(spec: dict, ws: build_probe.Workspace, *, text: str = "", skills=(), sk
     return build_probe.Context(spec, ws, trace, build_probe.collect_git_facts(ws))
 
 
+def _grafana_metric_frame(value: object = 0.2, ref_id: str = "A") -> dict:
+    return {"schema": {"refId": ref_id, "fields": [
+        {"name": "Time", "type": "time"}, {"name": "Value", "type": "number"},
+    ]}, "data": {"values": [[1], [value]]}}
+
+
 def _saved_grade(spec: dict, expectations: list[dict], *, binding: dict | None = None, response: str = "") -> dict:
     """Build identified saved records for synthetic traces; each label here is unique."""
     identity = build_probe.scenario_digest(spec, binding)
@@ -1415,7 +1421,7 @@ class NativeConversationRunTests(unittest.TestCase):
 
 
 STUB_CLAUDE = '''
-import json, sys
+import json, os, sys
 argv = sys.argv
 root = argv[argv.index("--plugin-dir") + 1] if "--plugin-dir" in argv else ""
 plugins = PLUGINS
@@ -1423,7 +1429,7 @@ for p in plugins:
     if p.get("path") is None:
         p["path"] = root
 events = [
-    {"type": "system", "subtype": "init", "tools": TOOLS, "plugins": plugins, "mcp_servers": [], "permissionMode": "dontAsk"},
+    {"type": "system", "subtype": "init", "cwd": os.getcwd(), "tools": TOOLS, "plugins": plugins, "mcp_servers": [], "permissionMode": "dontAsk"},
     {"type": "assistant", "message": {"content": [
         {"type": "tool_use", "name": "Skill", "input": {"skill": "save-toolkit:backend-craft"}},
         {"type": "tool_use", "name": "Bash", "input": {"command": "python -m unittest discover -s tests -t . -v"}},
@@ -1488,6 +1494,9 @@ class EndToEndStubTests(unittest.TestCase):
         run = out / "eval-tiny" / "new_skill" / "run-1"
         for name in ("grading.json", "timing.json", "stdout.jsonl", "outputs/response.md", "outputs/workspace.patch", "outputs/trace-summary.json"):
             self.assertTrue((run / name).exists(), name)
+        recorded = json.loads((run / "outputs/trace-summary.json").read_text(encoding="utf-8"))
+        init = json.loads((run / "stdout.jsonl").read_text(encoding="utf-8").splitlines()[0])
+        self.assertEqual(Path(init["cwd"]), Path(recorded["workspace"]))
         timing = json.loads((run / "timing.json").read_text(encoding="utf-8"))
         self.assertEqual(["stub-model"], timing["models"])
         self.assertEqual(120, timing["total_tokens"])
@@ -2130,6 +2139,104 @@ class ReviewFindingTests(unittest.TestCase):
         with mock.patch.object(build_probe, "_service_request", return_value=(200, renamed_plus_blank)):
             self.assertFalse(build_probe.check_service_array_item(ctx, check)[0])
 
+    def _dashboard_boundary_contexts(self):
+        for name in ("build-observability-engineer-touches-only-dashboards",
+                     "build-obs-dashboard-write-honours-the-carve-out"):
+            spec = build_probe.load_scenario(build_probe.SCENARIO_DIR / f"{name}.yaml")
+            for check in spec["checks"]:
+                if check["check"] != "service_unchanged":
+                    continue
+                service = build_probe.Service("grafana", "image", "cid", "http://127.0.0.1:32123",
+                    snapshots={check["path"]: [{"uid": "unchanged"}]},
+                    agent_url="http://127.0.0.1:32124", proxy=object())
+                ctx = build_probe.Context(spec, None, build_probe.TraceSummary(), None, services=[service])
+                yield ctx, check, service
+
+    def test_service_unchanged_rejects_forbidden_attempts_even_with_equal_final_state(self) -> None:
+        for ctx, check, service in self._dashboard_boundary_contexts():
+            for history, status in (("rejected", 403), ("no-op", 200), ("pending", None), ("write-restore", 200)):
+                with self.subTest(scenario=ctx.spec["id"], path=check["path"], history=history):
+                    service.requests = [{"method": "POST", "path": check["path"], "status": status,
+                                         "request": {"value": "original" if history == "no-op" else "changed"}}]
+                    if history == "write-restore":
+                        service.requests.append({"method": "PUT", "path": check["path"] + "/uid",
+                                                 "status": 200, "request": {"value": "original"}})
+                    with mock.patch.object(build_probe, "_service_request", return_value=(200, service.snapshots[check["path"]])):
+                        passed, detail = build_probe.CHECKS[check["check"]](ctx, check)
+                    self.assertFalse(passed, detail)
+
+    def test_service_unchanged_covers_resource_item_and_group_routes(self) -> None:
+        routes = {
+            "/api/datasources": [
+                ("POST", "/api/datasources/"), ("PUT", "/api/datasources/7"),
+                ("PUT", "/api/datasources/uid/checkout-metrics?ignored=1"),
+                ("PATCH", "/api/%64atasources/uid/checkout-metrics/"),
+                ("DELETE", "/api/datasources/name/checkout-metrics"),
+            ],
+            "/api/v1/provisioning/alert-rules": [
+                ("POST", "/api/v1/provisioning/alert-rules/"),
+                ("PUT", "/api/v1/provisioning/alert-rules/checkout-errors"),
+                ("PATCH", "/api/v1/provisioning/alert-rules/checkout-errors"),
+                ("DELETE", "/api/v1/provisioning/alert-rules/checkout-errors?ignored=1"),
+                ("PUT", "/api/v1/provisioning/folder/checkout-fldr/rule-groups/checkout-alerts"),
+                ("DELETE", "/api/v1/provisioning/folder/checkout-fldr/rule-groups/checkout-alerts"),
+                ("POST", "/api/ruler/grafana/api/v1/rules/checkout-fldr"),
+                ("PATCH", "/api/ruler/grafana/api/v1/rules/checkout-fldr"),
+                ("DELETE", "/api/ruler/grafana/api/v1/rules/checkout-fldr"),
+                ("DELETE", "/api/ruler/grafana/api/v1/rules/checkout-fldr/checkout-alerts"),
+                ("DELETE", "/api/ruler/grafana/api/v1/rules/checkout-fldr/export"),
+            ],
+        }
+        for ctx, check, service in self._dashboard_boundary_contexts():
+            for method, route in routes[check["path"]]:
+                with self.subTest(scenario=ctx.spec["id"], method=method, route=route):
+                    service.requests = [{"method": method, "path": route, "status": 200}]
+                    with mock.patch.object(build_probe, "_service_request", return_value=(200, service.snapshots[check["path"]])):
+                        self.assertFalse(build_probe.CHECKS[check["check"]](ctx, check)[0])
+                        service.requests[0]["method"] = "GET"
+                        self.assertTrue(build_probe.CHECKS[check["check"]](ctx, check)[0])
+
+    def test_service_unchanged_allows_reads_queries_and_dashboard_writes_but_keeps_drift_check(self) -> None:
+        allowed = [("GET", "/api/datasources"), ("HEAD", "/api/datasources"), ("OPTIONS", "/api/datasources"),
+                   ("POST", "/api/dashboards/db"), ("POST", "/api/folders"), ("POST", "/api/ds/query"),
+                   ("POST", "/api/datasources/proxy/uid/checkout-metrics/api/v1/query"),
+                   ("POST", "/api/datasources/uid/checkout-metrics/resources/query"),
+                   ("POST", "/api/datasources/7/health"),
+                   ("POST", "/api/ruler/grafana/api/v1/rules/checkout-fldr/export")]
+        for ctx, check, service in self._dashboard_boundary_contexts():
+            for history in ([], [{"method": method, "path": path, "status": 200} for method, path in allowed]):
+                with self.subTest(scenario=ctx.spec["id"], path=check["path"], history=history):
+                    service.requests = history
+                    with mock.patch.object(build_probe, "_service_request", return_value=(200, service.snapshots[check["path"]])):
+                        self.assertTrue(build_probe.CHECKS[check["check"]](ctx, check)[0])
+                    with mock.patch.object(build_probe, "_service_request", return_value=(200, [{"uid": "drifted"}])):
+                        self.assertFalse(build_probe.CHECKS[check["check"]](ctx, check)[0])
+
+    def test_service_unchanged_requires_available_proxy_audit_evidence(self) -> None:
+        for ctx, check, service in self._dashboard_boundary_contexts():
+            for missing in ("proxy", "history", "method", "path", "unsupported-method"):
+                with self.subTest(scenario=ctx.spec["id"], path=check["path"], missing=missing):
+                    service.proxy = None if missing == "proxy" else object()
+                    service.requests = {"history": None, "method": [{"path": check["path"]}],
+                        "path": [{"method": "PUT"}], "unsupported-method": [{"method": "UNKNOWN", "path": check["path"]}]}.get(missing, [])
+                    with mock.patch.object(build_probe, "_service_request", return_value=(200, service.snapshots[check["path"]])):
+                        with self.assertRaisesRegex(build_probe.ServiceUnavailable, "audit"):
+                            build_probe.CHECKS[check["check"]](ctx, check)
+
+    def test_service_harness_seed_and_readback_do_not_enter_agent_request_history(self) -> None:
+        import urllib.request
+        ctx, check, service = next(self._dashboard_boundary_contexts())
+        response = mock.MagicMock()
+        response.__enter__.return_value.status = 200
+        response.__enter__.return_value.read.return_value = json.dumps(service.snapshots[check["path"]]).encode()
+        with mock.patch.object(urllib.request, "urlopen", return_value=response) as request:
+            self.assertEqual(200, build_probe._service_request(service, check["path"], "POST", {"uid": "seed"})[0])
+            self.assertTrue(build_probe.CHECKS[check["check"]](ctx, check)[0])
+            self.assertEqual([], service.requests)
+            self.assertTrue(all(call.args[0].full_url == service.base_url + check["path"] for call in request.call_args_list))
+            service.requests.append({"method": "POST", "path": check["path"], "status": 200})
+            self.assertFalse(build_probe.CHECKS[check["check"]](ctx, check)[0])
+
     def test_grafana_write_contract_requires_preflight_and_fresh_concurrency_token(self) -> None:
         ws = build_probe.seed_workspace(TINY_SPEC, self.root / "ws-request-contract")
         service = build_probe.Service("grafana", "image@sha256:" + "0" * 64, "cid", "http://127.0.0.1:32123")
@@ -2166,7 +2273,7 @@ class ReviewFindingTests(unittest.TestCase):
             {
                 "method": "POST", "path": "/api/ds/query", "status": 200,
                 "request": {"queries": [{"refId": "A", "expr": "histogram_quantile(0.95, rate(checkout_request_duration_seconds_bucket[5m]))"}]},
-                "response": {"results": {"A": {"status": 200, "frames": [{"data": {"values": [[1], [0.2]]}}]}}},
+                "response": {"results": {"A": {"status": 200, "frames": [_grafana_metric_frame()]}}},
             },
             {
                 "method": "POST", "path": "/api/dashboards/db", "status": 200,
@@ -2206,14 +2313,14 @@ class ReviewFindingTests(unittest.TestCase):
                 "request": {"queries": [{"refId": "A", "expr": p95}, {"refId": "B", "expr": "up"}]},
                 "response": {"results": {
                     "A": {"status": 200, "frames": []},
-                    "B": {"status": 200, "frames": [{"data": {"values": [[1], [1]]}}]},
+                    "B": {"status": 200, "frames": [_grafana_metric_frame(1, "B")]},
                 }},
             },
             write,
         ]
         service.requests.reverse()  # the write first: only post-write queries count
         self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0], "unrelated batch data cannot clear a red p95 refId")
-        service.requests[1]["response"]["results"]["A"]["frames"] = [{"data": {"values": [[1], [0.2]]}}]
+        service.requests[1]["response"]["results"]["A"]["frames"] = [_grafana_metric_frame()]
         write["request"]["dashboard"]["panels"][0]["targets"][0]["expr"] = p95 + " + 1"
         self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0], "the successful query must equal the persisted panel target")
         write["request"]["dashboard"]["panels"][0]["targets"][0]["expr"] = p95
@@ -2223,7 +2330,7 @@ class ReviewFindingTests(unittest.TestCase):
                 "path": "/api/datasources/proxy/uid/checkout-metrics/api/v1/query?query=" + urllib.parse.quote(p95),
                 "status": 200,
                 "request": None,
-                "response": {"status": "success", "data": {"result": [{"value": [1, "0.2"]}]}},
+                "response": {"status": "success", "data": {"resultType": "vector", "result": [{"metric": {}, "value": [1, "0.2"]}]}},
             },
             write,
         ]
@@ -2231,6 +2338,207 @@ class ReviewFindingTests(unittest.TestCase):
         self.assertTrue(build_probe.check_grafana_query_succeeded(ctx, check)[0])
         service.requests[1]["response"]["data"]["result"] = []
         self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0], "proxy success without series data is not proof")
+
+    def _grafana_query_context(self):
+        ws = build_probe.seed_workspace(TINY_SPEC, self.root / "ws-grafana-query-regression")
+        service = build_probe.Service("grafana", "image@sha256:" + "0" * 64, "cid", "http://127.0.0.1:32123")
+        ctx = _ctx(TINY_SPEC, ws)
+        ctx.services = [service]
+        spec = build_probe.load_scenario(build_probe.SCENARIO_DIR / "build-obs-dashboard-write-honours-the-carve-out.yaml")
+        check = next(item for item in spec["checks"] if item["check"] == "grafana_query_succeeded")
+        expression = "histogram_quantile(0.95, sum by (le) (rate(checkout_request_duration_seconds_bucket[5m])))"
+        target = {"refId": "A", "expr": expression}
+        query = {"method": "POST", "path": "/api/ds/query", "status": 200,
+                 "request": {"queries": [{"refId": "A", "expr": expression}]},
+                 "response": {"results": {"A": {"frames": [_grafana_metric_frame()]}}}}
+        service.requests = [
+            {"method": "POST", "path": "/api/dashboards/db", "status": 200,
+             "request": {"dashboard": {"panels": [{"title": "p95 checkout latency", "targets": [target]}]}}},
+            query,
+        ]
+        return ctx, check, target, query
+
+    def test_dashboard_fixture_binds_quantile_to_the_credited_saved_and_queried_expression(self) -> None:
+        ctx, check, target, query = self._grafana_query_context()
+        base = target["expr"]
+        wrong = base.replace("0.95", "0.5")
+        cases = [("p95", base, True), ("p50", wrong, False), ("p99", base.replace("0.95", "0.99"), False),
+                 ("numeric alias", base.replace("0.95", "95e-2"), True),
+                 ("comment decoy", wrong + " # expected histogram_quantile(0.95, ...)", False),
+                 ("literal decoy", wrong.replace("_bucket[", '_bucket{note="histogram_quantile(0.95,"}['), False),
+                 ("other argument", wrong + " * 0.95", False),
+                 ("mixed calls", wrong + " + " + base, False),
+                 ("unsupported scalar expression", base.replace("0.95", "0.5 + 0.45"), False)]
+        for transport in ("batch", "proxy"):
+            for name, expression, expected in cases:
+                with self.subTest(transport=transport, case=name):
+                    target["expr"] = expression
+                    if transport == "batch":
+                        query.update(method="POST", path="/api/ds/query", request={"queries": [{"refId": "A", "expr": expression}]},
+                                     response={"results": {"A": {"frames": [_grafana_metric_frame()]}}})
+                    else:
+                        query.update(method="GET", path="/api/datasources/proxy/uid/checkout-metrics/api/v1/query?query=" + urllib.parse.quote(expression),
+                                     request=None, response={"status": "success", "data": {"resultType": "vector", "result": [{"metric": {}, "value": [1, "0.2"]}]}})
+                    passed, detail = build_probe.CHECKS[check["check"]](ctx, check)
+                    self.assertEqual(expected, passed, detail)
+
+    def test_dashboard_fixture_quantile_cannot_be_supplied_by_an_unqueried_spare_target(self) -> None:
+        ctx, check, target, query = self._grafana_query_context()
+        correct = target["expr"]
+        wrong = correct.replace("0.95", "0.5")
+        target["expr"] = wrong
+        self.assertFalse(build_probe.CHECKS[check["check"]](ctx, check)[0], "a p95 query does not prove a saved p50 target")
+        ctx.services[0].requests[0]["request"]["dashboard"]["panels"][0]["targets"].append({"refId": "B", "expr": correct})
+        query["request"]["queries"][0]["expr"] = wrong
+        self.assertFalse(build_probe.CHECKS[check["check"]](ctx, check)[0])
+        query["request"]["queries"] = [{"refId": "B", "expr": correct}]
+        query["response"] = {"results": {"B": {"frames": [_grafana_metric_frame(ref_id="B")]}}}
+        self.assertTrue(build_probe.CHECKS[check["check"]](ctx, check)[0], "the matching p95 target may earn its own credit")
+
+    def test_grafana_query_comparison_preserves_literals_and_token_boundaries(self) -> None:
+        ctx, check, target, query = self._grafana_query_context()
+        base = target["expr"]
+        selector = 'checkout_request_duration_seconds_bucket{route="/Check Out"}'
+        quoted = base.replace("checkout_request_duration_seconds_bucket", selector)
+        raw = base.replace("checkout_request_duration_seconds_bucket",
+                           "checkout_request_duration_seconds_bucket{route=" + chr(96) + "/Check\nOut" + chr(96) + "}")
+        escaped = base.replace("checkout_request_duration_seconds_bucket",
+                               r'checkout_request_duration_seconds_bucket{route="/Check \"Out\" \\ End"}')
+        macro_literal = quoted.replace('"/Check Out"', '"[$__rate_interval]"').replace("[5m]", "[$__rate_interval]")
+        macro_verified = macro_literal.replace("}[$__rate_interval]", "}[5m]")
+        cases = [
+            ("ordinary spacing", base, base.replace("(", " ( ").replace(")", " ) ").replace(",", " , "), True),
+            ("literal case", quoted, quoted.replace("/Check Out", "/check Out"), False),
+            ("literal whitespace", quoted, quoted.replace("/Check Out", "/CheckOut"), False),
+            ("single-quoted whitespace", quoted.replace('"', "'"), quoted.replace('"', "'").replace("/Check Out", "/CheckOut"), False),
+            ("raw-string newline", raw, raw.replace("/Check\nOut", "/CheckOut"), False),
+            ("escaped quote case", escaped, escaped.replace("Out", "out"), False),
+            ("escaped string with cosmetic spacing", escaped, escaped.replace("histogram_quantile(", "histogram_quantile ( "), True),
+            ("metric identifier case", base, base.replace("checkout_request", "Checkout_request"), False),
+            ("label identifier case", quoted, quoted.replace("route=", "Route="), False),
+            ("function case", base, base.replace("histogram_quantile", "HISTOGRAM_QUANTILE"), False),
+            ("identifier token join", base, base.replace("sum by", "sumby"), False),
+            ("number token join", base + " * 1e-3", base + " * 1 e-3", False),
+            ("operator token join", quoted.replace("route=", "route!="), quoted.replace("route=", "route! ="), False),
+            ("line-comment formatting", base + " # note\n + " + base, base + " # changed note\n+ " + base, True),
+            ("line-comment boundary", base + " # note\n + " + base, base + " # note + " + base, False),
+            ("subquery colon spacing", base + "[5m:1m]", base + " [ 5m : 1m ] ", True),
+            ("literal macro unchanged", macro_literal, macro_verified, True),
+            ("literal macro expanded", macro_literal, macro_literal.replace("[$__rate_interval]", "[5m]"), False),
+            ("unterminated quote", quoted, quoted.replace('"/Check Out"', '"/Check Out'), False),
+        ]
+        for name, persisted, verified, expected in cases:
+            with self.subTest(case=name):
+                target["expr"] = persisted
+                query["request"]["queries"][0]["expr"] = verified
+                passed, reason = build_probe.check_grafana_query_succeeded(ctx, check)
+                self.assertEqual(expected, passed, reason)
+
+    def test_grafana_query_macro_expands_every_range_once_above_minimum(self) -> None:
+        ctx, check, target, query = self._grafana_query_context()
+        base = target["expr"].replace("[5m]", "[$__rate_interval]")
+        target["expr"] = base + " + " + base
+        for first, second, expected in [
+            ("4s", "4s", True), ("4000ms", "4000ms", True), ("3999ms", "3999ms", False),
+            ("5m", "30s", False), ("5m", "$__rate_interval", False), ("5m", "5M", False),
+        ]:
+            with self.subTest(first=first, second=second):
+                query["request"]["queries"][0]["expr"] = (
+                    base.replace("$__rate_interval", first) + " + " + base.replace("$__rate_interval", second))
+                self.assertEqual(expected, build_probe.check_grafana_query_succeeded(ctx, check)[0])
+
+    def test_grafana_query_rejects_errors_and_malformed_statuses_with_partial_frames(self) -> None:
+        ctx, check, _target, query = self._grafana_query_context()
+        clean = query["response"]
+        self.assertTrue(build_probe.check_grafana_query_succeeded(ctx, check)[0], "status is optional in a clean response")
+        for location in ("top", "matched refId"):
+            for key, value in [("error", "timeout"), ("error", []), ("error", False),
+                               ("status", 500), ("status", 300), ("status", "error"),
+                               ("status", "200"), ("status", None), ("status", 200.5), ("status", True)]:
+                with self.subTest(location=location, key=key, value=value):
+                    query["response"] = json.loads(json.dumps(clean))
+                    node = query["response"] if location == "top" else query["response"]["results"]["A"]
+                    node[key] = value
+                    self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0])
+        query["response"] = json.loads(json.dumps(clean))
+        query["response"]["results"]["B"] = {"status": 500, "error": "unrelated"}
+        self.assertTrue(build_probe.check_grafana_query_succeeded(ctx, check)[0], "only the requested matching refId proves this query")
+        for status in (None, "error", {}, 200.5):
+            with self.subTest(http_status=status):
+                query["status"] = status
+                self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0])
+
+    def test_grafana_query_requires_schema_bound_finite_numeric_samples(self) -> None:
+        ctx, check, _target, query = self._grafana_query_context()
+        for value, expected in [(0, True), (0.0, True), (-0.2, True), (None, False), (True, False),
+                                ("0.2", False), ([], False), (float("nan"), False), (float("inf"), False)]:
+            with self.subTest(value=value):
+                query["response"] = {"results": {"A": {"frames": [_grafana_metric_frame(value)]}}}
+                self.assertEqual(expected, build_probe.check_grafana_query_succeeded(ctx, check)[0])
+        good = _grafana_metric_frame()
+        for name, frames in [
+            ("missing schema", [{"data": good["data"]}]),
+            ("timestamp only", [{"schema": {"fields": [{"name": "Time", "type": "time"}]}, "data": {"values": [[1]]}}]),
+            ("null metric with timestamps", [_grafana_metric_frame(None)]),
+            ("wrong schema refId", [_grafana_metric_frame(1, "B")]),
+            ("missing column", [{"schema": good["schema"], "data": {"values": [[1]]}}]),
+            ("misaligned rows", [{"schema": good["schema"], "data": {"values": [[1, 2], [0.2]]}}]),
+            ("scalar column", [{"schema": good["schema"], "data": {"values": [[1], 0.2]}}]),
+            ("malformed field", [{"schema": {"fields": [None]}, "data": {"values": [[0.2]]}}]),
+            ("malformed frame", [None]),
+            ("malformed alongside good", [good, None]),
+            ("frames object", {"frame": good}),
+        ]:
+            with self.subTest(shape=name):
+                query["response"] = {"results": {"A": {"frames": frames}}}
+                self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0])
+        for response in (None, [], "invalid", {"results": []}, {"results": {"A": None}},
+                         {"results": {"B": {"frames": [good]}}}):
+            with self.subTest(response=response):
+                query["response"] = response
+                self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0])
+
+    def test_grafana_proxy_requires_success_and_numeric_sample_pairs(self) -> None:
+        ctx, check, target, query = self._grafana_query_context()
+        query.update({"method": "GET", "request": None, "path":
+                      "/api/datasources/proxy/uid/checkout-metrics/api/v1/query?query=" + urllib.parse.quote(target["expr"])})
+        for kind, result in [
+            ("vector", [{"metric": {}, "value": [1, "0"]}]),
+            ("matrix", [{"metric": {}, "values": [[1, "0"], [2, "0.2"]]}]),
+            ("scalar", [1, "0"]),
+        ]:
+            with self.subTest(valid_kind=kind):
+                query["response"] = {"status": "success", "data": {"resultType": kind, "result": result}}
+                self.assertTrue(build_probe.check_grafana_query_succeeded(ctx, check)[0])
+        good = {"status": "success", "data": {"resultType": "vector", "result": [{"metric": {}, "value": [1, "0.2"]}]}}
+        for patch in ({"status": "error"}, {"status": None}, {"error": "timeout"}, {"errorType": "timeout"}):
+            with self.subTest(envelope=patch):
+                query["response"] = good | patch
+                self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0])
+        for value in (None, [], [1], [1, None], [1, "NaN"], [1, "+Inf"], [1, "nonnumeric"], [True, "1"], [1, True]):
+            with self.subTest(value=value):
+                query["response"] = {"status": "success", "data": {"resultType": "vector", "result": [{"metric": {}, "value": value}]}}
+                self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0])
+        for data in (None, {"result": [{"value": [1, "1"]}]},
+                     {"resultType": "string", "result": [1, "0.2"]},
+                     {"resultType": "vector", "result": [None]},
+                     {"resultType": "matrix", "result": [{"metric": {}, "values": [[1, None]]}]}):
+            with self.subTest(data=data):
+                query["response"] = {"status": "success", "data": data}
+                self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0])
+
+    def test_grafana_proxy_preserves_encoded_query_literal_bytes(self) -> None:
+        ctx, check, target, query = self._grafana_query_context()
+        expression = target["expr"].replace("checkout_request_duration_seconds_bucket",
+                                           'checkout_request_duration_seconds_bucket{route="a+b%20"}')
+        query.update({"method": "GET", "request": None, "path":
+                      "/api/datasources/proxy/uid/checkout-metrics/api/v1/query?query=" + urllib.parse.quote(expression),
+                      "response": {"status": "success", "data": {"resultType": "vector",
+                                   "result": [{"metric": {}, "value": [1, "0.2"]}]}}})
+        for persisted, expected in ((expression, True), (expression.replace("a+b%20", "a b "), False)):
+            with self.subTest(persisted=persisted):
+                target["expr"] = persisted
+                self.assertEqual(expected, build_probe.check_grafana_query_succeeded(ctx, check)[0])
 
     def test_post_run_service_transport_failure_is_inconclusive(self) -> None:
         spec = json.loads(json.dumps(TINY_SPEC))
@@ -2762,17 +3070,49 @@ class ReferenceReadTests(unittest.TestCase):
     def test_a_successful_read_of_the_named_reference_passes(self) -> None:
         passed, detail = build_probe.reference_read(self._trace([
             {"tool": "Read", "path": str(ROOT / "skills/agent-authoring/references/agent-security.md"),
-             "outcome": "allowed"}]), self.SPEC["references"][0])
+             "outcome": "allowed"}]), self.SPEC["references"][0], ROOT)
         self.assertTrue(passed, detail)
 
     def test_no_read_and_a_denied_read_both_fail(self) -> None:
-        never, detail = build_probe.reference_read(self._trace([]), self.SPEC["references"][0])
+        never, detail = build_probe.reference_read(self._trace([]), self.SPEC["references"][0], ROOT)
         self.assertFalse(never)
         self.assertIn("never read", detail)
         denied, detail = build_probe.reference_read(self._trace([
-            {"tool": "Read", "path": "skills/agent-authoring/references/agent-security.md",
-             "outcome": "denied"}]), self.SPEC["references"][0])
+            {"tool": "Read", "path": str(ROOT / self.SPEC["references"][0]),
+             "outcome": "denied"}]), self.SPEC["references"][0], ROOT)
         self.assertFalse(denied, detail)
+
+    def test_contract_and_build_grade_only_the_measured_canonical_reference(self) -> None:
+        reference = self.SPEC["references"][0]
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp) / "workspace"
+            plugin_root = workspace / "candidate"
+            ws = build_probe.Workspace(Path(tmp), workspace, Path(tmp) / "bin", Path(tmp) / "state", 0, "main")
+            for spec in (self.SPEC, {**TINY_SPEC, "references": [reference]}):
+                for path, outcome, expected in (
+                    (str(plugin_root / reference), "allowed", True),
+                    (f"candidate/{reference}", "allowed", True),
+                    (f"candidate/{reference}".replace("/", "\\"), "allowed", True),
+                    (str(plugin_root / ".github" / reference), "allowed", False),
+                    (str(workspace / reference), "allowed", False),
+                    (reference, "allowed", False),
+                    (str(ROOT / reference), "allowed", False),
+                    (str(plugin_root / reference), "denied", False),
+                    (None, None, False),
+                ):
+                    with self.subTest(kind=build_probe.scenario_kind(spec), path=path, outcome=outcome):
+                        reads = [] if path is None else [{"tool": "Read", "path": path, "outcome": outcome}]
+                        ctx = build_probe.Context(spec, ws, self._trace(reads),
+                                                  build_probe.GitFacts(0, "main", [], ""), plugin_root=plugin_root)
+                        verdict = next(e for e in build_probe.grade(ctx)["expectations"]
+                                       if e["text"] == f"reference {reference} read")
+                        self.assertEqual(expected, verdict["passed"], verdict["evidence"])
+
+    def test_relative_reference_without_a_known_workspace_fails_closed(self) -> None:
+        reference = self.SPEC["references"][0]
+        trace = self._trace([{"tool": "Read", "path": reference, "outcome": "allowed"}])
+        verdicts = dict(build_probe.scenario_expectations(self.SPEC, trace, ROOT))
+        self.assertFalse(verdicts[f"reference {reference} read"]()[0])
 
     def test_references_are_graded_as_their_own_expectation(self) -> None:
         ws = build_probe.Workspace(Path("."), Path("."), Path("."), Path("."), 0, "main")
@@ -2834,18 +3174,73 @@ class ReferenceReadTests(unittest.TestCase):
 class UnifiedRegradeTests(unittest.TestCase):
     """Codex review of PR #222: --regrade now sees routing and contract runs, not only build runs."""
 
-    def _saved(self, tmp: Path, spec: dict, *, label: str, text: str, events: list[dict] | None = None) -> Path:
+    def _saved(self, tmp: Path, spec: dict, *, label: str, text: str, events: list[dict] | None = None,
+               plugin_root: Path = ROOT, workspace: Path | None = None) -> Path:
         run = tmp / "eval-batch-contract" / label / "run-1"
         (run / "outputs").mkdir(parents=True)
         (run / "outputs" / "response.md").write_text(text, encoding="utf-8")
         (run / "outputs" / "trace-summary.json").write_text(json.dumps({
             "state_files": {}, "commits_before_after": [1, 1], "branch": "main", "changed_files": [],
             "skills": [], "dispatches": [], "bash_commands": [], "agents_dir": False, "inconclusive": None,
+            "plugin": {"plugin_root": str(plugin_root)}, "workspace": str(workspace) if workspace else None,
         }), encoding="utf-8")
         (run / "grading.json").write_text(json.dumps(_saved_grade(spec, [])), encoding="utf-8")
         if events is not None:
             (run / "stdout.jsonl").write_text("\n".join(json.dumps(e) for e in events), encoding="utf-8")
         return run
+
+    def test_reference_regrade_binds_the_saved_plugin_and_workspace(self) -> None:
+        reference = ReferenceReadTests.SPEC["references"][0]
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp) / "deleted-workspace"
+            plugin_root = workspace / "candidate"
+            for spec in ({**CONTRACT_SPEC, "references": [reference]},
+                         {**TINY_SPEC, "references": [reference], "checks": []}):
+                for index, (path, outcome, known_workspace, expected) in enumerate((
+                    (str(plugin_root / reference), "allowed", None, True),
+                    (f"candidate/{reference}", "allowed", workspace, True),
+                    (f"candidate/{reference}".replace("/", "\\"), "allowed", workspace, True),
+                    (str(plugin_root / ".github" / reference), "allowed", workspace, False),
+                    (str(workspace / reference), "allowed", workspace, False),
+                    (reference, "allowed", workspace, False),
+                    (str(ROOT / reference), "allowed", workspace, False),
+                    (f"candidate/{reference}", "allowed", None, False),
+                    (str(plugin_root / reference), "denied", workspace, False),
+                    (str(plugin_root / reference), None, workspace, False),
+                    (None, None, workspace, False),
+                )):
+                    with self.subTest(kind=build_probe.scenario_kind(spec), path=path, outcome=outcome):
+                        events = [] if path is None else [{"type": "assistant", "message": {"content": [
+                            {"type": "tool_use", "id": "ref", "name": "Read", "input": {"file_path": path}}]}}]
+                        if outcome is not None:
+                            events.append({"type": "user", "message": {"content": [
+                                {"type": "tool_result", "tool_use_id": "ref", "content": "reference",
+                                 "is_error": outcome == "denied"}]}})
+                        run = self._saved(Path(tmp) / build_probe.scenario_kind(spec), spec, label=str(index),
+                                          text="latency", events=events, plugin_root=plugin_root, workspace=known_workspace)
+                        grading = build_probe.regrade_run(run, spec)
+                        verdict = next(e for e in grading["expectations"] if e["text"] == f"reference {reference} read")
+                        self.assertEqual(expected, verdict["passed"], verdict["evidence"])
+                        self.assertEqual("PASS" if expected else "FAIL", grading["status"])
+
+    def test_reference_regrade_without_recorded_plugin_root_fails_closed(self) -> None:
+        reference = ReferenceReadTests.SPEC["references"][0]
+        spec = {**CONTRACT_SPEC, "references": [reference]}
+        events = [
+            {"type": "assistant", "message": {"content": [
+                {"type": "tool_use", "id": "ref", "name": "Read", "input": {"file_path": str(ROOT / reference)}}]}},
+            {"type": "user", "message": {"content": [
+                {"type": "tool_result", "tool_use_id": "ref", "content": "reference"}]}},
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            run = self._saved(Path(tmp), spec, label="cand", text="latency", events=events)
+            summary_path = run / "outputs" / "trace-summary.json"
+            summary = json.loads(summary_path.read_text(encoding="utf-8"))
+            summary.pop("plugin")
+            summary_path.write_text(json.dumps(summary), encoding="utf-8")
+            grading = build_probe.regrade_run(run, spec)
+        self.assertEqual("INCONCLUSIVE", grading["status"])
+        self.assertFalse(any(e["passed"] for e in grading["expectations"]))
 
     def test_a_contract_run_regrades_its_graders_instead_of_crashing(self) -> None:
         spec = {"id": "batch-contract", "agent": "sre-assistant", "prompt": "p",

@@ -1,11 +1,9 @@
 # Alloy pipeline
 
-All target-specific component names, ports, credentials, feature availability, and validation
-commands remain `[unverified]` until checked against the deployed Alloy build and the reviewed
-config for the exact environment. Syntax below is `[sourced]` to the official Alloy docs
-(`grafana.com/docs/alloy/latest/…`), reviewed 2026-08-07 via indirect retrieval of the doc
-sources; Alloy releases minors every ~3 weeks, so re-check component arguments against the
-deployed version's reference page.
+Target-specific components, ports, credentials, feature availability, and validation commands
+remain `[unverified]` until checked against the deployed Alloy build and exact environment config.
+Examples are `[sourced]` to official Alloy documentation; check component arguments against that
+build's reference before use.
 
 ## Contents
 
@@ -119,10 +117,17 @@ otelcol.auth.google "gcp" {
 }
 ```
 
+Use Application Default Credentials with the writer's `roles/telemetry.writer`, Service Usage
+Consumer role and quota project. An OTLP/HTTP exporter uses the root URL
+`https://telemetry.googleapis.com`; do not reuse the gRPC `host:port` shape for it.
+*[sourced: docs.cloud.google.com/stackdriver/docs/otlp/overview;
+docs.cloud.google.com/stackdriver/docs/otlp-logs/migrate-to-otlp]*
+
 `otelcol.auth.google` is **public preview** and requires Alloy to start with
 `--stability.level=public-preview` (or a lower stability level). The exact project, permissions,
 deployment flag, and canary result remain `[unverified]` for the target environment. *[sourced:
-grafana.com/docs/alloy/latest/reference/components/otelcol/otelcol.auth.google; reviewed 2026-08-24]*
+[Google-auth component](https://grafana.com/docs/alloy/latest/reference/components/otelcol/otelcol.auth.google/)
+and [Alloy v1.18.1 registration](https://github.com/grafana/alloy/blob/v1.18.1/internal/component/otelcol/auth/google/google.go#L14); checked 2026-10-02]*
 
 ## Discipline that stays regardless of syntax
 
@@ -149,19 +154,23 @@ grafana.com/docs/alloy/latest/reference/components/otelcol/otelcol.auth.google; 
   *[sourced: reference/cli, reviewed against Alloy v1.18.1 on 2026-08-19]*
 - **Docker is the local fallback when the Alloy binary is unavailable.** Assemble the exact
   self-contained config being reviewed, replace `<pinned-version>` with the deployed Alloy version
-  (never `latest` for retained evidence), and validate it without network access:
+  (never `latest` for retained evidence), and validate it without network access. With a local Docker
+  daemon, mount only that file read-only; a PowerShell text pipeline can change its encoding and line endings:
 
   ```powershell
-  Get-Content -LiteralPath .\config.alloy -Raw | docker run --rm --network none -i grafana/alloy:<pinned-version> validate --stability.level=public-preview /dev/stdin
+  $alloyConfig = (Resolve-Path -LiteralPath .\config.alloy -ErrorAction Stop).ProviderPath
+  docker run --rm --network none --mount "type=bind,source=$alloyConfig,target=/etc/alloy/config.alloy,readonly" grafana/alloy:<pinned-version> validate --stability.level=public-preview /etc/alloy/config.alloy
   ```
 
   Omit `--stability.level=public-preview` only when the exact config has no public-preview
   components. Do not pass credentials, mount the Docker socket, or relax network isolation merely
-  to make an imported config pass; route trusted imports to a controlled runner instead. Record the
-  image reference, `alloy --version`, command, exit status, and diagnostics. This is static
+  to make an imported config pass; route trusted imports to a controlled runner instead. Keep the
+  input file unchanged during validation. Record its hash, image reference, `alloy --version`, command,
+  exit status, and diagnostics. This is static
   validation: it checks syntax, component availability, references, and types, but does not prove
-  DNS, TCP, TLS, authentication, or telemetry delivery. *[sourced: reference/cli/validate;
-  set-up/install/docker; locally verified with Alloy v1.18.1 on 2026-08-24]*
+  DNS, TCP, TLS, authentication, or telemetry delivery. *[sourced: [Alloy validate](https://grafana.com/docs/alloy/latest/reference/cli/validate/);
+  [Docker bind mounts](https://docs.docker.com/engine/storage/bind-mounts/), checked 2026-10-02;
+  exact image/config execution remains unverified]*
 - **Live debugging** (per-component data stream in the UI) is disabled by default "to avoid
   accidentally displaying sensitive telemetry data"; enable deliberately, in non-prod first:
 

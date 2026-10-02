@@ -7,7 +7,9 @@ last_reviewed: null
 # Operations knowledge index
 
 This index links durable records; it does not copy alert queries, runbook commands, or service
-configuration. The linked version-controlled source remains authoritative.
+configuration. Link each definition's provisioning owner: the source path at its exact revision,
+or the API resource locator/UID with supplied receipt/version evidence in its alert card. A recovery
+export does not become authoritative merely because it is committed.
 
 ## Services
 

@@ -32,10 +32,11 @@ Splunk and Wavefront/PCF App Metrics are fed by the PCF platform, not by anythin
 skill wires: 'logs are not in Splunk' is a `pcf-ops` and `obs-logs` question.
 
 GCP backends are landing with the migration: the documented ingest is OTLP to the Telemetry API
-(`telemetry.googleapis.com` — all three signals, though logs ingestion is Pre-GA) through the same
-otelcol exporter slot. The [Alloy pipeline](./references/alloy.md) reference shows the
-public-preview Google-auth component and required stability flag. Exact target project/config and
-route behavior remain `[unverified]` until a canary run proves them.
+(`telemetry.googleapis.com` — all three signals) through the same otelcol exporter slot. Log
+ingestion has been **GA since 2026-08-14**. *[sourced: [Cloud Logging release notes](https://docs.cloud.google.com/logging/docs/release-notes), checked 2026-10-02]*
+The [Alloy pipeline](./references/alloy.md) reference separately documents its public-preview
+Google-auth component and required stability flag. Exact target project/config and route behavior
+remain `[unverified]` until a canary run proves them.
 
 ## Where a missing signal gets lost
 

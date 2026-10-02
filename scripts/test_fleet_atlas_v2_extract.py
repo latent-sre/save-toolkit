@@ -114,6 +114,30 @@ The service-lifecycle lane was discussed in a review.
             'docs/reviews/result.md': '# Result\n', 'docs/reviews/second.md': '# Other\n'})
         self.assertEqual({'review:result', 'review:second'}, {f.object for f in graph.facts if f.predicate == 'evidenced_by'})
 
+    def test_review_packets_with_the_same_filename_keep_distinct_evidence(self):
+        _, _, graph = build({
+            'docs/fleet-roadmap.md': '# Roadmap\n### AUDIT-001 test\n**Evidence:** '
+                '[first](reviews/first/README.md#first-packet), '
+                '[second](reviews/second/README.md#second-packet), '
+                '[flat](reviews/README.md#flat-packet).\n',
+            'docs/reviews/first/README.md': '# First packet\nUnique first evidence.\n',
+            'docs/reviews/second/README.md': '# Second packet\nUnique second evidence.\n',
+            'docs/reviews/README.md': '# Flat packet\nExisting flat-file identity.\n',
+        })
+        reviews = {node.id: node.path for node in graph.nodes if node.type == 'review'}
+        self.assertEqual({
+            'review:first/README': 'docs/reviews/first/README.md',
+            'review:second/README': 'docs/reviews/second/README.md',
+            'review:README': 'docs/reviews/README.md',
+        }, reviews)
+        evidence = [fact for fact in graph.facts
+                    if fact.subject == 'roadmap-item:AUDIT-001' and fact.predicate == 'evidenced_by']
+        self.assertEqual(set(reviews), {fact.object for fact in evidence})
+        self.assertEqual(3, len(evidence))
+        for fact in evidence:
+            self.assertEqual({'docs/fleet-roadmap.md', reviews[fact.object]},
+                             {span.path for span in fact.proof.inputs})
+
     def test_valid_section_anchor_keeps_file_identity_and_exact_target_witness(self):
         files = {'docs/reviews/source.md': '# Source\n[section](target.md#measured-result)\n',
                  'docs/reviews/target.md': '# Target\n\n## Measured result\nThe record.\n'}
@@ -126,6 +150,23 @@ The service-lifecycle lane was discussed in a review.
         _, _, changed = build(files)
         self.assertFalse(any(f.predicate == 'cites' for f in changed.facts))
         self.assertTrue(any(f.predicate == 'unknown' and dict(f.qualifiers)['code'] == 'extract.link-selector-unresolved' for f in changed.facts))
+
+    def test_linked_review_inventory_keeps_source_bound_csv_identity(self):
+        path = 'docs/reviews/packet/inventory.csv'
+        _, _, graph = build({
+            'docs/reviews/packet/README.md': '# Packet\n[Inventory](inventory.csv)\n',
+            path: 'path,bytes\nskills/example/SKILL.md,123\n',
+        })
+        inventory = next(node for node in graph.nodes if node.path == path)
+        self.assertEqual(('document:' + path, 'document'), (inventory.id, inventory.type))
+        name = next(fact for fact in graph.facts
+                    if fact.subject == inventory.id and fact.predicate == 'name')
+        self.assertEqual(path, name.object)
+        self.assertEqual(ProofKind.COMPUTED, name.proof.kind)
+        self.assertEqual({path}, {span.path for span in name.proof.inputs})
+        self.assertTrue(any(fact.subject == 'review:packet/README'
+                            and fact.predicate == 'cites' and fact.object == inventory.id
+                            for fact in graph.facts))
 
     def test_multiple_selectors_of_one_evidence_file_are_distinct_claims(self):
         _, _, graph = build({'docs/fleet-roadmap.md': '# Roadmap\n### SKILL-001 title\n**Evidence:** [first](reviews/result.md#first)\n[second](reviews/result.md#second)\n[whole](reviews/result.md)\n',

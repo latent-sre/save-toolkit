@@ -12,6 +12,14 @@ Primary references: [querying basics](https://prometheus.io/docs/prometheus/late
 
 Examples are `[unverified]` for the target Mimir tenant until executed there.
 
+## Contents
+
+- [Label values](#encode-copied-label-values)
+- [Query shapes](#the-shapes-alerts-and-dashboards-copy)
+- [Version gates](#around-the-query-version-gated-facts)
+- [Tenant limits](#mimir-per-tenant-limits)
+- [Missing data](#missing-data-and-staleness)
+
 ## Encode copied label values
 
 Prefer an exact matcher: the literal identifier `checkout.v2` renders as `app="checkout.v2"`.

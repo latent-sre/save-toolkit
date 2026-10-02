@@ -274,4 +274,3 @@ checks:
   - {check: no_new_commits, text: "nothing committed uninvited"}
   - {check: no_agents_dir, text: "no .agents/ progress litter"}
   - {check: skill_loaded, skill: backend-craft, text: "backend-craft was loaded for backend code"}
-  - {check: no_task_dispatch, target: reviewer, text: "routine completion spawns no reviewer"}

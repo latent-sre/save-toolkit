@@ -124,9 +124,13 @@ a span. Treat caller-supplied context as untrusted input.
 
 ## Sampling makes absence weak evidence
 
-OpenTelemetry defines a sampled trace/span as processed and exported, and a not-sampled one as not
-processed or exported. No trace found does not prove the request did not occur. A missing span does not
-prove the call did not occur. Check the sampler, retention, export health, propagation, and instrumentation
-coverage before turning absence into a causal conclusion.
+Recording and sampling are separate. `RECORD_ONLY` sets `IsRecording=true` and `Sampled=false`:
+the span records data and reaches processors (for example, local latency calculations), while the
+SDK normally excludes it from export. `RECORD_AND_SAMPLE` makes a recording span eligible for
+export; the sampled flag does not prove exporter success or backend receipt/retention.
+No trace found does not prove the request did not occur. A missing span does not prove the call did
+not occur. Check the sampler, retention, export health, propagation, and instrumentation coverage
+before turning absence into a causal conclusion.
 
-*[sourced: OpenTelemetry sampling terminology; unverified for target sampler/export path]*
+*[sourced: [OpenTelemetry SDK sampling](https://opentelemetry.io/docs/specs/otel/trace/sdk/#sampling),
+checked 2026-10-02; unverified for target sampler, processors, and export path]*

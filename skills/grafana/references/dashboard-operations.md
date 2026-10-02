@@ -15,11 +15,6 @@ copy is a backup or a provisioning source; its existence alone does not decide o
 Use `obs-dashboards` only when the task also needs dashboard design decisions. This reference
 owns Grafana dashboard/folder operations; the parent `grafana` skill owns access and routing.
 
-Load `stack-profile` for the current minor. Probe the target rather than assuming its API or stored
-schema: Grafana 13 deprecates `/api` in favour of `/apis` but still serves both, and 13.2 disables
-scripted dashboards by default. Version- and upgrade-specific details live in
-[http-api](./http-api.md).
-
 ## Read-only review
 
 Use [read-only checks](./read-only-review.md) for post-upgrade assessment and skill
@@ -113,10 +108,7 @@ advice:
   Active unknown-cause impact goes to the responder with `incident-investigation`
   (`sre-assistant` only for a dispatched read).
 
-Wavefront and Splunk data-source plugins require Enterprise entitlement. ThousandEyes has no Grafana
-data-source plugin; its OpenTelemetry signals are queried through the installed metrics, trace, or
-log backend. Confirm edition, entitlement, and `GET /api/plugins` on the target; the plugin and
-licence facts are in [Wavefront and Splunk data sources](./wavefront-legacy.md).
+For Wavefront, Splunk, or ThousandEyes source selection, read [plugin and entitlement guidance](./wavefront-legacy.md).
 
 ## Handoff
 

@@ -34,7 +34,7 @@ def oracle():
     return module
 
 
-def make_app(rows, cap=None, oversized_response=None):
+def make_app(rows, cap=None, oversized_response=None, mutate=None):
     """A working cursor endpoint; vary only how it handles an oversized limit."""
     app = FastAPI()
 
@@ -46,13 +46,14 @@ def make_app(rows, cap=None, oversized_response=None):
         size = min(limit, cap) if cap is not None else limit
         page = rows[cursor:cursor + size]
         end = cursor + len(page)
-        return {"data": page, "next_cursor": str(end) if end < len(rows) else None}
+        body = {"data": page, "next_cursor": str(end) if end < len(rows) else None}
+        return mutate(body, limit, cursor) if mutate else body
 
     return app
 
 
 def problem(status):
-    return {"type": "about:blank", "title": "Invalid limit", "status": status}
+    return {"type": "about:blank", "title": "Invalid limit", "status": status, "request_id": "request-1"}
 
 
 def assert_verdict(oracle, app, expected):
@@ -75,6 +76,34 @@ def test_uncapped_endpoint_fails(oracle, rows):
 @pytest.mark.parametrize("cap", [5, 40, 200, 500])
 def test_capped_endpoint_passes(oracle, rows, cap):
     assert_verdict(oracle, make_app(rows, cap=cap), 0)
+
+
+@pytest.mark.parametrize("request_kind", ["default", "limited", "walk", "oversized", "last"])
+def test_malformed_pagination_cursor_fails(oracle, rows, request_kind, capsys):
+    def mutate(body, limit, cursor):
+        if ((request_kind == "default" and limit == 50)
+                or (request_kind == "limited" and limit == 1)
+                or (request_kind == "walk" and limit == 40)
+                or (request_kind == "oversized" and limit == 100000)):
+            if body["next_cursor"] is not None:
+                body["next_cursor"] = int(body["next_cursor"])
+        if request_kind == "last" and body["next_cursor"] is None:
+            body["next_cursor"] = ""
+        return body
+
+    assert_verdict(oracle, make_app(rows, cap=200, mutate=mutate), 1)
+    assert "next_cursor" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("defect", ["empty", "ignored"])
+def test_populated_limit_one_is_honoured(oracle, rows, defect, capsys):
+    def mutate(body, limit, cursor):
+        if limit == 1:
+            body["data"] = [] if defect == "empty" else rows[:2]
+        return body
+
+    assert_verdict(oracle, make_app(rows, cap=200, mutate=mutate), 1)
+    assert "limit=1" in capsys.readouterr().out
 
 
 @pytest.mark.parametrize("defect", ["empty", "not_a_list", "wrong_prefix", "missing_cursor"])
@@ -143,11 +172,11 @@ def timeout_verdict(oracle, app):
 @pytest.mark.parametrize("status,body,media_type,expected", [
     (200, {**PUBLIC, "owner": None}, "application/json", 0),
     (200, {**PUBLIC, "owner": "unavailable"}, "application/json", 0),
-    (504, {"type": "about:blank", "title": "Gateway Timeout", "status": 504}, "application/problem+json", 0),
+    (504, {**problem(504), "title": "Gateway Timeout"}, "application/problem+json", 0),
     (200, {**PUBLIC, "owner": None, "internal_note": "triage scratch"}, "application/json", 1),
     (200, {"owner": None}, "application/json", 1),
     (200, dict(PUBLIC), "application/json", 1),
-    (500, {"type": "about:blank", "title": "Internal Server Error", "status": 500}, "application/problem+json", 1),
+    (500, {**problem(500), "title": "Internal Server Error"}, "application/problem+json", 1),
 ])
 def test_timeout_accepts_only_a_fast_explicit_answer(oracle, status, body, media_type, expected):
     assert timeout_verdict(oracle, detail_app(status, body, media_type)) == expected

@@ -17,7 +17,6 @@ verification; treat a key's presence here as permission to author, never as proo
 - Skills
 - Hook events and shape
 - Plugin manifest formats
-- Fleet decisions on unused fields
 
 ## Agents
 
@@ -33,11 +32,11 @@ why one file serves both targets.
 | `agents` | Agent names available as subagents; `*` allows all, `[]` prevents any. Emitted from the same `Agent(...)` grant that feeds the delegation graph |
 | `handoffs` | Human-selected ownership transfer — **VS Code only**; explicitly *"not supported for Copilot cloud agent on GitHub.com"*. Emitted for the five lanes in `COPILOT_HANDOFFS_BY_SOURCE` |
 | `argument-hint` | **VS Code only**; unsupported on Copilot cloud alongside `handoffs`. Not emitted on agents; the fleet uses it on all skills |
-| `model` | Single model name or a prioritized array. Unused — mirrors the Claude side, where no agent pins one |
+| `model` | Single model name or a prioritized array. Unused — no fleet agent pins one; dated pins go stale silently |
 | `user-invocable` | Boolean, default `true`; `false` hides the agent from the chat dropdown. Unused — every fleet lane is meant to be reachable by the human SRE |
-| `disable-model-invocation` | Boolean, default `false`. In VS Code it prevents the agent being invoked **as a subagent by other agents**; on GitHub it stops Copilot cloud agent from selecting the agent automatically. Unused on agents today, and the one host key that could turn the delegation graph's inbound edges into enforcement rather than documented intent |
+| `disable-model-invocation` | Boolean, default `false`. In VS Code it prevents the agent being invoked **as a subagent by other agents**; on GitHub it stops Copilot cloud agent from selecting the agent automatically. Unused on agents pending host verification, and the one host key that could turn the delegation graph's inbound edges into enforcement rather than documented intent |
 | `target` | `vscode` or `github-copilot`. Only the exported SRE command profile sets `vscode`; standard projections leave it unset |
-| `mcp-servers` | MCP server config JSON for Copilot targets. Unused — `researcher`'s exact Claude MCP grants collapse to bare `web`, so the cited-research lane is materially weaker here than on Claude |
+| `mcp-servers` | MCP server config JSON for Copilot targets. Unused pending host verification — `researcher`'s exact Claude MCP grants collapse to bare `web`, so the cited-research lane is materially weaker here than on Claude |
 | `hooks` | Agent-scoped hooks; the installed 1.138.0 loader requires `chat.useHooks`, workspace trust, and permitted hook sources. The older `chat.useCustomAgentHooks` setting is absent in that build. Emitted only in the separately exported SRE command profile; global `hooks/copilot-hooks.json` stays empty |
 | `metadata` | GitHub only; not used by VS Code or other IDE custom agents. Unused |
 | `infer` | **Retired** — replaced by `user-invocable` and `disable-model-invocation`. Never emit |
@@ -55,7 +54,7 @@ Each entry in `handoffs`. VS Code only — the whole key is inert on Copilot clo
 | `agent` | Target agent identifier to switch to. Emitted |
 | `prompt` | Prompt text sent to the target. Emitted |
 | `send` | Boolean, default `false`; `true` auto-submits so one click starts the receiver. Emitted `true` |
-| `model` | Optional model for the handoff, formatted `Model Name (vendor)`. Unused — consistent with pinning no model anywhere |
+| `model` | Optional model for the handoff, formatted `Model Name (vendor)`. Unused — follows the unpinned agent-model policy above |
 
 ## Tool aliases
 
@@ -134,11 +133,11 @@ defines portable metadata. Both were checked against the current docs on 2026-09
 | `argument-hint` | Emitted on all skills; ignored on Copilot cloud |
 | `user-invocable` | Optional, default `true`. `false` hides the skill from the slash-command menu while allowing automatic loading. Unused — keep every fleet skill reachable by the human |
 | `disable-model-invocation` | Optional, default `false`. `true` disables automatic loading; used by `pcf-deploy` for manual-only invocation. Setting this to `true` together with `user-invocable: false` disables both entry paths |
-| `context` | **Experimental**, unused. Default is inline; `fork` runs the skill in a dedicated subagent context and returns only its final result to the parent. Requires `github.copilot.chat.skillTool.enabled`; adopt only after a bounded host check of the skill's ownership and evidence-return contract |
+| `context` | **Experimental**, unused; no current adoption requirement. Default is inline; `fork` runs the skill in a dedicated subagent context and returns only its final result to the parent. Requires `github.copilot.chat.skillTool.enabled`; adopt only after a bounded host check of the skill's ownership and evidence-return contract |
 | `compatibility` | Optional portable metadata, 1–500 characters describing environment requirements. Used by `akamai-edge`, `gcp-ops`, `pcf-ops`, and `pcf-deploy`; descriptive, not an access check |
 | `metadata` | Optional portable string-to-string mapping. Unused; no fleet requirement for per-skill author/version metadata |
 | `license` | Optional. Unused — the plugin manifest already carries MIT, and the field would repeat across every projected bundle |
-| `allowed-tools` | Experimental in the portable specification: a space-separated list of pre-approved tools, with implementation-dependent support. VS Code's skill-header table does not document it; Copilot enforcement is unverified. Fleet policy remains **do not use**; do not treat it as a restricting allowlist |
+| `allowed-tools` | Experimental in the portable specification: a space-separated list of pre-approved tools, with implementation-dependent support. VS Code's skill-header table does not document it; Copilot enforcement is unverified. Fleet policy avoids tool preapproval: **do not use**; do not treat it as a restricting allowlist |
 
 ## Hook events and shape
 
@@ -209,16 +208,3 @@ the repository's `docs/vscode-plugin-acceptance.md` cases. The command directory
 documented by the [plugin guide](https://code.visualstudio.com/docs/agent-customization/agent-plugins)
 and confirmed in [upstream discovery tests](https://github.com/microsoft/vscode/blob/0857030/src/vs/workbench/contrib/chat/test/common/plugins/agentPluginFormatDetection.test.ts)
 on 2026-09-23; those are documentation/source evidence, not native invocation evidence.
-
-## Fleet decisions on unused fields
-
-| Field | Why unused |
-|---|---|
-| `model`, handoff `model` | No lane pins a model on any host; a dated pin goes stale silently |
-| `user-invocable` | The fleet serves a human SRE; keep agents in the picker and skills in the slash-command menu through the default `true` |
-| `target` | Unset for standard projections; the locally exported command profile targets VS Code explicitly |
-| `license` | Redundant with the manifest, multiplied across every projected bundle |
-| `infer` | Deprecated upstream |
-| Skill `context`, `metadata` | No current adoption requirement; forked execution needs a bounded host check before changing a skill's execution model |
-| `allowed-tools` | Fleet policy avoids tool preapproval; Copilot support is not established by the portable specification |
-| Agent `hooks`, `mcp-servers`, `disable-model-invocation` | Hooks appear only in the SRE command export; MCP mapping and agent invocation flags remain unadopted pending host verification. The skill invocation flag is already used by `pcf-deploy` |

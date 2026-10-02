@@ -7,9 +7,7 @@ multi-service impact or degradation that outlives its trigger, also read
 
 ## Dependencies
 
-Most of this team's incidents trace to a dependency — most often order management, the trading
-apps, or the quote plant — so test the dependency candidate early, not last, and work it with that
-dependency's team.
+Test the dependency candidate early with its team.
 
 - errors or timeouts on calls to one dependency while other calls stay healthy point at that
   dependency or at the app's client for it (its pool, timeout, or credentials): split the caller's
@@ -43,8 +41,9 @@ dependency's team.
   that the pool is the bottleneck: wait duration and the pool's active, maximum, and waiting
   counts settle that, and without them exhaustion is a candidate, not a finding; a thread
   *holding* a connection while it waits on a socket says why the pool is held;
-- a load balancer that sees seconds where the container logs milliseconds is time spent outside
-  the container;
+- load-balancer seconds versus application-log milliseconds can reflect time outside the logged
+  interval, including in-process queueing. Match the same request and timer boundaries before
+  locating the delay;
 - low aggregate CPU with high latency leaves waiting, per-core saturation, and CPU throttling
   open — a blocked pool, one hot instance, or one saturated thread hides under a low average, so
   check the affected requests' waits and the instance's CPU limit or per-core usage;

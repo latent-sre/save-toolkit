@@ -57,30 +57,61 @@ def ok(msg):
 
 def is_problem(resp):
     ctype = resp.headers.get("content-type", "")
-    if not ctype.startswith("application/problem+json"):
+    if ctype.partition(";")[0].strip().lower() != "application/problem+json":
         return False, "content-type %r" % ctype
     try:
         body = resp.json()
     except ValueError:
         return False, "body is not JSON"
-    missing = [k for k in ("type", "title", "status") if k not in body]
-    if missing:
-        return False, "problem body missing %s" % missing
-    if body.get("status") != resp.status_code:
-        return False, "problem status %r != %d" % (body.get("status"), resp.status_code)
-    return True, "problem+json carrying type/title/status"
+    if not isinstance(body, dict):
+        return False, "problem body must be an object"
+    for key in ("type", "title", "request_id"):
+        if not isinstance(body.get(key), str):
+            return False, "problem %s must be a string" % key
+    if not body["request_id"]:
+        return False, "problem request_id must be nonempty"
+    status = body.get("status")
+    if isinstance(status, bool) or not isinstance(status, (int, float)) or status != resp.status_code:
+        return False, "problem status %r != HTTP status %d" % (status, resp.status_code)
+    for key in ("detail", "instance"):
+        if key in body and not isinstance(body[key], str):
+            return False, "problem %s must be a string" % key
+    if "errors" in body:
+        if not isinstance(body["errors"], list):
+            return False, "problem errors must be an array"
+        for error in body["errors"]:
+            if (not isinstance(error, dict) or not isinstance(error.get("loc"), list)
+                    or not all(isinstance(part, str) for part in error["loc"])
+                    or not isinstance(error.get("msg"), str)):
+                return False, "problem errors need a string-list loc and string msg"
+    return True, "problem+json carrying type/title/status/request_id"
+
+
+def cursor_page(resp):
+    body = resp.json()
+    if not isinstance(body, dict) or not isinstance(body.get("data"), list):
+        fail("list body must be an object with a data array")
+    if "next_cursor" not in body:
+        fail("list body is missing next_cursor")
+    cursor = body["next_cursor"]
+    if cursor is not None and (not isinstance(cursor, str) or not cursor):
+        fail("next_cursor must be null or a nonempty string")
+    return body
 
 
 def check_pagination(client):
     r = client.get("/v1/incidents")
     if r.status_code != 200:
         fail("GET /v1/incidents -> %d" % r.status_code)
-    body = r.json()
-    if not isinstance(body, dict) or "data" not in body or "next_cursor" not in body:
-        keys = sorted(body) if isinstance(body, dict) else type(body).__name__
-        fail("list body is not {data, next_cursor}: %s" % keys)
-    if len(body["data"]) >= FIXTURE_COUNT:
-        fail("default page returned all %d incidents" % len(body["data"]))
+    body = cursor_page(r)
+    if not 0 < len(body["data"]) < FIXTURE_COUNT:
+        fail("default page must return a nonempty proper subset of the seeded incidents")
+    r = client.get("/v1/incidents", params={"limit": 1})
+    if r.status_code != 200:
+        fail("limit=1 -> %d" % r.status_code)
+    one = cursor_page(r)
+    if len(one["data"]) != 1 or one["data"][0]["id"] != body["data"][0]["id"]:
+        fail("limit=1 must return exactly the first seeded incident")
     seen = []
     cursor = None
     pages = 0
@@ -91,13 +122,13 @@ def check_pagination(client):
         r = client.get("/v1/incidents", params=params)
         if r.status_code != 200:
             fail("page %d -> %d" % (pages, r.status_code))
-        page = r.json()
+        page = cursor_page(r)
         if len(page["data"]) > 40:
             fail("page exceeded limit: %d" % len(page["data"]))
         seen.extend(item["id"] for item in page["data"])
         pages += 1
-        cursor = page.get("next_cursor")
-        if not cursor:
+        cursor = page["next_cursor"]
+        if cursor is None:
             break
         if pages > FIXTURE_COUNT:
             fail("cursor never terminated")
@@ -107,9 +138,9 @@ def check_pagination(client):
     r = client.get("/v1/incidents", params={"limit": 100000})
     if r.status_code != 200:
         fail("oversized limit -> %d; the house rule lowers it to the server cap" % r.status_code)
-    body = r.json()
-    items = body.get("data") if isinstance(body, dict) else None
-    if not isinstance(items, list) or not 0 < len(items) <= MAX_SANE_PAGE:
+    body = cursor_page(r)
+    items = body["data"]
+    if not 0 < len(items) <= MAX_SANE_PAGE:
         fail("oversized limit did not return a nonempty capped page")
     ids = [item.get("id") if isinstance(item, dict) else None for item in items]
     if ids != seen[:len(items)] or not body.get("next_cursor"):

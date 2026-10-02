@@ -4,6 +4,13 @@ Use this when the question depends on what the reader actually sees, or when che
 change. Query data, rendering capability, an image response, and an inspected image are separate
 evidence. A successful API read cannot substitute for a visual check.
 
+## Contents
+
+- [Available paths](#pick-an-available-path)
+- [Browser investigation](#sre-browser-investigation)
+- [Query and image evidence](#bind-query-and-image-evidence)
+- [Record and diagnose](#record-and-diagnose)
+
 ## Pick an available path
 
 | Access | Next step |

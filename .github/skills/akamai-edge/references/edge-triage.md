@@ -107,13 +107,11 @@ Two completeness caveats that change conclusions:
 - **Latency profile trade-off**: "low latency" streams deliver *less complete* data within ~5
   minutes; "log completeness" delivery is fuller within ~60 minutes. **Absence of log lines in the
   first minutes is not absence of traffic.**
-- **Delivery drops are real**: Akamai's documentation disagrees about 429/5xx retries. The FAQ says
-  up to 10 attempts within 5 minutes; the troubleshooting page says log data may be lost after 3
-  unsuccessful retries. The FAQ separately says destination connection problems are lost after 3
-  failed retries. The exact retry budget is therefore `[unverified]` for a given failure mode, but
-  the operational conclusion is firm: there is no backup copy, so alert on upload failures and
-  never treat missing lines as proof of missing traffic *[sourced: …/docs/faq;
-  …/docs/troubleshooting, re-checked 2026-08-24]*.
+- **Delivery drops are real**: upload failures can exhaust retries, and DataStream keeps
+  no backup. Alert on upload failures; missing lines do not prove missing traffic. The
+  [FAQ](https://techdocs.akamai.com/datastream2/docs/faq) and
+  [troubleshooting](https://techdocs.akamai.com/datastream2/docs/troubleshooting) disagree on retry
+  budgets; the failure-specific retry count remains `[unverified]`.
 
 ## Offload and error reports (Control Center → Reporting)
 
@@ -144,10 +142,9 @@ Read-only triage path *[sourced: techdocs.akamai.com/security-ctr/docs/web-secur
    actions** (custom HTML/JSON, up to 20 per config) — so "no 403 in client logs" does not clear
    the WAF. Whether the default deny page's reference number decodes in Translate Error String is
    `[unverified]` — try it, don't assert it.
-4. Security events can also flow to Splunk via the **SIEM Integration** (offset-based or
-   time-based fetch; the collector replays the last **12 hours** only) *[sourced:
-   techdocs.akamai.com/siem-integration/docs/welcome-siem-integration]* — if the events are older
-   than that and were never ingested, the portal is the only record.
+4. **SIEM Integration** can deliver security events to Splunk; offset/time-based API fetches can
+   replay the last **12 hours**. Older records depend on destination retention and portal availability
+   *[sourced: [SIEM API](https://techdocs.akamai.com/siem-integration/reference/api)]*.
 
 Evidence of a false positive — the sampled requests, the rule id, the affected user share — goes to
 the human security policy owner. This fleet never tunes or disables a protection itself.

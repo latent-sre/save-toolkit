@@ -28,7 +28,7 @@ or tracked config.
 ## `grafana/mcp-grafana`
 
 Use summary/property/query tools for narrow reads; a complete-dashboard read consumes much more
-context and is justified only for a full model edit.
+context.
 
 **Do not use patch-mode `update_dashboard` for a live write.** In the reviewed implementation,
 JSONPath operations re-fetch the model and save with `overwrite: true`, silently defeating the

@@ -318,6 +318,14 @@ None of the oracle tests makes a model call.
   each prove their oracle with a house-rule reference that passes and targeted mutants that fail with
   their expected messages.
 - [`incidents-api`](test_incidents_api_oracle.py) covers that oracle's pagination check.
+- [`incidents-page`](test_incidents_page_oracle.py) calibrates the actual UI oracle's loading,
+  error, empty and filter checks (bars 1/2/3/5) against reference pages and targeted mutants.
+  Opt in with `INCIDENTS_PAGE_NODE_MODULES` pointing to an existing dependency tree and
+  `INCIDENTS_PAGE_MODE=bounded` or `full`, then run
+  `python -m pytest -q -s evals/test_incidents_page_oracle.py`. Versions are reported and nothing
+  is installed. Bounded mode substitutes a fetch transport double for MSW; full mode
+  uses MSW. Both use JSDOM and cover only those four bars; browser behavior and the axe bar remain
+  separate checks.
 
 The researcher/scribe cases add a bounded public-page lookup, private-input rejection with
 zero attempted web calls, a missing-current-version source decision, extended/quick research

@@ -38,5 +38,4 @@ of the implementation. Exercise realistic data sizes when bounds matter; benchma
 
 Check the delivered interface as consumers use it: invoke a CLI, import a library, or exercise a
 service's public contract. If installation is part of delivery, check the installed artifact rather
-than relying on checkout-only imports. Report what ran and any remaining uncertainty. Finish by
-removing scaffolding and simplifying the implementation using the shared craft guidance.
+than relying on checkout-only imports.

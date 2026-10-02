@@ -28,8 +28,8 @@ fixture:
     README.md: |
       # checkout-monitoring
 
-      Prometheus rule files for the checkout service live in `alerts/` and are file-provisioned
-      into Grafana-managed alerting by the platform team. Runbooks live in `docs/runbooks/`.
+      Native Prometheus rule files for the checkout service live in `alerts/`; the platform team
+      loads them into Prometheus for evaluation. Runbooks live in `docs/runbooks/`.
       Metric inventory: `docs/metrics.md`.
     alerts/README.md: |
       Every rules file passes `promtool check rules` before it is merged. Rule files are grouped

@@ -61,8 +61,7 @@ assume older refactoring recipes still run on the target toolchain.
 
 Check the installed tool's parser support against the actual syntax, including modern annotations;
 its minimum installable Python version does not establish support for every target syntax feature.
-Keep tools in a development environment. The parent skill owns diff review and behavior/type/lint
-checks; report the tool/version and unresolved references when material.
+Keep tools in a development environment; report the tool/version and unresolved references when material.
 
 [sourced] [Rope overview](https://rope.readthedocs.io/en/latest/overview.html),
 [change previews/history](https://rope.readthedocs.io/en/latest/library.html),

@@ -10,14 +10,11 @@ and business data from real browsers and sends **beacons** to mPulse for aggrega
 *[sourced: techdocs.akamai.com/mpulse/docs/how-mpulse-works,
 …/mpulse-boomerang/docs/whats-in-an-mpulse-beacon]*. It carries:
 
-- **Page timing** split into **Back-End Time** (page request until the first byte of the response
-  — where CDN, network, and origin latency land) and **Front-End Time** (loading the HTML page and
-  all embedded content — where client-side/app work lands) *[sourced:
-  …/mpulse/docs/use-metrics — the definitions live there, not on key-concepts-terms;
-  re-checked 2026-08-19]*.
-- **Core Web Vitals** dashboard — LCP, FID, CLS at feature launch (2020-10-09 changelog); the
-  Core Web Vitals 2024 dashboard **replaced FID with INP** *[sourced: mPulse changelog 2024-02-20,
-  re-checked 2026-08-19]*. Cite INP, not FID, for responsiveness.
+- **Page timing**: Back-End Time runs from navigation start to the first response byte;
+  Front-End Time runs from that byte until onload/page-ready and includes asset fetches and
+  browser work *[sourced: [timer definitions](https://techdocs.akamai.com/mpulse/docs/use-metrics)]*.
+- **Core Web Vitals**: LCP, INP, CLS; use INP for responsiveness *[sourced:
+  [INP dashboard update](https://techdocs.akamai.com/mpulse/changelog/feb-20-2024-interaction-to-next-paint-dashboard)]*.
 - **Custom timers and metrics** — any measurable user-defined duration or business event; the
   Query API (REST/JSON) pulls aggregates programmatically *[sourced: …/mpulse/reference/api]*.
 - **Waterfall view** — object-level component timings (DNS lookup, TCP connect, SSL connect,

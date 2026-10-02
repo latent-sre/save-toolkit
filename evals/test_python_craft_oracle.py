@@ -182,7 +182,7 @@ class PythonCraftOracleTests(unittest.TestCase):
                 self.assertFalse(exact_json(json.dumps(expected | {key: "incorrect"}), fields)[0])
                 self.assertFalse(exact_json(json.dumps({k: v for k, v in expected.items() if k != key}), fields)[0])
 
-    def run_artifact(self, mode, source):
+    def run_artifact(self, mode, source, *child_args):
         with tempfile.TemporaryDirectory() as tmp:
             files = source if isinstance(source, dict) else {SCENARIOS[mode][1]: source}
             for name, text in files.items():
@@ -190,7 +190,7 @@ class PythonCraftOracleTests(unittest.TestCase):
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(textwrap.dedent(text), encoding="utf-8")
             return subprocess.run(
-                [sys.executable, "-I", "-B", str(ORACLE), mode], cwd=tmp,
+                [sys.executable, "-I", "-B", str(ORACLE), mode, *child_args], cwd=tmp,
                 capture_output=True, text=True, timeout=15,
             )
 
@@ -200,6 +200,31 @@ class PythonCraftOracleTests(unittest.TestCase):
                 result = self.run_artifact(mode, source)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertIn("contract passed: " + mode, result.stdout)
+
+    def test_oracles_reject_candidate_system_exit_before_completion(self):
+        api_names = {"refactor": "process", "generator": "iter_records", "migration": "parse_address",
+                     "unchanged": "is_nonnegative", "modules": "render", "calculation": "total_from_lines",
+                     "policy": "normalize_order", "scoped": "latest_fills"}
+        for mode, original in CORRECT.items():
+            files = dict(original) if isinstance(original, dict) else {SCENARIOS[mode][1]: original}
+            filename = SCENARIOS[mode][1]
+            source = textwrap.dedent(files[filename])
+            signature = next(line for line in source.splitlines() if line.startswith("def " + api_names[mode] + "("))
+            # These modes dispatch fresh children; exercise their script entrypoint directly as well.
+            children = {"modules": ("reports", "formatting"),
+                        "policy": ("policy", "api", "cli", "batch", "legacy", "registry")}.get(mode, ())
+            for code in (0, 2):
+                for phase, mutant in (
+                    ("import", f"raise SystemExit({code})\n" + source),
+                    # iter_records remains a generator: its exit occurs when iteration starts.
+                    ("api/iteration", source.replace(signature, signature + f"\n    raise SystemExit({code})", 1)),
+                ):
+                    for child_args in ((), *((first,) for first in children)):
+                        with self.subTest(mode=mode, code=code, phase=phase, child_args=child_args):
+                            result = self.run_artifact(mode, files | {filename: mutant}, *child_args)
+                            self.assertNotEqual(result.returncode, 0)
+                            self.assertIn("candidate exited before contract checks completed", result.stderr)
+                            self.assertNotIn("contract passed: " + mode, result.stdout)
 
     def test_seed_contracts_and_known_gaps_are_distinguished(self):
         for mode in SCENARIOS:
@@ -315,8 +340,10 @@ class PythonCraftOracleTests(unittest.TestCase):
                     if pending:
                         yield pending.strip()
         '''
-        for source in (CORRECT["generator"].replace("for line in source:",
-                                                   'for line in iter(source.readline, ""):'), chunked):
+        sources = [CORRECT["generator"].replace("for line in source:",
+                                                'for line in iter(source.readline, ""):')]
+        sources.extend(chunked.replace("read(4)", f"read({size})") for size in (4, 64, 8192))
+        for source in sources:
             with self.subTest(source=source):
                 result = self.run_artifact("generator", source)
                 self.assertEqual(result.returncode, 0, result.stderr)
@@ -446,6 +473,30 @@ class PythonCraftOracleTests(unittest.TestCase):
                                     cwd=tmp, capture_output=True, text=True, timeout=30)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Ran 10 tests", result.stderr)
+
+    def test_policy_accepts_value_error_subclasses(self):
+        correct = CORRECT["policy"]
+        source = ('class PolicyError(ValueError):\n    pass\n\n' +
+                  textwrap.dedent(correct["policy.py"]).replace("raise ValueError(", "raise PolicyError("))
+        result = self.run_artifact("policy", correct | {"policy.py": source})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("contract passed: policy", result.stdout)
+
+    def test_policy_rejects_returned_errors_and_wrong_exception_contracts(self):
+        correct = CORRECT["policy"]
+        source = textwrap.dedent(correct["policy.py"])
+        for message in ("invalid sku", "invalid quantity", "invalid price"):
+            original = f'raise ValueError("{message}")'
+            for behavior, replacement in (
+                ("returned error text", f'return "{message}"'),
+                ("wrong exception class", f'raise TypeError("{message}")'),
+                ("wrong exception message", 'raise ValueError("other error")'),
+            ):
+                with self.subTest(message=message, behavior=behavior):
+                    result = self.run_artifact("policy", correct | {"policy.py": source.replace(original, replacement)})
+                    self.assertNotEqual(result.returncode, 0)
+                    if behavior != "wrong exception class":
+                        self.assertIn("disagrees with the specification", result.stderr)
 
     def test_policy_unification_rejects_partial_ownership_and_lost_consumers(self):
         correct = CORRECT["policy"]

@@ -1,0 +1,79 @@
+id: build-scribe-alert-definition-closeout
+agent: software-engineer
+prompt: |
+  I am Morgan, approving a documentation-only correction of the two alert cards and their
+  definition links in docs/operations/index.md. Operational settings, ownership, lifecycle,
+  runbooks and review evidence are unchanged. Knowledge lives in docs/operations/.
+  Obtain this checkout's current revision and working-tree status with local Git reads, then
+  delegate to scribe with that observed KB revision/binding, pre-existing dirty paths, your caller
+  identity and my separate human ownership. Do not write the documentation yourself. Use only
+  the supplied evidence in evidence/alert-sources.md; no network lookup, application execution,
+  platform query/change or commit. Inspect the helper result and return the prepared diff for review.
+  Preserve each card's existing metadata fields. Set source_definition to the owning source's
+  literal locator, definition_version to its evidenced version (null when unknown), and
+  source_receipt to the applicable supplied record ID. Keep one `Definition provenance:` line
+  binding the locator, provisioning kind (API-owned or source-managed), record ID and retained
+  trust/evidence labels. Keep one `Version evidence:` line with the retained labels and the
+  supplied version or unknown. The recovery export is available for comparison, not approval.
+fixture:
+  files:
+    README.md: "# Checkout KB\nOperational knowledge lives in docs/operations/.\n"
+    evidence/alert-sources.md: |
+      [UNTRUSTED][sourced] RULE-81: QueueLag is API-owned in Grafana org 7, UID queue-lag.
+      The authoritative locator is `https://grafana.example.invalid/alerting/grafana/queue-lag/view?orgId=7`.
+      Operator Morgan supplied a readback receipt at 2026-10-02T09:00:00Z. No rule version was
+      returned: that version is [UNTRUSTED][unverified] unknown. No live read is authorized here.
+      [UNTRUSTED][sourced] SOURCE-82: QueueDepth is source-managed by repository alert-definitions.
+      Its authoritative locator is `alert-definitions/config/queue-depth.yaml@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb`.
+      The approved source revision is `bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb`.
+      [UNTRUSTED][sourced] EXPORT-80: recovery/queue-lag.yaml was committed on 2026-09-01.
+      It is a recovery export of an older API rule, not its provisioning owner; its export
+      revision and `version: 5` cannot supply RULE-81's unknown current rule version.
+    recovery/queue-lag.yaml: "uid: queue-lag\nversion: 5\ncondition: old-recovery-value\n"
+    docs/operations/alerts/queue-lag.md: |
+      ---
+      alert_id: queue-lag
+      service_id: checkout
+      status: active
+      source_definition: recovery/queue-lag.yaml
+      definition_version: 5
+      source_receipt: EXPORT-80
+      runbook: ../../runbooks/checkout.md
+      last_reviewed: null
+      ---
+      # QueueLag
+      Service: [Checkout](../services/checkout.md).
+      Definition provenance: [UNTRUSTED][sourced] EXPORT-80 recovery/queue-lag.yaml.
+      Version evidence: [UNTRUSTED][sourced] 5.
+    docs/operations/alerts/queue-depth.md: |
+      ---
+      alert_id: queue-depth
+      service_id: checkout
+      status: active
+      source_definition: unknown
+      definition_version: null
+      source_receipt: null
+      runbook: ../../runbooks/checkout.md
+      last_reviewed: null
+      ---
+      # QueueDepth
+      Service: [Checkout](../services/checkout.md).
+      Definition provenance: [UNTRUSTED][unverified] unknown.
+      Version evidence: [UNTRUSTED][unverified] unknown.
+    docs/operations/index.md: |
+      # Operations index
+      | Exact alert name | Status | Service | Alert card | Runbook | Definition |
+      |---|---|---|---|---|---|
+      | QueueLag | active | checkout | [QueueLag](alerts/queue-lag.md) | ../runbooks/checkout.md | recovery/queue-lag.yaml |
+      | QueueDepth | active | checkout | [QueueDepth](alerts/queue-depth.md) | ../runbooks/checkout.md | unknown |
+    docs/operations/services/checkout.md: "# Checkout\nOwner: Checkout Operations.\n"
+    docs/runbooks/checkout.md: "# Checkout\nExisting approved operating procedure; unchanged.\n"
+checks:
+  - {check: task_completed, target: scribe, text: "the documentation helper completed"}
+  - {check: skill_loaded, skill: operational-learning, text: "closeout method was loaded"}
+  - {check: changes_within, allowed: [docs/operations/alerts/queue-lag.md, docs/operations/alerts/queue-depth.md, docs/operations/index.md], text: "only the approved definition metadata and links changed"}
+  - {check: no_new_commits, text: "nothing committed"}
+  - check: command_exit_zero
+    command: python probe_documents.py alert-closeout
+    writes_from: {probe_documents.py: evals/oracles/researcher-scribe/probe_documents.py}
+    text: "each definition follows its provisioning owner and absent API version remains unknown"

@@ -54,11 +54,9 @@ https://cli.cloudfoundry.org/en-US/v8/cancel-deployment.html]. The backout of a 
 another rollback: redeploy the revision that was live before it, which stays in **Revisions**
 while its droplet is retained, or roll forward with a fix through the full gate.
 
-After any attempt, get timestamped readback of the actual instances, route mappings, or revision and
-the affected-user recovery signal, from the human or from a dispatched `sre-assistant` read (rule 3).
-Readback is evidence for reconciliation, never the executor's receipt. A matching current state does not establish when
-an interrupted attempt applied. Missing/failed readback leaves its outcome UNKNOWN; reconcile with
-the executor before a retry.
+After any attempt, obtain timestamped state and affected-user readback from the human or an
+assigned `sre-assistant` read (rule 3). Readback is evidence, not the executor's receipt; reconcile
+uncertain outcomes under [Read back an interrupted attempt](#read-back-an-interrupted-attempt).
 
 ## Decision rules
 

@@ -36,8 +36,12 @@ severity >= "ERROR"
 timestamp >= "2026-08-07T00:00:00Z" timestamp <= "2026-08-07T00:30:00Z"
 ```
 
-- The language is case-insensitive **except** regular expressions and the logical operators —
-  `AND`/`OR` must be capitalized.
+- Preserve the exact case and spelling of map/struct keys: `jsonPayload.requestId` and
+  `jsonPayload.requestid` address different fields; `labels` keys follow the same rule.
+  Regular protocol-buffer field names and ordinary string comparisons are case-insensitive;
+  regular expressions are case-sensitive, and `AND`/`OR`/`NOT` must be capitalized.
+  *[sourced: [field-path rules](https://docs.cloud.google.com/logging/docs/view/logging-query-language#field_path_identifiers);
+  checked 2026-10-02]*
 - Operators: `=`, `!=`, `:` (substring/has), `=~` / `!~` (regex), and range comparisons.
 - Prefer `log_id("run.googleapis.com/stderr")`. The full-field form is
   `logName="projects/<project>/logs/run.googleapis.com%2Fstderr"`: encode the log ID's slash

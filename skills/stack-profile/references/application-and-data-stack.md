@@ -19,7 +19,7 @@ service inventory is not an authoring-language list.
 
 **CI jobs authenticate from GitHub environment secrets**, not GitHub OIDC. This settles the hedge
 the `ci-actions` skill carries: do not design around a GitHub-OIDC→CredHub exchange — CredHub
-authenticates via UAA and no turnkey integration exists. *[sourced: operator statement 2026-08-21]*
+authenticates via UAA. *[sourced: operator statement 2026-08-21]*
 
 ## Toolchain by language
 

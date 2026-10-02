@@ -43,6 +43,56 @@ QUOTED_STRING = re.compile(r'''"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`[^`]*`''')
 BUILTIN_DS = frozenset({"-- Grafana --", "-- Mixed --", "-- Dashboard --", "grafana"})
 
 
+class InputShapeError(ValueError):
+    """The checker cannot traverse this input; this is not a hygiene violation."""
+
+
+def require_shape(value, expected, where, *, nullable=False):
+    if nullable and value is None:
+        return
+    if not isinstance(value, expected):
+        kind = {dict: "object", list: "array", str: "string"}[expected]
+        raise InputShapeError(f"{where} must be an {kind}" if kind in {"object", "array"}
+                              else f"{where} must be a {kind}")
+
+
+def validate_shape(spec: dict, root_path="$"):
+    """Check only containers/text the helper traverses, not Grafana's full schema.
+
+    Optional null containers retain their existing empty interpretation. Datasource type guards
+    and opaque plugin query/config values keep their existing behavior.
+    """
+    def panels(items, where):
+        require_shape(items, list, where, nullable=True)
+        for index, panel in enumerate(items or []):
+            location = f"{where}[{index}]"
+            require_shape(panel, dict, location)
+            require_shape(panel.get("type"), str, f"{location}.type", nullable=True)
+            if panel.get("type") == "row":
+                panels(panel.get("panels"), f"{location}.panels")
+                continue
+            for key in ("title", "description"):
+                require_shape(panel.get(key), str, f"{location}.{key}", nullable=True)
+            fields = panel.get("fieldConfig")
+            require_shape(fields, dict, f"{location}.fieldConfig", nullable=True)
+            require_shape((fields or {}).get("defaults"), dict, f"{location}.fieldConfig.defaults", nullable=True)
+            targets = panel.get("targets")
+            require_shape(targets, list, f"{location}.targets", nullable=True)
+            for index, target in enumerate(targets or []):
+                require_shape(target, dict, f"{location}.targets[{index}]")
+
+    panels(spec.get("panels"), f"{root_path}.panels")
+    templating = spec.get("templating")
+    require_shape(templating, dict, f"{root_path}.templating", nullable=True)
+    variables = (templating or {}).get("list")
+    require_shape(variables, list, f"{root_path}.templating.list", nullable=True)
+    for index, variable in enumerate(variables or []):
+        location = f"{root_path}.templating.list[{index}]"
+        require_shape(variable, dict, location)
+        if variable.get("includeAll"):
+            require_shape(variable.get("allValue"), str, f"{location}.allValue", nullable=True)
+
+
 def rate_call_spans(expr):
     """[(start, end)] for each rate/irate/increase call, end just past its closing paren.
 
@@ -77,11 +127,14 @@ def rate_call_spans(expr):
 
 def unwrap(model: dict) -> dict:
     """Return the dashboard spec whether the caller passed a bare model or a k8s wrapper."""
+    require_shape(model, dict, "$")
     if "spec" in model and "apiVersion" in model:
-        return model["spec"] or {}
+        require_shape(model["spec"], dict, "$.spec")
+        return model["spec"]
     # a legacy GET returns {dashboard, meta}
     if "dashboard" in model and "meta" in model:
-        return model["dashboard"] or {}
+        require_shape(model["dashboard"], dict, "$.dashboard")
+        return model["dashboard"]
     return model
 
 
@@ -188,14 +241,22 @@ def main(argv: list[str] | None = None) -> int:
         print(f"cannot check {args.path}: {exc}", file=sys.stderr)
         return 2
 
-    spec = unwrap(model)
-    if "elements" in spec or "layout" in spec:
-        print("refusing to check a V2 (dynamic) dashboard: its panels live under spec.elements, which "
-              "this checker does not read. Validate the actual V2 candidate with a V2-capable linter "
-              "(dashboard-linter v0.2.0+), or report the validation gap; keep its stored version.", file=sys.stderr)
-        return 2
-    if "panels" not in spec:
-        print("no `panels` key: this does not look like a Classic/V1 dashboard model", file=sys.stderr)
+    try:
+        spec = unwrap(model)
+        if "elements" in spec or "layout" in spec:
+            print("refusing to check a V2 (dynamic) dashboard: its panels live under spec.elements, which "
+                  "this checker does not read. Validate the actual V2 candidate with a V2-capable linter "
+                  "(dashboard-linter v0.2.0+), or report the validation gap; keep its stored version.", file=sys.stderr)
+            return 2
+        if "panels" not in spec:
+            print("no `panels` key: this does not look like a Classic/V1 dashboard model", file=sys.stderr)
+            return 2
+        root_path = "$"
+        if spec is not model:
+            root_path = "$.spec" if model.get("spec") is spec else "$.dashboard"
+        validate_shape(spec, root_path)
+    except InputShapeError as exc:
+        print(f"cannot check {args.path}: {exc}", file=sys.stderr)
         return 2
 
     violations = check(spec)

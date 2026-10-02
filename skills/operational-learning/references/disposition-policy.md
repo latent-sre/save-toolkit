@@ -55,8 +55,14 @@ instead of creating a second record.
 
 ## Evidence and review rules
 
-1. The version-controlled service or alert definition is authoritative for configuration; KB cards
-   summarize and link it rather than copy details that will drift.
+1. Configuration authority follows the established provisioning owner. For source-managed
+   definitions, link the owning repository path and exact revision (a uniquely resolved short or
+   full commit ID). For API-owned alerts, link the authoritative target/resource locator and UID
+   with the supplied state/readback receipt and version evidence; an absent version stays
+   `[unverified]`, not an invented commit or version. A captured export is evidence or recovery
+   material unless it actually owns provisioning. KB cards summarize and link the owning definition
+   rather than copy details that will drift. This identity does not replace the separate KB checkout
+   binding, human closeout approval, or dirty-path controls, and grants no live lookup to scribe.
 2. Prefer evidence for the exact target revision. If sources disagree, retain both labels, describe
    the conflict, mark the affected claim `[unverified]`, and assign one owner to resolve it.
 3. `last_reviewed` and `last_verified` follow `../SKILL.md`'s invariants. The distinction they

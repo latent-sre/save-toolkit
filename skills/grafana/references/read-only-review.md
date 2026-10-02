@@ -38,8 +38,7 @@ Repository recovery copies do not change the requested read-only scope.
    and notification delivery need separate evidence; read-only success does not establish them.
 
 Classify each checker result before proposing a repair: confirmed query/model defect, portability
-warning, presentation improvement, or unverified heuristic. Resolved fixed datasource UIDs in a
-provisioned model are not broken references. Missing descriptions can be useful improvements
+warning, presentation improvement, or unverified heuristic. Missing descriptions can be useful improvements
 without blocking working queries. Report counts by category rather than calling every emitted
 "violation" an operational failure. `canSave: true` does not override `provisioned: true` ownership.
 

@@ -33,7 +33,6 @@ Primary references:
 - Rates, windows, and saturation
 - Missing data
 - WQL and PromQL mapping aid
-- Investigation handoff
 
 ## Select series and filter point tags
 
@@ -192,8 +191,3 @@ staleness conditions.
 - WQL `sum(ts(m), tag)` roughly maps to PromQL `sum by (label) (m)`.
 - WQL `rate(ts(counter))` roughly maps to PromQL `rate(counter[5m])`.
 - WQL `mavg(5m, ts(m))` is a moving-window operation.
-
-## Investigation handoff
-
-Overlay the exact deploy timestamp, then keep both the aggregate and the dimension that isolates an
-outlier. Hand the `observability-engineer` agent the query, window, threshold, value, and missing-data behavior.

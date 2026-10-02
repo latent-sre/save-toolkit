@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import os
+import json
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 import yaml
@@ -239,3 +241,42 @@ def test_fixture_suite_passes_unchanged(tmp_path):
     result = subprocess.run([sys.executable, "-B", "-m", "pytest", "-q", "-p", "no:cacheprovider"],
                             cwd=tmp_path, capture_output=True, text=True, timeout=120)
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.parametrize("scenario_name,permits_review", [
+    ("pager-webhook", True), ("cli-with-tests", False),
+])
+def test_review_dispatch_policy_matches_security_scope(tmp_path, scenario_name, permits_review):
+    import build_probe
+
+    scenario = SCENARIO.with_name(f"build-software-engineer-{scenario_name}.yaml")
+    spec = yaml.safe_load(scenario.read_text(encoding="utf-8"))
+    events = [
+        {"type": "assistant", "message": {"content": [{
+            "type": "tool_use", "id": "review-1", "name": "Task", "input": {
+                "subagent_type": "save-toolkit:reviewer",
+                "prompt": "Review only the new HMAC authentication boundary and its tests.",
+            },
+        }]}},
+        {"type": "user", "message": {"content": [{
+            "type": "tool_result", "tool_use_id": "review-1", "content": "Scoped review complete.",
+        }]}},
+    ]
+    trace_path = tmp_path / "review.jsonl"
+    trace_path.write_text("\n".join(json.dumps(event) for event in events), encoding="utf-8")
+    trace = build_probe.parse_trace(trace_path)
+    assert trace.dispatches == ["save-toolkit:reviewer"]
+    ctx = SimpleNamespace(trace=trace)
+    checks = [check for check in spec["checks"] if check["check"] == "no_task_dispatch"]
+    results = [build_probe.CHECKS[check["check"]](ctx, check) for check in checks]
+    assert all(passed for passed, _ in results) is permits_review, results
+    if not permits_review:
+        assert any(check["target"] == "reviewer" for check in checks)
+
+
+def test_webhook_scenario_preserves_scope_and_commit_guards():
+    checks = yaml.safe_load(SCENARIO.read_text(encoding="utf-8"))["checks"]
+    kinds = {check["check"] for check in checks}
+    assert {"changes_within", "no_new_commits", "no_agents_dir"} <= kinds
+    scope = next(check for check in checks if check["check"] == "changes_within")
+    assert scope["allowed"] == ["app", "tests", "README.md", "pyproject.toml"]

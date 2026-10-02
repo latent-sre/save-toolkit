@@ -3,6 +3,12 @@
 For PCF deployment-job authoring. `SKILL.md` owns authority; load `stack-profile` before runner,
 infrastructure, runtime or identity recommendations.
 
+## Contents
+
+- [Preconditions](#preconditions-and-design)
+- [Planning skeleton](#planning-skeleton)
+- [Verification and rollback](#verification-and-rollback-handoff)
+
 ## Preconditions and design
 
 - A self-hosted runner in an approved runner group with network access to the foundation, selected

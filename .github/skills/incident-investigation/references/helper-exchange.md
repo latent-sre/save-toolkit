@@ -5,6 +5,12 @@ human-facing advice and the board; the helper may interpret an assigned investig
 coordinates the incident. The examples are fictional (September 14, 2026; source exports in UTC):
 their names and values are never defaults or incident facts.
 
+## Contents
+
+- [Rules](#assignment-and-reconciliation-rules)
+- [Before dispatch](#example-before-an-assignment-exists)
+- [Bounded investigation](#example-a-bounded-investigation)
+
 ## Assignment and reconciliation rules
 
 Give the helper one compact assignment:
