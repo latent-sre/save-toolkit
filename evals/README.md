@@ -289,6 +289,24 @@ return that carries a false `[verified]` claim and an injected instruction:
 [`agent-engineer`](build-scenarios/build-agent-engineer-resumes-after-partial-research.yaml), and
 [`sre-assistant`](build-scenarios/build-sre-assistant-handles-partial-research.yaml).
 
+Three probes measure `backend-craft`, each against the running app with a probe-owned oracle. The
+oracles run the app under uvicorn, as a subprocess for the webhook.
+
+- [`incidents-api`](build-scenarios/build-software-engineer-incidents-api.yaml) covers the core
+  HTTP contract.
+- [`incident-writes`](build-scenarios/build-software-engineer-incident-writes.yaml) covers an
+  idempotent create. The caller resends on timeout, sometimes while the first request is still
+  running.
+- [`pager-webhook`](build-scenarios/build-software-engineer-pager-webhook.yaml) covers a signed
+  webhook whose processing outlasts the vendor's 3 s window.
+
+None of the oracle tests makes a model call.
+
+- [`incident-writes`](test_incident_writes_oracle.py) and [`pager-webhook`](test_pager_webhook_oracle.py)
+  each prove their oracle with a house-rule reference that passes and targeted mutants that fail with
+  their expected messages.
+- [`incidents-api`](test_incidents_api_oracle.py) covers that oracle's pagination check.
+
 The researcher/scribe cases add a bounded public-page lookup, private-input rejection with
 zero attempted web calls, a missing-current-version source decision, extended/quick research
 routing, and command provenance classification. The [partial-research case](build-scenarios/build-researcher-partial-research.yaml)

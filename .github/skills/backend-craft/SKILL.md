@@ -58,10 +58,9 @@ operability and failure rules that fit a worker, scheduler, or client without ad
 
 ## Done means
 
-- The changed behavior and relevant failure paths pass the project's tests. Exercise changed HTTP
-  endpoints with requests; exercise workers, schedulers, and clients through their own entrypoints.
-- Record bounded, redacted evidence for that surface: HTTP method/path, status, request id and
-  schema assertion, or job/client inputs, outcome and failure handling. Keep only allowlisted
+- Exercise changed HTTP endpoints with requests, and workers, schedulers, and clients through their
+  own entrypoints. Record bounded, redacted evidence for that surface: HTTP method/path, status,
+  request id and schema assertion, or job/client inputs, outcome and failure handling. Keep only allowlisted
   protocol headers such as `Retry-After`; never credentials, cookies or full bodies.
 - Changed HTTP shapes are checked against the established API contract; preserve existing auth
   coverage. For an item or write route, test that an authenticated principal without permission
