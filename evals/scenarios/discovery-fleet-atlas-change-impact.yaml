@@ -1,0 +1,13 @@
+id: discovery-fleet-atlas-change-impact
+split: regression
+prompt: |
+  Before changing the service-lifecycle guidance in this checkout, use the revision-bound
+  repository knowledge index to identify affected agents, skills, generated adapters and
+  verification references. Preserve canonical citations and uncertainty. This is planning:
+  do not edit source or regenerate the index.
+target: {kind: skill, name: fleet-atlas}
+routing: {expect: fire}
+tools: [Read, Skill, Task]
+success_criteria:
+  - Invokes the repository guidance-navigation skill for recorded change relationships.
+  - Freshness, bounded output and meaningful source citations require separate operator workflow checks.

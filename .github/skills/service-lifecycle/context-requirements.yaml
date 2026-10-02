@@ -6,6 +6,8 @@ spec:
   required:
     - /target/team/id
     - /target/service/id
+    - /target/service/lifecycle
+    - /target/service/ownerRef
     - /target/environment/id
     - /resources/repositories
   optional:

@@ -1,6 +1,6 @@
 # Fleet roadmap
 
-> **Status: live; refreshed 2026-09-07 against `ed321035`.** This is the only backlog.
+> **Status: live; working update 2026-09-30, integrated with `65daa521`.** This is the only backlog.
 > Historical records supply evidence, not new work or authorization. Cleanup does not close an
 > unresolved item, approve a model budget, or establish behavioral acceptance.
 
@@ -25,18 +25,25 @@ records do not re-queue work.
 
 ### RELIABILITY-001 — accept the reliability engineering lane on representative tasks
 
-**Status:** `active` (2026-09-21); implementation approved, native acceptance pending.
+**Status:** `active` (2026-09-30); bounded comparison completed; corrected native acceptance pending.
 **Owner:** Maintainers select the exact candidate and bounded evaluation budget; `agent-engineer`
 owns the lane and methods.
 **Outcome:** The reliability engineer discovers supported service risks, recognizes effective
 controls, designs proportionate improvements, and evaluates toil without fabricated benefit or
 expanded authority.
-**Next action:** After source and offline checks, select candidate/model/host and trial budget.
-Compare with the current agent/skill arrangement on the same service evidence. Include protected
-helper return/continuation and free-form assessment; supplied-state and grader calibration alone
-cannot establish useful investigation, tool enforcement or measured operational benefit.
-**Evidence:** [Lane decision and source map](decisions/2026-09-21-reliability-engineer.md), canonical
-agent and skills, authority tests and reliability cases in `evals/`.
+**Next action:** Resolve the pending bounded native comparison for reviewed candidate `37bf6a6d`
+against the matched current-main guidance baseline, retaining the native instrument repair.
+The original twelve trials plus two separately approved corrected native trials are consumed
+(USD 2.06 reported cost). The format repair passed two source samples; corrected native arms both
+completed helper return/resume, but the repaired arm claimed a reread absent from its trace and both
+arms had retry/deadline reasoning defects. Do not promote from structural PASS. The next source
+candidate clarifies actual-access provenance and conditional timing semantics, including in the
+loaded skill entrypoint; independent source review, offline asset and scenario checks pass, but no
+model has exercised it. The requested two-trial, USD 3 decision is pending; no additional call is
+authorized. Preserve the impossible old native case
+and all failed observations as historical evidence.
+**Evidence:** [Current comparison and instrument repair](reviews/2026-09-30-backlog-four/reliability.md);
+the [lane decision](decisions/2026-09-21-reliability-engineer.md) retains its acceptance scope.
 **SRE task:** Turn a service weakness or repeated manual intervention into supported engineering
 work with an owner and a meaningful proof-of-improvement check.
 
@@ -181,17 +188,22 @@ the existing 7,800-byte screen (the old list of three is obsolete):
 
 ### LIFECYCLE-001 — a service record stays true for the whole service life
 
-**Status:** `active` (2026-09-07).
+**Status:** `blocked` (2026-09-30); consumer/producer repairs verified and independently reviewed;
+real-service records are unavailable for operational acceptance.
 **Owner:** Save Toolkit maintainers.
 **Outcome:** Change, remediation, refresh, and retirement each have an owner who keeps the service
 record current or visibly marks it stale.
-**Next action:** Verify those ownership transitions and reconcile producer support for freshness
-and forbidden paths through CONTEXT-001. The consumer already declares `forbidden` and `maxAge`;
-verify their shared semantics and the evidence needed for `last_verified`, rather than adding
-another skill-local schema. Retirement is already a mode of `service-lifecycle`.
-**Evidence:** Current [lifecycle requirements](../skills/service-lifecycle/context-requirements.yaml)
-and [knowledge-disposition rules](../skills/operational-learning/SKILL.md); end-to-end acceptance
-of all four transitions remains unverified.
+**Next action:** Review and integrate both exact candidates: this consumer and the separate
+`sre-context` candidate `3433f98e` on `work/lifecycle-001-status-projection`, based on `be29c942` (seven unmerged
+prerequisite commits ahead of refreshed producer main `903ac830`). The producer now projects
+service/deployment lifecycle and owners through immutable `v1alpha6`; the consumer rejects missing
+service lifecycle/owner fields. Then use the owner's selected service, environment and record
+repository to verify change, remediation, refresh and retirement ownership/readback. The owner has
+confirmed that no such records are currently available; resume that acceptance when they exist.
+Catalog dates do not establish execution-backed `last_verified`; fixture-only resolution grants
+no live authority.
+**Evidence:** [Consumer/producer tests and remaining acceptance](reviews/2026-09-30-backlog-four/lifecycle.md)
+and [lifecycle requirements](../skills/service-lifecycle/context-requirements.yaml).
 **SRE task:** Know whether a service record still applies to the deployment being operated.
 
 ### QUALITY-001 — close the remaining platform and observability quality findings
@@ -211,6 +223,38 @@ behaviourally confirmed misses, and the open list); the lane reports are private
 `.eval-runs/quality-20260908/analysis/`.
 **SRE task:** Get correct first checks for a PCF crash loop, a Splunk alert window, a Cloud Run 429, an
 Akamai purge, and a Wavefront alert from the skills instead of from memory.
+
+### GRAPH-004 — use the fleet knowledge atlas for change impact and investigation guidance
+
+**Status:** `decision-needed` (2026-09-30); both workflows implemented; expanded compatibility
+comparison independently approved; exact-candidate human acceptance pending.
+**Owner:** Save Toolkit maintainers; the implementing lane owns the atlas and `agent-engineer` its consumer guidance.
+**Outcome:** An SRE can trace affected fleet guidance and verification before a change, or find
+relevant canonical guidance during an investigation, with bounded, current, cited results.
+**Next action:** Obtain human acceptance of the exact integrated candidate for both workflows and
+its independently reviewed compatibility corrections.
+Runtime `c9fb5bf7` passes the full suite and all seven real-tree atlas checks. The comparison captures
+35 actual CLI cases per version; 2,161 individually justified proposals match with zero unexpected
+or unused exceptions. Preserve exact donor `21dc443b` from closed-unmerged PR #205 and the failed
+intermediate observations. First-adoption consumer stop/resume is verified; generated navigation
+cannot establish live service state, and measured compatibility does not promote the candidate.
+**Evidence:** [Recovered donor, selected uses and acceptance matrix](reviews/2026-09-30-backlog-four/graph-004.md).
+**SRE task:** Find the right operational guidance and understand the recorded consequences of changing it.
+
+### GRAPH-006 — complete the typed atlas prerequisite for GRAPH-004
+
+**Status:** `decision-needed` (2026-09-30); typed pipeline and regression requirements implemented;
+compatibility disposition independently approved; GRAPH-004 human acceptance pending.
+**Owner:** Save Toolkit maintainers; implementing lane owns the typed extraction/verification pipeline.
+**Outcome:** One selector-safe typed pipeline and shared artifact verifier serve build, check and
+query, preserving donor semantics with explicit reviewed corrections and reversible v2 output.
+**Next action:** Obtain the same exact-candidate human acceptance as GRAPH-004.
+The recovered revision-2 design's thirteen requirements and seventeen named regressions have
+mapped evidence, including typed proof replay, bounded projections, source-history checks,
+semantic comparison and a real-tree CI contract. Retain the measured limits and rollback scope;
+offline test results do not establish human acceptance or live operational truth.
+**Evidence:** [Design recovery and compatibility contract](reviews/2026-09-30-backlog-four/graph-004.md).
+**SRE task:** Trust atlas citations, ownership, freshness and missing-result distinctions while navigating guidance.
 
 ### EVAL-010 — choose the rubric judge by a calibration bake-off
 
@@ -312,7 +356,7 @@ cited vendor facts.
 
 ## Parked
 
-All ten items below remain `deferred` (2026-09-03). Reopening requires a named SRE task and owner
+All seven items below remain `deferred` (2026-09-03). Reopening requires a named SRE task and owner
 decision, then a full seven-field item above. This refresh neither closes them nor authorizes runs.
 The [prior roadmap](https://github.com/latent-sre/save-toolkit/blob/ed3210358557415023f33faaaf669315fe79d7ec/docs/fleet-roadmap.md)
 retains their historical evidence paths and recovery commands; those measurements do not establish
@@ -322,9 +366,6 @@ current behavior. Consumed evaluation profiles remain non-reusable.
 |---|---|
 | WF-001 | Prove dispatch of an exact trusted `ship-review` workflow without caller-supplied workflow code. Re-probe only on a material host/contract change. |
 | ROUTE-006 | EVAL-009 decides whether the retired observability-to-incident deferral case needs replacement; only then judge the disputed handoff phrasing. |
-| GRAPH-004 | Establish a named SRE use for `fleet-atlas`. [PR #205](https://github.com/latent-sre/save-toolkit/pull/205) is closed unmerged; preserve donor source/evidence and do not merge or rewrite it before GRAPH-006 semantic parity. |
-| GRAPH-005 | Reconcile bridge findings and rerun the pinned-image six-case lifecycle before accepting the offline Agent Framework/AutoGen A2A bridge with its human decision boundary. |
-| GRAPH-006 | Review a compact v2 atlas design and compatibility matrix: one typed pipeline and shared projection/provenance verifier for build/check/query. |
 | ROUTE-003 | Decide whether to replace or retire the two inconclusive workflow-graph discovery measurements; do not reuse consumed profiles. |
 | ROUTE-004 | Decide whether the surviving Mantine positive at threshold 1.0 suffices, or needs a replacement calibration case. |
 | EVAL-005 | The [dashboard probe](../evals/build-scenarios/build-obs-dashboard-write-honours-the-carve-out.yaml) now seeds real Prometheus data. Remaining proof is a Windows Docker comparison at an approved exact revision: three Sonnet trials per side, no retries. |

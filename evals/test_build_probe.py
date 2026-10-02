@@ -1017,6 +1017,64 @@ class NativeConversationRunTests(unittest.TestCase):
             "followups": ["The owner supplied corrected evidence. What changes?"], "helper": "sre-assistant",
             "expected_model": "stub-model"}
 
+    def pinned_spec(self):
+        spec = {**self.SPEC, "agent": "reliability-engineer"}
+        spec.pop("target")
+        spec.pop("routing")
+        return spec
+
+    def test_native_agent_routing_is_rejected_as_unsatisfiable(self):
+        spec = {**self.SPEC, "target": {"kind": "agent", "name": "reliability-engineer"}}
+        helper, target = "save-toolkit:sre-assistant", "save-toolkit:reliability-engineer"
+        for agents in ([helper], [target], [target, helper]):
+            trace = build_probe.TraceSummary(dispatches=agents, agents=agents)
+            checks = build_probe.scenario_expectations(spec, trace, ROOT)
+            self.assertFalse(all(check()[0] for _, check in checks[:2]))
+        self.assertTrue(any("pin `agent`" in p for p in build_probe.validate_scenario(spec)))
+
+    def test_native_pinned_agent_schema_keeps_read_only_contract(self):
+        spec = self.pinned_spec()
+        self.assertEqual([], build_probe.validate_scenario(spec))
+        self.assertEqual("native", build_probe.scenario_kind(spec))
+        for change in ({"agent": "missing-agent"}, {"agent": "../reliability-engineer"},
+                       {"tools": ["Skill", "Read", "Task", "Write"]},
+                       {"followups": ["a", "b"]}, {"helper": "missing-agent"}):
+            with self.subTest(change=change):
+                self.assertTrue(build_probe.validate_scenario({**spec, **change}))
+
+    def test_native_pinned_agent_runs_and_regrades_exact_pin(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(self, "SPEC", self.pinned_spec()):
+            self.assertEqual([], build_probe.validate_scenario(self.SPEC))
+            summary, run, calls, _ = self.run_native(Path(tmp))
+            self.assertEqual("PASS", summary["status"])
+            self.assertEqual(2, len(calls))
+            for argv, *_ in calls:
+                self.assertEqual(1, argv.count("--agent"))
+                self.assertEqual("save-toolkit:reliability-engineer", argv[argv.index("--agent") + 1])
+                self.assertEqual("Skill,Read,Task", argv[argv.index("--tools") + 1])
+            self.assertEqual("PASS", build_probe.regrade_run(run, self.SPEC)["status"])
+            original = json.loads((run / "invocation.json").read_text(encoding="utf-8"))
+            for replacement in (None, "save-toolkit:sre-assistant"):
+                metadata = json.loads(json.dumps(original))
+                index = metadata["argv"].index("--agent")
+                if replacement is None:
+                    del metadata["argv"][index:index + 2]
+                else:
+                    metadata["argv"][index + 1] = replacement
+                (run / "invocation.json").write_text(json.dumps(metadata), encoding="utf-8")
+                with self.subTest(replacement=replacement):
+                    problem = build_probe.native_regrade_problem(run, self.SPEC, ROOT)
+                    self.assertIsNotNone(problem)
+                    self.assertIn("agent", problem)
+
+    def test_native_pinned_agent_preserves_session_model_and_tool_refusals(self):
+        for flags in ({"wrong_session": True}, {"wrong_model": True}, {"bad_initial": True},
+                      {"hidden_tool": "Bash"}):
+            with self.subTest(flags=flags), tempfile.TemporaryDirectory() as tmp, \
+                    mock.patch.object(self, "SPEC", self.pinned_spec()):
+                summary, _, _, _ = self.run_native(Path(tmp), **flags)
+                self.assertEqual("INCONCLUSIVE", summary["status"])
+
     def test_native_reference_assertions_do_not_hint_the_prompt(self):
         spec = {**self.SPEC, "references": ["skills/incident-investigation/references/symptom-investigation.md"]}
         self.assertEqual([], build_probe.validate_scenario(spec))
