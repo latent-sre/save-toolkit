@@ -25,14 +25,16 @@ records do not re-queue work.
 
 ### AUDIT-001 — review all skills and agents and disposition the findings
 
-**Status:** `active` (2026-10-02); groups 01–12 of 13 reviewed against freshly fetched main `a2d2e57d`.
+**Status:** `decision-needed` (2026-10-02); all 13 groups reviewed, covering 30 skills and 9 agents
+with six passes each against freshly fetched main `a2d2e57d`. The evidence records 50 confirmed findings.
 **Owner:** The human owner selects repairs and dispositions; the audit caller owns the review evidence.
 **Outcome:** All 30 skills, then all 9 agents, receive six documented review passes in groups of
 three, with each group's findings committed before the next group, and the owner can select
 evidence-backed repairs, recommendations, or explicit deferrals.
-**Next action:** Complete the remaining groups on the frozen source revision, preserving verified
-defects, optional improvements, policy choices and runtime gaps separately. This audit authorizes
-findings commits; remediation and any native model campaign require their own scope.
+**Next action:** The human owner selects the first repair batch or records explicit dispositions,
+using the audit's prioritized themes and stable finding IDs. Preserve confirmed defects, optional
+improvements, policy choices and runtime gaps separately. Findings are complete; source remediation
+and any native model campaign remain separately scoped work.
 **Evidence:** [Six-pass audit and group reports](reviews/2026-10-02-fleet-audit/README.md).
 Retain this packet until the owner's dispositions and any accepted repairs no longer depend on it.
 **SRE task:** Identify which guidance is correct and useful, which claims lack verification, and

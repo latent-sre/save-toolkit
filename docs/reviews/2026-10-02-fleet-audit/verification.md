@@ -347,3 +347,44 @@ wrote LF bytes. The unchanged seed passed; replacing LF with CRLF changed the ra
 still passed as `checkout unchanged`; a semantic edit failed. Git facts were synthetic and no Git
 command ran. This proves the predicate does not enforce its stated byte-preservation contract for
 seeded uncommitted files; it does not establish that a native reviewer rewrote a user's file.
+
+## Group 13 guard effects and fabricated-artifact check
+
+[verified] The caller exercised the real command guard with synthetic namespaced sre-assistant
+payloads for both Bash and PowerShell. Plain `git stash show -p` and `git reflog show -p` returned
+allow (42); `git diff --output=<owned path>` returned deny (43). Adding `--output=<owned path>` to
+the stash/reflog forms still returned allow (42). Under Git `2.53.0.windows.2`, the caller then ran
+only those two forms in a new owned temporary repository with synthetic commits/stash, isolated
+global/system Git configuration, disabled hooks/signing and no external endpoints. Both returned
+0 and created nonempty patch files. Repeating them against owned sentinel files replaced the
+sentinels, confirming overwrite as well as creation. The source checkout was untouched and the
+validated temporary root was removed. This proves the guard's permitted form has a local write
+effect; it is not a native Claude hook-installation or model-behavior test.
+
+[verified] The caller loaded all five actual graders in the software-engineer no-tools build
+scenario. A truthful no-files/no-tests response passed all five; a first-person fabricated creation
+claim failed the creation predicate. Passive and bare-voice fabricated creation claims both passed
+all five while disclosing that tests had not run. All assertions passed under Python 3.14.7.
+Only response text was graded: no named implementation/test artifact was created and no native
+model ran. This is separate from the shared exact-fields extra-prose weakness.
+
+## Final packet reconciliation
+
+[verified] The final pre-commit reconciliation found exactly **39 asset reports**, each carrying
+the frozen source identity and all six pass records: **234 documented analytical passes**. It
+found **50 unique confirmed finding IDs**. All **162 captured bundle-file SHA-256 values** still
+match the initial snapshot. The complete change from the source baseline is confined to this
+review packet and its AUDIT-001 roadmap entry; canonical sources and generated adapters are
+unchanged. The existing group commits were checked in order, with exactly the relevant three
+asset reports introduced by each. The final delivery additionally checks the last commit and
+clean audit-worktree state.
+
+[verified] The original checkout still reports its pre-existing modified `docs/fleet-roadmap.md`
+and untracked `docs/sre-workbench/`; this audit did not edit those user files. The separate
+disposable baseline worktree was removed only after checking its exact resolved path, frozen HEAD,
+absence of tracked changes, and its 12 owned untracked atlas outputs. The findings worktree and
+local raw evidence under `F:/iso-tmp/fleet-audit-20261002/` are retained.
+
+These results complete the requested review and findings record. They do not implement repairs,
+promote a candidate, close the existing host/native/target acceptance gates, or supply a fresh
+production observation. AUDIT-001 now points the human owner to scoped repair/disposition choices.

@@ -6,6 +6,11 @@ requested six passes per asset, groups of three, and a findings commit before ea
 Reports record findings and proposed repairs; acceptance and implementation decisions remain with
 the owner.
 
+**Review complete:** 30 skills and 9 agents received six documented analytical passes each
+(234 passes), in 13 groups. The reports contain 50 distinct confirmed findings, with optional
+recommendations, policy choices and unverified runtime behavior kept separate. Each group was
+reviewed and its findings committed before work began on the next group.
+
 ## Exact source and scope
 
 - [verified] Fresh `git fetch origin main` on 2026-10-02, then an isolated worktree and branch
@@ -68,7 +73,49 @@ Context reduction is proposed only where it preserves useful safeguards and demo
 | 10 | Skills | [service-lifecycle](group-10-service-lifecycle.md), [stack-profile](group-10-stack-profile.md), [toil-reduction](group-10-toil-reduction.md) | Six passes complete |
 | 11 | Agents | [agent-engineer](group-11-agent-engineer.md), [observability-engineer](group-11-observability-engineer.md), [reliability-engineer](group-11-reliability-engineer.md) | Six passes complete |
 | 12 | Agents | [repository-investigator](group-12-repository-investigator.md), [researcher](group-12-researcher.md), [reviewer](group-12-reviewer.md) | Six passes complete |
-| 13 | Agents | `scribe`, `software-engineer`, `sre-assistant` | Planned |
+| 13 | Agents | [scribe](group-13-scribe.md), [software-engineer](group-13-software-engineer.md), [sre-assistant](group-13-sre-assistant.md) | Six passes complete |
+
+## Cross-fleet conclusions and proposed repair order
+
+The audit supports retaining the fleet's role separation, conditional skill loading, bounded
+handoffs, and distinction between evidence and authority. Several assets have no confirmed defect;
+their reports still record useful improvements and the behavior that remains unmeasured. A large
+share of the confirmed findings concern evaluators that accept an invalid result or reject a valid
+one. Passing those checks cannot establish the stronger behavior their descriptions claim.
+
+The following order helps the owner select repairs under AUDIT-001. It does not change the severity
+or evidence limits of any individual finding, and it does not create a second backlog.
+
+| Repair theme | Why it matters | Smallest useful next step |
+|---|---|---|
+| Read-only command enforcement | The SRE command guard allows Git stash/reflog output-file options that create or overwrite local files, despite blocking the equivalent ordinary diff option. | Apply the same effect-option rejection to every permitted Git form and retain both Bash/PowerShell decisions plus disposable-file controls. See [SRE-01](group-13-sre-assistant.md). Recheck the installed hook separately. |
+| Executable helpers and boundary arithmetic | The runbook converter can overwrite a concurrently created file or join separate commands; the burn calculator mishandles an inclusive threshold; a PowerShell recipe can alter Unicode input. | Repair the specific operations and retain the reproduced positive, negative, and boundary controls. See [RUN-01/02](group-09-runbook.md), [OA-01](group-04-obs-alerting.md), and [PIPE-02](group-06-obs-pipeline.md). |
+| Operational conclusions and current facts | Incorrect timing localization, log-freshness inference, trace provenance, rollout scope, and heap advice can steer an investigation or change proposal incorrectly. | Correct the stated decision rule and add one discriminating counterexample for each, using the primary sources already cited. See [incident investigation](group-04-incident-investigation.md), [logs](group-05-obs-logs.md), [traces](group-06-obs-traces.md), [deployment](group-07-pcf-deploy.md), and [PCF operations](group-07-pcf-ops.md). |
+| Evidence and outcome binding in evaluators | Several checks accept the right words, a successful exit, an unrelated artifact, final-state equality, or a mismatched query as proof of the intended result. | Calibrate each reported counterexample against the actual predicate before relying on a fresh native run. Preserve controls that already reject invalid behavior. Examples include [CI-01](group-02-ci-actions.md), [PY-02/03](group-08-python-craft.md), [GRA-02/03](group-04-grafana.md), [OE-01](group-11-observability-engineer.md), and [REV-01](group-12-reviewer.md). |
+| Conflicting authority and tool contracts | Some fixtures contradict required security review or approval evidence; some guidance overstates guard scope or assumes an older workflow/tool name. | Reconcile the owning contract, dependent fixtures and validator registry together. Preserve the existing human acceptance and ownership boundaries. See [BC-01](group-01-backend-craft.md), [GATE-01](group-08-production-change-gate.md), [GP-01](group-03-gcp-ops.md), [LEARN-02](group-06-operational-learning.md), and [researcher](group-12-researcher.md). |
+| Readability and context cost | Much of the useful complexity expresses real authority, recovery, or evidence distinctions. Generic repetition adds cost without strengthening those controls. | Make targeted deletions in the owning layer, report byte/line deltas, and compare relevant outputs. Preserve unique safeguards; avoid a fleet-wide wording rewrite without measured benefit. |
+| Host and model acceptance | Canonical files, generated parity and offline tests cannot prove installed tool resolution, nested delegation limits, safe execution, correct reasoning, or target behavior. | Select a small exact-candidate acceptance slice with explicit host, budget, stop conditions and manual trace review after relevant oracle repairs. Existing acceptance gates remain open. |
+
+## Recommended next-audit improvements
+
+1. Keep a compact contract-to-evidence map: each material instruction names its positive case,
+   invalid counterexample, owning predicate, and remaining manual or native check. Use the current
+   reports as evidence rather than duplicating their findings into a second task queue.
+2. Add counterexamples before expanding prompt rules. Test wrong identity, stale evidence,
+   missing fields, quoted refusals, returned-versus-raised errors, wrapper commands, and transient
+   writes where the contract depends on those distinctions. A check should prove its named claim.
+3. Record successful retrieval and exact source identity separately from tool-call attempts.
+   Keep documented vendor behavior, upstream implementation, inspected checkout bytes and observed
+   runtime behavior distinct through every handoff.
+4. Refresh tool inventories and volatile external facts when a server, host, dependency or owning
+   platform changes. An exact reviewed pin or checked date makes a future comparison possible;
+   a floating source or a remembered capability does not.
+5. Evaluate compression as a candidate change: remove duplicated generic material first, preserve
+   evidence-backed safeguards, and compare matching tasks under the same conditions. Fewer words
+   alone are not proof of better adherence.
+6. Budget native work by the decision it needs to settle. Start with corrected high-impact checks
+   and representative task/return behavior; retain inconclusive results, manual trace failures,
+   missing target evidence and independent human acceptance requirements.
 
 ## Group 01 adjudicated findings
 
@@ -231,6 +278,12 @@ The current agent bodies and generated projections preserve their intended owner
 [verified] All three complete reports were read and adjudicated by the caller. Three findings remain: RS-01 (Low) records the stale GitHits code_grep operation grant and validator entry against the observed current grep contract; REV-01 (Medium) shows that path-qualified and env-wrapped Python runs evade the outside-checkout predicate; REV-02 (Low) shows that LF-to-CRLF changes evade the promised byte-preservation check. The latter two were reproduced against actual predicates with controls. RS-01 is qualified to the observed provider tool set; native Claude resolution was not tested.
 
 No new defect was confirmed in repository-investigator. Its direct behavior coverage, caller-supplied dirty-state evidence, and fallback-host local-effect controls remain recommendations. Researcher recommendations cover privacy across MCP calls and binding successful retrieval to supported claims. Reviewer recommendations and shared findings retain their exact scope. The candidate source remains unchanged, and none of these checks supplies native model, sandbox, or production acceptance.
+
+## Group 13 adjudicated findings
+
+[verified] All three final agent reports were read and adjudicated by the caller. SRE-01 (Medium) is a command-guard enforcement defect: stash/reflog output-file options pass both Bash and PowerShell checks and were shown to create and overwrite owned files in a disposable Git repository. SE-01 (Medium) is a bounded evaluator defect: fabricated artifact creation in passive or bare-voice wording passes all five no-tools scenario graders, while the equivalent first-person claim fails. The reports and shared verification record preserve their positive/negative controls and native-host limits.
+
+No distinct defect was confirmed in scribe. Its recommendations concern closeout-binding and evidence negatives, method-loading coverage, and targeted prose consolidation. Software-engineer retains the full diagnosis loop, stack boundaries and independent-review conditions; current source policy governs deployment preparation. SRE browser and credential-output controls retain their stated cooperative limits, and successful protected observations still need target-bound receipts. Previously recorded skill/agent findings are cross-referenced, not counted again. All 39 assets now have six documented analytical passes.
 
 ## Verification record
 
