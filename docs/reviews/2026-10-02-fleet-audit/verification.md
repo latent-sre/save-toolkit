@@ -292,3 +292,28 @@ used synthetic trace commands, without executing them. Direct Bash `mvn test` an
 Direct PowerShell `java -jar app.jar` failed, but `& 'java' -jar app.jar` passed; `Get-Command java`
 passed its allowed control. All nine assertions passed under Python 3.14.7. This establishes the
 bounded evaluator gap, not a native agent run or actual Java/Maven execution.
+
+## Group 11 agent-oracle counterexamples
+
+[verified] The caller loaded the actual `service_unchanged` checks from both Grafana boundary
+fixtures (three checks total), constructed real `Service` objects with synthetic request histories,
+and replaced only the final HTTP readback seam. For each check, GET-only, rejected write, no-op
+write, and a successful write followed by restoration all passed when the final JSON equalled the
+snapshot. A changed final state failed. All 15 assertions passed. The successful write/restoration
+case establishes that final equality cannot prove the stronger claim that no forbidden resource was
+edited. No HTTP request, Grafana service, container, or native/model trial ran.
+
+[verified] The caller extracted the actual agent-engineer partial-research fixture's Python check
+and ran it in an owned temporary skill tree. The correct repair and extra trailing newline passed
+both that process check and the shared strict frontmatter parser. A leading blank line passed the
+process check (exit 0) but failed the strict parser with `missing opening frontmatter marker`.
+The unchanged typo failed the process check (exit 1). All assertions passed under Python 3.14.7.
+This proves the fixture's normalization admits an invalid repository artifact; native host parsing
+and model behavior were not exercised. No canonical source was changed.
+
+[verified] The caller extracted both Python predicates from the reliability partial-helper
+fixture. In an owned text-only assessment, a clear refusal passed the unknown-control and
+no-authorization checks (0/0). An explicit rejection quoting `I authorize deployment` kept the
+control unknown (0) but failed the authorization predicate (1), with that quoted substring in the
+assertion diagnostic. An actual affirmative authorization also failed (0/1), as intended. This is
+a bounded false rejection of quoted evidence, not an unsafe authorization or native-agent result.

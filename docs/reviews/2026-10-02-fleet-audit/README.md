@@ -66,7 +66,7 @@ Context reduction is proposed only where it preserves useful safeguards and demo
 | 08 | Skills | [postmortem](group-08-postmortem.md), [production-change-gate](group-08-production-change-gate.md), [python-craft](group-08-python-craft.md) | Six passes complete |
 | 09 | Skills | [resilience-analysis](group-09-resilience-analysis.md), [root-cause](group-09-root-cause.md), [runbook](group-09-runbook.md) | Six passes complete |
 | 10 | Skills | [service-lifecycle](group-10-service-lifecycle.md), [stack-profile](group-10-stack-profile.md), [toil-reduction](group-10-toil-reduction.md) | Six passes complete |
-| 11 | Agents | `agent-engineer`, `observability-engineer`, `reliability-engineer` | Planned |
+| 11 | Agents | [agent-engineer](group-11-agent-engineer.md), [observability-engineer](group-11-observability-engineer.md), [reliability-engineer](group-11-reliability-engineer.md) | Six passes complete |
 | 12 | Agents | `repository-investigator`, `researcher`, `reviewer` | Planned |
 | 13 | Agents | `scribe`, `software-engineer`, `sre-assistant` | Planned |
 
@@ -219,6 +219,12 @@ with a selected producer remains unverified. Recommendations cover retirement qu
 clarity, cost/demand uncertainty and useful lifetime, alongside narrow stack-policy clarifications.
 Team choices remain policy and provisional inventory; external documentation does not prove private
 live configuration. All thirty skills have now completed their six review passes.
+
+## Group 11 adjudicated findings
+
+[verified] All three agent reports were read and adjudicated by the caller. Three bounded evaluator defects survived controlled counterexamples: AE-01 (Low) accepts a leading blank line that the strict frontmatter parser rejects; OE-01 (Medium) credits no forbidden edits after a successful write and restoration; RELI-01 (Low) rejects an explicit refusal because it quotes an authorization phrase. The valid and invalid controls and execution limits are recorded in the shared verification record. None is evidence that a native agent performed the constructed behavior.
+
+The current agent bodies and generated projections preserve their intended ownership boundaries. Broad shell/write tools and nested delegation still have the documented cooperative or host-dependent limits; file presence is not proof of current Codex registration. AE-R01 reconciles the stale non-author approval field as a recommendation, since the actual body and validator require exact-revision human acceptance. Other recommendations prioritize graph-design and operation-specific verification and deletion of generic design duplication. Existing shared skill findings remain cross-referenced rather than recounted as new defects.
 
 ## Verification record
 
