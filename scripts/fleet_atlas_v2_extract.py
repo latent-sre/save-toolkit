@@ -1552,7 +1552,7 @@ def extract(snapshot: Snapshot, *, stages=EXTRACTION_STAGES) -> Extraction:
     fields = {f.predicate for b in buckets for f in b.facts} - EDGE_TYPES
     # All source spans are replayed; joined proofs may include canonical targets and
     # controlling validators in addition to their declaration source.
-    authority = ('*.md', '*.py', '*.json', '*.yaml', '*.yml', '*.toml', '*.txt', '*.sh', '*.ps1', '*.js', '*.ts', '*.html', '*.css', '*.svg', '*.ini', '*.cfg')
+    authority = ('*.md', '*.py', '*.json', '*.csv', '*.yaml', '*.yml', '*.toml', '*.txt', '*.sh', '*.ps1', '*.js', '*.ts', '*.html', '*.css', '*.svg', '*.ini', '*.cfg')
     predicates = tuple(Predicate(name, frozenset(source), frozenset(target), authority)
                        for name, (source, target) in sorted(EDGE_ENDPOINTS.items()))
     predicates += tuple(Predicate(name, NODE_TYPES, None, authority, None if name in ('unknown', 'guidance') else 1)

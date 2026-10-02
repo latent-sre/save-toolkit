@@ -151,6 +151,23 @@ The service-lifecycle lane was discussed in a review.
         self.assertFalse(any(f.predicate == 'cites' for f in changed.facts))
         self.assertTrue(any(f.predicate == 'unknown' and dict(f.qualifiers)['code'] == 'extract.link-selector-unresolved' for f in changed.facts))
 
+    def test_linked_review_inventory_keeps_source_bound_csv_identity(self):
+        path = 'docs/reviews/packet/inventory.csv'
+        _, _, graph = build({
+            'docs/reviews/packet/README.md': '# Packet\n[Inventory](inventory.csv)\n',
+            path: 'path,bytes\nskills/example/SKILL.md,123\n',
+        })
+        inventory = next(node for node in graph.nodes if node.path == path)
+        self.assertEqual(('document:' + path, 'document'), (inventory.id, inventory.type))
+        name = next(fact for fact in graph.facts
+                    if fact.subject == inventory.id and fact.predicate == 'name')
+        self.assertEqual(path, name.object)
+        self.assertEqual(ProofKind.COMPUTED, name.proof.kind)
+        self.assertEqual({path}, {span.path for span in name.proof.inputs})
+        self.assertTrue(any(fact.subject == 'review:packet/README'
+                            and fact.predicate == 'cites' and fact.object == inventory.id
+                            for fact in graph.facts))
+
     def test_multiple_selectors_of_one_evidence_file_are_distinct_claims(self):
         _, _, graph = build({'docs/fleet-roadmap.md': '# Roadmap\n### SKILL-001 title\n**Evidence:** [first](reviews/result.md#first)\n[second](reviews/result.md#second)\n[whole](reviews/result.md)\n',
                              'docs/reviews/result.md': '# Result\n## First\nOne.\n## Second\nTwo.\n'})
