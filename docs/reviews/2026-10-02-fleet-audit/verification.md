@@ -209,3 +209,20 @@ PowerShell 5.1.26100.9549 used `us-ascii` native output and delivered `caf??.txt
 `c3 a9` in both cases. All four commands exited 0; both shells appended a pipeline newline.
 This establishes changed validation input on the named 5.1 path, not an Alloy validation result.
 Adding input decoding alone does not fix native-output encoding; exact-file transport is preferable.
+
+## Group 07 bounded effect-client probe
+
+[verified] The caller loaded the reference CLI's actual `cancel_one` with an in-memory effect seam.
+For a synthetic client that changed the item to cancelled and then raised `OrderError`, the function
+returned `failed` and made zero status reads. The `TimeoutError` control returned `succeeded` after
+one status read. Both assertions passed under Python 3.14.7; no real API or persistent effect occurred.
+The shipped fixture raises `OrderError` only for definitive rejection, so this probe establishes the
+importance of the adapter's exception contract, not a demonstrated failure of that fixture or an
+actual production client. The report preserves that conditional scope.
+
+[verified] The caller reused the CLI asset's real fake client and test runner in an owned temporary
+fixture. The existing wrapper simulated `isatty() == true`. Input `y` exited 0 with three effect
+calls and JSON; `n` exited 2 with no effect calls and no traceback. EOF exited 1 with an `EOFError`
+traceback and zero effect calls. All caller assertions passed. This is a subprocess reproduction
+of the prompt path, not a physical-terminal test. Empty JSON output is not asserted as a separate
+EOF-only defect because the ordinary refusal path also emits no receipt.

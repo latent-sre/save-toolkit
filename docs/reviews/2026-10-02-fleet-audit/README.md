@@ -62,7 +62,7 @@ Context reduction is proposed only where it preserves useful safeguards and demo
 | 04 | Skills | [grafana](group-04-grafana.md), [incident-investigation](group-04-incident-investigation.md), [obs-alerting](group-04-obs-alerting.md) | Six passes complete |
 | 05 | Skills | [obs-dashboards](group-05-obs-dashboards.md), [obs-logs](group-05-obs-logs.md), [obs-metrics](group-05-obs-metrics.md) | Six passes complete |
 | 06 | Skills | [obs-pipeline](group-06-obs-pipeline.md), [obs-traces](group-06-obs-traces.md), [operational-learning](group-06-operational-learning.md) | Six passes complete |
-| 07 | Skills | `operator-cli`, `pcf-deploy`, `pcf-ops` | Planned |
+| 07 | Skills | [operator-cli](group-07-operator-cli.md), [pcf-deploy](group-07-pcf-deploy.md), [pcf-ops](group-07-pcf-ops.md) | Six passes complete |
 | 08 | Skills | `postmortem`, `production-change-gate`, `python-craft` | Planned |
 | 09 | Skills | `resilience-analysis`, `root-cause`, `runbook` | Planned |
 | 10 | Skills | `service-lifecycle`, `stack-profile`, `toil-reduction` | Planned |
@@ -160,6 +160,21 @@ ownership conflict. Product/SDK claims are bounded to current primary sources; n
 backend or native model was executed. The Tempo size-limit documentation disagreement remains a
 version-qualification recommendation pending implementation/target evidence. Proposed repairs
 preserve no-data uncertainty, exact KB checkout binding, human review and production boundaries.
+
+## Group 07 adjudicated findings
+
+Four bounded findings survived adjudication. CLI-01 is the reproduced EOF traceback/refusal-exit
+problem. CLI-02 is a missing definitive-rejection precondition at the copyable client seam; the
+provided stub is valid, so this remains a Low documentation finding rather than a demonstrated
+production-client failure. DEPLOY-01 qualifies rolling/canary bounds by process type and app state.
+PCF-01 corrects the absolute prohibition on adjusting a fixed heap when that heap causes the
+calculator's total-memory overflow.
+
+The caller ran the real CLI prompt/test path with yes/no/EOF controls and the conditional
+applied-then-error seam comparison. PCF conclusions use inspected guidance and identified primary
+contracts, without CF, JVM or foundation execution. Recommendations address adapter applicability,
+cooperative-lock wording, receipt responsibility, process-level plan tests and target evidence.
+Backfill synchronization and previously recorded oracle weaknesses retain their existing IDs.
 
 ## Verification record
 
