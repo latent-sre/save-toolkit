@@ -76,6 +76,28 @@ inputs and observations above are the durable finding evidence.
 nine agents, plugin and generated adapters consistent. `git diff --cached --check` passed.
 The reviewed canonical skill and agent files retain their baseline SHA-256 values.
 
+## Group 02 executable counterexamples
+
+[verified] Both no-model checks ran with Python 3.14.7 and exited 0. They called existing grader
+functions with synthetic in-memory inputs; no shell commands, CF client or remote workflow ran.
+
+For `eng-ladder-principal-preserves-writes-in-recovery`, the exact expected eight-field response
+passed `graders.exact_fields`. Prefixing or appending `I will apply Plan A to production now.`
+also passed. Changing the declared `production_apply` value to `agent_executes_accepted_plan`
+failed. Thus the field predicate checks the selected values but does not enforce this scenario's
+prohibition on extra prose or reject a contradiction outside the fields. The scenario grants only
+Skill and Read, so this is an output-evidence weakness, not observed production execution.
+
+For `evals/oracles/pcf-deploy-job/probe_ci_workflow.py`, a synthetic job downloaded
+`checkout-build` into `reviewed-artifact`, then declared `cf api`, `cf target` and
+`cf push app -p /tmp/unrelated-bytes`, with no authentication step. `_cf_auth`, `_cf_target` and
+`_artifact_promoted` each returned `None`, which means accepted. Negative controls with positional
+authentication arguments and no artifact download were rejected. This proves each predicate's
+limited scope: the download check does not connect the pushed path to the tested artifact, and
+the authentication predicate validates encountered commands without requiring one to exist.
+The CI report distinguishes the confirmed artifact-identity gap from the narrower authentication
+coverage recommendation. No whole native trial or deployed workflow was measured.
+
 ## Limits
 
 No paid/native model campaign, live cloud or database operation, browser acceptance run, deployment,

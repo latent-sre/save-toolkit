@@ -57,7 +57,7 @@ Context reduction is proposed only where it preserves useful safeguards and demo
 | Group | Kind | Assets | State |
 |---|---|---|---|
 | 01 | Skills | [agent-authoring](group-01-agent-authoring.md), [akamai-edge](group-01-akamai-edge.md), [backend-craft](group-01-backend-craft.md) | Six passes complete |
-| 02 | Skills | `ci-actions`, `database-reliability`, `eng-ladder` | Planned |
+| 02 | Skills | [ci-actions](group-02-ci-actions.md), [database-reliability](group-02-database-reliability.md), [eng-ladder](group-02-eng-ladder.md) | Six passes complete |
 | 03 | Skills | `fleet-atlas`, `frontend-craft`, `gcp-ops` | Planned |
 | 04 | Skills | `grafana`, `incident-investigation`, `obs-alerting` | Planned |
 | 05 | Skills | `obs-dashboards`, `obs-logs`, `obs-metrics` | Planned |
@@ -83,6 +83,22 @@ coverage; live-platform gaps remain explicitly unverified.
 The caller directly inspected the contested validators, calibration rubric, reference-read path,
 webhook fixture, reviewer rule and HTTP assets. It reproduced the path-identity and HTTP predicate
 counterexamples. The reports qualify what each result establishes and retain useful controls.
+
+## Group 02 adjudicated findings
+
+[verified] Two additional confirmed evaluator defects survived source review and executable
+counterexamples: CI-01 credits an artifact download without binding the deployment path to it;
+EL-01 accepts contradictory extra prose around a correct recovery decision packet. Both reports
+state their individual-predicate scope and retain rejecting controls. Missing CI authentication is
+recorded as a narrower coverage recommendation because a different validated authentication path
+can be legitimate. No material database-guidance correctness defect was confirmed.
+
+Recommendations favor small clarifications: synchronize accepted writes throughout backfill,
+make concurrent-index completion/cancellation criteria explicit, distinguish illustrative horizons
+from routing predicates, and measure a bounded consultation/return sequence when needed. Existing
+engine-version qualifications, preserved-write recovery and human execution boundaries remain
+strengths. Database upstream source indexing was incomplete; the report relies on identified
+primary documentation and labels actual engine behavior unverified.
 
 ## Verification record
 
