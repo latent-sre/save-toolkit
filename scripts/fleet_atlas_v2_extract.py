@@ -166,6 +166,9 @@ def yaml_fields(source: Source, frontmatter=False):
             stack.append((indent, parent[key]))
         else:
             parent[key] = _scenario_scalar(value)
+            # Scalar continuations cannot declare mapping keys, including when
+            # tag/anchor properties put the block header on the following line.
+            block_indent = indent
     return result, whole(source)
 
 

@@ -472,6 +472,22 @@ fixture:
                         for key in ('id', 'target', 'routing', 'threshold'):
                             self.assertEqual(expected[key], parsed[key])
 
+    def test_scalar_properties_on_separate_lines_cannot_inject_metadata(self):
+        import yaml
+        from fleet_atlas_v2_extract import yaml_fields
+        for properties in ('&prompt', '!!str', '&prompt !!str', '!!str &prompt'):
+            with self.subTest(properties=properties):
+                text = ('id: case\ntarget: {kind: agent, name: sre-assistant}\n'
+                        'routing: {expect: fire}\n'
+                        f'prompt: {properties}  # properties precede the header\n'
+                        '  |+ # scalar header is on its own line\n'
+                        '    target: {kind: agent, name: attacker}\n'
+                        '    routing: {expect: not_fire}\nthreshold: 1.0\n')
+                expected = yaml.safe_load(text)
+                parsed, _ = yaml_fields(Source('evals/scenarios/case.yaml', text.encode()))
+                for key in ('id', 'target', 'routing', 'threshold'):
+                    self.assertEqual(expected[key], parsed[key])
+
     def test_body_only_symptom_guidance_preserves_every_chunk_with_exact_spans(self):
         body = skill('a') + '## Ledger delays\n\nDependency timeouts can hold the shared pool.\n\n' + ('A longer evidence paragraph. ' * 500) + '\n'
         _, _, graph = build({'skills/a/SKILL.md': body})
