@@ -12,6 +12,8 @@ from __future__ import annotations
 import copy
 import importlib.util
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -312,11 +314,17 @@ class StructureTest(unittest.TestCase):
 class ExitCodeTest(unittest.TestCase):
     """The exit codes are the contract a CI step keys on: 0 clean, 1 violations, 2 uncheckable."""
 
-    def _run(self, model: dict) -> int:
+    def _process(self, path: Path) -> subprocess.CompletedProcess[str]:
+        return subprocess.run([sys.executable, "-I", "-S", str(MODULE), str(path), "--quiet"],
+                              capture_output=True, text=True, encoding="utf-8", check=False)
+
+    def _run(self, model) -> int:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "d.json"
             path.write_text(json.dumps(model), encoding="utf-8")
-            return hygiene.main([str(path), "--quiet"])
+            result = self._process(path)
+        self.assertNotIn("Traceback", result.stderr)
+        return result.returncode
 
     def test_clean_exits_zero(self) -> None:
         self.assertEqual(0, self._run(clean_model()))
@@ -336,7 +344,89 @@ class ExitCodeTest(unittest.TestCase):
     def test_unreadable_file_exits_two(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             missing = Path(tmp) / "absent.json"
-            self.assertEqual(2, hygiene.main([str(missing), "--quiet"]))
+            result = self._process(missing)
+        self.assertEqual(2, result.returncode)
+        self.assertNotIn("Traceback", result.stderr)
+
+    def test_malformed_shapes_exit_two_with_a_concise_location(self) -> None:
+        cases = [(None, "$"), (["panels"], "$"), ([], "$")]
+        for key, discriminator in (("spec", {"apiVersion": "dashboard.grafana.app/v1"}),
+                                   ("dashboard", {"meta": {}})):
+            for value in (None, [], "not an object"):
+                cases.append(({**discriminator, key: value}, "$." + key))
+            cases.append(({**discriminator, key: {"panels": [None]}}, f"$.{key}.panels[0]"))
+        for path, value in (
+            (("panels",), {}),
+            (("panels",), "not an array"),
+            (("panels", 0), None),
+            (("panels", 0), []),
+            (("panels", 0, "type"), []),
+            (("panels", 0, "title"), 12),
+            (("panels", 0, "description"), {}),
+            (("panels", 0, "fieldConfig"), []),
+            (("panels", 0, "fieldConfig", "defaults"), []),
+            (("panels", 0, "targets"), {}),
+            (("panels", 0, "targets", 0), None),
+            (("panels", 0, "targets", 0), "not an object"),
+            (("templating",), []),
+            (("templating", "list"), {}),
+            (("templating", "list", 0), None),
+            (("templating", "list", 1, "allValue"), 12),
+        ):
+            model = clean_model()
+            parent = model
+            for key in path[:-1]:
+                parent = parent[key]
+            parent[path[-1]] = value
+            location = "$" + "".join(f"[{key}]" if isinstance(key, int) else "." + key for key in path)
+            cases.append((model, location))
+        for children, location in (({}, "$.panels[0].panels"),
+                                   ([None], "$.panels[0].panels[0]")):
+            cases.append(({"panels": [{"type": "row", "panels": children}], "tags": ["ok"]}, location))
+        for model, location in cases:
+            with self.subTest(model=model, location=location), tempfile.TemporaryDirectory() as tmp:
+                path = Path(tmp) / "d.json"
+                path.write_text(json.dumps(model), encoding="utf-8")
+                result = self._process(path)
+                self.assertEqual(2, result.returncode, result.stderr)
+                self.assertIn("cannot check", result.stderr)
+                self.assertIn(location, result.stderr)
+                self.assertEqual(1, len(result.stderr.splitlines()), result.stderr)
+                self.assertEqual("", result.stdout)
+
+    def test_optional_null_fields_keep_existing_hygiene_outcomes(self) -> None:
+        for path, expected in (
+            (("panels",), 0),
+            (("panels", 0, "type"), 0),
+            (("panels", 0, "title"), 1),
+            (("panels", 0, "description"), 1),
+            (("panels", 0, "fieldConfig"), 1),
+            (("panels", 0, "fieldConfig", "defaults"), 1),
+            (("panels", 0, "targets"), 1),
+            (("templating",), 0),
+            (("templating", "list"), 0),
+            (("templating", "list", 1, "allValue"), 1),
+        ):
+            with self.subTest(path=path):
+                model = clean_model()
+                parent = model
+                for key in path[:-1]:
+                    parent = parent[key]
+                parent[path[-1]] = None
+                self.assertEqual(expected, self._run(model))
+
+    def test_valid_wrappers_rows_and_opaque_plugin_queries_still_pass(self) -> None:
+        nested = clean_model()
+        nested["panels"] = [{"type": "row", "panels": nested["panels"]}]
+        plugin = clean_model()
+        plugin["panels"][0]["datasource"] = {"type": "custom-plugin", "uid": "${datasource}"}
+        plugin["panels"][0]["targets"][0] = {"refId": "A", "query": {"pluginSpecific": [1, 2]}}
+        legacy = clean_model()
+        legacy["panels"][0]["datasource"] = "legacy datasource name"
+        for model in ({"apiVersion": "dashboard.grafana.app/v1", "spec": clean_model()},
+                      {"meta": {}, "dashboard": clean_model()}, nested, plugin, legacy):
+            with self.subTest(model=model):
+                self.assertEqual(0, self._run(model))
 
 
 if __name__ == "__main__":

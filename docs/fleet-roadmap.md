@@ -26,15 +26,18 @@ records do not re-queue work.
 ### AUDIT-001 — review all skills and agents and disposition the findings
 
 **Status:** `decision-needed` (2026-10-02); all 13 groups reviewed, covering 30 skills and 9 agents
-with six passes each against freshly fetched main `a2d2e57d`. The evidence records 50 confirmed findings.
+with six passes each against freshly fetched main `a2d2e57d`. The evidence records 50 confirmed
+findings; sixteen selected repairs are implemented and locally verified, with no open material
+independent review findings. The remaining 34 findings retain their original dispositions.
 **Owner:** The human owner selects repairs and dispositions; the audit caller owns the review evidence.
 **Outcome:** All 30 skills, then all 9 agents, receive six documented review passes in groups of
 three, with each group's findings committed before the next group, and the owner can select
 evidence-backed repairs, recommendations, or explicit deferrals.
-**Next action:** The human owner selects the first repair batch or records explicit dispositions,
-using the audit's prioritized themes and stable finding IDs. Preserve confirmed defects, optional
-improvements, policy choices and runtime gaps separately. Findings are complete; source remediation
-and any native model campaign remain separately scoped work.
+**Next action:** The human owner reviews the published candidate for AE-01, RUN-01/02,
+PY-01/02/03, LEARN-01/02, LOG-01/02, FE-01/02, GP-01 and GRA-01/02/03, then selects
+remaining repairs or explicit dispositions. [Repair evidence](reviews/2026-10-02-fleet-audit/selected-fixes.md)
+records 1,528 passing tests, 2,922 passing subtests, 19 skips and the exact implementation
+identity. Native model work and target-platform acceptance remain separately scoped.
 **Evidence:** [Six-pass audit and group reports](reviews/2026-10-02-fleet-audit/README.md).
 Retain this packet until the owner's dispositions and any accepted repairs no longer depend on it.
 **SRE task:** Identify which guidance is correct and useful, which claims lack verification, and

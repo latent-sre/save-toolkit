@@ -11,7 +11,7 @@
 import { render, screen, cleanup, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
-import { http, HttpResponse, delay } from 'msw';
+import { http, HttpResponse } from 'msw';
 import { BrowserRouter } from 'react-router-dom';
 import { afterEach, beforeAll, expect, test } from 'vitest';
 import '@testing-library/jest-dom/vitest';
@@ -63,16 +63,111 @@ function renderAt(path) {
   );
 }
 
-function loadingIndicator() {
-  if (screen.queryAllByRole('status').length) return 'role=status';
-  if (screen.queryAllByRole('progressbar').length) return 'role=progressbar';
-  if (screen.queryAllByText(/loading|fetching|please wait/i).length) return 'loading text';
-  if (document.querySelectorAll('[aria-busy="true"]').length) return 'aria-busy';
-  const labelled = [...document.querySelectorAll('[aria-label]')].some((el) =>
-    /loading|fetching/i.test(el.getAttribute('aria-label') ?? ''),
-  );
-  if (labelled) return 'aria-label=loading';
-  return '';
+function pageFor(container) {
+  return container.querySelector('main, [role="main"]') ?? container;
+}
+
+function isVisible(element) {
+  try {
+    expect(element).toBeVisible();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function renderedText(element) {
+  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+  const parts = [];
+  let node;
+  while ((node = walker.nextNode())) {
+    if (node.parentElement && isVisible(node.parentElement)) parts.push(node.textContent);
+  }
+  return parts.join(' ').replace(/\s+/g, ' ').trim();
+}
+
+// Compare visible meanings/counts, so an unchanged message remounting is not a state
+// transition, while the same live-region node changing its text or ARIA state is valid.
+function stateSignals(container, state) {
+  const page = pageFor(container);
+  const query = within(page);
+  const signals = [];
+  const add = (elements, kind, value = renderedText) => {
+    for (const element of elements.filter(isVisible)) {
+      const meaning = value(element);
+      if (meaning) signals.push({ kind, value: meaning });
+    }
+  };
+  const addRole = (role) => {
+    const names = new Map();
+    const elements = query.queryAllByRole(role, { name: (name, element) => {
+      names.set(element, name);
+      return true;
+    } });
+    // Testing Library supplies the computed name, including aria-labelledby. Unlabelled
+    // roles must carry rendered content; hidden descendant text cannot create a signal.
+    add(elements, role, (element) =>
+      [renderedText(element), names.get(element)].filter(Boolean).join('|'));
+  };
+  const matching = (selector) => [
+    ...(page.matches(selector) ? [page] : []), ...page.querySelectorAll(selector),
+  ];
+  if (state === 'loading') {
+    addRole('status');
+    add(query.queryAllByRole('progressbar'), 'progressbar', (el) =>
+      `${el.getAttribute('aria-valuenow')}|${el.getAttribute('aria-valuetext')}`);
+    add(query.queryAllByText(/loading|fetching|please wait/i), 'text');
+    // A busy container gaining row text is not evidence that its busy state cleared.
+    add(matching('[aria-busy="true"]'), 'busy', () => 'true');
+    add(matching('[aria-label]').filter((el) =>
+      /loading|fetching/i.test(el.getAttribute('aria-label') ?? '')), 'label',
+      (el) => el.getAttribute('aria-label'));
+  } else if (state === 'error') {
+    addRole('alert');
+    add(query.queryAllByText(
+      /error|failed|could not|couldn't|unable|went wrong|try again|unavailable/i,
+    ), 'text');
+  } else {
+    add(query.queryAllByText(
+      /no incidents|no results|no matching|nothing to show|nothing here|none found|no rows|all clear|empty/i,
+    ), 'text');
+  }
+  return signals;
+}
+
+function sameSignal(left, right) {
+  return left.kind === right.kind && left.value === right.value;
+}
+
+function addedSignal(before, after) {
+  return after.some((signal) =>
+    after.filter((other) => sameSignal(signal, other)).length >
+      before.filter((other) => sameSignal(signal, other)).length);
+}
+
+function controlledIncidents(response) {
+  let release;
+  let calls = 0;
+  const pending = new Promise<void>((resolve) => { release = resolve; });
+  stubIncidents(async () => {
+    calls += 1;
+    await pending;
+    return response();
+  });
+  return {
+    release: () => release(),
+    started: () => waitFor(() => expect(calls, 'GET /api/incidents never started')
+      .toBeGreaterThan(0), { timeout: 5000 }),
+  };
+}
+
+function expectIncidentRows(container, included, excluded) {
+  // A valid client filter may hide nonmatching rows instead of removing their DOM nodes.
+  const rows = within(pageFor(container)).queryAllByRole('row', { hidden: true }).filter(isVisible);
+  expect(rows.some((row) => row.textContent?.includes(included)),
+    `filtered results have no visible row for ${included}`).toBe(true);
+  expect(rows.some((row) => row.textContent?.includes(excluded)),
+    `filtered results still show the nonmatching row ${excluded}`).toBe(false);
 }
 
 function statusSelect(want) {
@@ -131,57 +226,63 @@ function showsStatus(want) {
 }
 
 test('bar1 loading state is visible while the incidents request is in flight', async () => {
-  stubIncidents(async () => {
-    await delay(300);
-    return HttpResponse.json(ROWS);
-  });
-  renderAt('/incidents');
-  expect(
-    loadingIndicator(),
-    'no loading state: nothing with role=status or role=progressbar, no /loading/i text, ' +
-      'and no aria-busy element while GET /api/incidents was still in flight',
-  ).not.toBe('');
-  await screen.findByText(/inc-0001/, undefined, { timeout: 5000 });
+  const request = controlledIncidents(() => HttpResponse.json(ROWS));
+  const { container } = renderAt('/incidents');
+  try {
+    await request.started();
+    const pending = stateSignals(container, 'loading');
+    expect(pending.length, 'no visible loading state while GET /api/incidents was pending')
+      .toBeGreaterThan(0);
+    request.release();
+    await waitFor(() => {
+      expect(within(pageFor(container)).getByText(/inc-0001/)).toBeVisible();
+      const loaded = stateSignals(container, 'loading');
+      expect(addedSignal(loaded, pending),
+        'the loading signal never changed after incidents loaded; a permanent unrelated ' +
+          'status is not an incidents loading state').toBe(true);
+    }, { timeout: 5000 });
+  } finally {
+    request.release();
+  }
 }, 20000);
 
 test('bar2 a failed request shows an inline error, not a white page', async () => {
-  stubIncidents(() => HttpResponse.json({ error: 'internal' }, { status: 500 }));
-  renderAt('/incidents');
-  await waitFor(
-    () => {
-      const alerts = screen.queryAllByRole('alert').length;
-      const words = screen.queryAllByText(
-        /error|failed|could not|couldn't|unable|went wrong|try again|unavailable/i,
-      ).length;
-      expect(
-        alerts + words,
-        'GET /api/incidents returned 500 and the page showed nothing: no role=alert and ' +
-          'no error wording anywhere on the page',
-      ).toBeGreaterThan(0);
-    },
-    { timeout: 5000 },
-  );
-  expect(
-    screen.queryAllByRole('heading').length,
-    'the page heading disappeared on the error path: that is a white page, not an inline error',
-  ).toBeGreaterThan(0);
+  const request = controlledIncidents(() => HttpResponse.json({ error: 'internal' }, { status: 500 }));
+  const { container } = renderAt('/incidents');
+  try {
+    await request.started();
+    const pending = stateSignals(container, 'error');
+    request.release();
+    await waitFor(() => {
+      const failed = stateSignals(container, 'error');
+      expect(addedSignal(pending, failed),
+        'GET /api/incidents returned 500 without a new visible inline error in the page')
+        .toBe(true);
+      expect(within(pageFor(container)).queryAllByRole('heading').some(isVisible),
+        'the page heading disappeared on the error path: that is a white page, not an inline error')
+        .toBe(true);
+    }, { timeout: 5000 });
+  } finally {
+    request.release();
+  }
 }, 20000);
 
 test('bar3 an empty result renders a designed empty state, not a blank region', async () => {
-  stubIncidents(() => HttpResponse.json([]));
-  renderAt('/incidents');
-  await waitFor(
-    () => {
-      expect(
-        screen.queryAllByText(
-          /no incidents|no results|no matching|nothing to show|nothing here|none found|no rows|all clear|empty/i,
-        ).length,
-        'GET /api/incidents returned [] and the page rendered no message: the table region ' +
-          'is blank instead of a designed empty state',
-      ).toBeGreaterThan(0);
-    },
-    { timeout: 5000 },
-  );
+  const request = controlledIncidents(() => HttpResponse.json([]));
+  const { container } = renderAt('/incidents');
+  try {
+    await request.started();
+    const pending = stateSignals(container, 'empty');
+    request.release();
+    await waitFor(() => {
+      const empty = stateSignals(container, 'empty');
+      expect(addedSignal(pending, empty),
+        'GET /api/incidents returned [] without a new visible empty-state message in the page')
+        .toBe(true);
+    }, { timeout: 5000 });
+  } finally {
+    request.release();
+  }
 }, 20000);
 
 test('bar4 every control on the page has a non-empty accessible name', async () => {
@@ -209,14 +310,14 @@ test('bar4 every control on the page has a non-empty accessible name', async () 
   }
 }, 20000);
 
-test('bar5 the status filter lives in the URL, not only in component state', async () => {
+test('bar5 the status filter round-trips through the URL and filters visible rows', async () => {
   stubIncidents(({ request }) => {
     const wanted = new URL(request.url).searchParams.get('status');
     const rows = wanted ? ROWS.filter((r) => r.status === wanted) : ROWS;
     return HttpResponse.json(rows);
   });
   const user = userEvent.setup();
-  renderAt('/incidents');
+  const { container } = renderAt('/incidents');
   await screen.findByText(/inc-0001/, undefined, { timeout: 5000 });
   await chooseStatus(user, 'closed');
   await waitFor(
@@ -226,11 +327,12 @@ test('bar5 the status filter lives in the URL, not only in component state', asy
         'choosing the "closed" status did not put status=closed in the URL: the filter ' +
           'lives only in component memory, so the link is not shareable and back does nothing',
       ).toMatch(/status=closed/i);
+      expectIncidentRows(container, 'inc-0002', 'inc-0001');
     },
     { timeout: 4000 },
   );
   cleanup();
-  renderAt('/incidents?status=open');
+  const deepLink = renderAt('/incidents?status=open');
   await waitFor(
     () => {
       expect(
@@ -238,6 +340,7 @@ test('bar5 the status filter lives in the URL, not only in component state', asy
         'loading /incidents?status=open did not restore the filter control to "open": the ' +
           'URL is not read back as state',
       ).toBe(true);
+      expectIncidentRows(deepLink.container, 'inc-0001', 'inc-0002');
     },
     { timeout: 5000 },
   );

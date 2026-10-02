@@ -11,6 +11,12 @@ the owner.
 recommendations, policy choices and unverified runtime behavior kept separate. Each group was
 reviewed and its findings committed before work began on the next group.
 
+**Selected repairs:** Sixteen findings are implemented and locally verified, with no open
+material independent review findings. The final suite passed 1,528 tests and 2,922 subtests;
+19 environment/opt-in checks were skipped. [Repair dispositions and fresh evidence](selected-fixes.md)
+identify the candidate and its remaining native/platform limits. The other 34 confirmed findings
+are unchanged, and the reports below retain their original audit-baseline meaning.
+
 ## Exact source and scope
 
 - [verified] Fresh `git fetch origin main` on 2026-10-02, then an isolated worktree and branch

@@ -136,11 +136,13 @@ incident fast path.
 
 ## Credential-bearing reads are human-only
 
-Claude's guard denies `gcloud auth print-access-token`, `print-identity-token`,
+Claude's fleet credential tripwire denies `gcloud auth print-access-token`, `print-identity-token`,
 `application-default print-access-token`, `secrets versions access` and `kms decrypt`, as it denies
-`cf env`: live credentials must never meet an agent that holds egress. It also denies
-`--impersonate-service-account` and `--flags-file` on every command. A human runs a genuinely
-needed one and pastes the smallest sanitized excerpt.
+`cf env`, across roster lanes: live credentials must never meet an agent that holds egress.
+The separate `sre-assistant` gcloud allowlist also denies `--impersonate-service-account` and
+`--flags-file`; those flag checks do not cover other lanes. Task authority and protected-output
+requirements still apply. A human runs a genuinely needed credential-bearing read and returns
+the smallest sanitized excerpt.
 
 ## Provisional project/platform ownership
 

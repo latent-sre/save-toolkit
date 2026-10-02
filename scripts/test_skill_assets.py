@@ -140,7 +140,7 @@ class SkillAssetTests(unittest.TestCase):
             ("operational-learning/assets/service-card-template.md", "source_revision",
              "<repository@short-commit or reviewed release identifier>"),
             ("operational-learning/assets/alert-card-template.md", "source_definition",
-             "<repository path + unique short commit ID>"),
+             "<owning repository path@exact revision OR API resource locator + UID>"),
         ):
             with self.subTest(template=name):
                 text = (ROOT / "skills" / name).read_text(encoding="utf-8")

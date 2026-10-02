@@ -60,6 +60,12 @@ def _ctx(spec: dict, ws: build_probe.Workspace, *, text: str = "", skills=(), sk
     return build_probe.Context(spec, ws, trace, build_probe.collect_git_facts(ws))
 
 
+def _grafana_metric_frame(value: object = 0.2, ref_id: str = "A") -> dict:
+    return {"schema": {"refId": ref_id, "fields": [
+        {"name": "Time", "type": "time"}, {"name": "Value", "type": "number"},
+    ]}, "data": {"values": [[1], [value]]}}
+
+
 def _saved_grade(spec: dict, expectations: list[dict], *, binding: dict | None = None, response: str = "") -> dict:
     """Build identified saved records for synthetic traces; each label here is unique."""
     identity = build_probe.scenario_digest(spec, binding)
@@ -2166,7 +2172,7 @@ class ReviewFindingTests(unittest.TestCase):
             {
                 "method": "POST", "path": "/api/ds/query", "status": 200,
                 "request": {"queries": [{"refId": "A", "expr": "histogram_quantile(0.95, rate(checkout_request_duration_seconds_bucket[5m]))"}]},
-                "response": {"results": {"A": {"status": 200, "frames": [{"data": {"values": [[1], [0.2]]}}]}}},
+                "response": {"results": {"A": {"status": 200, "frames": [_grafana_metric_frame()]}}},
             },
             {
                 "method": "POST", "path": "/api/dashboards/db", "status": 200,
@@ -2206,14 +2212,14 @@ class ReviewFindingTests(unittest.TestCase):
                 "request": {"queries": [{"refId": "A", "expr": p95}, {"refId": "B", "expr": "up"}]},
                 "response": {"results": {
                     "A": {"status": 200, "frames": []},
-                    "B": {"status": 200, "frames": [{"data": {"values": [[1], [1]]}}]},
+                    "B": {"status": 200, "frames": [_grafana_metric_frame(1, "B")]},
                 }},
             },
             write,
         ]
         service.requests.reverse()  # the write first: only post-write queries count
         self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0], "unrelated batch data cannot clear a red p95 refId")
-        service.requests[1]["response"]["results"]["A"]["frames"] = [{"data": {"values": [[1], [0.2]]}}]
+        service.requests[1]["response"]["results"]["A"]["frames"] = [_grafana_metric_frame()]
         write["request"]["dashboard"]["panels"][0]["targets"][0]["expr"] = p95 + " + 1"
         self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0], "the successful query must equal the persisted panel target")
         write["request"]["dashboard"]["panels"][0]["targets"][0]["expr"] = p95
@@ -2223,7 +2229,7 @@ class ReviewFindingTests(unittest.TestCase):
                 "path": "/api/datasources/proxy/uid/checkout-metrics/api/v1/query?query=" + urllib.parse.quote(p95),
                 "status": 200,
                 "request": None,
-                "response": {"status": "success", "data": {"result": [{"value": [1, "0.2"]}]}},
+                "response": {"status": "success", "data": {"resultType": "vector", "result": [{"metric": {}, "value": [1, "0.2"]}]}},
             },
             write,
         ]
@@ -2231,6 +2237,171 @@ class ReviewFindingTests(unittest.TestCase):
         self.assertTrue(build_probe.check_grafana_query_succeeded(ctx, check)[0])
         service.requests[1]["response"]["data"]["result"] = []
         self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0], "proxy success without series data is not proof")
+
+    def _grafana_query_context(self):
+        ws = build_probe.seed_workspace(TINY_SPEC, self.root / "ws-grafana-query-regression")
+        service = build_probe.Service("grafana", "image@sha256:" + "0" * 64, "cid", "http://127.0.0.1:32123")
+        ctx = _ctx(TINY_SPEC, ws)
+        ctx.services = [service]
+        check = {"service": "grafana", "write_path": "/api/dashboards/db",
+                 "metric": "checkout_request_duration_seconds_bucket", "function": "histogram_quantile",
+                 "min_window_seconds": 4}
+        expression = "histogram_quantile(0.95, sum by (le) (rate(checkout_request_duration_seconds_bucket[5m])))"
+        target = {"refId": "A", "expr": expression}
+        query = {"method": "POST", "path": "/api/ds/query", "status": 200,
+                 "request": {"queries": [{"refId": "A", "expr": expression}]},
+                 "response": {"results": {"A": {"frames": [_grafana_metric_frame()]}}}}
+        service.requests = [
+            {"method": "POST", "path": "/api/dashboards/db", "status": 200,
+             "request": {"dashboard": {"panels": [{"title": "p95 checkout latency", "targets": [target]}]}}},
+            query,
+        ]
+        return ctx, check, target, query
+
+    def test_grafana_query_comparison_preserves_literals_and_token_boundaries(self) -> None:
+        ctx, check, target, query = self._grafana_query_context()
+        base = target["expr"]
+        selector = 'checkout_request_duration_seconds_bucket{route="/Check Out"}'
+        quoted = base.replace("checkout_request_duration_seconds_bucket", selector)
+        raw = base.replace("checkout_request_duration_seconds_bucket",
+                           "checkout_request_duration_seconds_bucket{route=" + chr(96) + "/Check\nOut" + chr(96) + "}")
+        escaped = base.replace("checkout_request_duration_seconds_bucket",
+                               r'checkout_request_duration_seconds_bucket{route="/Check \"Out\" \\ End"}')
+        macro_literal = quoted.replace('"/Check Out"', '"[$__rate_interval]"').replace("[5m]", "[$__rate_interval]")
+        macro_verified = macro_literal.replace("}[$__rate_interval]", "}[5m]")
+        cases = [
+            ("ordinary spacing", base, base.replace("(", " ( ").replace(")", " ) ").replace(",", " , "), True),
+            ("literal case", quoted, quoted.replace("/Check Out", "/check Out"), False),
+            ("literal whitespace", quoted, quoted.replace("/Check Out", "/CheckOut"), False),
+            ("single-quoted whitespace", quoted.replace('"', "'"), quoted.replace('"', "'").replace("/Check Out", "/CheckOut"), False),
+            ("raw-string newline", raw, raw.replace("/Check\nOut", "/CheckOut"), False),
+            ("escaped quote case", escaped, escaped.replace("Out", "out"), False),
+            ("escaped string with cosmetic spacing", escaped, escaped.replace("histogram_quantile(", "histogram_quantile ( "), True),
+            ("metric identifier case", base, base.replace("checkout_request", "Checkout_request"), False),
+            ("label identifier case", quoted, quoted.replace("route=", "Route="), False),
+            ("function case", base, base.replace("histogram_quantile", "HISTOGRAM_QUANTILE"), False),
+            ("identifier token join", base, base.replace("sum by", "sumby"), False),
+            ("number token join", base + " * 1e-3", base + " * 1 e-3", False),
+            ("operator token join", quoted.replace("route=", "route!="), quoted.replace("route=", "route! ="), False),
+            ("line-comment formatting", base + " # note\n + " + base, base + " # changed note\n+ " + base, True),
+            ("line-comment boundary", base + " # note\n + " + base, base + " # note + " + base, False),
+            ("subquery colon spacing", base + "[5m:1m]", base + " [ 5m : 1m ] ", True),
+            ("literal macro unchanged", macro_literal, macro_verified, True),
+            ("literal macro expanded", macro_literal, macro_literal.replace("[$__rate_interval]", "[5m]"), False),
+            ("unterminated quote", quoted, quoted.replace('"/Check Out"', '"/Check Out'), False),
+        ]
+        for name, persisted, verified, expected in cases:
+            with self.subTest(case=name):
+                target["expr"] = persisted
+                query["request"]["queries"][0]["expr"] = verified
+                passed, reason = build_probe.check_grafana_query_succeeded(ctx, check)
+                self.assertEqual(expected, passed, reason)
+
+    def test_grafana_query_macro_expands_every_range_once_above_minimum(self) -> None:
+        ctx, check, target, query = self._grafana_query_context()
+        base = target["expr"].replace("[5m]", "[$__rate_interval]")
+        target["expr"] = base + " + " + base
+        for first, second, expected in [
+            ("4s", "4s", True), ("4000ms", "4000ms", True), ("3999ms", "3999ms", False),
+            ("5m", "30s", False), ("5m", "$__rate_interval", False), ("5m", "5M", False),
+        ]:
+            with self.subTest(first=first, second=second):
+                query["request"]["queries"][0]["expr"] = (
+                    base.replace("$__rate_interval", first) + " + " + base.replace("$__rate_interval", second))
+                self.assertEqual(expected, build_probe.check_grafana_query_succeeded(ctx, check)[0])
+
+    def test_grafana_query_rejects_errors_and_malformed_statuses_with_partial_frames(self) -> None:
+        ctx, check, _target, query = self._grafana_query_context()
+        clean = query["response"]
+        self.assertTrue(build_probe.check_grafana_query_succeeded(ctx, check)[0], "status is optional in a clean response")
+        for location in ("top", "matched refId"):
+            for key, value in [("error", "timeout"), ("error", []), ("error", False),
+                               ("status", 500), ("status", 300), ("status", "error"),
+                               ("status", "200"), ("status", None), ("status", 200.5), ("status", True)]:
+                with self.subTest(location=location, key=key, value=value):
+                    query["response"] = json.loads(json.dumps(clean))
+                    node = query["response"] if location == "top" else query["response"]["results"]["A"]
+                    node[key] = value
+                    self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0])
+        query["response"] = json.loads(json.dumps(clean))
+        query["response"]["results"]["B"] = {"status": 500, "error": "unrelated"}
+        self.assertTrue(build_probe.check_grafana_query_succeeded(ctx, check)[0], "only the requested matching refId proves this query")
+        for status in (None, "error", {}, 200.5):
+            with self.subTest(http_status=status):
+                query["status"] = status
+                self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0])
+
+    def test_grafana_query_requires_schema_bound_finite_numeric_samples(self) -> None:
+        ctx, check, _target, query = self._grafana_query_context()
+        for value, expected in [(0, True), (0.0, True), (-0.2, True), (None, False), (True, False),
+                                ("0.2", False), ([], False), (float("nan"), False), (float("inf"), False)]:
+            with self.subTest(value=value):
+                query["response"] = {"results": {"A": {"frames": [_grafana_metric_frame(value)]}}}
+                self.assertEqual(expected, build_probe.check_grafana_query_succeeded(ctx, check)[0])
+        good = _grafana_metric_frame()
+        for name, frames in [
+            ("missing schema", [{"data": good["data"]}]),
+            ("timestamp only", [{"schema": {"fields": [{"name": "Time", "type": "time"}]}, "data": {"values": [[1]]}}]),
+            ("null metric with timestamps", [_grafana_metric_frame(None)]),
+            ("wrong schema refId", [_grafana_metric_frame(1, "B")]),
+            ("missing column", [{"schema": good["schema"], "data": {"values": [[1]]}}]),
+            ("misaligned rows", [{"schema": good["schema"], "data": {"values": [[1, 2], [0.2]]}}]),
+            ("scalar column", [{"schema": good["schema"], "data": {"values": [[1], 0.2]}}]),
+            ("malformed field", [{"schema": {"fields": [None]}, "data": {"values": [[0.2]]}}]),
+            ("malformed frame", [None]),
+            ("malformed alongside good", [good, None]),
+            ("frames object", {"frame": good}),
+        ]:
+            with self.subTest(shape=name):
+                query["response"] = {"results": {"A": {"frames": frames}}}
+                self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0])
+        for response in (None, [], "invalid", {"results": []}, {"results": {"A": None}},
+                         {"results": {"B": {"frames": [good]}}}):
+            with self.subTest(response=response):
+                query["response"] = response
+                self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0])
+
+    def test_grafana_proxy_requires_success_and_numeric_sample_pairs(self) -> None:
+        ctx, check, target, query = self._grafana_query_context()
+        query.update({"method": "GET", "request": None, "path":
+                      "/api/datasources/proxy/uid/checkout-metrics/api/v1/query?query=" + urllib.parse.quote(target["expr"])})
+        for kind, result in [
+            ("vector", [{"metric": {}, "value": [1, "0"]}]),
+            ("matrix", [{"metric": {}, "values": [[1, "0"], [2, "0.2"]]}]),
+            ("scalar", [1, "0"]),
+        ]:
+            with self.subTest(valid_kind=kind):
+                query["response"] = {"status": "success", "data": {"resultType": kind, "result": result}}
+                self.assertTrue(build_probe.check_grafana_query_succeeded(ctx, check)[0])
+        good = {"status": "success", "data": {"resultType": "vector", "result": [{"metric": {}, "value": [1, "0.2"]}]}}
+        for patch in ({"status": "error"}, {"status": None}, {"error": "timeout"}, {"errorType": "timeout"}):
+            with self.subTest(envelope=patch):
+                query["response"] = good | patch
+                self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0])
+        for value in (None, [], [1], [1, None], [1, "NaN"], [1, "+Inf"], [1, "nonnumeric"], [True, "1"], [1, True]):
+            with self.subTest(value=value):
+                query["response"] = {"status": "success", "data": {"resultType": "vector", "result": [{"metric": {}, "value": value}]}}
+                self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0])
+        for data in (None, {"result": [{"value": [1, "1"]}]},
+                     {"resultType": "string", "result": [1, "0.2"]},
+                     {"resultType": "vector", "result": [None]},
+                     {"resultType": "matrix", "result": [{"metric": {}, "values": [[1, None]]}]}):
+            with self.subTest(data=data):
+                query["response"] = {"status": "success", "data": data}
+                self.assertFalse(build_probe.check_grafana_query_succeeded(ctx, check)[0])
+
+    def test_grafana_proxy_preserves_encoded_query_literal_bytes(self) -> None:
+        ctx, check, target, query = self._grafana_query_context()
+        expression = target["expr"].replace("checkout_request_duration_seconds_bucket",
+                                           'checkout_request_duration_seconds_bucket{route="a+b%20"}')
+        query.update({"method": "GET", "request": None, "path":
+                      "/api/datasources/proxy/uid/checkout-metrics/api/v1/query?query=" + urllib.parse.quote(expression),
+                      "response": {"status": "success", "data": {"resultType": "vector",
+                                   "result": [{"metric": {}, "value": [1, "0.2"]}]}}})
+        for persisted, expected in ((expression, True), (expression.replace("a+b%20", "a b "), False)):
+            with self.subTest(persisted=persisted):
+                target["expr"] = persisted
+                self.assertEqual(expected, build_probe.check_grafana_query_succeeded(ctx, check)[0])
 
     def test_post_run_service_transport_failure_is_inconclusive(self) -> None:
         spec = json.loads(json.dumps(TINY_SPEC))

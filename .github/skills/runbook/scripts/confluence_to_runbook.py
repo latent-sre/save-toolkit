@@ -203,6 +203,8 @@ class _Extractor(HTMLParser):
         elif tag == "pre":
             self._flush_text()
             self._pre = []
+        elif tag == "br" and self._pre is not None:
+            self._pre.append("\n")
         elif tag == "table":
             self.table_count += 1
         elif tag in {"ul", "ol"}:
@@ -481,10 +483,6 @@ def main(argv: list[str] | None = None) -> int:
     if not args.source.is_file():
         print(f"error: cannot read {args.source}", file=sys.stderr)
         return 1
-    if args.output.exists() and not args.force:
-        print(f"error: {args.output} exists; pass --force to replace it (its history rows are "
-              f"evidence — convert to a new path and merge by hand instead)", file=sys.stderr)
-        return 1
     try:
         draft, report = convert(args.source, args.source_url, args.service_id, args.owner,
                                 args.title.strip() if args.title and args.title.strip() else None)
@@ -493,7 +491,14 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     try:
         args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(draft, encoding="utf-8")
+        try:
+            output = args.output.open("w" if args.force else "x", encoding="utf-8")
+        except FileExistsError:
+            print(f"error: {args.output} exists; pass --force to replace it (its history rows are "
+                  f"evidence — convert to a new path and merge by hand instead)", file=sys.stderr)
+            return 1
+        with output:
+            output.write(draft)
     except OSError as exc:
         print(f"error: cannot write {args.output}: {exc}", file=sys.stderr)
         return 1

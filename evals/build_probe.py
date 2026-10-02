@@ -2090,31 +2090,85 @@ def check_grafana_query_succeeded(ctx: Context, p: dict) -> tuple[bool, str]:
     metric = str(p["metric"]).lower()
     function = str(p["function"]).lower()
     minimum_seconds = float(p.get("min_window_seconds") or 0)  # the reference's four scrape intervals
+
+    def successful_status(status: object) -> bool:
+        return type(status) is int and 200 <= status < 300
+
+    def grafana_response_ok(response: object) -> bool:
+        return (isinstance(response, dict) and response.get("error") in (None, "")
+                and ("status" not in response or successful_status(response["status"])))
+
     writes = [entry for entry in service.requests
               if entry.get("method") == "POST" and entry.get("path") == write_path]
     if not writes:
         return False, f"no dashboard write to {write_path} was observed"
     # The last accepted write holds what the instance persisted; a rejected attempt does not.
-    accepted = [entry for entry in writes if 200 <= int(entry.get("status") or 0) < 300]
+    accepted = [entry for entry in writes if successful_status(entry.get("status"))]
     write = (accepted or writes)[-1]
     after_write = service.requests[service.requests.index(write) + 1:]
 
-    def canon(expression: str) -> str:
-        return re.sub(r"\s+", "", expression).lower()
+    def tokens(expression: str) -> list[str] | None:
+        """Compare lexical spelling, not full PromQL semantics. Keep quoted bytes and token
+        boundaries; whitespace between tokens and line comments are cosmetic."""
+        lexeme = re.compile(
+            r"""[ \t\r\n]+|#[^\r\n]*|"(?:\\[^\r\n]|[^"\\\r\n])*"|'(?:\\[^\r\n]|[^'\\\r\n])*'|\x60[^\x60]*\x60"""
+            r"|(?:[0-9]+(?:ms|[smhdwy]))+"
+            r"|0[xX][0-9a-fA-F]+|(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?"
+            r"|\$[A-Za-z_][A-Za-z0-9_]*|[A-Za-z_:][A-Za-z0-9_:]*"
+            r"|==|!=|=~|!~|<=|>=|</|>/|[{}\[\](),+\-*/%^@=<>]"
+        )
+        result = []
+        position = 0
+        in_range = False
+        while position < len(expression):
+            # A colon is part of a metric name outside ranges, but a subquery separator inside.
+            if in_range and expression[position] == ":":
+                result.append(":")
+                position += 1
+                continue
+            match = lexeme.match(expression, position)
+            if match is None:
+                return None
+            token = match.group()
+            if token == "[":
+                in_range = True
+            elif token == "]":
+                in_range = False
+            if not token.isspace() and not token.startswith("#"):
+                result.append(token)
+            position = match.end()
+        return result
 
     def same_query(persisted: str, verified: str) -> bool:
         """Equal, or every `[$__rate_interval]` replaced by ONE concrete window no shorter than
         `min_window_seconds`; other windows do not count."""
-        p, v = canon(persisted), canon(verified)
+        if persisted == verified:
+            return True
+        p, v = tokens(persisted), tokens(verified)
+        if p is None or v is None:
+            return False
         if p == v:
             return True
-        parts = p.split("[$__rate_interval]")
-        if len(parts) < 2:
-            return False
-        pattern = re.escape(parts[0]) + r"\[([0-9]+)(ms|s|m|h|d|w|y)\]" + re.escape(parts[1]) + "".join(r"\[\1\2\]" + re.escape(part) for part in parts[2:])
-        match = re.fullmatch(pattern, v)
         unit = {"ms": 0.001, "s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800, "y": 31536000}
-        return match is not None and int(match.group(1)) * unit[match.group(2)] >= minimum_seconds
+        i = j = 0
+        window = None
+        while i < len(p) and j < len(v):
+            if p[i:i + 3] == ["[", "$__rate_interval", "]"]:
+                if j + 2 >= len(v) or v[j] != "[" or v[j + 2] != "]":
+                    return False
+                match = re.fullmatch(r"([0-9]+)(ms|s|m|h|d|w|y)", v[j + 1])
+                if (match is None or int(match.group(1)) * unit[match.group(2)] < minimum_seconds
+                        or (window is not None and v[j + 1] != window)):
+                    return False
+                window = v[j + 1]
+                i += 3
+                j += 3
+            elif p[i] == v[j]:
+                i += 1
+                j += 1
+            else:
+                return False
+        return i == len(p) and j == len(v) and window is not None
 
     def persisted_on_p95_panel(expression: str) -> bool:
         body = write.get("request")
@@ -2135,26 +2189,74 @@ def check_grafana_query_succeeded(ctx: Context, p: dict) -> tuple[bool, str]:
                 return True
         return False
 
-    def frames_have_data(result: object) -> bool:
+    def finite_number(value: object) -> bool:
+        return type(value) is int or (type(value) is float and math.isfinite(value))
+
+    def frames_have_data(result: object, ref_id: str) -> bool:
         frames = result.get("frames") if isinstance(result, dict) else None
         if not isinstance(frames, list):
             return False
-        return any(
-            isinstance(_pointer(frame, "data/values"), list)
-            and any(bool(values) for values in _pointer(frame, "data/values"))
-            for frame in frames
-        )
+        found = False
+        for frame in frames:
+            schema = _pointer(frame, "schema")
+            fields = _pointer(schema, "fields")
+            columns = _pointer(frame, "data/values")
+            if (not isinstance(schema, dict) or ("refId" in schema and schema["refId"] != ref_id)
+                    or not isinstance(fields, list) or not isinstance(columns, list)
+                    or len(fields) != len(columns) or any(not isinstance(column, list) for column in columns)
+                    or len({len(column) for column in columns}) > 1):
+                return False
+            for field, column in zip(fields, columns):
+                if not isinstance(field, dict) or not isinstance(field.get("type"), str):
+                    return False
+                if field["type"] == "number":
+                    found |= any(finite_number(value) for value in column)
+        return found
+
+    def proxy_has_data(response: object) -> bool:
+        if (not isinstance(response, dict) or response.get("status") != "success"
+                or response.get("error") not in (None, "") or response.get("errorType") not in (None, "")):
+            return False
+        kind = _pointer(response, "data/resultType")
+        result = _pointer(response, "data/result")
+        if kind == "scalar":
+            samples = [result]
+        elif kind in ("vector", "matrix") and isinstance(result, list):
+            samples = []
+            for series in result:
+                if not isinstance(series, dict) or not isinstance(series.get("metric"), dict):
+                    return False
+                values = [series.get("value")] if kind == "vector" else series.get("values")
+                if not isinstance(values, list):
+                    return False
+                samples.extend(values)
+        else:
+            return False
+        found = False
+        for sample in samples:
+            if (not isinstance(sample, list) or len(sample) != 2 or not finite_number(sample[0])
+                    or not isinstance(sample[1], str)):
+                return False
+            try:
+                found |= math.isfinite(float(sample[1]))
+            except ValueError:
+                return False
+        return found
 
     reasons: list[str] = []
     for entry in after_write:
-        path = urllib.parse.unquote(str(entry.get("path") or ""))
+        parsed_path = urllib.parse.urlsplit(str(entry.get("path") or ""))
+        path = urllib.parse.unquote(parsed_path.path)
         if "/api/ds/query" not in path and "/api/datasources/proxy/" not in path:
             continue
-        if not 200 <= int(entry.get("status") or 0) < 300:
+        if not successful_status(entry.get("status")):
             reasons.append(f"Grafana query returned {entry.get('status')}")
             continue
         response = entry.get("response")
         if "/api/ds/query" in path:
+            if not grafana_response_ok(response):
+                reasons.append("Grafana batch response carried an error or invalid status")
+                continue
             request = entry.get("request")
             queries = request.get("queries") if isinstance(request, dict) else None
             results = _pointer(response, "results")
@@ -2167,7 +2269,10 @@ def check_grafana_query_succeeded(ctx: Context, p: dict) -> tuple[bool, str]:
                 if not isinstance(expression, str) or metric not in expression.lower() or function not in expression.lower():
                     continue
                 result = results.get(str(ref_id)) if isinstance(ref_id, str) else None
-                if not frames_have_data(result):
+                if not grafana_response_ok(result):
+                    reasons.append(f"requested Grafana query refId {ref_id!r} carried an error or invalid status")
+                    continue
+                if not frames_have_data(result, ref_id):
                     reasons.append(f"requested Grafana query refId {ref_id!r} returned no series data")
                     continue
                 if not persisted_on_p95_panel(expression):
@@ -2178,13 +2283,12 @@ def check_grafana_query_succeeded(ctx: Context, p: dict) -> tuple[bool, str]:
                 reasons.append("Grafana batch used a different expression")
             continue
 
-        query_values = urllib.parse.parse_qs(urllib.parse.urlsplit(path).query).get("query") or []
+        query_values = urllib.parse.parse_qs(parsed_path.query).get("query") or []
         expression = query_values[0] if len(query_values) == 1 else None
-        prometheus_result = _pointer(response, "data/result")
         if not isinstance(expression, str) or metric not in expression.lower() or function not in expression.lower():
             reasons.append("Grafana datasource proxy used a different expression")
-        elif not isinstance(prometheus_result, list) or not prometheus_result:
-            reasons.append("requested datasource-proxy query returned no series data")
+        elif not proxy_has_data(response):
+            reasons.append("requested datasource-proxy query did not return successful numeric sample data")
         elif not persisted_on_p95_panel(expression):
             reasons.append("successful datasource-proxy query was not persisted on the p95 panel")
         else:

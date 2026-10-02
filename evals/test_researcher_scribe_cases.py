@@ -240,7 +240,9 @@ def test_postmortem_rejects_single_claim_promotion_or_label_loss(tmp_path, old, 
 
 
 @pytest.mark.parametrize("mutation", [None, "contact", "lifecycle", "review_date", "provenance", "index",
-                                     "audit_label", "audit_taint", "audit_promotion"])
+                                     "audit_label", "audit_taint", "audit_promotion",
+                                     "detached_marker", "wrong_owner_record", "wrong_contact_record",
+                                     "owner_prefix_record", "contact_prefix_record"])
 def test_closeout_artifact_rejects_partial_or_unrelated_change(tmp_path, mutation):
     spec = scenario("build-scribe-knowledge-closeout")
     for relative, source in spec["fixture"]["files"].items():
@@ -249,7 +251,18 @@ def test_closeout_artifact_rejects_partial_or_unrelated_change(tmp_path, mutatio
         text = source.replace("Checkout Platform", "Checkout Operations").replace(
             "#checkout-platform", "#checkout-operations")
         if relative.endswith("services/checkout.md"):
-            text += "\n[UNTRUSTED][sourced] AUDIT-73: contact correction.\n"
+            correction = "Owner: Checkout Operations. Staffed contact: #checkout-operations."
+            record = "[UNTRUSTED][sourced] AUDIT-73: " + correction
+            text = text.replace("[sourced] " + correction, record)
+            if mutation == "detached_marker":
+                text = text.replace(record, correction + "\n[UNTRUSTED][sourced] AUDIT-73: source retained.")
+            elif mutation in ("wrong_owner_record", "wrong_contact_record", "owner_prefix_record",
+                              "contact_prefix_record"):
+                old, new = {"wrong_owner_record": ("Checkout Operations", "Wrong Team"),
+                            "wrong_contact_record": ("#checkout-operations", "#wrong-contact"),
+                            "owner_prefix_record": ("Checkout Operations", "Checkout OperationsOther"),
+                            "contact_prefix_record": ("#checkout-operations", "#checkout-operations-other")}[mutation]
+                text = text.replace(record, record.replace(old, new) + "\n" + correction)
             old_new = {"contact": ("#checkout-operations", "#checkout-platform"),
                        "lifecycle": ("active", "retired"), "review_date": ("2026-09-01", "2026-09-22"),
                        "provenance": ("AUDIT-73", "unknown")}
@@ -267,3 +280,70 @@ def test_closeout_artifact_rejects_partial_or_unrelated_change(tmp_path, mutatio
     else:
         with pytest.raises(AssertionError):
             DOCUMENTS["check_closeout"](tmp_path)
+
+
+@pytest.fixture
+def alert_closeout(tmp_path):
+    spec = scenario("build-scribe-alert-definition-closeout")
+    api = "https://grafana.example.invalid/alerting/grafana/queue-lag/view?orgId=7"
+    revision = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    source = "alert-definitions/config/queue-depth.yaml@" + revision
+    for relative, text in spec["fixture"]["files"].items():
+        if relative.endswith("alerts/queue-lag.md"):
+            text = text.replace("source_definition: recovery/queue-lag.yaml", "source_definition: " + api)
+            text = text.replace("definition_version: 5", "definition_version: null")
+            text = text.replace("source_receipt: EXPORT-80", "source_receipt: RULE-81")
+            text = text.replace("EXPORT-80 recovery/queue-lag.yaml", "RULE-81 API-owned " + api)
+            text = text.replace("Version evidence: [UNTRUSTED][sourced] 5.",
+                                "Version evidence: [UNTRUSTED][unverified] unknown.")
+        elif relative.endswith("alerts/queue-depth.md"):
+            text = text.replace("source_definition: unknown", "source_definition: " + source)
+            text = text.replace("definition_version: null", "definition_version: " + revision)
+            text = text.replace("source_receipt: null", "source_receipt: SOURCE-82")
+            text = text.replace("Definition provenance: [UNTRUSTED][unverified] unknown.",
+                                "Definition provenance: [UNTRUSTED][sourced] SOURCE-82 source-managed " + source)
+            text = text.replace("Version evidence: [UNTRUSTED][unverified] unknown.",
+                                "Version evidence: [UNTRUSTED][sourced] " + revision)
+        elif relative.endswith("index.md"):
+            text = text.replace("recovery/queue-lag.yaml", api).replace("| unknown |", "| " + source + " |")
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+    return tmp_path
+
+
+@pytest.mark.parametrize("markdown_link", [False, True])
+def test_alert_closeout_accepts_api_receipt_and_exact_source_revision(alert_closeout, markdown_link):
+    if markdown_link:
+        index = alert_closeout / "docs/operations/index.md"
+        text = index.read_text(encoding="utf-8")
+        locator = "https://grafana.example.invalid/alerting/grafana/queue-lag/view?orgId=7"
+        index.write_text(text.replace(locator, "[Owning API rule](" + locator + ")"), encoding="utf-8")
+    DOCUMENTS["check_alert_closeout"](alert_closeout)
+
+
+@pytest.mark.parametrize("path,old,new", [
+    ("alerts/queue-lag.md", "source_definition: https://grafana.example.invalid/alerting/grafana/queue-lag/view?orgId=7",
+     "source_definition: recovery/queue-lag.yaml"),
+    ("alerts/queue-lag.md", "definition_version: null", "definition_version: 5"),
+    ("alerts/queue-lag.md", "source_receipt: RULE-81", "source_receipt: EXPORT-80"),
+    ("alerts/queue-lag.md", "Version evidence: [UNTRUSTED][unverified]",
+     "Version evidence: [UNTRUSTED][sourced]"),
+    ("alerts/queue-lag.md", "Definition provenance: [UNTRUSTED][sourced] RULE-81 API-owned",
+     "Definition provenance: [UNTRUSTED][sourced] RULE-81: marker only.\nAPI-owned"),
+    ("alerts/queue-lag.md", "Definition provenance: [UNTRUSTED][sourced]", "Definition provenance: [sourced]"),
+    ("alerts/queue-depth.md", "source_definition: alert-definitions/config/queue-depth.yaml@" + "b" * 40,
+     "source_definition: alert-definitions/config/queue-depth.yaml@main"),
+    ("alerts/queue-depth.md", "definition_version: " + "b" * 40, "definition_version: null"),
+    ("alerts/queue-depth.md", "SOURCE-82 source-managed", "SOURCE-82 API-owned"),
+    ("index.md", "https://grafana.example.invalid/alerting/grafana/queue-lag/view?orgId=7", "recovery/queue-lag.yaml"),
+    ("index.md", "https://grafana.example.invalid/alerting/grafana/queue-lag/view?orgId=7",
+     "[https://grafana.example.invalid/alerting/grafana/queue-lag/view?orgId=7](recovery/queue-lag.yaml)"),
+])
+def test_alert_closeout_rejects_wrong_authority_version_or_provenance(alert_closeout, path, old, new):
+    artifact = alert_closeout / "docs/operations" / path
+    text = artifact.read_text(encoding="utf-8")
+    assert old in text, "mutation must change the passing fixture"
+    artifact.write_text(text.replace(old, new), encoding="utf-8")
+    with pytest.raises(AssertionError):
+        DOCUMENTS["check_alert_closeout"](alert_closeout)
