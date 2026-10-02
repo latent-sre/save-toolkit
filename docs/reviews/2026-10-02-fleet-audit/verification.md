@@ -134,6 +134,35 @@ module resolution in the audit checkout. Frontend oracle findings therefore use 
 and primary documentation of query semantics. No dependency was installed or browser mutant run;
 that execution layer remains unverified.
 
+## Group 04 executable counterexamples
+
+[verified] The Grafana hygiene helper ran under Python 3.14.7 `-I -S` against temporary JSON files.
+A valid empty Classic model returned 0 without a traceback; a V2 model returned its documented 2.
+JSON `null` and `panels: [null]` instead returned 1 with tracebacks. Nonzero still rejects them;
+the defect is conflating uncheckable input with the documented hygiene-violation result.
+
+[verified] Synthetic recorded Grafana requests exercised `check_grafana_query_succeeded` without
+HTTP or a Grafana process. The normal positive passed. A different quoted label value
+(`/Check Out` versus `/checkout`) also passed because normalization changes literal meaning.
+Timestamp plus null-only metric values passed, as did a per-query status 500/error beside populated
+frames. Empty frames and a genuinely different `+ 1` expression were rejected controls. These are
+individual-predicate results, not proof of a whole native trial's verdict.
+
+[verified] The actual error-budget CLI, using SLO 99.99 and both windows at SLI 99.856, printed
+14.40x but classified it below the 14.4x threshold. Independent Decimal arithmetic gives exactly
+14.4. At SLI 99.8559 (14.41x) it paged; at 99.8561 (14.39x) it did not. Each command exited 0.
+The result conflicts with the calculator's inclusive `>=` comparison/output policy; the
+reference's mix of "meet" and "over" should be reconciled with the chosen boundary too.
+
+[verified] The exact Python predicate from
+`build-observability-engineer-resumes-after-partial-helper.yaml` ran in a disposable fixture with
+its recording rules, duration, labels and runbook preserved. Filtering comparisons joined by
+`and` passed (0); comparisons with `bool` joined by `and` also passed (0); the `or` negative failed
+(1). The predicate removes `bool` before Python evaluation. PromQL's different vector/filter
+semantics are separately supported by the alerting report's primary/upstream sources. A PromQL
+engine was not executed for this counterexample. `promtool` was absent, and the installed Docker
+CLI could not connect to the local Linux daemon. No image pull or daemon start was attempted.
+
 ## Limits
 
 No paid/native model campaign, live cloud or database operation, browser acceptance run, deployment,

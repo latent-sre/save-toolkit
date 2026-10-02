@@ -59,7 +59,7 @@ Context reduction is proposed only where it preserves useful safeguards and demo
 | 01 | Skills | [agent-authoring](group-01-agent-authoring.md), [akamai-edge](group-01-akamai-edge.md), [backend-craft](group-01-backend-craft.md) | Six passes complete |
 | 02 | Skills | [ci-actions](group-02-ci-actions.md), [database-reliability](group-02-database-reliability.md), [eng-ladder](group-02-eng-ladder.md) | Six passes complete |
 | 03 | Skills | [fleet-atlas](group-03-fleet-atlas.md), [frontend-craft](group-03-frontend-craft.md), [gcp-ops](group-03-gcp-ops.md) | Six passes complete |
-| 04 | Skills | `grafana`, `incident-investigation`, `obs-alerting` | Planned |
+| 04 | Skills | [grafana](group-04-grafana.md), [incident-investigation](group-04-incident-investigation.md), [obs-alerting](group-04-obs-alerting.md) | Six passes complete |
 | 05 | Skills | `obs-dashboards`, `obs-logs`, `obs-metrics` | Planned |
 | 06 | Skills | `obs-pipeline`, `obs-traces`, `operational-learning` | Planned |
 | 07 | Skills | `operator-cli`, `pcf-deploy`, `pcf-ops` | Planned |
@@ -114,6 +114,22 @@ separating baseline behavior from this audit's changing roadmap/evidence inputs.
 must preserve intended cache/generated exclusions; simply removing Git's ignore handling would
 create another problem. Recommendations cover verification-link meaning, source-corpus scope,
 oversized results, conditional readiness probes and present-state rollback compatibility.
+
+## Group 04 adjudicated findings
+
+Eight confirmed findings survived reconciliation. GRA-01 is the malformed-input diagnostic/exit
+contract; GRA-02 and GRA-03 are false acceptance of different queries and failed/null-only data.
+II-01 incorrectly localizes a timing gap outside the container without establishing timer boundaries.
+OA-01 is the exact-threshold floating-point inconsistency; OA-02 erases PromQL `bool` semantics;
+OA-03 conflates Prometheus rules with Grafana file-provisioning input; OA-04 contradicts Splunk
+suppression-group scope. The caller independently executed the applicable helper and predicate
+counterexamples. II-01 is a constructed timing counterexample, while schema/semantic claims are
+supported by identified primary documentation and upstream source, not live-platform execution.
+
+Recommendations preserve the useful safeguards while tightening rollback interleavings, clarifying
+unsaved time-picker actions, labeling diagnostic excerpts and removing obsolete fixture wording.
+The existing incident-quality runtime gate remains open. No Grafana query/write, alert delivery,
+Prometheus engine run or native model campaign was performed.
 
 ## Verification record
 
