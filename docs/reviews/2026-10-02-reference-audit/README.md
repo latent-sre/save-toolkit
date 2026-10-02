@@ -54,7 +54,7 @@ production action or reference cleanup is part of this audit.
 | 06 | operational-learning, pcf-deploy, pcf-ops | 8 | [Reviewed](group-06.md) |
 | 07 | production-change-gate, python-craft, resilience-analysis | 16 | [Reviewed](group-07.md) |
 | 08 | runbook, service-lifecycle, stack-profile | 8 | [Reviewed](group-08.md) |
-| 09 | toil-reduction | 1 | Next group |
+| 09 | toil-reduction | 1 | [Reviewed](group-09.md) |
 
 ## Initial verification
 
