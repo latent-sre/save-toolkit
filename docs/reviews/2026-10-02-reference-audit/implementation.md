@@ -97,3 +97,15 @@ and the complete later scale-effects/recovery warning. Regenerated its host copy
 learning requires no edit; the PCF inventory remains pending under REF-GCP-02. Actual delta:
 **−93 B**. Root inspected the diff; unchanged fenced examples, generated parity (**1 test**),
 generation, links and whitespace checks passed. No PCF operation or authority change occurred.
+
+### Group 07 — production-change-gate, python-craft, resilience-analysis
+
+Implemented REF-GATE-01 and REF-PY-01/02 in three references, then regenerated host copies.
+Actual delta: **−198 B** (fictional PCF organization field +13; Python closing clauses −146;
+refactoring-tool reminder −65). Resilience-analysis needs no edit. The approval example remains
+fictional and non-authoritative; concrete failure, consumer, installed-artifact, parser and
+tool-safety checks remain, with generic reporting/cleanup retained in the Python parent.
+
+[verified] Root inspected all source diffs. Fenced examples are unchanged; generated parity
+passed **1 test**. Generation, link and whitespace checks passed. These text-only changes do not
+establish execution approval, model behavior or Python application correctness.

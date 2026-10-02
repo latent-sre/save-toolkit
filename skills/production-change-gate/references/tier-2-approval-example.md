@@ -9,7 +9,7 @@ action. All observations, limits, and thresholds below are fictional, not defaul
 > **Requesting approval for a human release owner to apply a Tier 2 change.** No declared incident,
 > so the full production checklist applies.
 >
-> **Target**: `order-router` app, `prod` space, foundation `pcf-east`.
+> **Target**: `order-router` app, `prod` space, `<org>` org, foundation `pcf-east`.
 > **Why scale**: during the same five-minute window, all four web instances reached their worker
 > limit and queued requests grew; 502s reached 2% and request p95 reached 600 ms. Sampled downstream
 > calls held p95 at 100 ms, and the dependency owner confirmed tested throughput headroom for six
