@@ -15,6 +15,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   uncommitted reviews (main ran nothing on the branch and ran code inside the checkout 2/3 on
   uncommitted work); in-checkout runs after a `software-engineer` handoff 1/3 (main 3/3); fork-runner
   refusal and read-only or no-execution scopes held 9/9.
+- `reviewer` is independent of `researcher` (owner decision 2026-10-01): it dispatches only
+  `repository-investigator`, and a dependency advisory or other public fact it cannot verify
+  locally is a stated gap returned to its caller. On a urllib3 downgrade it flagged the risk from
+  memory, labelled it unverified, asked the caller to confirm, and requested changes 3/3 with no
+  dispatch; main dispatched a researcher that could not answer in 1/3. 13,143 -> 12,746 bytes.
 - `reviewer` may bind a branch review's verdict to the named commit and report uncommitted defects
   as PROVISIONAL findings (owner decision 2026-10-01); the terse-handoff check accepts that or a
   PROVISIONAL verdict (6/6 Sonnet, 3/3 Opus; main 2/3). The two rename cases ask for the file whose

@@ -48,7 +48,7 @@ separate.
 | Agent | Lane | Tools posture | Delegates to |
 |---|---|---|---|
 | `software-engineer` | Code and operator tooling | Local read/write + unguarded Bash/PowerShell for team-authored code; no web tools | `reviewer`, `scribe`, `researcher` |
-| `reviewer` | Independent investigation, verification, and review | Git/PR reads, scratch writes and checks, trusted skills; no direct web tools | `repository-investigator`, `researcher` |
+| `reviewer` | Independent investigation, verification, and review | Git/PR reads, scratch writes and checks, trusted skills; no direct web tools | `repository-investigator` |
 | `repository-investigator` | Bounded checkout questions | Read/Grep/Glob only; terminal | — |
 | `reliability-engineer` | Service reliability analysis, design, and toil reduction | Local reads + design-document writes; no execution or direct external access | `repository-investigator`, `sre-assistant`, `researcher` |
 | `sre-assistant` | Bounded read-only lookup or investigation, dispatched by a human or invoking workflow | Allowlist-guarded Bash/PowerShell and bundled Grafana helper; interactive browser tools that no hook guards; recommends mitigation | `researcher` |
@@ -60,7 +60,8 @@ separate.
 ## Enforcement boundaries
 
 - Prefer tool absence: `repository-investigator`, `scribe`, and `researcher` carry
-  only lane-minimum tools. Other local roles send sanitized public questions to `researcher`.
+  only lane-minimum tools. Other local roles send sanitized public questions to `researcher`, except
+  `reviewer`, which stays independent and returns them to its caller.
 - `reviewer` has broad Bash and write tools for investigation and scratch verification. Its
   no-candidate-edit and scratch-copy execution rules are cooperative unless the outer host enforces
   them; outside contributions run only in isolated CI. The read-only allowlist does not cover it.

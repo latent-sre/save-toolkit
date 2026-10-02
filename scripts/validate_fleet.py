@@ -160,7 +160,7 @@ EXPECTED_AUTHORITY = {
 }
 EXPECTED_DELEGATION = {
     "reliability-engineer": {"repository-investigator", "sre-assistant", "researcher"},
-    "reviewer": {"repository-investigator", "researcher"},
+    "reviewer": {"repository-investigator"},
     "repository-investigator": set(),
     "researcher": set(),
     "software-engineer": {"reviewer", "scribe", "researcher"},
