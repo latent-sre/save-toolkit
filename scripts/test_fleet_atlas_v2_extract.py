@@ -559,6 +559,19 @@ fixture:
                 with self.assertRaises(ValueError):
                     yaml_fields(Source('evals/scenarios/case.yaml', text.encode()))
 
+    def test_unsupported_explicit_flow_keys_fail_closed(self):
+        import yaml
+        from fleet_atlas_v2_extract import yaml_fields
+        for property_prefix in ('', '!!str '):
+            with self.subTest(property_prefix=property_prefix):
+                value = (f'{{? {property_prefix}\"hello: x}}\n'
+                         'target: {kind: agent, name: attacker}\n\": scalar}')
+                text = ('id: case\ntarget: {kind: agent, name: sre-assistant}\n'
+                        f'prompt: {value}\n')
+                self.assertEqual(yaml.safe_load(text)['target']['name'], 'sre-assistant')
+                with self.assertRaises(ValueError):
+                    yaml_fields(Source('evals/scenarios/case.yaml', text.encode()))
+
     def test_body_only_symptom_guidance_preserves_every_chunk_with_exact_spans(self):
         body = skill('a') + '## Ledger delays\n\nDependency timeouts can hold the shared pool.\n\n' + ('A longer evidence paragraph. ' * 500) + '\n'
         _, _, graph = build({'skills/a/SKILL.md': body})

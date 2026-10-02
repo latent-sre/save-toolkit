@@ -182,6 +182,9 @@ def _flow_scalar(lines, index, value):
             elif char == '#' and (offset == 0 or text[offset - 1].isspace()):
                 text = text[:offset]
                 break
+            elif char == '?' and token_start and (offset + 1 == len(text)
+                                                   or text[offset + 1].isspace()):
+                raise ValueError('explicit YAML flow keys are outside the metadata subset')
             elif token_start and char in '!&':
                 property_token = PROPERTY_TOKEN.match(text, offset)
                 if property_token:
