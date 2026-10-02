@@ -23,6 +23,23 @@ records do not re-queue work.
 
 ## Repository work
 
+### WORKBENCH-001 — plan a shared SRE operations product for humans and agents
+
+**Status:** `active` (2026-10-02); comprehensive product specification and delivery planning.
+**Owner:** Human product owner accepts scope and release decisions; implementation and
+verification owners are assigned before each delivery phase.
+**Outcome:** A reviewable specification covers common commands, Grafana, scripts, investigation
+workflows, extensibility, and the full future product, with traceable acceptance criteria and
+explicit permission, evidence, compatibility, and recovery contracts.
+**Next action:** Review the [SRE Workbench planning package](sre-workbench/README.md), resolve its
+phase-zero decisions, and select the first implementation slice. Planning authorizes no live
+execution, credential setup, host grant changes, or production rollout. Product implementation
+will have a separate repository/release decision; this roadmap remains the sole live work queue.
+**Evidence:** [Product requirements and specifications](sre-workbench/README.md); requirements
+come from the owner discussion on 2026-10-02. All product runtime behavior remains unverified.
+**SRE task:** Run the same useful operational checks from a terminal or an agent, preserve their
+evidence, and extend the tool as new operational needs appear.
+
 ### RELIABILITY-001 — accept the reliability engineering lane on representative tasks
 
 **Status:** `active` (2026-09-30); bounded comparison completed; corrected native acceptance pending.
