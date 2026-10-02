@@ -169,3 +169,22 @@ No paid/native model campaign, live cloud or database operation, browser accepta
 remediation, push or merge is part of this audit. Offline checks cannot establish those behaviors.
 Specific missing evidence is recorded beside each affected finding. A six-pass source review is
 not a substitute for accepting a repaired exact candidate on its required hosts.
+
+## Group 05 executable counterexamples
+
+[verified] The caller loaded the dashboard fixture's actual `service_array_item` and
+`grafana_query_succeeded` checks. Synthetic accepted write/query records and an in-memory response
+contained three panels and a p95-titled panel with the required datasource, description, unit and
+no-data text. No HTTP or PromQL engine was involved. Both predicates accepted a proper
+`histogram_quantile(0.95, sum by (le) (rate(checkout_request_duration_seconds_bucket[5m])))`.
+Both also accepted the same expression with `0.5` persisted and queried under the p95 title.
+The negative control, saved `0.5` but queried `0.95`, was rejected by query identity. All assertions
+passed under Python 3.14.7. This isolates the missing requested-quantile check (DASH-01) from the
+query-equivalence and result-quality findings already recorded in group 04.
+
+[verified: static counterexample; sourced semantics] LOG-02 uses the documented `_time` filter:
+with now at 12:00, an event timestamped 05:50 but indexed at 11:59 is excluded by `earliest=-4h`.
+Thus absence from that query cannot establish that ingestion stopped. This is a constructed
+counterexample under the cited Splunk time-modifier contract, not an executed Splunk search.
+Cloud Logging key-case semantics and the metrics recommendations likewise rely on identified
+primary documentation; no Splunk, Loki, Wavefront, Mimir or Cloud Monitoring query ran.

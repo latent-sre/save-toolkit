@@ -60,7 +60,7 @@ Context reduction is proposed only where it preserves useful safeguards and demo
 | 02 | Skills | [ci-actions](group-02-ci-actions.md), [database-reliability](group-02-database-reliability.md), [eng-ladder](group-02-eng-ladder.md) | Six passes complete |
 | 03 | Skills | [fleet-atlas](group-03-fleet-atlas.md), [frontend-craft](group-03-frontend-craft.md), [gcp-ops](group-03-gcp-ops.md) | Six passes complete |
 | 04 | Skills | [grafana](group-04-grafana.md), [incident-investigation](group-04-incident-investigation.md), [obs-alerting](group-04-obs-alerting.md) | Six passes complete |
-| 05 | Skills | `obs-dashboards`, `obs-logs`, `obs-metrics` | Planned |
+| 05 | Skills | [obs-dashboards](group-05-obs-dashboards.md), [obs-logs](group-05-obs-logs.md), [obs-metrics](group-05-obs-metrics.md) | Six passes complete |
 | 06 | Skills | `obs-pipeline`, `obs-traces`, `operational-learning` | Planned |
 | 07 | Skills | `operator-cli`, `pcf-deploy`, `pcf-ops` | Planned |
 | 08 | Skills | `postmortem`, `production-change-gate`, `python-craft` | Planned |
@@ -130,6 +130,21 @@ Recommendations preserve the useful safeguards while tightening rollback interle
 unsaved time-picker actions, labeling diagnostic excerpts and removing obsolete fixture wording.
 The existing incident-quality runtime gate remains open. No Grafana query/write, alert delivery,
 Prometheus engine run or native model campaign was performed.
+
+## Group 05 adjudicated findings
+
+Three confirmed findings remain after reconciliation. DASH-01 is the missing requested-quantile
+check: the actual panel/query predicates accept a median calculation labeled p95. LOG-01 omits
+case-sensitive Cloud Logging payload keys; LOG-02 overstates what an event-time-bounded freshness
+query establishes about current ingestion. The dashboard issue has an executed positive/mutant/
+negative-control comparison. The log defects have inspected source plus current primary contracts
+and explicit constructed counterexamples; no backend search was executed.
+
+No new confirmed metrics defect was established. Recommendations cover bounded gap filling,
+backend-specific query behavior, precise datasource/authentication applicability, actual per-signal
+routing, scrape-evidence scope and decision-level coverage. Existing Grafana/alerting oracle defects
+are cross-referenced rather than counted again. Inventory, live data and native model behavior
+remain unverified.
 
 ## Verification record
 
