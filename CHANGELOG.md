@@ -104,6 +104,20 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   or beat the current one on every check of all three probes; the replay header went 2/3 -> 3/3 and
   202 went 2/3 -> 3/3. No arm makes acknowledged webhook work recoverable after a crash (0/12 under
   the restart check), so the persist-before-ack line that was cut produced no recovery either.
+- `backend-craft` teaches recoverable post-acknowledgement work. SKILL.md's Background-work row,
+  which always loads, says to:
+  - answer `202` while work is pending;
+  - persist everything still owed, enrichment included, as pending work resumed on startup.
+
+  It also gives the reason: an in-memory task dies with its process, and a sender given a 2xx won't
+  redeliver. `background-work.md` gains the mechanism. Before, the reference was read in only 4 of
+  9 webhook trials, and even then no trial recovered. The webhook probe's restart check went from
+  0/8 to 8/8 against current over two rounds, with 202 held at 4/4. The writes and incidents-api
+  probes are unchanged.
+
+  A first wording raised recovery to 4/4 but pushed 202 down to 2/4, because agents that created
+  the record up front answered 201. The 202 clause beside the rule fixed that. SKILL.md is
+  7,718 -> 7,787 bytes; the Shutdown row's duplicated requeue clause was merged to make room.
 
 ### Fixed
 

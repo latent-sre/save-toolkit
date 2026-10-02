@@ -44,17 +44,17 @@ operability and failure rules that fit a worker, scheduler, or client without ad
 | Long-running work | `202` plus a status resource the client polls |
 | API writes | Before retryable or concurrent writes, read [API writes](./references/api-writes.md); adapt [write acceptance tests](./assets/test_api_write_contract.py) to compatible Python contracts |
 | Rate limits | `429` with `Retry-After`, always. Optional quota headers use the IETF `RateLimit-Policy`/`RateLimit` draft fields as the starter shows; `X-RateLimit-*` (`-Reset` in seconds) only for clients that already parse them |
-| Outbound calls | One deadline per logical operation, not just per call; retry only documented transient failures of idempotent operations, with capped backoff, jitter and `Retry-After`; one typed client per upstream; a breaker for long-lived clients ([consuming-apis](./references/consuming-apis.md)) |
+| Outbound calls | One deadline per logical operation, not just per call; retry only documented transient failures of idempotent operations, with capped backoff, jitter and `Retry-After`; one typed client per upstream; a breaker for long-lived clients |
 | Dependency failure | Fail fast; never hang or drop data silently. An upstream that only enriches: return the resource with that field marked unavailable. An essential one: `502` (bad answer) or `504` (timeout) problem. Document which |
 | Health | `/health/live` is process-only; `/health/ready` includes a dependency only when withdrawing the instance helps; no auth; no health path ends in `z` (Cloud Run reserves some). PCF manifest: `health-check-type: http`, `health-check-http-endpoint: /health/live`, `readiness-health-check-type: http`, `readiness-health-check-http-endpoint: /health/ready`; a routeless worker uses `process`. Cloud Run: HTTP liveness probe on `/health/live`. Never point liveness at a dependency |
 | Observability | A request ID on every log line and problem body, echoed as `X-Request-ID`: generated, or read from a header only a trusted ingress overwrites (on PCF, Gorouter's `X-Vcap-Request-Id`, when nothing bypasses Gorouter). RED on the request path |
 | Config | From the environment, validated at startup, fail loud |
-| Shutdown | Graceful: stop accepting, drain, finish or requeue jobs, stop the scheduler, close streams, all inside the platform grace period (PCF and Cloud Run: 10 s from SIGTERM to SIGKILL by default); requeue work that cannot finish in it |
+| Shutdown | Graceful: stop accepting, drain, stop the scheduler, close streams, and finish or requeue jobs within the platform grace period (PCF and Cloud Run: 10 s from SIGTERM to SIGKILL by default) |
 | Secrets and input | Secrets from env or a store; CORS allowlist; body and param bounds; never log secrets, bodies or tokens |
 | Auth | On every non-public route; authorize the object, not the session; a `reviewer` pass for auth changes |
 | Streaming | SSE for one-way push, a keep-alive comment about every 15 s, event ids with `Last-Event-ID`, bounded streams |
 | Persistence | The existing datastore wins, otherwise load `stack-profile`; parameterized queries only; short explicit transactions, never held across an outbound call; migration safety belongs to `database-reliability` |
-| Background work | Before durable jobs, schedulers, or webhooks, read [background work](./references/background-work.md); acceptance, redelivery, and recovery must preserve the business effect |
+| Background work | Before durable jobs, schedulers, or webhooks, read [background work](./references/background-work.md). Answer `202` while work is pending, even if a record exists; persist everything still owed, enrichment included, as pending work resumed on startup: an in-memory task dies with its process, and a sender given a 2xx won't redeliver |
 
 ## Done means
 
