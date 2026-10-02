@@ -21,8 +21,7 @@ Grafana recovery copies are saved in the team's repositories `[sourced: owner, 2
 That does not establish Git Sync, provisioning ownership, backup freshness, or a tested restore;
 confirm those separately for the target. A saved copy does not authorize a live write.
 
-Both incumbent columns stay first-class — Splunk, Wavefront, Grafana, Alloy, and Prometheus all
-deepen in place; none is being retired by team decision. The team's entitlement basis for DX
+The team's entitlement basis for DX
 OpenExplore under Broadcom is `[unverified]`; the stack owner records it here when known. As GCP
 workloads land, Cloud Logging / Cloud Monitoring / Cloud Trace join as additional backends via
 reference files in the obs skills — additive, same as everything else in the right column. For PCF applications the incumbent column is

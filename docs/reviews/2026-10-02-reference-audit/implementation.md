@@ -109,3 +109,26 @@ tool-safety checks remain, with generic reporting/cleanup retained in the Python
 [verified] Root inspected all source diffs. Fenced examples are unchanged; generated parity
 passed **1 test**. Generation, link and whitespace checks passed. These text-only changes do not
 establish execution approval, model behavior or Python application correctness.
+
+### Group 08 — runbook, service-lifecycle, stack-profile
+
+Implemented REF-RUN-01/02 and REF-STACK-01/02/03. The parent absorbs every unique upkeep rule,
+then the living-runbooks reference and generated copy are retired. The two historical clickable
+citations now point to the frozen c7fdbe3 GitHub blob; the inventory remains a historical snapshot.
+Service-lifecycle requires no edit. Actual delta: **−2,832 B** (runbook parent +311, curl explanation
++31, retired reference −2,946, three stack cuts −228). The parent-only reading path grows 311 B;
+the combined runbook bundle shrinks 2,604 B.
+
+[verified] Root compared the original reference and parent with the complete resulting section.
+Outcome definitions, immutable exact-version history, evidence-based correction or demotion,
+passing bound rehearsal, direct-request intake, closeout-only prepared/proposed, discovery fields,
+three-repeat automation trigger, history follow-up and toil assessment survive. Human execution,
+identity policy, coexistence and entitlement uncertainty remain in their applicable owners.
+All fenced examples are unchanged. Import-reference, runbook schema/template evidence-binding,
+and generated parity checks passed **7 tests and 6 subtests**. Generation, links and whitespace
+checks passed. These checks do not establish model comprehension or live Confluence behavior.
+
+### Group 09 — toil-reduction
+
+The four distinct worked examples remain unchanged. This group's audit had no implementation
+recommendation; no empty source commit is needed.
