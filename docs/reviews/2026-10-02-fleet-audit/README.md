@@ -65,7 +65,7 @@ Context reduction is proposed only where it preserves useful safeguards and demo
 | 07 | Skills | [operator-cli](group-07-operator-cli.md), [pcf-deploy](group-07-pcf-deploy.md), [pcf-ops](group-07-pcf-ops.md) | Six passes complete |
 | 08 | Skills | [postmortem](group-08-postmortem.md), [production-change-gate](group-08-production-change-gate.md), [python-craft](group-08-python-craft.md) | Six passes complete |
 | 09 | Skills | [resilience-analysis](group-09-resilience-analysis.md), [root-cause](group-09-root-cause.md), [runbook](group-09-runbook.md) | Six passes complete |
-| 10 | Skills | `service-lifecycle`, `stack-profile`, `toil-reduction` | Planned |
+| 10 | Skills | [service-lifecycle](group-10-service-lifecycle.md), [stack-profile](group-10-stack-profile.md), [toil-reduction](group-10-toil-reduction.md) | Six passes complete |
 | 11 | Agents | `agent-engineer`, `observability-engineer`, `reliability-engineer` | Planned |
 | 12 | Agents | `repository-investigator`, `researcher`, `reviewer` | Planned |
 | 13 | Agents | `scribe`, `software-engineer`, `sre-assistant` | Planned |
@@ -204,6 +204,21 @@ coverage and failure-capacity/recovery examples. Explicit converter force replac
 and stays a documentation/policy recommendation, separate from the unforced race. Root-cause manual
 reasoning acceptance, operational drills and native host/model behavior remain open evidence layers.
 Preserve the existing uncertainty, bounded investigation and human execution boundaries.
+
+## Group 10 adjudicated findings
+
+One confirmed finding remains: STACK-01 is the support-only-stack evaluator accepting ordinary
+wrapped Java/Maven execution attempts that it claims to exclude. The caller ran the actual
+predicate over nine synthetic Bash/PowerShell cases; direct forbidden commands failed, common
+wrappers passed, and permitted discovery/version controls remained accepted. No command under
+review was executed.
+
+No new service-lifecycle or toil-reduction defect was confirmed. Lifecycle's focused verification
+passed its two local checks and explicitly skipped all eleven external-producer cases; compatibility
+with a selected producer remains unverified. Recommendations cover retirement quiescence, mode
+clarity, cost/demand uncertainty and useful lifetime, alongside narrow stack-policy clarifications.
+Team choices remain policy and provisional inventory; external documentation does not prove private
+live configuration. All thirty skills have now completed their six review passes.
 
 ## Verification record
 

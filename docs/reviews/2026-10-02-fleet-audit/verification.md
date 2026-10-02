@@ -276,3 +276,19 @@ intentional control. No runbook outside the temporary fixture was affected.
 `cf events demo` inside a preformatted block. Replacing the newline with either `<br>` or `<br/>`
 produced `cf app democf events demo` in the generated code block. Commands were converted as text,
 never executed. All caller assertions passed under Python 3.14.7; no network or service ran.
+
+## Group 10 focused checks and integration boundary
+
+[verified] `SRE_CONTEXT_ROOT` was absent. After inspecting the guard, the caller ran
+`python -B -m pytest -q scripts/test_service_lifecycle_context.py -rs` with the shared scratch cache:
+**2 passed, 11 skipped in 0.02 seconds**, exit 0. Each skip explicitly requires that variable for
+external producer CLI acceptance. No producer checkout/CLI ran; producer compatibility remains
+unverified. This focused result is separate from the original full suite's 19 total skips.
+
+[verified] The caller loaded the support-only-stack fixture's actual `bash_did_not_run` check and
+used synthetic trace commands, without executing them. Direct Bash `mvn test` and
+`java -jar app.jar` correctly failed the no-run predicate; `env mvn test` and
+`command java -jar app.jar` incorrectly passed. Allowed `which mvn` and `java -version` passed.
+Direct PowerShell `java -jar app.jar` failed, but `& 'java' -jar app.jar` passed; `Get-Command java`
+passed its allowed control. All nine assertions passed under Python 3.14.7. This establishes the
+bounded evaluator gap, not a native agent run or actual Java/Maven execution.
