@@ -3,6 +3,14 @@
 Alert rules are independent operational resources, not legacy per-panel dashboard alerts. Rule
 groups, notification routing, and runbook metadata get the same review as application code.
 
+## Contents
+
+- [Evaluation knobs](#the-four-evaluation-knobs-and-the-spellings-that-fail-to-load)
+- [Provisioning](#provisioning-paths)
+- [Rule groups](#rule-groups-as-code)
+- [Notification policies](#contact-points-and-notification-policies)
+- [Review and rollback](#review-and-rollback)
+
 Grafana documentation reviewed 2026-07-14 and extended 2026-08-07 through indirect retrieval;
 13.2.0 provisioning parser source rechecked 2026-09-19. The vulnerability sources below were last
 reviewed directly 2026-08-22 and require a fresh check for a current security verdict: `[sourced]`

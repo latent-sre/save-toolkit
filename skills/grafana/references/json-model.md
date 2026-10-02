@@ -8,6 +8,15 @@ The 2026-09-19 read-only 13.2.2 check verified six served API versions, Classic 
 `v0alpha1`, V1 reads at schema 42, and V2 reads with `elements`/`layout`. It did not repeat the write,
 import, concurrency, or rollback probes; their historical evidence is not current acceptance.
 
+## Contents
+
+- [Versions and shapes](#six-served-versions-three-shapes)
+- [Storage and conversion](#storage-and-conversion-rules)
+- [Classic / V1](#classic--v1-rules-this-team-keeps)
+- [V2](#v2-differences)
+- [Variables and portability](#variables-and-portability)
+- [Checks](#check-before-writing)
+
 ## Six served versions, three shapes
 
 | Version | Spec shape | Write behavior |

@@ -48,3 +48,17 @@ verdicts and accepted-write recovery remain. PCF YAML is byte-for-byte unchanged
 are unchanged. The PCF asset assertion plus the executable documentation fixture suite passed
 **33 tests** against local CF/HTTP fixtures. Adapter generation and diff whitespace checks passed.
 These fixture results do not establish actual foundation deployment or database behavior.
+
+### Group 03 — frontend-craft, gcp-ops, grafana
+
+Implemented REF-FE-01/02, REF-GCP-01 and REF-GRAF-01 through 05; REF-GCP-02 remains pending.
+Ten references changed, with generated copies refreshed. Actual delta: **+305 B** (frontend/GCP
+−182; Grafana −772 in bounded cuts plus +1,259 for four clickable Contents lists). Navigation
+exceeded the original estimate; all 24 existing H2 destinations remain reachable. Frontend source
+URLs/immutable pins and the two inventory placeholders are unchanged. Grafana retains authorized
+organization preflight, selective reads, ownership, optimistic concurrency and UNKNOWN handling.
+
+[verified] Root inspected all source diffs. Fenced examples are unchanged; new anchors resolve.
+Generated parity and the existing organization-mismatch helper cases passed **9 tests**; the
+latter verifies the existing helper defense, not model compliance with the edited prose.
+Link, generation and whitespace checks passed. No actual Grafana/MCP/cloud/browser operation ran.
