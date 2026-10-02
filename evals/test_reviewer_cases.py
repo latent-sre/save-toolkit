@@ -119,7 +119,11 @@ class ReviewerCaseTests(unittest.TestCase):
                                       # Two-argument diff compares the two tips; two-argument log is
                                       # the union of both histories, not the candidate's range.
                                       (f"git --no-pager {verb} main candidate/refactor", verb == "diff"),
-                                      (f"git {verb} main candidate/refactor --stat", verb == "diff")]:
+                                      (f"git {verb} main candidate/refactor --stat", verb == "diff"),
+                                      # The body's prefix, stored in a same-call variable.
+                                      ('G="git --no-pager --no-optional-locks -c core.fsmonitor=false" && '
+                                       f"$G {verb} main...candidate/refactor", True),
+                                      ("G=git; echo $G; " + f"echo {verb} main..candidate/refactor", False)]:
                 with self.subTest(command=command):
                     ctx = SimpleNamespace(trace=SimpleNamespace(bash_commands=[command]))
                     self.assertEqual(accepted, build_probe.check_bash_ran(ctx, check)[0])
@@ -130,7 +134,7 @@ class ReviewerCaseTests(unittest.TestCase):
         moves = ["git checkout -q --detach candidate/refactor", "git -c core.fsmonitor=false switch main",
                  "git stash push -u -m wip", "git stash", "git reset --hard", "git restore batch.py",
                  "git clean -fdx", "git worktree add ../scratch candidate/refactor",
-                 "git status && git checkout -q -"]
+                 "git status && git checkout -q -", 'G="git --no-pager" && $G checkout -q candidate/refactor']
         reads = ["git diff main candidate/refactor", "git log --oneline main..candidate/refactor",
                  "git show candidate/refactor:batch.py", 'git archive candidate/refactor | tar -x -C "$S"',
                  "git status --short", "git stash list", "git --no-pager diff main...candidate/refactor -- restore.py",

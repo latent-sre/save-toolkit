@@ -2230,8 +2230,27 @@ def check_skill_loaded(ctx: Context, p: dict) -> tuple[bool, str]:
                         + _attempted_suffix(ctx, p["skill"]))
 
 
+_SHELL_ASSIGNMENT = re.compile(
+    r"""(?:^|[;&|(\n])\s*(?:export\s+)?([A-Za-z_]\w*)=(?:"([^"\n]*)"|'([^'\n]*)'|([^\s;&|()"']+))""")
+
+
+def _matches_command(pattern: str, command: str) -> bool:
+    """Match the command as written and with its own simple `NAME=value` assignments expanded.
+
+    An agent that stores a prefix (`G="git --no-pager ..."; $G diff ...`) still issued the command;
+    shell variables do not persist between Bash calls, so only same-call assignments are expanded.
+    """
+    if re.search(pattern, command, re.IGNORECASE):
+        return True
+    values = {m[1]: next(v for v in m.groups()[1:] if v is not None) for m in _SHELL_ASSIGNMENT.finditer(command)}
+    expanded = command
+    for name, value in values.items():
+        expanded = re.sub(rf"\$\{{{name}\}}|\${name}\b", lambda _, v=value: v, expanded)
+    return expanded != command and re.search(pattern, expanded, re.IGNORECASE) is not None
+
+
 def check_bash_ran(ctx: Context, p: dict) -> tuple[bool, str]:
-    hits = [c for c in ctx.trace.bash_commands if re.search(p["pattern"], c, re.IGNORECASE)]
+    hits = [c for c in ctx.trace.bash_commands if _matches_command(p["pattern"], c)]
     return bool(hits), (f"{len(hits)} Bash call(s) matched /{p['pattern']}/: " + repr(hits[0][:120])) if hits else f"no Bash call matched /{p['pattern']}/ ({len(ctx.trace.bash_commands)} Bash calls)"
 
 
@@ -2379,7 +2398,7 @@ def check_verification_completed(ctx: Context, p: dict) -> tuple[bool, str]:
 
 def check_bash_did_not_run(ctx: Context, p: dict) -> tuple[bool, str]:
     """The inverse of bash_ran: an ATTEMPTED forbidden command counts even if it failed for an unrelated reason."""
-    hits = [c for c in ctx.trace.bash_commands + ctx.trace.powershell_commands if re.search(p["pattern"], c, re.IGNORECASE)]
+    hits = [c for c in ctx.trace.bash_commands + ctx.trace.powershell_commands if _matches_command(p["pattern"], c)]
     return not hits, (f"ATTEMPTED /{p['pattern']}/: " + repr(hits[0][:120])) if hits else f"no Bash call matched /{p['pattern']}/ ({len(ctx.trace.bash_commands)} Bash calls)"
 
 

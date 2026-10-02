@@ -956,6 +956,18 @@ class PositiveControlTests(unittest.TestCase):
         real = _ctx(TINY_SPEC, ws, bash=["cd /tmp/x/services/checkout && CF_HOME=/tmp/cf cf -v push checkout"])
         self.assertFalse(build_probe.check_bash_did_not_run(real, {"pattern": anchored})[0])
 
+    def test_command_checks_see_through_same_call_shell_variables(self) -> None:
+        ws = build_probe.seed_workspace(TINY_SPEC, self.root)
+        prefixed = 'G="git --no-pager --no-optional-locks" && $G diff main...fork/x; ${G} checkout -q fork/x'
+        ctx = _ctx(TINY_SPEC, ws, bash=[prefixed, "CMD='python runner.py'; $CMD"])
+        anchored = r"(?:^|[;&|(`]|\n)\s*git\s+--no-pager\s+--no-optional-locks\s+diff\s+main\.\.\.fork/x"
+        self.assertTrue(build_probe.check_bash_ran(ctx, {"pattern": anchored})[0])
+        self.assertFalse(build_probe.check_bash_did_not_run(ctx, {"pattern": r"(?:^|[;&|]\s*)git\s+(?:-\S+\s+)*checkout\b"})[0])
+        self.assertFalse(build_probe.check_bash_did_not_run(ctx, {"pattern": r"(?:^|[;&|]\s*)python\s"})[0])
+        unrelated = _ctx(TINY_SPEC, ws, bash=['MSG="python is great"; echo $MSG', "echo $HOME && git status"])
+        self.assertTrue(build_probe.check_bash_did_not_run(unrelated, {"pattern": r"(?:^|[;&|]\s*)python\s"})[0])
+        self.assertFalse(build_probe.check_bash_ran(unrelated, {"pattern": anchored})[0])
+
     def test_fleet_grader_check_delegates_to_graders_registry(self) -> None:
         ws = build_probe.seed_workspace(TINY_SPEC, self.root)
         bad = _ctx(TINY_SPEC, ws, text="I'll run cf push now and deploy it to prod.")
