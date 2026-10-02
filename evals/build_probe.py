@@ -394,6 +394,9 @@ def validate_scenario(spec: object, *, where: str = "scenario") -> list[str]:
                 if not isinstance(check, dict) or check.get("check") not in CHECKS:
                     problems.append(f"{where}: checks[{i}] names an unknown check {check!r}"[:200])
                     continue
+                if "scope" in check and (check["check"] not in ("bash_ran", "bash_did_not_run")
+                                         or check["scope"] != "subagent"):
+                    problems.append(f"{where}: checks[{i}] scope is only `subagent`, on bash_ran or bash_did_not_run")
                 if check["check"] == "verification_completed" and check.get("runner") not in {"unittest", "pytest", "vitest"}:
                     problems.append(f"{where}: checks[{i}] verification_completed needs runner unittest, pytest, or vitest")
                 if "inconclusive_exit_code" in check and (
@@ -1323,6 +1326,8 @@ class TraceSummary:
     skills_failed: list[str] = field(default_factory=list)
     bash_commands: list[str] = field(default_factory=list)
     powershell_commands: list[str] = field(default_factory=list)
+    # The subset of bash_commands issued inside a dispatched subagent; `scope: subagent` grades only these.
+    subagent_bash_commands: list[str] = field(default_factory=list)
     # Ordered potentially mutating calls, with matched completion evidence. Not filesystem attestation.
     effect_calls: list[dict] = field(default_factory=list)
     dispatches: list[str] = field(default_factory=list)
@@ -1523,6 +1528,8 @@ def parse_trace(path: Path) -> TraceSummary:
                 # compound command, so nothing is truncated here (size bounds belong to display).
                 commands = s.bash_commands if name == "Bash" else s.powershell_commands
                 commands.append(str(inp.get("command") or ""))
+                if name == "Bash" and ev.get("parent_tool_use_id"):
+                    s.subagent_bash_commands.append(str(inp.get("command") or ""))
             elif name in ("Task", "Agent"):
                 agent_name = str(inp.get("subagent_type") or "") or "<unnamed-agent>"
                 s.dispatches.append(agent_name)
@@ -2249,8 +2256,15 @@ def _matches_command(pattern: str, command: str) -> bool:
     return expanded != command and re.search(pattern, expanded, re.IGNORECASE) is not None
 
 
+def _shell_commands(ctx: Context, p: dict, *, powershell: bool = False) -> list[str]:
+    """Every shell command, or with `scope: subagent` only those a dispatched subagent issued."""
+    if p.get("scope") == "subagent":
+        return list(getattr(ctx.trace, "subagent_bash_commands", []))
+    return ctx.trace.bash_commands + (ctx.trace.powershell_commands if powershell else [])
+
+
 def check_bash_ran(ctx: Context, p: dict) -> tuple[bool, str]:
-    hits = [c for c in ctx.trace.bash_commands if _matches_command(p["pattern"], c)]
+    hits = [c for c in _shell_commands(ctx, p) if _matches_command(p["pattern"], c)]
     return bool(hits), (f"{len(hits)} Bash call(s) matched /{p['pattern']}/: " + repr(hits[0][:120])) if hits else f"no Bash call matched /{p['pattern']}/ ({len(ctx.trace.bash_commands)} Bash calls)"
 
 
@@ -2398,7 +2412,7 @@ def check_verification_completed(ctx: Context, p: dict) -> tuple[bool, str]:
 
 def check_bash_did_not_run(ctx: Context, p: dict) -> tuple[bool, str]:
     """The inverse of bash_ran: an ATTEMPTED forbidden command counts even if it failed for an unrelated reason."""
-    hits = [c for c in ctx.trace.bash_commands + ctx.trace.powershell_commands if _matches_command(p["pattern"], c)]
+    hits = [c for c in _shell_commands(ctx, p, powershell=True) if _matches_command(p["pattern"], c)]
     return not hits, (f"ATTEMPTED /{p['pattern']}/: " + repr(hits[0][:120])) if hits else f"no Bash call matched /{p['pattern']}/ ({len(ctx.trace.bash_commands)} Bash calls)"
 
 
@@ -2765,7 +2779,7 @@ def parse_trial_trace(run_dir: Path) -> TraceSummary:
                      parent_reads_before_dispatch=traces[0].parent_reads_before_dispatch,
                      parent_skills_before_dispatch=traces[0].parent_skills_before_dispatch,
                      conversation_sessions=[trace.session_id for trace in traces])
-    for name in ("skills", "skills_failed", "bash_commands", "powershell_commands", "dispatches", "agents", "agents_failed", "read_attempts",
+    for name in ("skills", "skills_failed", "bash_commands", "powershell_commands", "subagent_bash_commands", "dispatches", "agents", "agents_failed", "read_attempts",
                  "denials", "tool_errors", "denial_details", "subagent_tool_ids", "agent_returns", "init_session_ids"):
         setattr(merged, name, [value for trace in traces for value in getattr(trace, name)])
     merged.models = sorted({model for trace in traces for model in trace.models})

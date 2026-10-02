@@ -267,7 +267,9 @@ directly and after a terse handoff. `fixture.checkout` names the branch left che
 `fixture.uncommitted` writes files after the last commit; `no_workspace_changes` requires those
 bytes intact. These fixtures do not git-ignore caches, and a Git-verb check rejects checkout, switch,
 stash, reset, restore, clean, and worktree add, so a run inside the source checkout shows. Checks
-named `contract:` grade the output contract. Their
+named `contract:` grade the output contract. A software-engineer case hands its uncommitted work
+to the reviewer; `scope: subagent` on `bash_ran`/`bash_did_not_run` grades only the commands the
+dispatched reviewer issued, since the trace otherwise pools them with the builder's. Their
 [calibration tests](test_reviewer_cases.py) check real fixture branches, caller behavior, decision
 graders, and command matching. Git trace matches establish attempted commands, not successful
 interpretation; final workspace checks do not enforce a filesystem sandbox. The verification
@@ -485,7 +487,9 @@ snapshot makes the trial **INCONCLUSIVE**, never a verdict. An auth failure abor
 
 This is an evaluation boundary, **not an OS sandbox**. A build lane's Bash runs on the host with
 network, and the credential copy sits where an unguarded tool could reach it (the probe scans
-outputs for credential markers and warns). Use only reviewed, non-secret prompts, and keep raw
+outputs for credential markers and warns). Under subscription login, Claude Code itself adds the
+account email to the trial's context, even with `--setting-sources ""`; a trial that repeats it is
+showing that injection, not a leak from the copied files. Use only reviewed, non-secret prompts, and keep raw
 traces private: they carry complete prompts and responses, session IDs, and tool payloads. Artifacts
 are written owner-only under `.eval-runs/`; quote the numbers a review depends on into that review
 rather than publishing the batch.

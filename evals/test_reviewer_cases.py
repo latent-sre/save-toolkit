@@ -322,6 +322,28 @@ class ReviewerCaseTests(unittest.TestCase):
                     self.assertEqual(expected, build_probe.check_bash_ran(ctx, checks[text])[0])
 
 
+class HandoffScenarioTests(unittest.TestCase):
+    def test_reviewer_scoped_checks_separate_scratch_runs_from_in_place_imports(self):
+        spec = build_probe.load_scenario(
+            ROOT / "build-scenarios/build-software-engineer-hands-uncommitted-work-to-reviewer.yaml")
+        checks = {c["text"]: c for c in spec["checks"]}
+        in_place = checks["the reviewer never imports the candidate inside the working tree"]
+        copied = checks["the reviewer copies the work into scratch before running it"]
+        self.assertTrue(all(c.get("scope") == "subagent" for c in (in_place, copied)))
+        cases = [  # (reviewer command, imported in place, copied to scratch) - shapes from real traces
+            ('python -c "\nfrom export import to_csv\nprint(repr(to_csv([])))"', True, False),
+            ("PYTHONDONTWRITEBYTECODE=1 python -c \"from export import to_csv; print(to_csv([]))\"", True, False),
+            ("S=$(mktemp -d) && cp *.py README.md $S && cd $S && python -c 'from export import to_csv'", False, True),
+            ("git ls-files -z --cached --others --exclude-standard | tar --null -T - -cf - | tar -xf - -C $S", False, True),
+            ("python -c \"print(f'{2.675:.2f}')\"", False, False),
+        ]
+        for command, imported, copy in cases:
+            with self.subTest(command=command):
+                ctx = SimpleNamespace(trace=build_probe.TraceSummary(subagent_bash_commands=[command]))
+                self.assertEqual(not imported, build_probe.check_bash_did_not_run(ctx, in_place)[0])
+                self.assertEqual(copy, build_probe.check_bash_ran(ctx, copied)[0])
+
+
 def load_modules(files, *names):
     """Execute reviewed fixture modules in order, each importable by the ones after it."""
     loaded = {}

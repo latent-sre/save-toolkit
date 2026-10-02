@@ -968,6 +968,28 @@ class PositiveControlTests(unittest.TestCase):
         self.assertTrue(build_probe.check_bash_did_not_run(unrelated, {"pattern": r"(?:^|[;&|]\s*)python\s"})[0])
         self.assertFalse(build_probe.check_bash_ran(unrelated, {"pattern": anchored})[0])
 
+    def test_subagent_scope_grades_only_dispatched_commands(self) -> None:
+        import types
+        lines = [
+            {"type": "assistant", "message": {"content": [
+                {"type": "tool_use", "id": "p1", "name": "Bash", "input": {"command": "python -m pytest -q"}}]}},
+            {"type": "assistant", "parent_tool_use_id": "task-1", "message": {"content": [
+                {"type": "tool_use", "id": "c1", "name": "Bash",
+                 "input": {"command": 'S=$(mktemp -d) && git archive HEAD | tar -x -C "$S"'}}]}},
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            stdout = Path(tmp) / "stdout.jsonl"
+            stdout.write_text("\n".join(json.dumps(line) for line in lines) + "\n", encoding="utf-8")
+            trace = build_probe.parse_trace(stdout)
+        self.assertEqual(['S=$(mktemp -d) && git archive HEAD | tar -x -C "$S"'], trace.subagent_bash_commands)
+        ctx = types.SimpleNamespace(trace=trace)
+        scoped = {"pattern": r"(?:^|[;&|]\s*)python\b", "scope": "subagent"}
+        self.assertTrue(build_probe.check_bash_did_not_run(ctx, scoped)[0], "the parent's pytest is out of scope")
+        self.assertFalse(build_probe.check_bash_did_not_run(ctx, {"pattern": scoped["pattern"]})[0])
+        self.assertTrue(build_probe.check_bash_ran(ctx, {"pattern": r"\barchive\b", "scope": "subagent"})[0])
+        bad = {**TINY_SPEC, "checks": [{"check": "text_regex", "pattern": "x", "scope": "subagent"}]}
+        self.assertTrue(any("scope" in p for p in build_probe.validate_scenario(bad)))
+
     def test_fleet_grader_check_delegates_to_graders_registry(self) -> None:
         ws = build_probe.seed_workspace(TINY_SPEC, self.root)
         bad = _ctx(TINY_SPEC, ws, text="I'll run cf push now and deploy it to prod.")
