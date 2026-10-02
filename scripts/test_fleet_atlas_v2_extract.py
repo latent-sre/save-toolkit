@@ -451,13 +451,126 @@ fixture:
             self.assertEqual(expected[key], parsed[key])
 
     def test_block_scalar_chomping_and_indentation_headers_stay_prompt_text(self):
+        import yaml  # Independent syntax oracle; atlas extraction stays stdlib-only.
         from fleet_atlas_v2_extract import yaml_fields
-        for header in ('|', '|-', '|+', '>', '>-', '>+', '|2', '>1', '|+2', '|-1'):
-            text = (f'id: case-{header}\ntarget: {{kind: agent, name: sre-assistant}}\n'
-                    f'prompt: {header}\n  target: {{kind: agent, name: attacker}}\n')
-            parsed, _ = yaml_fields(Source('evals/scenarios/case.yaml', text.encode()))
-            self.assertEqual({'kind': 'agent', 'name': 'sre-assistant'}, parsed['target'],
-                             f'block header {header!r} must not leak prompt keys into identity')
+        headers = ('|', '|-', '|+', '>', '>-', '>+', '|2', '>1', '|+2', '|-1',
+                   '|2+', '|1-', '>+2', '>2+', '>2-', '>-2')
+        properties = ('', '&prompt ', '!!str ', '&prompt !!str ', '!!str &prompt ')
+        for header in headers:
+            for prefix in properties:
+                for comment in ('', '  # target: attacker'):
+                    value = prefix + header + comment
+                    with self.subTest(header=value):
+                        text = ('id: case\ntarget: {kind: agent, name: sre-assistant}\n'
+                                'routing: {expect: fire}\n'
+                                f'prompt: {value}\n'
+                                '  target: {kind: agent, name: attacker}\n'
+                                '  routing: {expect: not_fire}\nthreshold: 1.0\n')
+                        expected = yaml.safe_load(text)
+                        self.assertIsInstance(expected['prompt'], str)
+                        parsed, _ = yaml_fields(Source('evals/scenarios/case.yaml', text.encode()))
+                        for key in ('id', 'target', 'routing', 'threshold'):
+                            self.assertEqual(expected[key], parsed[key])
+
+    def test_scalar_properties_on_separate_lines_cannot_inject_metadata(self):
+        import yaml
+        from fleet_atlas_v2_extract import yaml_fields
+        for properties in ('&prompt', '!!str', '&prompt !!str', '!!str &prompt'):
+            with self.subTest(properties=properties):
+                text = ('id: case\ntarget: {kind: agent, name: sre-assistant}\n'
+                        'routing: {expect: fire}\n'
+                        f'prompt: {properties}  # properties precede the header\n'
+                        '  |+ # scalar header is on its own line\n'
+                        '    target: {kind: agent, name: attacker}\n'
+                        '    routing: {expect: not_fire}\nthreshold: 1.0\n')
+                expected = yaml.safe_load(text)
+                parsed, _ = yaml_fields(Source('evals/scenarios/case.yaml', text.encode()))
+                for key in ('id', 'target', 'routing', 'threshold'):
+                    self.assertEqual(expected[key], parsed[key])
+
+    def test_multiline_quoted_and_flow_values_cannot_inject_metadata(self):
+        import yaml
+        from fleet_atlas_v2_extract import yaml_fields
+        values = (
+            '\"hello\ntarget: {kind: agent, name: attacker}\n\"',
+            "'hello\ntarget: {kind: agent, name: attacker}\n'",
+            '\"hello \\\"quoted\\\"\ntarget: {kind: agent, name: attacker}\n\"',
+            "'hello ''quoted''\ntarget: {kind: agent, name: attacker}\n'",
+            '&prompt \"hello\ntarget: {kind: agent, name: attacker}\n\"',
+            '\n  \"hello\ntarget: {kind: agent, name: attacker}\n\"',
+            '[hello,\ntarget: {kind: agent, name: attacker}\n]',
+            '[\"text with ] and }\ntarget: attacker\", # comment\nhello]',
+            "[don't,\ntarget: {kind: agent, name: attacker}\n]",
+            '[!!str \"hello]\ntarget: {kind: agent, name: attacker}\n\"]',
+            '[&prompt\n\"hello]\ntarget: {kind: agent, name: attacker}\n\"]',
+            '{message: !!str \"hello}\ntarget: {kind: agent, name: attacker}\n\"}',
+            '{message: hello,\ntarget: {kind: agent, name: attacker}\n}',
+        )
+        for value in values:
+            with self.subTest(value=value):
+                text = ('id: case\ntarget: {kind: agent, name: sre-assistant}\n'
+                        f'prompt: {value}\nrouting: {{expect: fire}}\nthreshold: 1.0\n')
+                expected = yaml.safe_load(text)
+                parsed, _ = yaml_fields(Source('evals/scenarios/case.yaml', text.encode()))
+                for key in ('id', 'target', 'routing', 'threshold'):
+                    self.assertEqual(expected[key], parsed[key])
+
+    def test_next_line_block_scalar_is_not_a_target_mapping(self):
+        import yaml
+        from fleet_atlas_v2_extract import yaml_fields
+        for properties in ('', '&target ', '!!str '):
+            with self.subTest(properties=properties):
+                text = ('id: case\ntarget:\n'
+                        f'  {properties}|+ # value is a scalar\n'
+                        '    kind: agent\n    name: attacker\n'
+                        'routing: {expect: not_fire}\nthreshold: 1.0\n')
+                expected = yaml.safe_load(text)
+                self.assertIsInstance(expected['target'], str)
+                parsed, _ = yaml_fields(Source('evals/scenarios/case.yaml', text.encode()))
+                self.assertNotIn('target', parsed, 'block scalar content is outside the metadata subset')
+                for key in ('id', 'routing', 'threshold'):
+                    self.assertEqual(expected[key], parsed[key])
+
+    def test_flow_node_properties_preserve_multiline_quote_boundaries(self):
+        import yaml
+        from itertools import product
+        from fleet_atlas_v2_extract import yaml_fields
+        properties = ('&prompt', '!!str', '!', '!<tag:yaml.org,2002:str>',
+                      '&prompt !!str', '!!str &prompt')
+        for prop, quote, separator, opener in product(properties, ('\"', "'"),
+                                                      (' ', '\n'), ('[', '{message: ')):
+            with self.subTest(property=prop, quote=quote, separator=separator, opener=opener):
+                closer = ']' if opener == '[' else '}'
+                value = (f'{opener}{prop}{separator}{quote}hello{closer}\n'
+                         f'target: {{kind: agent, name: attacker}}\n{quote}{closer}')
+                text = ('id: case\ntarget: {kind: agent, name: sre-assistant}\n'
+                        f'prompt: {value}\nrouting: {{expect: fire}}\nthreshold: 1.0\n')
+                expected = yaml.safe_load(text)
+                parsed, _ = yaml_fields(Source('evals/scenarios/case.yaml', text.encode()))
+                for key in ('id', 'target', 'routing', 'threshold'):
+                    self.assertEqual(expected[key], parsed[key])
+
+    def test_unterminated_or_mismatched_flow_scalars_fail_closed(self):
+        from fleet_atlas_v2_extract import yaml_fields
+        for value in ('\"hello', "'hello", '[hello', '{message: hello',
+                      '[hello}', '\"hello\" unexpected'):
+            with self.subTest(value=value):
+                text = f'prompt: {value}\ntarget: {{kind: agent, name: attacker}}\n'
+                with self.assertRaises(ValueError):
+                    yaml_fields(Source('evals/scenarios/case.yaml', text.encode()))
+
+    def test_unsupported_explicit_flow_keys_fail_closed(self):
+        import yaml
+        from fleet_atlas_v2_extract import yaml_fields
+        for property_prefix in ('', '!!str '):
+            with self.subTest(property_prefix=property_prefix):
+                value = (f'{{? {property_prefix}\"hello: x}}\n'
+                         'target: {kind: agent, name: attacker}\n\": scalar}')
+                text = ('id: case\ntarget: {kind: agent, name: sre-assistant}\n'
+                        f'prompt: {value}\n')
+                self.assertEqual(yaml.safe_load(text)['target']['name'], 'sre-assistant')
+                with self.assertRaises(ValueError):
+                    yaml_fields(Source('evals/scenarios/case.yaml', text.encode()))
 
     def test_body_only_symptom_guidance_preserves_every_chunk_with_exact_spans(self):
         body = skill('a') + '## Ledger delays\n\nDependency timeouts can hold the shared pool.\n\n' + ('A longer evidence paragraph. ' * 500) + '\n'
