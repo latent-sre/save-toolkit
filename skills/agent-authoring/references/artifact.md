@@ -45,9 +45,6 @@ per-case results, cost, and decision in the PR. A new grader, validator, scenari
 the measured failure it prevents; unfinished work has one owner in the repository's authoritative
 tracker.
 
-An author can report a scoped named test/eval PASS. That establishes only the reported check, not
-independent review or promotion; the promotion and review rules below still apply.
-
 ## Learn from an encountered failure
 
 - An observation is evidence, not a contract: a human decides whether the behavior should be
@@ -86,8 +83,6 @@ schema or the output is intentionally free-form.
   [agent frontmatter rules](./claude-code-frontmatter.md#agents).
 - Add an eval scenario only for a gradeable outcome — a gate blocks, routing lands, a refusal
   happens. No tautological prose evals.
-- Every repository-visible eval is calibration or regression; "shadow" only when its cases are
-  withheld by a human/protected evaluator outside the authoring checkout.
 - Measure the boundary that changed: activation/routing, artifact behavior, tool choice and
   arguments, handoff/path, and final outcome are separate results. A harness denied a linked
   reference proves activation, not reference-dependent behavior.

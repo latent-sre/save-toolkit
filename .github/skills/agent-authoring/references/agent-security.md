@@ -10,6 +10,14 @@ An LLM cannot reliably separate trusted instructions from untrusted data; both a
 stream, so any text an agent reads can try to become a command. This is architectural. You contain
 it; you do not patch it. *[sourced: Simon Willison, "The lethal trifecta for AI agents"]*
 
+## Contents
+
+- [Trifecta](#the-lethal-trifecta)
+- [Trust boundaries](#trust-boundaries-that-always-apply)
+- [Controls](#controls-that-hold)
+- [Review questions](#the-review-in-five-questions)
+- [Output](#output)
+
 ## The lethal trifecta
 
 A single injected prompt can exploit an agent that combines all three:

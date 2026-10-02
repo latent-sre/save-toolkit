@@ -48,8 +48,9 @@ candidate is complete: six lenses in groups of three skill bundles, each committ
 next group. Its [action register](reviews/2026-10-02-reference-audit/recommendations.md) records
 74 KEEP, 26 TRIM, one paired MERGE and two CONDITIONAL inventories. Forty records comprise two
 documentation correctness defects, seven navigation-convention records, 30 optional recommendations
-and one shared ownership decision. The owner selects bounded cleanup next; no reference content
-was changed, and these records do not replace the original 12 remaining findings.
+and one shared ownership decision. The owner has authorized the bounded cleanup; the
+[implementation receipt](reviews/2026-10-02-reference-audit/implementation.md) tracks its changes
+and fresh verification. These records do not replace the original 12 remaining findings.
 **SRE task:** Identify which guidance is correct and useful, which claims lack verification, and
 the smallest changes needed before relying on affected workflows.
 
