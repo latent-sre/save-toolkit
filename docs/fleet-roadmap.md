@@ -25,7 +25,7 @@ records do not re-queue work.
 
 ### AUDIT-001 — review all skills and agents and disposition the findings
 
-**Status:** `active` (2026-10-02); groups 01–02 of 13 reviewed against freshly fetched main `a2d2e57d`.
+**Status:** `active` (2026-10-02); groups 01–03 of 13 reviewed against freshly fetched main `a2d2e57d`.
 **Owner:** The human owner selects repairs and dispositions; the audit caller owns the review evidence.
 **Outcome:** All 30 skills, then all 9 agents, receive six documented review passes in groups of
 three, with each group's findings committed before the next group, and the owner can select

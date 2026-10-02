@@ -98,6 +98,42 @@ the authentication predicate validates encountered commands without requiring on
 The CI report distinguishes the confirmed artifact-identity gap from the narrower authentication
 coverage recommendation. No whole native trial or deployed workflow was measured.
 
+## Group 03 verification
+
+[verified] The atlas's input corpus includes roadmap and evidence documents, which audit commits
+change. Its real-tree check therefore ran in a separate detached checkout of the exact baseline,
+`F:/iso-tmp/fleet-audit-baseline-20261002`, using the same Python 3.14.7 interpreter:
+
+```powershell
+& 'F:/repos/sre-agents/.venv/Scripts/python.exe' -B scripts/check_fleet_atlas_v2.py --build
+```
+
+Exit 0: all seven commands passed. Build/check returned verified; owner-of fleet-atlas,
+evidence-for GRAPH-004, service-lifecycle impact and incident guidance returned results; the
+deliberately absent guidance term returned empty. Generated files belong to this disposable
+verification checkout and are not changes to the audited source or release acceptance.
+
+[verified] Two narrow atlas counterexamples also reproduced with exit 0 in disposable Git fixtures:
+
+- The existing query fixture assigns its rule to `README.md`. `governs README.md` returned empty,
+  while `governs rule:first` and the matching text `Package decision` returned results.
+- A new `skills/ignored/SKILL.md`, excluded through the fixture's `.git/info/exclude`, satisfied
+  `is_source` but did not change the accepted `current_snapshot` tree digest. Removing that ignore
+  rule made the same untracked file fail as dirty canonical input. This is a snapshot-contract
+  counterexample, not proof of native host loading.
+
+[verified] Twelve synthetic hook payloads exercised the existing guard subprocess under
+`python -I -S`. Both Bash and PowerShell denied impersonation and flags-file command shapes for
+`save-toolkit:sre-assistant` (exit 43), allowed those shapes for
+`save-toolkit:observability-engineer` (exit 42), and denied the direct access-token control for
+both. Deny JSON and empty allow output were checked. No gcloud command executed or flags file was
+read; this establishes the guard's scope, not a live permission test.
+
+[verified] Node is installed, but React, Testing Library, Vitest and jsdom were unavailable through
+module resolution in the audit checkout. Frontend oracle findings therefore use inspected source
+and primary documentation of query semantics. No dependency was installed or browser mutant run;
+that execution layer remains unverified.
+
 ## Limits
 
 No paid/native model campaign, live cloud or database operation, browser acceptance run, deployment,

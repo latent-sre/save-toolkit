@@ -58,7 +58,7 @@ Context reduction is proposed only where it preserves useful safeguards and demo
 |---|---|---|---|
 | 01 | Skills | [agent-authoring](group-01-agent-authoring.md), [akamai-edge](group-01-akamai-edge.md), [backend-craft](group-01-backend-craft.md) | Six passes complete |
 | 02 | Skills | [ci-actions](group-02-ci-actions.md), [database-reliability](group-02-database-reliability.md), [eng-ladder](group-02-eng-ladder.md) | Six passes complete |
-| 03 | Skills | `fleet-atlas`, `frontend-craft`, `gcp-ops` | Planned |
+| 03 | Skills | [fleet-atlas](group-03-fleet-atlas.md), [frontend-craft](group-03-frontend-craft.md), [gcp-ops](group-03-gcp-ops.md) | Six passes complete |
 | 04 | Skills | `grafana`, `incident-investigation`, `obs-alerting` | Planned |
 | 05 | Skills | `obs-dashboards`, `obs-logs`, `obs-metrics` | Planned |
 | 06 | Skills | `obs-pipeline`, `obs-traces`, `operational-learning` | Planned |
@@ -99,6 +99,21 @@ from routing predicates, and measure a bounded consultation/return sequence when
 engine-version qualifications, preserved-write recovery and human execution boundaries remain
 strengths. Database upstream source indexing was incomplete; the report relies on identified
 primary documentation and labels actual engine behavior unverified.
+
+## Group 03 adjudicated findings
+
+Five confirmed findings have bounded evidence: FA-01 is the advertised atlas path-query mismatch;
+FA-02 is ignored canonical input bypassing snapshot rejection; FE-01 and FE-02 concern UI-state
+visibility and missing filter-result assertions; GP-01 overstates the scope of two guard flags.
+The caller reproduced both atlas cases and the two-lane/two-shell guard matrix. The UI cases rest
+on inspected predicates plus current primary query documentation, with full mutant execution
+explicitly unverified because fixture dependencies are unavailable.
+
+The seven-command atlas contract passed in a detached checkout of the original source revision,
+separating baseline behavior from this audit's changing roadmap/evidence inputs. Correcting FA-02
+must preserve intended cache/generated exclusions; simply removing Git's ignore handling would
+create another problem. Recommendations cover verification-link meaning, source-corpus scope,
+oversized results, conditional readiness probes and present-state rollback compatibility.
 
 ## Verification record
 
