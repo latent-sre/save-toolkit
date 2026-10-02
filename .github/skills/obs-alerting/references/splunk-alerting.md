@@ -31,7 +31,7 @@ dispatch.latest_time = -2m@m
 - Trigger conditions are `counttype` with `relation` and `quantity`, or `alert_condition`, a
   secondary search that replaces the trio when set; `alert_type`, `alert_comparator`, and
   `alert_threshold` are the REST API's names and configure nothing in the file *[sourced: Alerting
-  Manual; official spec page blocks retrieval]*. `alert.digest_mode` decides whole-result-set
+  Manual]*. `alert.digest_mode` decides whole-result-set
   versus per-result actions.
 
 ## Throttling is part of the design

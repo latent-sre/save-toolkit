@@ -62,3 +62,16 @@ organization preflight, selective reads, ownership, optimistic concurrency and U
 Generated parity and the existing organization-mismatch helper cases passed **9 tests**; the
 latter verifies the existing helper defense, not model compliance with the edited prose.
 Link, generation and whitespace checks passed. No actual Grafana/MCP/cloud/browser operation ran.
+
+### Group 04 — incident-investigation, obs-alerting, obs-logs
+
+Implemented REF-II-01 through 04, REF-ALERT-01 and REF-LOG-01 in five references and regenerated
+host copies. Actual delta: **+509 B** (incident wording −230 plus helper Contents +180;
+Splunk stale aside −37; query-catalog Contents +596). Timing differences now require matching
+request identity and timer boundaries before localizing delay. Readback points to the intact
+interrupted-attempt rule; UNKNOWN, executor reconciliation and ITO authority remain.
+
+[verified] Root inspected all source diffs. All new Contents anchors resolve; every fenced
+example/query, including the single helper reply, is byte-for-byte unchanged. The shipped helper
+reply oracle and generated parity passed **2 tests**. Generation, link and whitespace checks
+passed. No live query, incident action or model adherence check ran.
