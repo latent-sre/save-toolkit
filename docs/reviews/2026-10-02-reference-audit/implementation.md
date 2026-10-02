@@ -75,3 +75,17 @@ interrupted-attempt rule; UNKNOWN, executor reconciliation and ITO authority rem
 example/query, including the single helper reply, is byte-for-byte unchanged. The shipped helper
 reply oracle and generated parity passed **2 tests**. Generation, link and whitespace checks
 passed. No live query, incident action or model adherence check ran.
+
+### Group 05 — obs-metrics, obs-pipeline, obs-traces
+
+Implemented REF-MET-01/02, REF-PIPE-01/02/03 and REF-TRACE-01 in five references; regenerated
+host copies. Actual delta: **−402 B** (WQL −264; PromQL Contents +264; Alloy +207; SDK +16;
+Cloud Trace −625). The paired exporter move retains one blank separator, saving 241 B rather
+than the proposed 242 B. Transport endpoints, ADC, writer/Service Usage roles, quota project,
+source URLs and preview/canary limits now remain with pipeline ownership. PromQL navigation
+costs 24 B more than the audit's upper estimate because the links target the existing headings.
+
+[verified] Root inspected all diffs and the paired source/destination. All fenced queries/configs,
+including the repaired PowerShell recipe, are unchanged; new Contents anchors resolve. Generated
+parity passed **1 test**; generation, links and whitespace checks passed. No telemetry export,
+collector validation against a deployed build or model behavior was exercised.

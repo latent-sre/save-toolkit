@@ -1,11 +1,9 @@
 # Alloy pipeline
 
-All target-specific component names, ports, credentials, feature availability, and validation
-commands remain `[unverified]` until checked against the deployed Alloy build and the reviewed
-config for the exact environment. Syntax below is `[sourced]` to the official Alloy docs
-(`grafana.com/docs/alloy/latest/…`), reviewed 2026-08-07 via indirect retrieval of the doc
-sources; Alloy releases minors every ~3 weeks, so re-check component arguments against the
-deployed version's reference page.
+Target-specific components, ports, credentials, feature availability, and validation commands
+remain `[unverified]` until checked against the deployed Alloy build and exact environment config.
+Examples are `[sourced]` to official Alloy documentation; check component arguments against that
+build's reference before use.
 
 ## Contents
 
@@ -118,6 +116,12 @@ otelcol.auth.google "gcp" {
   project = "<project-id>"
 }
 ```
+
+Use Application Default Credentials with the writer's `roles/telemetry.writer`, Service Usage
+Consumer role and quota project. An OTLP/HTTP exporter uses the root URL
+`https://telemetry.googleapis.com`; do not reuse the gRPC `host:port` shape for it.
+*[sourced: docs.cloud.google.com/stackdriver/docs/otlp/overview;
+docs.cloud.google.com/stackdriver/docs/otlp-logs/migrate-to-otlp]*
 
 `otelcol.auth.google` is **public preview** and requires Alloy to start with
 `--stability.level=public-preview` (or a lower stability level). The exact project, permissions,
