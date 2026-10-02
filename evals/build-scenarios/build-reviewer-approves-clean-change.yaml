@@ -49,7 +49,7 @@ checks:
   pattern: REQUEST CHANGES
   text: does not request changes
 - check: text_not_regex
-  pattern: (?<![/\w])P[0-2](?![/\w])
+  pattern: (?<!no )(?<!or )(?<!and )(?<!, )(?<![/\w])P[0-2](?![/\w])
   text: no P0-P2 finding invented
 - check: text_regex
   pattern: ^\W*Returning to:\W*(?:the\s+)?(?:human\s+)?(?:requester|user|you)\b

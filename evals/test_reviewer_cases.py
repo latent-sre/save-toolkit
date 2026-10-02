@@ -285,8 +285,10 @@ class ReviewerCaseTests(unittest.TestCase):
                 ["**Verdict: PROVISIONAL — REQUEST CHANGES**", "PROVISIONAL - APPROVE WITH NITS"],
                 ["Reviewed state: PROVISIONAL\n\n**Verdict: REQUEST CHANGES**"]),
             "no P0-P2 finding invented": (
-                ["Independently found P0/P1 count: 0.", "P3 [verified] optional rename"],
-                ["P2 [verified] medium: process copies the list", "**P1** reorders callbacks"]),
+                ["Independently found P0/P1 count: 0.", "P3 [verified] optional rename",
+                 "I found no P0 or P1 issues (0).", "No P0, P1, or P2 findings."],
+                ["P2 [verified] medium: process copies the list", "**P1** reorders callbacks",
+                 "1. P2 [sourced] medium: the helper drops ordering"]),
             "rates it P0 or P1": (
                 ["1. **P1 [verified]** high: cross-tenant read"], ["Independently found P0/P1 count: 1."]),
             "contract: returns to the invoking agent": (
