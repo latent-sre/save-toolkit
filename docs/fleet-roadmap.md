@@ -23,6 +23,21 @@ records do not re-queue work.
 
 ## Repository work
 
+### AUDIT-001 — review all skills and agents and disposition the findings
+
+**Status:** `active` (2026-10-02); group 01 of 13 reviewed against freshly fetched main `a2d2e57d`.
+**Owner:** The human owner selects repairs and dispositions; the audit caller owns the review evidence.
+**Outcome:** All 30 skills, then all 9 agents, receive six documented review passes in groups of
+three, with each group's findings committed before the next group, and the owner can select
+evidence-backed repairs, recommendations, or explicit deferrals.
+**Next action:** Complete the remaining groups on the frozen source revision, preserving verified
+defects, optional improvements, policy choices and runtime gaps separately. This audit authorizes
+findings commits; remediation and any native model campaign require their own scope.
+**Evidence:** [Six-pass audit and group reports](reviews/2026-10-02-fleet-audit/README.md).
+Retain this packet until the owner's dispositions and any accepted repairs no longer depend on it.
+**SRE task:** Identify which guidance is correct and useful, which claims lack verification, and
+the smallest changes needed before relying on affected workflows.
+
 ### RELIABILITY-001 — accept the reliability engineering lane on representative tasks
 
 **Status:** `active` (2026-09-30); bounded comparison completed; corrected native acceptance pending.
