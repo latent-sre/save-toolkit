@@ -43,10 +43,13 @@ with 19 skips. Live calibration
 of the edited judge corpus and target-platform acceptance remain separately scoped.
 **Evidence:** [Six-pass audit and group reports](reviews/2026-10-02-fleet-audit/README.md).
 Retain this packet until the owner's dispositions and any accepted repairs no longer depend on it.
-The owner also requested a read-only necessity and context-cost audit of all 103 bundled reference
-files on the repaired candidate. Its [reference audit packet](reviews/2026-10-02-reference-audit/README.md)
-records six lenses in groups of three skill bundles, with a findings commit before each next group;
-removal or consolidation remains a separate owner-selected change.
+The read-only necessity and context-cost audit of all 103 bundled references on the repaired
+candidate is complete: six lenses in groups of three skill bundles, each committed before the
+next group. Its [action register](reviews/2026-10-02-reference-audit/recommendations.md) records
+74 KEEP, 26 TRIM, one paired MERGE and two CONDITIONAL inventories. Forty records comprise two
+documentation correctness defects, seven navigation-convention records, 30 optional recommendations
+and one shared ownership decision. The owner selects bounded cleanup next; no reference content
+was changed, and these records do not replace the original 12 remaining findings.
 **SRE task:** Identify which guidance is correct and useful, which claims lack verification, and
 the smallest changes needed before relying on affected workflows.
 
