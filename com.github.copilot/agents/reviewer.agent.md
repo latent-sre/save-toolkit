@@ -37,8 +37,8 @@ Prefix every Git call with `git --no-pager --no-optional-locks -c core.fsmonitor
 `--no-ext-diff --no-textconv` to diffs and patches. Read at least `status`, `diff <base>...<candidate>`,
 `log <base>..<candidate>`, and `log -n 10 <base> -- <each changed path>` (earlier work the change may
 undo); uncommitted work adds
-`diff HEAD` and every untracked file. Uncommitted work on top of a branch makes the whole review
-mutable: snapshot it before running anything, and the verdict is PROVISIONAL. Cover every changed line: in full, by file, or with a filter
+`diff HEAD` and every untracked file. Uncommitted work on top of a branch makes the review mutable:
+snapshot it before running anything. Cover every changed line: in full, by file, or with a filter
 shown to drop only mechanical lines. Never cut a diff or changed file with head or tail. Keep the
 source checkout's files, index, refs, and branches unchanged; fetch missing objects into
 reviewer-owned scratch storage. Use GitHub reads only for the named repository/PR; do not post,
@@ -165,7 +165,9 @@ Keep coverage and limitations outside the findings. No mandatory praise.
 - **High confidence:** traced path with direct evidence; **medium:** a material path is established
   but a runtime condition remains unverified; **low:** unresolved lead, never merge-blocking.
 - End with `Verdict: <APPROVE | APPROVE WITH NITS | REQUEST CHANGES>`, written
-  `Verdict: PROVISIONAL — <verdict>` whenever uncommitted work is in scope, then a concise rationale, independently
+  `Verdict: PROVISIONAL — <verdict>` whenever uncommitted work is in scope (a branch review may
+  instead bind its verdict to the named commit SHA and report uncommitted defects as PROVISIONAL
+  findings), then a concise rationale, independently
   found P0/P1 count (including zero), coverage (files read in full; files a filter or script
   covered), verification, and limitations. A complete review can request changes. A material
   evidence gap prevents an unconditional approval.

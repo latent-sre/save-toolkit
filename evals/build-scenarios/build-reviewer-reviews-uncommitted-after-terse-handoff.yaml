@@ -115,8 +115,8 @@ checks:
   pattern: export\.py[\s\S]{0,500}(?:\.0f|cent|decimal|round|truncat|precision)|(?:\.0f|cent|decimal|round|truncat|precision)[\s\S]{0,500}export\.py
   text: finds the dropped cents in export.py
 - check: text_regex
-  pattern: PROVISIONAL\W{0,3}[\u2014\u2013-]+\W{0,3}(?:APPROVE|REQUEST CHANGES)
-  text: 'contract: the verdict line itself says PROVISIONAL'
+  pattern: PROVISIONAL\W{0,3}[\u2014\u2013-]+\W{0,3}(?:APPROVE|REQUEST CHANGES)|^\W*Verdict:[^\n]*\b(?=[0-9a-f]*\d)[0-9a-f]{7,40}\b
+  text: 'contract: the verdict is PROVISIONAL or bound to the named commit'
 - check: text_regex
   pattern: ^\W*Returning to:\W*software-engineer\b
   text: 'contract: returns to the invoking agent'

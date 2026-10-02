@@ -15,6 +15,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   uncommitted reviews (main ran nothing on the branch and ran code inside the checkout 2/3 on
   uncommitted work); in-checkout runs after a `software-engineer` handoff 1/3 (main 3/3); fork-runner
   refusal and read-only or no-execution scopes held 9/9.
+- `reviewer` may bind a branch review's verdict to the named commit and report uncommitted defects
+  as PROVISIONAL findings (owner decision 2026-10-01); the terse-handoff check accepts that or a
+  PROVISIONAL verdict (6/6 Sonnet, 3/3 Opus; main 2/3). The two rename cases ask for the file whose
+  change introduces the defect (Opus had named the broken caller). Roadmap gains PRECOMMIT-001 and
+  REVIEWER-001.
 - `reviewer` closes probe gaps: a candidate that edits CLAUDE.md, AGENTS.md, or `.claude/` in the
   checkout it runs in gets a preparation gap instead of a verdict (0/3 -> 3/3; all three earlier
   trials resisted the injected policy but none noticed it had loaded as their own instructions);

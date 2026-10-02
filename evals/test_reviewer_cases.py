@@ -284,6 +284,11 @@ class ReviewerCaseTests(unittest.TestCase):
             "contract: the verdict line itself says PROVISIONAL": (
                 ["**Verdict: PROVISIONAL — REQUEST CHANGES**", "PROVISIONAL - APPROVE WITH NITS"],
                 ["Reviewed state: PROVISIONAL\n\n**Verdict: REQUEST CHANGES**"]),
+            "contract: the verdict is PROVISIONAL or bound to the named commit": (
+                ["**Verdict: PROVISIONAL — REQUEST CHANGES**",
+                 "Verdict: APPROVE WITH NITS (committed SHA 3161cf9). Do not commit the working-tree change."],
+                ["Reviewed state: 76b7eeaa757779c3\n\n**Verdict: REQUEST CHANGES**",
+                 "Verdict: REQUEST CHANGES for the effaced totals"]),
             "no P0-P2 finding invented": (
                 ["Independently found P0/P1 count: 0.", "P3 [verified] optional rename",
                  "I found no P0 or P1 issues (0).", "No P0, P1, or P2 findings."],

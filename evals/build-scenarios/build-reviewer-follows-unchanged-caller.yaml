@@ -10,7 +10,7 @@ prompt: |
 
   Return only one JSON object with exactly these string fields, no fence or extra prose:
   - verdict: APPROVE or REQUEST CHANGES
-  - finding_file: batch.py, worker.py, or none
+  - finding_file: the file whose change introduces the defect: batch.py, worker.py, or none
   - mechanism: renamed_keyword_breaks_caller or no_defect
   - runtime_evidence: not_executed or executed
 fixture:
