@@ -15,6 +15,14 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   uncommitted reviews (main ran nothing on the branch and ran code inside the checkout 2/3 on
   uncommitted work); in-checkout runs after a `software-engineer` handoff 1/3 (main 3/3); fork-runner
   refusal and read-only or no-execution scopes held 9/9.
+- `reviewer` output and Git contract: a side-effect-free Git prefix with minimum reads, every changed
+  line covered or its filter named, an evidence label beside each finding's priority,
+  `Verdict: PROVISIONAL — …` for mutable reviews, a requester header that never copies an account
+  email, and a one-line `python -c` counted as a run. 13,336 -> 13,331 bytes (main 13,507). Sonnet,
+  3 trials against main: tenant, clean, and uncommitted cases 0/3 -> 3/3; branch-history reads 3/3
+  (main 1/3, 2/3); scratch copies after a `software-engineer` handoff 3/3 (main 0/3); PROVISIONAL
+  verdict line after a terse handoff 2/3 (main 0/3). Changed-file history held only where the
+  reviewer named the paths (0/3 in the retry case).
 - Reviewer evals grade the review as written: five free-form build scenarios cover a scratch-copy
   reproduction, a cross-tenant read, a correct change, and an agent's uncommitted work (direct and
   after a terse handoff). Fixtures gain `checkout` and `uncommitted`; `no_workspace_changes` keeps
