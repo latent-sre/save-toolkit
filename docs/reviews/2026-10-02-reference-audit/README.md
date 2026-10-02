@@ -48,8 +48,8 @@ production action or reference cleanup is part of this audit.
 |---|---|---:|---|
 | 01 | agent-authoring, akamai-edge, backend-craft | 16 | [Reviewed](group-01.md) |
 | 02 | ci-actions, database-reliability, eng-ladder | 12 | [Reviewed](group-02.md) |
-| 03 | frontend-craft, gcp-ops, grafana | 19 | Next group |
-| 04 | incident-investigation, obs-alerting, obs-logs | 14 | Pending |
+| 03 | frontend-craft, gcp-ops, grafana | 19 | [Reviewed](group-03.md) |
+| 04 | incident-investigation, obs-alerting, obs-logs | 14 | Next group |
 | 05 | obs-metrics, obs-pipeline, obs-traces | 9 | Pending |
 | 06 | operational-learning, pcf-deploy, pcf-ops | 8 | Pending |
 | 07 | production-change-gate, python-craft, resilience-analysis | 16 | Pending |
