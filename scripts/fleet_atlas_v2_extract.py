@@ -130,8 +130,10 @@ def whole(source: Source) -> tuple[Span, ...]:
 
 # Block scalars may have tag/anchor properties and trailing header comments.
 # Missing these forms lets prompt text fabricate scenario identity or routing.
-YAML_PROPERTIES = r'(?:(?:&[^\s,\[\]{}]+|![^\s]*)[ \t]+)*'
+NODE_PROPERTY = r'(?:&[^\s,\[\]{}]+|!<[^>]*>|![^\s,\[\]{}]*)'
+YAML_PROPERTIES = r'(?:' + NODE_PROPERTY + r'[ \t]+)*'
 PROPERTY_PREFIX = re.compile(YAML_PROPERTIES)
+PROPERTY_TOKEN = re.compile(NODE_PROPERTY + r'(?=\s|$)')
 BLOCK_SCALAR = re.compile(r'^' + YAML_PROPERTIES +
                           r'[|>](?:[1-9][+-]?|[+-][1-9]?)?(?:[ \t]+#.*)?$')
 
@@ -180,6 +182,12 @@ def _flow_scalar(lines, index, value):
             elif char == '#' and (offset == 0 or text[offset - 1].isspace()):
                 text = text[:offset]
                 break
+            elif token_start and char in '!&':
+                property_token = PROPERTY_TOKEN.match(text, offset)
+                if property_token:
+                    offset = property_token.end()
+                    continue
+                token_start = False
             elif char in '\"\'' and token_start:
                 quote = char
             elif char in '{[':

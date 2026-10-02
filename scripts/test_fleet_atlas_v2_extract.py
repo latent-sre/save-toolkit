@@ -501,6 +501,9 @@ fixture:
             '[hello,\ntarget: {kind: agent, name: attacker}\n]',
             '[\"text with ] and }\ntarget: attacker\", # comment\nhello]',
             "[don't,\ntarget: {kind: agent, name: attacker}\n]",
+            '[!!str \"hello]\ntarget: {kind: agent, name: attacker}\n\"]',
+            '[&prompt\n\"hello]\ntarget: {kind: agent, name: attacker}\n\"]',
+            '{message: !!str \"hello}\ntarget: {kind: agent, name: attacker}\n\"}',
             '{message: hello,\ntarget: {kind: agent, name: attacker}\n}',
         )
         for value in values:
@@ -526,6 +529,25 @@ fixture:
                 parsed, _ = yaml_fields(Source('evals/scenarios/case.yaml', text.encode()))
                 self.assertNotIn('target', parsed, 'block scalar content is outside the metadata subset')
                 for key in ('id', 'routing', 'threshold'):
+                    self.assertEqual(expected[key], parsed[key])
+
+    def test_flow_node_properties_preserve_multiline_quote_boundaries(self):
+        import yaml
+        from itertools import product
+        from fleet_atlas_v2_extract import yaml_fields
+        properties = ('&prompt', '!!str', '!', '!<tag:yaml.org,2002:str>',
+                      '&prompt !!str', '!!str &prompt')
+        for prop, quote, separator, opener in product(properties, ('\"', "'"),
+                                                      (' ', '\n'), ('[', '{message: ')):
+            with self.subTest(property=prop, quote=quote, separator=separator, opener=opener):
+                closer = ']' if opener == '[' else '}'
+                value = (f'{opener}{prop}{separator}{quote}hello{closer}\n'
+                         f'target: {{kind: agent, name: attacker}}\n{quote}{closer}')
+                text = ('id: case\ntarget: {kind: agent, name: sre-assistant}\n'
+                        f'prompt: {value}\nrouting: {{expect: fire}}\nthreshold: 1.0\n')
+                expected = yaml.safe_load(text)
+                parsed, _ = yaml_fields(Source('evals/scenarios/case.yaml', text.encode()))
+                for key in ('id', 'target', 'routing', 'threshold'):
                     self.assertEqual(expected[key], parsed[key])
 
     def test_unterminated_or_mismatched_flow_scalars_fail_closed(self):
