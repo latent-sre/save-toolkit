@@ -128,10 +128,12 @@ def whole(source: Source) -> tuple[Span, ...]:
     return (source.span(1, len(source.lines)),)
 
 
-# Full YAML block-scalar header: style character plus any chomping (+/-) and
-# indentation (1-9) indicators. A missed indicator leaves prompt content parsing
-# as top-level keys, which could fabricate routing or verification identity.
-BLOCK_SCALAR = re.compile(r'^[|>][+-]?[1-9]?[+-]?$')
+# Block scalars may have tag/anchor properties and trailing header comments.
+# Missing these forms lets prompt text fabricate scenario identity or routing.
+BLOCK_SCALAR = re.compile(
+    r'^(?:(?:&[^\s,\[\]{}]+|![^\s]*)[ \t]+)*'
+    r'[|>](?:[1-9][+-]?|[+-][1-9]?)?(?:[ \t]+#.*)?$'
+)
 
 
 def yaml_fields(source: Source, frontmatter=False):

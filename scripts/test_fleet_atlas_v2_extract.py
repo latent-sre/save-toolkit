@@ -451,13 +451,26 @@ fixture:
             self.assertEqual(expected[key], parsed[key])
 
     def test_block_scalar_chomping_and_indentation_headers_stay_prompt_text(self):
+        import yaml  # Independent syntax oracle; atlas extraction stays stdlib-only.
         from fleet_atlas_v2_extract import yaml_fields
-        for header in ('|', '|-', '|+', '>', '>-', '>+', '|2', '>1', '|+2', '|-1'):
-            text = (f'id: case-{header}\ntarget: {{kind: agent, name: sre-assistant}}\n'
-                    f'prompt: {header}\n  target: {{kind: agent, name: attacker}}\n')
-            parsed, _ = yaml_fields(Source('evals/scenarios/case.yaml', text.encode()))
-            self.assertEqual({'kind': 'agent', 'name': 'sre-assistant'}, parsed['target'],
-                             f'block header {header!r} must not leak prompt keys into identity')
+        headers = ('|', '|-', '|+', '>', '>-', '>+', '|2', '>1', '|+2', '|-1',
+                   '|2+', '|1-', '>+2', '>2+', '>2-', '>-2')
+        properties = ('', '&prompt ', '!!str ', '&prompt !!str ', '!!str &prompt ')
+        for header in headers:
+            for prefix in properties:
+                for comment in ('', '  # target: attacker'):
+                    value = prefix + header + comment
+                    with self.subTest(header=value):
+                        text = ('id: case\ntarget: {kind: agent, name: sre-assistant}\n'
+                                'routing: {expect: fire}\n'
+                                f'prompt: {value}\n'
+                                '  target: {kind: agent, name: attacker}\n'
+                                '  routing: {expect: not_fire}\nthreshold: 1.0\n')
+                        expected = yaml.safe_load(text)
+                        self.assertIsInstance(expected['prompt'], str)
+                        parsed, _ = yaml_fields(Source('evals/scenarios/case.yaml', text.encode()))
+                        for key in ('id', 'target', 'routing', 'threshold'):
+                            self.assertEqual(expected[key], parsed[key])
 
     def test_body_only_symptom_guidance_preserves_every_chunk_with_exact_spans(self):
         body = skill('a') + '## Ledger delays\n\nDependency timeouts can hold the shared pool.\n\n' + ('A longer evidence paragraph. ' * 500) + '\n'
