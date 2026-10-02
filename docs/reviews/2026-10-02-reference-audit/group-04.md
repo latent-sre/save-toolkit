@@ -3,13 +3,13 @@
 Frozen source: `c7fdbe314c95f6bbe29b11519214c30655322ba1`. Skills: incident-investigation, obs-alerting, obs-logs.
 Reviewed **14 references / 97,956 bytes**, through all six lenses.
 Primary dispositions: KEEP 11, TRIM 3.
-Recommendations and findings: **5**. No skill/reference content changed.
+Recommendations and findings: **6**. No skill/reference content changed.
 
 See the [method and scope](README.md) and [frozen inventory](inventory.csv). Line numbers below refer to that source snapshot.
 
 ### Incident investigation: retain all five procedures; trim bounded repetition
 
-**Conclusion:** [verified] all five references have distinct uses. Two are also direct `sre-assistant` entry paths, and the helper example is executable test input; their independence and examples matter. Recommend two small duplication cuts (**329 bytes**) plus one evidence-boundary correction (**99-byte growth**): **230 bytes net reduction**, from **32,946 to 32,716 committed UTF-8/LF bytes** (0.70%). No whole-file removal or merge is supported.
+**Conclusion:** [verified] all five references have distinct uses. Two are also direct `sre-assistant` entry paths, and the helper example is executable test input; their independence and examples matter. Recommend two small duplication cuts (**329 bytes**) plus one evidence-boundary correction (**99-byte growth**): **230 bytes net reduction**, from **32,946 to 32,716 committed UTF-8/LF bytes** (0.70%). No whole-file removal or merge is supported. REF-II-04 separately adds an estimated 150–210 bytes of required navigation, yielding 20–80 bytes estimated net savings across all proposals.
 
 Frozen source `c7fdbe314c95f6bbe29b11519214c30655322ba1`: all five files read fully; sizes/hashes matched inventory; their source diff against c7 was empty. Caller `/root`, human owner the user. No candidate changes, tests, model/platform calls, commits, or pushes were performed.
 
@@ -73,6 +73,16 @@ uncertain outcomes under [Read back an interrupted attempt](#read-back-an-interr
 **Cost:** 451 bytes to 288: **163-byte saving**. Preserve the entire detailed section at 108–116, rule 3's guarded-helper limits and monitoring distinction, the UNKNOWN/no-retry decision, and ITO/human ownership elsewhere. This does not turn current state into proof of when an action applied or whether it caused recovery.
 
 **Validation after approval:** confirm the section anchor and retained receipt distinction, then review the existing [unresolved handover scenario](../../../evals/scenarios/incident-companion-hands-over-unresolved-work.yaml): a disconnected rollback remains UNKNOWN until reconciled; an applied flag and merely proposed scaling remain distinct. Run the matching structural checks only in a separately authorized edit task; no model campaign is implied by this prose consolidation.
+
+#### REF-II-04 — Add minimal navigation without changing the tested helper reply
+
+**Confirmed document-convention finding · P3 / low severity · high confidence; behavioral impact unverified.** [helper-exchange.md](../../../skills/incident-investigation/references/helper-exchange.md) is **119 lines** and lacks `## Contents`. Its three sections are **Assignment and reconciliation rules** (line 8), **Example: before an assignment exists** (41), and **Example: a bounded investigation** (58). [Claude frontmatter authoring rules:79–85](../../../skills/agent-authoring/references/claude-code-frontmatter.md#L79) require an opening Contents list above 100 lines; only the direct-link rule is mechanically enforced. This is an existing repository convention, not a claimed runtime failure or failed test.
+
+**Smallest action:** add an opening list with three short labels — **Rules**, **Before dispatch**, and **Bounded investigation** — linked to those existing headings. Keep the fictional-evidence warning, all assignment/return rules, and especially the fenced `text` reply byte-identical. [test_closing_fields_oracle.py:215–220](../../../evals/test_closing_fields_oracle.py#L215) extracts that reply and requires exactly one complete board example; navigation must not change the example or introduce another fenced reply.
+
+**Estimated cost:** **150–210 bytes growth**, not measured candidate bytes. The three earlier proposals retain their exact **230-byte net saving**; including this navigation estimate gives **20–80 bytes estimated net savings**. No model or tokenizer benefit was measured.
+
+**Validation after approval:** verify the three heading targets, compare the fenced reply bytes before/after, and run the existing shipped-helper-reply oracle plus applicable link/asset checks. No test was executed for this audit addition. Root will record the integration correction with group 05 without rewriting group-04 history.
 
 **Assignment complete; recipient `/root`.** Integrate these dispositions into group 04. The report preserves the existing ITO bridge/TLC, helper-return continuation, causal/time/evidence limits, and both independent diagnostic entry paths. External research was unnecessary for the proposed changes: they concern local duplication and an inference that fails without defined measurement boundaries. Source timing/CLI details on a real target, model behavior, and live incident usability remain unverified.
 
