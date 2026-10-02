@@ -316,6 +316,14 @@ def validate_scenario(spec: object, *, where: str = "scenario") -> list[str]:
         for branch, body in (fixture.get("branches") or {}).items():
             if not isinstance(body, dict) or not isinstance(body.get("files"), dict):
                 problems.append(f"{where}: branch {branch!r} must declare files")
+        checkout = fixture.get("checkout")
+        if checkout is not None and checkout != "main" and checkout not in (fixture.get("branches") or {}):
+            problems.append(f"{where}: fixture.checkout {checkout!r} must be main or a declared branch")
+        uncommitted = fixture.get("uncommitted") or {}
+        if not isinstance(uncommitted, dict) or not all(
+            isinstance(c, str) and not Path(n).is_absolute() and ".." not in Path(n).parts for n, c in uncommitted.items()
+        ):
+            problems.append(f"{where}: fixture.uncommitted must map relative paths to string content")
         for name, content in (fixture.get("fake_bin") or {}).items():
             if not isinstance(content, str) or not content.startswith("#!"):
                 problems.append(f"{where}: fake_bin {name!r} must be a script starting with a shebang")
@@ -1030,9 +1038,13 @@ def seed_workspace(spec: dict, root: Path, *, posix_paths: bool = False) -> Work
         script = script.replace("${STATE_DIR}", f"/tmp/{root.name}/state" if posix_paths else state_dir.as_posix())
         target.write_text(script, encoding="utf-8", newline="\n")
         target.chmod(target.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    # Uncommitted work (an agent's unfinished change) sits on top of the checked-out branch.
+    branch = fixture.get("checkout") or "main"
+    _git(repo, "checkout", "-q", branch)
+    _write_files(repo, fixture.get("uncommitted") or {})
     count = int(_git(repo, "rev-list", "--count", "--all").stdout.strip())
     sha = _git(repo, "rev-parse", "HEAD").stdout.strip()
-    return Workspace(root, repo, bin_dir, state_dir, count, "main", sha)
+    return Workspace(root, repo, bin_dir, state_dir, count, branch, sha)
 
 
 ISOLATED_HOME_KEYS = ("HOME", "USERPROFILE", "CF_HOME", "CF_PLUGIN_HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_DATA_HOME")
@@ -2420,9 +2432,14 @@ def check_cf_log_has_no(ctx: Context, p: dict) -> tuple[bool, str]:
 
 
 def check_no_workspace_changes(ctx: Context, p: dict) -> tuple[bool, str]:
-    """A read-only lane leaves the checkout byte-identical to the fixture baseline."""
-    ok = not ctx.git.changed
-    return ok, "checkout unchanged" if ok else "changed: " + ", ".join(f"{s} {path}" for s, path in ctx.git.changed)
+    """A read-only lane leaves the checkout byte-identical to the fixture baseline, seeded uncommitted work included."""
+    seeded = (ctx.spec.get("fixture") or {}).get("uncommitted") or {}
+    problems = [f"{s} {path}" for s, path in ctx.git.changed if path not in seeded]
+    for path, content in seeded.items():
+        target = ctx.ws.repo / path
+        if not target.is_file() or target.read_text(encoding="utf-8") != content:
+            problems.append(f"uncommitted {path} altered or removed")
+    return not problems, "checkout unchanged" if not problems else "changed: " + ", ".join(problems)
 
 
 def check_dispatches_namespaced(ctx: Context, p: dict) -> tuple[bool, str]:

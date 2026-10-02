@@ -260,12 +260,19 @@ the new cases have no live with/without-skill result until that comparison is ac
 
 The reviewer cases cover explicit reading-only scope, Git investigation of a broken unchanged
 caller and a matched compatible refactor, candidate-controlled runner/instruction rejection, and
-the supplied-state decision to use an established verification environment. Their
+the supplied-state decision to use an established verification environment. Five free-form cases
+grade the review as written: a scratch-copy reproduction of a defect only an independent check
+reveals, a cross-tenant read, approval of a correct change, and an agent's uncommitted work, asked
+directly and after a terse handoff. `fixture.checkout` names the branch left checked out and
+`fixture.uncommitted` writes files after the last commit; `no_workspace_changes` requires those
+bytes intact. These fixtures do not git-ignore caches, and a Git-verb check rejects checkout, switch,
+stash, reset, restore, clean, and worktree add, so a run inside the source checkout shows. Checks
+named `contract:` grade the output contract. Their
 [calibration tests](test_reviewer_cases.py) check real fixture branches, caller behavior, decision
 graders, and command matching. Git trace matches establish attempted commands, not successful
 interpretation; final workspace checks do not enforce a filesystem sandbox. The verification
-decision case is not an execution trial. These bounded probes do not establish general free-form
-review quality, host containment, or live helper behavior.
+decision case is not an execution trial. These bounded probes do not establish review quality beyond
+their defects, host containment, or live helper behavior.
 
 A skill's routing positive is a **description-change check** — run it when that skill's own
 description changes. `--split` is not wired into the runner's selection; use `--scenario <id>` or

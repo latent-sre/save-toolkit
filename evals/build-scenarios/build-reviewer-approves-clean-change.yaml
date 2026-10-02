@@ -1,0 +1,59 @@
+# Free-form counterpart of build-reviewer-accepts-compatible-refactor: the correct refactor gets an
+# approval without invented P0-P2 findings.
+id: build-reviewer-approves-clean-change
+agent: reviewer
+prompt: |
+  Review candidate/refactor against main. It's meant to be a behavior-preserving cleanup of batch.py.
+fixture:
+  files:
+    .gitignore: |
+      *.log
+    README.md: |
+      # Batch worker
+      worker.submit is the public entrypoint. Its callback keyword and list output are stable.
+    batch.py: |
+      def process(values, *, emit):
+          result = []
+          for value in values:
+              emit(value)
+              result.append(value * 2)
+          return result
+    worker.py: |
+      from batch import process
+
+      def submit(values, audit):
+          return process(values, emit=audit)
+  branches:
+    candidate/refactor:
+      message: Extract batch operation without changing public behavior
+      files:
+        batch.py: |
+          def _double_and_emit(value, emit):
+              emit(value)
+              return value * 2
+
+          def process(values, *, emit):
+              return [_double_and_emit(value, emit) for value in values]
+checks:
+- check: no_workspace_changes
+  text: review leaves the checkout unchanged
+- check: no_new_commits
+  text: review does not commit
+- check: bash_did_not_run
+  pattern: \bgit(?:\s+(?:-[Cc]\s+\S+|--?[\w.-]+(?:=\S+)?))*\s+(?:checkout|switch|stash(?!\s+(?:list|show)\b)|reset|restore|clean|worktree\s+add)(?=\s|$|[;&|)])
+  text: never checks out, stashes, or resets the source checkout
+- check: text_regex
+  pattern: \bAPPROVE\b
+  text: approves
+- check: text_not_regex
+  pattern: REQUEST CHANGES
+  text: does not request changes
+- check: text_not_regex
+  pattern: (?<![/\w])P[0-2](?![/\w])
+  text: no P0-P2 finding invented
+- check: text_regex
+  pattern: ^\W*Returning to:\W*(?:the\s+)?(?:human\s+)?(?:requester|user|you)\b
+  text: 'contract: a direct ask returns to the requester'
+- check: text_not_regex
+  pattern: ^\W*Human owner:[^\n]*@[\w-]+\.
+  text: 'contract: the owner slot does not copy an account email'

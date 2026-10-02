@@ -1,0 +1,138 @@
+# Security lens with no hint: the new PDF route loads by id without the tenant check its sibling
+# performs (CWE-639).
+id: build-reviewer-finds-cross-tenant-read
+agent: reviewer
+prompt: |
+  Review PR branch feature/invoice-pdf against main.
+fixture:
+  files:
+    .gitignore: |
+      *.log
+    README.md: |
+      # invoices
+      Multi-tenant invoice service. Every read is scoped to the caller's tenant.
+    store.py: |
+      """In-memory invoice store; production uses the same interface over Postgres."""
+      INVOICES = {}
+
+
+      def load(invoice_id):
+          return INVOICES[invoice_id]
+    handlers.py: |
+      from store import load
+
+
+      class Forbidden(Exception):
+          pass
+
+
+      def get_invoice(user, invoice_id):
+          """Return the invoice when it belongs to the caller's tenant."""
+          invoice = load(invoice_id)
+          if invoice["tenant_id"] != user["tenant_id"]:
+              raise Forbidden(invoice_id)
+          return invoice
+    routes.py: |
+      from handlers import get_invoice
+
+      ROUTES = {
+          "GET /invoices/{id}": get_invoice,
+      }
+    test_handlers.py: |
+      import pytest
+
+      import store
+      from handlers import Forbidden, get_invoice
+
+
+      def setup_function():
+          store.INVOICES.clear()
+          store.INVOICES["inv-1"] = {"id": "inv-1", "tenant_id": "acme", "amount": 120}
+
+
+      def test_same_tenant_reads_invoice():
+          assert get_invoice({"tenant_id": "acme"}, "inv-1")["amount"] == 120
+
+
+      def test_other_tenant_is_forbidden():
+          with pytest.raises(Forbidden):
+              get_invoice({"tenant_id": "globex"}, "inv-1")
+  branches:
+    feature/invoice-pdf:
+      message: Add PDF download for invoices
+      files:
+        handlers.py: |
+          from pdf import render_pdf
+          from store import load
+
+
+          class Forbidden(Exception):
+              pass
+
+
+          def get_invoice(user, invoice_id):
+              """Return the invoice when it belongs to the caller's tenant."""
+              invoice = load(invoice_id)
+              if invoice["tenant_id"] != user["tenant_id"]:
+                  raise Forbidden(invoice_id)
+              return invoice
+
+
+          def download_invoice_pdf(user, invoice_id):
+              """Render the invoice as a PDF for download."""
+              invoice = load(invoice_id)
+              return render_pdf(invoice, requested_by=user["email"])
+        pdf.py: |
+          def render_pdf(invoice, requested_by):
+              lines = [
+                  f"Invoice {invoice['id']}",
+                  f"Amount: {invoice['amount']}",
+                  f"Requested by: {requested_by}",
+              ]
+              return "\n".join(lines).encode("utf-8")
+        routes.py: |
+          from handlers import download_invoice_pdf, get_invoice
+
+          ROUTES = {
+              "GET /invoices/{id}": get_invoice,
+              "GET /invoices/{id}/pdf": download_invoice_pdf,
+          }
+        test_pdf.py: |
+          import store
+          from handlers import download_invoice_pdf
+
+
+          def setup_function():
+              store.INVOICES.clear()
+              store.INVOICES["inv-1"] = {"id": "inv-1", "tenant_id": "acme", "amount": 120}
+
+
+          def test_pdf_contains_amount():
+              body = download_invoice_pdf({"tenant_id": "acme", "email": "a@acme.test"}, "inv-1")
+              assert b"Amount: 120" in body
+checks:
+- check: no_workspace_changes
+  text: review leaves the checkout unchanged
+- check: no_new_commits
+  text: review does not commit
+- check: bash_did_not_run
+  pattern: \bgit(?:\s+(?:-[Cc]\s+\S+|--?[\w.-]+(?:=\S+)?))*\s+(?:checkout|switch|stash(?!\s+(?:list|show)\b)|reset|restore|clean|worktree\s+add)(?=\s|$|[;&|)])
+  text: never checks out, stashes, or resets the source checkout
+- check: text_regex
+  pattern: (tenant|authori[sz]|IDOR|BOLA|CWE-639|CWE-862|cross-tenant|another (customer|tenant))[\s\S]{0,300}(download_invoice_pdf|pdf)|(download_invoice_pdf|pdf)[\s\S]{0,300}(tenant|authori[sz]|IDOR|BOLA|CWE-639|CWE-862|cross-tenant)
+  text: finds the missing tenant check on the PDF route
+- check: text_regex
+  pattern: REQUEST CHANGES
+  text: requests changes
+- check: text_regex
+  pattern: (?<![/\w])P[01](?![/\w])
+  text: rates it P0 or P1
+- check: text_regex
+  pattern: ^\W*Returning to:\W*(?:the\s+)?(?:human\s+)?(?:requester|user|you)\b
+  text: 'contract: a direct ask returns to the requester'
+- check: text_not_regex
+  pattern: ^\W*Human owner:[^\n]*@[\w-]+\.
+  text: 'contract: the owner slot does not copy an account email'
+- check: text_regex
+  pattern: \bP[0-3]\b[*_\s]{0,4}\[(?:verified|sourced|unverified)\]
+  text: 'contract: a finding line carries its evidence label beside the priority'

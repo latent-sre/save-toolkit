@@ -130,6 +130,34 @@ class WorkspaceAndCheckTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.tmp.cleanup()
 
+    def test_uncommitted_work_sits_on_the_checked_out_branch_and_must_survive(self) -> None:
+        fixture = {**TINY_SPEC["fixture"], "checkout": "fork/x",
+                   "uncommitted": {"setup.py": "print('edited')\n", "pkg/new.py": "NEW = 1\n"}}
+        spec = {**TINY_SPEC, "fixture": fixture}
+        self.assertEqual([], build_probe.validate_scenario(spec))
+        mutations = {
+            "untouched": None,
+            "deleted": lambda repo: (repo / "pkg/new.py").unlink(),
+            "edited": lambda repo: (repo / "setup.py").write_text("print('x')\n", encoding="utf-8"),
+            "stashed": lambda repo: build_probe._git(repo, "stash", "push", "-u", "-q"),
+            "stray": lambda repo: (repo / "pkg/scratch.txt").write_text("c", encoding="utf-8"),
+        }
+        for name, mutate in mutations.items():
+            with self.subTest(mutation=name):
+                ws = build_probe.seed_workspace(spec, self.root / name)
+                if name == "untouched":
+                    self.assertEqual("fork/x", ws.baseline_branch)
+                    self.assertEqual("setup.py", build_probe._git(ws.repo, "diff", "--name-only").stdout.strip(),
+                                     "a new file is invisible to git diff")
+                    self.assertIn("?? pkg/new.py", build_probe._git(ws.repo, "status", "--porcelain", "-uall").stdout)
+                else:
+                    mutate(ws.repo)
+                ok, evidence = build_probe.check_no_workspace_changes(_ctx(spec, ws), {})
+                self.assertEqual(name == "untouched", ok, evidence)
+        for bad in ({"checkout": "nope"}, {"uncommitted": {"../x.py": ""}}, {"uncommitted": {"x.py": 1}}):
+            with self.subTest(bad=bad):
+                self.assertTrue(build_probe.validate_scenario({**spec, "fixture": {**TINY_SPEC["fixture"], **bad}}))
+
     def test_seed_creates_baseline_branches_and_fake_bin(self) -> None:
         # `--all` counts commits on every branch: the baseline plus the fork branch's one commit, so
         # that checking the fork out later is not mistaken for a commit.

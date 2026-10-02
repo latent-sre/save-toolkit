@@ -15,6 +15,12 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   uncommitted reviews (main ran nothing on the branch and ran code inside the checkout 2/3 on
   uncommitted work); in-checkout runs after a `software-engineer` handoff 1/3 (main 3/3); fork-runner
   refusal and read-only or no-execution scopes held 9/9.
+- Reviewer evals grade the review as written: five free-form build scenarios cover a scratch-copy
+  reproduction, a cross-tenant read, a correct change, and an agent's uncommitted work (direct and
+  after a terse handoff). Fixtures gain `checkout` and `uncommitted`; `no_workspace_changes` keeps
+  seeded uncommitted bytes as its baseline; four reviewer scenarios reject Git verbs that move the
+  source checkout; two diff detectors accept the two-argument `git diff` that had failed correct runs.
+  On main every outcome check held; `contract:` checks fail where the body lacks the contract.
 - `software-engineer` carries one short inline handoff core in place of three handoff sections,
   plus six-pass fixes: a credential-values row, a test-integrity rule, a `database-reliability`
   trigger, and one skill-trigger list. 25,847 -> 23,356 bytes, measured against main on Sonnet.
