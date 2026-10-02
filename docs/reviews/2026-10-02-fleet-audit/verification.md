@@ -226,3 +226,32 @@ calls and JSON; `n` exited 2 with no effect calls and no traceback. EOF exited 1
 traceback and zero effect calls. All caller assertions passed. This is a subprocess reproduction
 of the prompt path, not a physical-terminal test. Empty JSON output is not asserted as a separate
 EOF-only defect because the ordinary refusal path also emits no receipt.
+
+## Group 08 executable oracle checks
+
+[verified] The caller extracted the existing generator calibration positives and invoked the actual
+`check_contracts.py generator` through Python 3.14.7 `-I -B` in an owned temporary fixture. Line
+iteration and the original fixed `read(4)` both exited 0 with the completion message. Changing only
+the fixed chunk size to 64 or 8192 exited 1 with `source consumed eagerly`; unbounded `read()` and
+`list(source)` controls also failed with that diagnostic. The 12-character fixture therefore
+rejects allowed bounded readers whose chunks exceed its size.
+
+[verified] In the same actual process check, candidate `records.py` containing only
+`raise SystemExit(0)` exited 0 without the oracle's completion message. `SystemExit(2)` exited 2;
+the valid iterator completed normally. This demonstrates successful process exit before the
+contract assertions finish; the scenario's outcome check consumes the exit code. It does not
+establish a complete native scenario pass or observed model behavior. No dependency installation,
+network or service execution occurred.
+
+[verified] The complete policy oracle also conflates a returned error string with a raised error.
+The caller seeded the actual YAML fixture with the existing calibration candidate and its existing
+CLI-test correction. The unchanged candidate passed all import-order subprocesses and retained
+fixture tests. Replacing only `raise ValueError("invalid sku")` with `return "invalid sku"` also
+exited 0 with completion. A wrong error-message control exited 1 with the specification-mismatch
+diagnostic. The probe exercised the actual `-I -B check_contracts.py policy` entrypoint in an owned
+temporary tree; it did not claim a native implementation trial passed.
+
+[verified: bounded coverage] The postmortem artifact oracle accepted its existing calibration row
+with either `open` or `completed` status and rejected a changed owner. This supports POST-R01's
+coverage recommendation: the documented checker verifies ownership, not completion semantics.
+It is not counted as a new confirmed defect or a full document-quality failure.

@@ -63,7 +63,7 @@ Context reduction is proposed only where it preserves useful safeguards and demo
 | 05 | Skills | [obs-dashboards](group-05-obs-dashboards.md), [obs-logs](group-05-obs-logs.md), [obs-metrics](group-05-obs-metrics.md) | Six passes complete |
 | 06 | Skills | [obs-pipeline](group-06-obs-pipeline.md), [obs-traces](group-06-obs-traces.md), [operational-learning](group-06-operational-learning.md) | Six passes complete |
 | 07 | Skills | [operator-cli](group-07-operator-cli.md), [pcf-deploy](group-07-pcf-deploy.md), [pcf-ops](group-07-pcf-ops.md) | Six passes complete |
-| 08 | Skills | `postmortem`, `production-change-gate`, `python-craft` | Planned |
+| 08 | Skills | [postmortem](group-08-postmortem.md), [production-change-gate](group-08-production-change-gate.md), [python-craft](group-08-python-craft.md) | Six passes complete |
 | 09 | Skills | `resilience-analysis`, `root-cause`, `runbook` | Planned |
 | 10 | Skills | `service-lifecycle`, `stack-profile`, `toil-reduction` | Planned |
 | 11 | Agents | `agent-engineer`, `observability-engineer`, `reliability-engineer` | Planned |
@@ -175,6 +175,21 @@ applied-then-error seam comparison. PCF conclusions use inspected guidance and i
 contracts, without CF, JVM or foundation execution. Recommendations address adapter applicability,
 cooperative-lock wording, receipt responsibility, process-level plan tests and target evidence.
 Backfill synchronization and previously recorded oracle weaknesses retain their existing IDs.
+
+## Group 08 adjudicated findings
+
+Four confirmed evaluator/fixture findings survived adjudication. GATE-01 is an expected approval
+without the explicit expiry required by the skill; the scheduled action time does not supply that
+missing deadline. PY-01 falsely rejects permitted fixed-buffer streaming on a tiny input; PY-02
+credits process success after an early candidate SystemExit; PY-03 erases the distinction between
+returning an error string and raising the required exception. The caller executed all three Python
+counterexamples with valid and rejecting controls against the actual oracle entrypoints.
+
+No new postmortem defect was confirmed. Its accepted completed-follow-up mutation establishes a
+disclosed coverage limit and remains a recommendation. The gate's incident-deferral wording also
+remains a clarification recommendation, without claiming a proved authority bypass. Small repairs
+should strengthen oracle calibration and fixture completeness before interpreting native outcomes;
+the existing evidence, recovery and human-ownership controls remain useful.
 
 ## Verification record
 
