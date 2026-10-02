@@ -8,6 +8,13 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- `reviewer` runs checks by default on work in the user's repository (branches, PRs, and
+  uncommitted changes), only in a scratch copy, reproducing each suspected finding first; forks and
+  unknown provenance stay CI-only, and the unused local Docker recipe is gone. 13,507 -> 13,336
+  bytes. Sonnet, 3 trials per case against main: scratch-copy reproductions 6/6 on direct branch and
+  uncommitted reviews (main ran nothing on the branch and ran code inside the checkout 2/3 on
+  uncommitted work); in-checkout runs after a `software-engineer` handoff 1/3 (main 3/3); fork-runner
+  refusal and read-only or no-execution scopes held 9/9.
 - `software-engineer` carries one short inline handoff core in place of three handoff sections,
   plus six-pass fixes: a credential-values row, a test-integrity rule, a `database-reliability`
   trigger, and one skill-trigger list. 25,847 -> 23,356 bytes, measured against main on Sonnet.

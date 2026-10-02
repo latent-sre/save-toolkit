@@ -86,7 +86,7 @@ from urllib.parse import parse_qs, urlsplit
 # both forms means the guard cannot be sidestepped by installing the agents a different way.
 PLUGIN_NAME = "save-toolkit"
 # This allowlist protects only sre-assistant. Builders and reviewer have unguarded Bash;
-# reviewer execution requires its separately established verification environment.
+# reviewer's scratch-copy execution rule is instructed, not enforced here.
 # researcher has no Bash tool.
 GUARDED_AGENT_NAMES = frozenset({"sre-assistant"})
 GUARDED_AGENTS = frozenset(
