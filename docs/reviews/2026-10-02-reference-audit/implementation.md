@@ -89,3 +89,11 @@ costs 24 B more than the audit's upper estimate because the links target the exi
 including the repaired PowerShell recipe, are unchanged; new Contents anchors resolve. Generated
 parity passed **1 test**; generation, links and whitespace checks passed. No telemetry export,
 collector validation against a deployed build or model behavior was exercised.
+
+### Group 06 — operational-learning, pcf-deploy, pcf-ops
+
+Implemented REF-DEP-01: removed the 93-byte early resize pointer, preserving every other byte
+and the complete later scale-effects/recovery warning. Regenerated its host copy. Operational
+learning requires no edit; the PCF inventory remains pending under REF-GCP-02. Actual delta:
+**−93 B**. Root inspected the diff; unchanged fenced examples, generated parity (**1 test**),
+generation, links and whitespace checks passed. No PCF operation or authority change occurred.
