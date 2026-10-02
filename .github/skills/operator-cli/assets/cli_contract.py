@@ -17,7 +17,12 @@ import sys
 from pathlib import Path
 from uuid import uuid4
 
-import orders_client  # effect seam: list_stale(minutes), cancel(order_id), status(order_id), OrderError
+# Required adapter seam: list_stale(minutes), cancel(order_id), status(order_id),
+# OrderError and OrderOutcomeUnknown. The explicit ambiguous type may subclass OrderError;
+# only remaining OrderError instances guarantee a definitive no-effect rejection.
+# Map ambiguous service/transport errors after dispatch to OrderOutcomeUnknown, never bare OrderError.
+# TimeoutError is also supported. Preserve programming errors rather than wrapping them as rejection.
+import orders_client
 
 EXIT_OK, EXIT_FAILED, EXIT_USAGE = 0, 1, 2
 LOCK = Path("cancel_stale_orders.lock")
@@ -126,14 +131,14 @@ def cancel_one(order_id: str) -> str:
     try:
         orders_client.cancel(order_id)
         return "succeeded"
-    except orders_client.OrderError as exc:
-        print(f"error: {order_id}: {exc}", file=sys.stderr)
-        return "failed"
-    except TimeoutError:
+    except (orders_client.OrderOutcomeUnknown, TimeoutError):
         try:  # the cancel may have happened: read back before classifying it
             return "succeeded" if orders_client.status(order_id) == "cancelled" else "unknown"
         except Exception:
             return "unknown"
+    except orders_client.OrderError as exc:
+        print(f"error: {order_id}: {exc}", file=sys.stderr)
+        return "failed"
 
 
 def report(items: list[dict], args: argparse.Namespace) -> None:
@@ -164,7 +169,11 @@ def run(args: argparse.Namespace) -> int:
                     return EXIT_USAGE
                 print("\n".join(plan), file=sys.stderr)
                 print(f"Cancel these {len(plan)} orders? [y/N] ", end="", file=sys.stderr, flush=True)
-                if input().strip().lower() != "y":
+                try:
+                    answer = input()
+                except EOFError:
+                    return EXIT_USAGE
+                if answer.strip().lower() != "y":
                     return EXIT_USAGE
             with owned_lock() as check_owner:
                 if sorted(set(orders_client.list_stale(args.older_than))) != plan:

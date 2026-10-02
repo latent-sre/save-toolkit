@@ -6,9 +6,9 @@ skill. Sources reviewed 2026-08-19 against live official pages on `docs.cloud.go
 
 ## Trace ingestion, storage, and export
 
-- **The OTLP-to-Telemetry-API ingest fact (endpoint, all three signals, Pre-GA logs) is owned by
-  `obs-pipeline`.** The older proprietary Cloud Trace API is *not* retired: it is absent from the
-  deprecations page, and the docs prefer the Telemetry API over it for its higher ingestion quotas
+- **OTLP-to-Telemetry-API endpoints, signal support, and service maturity are owned by
+  `obs-pipeline`.** The older proprietary Cloud Trace API is *not*
+  retired: it is absent from the deprecations page, and the docs prefer the Telemetry API for its higher ingestion quotas
   *[sourced: docs.cloud.google.com/stackdriver/docs/reference/telemetry/overview;
   cloud.google.com/blog "OpenTelemetry now in Google Cloud Observability", 2025-09]*.
 - Cloud Trace's internal storage now uses the **OpenTelemetry data model natively** *[sourced:
@@ -31,21 +31,30 @@ skill. Sources reviewed 2026-08-19 against live official pages on `docs.cloud.go
 - **TraceQL does not apply here.** Cloud Trace is queried through the Trace explorer (filters:
   service, latency, status, span attributes) and Observability Analytics SQL — not TraceQL. The
   investigation shape (find exemplar → read the critical path → compare populations) is the parent
-  skill's; only the query surface differs. Tempo remains the additive first-class backend; a trace
-  id from Cloud Run logs (`trace` field) opens in whichever backend that service exports to —
-  check the pipeline route before declaring a trace "missing".
+  skill's; only the query surface differs. Tempo remains the additive first-class backend.
+- **Identify the span source before choosing a backend.** Cloud Run automatically generates
+  sampled platform request traces in Cloud Trace. Application spans follow the configured
+  SDK/collector route to Tempo, Cloud Trace, or both. For a Cloud Run log's trace ID, look for
+  platform spans in Cloud Trace and application spans in each recorded application destination;
+  an unknown route stays `[unverified]`. A platform-only waterfall does not prove application
+  delivery, nor does it alone establish a propagation or export failure.
+  *[sourced: [Cloud Run tracing](https://docs.cloud.google.com/run/docs/trace) and
+  [application instrumentation](https://docs.cloud.google.com/trace/docs/setup), checked 2026-10-02]*
 - W3C trace context propagates identically on both runtimes — one request crossing PCF and Cloud
   Run during coexistence still correlates, **if** both sides propagate; a hop with no common id is
   the same telemetry-gap finding as anywhere else.
-- Span attributes follow OTel semconv (`service.name`, `deployment.environment.name`); Cloud Run
-  adds resource labels (`service_name`, `revision_name`) that link a slow span population to the
-  revision that introduced it — the trace-side "what changed".
+- Inspect emitted attributes such as `service.name` and `deployment.environment.name`; correlate
+  slow spans with observed service/revision metadata. Application-exported spans need not carry
+  Cloud Run resource labels. Missing revision evidence stays `[unverified]`.
 
 ## Gotchas
 
-- Sampling: default SDK/agent sampling on Cloud Run can be aggressive; an absent trace is
-  evidence about sampling config before it is evidence about traffic. Record the sampler and rate
-  with any absence claim.
+- Sampling: Cloud Run's platform request-trace rate is not configurable. Application instrumentation
+  has its own sampler and parent-context policy; collector sampling can further reduce coverage.
+  Record the span source, applicable sampling policy, and export/backend evidence with an absence
+  claim. Changing the SDK sampler does not configure the platform rate.
+  *[sourced: [Cloud Run sampling](https://docs.cloud.google.com/run/docs/trace#trace_sampling_rate) and
+  [component sampling decisions](https://docs.cloud.google.com/trace/docs/setup), checked 2026-10-02]*
 - The Telemetry API's limits are per-project and regionally variable — trace ingestion 2.4 GB/min
   in major regions vs 300 MB/min elsewhere *[sourced: docs.cloud.google.com/trace/docs/quotas]*;
   sustained drops at high volume are a quota hypothesis, checked in the API dashboard.

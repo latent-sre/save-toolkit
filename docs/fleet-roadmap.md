@@ -27,19 +27,19 @@ records do not re-queue work.
 
 **Status:** `decision-needed` (2026-10-02); all 13 groups reviewed, covering 30 skills and 9 agents
 with six passes each against freshly fetched main `a2d2e57d`. The evidence records 50 confirmed
-findings; twenty-seven selected repairs are implemented and locally verified, with no open material
-independent review findings. The remaining 23 findings retain their original dispositions.
+findings; thirty-eight selected repairs are implemented and locally verified, with no open material
+independent review findings. The remaining 12 findings retain their original dispositions.
 **Owner:** The human owner selects repairs and dispositions; the audit caller owns the review evidence.
 **Outcome:** All 30 skills, then all 9 agents, receive six documented review passes in groups of
 three, with each group's findings committed before the next group, and the owner can select
 evidence-backed repairs, recommendations, or explicit deferrals.
-**Next action:** The human owner reviews the published candidate for AE-01, RUN-01/02,
-PY-01/02/03, LEARN-01/02, LOG-01/02, FE-01/02, GP-01, GRA-01/02/03, AA-01/02/03/04,
-OA-01/02/03/04, CI-01 and BC-01/02, then selects remaining repairs or explicit dispositions.
+**Next action:** The human owner reviews the published 38-finding repair candidate and its
+verification limits, then selects remaining repairs or explicit dispositions.
 [Earlier repair evidence](reviews/2026-10-02-fleet-audit/selected-fixes.md) and
-[third-batch evidence](reviews/2026-10-02-fleet-audit/selected-fixes-batch-03.md) retain exact
-implementation identities. Latest verification covers 1,699 passing tests and 3,081 passing
-subtests across the full run and frontend setup-recovery rerun, with 19 skips. Live calibration
+[third](reviews/2026-10-02-fleet-audit/selected-fixes-batch-03.md) and
+[fourth-batch evidence](reviews/2026-10-02-fleet-audit/selected-fixes-batch-04.md) retain exact
+implementation identities. Latest full-suite verification passed 1,711 tests and 3,192 subtests,
+with 19 skips. Live calibration
 of the edited judge corpus and target-platform acceptance remain separately scoped.
 **Evidence:** [Six-pass audit and group reports](reviews/2026-10-02-fleet-audit/README.md).
 Retain this packet until the owner's dispositions and any accepted repairs no longer depend on it.

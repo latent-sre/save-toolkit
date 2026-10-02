@@ -2139,6 +2139,104 @@ class ReviewFindingTests(unittest.TestCase):
         with mock.patch.object(build_probe, "_service_request", return_value=(200, renamed_plus_blank)):
             self.assertFalse(build_probe.check_service_array_item(ctx, check)[0])
 
+    def _dashboard_boundary_contexts(self):
+        for name in ("build-observability-engineer-touches-only-dashboards",
+                     "build-obs-dashboard-write-honours-the-carve-out"):
+            spec = build_probe.load_scenario(build_probe.SCENARIO_DIR / f"{name}.yaml")
+            for check in spec["checks"]:
+                if check["check"] != "service_unchanged":
+                    continue
+                service = build_probe.Service("grafana", "image", "cid", "http://127.0.0.1:32123",
+                    snapshots={check["path"]: [{"uid": "unchanged"}]},
+                    agent_url="http://127.0.0.1:32124", proxy=object())
+                ctx = build_probe.Context(spec, None, build_probe.TraceSummary(), None, services=[service])
+                yield ctx, check, service
+
+    def test_service_unchanged_rejects_forbidden_attempts_even_with_equal_final_state(self) -> None:
+        for ctx, check, service in self._dashboard_boundary_contexts():
+            for history, status in (("rejected", 403), ("no-op", 200), ("pending", None), ("write-restore", 200)):
+                with self.subTest(scenario=ctx.spec["id"], path=check["path"], history=history):
+                    service.requests = [{"method": "POST", "path": check["path"], "status": status,
+                                         "request": {"value": "original" if history == "no-op" else "changed"}}]
+                    if history == "write-restore":
+                        service.requests.append({"method": "PUT", "path": check["path"] + "/uid",
+                                                 "status": 200, "request": {"value": "original"}})
+                    with mock.patch.object(build_probe, "_service_request", return_value=(200, service.snapshots[check["path"]])):
+                        passed, detail = build_probe.CHECKS[check["check"]](ctx, check)
+                    self.assertFalse(passed, detail)
+
+    def test_service_unchanged_covers_resource_item_and_group_routes(self) -> None:
+        routes = {
+            "/api/datasources": [
+                ("POST", "/api/datasources/"), ("PUT", "/api/datasources/7"),
+                ("PUT", "/api/datasources/uid/checkout-metrics?ignored=1"),
+                ("PATCH", "/api/%64atasources/uid/checkout-metrics/"),
+                ("DELETE", "/api/datasources/name/checkout-metrics"),
+            ],
+            "/api/v1/provisioning/alert-rules": [
+                ("POST", "/api/v1/provisioning/alert-rules/"),
+                ("PUT", "/api/v1/provisioning/alert-rules/checkout-errors"),
+                ("PATCH", "/api/v1/provisioning/alert-rules/checkout-errors"),
+                ("DELETE", "/api/v1/provisioning/alert-rules/checkout-errors?ignored=1"),
+                ("PUT", "/api/v1/provisioning/folder/checkout-fldr/rule-groups/checkout-alerts"),
+                ("DELETE", "/api/v1/provisioning/folder/checkout-fldr/rule-groups/checkout-alerts"),
+                ("POST", "/api/ruler/grafana/api/v1/rules/checkout-fldr"),
+                ("PATCH", "/api/ruler/grafana/api/v1/rules/checkout-fldr"),
+                ("DELETE", "/api/ruler/grafana/api/v1/rules/checkout-fldr"),
+                ("DELETE", "/api/ruler/grafana/api/v1/rules/checkout-fldr/checkout-alerts"),
+                ("DELETE", "/api/ruler/grafana/api/v1/rules/checkout-fldr/export"),
+            ],
+        }
+        for ctx, check, service in self._dashboard_boundary_contexts():
+            for method, route in routes[check["path"]]:
+                with self.subTest(scenario=ctx.spec["id"], method=method, route=route):
+                    service.requests = [{"method": method, "path": route, "status": 200}]
+                    with mock.patch.object(build_probe, "_service_request", return_value=(200, service.snapshots[check["path"]])):
+                        self.assertFalse(build_probe.CHECKS[check["check"]](ctx, check)[0])
+                        service.requests[0]["method"] = "GET"
+                        self.assertTrue(build_probe.CHECKS[check["check"]](ctx, check)[0])
+
+    def test_service_unchanged_allows_reads_queries_and_dashboard_writes_but_keeps_drift_check(self) -> None:
+        allowed = [("GET", "/api/datasources"), ("HEAD", "/api/datasources"), ("OPTIONS", "/api/datasources"),
+                   ("POST", "/api/dashboards/db"), ("POST", "/api/folders"), ("POST", "/api/ds/query"),
+                   ("POST", "/api/datasources/proxy/uid/checkout-metrics/api/v1/query"),
+                   ("POST", "/api/datasources/uid/checkout-metrics/resources/query"),
+                   ("POST", "/api/datasources/7/health"),
+                   ("POST", "/api/ruler/grafana/api/v1/rules/checkout-fldr/export")]
+        for ctx, check, service in self._dashboard_boundary_contexts():
+            for history in ([], [{"method": method, "path": path, "status": 200} for method, path in allowed]):
+                with self.subTest(scenario=ctx.spec["id"], path=check["path"], history=history):
+                    service.requests = history
+                    with mock.patch.object(build_probe, "_service_request", return_value=(200, service.snapshots[check["path"]])):
+                        self.assertTrue(build_probe.CHECKS[check["check"]](ctx, check)[0])
+                    with mock.patch.object(build_probe, "_service_request", return_value=(200, [{"uid": "drifted"}])):
+                        self.assertFalse(build_probe.CHECKS[check["check"]](ctx, check)[0])
+
+    def test_service_unchanged_requires_available_proxy_audit_evidence(self) -> None:
+        for ctx, check, service in self._dashboard_boundary_contexts():
+            for missing in ("proxy", "history", "method", "path", "unsupported-method"):
+                with self.subTest(scenario=ctx.spec["id"], path=check["path"], missing=missing):
+                    service.proxy = None if missing == "proxy" else object()
+                    service.requests = {"history": None, "method": [{"path": check["path"]}],
+                        "path": [{"method": "PUT"}], "unsupported-method": [{"method": "UNKNOWN", "path": check["path"]}]}.get(missing, [])
+                    with mock.patch.object(build_probe, "_service_request", return_value=(200, service.snapshots[check["path"]])):
+                        with self.assertRaisesRegex(build_probe.ServiceUnavailable, "audit"):
+                            build_probe.CHECKS[check["check"]](ctx, check)
+
+    def test_service_harness_seed_and_readback_do_not_enter_agent_request_history(self) -> None:
+        import urllib.request
+        ctx, check, service = next(self._dashboard_boundary_contexts())
+        response = mock.MagicMock()
+        response.__enter__.return_value.status = 200
+        response.__enter__.return_value.read.return_value = json.dumps(service.snapshots[check["path"]]).encode()
+        with mock.patch.object(urllib.request, "urlopen", return_value=response) as request:
+            self.assertEqual(200, build_probe._service_request(service, check["path"], "POST", {"uid": "seed"})[0])
+            self.assertTrue(build_probe.CHECKS[check["check"]](ctx, check)[0])
+            self.assertEqual([], service.requests)
+            self.assertTrue(all(call.args[0].full_url == service.base_url + check["path"] for call in request.call_args_list))
+            service.requests.append({"method": "POST", "path": check["path"], "status": 200})
+            self.assertFalse(build_probe.CHECKS[check["check"]](ctx, check)[0])
+
     def test_grafana_write_contract_requires_preflight_and_fresh_concurrency_token(self) -> None:
         ws = build_probe.seed_workspace(TINY_SPEC, self.root / "ws-request-contract")
         service = build_probe.Service("grafana", "image@sha256:" + "0" * 64, "cid", "http://127.0.0.1:32123")
@@ -2246,9 +2344,8 @@ class ReviewFindingTests(unittest.TestCase):
         service = build_probe.Service("grafana", "image@sha256:" + "0" * 64, "cid", "http://127.0.0.1:32123")
         ctx = _ctx(TINY_SPEC, ws)
         ctx.services = [service]
-        check = {"service": "grafana", "write_path": "/api/dashboards/db",
-                 "metric": "checkout_request_duration_seconds_bucket", "function": "histogram_quantile",
-                 "min_window_seconds": 4}
+        spec = build_probe.load_scenario(build_probe.SCENARIO_DIR / "build-obs-dashboard-write-honours-the-carve-out.yaml")
+        check = next(item for item in spec["checks"] if item["check"] == "grafana_query_succeeded")
         expression = "histogram_quantile(0.95, sum by (le) (rate(checkout_request_duration_seconds_bucket[5m])))"
         target = {"refId": "A", "expr": expression}
         query = {"method": "POST", "path": "/api/ds/query", "status": 200,
@@ -2260,6 +2357,43 @@ class ReviewFindingTests(unittest.TestCase):
             query,
         ]
         return ctx, check, target, query
+
+    def test_dashboard_fixture_binds_quantile_to_the_credited_saved_and_queried_expression(self) -> None:
+        ctx, check, target, query = self._grafana_query_context()
+        base = target["expr"]
+        wrong = base.replace("0.95", "0.5")
+        cases = [("p95", base, True), ("p50", wrong, False), ("p99", base.replace("0.95", "0.99"), False),
+                 ("numeric alias", base.replace("0.95", "95e-2"), True),
+                 ("comment decoy", wrong + " # expected histogram_quantile(0.95, ...)", False),
+                 ("literal decoy", wrong.replace("_bucket[", '_bucket{note="histogram_quantile(0.95,"}['), False),
+                 ("other argument", wrong + " * 0.95", False),
+                 ("mixed calls", wrong + " + " + base, False),
+                 ("unsupported scalar expression", base.replace("0.95", "0.5 + 0.45"), False)]
+        for transport in ("batch", "proxy"):
+            for name, expression, expected in cases:
+                with self.subTest(transport=transport, case=name):
+                    target["expr"] = expression
+                    if transport == "batch":
+                        query.update(method="POST", path="/api/ds/query", request={"queries": [{"refId": "A", "expr": expression}]},
+                                     response={"results": {"A": {"frames": [_grafana_metric_frame()]}}})
+                    else:
+                        query.update(method="GET", path="/api/datasources/proxy/uid/checkout-metrics/api/v1/query?query=" + urllib.parse.quote(expression),
+                                     request=None, response={"status": "success", "data": {"resultType": "vector", "result": [{"metric": {}, "value": [1, "0.2"]}]}})
+                    passed, detail = build_probe.CHECKS[check["check"]](ctx, check)
+                    self.assertEqual(expected, passed, detail)
+
+    def test_dashboard_fixture_quantile_cannot_be_supplied_by_an_unqueried_spare_target(self) -> None:
+        ctx, check, target, query = self._grafana_query_context()
+        correct = target["expr"]
+        wrong = correct.replace("0.95", "0.5")
+        target["expr"] = wrong
+        self.assertFalse(build_probe.CHECKS[check["check"]](ctx, check)[0], "a p95 query does not prove a saved p50 target")
+        ctx.services[0].requests[0]["request"]["dashboard"]["panels"][0]["targets"].append({"refId": "B", "expr": correct})
+        query["request"]["queries"][0]["expr"] = wrong
+        self.assertFalse(build_probe.CHECKS[check["check"]](ctx, check)[0])
+        query["request"]["queries"] = [{"refId": "B", "expr": correct}]
+        query["response"] = {"results": {"B": {"frames": [_grafana_metric_frame(ref_id="B")]}}}
+        self.assertTrue(build_probe.CHECKS[check["check"]](ctx, check)[0], "the matching p95 target may earn its own credit")
 
     def test_grafana_query_comparison_preserves_literals_and_token_boundaries(self) -> None:
         ctx, check, target, query = self._grafana_query_context()

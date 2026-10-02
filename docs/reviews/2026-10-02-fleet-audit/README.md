@@ -11,12 +11,12 @@ the owner.
 recommendations, policy choices and unverified runtime behavior kept separate. Each group was
 reviewed and its findings committed before work began on the next group.
 
-**Selected repairs:** Twenty-seven findings are implemented and locally verified, with no open
+**Selected repairs:** Thirty-eight findings are implemented and locally verified, with no open
 material independent review findings. The [first sixteen repairs](selected-fixes.md) and
-[third batch of eleven](selected-fixes-batch-03.md) retain their dispositions and evidence.
-Latest verification covers 1,699 passing tests and 3,081 passing subtests across the full run and
-a frontend setup-recovery rerun; 19 environment/opt-in checks were skipped. Live model calibration
-and target-platform behavior remain unverified. The other 23 confirmed findings are unchanged,
+[third](selected-fixes-batch-03.md) and [fourth batches of eleven](selected-fixes-batch-04.md)
+retain their dispositions and evidence. Latest full-suite verification passed 1,711 tests and
+3,192 subtests; 19 environment/opt-in checks were skipped. Live model calibration and
+target-platform behavior remain unverified. The other 12 confirmed findings are unchanged,
 and the reports below retain their original audit-baseline meaning.
 
 ## Exact source and scope

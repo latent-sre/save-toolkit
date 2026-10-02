@@ -65,7 +65,11 @@ for the human release owner; Java source changes belong to the application's dev
      are recomputed at start.
   2. Pinning `-Xmx` yourself does not opt out: since calculator v4 the container must still fit
      heap **plus** non-heap, or the app fails at start with `required memory … is greater than …
-     available for allocation`. Fix the thread count or the container size, not the heap flag.
+     available for allocation`. Identify the failed fit check: if non-heap overhead alone exceeds
+     available memory, lowering heap cannot fix it; check the pool/thread estimates and container
+     limit. If non-heap fits but an explicit `-Xmx` makes the total too large, reducing or removing
+     that excessive heap pin is a valid proposal. Recalculate the full budget and verify workload
+     demand and headroom before the human owner changes it; arithmetic fit alone is not readiness.
   3. The staging log line `Loaded Classes: N, Threads: 300` is the calculator's input; tune
      `stack_threads` via `JBP_CONFIG_OPEN_JDK_JRE` rather than hand-setting `-Xss`.
 
@@ -85,7 +89,8 @@ for the human release owner; Java source changes belong to the application's dev
 
   Unlisted reasons stay open for diagnosis. *[sourced: [Oracle JDK 17 troubleshooting](https://docs.oracle.com/en/java/javase/17/troubleshoot/troubleshooting-memory-leaks.html);
   [calculator](https://github.com/cloudfoundry/java-buildpack-memory-calculator/blob/3d845d8695ed03f1315c5a66582a441c754e3870/calculator/calculator.go);
-  reviewed 2026-09-09. Exact native-thread/direct-buffer message text varies by JDK `[unverified]`.]*
+  reviewed 2026-09-09; calculator fit-check branches re-checked 2026-10-02. Exact native-thread/direct-buffer
+  message text varies by JDK `[unverified]`.]*
 - **The buildpack picks the JRE from its own config** (`JBP_CONFIG_OPEN_JDK_JRE`), not from the
   build file — check the two agree before blaming the code for a `ClassFormatError`. *[sourced:
   cloudfoundry/java-buildpack `docs/IMPLEMENTING_JRES.md`, `docs/jre-open_jdk_jre.md`,
