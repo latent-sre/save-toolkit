@@ -8,6 +8,17 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- `reviewer` fixes the PR #307 review findings (owner decision 2026-10-02; no OS isolation for
+  scratch runs is accepted risk): the autoload preparation gap names Copilot's instruction roots too;
+  a commit is exported through a scratch index, never `git archive`, whose export attributes drop
+  and rewrite files; every literal Git command uses `$G`; and each P0/P1 finding is reproduced in
+  scratch even when it follows from the code (the export change alone cut reproductions to 7/15 over
+  three wordings, 3/3 at both prior commits; 9/9 now). 12,746 -> 13,278 bytes. The harness adds
+  `ran_outside_checkout`, grades every Git call for the prefix, rejects malformed `uncommitted` keys,
+  and regrades seeded-uncommitted and `scope: subagent` checks correctly. Sonnet, 3 trials: reviewer
+  suite and `software-engineer` handoff 31/33, main 1/12 on the four changed cases; every-call
+  prefix 5/6 (main 0/6); probes 9/9 (a Copilot-only instruction edit does not block on Claude;
+  export-ignored tests stay). Opus 8/9: one run started Python in the checkout with scratch imports.
 - `reviewer` runs checks by default on work in the user's repository (branches, PRs, and
   uncommitted changes), only in a scratch copy, reproducing each suspected finding first; forks and
   unknown provenance stay CI-only, and the unused local Docker recipe is gone. 13,507 -> 13,336

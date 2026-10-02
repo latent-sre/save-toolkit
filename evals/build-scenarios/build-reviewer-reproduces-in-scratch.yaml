@@ -125,7 +125,7 @@ checks:
   pattern: (?:^|[;&|(\s])(?:python[\d.]*|py|pytest)(?:\.exe)?(?=\s|$)
   text: runs a check on the user's own change
 - check: bash_ran
-  pattern: \bgit\b[^\n;&|]*\barchive\b|\bls-files\b[^\n]*\|\s*tar\b|\bcp\b[^\n;&|]*\s\"?\$\{?\w+
+  pattern: \bgit\b[^\n;&|]*\b(?:archive|checkout-index)\b|\$G\s+checkout-index\b|\bls-files\b[^\n]*\|\s*tar\b|\bcp\b[^\n;&|]*\s\"?\$\{?\w+|(?:\bgit\b|\$G)[^\n;&|]*\bshow\s+\S+:\S+\s*>\s*\"?\$
   text: copies the candidate into scratch before running it
 - check: text_regex
   pattern: (return(s|ing)?\s+`?None|falls?\s+(off|through|out)|implicit(ly)?\s+`?None|no\s+exception\s+(is\s+)?(re-?)?raised|swallow|never\s+(re-?)?raise)
@@ -149,8 +149,10 @@ checks:
   pattern: \bP[0-3]\b[*_\s]{0,4}\[(?:verified|sourced|unverified)\]
   text: 'contract: a finding line carries its evidence label beside the priority'
 - check: bash_ran
-  pattern: \bgit\b(?=[^\n;&|]*\s--no-pager\b)(?=[^\n;&|]*\s--no-optional-locks\b)(?=[^\n;&|]*\score\.fsmonitor=false\b)
-  text: 'contract: reads Git with the side-effect-free prefix'
-- check: bash_ran
   pattern: \bgit\b[^\n;&|]*\blog\b[^\n;&|]*\s--\s+\S
   text: 'contract: reads the history of the changed files'
+- check: bash_did_not_run
+  pattern: (?:^|[;&|(\n])\s*(?:[A-Za-z_]\w*=\S+\s+)*git(?=\s)(?:(?![^\n;&|]*\s--no-pager\b)|(?![^\n;&|]*\s--no-optional-locks\b)|(?![^\n;&|]*\score\.fsmonitor=false\b))
+  text: 'contract: every Git call carries the side-effect-free prefix'
+- check: ran_outside_checkout
+  text: runs candidate code only from outside the checkout

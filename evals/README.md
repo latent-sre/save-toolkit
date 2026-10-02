@@ -269,7 +269,10 @@ bytes intact. These fixtures do not git-ignore caches, and a Git-verb check reje
 stash, reset, restore, clean, and worktree add, so a run inside the source checkout shows. Checks
 named `contract:` grade the output contract. A software-engineer case hands its uncommitted work
 to the reviewer; `scope: subagent` on `bash_ran`/`bash_did_not_run` grades only the commands the
-dispatched reviewer issued, since the trace otherwise pools them with the builder's. Their
+dispatched reviewer issued, since the trace otherwise pools them with the builder's.
+`ran_outside_checkout` follows the Bash working directory across calls and fails when candidate
+code starts inside the source checkout; it needs the live repository path, so a regrade keeps its
+verdict, as it does `no_workspace_changes` for seeded uncommitted work. Their
 [calibration tests](test_reviewer_cases.py) check real fixture branches, caller behavior, decision
 graders, and command matching. Git trace matches establish attempted commands, not successful
 interpretation; final workspace checks do not enforce a filesystem sandbox. The verification

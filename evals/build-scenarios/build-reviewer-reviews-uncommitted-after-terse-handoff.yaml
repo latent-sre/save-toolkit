@@ -120,3 +120,5 @@ checks:
 - check: text_regex
   pattern: ^\W*Returning to:\W*software-engineer\b
   text: 'contract: returns to the invoking agent'
+- check: ran_outside_checkout
+  text: runs candidate code only from outside the checkout

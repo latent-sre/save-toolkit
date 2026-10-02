@@ -158,6 +158,55 @@ class WorkspaceAndCheckTests(unittest.TestCase):
             with self.subTest(bad=bad):
                 self.assertTrue(build_probe.validate_scenario({**spec, "fixture": {**TINY_SPEC["fixture"], **bad}}))
 
+    def test_validation_reports_a_non_string_uncommitted_key_instead_of_crashing(self) -> None:
+        bad = {**TINY_SPEC, "fixture": {**TINY_SPEC["fixture"], "uncommitted": {1: "content"}}}
+        self.assertTrue(any("uncommitted" in p for p in build_probe.validate_scenario(bad)))
+
+    def test_candidate_runs_are_tracked_by_working_directory_across_calls(self) -> None:
+        repo = str(self.ws.repo).replace("\\", "/")
+        cases = [
+            (["python -m pytest -q"], False),
+            (['S=$(mktemp -d) && git archive HEAD | tar -x -C "$S" && cd "$S" && python -m pytest -q'], True),
+            (['cd "$S"', "python probe.py"], True),
+            ([f'cd "$S" && cd "{repo}" && PYTHONDONTWRITEBYTECODE=1 python -c "import pkg"'], False),
+            ([f'cd "{repo}/pkg"', "pytest -q"], False),
+            (['cd "$S"', "cd ..", "cd -", "python -V"], True),
+            (["cd", "python -V"], True),
+            ([f"cd {build_probe.agent_path(self.ws.repo)} && git status", "python x.py"], False),
+            (['git -C "$S" status && python3 -m pytest'], False),
+        ]
+        for bash, outside in cases:
+            with self.subTest(bash=bash):
+                ok, evidence = build_probe.check_ran_outside_checkout(_ctx(TINY_SPEC, self.ws, bash=bash), {})
+                self.assertEqual(outside, ok, evidence)
+
+    def test_regrade_keeps_uncommitted_workspace_and_restores_subagent_commands(self) -> None:
+        spec = json.loads(json.dumps(TINY_SPEC))
+        spec["fixture"]["uncommitted"] = {"pkg/new.py": "NEW = 1\n"}
+        spec["checks"] = [
+            {"check": "no_workspace_changes", "text": "checkout unchanged"},
+            {"check": "bash_ran", "pattern": r"\barchive\b", "scope": "subagent", "text": "helper copied"},
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            run = Path(tmp) / "eval-tiny" / "new_skill" / "run-1"
+            (run / "outputs").mkdir(parents=True)
+            (run / "outputs" / "response.md").write_text("done\n", encoding="utf-8")
+            (run / "outputs" / "trace-summary.json").write_text(json.dumps({
+                "state_files": {}, "commits_before_after": [2, 2], "branch": "main",
+                "changed_files": [["A", "pkg/new.py"]], "skills": [], "dispatches": [],
+                "bash_commands": ["git archive HEAD"], "subagent_bash_commands": ["git archive HEAD"],
+                "agents_dir": False, "inconclusive": None,
+            }), encoding="utf-8")
+            (run / "grading.json").write_text(json.dumps(_saved_grade(spec, [
+                {"text": "checkout unchanged", "passed": True, "evidence": "checkout unchanged"},
+                {"text": "helper copied", "passed": True, "evidence": "1 Bash call matched"},
+            ])), encoding="utf-8")
+            build_probe.regrade(Path(tmp), [spec])
+            verdicts = {e["text"]: e for e in json.loads((run / "grading.json").read_text(encoding="utf-8"))["expectations"]}
+        self.assertTrue(verdicts["checkout unchanged"]["passed"], verdicts["checkout unchanged"]["evidence"])
+        self.assertIn("kept", verdicts["checkout unchanged"]["evidence"])
+        self.assertTrue(verdicts["helper copied"]["passed"], verdicts["helper copied"]["evidence"])
+
     def test_seed_creates_baseline_branches_and_fake_bin(self) -> None:
         # `--all` counts commits on every branch: the baseline plus the fork branch's one commit, so
         # that checking the fork out later is not mistaken for a commit.

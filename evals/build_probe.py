@@ -321,7 +321,8 @@ def validate_scenario(spec: object, *, where: str = "scenario") -> list[str]:
             problems.append(f"{where}: fixture.checkout {checkout!r} must be main or a declared branch")
         uncommitted = fixture.get("uncommitted") or {}
         if not isinstance(uncommitted, dict) or not all(
-            isinstance(c, str) and not Path(n).is_absolute() and ".." not in Path(n).parts for n, c in uncommitted.items()
+            isinstance(n, str) and isinstance(c, str) and not Path(n).is_absolute() and ".." not in Path(n).parts
+            for n, c in uncommitted.items()
         ):
             problems.append(f"{where}: fixture.uncommitted must map relative paths to string content")
         for name, content in (fixture.get("fake_bin") or {}).items():
@@ -394,9 +395,10 @@ def validate_scenario(spec: object, *, where: str = "scenario") -> list[str]:
                 if not isinstance(check, dict) or check.get("check") not in CHECKS:
                     problems.append(f"{where}: checks[{i}] names an unknown check {check!r}"[:200])
                     continue
-                if "scope" in check and (check["check"] not in ("bash_ran", "bash_did_not_run")
+                if "scope" in check and (check["check"] not in ("bash_ran", "bash_did_not_run", "ran_outside_checkout")
                                          or check["scope"] != "subagent"):
-                    problems.append(f"{where}: checks[{i}] scope is only `subagent`, on bash_ran or bash_did_not_run")
+                    problems.append(f"{where}: checks[{i}] scope is only `subagent`, on bash_ran, bash_did_not_run, "
+                                    "or ran_outside_checkout")
                 if check["check"] == "verification_completed" and check.get("runner") not in {"unittest", "pytest", "vitest"}:
                     problems.append(f"{where}: checks[{i}] verification_completed needs runner unittest, pytest, or vitest")
                 if "inconclusive_exit_code" in check and (
@@ -2249,11 +2251,55 @@ def _matches_command(pattern: str, command: str) -> bool:
     """
     if re.search(pattern, command, re.IGNORECASE):
         return True
-    values = {m[1]: next(v for v in m.groups()[1:] if v is not None) for m in _SHELL_ASSIGNMENT.finditer(command)}
-    expanded = command
-    for name, value in values.items():
-        expanded = re.sub(rf"\$\{{{name}\}}|\${name}\b", lambda _, v=value: v, expanded)
+    expanded = _expand_same_call(command)
     return expanded != command and re.search(pattern, expanded, re.IGNORECASE) is not None
+
+
+def _expand_same_call(command: str) -> str:
+    values = {m[1]: next(v for v in m.groups()[1:] if v is not None) for m in _SHELL_ASSIGNMENT.finditer(command)}
+    for name, value in values.items():
+        command = re.sub(rf"\$\{{{name}\}}|\${name}\b", lambda _, v=value: v, command)
+    return command
+
+
+_CD_STEP = re.compile(r"""(?:^|[;&|(\n])\s*(?:cd|pushd)(?:[ \t]+("[^"\n]*"|'[^'\n]*'|[^\s;&|()]+))?(?=$|[\s;&|()])""")
+_CANDIDATE_RUN = r"(?:^|[;&|(\n])\s*(?:[A-Za-z_]\w*=\S+\s+)*(?:python[\d.]*|py|pytest)(?:\.exe)?(?=\s|$)"
+
+
+def _cd_stays_inside(target: str | None, inside: bool, repo_forms: set[str]) -> bool:
+    """Whether a cd target keeps the shell inside the source checkout."""
+    if target is None:
+        return False  # a bare cd goes home
+    text = target.strip("'\"")
+    if "$" in text or text.startswith("~"):
+        return False  # a variable or home path is never the checkout the harness seeded
+    norm = _normalized_dir(text)
+    if re.match(r"[a-z]:/|/", norm):
+        return any(norm == r or norm.startswith(r + "/") for r in repo_forms)
+    return False if text.startswith("..") else inside
+
+
+def check_ran_outside_checkout(ctx: Context, p: dict) -> tuple[bool, str]:
+    """Candidate code ran only while the shell's working directory was outside the source checkout.
+
+    The Bash tool keeps its working directory between calls, so cd steps are followed across calls
+    in order; same-call variables are expanded first. Not regradable: it needs the live repo path.
+    """
+    repo_forms = {_normalized_dir(str(ctx.ws.repo)), _normalized_dir(agent_path(ctx.ws.repo))}
+    run = re.compile(p.get("pattern") or _CANDIDATE_RUN, re.IGNORECASE)
+    inside, hits = True, []
+    for raw in _shell_commands(ctx, p):
+        command = _expand_same_call(raw)
+        steps = sorted([(m.start(), "cd", m.group(1)) for m in _CD_STEP.finditer(command)]
+                       + [(m.start(), "run", "") for m in run.finditer(command)])
+        for _, kind, target in steps:
+            if kind == "cd":
+                inside = _cd_stays_inside(target, inside, repo_forms)
+            elif inside:
+                hits.append(raw)
+                break
+    return not hits, (f"ran inside the checkout: {hits[0][:120]!r}" if hits
+                      else "every candidate run started outside the checkout")
 
 
 def _shell_commands(ctx: Context, p: dict, *, powershell: bool = False) -> list[str]:
@@ -2527,6 +2573,7 @@ CHECKS: dict[str, "Check"] = {
     "bash_ran": check_bash_ran,
     "verification_completed": check_verification_completed,
     "bash_did_not_run": check_bash_did_not_run,
+    "ran_outside_checkout": check_ran_outside_checkout,
     "tool_call_count": check_tool_call_count,
     "no_task_dispatch": check_no_task_dispatch,
     "task_completed": check_task_completed,
@@ -3016,6 +3063,7 @@ def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, 
             "skills_failed": trace.skills_failed,
             "advertised_tools": trace.advertised_tools, "mcp_servers": trace.mcp_servers, "permission_mode": trace.permission_mode,
             "dispatches": trace.dispatches, "denials": trace.denials, "bash_commands": trace.bash_commands,
+            "subagent_bash_commands": trace.subagent_bash_commands,
             "powershell_commands": trace.powershell_commands, "effect_calls": trace.effect_calls,
             "tool_errors": trace.tool_errors, "denial_details": trace.denial_details,
             "commits_before_after": [ws.baseline_commits, git.commit_count], "branch": git.branch,
@@ -3091,6 +3139,11 @@ REGRADABLE = {
     "skill_not_loaded", "skill_loaded", "bash_ran", "bash_did_not_run", "verification_completed", "no_task_dispatch", "task_completed",
     "state_file_absent", "cf_log_has_no", "fleet_grader", "no_workspace_changes", "dispatches_namespaced",
 }
+
+
+def _needs_live_workspace(check: dict, spec: dict) -> bool:
+    """Seeded uncommitted bytes live only in the deleted checkout, so a regrade keeps that verdict."""
+    return check.get("check") == "no_workspace_changes" and bool((spec.get("fixture") or {}).get("uncommitted"))
 
 
 def is_regradable(check: dict) -> bool:
@@ -3173,6 +3226,7 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
         trace = TraceSummary(result_text=text, skills=list(summary.get("skills") or []),
                              skills_failed=list(summary.get("skills_failed") or []),
                              bash_commands=list(summary.get("bash_commands") or []),
+                             subagent_bash_commands=list(summary.get("subagent_bash_commands") or []),
                              powershell_commands=list(summary.get("powershell_commands") or []),
                              dispatches=list(summary.get("dispatches") or []),
                              tool_errors=list(summary.get("tool_errors") or []))
@@ -3231,11 +3285,12 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
                                 else _expectation(label, live, inconclusive))
         for check in spec.get("checks") or []:
             label = describe(check)
-            if is_regradable(check):
+            if is_regradable(check) and not _needs_live_workspace(check, spec):
                 expectations.append(_expectation(label, lambda c=check: CHECKS[c["check"]](ctx, c), inconclusive))
             else:
                 expectations.append(keep(
-                    label, "live-judge" if check["check"] in REGRADABLE else "workspace-dependent"))
+                    label, "live-judge" if check["check"] in REGRADABLE and not _needs_live_workspace(check, spec)
+                    else "workspace-dependent"))
             if check["check"] in {"verification_completed", "command_exit_zero"} and expectations[-1]["evidence"].startswith("INCONCLUSIVE: "):
                 inconclusive = inconclusive or expectations[-1]["evidence"].removeprefix("INCONCLUSIVE: ")
     if scenario_digest(spec, saved_binding) != identity:

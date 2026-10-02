@@ -45,13 +45,12 @@ checks:
   text: the new module exists
 - check: bash_ran
   scope: subagent
-  pattern: \bgit\b[^\n;&|]*\barchive\b|\bls-files\b[^\n]*\|\s*tar\b|\bcp\b[^\n;&|]*\s\"?\$\{?\w+
+  pattern: \bgit\b[^\n;&|]*\b(?:archive|checkout-index)\b|\$G\s+checkout-index\b|\bls-files\b[^\n]*\|\s*tar\b|\bcp\b[^\n;&|]*\s\"?\$\{?\w+|(?:\bgit\b|\$G)[^\n;&|]*\bshow\s+\S+:\S+\s*>\s*\"?\$
   text: the reviewer copies the work into scratch before running it
-- check: bash_did_not_run
-  scope: subagent
-  pattern: ^(?![\s\S]*(?:\barchive\b|ls-files[^\n]*\|\s*tar|\bcp\b|\bcd\s))[\s\S]*python[\d.]*\s+-c\s+[\"'][^\"']*\b(?:from|import)\s+(?:export|report)\b
-  text: the reviewer never imports the candidate inside the working tree
 - check: bash_did_not_run
   scope: subagent
   pattern: \bgit(?:\s+(?:-[Cc]\s+\S+|--?[\w.-]+(?:=\S+)?))*\s+(?:checkout|switch|stash(?!\s+(?:list|show)\b)|reset|restore|clean|worktree\s+add)(?=\s|$|[;&|)])
   text: the reviewer never checks out, stashes, or resets the working tree
+- check: ran_outside_checkout
+  scope: subagent
+  text: the reviewer runs candidate code only from outside the working tree
