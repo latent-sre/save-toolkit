@@ -61,7 +61,7 @@ Context reduction is proposed only where it preserves useful safeguards and demo
 | 03 | Skills | [fleet-atlas](group-03-fleet-atlas.md), [frontend-craft](group-03-frontend-craft.md), [gcp-ops](group-03-gcp-ops.md) | Six passes complete |
 | 04 | Skills | [grafana](group-04-grafana.md), [incident-investigation](group-04-incident-investigation.md), [obs-alerting](group-04-obs-alerting.md) | Six passes complete |
 | 05 | Skills | [obs-dashboards](group-05-obs-dashboards.md), [obs-logs](group-05-obs-logs.md), [obs-metrics](group-05-obs-metrics.md) | Six passes complete |
-| 06 | Skills | `obs-pipeline`, `obs-traces`, `operational-learning` | Planned |
+| 06 | Skills | [obs-pipeline](group-06-obs-pipeline.md), [obs-traces](group-06-obs-traces.md), [operational-learning](group-06-operational-learning.md) | Six passes complete |
 | 07 | Skills | `operator-cli`, `pcf-deploy`, `pcf-ops` | Planned |
 | 08 | Skills | `postmortem`, `production-change-gate`, `python-craft` | Planned |
 | 09 | Skills | `resilience-analysis`, `root-cause`, `runbook` | Planned |
@@ -145,6 +145,21 @@ backend-specific query behavior, precise datasource/authentication applicability
 routing, scrape-evidence scope and decision-level coverage. Existing Grafana/alerting oracle defects
 are cross-referenced rather than counted again. Inventory, live data and native model behavior
 remain unverified.
+
+## Group 06 adjudicated findings
+
+Six confirmed findings survived review. PIPE-01 corrects an obsolete service-maturity claim while
+preserving the independently preview Alloy component; PIPE-02 records UTF-8 corruption in the
+PowerShell 5.1 native-stdin validation path. TRACE-01 separates Cloud Run platform traces from
+application-exported spans; TRACE-02 distinguishes recording from the sampled flag. LEARN-01 is
+the reproduced detached-provenance oracle gap; LEARN-02 reconciles API-owned alert definitions
+with documentation that currently assumes repository ownership.
+
+The caller executed the shell-encoding and closeout-oracle controls and inspected the internal
+ownership conflict. Product/SDK claims are bounded to current primary sources; no Alloy, trace
+backend or native model was executed. The Tempo size-limit documentation disagreement remains a
+version-qualification recommendation pending implementation/target evidence. Proposed repairs
+preserve no-data uncertainty, exact KB checkout binding, human review and production boundaries.
 
 ## Verification record
 

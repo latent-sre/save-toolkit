@@ -188,3 +188,24 @@ Thus absence from that query cannot establish that ingestion stopped. This is a 
 counterexample under the cited Splunk time-modifier contract, not an executed Splunk search.
 Cloud Logging key-case semantics and the metrics recommendations likewise rely on identified
 primary documentation; no Splunk, Loki, Wavefront, Mimir or Cloud Monitoring query ran.
+
+## Group 06 executable counterexamples
+
+[verified] The caller loaded the real closeout fixture and `check_closeout` artifact oracle into a
+disposable directory under the audit scratch root. It changed only the requested owner/contact,
+preserving lifecycle, source revision, review date and links. A correction on one line with
+`[UNTRUSTED][sourced] AUDIT-73` passed. Removing both labels and source marker from the correction
+failed. The same unlabelled correction plus an unrelated line
+`[UNTRUSTED][sourced] AUDIT-73 source reference retained.` passed. All assertions passed under
+Python 3.14.7. This isolates the oracle's missing binding between the correction and its evidence
+marker; it does not establish a full native scenario pass or observed model behavior. No application
+code, backend request or live operation ran, and the disposable input tree was removed.
+
+[verified] The Alloy fallback's native stdin boundary was exercised without Docker or Alloy.
+The caller wrote UTF-8 Alloy-shaped input containing `filename = "café.txt"` and piped it through
+`Get-Content -Raw` to a Python `-I -S` reader that printed raw stdin hex. With `-NoProfile`, Windows
+PowerShell 5.1.26100.9549 used `us-ascii` native output and delivered `caf??.txt`; adding
+`Get-Content -Encoding UTF8` still delivered `caf?.txt`. PowerShell 7.6.6 used UTF-8 and preserved
+`c3 a9` in both cases. All four commands exited 0; both shells appended a pipeline newline.
+This establishes changed validation input on the named 5.1 path, not an Alloy validation result.
+Adding input decoding alone does not fix native-output encoding; exact-file transport is preferable.
