@@ -64,7 +64,7 @@ Context reduction is proposed only where it preserves useful safeguards and demo
 | 06 | Skills | [obs-pipeline](group-06-obs-pipeline.md), [obs-traces](group-06-obs-traces.md), [operational-learning](group-06-operational-learning.md) | Six passes complete |
 | 07 | Skills | [operator-cli](group-07-operator-cli.md), [pcf-deploy](group-07-pcf-deploy.md), [pcf-ops](group-07-pcf-ops.md) | Six passes complete |
 | 08 | Skills | [postmortem](group-08-postmortem.md), [production-change-gate](group-08-production-change-gate.md), [python-craft](group-08-python-craft.md) | Six passes complete |
-| 09 | Skills | `resilience-analysis`, `root-cause`, `runbook` | Planned |
+| 09 | Skills | [resilience-analysis](group-09-resilience-analysis.md), [root-cause](group-09-root-cause.md), [runbook](group-09-runbook.md) | Six passes complete |
 | 10 | Skills | `service-lifecycle`, `stack-profile`, `toil-reduction` | Planned |
 | 11 | Agents | `agent-engineer`, `observability-engineer`, `reliability-engineer` | Planned |
 | 12 | Agents | `repository-investigator`, `researcher`, `reviewer` | Planned |
@@ -190,6 +190,20 @@ disclosed coverage limit and remains a recommendation. The gate's incident-defer
 remains a clarification recommendation, without claiming a proved authority bypass. Small repairs
 should strengthen oracle calibration and fixture completeness before interpreting native outcomes;
 the existing evidence, recovery and human-ownership controls remain useful.
+
+## Group 09 adjudicated findings
+
+Three confirmed findings survived review. RCA-01 is a missed compatibility regression: exact-class
+TimeoutError handling passes the current behavior checks while breaking the existing subclass
+policy. RUN-01 is the converter's non-atomic default no-overwrite check; RUN-02 silently joins
+HTML code lines separated by br elements. The caller reproduced each against actual fixture/oracle
+or converter code with positive and rejecting controls, using only owned temporary inputs.
+
+No new resilience-analysis defect was confirmed. Its recommendations concern required method-load
+coverage and failure-capacity/recovery examples. Explicit converter force replacement is intentional
+and stays a documentation/policy recommendation, separate from the unforced race. Root-cause manual
+reasoning acceptance, operational drills and native host/model behavior remain open evidence layers.
+Preserve the existing uncertainty, bounded investigation and human execution boundaries.
 
 ## Verification record
 

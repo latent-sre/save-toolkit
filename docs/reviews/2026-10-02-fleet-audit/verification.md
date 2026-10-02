@@ -255,3 +255,24 @@ temporary tree; it did not claim a native implementation trial passed.
 with either `open` or `completed` status and rejected a changed owner. This supports POST-R01's
 coverage recommendation: the documented checker verifies ownership, not completion semantics.
 It is not counted as a new confirmed defect or a full document-quality failure.
+
+## Group 09 executable counterexamples
+
+[verified] The caller seeded the actual retry fixture and ran its three existing unit tests plus
+`probe_retry.py`. The correct repair passed both. Changing only `isinstance(error, TimeoutError)`
+to `type(error) is TimeoutError` also passed both, but a `ServiceTimeout(TimeoutError)` changed from
+retryable/three calls/recovery to non-retryable/one call/the same exception propagated. The original
+broad handler failed both checks. This establishes a missed classifier-compatibility regression,
+not native causal reasoning or an actual service failure.
+
+[verified] The caller loaded the real Confluence converter with owned temporary HTML/output files.
+Default import created an absent file (0) and refused a pre-existing history-bearing file (1,
+history intact). A controlled wrapper created that output during the real conversion, after the
+existence check: main returned 0 and replaced the history. This is an injected deterministic
+interleaving, not an observed production race. Explicit `--force` also replaced the history as the
+intentional control. No runbook outside the temporary fixture was affected.
+
+[verified] The same actual converter preserved a literal newline between `cf app demo` and
+`cf events demo` inside a preformatted block. Replacing the newline with either `<br>` or `<br/>`
+produced `cf app democf events demo` in the generated code block. Commands were converted as text,
+never executed. All caller assertions passed under Python 3.14.7; no network or service ran.
