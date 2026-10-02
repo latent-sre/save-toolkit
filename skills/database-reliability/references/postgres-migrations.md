@@ -24,7 +24,7 @@ the same way while the old transaction lives. Before starting it, have the DBA c
 database for long-running transactions (`pg_stat_activity` `xact_start` and `backend_xmin`); run it
 without a short `lock_timeout`, since its waiting lock blocks no ordinary reads or writes (it does
 hold off vacuum and other DDL on that table), and have the DBA watch the waits and cancel the build
-if one persists. A failed or cancelled build may leave an INVALID index. Inspect the catalog and
+at a DBA-agreed deadline. A failed or cancelled build may leave an INVALID index. Inspect the catalog and
 migration record first; use `DROP INDEX CONCURRENTLY` only for the invalid index created by that
 failed attempt, before retrying. Do not drop a pre-existing valid index merely because creation
 failed. *[sourced: PostgreSQL 18 [ALTER TABLE](https://www.postgresql.org/docs/18/sql-altertable.html)

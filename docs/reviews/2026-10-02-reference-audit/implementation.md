@@ -36,3 +36,15 @@ table is gone. The corrected SIEM paragraph preserves replay urgency and retenti
 new security Contents anchors resolve. The existing routine-review/promotion contract and
 generated-output parity tests passed: **2 tests, 8 subtests**. Adapter generation and diff
 whitespace checks passed. These are source/structural checks, not model or Akamai runtime proof.
+
+### Group 02 — ci-actions, database-reliability, eng-ladder
+
+Implemented REF-CI-01, REF-DB-01/02 and REF-EL-01 in four references; regenerated host copies.
+Actual delta: **−70 B** (PCF Contents +167, explicit DBA deadline +9, restore footer −119,
+principal consumer guidance −127). The deadline clarifies the existing wait limit; all restore
+verdicts and accepted-write recovery remain. PCF YAML is byte-for-byte unchanged.
+
+[verified] Root inspected the source diff; new Contents anchors resolve and fenced examples
+are unchanged. The PCF asset assertion plus the executable documentation fixture suite passed
+**33 tests** against local CF/HTTP fixtures. Adapter generation and diff whitespace checks passed.
+These fixture results do not establish actual foundation deployment or database behavior.
