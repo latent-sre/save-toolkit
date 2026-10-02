@@ -307,7 +307,35 @@ Surveyed on 2026-09-30 and left out of the comparison:
 **SRE task:** Trust an agent's mitigation recommendation or suspected-compromise escalation because a
 judge proven against human-labelled cases graded it, not because its scenario went unrun.
 
+### PRECOMMIT-001 — decide whether software-engineer always gets a review before committing
+
+**Status:** `blocked` (2026-10-01) on PR #294, which rewrites the same software-engineer sections.
+**Owner:** The human owner decides; `agent-engineer` owns the software-engineer change and its eval.
+**Outcome:** software-engineer's review trigger matches the owner's choice (on request, security, and
+production deploy as today; always before commit; or non-trivial changes only), with a build scenario
+proving it.
+**Next action:** After #294 merges, the owner chooses the trigger; then change the one software-engineer
+rule, its pinned contract test, and measure with
+`build-software-engineer-hands-uncommitted-work-to-reviewer`.
+**Evidence:** [`build-software-engineer-hands-uncommitted-work-to-reviewer`](../evals/build-scenarios/build-software-engineer-hands-uncommitted-work-to-reviewer.yaml)
+(the handoff works 3/3 when asked; main's reviewer ran code in place 0/3 clean).
+**SRE task:** An SRE gets an independent review of agent-written changes before they are committed
+without having to ask for it each time.
+
 ## Deferred
+
+### REVIEWER-001 — the reviewer reads the history of every changed file
+
+**Status:** `deferred` (2026-10-01).
+**Owner:** `agent-engineer`.
+**Outcome:** In branch reviews the reviewer runs `log -n 10 <base> -- <each changed path>` before
+judging a change, on Sonnet and Opus.
+**Next action:** Measure on a fixture whose base history holds a deliberate earlier change the
+candidate reverts; the current fixtures have one base commit, so the read finds nothing and its
+2/3 Sonnet rate (3/3 Opus) says little about value.
+**Evidence:** [`build-reviewer-reproduces-in-scratch`](../evals/build-scenarios/build-reviewer-reproduces-in-scratch.yaml)
+(`contract: reads the history of the changed files`).
+**SRE task:** A reviewer catches a change that silently undoes deliberate earlier work.
 
 ### HANDOFF-002 — restated helper claims keep their labels, and the handoff graders stop false-redding
 

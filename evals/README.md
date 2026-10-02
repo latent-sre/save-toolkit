@@ -260,12 +260,24 @@ the new cases have no live with/without-skill result until that comparison is ac
 
 The reviewer cases cover explicit reading-only scope, Git investigation of a broken unchanged
 caller and a matched compatible refactor, candidate-controlled runner/instruction rejection, and
-the supplied-state decision to use an established verification environment. Their
+the supplied-state decision to use an established verification environment. Five free-form cases
+grade the review as written: a scratch-copy reproduction of a defect only an independent check
+reveals, a cross-tenant read, approval of a correct change, and an agent's uncommitted work, asked
+directly and after a terse handoff. `fixture.checkout` names the branch left checked out and
+`fixture.uncommitted` writes files after the last commit; `no_workspace_changes` requires those
+bytes intact. These fixtures do not git-ignore caches, and a Git-verb check rejects checkout, switch,
+stash, reset, restore, clean, and worktree add, so a run inside the source checkout shows. Checks
+named `contract:` grade the output contract. A software-engineer case hands its uncommitted work
+to the reviewer; `scope: subagent` on `bash_ran`/`bash_did_not_run` grades only the commands the
+dispatched reviewer issued, since the trace otherwise pools them with the builder's.
+`ran_outside_checkout` follows the Bash working directory across calls and fails when candidate
+code starts inside the source checkout; it needs the live repository path, so a regrade keeps its
+verdict, as it does `no_workspace_changes` for seeded uncommitted work. Their
 [calibration tests](test_reviewer_cases.py) check real fixture branches, caller behavior, decision
 graders, and command matching. Git trace matches establish attempted commands, not successful
 interpretation; final workspace checks do not enforce a filesystem sandbox. The verification
-decision case is not an execution trial. These bounded probes do not establish general free-form
-review quality, host containment, or live helper behavior.
+decision case is not an execution trial. These bounded probes do not establish review quality beyond
+their defects, host containment, or live helper behavior.
 
 A skill's routing positive is a **description-change check** — run it when that skill's own
 description changes. `--split` is not wired into the runner's selection; use `--scenario <id>` or
@@ -478,7 +490,9 @@ snapshot makes the trial **INCONCLUSIVE**, never a verdict. An auth failure abor
 
 This is an evaluation boundary, **not an OS sandbox**. A build lane's Bash runs on the host with
 network, and the credential copy sits where an unguarded tool could reach it (the probe scans
-outputs for credential markers and warns). Use only reviewed, non-secret prompts, and keep raw
+outputs for credential markers and warns). Under subscription login, Claude Code itself adds the
+account email to the trial's context, even with `--setting-sources ""`; a trial that repeats it is
+showing that injection, not a leak from the copied files. Use only reviewed, non-secret prompts, and keep raw
 traces private: they carry complete prompts and responses, session IDs, and tool payloads. Artifacts
 are written owner-only under `.eval-runs/`; quote the numbers a review depends on into that review
 rather than publishing the batch.

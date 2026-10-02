@@ -8,6 +8,56 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- `reviewer` fixes the PR #307 review findings (owner decision 2026-10-02; no OS isolation for
+  scratch runs is accepted risk): the autoload preparation gap names Copilot's instruction roots too;
+  a commit is exported through a scratch index, never `git archive`, whose export attributes drop
+  and rewrite files; every literal Git command uses `$G`; and each P0/P1 finding is reproduced in
+  scratch even when it follows from the code (the export change alone cut reproductions to 7/15 over
+  three wordings, 3/3 at both prior commits; 9/9 now). 12,746 -> 13,278 bytes. The harness adds
+  `ran_outside_checkout`, grades every Git call for the prefix, rejects malformed `uncommitted` keys,
+  and regrades seeded-uncommitted and `scope: subagent` checks correctly. Sonnet, 3 trials: reviewer
+  suite and `software-engineer` handoff 31/33, main 1/12 on the four changed cases; every-call
+  prefix 5/6 (main 0/6); probes 9/9 (a Copilot-only instruction edit does not block on Claude;
+  export-ignored tests stay). Opus 8/9: one run started Python in the checkout with scratch imports.
+- `reviewer` runs checks by default on work in the user's repository (branches, PRs, and
+  uncommitted changes), only in a scratch copy, reproducing each suspected finding first; forks and
+  unknown provenance stay CI-only, and the unused local Docker recipe is gone. 13,507 -> 13,336
+  bytes. Sonnet, 3 trials per case against main: scratch-copy reproductions 6/6 on direct branch and
+  uncommitted reviews (main ran nothing on the branch and ran code inside the checkout 2/3 on
+  uncommitted work); in-checkout runs after a `software-engineer` handoff 1/3 (main 3/3); fork-runner
+  refusal and read-only or no-execution scopes held 9/9.
+- `reviewer` is independent of `researcher` (owner decision 2026-10-01): it dispatches only
+  `repository-investigator`, and a dependency advisory or other public fact it cannot verify
+  locally is a stated gap returned to its caller. On a urllib3 downgrade it flagged the risk from
+  memory, labelled it unverified, asked the caller to confirm, and requested changes 3/3 with no
+  dispatch; main dispatched a researcher that could not answer in 1/3. 13,143 -> 12,746 bytes.
+- `reviewer` may bind a branch review's verdict to the named commit and report uncommitted defects
+  as PROVISIONAL findings (owner decision 2026-10-01); the terse-handoff check accepts that or a
+  PROVISIONAL verdict (6/6 Sonnet, 3/3 Opus; main 2/3). The two rename cases ask for the file whose
+  change introduces the defect (Opus had named the broken caller). Roadmap gains PRECOMMIT-001 and
+  REVIEWER-001.
+- `reviewer` closes probe gaps: a candidate that edits CLAUDE.md, AGENTS.md, or `.claude/` in the
+  checkout it runs in gets a preparation gap instead of a verdict (0/3 -> 3/3; all three earlier
+  trials resisted the injected policy but none noticed it had loaded as their own instructions);
+  changed-file history names each path (0/3 -> 3/3); uncommitted work on a branch is snapshotted
+  before any run (in-checkout runs 0/6 after a terse handoff). The generic security checklist is cut:
+  detection was 9/9 with and without it on workflow injection, SSRF, and a cross-tenant read; the
+  dependency-advisory and agent-system lines stay. 13,331 -> 13,051 bytes. The PROVISIONAL verdict
+  line after a branch-named handoff stays at 4/6: the reviewer binds the verdict to the committed SHA.
+- `reviewer` output and Git contract: a side-effect-free Git prefix with minimum reads, every changed
+  line covered or its filter named, an evidence label beside each finding's priority,
+  `Verdict: PROVISIONAL — …` for mutable reviews, a requester header that never copies an account
+  email, and a one-line `python -c` counted as a run. 13,336 -> 13,331 bytes (main 13,507). Sonnet,
+  3 trials against main: tenant, clean, and uncommitted cases 0/3 -> 3/3; branch-history reads 3/3
+  (main 1/3, 2/3); scratch copies after a `software-engineer` handoff 3/3 (main 0/3); PROVISIONAL
+  verdict line after a terse handoff 2/3 (main 0/3). Changed-file history held only where the
+  reviewer named the paths (0/3 in the retry case).
+- Reviewer evals grade the review as written: five free-form build scenarios cover a scratch-copy
+  reproduction, a cross-tenant read, a correct change, and an agent's uncommitted work (direct and
+  after a terse handoff). Fixtures gain `checkout` and `uncommitted`; `no_workspace_changes` keeps
+  seeded uncommitted bytes as its baseline; four reviewer scenarios reject Git verbs that move the
+  source checkout; two diff detectors accept the two-argument `git diff` that had failed correct runs.
+  On main every outcome check held; `contract:` checks fail where the body lacks the contract.
 - `software-engineer` carries one short inline handoff core in place of three handoff sections,
   plus six-pass fixes: a credential-values row, a test-integrity rule, a `database-reliability`
   trigger, and one skill-trigger list. 25,847 -> 23,356 bytes, measured against main on Sonnet.

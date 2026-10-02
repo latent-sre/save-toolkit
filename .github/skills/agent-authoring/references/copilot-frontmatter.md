@@ -93,7 +93,7 @@ The preview's explicit `--copilot` guard mode uses agent-hook scoping, not Claud
 |---|---|
 | `software-engineer`, `agent-engineer` | Read/search/edit/execute, scoped delegation, and todo; already able to build and test with the host's shell |
 | `observability-engineer` | The same capability groups; already able to query Grafana through commands without a Grafana MCP, under its existing change authority |
-| `reviewer` | Read/search/edit/execute, evidence helpers, and todo; execution stays in its established verification environment |
+| `reviewer` | Read/search/edit/execute, one local evidence helper, and todo; runs checks only in a scratch copy, and outside contributions only in isolated CI |
 | `sre-assistant` | Read/search, researcher delegation, and selected native/MCP browser viewing interactions under read-only session controls; the command preview adds only terminal execution/output for reviewed reads |
 | `repository-investigator`, `scribe` | File investigation or document edits; shell execution is outside their assignments |
 | `researcher` | Public web access; no local files or shell. Adding exact Context7/GitHits tools needs the target host's registered tool IDs, not wildcard MCP grants. On Copilot cloud agent `web` does not apply, so researcher has no working tool there; route cited research through VS Code or Claude |
