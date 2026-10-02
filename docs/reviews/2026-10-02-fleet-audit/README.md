@@ -11,13 +11,15 @@ the owner.
 recommendations, policy choices and unverified runtime behavior kept separate. Each group was
 reviewed and its findings committed before work began on the next group.
 
-**Selected repairs:** Thirty-eight findings are implemented and locally verified, with no open
-material independent review findings. The [first sixteen repairs](selected-fixes.md) and
+**Selected repairs:** Thirty-nine findings are corrected in source. The original 38 repairs were
+locally verified with no open material independent review findings. The [first sixteen repairs](selected-fixes.md) and
 [third](selected-fixes-batch-03.md) and [fourth batches of eleven](selected-fixes-batch-04.md)
 retain their dispositions and evidence. Latest full-suite verification passed 1,711 tests and
 3,192 subtests; 19 environment/opt-in checks were skipped. Live model calibration and
-target-platform behavior remain unverified. The other 12 confirmed findings are unchanged,
-and the reports below retain their original audit-baseline meaning.
+target-platform behavior remain unverified. The [reference-cleanup follow-up](../2026-10-02-reference-audit/implementation.md)
+also corrects II-01's timing inference; its supplied-case/grader calibration and native/model
+verification remain unperformed. The other 11 source findings are unchanged, and the reports
+below retain their original audit-baseline meaning.
 
 ## Exact source and scope
 

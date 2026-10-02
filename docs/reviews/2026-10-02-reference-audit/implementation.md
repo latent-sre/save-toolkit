@@ -1,5 +1,10 @@
 # Reference audit implementation
 
+**Implemented:** all 39 actionable reference records, with generated copies refreshed.
+**Pending:** REF-GCP-02, the real inventory-location decision. The
+[per-ID status ledger](implementation-status.csv) maps every one of the 40 records to its
+disposition and source-edit commit. No cleanup is pending for the other KEEP bundles.
+
 The owner clarified on 2026-10-02 that the reviewed edits were expected as part of this work.
 Implementation starts from published audit commit `8c63128e540758876a3ba314db6a600848fca0bf`.
 Fresh fetch confirmed main remains `a2d2e57d2de70125dbde002072853e73b788bd8d` and is an ancestor.
@@ -132,3 +137,89 @@ checks passed. These checks do not establish model comprehension or live Conflue
 
 The four distinct worked examples remain unchanged. This group's audit had no implementation
 recommendation; no empty source commit is needed.
+
+## Actual size and coverage
+
+Compared with `8c63128e`, **39 canonical paths changed**: 37 retained references were edited,
+one reference was retired after its paired merge, and the runbook entrypoint was updated.
+The reference set is now **102 files / 549,249 committed UTF-8 bytes**, down from 103 files /
+553,914 bytes (**−4,665 B**). The runbook entrypoint grows **311 B**, so the net canonical skill
+content reduction is **4,354 B**. Generated mirrors and review documents are excluded.
+
+The seven navigation records add **2,727 B** across ten files, with **52 clickable heading
+targets**. Actual Copilot consolidation saves **999 B**. The trace move retains one additional
+blank separator. These measured outcomes replace the estimate for this implementation; they
+do not imply a measured token, latency, reference-loading or model-quality improvement.
+
+All eight source groups were committed before the next began:
+
+| Group | Implemented records | Source-edit commit |
+|---|---:|---|
+| 01 | 6 | `2a435496` |
+| 02 | 4 | `6fa59d4d` |
+| 03 | 8; inventory decision pending | `41c6f44b` |
+| 04 | 6 | `5c0ad3b1` |
+| 05 | 6 | `5a7d5949` |
+| 06 | 1 | `fed2018a` |
+| 07 | 3 | `2b366d9c` |
+| 08 | 5 | `6e45e6a8` |
+
+## Reconciliation with the original fleet audit
+
+REF-II-01 corrects the same source sentence as the original
+[II-01 diagnostic finding](../2026-10-02-fleet-audit/group-04-incident-investigation.md).
+It is one existing finding, not an addition to the original denominator. The original fleet
+source-repair count therefore becomes **39 of 50**, with **11 source findings remaining**.
+The reference audit's frozen classifications and 40-record count remain its historical view.
+
+[verified static comparison] The original sentence assigned the missing interval outside the
+container. The replacement permits in-process queueing and requires matching request identity
+and timer boundaries before assigning location. Two reasoned controls illustrate the difference:
+
+| Supplied evidence | Old inference | Corrected source requirement |
+|---|---|---|
+| Same request: proxy 2,010 ms; handler 10 ms; known in-process queue 2,000 ms | Incorrectly assigns 2,000 ms outside the container. | The handler excludes queue time; retain the established in-process interval. |
+| Proxy and log durations have unknown request identities or timer boundaries | Still assigns the difference outside the container. | Obtain matching identity/boundaries before localizing the unexplained interval. |
+
+These are logical source checks, **not executed model responses**. The original finding's proposed
+supplied-evidence scenarios, grader calibration rejecting an outside-container answer, and bounded
+native/model validation **were not performed and remain open**. The helper-reply structural test
+does not prove this diagnostic behavior. Existing INCIDENT-QUALITY-001 acceptance remains open.
+
+The other source findings remain: **DEPLOY-01, EL-01, FA-01, FA-02, GATE-01, REV-01, REV-02,
+RS-01, SE-01, SRE-01 and STACK-01**. Their original reports retain their individual evidence and
+dispositions. Optional recommendation overlap, such as RUN-R03/PY-R01/STACK-R02/R03, is resolved
+only to the extent of these documented source edits; no broader acceptance is implied.
+
+REF-GCP-02 still needs the owner's approved real-record location. `projects.md` and `foundations.md`
+retain their exact baseline bytes and missing-context read/ask paths; real values were not invented
+or inserted into generalized skill bundles.
+
+## Final verification and limits
+
+The final source revision is `6e45e6a86cb47417267eb4b60101c5d14d23ff35`; subsequent publication
+changes only reconcile these reports and the live roadmap. Commands used the existing Python
+3.14.7 environment at `F:/repos/sre-agents/.venv/Scripts/python.exe`, with bytecode writes disabled.
+
+- `python -m pytest -q scripts/test_skill_assets.py scripts/test_platform_adapters.py`:
+  **66 passed, 330 subtests passed, two skipped**. The two real-directory-symlink cases could not
+  create a directory symlink on this host; they are not passes. Narrow `-rs` readback confirmed
+  those skip reasons. No dependency installation or broad code-suite rerun was needed for this
+  reference/entrypoint-text change.
+- Earlier group checks exercised the actual PCF example against local CF/HTTP fixtures
+  (**33 passed**), the unchanged helper reply, and runbook import/schema/date-binding surfaces
+  (**7 passed / 6 subtests** for group 08). Their specific scope is recorded above; they do not
+  prove the edited prose's model effectiveness.
+- The final source reconciliation verifies the complete 40-ID status ledger, exactly 39 selected
+  canonical paths, unchanged fenced examples/frontmatter, ten new Contents lists with 52 valid
+  heading targets, actual byte totals, unchanged inventory placeholders and the one paired
+  retirement. All **452 local file targets** in this nested audit packet exist. This local pass
+  does not verify external URL reachability or historical line-anchor rendering.
+- Every group regenerated adapters and passed relevant link/whitespace checks. Final publication
+  additionally uses Gate A; green structural checks do not imply native host or model acceptance.
+
+An independent reviewer inspected all eight immutable source slices, their history and consumers,
+and found no material issues. Test results above were executed by the integrating caller; the
+independent reviewer performed static source/history review and did not run repository code.
+The final publication verdict is bound to its exact commit/tree before push. II-01's supplied-case
+calibration gap and the fleet's existing native/operational acceptance gaps remain explicit.

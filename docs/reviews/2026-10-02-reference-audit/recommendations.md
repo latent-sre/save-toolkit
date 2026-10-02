@@ -3,6 +3,11 @@
 Date: 2026-10-02. Frozen source: `c7fdbe314c95f6bbe29b11519214c30655322ba1`.
 See the [method and nine group reports](README.md) and [complete inventory](inventory.csv).
 
+**Follow-up:** the owner authorized implementation after this audit. All 39 actionable records
+are applied; REF-GCP-02 remains pending. See [actual changes and verification](implementation.md).
+The proposal classifications, measurements and no-cleanup statements below describe the frozen
+audit snapshot, not the current implementation state.
+
 ## Conclusion
 
 [verified source review] All **103 references across 25 skills** received six review lenses.

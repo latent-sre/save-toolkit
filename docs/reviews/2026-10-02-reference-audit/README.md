@@ -5,8 +5,10 @@ This packet supports `AUDIT-001` in the [live roadmap](../../fleet-roadmap.md).
 It records recommendations, not permission to remove guidance or accept model behavior.
 
 **Implementation follow-up:** the owner subsequently clarified that edits were expected.
-The [implementation receipt](implementation.md) tracks application and verification separately
-from this frozen audit snapshot and its original proposal measurements.
+All 39 actionable records are now implemented; the inventory-location decision remains pending.
+The [implementation receipt](implementation.md) records actual changes, **4,354 B net canonical
+reduction**, and fresh verification separately from this frozen audit snapshot and its estimates.
+Statements below about unchanged canonical guidance describe the audit snapshot before cleanup.
 
 **Complete:** all 103 references reviewed. [Consolidated recommendations](recommendations.md)
 record **74 KEEP, 26 TRIM, one paired MERGE and two CONDITIONAL inventories**. No unconditional

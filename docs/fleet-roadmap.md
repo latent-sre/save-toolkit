@@ -27,14 +27,16 @@ records do not re-queue work.
 
 **Status:** `decision-needed` (2026-10-02); all 13 groups reviewed, covering 30 skills and 9 agents
 with six passes each against freshly fetched main `a2d2e57d`. The evidence records 50 confirmed
-findings; thirty-eight selected repairs are implemented and locally verified, with no open material
-independent review findings. The remaining 12 findings retain their original dispositions.
+findings; thirty-eight selected repairs were implemented and locally verified, with no open material
+independent review findings. Reference cleanup additionally corrects II-01 in source, bringing
+source repairs to 39 of 50; its supplied-case/grader calibration and native/model verification
+remain open. The remaining 11 source findings retain their original dispositions.
 **Owner:** The human owner selects repairs and dispositions; the audit caller owns the review evidence.
 **Outcome:** All 30 skills, then all 9 agents, receive six documented review passes in groups of
 three, with each group's findings committed before the next group, and the owner can select
 evidence-backed repairs, recommendations, or explicit deferrals.
-**Next action:** The human owner reviews the published 38-finding repair candidate and its
-verification limits, then selects remaining repairs or explicit dispositions.
+**Next action:** The human owner reviews the published repairs and their verification limits,
+then selects remaining repairs or explicit dispositions and the real inventory-record location.
 [Earlier repair evidence](reviews/2026-10-02-fleet-audit/selected-fixes.md) and
 [third](reviews/2026-10-02-fleet-audit/selected-fixes-batch-03.md) and
 [fourth-batch evidence](reviews/2026-10-02-fleet-audit/selected-fixes-batch-04.md) retain exact
@@ -48,9 +50,10 @@ candidate is complete: six lenses in groups of three skill bundles, each committ
 next group. Its [action register](reviews/2026-10-02-reference-audit/recommendations.md) records
 74 KEEP, 26 TRIM, one paired MERGE and two CONDITIONAL inventories. Forty records comprise two
 documentation correctness defects, seven navigation-convention records, 30 optional recommendations
-and one shared ownership decision. The owner has authorized the bounded cleanup; the
+and one shared ownership decision. The 39 actionable reference records are implemented; the
 [implementation receipt](reviews/2026-10-02-reference-audit/implementation.md) tracks its changes
-and fresh verification. These records do not replace the original 12 remaining findings.
+and fresh verification. The inventory-location decision remains pending. REF-II-01 repairs the
+original II-01 source defect; the other 11 original source findings remain separate.
 **SRE task:** Identify which guidance is correct and useful, which claims lack verification, and
 the smallest changes needed before relying on affected workflows.
 
