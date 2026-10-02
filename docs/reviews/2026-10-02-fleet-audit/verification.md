@@ -317,3 +317,33 @@ no-authorization checks (0/0). An explicit rejection quoting `I authorize deploy
 control unknown (0) but failed the authorization predicate (1), with that quoted substring in the
 assertion diagnostic. An actual affirmative authorization also failed (0/1), as intended. This is
 a bounded false rejection of quoted evidence, not an unsafe authorization or native-agent result.
+
+## Group 12 host inventory and reviewer check
+
+[verified] The current Codex GitHits inventory exposes `grep`; its tool description explicitly
+says it replaces `code_grep`. The researcher's exact grant and validator registry still name
+`code_grep`. The reviewer also retrieved the current provider guide and exercised `grep` on a
+public version-pinned source, as recorded in the researcher report. This establishes drift against
+that current tool set, not failed native Claude resolution on every installation. Host namespace
+prefix differences are not counted as defects.
+
+[verified] The caller invoked the actual `ran_outside_checkout` checks from the direct reviewer
+fixture and the software-engineer handoff fixture (subagent scope), using real `TraceSummary`
+objects with synthetic commands. In both scopes, unqualified Python in the checkout failed,
+known-outside execution passed, and returning to the named source path before Python failed.
+Absolute `/usr/bin/python3`, `.venv/bin/python`, and `env`-wrapped Python commands with no directory
+change all passed the outside-checkout assertion incorrectly. All 12 assertions passed under
+Python 3.14.7. These were command strings only: no candidate import, shell command, Git command,
+service, or native/model trial ran. This is a bounded evaluator false acceptance, not evidence of
+an actual reviewer executing in the source checkout.
+
+[verified: disconfirmed lead] The changed-file-history pattern initially appeared to miss the
+required `$G log` form. Inspection of `_matches_command` and its same-call assignment expansion,
+plus the existing regression coverage, refuted that lead. It is not reported as a defect.
+
+[verified] The caller also used the actual uncommitted-review fixture, its `_write_files` seeding
+helper, and `no_workspace_changes` predicate in an owned temporary directory. The helper explicitly
+wrote LF bytes. The unchanged seed passed; replacing LF with CRLF changed the raw SHA-256 but
+still passed as `checkout unchanged`; a semantic edit failed. Git facts were synthetic and no Git
+command ran. This proves the predicate does not enforce its stated byte-preservation contract for
+seeded uncommitted files; it does not establish that a native reviewer rewrote a user's file.

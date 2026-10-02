@@ -67,7 +67,7 @@ Context reduction is proposed only where it preserves useful safeguards and demo
 | 09 | Skills | [resilience-analysis](group-09-resilience-analysis.md), [root-cause](group-09-root-cause.md), [runbook](group-09-runbook.md) | Six passes complete |
 | 10 | Skills | [service-lifecycle](group-10-service-lifecycle.md), [stack-profile](group-10-stack-profile.md), [toil-reduction](group-10-toil-reduction.md) | Six passes complete |
 | 11 | Agents | [agent-engineer](group-11-agent-engineer.md), [observability-engineer](group-11-observability-engineer.md), [reliability-engineer](group-11-reliability-engineer.md) | Six passes complete |
-| 12 | Agents | `repository-investigator`, `researcher`, `reviewer` | Planned |
+| 12 | Agents | [repository-investigator](group-12-repository-investigator.md), [researcher](group-12-researcher.md), [reviewer](group-12-reviewer.md) | Six passes complete |
 | 13 | Agents | `scribe`, `software-engineer`, `sre-assistant` | Planned |
 
 ## Group 01 adjudicated findings
@@ -225,6 +225,12 @@ live configuration. All thirty skills have now completed their six review passes
 [verified] All three agent reports were read and adjudicated by the caller. Three bounded evaluator defects survived controlled counterexamples: AE-01 (Low) accepts a leading blank line that the strict frontmatter parser rejects; OE-01 (Medium) credits no forbidden edits after a successful write and restoration; RELI-01 (Low) rejects an explicit refusal because it quotes an authorization phrase. The valid and invalid controls and execution limits are recorded in the shared verification record. None is evidence that a native agent performed the constructed behavior.
 
 The current agent bodies and generated projections preserve their intended ownership boundaries. Broad shell/write tools and nested delegation still have the documented cooperative or host-dependent limits; file presence is not proof of current Codex registration. AE-R01 reconciles the stale non-author approval field as a recommendation, since the actual body and validator require exact-revision human acceptance. Other recommendations prioritize graph-design and operation-specific verification and deletion of generic design duplication. Existing shared skill findings remain cross-referenced rather than recounted as new defects.
+
+## Group 12 adjudicated findings
+
+[verified] All three complete reports were read and adjudicated by the caller. Three findings remain: RS-01 (Low) records the stale GitHits code_grep operation grant and validator entry against the observed current grep contract; REV-01 (Medium) shows that path-qualified and env-wrapped Python runs evade the outside-checkout predicate; REV-02 (Low) shows that LF-to-CRLF changes evade the promised byte-preservation check. The latter two were reproduced against actual predicates with controls. RS-01 is qualified to the observed provider tool set; native Claude resolution was not tested.
+
+No new defect was confirmed in repository-investigator. Its direct behavior coverage, caller-supplied dirty-state evidence, and fallback-host local-effect controls remain recommendations. Researcher recommendations cover privacy across MCP calls and binding successful retrieval to supported claims. Reviewer recommendations and shared findings retain their exact scope. The candidate source remains unchanged, and none of these checks supplies native model, sandbox, or production acceptance.
 
 ## Verification record
 
