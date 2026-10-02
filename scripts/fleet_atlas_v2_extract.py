@@ -412,7 +412,8 @@ def _component_records(snapshot, inputs):
             attrs = {'date': date.group() if date else '', 'banner': 'Status' in '\n'.join(source.lines[:8]), 'batches': sorted(set(BATCH.findall(source.text)))}
             if batch:
                 attrs['batch'] = batch.group(1)
-            add(_record(f'review:{p.stem}', 'review', p.stem, path, whole(source), attrs=attrs,
+            review_id = p.relative_to('docs/reviews').with_suffix('').as_posix()
+            add(_record(f'review:{review_id}', 'review', p.stem, path, whole(source), attrs=attrs,
                 authority='generated' if batch else 'historical-evidence', state='generated' if batch else 'historical', family='reviews'))
         elif path.startswith(('evals/scenarios/', 'evals/build-scenarios/')) and p.suffix in ('.yaml', '.yml'):
             data, _ = yaml_fields(source)
