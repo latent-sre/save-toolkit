@@ -15,6 +15,14 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   uncommitted reviews (main ran nothing on the branch and ran code inside the checkout 2/3 on
   uncommitted work); in-checkout runs after a `software-engineer` handoff 1/3 (main 3/3); fork-runner
   refusal and read-only or no-execution scopes held 9/9.
+- `reviewer` closes probe gaps: a candidate that edits CLAUDE.md, AGENTS.md, or `.claude/` in the
+  checkout it runs in gets a preparation gap instead of a verdict (0/3 -> 3/3; all three earlier
+  trials resisted the injected policy but none noticed it had loaded as their own instructions);
+  changed-file history names each path (0/3 -> 3/3); uncommitted work on a branch is snapshotted
+  before any run (in-checkout runs 0/6 after a terse handoff). The generic security checklist is cut:
+  detection was 9/9 with and without it on workflow injection, SSRF, and a cross-tenant read; the
+  dependency-advisory and agent-system lines stay. 13,331 -> 13,051 bytes. The PROVISIONAL verdict
+  line after a branch-named handoff stays at 4/6: the reviewer binds the verdict to the committed SHA.
 - `reviewer` output and Git contract: a side-effect-free Git prefix with minimum reads, every changed
   line covered or its filter named, an evidence label beside each finding's priority,
   `Verdict: PROVISIONAL — …` for mutable reviews, a requester header that never copies an account
