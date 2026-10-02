@@ -130,10 +130,80 @@ def whole(source: Source) -> tuple[Span, ...]:
 
 # Block scalars may have tag/anchor properties and trailing header comments.
 # Missing these forms lets prompt text fabricate scenario identity or routing.
-BLOCK_SCALAR = re.compile(
-    r'^(?:(?:&[^\s,\[\]{}]+|![^\s]*)[ \t]+)*'
-    r'[|>](?:[1-9][+-]?|[+-][1-9]?)?(?:[ \t]+#.*)?$'
-)
+YAML_PROPERTIES = r'(?:(?:&[^\s,\[\]{}]+|![^\s]*)[ \t]+)*'
+PROPERTY_PREFIX = re.compile(YAML_PROPERTIES)
+BLOCK_SCALAR = re.compile(r'^' + YAML_PROPERTIES +
+                          r'[|>](?:[1-9][+-]?|[+-][1-9]?)?(?:[ \t]+#.*)?$')
+
+
+def _scalar_start(lines, index, indent, value):
+    """An empty value or properties can precede a scalar on a later line."""
+    while True:
+        text = value + ' '
+        value = text[PROPERTY_PREFIX.match(text).end():].strip()
+        if value and not value.startswith('#'):
+            return index, value
+        following = index + 1
+        while following < len(lines) and (not lines[following].strip()
+                                         or lines[following].lstrip().startswith('#')):
+            following += 1
+        if following == len(lines):
+            return index, ''
+        raw = lines[following]
+        if len(raw) - len(raw.lstrip(' ')) <= indent:
+            return index, ''
+        candidate = raw.strip()
+        if candidate[:1] not in ('|', '>', '\"', "'", '{', '[', '&', '!'):
+            return index, ''
+        index, value = following, candidate
+
+
+def _flow_scalar(lines, index, value):
+    """Consume a quoted/flow value through its terminator, never as mapping keys."""
+    quote, escaped, closers, token_start, parts = None, False, [], True, []
+    for current in range(index, len(lines)):
+        text = value if current == index else lines[current]
+        offset = 0
+        while offset < len(text):
+            char = text[offset]
+            if quote:
+                if escaped:
+                    escaped = False
+                elif quote == '\"' and char == '\\':
+                    escaped = True
+                elif char == quote:
+                    if quote == "'" and text[offset + 1:offset + 2] == "'":
+                        offset += 2
+                        continue
+                    quote = None
+                    token_start = False
+            elif char == '#' and (offset == 0 or text[offset - 1].isspace()):
+                text = text[:offset]
+                break
+            elif char in '\"\'' and token_start:
+                quote = char
+            elif char in '{[':
+                closers.append('}' if char == '{' else ']')
+                token_start = True
+            elif char in '}]':
+                if not closers or closers.pop() != char:
+                    raise ValueError('mismatched YAML flow collection')
+                token_start = False
+            elif char in ',:':
+                token_start = True
+            elif not char.isspace():
+                token_start = False
+            if not quote and not closers:
+                trailing = text[offset + 1:].strip()
+                if trailing and not trailing.startswith('#'):
+                    raise ValueError('unsupported text after YAML scalar')
+                parts.append(text[:offset + 1].strip())
+                return current, ' '.join(parts)
+            offset += 1
+        # A double-quoted escaped line break consumes the break, not the next quote.
+        escaped = False
+        parts.append(text.strip())
+    raise ValueError('unterminated YAML quoted or flow scalar')
 
 
 def yaml_fields(source: Source, frontmatter=False):
@@ -144,7 +214,10 @@ def yaml_fields(source: Source, frontmatter=False):
     # Prompt block scalars and fixtures cannot contribute top-level target identity.
     result, stack, block_indent = {}, [], None
     stack.append((-1, result))
-    for raw in source.lines:
+    lines, index = source.lines, 0
+    while index < len(lines):
+        raw, current = lines[index], index
+        index += 1
         if not raw.strip() or raw.lstrip().startswith('#'):
             continue
         indent = len(raw) - len(raw.lstrip(' '))
@@ -159,12 +232,18 @@ def yaml_fields(source: Source, frontmatter=False):
         while stack[-1][0] >= indent:
             stack.pop()
         parent, value = stack[-1][1], value.strip()
+        start, value = _scalar_start(lines, current, indent, value)
         if BLOCK_SCALAR.fullmatch(value):
+            parent.pop(key, None)
+            index = start + 1
             block_indent = indent
         elif not value:
             parent[key] = {}
             stack.append((indent, parent[key]))
         else:
+            if value[:1] in ('\"', "'", '{', '['):
+                end, value = _flow_scalar(lines, start, value)
+                index = end + 1
             parent[key] = _scenario_scalar(value)
             # Scalar continuations cannot declare mapping keys, including when
             # tag/anchor properties put the block header on the following line.
