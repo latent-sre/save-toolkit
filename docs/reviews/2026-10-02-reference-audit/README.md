@@ -51,8 +51,8 @@ production action or reference cleanup is part of this audit.
 | 03 | frontend-craft, gcp-ops, grafana | 19 | [Reviewed](group-03.md) |
 | 04 | incident-investigation, obs-alerting, obs-logs | 14 | [Reviewed](group-04.md) |
 | 05 | obs-metrics, obs-pipeline, obs-traces | 9 | [Reviewed](group-05.md) |
-| 06 | operational-learning, pcf-deploy, pcf-ops | 8 | Next group |
-| 07 | production-change-gate, python-craft, resilience-analysis | 16 | Pending |
+| 06 | operational-learning, pcf-deploy, pcf-ops | 8 | [Reviewed](group-06.md) |
+| 07 | production-change-gate, python-craft, resilience-analysis | 16 | Next group |
 | 08 | runbook, service-lifecycle, stack-profile | 8 | Pending |
 | 09 | toil-reduction | 1 | Pending |
 
