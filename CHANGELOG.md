@@ -107,6 +107,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- `verification_completed` counts an earlier foreground command that failed (`Error: Exit code N`,
+  which the CLI receipts as text, not a dict) as completed. Before, any failed earlier command, even
+  a read-only `git log`, made the ordering unknown and the trial INCONCLUSIVE: 54 of the 61 saved
+  trials with that verdict had no other cause. Replaying all 1,184 replayable saved trials changes
+  exactly those 54 from INCONCLUSIVE to PASS and nothing else; other text errors stay unknown.
 - `backend-craft` corrections:
   - `consuming-apis.md` no longer says to prefer the `cf` CLI;
   - request-id guidance no longer points at `obs-pipeline`, which has none, and states when

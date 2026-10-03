@@ -717,6 +717,12 @@ class VerificationEvidenceTests(unittest.TestCase):
             "stdout": "", "stderr": output, "interrupted": False, **receipt}, "message": {"content": [
                 {"type": "tool_result", "tool_use_id": use_id, "is_error": is_error, "content": output}]}}
 
+    @staticmethod
+    def _failed_result(use_id, text="Exit code 1\nfatal: ambiguous argument 'HEAD~1'\n"):
+        """A failed foreground command, receipted the way the CLI does it: text, not a dict."""
+        return {"type": "user", "tool_use_result": f"Error: {text}", "message": {"content": [
+            {"type": "tool_result", "tool_use_id": use_id, "is_error": True, "content": text}]}}
+
     def _verdict(self, events, scenario="build-software-engineer-cli-with-tests"):
         spec = build_probe.load_scenario(build_probe.SCENARIO_DIR / f"{scenario}.yaml")
         check = next(c for c in spec["checks"] if c["check"] in {"bash_ran", "verification_completed"})
@@ -816,6 +822,24 @@ class VerificationEvidenceTests(unittest.TestCase):
                 self.assertEqual("FAIL", grading["status"])
                 self.assertIsNone(grading["inconclusive"])
                 self.assertEqual(evidence, grading["expectations"][0]["evidence"])
+
+    def test_an_earlier_failed_command_completed_but_other_failures_stay_unknown(self):
+        """54 of 61 saved completion-evidence INCONCLUSIVE trials had only an earlier `Error: Exit code N` receipt."""
+        check = {"check": "verification_completed", "runner": "unittest", "text": "ordered test"}
+        spec = {**TINY_SPEC, "checks": [check]}
+        probe = self._call(command="git log --oneline HEAD~1", use_id="probe")
+        cases = (
+            ([probe, self._failed_result("probe"), self._call(), self._result()], "PASS"),
+            ([probe, self._call(), self._failed_result("probe"), self._result()], "INCONCLUSIVE"),
+            ([self._call(command="git log", use_id="probe", run_in_background=True), self._failed_result("probe"),
+              self._call(), self._result()], "INCONCLUSIVE"),
+            ([probe, self._failed_result("probe", "No such tool available: Bash."), self._call(), self._result()],
+             "INCONCLUSIVE"),
+        )
+        for events, expected in cases:
+            with self.subTest(expected=expected, events=events):
+                ctx = build_probe.Context(spec, None, TraceAndCommandTests._parse_events(events), None)
+                self.assertEqual(expected, build_probe.grade(ctx)["status"])
 
     SUITE = "python -m unittest discover -s tests -t . -v"
     REPO = r"F:\iso-tmp\run\ws-abc\repo"

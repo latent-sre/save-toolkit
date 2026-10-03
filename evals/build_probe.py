@@ -1407,6 +1407,12 @@ def runtime_blocked_tools(trace: TraceSummary, spec: dict) -> list[str]:
     return [d for d in trace.denials if d in set(BUILD_TOOLS) | SHELL_TOOLS]
 
 
+# A failed foreground shell command is receipted as text ("Error: Exit code 1\n..."), not as the dict a
+# clean run gets. The exit code shows the command returned, so this exact shape completes the call; any
+# other text error (no such tool, an interruption) still leaves completion unknown.
+_FAILED_FOREGROUND_RECEIPT = re.compile(r"Error: Exit code \d+(?:\n|\Z)")
+
+
 def parse_trace(path: Path) -> TraceSummary:
     s = TraceSummary()
     errors_by_id: dict[str, str] = {}
@@ -1492,6 +1498,9 @@ def parse_trace(path: Path) -> TraceSummary:
                                        for b in msg.get("content") or [])
                     if isinstance(receipt, dict) and result_count == 1:
                         shell_receipts[use_id] = receipt
+                    elif (block.get("is_error") and result_count == 1 and isinstance(receipt, str)
+                          and _FAILED_FOREGROUND_RECEIPT.match(receipt)):
+                        shell_receipts[use_id] = {"interrupted": False}
                 if not block.get("is_error"):
                     use_id = str(block.get("tool_use_id") or "")
                     clean_result_ids[use_id] = position

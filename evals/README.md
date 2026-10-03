@@ -131,7 +131,8 @@ the agent's own verification separately from probe-run artifact tests. It requir
 unittest, pytest, or Vitest invocation, standalone or positioned by one `cd`/`Set-Location` into the
 trial repository joined with `&&`, a matching non-error Bash/PowerShell result,
 and a nonzero passing test summary. `echo pytest`, failed tests, and a `Verified` heading do not
-establish this. Missing/unsupported receipts, overlapping effects, or a later potentially mutating
+establish this. An earlier foreground command that failed (`Error: Exit code N`) still counts as
+completed. Missing/unsupported receipts, overlapping effects, or a later potentially mutating
 tool call leave verification INCONCLUSIVE. The latter includes later shell commands even when a
 human can recognize a read-only `git diff`; the checker does not interpret arbitrary shell effects.
 This is ordered trace evidence, not exact-byte or detached-process attestation. The default build
