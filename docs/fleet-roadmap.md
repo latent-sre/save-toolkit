@@ -307,6 +307,26 @@ offline test results do not establish human acceptance or live operational truth
 **Evidence:** [Design recovery and compatibility contract](reviews/2026-09-30-backlog-four/graph-004.md).
 **SRE task:** Trust atlas citations, ownership, freshness and missing-result distinctions while navigating guidance.
 
+### EVAL-011 — accept the eval harness threat model and bring the runner into line with it
+
+**Status:** `decision-needed` (2026-10-03).
+**Owner:** Save Toolkit maintainers accept or amend the ADR; `agent-engineer` owns the runner repairs
+with independent review.
+**Outcome:** The [threat-model ADR](decisions/2026-10-03-eval-harness-threat-model.md) is accepted or
+amended, and the runner meets it. Measurement failures are inconclusive, and results record the runner
+revision, CLI version and host platform. Every in-scope defect from the 2026-10-03 inventory of
+`evals/build_probe.py` is fixed or has an owner disposition.
+**Next action:** Maintainers review the ADR. Then one PR each, gated on replaying saved traces with
+every verdict change explained:
+- `--regrade` passes checks the recorded repository path and uses the run path's exit codes.
+- Record the CLI version and host platform.
+- Keep clean-room trial workspaces outside the user's home directory.
+- Remove the unused `--container` mode.
+- Split `evals/build_probe.py` along its inventory seams with no verdict change.
+**Evidence:** [PR #310](https://github.com/latent-sre/save-toolkit/pull/310).
+**SRE task:** Read an eval INCONCLUSIVE as "the instrument could not measure", and know which host and
+CLI a PASS or FAIL was measured on.
+
 ### EVAL-010 — choose the rubric judge by a calibration bake-off
 
 **Status:** `decision-needed` (2026-09-30). This item authorizes no dependency change, model run, or
