@@ -34,9 +34,9 @@ with stable candidate inputs and one writer per output directory.
 Candidate responses, generated code, tool behavior and model-judge verdicts remain untrusted evidence,
 so incorrect grading, misleading output, accidental drift, stale or misattributed results and ordinary
 execution or publication failures remain in scope.
-Usable results must identify the candidate, scenario, assertion and model measured, measurement
-failures must never establish a valid PASS, and acceptance of an exact candidate revision remains a
-human decision.
+Usable results must identify the candidate, scenario, assertion, model, runner revision and CLI
+version measured; measurement failures must be reported as inconclusive and never establish a PASS
+or FAIL; and acceptance of an exact candidate revision remains a human decision.
 This model excludes dishonest operators, compromised hosts or runtimes, deliberate forgery of local
 records and competing writers, and makes no guarantee of containing hostile code or detecting
 transient edits restored between checks.
