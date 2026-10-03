@@ -913,6 +913,26 @@ class VerificationEvidenceTests(unittest.TestCase):
                 result = build_probe.regrade_run(run, spec)
                 self.assertEqual(result["status"], expected)
 
+    def test_regrade_matches_a_positioned_suite_against_the_recorded_repository(self):
+        """A regrade's checkout is gone, so `cd "<repo>" && <suite>` must match the path the run recorded."""
+        check = {"check": "verification_completed", "runner": "unittest", "text": "ordered test"}
+        spec = {**TINY_SPEC, "checks": [check]}
+        with tempfile.TemporaryDirectory() as tmp:
+            run, repo = Path(tmp) / "run", str(Path(tmp) / "ws" / "repo")
+            (run / "outputs").mkdir(parents=True)
+            (run / "outputs/response.md").write_text("done", encoding="utf-8")
+            (run / "outputs/trace-summary.json").write_text(json.dumps({
+                "state_files": {}, "commits_before_after": [1, 1], "branch": "main", "changed_files": [],
+                "workspace": repo,
+            }), encoding="utf-8")
+            (run / "grading.json").write_text(json.dumps(_saved_grade(spec, [
+                {"text": "ordered test", "passed": True, "evidence": "live pass"},
+            ])), encoding="utf-8")
+            events = [self._call(command=f'cd "{repo}" && {self.SUITE}'), self._result()]
+            (run / "stdout.jsonl").write_text("\n".join(json.dumps(e) for e in events), encoding="utf-8")
+            result = build_probe.regrade_run(run, spec)
+            self.assertEqual("PASS", result["status"], result["expectations"])
+
     def test_explicit_powershell_tools_preserve_the_writing_and_container_boundaries(self):
         spec = {**TINY_SPEC, "tools": ["Read", "PowerShell"]}
         self.assertEqual(build_probe.scenario_tools(spec), ("Read", "PowerShell"))
@@ -1820,6 +1840,27 @@ class ReviewFindingTests(unittest.TestCase):
     def test_trials_must_be_positive(self) -> None:
         with self.assertRaises(SystemExit):
             build_probe.main(["--trials", "0", "--label", "x", "--out", str(self.root / "out")])
+
+    def test_regrade_exit_code_separates_fail_inconclusive_and_nothing_regraded(self) -> None:
+        """A run exits 1 on FAIL and 2 on INCONCLUSIVE; a regrade that graded nothing measured nothing."""
+        for states, expected in (((), 2), (("PASS",), 0), (("PASS", "INCONCLUSIVE", "FAIL"), 1),
+                                 (("PASS", "INCONCLUSIVE"), 2)):
+            rows = [{"scenario": "s", "label": "l", "run": n, "status": state, "passed": 0, "total": 1}
+                    for n, state in enumerate(states, 1)]
+            with self.subTest(states=states), mock.patch.object(build_probe, "regrade", return_value=rows):
+                self.assertEqual(expected, build_probe.main(["--regrade", str(self.root)]))
+
+    def test_regrade_exit_code_aggregates_each_label_against_the_scenario_threshold(self) -> None:
+        """Two of three trials pass a 0.66 scenario, as in a run; a failing arm is not pooled away."""
+        scenario = "discovery-agent-authoring-loop-engineering"
+        row = lambda label, n, state: {"scenario": scenario, "label": label, "run": n, "status": state,
+                                       "passed": 0, "total": 1}
+        for rows, expected in (
+            ([row("arm", 1, "PASS"), row("arm", 2, "PASS"), row("arm", 3, "FAIL")], 0),
+            ([row("good", n, "PASS") for n in (1, 2, 3)] + [row("bad", n, "FAIL") for n in (1, 2, 3)], 1),
+        ):
+            with self.subTest(expected=expected), mock.patch.object(build_probe, "regrade", return_value=rows):
+                self.assertEqual(expected, build_probe.main(["--regrade", str(self.root)]))
 
     def test_unpinned_container_image_is_refused(self) -> None:
         with self.assertRaises(SystemExit):
