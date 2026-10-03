@@ -107,6 +107,13 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- The `incident_companion_response` rubric's `statement_rerun` paragraph now carries the owner-supplied
+  facts its PASS case repeats (`daily-statement/run-42`, `statement-2026-07-14/v3`, the provider
+  receipt, the 11:26 UTC recipient readback, the cached screenshot). Before, a judge reading only the
+  rubric saw them as invented: uncached Sonnet 5 judged calibration case #150 FAIL in both runs that
+  produced a verdict, and every OpenAI judge failed it, while the 2026-09-23 receipt's PASS was
+  cached. After the edit, three uncached Sonnet 5 runs score 21/21 on the rubric, #150 PASS each
+  time. The edit invalidates that rubric's calibration, so a new receipt is required.
 - `verification_completed` counts an earlier foreground command that failed (`Error: Exit code N`,
   which the CLI receipts as text, not a dict) as completed. Before, any failed earlier command, even
   a read-only `git log`, made the ordering unknown and the trial INCONCLUSIVE: 54 of the 61 saved
