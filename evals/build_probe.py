@@ -3666,8 +3666,12 @@ def main(argv: list[str] | None = None) -> int:
             scope = " (structural only; semantics UNVERIFIED)" if r.get("semantic_assessment") else ""
             print(f"eval-{r['scenario']} {r['label']}/run-{r['run']}: {r['status']} {r['passed']}/{r['total']}{scope}")
         print(f"regraded {len(rows)} run(s)")
-        # The run path's codes: 1 for any FAIL, 2 for any INCONCLUSIVE; regrading nothing measured nothing.
-        states = [r["status"] for r in rows]
+        # Exit like a run: each label's trials aggregate per scenario against its threshold (one
+        # directory can hold several arms), then 1 for any FAIL verdict and 2 for any INCONCLUSIVE
+        # one. Regrading nothing measured nothing.
+        states = [verdict["verdict"] for label in sorted({r["label"] for r in rows})
+                  for verdict in aggregate_by_scenario(
+                      scenarios, [r for r in rows if r["label"] == label], args.threshold).values()]
         if "FAIL" in states:
             return 1
         return 2 if not states or "INCONCLUSIVE" in states else 0

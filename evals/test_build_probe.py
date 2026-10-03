@@ -1850,6 +1850,18 @@ class ReviewFindingTests(unittest.TestCase):
             with self.subTest(states=states), mock.patch.object(build_probe, "regrade", return_value=rows):
                 self.assertEqual(expected, build_probe.main(["--regrade", str(self.root)]))
 
+    def test_regrade_exit_code_aggregates_each_label_against_the_scenario_threshold(self) -> None:
+        """Two of three trials pass a 0.66 scenario, as in a run; a failing arm is not pooled away."""
+        scenario = "discovery-agent-authoring-loop-engineering"
+        row = lambda label, n, state: {"scenario": scenario, "label": label, "run": n, "status": state,
+                                       "passed": 0, "total": 1}
+        for rows, expected in (
+            ([row("arm", 1, "PASS"), row("arm", 2, "PASS"), row("arm", 3, "FAIL")], 0),
+            ([row("good", n, "PASS") for n in (1, 2, 3)] + [row("bad", n, "FAIL") for n in (1, 2, 3)], 1),
+        ):
+            with self.subTest(expected=expected), mock.patch.object(build_probe, "regrade", return_value=rows):
+                self.assertEqual(expected, build_probe.main(["--regrade", str(self.root)]))
+
     def test_unpinned_container_image_is_refused(self) -> None:
         with self.assertRaises(SystemExit):
             build_probe.main(["--container", "python:3.12", "--label", "x", "--out", str(self.root / "out")])
