@@ -3666,12 +3666,13 @@ def main(argv: list[str] | None = None) -> int:
             scope = " (structural only; semantics UNVERIFIED)" if r.get("semantic_assessment") else ""
             print(f"eval-{r['scenario']} {r['label']}/run-{r['run']}: {r['status']} {r['passed']}/{r['total']}{scope}")
         print(f"regraded {len(rows)} run(s)")
-        # Exit like a run: each label's trials aggregate per scenario against its threshold (one
-        # directory can hold several arms), then 1 for any FAIL verdict and 2 for any INCONCLUSIVE
-        # one. Regrading nothing measured nothing.
-        states = [verdict["verdict"] for label in sorted({r["label"] for r in rows})
+        # Exit like a run: trials aggregate per scenario against its threshold within one label and one
+        # resolved model (a directory can hold several arms, and a label's slots several models), then
+        # 1 for any FAIL verdict and 2 for any INCONCLUSIVE one. Regrading nothing measured nothing.
+        arm = lambda r: (r["label"], tuple(model_identities([r])))
+        states = [verdict["verdict"] for key in sorted({arm(r) for r in rows})
                   for verdict in aggregate_by_scenario(
-                      scenarios, [r for r in rows if r["label"] == label], args.threshold).values()]
+                      scenarios, [r for r in rows if arm(r) == key], args.threshold).values()]
         if "FAIL" in states:
             return 1
         return 2 if not states or "INCONCLUSIVE" in states else 0

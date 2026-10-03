@@ -1853,11 +1853,14 @@ class ReviewFindingTests(unittest.TestCase):
     def test_regrade_exit_code_aggregates_each_label_against_the_scenario_threshold(self) -> None:
         """Two of three trials pass a 0.66 scenario, as in a run; a failing arm is not pooled away."""
         scenario = "discovery-agent-authoring-loop-engineering"
-        row = lambda label, n, state: {"scenario": scenario, "label": label, "run": n, "status": state,
-                                       "passed": 0, "total": 1}
+        row = lambda label, n, state, model="claude-sonnet-5": {
+            "scenario": scenario, "label": label, "run": n, "status": state, "passed": 0, "total": 1,
+            "models": [model]}
         for rows, expected in (
             ([row("arm", 1, "PASS"), row("arm", 2, "PASS"), row("arm", 3, "FAIL")], 0),
             ([row("good", n, "PASS") for n in (1, 2, 3)] + [row("bad", n, "FAIL") for n in (1, 2, 3)], 1),
+            # One label can hold runs from two resolved models; the failing model's arm is not pooled away.
+            ([row("arm", 1, "PASS"), row("arm", 2, "PASS"), row("arm", 3, "FAIL", "claude-opus-5")], 1),
         ):
             with self.subTest(expected=expected), mock.patch.object(build_probe, "regrade", return_value=rows):
                 self.assertEqual(expected, build_probe.main(["--regrade", str(self.root)]))
