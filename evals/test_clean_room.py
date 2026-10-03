@@ -11,6 +11,7 @@ Runnable:
 from __future__ import annotations
 
 import os
+import shutil
 import sys
 import tempfile
 from pathlib import Path
@@ -151,6 +152,75 @@ def test_neutral_workspace_is_empty_outside_the_repository_and_removed() -> None
     check(room is not None and not room.exists(), "neutral workspace is removed after the trial")
 
 
+def test_instruction_bearing_ancestor_finds_the_nearest_file_above_a_workspace() -> None:
+    """The walk that leaked: Claude reads CLAUDE.md from ANY ancestor, not just the cwd.
+
+    The tree is built under workspace_root() rather than the default temp dir, because on Windows
+    the default temp dir is exactly what is contaminated -- basing the "clean chain" case there
+    fails for the reason this fix exists, as it did on the first run of this test.
+    """
+    tmp = clean_room.make_workspace("detector-test-")
+    try:
+        deep = tmp / "a" / "b" / "c"
+        deep.mkdir(parents=True)
+        assert clean_room.instruction_bearing_ancestor(deep) is None, "the guaranteed-clean root must read clean"
+        check(True, "a clean chain under workspace_root() reports no instruction ancestor")
+
+        far = tmp / "a" / "CLAUDE.md"
+        far.write_text("personal rules\n", encoding="utf-8")
+        assert clean_room.instruction_bearing_ancestor(deep) == far, "must find a grandparent's CLAUDE.md"
+        check(True, "an ancestor CLAUDE.md two levels up is found")
+
+        near = tmp / "a" / "b" / ".claude"
+        near.mkdir()
+        (near / "CLAUDE.md").write_text("nearer rules\n", encoding="utf-8")
+        assert clean_room.instruction_bearing_ancestor(deep) == near / "CLAUDE.md", "must prefer the nearest"
+        check(True, "the NEAREST instruction file wins, including the .claude/CLAUDE.md form")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_workspace_root_refuses_a_contaminated_override() -> None:
+    """A refusal, not a silent measurement: the harness's rule applied to its own workspace."""
+    with tempfile.TemporaryDirectory() as raw:
+        tmp = Path(raw).resolve()
+        (tmp / "CLAUDE.md").write_text("personal rules\n", encoding="utf-8")
+        target = tmp / "workspaces"
+        target.mkdir()
+        previous = os.environ.get(clean_room.WORKSPACE_ROOT_ENV)
+        os.environ[clean_room.WORKSPACE_ROOT_ENV] = str(target)
+        try:
+            clean_room.workspace_root()
+        except clean_room.RunnerFailed as exc:
+            message = str(exc)
+            assert "CLAUDE.md" in message, message
+            assert clean_room.WORKSPACE_ROOT_ENV in message, message
+            check(True, "a contaminated workspace root is refused, naming the file and the override")
+        else:
+            raise AssertionError("workspace_root() accepted a root with an ancestor CLAUDE.md")
+        finally:
+            if previous is None:
+                os.environ.pop(clean_room.WORKSPACE_ROOT_ENV, None)
+            else:
+                os.environ[clean_room.WORKSPACE_ROOT_ENV] = previous
+
+
+def test_make_workspace_has_no_instruction_bearing_ancestor() -> None:
+    """The guarantee itself, on whatever root this host resolves to.
+
+    This is the check that was missing: on Windows the default temp root sits under the operator's
+    home, so every trial inherited ~/.claude/CLAUDE.md and the number measured the operator, not
+    the plugin.
+    """
+    workspace = clean_room.make_workspace("test-workspace-")
+    try:
+        offender = clean_room.instruction_bearing_ancestor(workspace)
+        assert offender is None, f"{workspace} would inherit {offender}"
+        check(True, "make_workspace() yields a path with no instruction file at or above it")
+    finally:
+        workspace.rmdir()
+
+
 def test_is_auth_failure_recognises_a_real_not_logged_in_trace() -> None:
     # Verbatim shapes from a probed credential-less run. Note the trap: the result event says
     # subtype "success" while is_error is true -- anything keying on subtype calls this a good run.
@@ -200,6 +270,9 @@ def main() -> int:
         test_api_key_auth_bypasses_the_credentials_file_requirement,
         test_subscriber_only_clean_env_rejects_api_key_auth,
         test_neutral_workspace_is_empty_outside_the_repository_and_removed,
+        test_instruction_bearing_ancestor_finds_the_nearest_file_above_a_workspace,
+        test_workspace_root_refuses_a_contaminated_override,
+        test_make_workspace_has_no_instruction_bearing_ancestor,
         test_is_auth_failure_recognises_a_real_not_logged_in_trace,
         test_is_auth_failure_does_not_fire_on_a_healthy_trace,
         test_is_auth_failure_is_gated_on_exit_code_not_just_text,

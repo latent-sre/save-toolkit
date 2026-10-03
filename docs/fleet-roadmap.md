@@ -320,7 +320,6 @@ revision, CLI version and host platform. Every in-scope defect from the 2026-10-
 every verdict change explained:
 - `--regrade` passes checks the recorded repository path and uses the run path's exit codes.
 - Record the CLI version and host platform.
-- Keep clean-room trial workspaces outside the user's home directory.
 - Remove the unused `--container` mode.
 - Split `evals/build_probe.py` along its inventory seams with no verdict change.
 **Evidence:** [PR #310](https://github.com/latent-sre/save-toolkit/pull/310).
