@@ -329,36 +329,43 @@ CLI a PASS or FAIL was measured on.
 
 ### EVAL-010 — choose the rubric judge by a calibration bake-off
 
-**Status:** `decision-needed` (2026-09-30). This item authorizes no dependency change, model run, or
-API spend.
-**Owner:** Maintainers approve any new dependency, the API budget, and the credential used;
-`agent-engineer` runs the bake-off with independent review.
-**Outcome:** The rubric judge is the one that best agrees with the human-labelled calibration corpus
-at equal or lower cost. Either `evals/judge.py` stays, or a library judge replaces its model-call
-half under a new ADR that amends the judge contract.
+**Status:** `decision-needed` (2026-10-03). A first bake-off ran on subscription judges with owner
+approval and found no replacement for the current judge. This item authorizes no dependency change
+or API spend.
+**Owner:** Maintainers approve any new dependency, API budget, or credential, and own the
+calibration labels; `agent-engineer` runs measurements with independent review.
+**Outcome:** The rubric judge is the one that agrees with the human-labelled calibration corpus
+repeatably — over repeated uncached runs, not one cached pass — at equal or lower cost.
+`evals/judge.py` with `claude-sonnet-5` stays until a candidate meets that bar under a new ADR that
+amends the judge contract.
 **Next action:**
 
-1. Thicken the thinnest calibration sets first. `mitigation_recommendation` and
-   `compromise_preserves_evidence` have three labelled cases each (one pass, two fail). At the 0.95
-   agreement threshold that means 3/3, which cannot separate two judges. New cases change the corpus
-   digest, so the current judge must be recalibrated too.
-2. Recalibrate the current judge on the thickened corpus with the repository `.venv` interpreter.
-   The execution identity records the Python version, so a receipt made under one interpreter is
-   rejected under another.
-3. Score the same corpus with the same judge model and rubric text through two candidates:
-   - Inspect AI's `model_graded_qa` scorer (already pinned: `inspect-ai==0.3.263` in
-     `requirements-dev.txt`);
-   - Pydantic Evals' LLM-judge evaluator (`pydantic-evals`, a new dependency with six runtime
-     dependencies).
+1. The owner reviews the PASS-labelled cases that judges failed. For the companion rubric, outside
+   judges failed #4, #144, #146, #148 and #154. In live recalibration, Sonnet 5 failed the
+   `no_blind_retry_after_unknown` "confirmed terminal non-execution" case and the
+   `no_inline_deploy_commitment` "plan authorship" case. For each: add the supplied facts the
+   response relies on to the rubric, relabel, or keep the label. Case #150's facts are added in
+   [PR #313](https://github.com/latent-sre/save-toolkit/pull/313), a draft until a passing receipt
+   exists.
+2. Decide whether a calibration receipt must come from repeated uncached runs. The 2026-09-23
+   receipt's 164/164 included cached PASS verdicts on three cases that live runs judged FAIL; the
+   live recalibration misses 0.95 on `no_blind_retry_after_unknown` (13/14).
+3. Thicken `mitigation_recommendation` and `compromise_preserves_evidence`. Three cases each cannot
+   separate judges, and new cases change the corpus digest, so a recalibration follows.
+4. Optional, needs an API key: score Pydantic Evals' `LLMJudge` prompt and Inspect's
+   `model_graded_qa` on the same corpus. Adopt one only if it beats `judge.py`'s prompt on every
+   rubric and removes code or cost.
 
-   Report per-rubric agreement, inconclusive judgments, cost, and the lines of `judge.py` each would
-   replace.
-4. Adopt a candidate only if it matches the current judge on every rubric and removes code or cost.
+Measured on 2026-10-03: OpenAI judges run without an API key through `codex exec` on a ChatGPT
+login, once an output-schema description stops them wrapping evidence in quotation marks.
+GPT-6.1 Sol, GPT-6 Luna and GPT-5.6 Terra each matched 161 of 164 labels on first runs, but none
+cleared every rubric. Luna, at about a twentieth of Sol's list price, is a candidate second-opinion
+judge, not a replacement.
 
 Limits that hold whichever judge wins:
-- Both candidates call a provider API with an API key. The current judge runs `claude -p` in the
-  clean room on subscription authentication.
-- Structural checks stay deterministic in `evals/graders.py`; a library takes only the rubric half.
+- Provider APIs need an API key; the current judge and the `codex exec` arm run on subscription
+  logins.
+- Structural checks stay deterministic in `evals/graders.py`; a candidate takes only the rubric half.
 - Few-shot examples inside a library's judge prompt are not calibration evidence.
 
 Surveyed on 2026-09-30 and left out of the comparison:
@@ -368,12 +375,11 @@ Surveyed on 2026-09-30 and left out of the comparison:
 - OpenEvals: requires `langchain`, `langchain-openai`, and `langsmith`. Reconsider it only for
   LLM-judged agent tool-call trajectories, which the build probes grade deterministically today.
 
-**Evidence:** [Judge contract](decisions/2026-09-01-rubric-judge-evaluation-contract.md).
-- The last accepted calibration receipt (2026-09-23, `claude-sonnet-5`) covers 164 labelled cases
-  across eleven rubrics. Every rubric was at or above 0.95 agreement; the run made 19 live calls for
-  USD 0.51.
-- That receipt still binds on `65daa521` under the `.venv` Python 3.14.7, and is rejected under
-  3.12.10.
+**Evidence:** [Judge bake-off, 2026-10-03](reviews/2026-10-03-judge-bakeoff.md); contract in the
+[rubric-judge ADR](decisions/2026-09-01-rubric-judge-evaluation-contract.md).
+- The 2026-09-23 receipt (`claude-sonnet-5`) covers 164 labelled cases across eleven rubrics, each
+  at or above 0.95 agreement; it binds under the `.venv` Python 3.14.7, not 3.12.10. The
+  `statement_rerun` rubric edit in [PR #313](https://github.com/latent-sre/save-toolkit/pull/313) needs a new receipt.
 - Sixteen scenarios carry rubric checks.
 **SRE task:** Trust an agent's mitigation recommendation or suspected-compromise escalation because a
 judge proven against human-labelled cases graded it, not because its scenario went unrun.
