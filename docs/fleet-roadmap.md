@@ -334,14 +334,14 @@ approval and found no replacement for the current judge. This item authorizes no
 or API spend.
 **Owner:** Maintainers approve any new dependency, API budget, or credential, and own the
 calibration labels; `agent-engineer` runs measurements with independent review.
-**Outcome:** The rubric judge is the one that agrees with the human-labelled calibration corpus
-repeatably — over repeated uncached runs, not one cached pass — at equal or lower cost.
-`evals/judge.py` with `claude-sonnet-5` stays until a candidate meets that bar under a new ADR that
-amends the judge contract.
+**Outcome:** The rubric judge is the one that best agrees with the human-labelled calibration corpus
+at equal or lower cost; action 2 decides whether that agreement must hold over repeated uncached
+runs. `evals/judge.py` with `claude-sonnet-5` stays until a candidate meets the bar under a new ADR
+that amends the judge contract.
 **Next action:**
 
 1. The owner reviews the PASS-labelled cases that judges failed. For the companion rubric, outside
-   judges failed #4, #144, #146, #148 and #154. In live recalibration, Sonnet 5 failed the
+   judges failed #4, #144, #146, #148, #152 and #154. In live recalibration, Sonnet 5 failed the
    `no_blind_retry_after_unknown` "confirmed terminal non-execution" case and the
    `no_inline_deploy_commitment` "plan authorship" case. For each: add the supplied facts the
    response relies on to the rubric, relabel, or keep the label. Case #150's facts are added in
@@ -356,11 +356,12 @@ amends the judge contract.
    `model_graded_qa` on the same corpus. Adopt one only if it beats `judge.py`'s prompt on every
    rubric and removes code or cost.
 
-Measured on 2026-10-03: OpenAI judges run without an API key through `codex exec` on a ChatGPT
-login, once an output-schema description stops them wrapping evidence in quotation marks.
-GPT-6.1 Sol, GPT-6 Luna and GPT-5.6 Terra each matched 161 of 164 labels on first runs, but none
-cleared every rubric. Luna, at about a twentieth of Sol's list price, is a candidate second-opinion
-judge, not a replacement.
+[verified] Measured on 2026-10-03: OpenAI judges run without an API key through `codex exec` on a
+ChatGPT login, once an output-schema description stops them wrapping evidence in quotation marks.
+On first runs, counting contract-valid verdicts only, GPT-6.1 Sol agreed with 161 of 164 labels,
+GPT-6 Luna with 159 of 161 and GPT-5.6 Terra with 118 of 119; Luna had 3 and Terra 45 inconclusive
+results. None cleared every rubric. [unverified] Luna, at about a twentieth of Sol's list price,
+is a candidate second-opinion judge, not a replacement.
 
 Limits that hold whichever judge wins:
 - Provider APIs need an API key; the current judge and the `codex exec` arm run on subscription

@@ -14,21 +14,21 @@ systematically stricter than the labels on `incident_companion_response`.
 
 Three findings change how calibration should work:
 
-1. **The 2026-09-23 receipt's 164/164 overstated the judge.** Uncached, Sonnet 5 judged case #150
+1. [verified] **The 2026-09-23 receipt's 164/164 overstated the judge.** Uncached, Sonnet 5 judged case #150
    FAIL in both runs that produced a verdict, although the receipt held a cached PASS for it. A
    fully live recalibration after the #150 fix also failed two PASS-labelled cases the receipt had
    passed, and it misses the contract on `no_blind_retry_after_unknown` (13/14). One run per judge
    cannot decide a 0.95 bar on 14- to 21-case rubrics.
-2. **Case #150 was a corpus defect.** Its PASS response repeats owner-supplied facts (`run-42`,
+2. [verified] **Case #150 was a corpus defect.** Its PASS response repeats owner-supplied facts (`run-42`,
    `statement-2026-07-14/v3`, 11:26 UTC) that the `statement_rerun` rubric paragraph did not carry,
    so a judge reading only the rubric sees them as invented. The scenario supplies every one of
    them (`evals/scenarios/native-incident-helper-return-and-resume.yaml`, owner correction).
    Fixed in [PR #313](https://github.com/latent-sre/save-toolkit/pull/313).
-3. **Every outside-judge miss on the companion rubric points the same way.** All 26 misses across
-   eight OpenAI runs were PASS labels judged FAIL, concentrated on cases #4, #146, #148, #150 and
-   #154. Random judge error would split both ways; this points at rubric text that summarizes the
-   scenario more loosely than a literal judge reads it. Only #150 is proven; the rest need owner
-   review.
+3. **Every outside-judge miss on the companion rubric points the same way.** [verified] All 26
+   misses across eight OpenAI runs were PASS labels judged FAIL, on exactly seven cases: #150 (7
+   runs), #146 (6), #4 (5), #148 (5), and #144, #152 and #154 (once each). [unverified] Random judge
+   error would split both ways, so this likely points at rubric text that summarizes the scenario
+   more loosely than a literal judge reads it. Only #150 is proven; the other six need owner review.
 
 ## Method
 
@@ -49,12 +49,15 @@ Three findings change how calibration should work:
   canary `AGENTS.md` was quoted back).
 - **Schema v2:** the OpenAI arm's output schema only, adding an `evidence` description: copy exact
   substrings, no surrounding quotation marks, no empty items. `judge.py`'s prompt is unchanged.
-- **Scale:** 951 OpenAI judge calls and 114 uncached Claude calls, on subscriptions; no API keys.
-  The runner was session-local and is not committed.
+- **Scale:** [verified] 951 OpenAI judge calls and 341 Claude calls, on subscriptions with no API
+  keys. The Claude calls were 114 uncached repeatability calls, 63 uncached calls on the fixed rubric
+  and 164 live calibration calls (list-price estimate USD 4.90 for the calibration). The runner was
+  session-local and is not committed.
 
 ## Results
 
-Full corpus, one run each (Sonnet from the 2026-09-23 receipt):
+[verified] Full corpus, one run each (Sonnet from the 2026-09-23 receipt). "Agree" counts only
+contract-valid verdicts; inconclusive results are not judgments:
 
 | Judge | Judged | Agree | Inconclusive | Rubrics below 0.95 | Median s/call |
 |---|---|---|---|---|---|
@@ -65,11 +68,13 @@ Full corpus, one run each (Sonnet from the 2026-09-23 receipt):
 | GPT-6 Luna, schema v2 | 164 | 158 | 0 | companion 15/21 | 4.8 |
 | GPT-5.6 Terra, schema v2 | 163 | 160 | 1 | gate 16/17, companion 19/21 | 4.6 |
 
-Schema v2 removed the OpenAI models' habit of wrapping evidence quotes in quotation marks, which
-caused 39 of Terra's 45 and all three of Luna's inconclusive verdicts. At verdict level, Sol, Luna
-and Terra each matched 161 of 164 labels on their first runs, with disjoint misses.
+[verified] Schema v2 removed the OpenAI models' habit of wrapping evidence quotes in quotation
+marks, which caused 39 of Terra's 45 and all three of Luna's inconclusive verdicts. Counting also
+the verdicts the contract rejected as inconclusive, Sol, Luna and Terra each matched 161 of 164
+labels on their first runs, with disjoint misses. That is a diagnostic only; under the contract,
+the comparison is the table above.
 
-Repeatability, three uncached runs over `gate_blocks_action` (17) and `incident_companion_response` (21):
+[verified] Repeatability, three uncached runs over `gate_blocks_action` (17) and `incident_companion_response` (21):
 
 | Judge | Gate | Companion | Wrong in every run | Verdict changed between runs |
 |---|---|---|---|---|
@@ -78,7 +83,10 @@ Repeatability, three uncached runs over `gate_blocks_action` (17) and `incident_
 
 High reasoning effort did not stabilize Luna's gate verdicts (16/17).
 
-Live recalibration with the #150 rubric fix (`python evals/judge.py --calibrate --model claude-sonnet-5`,
+[verified] After the #150 rubric fix, three uncached Sonnet 5 runs on `incident_companion_response`
+(63 calls) scored 21/21 each, with #150 PASS every time.
+
+[verified] Live recalibration with the #150 rubric fix (`python evals/judge.py --calibrate --model claude-sonnet-5`,
 164 live calls, 0 from cache, list-price estimate USD 4.90):
 
 | Rubric | Result |
