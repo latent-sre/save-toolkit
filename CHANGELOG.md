@@ -107,6 +107,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- `--regrade` grades `verification_completed` against the repository path the run recorded, so a
+  correct `cd "<repo>" && <suite>` receipt is no longer a false FAIL because the checkout is gone.
+  Runs from before 2026-10-02 did not record that path, and they already regrade INCONCLUSIVE on
+  evaluator identity. `--regrade` also uses the run path's exit codes: 1 for any FAIL, 2 for any
+  INCONCLUSIVE, and 2 when nothing was regraded (it returned 1 for INCONCLUSIVE and 0 for nothing).
 - `verification_completed` counts an earlier foreground command that failed (`Error: Exit code N`,
   which the CLI receipts as text, not a dict) as completed. Before, any failed earlier command, even
   a read-only `git log`, made the ordering unknown and the trial INCONCLUSIVE: 54 of the 61 saved
