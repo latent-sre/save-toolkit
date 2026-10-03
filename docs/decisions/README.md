@@ -26,3 +26,4 @@ PR #238. It preserves branch dispositions, current tool authority, and acceptanc
 | 2026-09-03 | [One eval runner, three scenario kinds](2026-09-03-one-eval-runner.md) | Accepted 2026-09-03; registry list superseded by [2026-09-04-eight-grader-registry](2026-09-04-eight-grader-registry.md) |
 | 2026-09-04 | [The grader registry is eight graders](2026-09-04-eight-grader-registry.md) | Accepted 2026-09-04 |
 | 2026-09-07 | [Keep retired artifacts in Git history](2026-09-07-historical-artifact-retention.md) | Proposed; effective on maintainer merge of PR #238 |
+| 2026-10-03 | [What the eval harness defends against](2026-10-03-eval-harness-threat-model.md) | Proposed |
