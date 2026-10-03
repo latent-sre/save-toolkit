@@ -180,6 +180,20 @@ def test_instruction_bearing_ancestor_finds_the_nearest_file_above_a_workspace()
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def test_instruction_bearing_ancestor_finds_an_ancestor_claude_local_md() -> None:
+    """Claude Code loads CLAUDE.local.md, not only CLAUDE.md, from every directory above the cwd."""
+    tmp = clean_room.make_workspace("detector-local-test-")
+    try:
+        deep = tmp / "a" / "b"
+        deep.mkdir(parents=True)
+        local = tmp / "a" / "CLAUDE.local.md"
+        local.write_text("personal project notes\n", encoding="utf-8")
+        assert clean_room.instruction_bearing_ancestor(deep) == local, "must find an ancestor CLAUDE.local.md"
+        check(True, "an ancestor CLAUDE.local.md is found when it is the only instruction file")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def test_workspace_root_refuses_a_contaminated_override() -> None:
     """A refusal, not a silent measurement: the harness's rule applied to its own workspace."""
     with tempfile.TemporaryDirectory() as raw:
@@ -271,6 +285,7 @@ def main() -> int:
         test_subscriber_only_clean_env_rejects_api_key_auth,
         test_neutral_workspace_is_empty_outside_the_repository_and_removed,
         test_instruction_bearing_ancestor_finds_the_nearest_file_above_a_workspace,
+        test_instruction_bearing_ancestor_finds_an_ancestor_claude_local_md,
         test_workspace_root_refuses_a_contaminated_override,
         test_make_workspace_has_no_instruction_bearing_ancestor,
         test_is_auth_failure_recognises_a_real_not_logged_in_trace,

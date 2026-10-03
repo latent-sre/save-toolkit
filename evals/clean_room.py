@@ -191,7 +191,9 @@ def scrubbed_child_env(config_dir: Path) -> dict[str, str]:
 # Only instruction FILES are checked. Ancestor `.claude/settings.json` discovery may leak too; that
 # has not been probed, so it is not asserted here.
 WORKSPACE_ROOT_ENV = "FLEET_EVAL_WORKSPACE_ROOT"
-INSTRUCTION_FILENAMES = ("CLAUDE.md", "AGENTS.md", Path(".claude") / "CLAUDE.md")
+# Claude Code loads CLAUDE.md and CLAUDE.local.md from the cwd and every directory above it
+# (code.claude.com/docs/en/memory, "How CLAUDE.md files load"); AGENTS.md is read when no CLAUDE.md is.
+INSTRUCTION_FILENAMES = ("CLAUDE.md", "CLAUDE.local.md", "AGENTS.md", Path(".claude") / "CLAUDE.md")
 
 
 def instruction_bearing_ancestor(path) -> Path | None:
@@ -224,7 +226,7 @@ def workspace_root() -> Path:
         f"no usable trial-workspace root: {candidates[0]} has an instruction-bearing ancestor "
         f"({instruction_bearing_ancestor(candidates[0])}), which every trial launched there would "
         f"silently inherit. Set {WORKSPACE_ROOT_ENV} to a directory whose parents hold no "
-        "CLAUDE.md, AGENTS.md, or .claude/CLAUDE.md."
+        "CLAUDE.md, CLAUDE.local.md, AGENTS.md, or .claude/CLAUDE.md."
     )
 
 
