@@ -112,9 +112,17 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   the default temp dir sits under the user's home. A Haiku probe through `main`'s clean room quoted
   the operator's `~/.claude/CLAUDE.md` heading. 340 of 1,432 saved trial traces ran under the home
   directory, and the rubric judge used the same workspace. `clean_room.make_workspace()` now refuses
-  any root with a `CLAUDE.md`, `AGENTS.md` or `.claude/CLAUDE.md` above it, falling back to
+  any root with a `CLAUDE.md`, `CLAUDE.local.md`, `AGENTS.md`, `.claude/CLAUDE.md`,
+  `.claude/AGENTS.md` or `.claude/rules/` Markdown file above it, falling back to
   `<checkout drive>\fleet-eval-tmp` on Windows. `FLEET_EVAL_WORKSPACE_ROOT` overrides the root. The
   same probe now answers `NONE`.
+- `--regrade` grades `verification_completed` against the repository path the run recorded, so a
+  correct `cd "<repo>" && <suite>` receipt is no longer a false FAIL because the checkout is gone.
+  Runs from before 2026-10-02 did not record that path, and they already regrade INCONCLUSIVE on
+  evaluator identity. `--regrade` also exits like a run: trials aggregate per scenario against its
+  threshold within one label and one resolved model, then 1 for any FAIL verdict, 2 for any
+  INCONCLUSIVE one, and 2 when nothing was regraded. It used to return 1 unless every trial passed,
+  and 0 for nothing.
 - `verification_completed` counts an earlier foreground command that failed (`Error: Exit code N`,
   which the CLI receipts as text, not a dict) as completed. Before, any failed earlier command, even
   a read-only `git log`, made the ordering unknown and the trial INCONCLUSIVE: 54 of the 61 saved
