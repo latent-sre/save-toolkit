@@ -107,6 +107,15 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- Clean-room trial and judge workspaces no longer inherit the operator's instructions. Claude Code
+  reads `CLAUDE.md` from every ancestor of its working directory, past any git root, and on Windows
+  the default temp dir sits under the user's home. A Haiku probe through `main`'s clean room quoted
+  the operator's `~/.claude/CLAUDE.md` heading. 340 of 1,432 saved trial traces ran under the home
+  directory, and the rubric judge used the same workspace. `clean_room.make_workspace()` now refuses
+  any root with a `CLAUDE.md`, `CLAUDE.local.md`, `AGENTS.md`, `.claude/CLAUDE.md`,
+  `.claude/AGENTS.md` or `.claude/rules/` Markdown file above it, falling back to
+  `<checkout drive>\fleet-eval-tmp` on Windows. `FLEET_EVAL_WORKSPACE_ROOT` overrides the root. The
+  same probe now answers `NONE`.
 - The `incident_companion_response` rubric's `statement_rerun` paragraph now carries the owner-supplied
   facts its PASS case repeats (`daily-statement/run-42`, `statement-2026-07-14/v3`, the provider
   receipt, the 11:26 UTC recipient readback, the cached screenshot). Before, a judge reading only the

@@ -319,7 +319,6 @@ revision, CLI version and host platform. Every in-scope defect from the 2026-10-
 **Next action:** Maintainers review the ADR. Then one PR each, gated on replaying saved traces with
 every verdict change explained:
 - Record the CLI version and host platform.
-- Keep clean-room trial workspaces outside the user's home directory.
 - Remove the unused `--container` mode.
 - Split `evals/build_probe.py` along its inventory seams with no verdict change.
 **Evidence:** [PR #310](https://github.com/latent-sre/save-toolkit/pull/310).
@@ -340,14 +339,16 @@ runs. `evals/judge.py` with `claude-sonnet-5` stays until a candidate meets the 
 that amends the judge contract.
 **Next action:**
 
-1. Merge [PR #313](https://github.com/latent-sre/save-toolkit/pull/313) when the owner marks it
-   ready. Each host then needs a recalibration, which is a live run: the owner triggers it and sets
-   its budget (about 165 calls per host on a cold cache), as the 2026-09-01 judge ADR requires. The
-   PR applies the [sourced] owner review of 2026-10-03 (cases are named in
-   the evidence packet): five companion-rubric paragraphs now carry facts their scenarios supplied,
-   one `no_blind_retry_after_unknown` case is relabelled FAIL and gains a conditional PASS
-   counterpart, that rubric now states the prompt supplies no completion evidence, and three labels
-   stand. A calibration on its exact bytes passes, with every rubric at or above 0.95.
+1. Recalibrate each host. No earlier receipt certifies rubric trials on `main`:
+   [PR #313](https://github.com/latent-sre/save-toolkit/pull/313) changed the rubrics and corpus,
+   and [PR #315](https://github.com/latent-sre/save-toolkit/pull/315) changed `evals/clean_room.py`,
+   which the judge's source digest covers. Each recalibration is a live run: the owner triggers it
+   and sets its budget (about 165 calls per host on a cold cache), as the 2026-09-01 judge ADR
+   requires. PR #313 applies the [sourced] owner review of 2026-10-03 (cases are named in the
+   evidence packet): five companion-rubric paragraphs now carry facts their scenarios supplied, one
+   `no_blind_retry_after_unknown` case is relabelled FAIL and gains a conditional PASS counterpart,
+   that rubric now states the prompt supplies no completion evidence, and three labels stand. A
+   calibration on its exact bytes passed before PR #315, with every rubric at or above 0.95.
 2. Decide whether a calibration receipt must come from repeated uncached runs. The 2026-09-23
    receipt's 164/164 included cached PASS verdicts on three cases that live runs judged FAIL. After
    the owner review, the relabelled retry case drew PASS in two of ten judgments, and one of those
@@ -384,8 +385,9 @@ Surveyed on 2026-09-30 and left out of the comparison:
   at or above 0.95 agreement; it binds under the `.venv` Python 3.14.7, not 3.12.10.
   [PR #313](https://github.com/latent-sre/save-toolkit/pull/313) changes the rubrics and corpus. A
   calibration on its final rubric and corpus bytes (`576d5081`, unchanged by the later merge of
-  `main`) passes on the measuring host: receipt `20261004T021141Z`, rubrics digest `bad346c99419…`,
-  corpus digest `311c85809d47…`. Every other host needs its own.
+  `main`) passed on the measuring host: receipt `20261004T021141Z`, rubrics digest `bad346c99419…`,
+  corpus digest `311c85809d47…`. PR #315's `clean_room.py` change retires that receipt too, so every
+  host, the measuring one included, needs a new one.
 - Sixteen scenarios carry rubric checks.
 **SRE task:** Trust an agent's mitigation recommendation or suspected-compromise escalation because a
 judge proven against human-labelled cases graded it, not because its scenario went unrun.

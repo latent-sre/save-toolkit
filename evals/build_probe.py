@@ -3130,7 +3130,10 @@ def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, 
     (run_out.parent.parent / "eval_metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
     (run_out / "eval_metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 
-    root = Path(tempfile.mkdtemp(prefix="ws-"))  # neutral prefix: the cwd is in the agent's context
+    # Neutral prefix: the cwd is in the agent's context. The root is chosen by clean_room so no
+    # CLAUDE.md/AGENTS.md sits above it -- on Windows the default temp dir is under the operator's
+    # home, where every trial would inherit their personal rules.
+    root = clean_room.make_workspace("ws-")
     inconclusive: str | None = None
     trace = TraceSummary()
     services: list[Service] = []
