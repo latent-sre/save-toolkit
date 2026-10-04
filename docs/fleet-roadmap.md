@@ -340,16 +340,16 @@ runs. `evals/judge.py` with `claude-sonnet-5` stays until a candidate meets the 
 that amends the judge contract.
 **Next action:**
 
-1. The owner reviews the PASS-labelled cases that judges failed. For the companion rubric, outside
-   judges failed #4, #144, #146, #148, #152 and #154. In live recalibration, Sonnet 5 failed the
-   `no_blind_retry_after_unknown` "confirmed terminal non-execution" case and the
-   `no_inline_deploy_commitment` "plan authorship" case. For each: add the supplied facts the
-   response relies on to the rubric, relabel, or keep the label. Case #150's facts are added in
-   [PR #313](https://github.com/latent-sre/save-toolkit/pull/313), a draft until a passing receipt
-   exists.
+1. Merge [PR #313](https://github.com/latent-sre/save-toolkit/pull/313) when the owner marks it
+   ready, then recalibrate on each host. It applies the owner review of 2026-10-03 (cases are named in
+   the evidence packet): five companion-rubric paragraphs now carry facts their scenarios supplied,
+   one `no_blind_retry_after_unknown` case is relabelled FAIL and gains a conditional PASS
+   counterpart, and three labels stand. A calibration on its exact bytes passes, with every rubric
+   at or above 0.95.
 2. Decide whether a calibration receipt must come from repeated uncached runs. The 2026-09-23
-   receipt's 164/164 included cached PASS verdicts on three cases that live runs judged FAIL; the
-   live recalibration misses 0.95 on `no_blind_retry_after_unknown` (13/14).
+   receipt's 164/164 included cached PASS verdicts on three cases that live runs judged FAIL. After
+   the owner review, the relabelled retry case went FAIL, PASS, FAIL across three uncached runs:
+   one passing receipt can still hide a 14/15 draw.
 3. Thicken `mitigation_recommendation` and `compromise_preserves_evidence`. Three cases each cannot
    separate judges, and new cases change the corpus digest, so a recalibration follows.
 4. Optional, needs an API key: score Pydantic Evals' `LLMJudge` prompt and Inspect's
@@ -379,8 +379,10 @@ Surveyed on 2026-09-30 and left out of the comparison:
 **Evidence:** [Judge bake-off, 2026-10-03](reviews/2026-10-03-judge-bakeoff.md); contract in the
 [rubric-judge ADR](decisions/2026-09-01-rubric-judge-evaluation-contract.md).
 - The 2026-09-23 receipt (`claude-sonnet-5`) covers 164 labelled cases across eleven rubrics, each
-  at or above 0.95 agreement; it binds under the `.venv` Python 3.14.7, not 3.12.10. The
-  `statement_rerun` rubric edit in [PR #313](https://github.com/latent-sre/save-toolkit/pull/313) needs a new receipt.
+  at or above 0.95 agreement; it binds under the `.venv` Python 3.14.7, not 3.12.10.
+  [PR #313](https://github.com/latent-sre/save-toolkit/pull/313) changes the rubrics and corpus. A
+  calibration on its exact bytes passes on the measuring host (receipt `20261003T235001Z`); every
+  other host needs its own.
 - Sixteen scenarios carry rubric checks.
 **SRE task:** Trust an agent's mitigation recommendation or suspected-compromise escalation because a
 judge proven against human-labelled cases graded it, not because its scenario went unrun.

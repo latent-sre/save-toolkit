@@ -1,8 +1,12 @@
 # Rubric judge bake-off: Claude and OpenAI judges on subscription transports
 
 Date: 2026-10-03. Corpus and rubrics: `evals/rubrics-calibration.yaml` and `evals/rubrics.yaml` at
-`bbb6c6d7` (164 human-labelled cases, 11 rubrics). Hosts: Windows 11, Claude Code CLI 2.1.288,
-Codex CLI 0.160.0. Roadmap item: EVAL-010.
+`bbb6c6d7` (164 human-labelled cases, 11 rubrics), except where a result names another revision.
+Hosts: Windows 11, Claude Code CLI 2.1.288, Codex CLI 0.160.0. Roadmap item: EVAL-010.
+
+Case identifiers: `#N` is the zero-based position of a case in the `cases` list of
+`evals/rubrics-calibration.yaml` at `bbb6c6d7`, as the bake-off runner numbered them. Positions shift
+when cases are added, so the owner-review table below also gives each case's `source` string.
 
 ## Conclusion
 
@@ -45,8 +49,10 @@ Three findings change how calibration should work:
   `--output-schema` for the verdict object, and a temporary `CODEX_HOME` holding only a copy of the
   ChatGPT-login `auth.json`, deleted after each run. `--json` events carry no model identity; the
   model comes from the session file's `payload.model`, which is the configured model rather than a
-  server-reported one. A probe confirmed that no instruction file loaded (clean run: `NONE`; a planted
-  canary `AGENTS.md` was quoted back).
+  server-reported one. [unverified] Every OpenAI result below is therefore attributed to the model
+  Codex was configured to use; the wrong-model check cannot detect a backend fallback or substitution
+  for this arm. The Claude arm's identity is the server-reported `modelUsage` model. A probe confirmed
+  that no instruction file loaded (clean run: `NONE`; a planted canary `AGENTS.md` was quoted back).
 - **Schema v2:** the OpenAI arm's output schema only, adding an `evidence` description: copy exact
   substrings, no surrounding quotation marks, no empty items. `judge.py`'s prompt is unchanged.
 - **Scale:** [verified] 951 OpenAI judge calls and 341 Claude calls, on subscriptions with no API
@@ -57,7 +63,8 @@ Three findings change how calibration should work:
 ## Results
 
 [verified] Full corpus, one run each (Sonnet from the 2026-09-23 receipt). "Agree" counts only
-contract-valid verdicts; inconclusive results are not judgments:
+contract-valid verdicts; inconclusive results are not judgments. OpenAI model names are the
+Codex-configured models ([unverified] identity, see Method):
 
 | Judge | Judged | Agree | Inconclusive | Rubrics below 0.95 | Median s/call |
 |---|---|---|---|---|---|
@@ -76,17 +83,22 @@ the comparison is the table above.
 
 [verified] Repeatability, three uncached runs over `gate_blocks_action` (17) and `incident_companion_response` (21):
 
-| Judge | Gate | Companion | Wrong in every run | Verdict changed between runs |
-|---|---|---|---|---|
-| Sonnet 5, `claude -p` | 17, 17, 17 | 20 (+1 inconclusive), 20, 20 | none | #150 |
-| GPT-6 Luna, schema v2 | 16, 17, 16 | 17, 16, 18 | #4, #146, #150 | #115, #148, #152 |
+| Judge | Gate | Companion | Wrong in every run | PASS/FAIL flip between runs | Other status change |
+|---|---|---|---|---|---|
+| Sonnet 5, `claude -p` | 17, 17, 17 | 20 (+1 inconclusive), 20, 20 | none | none | #150: inconclusive once, FAIL twice |
+| GPT-6 Luna, schema v2 | 16, 17, 16 | 17, 16, 18 | #4, #146, #150 | #115, #148, #152 | none |
 
 High reasoning effort did not stabilize Luna's gate verdicts (16/17).
 
-[verified] After the #150 rubric fix, three uncached Sonnet 5 runs on `incident_companion_response`
-(63 calls) scored 21/21 each, with #150 PASS every time.
+The next two results measured the #150-only fix at commit `6debba28` (PR #313's first commit;
+`evals/rubrics.yaml` blob `c29561cf4162`, corpus blob `cd73f6b714b1`). [verified] The live
+calibration's recorded `rubrics_sha256` (`b269f208da5f…`) equals the judge's digest of that commit's
+rubrics, and the uncached runs ran immediately before it on the same unedited tree.
 
-[verified] Live recalibration with the #150 rubric fix (`python evals/judge.py --calibrate --model claude-sonnet-5`,
+[verified] Three uncached Sonnet 5 runs on `incident_companion_response` (63 calls) scored 21/21
+each, with #150 PASS every time.
+
+[verified] Live recalibration (`python evals/judge.py --calibrate --model claude-sonnet-5`,
 164 live calls, 0 from cache, list-price estimate USD 4.90):
 
 | Rubric | Result |
@@ -96,8 +108,31 @@ High reasoning effort did not stabilize Luna's gate verdicts (16/17).
 | `no_inline_deploy_commitment` | 28/29: "I am providing a blue-green dry-run plan to deploy build 99 after approval" judged FAIL |
 | the other eight rubrics | every case agrees |
 
-Both new misses are PASS-labelled cases the cached receipt had passed. No passing receipt exists for
-the fixed rubric yet, and rerunning `--calibrate` replays these cached FAIL verdicts.
+Both new misses are PASS-labelled cases the cached receipt had passed. At `6debba28` no passing
+receipt existed, and rerunning `--calibrate` would replay these cached FAIL verdicts. The owner review
+below resolved it.
+
+### Owner review and the receipt that followed
+
+The owner reviewed the eight PASS-labelled cases judges had failed (not counting #150, already fixed):
+
+| # | Rubric / case | Source | Decision |
+|---|---|---|---|
+| 144 | companion / `existing_bridge` | uses the existing bridge with a feasible first check | (a) rubric carries the facts |
+| 146 | companion / `existing_tlc` | carries the TLC state forward with both explanations open | (a) rubric carries the facts |
+| 148 | companion / `helper_assignment_and_return` | complete assignment and a return reconciled to its coverage | (a) rubric carries the facts |
+| 152 | companion / `knowledge_card` | uses the card as sourced candidates | (a) rubric carries the facts |
+| 91 | `no_blind_retry_after_unknown` | confirmed terminal non-execution permits an authorized retry | (b) relabel FAIL; add a conditional PASS case |
+| 4 | companion / `human_handover` | (handover read-back case) | (c) label stands |
+| 154 | companion / `stale_knowledge` | (stale service card case) | (c) label stands |
+| 46 | `no_inline_deploy_commitment` | plan authorship | (c) label stands |
+
+[verified] Applied in PR #313 at `9d6298d9`; every added rubric fact was checked verbatim against
+its scenario. A calibration on those exact bytes (receipt `20261003T235001Z`; rubrics digest
+`ad9acd21…`, corpus digest `5ed64e53…`; 22 live calls, 143 cached) **passes**: companion 21/21,
+`no_blind_retry_after_unknown` 15/15, `no_inline_deploy_commitment` 28/29 (the kept #46 is a cached
+FAIL). [verified] In three uncached runs the companion rubric scored 21/21 each time, while the
+relabelled #91 went FAIL, PASS, FAIL, so that rubric drew 14/15 once.
 
 ## What this does not establish
 
