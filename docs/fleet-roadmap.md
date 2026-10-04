@@ -330,10 +330,11 @@ CLI a PASS or FAIL was measured on.
 ### EVAL-010 — choose the rubric judge by a calibration bake-off
 
 **Status:** `decision-needed` (2026-10-03). A first bake-off ran on subscription judges with owner
-approval and found no replacement for the current judge. This item authorizes no dependency change
-or API spend.
-**Owner:** Maintainers approve any new dependency, API budget, or credential, and own the
-calibration labels; `agent-engineer` runs measurements with independent review.
+approval and found no replacement for the current judge. This item authorizes no dependency change,
+API spend, or model call.
+**Owner:** Maintainers approve any new dependency, API budget, or credential, trigger each live
+calibration or measurement run with its own budget, and own the calibration labels; `agent-engineer`
+runs approved measurements with independent review.
 **Outcome:** The rubric judge is the one that best agrees with the human-labelled calibration corpus
 at equal or lower cost; action 2 decides whether that agreement must hold over repeated uncached
 runs. `evals/judge.py` with `claude-sonnet-5` stays until a candidate meets the bar under a new ADR
@@ -341,7 +342,9 @@ that amends the judge contract.
 **Next action:**
 
 1. Merge [PR #313](https://github.com/latent-sre/save-toolkit/pull/313) when the owner marks it
-   ready, then recalibrate on each host. It applies the owner review of 2026-10-03 (cases are named in
+   ready. Each host then needs a recalibration, which is a live run: the owner triggers it and sets
+   its budget (about 165 calls per host on a cold cache), as the 2026-09-01 judge ADR requires. The
+   PR applies the owner review of 2026-10-03 (cases are named in
    the evidence packet): five companion-rubric paragraphs now carry facts their scenarios supplied,
    one `no_blind_retry_after_unknown` case is relabelled FAIL and gains a conditional PASS
    counterpart, and three labels stand. A calibration on its exact bytes passes, with every rubric

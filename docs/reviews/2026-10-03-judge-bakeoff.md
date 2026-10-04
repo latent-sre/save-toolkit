@@ -28,9 +28,11 @@ Three findings change how calibration should work:
    so a judge reading only the rubric sees them as invented. The scenario supplies every one of
    them (`evals/scenarios/native-incident-helper-return-and-resume.yaml`, owner correction).
    Fixed in [PR #313](https://github.com/latent-sre/save-toolkit/pull/313).
-3. **Every outside-judge miss on the companion rubric points the same way.** [verified] All 26
-   misses across eight OpenAI runs were PASS labels judged FAIL, on exactly seven cases: #150 (7
-   runs), #146 (6), #4 (5), #148 (5), and #144, #152 and #154 (once each). [unverified] Random judge
+3. **Every outside-judge miss on the companion rubric points the same way.** [verified] All 23
+   contract-valid misses across eight OpenAI runs were PASS labels judged FAIL, on exactly seven
+   cases: #146 and #150 (6 runs each), #4 and #148 (4 each), and #144, #152 and #154 (once each).
+   Three more PASS-to-FAIL verdicts (#4, #148, #150) failed the evidence rule, so they count as
+   inconclusive and only as a raw-output diagnostic. [unverified] Random judge
    error would split both ways, so this likely points at rubric text that summarizes the scenario
    more loosely than a literal judge reads it. Only #150 is proven; the other six need owner review.
 
@@ -55,10 +57,11 @@ Three findings change how calibration should work:
   that no instruction file loaded (clean run: `NONE`; a planted canary `AGENTS.md` was quoted back).
 - **Schema v2:** the OpenAI arm's output schema only, adding an `evidence` description: copy exact
   substrings, no surrounding quotation marks, no empty items. `judge.py`'s prompt is unchanged.
-- **Scale:** [verified] 951 OpenAI judge calls and 341 Claude calls, on subscriptions with no API
-  keys. The Claude calls were 114 uncached repeatability calls, 63 uncached calls on the fixed rubric
-  and 164 live calibration calls (list-price estimate USD 4.90 for the calibration). The runner was
-  session-local and is not committed.
+- **Scale:** [verified] 951 OpenAI judge calls and 471 Claude calls for the results this record
+  reports, on subscriptions with no API keys. The Claude calls were 114 uncached repeatability calls,
+  63 uncached calls on the fixed rubric, 164 live calibration calls (list-price estimate USD 4.90),
+  and after the owner review 22 live calibration calls (USD 0.94) and 108 uncached repeat calls. The
+  runner was session-local and is not committed.
 
 ## Results
 
