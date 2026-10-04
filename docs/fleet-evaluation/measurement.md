@@ -23,6 +23,10 @@ and failed cases. Preserve original benchmark metrics with their own labels and 
 
 ## Judge experiment
 
+Keep the currently accepted graders and judge fixed during WP-02's runner experiment. Refresh
+EVAL-010's owner disposition before proposing any replacement; this candidate list does not reopen
+a settled decision or make judge replacement a prerequisite for useful evaluation.
+
 EVAL-010 remains the owning roadmap item. Extend its candidate set with DeepEval only through the
 recorded experiment design, keeping the current judge, Inspect and Pydantic Evals. The existing
 calibration agreement requirement is 0.95 per rubric with no inconclusive cases; this proposal does
@@ -61,6 +65,10 @@ Three repetitions are a proposed pilot convention for detecting obvious variabil
 estimate of rare-event safety. Report exact counts and sample size. Larger runs and uncertainty
 intervals should follow a specified analysis plan after measured costs and the needed decision are
 known. Do not pool model tiers, hosts or platform adaptations.
+The explicitly bounded [Coder Eval feasibility pilot](coder-eval.md#experiment-sequence) uses two
+repetitions per runner/task; its 24 task trials do not establish statistical superiority. Holding the
+fleet fixed across runners measures runner influence. Agent/tool uplift requires a separate matched
+incumbent/candidate experiment with the execution and scoring conditions fixed.
 
 Keep safety/authority checks alongside positive usefulness. An agent that refuses every task should
 fail ordinary achievable cases. Include correct-code cases to catch unnecessary editing, and healthy
@@ -105,6 +113,8 @@ or insufficient-evidence incident cases to catch forced diagnoses.
 | AC-33 | GKE workloads and identity with explicit mode | All eight GKE pairs receive lane-correct diagnosis/next checks or escalation, preserving project/cluster/namespace/mode; local Kubernetes and unsupported node access never establish GKE capability |
 | AC-34 | Eight selected GCP live exercises and failure controls | Verified healthy baseline, intended fault, actual opportunity, independent outcome, actor-bound effects and cleanup for each; absent faults, denied collectors, unknown operations and residual resources remain visible; cloud/model spend and bounds reported separately |
 | AC-35 | GCP branching and human handover | Six authored branching investigations satisfy AC-26; two human tabletops record usable instructions, receiver read-back, retained open items and ability to continue; difficulties remain explicit qualitative findings |
+| AC-36 | Coder Eval mapping controls and six-task runner feasibility comparison | Same good/bad/unavailable controls preserve applicable verdicts, denominators, evidence and spend; host canaries precede matched trials; actual identity, attempts and gaps remain visible; no runner result is labelled agent uplift |
+| AC-37 | Maintainer disposition, case authoring and adoption inventory | Blinded controlled outcomes receive correct dispositions with decisive evidence located; second-maintainer authoring/retrieval effort is recorded; DEC-16 names retained/replaced/added responsibilities and accepts, limits or rejects adoption against predeclared benefit criteria |
 
 ## Verification sequence
 
@@ -117,6 +127,11 @@ Then run a small explicitly selected live compatibility set before a benchmark c
 integration passes only when identity, tools, hooks and transcript evidence are checked; a generic
 Claude Code run with good artifacts does not suffice. Retain human trace review wherever semantics
 are not covered by a calibrated grader.
+WP-02 includes the Coder Eval experiment under AC-36/37. A documented incompatibility or rejection
+can complete its assessment when the evidence and disposition are recorded; it cannot satisfy the
+separate native integration checks or remove their requirement. Use the accepted native path for
+the first useful candidate comparison once native/report readiness passes, including while the
+alternative assessment is pending or after it does not earn adoption.
 
 Ordinary PR CI runs offline validation and adapter/fixture tests. Native paid runs remain manual in
 the clean room. External coding tasks require DEC-13 and AC-25 as well as the reviewed isolation

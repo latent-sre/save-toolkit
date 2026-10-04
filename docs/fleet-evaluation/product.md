@@ -32,6 +32,14 @@ a 24-case pilot, branching investigations, human handover and eight live fault/c
 The evidence catalog is required scope; live exercises depend on a selected disposable cloud profile.
 Cloud Run, GKE and additional managed-service evaluation subjects are not production adoption decisions.
 
+UiPath Coder Eval is the first candidate to pilot for custom agent/skill/tool regression execution.
+The [adoption experiment](coder-eval.md) belongs to WP-02 and tests whether it preserves evidence
+while reducing maintained infrastructure or enabling a named missing capability. The evaluation
+product owns scenarios, independent assessments and decision evidence; Save Toolkit owns agent/skill
+behavior, and the separate SRE Workbench owns operational commands and CLI/MCP contracts. A runner
+comparison does not establish agent improvement or live operational transfer. Framework choice must
+not delay one useful comparison through an already compatible native path.
+
 Supported authoring languages follow the [stack profile](../../skills/stack-profile/references/application-and-data-stack.md):
 Python, JavaScript/TypeScript and Go, with shell automation where relevant. Java remains support-only.
 Kubernetes benchmark environments are disposable test labs. They do not change the team's supported
@@ -103,6 +111,7 @@ Acceptance cases are defined in [measurement](measurement.md). Delivery packages
 | REQ-19 | Assess GCP telemetry interpretation and alert evaluation separately from notification delivery and recovery | AC-31, AC-32 | WP-12, WP-13, WP-14 |
 | REQ-20 | Evaluate GKE workloads, identity and platform escalation under an explicit cluster/mode/tool profile | AC-28, AC-29, AC-33 | WP-12, WP-13, WP-14 |
 | REQ-21 | Run bounded GCP cloud exercises with independent outcome checks, separate actors and verified cleanup/cost accounting | AC-34 | WP-14 |
+| REQ-22 | Assess Coder Eval as a replaceable behavioral runner through matched tasks, independent evidence controls and maintainer-usefulness measures; disposition execution/reporting overlap | AC-36, AC-37 | WP-01, WP-02 |
 
 ## Nonfunctional requirements
 

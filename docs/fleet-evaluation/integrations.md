@@ -103,7 +103,10 @@ The project does not adopt both orchestration layers by default.
 
 ## promptfoo
 
-**Role:** comparison report and WP-10 controlled adversarial cases; direct SDK execution is optional.
+**Role:** candidate comparison presentation/import and WP-10 controlled adversarial cases; direct
+SDK execution is optional. WP-01 requires a trustworthy portable comparison, with final presentation
+selection under DEC-16 after the Coder Eval experiment. Do not maintain two dashboards without a
+distinct consumer need; a minimal local comparison can serve the initial import acceptance.
 [sourced] The Python provider supports an existing runner wrapper. The Claude Agent SDK provider
 supports local plugins and records tool activity. Its default TaskOutput redaction can affect raw
 background-helper transcripts; verify the selected configuration against native behavior.
@@ -138,6 +141,30 @@ and either remove maintenance or improve decision quality at an accepted cost. K
 if no candidate earns adoption. Disable telemetry where supported and validate the actual release's
 behavior; opt-out does not prevent deliberate model-provider calls or result uploads.
 
+## UiPath Coder Eval
+
+**Role:** first candidate to pilot for custom agent, skill and tool regression execution in WP-02.
+The owner approved this assessment on 2026-10-04. It can later serve relevant WP-10 and WP-12/13
+cases if accepted; it supplies execution infrastructure rather than the required incident/GCP catalog.
+
+[sourced] Declarative tasks, agent adapters, variant experiments, command/skill criteria and result
+artifacts support this proposed role. The [source register](sources.md#coder-eval-evidence) pins the
+inspected revision and records the limits. Native fleet compatibility remains [unverified].
+
+**Adapter:** preserve canonical plugin loading, actual permissions/session behavior, independent
+fleet assessments and original per-replicate artifacts. Try the external agent-plugin seam or a
+thin native bridge before copying prompt bodies or changing framework internals. Keep specialized
+incident/authority assessment outside its typed criterion schema initially. All mappings use the
+existing [contracts](contracts.md); upstream status, criterion errors and unavailable measurements
+must survive import.
+
+**First proof:** the [six-task adoption experiment](coder-eval.md#experiment-sequence), with model-free
+controls before live compatibility trials, the incumbent grader/judge fixed, and a maintainer's
+ability to reach a correct disposition measured. Complete AC-36/37 and record DEC-16. Adoption must
+name what it removes or uniquely enables; retain a narrower artifact-only role or reject it if the
+evidence or maintenance case fails. Neither rejection nor a missing capability reduces the approved
+benchmark/GCP scope. The independent coding verifier and DEC-13 admission remain in force.
+
 ## Inspect AI and Inspect SWE
 
 **Role:** existing candidate infrastructure for scheduling, logs, sandboxed coding and scoring.
@@ -147,6 +174,9 @@ Extend only where a named behavior can be tested. Record a replacement inventory
 scheduling or lifecycle code. Remove the replaced implementation after parity and accepted migration;
 do not leave permanent duplicate paths without distinct consumers. Keep a rollback to the native
 runner and its original artifacts.
+Compare the smallest native/Inspect extension with the Coder Eval pilot where responsibilities
+overlap. Existing dependency pins do not require choosing Inspect, and a successful Coder Eval
+custom-task pilot does not select a coding environment or demonstrate all benchmark support.
 
 ## GCP sources and adapters
 

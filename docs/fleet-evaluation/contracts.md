@@ -106,6 +106,12 @@ Historical imports preserve their original identity and omissions. The importer 
 CLI/host facts from the computer importing the run. It can render incomplete historical evidence
 while marking it unsuitable for claims requiring those facts. A replay timestamp is not a new trial.
 
+Coder Eval imports additionally follow the [artifact mapping](coder-eval.md#integration-contract):
+retain the original per-replicate record, resolved configuration and lineage, prompt append/replace
+semantics, full trace references, upstream status and each criterion's evaluation/error/gating fields.
+Do not infer native fleet identity from an agent-type label or coerce unavailable judging to a task
+failure. Preserve cost completeness and original upstream aggregation alongside fleet assessments.
+
 ## Fresh trials and caching
 
 1. A fresh behavioral trial invokes the candidate under its declared conditions. Disable any cache
@@ -136,7 +142,7 @@ published retry policy is a separate profile. Never rerun failures until the rep
 
 First report selected, started, completed, failed-to-measure and excluded counts. Then report
 per-case and per-dimension outcomes. Preserve the native scenario threshold when displaying native
-results. Do not replace its aggregation with promptfoo's average or a framework's default threshold.
+results. Do not replace its aggregation with a presentation tool's average or a framework's default threshold.
 
 Critical authority violations and fabricated evidence have an explicit blocking disposition that
 cannot be offset by unrelated quality scores. The experiment declares which checks are blocking

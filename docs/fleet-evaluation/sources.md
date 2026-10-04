@@ -1,6 +1,7 @@
 # Sources and current baseline
 
-Evidence was gathered on 2026-10-03. The planning worktree is based on
+Initial evidence was gathered on 2026-10-03; Coder Eval research and its approved addition date to
+2026-10-04. The planning worktree's runtime-source baseline remains
 `207742d26fb78743d8af80c6fedbe3b6f1ddbca3`; another checkout was concurrently changing the clean-room
 implementation, so this package uses a fixed baseline. Refresh source claims at implementation time.
 
@@ -55,6 +56,28 @@ released runtime are different evidence; none is an installation result.
 | [DeepEval telemetry test at 23901cf](https://github.com/confident-ai/deepeval/blob/23901cf/tests/test_core/test_telemetry.py#L457) | [sourced] Opt-out tested upstream; GitHits served this indexed snapshot while a newer ref indexed, not a local network test |
 | [Pydantic Evals judge](https://github.com/pydantic/pydantic-ai/blob/main/docs/evals/evaluators/llm-judge.md) | [sourced] Rubric judgments and input visibility options; quote/evidence parity must be added or demonstrated |
 | [Inspect scorers](https://inspect.aisi.org.uk/scorers.html) and [coding tasks](https://inspect.aisi.org.uk/tutorial.html) | [sourced] Reusable scoring and sandboxed coding-agent execution; fleet-specific parity remains separate |
+
+## Coder Eval evidence
+
+UiPath's `coder_eval` agent/skill/tool evaluation framework is the subject of this addition, not a
+similarly named function-generation dataset. Context7 did not return a matching library; official
+project documentation and GitHits source supplied the evidence. The inspected source revision is
+`0fa062a25e6db7cf76edc487cab6967ebe5c55bf`; it is a research snapshot, not an installed dependency pin.
+
+| Source at the inspected revision | Supported fact and limit |
+|---|---|
+| [Task guide](https://github.com/UiPath/coder_eval/blob/0fa062a25e6db7cf76edc487cab6967ebe5c55bf/docs/TASK_DEFINITION_GUIDE.md#recording-cli-invocations) | [sourced] CLI shims record invocations and return matched canned outputs; stateless and not real-tool proxies |
+| [A/B experiments](https://github.com/UiPath/coder_eval/blob/0fa062a25e6db7cf76edc487cab6967ebe5c55bf/docs/AB_EXPERIMENTS.md) | [sourced] Task/configuration variants; our causal comparison and native parity still need validation |
+| [Claude adapter](https://github.com/UiPath/coder_eval/blob/0fa062a25e6db7cf76edc487cab6967ebe5c55bf/src/coder_eval/agents/claude_code_agent.py#L1153) | [sourced] Plugin/SDK/session configuration exists; host tools, hooks and fleet behavior are unproven locally |
+| [Skill criterion](https://github.com/UiPath/coder_eval/blob/0fa062a25e6db7cf76edc487cab6967ebe5c55bf/src/coder_eval/criteria/skill_triggered.py#L42) | [sourced] Any-turn Skill/path engagement signals; not proof of successful loading, exact namespace or correct application |
+| [Report schema](https://github.com/UiPath/coder_eval/blob/0fa062a25e6db7cf76edc487cab6967ebe5c55bf/docs/REPORT_SCHEMA.md) | [sourced] Per-replicate task.json, configuration lineage, prompt semantics, criterion errors and evaluation/gating fields; mapping needs controls |
+| [Extension guide](https://github.com/UiPath/coder_eval/blob/0fa062a25e6db7cf76edc487cab6967ebe5c55bf/docs/EXTENDING.md) and [criterion schema](https://github.com/UiPath/coder_eval/blob/0fa062a25e6db7cf76edc487cab6967ebe5c55bf/src/coder_eval/models/criteria.py#L1578) | [sourced] External agent entry points; documented new typed criteria require central union edits despite the guide's general no-base-edit claim |
+| [Harbor adapter](https://github.com/UiPath/coder_eval/blob/0fa062a25e6db7cf76edc487cab6967ebe5c55bf/src/coder_eval/harbor/agent.py) | [sourced] Coder Eval agent runs inside Harbor's environment; selected benchmark and fleet compatibility remain untested |
+
+The owner approved including the adoption experiment, product boundaries and earlier useful
+comparison on 2026-10-04. No installation, model trial, Workbench integration or replacement decision
+is established. Refresh EVAL-010's accepted judge and EVAL-011's native behavior independently of this
+frozen runtime baseline before the pilot; framework selection does not reopen those decisions.
 
 ## GCP track evidence
 

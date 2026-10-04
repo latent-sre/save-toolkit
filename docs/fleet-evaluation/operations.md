@@ -108,6 +108,7 @@ enable hosted dashboards merely to obtain a local comparison report.
 | Import interrupted | Retain original data and last complete report; publish no incomplete result as current |
 | Source inputs changed mid-run | Stop comparison, retain the affected run and start a new identity after reconciliation |
 | Good aggregate hides a critical failure | Review the specific case and blocking check; do not average it away |
+| Alternative runner needs changed prompts, permissions or missing native hooks | Stop parity claims; record the actual profile and disposition it under DEC-16 before wider use |
 
 Do not automatically retry an action with unknown outcome. Retry infrastructure only under a
 declared policy, with a separate attempt, original failure and cost. Cancel future scheduling when
@@ -127,6 +128,11 @@ Refresh task licenses, image availability and host requirements at selection tim
 examples can move ahead of released packages. Record documentation/source discrepancies and test
 against the installed version. Reject a new dependency if the existing tool provides the same
 capability with less integration work and equivalent evidence.
+For Coder Eval, retain native conformance canaries and an artifact-compatible rollback while removing
+accepted superseded orchestration. Recheck the external agent-plugin interface and report mapping on
+upgrade; a need to modify its core typed criteria triggers a maintenance review. CLI fixtures and
+simulated conversations retain their declared claim limits. Workbench operational commands remain
+usable when the evaluation environment is absent.
 
 ## Operator documentation required at each delivery
 

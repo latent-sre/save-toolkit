@@ -35,12 +35,20 @@ provenance. Do not recreate a generic execution broker or a second result ledger
 needs it. [Contracts](contracts.md) define logical fields; implementation first maps existing fields
 and keeps original files. A new serialization format requires a demonstrated interoperability gap.
 
+The [Coder Eval experiment](coder-eval.md) assesses an implementation of the executor and result
+capture roles. Keep one canonical case source and one authoritative evidence bundle; presentation
+is derived from it. Specialized fleet assessments remain independently owned. Save Toolkit owns
+agent/skill behavior, and Workbench owns operational checks and CLI/MCP equivalence. A thin mapping
+may import Workbench observations when available; evaluation does not require Workbench to exist or
+merge its operational-result model with candidate-comparison records.
+
 ## Execution profiles
 
 | Profile | Executor direction | State retained |
 |---|---|---|
 | Saved native replay | Read-only importer | Original result and its original measurement identity |
 | Native fleet trial | Existing build_probe path | Actual plugin, model, tool inventory, helper and session evidence |
+| Custom behavioral-runner pilot | Native reference versus Coder Eval through a reviewed adapter in WP-02 | Matched six-task results, identity/tool/session controls and maintainer effort; no parity assumed |
 | Fixed evidence diagnosis | Native path with staged public/synthetic evidence | Response, source reads and hidden-answer separation |
 | Scripted incident conversation | Extended native path after compatibility checks | Every turn, evidence release and same-session identity |
 | SREGym diagnosis | SREGym environment plus reviewed fleet adapter | Fault state, read observations, submission and diagnosis oracle |
@@ -51,6 +59,9 @@ and keeps original files. A new serialization format requires a demonstrated int
 Only one layer owns repetitions, retries and timeouts for a profile. A framework calling another
 framework must not silently multiply attempts. Any unavoidable inner retry must be visible in the
 attempt record and spend accounting.
+Name environment ownership as well. A Harbor/Coder Eval composition, if selected, uses the existing
+upstream bridge only after verifying its contract: Harbor owns the outer trial/environment and the
+inner agent loop exposes its limits and attempts. Do not build two full lifecycle controllers.
 
 ## Preserve the actual fleet
 
@@ -64,8 +75,8 @@ skill invocation, one allowed tool, one denied action, helper return, parent con
 resume. Match model identity and inputs. Record differences in host-added instructions, authentication,
 available tools and transcript handling. A green artifact verifier is insufficient for native parity.
 
-The promptfoo SDK path and SREGym's Claude client are candidates, not accepted substitutes. In
-particular, inspect background-helper transcript handling and ensure the plugin and guard are loaded.
+Coder Eval, the promptfoo SDK path and SREGym's Claude client are candidates, not accepted substitutes.
+In particular, inspect background-helper transcript handling and ensure the plugin and guard are loaded.
 If parity is absent, retain a native wrapper for acceptance and label framework results by their
 actual scope. Do not weaken the fleet to make a benchmark launcher convenient.
 
@@ -139,6 +150,10 @@ selected package lock/constraints, image, dataset and tool versions in each run.
 The implementation-home decision may retain adapters here or move them to a dedicated repository.
 In either case the fleet remains canonical here, and the native acceptance suite remains available.
 The first report adapter must remain removable without changes to runtime agent bodies.
+Any adopted Coder Eval integration runs as an isolated development/evaluation dependency with
+versioned artifact mappings. Workbench's operational CLI/MCP and deployed agent use do not require
+it. Retain native host-conformance canaries and rollback evidence, but remove superseded orchestration
+after accepted parity instead of indefinitely maintaining mirrored general-purpose runners.
 
 ## GCP evaluation environments
 

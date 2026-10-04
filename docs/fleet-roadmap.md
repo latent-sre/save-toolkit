@@ -309,20 +309,22 @@ offline test results do not establish human acceptance or live operational truth
 
 ### EVAL-012 — plan incident and coding evaluations for the fleet
 
-**Status:** `active` (2026-10-03); specification revision 0.3 includes the five approved review corrections and the owner's expanded GCP scope; implementation has not started.
+**Status:** `active` (2026-10-04); specification revision 0.4 includes the approved Coder Eval adoption experiment and earlier useful-comparison milestone, alongside the review corrections and expanded GCP scope; implementation has not started.
 **Owner:** Human owner accepts scope, run conditions and exact candidates; `agent-engineer` owns
 scenario/measurement design; implementation and lab owners are assigned per delivery package.
 **Outcome:** A reviewable evaluation specification covers ITBench-Lite, SREGym, repository repair,
 test generation, selected terminal tasks, GCP managed-service/migration and GKE evaluations, actual
-fleet integration and later Microsoft AIOpsLab, with traceable evidence, acceptance tests, delivery
-phases and explicit open decisions.
+fleet integration, Coder Eval runner assessment and later Microsoft AIOpsLab, with traceable evidence,
+acceptance tests, delivery phases and explicit open decisions.
 **Next action:** Review the [fleet evaluation specification](fleet-evaluation/README.md), resolve
 the decisions needed for the first package, then select WP-01 saved-result comparison for
-implementation; WP-12's GCP case design can proceed alongside the report work. EVAL-010 retains
+implementation and prepare WP-02's [Coder Eval experiment](fleet-evaluation/coder-eval.md). Select
+lasting presentation/execution responsibilities from evidence under DEC-16; WP-12's GCP case design
+can proceed alongside the report work. EVAL-010 retains
 judge-adoption ownership and EVAL-011 the native measurement
 contract. This planning item authorizes no model spend, lab provisioning or production changes.
 **Evidence:** [Requirements and specifications](fleet-evaluation/README.md), based on the owner's
-2026-10-03 scope decisions; integration and behavioral results remain unverified.
+2026-10-03 scope decisions and 2026-10-04 approved addition; integration and behavioral results remain unverified.
 **SRE task:** Compare exact agent candidates on realistic incidents and engineering tasks, see what
 improved or regressed, and distinguish failed behavior from an instrument that could not measure.
 
