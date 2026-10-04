@@ -368,7 +368,7 @@ suggestions are disabled; there is no automatic retry. This path grants only `Sk
 accepts fixture files only, and checks each invocation's plugin, advertised inventory, actual tool
 use (including child calls), read paths, and session identity before continuing. Optional
 `expected_model:` pins the concrete parent/init model identity on every invocation; the committed
-incident scenario requires `claude-sonnet-5`. Each turn retains expected and observed identities.
+incident scenario requires `claude-sonnet-5-5`. Each turn retains expected and observed identities.
 Credential markers or missing, invalid, or over-`$0.75` cost records stop this path before a follow-up.
 `references:` are assertions only here: they do not add instructions to the prompt. The initial
 parent must finish reading the measured plugin's exact reference before its first helper dispatch;
@@ -416,11 +416,14 @@ kwargs cannot supply the binding. `--validate`, empty-response spec validation, 
 spot checks stay offline or retain their explicit bootstrap behavior.
 
 ```bash
-python evals/judge.py --calibrate
+python evals/judge.py --calibrate --resolve-identity
 ```
 
 measures every rubric against [`rubrics-calibration.yaml`](rubrics-calibration.yaml) and exits
-non-zero below 0.95 agreement or on any inconclusive case. Calibration remains owner-triggered;
+non-zero below 0.95 agreement or on any inconclusive case. The judge is the latest Sonnet through
+the default `sonnet` alias. `--resolve-identity` spends one call to confirm which model the alias
+names now; when it reports that the alias moved, delete `.eval-runs/judge-calibration/judge-cache`
+and recalibrate, or the cache would re-certify the previous model. Calibration remains owner-triggered;
 the runner never starts it automatically. New judge code/configuration or rubric definitions need
 an applicable calibration before normal rubric trials. Its cache lives under
 `.eval-runs/judge-calibration/`; entries bind judge/clean-room source, Python/PyYAML, effective CLI

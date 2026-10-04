@@ -23,8 +23,8 @@ rubrics:
       the pool or dependency healthy. A feasible next check needs both meaningful result
       interpretations and an explicit inconclusive branch, not just "check the dashboard."
       human_handover: Sam takes over as responder; Morgan remains incident commander. Riley
-      applied retry-flag disable at 09:47, then attempted approved rollback to revision 12 at
-      09:50 with no result or readback. Scaling to six was only recommended. Errors were still
+      applied retry-flag disable at 09:47 and confirmed the flag value, then attempted approved
+      rollback to revision 12 at 09:50 with no result or readback. Scaling to six was only recommended. Errors were still
       8% at 10:01. New timestamped dependency 503s match failed ledger requests, reopening a
       dependency hypothesis previously parked after looking at older flat metrics. Fail if
       applied and proposed actions are conflated, rollback is called done or failed, retry is
