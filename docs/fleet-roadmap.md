@@ -321,6 +321,10 @@ every verdict change explained:
 - Record the CLI version and host platform.
 - Remove the unused `--container` mode.
 - Split `evals/build_probe.py` along its inventory seams with no verdict change.
+- Isolate the intermittent `NativeConversationRunTests` failure under `pytest -n auto`, then decide
+  whether CI runs tests in parallel. A native trial ends INCONCLUSIVE before its first launch (zero
+  stub calls, or no `run-1/stdout.jsonl`). It failed in one of three local parallel runs on `main`
+  at `edc2f53d` and in three earlier branch runs; serial runs and CI pass.
 **Evidence:** [PR #310](https://github.com/latent-sre/save-toolkit/pull/310).
 **SRE task:** Read an eval INCONCLUSIVE as "the instrument could not measure", and know which host and
 CLI a PASS or FAIL was measured on.
