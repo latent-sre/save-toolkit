@@ -309,15 +309,17 @@ offline test results do not establish human acceptance or live operational truth
 
 ### EVAL-012 — plan incident and coding evaluations for the fleet
 
-**Status:** `active` (2026-10-03); specification revision 0.2 incorporates the five approved review corrections; implementation has not started.
+**Status:** `active` (2026-10-03); specification revision 0.3 includes the five approved review corrections and the owner's expanded GCP scope; implementation has not started.
 **Owner:** Human owner accepts scope, run conditions and exact candidates; `agent-engineer` owns
 scenario/measurement design; implementation and lab owners are assigned per delivery package.
 **Outcome:** A reviewable evaluation specification covers ITBench-Lite, SREGym, repository repair,
-test generation, selected terminal tasks, actual fleet integration and later Microsoft AIOpsLab,
-with traceable evidence, acceptance tests, delivery phases and explicit open decisions.
+test generation, selected terminal tasks, GCP managed-service/migration and GKE evaluations, actual
+fleet integration and later Microsoft AIOpsLab, with traceable evidence, acceptance tests, delivery
+phases and explicit open decisions.
 **Next action:** Review the [fleet evaluation specification](fleet-evaluation/README.md), resolve
 the decisions needed for the first package, then select WP-01 saved-result comparison for
-implementation. EVAL-010 retains judge-adoption ownership and EVAL-011 the native measurement
+implementation; WP-12's GCP case design can proceed alongside the report work. EVAL-010 retains
+judge-adoption ownership and EVAL-011 the native measurement
 contract. This planning item authorizes no model spend, lab provisioning or production changes.
 **Evidence:** [Requirements and specifications](fleet-evaluation/README.md), based on the owner's
 2026-10-03 scope decisions; integration and behavioral results remain unverified.

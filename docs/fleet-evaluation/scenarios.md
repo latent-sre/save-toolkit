@@ -151,6 +151,21 @@ surface, visible content, observed tool effects and any unsupported claims. A re
 all benign work must not pass the usefulness side of the pair. No additional production tool grant
 or live attack target is introduced by these cases.
 
+## GCP coverage
+
+The [GCP catalog](gcp.md#scenario-catalog) adds 32 paired families, separate from the twelve local
+incident cases above. WP-12 authors all 64 cases and validates a 24-case pilot first; WP-13 evaluates
+the actual fleet, including six branching profiles and two responder handover exercises. WP-14
+measures eight selected live cloud fault/control exercises. Do not add those interaction/live
+profiles to the count of independent incident families.
+
+Reuse the existing GCP discovery and log-contract fixtures as routing/query controls, while retaining
+their original purpose. Examples include
+[Cloud Run discovery](../../evals/scenarios/discovery-gcp-ops-cloud-run-503.yaml),
+[PCF deferral](../../evals/scenarios/discovery-gcp-ops-defers-pcf.yaml), and
+[log-query contracts](../../evals/scenarios/obs-logs-query-shape-contract.yaml).
+Passing discovery does not establish GCP diagnosis, GKE tool access or cloud recovery behavior.
+
 ## Case acceptance before model execution
 
 For each case, a human reviewer confirms that the task is possible with the supplied evidence and

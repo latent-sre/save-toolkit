@@ -139,3 +139,17 @@ selected package lock/constraints, image, dataset and tool versions in each run.
 The implementation-home decision may retain adapters here or move them to a dedicated repository.
 In either case the fleet remains canonical here, and the native acceptance suite remains available.
 The first report adapter must remain removable without changes to runtime agent bodies.
+
+## GCP evaluation environments
+
+The [GCP track](gcp.md#execution-profiles) separates supplied evidence, recorded observations and
+actual cloud execution. A thin adapter releases scoped evidence or invokes an already admitted read
+path; the host and actual fleet identity remain under WP-02. Unsupported tools use a labelled
+human/lab observation path. AC-29 verifies output protection before model exposure for each admitted
+response shape. No gcpdiag, gcloud or kubectl grant is inferred from a scenario.
+
+The cloud lab actor owns resource setup, faults and cleanup in named disposable projects. GKE mode,
+cluster identity and fault domain are explicit; a local Kubernetes result cannot establish a GKE
+result. Keep Cloud Run, GKE and other managed services separate in reports, along with the distinction
+between diagnosis advice, an actor's change and independently observed recovery. Reuse the common
+report/lifecycle contract instead of introducing a second general-purpose evaluation controller.

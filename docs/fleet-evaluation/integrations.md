@@ -148,6 +148,15 @@ scheduling or lifecycle code. Remove the replaced implementation after parity an
 do not leave permanent duplicate paths without distinct consumers. Keep a rollback to the native
 runner and its original artifacts.
 
+## GCP sources and adapters
+
+The dedicated [GCP track](gcp.md#reusable-foundations) uses selected gcpdiag diagnostic references,
+Cloud Run samples and OpenTelemetry sidecar examples as proposed foundations. They are not ready
+fleet benchmarks or automatic correctness oracles. WP-12 freezes cases; WP-13 uses the same native
+adapter and reporting; WP-14 admits the named cloud profile and independent checks. A gcpdiag skip or
+API error is a diagnostic limitation, and its Cloud Run deployment tree does not cover every
+application-code failure. Preserve tool-specific scope and collect only reviewed sanitized outputs.
+
 ## Hypothesis and additional tools
 
 Property-based testing is an optional method for checking parser, mapping and aggregation invariants

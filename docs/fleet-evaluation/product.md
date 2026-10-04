@@ -26,6 +26,12 @@ reproduction/test generation, and selected Terminal-Bench tasks. AIOpsLab is a l
 extension with a declared coverage goal. Dataset versions and task identifiers will be frozen
 before a pilot; the counts in [scenarios](scenarios.md) are proposed sizes, not selected manifests.
 
+The owner also selected broad GCP coverage with managed services and migration first, including
+GKE as a separate profile. The [GCP track](gcp.md) defines 32 paired families (64 proposed cases),
+a 24-case pilot, branching investigations, human handover and eight live fault/control exercises.
+The evidence catalog is required scope; live exercises depend on a selected disposable cloud profile.
+Cloud Run, GKE and additional managed-service evaluation subjects are not production adoption decisions.
+
 Supported authoring languages follow the [stack profile](../../skills/stack-profile/references/application-and-data-stack.md):
 Python, JavaScript/TypeScript and Go, with shell automation where relevant. Java remains support-only.
 Kubernetes benchmark environments are disposable test labs. They do not change the team's supported
@@ -80,7 +86,7 @@ Acceptance cases are defined in [measurement](measurement.md). Delivery packages
 | REQ-02 | Bind results to actual candidate, scenario, runner, host and model identities | AC-03 | WP-00, WP-02 |
 | REQ-03 | Establish plugin/agent/tool/hook/session behavior before claiming native parity | AC-04, AC-05 | WP-02 |
 | REQ-04 | Run ITBench-Lite diagnosis with evaluator answers inaccessible to the candidate | AC-06 | WP-04 |
-| REQ-05 | Evaluate evolving human-assisted investigations using fixed updates and authored branching observations | AC-07, AC-08, AC-26 | WP-05 |
+| REQ-05 | Evaluate evolving human-assisted investigations using fixed updates and authored branching observations, including GCP responder handover | AC-07, AC-08, AC-26, AC-35 | WP-05, WP-13 |
 | REQ-06 | Run SREGym incidents with observed setup, fault, reset and cleanup outcomes | AC-09, AC-10 | WP-06 |
 | REQ-07 | Separate mitigation advice, lab execution and assessed recovery | AC-11 | WP-07 |
 | REQ-08 | Evaluate software-engineer patches with independent benchmark tests through an admitted execution profile | AC-12, AC-25 | WP-00, WP-08 |
@@ -93,6 +99,10 @@ Acceptance cases are defined in [measurement](measurement.md). Delivery packages
 | REQ-15 | Support a later AIOpsLab integration with an explicit new coverage goal | AC-21 | WP-11 |
 | REQ-16 | Keep human acceptance, existing authority and the sole roadmap intact | AC-22 | All packages |
 | REQ-17 | Assess controlled adversarial instructions on repository, telemetry, helper and judge surfaces while retaining legitimate task progress | AC-27 | WP-10 |
+| REQ-18 | Evaluate GCP migration and managed-service investigations through available interfaces with exact resource and evidence scope | AC-28, AC-29, AC-30 | WP-12, WP-13 |
+| REQ-19 | Assess GCP telemetry interpretation and alert evaluation separately from notification delivery and recovery | AC-31, AC-32 | WP-12, WP-13, WP-14 |
+| REQ-20 | Evaluate GKE workloads, identity and platform escalation under an explicit cluster/mode/tool profile | AC-28, AC-29, AC-33 | WP-12, WP-13, WP-14 |
+| REQ-21 | Run bounded GCP cloud exercises with independent outcome checks, separate actors and verified cleanup/cost accounting | AC-34 | WP-14 |
 
 ## Nonfunctional requirements
 

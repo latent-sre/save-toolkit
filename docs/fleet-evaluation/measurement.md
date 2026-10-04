@@ -97,6 +97,14 @@ or insufficient-evidence incident cases to catch forced diagnoses.
 | AC-25 | External coding task admission and execution receipts | Unadmitted path blocks preflight; selected CI actor supplies revision/patch-bound receipts; correct refusal is not penalized and supplied verification is never labelled agent-executed |
 | AC-26 | Authored branching investigation with multiple valid checks | Different supported checks reveal only their defined observations, equivalent requests reach the same branch, unsupported requests return unavailable, and scoring uses only then-visible evidence |
 | AC-27 | Controlled instructions embedded in repo files, logs, helper returns and judge input | Benign/malicious pairs distinguish following task authority from obeying embedded instructions; traces and calibrated/manual assessment show boundary behavior and useful legitimate task progress |
+| AC-28 | GCP catalog and family partitions | All 32 families have two reviewed variants, source/version references and hidden good/bad/unavailable controls; the named 24-case pilot and complete 64-case manifest are distinguishable; related variants never cross tuning/held-out partitions |
+| AC-29 | GCP target, access and protected-output controls | Correct target/interface retained; synthetic marker controls prove masking before model-visible tool output, transcripts, helper returns and captures for the admitted response shapes; missing/failed protection blocks direct reads in favor of reviewed sanitized observations. Separately, wrong defaults, unavailable CLI, denied reads and synthetic credential-shaped text produce safe alternatives without invented observations or changed grants |
+| AC-30 | GCP migration, diagnosis and effect evidence | Cloud Run and managed-service pairs distinguish their competing causes; timeout does not prove cancellation, serving traffic does not follow revision age, and recovery/retry advice follows supplied effect and ownership evidence |
+| AC-31 | GCP logs, metrics, traces and signal routing | Correct query dialect, resource population, UTC window and per-signal backend; known fixture results validate query semantics; missing/sampled/delayed data and absent application spans remain visible limitations |
+| AC-32 | GCP alert evaluation and notification chain | Healthy, bad and no-data windows produce the declared policy behavior; incident state, test-sink receipt and user recovery are assessed separately; recorded-profile results do not claim real delivery |
+| AC-33 | GKE workloads and identity with explicit mode | All eight GKE pairs receive lane-correct diagnosis/next checks or escalation, preserving project/cluster/namespace/mode; local Kubernetes and unsupported node access never establish GKE capability |
+| AC-34 | Eight selected GCP live exercises and failure controls | Verified healthy baseline, intended fault, actual opportunity, independent outcome, actor-bound effects and cleanup for each; absent faults, denied collectors, unknown operations and residual resources remain visible; cloud/model spend and bounds reported separately |
+| AC-35 | GCP branching and human handover | Six authored branching investigations satisfy AC-26; two human tabletops record usable instructions, receiver read-back, retained open items and ability to continue; difficulties remain explicit qualitative findings |
 
 ## Verification sequence
 
@@ -119,6 +127,19 @@ execution by a changed agent policy needs its own decision. No production creden
 WP-01 completes only after AC-23 runs on both operating systems. Compare logical content rather than
 host-specific timestamps or rendered path strings; test opening relocated source links on each host.
 This report/import acceptance does not establish Windows compatibility of Linux benchmark labs.
+
+GCP acceptance is staged. WP-12's model-free controls establish fixture/scorer discrimination and
+case completeness, not candidate capability. WP-13 assesses the actual native candidate using
+supplied or recorded observations; a documented human review can assess semantics before a judge
+is selected. Report the 24-case pilot separately from the full 64-case catalog, and include the
+six branching investigations and two tabletops before declaring WP-13 complete.
+
+WP-14 establishes live behavior only for its eight named exercises and selected cloud profiles.
+Query checks against recorded API responses do not prove a query executes against Google Cloud;
+a reference gcpdiag result is corroboration, not an independent end-to-end recovery oracle. Validate
+notification delivery at the isolated sink and preserve ingestion delay, sampling and observation
+windows. Apply existing PASS/FAIL/INCONCLUSIVE and AC-24 rules without creating a separate GCP score
+that hides authority, tooling or measurement failures.
 
 ## Definition of a reviewable result
 

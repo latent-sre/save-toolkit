@@ -25,6 +25,13 @@ Turn-based cases additionally identify the starting observations, each release c
 new observation, supported requested checks and the human/lab actions reported. Time is part of the
 evidence: retain source time, timezone, observation window and freshness, with unknown values explicit.
 
+GCP profiles additionally bind the project, region/zone, service/resource/revision, applicable
+cluster/namespace/mode, signal destination and available observation interfaces. Mark synthetic
+identities and distinguish candidate reads from human/lab-supplied observations. A fresh candidate
+trial over frozen recorded observations is not a replay of a prior candidate response. The
+[GCP case contract](gcp.md#case-and-scoring-contract) adds these fields without changing verdict,
+cache or execution-actor semantics.
+
 ## Run plan
 
 A run plan selects the case manifest, incumbent/candidate, execution profile, requested model and

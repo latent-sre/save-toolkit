@@ -20,11 +20,17 @@ native measurement contract. No dates or spend are promised before task/environm
 | WP-09 Tests and terminal work | Five SWT-Bench and five selected Terminal-Bench tasks | WP-08; DEC-13 task-specific admission and Inspect/Harbor choice | software-engineer with agent-engineer | AC-13/14/25; valid reproduction, admitted execution and exact-agent task outcomes |
 | WP-10 Wider fleet and adversarial coverage | Focused roster suites plus controlled repo/log/helper/judge instruction-injection pairs | WP-02 and relevant established fixture/report patterns | agent-engineer; subject specialist supplies cases; reviewer checks assertions | AC-20/27; useful positive/negative lane controls and all four adversarial surfaces assessed |
 | WP-11 AIOpsLab expansion | One new task/environment integration and rollout plan | Working live-lab profile; named coverage goal; later owner selection | software-engineer and lab operator | AC-21; independent lifecycle controls and common report mapping |
+| WP-12 GCP case specification | 32 paired GCP families, beginning with the 24-case pilot, then the full 64-case catalog and assessment controls | WP-00 scope and DEC-14 case/applicability decision; no cloud or model calls needed for authoring | agent-engineer with GCP subject reviewer | AC-28; AC-29/30/31/32/33 authored good/bad/unavailable controls; family partitions and source-bound evidence |
+| WP-13 GCP fleet evaluation | Native pilot and full catalog, six branching investigations and two human handover tabletops | WP-02 and WP-12 pilot first; WP-05 continuation/branch capability for the interactive portion; calibrated rubric or human review | agent-engineer with software-engineer adapter support; reviewer verifies | AC-29/30/31/32/33/35 and AC-26 for branching; separate supplied/recorded/live and per-service claims; all 64 cases for full completion |
+| WP-14 GCP cloud exercises | Four initial live fault/control exercises, expanding to the eight named GCP exercises | WP-00/02, WP-12 controls, WP-13 pilot and DEC-15; admitted cloud/lab actor and bounded budget | Lab operator with software-engineer integration; reviewer checks outcome evidence | AC-32/33 where applicable and AC-34; observed baseline/fault/outcome/cleanup, separate actors and cloud/model costs for all eight exercises |
 
 WP-01 can start independently of lab provisioning and a judge replacement. WP-04 and WP-08 can use
 the incumbent calibrated judge or documented human review; they do not wait for a library to win
 WP-03. Coding and SREGym work can proceed as separately owned packages after their shared foundations,
 but concurrent execution is not assumed or authorized by this plan.
+WP-12 can be authored alongside WP-01. GCP evidence evaluation does not wait for cloud provisioning,
+gcpdiag adoption, a new judge or AIOpsLab. WP-13's native pilot precedes its branching/human portion;
+work-package numbers identify scope rather than imposing a total execution order.
 
 ## Delivery milestones
 
@@ -32,11 +38,13 @@ but concurrent execution is not assumed or authorized by this plan.
    mapping and explicitly owned open decisions. No implementation claim.
 2. **Working instrument:** WP-01/02 with model-free controls and a bounded native compatibility run.
    Original fleet behavior remains the reference, with no benchmark capability verdict yet.
-3. **First substantive evaluation:** WP-04, WP-06 and WP-08. This milestone includes ITBench-Lite,
-   SREGym and coding repair. Each reports selected cases, exact candidate and limitations.
-4. **Broader fleet evaluation:** WP-03/05/07/09/10, including a judge disposition, longer and branching
+3. **First substantive evaluation:** WP-04, WP-06, WP-08 and the WP-12/13 GCP pilot. This milestone
+   includes ITBench-Lite, SREGym, coding repair and 24 authored GCP cases. Each reports selected
+   cases, exact candidate and limitations; the pilot alone does not complete WP-12/13.
+4. **Broader fleet evaluation:** WP-03/05/07/09/10, full WP-12/13 and WP-14, including a judge disposition, longer and branching
    incident conversations, recovery advice, test generation, terminal work, wider roster coverage
-   and controlled adversarial cases. Fixed conversations alone do not complete WP-05.
+   and controlled adversarial cases, the complete GCP catalog, GCP handover tabletops and eight live
+   cloud exercises. Fixed conversations alone do not complete WP-05 or the interactive part of WP-13.
 5. **Environment expansion:** WP-11 adds Microsoft AIOpsLab for the selected later capability.
 
 Only mark a work package complete when its named acceptance evidence exists. Framework installation
@@ -76,6 +84,8 @@ verifier before asking software-engineer to solve a task.
 | DEC-11 | Evidence retention/sharing: local private artifacts and redacted review summaries | Human owner | External model/data path or publication | No implicit hosted sync or shared report |
 | DEC-12 | AIOpsLab's first coverage goal and repository connection | Human owner | WP-11 | Remains later scope, not a dependency of initial milestones |
 | DEC-13 | External-code admission: recommend unchanged agent policy, manual model session and separately authorized CI execution with receipts; direct agent execution in a lab needs a separate canonical policy decision | Human owner and maintainers, with CI execution owner | WP-08/09, before any external repository command | Static authoring can proceed; execution and self-verification claims remain blocked until the profile is admitted |
+| DEC-14 | GCP catalog: freeze the named pilot/full cases, source revisions, applicability, interface profiles and family partitions; evaluate managed services/migration first and GKE separately | Human owner and case owner | WP-12 case acceptance and WP-13 run selection | Synthetic case drafting proceeds; no actual environment or settled production runtime is inferred |
+| DEC-15 | GCP lab: select disposable project(s), regions, services, GKE mode/version, observation permissions and tested pre-model output protection, operator identities, resource/run limits, budget, test notification sink and cleanup owner | Human owner and lab operator | WP-14 cloud execution | Evidence/recorded-observation work continues; no cloud provisioning, credential access or paid run is implied |
 
 Each decision records the chosen alternative, reason, exact scope and evidence. Do not reopen a
 settled choice without new information. No decision grants the evaluated agent additional authority.
@@ -88,7 +98,9 @@ settled choice without new information. No decision grants the evaluated agent a
 | Benchmark answer leakage or familiarity | Inflated scores | Hidden verifier/reference partition, source provenance and separate held-out local cases |
 | Judge rewards polished wording over evidence | Unsafe or unsupported advice passes | Human labels, quote checks, counterexamples and per-rubric false-pass reporting |
 | Replay, retries or mismatched arms inflate success | Unreliable comparison | Explicit attempt identity, cache policy and expected-count reconciliation |
-| Kubernetes tasks do not match PCF work | Poor operational transfer | Applicability labels and separate PCF/GCP fixtures |
+| Kubernetes tasks do not match PCF/GCP work | Poor operational transfer | Applicability labels, WP-05's Apps Manager cases and WP-12/13's explicit migration/managed-service/GKE catalog; local Kubernetes is not GKE evidence |
+| GCP permissions or telemetry hide decisive evidence | False health claim or wrong target | AC-29/31 resource/interface controls and explicit unknown observations |
+| Cloud resources outlive a cancelled trial | Continuing spend or contaminated state | DEC-15 resource inventory, bounded scheduling and AC-34 verified cleanup with residual cost recorded |
 | Dirty lab state contaminates the next trial | Wrong diagnosis or false recovery | Observed baseline/fault/reset and block on failed cleanup |
 | Dependencies and adapters exceed code removed | Higher maintenance | Isolated pilots, explicit removal inventory and rejection of redundant frameworks |
 | Reference tests miss a regression | Patch looks correct but is incomplete | Preserve benchmark scope, add targeted independent controls, retain human review |

@@ -44,6 +44,21 @@ Docker command succeeding on Windows do not establish all benchmark tasks work t
 chosen SREGym problems, cluster/runtime versions and storage against their pinned instructions. Record
 which terminal/coding tasks need additional resources before selecting the pilot set.
 
+## GCP cloud profiles
+
+For GCP, use the [cloud admission and lifecycle contract](gcp.md#live-cloud-admission-and-first-exercises).
+Record DEC-14/15 before the relevant phase: supplied/recorded evidence needs no live project;
+cloud execution requires exact project/resource scope, separate lab/candidate identities and an
+observation path with AC-29's tested protection before model exposure. GKE mode and fault isolation
+are explicit. Preserve existing tool grants
+and use a human/lab observation path where the candidate cannot perform a needed read.
+
+Cloud budgets include compute, storage, networking, telemetry and cleanup, separately from model
+spend. Alerts-only billing budgets do not provide a hard cap. Record active-resource limits, run
+deadlines, billing delay and residual costs; verify any claimed spend-cap feature for each service.
+Route test notifications to an isolated sink. Failed cleanup blocks reuse and hands the exact
+remaining inventory to the operator; no production credentials or paging channels enter the lab.
+
 ## Spend and time
 
 Estimate separately: candidate calls, helper calls, semantic judges, attack generation, retries and

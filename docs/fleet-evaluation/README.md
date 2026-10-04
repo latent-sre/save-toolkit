@@ -1,9 +1,10 @@
 # Fleet evaluation project specification
 
-**Status:** Proposed specification, revision 0.2, 2026-10-03. The owner requested the complete
+**Status:** Proposed specification, revision 0.3, 2026-10-03. The owner requested the complete
 plan and specifications before implementation. ITBench-Lite and SREGym are included; Microsoft
 AIOpsLab is a later phase. The coding track covers repository repair, test generation and selected
-terminal tasks. No integration or benchmark result is established by this planning package.
+terminal tasks. GCP has a dedicated managed-service, migration and GKE track. No integration or
+benchmark result is established by this planning package.
 
 The project helps an SRE or maintainer decide whether a specific Save Toolkit candidate improves
 useful work. It measures incident diagnosis, investigation with a human, live lab investigation,
@@ -13,7 +14,9 @@ the exact agent, scenario, environment and evidence measured.
 The first implementation slice will compare saved native results without model calls. The first
 behavioral milestones will exercise selected ITBench-Lite cases and SWE-bench repairs through the
 actual fleet. SREGym is a required delivery milestone with its own lab readiness work. AIOpsLab
-extends the environment choices later; it does not block those milestones.
+extends the environment choices later; it does not block those milestones. A 24-case GCP evidence
+pilot joins the first behavioral milestone, followed by the full 64-case catalog and bounded live
+GCP exercises. Cloud Run and GKE results remain separate.
 
 ## Read the specification
 
@@ -24,6 +27,7 @@ extends the environment choices later; it does not block those milestones.
 | [Contracts](contracts.md) | Cases, runs, assessments, errors, provenance, cache and comparison rules |
 | [Integrations](integrations.md) | Each benchmark and framework, its adapter work and adoption criteria |
 | [Scenario specifications](scenarios.md) | Incident pairs, coding tasks, wider-fleet cases and examples |
+| [GCP evaluation track](gcp.md) | 32 paired scenario families, migration and managed services, GKE, reusable foundations and cloud lab profiles |
 | [Measurement and verification](measurement.md) | Judge calibration, experiment design and acceptance tests |
 | [Delivery and decisions](delivery.md) | Ordered work packages, owners, dependencies, decisions and risks |
 | [Operations](operations.md) | Proposed operator workflow, lab lifecycle, costs, data and recovery |
@@ -36,6 +40,7 @@ extends the environment choices later; it does not block those milestones.
 | ITBench-Lite evidence-based incident diagnosis | Included by owner direction |
 | SREGym live incident exercises | Included by owner direction |
 | Microsoft AIOpsLab | Included in the later expansion phase |
+| GCP managed services, migration and GKE | Included by owner direction; WP-12/13/14 deliver authored cases, native evaluation and live cloud exercises |
 | Fixed and authored branching incident conversations | Both included in WP-05, with separate acceptance evidence |
 | Coding evaluations for the existing software-engineer | Included; SWE-bench Verified is the proposed first dataset |
 | SWT-Bench and selected Terminal-Bench tasks | Planned coding coverage, delivered after the first repair integration |
@@ -49,6 +54,7 @@ External coding execution requires the DEC-13 admission decision; this specifica
 current agent policy and distinguishes supplied CI receipts from agent-executed verification. Result
 contracts distinguish genuine task failure from instrument failure and require fresh independent
 judge calls for stability measurements. WP-01 includes Windows/Linux portability acceptance.
+GCP evaluation scope does not settle the production landing runtime or add agent permissions.
 
 Requirements and acceptance criteria describe proposed behavior and remain **[unverified]** until
 implemented and measured. **[verified]** claims refer only to current local observations;

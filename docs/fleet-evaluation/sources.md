@@ -56,6 +56,28 @@ released runtime are different evidence; none is an installation result.
 | [Pydantic Evals judge](https://github.com/pydantic/pydantic-ai/blob/main/docs/evals/evaluators/llm-judge.md) | [sourced] Rubric judgments and input visibility options; quote/evidence parity must be added or demonstrated |
 | [Inspect scorers](https://inspect.aisi.org.uk/scorers.html) and [coding tasks](https://inspect.aisi.org.uk/tutorial.html) | [sourced] Reusable scoring and sandboxed coding-agent execution; fleet-specific parity remains separate |
 
+## GCP track evidence
+
+The expanded GCP scope was selected on 2026-10-03: managed services and migration, plus broad GCP
+coverage including GKE. Repository observations below use the same fixed runtime-source baseline.
+Context7 supplied Cloud Run, Cloud Monitoring and gcpdiag documentation; GitHits confirmed selected
+upstream source and examples. Official Google documentation supplied the service behavior and limits.
+The 64 cases are proposed local designs, not an imported or executed public GCP benchmark.
+
+| Source | Supported fact and limit |
+|---|---|
+| [GCP skill](../../skills/gcp-ops/SKILL.md), [inventory](../../skills/gcp-ops/references/projects.md) and [migration map](../../skills/gcp-ops/references/cf-to-cloud-run.md) | [verified] Console/protected-read paths, credential exclusions, provisional platform boundary and placeholder inventory; neither real target access nor production runtime selection is established |
+| [Existing GCP discovery case](../../evals/scenarios/discovery-gcp-ops-cloud-run-503.yaml) and [query contract](../../evals/scenarios/obs-logs-query-shape-contract.yaml) | [verified] Reusable routing/query controls exist; they do not provide the planned GCP incident catalog or live-cloud evidence |
+| [Cloud Run troubleshooting](https://docs.cloud.google.com/run/docs/troubleshooting) and [request timeout](https://docs.cloud.google.com/run/docs/configuring/request-timeout) | [sourced] Startup/serving diagnostic paths; a 504 does not necessarily terminate processing. Exact causes require case evidence |
+| [Cloud Monitoring alert troubleshooting](https://docs.cloud.google.com/monitoring/alerts/troubleshooting-alerts) and [missing notifications](https://docs.cloud.google.com/monitoring/alerts/troubleshoot-missing-notifications) | [sourced] Data gaps, condition evaluation and notification delivery are distinct diagnostic concerns |
+| [GKE workload troubleshooting](https://docs.cloud.google.com/kubernetes-engine/docs/troubleshooting/deployed-workloads) and [authentication](https://docs.cloud.google.com/kubernetes-engine/docs/troubleshooting/authentication) | [sourced] Workload status/error evidence and Kubernetes/Google identity troubleshooting; source documentation does not grant fleet cluster access |
+| [Pub/Sub troubleshooting](https://docs.cloud.google.com/pubsub/docs/troubleshooting) and [Cloud SQL diagnosis](https://docs.cloud.google.com/sql/docs/postgres/diagnose-issues) | [sourced] Source material for selected managed-service cases; target configuration and additional scenario-specific sources must be frozen during WP-12 |
+| [gcpdiag at 21d36749](https://github.com/GoogleCloudPlatform/gcpdiag/blob/21d36749/README.md) and [Cloud Run deployment tree](https://github.com/GoogleCloudPlatform/gcpdiag/blob/21d36749/gcpdiag/runbook/cloudrun/service_deployment.py) | [sourced] Diagnostic lint/runbook framework and a target-bound deployment tree with explicit code-error coverage limits; community effort, not an officially supported Google product |
+| [Cloud Run samples](https://github.com/GoogleCloudPlatform/cloud-run-samples) | [sourced] GitHits source inspection found application/VPC interaction examples; selected fixture commits and independent verifiers remain implementation work |
+| [OpenTelemetry Cloud Run at a5fd79a1](https://github.com/GoogleCloudPlatform/opentelemetry-cloud-run/blob/a5fd79a1/golang/README.md) | [sourced] Go workload/Collector sidecar guide for metrics, logs and traces; no fleet adapter or incident scorer is supplied |
+| [Local troubleshooting tutorial](https://docs.cloud.google.com/run/docs/tutorials/local-troubleshooting) | [sourced] Deliberately broken Cloud Run service exercise, but the retrieved tutorial retains legacy Container Registry steps. Refresh build/image/authentication instructions before reuse |
+| [Cloud Billing budgets](https://docs.cloud.google.com/billing/docs/how-to/budgets) | [sourced] Alerts-only budgets do not cap spending; separate spend-cap preview support is service-dependent and must not be presumed |
+
 ## Refresh before implementation
 
 - Fetch current repository state and reconcile EVAL-010/011 repairs before changing harness code.
