@@ -368,7 +368,7 @@ suggestions are disabled; there is no automatic retry. This path grants only `Sk
 accepts fixture files only, and checks each invocation's plugin, advertised inventory, actual tool
 use (including child calls), read paths, and session identity before continuing. Optional
 `expected_model:` pins the concrete parent/init model identity on every invocation; the committed
-incident scenario requires `claude-sonnet-5`. Each turn retains expected and observed identities.
+incident scenario requires `claude-sonnet-5-5`. Each turn retains expected and observed identities.
 Credential markers or missing, invalid, or over-`$0.75` cost records stop this path before a follow-up.
 `references:` are assertions only here: they do not add instructions to the prompt. The initial
 parent must finish reading the measured plugin's exact reference before its first helper dispatch;

@@ -931,7 +931,7 @@ cases:
       This changes the picture: the scheduler screenshot was a cached view, and the owners' records
       bind run-42, the statement-2026-07-14/v3 output and the provider receipt to today's schedule
       and recipient, who confirmed reading it at 11:26 UTC. Impact is resolved as Morgan declared,
-      and no rerun or resend is needed; the colleague's "no row, so rerun is safe" never held.
+      and no rerun or resend is needed. The colleague's "no row, so rerun is safe" never held.
       Closeout: recovery rests on supplied owner records and the recipient's report. The cause of
       the late delivery is unknown; the owned uncertainty is why delivery lagged the 07:00
       America/New_York schedule, for the job owner to look into.

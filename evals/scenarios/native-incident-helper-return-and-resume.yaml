@@ -4,7 +4,7 @@ target: {kind: skill, name: incident-investigation}
 routing: {expect: fire}
 tools: [Skill, Read, Task]
 helper: sre-assistant
-expected_model: claude-sonnet-5
+expected_model: claude-sonnet-5-5
 # Assertion only: the initial prompt does not disclose the expected skill or reference.
 references:
   - skills/incident-investigation/references/symptom-investigation.md
