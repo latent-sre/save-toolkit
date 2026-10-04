@@ -8,11 +8,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
-- The rubric judge follows the latest Sonnet (owner decision 2026-10-04): each calibration runs
-  `judge.py --calibrate --resolve-identity` with the `sonnet` alias, and its receipt pins the
-  concrete model that answered, so trials never follow the alias between calibrations. A new Sonnet
-  means a recalibration before the old model retires, with the judge cache cleared when the probe
-  reports that the alias moved, and the native scenarios' `expected_model` pins move with it.
+- The rubric judge follows the latest Sonnet (owner decision 2026-10-04): each calibration requests
+  the `sonnet` alias, and its receipt pins the concrete model that answered, so trials never follow
+  the alias between calibrations. A new Sonnet means a recalibration with `--resolve-identity` before
+  the old model retires, with the judge cache cleared when the probe reports that the alias moved,
+  and the native scenarios' `expected_model` pins move with it.
   [verified] The first calibration on Sonnet 5.5 (`claude-sonnet-5-5`) cost USD 2.44 at list price
   for 165 live calls, against USD 4.90 on Sonnet 5.
 - `reviewer` fixes the PR #307 review findings (owner decision 2026-10-02; no OS isolation for

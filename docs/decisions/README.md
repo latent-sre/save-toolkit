@@ -27,4 +27,4 @@ PR #238. It preserves branch dispositions, current tool authority, and acceptanc
 | 2026-09-04 | [The grader registry is eight graders](2026-09-04-eight-grader-registry.md) | Accepted 2026-09-04 |
 | 2026-09-07 | [Keep retired artifacts in Git history](2026-09-07-historical-artifact-retention.md) | Proposed; effective on maintainer merge of PR #238 |
 | 2026-10-03 | [What the eval harness defends against](2026-10-03-eval-harness-threat-model.md) | Proposed |
-| 2026-10-04 | [The rubric judge reads the case material, not a summary of it](2026-10-04-rubric-judge-case-material.md) | Proposed; amends 2026-09-01 |
+| 2026-10-04 | [The incident companion judge reads the case material, not a summary of it](2026-10-04-rubric-judge-case-material.md) | Proposed; amends 2026-09-01 |

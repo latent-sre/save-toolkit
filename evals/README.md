@@ -416,14 +416,15 @@ kwargs cannot supply the binding. `--validate`, empty-response spec validation, 
 spot checks stay offline or retain their explicit bootstrap behavior.
 
 ```bash
-python evals/judge.py --calibrate --resolve-identity
+python evals/judge.py --calibrate
 ```
 
 measures every rubric against [`rubrics-calibration.yaml`](rubrics-calibration.yaml) and exits
 non-zero below 0.95 agreement or on any inconclusive case. The judge is the latest Sonnet through
-the default `sonnet` alias. `--resolve-identity` spends one call to confirm which model the alias
-names now; when it reports that the alias moved, delete `.eval-runs/judge-calibration/judge-cache`
-and recalibrate, or the cache would re-certify the previous model. Calibration remains owner-triggered;
+the default `sonnet` alias. To move to a new Sonnet, add `--resolve-identity`: it spends one call to
+confirm which model the alias names now. When it reports that the alias moved, delete
+`.eval-runs/judge-calibration/judge-cache` and recalibrate, or the cache would re-certify the
+previous model. Calibration remains owner-triggered;
 the runner never starts it automatically. New judge code/configuration or rubric definitions need
 an applicable calibration before normal rubric trials. Its cache lives under
 `.eval-runs/judge-calibration/`; entries bind judge/clean-room source, Python/PyYAML, effective CLI
