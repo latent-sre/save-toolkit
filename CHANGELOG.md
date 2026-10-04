@@ -8,11 +8,13 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
-- The rubric judge follows the latest Sonnet (owner decision 2026-10-04): each calibration requests
-  the `sonnet` alias, and its receipt pins the concrete model that answered, so trials never follow
-  the alias between calibrations. A new Sonnet means a recalibration before the old model retires,
-  and the native scenarios' `expected_model` pins move with it. The first calibration on Sonnet 5.5
-  (`claude-sonnet-5-5`) cost USD 2.44 at list price for 165 live calls, against USD 4.90 on Sonnet 5.
+- The rubric judge follows the latest Sonnet (owner decision 2026-10-04): each calibration runs
+  `judge.py --calibrate --resolve-identity` with the `sonnet` alias, and its receipt pins the
+  concrete model that answered, so trials never follow the alias between calibrations. A new Sonnet
+  means a recalibration before the old model retires, with the judge cache cleared when the probe
+  reports that the alias moved, and the native scenarios' `expected_model` pins move with it.
+  [verified] The first calibration on Sonnet 5.5 (`claude-sonnet-5-5`) cost USD 2.44 at list price
+  for 165 live calls, against USD 4.90 on Sonnet 5.
 - `reviewer` fixes the PR #307 review findings (owner decision 2026-10-02; no OS isolation for
   scratch runs is accepted risk): the autoload preparation gap names Copilot's instruction roots too;
   a commit is exported through a scratch index, never `git archive`, whose export attributes drop
@@ -116,14 +118,16 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   `human_handover` rubric paragraph now carries the supplied fact that Riley confirmed the flag
   value, and the handover PASS response no longer asserts an "agreed recovery window" or an
   "unassigned" dependency owner, neither of which its scenario supplied. The plan-authorship PASS
-  response names the release owner as the one who deploys: every Claude judgment had read it as the
-  assistant deploying, every OpenAI judgment as a plan for someone else. The `statement_rerun` PASS
-  response says `needed. The colleague's` instead of `needed; the colleague's`: Sonnet 5.5 quoted the
-  semicolon as a comma in six of eight judgments, which the verbatim-evidence rule turns into
-  INCONCLUSIVE. Afterwards a calibration agrees with all 165 labels.
+  response names the release owner as the one who deploys: [verified] every Claude judgment had read
+  it as the assistant deploying, every OpenAI judgment as a plan for someone else. The
+  `statement_rerun` PASS response says `needed. The colleague's` instead of `needed; the
+  colleague's`: [verified] Sonnet 5.5 quoted the semicolon as a comma in six of eight judgments,
+  which the verbatim-evidence rule turns into INCONCLUSIVE. [verified] Afterwards a calibration
+  agrees with all 165 labels.
 - The native incident scenario expects `claude-sonnet-5-5`, the model the `sonnet` alias now
-  resolves to; with `claude-sonnet-5`, a native incident trial run through the alias would stop
-  INCONCLUSIVE on its model check before the follow-up.
+  resolves to. [verified] With `claude-sonnet-5`, a native incident trial run through the alias
+  would stop INCONCLUSIVE on its model check before the follow-up, as
+  `test_native_wrong_or_missing_parent_model_stops_before_resume` exercises.
 - Clean-room trial and judge workspaces no longer inherit the operator's instructions. Claude Code
   reads `CLAUDE.md` from every ancestor of its working directory, past any git root, and on Windows
   the default temp dir sits under the user's home. A Haiku probe through `main`'s clean room quoted

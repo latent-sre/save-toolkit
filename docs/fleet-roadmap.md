@@ -340,10 +340,15 @@ runs approved measurements with independent review.
 **Outcome:** The rubric judge is the one that best agrees with the human-labelled calibration corpus
 at equal or lower cost; action 2 decides whether that agreement must hold over repeated uncached
 runs. [sourced: owner decision, 2026-10-04] `evals/judge.py` judges with the latest Sonnet: each
-calibration requests the `sonnet` alias, its receipt pins the concrete model that answered, and
-trials use only that model. When a new Sonnet ships, recalibrate with the alias before the old model
-retires, and move the native scenarios' `expected_model` pins to it. A judge from another family
-needs a new ADR that amends the judge contract.
+calibration runs `python evals/judge.py --calibrate --resolve-identity` (the `sonnet` alias by
+default), its receipt pins the concrete model that answered, and trials use only that model. When a
+new Sonnet ships, recalibrate before the old model retires, and move the native scenarios'
+`expected_model` pins to it. Cached verdicts are keyed by the requested alias, so without
+`--resolve-identity` a calibration can be served entirely from the old model's cache and pin it
+again; when the probe reports that the alias moved, delete `.eval-runs/judge-calibration/judge-cache`
+and recalibrate. The code accepts a receipt for any concrete model; calibrating the previous Sonnet
+by name is the fallback only while a new one fails calibration. A judge from another family needs a
+new ADR that amends the judge contract.
 **Next action:**
 
 1. Recalibrate each host after any rubric, corpus, or judge-source change and after each new Sonnet.
@@ -362,6 +367,10 @@ needs a new ADR that amends the judge contract.
 4. Optional, needs an API key: score Pydantic Evals' `LLMJudge` prompt and Inspect's
    `model_graded_qa` on the same corpus. Adopt one only if it beats `judge.py`'s prompt on every
    rubric and removes code or cost.
+5. Decide whether evidence grounding should tolerate punctuation differences. Sonnet 5.5 quoted a
+   semicolon as a comma in six of eight judgments of one case. The owner chose to reword that case
+   (2026-10-04), so calibration no longer exercises the weakness, but a live response can still
+   draw the same INCONCLUSIVE. Relaxing the rule is a judge-contract change that needs an ADR.
 
 [verified] Measured on 2026-10-03: OpenAI judges run without an API key through `codex exec` on a
 ChatGPT login, once an output-schema description stops them wrapping evidence in quotation marks.
