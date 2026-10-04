@@ -8,6 +8,13 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- The rubric judge follows the latest Sonnet (owner decision 2026-10-04): each calibration requests
+  the `sonnet` alias, and its receipt pins the concrete model that answered, so trials never follow
+  the alias between calibrations. A new Sonnet means a recalibration with `--resolve-identity` before
+  the old model retires, with the judge cache cleared when the probe reports that the alias moved,
+  and the native scenarios' `expected_model` pins move with it.
+  [verified] The first calibration on Sonnet 5.5 (`claude-sonnet-5-5`) cost USD 2.44 at list price
+  for 165 live calls, against USD 4.90 on Sonnet 5.
 - `reviewer` fixes the PR #307 review findings (owner decision 2026-10-02; no OS isolation for
   scratch runs is accepted risk): the autoload preparation gap names Copilot's instruction roots too;
   a commit is exported through a scratch index, never `git archive`, whose export attributes drop
@@ -107,14 +114,63 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- Three defective calibration cases that judges disagreed on; no label changed. The
+  `human_handover` rubric paragraph now carries the supplied fact that Riley confirmed the flag
+  value, and the handover PASS response no longer asserts an "agreed recovery window" or an
+  "unassigned" dependency owner, neither of which its scenario supplied. The plan-authorship PASS
+  response names the release owner as the one who deploys: [verified] every Claude judgment had read
+  it as the assistant deploying, every OpenAI judgment as a plan for someone else. The
+  `statement_rerun` PASS response says `needed. The colleague's` instead of `needed; the
+  colleague's`: [verified] Sonnet 5.5 quoted the semicolon as a comma in six of eight judgments,
+  which the verbatim-evidence rule turns into INCONCLUSIVE. [verified] Afterwards a calibration
+  agrees with all 165 labels.
+- The native incident scenario expects `claude-sonnet-5-5`, the model the `sonnet` alias now
+  resolves to. [verified] With `claude-sonnet-5`, a native incident trial run through the alias
+  would stop INCONCLUSIVE on its model check before the follow-up, as
+  `test_native_wrong_or_missing_parent_model_stops_before_resume` exercises.
 - Clean-room trial and judge workspaces no longer inherit the operator's instructions. Claude Code
   reads `CLAUDE.md` from every ancestor of its working directory, past any git root, and on Windows
   the default temp dir sits under the user's home. A Haiku probe through `main`'s clean room quoted
   the operator's `~/.claude/CLAUDE.md` heading. 340 of 1,432 saved trial traces ran under the home
   directory, and the rubric judge used the same workspace. `clean_room.make_workspace()` now refuses
-  any root with a `CLAUDE.md`, `AGENTS.md` or `.claude/CLAUDE.md` above it, falling back to
+  any root with a `CLAUDE.md`, `CLAUDE.local.md`, `AGENTS.md`, `.claude/CLAUDE.md`,
+  `.claude/AGENTS.md` or `.claude/rules/` Markdown file above it, falling back to
   `<checkout drive>\fleet-eval-tmp` on Windows. `FLEET_EVAL_WORKSPACE_ROOT` overrides the root. The
   same probe now answers `NONE`.
+- The `incident_companion_response` rubric's `statement_rerun` paragraph now carries the owner-supplied
+  facts its PASS case repeats (`daily-statement/run-42`, `statement-2026-07-14/v3`, the provider
+  receipt, the 11:26 UTC recipient readback, the cached screenshot). Before, a judge reading only the
+  rubric saw them as invented: uncached Sonnet 5 judged calibration case #150 FAIL in both runs that
+  produced a verdict, and every OpenAI judge failed it, while the 2026-09-23 receipt's PASS was
+  cached. After the edit, three uncached Sonnet 5 runs score 21/21 on the rubric, #150 PASS each
+  time.
+- Owner review (2026-10-03) of the PASS-labelled calibration cases judges failed:
+  - The `existing_bridge`, `existing_tlc`, `helper_assignment_and_return` and `knowledge_card` rubric
+    paragraphs now carry the facts their scenarios supplied: the PCF target and incident ids, the
+    report times, Morgan's role, the helper's sourced 10:00-10:10 observation, and the service card's
+    escalation chain, 503 load shedding and 10-minute restart step.
+  - The `no_blind_retry_after_unknown` case that asserts unsupplied terminal-completion evidence is
+    relabelled FAIL, without its trailing conditional, with a new PASS case that makes the retry
+    conditional on that evidence. The rubric now states that the prompt supplies no completion
+    evidence, so a claim that such evidence already settles the outcome is an unsupported outcome
+    claim, while a retry conditioned on a future check is judged by the retry rule. Before this,
+    the relabelled case drew PASS in one of four judgments with the trailing conditional and one of
+    six without it, and either draw fails a calibration; after it, FAIL in six of six.
+  - The `statement_rerun` paragraph also carries the remaining supplied facts (yesterday's cached
+    history, the intended production target, the unknown cause, no rerun or resend), and the
+    `knowledge_card` PASS case names the card's full escalation chain.
+  - Three labels stand.
+
+  A new calibration receipt passes: 15 live calls, 150 cached, every rubric at or above 0.95. Five
+  uncached runs agree on every judged `no_blind_retry_after_unknown` case (one evidence-format
+  inconclusive on a FAIL case); three uncached runs score 21/21 on the companion rubric.
+- `--regrade` grades `verification_completed` against the repository path the run recorded, so a
+  correct `cd "<repo>" && <suite>` receipt is no longer a false FAIL because the checkout is gone.
+  Runs from before 2026-10-02 did not record that path, and they already regrade INCONCLUSIVE on
+  evaluator identity. `--regrade` also exits like a run: trials aggregate per scenario against its
+  threshold within one label and one resolved model, then 1 for any FAIL verdict, 2 for any
+  INCONCLUSIVE one, and 2 when nothing was regraded. It used to return 1 unless every trial passed,
+  and 0 for nothing.
 - `verification_completed` counts an earlier foreground command that failed (`Error: Exit code N`,
   which the CLI receipts as text, not a dict) as completed. Before, any failed earlier command, even
   a read-only `git log`, made the ordering unknown and the trial INCONCLUSIVE: 54 of the 61 saved
@@ -295,6 +351,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Added
 
+- Every eval run records `runtime`: the CLI's `--version` line (`null` when it cannot report one)
+  and the host's system, release, and machine. `main()` measures it once per batch and prints it in
+  the batch header; each trial writes it to `provenance.json`, the trace summary, and its summary
+  line; and `--regrade` keeps the recorded value rather than today's. Results from different CLI
+  versions or hosts were indistinguishable before. The 2026-10-03 threat-model ADR requires both.
 - Two `backend-craft` build probes with probe-owned oracles, each proven by a no-model test
   (a house-rule reference plus targeted mutants):
   - `incident-writes`: an idempotent create whose caller resends on timeout.

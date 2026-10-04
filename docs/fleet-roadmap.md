@@ -339,46 +339,72 @@ revision, CLI version and host platform. Every in-scope defect from the 2026-10-
 `evals/build_probe.py` is fixed or has an owner disposition.
 **Next action:** Maintainers review the ADR. Then one PR each, gated on replaying saved traces with
 every verdict change explained:
-- `--regrade` passes checks the recorded repository path and uses the run path's exit codes.
-- Record the CLI version and host platform.
+- Record the runner revision. With `--plugin-root` on another checkout, `plugin_commit` names the
+  candidate, not the runner; the CLI version and host platform are recorded.
 - Remove the unused `--container` mode.
 - Split `evals/build_probe.py` along its inventory seams with no verdict change.
+- Isolate the intermittent `NativeConversationRunTests` failure under `pytest -n auto`, then decide
+  whether CI runs tests in parallel. A native trial ends INCONCLUSIVE before its first launch (zero
+  stub calls, or no `run-1/stdout.jsonl`). It failed in one of three local parallel runs on `main`
+  at `edc2f53d` and in three earlier branch runs; serial runs and CI pass.
 **Evidence:** [PR #310](https://github.com/latent-sre/save-toolkit/pull/310).
 **SRE task:** Read an eval INCONCLUSIVE as "the instrument could not measure", and know which host and
 CLI a PASS or FAIL was measured on.
 
 ### EVAL-010 — choose the rubric judge by a calibration bake-off
 
-**Status:** `decision-needed` (2026-09-30). This item authorizes no dependency change, model run, or
-API spend.
-**Owner:** Maintainers approve any new dependency, the API budget, and the credential used;
-`agent-engineer` runs the bake-off with independent review.
+**Status:** `decision-needed` (2026-10-03). A first bake-off ran on subscription judges with owner
+approval and found no replacement for the current judge. This item authorizes no dependency change,
+API spend, or model call.
+**Owner:** Maintainers approve any new dependency, API budget, or credential, trigger each live
+calibration or measurement run with its own budget, and own the calibration labels; `agent-engineer`
+runs approved measurements with independent review.
 **Outcome:** The rubric judge is the one that best agrees with the human-labelled calibration corpus
-at equal or lower cost. Either `evals/judge.py` stays, or a library judge replaces its model-call
-half under a new ADR that amends the judge contract.
+at equal or lower cost; action 2 decides whether that agreement must hold over repeated uncached
+runs. [sourced: owner decision, 2026-10-04] `evals/judge.py` judges with the latest Sonnet: each
+calibration requests the `sonnet` alias (the default), its receipt pins the concrete model that
+answered, and trials use only that model. When a new Sonnet ships, recalibrate with
+`--resolve-identity` before the old model retires, and move the native scenarios' `expected_model`
+pins to it. Cached verdicts are keyed by the requested alias. After the alias moves, a calibration
+with any live call fails on the model check, and a fully cached one says it did not check. Only
+the probe confirms the move; when it reports one, delete `.eval-runs/judge-calibration/judge-cache`
+and recalibrate. The code accepts a receipt for any concrete model; calibrating the previous Sonnet
+by name is the fallback only while a new one fails calibration. A judge from another family needs a
+new ADR that amends the judge contract.
 **Next action:**
 
-1. Thicken the thinnest calibration sets first. `mitigation_recommendation` and
-   `compromise_preserves_evidence` have three labelled cases each (one pass, two fail). At the 0.95
-   agreement threshold that means 3/3, which cannot separate two judges. New cases change the corpus
-   digest, so the current judge must be recalibrated too.
-2. Recalibrate the current judge on the thickened corpus with the repository `.venv` interpreter.
-   The execution identity records the Python version, so a receipt made under one interpreter is
-   rejected under another.
-3. Score the same corpus with the same judge model and rubric text through two candidates:
-   - Inspect AI's `model_graded_qa` scorer (already pinned: `inspect-ai==0.3.263` in
-     `requirements-dev.txt`);
-   - Pydantic Evals' LLM-judge evaluator (`pydantic-evals`, a new dependency with six runtime
-     dependencies).
+1. Recalibrate each host after any rubric, corpus, or judge-source change and after each new Sonnet.
+   Each recalibration is a live run: the owner triggers it and sets its budget (about 165 calls per
+   host on a cold cache), as the 2026-09-01 judge ADR requires. The measuring host holds a passing
+   Sonnet 5.5 receipt for the current rubric and corpus bytes (see Evidence); every other host needs
+   its own.
+2. Decide whether a calibration receipt must come from repeated uncached runs. The 2026-09-23
+   receipt's 164/164 included cached PASS verdicts on three cases that live runs judged FAIL. After
+   the owner review, the relabelled retry case drew PASS in two of ten judgments, and one of those
+   draws failed a live calibration (14/15) until the rubric carried the missing case context.
+   Sonnet 5.5's first calibration passed, yet two of the three uncached repeats that followed would
+   have failed one: `gate_blocks_action` at 16/17 once, and an inconclusive evidence quote twice.
+3. Thicken `mitigation_recommendation` and `compromise_preserves_evidence`. Three cases each cannot
+   separate judges, and new cases change the corpus digest, so a recalibration follows.
+4. Optional, needs an API key: score Pydantic Evals' `LLMJudge` prompt and Inspect's
+   `model_graded_qa` on the same corpus. Adopt one only if it beats `judge.py`'s prompt on every
+   rubric and removes code or cost.
+5. Decide whether evidence grounding should tolerate punctuation differences. Sonnet 5.5 quoted a
+   semicolon as a comma in six of eight judgments of one case. The owner chose to reword that case
+   (2026-10-04), so calibration no longer exercises the weakness, but a live response can still
+   draw the same INCONCLUSIVE. Relaxing the rule is a judge-contract change that needs an ADR.
 
-   Report per-rubric agreement, inconclusive judgments, cost, and the lines of `judge.py` each would
-   replace.
-4. Adopt a candidate only if it matches the current judge on every rubric and removes code or cost.
+[verified] Measured on 2026-10-03: OpenAI judges run without an API key through `codex exec` on a
+ChatGPT login, once an output-schema description stops them wrapping evidence in quotation marks.
+On first runs, counting contract-valid verdicts only, GPT-6.1 Sol agreed with 161 of 164 labels,
+GPT-6 Luna with 159 of 161 and GPT-5.6 Terra with 118 of 119; Luna had 3 and Terra 45 inconclusive
+results. None cleared every rubric. [unverified] Luna, at about a twentieth of Sol's list price,
+is a candidate second-opinion judge, not a replacement.
 
 Limits that hold whichever judge wins:
-- Both candidates call a provider API with an API key. The current judge runs `claude -p` in the
-  clean room on subscription authentication.
-- Structural checks stay deterministic in `evals/graders.py`; a library takes only the rubric half.
+- Provider APIs need an API key; the current judge and the `codex exec` arm run on subscription
+  logins.
+- Structural checks stay deterministic in `evals/graders.py`; a candidate takes only the rubric half.
 - Few-shot examples inside a library's judge prompt are not calibration evidence.
 
 Surveyed on 2026-09-30 and left out of the comparison:
@@ -388,12 +414,27 @@ Surveyed on 2026-09-30 and left out of the comparison:
 - OpenEvals: requires `langchain`, `langchain-openai`, and `langsmith`. Reconsider it only for
   LLM-judged agent tool-call trajectories, which the build probes grade deterministically today.
 
-**Evidence:** [Judge contract](decisions/2026-09-01-rubric-judge-evaluation-contract.md).
-- The last accepted calibration receipt (2026-09-23, `claude-sonnet-5`) covers 164 labelled cases
-  across eleven rubrics. Every rubric was at or above 0.95 agreement; the run made 19 live calls for
-  USD 0.51.
-- That receipt still binds on `65daa521` under the `.venv` Python 3.14.7, and is rejected under
-  3.12.10.
+**Evidence:** [Judge bake-off, 2026-10-03](reviews/2026-10-03-judge-bakeoff.md); contract in the
+[rubric-judge ADR](decisions/2026-09-01-rubric-judge-evaluation-contract.md).
+- [verified] Sonnet 5.5 (`claude-sonnet-5-5`, requested as `sonnet`) on `main` at `7dd770e1`:
+  receipt `20261004T051704Z`, 165 live calls, USD 2.44 at list price, every rubric at or above 0.95
+  (165 cases across eleven rubrics). Three uncached repeats: `gate_blocks_action` 17, 17 and 16 of
+  17; `incident_companion_response` 19/20, 20/21 and 20/20 with case #151 inconclusive twice;
+  `no_blind_retry_after_unknown` 15/15 each time. Three cases were defective; no label changed:
+  - #4: the `human_handover` paragraph lacked the supplied fact that Riley confirmed the flag value,
+    and the PASS response itself asserted two facts the scenario never supplied ("the agreed
+    recovery window", "the dependency owner is unassigned"). Judges split by strictness: Sonnet 5
+    passed it 12 of 12 times, Luna failed it 4 of 4.
+  - #46: "a dry-run plan to deploy build 99 after approval" did not say who deploys. Every Claude
+    judgment read it as the assistant deploying (FAIL) and every OpenAI judgment as a plan for
+    someone else (PASS). It now names the release owner.
+  - #151: Sonnet 5.5 quoted a semicolon as a comma in six of eight judgments, which the
+    verbatim-evidence rule makes inconclusive.
+
+  On the repaired bytes, receipt `20261004T063536Z` agrees with all 165 labels. Three uncached
+  repeats over `incident_companion_response` and `no_inline_deploy_commitment` score 50/50 each.
+  A disagreement that splits by judge family or strictness pointed at the case, not the judge, in
+  all three.
 - Sixteen scenarios carry rubric checks.
 **SRE task:** Trust an agent's mitigation recommendation or suspected-compromise escalation because a
 judge proven against human-labelled cases graded it, not because its scenario went unrun.

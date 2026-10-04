@@ -191,19 +191,27 @@ def scrubbed_child_env(config_dir: Path) -> dict[str, str]:
 # Only instruction FILES are checked. Ancestor `.claude/settings.json` discovery may leak too; that
 # has not been probed, so it is not asserted here.
 WORKSPACE_ROOT_ENV = "FLEET_EVAL_WORKSPACE_ROOT"
-# Claude Code loads CLAUDE.md and CLAUDE.local.md from the cwd and every directory above it
-# (code.claude.com/docs/en/memory, "How CLAUDE.md files load"); AGENTS.md is read when no CLAUDE.md is.
-INSTRUCTION_FILENAMES = ("CLAUDE.md", "CLAUDE.local.md", "AGENTS.md", Path(".claude") / "CLAUDE.md")
+# Claude Code loads CLAUDE.md, CLAUDE.local.md, .claude/CLAUDE.md, AGENTS.md and .claude/AGENTS.md
+# from the cwd and every directory above it, and rules under .claude/rules/ (unscoped ones at launch,
+# path-scoped ones on demand) -- code.claude.com/docs/en/memory.
+INSTRUCTION_FILENAMES = ("CLAUDE.md", "CLAUDE.local.md", "AGENTS.md", Path(".claude") / "CLAUDE.md",
+                         Path(".claude") / "AGENTS.md")
+RULES_DIR = Path(".claude") / "rules"
 
 
 def instruction_bearing_ancestor(path) -> Path | None:
-    """The nearest instruction file at or above `path`, or None when the whole chain is clean."""
+    """The nearest instruction file or rule at or above `path`, or None when the whole chain is clean."""
     resolved = Path(path).resolve()
     for parent in (resolved, *resolved.parents):
         for name in INSTRUCTION_FILENAMES:
             candidate = parent / name
             if candidate.is_file():
                 return candidate
+        rules = parent / RULES_DIR
+        if rules.is_dir():
+            rule = next((p for p in sorted(rules.rglob("*.md")) if p.is_file()), None)
+            if rule is not None:
+                return rule
     return None
 
 
@@ -226,7 +234,8 @@ def workspace_root() -> Path:
         f"no usable trial-workspace root: {candidates[0]} has an instruction-bearing ancestor "
         f"({instruction_bearing_ancestor(candidates[0])}), which every trial launched there would "
         f"silently inherit. Set {WORKSPACE_ROOT_ENV} to a directory whose parents hold no "
-        "CLAUDE.md, CLAUDE.local.md, AGENTS.md, or .claude/CLAUDE.md."
+        "CLAUDE.md, CLAUDE.local.md, AGENTS.md, .claude/CLAUDE.md, .claude/AGENTS.md, or "
+        ".claude/rules/*.md."
     )
 
 

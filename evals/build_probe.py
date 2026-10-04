@@ -50,6 +50,7 @@ import hashlib
 import json
 import math
 import os
+import platform
 import re
 import secrets
 import shlex
@@ -957,6 +958,9 @@ class Workspace:
     baseline_commits: int
     baseline_branch: str
     baseline_sha: str = ""
+    # The repository path the trial's commands name. Only a regrade sets it: its checkout is gone, so
+    # `repo` is a placeholder there, but a `cd "<repo>" && <suite>` receipt still names the real path.
+    command_repo: Path | None = None
 
 
 def _git(repo: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess:
@@ -1249,6 +1253,19 @@ def plugin_provenance(plugin_root: Path) -> dict:
         "plugin_inputs_dirty": bool(dirty),
         "plugin_source_sha256": plugin_digest(plugin_root),
     }
+
+
+def runtime_identity(executable: str) -> dict:
+    """The CLI version and host platform a batch measured; a version the CLI cannot report is null."""
+    try:
+        proc = subprocess.run([executable, "--version"], capture_output=True, text=True, encoding="utf-8",
+                              errors="replace", timeout=30)
+        lines = proc.stdout.strip().splitlines() if proc.returncode == 0 else []
+        version = lines[0].strip() if lines else None
+    except (OSError, subprocess.TimeoutExpired):
+        version = None
+    return {"cli_version": version,
+            "host_platform": {"system": platform.system(), "release": platform.release(), "machine": platform.machine()}}
 
 
 def plugin_drift_problem(plugin_root: Path, expected: str) -> str | None:
@@ -2599,7 +2616,8 @@ def check_verification_completed(ctx: Context, p: dict) -> tuple[bool, str]:
     call = calls[-1]
     workdirs = ()
     if ctx.ws:
-        workdirs = (str(ctx.ws.repo),) + ((container_root(ctx.ws) + "/repo",) if ctx.container else ())
+        repo = ctx.ws.command_repo or ctx.ws.repo
+        workdirs = (str(repo),) + ((container_root(ctx.ws) + "/repo",) if ctx.container else ())
     if (call["tool"] not in SHELL_TOOLS or call["parent"]
             or not _verification_command(call["command"], p["runner"], call["tool"], workdirs)):
         if any(prior["success"] and prior.get("test_summaries", {}).get(p["runner"])
@@ -3060,7 +3078,7 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
               out_dir: Path, timeout: int, executable: str, keep_workspace: bool,
               overwrite: bool = False, env_factory=None, container_image: str | None = None,
               docker: str = "docker", expected_plugin_digest: str | None = None,
-              judge_binding: rubric_judge.JudgeBinding | None = None) -> dict:
+              judge_binding: rubric_judge.JudgeBinding | None = None, runtime: dict | None = None) -> dict:
     """Publish a complete attempt; a failed overwrite leaves the previous run intact."""
     if "followups" in spec:
         problems = validate_scenario(spec)
@@ -3078,7 +3096,8 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
                              run_number=run_number, run_out=attempt, timeout=timeout,
                              executable=executable, keep_workspace=keep_workspace, env_factory=env_factory,
                              container_image=container_image, docker=docker,
-                             expected_plugin_digest=expected_plugin_digest, judge_binding=judge_binding)
+                             expected_plugin_digest=expected_plugin_digest, judge_binding=judge_binding,
+                             runtime=runtime)
         if target.exists():
             backup = target.with_name(f".{target.name}-previous-{secrets.token_hex(8)}")
             target.rename(backup)
@@ -3103,7 +3122,8 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
 def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, run_number: int,
                run_out: Path, timeout: int, executable: str, keep_workspace: bool,
                env_factory=None, container_image: str | None = None, docker: str = "docker",
-               expected_plugin_digest: str | None = None, judge_binding: rubric_judge.JudgeBinding | None = None) -> dict:
+               expected_plugin_digest: str | None = None, judge_binding: rubric_judge.JudgeBinding | None = None,
+               runtime: dict | None = None) -> dict:
     if container_image and "PowerShell" in scenario_tools(spec):
         raise ValueError("PowerShell trials cannot use --container: only the Bash wrapper boundary is established")
     if container_image and spec.get("fixture", {}).get("services"):
@@ -3141,7 +3161,7 @@ def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, 
         scenario_identity = scenario_digest(spec, binding)
         if expected_plugin_digest and provenance["plugin_source_sha256"] != expected_plugin_digest:
             inconclusive = "plugin inputs changed before the trial; re-run with one candidate"
-        (run_out / "provenance.json").write_text(json.dumps({**provenance, **({"judge_binding": binding} if binding else {})}, indent=2), encoding="utf-8")
+        (run_out / "provenance.json").write_text(json.dumps({**provenance, "runtime": runtime, **({"judge_binding": binding} if binding else {})}, indent=2), encoding="utf-8")
         # A routing or contract scenario has no fixture: it runs in an empty git root outside the
         # checkout, so the repo's own AGENTS.md/CLAUDE.md cannot teach it the routing answer.
         ws = seed_workspace(
@@ -3246,7 +3266,7 @@ def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, 
             "tool_errors": trace.tool_errors, "denial_details": trace.denial_details,
             "commits_before_after": [ws.baseline_commits, git.commit_count], "branch": git.branch,
             "changed_files": ctx.git.changed, "state_files": state_files, "agents_dir": (ws.repo / ".agents").exists(),
-            "plugin": provenance, "workspace": str(ws.repo.resolve()), "judge_binding": binding,
+            "plugin": provenance, "runtime": runtime, "workspace": str(ws.repo.resolve()), "judge_binding": binding,
             "scenario_sha256": grading["scenario_sha256"],
             "isolation": {"mode": "container", "image": container_image} if container_image else {"mode": "host"},
             "services": [{"name": s.name, "image": s.image, "base_url": s.base_url} for s in ctx.services],
@@ -3275,7 +3295,7 @@ def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, 
                    "plugin_source_sha256": provenance["plugin_source_sha256"],
                    "scenario_sha256": grading["scenario_sha256"],
                    "plugin_inputs_dirty": provenance["plugin_inputs_dirty"],
-                   "isolation": "container" if container_image else "host"}
+                   "isolation": "container" if container_image else "host", "runtime": runtime}
         return summary
     finally:
         active_error = sys.exc_info()[1]
@@ -3422,7 +3442,8 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
         state.mkdir()
         for name, content in (summary.get("state_files") or {}).items():
             (state / name).write_text(content, encoding="utf-8")
-        ws = Workspace(Path(tmp), Path(tmp) / "repo-gone", Path(tmp) / "bin", state, int(before), "main")
+        ws = Workspace(Path(tmp), Path(tmp) / "repo-gone", Path(tmp) / "bin", state, int(before), "main",
+                       command_repo=recorded_workspace)
         if summary.get("agents_dir"):
             (ws.repo / ".agents").mkdir(parents=True)
         ctx = Context(spec, ws, trace, git, plugin_root=plugin_root)
@@ -3492,6 +3513,7 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
         "scenario_sha256": (stamp_assertions(identity, expectations) if identity_matches
                             else live_grade.get("scenario_sha256")),
         "plugin_source_sha256": (summary.get("plugin") or {}).get("plugin_source_sha256"),
+        "runtime": summary.get("runtime"),
         "models": trace.models if reparsed is not None else list(summary.get("models") or []),
         "summary": {"passed": n_pass, "failed": len(expectations) - n_pass, "total": len(expectations),
                     "pass_rate": round(n_pass / len(expectations), 4) if expectations else 0.0},
@@ -3664,7 +3686,16 @@ def main(argv: list[str] | None = None) -> int:
             scope = " (structural only; semantics UNVERIFIED)" if r.get("semantic_assessment") else ""
             print(f"eval-{r['scenario']} {r['label']}/run-{r['run']}: {r['status']} {r['passed']}/{r['total']}{scope}")
         print(f"regraded {len(rows)} run(s)")
-        return 0 if all(r["status"] == "PASS" for r in rows) else 1
+        # Exit like a run: trials aggregate per scenario against its threshold within one label and one
+        # resolved model (a directory can hold several arms, and a label's slots several models), then
+        # 1 for any FAIL verdict and 2 for any INCONCLUSIVE one. Regrading nothing measured nothing.
+        arm = lambda r: (r["label"], tuple(model_identities([r])))
+        states = [verdict["verdict"] for key in sorted({arm(r) for r in rows})
+                  for verdict in aggregate_by_scenario(
+                      scenarios, [r for r in rows if arm(r) == key], args.threshold).values()]
+        if "FAIL" in states:
+            return 1
+        return 2 if not states or "INCONCLUSIVE" in states else 0
     if args.container:
         incompatible = [s["id"] for s in scenarios if s.get("fixture", {}).get("services")]
         if incompatible:
@@ -3687,7 +3718,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"refusing to run: {exc}", file=sys.stderr)
         return 3
     provenance = plugin_provenance(args.plugin_root.resolve())
-    print(json.dumps({"plugin": provenance, "judge_binding": judge_binding.metadata if judge_binding else None}), flush=True)
+    runtime = runtime_identity(args.executable)
+    print(json.dumps({"plugin": provenance, "runtime": runtime,
+                      "judge_binding": judge_binding.metadata if judge_binding else None}), flush=True)
     if args.expect_plugin_digest and not provenance["plugin_source_sha256"].startswith(args.expect_plugin_digest):
         print(f"refusing to run: plugin source digest {provenance['plugin_source_sha256'][:12]}… does not match --expect-plugin-digest", file=sys.stderr)
         return 3
@@ -3711,7 +3744,7 @@ def main(argv: list[str] | None = None) -> int:
                 executable=args.executable, keep_workspace=args.keep_workspace, overwrite=args.overwrite,
                 container_image=args.container, docker=args.docker,
                 expected_plugin_digest=provenance["plugin_source_sha256"],
-                judge_binding=judge_binding,
+                judge_binding=judge_binding, runtime=runtime,
             ))
     merged = _merge_summary_entries(existing, results)
     summary_path.write_text(json.dumps(merged, indent=2), encoding="utf-8")

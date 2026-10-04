@@ -913,6 +913,26 @@ class VerificationEvidenceTests(unittest.TestCase):
                 result = build_probe.regrade_run(run, spec)
                 self.assertEqual(result["status"], expected)
 
+    def test_regrade_matches_a_positioned_suite_against_the_recorded_repository(self):
+        """A regrade's checkout is gone, so `cd "<repo>" && <suite>` must match the path the run recorded."""
+        check = {"check": "verification_completed", "runner": "unittest", "text": "ordered test"}
+        spec = {**TINY_SPEC, "checks": [check]}
+        with tempfile.TemporaryDirectory() as tmp:
+            run, repo = Path(tmp) / "run", str(Path(tmp) / "ws" / "repo")
+            (run / "outputs").mkdir(parents=True)
+            (run / "outputs/response.md").write_text("done", encoding="utf-8")
+            (run / "outputs/trace-summary.json").write_text(json.dumps({
+                "state_files": {}, "commits_before_after": [1, 1], "branch": "main", "changed_files": [],
+                "workspace": repo,
+            }), encoding="utf-8")
+            (run / "grading.json").write_text(json.dumps(_saved_grade(spec, [
+                {"text": "ordered test", "passed": True, "evidence": "live pass"},
+            ])), encoding="utf-8")
+            events = [self._call(command=f'cd "{repo}" && {self.SUITE}'), self._result()]
+            (run / "stdout.jsonl").write_text("\n".join(json.dumps(e) for e in events), encoding="utf-8")
+            result = build_probe.regrade_run(run, spec)
+            self.assertEqual("PASS", result["status"], result["expectations"])
+
     def test_explicit_powershell_tools_preserve_the_writing_and_container_boundaries(self):
         spec = {**TINY_SPEC, "tools": ["Read", "PowerShell"]}
         self.assertEqual(build_probe.scenario_tools(spec), ("Read", "PowerShell"))
@@ -1282,7 +1302,7 @@ class NativeConversationRunTests(unittest.TestCase):
                 self.assertTrue(build_probe.validate_scenario({**self.SPEC, **change}))
 
     def run_native(self, root, *, wrong_session=False, bad_runtime=False, bad_initial=False, credential=False,
-                   wrong_model=False, missing_model=False, hidden_tool=None, cost=0.05):
+                   wrong_model=False, missing_model=False, hidden_tool=None, cost=0.05, runtime=None):
         import contextlib
         calls, environments = [], []
         real_run = subprocess.run
@@ -1322,8 +1342,21 @@ class NativeConversationRunTests(unittest.TestCase):
 
         with mock.patch.object(build_probe.subprocess, "run", side_effect=launch):
             summary = build_probe.run_trial(self.SPEC, plugin_root=ROOT, label="native", model="stub-model", run_number=1,
-                out_dir=root, timeout=60, executable="native-stub", keep_workspace=False, env_factory=environment)
+                out_dir=root, timeout=60, executable="native-stub", keep_workspace=False, env_factory=environment,
+                runtime=runtime)
         return summary, root / "eval-native-conversation/native/run-1", calls, environments
+
+    def test_trial_records_the_runtime_identity_it_was_given_and_regrade_keeps_it(self):
+        runtime = {"cli_version": "9.9.9 (Claude Code)",
+                   "host_platform": {"system": "Linux", "release": "6.1", "machine": "x86_64"}}
+        with tempfile.TemporaryDirectory() as tmp:
+            summary, run, calls, _ = self.run_native(Path(tmp), runtime=runtime)
+            self.assertEqual(2, len(calls), "recording the runtime must not add a CLI call")
+            self.assertEqual(runtime, summary["runtime"])
+            self.assertEqual(runtime, json.loads((run / "provenance.json").read_text(encoding="utf-8"))["runtime"])
+            self.assertEqual(runtime, json.loads((run / "outputs/trace-summary.json").read_text(encoding="utf-8"))["runtime"])
+            self.assertEqual(runtime, build_probe.regrade_run(run, self.SPEC)["runtime"],
+                             "a regrade reports the runtime that measured the trial, not today's")
 
     def test_followup_reuses_session_environment_workspace_and_preserves_regrade(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1610,7 +1643,8 @@ class EndToEndStubTests(unittest.TestCase):
         self.assertRegex(prov["plugin_source_sha256"], r"^[0-9a-f]{64}$")
         self.assertIsInstance(prov["plugin_inputs_dirty"], bool)
         trace = json.loads((run / "outputs" / "trace-summary.json").read_text(encoding="utf-8"))
-        self.assertEqual(prov, trace["plugin"])
+        self.assertEqual(prov, {**trace["plugin"], "runtime": trace["runtime"]})
+        self.assertIsNone(prov["runtime"], "a direct run_trial call without a measured runtime records none")
         self.assertEqual({"mode": "host"}, trace["isolation"])
         self.assertEqual(list(build_probe.BUILD_TOOLS), trace["advertised_tools"])
         self.assertEqual(prov["plugin_source_sha256"], summary["plugin_source_sha256"])
@@ -1820,6 +1854,30 @@ class ReviewFindingTests(unittest.TestCase):
     def test_trials_must_be_positive(self) -> None:
         with self.assertRaises(SystemExit):
             build_probe.main(["--trials", "0", "--label", "x", "--out", str(self.root / "out")])
+
+    def test_regrade_exit_code_separates_fail_inconclusive_and_nothing_regraded(self) -> None:
+        """A run exits 1 on FAIL and 2 on INCONCLUSIVE; a regrade that graded nothing measured nothing."""
+        for states, expected in (((), 2), (("PASS",), 0), (("PASS", "INCONCLUSIVE", "FAIL"), 1),
+                                 (("PASS", "INCONCLUSIVE"), 2)):
+            rows = [{"scenario": "s", "label": "l", "run": n, "status": state, "passed": 0, "total": 1}
+                    for n, state in enumerate(states, 1)]
+            with self.subTest(states=states), mock.patch.object(build_probe, "regrade", return_value=rows):
+                self.assertEqual(expected, build_probe.main(["--regrade", str(self.root)]))
+
+    def test_regrade_exit_code_aggregates_each_label_against_the_scenario_threshold(self) -> None:
+        """Two of three trials pass a 0.66 scenario, as in a run; a failing arm is not pooled away."""
+        scenario = "discovery-agent-authoring-loop-engineering"
+        row = lambda label, n, state, model="claude-sonnet-5": {
+            "scenario": scenario, "label": label, "run": n, "status": state, "passed": 0, "total": 1,
+            "models": [model]}
+        for rows, expected in (
+            ([row("arm", 1, "PASS"), row("arm", 2, "PASS"), row("arm", 3, "FAIL")], 0),
+            ([row("good", n, "PASS") for n in (1, 2, 3)] + [row("bad", n, "FAIL") for n in (1, 2, 3)], 1),
+            # One label can hold runs from two resolved models; the failing model's arm is not pooled away.
+            ([row("arm", 1, "PASS"), row("arm", 2, "PASS"), row("arm", 3, "FAIL", "claude-opus-5")], 1),
+        ):
+            with self.subTest(expected=expected), mock.patch.object(build_probe, "regrade", return_value=rows):
+                self.assertEqual(expected, build_probe.main(["--regrade", str(self.root)]))
 
     def test_unpinned_container_image_is_refused(self) -> None:
         with self.assertRaises(SystemExit):
@@ -2966,6 +3024,21 @@ class ConsolidationRegressionTests(unittest.TestCase):
             self.assertIn(marker, problem)
 
 
+class RuntimeIdentityTests(unittest.TestCase):
+    def test_records_the_executables_version_line_and_the_host_platform(self) -> None:
+        import platform
+        identity = build_probe.runtime_identity(sys.executable)
+        self.assertEqual(f"Python {platform.python_version()}", identity["cli_version"])
+        self.assertEqual({"system": platform.system(), "release": platform.release(), "machine": platform.machine()},
+                         identity["host_platform"])
+
+    def test_a_cli_that_cannot_report_its_version_is_recorded_as_unknown(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            identity = build_probe.runtime_identity(str(Path(tmp) / "no-such-cli"))
+        self.assertIsNone(identity["cli_version"])
+        self.assertTrue(identity["host_platform"]["system"])
+
+
 class BatchAggregationTests(unittest.TestCase):
     """Codex review of PR #222: the batch verdict must cover the batch, and one model identity."""
 
@@ -3011,6 +3084,23 @@ class BatchAggregationTests(unittest.TestCase):
         verdict = [json.loads(line) for line in output.splitlines() if line.startswith('{"scenario"')]
         self.assertEqual([{"scenario": "batch-contract", "verdict": "FAIL", "passed": 1,
                            "trials": 2, "threshold": 1.0}], verdict)
+
+    def test_main_measures_the_runtime_once_and_passes_it_to_every_trial(self) -> None:
+        runtime = {"cli_version": "9.9.9 (Claude Code)", "host_platform": {"system": "X", "release": "1", "machine": "y"}}
+        trials = [self._trial(1, "PASS"), self._trial(2, "PASS")]
+        import contextlib
+        import io
+        buffer = io.StringIO()
+        with mock.patch.object(build_probe, "runtime_identity", return_value=runtime) as probe, \
+                mock.patch.object(build_probe, "load_all_scenarios", return_value=[self.SPEC]), \
+                mock.patch.object(build_probe, "plugin_provenance", return_value={"plugin_source_sha256": "0" * 64}), \
+                mock.patch.object(build_probe, "run_trial", side_effect=trials) as runner, \
+                contextlib.redirect_stdout(buffer):
+            build_probe.main(["--scenario", self.SPEC["id"], "--label", "cand", "--out", str(self.out), "--trials", "2"])
+        self.assertEqual(1, probe.call_count, "one runtime identity per batch")
+        self.assertEqual([runtime, runtime], [call.kwargs["runtime"] for call in runner.call_args_list])
+        header = json.loads(buffer.getvalue().splitlines()[0])
+        self.assertEqual(runtime, header["runtime"])
 
     def test_a_batch_that_resolved_two_models_is_inconclusive_not_aggregated(self) -> None:
         """P1: routing and behaviour are model-dependent; a mixed batch is not one measurement."""
