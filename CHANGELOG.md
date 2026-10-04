@@ -351,6 +351,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Added
 
+- Every eval run records `runtime`: the CLI's `--version` line (`null` when it cannot report one)
+  and the host's system, release, and machine. `main()` measures it once per batch and prints it in
+  the batch header; each trial writes it to `provenance.json`, the trace summary, and its summary
+  line; and `--regrade` keeps the recorded value rather than today's. Results from different CLI
+  versions or hosts were indistinguishable before. The 2026-10-03 threat-model ADR requires both.
 - Two `backend-craft` build probes with probe-owned oracles, each proven by a no-model test
   (a house-rule reference plus targeted mutants):
   - `incident-writes`: an idempotent create whose caller resends on timeout.
