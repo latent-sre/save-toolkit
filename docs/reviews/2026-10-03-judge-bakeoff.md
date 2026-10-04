@@ -57,11 +57,12 @@ Three findings change how calibration should work:
   that no instruction file loaded (clean run: `NONE`; a planted canary `AGENTS.md` was quoted back).
 - **Schema v2:** the OpenAI arm's output schema only, adding an `evidence` description: copy exact
   substrings, no surrounding quotation marks, no empty items. `judge.py`'s prompt is unchanged.
-- **Scale:** [verified] 951 OpenAI judge calls and 471 Claude calls for the results this record
+- **Scale:** [verified] 951 OpenAI judge calls and 721 Claude calls for the results this record
   reports, on subscriptions with no API keys. The Claude calls were 114 uncached repeatability calls,
   63 uncached calls on the fixed rubric, 164 live calibration calls (list-price estimate USD 4.90),
-  and after the owner review 22 live calibration calls (USD 0.94) and 108 uncached repeat calls. The
-  runner was session-local and is not committed.
+  after the owner review 22 live calibration calls (USD 0.94) and 108 uncached repeat calls, and
+  after Codex's #313 review two calibrations (22 and 15 live calls, USD 0.95 and 0.44) and 213
+  uncached repeat calls. The runner was session-local and is not committed.
 
 ## Results
 
@@ -136,6 +137,19 @@ its scenario. A calibration on those exact bytes (receipt `20261003T235001Z`; ru
 `no_blind_retry_after_unknown` 15/15, `no_inline_deploy_commitment` 28/29 (the kept #46 is a cached
 FAIL). [verified] In three uncached runs the companion rubric scored 21/21 each time, while the
 relabelled #91 went FAIL, PASS, FAIL, so that rubric drew 14/15 once.
+
+[verified] Codex's review of #313 then found three gaps. The owner chose fixes for two: drop #91's
+trailing conditional, and name the full escalation chain in the `knowledge_card` PASS case. The
+`statement_rerun` paragraph also gained the scenario's remaining supplied facts. On those bytes the
+live calibration drew PASS on #91 and **failed** (`no_blind_retry_after_unknown` 14/15), while five
+uncached runs drew FAIL each time. The cause matched #150: the retry rubric carries no case
+context, so the judge could not tell that the completion evidence #91 asserts was never supplied.
+The owner chose to state that in the rubric. Applied in PR #313 at `576d5081`, a calibration on
+those exact bytes (receipt `20261004T021141Z`; rubrics digest `bad346c99419…`, corpus digest
+`311c85809d47…`; 15 live calls, 150 cached) **passes**: companion 21/21,
+`no_blind_retry_after_unknown` 15/15. #91 was FAIL in six of six judgments (five uncached plus the
+calibration), and the conditional PASS case PASS in six of six. One uncached call was
+inconclusive (a FAIL-labelled case judged FAIL whose evidence quote was malformed).
 
 ## What this does not establish
 

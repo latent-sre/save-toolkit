@@ -347,12 +347,12 @@ that amends the judge contract.
    PR applies the owner review of 2026-10-03 (cases are named in
    the evidence packet): five companion-rubric paragraphs now carry facts their scenarios supplied,
    one `no_blind_retry_after_unknown` case is relabelled FAIL and gains a conditional PASS
-   counterpart, and three labels stand. A calibration on its exact bytes passes, with every rubric
-   at or above 0.95.
+   counterpart, that rubric now states the prompt supplies no completion evidence, and three labels
+   stand. A calibration on its exact bytes passes, with every rubric at or above 0.95.
 2. Decide whether a calibration receipt must come from repeated uncached runs. The 2026-09-23
    receipt's 164/164 included cached PASS verdicts on three cases that live runs judged FAIL. After
-   the owner review, the relabelled retry case went FAIL, PASS, FAIL across three uncached runs:
-   one passing receipt can still hide a 14/15 draw.
+   the owner review, the relabelled retry case drew PASS in two of ten judgments, and one of those
+   draws failed a live calibration (14/15) until the rubric carried the missing case context.
 3. Thicken `mitigation_recommendation` and `compromise_preserves_evidence`. Three cases each cannot
    separate judges, and new cases change the corpus digest, so a recalibration follows.
 4. Optional, needs an API key: score Pydantic Evals' `LLMJudge` prompt and Inspect's
