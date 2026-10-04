@@ -957,6 +957,9 @@ class Workspace:
     baseline_commits: int
     baseline_branch: str
     baseline_sha: str = ""
+    # The repository path the trial's commands name. Only a regrade sets it: its checkout is gone, so
+    # `repo` is a placeholder there, but a `cd "<repo>" && <suite>` receipt still names the real path.
+    command_repo: Path | None = None
 
 
 def _git(repo: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess:
@@ -2599,7 +2602,8 @@ def check_verification_completed(ctx: Context, p: dict) -> tuple[bool, str]:
     call = calls[-1]
     workdirs = ()
     if ctx.ws:
-        workdirs = (str(ctx.ws.repo),) + ((container_root(ctx.ws) + "/repo",) if ctx.container else ())
+        repo = ctx.ws.command_repo or ctx.ws.repo
+        workdirs = (str(repo),) + ((container_root(ctx.ws) + "/repo",) if ctx.container else ())
     if (call["tool"] not in SHELL_TOOLS or call["parent"]
             or not _verification_command(call["command"], p["runner"], call["tool"], workdirs)):
         if any(prior["success"] and prior.get("test_summaries", {}).get(p["runner"])
@@ -3419,7 +3423,8 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
         state.mkdir()
         for name, content in (summary.get("state_files") or {}).items():
             (state / name).write_text(content, encoding="utf-8")
-        ws = Workspace(Path(tmp), Path(tmp) / "repo-gone", Path(tmp) / "bin", state, int(before), "main")
+        ws = Workspace(Path(tmp), Path(tmp) / "repo-gone", Path(tmp) / "bin", state, int(before), "main",
+                       command_repo=recorded_workspace)
         if summary.get("agents_dir"):
             (ws.repo / ".agents").mkdir(parents=True)
         ctx = Context(spec, ws, trace, git, plugin_root=plugin_root)
@@ -3661,7 +3666,16 @@ def main(argv: list[str] | None = None) -> int:
             scope = " (structural only; semantics UNVERIFIED)" if r.get("semantic_assessment") else ""
             print(f"eval-{r['scenario']} {r['label']}/run-{r['run']}: {r['status']} {r['passed']}/{r['total']}{scope}")
         print(f"regraded {len(rows)} run(s)")
-        return 0 if all(r["status"] == "PASS" for r in rows) else 1
+        # Exit like a run: trials aggregate per scenario against its threshold within one label and one
+        # resolved model (a directory can hold several arms, and a label's slots several models), then
+        # 1 for any FAIL verdict and 2 for any INCONCLUSIVE one. Regrading nothing measured nothing.
+        arm = lambda r: (r["label"], tuple(model_identities([r])))
+        states = [verdict["verdict"] for key in sorted({arm(r) for r in rows})
+                  for verdict in aggregate_by_scenario(
+                      scenarios, [r for r in rows if arm(r) == key], args.threshold).values()]
+        if "FAIL" in states:
+            return 1
+        return 2 if not states or "INCONCLUSIVE" in states else 0
     if args.container:
         incompatible = [s["id"] for s in scenarios if s.get("fixture", {}).get("services")]
         if incompatible:

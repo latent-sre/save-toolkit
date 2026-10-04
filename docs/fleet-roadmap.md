@@ -318,7 +318,6 @@ revision, CLI version and host platform. Every in-scope defect from the 2026-10-
 `evals/build_probe.py` is fixed or has an owner disposition.
 **Next action:** Maintainers review the ADR. Then one PR each, gated on replaying saved traces with
 every verdict change explained:
-- `--regrade` passes checks the recorded repository path and uses the run path's exit codes.
 - Record the CLI version and host platform.
 - Keep clean-room trial workspaces outside the user's home directory.
 - Remove the unused `--container` mode.
