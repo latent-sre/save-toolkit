@@ -341,12 +341,12 @@ runs approved measurements with independent review.
 **Outcome:** The rubric judge is the one that best agrees with the human-labelled calibration corpus
 at equal or lower cost; action 2 decides whether that agreement must hold over repeated uncached
 runs. [sourced: owner decision, 2026-10-04] `evals/judge.py` judges with the latest Sonnet: each
-calibration runs `python evals/judge.py --calibrate --resolve-identity` (the `sonnet` alias by
-default), its receipt pins the concrete model that answered, and trials use only that model. When a
-new Sonnet ships, recalibrate before the old model retires, and move the native scenarios'
-`expected_model` pins to it. Cached verdicts are keyed by the requested alias, so without
-`--resolve-identity` a calibration can be served entirely from the old model's cache and pin it
-again; when the probe reports that the alias moved, delete `.eval-runs/judge-calibration/judge-cache`
+calibration requests the `sonnet` alias (the default), its receipt pins the concrete model that
+answered, and trials use only that model. When a new Sonnet ships, recalibrate with
+`--resolve-identity` before the old model retires, and move the native scenarios' `expected_model`
+pins to it. Cached verdicts are keyed by the requested alias. After the alias moves, a calibration
+with any live call fails on the model check, and a fully cached one says it did not check. Only
+the probe confirms the move; when it reports one, delete `.eval-runs/judge-calibration/judge-cache`
 and recalibrate. The code accepts a receipt for any concrete model; calibrating the previous Sonnet
 by name is the fallback only while a new one fails calibration. A judge from another family needs a
 new ADR that amends the judge contract.
