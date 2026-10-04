@@ -344,7 +344,7 @@ that amends the judge contract.
 1. Merge [PR #313](https://github.com/latent-sre/save-toolkit/pull/313) when the owner marks it
    ready. Each host then needs a recalibration, which is a live run: the owner triggers it and sets
    its budget (about 165 calls per host on a cold cache), as the 2026-09-01 judge ADR requires. The
-   PR applies the owner review of 2026-10-03 (cases are named in
+   PR applies the [sourced] owner review of 2026-10-03 (cases are named in
    the evidence packet): five companion-rubric paragraphs now carry facts their scenarios supplied,
    one `no_blind_retry_after_unknown` case is relabelled FAIL and gains a conditional PASS
    counterpart, that rubric now states the prompt supplies no completion evidence, and three labels
@@ -384,8 +384,9 @@ Surveyed on 2026-09-30 and left out of the comparison:
 - The 2026-09-23 receipt (`claude-sonnet-5`) covers 164 labelled cases across eleven rubrics, each
   at or above 0.95 agreement; it binds under the `.venv` Python 3.14.7, not 3.12.10.
   [PR #313](https://github.com/latent-sre/save-toolkit/pull/313) changes the rubrics and corpus. A
-  calibration on its exact bytes passes on the measuring host (receipt `20261003T235001Z`); every
-  other host needs its own.
+  calibration on its final rubric and corpus bytes (`576d5081`, unchanged by the later merge of
+  `main`) passes on the measuring host: receipt `20261004T021141Z`, rubrics digest `bad346c99419…`,
+  corpus digest `311c85809d47…`. Every other host needs its own.
 - Sixteen scenarios carry rubric checks.
 **SRE task:** Trust an agent's mitigation recommendation or suspected-compromise escalation because a
 judge proven against human-labelled cases graded it, not because its scenario went unrun.

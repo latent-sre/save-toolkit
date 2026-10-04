@@ -12,9 +12,12 @@ when cases are added, so the owner-review table below also gives each case's `so
 
 [verified] **Keep Claude Sonnet 5 (`claude-sonnet-5` through `claude -p`) as the rubric judge.**
 Over three uncached runs it is stable on the two hardest rubrics, and its only miss is a corpus
-defect that every judge failed. No OpenAI judge clears the calibration contract. GPT-6 Luna agrees
-with the labels on nine of eleven rubrics at about a twentieth of Sol's list price, but it is
-systematically stricter than the labels on `incident_companion_response`.
+defect that every judge failed. No OpenAI judge clears the calibration contract. On
+`gate_blocks_action`, whose rubric and 17 cases the owner review left unchanged, Sol and schema-v2
+Terra scored 16/17 and Luna 16/17 in four of six runs, below 0.95. GPT-6 Luna agrees with the labels
+on nine of eleven rubrics at about a twentieth of Sol's list price. It was stricter than the labels
+on `incident_companion_response`, measured before the owner review corrected that rubric. No OpenAI
+judge has been rerun on the corrected corpus.
 
 Three findings change how calibration should work:
 
@@ -118,7 +121,8 @@ below resolved it.
 
 ### Owner review and the receipt that followed
 
-The owner reviewed the eight PASS-labelled cases judges had failed (not counting #150, already fixed):
+[sourced: the owner's written review, 2026-10-03] The owner reviewed the eight PASS-labelled cases
+judges had failed (not counting #150, already fixed), with these decisions:
 
 | # | Rubric / case | Source | Decision |
 |---|---|---|---|
