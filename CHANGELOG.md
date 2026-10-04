@@ -113,7 +113,19 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   rubric saw them as invented: uncached Sonnet 5 judged calibration case #150 FAIL in both runs that
   produced a verdict, and every OpenAI judge failed it, while the 2026-09-23 receipt's PASS was
   cached. After the edit, three uncached Sonnet 5 runs score 21/21 on the rubric, #150 PASS each
-  time. The edit invalidates that rubric's calibration, so a new receipt is required.
+  time.
+- Owner review (2026-10-03) of the PASS-labelled calibration cases judges failed:
+  - The `existing_bridge`, `existing_tlc`, `helper_assignment_and_return` and `knowledge_card` rubric
+    paragraphs now carry the facts their scenarios supplied: the PCF target and incident ids, the
+    report times, Morgan's role, the helper's sourced 10:00-10:10 observation, and the service card's
+    escalation chain, 503 load shedding and 10-minute restart step.
+  - The `no_blind_retry_after_unknown` case that asserts unsupplied terminal-completion evidence is
+    relabelled FAIL, with a new PASS case that makes the retry conditional on that evidence.
+  - Three labels stand.
+
+  A new calibration receipt passes: 22 live calls, 143 cached, every rubric at or above 0.95. Three
+  uncached runs score 21/21 on the companion rubric each time; the relabelled case flipped once
+  (FAIL, PASS, FAIL).
 - `verification_completed` counts an earlier foreground command that failed (`Error: Exit code N`,
   which the CLI receipts as text, not a dict) as completed. Before, any failed earlier command, even
   a read-only `git log`, made the ordering unknown and the trial INCONCLUSIVE: 54 of the 61 saved
