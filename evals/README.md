@@ -447,9 +447,11 @@ not truncate those records. These are trusted local evidence records, not signed
 Every run records the plugin root's commit, plugin-input dirty state, and a path-bound source digest
 over `agents/`, `skills/`, `commands/`, `hooks/`, the manifest, and the guard scripts
 (`provenance.json`, the trace summary, the summary line), plus the requested and resolved model,
-trials, timeout, per-trial duration, cost, and the exact argv. Identity hashes say two runs measured
-the same plugin; they do not say the runs measured it the same way — **pin `--model` and `--timeout`
-for any numbers you intend to diff.**
+trials, timeout, per-trial duration, cost, and the exact argv. Each run also records `runtime`: the
+CLI's own `--version` line (`null` when it cannot report one) and the host's system, release, and
+machine, measured once per batch; `--regrade` keeps the recorded value. Identity hashes say two runs
+measured the same plugin; they do not say the runs measured it the same way — **pin `--model` and
+`--timeout` for any numbers you intend to diff, and compare runs only within one CLI version.**
 
 Machine records retain the complete candidate digest and a scenario digest covering the spec, its
 referenced oracle files, the explicit judge binding when used, and the rubric definitions the judge actually consumes. The judge caches

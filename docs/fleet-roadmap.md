@@ -318,7 +318,8 @@ revision, CLI version and host platform. Every in-scope defect from the 2026-10-
 `evals/build_probe.py` is fixed or has an owner disposition.
 **Next action:** Maintainers review the ADR. Then one PR each, gated on replaying saved traces with
 every verdict change explained:
-- Record the CLI version and host platform.
+- Record the runner revision. With `--plugin-root` on another checkout, `plugin_commit` names the
+  candidate, not the runner; the CLI version and host platform are recorded.
 - Remove the unused `--container` mode.
 - Split `evals/build_probe.py` along its inventory seams with no verdict change.
 - Isolate the intermittent `NativeConversationRunTests` failure under `pytest -n auto`, then decide
