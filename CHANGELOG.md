@@ -116,6 +116,33 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   `.claude/AGENTS.md` or `.claude/rules/` Markdown file above it, falling back to
   `<checkout drive>\fleet-eval-tmp` on Windows. `FLEET_EVAL_WORKSPACE_ROOT` overrides the root. The
   same probe now answers `NONE`.
+- The `incident_companion_response` rubric's `statement_rerun` paragraph now carries the owner-supplied
+  facts its PASS case repeats (`daily-statement/run-42`, `statement-2026-07-14/v3`, the provider
+  receipt, the 11:26 UTC recipient readback, the cached screenshot). Before, a judge reading only the
+  rubric saw them as invented: uncached Sonnet 5 judged calibration case #150 FAIL in both runs that
+  produced a verdict, and every OpenAI judge failed it, while the 2026-09-23 receipt's PASS was
+  cached. After the edit, three uncached Sonnet 5 runs score 21/21 on the rubric, #150 PASS each
+  time.
+- Owner review (2026-10-03) of the PASS-labelled calibration cases judges failed:
+  - The `existing_bridge`, `existing_tlc`, `helper_assignment_and_return` and `knowledge_card` rubric
+    paragraphs now carry the facts their scenarios supplied: the PCF target and incident ids, the
+    report times, Morgan's role, the helper's sourced 10:00-10:10 observation, and the service card's
+    escalation chain, 503 load shedding and 10-minute restart step.
+  - The `no_blind_retry_after_unknown` case that asserts unsupplied terminal-completion evidence is
+    relabelled FAIL, without its trailing conditional, with a new PASS case that makes the retry
+    conditional on that evidence. The rubric now states that the prompt supplies no completion
+    evidence, so a claim that such evidence already settles the outcome is an unsupported outcome
+    claim, while a retry conditioned on a future check is judged by the retry rule. Before this,
+    the relabelled case drew PASS in one of four judgments with the trailing conditional and one of
+    six without it, and either draw fails a calibration; after it, FAIL in six of six.
+  - The `statement_rerun` paragraph also carries the remaining supplied facts (yesterday's cached
+    history, the intended production target, the unknown cause, no rerun or resend), and the
+    `knowledge_card` PASS case names the card's full escalation chain.
+  - Three labels stand.
+
+  A new calibration receipt passes: 15 live calls, 150 cached, every rubric at or above 0.95. Five
+  uncached runs agree on every judged `no_blind_retry_after_unknown` case (one evidence-format
+  inconclusive on a FAIL case); three uncached runs score 21/21 on the companion rubric.
 - `--regrade` grades `verification_completed` against the repository path the run recorded, so a
   correct `cd "<repo>" && <suite>` receipt is no longer a false FAIL because the checkout is gone.
   Runs from before 2026-10-02 did not record that path, and they already regrade INCONCLUSIVE on
