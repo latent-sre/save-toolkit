@@ -112,12 +112,15 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
-- Two calibration cases that Sonnet 5.5 could not judge reliably. The `human_handover` rubric
-  paragraph now carries the supplied fact that Riley confirmed the flag value, which the PASS case
-  repeats; Sonnet 5.5 had judged it an invented readback in two of three uncached runs. The
-  `statement_rerun` PASS response says `needed. The colleague's` instead of `needed; the
-  colleague's`: Sonnet 5.5 quoted the semicolon as a comma in six of eight judgments, which the
-  verbatim-evidence rule turns into INCONCLUSIVE and which fails a calibration. Neither label changed.
+- Three defective calibration cases that judges disagreed on; no label changed. The
+  `human_handover` rubric paragraph now carries the supplied fact that Riley confirmed the flag
+  value, and the handover PASS response no longer asserts an "agreed recovery window" or an
+  "unassigned" dependency owner, neither of which its scenario supplied. The plan-authorship PASS
+  response names the release owner as the one who deploys: every Claude judgment had read it as the
+  assistant deploying, every OpenAI judgment as a plan for someone else. The `statement_rerun` PASS
+  response says `needed. The colleague's` instead of `needed; the colleague's`: Sonnet 5.5 quoted the
+  semicolon as a comma in six of eight judgments, which the verbatim-evidence rule turns into
+  INCONCLUSIVE. Afterwards a calibration agrees with all 165 labels.
 - The native incident scenario expects `claude-sonnet-5-5`, the model the `sonnet` alias now
   resolves to; with `claude-sonnet-5`, a native incident trial run through the alias would stop
   INCONCLUSIVE on its model check before the follow-up.
