@@ -65,6 +65,12 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   seeded uncommitted bytes as its baseline; four reviewer scenarios reject Git verbs that move the
   source checkout; two diff detectors accept the two-argument `git diff` that had failed correct runs.
   On main every outcome check held; `contract:` checks fail where the body lacks the contract.
+- The fleet-atlas contract check verifies the tree once. `check_fleet_atlas_v2.py` ran seven atlas
+  CLI commands, and each re-verifies the whole repository (build does so twice): eight
+  verifications a run. It now builds in-process, keeps one real CLI query so the command-line path
+  stays under test, and answers the other four cases from the document it already verified: three
+  verifications. The cases and response checks are unchanged. Locally the `--build` run went from
+  90 s to 34 s; on the runner the step took a median 150 s before.
 - `software-engineer` carries one short inline handoff core in place of three handoff sections,
   plus six-pass fixes: a credential-values row, a test-integrity rule, a `database-reliability`
   trigger, and one skill-trigger list. 25,847 -> 23,356 bytes, measured against main on Sonnet.
