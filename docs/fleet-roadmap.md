@@ -309,7 +309,7 @@ offline test results do not establish human acceptance or live operational truth
 
 ### EVAL-012 — plan incident and coding evaluations for the fleet
 
-**Status:** `active` (2026-10-05); specification revision 0.5 records the owner's DEC-01 (repository-local implementation), DEC-02 (Claude Code is the automated reference; VS Code Copilot is human-verified) and DEC-10 (per-experiment acceptance default) decisions on top of revision 0.4's Coder Eval adoption experiment, earlier useful-comparison milestone, review corrections and expanded GCP scope; implementation has not started.
+**Status:** `active` (2026-10-05); specification revision 0.5 records the owner's DEC-01 (repository-local implementation), DEC-02 (Claude Code is the automated reference; VS Code Copilot is human-verified), DEC-04 (existing Claude, Codex and OpenRouter access, with a stated trial count, estimated cost and cap per campaign) and DEC-10 (per-experiment acceptance default) decisions on top of revision 0.4's Coder Eval adoption experiment, earlier useful-comparison milestone, review corrections and expanded GCP scope; implementation has not started.
 **Owner:** Human owner accepts scope, run conditions and exact candidates; `agent-engineer` owns
 scenario/measurement design; implementation and lab owners are assigned per delivery package.
 **Outcome:** A reviewable evaluation specification covers ITBench-Lite, SREGym, repository repair,
