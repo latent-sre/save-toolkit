@@ -79,8 +79,8 @@ This specification is complete when its requirements, cases, integration respons
 acceptance criteria, delivery dependencies and open decisions agree. A working prototype is a
 later result. Benchmark completion, a successful test suite and human acceptance are distinct.
 
-The implementation repository remains a named decision. These plans live beside the fleet they
-will evaluate. The [SRE Workbench](../sre-workbench/README.md) is a separate operations product
+DEC-01 places the implementation in this repository; a separate repository follows only if the
+work expands and shows independent value. These plans live beside the fleet they will evaluate. The [SRE Workbench](../sre-workbench/README.md) is a separate operations product
 and a possible future consumer or subject of evaluations; this project does not depend on its
 implementation or select its technology stack.
 

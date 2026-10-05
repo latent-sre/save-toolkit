@@ -17,9 +17,9 @@ conclusions transfer to the team's work.
 ## Scope and delivery position
 
 The automated host target is the Claude Code plugin runtime used by the native evaluator (DEC-02).
-VS Code Copilot, which the team also uses, is verified by humans through the
-[VS Code plugin acceptance](../vscode-plugin-acceptance.md) cases; Copilot adapter files alone do
-not establish Copilot runtime acceptance. Any other host requires its own tools, hooks, session and
+VS Code Copilot, which the team also uses, is verified by humans with the
+[VS Code plugin acceptance](../vscode-plugin-acceptance.md) cases (DEC-19); RELEASE-001 records which
+have run on a candidate, and Copilot adapter files alone do not establish Copilot runtime acceptance. Any other host requires its own tools, hooks, session and
 authentication compatibility assessment; do not combine host results into one baseline.
 
 The incident track includes ITBench-Lite, scripted human conversations, SREGym diagnosis and guided
