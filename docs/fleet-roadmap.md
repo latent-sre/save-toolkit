@@ -309,16 +309,16 @@ offline test results do not establish human acceptance or live operational truth
 
 ### EVAL-012 — plan incident and coding evaluations for the fleet
 
-**Status:** `active` (2026-10-04); specification revision 0.4 includes the approved Coder Eval adoption experiment and earlier useful-comparison milestone, alongside the review corrections and expanded GCP scope; implementation has not started.
+**Status:** `active` (2026-10-05); specification revision 0.5 records the owner's 2026-10-05 decisions (DEC-01, DEC-02, DEC-04, DEC-10, DEC-11 and DEC-17 to DEC-20): repository-local implementation; Claude Code as the automated reference, with human-run acceptance cases as VS Code Copilot's verification method; existing Claude, Codex and OpenRouter access with a stated trial count, cost, human hours and cap per campaign; a per-experiment acceptance default; local raw artifacts with non-retaining, non-training OpenRouter providers; Sonnet and the latest Sol as default models; comparisons and Copilot acceptance before each major release; and a go/no-go call before each milestone. These sit on top of revision 0.4's Coder Eval adoption experiment, earlier useful-comparison milestone, review corrections and expanded GCP scope; implementation has not started.
 **Owner:** Human owner accepts scope, run conditions and exact candidates; `agent-engineer` owns
 scenario/measurement design; implementation and lab owners are assigned per delivery package.
 **Outcome:** A reviewable evaluation specification covers ITBench-Lite, SREGym, repository repair,
 test generation, selected terminal tasks, GCP managed-service/migration and GKE evaluations, actual
 fleet integration, Coder Eval runner assessment and later Microsoft AIOpsLab, with traceable evidence,
 acceptance tests, delivery phases and explicit open decisions.
-**Next action:** Review the [fleet evaluation specification](fleet-evaluation/README.md), resolve
-the decisions needed for the first package, then select WP-01 saved-result comparison for
-implementation and prepare WP-02's [Coder Eval experiment](fleet-evaluation/coder-eval.md). Select
+**Next action:** Select WP-01 saved-result comparison for implementation in this repository; it
+needs no model calls. Review the [fleet evaluation specification](fleet-evaluation/README.md),
+resolve the remaining WP-00 decisions, and prepare WP-02's [Coder Eval experiment](fleet-evaluation/coder-eval.md). Select
 lasting presentation/execution responsibilities from evidence under DEC-16; WP-12's GCP case design
 can proceed alongside the report work. EVAL-010 retains
 judge-adoption ownership and EVAL-011 the native measurement

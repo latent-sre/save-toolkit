@@ -56,13 +56,15 @@ calibrated probability or use agreement between two models as a replacement for 
 ## Experimental design
 
 Freeze incumbent and candidate content before live comparisons. Use matched case revisions,
-conditions and trial counts. Alternate or randomize arm order when time/provider drift could matter.
+conditions and trial counts. Interleave arms by default (DEC-10); randomized order is an alternative
+the experiment states before running.
 Use independent clean workspaces or reset labs. Preserve each attempt, including timeouts and refused
 tasks, and state exclusions before running. Changes made after viewing held-out results require a
 new evaluation split or a clearly disclosed development result.
 
-Three repetitions are a proposed pilot convention for detecting obvious variability, not a reliable
-estimate of rare-event safety. Report exact counts and sample size. Larger runs and uncertainty
+Three interleaved trials per arm are the decided default (DEC-10); an experiment may set another
+count only by stating it before running. Three trials detect obvious variability, not rare-event
+safety. Report exact counts and sample size. Larger runs and uncertainty
 intervals should follow a specified analysis plan after measured costs and the needed decision are
 known. Do not pool model tiers, hosts or platform adaptations.
 The explicitly bounded [Coder Eval feasibility pilot](coder-eval.md#experiment-sequence) uses two

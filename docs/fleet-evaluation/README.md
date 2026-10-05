@@ -1,6 +1,7 @@
 # Fleet evaluation project specification
 
-**Status:** Proposed specification, revision 0.4, 2026-10-04. The owner requested the complete
+**Status:** Proposed specification, revision 0.5, 2026-10-05; revision 0.5 records the owner's
+DEC-01, DEC-02, DEC-04, DEC-10, DEC-11 and DEC-17 to DEC-20 decisions. The owner requested the complete
 plan and specifications before implementation. ITBench-Lite and SREGym are included; Microsoft
 AIOpsLab is a later phase. The coding track covers repository repair, test generation and selected
 terminal tasks. GCP has a dedicated managed-service, migration and GKE track. The owner approved
@@ -78,8 +79,8 @@ This specification is complete when its requirements, cases, integration respons
 acceptance criteria, delivery dependencies and open decisions agree. A working prototype is a
 later result. Benchmark completion, a successful test suite and human acceptance are distinct.
 
-The implementation repository remains a named decision. These plans live beside the fleet they
-will evaluate. The [SRE Workbench](../sre-workbench/README.md) is a separate operations product
+DEC-01 places the implementation in this repository; a separate repository follows only if the
+work expands and shows independent value. These plans live beside the fleet they will evaluate. The [SRE Workbench](../sre-workbench/README.md) is a separate operations product
 and a possible future consumer or subject of evaluations; this project does not depend on its
 implementation or select its technology stack.
 
