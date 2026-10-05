@@ -532,6 +532,18 @@ implementation separately. Offline checks calibrate fixtures and graders; they d
 prove host containment, or establish operational benefit. Native acceptance stays open under
 `RELIABILITY-001` until the candidate, host/model and budget are selected and the traces reviewed.
 
+`build-principal-engineer-contract-change` and its identical incumbent arm
+`build-software-engineer-contract-change-baseline` grade a shared-contract design: a consumer
+inventory that includes a dashboard parsing the fields only in configuration, an external reader
+kept unknown, a compatible first release, removal only on evidence, and the owner's decision. Each
+field is its own reply check, so the pair compares decisions rather than reply format.
+`build-principal-engineer-new-system` checks a new-system record with the
+[design-record oracle](oracles/principal-engineer/check_design_record.py), stack fit, an unset
+availability target left to the owner, and the closed-reply contract. Two routing positives cover a
+new-service design assignment and a builder's returned fork. `python -m pytest
+evals/test_principal_cases.py` calibrates them offline; design quality needs document review, and
+native acceptance stays open under `PRINCIPAL-001`.
+
 The incident advisor now uses one seven-field board. Its structural check is
 `python evals/oracles/incident-closing-fields/probe_closing_fields.py <response.md> board`.
 Legacy `fields`/`checkpoint` expectations remain for historical comparisons, not current acceptance.

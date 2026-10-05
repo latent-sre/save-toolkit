@@ -1,0 +1,13 @@
+id: discovery-principal-engineer-returned-fork
+split: regression
+prompt: |
+  Our builder stopped mid-change and handed back one undecided choice: the shared retry policy for
+  our ops CLIs can live in a library every CLI imports, or in central configuration the CLIs fetch
+  at start-up. Several teams' tools will inherit whichever we pick. I want a separate design consult
+  on just that decision before implementation continues; the rest of the change stays with the
+  builder.
+target: {kind: agent, name: principal-engineer}
+routing: {expect: fire}
+tools: [Glob, Grep, Read, Skill, Task]
+success_criteria:
+  - Dispatches the returned shared-contract fork to the design lane as a scoped consult, leaving implementation with the builder.

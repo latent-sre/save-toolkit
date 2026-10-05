@@ -1,0 +1,12 @@
+id: discovery-principal-engineer-new-service-design
+split: regression
+prompt: |
+  We're about to build an internal service that tracks TLS certificate expiry across our trading
+  apps. Before anyone writes code I want a dedicated design assignment: how it should be split into
+  parts, what it stores and exposes, how the first release rolls out and backs out, and which calls
+  I still have to make. Nothing gets built in this step.
+target: {kind: agent, name: principal-engineer}
+routing: {expect: fire}
+tools: [Glob, Grep, Read, Skill, Task]
+success_criteria:
+  - Dispatches the new-system design assignment to the design lane rather than building it or answering inline.
