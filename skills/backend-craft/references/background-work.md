@@ -10,8 +10,13 @@ workload, not fleet defaults; an accepted stack choice belongs in `stack-profile
   persisted as pending in the same transaction as the event, and a worker resumes pending work at
   startup and while running. FastAPI `BackgroundTasks` and in-memory threads die with the process,
   and a sender that got a 2xx will not redeliver, so work kept only in memory is lost on a crash.
-  Mark each step done in the transaction that commits its effect. The acknowledgement stays `202`
-  while any of that work is pending, even when the record it will complete already exists.
+  A pending step runs again after a crash, and on every instance that resumes it: make each step
+  safe to repeat. Mark a local step done in the transaction that commits its effect, guarded so
+  one writer wins. A remote call or notification cannot share that transaction and follows
+  [API-write recovery](./api-writes.md). Where a repeat costs, claim the step first with an atomic
+  update and a lease that expires soon after the step's deadline, so a crashed owner does not
+  strand it. The acknowledgement stays `202`, or the provider's required code, while any of that
+  work is pending, even when the record it will complete already exists.
 - **Dispatch:** when a business transaction must enqueue work, commit the business state and the
   dispatch intent atomically, through an existing transactional queue or an outbox. Add an outbox
   only for that boundary. Publish outside the transaction and mark the message sent only after the
