@@ -238,6 +238,22 @@ class ValidateWorkflowTests(unittest.TestCase):
         self.assertIn("python -m pytest -q", commands)
         self.assertIn("python -m pip install -r requirements-test.txt", commands)
 
+    def test_component_tests_run_in_parallel_without_writing_bytecode(self) -> None:
+        """The eval runner digests every file under skills/, compiled caches included.
+
+        A .pyc that one worker writes while another runs a native trial reads as plugin drift, so
+        parallel workers are only safe while the test step writes no bytecode.
+        """
+        jobs = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]
+        step = next(step for step in jobs["component-tests"]["steps"]
+                    if step.get("run") == "python -m pytest -q")
+        environment = step.get("env", {})
+        self.assertRegex(environment.get("PYTEST_ADDOPTS", ""), r"(^| )-n [0-9]+( |$)",
+                         "the component tests no longer run on parallel workers")
+        self.assertIn("--dist loadfile", environment["PYTEST_ADDOPTS"])
+        self.assertEqual("1", environment.get("PYTHONDONTWRITEBYTECODE"),
+                         "parallel workers may write .pyc files under skills/ mid-trial")
+
     def test_the_gate_still_has_a_schedule_and_manual_dispatch(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
         triggers = workflow.partition("\npermissions:")[0]

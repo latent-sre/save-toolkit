@@ -2,8 +2,9 @@
 # Install all with: python -m pip install -r requirements-dev.txt
 # requirements-test.txt selects the fleet and HTTP-starter test dependencies using these
 # constraints; CI installs that subset rather than the sandbox frameworks.
-# Gate A runs after `python -m pip install -r requirements-dev.txt` (the validate job
-# installs it before invoking the gate), so gate-path scripts may import these pins.
+# No gate-path script imports these pins, so Gate A runs on a bare interpreter and the validate
+# job installs nothing. The first such import must add `python -m pip install -r
+# requirements-dev.txt` to that job in the same change; test_validate_workflow.py enforces it.
 # The isolated hook guard (python -I -S) remains standard-library-only: installed plugins
 # do not install Python dependencies.
 a2a-sdk==1.1.2

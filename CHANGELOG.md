@@ -8,6 +8,18 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- CI runs the component tests on four workers and installs nothing for the structural gate. Over
+  the 16 runs before this change the test step took a median 438 s and the whole run 484 s.
+  - `component-tests` sets `PYTEST_ADDOPTS` to `-n 4 --dist loadfile --durations=20`; the command
+    stays `python -m pytest -q`. Locally the full suite went from 760 s serial to 249 s (four
+    runs, 248 to 256 s).
+  - The same step sets `PYTHONDONTWRITEBYTECODE=1`. The eval runner digests every file under
+    `skills/`, so a `.pyc` written by one worker reads as plugin drift to a native trial running in
+    another. Six first runs on fresh worktrees passed: three with the guard, which wrote no `.pyc`
+    under `skills/`, and three without, which wrote seven each.
+  - `validate` no longer installs `requirements-dev.txt`. No gate-path script imports a third-party
+    package, Gate A and the atlas check pass on a bare interpreter, and
+    `test_validate_workflow.py` fails when the first such import arrives without the install.
 - The rubric judge follows the latest Sonnet (owner decision 2026-10-04): each calibration requests
   the `sonnet` alias, and its receipt pins the concrete model that answered, so trials never follow
   the alias between calibrations. A new Sonnet means a recalibration with `--resolve-identity` before
