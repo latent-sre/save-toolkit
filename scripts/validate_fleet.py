@@ -122,6 +122,10 @@ EXPECTED_AUTHORITY = {
         "required": RELIABILITY_TOOLS,
         "forbidden": {*(BUILTIN_TOOLS - RELIABILITY_TOOLS), *EXTERNAL_EVIDENCE_TOOLS},
     },
+    "principal-engineer": {
+        "required": RELIABILITY_TOOLS,
+        "forbidden": {*(BUILTIN_TOOLS - RELIABILITY_TOOLS), *EXTERNAL_EVIDENCE_TOOLS},
+    },
     "reviewer": {
         "required": {*LOCAL_READ_TOOLS, "Bash", "Write", "Edit", "TodoWrite", "Skill", "Agent"},
         "forbidden": {"NotebookEdit", *WORKTREE_TOOLS, *EXTERNAL_EVIDENCE_TOOLS},
@@ -160,6 +164,7 @@ EXPECTED_AUTHORITY = {
 }
 EXPECTED_DELEGATION = {
     "reliability-engineer": {"repository-investigator", "sre-assistant", "researcher"},
+    "principal-engineer": {"repository-investigator", "sre-assistant", "researcher"},
     "reviewer": {"repository-investigator"},
     "repository-investigator": set(),
     "researcher": set(),

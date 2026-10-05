@@ -98,6 +98,25 @@ the [lane decision](decisions/2026-09-21-reliability-engineer.md) retains its ac
 **SRE task:** Turn a service weakness or repeated manual intervention into supported engineering
 work with an owner and a meaningful proof-of-improvement check.
 
+### PRINCIPAL-001 — accept the principal engineering lane on representative design tasks
+
+**Status:** `active` (2026-10-05); lane implemented at the owner's request; native evaluation not
+started.
+**Owner:** Maintainers select the exact candidate and approve the evaluation budget;
+`agent-engineer` owns the lane and its `eng-ladder` method.
+**Outcome:** The principal engineer returns design records that name supported and unseen
+consumers, plan compatible staged rollout and recovery, shape new systems against the stack
+profile, and leave every decision to the human owner without expanded authority. One lane is shown
+to serve both design depths, or the owner splits or removes it.
+**Next action:** The owner and one teammate sort 12 real requests into the agent picker. Then write
+a new-system fixture and a contract-change fixture, and compare combined, principal-only and
+architect-only bodies with three interleaved Sonnet trials each (18 task trials), stating trial
+count, estimated cost, review hours and cost cap under DEC-04 before any call. No model call is
+authorized yet.
+**Evidence:** [Lane decision](decisions/2026-10-05-principal-engineer.md).
+**SRE task:** Get a reviewable design or architecture record, with options, staged rollout and
+recovery, and the decisions to make, before code is written.
+
 ### RELEASE-001 — make the toolkit installable as an immutable, rollback-tested release
 
 **Status:** `active` (2026-09-20).

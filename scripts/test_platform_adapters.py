@@ -209,6 +209,7 @@ class PlatformAdapterTests(unittest.TestCase):
         expected = {
             "agent-engineer": ["researcher"],
             "observability-engineer": ["scribe", "researcher"],
+            "principal-engineer": ["repository-investigator", "sre-assistant", "researcher"],
             "reliability-engineer": ["repository-investigator", "sre-assistant", "researcher"],
             "repository-investigator": None,
             "researcher": None,
@@ -276,12 +277,13 @@ class PlatformAdapterTests(unittest.TestCase):
         expected_targets = {
             "agent-engineer": [],
             "observability-engineer": ["sre-assistant", "scribe"],
+            "principal-engineer": ["software-engineer"],
             "reliability-engineer": [],
             "repository-investigator": [],
             "researcher": [],
             "reviewer": ["software-engineer"],
             "scribe": ["software-engineer"],
-            "software-engineer": ["reviewer", "scribe"],
+            "software-engineer": ["reviewer", "scribe", "principal-engineer"],
             "sre-assistant": ["scribe", "software-engineer"],
         }
         for name, targets in expected_targets.items():
@@ -307,6 +309,10 @@ class PlatformAdapterTests(unittest.TestCase):
                         self.assertIn("explicitly approved", handoff["prompt"])
                         self.assertIn("[UNTRUSTED]", handoff["prompt"])
                         self.assertIn("without editing", handoff["prompt"])
+                    if handoff["agent"] == "principal-engineer":
+                        self.assertIn("[UNTRUSTED]", handoff["prompt"])
+                        self.assertIn("Decision needed", handoff["prompt"])
+                        self.assertIn("without writing", handoff["prompt"])
                     if handoff["agent"] == "sre-assistant":
                         self.assertIn("[UNTRUSTED]", handoff["prompt"])
                         self.assertIn("without applying production changes", handoff["prompt"])

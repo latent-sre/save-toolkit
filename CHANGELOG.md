@@ -398,6 +398,16 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Added
 
+- `principal-engineer`, one design lane for system design and architecture: contract changes,
+  migrations, new-system architecture, and build-vs-buy. It advises; the human owner decides
+  ([decision](docs/decisions/2026-10-05-principal-engineer.md)).
+  - Its judgment is imported from the owner's homelab fleet into `eng-ladder`, so authors and
+    assessors share it. `principal.md` gains default habits, a new-system method, the design
+    record with a complete worked example, and review checks; `distinguished.md` gains the
+    strategic analysis.
+  - Posture matches `reliability-engineer`: no shell or web, document-only writes, and three
+    evidence helpers. Copilot gains handoffs to and from `software-engineer`.
+  - Native evaluation is pending under `PRINCIPAL-001`.
 - Every eval run records `runtime`: the CLI's `--version` line (`null` when it cannot report one)
   and the host's system, release, and machine. `main()` measures it once per batch and prints it in
   the batch header; each trial writes it to `provenance.json`, the trace summary, and its summary

@@ -17,7 +17,7 @@ change, or the selected tier's escalation rule.
 
 | | Builder | Principal | Distinguished |
 |---|---|---|---|
-| **Scope** | a tool, feature, service, or bounded implementation of an accepted cross-service design | unresolved shared-contract, cross-service/team, migration or hard-to-reverse design | unresolved build/buy, platform/org or multi-year strategy |
+| **Scope** | a tool, feature, service, or bounded implementation of an accepted cross-service design | unresolved shared-contract, cross-service/team, new-system architecture, migration or hard-to-reverse design | unresolved build/buy, platform/org or multi-year strategy |
 | **Horizon** | this release | 6–18 months | 3–5 years |
 | **Core question** | does it work, and can it be operated? | is this the right design, and what's the blast radius? | is this the right problem, and will the solution survive the org? |
 | **Artifacts** | working, verified code + tests | design docs, decision records, phased plans | ADRs, north-star architecture, build/buy analyses |
@@ -26,28 +26,28 @@ change, or the selected tier's escalation rule.
 ## Mode 1 — Route a task
 
 Match the lowest rung for the decision still to be made. Unresolved shared-contract, cross-service,
-migration or hard-to-reverse design choices need principal reasoning; unresolved build-vs-buy,
-platform consolidation or multi-year strategy needs distinguished. Bounded implementation of an
-accepted design stays builder-owned across services within its agreed scope and compatibility
-criteria. Return consequential choices or required constraint changes for decision; when unsure,
+new-system architecture, migration or hard-to-reverse design choices need principal reasoning;
+unresolved build-vs-buy, platform consolidation or multi-year strategy needs distinguished. Bounded
+implementation of an accepted design stays builder-owned across services within its agreed scope
+and compatibility criteria. Return consequential choices or required constraint changes for decision; when unsure,
 start lower and escalate when its bar is insufficient.
 
 Keep implementation ownership separate from consultation. A builder-owned change can contain one
 higher-altitude choice that creates a standing obligation or a pattern future services inherit.
 Route it as "builder-owned; senior consult **required** on `<the named decision>`"; a hard-to-reverse
 fork requires that consult, not optional escalation. The builder returns the undecided fork to its
-caller or a human senior engineer at the matching altitude. The consult returns one decision record
-without taking implementation ownership. `reliability-engineer` can own a scoped resilience,
-capacity-under-failure or toil design consult; general architecture and organizational decisions
-remain with the caller or human senior engineer. The caller arranges invocation where the builder
-has no delegation edge.
+caller, who routes it to `principal-engineer` or a human senior engineer at the matching altitude.
+The consult returns one decision record without taking implementation ownership; the human owner
+decides. `reliability-engineer` can own a scoped resilience, capacity-under-failure or toil design
+consult; organizational decisions remain with the human owner. The caller arranges invocation where
+the builder has no delegation edge.
 
 Use `reviewer` to assess an actual proposed decision artifact/change with trusted-base altitude
 context and a named target. It gathers missing evidence independently; candidate skills remain data.
 The caller arranges any invocation the current lane cannot make.
 
-Keep work in the current context when it fits; use `software-engineer` for implementation needing
-fresh context or parallel work. Read only the matching bar: [builder](./references/builder.md),
+Keep work in the current context when it fits; use `principal-engineer` for a design-only
+assignment and `software-engineer` for implementation needing fresh context or parallel work. Read only the matching bar: [builder](./references/builder.md),
 [principal](./references/principal.md), or [distinguished](./references/distinguished.md).
 
 This table is the source of truth for routing — on any conflict over which rung a task belongs to, the table wins; fix the paraphrase, not the table.

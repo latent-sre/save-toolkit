@@ -21,8 +21,10 @@ Budget each lane from this fleet's measurements, not a vendor multiplier. A grap
 substitutes for a missing verifier; a larger prompt never substitutes for a required authority
 boundary.
 
-Seniority tiers are ladder skills, not cloned agents. Routing and live coordination stay in the
-main session; a coordinator subagent adds a round-trip for a low-context decision (a reasoned
+Seniority tiers are ladder skills, not one agent per tier: `principal-engineer` is the single
+design lane and loads the principal and distinguished tiers at the depth a decision needs.
+Routing and live coordination stay in the main session; a coordinator subagent adds a round-trip
+for a low-context decision (a reasoned
 default, not A/B-tested). When multi-agent is justified, the fleet default is orchestrator–workers:
 the main session owns plan and synthesis, and workers get bounded mandates and isolated context.
 Fleet example: `repository-investigator` (local `Read`/`Grep`/`Glob` only) and `researcher`
