@@ -42,19 +42,29 @@ def main(argv=None) -> int:
     parser.add_argument("--root", type=Path, default=ROOT)
     parser.add_argument("--build", action="store_true", help="build outputs before checking; maintenance/CI only")
     args = parser.parse_args(argv)
+    # Deferred so that importing check_response does not load the extractor.
+    import fleet_atlas_v2 as atlas
+    import fleet_atlas_v2_artifacts as artifacts
+
     command = [sys.executable, "-B", str(ROOT / "scripts/fleet_atlas_v2.py"), "--root", str(args.root)]
-    requests = [(["build"], "verified")] if args.build else []
-    requests += [(["check"], "verified")]
-    requests += [(["query", verb, *terms], expected) for verb, terms, expected in CASES]
+    (verb, terms, expected), *in_process = CASES
     try:
-        for arguments, expected in requests:
-            result = subprocess.run(command + arguments, capture_output=True, timeout=180)
-            check_response(result, expected)
-            print(f"PASS {' '.join(arguments)} -> {expected}")
-    except (OSError, ValueError, subprocess.TimeoutExpired) as error:
+        # Every CLI call re-verifies the whole tree, and build already ends in a verification.
+        # Verify once here; one real CLI query keeps the command-line path under test.
+        document = artifacts.build(args.root) if args.build else artifacts.verify(args.root)
+        print(f"PASS {'build' if args.build else 'check'} -> verified")
+        result = subprocess.run(command + ["query", verb, *terms], capture_output=True, timeout=180)
+        check_response(result, expected)
+        print(f"PASS query {verb} {' '.join(terms)} -> {expected} (command line)")
+        for verb, terms, expected in in_process:
+            content = atlas.query(document, verb, list(terms))
+            check_response(subprocess.CompletedProcess([], 0, content), expected)
+            print(f"PASS query {verb} {' '.join(terms)} -> {expected}")
+    except (OSError, ValueError, TypeError, KeyError, ImportError, RecursionError, SyntaxError,
+            subprocess.TimeoutExpired) as error:
         print(f"Fleet atlas contract FAIL: {error}", file=sys.stderr)
         return 1
-    print(f"Fleet atlas contract PASS: {len(requests)} commands")
+    print(f"Fleet atlas contract PASS: {len(CASES)} queries on one verification")
     return 0
 
 
