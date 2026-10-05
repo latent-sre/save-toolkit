@@ -1,6 +1,7 @@
 # Fleet evaluation project specification
 
-**Status:** Proposed specification, revision 0.4, 2026-10-04. The owner requested the complete
+**Status:** Proposed specification, revision 0.5, 2026-10-05; revision 0.5 records the owner's
+DEC-01, DEC-02 and DEC-10 decisions. The owner requested the complete
 plan and specifications before implementation. ITBench-Lite and SREGym are included; Microsoft
 AIOpsLab is a later phase. The coding track covers repository repair, test generation and selected
 terminal tasks. GCP has a dedicated managed-service, migration and GKE track. The owner approved
