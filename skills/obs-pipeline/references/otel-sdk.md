@@ -6,8 +6,13 @@ The guard denies installs/app execution for `sre-assistant`; unguarded Bash does
 Respect `stack-profile`'s authoring/support boundary: Java source, manual-span and dependency
 changes belong to the application's development owner; this fleet supports its deployed instrumentation.
 
-Commands are `[sourced]` to the linked OpenTelemetry docs; the uv bootstrap was checked 2026-09-09.
+Commands are `[sourced]` to the linked OpenTelemetry documentation.
 Exact-target behavior remains `[unverified]` until a canary proves it.
+
+## Contents
+
+- [Steps](#steps)
+- [Done](#done)
 
 ## Steps
 

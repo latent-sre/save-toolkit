@@ -55,6 +55,67 @@ class ErrorBudgetCliTests(unittest.TestCase):
         self.assertNotIn("severity: PAGE", proc.stdout)
         self.assertNotIn("severity: TICKET", proc.stdout)
 
+    def test_decimal_thresholds_are_inclusive_without_rounding_lower_burns_up(self) -> None:
+        # For a 99.99% SLO, these are the independent 14.4x, 6x and 1x SLI boundaries.
+        pairs = (
+            ("1h", "5m", "99.856", "99.8559", "99.8561", "PAGE (fast burn)"),
+            ("6h", "30m", "99.94", "99.9399", "99.9401", "PAGE (slow burn)"),
+            ("3d", "6h", "99.99", "99.9899", "99.9901", "TICKET (slow leak)"),
+        )
+        for long_window, short_window, boundary, higher, lower, action in pairs:
+            cases = (
+                ("exact", boundary, action), ("above", higher, action),
+                ("below", lower, "below the"),
+                ("below beyond float precision", boundary + "000000000000000000001", "below the"),
+            )
+            for name, sli, expected in cases:
+                with self.subTest(pair=(long_window, short_window), case=name):
+                    proc = run_calculator("--slo", "99.99", "--sli-long", sli,
+                                          "--sli-short", sli, "--long-window", long_window,
+                                          "--short-window", short_window)
+                    self.assertEqual(proc.returncode, 0, proc.stderr)
+                    self.assertIn("severity: " + expected, proc.stdout)
+
+    def test_decimal_boundary_still_requires_both_windows(self) -> None:
+        for long_window, short_window, boundary, lower_burn in (
+            ("1h", "5m", "99.856", "99.8561"),
+            ("6h", "30m", "99.94", "99.9401"),
+            ("3d", "6h", "99.99", "99.9901"),
+        ):
+            for long_sli, short_sli, expected in (
+                (boundary, lower_burn, "has recovered"),
+                (lower_burn, boundary, "short-window spike"),
+            ):
+                with self.subTest(pair=(long_window, short_window), long=long_sli, short=short_sli):
+                    proc = run_calculator("--slo", "99.99", "--sli-long", long_sli,
+                                          "--sli-short", short_sli, "--long-window", long_window,
+                                          "--short-window", short_window)
+                    self.assertEqual(proc.returncode, 0, proc.stderr)
+                    self.assertIn(expected, proc.stdout)
+                    self.assertNotIn("severity: PAGE", proc.stdout)
+                    self.assertNotIn("severity: TICKET", proc.stdout)
+
+    def test_long_decimal_slo_and_scientific_spelling_keep_the_exact_boundary(self) -> None:
+        for slo, sli, expected in (
+            ("9.999e1", "9.9856e1", "PAGE (fast burn)"),
+            ("99.990000000000000000000000001", "99.8560000000000000000000000144", "PAGE (fast burn)"),
+            ("99.990000000000000000000000001", "99.8560000000000000000000000145", "below the"),
+        ):
+            with self.subTest(slo=slo, sli=sli):
+                proc = run_calculator("--slo", slo, "--sli-long", sli, "--sli-short", sli)
+                self.assertEqual(proc.returncode, 0, proc.stderr)
+                self.assertIn("severity: " + expected, proc.stdout)
+
+    def test_invalid_percentages_remain_usage_errors_without_tracebacks(self) -> None:
+        for options in (("--slo", "bad"), ("--slo", "nan"), ("--slo", "inf"),
+                        ("--slo", "1e999"), ("--slo", "0"), ("--slo", "100"),
+                        ("--slo", "99.9", "--sli-long", "nan"),
+                        ("--slo", "99.9", "--sli-long", "101")):
+            with self.subTest(options=options):
+                proc = run_calculator(*options)
+                self.assertEqual(proc.returncode, 2, proc.stderr)
+                self.assertNotIn("Traceback", proc.stderr)
+
     def test_status_horizon_does_not_rescale_fixed_alert_policy(self) -> None:
         for horizon, remaining in (("7", "10.1 min"), ("28", "40.3 min")):
             with self.subTest(horizon=horizon):

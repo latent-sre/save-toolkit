@@ -70,12 +70,17 @@ class RootCauseProbeTests(unittest.TestCase):
         self.assertTrue(any("before_effects must be boolean" in problem
                             for problem in build_probe.validate_scenario(invalid)))
         source = SPEC["fixture"]["files"]["retrying.py"]
+        classifier_repair = source.replace(
+            "except Exception:", "except Exception as error:\n            if not is_retryable(error):\n                raise")
         variants = {
             "baseline_failed_repair": (source, False),
             "increase_budget_again": (source.replace("max_attempts=4", "max_attempts=8"), False),
             "disable_retries": (source.replace("except Exception:", "except Exception:\n            raise"), False),
             "swallow_error": (source.replace("                raise", "                return None"), False),
             "supported_repair": (source.replace("except Exception:", "except TimeoutError:"), True),
+            "classifier_repair": (classifier_repair, True),
+            "exact_type_classifier": (classifier_repair.replace(
+                "isinstance(error, TimeoutError)", "type(error) is TimeoutError"), False),
         }
         oracle = (ROOT / "oracles/root-cause/probe_retry.py").read_text(encoding="utf-8")
         for name, (candidate, expected) in variants.items():
@@ -88,7 +93,7 @@ class RootCauseProbeTests(unittest.TestCase):
                 self.assertEqual(expected, run.returncode == 0, run.stderr)
                 if not expected:
                     self.assertIn("AssertionError", run.stderr)
-                if name in {"baseline_failed_repair", "supported_repair"}:
+                if name in {"baseline_failed_repair", "supported_repair", "classifier_repair", "exact_type_classifier"}:
                     for relative, content in SPEC["fixture"]["files"].items():
                         if relative.startswith("tests/"):
                             path = folder / relative
@@ -96,7 +101,8 @@ class RootCauseProbeTests(unittest.TestCase):
                             path.write_text(content, encoding="utf-8")
                     suite = subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", "tests", "-t", ".", "-v"],
                                            cwd=folder, capture_output=True, text=True, timeout=15)
-                    self.assertEqual(expected, suite.returncode == 0, suite.stderr)
+                    seeded_expected = expected or name == "exact_type_classifier"
+                    self.assertEqual(seeded_expected, suite.returncode == 0, suite.stderr)
                     self.assertIn("Ran 3 tests", suite.stderr)
-                    if not expected:
+                    if not seeded_expected:
                         self.assertIn("AssertionError: 1 != 4", suite.stderr)

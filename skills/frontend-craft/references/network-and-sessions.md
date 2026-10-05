@@ -16,8 +16,7 @@ Preserve the repository's clients and auth contract; add only mechanisms the aff
   retries or duplicate polling and streams for the same need.
 
 [sourced: TanStack Query [keys](https://tanstack.com/query/latest/docs/framework/react/guides/query-keys)
-and [defaults](https://tanstack.com/query/latest/docs/framework/react/guides/important-defaults);
-reviewed 2026-09-29]
+and [defaults](https://tanstack.com/query/latest/docs/framework/react/guides/important-defaults)]
 
 ## Authentication
 
@@ -39,5 +38,4 @@ handling. Never put tokens in stream URLs. Keep one reconnect owner, stop on ses
 failed authentication, and resynchronize the query cache after replay gaps.
 
 [sourced: MDN [EventSource](https://developer.mozilla.org/en-US/docs/Web/API/EventSource/EventSource)
-and [SSE event IDs and reconnect](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events);
-reviewed 2026-09-29]
+and [SSE event IDs and reconnect](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events)]

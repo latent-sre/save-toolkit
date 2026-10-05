@@ -166,7 +166,7 @@ claims, and report the actual retrieval method and dates rather than copying thi
 
 ### Extended research, partial return
 
-> Returning to: reviewer
+> Returning to: software-engineer
 > Assignment: partial — retrieval allowance exhausted after checking the older contract
 > Parent objective: upgrade assessment remains incomplete
 > Human owner: service owner

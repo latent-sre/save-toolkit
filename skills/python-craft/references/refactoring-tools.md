@@ -43,7 +43,9 @@ Use the project's configured rules and Python target. Ruff's safe fixes are inte
 runtime behavior; unsafe fixes may change it or remove comments. Review their applicability before
 opting in. A blanket unsafe-fix sweep is not a behavior-preserving refactoring strategy.
 
-Start with `ruff check --no-fix <paths>` and `ruff format --check <paths>`. Preview eligible fixes with
+Start with `ruff check --no-fix --no-fix-only <paths>` and `ruff format --check <paths>`.
+Both disabling flags matter: inherited `fix-only = true` can otherwise apply fixes and hide remaining
+violations even with `--no-fix`. Preview eligible fixes with
 `ruff check --diff <paths>`; this writes no source and returns nonzero when there are diffs, but
 implies `--fix-only`, so a clean diff does not establish a clean lint run. Review configuration for
 unsafe-fix opt-ins and rule-specific applicability overrides; use `--no-unsafe-fixes` when checking
@@ -59,8 +61,7 @@ assume older refactoring recipes still run on the target toolchain.
 
 Check the installed tool's parser support against the actual syntax, including modern annotations;
 its minimum installable Python version does not establish support for every target syntax feature.
-Keep tools in a development environment. The parent skill owns diff review and behavior/type/lint
-checks; report the tool/version and unresolved references when material.
+Keep tools in a development environment; report the tool/version and unresolved references when material.
 
 [sourced] [Rope overview](https://rope.readthedocs.io/en/latest/overview.html),
 [change previews/history](https://rope.readthedocs.io/en/latest/library.html),

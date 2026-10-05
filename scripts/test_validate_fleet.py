@@ -332,7 +332,7 @@ class FleetValidatorTests(unittest.TestCase):
         fields, _, _ = validate_fleet.adapters.parse_frontmatter(path)
         self.assertEqual({"Read", "Grep", "Glob", "Bash", "Write", "Edit", "TodoWrite", "Skill", "Agent"},
                          validate_fleet._tool_bases(validate_fleet._tool_specs(fields["tools"])))
-        self.assertEqual({"repository-investigator", "researcher"},
+        self.assertEqual({"repository-investigator"},
                          validate_fleet._delegates(validate_fleet._tool_specs(fields["tools"]), path))
 
     def test_handoff_receivers_keep_evidence_confidence_separate_from_taint(self) -> None:

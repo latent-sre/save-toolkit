@@ -14,8 +14,29 @@ single window can show arithmetic but cannot emit PAGE or TICKET.
 """
 
 import argparse
+from decimal import Decimal, InvalidOperation, localcontext
 import math
 import sys
+
+
+def _decimal_percentage(text: str) -> Decimal:
+    try:
+        value = Decimal(text)
+    except InvalidOperation:
+        raise argparse.ArgumentTypeError("must be a numeric percentage") from None
+    if not value.is_finite():
+        raise argparse.ArgumentTypeError("must be a finite percentage")
+    return value
+
+
+def _meets_burn_threshold(slo: Decimal, sli: Decimal, threshold: float) -> bool:
+    """Compare the decimal SLI to the exact cutoff without rounding a burn-rate quotient."""
+    with localcontext() as context:
+        # Validated SLOs are between 0 and 100; eight extra digits cover 100 and the
+        # fixed thresholds (at most 14.4) without losing the SLO's decimal places.
+        context.prec = max(28, 8 - slo.as_tuple().exponent)
+        cutoff = Decimal(100) - Decimal(str(threshold)) * (Decimal(100) - slo)
+    return sli <= cutoff
 
 
 def fmt_minutes(minutes: float) -> str:
@@ -69,7 +90,7 @@ def main(argv=None) -> int:
         description="SLO error-budget and burn-rate calculator",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("--slo", type=float, required=True, help="SLO target percent, e.g. 99.9")
+    parser.add_argument("--slo", type=_decimal_percentage, required=True, help="SLO target percent, e.g. 99.9")
     parser.add_argument(
         "--window-days", type=float, default=28.0,
         help="budget-status horizon in days (default 28); does not rescale fixed alert thresholds",
@@ -91,11 +112,11 @@ def main(argv=None) -> int:
 
     burn = parser.add_argument_group("burn rate — BOTH windows required for a severity verdict")
     burn.add_argument(
-        "--sli-long", "--sli", dest="sli_long", type=float,
+        "--sli-long", "--sli", dest="sli_long", type=_decimal_percentage,
         help="availability percent measured over the selected long window",
     )
     burn.add_argument(
-        "--sli-short", type=float,
+        "--sli-short", type=_decimal_percentage,
         help="availability percent measured over the selected short window",
     )
     burn.add_argument(
@@ -109,6 +130,12 @@ def main(argv=None) -> int:
     )
 
     args = parser.parse_args(argv)
+    # Preserve exact input for the inclusive alert decision. Existing status arithmetic,
+    # display formatting and supported float-range validation retain their behavior.
+    percentages = {name: getattr(args, name) for name in ("slo", "sli_long", "sli_short")}
+    for name, value in percentages.items():
+        if value is not None:
+            setattr(args, name, float(value))
 
     _WINDOW_PAIRS = {  # Google SRE Workbook: threshold and action selected by the pair.
         ("1h", "5m"): (14.4, "PAGE (fast burn)"),
@@ -202,17 +229,18 @@ def main(argv=None) -> int:
                 f"{burn_short:.2f}x"
             )
             threshold, verdict = _WINDOW_PAIRS[pair]
-            both = min(burn_long, burn_short)  # BOTH windows must exceed the pair's threshold.
-            if both >= threshold:
+            long_crossed = _meets_burn_threshold(percentages["slo"], percentages["sli_long"], threshold)
+            short_crossed = _meets_burn_threshold(percentages["slo"], percentages["sli_short"], threshold)
+            if long_crossed and short_crossed:
                 severity = "%s -- both windows >= %sx" % (verdict, threshold)
-            elif burn_long >= threshold:
+            elif long_crossed:
                 severity = (
                     "no page -- long window at %.2fx but the short window (%.2fx) has recovered. "
                     "NOT an all-clear: budget status is unknown; some budget may already have been "
                     "consumed. Run the budget-status mode."
                     % (burn_long, burn_short)
                 )
-            elif burn_short >= threshold:
+            elif short_crossed:
                 severity = (
                     "no page -- short-window spike (%.2fx) the long window (%.2fx) hasn't "
                     "confirmed. Re-check in minutes; a real burn trips both."

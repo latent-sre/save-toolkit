@@ -19,10 +19,9 @@ rollout.
    an unused contract, and inaccessible consumers remain unknown.
 3. **Design for backward compatibility.** Default to **expand → migrate → contract**: add the
    new path, move callers/data over, remove the old path only with evidence that supported consumers
-   have migrated or met the project's retirement criteria. And Hyrum's
-   Law: with enough consumers, *every* observable behavior of your contract — response shape,
-   ordering, timing, even error codes — is depended on by someone. Treat them as part of the
-   contract; follow the project's versioning policy and signal deprecations before removal.
+   have migrated or met the project's retirement criteria. Check consumers' dependencies on response
+   shape, ordering, timing and error codes; follow the project's versioning policy and signal
+   deprecations before removal.
 4. **Plan rollout and recovery.** Choose applicable controls: feature flags, staged rollout, or
    gated execution. For DB migration recovery, load `database-reliability`:
    require a tested strategy per stage that preserves accepted writes and data, whether lossless

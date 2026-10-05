@@ -177,14 +177,85 @@ def scrubbed_child_env(config_dir: Path) -> dict[str, str]:
     return env
 
 
+# Where a trial workspace may be created.
+#
+# Claude Code discovers project instructions by walking UP from the cwd, and a git root does NOT
+# stop that walk -- the assertion below the `git init` in neutral_workspace() was written believing
+# it did. Probed 2026-09-02 with two git-rooted workspaces and a Haiku trial asked to quote any
+# instruction file it had been handed: the one under %LOCALAPPDATA%\Temp returned the operator's own
+# ~/.claude/CLAUDE.md heading, the one on another drive returned "NONE". So on Windows the default
+# `tempfile.gettempdir()` -- which sits under the operator's home -- feeds the operator's personal
+# rules into every "clean" trial, silently, and no measurement taken there is attributable to the
+# plugin. POSIX /tmp is already outside home, so Linux CI is unaffected.
+#
+# Only instruction FILES are checked. Ancestor `.claude/settings.json` discovery may leak too; that
+# has not been probed, so it is not asserted here.
+WORKSPACE_ROOT_ENV = "FLEET_EVAL_WORKSPACE_ROOT"
+# Claude Code loads CLAUDE.md, CLAUDE.local.md, .claude/CLAUDE.md, AGENTS.md and .claude/AGENTS.md
+# from the cwd and every directory above it, and rules under .claude/rules/ (unscoped ones at launch,
+# path-scoped ones on demand) -- code.claude.com/docs/en/memory.
+INSTRUCTION_FILENAMES = ("CLAUDE.md", "CLAUDE.local.md", "AGENTS.md", Path(".claude") / "CLAUDE.md",
+                         Path(".claude") / "AGENTS.md")
+RULES_DIR = Path(".claude") / "rules"
+
+
+def instruction_bearing_ancestor(path) -> Path | None:
+    """The nearest instruction file or rule at or above `path`, or None when the whole chain is clean."""
+    resolved = Path(path).resolve()
+    for parent in (resolved, *resolved.parents):
+        for name in INSTRUCTION_FILENAMES:
+            candidate = parent / name
+            if candidate.is_file():
+                return candidate
+        rules = parent / RULES_DIR
+        if rules.is_dir():
+            rule = next((p for p in sorted(rules.rglob("*.md")) if p.is_file()), None)
+            if rule is not None:
+                return rule
+    return None
+
+
+def workspace_root() -> Path:
+    """A directory to create trial workspaces under, proven free of ancestor instructions."""
+    override = os.environ.get(WORKSPACE_ROOT_ENV)
+    candidates = [Path(override)] if override else [Path(tempfile.gettempdir())]
+    if not override and os.name == "nt":
+        # A drive root is outside every user profile. Use the drive this checkout sits on, so the
+        # directory lands on a volume the operator already writes to.
+        candidates.append(Path(Path(__file__).resolve().anchor) / "fleet-eval-tmp")
+    for candidate in candidates:
+        try:
+            candidate.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            continue
+        if instruction_bearing_ancestor(candidate) is None:
+            return candidate
+    raise RunnerFailed(
+        f"no usable trial-workspace root: {candidates[0]} has an instruction-bearing ancestor "
+        f"({instruction_bearing_ancestor(candidates[0])}), which every trial launched there would "
+        f"silently inherit. Set {WORKSPACE_ROOT_ENV} to a directory whose parents hold no "
+        "CLAUDE.md, CLAUDE.local.md, AGENTS.md, .claude/CLAUDE.md, .claude/AGENTS.md, or "
+        ".claude/rules/*.md."
+    )
+
+
+def make_workspace(prefix: str) -> Path:
+    """mkdtemp under workspace_root(), with the no-ancestor-instructions guarantee re-asserted."""
+    path = Path(tempfile.mkdtemp(prefix=prefix, dir=workspace_root()))
+    offender = instruction_bearing_ancestor(path)
+    if offender is not None:
+        raise RunnerFailed(f"trial workspace {path} would inherit instructions from {offender}")
+    return path
+
+
 @contextlib.contextmanager
 def neutral_workspace():
-    """Yield an empty CWD outside the repository, then remove it.
+    """Yield an empty CWD with no instruction file at or above it, then remove it.
 
-    Claude discovers project instructions by walking upward from CWD. A system temp directory keeps
-    AGENTS.md/CLAUDE.md from the plugin repository out of discovery measurements.
+    Claude discovers project instructions by walking upward from CWD, past any git root, so keeping
+    the plugin repository out of that chain is not sufficient on its own -- see workspace_root().
     """
-    tmp = Path(tempfile.mkdtemp(prefix="fleet-eval-workspace-"))
+    tmp = make_workspace("fleet-eval-workspace-")
     try:
         os.chmod(tmp, stat.S_IRWXU)
         resolved = tmp.resolve()
@@ -202,7 +273,10 @@ def neutral_workspace():
             capture_output=True, text=True, check=False, encoding="utf-8", errors="replace",
         )
         if top.returncode != 0 or Path(top.stdout.strip()).resolve() != resolved:
-            raise RunnerFailed("neutral workspace is not its own git root; ancestor instructions may leak")
+            # Its own git root, so the trial's git-status context describes the workspace rather
+            # than a foreign repository. This does NOT bound instruction discovery -- that is
+            # workspace_root()'s job, and believing otherwise is what let the leak stand.
+            raise RunnerFailed("neutral workspace is not its own git root; a foreign repository would be reported")
         contaminants = [
             resolved / "AGENTS.md", resolved / "CLAUDE.md",
             resolved / ".claude" / "settings.json", resolved / SETTINGS_LOCAL,

@@ -14,6 +14,19 @@ human validates it against the live target and records the date; only then may a
 call it verified. Nothing here is proof about production, and an entry's presence never upgrades a
 guess into evidence.
 
+## Contents
+
+- [Execution boundaries](#who-runs-a-catalog-entry)
+- [Entry fields](#entry-shape)
+- [Contribute](#contribute-an-entry)
+- [Error onset](#which-errors-started-at-the-same-time-as-the-impact)
+- [Deploy error rate](#did-error-rate-change-across-the-deploy)
+- [Request path](#where-did-one-request-fail-across-services)
+- [Caller load](#which-callers-are-driving-the-current-load)
+- [Akamai edge and cache](#is-the-akamai-edge-failing-or-missing-cache-for-one-hostname-or-region)
+- [Loki: no cataloged entries](#loki-logql)
+- [Metrics: companion pointers only](#metrics-promql-and-wql)
+
 ## Who runs a catalog entry
 
 Use a registered, permitted diagnostic API, browser session, or reviewed team helper when the

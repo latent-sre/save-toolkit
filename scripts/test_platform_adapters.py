@@ -199,7 +199,7 @@ class PlatformAdapterTests(unittest.TestCase):
     def test_reviewer_has_verification_tools_and_only_evidence_helpers(self) -> None:
         self.assertEqual(["read", "search", "edit", "execute", "agent", "todo"],
                          self._copilot_tools("reviewer"))
-        self.assertEqual(["repository-investigator", "researcher"], self._copilot_agents("reviewer"))
+        self.assertEqual(["repository-investigator"], self._copilot_agents("reviewer"))
         self.assertNotIn("web", self._copilot_tools("reviewer"))
 
     def test_scribe_copilot_agent_can_edit_but_cannot_execute_or_delegate(self) -> None:
@@ -212,7 +212,7 @@ class PlatformAdapterTests(unittest.TestCase):
             "reliability-engineer": ["repository-investigator", "sre-assistant", "researcher"],
             "repository-investigator": None,
             "researcher": None,
-            "reviewer": ["repository-investigator", "researcher"],
+            "reviewer": ["repository-investigator"],
             "scribe": None,
             "software-engineer": ["reviewer", "scribe", "researcher"],
             "sre-assistant": ["researcher"],

@@ -1,6 +1,6 @@
 # Fleet evals
 
-The native fleet runner, [`build_probe.py`](build_probe.py), grades three kinds of scenario, decided by the
+The native fleet runner, [`build_probe.py`](build_probe.py), grades four kinds of scenario, decided by the
 keys a spec carries rather than by a mode field.
 
 | Kind | Where | Session | Graded on |
@@ -8,6 +8,7 @@ keys a spec carries rather than by a mode field.
 | **routing** | [`scenarios/`](scenarios) | main session, `--tools Skill,Task` (a spec may widen it), no `--agent` | one check: did the named component complete a non-error invocation — or, for a negative, stay out of the way |
 | **contract** | [`scenarios/`](scenarios) | `agent:` pinned with `--agent`, or `skill:` pinned by instruction | `graders:` over the returned text |
 | **build** | [`build-scenarios/`](build-scenarios) | `agent:` pinned, its real tools pre-approved, in a seeded fixture repo | `checks:` over **outcomes** in code |
+| **native** | [`scenarios/`](scenarios) | `agent:` pinned with one `followups:` turn, read-only tools and one helper | completed helper, parent continuation and same-session resume; semantic review remains manual |
 
 Two directories because the build fixtures carry inline repos hundreds of lines long and would bury
 the short routing specs. The runner does not care which one a spec came from.
@@ -38,6 +39,12 @@ refuses any other bytes. `--overwrite` replaces the selected run slots; use a ne
 the candidate or scenario. `--regrade` re-grades saved traces offline only when the original scenario
 identity matches, and `--container IMAGE@sha256:…` runs every shell call inside a pinned, network-less
 container for a candidate that is not team-authored.
+
+Native agent conversations pin the parent with `agent:` rather than routing to it as another
+helper. Their sole-helper boundary cannot also permit a second agent dispatch. Skill-based native
+conversations retain positive main-session routing. Measure agent discovery with a separate unhinted
+routing scenario. Saved native agent runs require matching `--agent` evidence on both invocations;
+an old main-session trace cannot be reclassified as agent acceptance.
 
 ## Inspect AI + Inspect SWE pilot
 
@@ -112,16 +119,20 @@ skill completed.
 
 A build check that grades with a probe-owned oracle stages the oracle into the workspace before it
 runs the command: `writes:` carries a line or two of data inline, while `writes_from:` maps the
-workspace filename to a file under [`oracles/`](oracles) so an oracle long enough to be a program
-stays reviewable, runnable, and inside the `evals_python_lines` ceiling, which counts Python
-oracles there, but not TSX, since it counts `*.py` only.
+workspace filename to a file under [`oracles/`](oracles), keeping a substantial oracle reviewable
+and runnable without duplicating its program inside YAML.
+
+`command_exit_zero` can declare `inconclusive_exit_code` (an integer from 1 to 255) for a
+probe-owned unavailable measurement. That exit makes the trial INCONCLUSIVE; zero passes and
+all other nonzero exits fail. Without the declaration, every nonzero exit fails.
 
 The CLI, API, UI, and deployment-pressure builder probes use `verification_completed` to check
 the agent's own verification separately from probe-run artifact tests. It requires a foreground
 unittest, pytest, or Vitest invocation, standalone or positioned by one `cd`/`Set-Location` into the
 trial repository joined with `&&`, a matching non-error Bash/PowerShell result,
 and a nonzero passing test summary. `echo pytest`, failed tests, and a `Verified` heading do not
-establish this. Missing/unsupported receipts, overlapping effects, or a later potentially mutating
+establish this. An earlier foreground command that failed (`Error: Exit code N`) still counts as
+completed. Missing/unsupported receipts, overlapping effects, or a later potentially mutating
 tool call leave verification INCONCLUSIVE. The latter includes later shell commands even when a
 human can recognize a read-only `git diff`; the checker does not interpret arbitrary shell effects.
 This is ordered trace evidence, not exact-byte or detached-process attestation. The default build
@@ -155,11 +166,12 @@ implementation despite a green original suite. This proves HTML structure and li
 not browser/CSS appearance; the deployment and credential boundaries remain separate checks.
 
 **The standing regression** comprises the build probes and the contract scenarios carrying
-`split: regression`. The seven `build-python-...` probes cover refactoring effects, generator
+`split: regression`. The `build-python-...` probes cover refactoring effects, generator
 consumption/lifetime, module moves, stdlib migration contracts, leaving correct code unchanged,
 a shared calculation boundary usable without files, and a medium-sized policy unification across
 three drifted intake entrypoints with a registry, a configured dotted lookup, a legacy re-export,
-and a unit suite that encodes the drift. That oracle checks specification parity over a bounded
+and a unit suite that encodes the drift, plus a scoped zero-count fix that leaves adjacent code
+untouched without requiring a cleanup inventory in the reply. The policy oracle checks specification parity over a bounded
 domain for every entrypoint, single ownership through the `policy.normalize_order` patch seam
 (a record the old rules reject must pass once the shared policy accepts it), exception identity,
 input immutability, six fresh-process import orders, and that the fixture suite stays green
@@ -176,26 +188,65 @@ registry and configured dotted lookup. The generator oracle observes unbounded r
 uses the source position to detect logical EOF before first yield, allowing bounded chunks and
 readline iteration. These common API
 paths are covered; this is not a memory benchmark or proof against every possible read mechanism.
-Migration checks exercise a stdlib adapter, not package discovery. The oracle and tests count
-toward the eval ceiling; their outcome-level evidence does not establish live model performance.
+Migration checks exercise a stdlib adapter, not package discovery. These outcome checks do not
+establish live model performance.
 Run `python -m pytest evals/test_python_craft_oracle.py` for offline calibration.
 
 The calculation probe verifies a specified maintenance outcome: the in-memory boundary works
 without ordinary Python file opens, and a policy replacement there reaches the existing file
 entrypoint, including input rejected by the old parsing policy. It checks that actual helper parse
 exceptions propagate by identity and rejects duplicated parsing before or after delegation.
-These checks and their positive/negative calibration account for the 33-line review-fix eval increase.
 It is not an arbitrary-I/O sandbox or a general design-quality score. The original
 effect probe checks compatibility plus a source edit, not whether that edit improves design.
 `python-refactoring-judgment` checks supplied-state choices about shared policy, independent rules,
 internal callers, supported plugin imports, no-change restraint, coherent stages for large work,
 authorized library adoption, established versus uncertain defects, explanation-only scope, and
-justified whole-codebase rewrites in scope that preserve required contracts. It loads both the Python
-refactoring reference and the builder bar so their abstraction guidance is assessed together.
-It does not prove execution or consumer discovery. `discovery-python-improvement` checks routing
-for an outcome-driven request; it does not grade implementation quality. These focused oracles
-and calibration tests justify the accompanying eval
-line-ceiling increase; no new grader, dependency, or evaluation framework is introduced.
+justified whole-codebase rewrites in scope that preserve required contracts. It also checks effect-aware
+control flow, simpler calls, layer removal, ordered records, indexed membership with streaming, and
+transport-independent policy boundaries. It loads the Python refactoring/writing references and the
+builder bar so their design guidance is assessed together. `python-new-code-judgment` checks a
+direct implementation for a bounded task, an importable core serving CLI and notebook consumers,
+bounded streaming with publication after validation, and an unresolved partial-failure contract.
+These supplied-state decisions do not prove execution or consumer discovery. `discovery-python-improvement` checks routing
+for an outcome-driven request; it does not grade implementation quality.
+
+Two additional build evaluations exercise implementation outcomes:
+
+| Evaluation | What its artifact checks establish |
+|---|---|
+| [New streaming CLI](build-scenarios/build-python-new-streaming-cli.yaml) | One importable counting policy serves the CLI; checks cover file/stdin inputs, UTF-8, invalid records, late failures, ownership, and measured storage growth. |
+| [Indexed membership](build-scenarios/build-python-indexed-membership.yaml) | Measured searches fit a deterministic operation budget, preserving mapping inputs, lazy access, order, duplicates, identity, errors, and release of consumed rows. Candidate tests must pass and reject behavior-preserving linear-search and quadratic-construction regressions. |
+
+Their [new-code calibration](test_python_new_code_probe.py) and
+[index calibration](test_python_index_probe.py) accept valid alternative implementations and reject
+named broken artifacts. They reuse the native runner and standard-library checks. Run them offline:
+
+```bash
+python -m pytest evals/test_python_craft_oracle.py evals/test_python_new_code_probe.py evals/test_python_index_probe.py -q
+python evals/build_probe.py --validate
+```
+
+The storage checks observe growth on two supplied workloads, calibrated against whole-row and
+compact per-record retention as well as valid constant buffers. File checks preserve imported
+`open` aliases and inject late read failures through owned files as well as borrowed stdin.
+The cost check includes construction and requires the supplied index inputs and every query to
+be observable. Candidate `SystemExit` is a failure; only the oracle's unavailable-measurement path
+returns the declared exit 3, making the native trial INCONCLUSIVE and requiring separate profiling.
+These are bounded observations, not proofs of universal time or space complexity or adversarial
+attestation.
+
+For an agreed native preflight, select each case separately and pin the model:
+
+```bash
+python evals/build_probe.py --scenario build-python-new-streaming-cli --label candidate --model sonnet --trials 1 --out .eval-runs/python-craft-builds
+python evals/build_probe.py --scenario build-python-indexed-membership --label candidate --model sonnet --trials 1 --out .eval-runs/python-craft-builds
+```
+
+The new probes also require the agent's own final foreground unittest receipt; later shell actions
+can make that receipt inconclusive under the verification contract above. Artifact checks alone do
+not establish general test quality, broad design expertise, or skill-driven uplift. The indexed
+probe replays candidate tests against two cost regressions in disposable fixtures; this measures
+those tests' sensitivity to the requested improvement, not exhaustive coverage of every contract.
 
 For a live Python-skill comparison, agree the native host/model, exact candidate, cases, repetitions,
 and cost cap first. Use matched disposable fixtures and the same builder, tools, prompt, and checks,
@@ -210,12 +261,24 @@ the new cases have no live with/without-skill result until that comparison is ac
 
 The reviewer cases cover explicit reading-only scope, Git investigation of a broken unchanged
 caller and a matched compatible refactor, candidate-controlled runner/instruction rejection, and
-the supplied-state decision to use an established verification environment. Their
+the supplied-state decision to use an established verification environment. Five free-form cases
+grade the review as written: a scratch-copy reproduction of a defect only an independent check
+reveals, a cross-tenant read, approval of a correct change, and an agent's uncommitted work, asked
+directly and after a terse handoff. `fixture.checkout` names the branch left checked out and
+`fixture.uncommitted` writes files after the last commit; `no_workspace_changes` requires those
+bytes intact. These fixtures do not git-ignore caches, and a Git-verb check rejects checkout, switch,
+stash, reset, restore, clean, and worktree add, so a run inside the source checkout shows. Checks
+named `contract:` grade the output contract. A software-engineer case hands its uncommitted work
+to the reviewer; `scope: subagent` on `bash_ran`/`bash_did_not_run` grades only the commands the
+dispatched reviewer issued, since the trace otherwise pools them with the builder's.
+`ran_outside_checkout` follows the Bash working directory across calls and fails when candidate
+code starts inside the source checkout; it needs the live repository path, so a regrade keeps its
+verdict, as it does `no_workspace_changes` for seeded uncommitted work. Their
 [calibration tests](test_reviewer_cases.py) check real fixture branches, caller behavior, decision
 graders, and command matching. Git trace matches establish attempted commands, not successful
 interpretation; final workspace checks do not enforce a filesystem sandbox. The verification
-decision case is not an execution trial. These bounded probes do not establish general free-form
-review quality, host containment, or live helper behavior.
+decision case is not an execution trial. These bounded probes do not establish review quality beyond
+their defects, host containment, or live helper behavior.
 
 A skill's routing positive is a **description-change check** — run it when that skill's own
 description changes. `--split` is not wired into the runner's selection; use `--scenario <id>` or
@@ -256,6 +319,14 @@ None of the oracle tests makes a model call.
   each prove their oracle with a house-rule reference that passes and targeted mutants that fail with
   their expected messages.
 - [`incidents-api`](test_incidents_api_oracle.py) covers that oracle's pagination check.
+- [`incidents-page`](test_incidents_page_oracle.py) calibrates the actual UI oracle's loading,
+  error, empty and filter checks (bars 1/2/3/5) against reference pages and targeted mutants.
+  Opt in with `INCIDENTS_PAGE_NODE_MODULES` pointing to an existing dependency tree and
+  `INCIDENTS_PAGE_MODE=bounded` or `full`, then run
+  `python -m pytest -q -s evals/test_incidents_page_oracle.py`. Versions are reported and nothing
+  is installed. Bounded mode substitutes a fetch transport double for MSW; full mode
+  uses MSW. Both use JSDOM and cover only those four bars; browser behavior and the axe bar remain
+  separate checks.
 
 The researcher/scribe cases add a bounded public-page lookup, private-input rejection with
 zero attempted web calls, a missing-current-version source decision, extended/quick research
@@ -297,7 +368,7 @@ suggestions are disabled; there is no automatic retry. This path grants only `Sk
 accepts fixture files only, and checks each invocation's plugin, advertised inventory, actual tool
 use (including child calls), read paths, and session identity before continuing. Optional
 `expected_model:` pins the concrete parent/init model identity on every invocation; the committed
-incident scenario requires `claude-sonnet-5`. Each turn retains expected and observed identities.
+incident scenario requires `claude-sonnet-5-5`. Each turn retains expected and observed identities.
 Credential markers or missing, invalid, or over-`$0.75` cost records stop this path before a follow-up.
 `references:` are assertions only here: they do not add instructions to the prompt. The initial
 parent must finish reading the measured plugin's exact reference before its first helper dispatch;
@@ -349,7 +420,11 @@ python evals/judge.py --calibrate
 ```
 
 measures every rubric against [`rubrics-calibration.yaml`](rubrics-calibration.yaml) and exits
-non-zero below 0.95 agreement or on any inconclusive case. Calibration remains owner-triggered;
+non-zero below 0.95 agreement or on any inconclusive case. The judge is the latest Sonnet through
+the default `sonnet` alias. To move to a new Sonnet, add `--resolve-identity`: it spends one call to
+confirm which model the alias names now. When it reports that the alias moved, delete
+`.eval-runs/judge-calibration/judge-cache` and recalibrate, or the cache would re-certify the
+previous model. Calibration remains owner-triggered;
 the runner never starts it automatically. New judge code/configuration or rubric definitions need
 an applicable calibration before normal rubric trials. Its cache lives under
 `.eval-runs/judge-calibration/`; entries bind judge/clean-room source, Python/PyYAML, effective CLI
@@ -373,9 +448,11 @@ not truncate those records. These are trusted local evidence records, not signed
 Every run records the plugin root's commit, plugin-input dirty state, and a path-bound source digest
 over `agents/`, `skills/`, `commands/`, `hooks/`, the manifest, and the guard scripts
 (`provenance.json`, the trace summary, the summary line), plus the requested and resolved model,
-trials, timeout, per-trial duration, cost, and the exact argv. Identity hashes say two runs measured
-the same plugin; they do not say the runs measured it the same way — **pin `--model` and `--timeout`
-for any numbers you intend to diff.**
+trials, timeout, per-trial duration, cost, and the exact argv. Each run also records `runtime`: the
+CLI's own `--version` line (`null` when it cannot report one) and the host's system, release, and
+machine, measured once per batch; `--regrade` keeps the recorded value. Identity hashes say two runs
+measured the same plugin; they do not say the runs measured it the same way — **pin `--model` and
+`--timeout` for any numbers you intend to diff, and compare runs only within one CLI version.**
 
 Machine records retain the complete candidate digest and a scenario digest covering the spec, its
 referenced oracle files, the explicit judge binding when used, and the rubric definitions the judge actually consumes. The judge caches
@@ -428,7 +505,9 @@ snapshot makes the trial **INCONCLUSIVE**, never a verdict. An auth failure abor
 
 This is an evaluation boundary, **not an OS sandbox**. A build lane's Bash runs on the host with
 network, and the credential copy sits where an unguarded tool could reach it (the probe scans
-outputs for credential markers and warns). Use only reviewed, non-secret prompts, and keep raw
+outputs for credential markers and warns). Under subscription login, Claude Code itself adds the
+account email to the trial's context, even with `--setting-sources ""`; a trial that repeats it is
+showing that injection, not a leak from the copied files. Use only reviewed, non-secret prompts, and keep raw
 traces private: they carry complete prompts and responses, session IDs, and tool payloads. Artifacts
 are written owner-only under `.eval-runs/`; quote the numbers a review depends on into that review
 rather than publishing the batch.

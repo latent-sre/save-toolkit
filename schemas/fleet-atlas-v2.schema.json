@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/latent-sre/save-toolkit/schemas/fleet-atlas-v2.schema.json",
+  "title": "Fleet knowledge atlas with typed facts and complete proofs",
+  "x-fleet-validator": "scripts/fleet_atlas_v2.py",
+  "x-fleet-generated-projections": ["docs/fleet-atlas/v2/atlas.json"],
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["apiVersion", "kind", "metadata", "nodes", "facts"],
+  "properties": {
+    "apiVersion": {"const": "save-toolkit/fleet-atlas/v2"},
+    "kind": {"const": "FleetAtlas"},
+    "metadata": {
+      "type": "object", "additionalProperties": false,
+      "required": ["revision", "treeDigest", "dirty", "pipeline"],
+      "properties": {
+        "revision": {"type": "string", "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$"},
+        "treeDigest": {"$ref": "#/$defs/hash"},
+        "dirty": {"const": false},
+        "pipeline": {"const": "typed-facts/v2"}
+      }
+    },
+    "nodes": {"type": "array", "items": {"$ref": "#/$defs/node"}},
+    "facts": {"type": "array", "items": {"$ref": "#/$defs/fact"}}
+  },
+  "$defs": {
+    "text": {"type": "string", "minLength": 1},
+    "hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "value": {"anyOf": [
+      {"type": ["string", "number", "boolean", "null"]},
+      {"type": "array", "items": {"$ref": "#/$defs/value"}}
+    ]},
+    "node": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "type", "path", "selector"],
+      "properties": {
+        "id": {"$ref": "#/$defs/text"},
+        "type": {"enum": ["agent", "skill", "reference", "bundle-file", "command", "rule", "decision", "roadmap-item", "review", "scenario", "test", "schema", "schema-projection", "generated-projection", "capability", "owner", "probe", "hook", "document", "validator"]},
+        "path": {"$ref": "#/$defs/text"},
+        "selector": {"$ref": "#/$defs/text"}
+      }
+    },
+    "span": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "path", "blob_hash", "start_line", "end_line", "excerpt_hash"],
+      "properties": {
+        "kind": {"const": "span"},
+        "path": {"$ref": "#/$defs/text"},
+        "blob_hash": {"$ref": "#/$defs/hash"},
+        "start_line": {"type": "integer", "minimum": 1},
+        "end_line": {"type": "integer", "minimum": 1},
+        "excerpt_hash": {"$ref": "#/$defs/hash"}
+      }
+    },
+    "factRef": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "fact_id"],
+      "properties": {"kind": {"const": "fact"}, "fact_id": {"$ref": "#/$defs/text"}}
+    },
+    "proof": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "inputs", "evaluator", "scope_digest"],
+      "properties": {
+        "kind": {"enum": ["EXTRACTED", "NORMALIZED", "COMPUTED", "JOINED", "INFERRED", "ABSENCE", "DEBT"]},
+        "inputs": {"type": "array", "minItems": 1, "uniqueItems": true,
+          "items": {"oneOf": [{"$ref": "#/$defs/span"}, {"$ref": "#/$defs/factRef"}]}},
+        "evaluator": {"type": "string", "pattern": "/v[0-9]+$"},
+        "scope_digest": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/hash"}]}
+      },
+      "if": {"properties": {"kind": {"const": "ABSENCE"}}},
+      "then": {"properties": {"scope_digest": {"$ref": "#/$defs/hash"}}}
+    },
+    "fact": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "subject", "predicate", "object", "evidence_class", "proof", "qualifiers"],
+      "properties": {
+        "id": {"$ref": "#/$defs/text"},
+        "subject": {"$ref": "#/$defs/text"},
+        "predicate": {"$ref": "#/$defs/text"},
+        "object": {"$ref": "#/$defs/value"},
+        "evidence_class": {"enum": ["CONTRACT_RESOLVED", "STATIC_EXTRACTED", "STATIC_INFERRED", "OPERATOR_CONFIRMED", "UNKNOWN"]},
+        "proof": {"$ref": "#/$defs/proof"},
+        "qualifiers": {"type": "array", "items": {
+          "type": "array", "minItems": 2, "maxItems": 2,
+          "prefixItems": [{"$ref": "#/$defs/text"}, {"$ref": "#/$defs/value"}], "items": false
+        }}
+      }
+    }
+  }
+}

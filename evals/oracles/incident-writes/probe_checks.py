@@ -96,15 +96,34 @@ def post(base, body, key):
 
 def is_problem(resp):
     ctype = resp.headers.get("content-type", "")
-    if not ctype.startswith("application/problem+json"):
+    if ctype.partition(";")[0].strip().lower() != "application/problem+json":
         return False, "content-type %r" % ctype
     try:
         body = resp.json()
     except ValueError:
         return False, "body is not JSON"
-    if body.get("status") != resp.status_code:
-        return False, "problem status %r != %d" % (body.get("status"), resp.status_code)
-    return True, "problem+json"
+    if not isinstance(body, dict):
+        return False, "problem body must be an object"
+    for key in ("type", "title", "request_id"):
+        if not isinstance(body.get(key), str):
+            return False, "problem %s must be a string" % key
+    if not body["request_id"]:
+        return False, "problem request_id must be nonempty"
+    status = body.get("status")
+    if isinstance(status, bool) or not isinstance(status, (int, float)) or status != resp.status_code:
+        return False, "problem status %r != HTTP status %d" % (status, resp.status_code)
+    for key in ("detail", "instance"):
+        if key in body and not isinstance(body[key], str):
+            return False, "problem %s must be a string" % key
+    if "errors" in body:
+        if not isinstance(body["errors"], list):
+            return False, "problem errors must be an array"
+        for error in body["errors"]:
+            if (not isinstance(error, dict) or not isinstance(error.get("loc"), list)
+                    or not all(isinstance(part, str) for part in error["loc"])
+                    or not isinstance(error.get("msg"), str)):
+                return False, "problem errors need a string-list loc and string msg"
+    return True, "problem+json carrying type/title/status/request_id"
 
 
 def created(resp, what):

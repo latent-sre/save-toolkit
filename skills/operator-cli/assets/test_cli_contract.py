@@ -31,7 +31,11 @@ STORE = Path("store.json")
 
 
 class OrderError(Exception):
-    pass
+    """Definitive no-effect rejection unless narrowed by OrderOutcomeUnknown."""
+
+
+class OrderOutcomeUnknown(Exception):
+    """Adapter-mapped failure after dispatch; the effect may have happened."""
 
 
 def _load():
@@ -66,9 +70,12 @@ def list_stale(minutes):
 
 
 def status(order_id):
-    if _load()["orders"][order_id].get("fault") == "unknown":
+    data = _load()
+    data.setdefault("status_calls", []).append(order_id)
+    _save(data)
+    if data["orders"][order_id].get("fault") in ("unknown", "ambiguous-unknown"):
         raise TimeoutError("read-back unavailable")
-    return _load()["orders"][order_id]["state"]
+    return data["orders"][order_id]["state"]
 
 
 def cancel(order_id):
@@ -82,6 +89,8 @@ def cancel(order_id):
     _save(data)
     if order.get("fault") in ("timeout", "unknown"):
         raise TimeoutError(order_id)
+    if order.get("fault") in ("ambiguous", "ambiguous-unknown"):
+        raise OrderOutcomeUnknown("service response did not establish the outcome")
     if order.get("fault") == "hold":
         Path("ready").touch()
         deadline = time.monotonic() + 20
@@ -168,6 +177,9 @@ runpy.run_path("command.py", run_name="__main__")
         self.assertEqual(1, result.returncode)
         self.assertEqual({"o1": "succeeded", "o2": "failed", "o3": "skipped"}, self.outcomes(result))
         self.assertEqual(["o1", "o2"], self.calls())
+        state = json.loads((self.work / "store.json").read_text(encoding="utf-8"))
+        self.assertEqual("open", state["orders"]["o2"]["state"])
+        self.assertEqual([], state.get("status_calls", []))
 
     def test_nonpositive_limits_are_usage_errors_without_client_calls(self) -> None:
         for flag in ("--older-than", "--max-items"):
@@ -231,6 +243,17 @@ runpy.run_path("command.py", run_name="__main__")
         self.assertIn("Cancel these 3 orders?", result.stderr)
         self.assertEqual([False, True], json.loads((self.work / "store.json").read_text())["selection_locks"])
 
+    def test_interactive_no_and_eof_decline_without_effects_or_traceback(self) -> None:
+        for answer in ("n\n", ""):
+            with self.subTest(answer=answer):
+                self.store()
+                result = self.run_command("--json", tty=True, stdin=answer)
+                self.assertEqual(2, result.returncode, result.stderr)
+                self.assertEqual([], self.calls())
+                self.assertEqual("", result.stdout)
+                self.assertFalse((self.work / LOCK).exists())
+                self.assertNotIn("Traceback", result.stderr)
+
     def test_cleanup_cannot_mask_an_interrupt_or_delete_a_replaced_lock(self) -> None:
         self.store({"o1": "replace-lock-SIGINT"})
         result = self.run_command("--yes", "--json")
@@ -285,6 +308,25 @@ runpy.run_path("command.py", run_name="__main__")
         result = self.run_command("--yes", "--json")
         self.assertEqual("succeeded", self.outcomes(result)["o2"])
         self.assertEqual(["o1", "o2", "o3"], self.calls())
+
+    def test_ambiguous_errors_are_read_back_without_replay(self) -> None:
+        for base in ("Exception", "OrderError"):
+            client = FAKE_CLIENT.replace("class OrderOutcomeUnknown(Exception):", f"class OrderOutcomeUnknown({base}):")
+            (self.work / "orders_client.py").write_text(client, encoding="utf-8")
+            for fault, expected, code in (("reject", "failed", 1), ("ambiguous", "succeeded", 0),
+                                          ("ambiguous-unknown", "unknown", 1)):
+                with self.subTest(base=base, fault=fault):
+                    self.store({"o2": fault})
+                    result = self.run_command("--yes", "--json")
+                    self.assertEqual(code, result.returncode, result.stderr)
+                    self.assertEqual({"o1": "succeeded", "o2": expected,
+                                      "o3": "succeeded" if code == 0 else "skipped"}, self.outcomes(result))
+                    self.assertEqual(["o1", "o2", "o3"] if code == 0 else ["o1", "o2"], self.calls())
+                    state = json.loads((self.work / "store.json").read_text(encoding="utf-8"))
+                    self.assertEqual("open" if fault == "reject" else "cancelled", state["orders"]["o2"]["state"])
+                    self.assertEqual([] if fault == "reject" else ["o2"], state.get("status_calls", []))
+                    self.assertFalse((self.work / LOCK).exists())
+                    self.assertNotIn("Traceback", result.stderr)
 
     def test_signals_stop_work_release_the_lock_and_report(self) -> None:
         for signame, code in (("SIGINT", 130), ("SIGTERM", 143)):

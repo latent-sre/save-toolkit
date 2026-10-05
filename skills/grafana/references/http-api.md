@@ -11,6 +11,18 @@ deprecates `/api` in favour of `/apis` but still serves both; 13.2 disables scri
 (410) by default. *[sourced: Grafana API and dashboard docs, 13.2.0 feature registry; reviewed
 2026-09-01]*
 
+## Contents
+
+- [Credentials and scope](#credentials-and-effective-scope)
+- [API families and stored version](#two-api-families-one-stored-version)
+- [Preflight](#preflight-once-per-target-and-after-every-upgrade)
+- [Read and export](#read-and-export)
+- [Create, import, update](#create-import-update)
+- [Folders](#folder-create-and-update)
+- [Verify and record](#verify-then-record)
+- [Rollback](#rollback)
+- [Decisions](#decisions-grafana-forces)
+
 ## Credentials and effective scope
 
 Read `$GRAFANA_URL` and `$GRAFANA_SA_TOKEN` at call time; never print the token, use `curl -v`, or
@@ -171,7 +183,6 @@ tool-managed rollback belongs to that owner. Grafana keeps 20 versions by defaul
 |---|---|
 | 409 or 412 | re-read, re-diff, keep optimistic concurrency; never force |
 | 410 on a scripted dashboard (13.2) | migrate; re-enabling the flag is an owner decision |
-| 500 naming a namespace | use the namespace Grafana names; do not repeat the path |
 | empty search | check `dashboards:read` before calling the instance empty |
 | provisioned, plugin, or managed owner | stop and hand the change to that source |
 | zero query frames | distinguish expected emptiness from query failure or missing telemetry; report any untested positive-data behavior |

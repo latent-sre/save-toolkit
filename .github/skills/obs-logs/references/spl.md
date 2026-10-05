@@ -53,13 +53,31 @@ Splunk:
 | eval since_last_event_s=now()-last_event, since_last_indexed_s=now()-last_indexed
 ````
 
-A large `since_last_indexed_s`, or an expected host missing from the rows, means nothing is
-arriving: the source went quiet or ingestion stopped (platform-fed PCF logs are a `pcf-ops`
-question), not a healthy service. A recent `last_indexed` beside an old `last_event` means events
-arrive late; measure that lag on raw events with `| eval delay_s=_indextime-_time`.
+These rows describe only events whose `_time` falls in the last four hours. An old `last_indexed`
+or missing expected host leaves current ingestion unknown: recently indexed backfill, delayed
+events, or clock skew can fall outside that event-time window. For example, at 12:00 an event
+timestamped 05:50 and indexed at 11:59 is excluded even though ingestion is active.
 *[sourced: Splunk `tstats` (indexed fields in tsidx) and Splunk's event-indexing-delay
 troubleshooting page (`_indextime-_time`); `max(_indextime)` inside `tstats` is `[unverified]` —
 if the search head rejects it, run the same `stats` over a raw search]*
+
+Before concluding ingestion stopped, check a bounded index-time window on the same source and
+expected host. Select event-time bounds covering the plausible delay, backfill and clock skew:
+
+````spl
+index=<app_index> sourcetype=<request_completion_sourcetype> host=<expected_host> earliest=<event_start_epoch> latest=<event_end_epoch> _index_earliest=-1h _index_latest=now
+| stats count max(_time) AS last_event max(_indextime) AS last_indexed BY host
+| eval since_last_event_s=now()-last_event, since_last_indexed_s=now()-last_indexed
+````
+
+Index-time modifiers still intersect the event-time window. Record both resolved UTC windows;
+if event-time coverage is unknown, absence remains inconclusive. Splunk documents **All Time**
+for exhaustive event-time coverage; using it requires a separate scope/cost decision. Recent
+indexing proves arrival only for the returned population. Measure individual event delay on raw
+events with `| eval delay_s=_indextime-_time`; compare timestamps before assigning its cause.
+*[sourced: [Splunk index-time modifiers](https://help.splunk.com/en/splunk-enterprise/spl-search-reference/10.4/time-format-variables-and-modifiers/time-modifiers)
+and [indexing-delay checks](https://help.splunk.com/en/splunk-enterprise/administer/troubleshoot/10.4/data-acquisition-problems/event-indexing-delay);
+checked 2026-10-02; target query execution remains `[unverified]`]*
 
 ## Read it over time
 

@@ -22,9 +22,9 @@ curl --fail-with-body --user "user@example.com" --output page.json \
   "https://<site>.atlassian.net/wiki/api/v2/pages/<page-id>?body-format=view"
 ```
 
-Given only the account email, curl prompts for the API token at its password prompt, so the
-token never sits on a command line where it can be visible; `--fail-with-body` makes a failed
-request fail instead of saving an error page; the converter refuses a JSON without a view body;
+Given only the account email, curl prompts for the API token at its password prompt, keeping it off
+the command line. `--fail-with-body` returns error 22 for HTTP status 400 or higher but still saves
+the response body; check curl's exit status before converting. The converter refuses a JSON without a view body;
 and the converted Markdown is diffed against the rendered page before anything trusts it. That URL
 is Confluence Cloud; Data Center serves the same fields from
 `/rest/api/content/<page-id>?expand=body.view,version` `[unverified: the team's edition is not

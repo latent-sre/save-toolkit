@@ -1,8 +1,11 @@
 """Starter checks for a compatible FastAPI collection and problem-response contract.
 
 Adapt paths and the `auth_headers` fixture to the project; preserve existing passing contracts.
-Reproduce the changed behavior before fixing it. Add a project-owned maximum-limit test with
-more seeded records than the chosen cap: a sparse collection cannot prove a cap is enforced.
+Reproduce the changed behavior before fixing it. Supply `populated_collection_ids` in conftest.py:
+seed an isolated, stable collection and return all its IDs in pagination order (at least two).
+Keep that data unchanged during these requests; seed through the project's own fixture.
+Add a maximum-limit test with more seeded records than the chosen cap: a sparse collection
+cannot prove a cap is enforced.
 
 Needs only pytest, fastapi, and httpx, all of which a FastAPI service already has.
 """
@@ -90,8 +93,7 @@ def assert_problem(response, status: int) -> None:
             assert isinstance(error.get("msg"), str), "each error needs a string msg"
 
 
-def test_collection_is_a_cursor_page(client, auth_headers):
-    response = client.get(LIST_PATH, headers=auth_headers)
+def assert_cursor_page(response):
     assert response.status_code == 200, f"{LIST_PATH} must serve the collection; got {response.status_code}"
     body = response.json()
     assert isinstance(body, dict), (
@@ -100,10 +102,40 @@ def test_collection_is_a_cursor_page(client, auth_headers):
     )
     assert isinstance(body.get("data"), list), 'house rule: the envelope carries a "data" list'
     assert "next_cursor" in body, 'house rule: the envelope carries "next_cursor", even when null'
+    cursor = body["next_cursor"]
+    assert cursor is None or isinstance(cursor, str) and 1 <= len(cursor) <= 2048, (
+        "next_cursor must be null or a nonempty string of at most 2048 characters"
+    )
+    return body
 
-    one = client.get(LIST_PATH, params={"limit": 1}, headers=auth_headers)
-    assert one.status_code == 200, f"limit=1 must be accepted; got {one.status_code}"
-    assert len(one.json()["data"]) <= 1, "house rule: limit is honoured, not ignored"
+
+def test_collection_is_a_cursor_page(client, auth_headers):
+    body = assert_cursor_page(client.get(LIST_PATH, headers=auth_headers))
+    one = assert_cursor_page(client.get(LIST_PATH, params={"limit": 1}, headers=auth_headers))
+    assert len(one["data"]) <= 1, "house rule: limit is honoured, not ignored"
+    if body["data"]:
+        assert len(one["data"]) == 1, "a populated collection cannot return an empty limit=1 page"
+
+
+def test_populated_collection_limit_and_traversal(client, auth_headers, populated_collection_ids):
+    expected = list(populated_collection_ids)
+    assert len(expected) >= 2, "seed at least two records to distinguish limit=1 from an ignored limit"
+    assert all(isinstance(item_id, str) and item_id for item_id in expected)
+    assert len(set(expected)) == len(expected), "the fixture must supply unique IDs in pagination order"
+    seen = []
+    cursor = None
+    for _ in expected:  # bounded by independently seeded data, even if the server cycles a cursor
+        params = {"limit": 1}
+        if cursor is not None:
+            params["cursor"] = cursor
+        page = assert_cursor_page(client.get(LIST_PATH, params=params, headers=auth_headers))
+        assert len(page["data"]) == 1, "each populated limit=1 page must carry exactly one record"
+        seen.append(page["data"][0]["id"])
+        cursor = page["next_cursor"]
+        if cursor is None:
+            break
+    assert seen == expected, "cursor traversal must return every seeded ID once, in order"
+    assert cursor is None, "the final page must terminate with next_cursor null"
 
 def test_unknown_path_is_a_problem(client, auth_headers):
     response = client.get(UNKNOWN_PATH, headers=auth_headers)

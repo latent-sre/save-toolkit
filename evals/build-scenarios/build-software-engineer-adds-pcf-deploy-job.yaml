@@ -234,7 +234,7 @@ checks:
   - check: command_exit_zero
     command: "python probe_ci_workflow.py artifact-promoted"
     timeout: 600
-    text: "every deploy job downloads the checkout-build artifact and none rebuilds"
+    text: "each cf push in a discovered deploy job binds to the downloaded checkout.zip and reviewed manifest; unsupported path or shell forms receive no promotion credit"
   - check: command_exit_zero
     command: "python probe_ci_workflow.py cf-auth-env"
     timeout: 600

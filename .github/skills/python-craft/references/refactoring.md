@@ -1,76 +1,67 @@
 # Improving existing Python
 
-Improve what makes the code hard to understand, change, test, or trust; patterns serve that outcome.
-
 ## Contents
 
-- Choose Pythonic patterns by problem
-- Establish behavior and consumers
-- Choose a coherent change
-- Example: make a calculation usable without files
-- Verify compatibility and improvement
+- Choose the transformation
+- Simplify control flow and iteration
+- Preserve consumers and integrate
+- Example: separate calculation from files
+- Verify behavior and benefit
 
-## Choose Pythonic patterns by problem
+## Choose the transformation
 
-Inspect a representative path and its callers. Prioritize demonstrated defects and recurring
-maintenance work, using code evidence rather than a questionnaire or smell score.
+Follow a representative operation through its data, decisions, and effects. Address the cause of
+complexity: parallel values may need records, repeated scans an index, contradictory flags clearer
+states, and forwarding layers removal. Compare construction, conversion, and memory costs with
+work removed. For function and module choices, see [Writing Python](./writing-python.md).
 
-| Problem | Pythonic option | Preserve or check |
+Share a policy when callers require the same rule; identical fragments can evolve independently.
+Check purpose, inputs, and failure behavior before unifying them. A helper beside copies still in
+use does not establish shared ownership. Keep meaningful single-caller boundaries and real extension
+points; remove generic machinery that contributes neither.
+
+## Simplify control flow and iteration
+
+| Situation | Consider | Preserve or check |
 |---|---|---|
-| Nesting or duplicated policy | Guards; coherent helpers; inline trivial wrappers | Condition/effect order, cleanup, zero/None; share policies, not fragments |
-| Mapping/filter loops | Comprehensions for simple transforms; loops for multi-step work | Order, duplicates, mutation, scope; avoid side-effect-only comprehensions |
-| Index bookkeeping | Iteration, unpacking, `enumerate`, `zip` | Needed indexes/lengths; `zip` truncates, while `strict=True` raises on mismatch (3.10+) |
-| Counting, grouping, searching | `Counter`, `defaultdict`, dict/set indexes | Key equality/hashability, multiplicity, order, result type, missing keys, memory |
-| Parallel lists or opaque records | Dataclasses; `TypedDict` to retain a dict API | Construction, equality, aliasing, mutation, serialization; types are not validation |
-| Mixed parsing, decisions, I/O | Separate phases and explicit data | Existing entrypoints share decisions; preserve effect/failure order |
-| Repeated cleanup | `with`/`async with`; `ExitStack` for dynamic resources | Ownership, partial acquisition, cleanup order, cancellation, exception suppression |
-| One-pass temporary collections | Generators/streaming where compatible | Deferred work/errors, repeatability, indexing, short-circuit effects, resource lifetime |
-| Dispatch or custom machinery | Callable lookup or a suitable stdlib/library | Missing/overlapping cases, eager calls/defaults; use the modernization reference |
+| Nesting obscures the main operation | Guard clauses; a named domain predicate | Condition/effect order, cleanup, and distinctions among `None`, zero, false, and empty |
+| A flag/list only answers a question | `any`, `all`, or `next` over a generator | Short-circuiting skips work/errors; empty `any` is false, empty `all` true; distinguish no match from a valid `None` with a sentinel |
+| Simple mapping/filtering | Comprehension; a loop for multi-step work or per-item handling | Order, duplicates, mutation, scope; avoid side-effect-only or dense nested comprehensions |
+| Indexes only retrieve items | Iteration, unpacking, `enumerate`, `zip` | Needed positions and shape; `zip` truncates, `strict=True` raises on mismatch (3.10+) |
+| Counting, grouping, repeated searches | `Counter`, `defaultdict`, dict/set index | Equality/hashability, duplicates, order, missing-key insertion, result type, memory |
+| Exact-key call selection | Dictionary of callables | Unknown keys, key equality, lazy calls; keep ordered/range predicates as conditionals |
+| Structured-data cases | `match` when clearer (3.10+) | Case/guard order, unmatched input; bare names capture, dotted constants compare |
+| Temporary collection with one consumer | Generator/streaming | Deferred work/errors, repeatability, indexing, partial consumption, resource lifetime |
+| Repeated or dynamic cleanup | `with`/`async with`, `ExitStack`/`AsyncExitStack` | Ownership, partial acquisition, cleanup order, cancellation, suppression |
 
-These are candidates, not prescriptions. Compare purpose, inputs, failure behavior, and reasons
-to change: two occurrences can share a policy; three similar fragments may evolve independently.
-Do not invent a framework to unify coincidental similarity.
+Choose by meaning; a clear loop or conditional may remain best. Name a predicate when it explains a
+decision, not every comparison. Invert the original guard before changing comparisons: `not (x >= 0)`
+and `x < 0` differ for NaN; truthiness is not an explicit `None` check.
+For a worked comparison when needed, see [Guard-clause example](./guard-clause-example.md).
 
-An extracted return does not return from its caller; moved `break`/`continue` must retain loop effects.
-Comprehension variables do not leak like loop variables. Generator expressions evaluate the outermost
-iterable immediately; generator-function bodies wait for resumption. Neither can consume a file
-already closed by its producer.
-`mapping.get(key, expensive_default())` evaluates the default on a hit; store callables rather
-than calls for selective dispatch. Ranges and ordered fallbacks may be clearer as conditionals.
+An extracted `return` does not return from its caller; preserve moved `break`/`continue` effects.
+Comprehension iteration variables do not leak like loop variables. Generator expressions evaluate
+the outermost iterable immediately; generator-function bodies wait for resumption. Neither can
+consume a file closed by its producer. `mapping.get(key, expensive_default())` evaluates the default
+even on a hit; dispatch tables should store callables rather than their results.
 
-## Establish behavior and consumers
+## Preserve consumers and integrate
 
-Separate supported behavior from implementation details using requirements, examples, callers,
-and tests. A characterization test records what happens today; a bug fix needs an independently
-established expected result. Do not preserve a demonstrated bug as "refactoring safety," or silently
-change a relied-on behavior because it looks wrong. Separate the fix from the structural steps
-when authorized; otherwise report the defect and continue independent in-scope work. Ask when
-intended behavior or permission to change compatibility is unresolved.
+Establish required behavior from specifications and consumers. Characterization records current
+behavior; it cannot justify preserving a demonstrated bug or guessing an undocumented rule.
 
-Find imports/re-exports, entry points, configuration/import strings, decorators/registries, and
-persisted module-qualified names. A leading underscore does not prove a name has no external
-consumer. Internal names, signatures, and data shapes may change with all controlled callers;
-supported consumers keep their contract unless a migration is authorized. Add a compatibility
-re-export only for an actual supported consumer, not every internal move.
-Preserve supported positional/keyword-only call forms and defaults, import-time effects, and patch
-locations; exercise dynamic lookup and both import orders when a move could create a cycle.
+Find imports/re-exports, entrypoints, configured import strings, registries/decorators, and persisted
+qualified names; an underscore does not prove a name is private. Controlled internal signatures and
+shapes may change with their callers. Preserve supported call forms/defaults, import-time effects,
+and public patch points. Add compatibility adapters only for actual supported consumers.
 
-## Choose a coherent change
+Complete one usable path, then migrate remaining callers; avoid leaving them with repeated shape
+conversions or copies of moved policy. Check new dependency boundaries and remove superseded code
+once callers use the replacement. Checkpoints follow meaningful behavior and risk, not file counts.
 
-Plan medium-sized, coherent stages around meaningful improvements and their checks. Scale stages to
-risk and testability, not function or file count. Keep unrelated cleanup and invented requirements out.
+## Example: separate calculation from files
 
-Rewrite a function, module, or the entire codebase in the agreed scope when replacement offers a
-clearer, more maintainable design. Stages bound verification, not the total rewrite. Name the payoff,
-establish behavior checks, and integrate controlled callers. Preserve required contracts, not the
-old source. Remove superseded code once verified; rewriting does not authorize new requirements.
-
-Extraction that merely relocates a confusing block with unrelated state is not enough: reconsider
-the decomposition or data model. Keep the direct expression when a wrapper adds no useful boundary.
-
-## Example: make a calculation usable without files
-
-Here a pre-trade preview and calculation tests need in-memory rows, but the rule is trapped in I/O:
+A pre-trade preview needs in-memory rows, but the calculation is trapped in file I/O:
 
 ```python
 import csv
@@ -86,7 +77,7 @@ def filled_notional_from_file(path):
         return total
 ```
 
-Keep the existing file interface and give the calculation one reusable boundary:
+Expose the calculation and route the existing file entrypoint through it:
 
 ```python
 def filled_notional(rows):
@@ -101,41 +92,34 @@ def filled_notional_from_file(path):
         return filled_notional(csv.DictReader(source))
 ```
 
-The benefit is independent calculation and shared policy; an explicit loop is equally valid. The
-`Decimal("0")` start keeps an empty result a `Decimal`. Check empty input, other statuses, signed
-quantities, one-pass iterables, malformed numbers (`decimal.InvalidOperation` still propagates), a
-missing column (`KeyError`), string and `Path` callers, and file cleanup on failure. If no caller or
-test benefits from the new boundary, do not manufacture one merely to split a short function.
+The new boundary serves a caller; an explicit loop is equally valid. The start preserves an empty
+`Decimal` result. Check filtered/signed/empty data, one-pass inputs, invalid numbers, missing fields,
+string/`Path` callers, and cleanup on failure. Keep a short function intact if the extraction has no use.
 
-## Verify compatibility and improvement
+## Verify behavior and benefit
 
-Use existing tests and characterize missing contracts; working behavior needs no red-first test,
-but a green run proves nothing about code the tests never reach. Before restructuring, show the net
-reaches the code you will move: run branch coverage over it when the project has coverage tooling,
-or break one expression in it, confirm a named test fails, and undo that edit by hand (`git checkout`
-would also discard uncommitted work). Add characterization tests for unreached branches first.
-Compare old/new code on equivalent fresh inputs and controlled state. Check values/types,
-serialization, aliasing, mutation, accepted/rejected call forms, errors, and ordered effects.
-When propagation is required, preserve the exception object, not only its type/message.
-Pair differential checks with independent expectations so preserving an old bug cannot count as a fix.
+Establish that tests exercise affected behavior; characterize material gaps. Use coverage or a
+reversible mutation when reach/sensitivity is uncertain, not as a universal prerequisite. Working
+behavior needs no red-first test; a bug fix needs an independent expected result.
 
-Control time, randomness, effects, and caches independently. Use fresh processes for import order,
-registries, or process state. Test existing entrypoints as well as new capabilities; testing only
-a new helper misses callers that bypass it. Tests coupled to retired internals may change, but
-retain their behavioral assertions rather than rewriting expected outputs to conceal regressions.
+Compare fresh equivalent inputs and controlled time, randomness, effects, and caches. Check relevant
+values/types, serialization, aliasing/mutation, call forms, errors, and effect order. Preserve the
+exception object when propagating it. Pair differential checks with independent expectations so an
+old bug cannot count as correctness. Use fresh processes for relevant import orders, cycles, and
+registries. Exercise existing entrypoints; retain behavioral assertions when retiring test wiring.
 
-For small domains, exhaust bounded combinations. Use property-based tests for larger domains or
-stateful sequences when useful, retaining named regressions and a defined comparison budget.
-For streaming, verify progress before full consumption and cleanup after a prefix; an iterator
-alone proves neither incremental processing nor bounded memory.
+Exhaust small domains; consider property-based/stateful tests for larger ones with a bounded budget.
+For streaming, check progress before full consumption and cleanup after a prefix; returning an
+iterator proves neither streaming nor bounded memory.
 
-Demonstrate the benefit: one policy owner, testable decisions, removed layers, or a simpler next
-change. Passing compatibility checks alone does not prove improvement.
+Show the benefit through actual callers: a shared policy replaces copies, a calculation works without
+I/O, conversions/layers disappear, or a real change becomes simpler. Profile and benchmark when
+performance motivates the design; compatibility tests alone do not establish improvement.
 
-[sourced] [Fowler's guard clauses](https://refactoring.com/catalog/replaceNestedConditionalWithGuardClauses.html),
+[sourced] [guard clauses](https://refactoring.com/catalog/replaceNestedConditionalWithGuardClauses.html),
 [Extract Function](https://refactoring.com/catalog/extractFunction.html),
-[Python expression semantics](https://docs.python.org/3/reference/expressions.html), and
-[Hypothesis properties](https://hypothesis.readthedocs.io/en/latest/tutorial/introduction.html).
-Pattern details: [iteration helpers](https://docs.python.org/3.11/library/functions.html),
+[expression semantics](https://docs.python.org/3/reference/expressions.html),
+[Hypothesis properties](https://hypothesis.readthedocs.io/en/latest/tutorial/introduction.html),
+[iteration](https://docs.python.org/3.11/library/functions.html),
 [collections](https://docs.python.org/3.11/library/collections.html), and
 [context managers](https://docs.python.org/3.11/library/contextlib.html).

@@ -12,8 +12,6 @@ cf set-env order-router JBP_CONFIG_X value && cf restage order-router --strategy
 cf scale order-router -i 5
 ```
 
-A memory or disk change uses the no-downtime resize row in `pcf-ops`, not `cf scale -m/-k`.
-
 These are planning examples, never agent execution authority. The human release owner selects only
 the exact approved command and supplies any secret through the approved credential path.
 

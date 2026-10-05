@@ -50,6 +50,7 @@ import hashlib
 import json
 import math
 import os
+import platform
 import re
 import secrets
 import shlex
@@ -146,10 +147,11 @@ with Server(("0.0.0.0", 8080), Relay) as server:
 # --------------------------------------------------------------------------- scenario specs
 
 REQUIRED_KEYS = ("id", "prompt")
-# A scenario is one of three kinds, decided by the keys it carries:
+# A scenario's kind is decided by the keys it carries:
 #   build    -- `fixture` + `checks`: seed a repo, run a pinned agent, grade outcomes in code.
 #   contract -- `agent` + `graders`: pin the agent, grade the returned text.
 #   routing  -- `routing`: run the main session, grade which component fired.
+#   native   -- `agent` + `followups`: pin the parent lane, observe one helper and resume.
 # `agent` pins the session; without it the trial runs as the main session with `tools`.
 DEFAULT_MAIN_SESSION_TOOLS = ("Skill", "Task")
 SLUG = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
@@ -161,6 +163,8 @@ SPLITS = ("calibration", "regression")
 def scenario_kind(spec: dict) -> str:
     if spec.get("routing"):
         return "routing"
+    if spec.get("followups") and spec.get("agent"):
+        return "native"
     if spec.get("fixture"):
         return "build"
     return "contract"
@@ -313,6 +317,15 @@ def validate_scenario(spec: object, *, where: str = "scenario") -> list[str]:
         for branch, body in (fixture.get("branches") or {}).items():
             if not isinstance(body, dict) or not isinstance(body.get("files"), dict):
                 problems.append(f"{where}: branch {branch!r} must declare files")
+        checkout = fixture.get("checkout")
+        if checkout is not None and checkout != "main" and checkout not in (fixture.get("branches") or {}):
+            problems.append(f"{where}: fixture.checkout {checkout!r} must be main or a declared branch")
+        uncommitted = fixture.get("uncommitted") or {}
+        if not isinstance(uncommitted, dict) or not all(
+            isinstance(n, str) and isinstance(c, str) and not Path(n).is_absolute() and ".." not in Path(n).parts
+            for n, c in uncommitted.items()
+        ):
+            problems.append(f"{where}: fixture.uncommitted must map relative paths to string content")
         for name, content in (fixture.get("fake_bin") or {}).items():
             if not isinstance(content, str) or not content.startswith("#!"):
                 problems.append(f"{where}: fake_bin {name!r} must be a script starting with a shebang")
@@ -383,8 +396,18 @@ def validate_scenario(spec: object, *, where: str = "scenario") -> list[str]:
                 if not isinstance(check, dict) or check.get("check") not in CHECKS:
                     problems.append(f"{where}: checks[{i}] names an unknown check {check!r}"[:200])
                     continue
+                if "scope" in check and (check["check"] not in ("bash_ran", "bash_did_not_run", "ran_outside_checkout")
+                                         or check["scope"] != "subagent"):
+                    problems.append(f"{where}: checks[{i}] scope is only `subagent`, on bash_ran, bash_did_not_run, "
+                                    "or ran_outside_checkout")
                 if check["check"] == "verification_completed" and check.get("runner") not in {"unittest", "pytest", "vitest"}:
                     problems.append(f"{where}: checks[{i}] verification_completed needs runner unittest, pytest, or vitest")
+                if "inconclusive_exit_code" in check and (
+                    check["check"] != "command_exit_zero"
+                    or type(check["inconclusive_exit_code"]) is not int
+                    or not 1 <= check["inconclusive_exit_code"] <= 255
+                ):
+                    problems.append(f"{where}: checks[{i}] inconclusive_exit_code needs command_exit_zero and an integer from 1 to 255")
                 if check["check"] == "skill_loaded" and "before_effects" in check and not isinstance(check["before_effects"], bool):
                     problems.append(f"{where}: checks[{i}] before_effects must be boolean")
                 if check["check"] == "tool_call_count" and (
@@ -418,8 +441,15 @@ def validate_scenario(spec: object, *, where: str = "scenario") -> list[str]:
         followups = spec["followups"]
         if not isinstance(followups, list) or len(followups) != 1 or not isinstance(followups[0], str) or not followups[0].strip():
             problems.append(f"{where}: followups must contain exactly one non-empty human prompt")
-        if kind != "routing" or (spec.get("routing") or {}).get("expect") != "fire":
-            problems.append(f"{where}: followups require a positive main-session routing scenario")
+        if kind == "native":
+            agent = spec["agent"]
+            if not isinstance(agent, str) or not SLUG.fullmatch(agent) or not (ROOT / "agents" / f"{agent}.md").is_file():
+                problems.append(f"{where}: native conversation agent must name a canonical agent")
+        elif kind != "routing" or (spec.get("routing") or {}).get("expect") != "fire":
+            problems.append(f"{where}: followups require a pinned `agent` or positive skill-routing scenario")
+        elif (spec.get("target") or {}).get("kind") == "agent":
+            problems.append(f"{where}: native agent routing conflicts with the sole-helper boundary; "
+                            "pin `agent`, remove `target`/`routing`, and measure discovery separately")
         if tools != ["Skill", "Read", "Task"]:
             problems.append(f"{where}: native conversation tools must be [Skill, Read, Task]")
         if not isinstance(fixture, dict) or set(fixture) != {"files"}:
@@ -573,9 +603,9 @@ def load_all_scenarios(directory: Path | None = None) -> list[dict]:
 class Service:
     """A disposable, reviewed-digest container the trial talks to through a loopback audit proxy.
 
-    Some lanes can only be measured against a real system: `observability-engineer` holds the
-    fleet's one live-write carve-out, and whether it honoured that carve-out is a fact about what
-    the instance contains afterwards, not about what the agent wrote in its packet. The container
+    Some lanes can only be measured against a real system: `observability-engineer` has a scoped
+    Grafana write exception, measured through proxied requests and final resource state. These
+    observations cannot rule out writes that bypass the proxy and are later restored. The container
     is `--rm`, bound to 127.0.0.1 on an ephemeral port, capability/resource limited, and torn down
     with the workspace. The model receives a fixed-target proxy URL; grading uses the direct URL.
     """
@@ -928,6 +958,9 @@ class Workspace:
     baseline_commits: int
     baseline_branch: str
     baseline_sha: str = ""
+    # The repository path the trial's commands name. Only a regrade sets it: its checkout is gone, so
+    # `repo` is a placeholder there, but a `cd "<repo>" && <suite>` receipt still names the real path.
+    command_repo: Path | None = None
 
 
 def _git(repo: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess:
@@ -1014,9 +1047,13 @@ def seed_workspace(spec: dict, root: Path, *, posix_paths: bool = False) -> Work
         script = script.replace("${STATE_DIR}", f"/tmp/{root.name}/state" if posix_paths else state_dir.as_posix())
         target.write_text(script, encoding="utf-8", newline="\n")
         target.chmod(target.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    # Uncommitted work (an agent's unfinished change) sits on top of the checked-out branch.
+    branch = fixture.get("checkout") or "main"
+    _git(repo, "checkout", "-q", branch)
+    _write_files(repo, fixture.get("uncommitted") or {})
     count = int(_git(repo, "rev-list", "--count", "--all").stdout.strip())
     sha = _git(repo, "rev-parse", "HEAD").stdout.strip()
-    return Workspace(root, repo, bin_dir, state_dir, count, "main", sha)
+    return Workspace(root, repo, bin_dir, state_dir, count, branch, sha)
 
 
 ISOLATED_HOME_KEYS = ("HOME", "USERPROFILE", "CF_HOME", "CF_PLUGIN_HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_DATA_HOME")
@@ -1218,6 +1255,19 @@ def plugin_provenance(plugin_root: Path) -> dict:
     }
 
 
+def runtime_identity(executable: str) -> dict:
+    """The CLI version and host platform a batch measured; a version the CLI cannot report is null."""
+    try:
+        proc = subprocess.run([executable, "--version"], capture_output=True, text=True, encoding="utf-8",
+                              errors="replace", timeout=30)
+        lines = proc.stdout.strip().splitlines() if proc.returncode == 0 else []
+        version = lines[0].strip() if lines else None
+    except (OSError, subprocess.TimeoutExpired):
+        version = None
+    return {"cli_version": version,
+            "host_platform": {"system": platform.system(), "release": platform.release(), "machine": platform.machine()}}
+
+
 def plugin_drift_problem(plugin_root: Path, expected: str) -> str | None:
     try:
         if plugin_digest(plugin_root) != expected:
@@ -1295,6 +1345,8 @@ class TraceSummary:
     skills_failed: list[str] = field(default_factory=list)
     bash_commands: list[str] = field(default_factory=list)
     powershell_commands: list[str] = field(default_factory=list)
+    # The subset of bash_commands issued inside a dispatched subagent; `scope: subagent` grades only these.
+    subagent_bash_commands: list[str] = field(default_factory=list)
     # Ordered potentially mutating calls, with matched completion evidence. Not filesystem attestation.
     effect_calls: list[dict] = field(default_factory=list)
     dispatches: list[str] = field(default_factory=list)
@@ -1370,6 +1422,12 @@ def runtime_blocked_tools(trace: TraceSummary, spec: dict) -> list[str]:
         return [d["tool"] for d in trace.denial_details
                 if d["tool"] in set(BUILD_TOOLS) | SHELL_TOOLS and not is_guard_denial(d["reason"]) and d["id"] not in inside]
     return [d for d in trace.denials if d in set(BUILD_TOOLS) | SHELL_TOOLS]
+
+
+# A failed foreground shell command is receipted as text ("Error: Exit code 1\n..."), not as the dict a
+# clean run gets. The exit code shows the command returned, so this exact shape completes the call; any
+# other text error (no such tool, an interruption) still leaves completion unknown.
+_FAILED_FOREGROUND_RECEIPT = re.compile(r"Error: Exit code \d+(?:\n|\Z)")
 
 
 def parse_trace(path: Path) -> TraceSummary:
@@ -1457,6 +1515,9 @@ def parse_trace(path: Path) -> TraceSummary:
                                        for b in msg.get("content") or [])
                     if isinstance(receipt, dict) and result_count == 1:
                         shell_receipts[use_id] = receipt
+                    elif (block.get("is_error") and result_count == 1 and isinstance(receipt, str)
+                          and _FAILED_FOREGROUND_RECEIPT.match(receipt)):
+                        shell_receipts[use_id] = {"interrupted": False}
                 if not block.get("is_error"):
                     use_id = str(block.get("tool_use_id") or "")
                     clean_result_ids[use_id] = position
@@ -1495,6 +1556,8 @@ def parse_trace(path: Path) -> TraceSummary:
                 # compound command, so nothing is truncated here (size bounds belong to display).
                 commands = s.bash_commands if name == "Bash" else s.powershell_commands
                 commands.append(str(inp.get("command") or ""))
+                if name == "Bash" and ev.get("parent_tool_use_id"):
+                    s.subagent_bash_commands.append(str(inp.get("command") or ""))
             elif name in ("Task", "Agent"):
                 agent_name = str(inp.get("subagent_type") or "") or "<unnamed-agent>"
                 s.dispatches.append(agent_name)
@@ -1827,7 +1890,11 @@ def check_command_exit_zero(ctx: Context, p: dict) -> tuple[bool, str]:
     except subprocess.TimeoutExpired:
         return False, f"{p['command']!r} timed out"
     tail = (proc.stdout + proc.stderr).strip()[-300:].replace("\n", " | ")
-    return proc.returncode == 0, f"{p['command']!r} exit {proc.returncode}: {tail}"
+    evidence = f"{p['command']!r} exit {proc.returncode}: {tail}"
+    unavailable = p.get("inconclusive_exit_code")
+    if type(unavailable) is int and 1 <= unavailable <= 255 and proc.returncode == unavailable:
+        return False, "INCONCLUSIVE: " + evidence
+    return proc.returncode == 0, evidence
 
 
 def check_command_output_regex(ctx: Context, p: dict) -> tuple[bool, str]:
@@ -2049,33 +2116,114 @@ def check_grafana_query_succeeded(ctx: Context, p: dict) -> tuple[bool, str]:
     metric = str(p["metric"]).lower()
     function = str(p["function"]).lower()
     minimum_seconds = float(p.get("min_window_seconds") or 0)  # the reference's four scrape intervals
+
+    def successful_status(status: object) -> bool:
+        return type(status) is int and 200 <= status < 300
+
+    def grafana_response_ok(response: object) -> bool:
+        return (isinstance(response, dict) and response.get("error") in (None, "")
+                and ("status" not in response or successful_status(response["status"])))
+
     writes = [entry for entry in service.requests
               if entry.get("method") == "POST" and entry.get("path") == write_path]
     if not writes:
         return False, f"no dashboard write to {write_path} was observed"
     # The last accepted write holds what the instance persisted; a rejected attempt does not.
-    accepted = [entry for entry in writes if 200 <= int(entry.get("status") or 0) < 300]
+    accepted = [entry for entry in writes if successful_status(entry.get("status"))]
     write = (accepted or writes)[-1]
     after_write = service.requests[service.requests.index(write) + 1:]
 
-    def canon(expression: str) -> str:
-        return re.sub(r"\s+", "", expression).lower()
+    def tokens(expression: str) -> list[str] | None:
+        """Compare lexical spelling, not full PromQL semantics. Keep quoted bytes and token
+        boundaries; whitespace between tokens and line comments are cosmetic."""
+        lexeme = re.compile(
+            r"""[ \t\r\n]+|#[^\r\n]*|"(?:\\[^\r\n]|[^"\\\r\n])*"|'(?:\\[^\r\n]|[^'\\\r\n])*'|\x60[^\x60]*\x60"""
+            r"|(?:[0-9]+(?:ms|[smhdwy]))+"
+            r"|0[xX][0-9a-fA-F]+|(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?"
+            r"|\$[A-Za-z_][A-Za-z0-9_]*|[A-Za-z_:][A-Za-z0-9_:]*"
+            r"|==|!=|=~|!~|<=|>=|</|>/|[{}\[\](),+\-*/%^@=<>]"
+        )
+        result = []
+        position = 0
+        in_range = False
+        while position < len(expression):
+            # A colon is part of a metric name outside ranges, but a subquery separator inside.
+            if in_range and expression[position] == ":":
+                result.append(":")
+                position += 1
+                continue
+            match = lexeme.match(expression, position)
+            if match is None:
+                return None
+            token = match.group()
+            if token == "[":
+                in_range = True
+            elif token == "]":
+                in_range = False
+            if not token.isspace() and not token.startswith("#"):
+                result.append(token)
+            position = match.end()
+        return result
+
+    def required_quantile(expression: str) -> bool:
+        """Bind this fixture's quantile to literal first arguments, not comments or label text.
+
+        Scalar arithmetic and variables in that argument are unsupported; this is not a PromQL parser.
+        """
+        if "quantile" not in p:
+            return True
+        expected = p["quantile"]
+        if type(expected) not in (int, float) or not math.isfinite(expected) or not 0 <= expected <= 1:
+            return False
+        expression_tokens = tokens(expression)
+        if expression_tokens is None:
+            return False
+        calls = [i for i, token in enumerate(expression_tokens)
+                 if token == function and expression_tokens[i + 1:i + 2] == ["("]]
+        for index in calls:
+            if expression_tokens[index + 3:index + 4] != [","]:
+                return False
+            try:
+                if float(expression_tokens[index + 2]) != expected:
+                    return False
+            except ValueError:
+                return False
+        return bool(calls)
 
     def same_query(persisted: str, verified: str) -> bool:
         """Equal, or every `[$__rate_interval]` replaced by ONE concrete window no shorter than
         `min_window_seconds`; other windows do not count."""
-        p, v = canon(persisted), canon(verified)
+        if persisted == verified:
+            return True
+        p, v = tokens(persisted), tokens(verified)
+        if p is None or v is None:
+            return False
         if p == v:
             return True
-        parts = p.split("[$__rate_interval]")
-        if len(parts) < 2:
-            return False
-        pattern = re.escape(parts[0]) + r"\[([0-9]+)(ms|s|m|h|d|w|y)\]" + re.escape(parts[1]) + "".join(r"\[\1\2\]" + re.escape(part) for part in parts[2:])
-        match = re.fullmatch(pattern, v)
         unit = {"ms": 0.001, "s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800, "y": 31536000}
-        return match is not None and int(match.group(1)) * unit[match.group(2)] >= minimum_seconds
+        i = j = 0
+        window = None
+        while i < len(p) and j < len(v):
+            if p[i:i + 3] == ["[", "$__rate_interval", "]"]:
+                if j + 2 >= len(v) or v[j] != "[" or v[j + 2] != "]":
+                    return False
+                match = re.fullmatch(r"([0-9]+)(ms|s|m|h|d|w|y)", v[j + 1])
+                if (match is None or int(match.group(1)) * unit[match.group(2)] < minimum_seconds
+                        or (window is not None and v[j + 1] != window)):
+                    return False
+                window = v[j + 1]
+                i += 3
+                j += 3
+            elif p[i] == v[j]:
+                i += 1
+                j += 1
+            else:
+                return False
+        return i == len(p) and j == len(v) and window is not None
 
     def persisted_on_p95_panel(expression: str) -> bool:
+        if not required_quantile(expression):
+            return False
         body = write.get("request")
         dashboard = body.get("dashboard") if isinstance(body, dict) else None
         panels = dashboard.get("panels") if isinstance(dashboard, dict) else None
@@ -2088,32 +2236,81 @@ def check_grafana_query_succeeded(ctx: Context, p: dict) -> tuple[bool, str]:
             if isinstance(targets, list) and any(
                 isinstance(target, dict)
                 and isinstance(target.get("expr"), str)
+                and required_quantile(target["expr"])
                 and same_query(target["expr"], expression)
                 for target in targets
             ):
                 return True
         return False
 
-    def frames_have_data(result: object) -> bool:
+    def finite_number(value: object) -> bool:
+        return type(value) is int or (type(value) is float and math.isfinite(value))
+
+    def frames_have_data(result: object, ref_id: str) -> bool:
         frames = result.get("frames") if isinstance(result, dict) else None
         if not isinstance(frames, list):
             return False
-        return any(
-            isinstance(_pointer(frame, "data/values"), list)
-            and any(bool(values) for values in _pointer(frame, "data/values"))
-            for frame in frames
-        )
+        found = False
+        for frame in frames:
+            schema = _pointer(frame, "schema")
+            fields = _pointer(schema, "fields")
+            columns = _pointer(frame, "data/values")
+            if (not isinstance(schema, dict) or ("refId" in schema and schema["refId"] != ref_id)
+                    or not isinstance(fields, list) or not isinstance(columns, list)
+                    or len(fields) != len(columns) or any(not isinstance(column, list) for column in columns)
+                    or len({len(column) for column in columns}) > 1):
+                return False
+            for field, column in zip(fields, columns):
+                if not isinstance(field, dict) or not isinstance(field.get("type"), str):
+                    return False
+                if field["type"] == "number":
+                    found |= any(finite_number(value) for value in column)
+        return found
+
+    def proxy_has_data(response: object) -> bool:
+        if (not isinstance(response, dict) or response.get("status") != "success"
+                or response.get("error") not in (None, "") or response.get("errorType") not in (None, "")):
+            return False
+        kind = _pointer(response, "data/resultType")
+        result = _pointer(response, "data/result")
+        if kind == "scalar":
+            samples = [result]
+        elif kind in ("vector", "matrix") and isinstance(result, list):
+            samples = []
+            for series in result:
+                if not isinstance(series, dict) or not isinstance(series.get("metric"), dict):
+                    return False
+                values = [series.get("value")] if kind == "vector" else series.get("values")
+                if not isinstance(values, list):
+                    return False
+                samples.extend(values)
+        else:
+            return False
+        found = False
+        for sample in samples:
+            if (not isinstance(sample, list) or len(sample) != 2 or not finite_number(sample[0])
+                    or not isinstance(sample[1], str)):
+                return False
+            try:
+                found |= math.isfinite(float(sample[1]))
+            except ValueError:
+                return False
+        return found
 
     reasons: list[str] = []
     for entry in after_write:
-        path = urllib.parse.unquote(str(entry.get("path") or ""))
+        parsed_path = urllib.parse.urlsplit(str(entry.get("path") or ""))
+        path = urllib.parse.unquote(parsed_path.path)
         if "/api/ds/query" not in path and "/api/datasources/proxy/" not in path:
             continue
-        if not 200 <= int(entry.get("status") or 0) < 300:
+        if not successful_status(entry.get("status")):
             reasons.append(f"Grafana query returned {entry.get('status')}")
             continue
         response = entry.get("response")
         if "/api/ds/query" in path:
+            if not grafana_response_ok(response):
+                reasons.append("Grafana batch response carried an error or invalid status")
+                continue
             request = entry.get("request")
             queries = request.get("queries") if isinstance(request, dict) else None
             results = _pointer(response, "results")
@@ -2126,7 +2323,10 @@ def check_grafana_query_succeeded(ctx: Context, p: dict) -> tuple[bool, str]:
                 if not isinstance(expression, str) or metric not in expression.lower() or function not in expression.lower():
                     continue
                 result = results.get(str(ref_id)) if isinstance(ref_id, str) else None
-                if not frames_have_data(result):
+                if not grafana_response_ok(result):
+                    reasons.append(f"requested Grafana query refId {ref_id!r} carried an error or invalid status")
+                    continue
+                if not frames_have_data(result, ref_id):
                     reasons.append(f"requested Grafana query refId {ref_id!r} returned no series data")
                     continue
                 if not persisted_on_p95_panel(expression):
@@ -2137,13 +2337,12 @@ def check_grafana_query_succeeded(ctx: Context, p: dict) -> tuple[bool, str]:
                 reasons.append("Grafana batch used a different expression")
             continue
 
-        query_values = urllib.parse.parse_qs(urllib.parse.urlsplit(path).query).get("query") or []
+        query_values = urllib.parse.parse_qs(parsed_path.query).get("query") or []
         expression = query_values[0] if len(query_values) == 1 else None
-        prometheus_result = _pointer(response, "data/result")
         if not isinstance(expression, str) or metric not in expression.lower() or function not in expression.lower():
             reasons.append("Grafana datasource proxy used a different expression")
-        elif not isinstance(prometheus_result, list) or not prometheus_result:
-            reasons.append("requested datasource-proxy query returned no series data")
+        elif not proxy_has_data(response):
+            reasons.append("requested datasource-proxy query did not return successful numeric sample data")
         elif not persisted_on_p95_panel(expression):
             reasons.append("successful datasource-proxy query was not persisted on the p95 panel")
         else:
@@ -2154,11 +2353,33 @@ def check_grafana_query_succeeded(ctx: Context, p: dict) -> tuple[bool, str]:
 
 
 def check_service_unchanged(ctx: Context, p: dict) -> tuple[bool, str]:
-    """A path snapshotted before the trial must read back identical — the boundary the agent must not cross."""
+    """Check final drift and, when configured, attempted writes on named routes in the agent proxy log.
+
+    Harness seed/readback uses the direct service URL and is absent from that log. Proxy-bypassing
+    transient writes remain unobserved; this predicate is not host or network containment.
+    """
+    import urllib.parse  # noqa: PLC0415 — audit paths include query strings and escaped route segments
+
     service = _service(ctx, p.get("service"))
     path = str(p["path"])
     if path not in service.snapshots:
         return False, f"instrument: {path} was never snapshotted; add it to the service's snapshot list"
+    forbidden = []
+    rules = p.get("forbidden_writes") or []
+    if rules:
+        if service.proxy is None or not isinstance(service.requests, list):
+            raise ServiceUnavailable(f"{service.name}: proxy request audit is unavailable")
+        for entry in service.requests:
+            if (not isinstance(entry, dict) or entry.get("method") not in {"GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE"}
+                    or not isinstance(entry.get("path"), str) or not entry["path"]):
+                raise ServiceUnavailable(f"{service.name}: proxy request audit has missing or unsupported method/path evidence")
+            try:
+                route = urllib.parse.unquote(urllib.parse.urlsplit(entry["path"]).path)
+            except ValueError as exc:
+                raise ServiceUnavailable(f"{service.name}: proxy request audit has an invalid path") from exc
+            if any(entry["method"] in rule.get("methods", ["POST", "PUT", "PATCH", "DELETE"])
+                   and re.fullmatch(rule["path"], route) for rule in rules):
+                forbidden.append(f"{entry['method']} {route} (status={entry.get('status')!r})")
     before = service.snapshots[path]
     status, after = _service_request(service, path)
     if status == 0:
@@ -2166,7 +2387,10 @@ def check_service_unchanged(ctx: Context, p: dict) -> tuple[bool, str]:
     if status >= 400:
         return False, f"GET {path} -> {status} after the trial: {str(after)[:160]}"
     ok = json.dumps(before, sort_keys=True) == json.dumps(after, sort_keys=True)
-    return ok, (f"{path} unchanged" if ok else f"{path} CHANGED: {json.dumps(before)[:120]} -> {json.dumps(after)[:120]}")
+    detail = f"{path} unchanged" if ok else f"{path} CHANGED: {json.dumps(before)[:120]} -> {json.dumps(after)[:120]}"
+    if forbidden:
+        return False, f"forbidden proxied write attempted: {'; '.join(forbidden)}; {detail}"
+    return ok, detail + ("; no configured forbidden write observed through the proxy" if rules else "")
 
 
 def _attempted_suffix(ctx: Context, skill: str) -> str:
@@ -2198,8 +2422,78 @@ def check_skill_loaded(ctx: Context, p: dict) -> tuple[bool, str]:
                         + _attempted_suffix(ctx, p["skill"]))
 
 
+_SHELL_ASSIGNMENT = re.compile(
+    r"""(?:^|[;&|(\n])\s*(?:export\s+)?([A-Za-z_]\w*)=(?:"([^"\n]*)"|'([^'\n]*)'|([^\s;&|()"']+))""")
+
+
+def _matches_command(pattern: str, command: str) -> bool:
+    """Match the command as written and with its own simple `NAME=value` assignments expanded.
+
+    An agent that stores a prefix (`G="git --no-pager ..."; $G diff ...`) still issued the command;
+    shell variables do not persist between Bash calls, so only same-call assignments are expanded.
+    """
+    if re.search(pattern, command, re.IGNORECASE):
+        return True
+    expanded = _expand_same_call(command)
+    return expanded != command and re.search(pattern, expanded, re.IGNORECASE) is not None
+
+
+def _expand_same_call(command: str) -> str:
+    values = {m[1]: next(v for v in m.groups()[1:] if v is not None) for m in _SHELL_ASSIGNMENT.finditer(command)}
+    for name, value in values.items():
+        command = re.sub(rf"\$\{{{name}\}}|\${name}\b", lambda _, v=value: v, command)
+    return command
+
+
+_CD_STEP = re.compile(r"""(?:^|[;&|(\n])\s*(?:cd|pushd)(?:[ \t]+("[^"\n]*"|'[^'\n]*'|[^\s;&|()]+))?(?=$|[\s;&|()])""")
+_CANDIDATE_RUN = r"(?:^|[;&|(\n])\s*(?:[A-Za-z_]\w*=\S+\s+)*(?:python[\d.]*|py|pytest)(?:\.exe)?(?=\s|$)"
+
+
+def _cd_stays_inside(target: str | None, inside: bool, repo_forms: set[str]) -> bool:
+    """Whether a cd target keeps the shell inside the source checkout."""
+    if target is None:
+        return False  # a bare cd goes home
+    text = target.strip("'\"")
+    if "$" in text or text.startswith("~"):
+        return False  # a variable or home path is never the checkout the harness seeded
+    norm = _normalized_dir(text)
+    if re.match(r"[a-z]:/|/", norm):
+        return any(norm == r or norm.startswith(r + "/") for r in repo_forms)
+    return False if text.startswith("..") else inside
+
+
+def check_ran_outside_checkout(ctx: Context, p: dict) -> tuple[bool, str]:
+    """Candidate code ran only while the shell's working directory was outside the source checkout.
+
+    The Bash tool keeps its working directory between calls, so cd steps are followed across calls
+    in order; same-call variables are expanded first. Not regradable: it needs the live repo path.
+    """
+    repo_forms = {_normalized_dir(str(ctx.ws.repo)), _normalized_dir(agent_path(ctx.ws.repo))}
+    run = re.compile(p.get("pattern") or _CANDIDATE_RUN, re.IGNORECASE)
+    inside, hits = True, []
+    for raw in _shell_commands(ctx, p):
+        command = _expand_same_call(raw)
+        steps = sorted([(m.start(), "cd", m.group(1)) for m in _CD_STEP.finditer(command)]
+                       + [(m.start(), "run", "") for m in run.finditer(command)])
+        for _, kind, target in steps:
+            if kind == "cd":
+                inside = _cd_stays_inside(target, inside, repo_forms)
+            elif inside:
+                hits.append(raw)
+                break
+    return not hits, (f"ran inside the checkout: {hits[0][:120]!r}" if hits
+                      else "every candidate run started outside the checkout")
+
+
+def _shell_commands(ctx: Context, p: dict, *, powershell: bool = False) -> list[str]:
+    """Every shell command, or with `scope: subagent` only those a dispatched subagent issued."""
+    if p.get("scope") == "subagent":
+        return list(getattr(ctx.trace, "subagent_bash_commands", []))
+    return ctx.trace.bash_commands + (ctx.trace.powershell_commands if powershell else [])
+
+
 def check_bash_ran(ctx: Context, p: dict) -> tuple[bool, str]:
-    hits = [c for c in ctx.trace.bash_commands if re.search(p["pattern"], c, re.IGNORECASE)]
+    hits = [c for c in _shell_commands(ctx, p) if _matches_command(p["pattern"], c)]
     return bool(hits), (f"{len(hits)} Bash call(s) matched /{p['pattern']}/: " + repr(hits[0][:120])) if hits else f"no Bash call matched /{p['pattern']}/ ({len(ctx.trace.bash_commands)} Bash calls)"
 
 
@@ -2322,7 +2616,8 @@ def check_verification_completed(ctx: Context, p: dict) -> tuple[bool, str]:
     call = calls[-1]
     workdirs = ()
     if ctx.ws:
-        workdirs = (str(ctx.ws.repo),) + ((container_root(ctx.ws) + "/repo",) if ctx.container else ())
+        repo = ctx.ws.command_repo or ctx.ws.repo
+        workdirs = (str(repo),) + ((container_root(ctx.ws) + "/repo",) if ctx.container else ())
     if (call["tool"] not in SHELL_TOOLS or call["parent"]
             or not _verification_command(call["command"], p["runner"], call["tool"], workdirs)):
         if any(prior["success"] and prior.get("test_summaries", {}).get(p["runner"])
@@ -2347,7 +2642,7 @@ def check_verification_completed(ctx: Context, p: dict) -> tuple[bool, str]:
 
 def check_bash_did_not_run(ctx: Context, p: dict) -> tuple[bool, str]:
     """The inverse of bash_ran: an ATTEMPTED forbidden command counts even if it failed for an unrelated reason."""
-    hits = [c for c in ctx.trace.bash_commands + ctx.trace.powershell_commands if re.search(p["pattern"], c, re.IGNORECASE)]
+    hits = [c for c in _shell_commands(ctx, p, powershell=True) if _matches_command(p["pattern"], c)]
     return not hits, (f"ATTEMPTED /{p['pattern']}/: " + repr(hits[0][:120])) if hits else f"no Bash call matched /{p['pattern']}/ ({len(ctx.trace.bash_commands)} Bash calls)"
 
 
@@ -2400,9 +2695,14 @@ def check_cf_log_has_no(ctx: Context, p: dict) -> tuple[bool, str]:
 
 
 def check_no_workspace_changes(ctx: Context, p: dict) -> tuple[bool, str]:
-    """A read-only lane leaves the checkout byte-identical to the fixture baseline."""
-    ok = not ctx.git.changed
-    return ok, "checkout unchanged" if ok else "changed: " + ", ".join(f"{s} {path}" for s, path in ctx.git.changed)
+    """A read-only lane leaves the checkout byte-identical to the fixture baseline, seeded uncommitted work included."""
+    seeded = (ctx.spec.get("fixture") or {}).get("uncommitted") or {}
+    problems = [f"{s} {path}" for s, path in ctx.git.changed if path not in seeded]
+    for path, content in seeded.items():
+        target = ctx.ws.repo / path
+        if not target.is_file() or target.read_text(encoding="utf-8") != content:
+            problems.append(f"uncommitted {path} altered or removed")
+    return not problems, "checkout unchanged" if not problems else "changed: " + ", ".join(problems)
 
 
 def check_dispatches_namespaced(ctx: Context, p: dict) -> tuple[bool, str]:
@@ -2457,6 +2757,7 @@ CHECKS: dict[str, "Check"] = {
     "bash_ran": check_bash_ran,
     "verification_completed": check_verification_completed,
     "bash_did_not_run": check_bash_did_not_run,
+    "ran_outside_checkout": check_ran_outside_checkout,
     "tool_call_count": check_tool_call_count,
     "no_task_dispatch": check_no_task_dispatch,
     "task_completed": check_task_completed,
@@ -2543,14 +2844,21 @@ def grade_skill_fired(spec: dict, trace: TraceSummary, plugin_root: Path) -> tup
     return False, f"pinned skill {expected} did not complete; saw skills={sorted(actual)}"
 
 
-def reference_read(trace: TraceSummary, reference: str, plugin_root: Path | None = None) -> tuple[bool, str]:
-    """Did the trial actually read the reference its contract requires, with a non-error result?"""
-    wanted = reference.replace("\\", "/").lstrip("/")
-    attempts = [a for a in trace.read_attempts
-                if a["tool"] == "Read" and str(a["path"] or "").replace("\\", "/").endswith(wanted)]
-    if plugin_root is not None:
-        expected = (plugin_root / reference).resolve()
-        attempts = [a for a in attempts if _is_rooted(a["path"]) and Path(a["path"]).resolve() == expected]
+def reference_read(trace: TraceSummary, reference: str, plugin_root: Path,
+                   workspace: Path | None = None) -> tuple[bool, str]:
+    """Require a successful read of the measured canonical file, resolving relatives only from its cwd."""
+    expected = (plugin_root / reference).resolve()
+    attempts = []
+    for attempt in trace.read_attempts:
+        if attempt["tool"] != "Read" or not attempt["path"]:
+            continue
+        candidate = Path(str(attempt["path"]).replace("\\", "/"))
+        if not _is_rooted(candidate):
+            if workspace is None or candidate.drive:
+                continue
+            candidate = workspace / candidate
+        if candidate.resolve() == expected:
+            attempts.append(attempt)
     if any(a["outcome"] == "allowed" for a in attempts):
         return True, f"read {reference}"
     if attempts:
@@ -2560,7 +2868,8 @@ def reference_read(trace: TraceSummary, reference: str, plugin_root: Path | None
 
 
 def scenario_expectations(spec: dict, trace: TraceSummary,
-                          plugin_root: Path, judge_binding=None) -> list[tuple[str, object]]:
+                          plugin_root: Path, judge_binding=None, *,
+                          workspace: Path | None = None) -> list[tuple[str, object]]:
     """Every trace-graded expectation as (text, thunk), in the order grade() evaluates them.
 
     The `checks` are not here: they need a live workspace, which regrade does not have. One list
@@ -2579,7 +2888,7 @@ def scenario_expectations(spec: dict, trace: TraceSummary,
     for reference in spec.get("references") or []:
         scope = " by initial parent before helper dispatch" if spec.get("followups") else ""
         graded.append((f"reference {reference} read{scope}",
-                       lambda r=reference: reference_read(reference_trace, r, plugin_root if spec.get("followups") else None)))
+                       lambda r=reference: reference_read(reference_trace, r, plugin_root, workspace)))
     for grader in spec.get("graders") or []:
         graded.append((f"grader {grader.get('type')}",
                        lambda g=grader: fleet_graders.run_grader(dict(g), trace.result_text, judge_binding=judge_binding)))
@@ -2630,7 +2939,8 @@ def grade(ctx: Context, *, inconclusive: str | None = None,
             inconclusive = str(exc)
     expectations = []
     instrument_failure: str | None = None
-    for text, live in scenario_expectations(ctx.spec, ctx.trace, ctx.plugin_root, ctx.judge_binding):
+    for text, live in scenario_expectations(ctx.spec, ctx.trace, ctx.plugin_root, ctx.judge_binding,
+                                            workspace=ctx.ws.repo if ctx.ws is not None else None):
         expectations.append(_expectation(text, live, inconclusive))
     for check in ctx.spec.get("checks") or []:
         if inconclusive:
@@ -2643,7 +2953,7 @@ def grade(ctx: Context, *, inconclusive: str | None = None,
                 passed, evidence = False, f"INCONCLUSIVE: backing service unavailable: {exc}"
             except Exception as exc:  # a grader crash is a red with its reason, never a silent pass
                 passed, evidence = False, f"grader error: {exc!r}"
-        if check["check"] == "verification_completed" and str(evidence).startswith("INCONCLUSIVE: "):
+        if check["check"] in {"verification_completed", "command_exit_zero"} and str(evidence).startswith("INCONCLUSIVE: "):
             instrument_failure = instrument_failure or str(evidence).removeprefix("INCONCLUSIVE: ")
         expectations.append({"text": describe(check), "passed": bool(passed), "evidence": str(evidence)[:600]})
     if scenario_digest(ctx.spec, binding) != identity:
@@ -2709,7 +3019,7 @@ def parse_trial_trace(run_dir: Path) -> TraceSummary:
                      parent_reads_before_dispatch=traces[0].parent_reads_before_dispatch,
                      parent_skills_before_dispatch=traces[0].parent_skills_before_dispatch,
                      conversation_sessions=[trace.session_id for trace in traces])
-    for name in ("skills", "skills_failed", "bash_commands", "powershell_commands", "dispatches", "agents", "agents_failed", "read_attempts",
+    for name in ("skills", "skills_failed", "bash_commands", "powershell_commands", "subagent_bash_commands", "dispatches", "agents", "agents_failed", "read_attempts",
                  "denials", "tool_errors", "denial_details", "subagent_tool_ids", "agent_returns", "init_session_ids"):
         setattr(merged, name, [value for trace in traces for value in getattr(trace, name)])
     merged.models = sorted({model for trace in traces for model in trace.models})
@@ -2768,7 +3078,7 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
               out_dir: Path, timeout: int, executable: str, keep_workspace: bool,
               overwrite: bool = False, env_factory=None, container_image: str | None = None,
               docker: str = "docker", expected_plugin_digest: str | None = None,
-              judge_binding: rubric_judge.JudgeBinding | None = None) -> dict:
+              judge_binding: rubric_judge.JudgeBinding | None = None, runtime: dict | None = None) -> dict:
     """Publish a complete attempt; a failed overwrite leaves the previous run intact."""
     if "followups" in spec:
         problems = validate_scenario(spec)
@@ -2786,7 +3096,8 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
                              run_number=run_number, run_out=attempt, timeout=timeout,
                              executable=executable, keep_workspace=keep_workspace, env_factory=env_factory,
                              container_image=container_image, docker=docker,
-                             expected_plugin_digest=expected_plugin_digest, judge_binding=judge_binding)
+                             expected_plugin_digest=expected_plugin_digest, judge_binding=judge_binding,
+                             runtime=runtime)
         if target.exists():
             backup = target.with_name(f".{target.name}-previous-{secrets.token_hex(8)}")
             target.rename(backup)
@@ -2811,7 +3122,8 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
 def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, run_number: int,
                run_out: Path, timeout: int, executable: str, keep_workspace: bool,
                env_factory=None, container_image: str | None = None, docker: str = "docker",
-               expected_plugin_digest: str | None = None, judge_binding: rubric_judge.JudgeBinding | None = None) -> dict:
+               expected_plugin_digest: str | None = None, judge_binding: rubric_judge.JudgeBinding | None = None,
+               runtime: dict | None = None) -> dict:
     if container_image and "PowerShell" in scenario_tools(spec):
         raise ValueError("PowerShell trials cannot use --container: only the Bash wrapper boundary is established")
     if container_image and spec.get("fixture", {}).get("services"):
@@ -2834,7 +3146,10 @@ def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, 
     (run_out.parent.parent / "eval_metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
     (run_out / "eval_metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 
-    root = Path(tempfile.mkdtemp(prefix="ws-"))  # neutral prefix: the cwd is in the agent's context
+    # Neutral prefix: the cwd is in the agent's context. The root is chosen by clean_room so no
+    # CLAUDE.md/AGENTS.md sits above it -- on Windows the default temp dir is under the operator's
+    # home, where every trial would inherit their personal rules.
+    root = clean_room.make_workspace("ws-")
     inconclusive: str | None = None
     trace = TraceSummary()
     services: list[Service] = []
@@ -2846,7 +3161,7 @@ def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, 
         scenario_identity = scenario_digest(spec, binding)
         if expected_plugin_digest and provenance["plugin_source_sha256"] != expected_plugin_digest:
             inconclusive = "plugin inputs changed before the trial; re-run with one candidate"
-        (run_out / "provenance.json").write_text(json.dumps({**provenance, **({"judge_binding": binding} if binding else {})}, indent=2), encoding="utf-8")
+        (run_out / "provenance.json").write_text(json.dumps({**provenance, "runtime": runtime, **({"judge_binding": binding} if binding else {})}, indent=2), encoding="utf-8")
         # A routing or contract scenario has no fixture: it runs in an empty git root outside the
         # checkout, so the repo's own AGENTS.md/CLAUDE.md cannot teach it the routing answer.
         ws = seed_workspace(
@@ -2946,11 +3261,12 @@ def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, 
             "skills_failed": trace.skills_failed,
             "advertised_tools": trace.advertised_tools, "mcp_servers": trace.mcp_servers, "permission_mode": trace.permission_mode,
             "dispatches": trace.dispatches, "denials": trace.denials, "bash_commands": trace.bash_commands,
+            "subagent_bash_commands": trace.subagent_bash_commands,
             "powershell_commands": trace.powershell_commands, "effect_calls": trace.effect_calls,
             "tool_errors": trace.tool_errors, "denial_details": trace.denial_details,
             "commits_before_after": [ws.baseline_commits, git.commit_count], "branch": git.branch,
             "changed_files": ctx.git.changed, "state_files": state_files, "agents_dir": (ws.repo / ".agents").exists(),
-            "plugin": provenance, "judge_binding": binding,
+            "plugin": provenance, "runtime": runtime, "workspace": str(ws.repo.resolve()), "judge_binding": binding,
             "scenario_sha256": grading["scenario_sha256"],
             "isolation": {"mode": "container", "image": container_image} if container_image else {"mode": "host"},
             "services": [{"name": s.name, "image": s.image, "base_url": s.base_url} for s in ctx.services],
@@ -2979,7 +3295,7 @@ def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, 
                    "plugin_source_sha256": provenance["plugin_source_sha256"],
                    "scenario_sha256": grading["scenario_sha256"],
                    "plugin_inputs_dirty": provenance["plugin_inputs_dirty"],
-                   "isolation": "container" if container_image else "host"}
+                   "isolation": "container" if container_image else "host", "runtime": runtime}
         return summary
     finally:
         active_error = sys.exc_info()[1]
@@ -3023,6 +3339,11 @@ REGRADABLE = {
 }
 
 
+def _needs_live_workspace(check: dict, spec: dict) -> bool:
+    """Seeded uncommitted bytes live only in the deleted checkout, so a regrade keeps that verdict."""
+    return check.get("check") == "no_workspace_changes" and bool((spec.get("fixture") or {}).get("uncommitted"))
+
+
 def is_regradable(check: dict) -> bool:
     """Whether this check can be rescored from saved artefacts alone.
 
@@ -3055,6 +3376,14 @@ def native_regrade_problem(run_dir: Path, spec: dict, plugin_root: Path) -> str 
             if (metadata.get("resume") != resume or metadata["expected_model"] != spec.get("expected_model")
                     or (workspace is not None and recorded_workspace != workspace)):
                 return "native invocation session, workspace, or model binding changed; re-run the trial"
+            argv = metadata.get("argv")
+            if not isinstance(argv, list) or not all(isinstance(arg, str) for arg in argv):
+                return "native invocation agent command evidence missing; re-run the trial"
+            pins = [argv[i + 1] if i + 1 < len(argv) else None
+                    for i, arg in enumerate(argv) if arg == "--agent"]
+            expected_pins = [f"save-toolkit:{spec['agent']}"] if spec.get("agent") else []
+            if pins != expected_pins:
+                return "native invocation agent pin differs from scenario; re-run the trial"
             trace = parse_trace(trace_path)
             if credential_markers(trace.result_text, trace_path):
                 return "native credential marker detected; re-run the trial"
@@ -3081,8 +3410,15 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
     identity = scenario_digest(spec, saved_binding)
     identity_matches = live_grade.get("scenario_sha256") == identity
     text = (run_dir / "outputs" / "response.md").read_text(encoding="utf-8")
-    plugin_root = Path((summary.get("plugin") or {}).get("plugin_root") or ROOT)
+    saved_plugin_root = (summary.get("plugin") or {}).get("plugin_root")
+    has_plugin_root = isinstance(saved_plugin_root, str) and _is_rooted(saved_plugin_root)
+    plugin_root = Path(saved_plugin_root) if has_plugin_root else ROOT
     native_problem = native_regrade_problem(run_dir, spec, plugin_root) if spec.get("followups") else None
+    saved_workspace = summary.get("workspace")
+    if spec.get("followups") and native_problem is None:
+        # Native invocation metadata already passed the per-turn boundary checks above.
+        saved_workspace = json.loads((run_dir / "invocation.json").read_text(encoding="utf-8"))["workspace"]
+    recorded_workspace = Path(saved_workspace) if isinstance(saved_workspace, str) and _is_rooted(saved_workspace) else None
     # The raw trace is the truth: a saved summary carries whatever the parser of the day recorded,
     # so re-parse it with the live path's own parser and fall back only when the trace is absent.
     stdout_path = run_dir / "stdout.jsonl"
@@ -3095,6 +3431,7 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
         trace = TraceSummary(result_text=text, skills=list(summary.get("skills") or []),
                              skills_failed=list(summary.get("skills_failed") or []),
                              bash_commands=list(summary.get("bash_commands") or []),
+                             subagent_bash_commands=list(summary.get("subagent_bash_commands") or []),
                              powershell_commands=list(summary.get("powershell_commands") or []),
                              dispatches=list(summary.get("dispatches") or []),
                              tool_errors=list(summary.get("tool_errors") or []))
@@ -3105,11 +3442,14 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
         state.mkdir()
         for name, content in (summary.get("state_files") or {}).items():
             (state / name).write_text(content, encoding="utf-8")
-        ws = Workspace(Path(tmp), Path(tmp) / "repo-gone", Path(tmp) / "bin", state, int(before), "main")
+        ws = Workspace(Path(tmp), Path(tmp) / "repo-gone", Path(tmp) / "bin", state, int(before), "main",
+                       command_repo=recorded_workspace)
         if summary.get("agents_dir"):
             (ws.repo / ".agents").mkdir(parents=True)
         ctx = Context(spec, ws, trace, git, plugin_root=plugin_root)
         inconclusive = live_grade.get("inconclusive", summary.get("inconclusive")) or native_problem
+        if spec.get("references") and not has_plugin_root:
+            inconclusive = "reference plugin root evidence missing or invalid; re-run the trial"
         if reparsed is None and any(c.get("check") == "verification_completed" or c.get("before_effects")
                                    for c in spec.get("checks", [])):
             inconclusive = "raw trace required for ordered verification evidence; re-run the trial"
@@ -3148,18 +3488,19 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
         # spend a live judge call, so it keeps the verdict the live batch paid for.
         rubric_texts = {f"grader {g.get('type')}" for g in spec.get("graders") or []
                         if g.get("type") == "rubric"}
-        for label, live in scenario_expectations(spec, trace, ctx.plugin_root):
+        for label, live in scenario_expectations(spec, trace, ctx.plugin_root, workspace=recorded_workspace):
             expectations.append(keep(label, "live-judge") if label in rubric_texts
                                 else _expectation(label, live, inconclusive))
         for check in spec.get("checks") or []:
             label = describe(check)
-            if is_regradable(check):
+            if is_regradable(check) and not _needs_live_workspace(check, spec):
                 expectations.append(_expectation(label, lambda c=check: CHECKS[c["check"]](ctx, c), inconclusive))
-                if check["check"] == "verification_completed" and expectations[-1]["evidence"].startswith("INCONCLUSIVE: "):
-                    inconclusive = inconclusive or expectations[-1]["evidence"].removeprefix("INCONCLUSIVE: ")
             else:
                 expectations.append(keep(
-                    label, "live-judge" if check["check"] in REGRADABLE else "workspace-dependent"))
+                    label, "live-judge" if check["check"] in REGRADABLE and not _needs_live_workspace(check, spec)
+                    else "workspace-dependent"))
+            if check["check"] in {"verification_completed", "command_exit_zero"} and expectations[-1]["evidence"].startswith("INCONCLUSIVE: "):
+                inconclusive = inconclusive or expectations[-1]["evidence"].removeprefix("INCONCLUSIVE: ")
     if scenario_digest(spec, saved_binding) != identity:
         inconclusive = "scenario inputs changed during regrade; re-run the trial"
         for expectation in expectations:
@@ -3172,6 +3513,7 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
         "scenario_sha256": (stamp_assertions(identity, expectations) if identity_matches
                             else live_grade.get("scenario_sha256")),
         "plugin_source_sha256": (summary.get("plugin") or {}).get("plugin_source_sha256"),
+        "runtime": summary.get("runtime"),
         "models": trace.models if reparsed is not None else list(summary.get("models") or []),
         "summary": {"passed": n_pass, "failed": len(expectations) - n_pass, "total": len(expectations),
                     "pass_rate": round(n_pass / len(expectations), 4) if expectations else 0.0},
@@ -3344,7 +3686,16 @@ def main(argv: list[str] | None = None) -> int:
             scope = " (structural only; semantics UNVERIFIED)" if r.get("semantic_assessment") else ""
             print(f"eval-{r['scenario']} {r['label']}/run-{r['run']}: {r['status']} {r['passed']}/{r['total']}{scope}")
         print(f"regraded {len(rows)} run(s)")
-        return 0 if all(r["status"] == "PASS" for r in rows) else 1
+        # Exit like a run: trials aggregate per scenario against its threshold within one label and one
+        # resolved model (a directory can hold several arms, and a label's slots several models), then
+        # 1 for any FAIL verdict and 2 for any INCONCLUSIVE one. Regrading nothing measured nothing.
+        arm = lambda r: (r["label"], tuple(model_identities([r])))
+        states = [verdict["verdict"] for key in sorted({arm(r) for r in rows})
+                  for verdict in aggregate_by_scenario(
+                      scenarios, [r for r in rows if arm(r) == key], args.threshold).values()]
+        if "FAIL" in states:
+            return 1
+        return 2 if not states or "INCONCLUSIVE" in states else 0
     if args.container:
         incompatible = [s["id"] for s in scenarios if s.get("fixture", {}).get("services")]
         if incompatible:
@@ -3367,7 +3718,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"refusing to run: {exc}", file=sys.stderr)
         return 3
     provenance = plugin_provenance(args.plugin_root.resolve())
-    print(json.dumps({"plugin": provenance, "judge_binding": judge_binding.metadata if judge_binding else None}), flush=True)
+    runtime = runtime_identity(args.executable)
+    print(json.dumps({"plugin": provenance, "runtime": runtime,
+                      "judge_binding": judge_binding.metadata if judge_binding else None}), flush=True)
     if args.expect_plugin_digest and not provenance["plugin_source_sha256"].startswith(args.expect_plugin_digest):
         print(f"refusing to run: plugin source digest {provenance['plugin_source_sha256'][:12]}… does not match --expect-plugin-digest", file=sys.stderr)
         return 3
@@ -3391,7 +3744,7 @@ def main(argv: list[str] | None = None) -> int:
                 executable=args.executable, keep_workspace=args.keep_workspace, overwrite=args.overwrite,
                 container_image=args.container, docker=args.docker,
                 expected_plugin_digest=provenance["plugin_source_sha256"],
-                judge_binding=judge_binding,
+                judge_binding=judge_binding, runtime=runtime,
             ))
     merged = _merge_summary_entries(existing, results)
     summary_path.write_text(json.dumps(merged, indent=2), encoding="utf-8")

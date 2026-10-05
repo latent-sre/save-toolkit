@@ -198,6 +198,12 @@ Gate A proves the fleet is well-formed, never that it is correct — the change-
 evals live in [`evals/README.md`](evals/README.md). Accepted fleet failures become focused
 regressions and ordinary PR evidence.
 
+## Browse the fleet atlas
+
+The [local browser dashboard](docs/fleet-atlas-dashboard.md) provides searchable guidance,
+an entity registry, relationship views, and cited source excerpts from a verified atlas snapshot.
+It opens as a standalone HTML file without a server or external assets.
+
 ## Contribute
 
 Start with [AGENTS.md](AGENTS.md) (the fleet guide and conditional rule map, loaded into every

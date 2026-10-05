@@ -82,15 +82,18 @@ Missing evidence stays `[unverified]`, never invented.
 
 ## Living runbooks — every incident leaves the runbook better
 
-For steps actually exercised, record **held** or **contradicted**; record **missing** when the
-responder needed a step that did not exist. Untraversed branches remain untested. Each observed
-outcome becomes an `operational-learning` disposition at closeout. A direct request that supplies
-the resolved incident's record is also an intake: edit in runbook mode and cite the PR or evidence
-reference in the history row; `prepared` and `proposed` appear only when an `operational-learning`
-closeout produced them. Append an Incident history row (template slot) pinned to the `version`
-used; rows are evidence, never rewritten. A contradicted step is fixed now or the runbook drops to
-`status: draft`; `last_verified` moves only on binding rehearsal evidence. The full accretion
-protocol is in [living runbooks](./references/living-runbooks.md).
+For steps actually exercised, record **held** (worked as written) or **contradicted** (wrong, unsafe,
+or a different result); record **missing** when the responder needed an absent step. Untraversed
+branches remain untested. Each observed outcome becomes an `operational-learning` disposition at
+closeout. Capture missing, contradicted, or newly required steps from the advisor's Follow-ups or
+a helper's `Durable discovery candidates`. A direct request that supplies the resolved incident's
+record is also an intake: edit in runbook mode and cite the PR or evidence reference in the history
+row; `prepared` and `proposed` appear only when an `operational-learning` closeout produced them.
+Append one Incident history row (template slot) pinned to the `version` used; rows are evidence,
+never rewritten. Fix a contradicted step from supplied evidence and bump `version`, or demote to
+`status: draft`; `last_verified` moves only on the binding, passing rehearsal evidence defined above.
+After three incidents repeat the same manual fix, record an automation candidate in the history row's
+follow-up column; assess it with `toil-reduction` before filing.
 
 ## Importing runbooks from Confluence
 

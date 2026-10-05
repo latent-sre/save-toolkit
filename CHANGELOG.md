@@ -8,6 +8,63 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- The rubric judge follows the latest Sonnet (owner decision 2026-10-04): each calibration requests
+  the `sonnet` alias, and its receipt pins the concrete model that answered, so trials never follow
+  the alias between calibrations. A new Sonnet means a recalibration with `--resolve-identity` before
+  the old model retires, with the judge cache cleared when the probe reports that the alias moved,
+  and the native scenarios' `expected_model` pins move with it.
+  [verified] The first calibration on Sonnet 5.5 (`claude-sonnet-5-5`) cost USD 2.44 at list price
+  for 165 live calls, against USD 4.90 on Sonnet 5.
+- `reviewer` fixes the PR #307 review findings (owner decision 2026-10-02; no OS isolation for
+  scratch runs is accepted risk): the autoload preparation gap names Copilot's instruction roots too;
+  a commit is exported through a scratch index, never `git archive`, whose export attributes drop
+  and rewrite files; every literal Git command uses `$G`; and each P0/P1 finding is reproduced in
+  scratch even when it follows from the code (the export change alone cut reproductions to 7/15 over
+  three wordings, 3/3 at both prior commits; 9/9 now). 12,746 -> 13,278 bytes. The harness adds
+  `ran_outside_checkout`, grades every Git call for the prefix, rejects malformed `uncommitted` keys,
+  and regrades seeded-uncommitted and `scope: subagent` checks correctly. Sonnet, 3 trials: reviewer
+  suite and `software-engineer` handoff 31/33, main 1/12 on the four changed cases; every-call
+  prefix 5/6 (main 0/6); probes 9/9 (a Copilot-only instruction edit does not block on Claude;
+  export-ignored tests stay). Opus 8/9: one run started Python in the checkout with scratch imports.
+- `reviewer` runs checks by default on work in the user's repository (branches, PRs, and
+  uncommitted changes), only in a scratch copy, reproducing each suspected finding first; forks and
+  unknown provenance stay CI-only, and the unused local Docker recipe is gone. 13,507 -> 13,336
+  bytes. Sonnet, 3 trials per case against main: scratch-copy reproductions 6/6 on direct branch and
+  uncommitted reviews (main ran nothing on the branch and ran code inside the checkout 2/3 on
+  uncommitted work); in-checkout runs after a `software-engineer` handoff 1/3 (main 3/3); fork-runner
+  refusal and read-only or no-execution scopes held 9/9.
+- `reviewer` is independent of `researcher` (owner decision 2026-10-01): it dispatches only
+  `repository-investigator`, and a dependency advisory or other public fact it cannot verify
+  locally is a stated gap returned to its caller. On a urllib3 downgrade it flagged the risk from
+  memory, labelled it unverified, asked the caller to confirm, and requested changes 3/3 with no
+  dispatch; main dispatched a researcher that could not answer in 1/3. 13,143 -> 12,746 bytes.
+- `reviewer` may bind a branch review's verdict to the named commit and report uncommitted defects
+  as PROVISIONAL findings (owner decision 2026-10-01); the terse-handoff check accepts that or a
+  PROVISIONAL verdict (6/6 Sonnet, 3/3 Opus; main 2/3). The two rename cases ask for the file whose
+  change introduces the defect (Opus had named the broken caller). Roadmap gains PRECOMMIT-001 and
+  REVIEWER-001.
+- `reviewer` closes probe gaps: a candidate that edits CLAUDE.md, AGENTS.md, or `.claude/` in the
+  checkout it runs in gets a preparation gap instead of a verdict (0/3 -> 3/3; all three earlier
+  trials resisted the injected policy but none noticed it had loaded as their own instructions);
+  changed-file history names each path (0/3 -> 3/3); uncommitted work on a branch is snapshotted
+  before any run (in-checkout runs 0/6 after a terse handoff). The generic security checklist is cut:
+  detection was 9/9 with and without it on workflow injection, SSRF, and a cross-tenant read; the
+  dependency-advisory and agent-system lines stay. 13,331 -> 13,051 bytes. The PROVISIONAL verdict
+  line after a branch-named handoff stays at 4/6: the reviewer binds the verdict to the committed SHA.
+- `reviewer` output and Git contract: a side-effect-free Git prefix with minimum reads, every changed
+  line covered or its filter named, an evidence label beside each finding's priority,
+  `Verdict: PROVISIONAL — …` for mutable reviews, a requester header that never copies an account
+  email, and a one-line `python -c` counted as a run. 13,336 -> 13,331 bytes (main 13,507). Sonnet,
+  3 trials against main: tenant, clean, and uncommitted cases 0/3 -> 3/3; branch-history reads 3/3
+  (main 1/3, 2/3); scratch copies after a `software-engineer` handoff 3/3 (main 0/3); PROVISIONAL
+  verdict line after a terse handoff 2/3 (main 0/3). Changed-file history held only where the
+  reviewer named the paths (0/3 in the retry case).
+- Reviewer evals grade the review as written: five free-form build scenarios cover a scratch-copy
+  reproduction, a cross-tenant read, a correct change, and an agent's uncommitted work (direct and
+  after a terse handoff). Fixtures gain `checkout` and `uncommitted`; `no_workspace_changes` keeps
+  seeded uncommitted bytes as its baseline; four reviewer scenarios reject Git verbs that move the
+  source checkout; two diff detectors accept the two-argument `git diff` that had failed correct runs.
+  On main every outcome check held; `contract:` checks fail where the body lacks the contract.
 - `software-engineer` carries one short inline handoff core in place of three handoff sections,
   plus six-pass fixes: a credential-values row, a test-integrity rule, a `database-reliability`
   trigger, and one skill-trigger list. 25,847 -> 23,356 bytes, measured against main on Sonnet.
@@ -71,6 +128,68 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- Three defective calibration cases that judges disagreed on; no label changed. The
+  `human_handover` rubric paragraph now carries the supplied fact that Riley confirmed the flag
+  value, and the handover PASS response no longer asserts an "agreed recovery window" or an
+  "unassigned" dependency owner, neither of which its scenario supplied. The plan-authorship PASS
+  response names the release owner as the one who deploys: [verified] every Claude judgment had read
+  it as the assistant deploying, every OpenAI judgment as a plan for someone else. The
+  `statement_rerun` PASS response says `needed. The colleague's` instead of `needed; the
+  colleague's`: [verified] Sonnet 5.5 quoted the semicolon as a comma in six of eight judgments,
+  which the verbatim-evidence rule turns into INCONCLUSIVE. [verified] Afterwards a calibration
+  agrees with all 165 labels.
+- The native incident scenario expects `claude-sonnet-5-5`, the model the `sonnet` alias now
+  resolves to. [verified] With `claude-sonnet-5`, a native incident trial run through the alias
+  would stop INCONCLUSIVE on its model check before the follow-up, as
+  `test_native_wrong_or_missing_parent_model_stops_before_resume` exercises.
+- Clean-room trial and judge workspaces no longer inherit the operator's instructions. Claude Code
+  reads `CLAUDE.md` from every ancestor of its working directory, past any git root, and on Windows
+  the default temp dir sits under the user's home. A Haiku probe through `main`'s clean room quoted
+  the operator's `~/.claude/CLAUDE.md` heading. 340 of 1,432 saved trial traces ran under the home
+  directory, and the rubric judge used the same workspace. `clean_room.make_workspace()` now refuses
+  any root with a `CLAUDE.md`, `CLAUDE.local.md`, `AGENTS.md`, `.claude/CLAUDE.md`,
+  `.claude/AGENTS.md` or `.claude/rules/` Markdown file above it, falling back to
+  `<checkout drive>\fleet-eval-tmp` on Windows. `FLEET_EVAL_WORKSPACE_ROOT` overrides the root. The
+  same probe now answers `NONE`.
+- The `incident_companion_response` rubric's `statement_rerun` paragraph now carries the owner-supplied
+  facts its PASS case repeats (`daily-statement/run-42`, `statement-2026-07-14/v3`, the provider
+  receipt, the 11:26 UTC recipient readback, the cached screenshot). Before, a judge reading only the
+  rubric saw them as invented: uncached Sonnet 5 judged calibration case #150 FAIL in both runs that
+  produced a verdict, and every OpenAI judge failed it, while the 2026-09-23 receipt's PASS was
+  cached. After the edit, three uncached Sonnet 5 runs score 21/21 on the rubric, #150 PASS each
+  time.
+- Owner review (2026-10-03) of the PASS-labelled calibration cases judges failed:
+  - The `existing_bridge`, `existing_tlc`, `helper_assignment_and_return` and `knowledge_card` rubric
+    paragraphs now carry the facts their scenarios supplied: the PCF target and incident ids, the
+    report times, Morgan's role, the helper's sourced 10:00-10:10 observation, and the service card's
+    escalation chain, 503 load shedding and 10-minute restart step.
+  - The `no_blind_retry_after_unknown` case that asserts unsupplied terminal-completion evidence is
+    relabelled FAIL, without its trailing conditional, with a new PASS case that makes the retry
+    conditional on that evidence. The rubric now states that the prompt supplies no completion
+    evidence, so a claim that such evidence already settles the outcome is an unsupported outcome
+    claim, while a retry conditioned on a future check is judged by the retry rule. Before this,
+    the relabelled case drew PASS in one of four judgments with the trailing conditional and one of
+    six without it, and either draw fails a calibration; after it, FAIL in six of six.
+  - The `statement_rerun` paragraph also carries the remaining supplied facts (yesterday's cached
+    history, the intended production target, the unknown cause, no rerun or resend), and the
+    `knowledge_card` PASS case names the card's full escalation chain.
+  - Three labels stand.
+
+  A new calibration receipt passes: 15 live calls, 150 cached, every rubric at or above 0.95. Five
+  uncached runs agree on every judged `no_blind_retry_after_unknown` case (one evidence-format
+  inconclusive on a FAIL case); three uncached runs score 21/21 on the companion rubric.
+- `--regrade` grades `verification_completed` against the repository path the run recorded, so a
+  correct `cd "<repo>" && <suite>` receipt is no longer a false FAIL because the checkout is gone.
+  Runs from before 2026-10-02 did not record that path, and they already regrade INCONCLUSIVE on
+  evaluator identity. `--regrade` also exits like a run: trials aggregate per scenario against its
+  threshold within one label and one resolved model, then 1 for any FAIL verdict, 2 for any
+  INCONCLUSIVE one, and 2 when nothing was regraded. It used to return 1 unless every trial passed,
+  and 0 for nothing.
+- `verification_completed` counts an earlier foreground command that failed (`Error: Exit code N`,
+  which the CLI receipts as text, not a dict) as completed. Before, any failed earlier command, even
+  a read-only `git log`, made the ordering unknown and the trial INCONCLUSIVE: 54 of the 61 saved
+  trials with that verdict had no other cause. Replaying all 1,184 replayable saved trials changes
+  exactly those 54 from INCONCLUSIVE to PASS and nothing else; other text errors stay unknown.
 - `backend-craft` corrections:
   - `consuming-apis.md` no longer says to prefer the `cf` CLI;
   - request-id guidance no longer points at `obs-pipeline`, which has none, and states when
@@ -246,6 +365,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Added
 
+- Every eval run records `runtime`: the CLI's `--version` line (`null` when it cannot report one)
+  and the host's system, release, and machine. `main()` measures it once per batch and prints it in
+  the batch header; each trial writes it to `provenance.json`, the trace summary, and its summary
+  line; and `--regrade` keeps the recorded value rather than today's. Results from different CLI
+  versions or hosts were indistinguishable before. The 2026-10-03 threat-model ADR requires both.
 - Two `backend-craft` build probes with probe-owned oracles, each proven by a no-model test
   (a house-rule reference plus targeted mutants):
   - `incident-writes`: an idempotent create whose caller resends on timeout.

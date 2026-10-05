@@ -7,7 +7,7 @@ The universal frontend rules live in `../SKILL.md`. On any conflict, SKILL.md wi
 
 ## Stack
 
-An existing repo's stack always wins — match it. Greenfield uses a **React + TypeScript SPA on Vite**.
+Greenfield uses a **React + TypeScript SPA on Vite**.
 Add the dependencies below when the feature needs their capabilities. Keep UI behavior separate
 from styling, with one reset and one token system.
 
@@ -40,13 +40,13 @@ Staticfile's `pushstate: enabled` rewrites **all missing paths**; it alone does 
 boundaries. Use the buildpack's supported custom configuration, an explicit NGINX configuration,
 or the API's router to reserve them. `root: dist` selects the built directory when pushing the
 whole project. [sourced: [Staticfile options](https://docs.cloudfoundry.org/buildpacks/staticfile/index.html)
-and [rewrite implementation](https://github.com/cloudfoundry/staticfile-buildpack/blob/22b502fd325f5725e0a1d5972f9b59ca9ec6d8c2/src/staticfile/finalize/data.go#L123); reviewed 2026-09-29]
+and [rewrite implementation](https://github.com/cloudfoundry/staticfile-buildpack/blob/22b502fd325f5725e0a1d5972f9b59ca9ec6d8c2/src/staticfile/finalize/data.go#L123)]
 
 Revalidate HTML (`Cache-Control: no-cache`); immutable, content-hashed assets can use long cache
 lifetimes. Keep prior chunks available during rollout or use bounded, user-visible recovery for
 missing imports that protects unsaved work; avoid reload loops. Prefer an existing framework's
 solution; Vite exposes `vite:preloadError`. [sourced: [Vite deployment failures](https://vite.dev/guide/build.html#load-error-handling)
-and [HTTP caching](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Caching#cache_busting); reviewed 2026-09-29]
+and [HTTP caching](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Caching#cache_busting)]
 
 Verify the production build, deep-link refreshes, asset content types/statuses and cache headers.
 When co-serving, use the project's contract tests to check API 404s and healthy health endpoints

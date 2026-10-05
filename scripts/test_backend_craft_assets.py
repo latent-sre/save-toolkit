@@ -717,3 +717,107 @@ def test_boom_probe_precedes_fallback_and_restores_routes(broken_handler):
             contract.test_unexpected_error_is_a_problem(api, client, {})
         assert api.routes == routes
         assert client.get("/__contract_boom").json() == {"fallback": "__contract_boom"}
+
+
+def collection_app(records, mutate=None):
+    """A fixed project-owned collection; the HTTP boundary is the only substituted behavior."""
+    app = FastAPI()
+
+    @app.get("/v1/incidents")
+    def incidents(limit: int = 50, cursor: int = 0):
+        data = records[cursor:cursor + limit]
+        end = cursor + len(data)
+        page = {"data": data, "next_cursor": str(end) if end < len(records) else None}
+        return mutate(page, limit, cursor) if mutate else page
+
+    return app
+
+
+@pytest.mark.parametrize("count", [0, 1, 3])
+def test_collection_starter_accepts_string_and_null_cursors(count):
+    contract = load_asset("test_http_contract")
+    with TestClient(collection_app([{"id": f"inc-{i}"} for i in range(count)])) as client:
+        contract.test_collection_is_a_cursor_page(client, {})
+
+
+@pytest.mark.parametrize("cursor", [7, False, [], {}, "", "x" * 2049],
+                         ids=["number", "boolean", "array", "object", "empty", "too-long"])
+@pytest.mark.parametrize("request_kind", ["default", "limited"])
+def test_collection_starter_rejects_invalid_cursor(cursor, request_kind):
+    contract = load_asset("test_http_contract")
+
+    def mutate(page, limit, offset):
+        if (limit == 1) == (request_kind == "limited"):
+            page["next_cursor"] = cursor
+        return page
+
+    with TestClient(collection_app([{"id": "inc-1"}], mutate)) as client:
+        with pytest.raises(AssertionError, match="next_cursor"):
+            contract.test_collection_is_a_cursor_page(client, {})
+
+
+def test_collection_starter_rejects_empty_limited_populated_page():
+    contract = load_asset("test_http_contract")
+
+    def mutate(page, limit, offset):
+        return {"data": [], "next_cursor": None} if limit == 1 else page
+
+    with TestClient(collection_app([{"id": "inc-1"}, {"id": "inc-2"}], mutate)) as client:
+        with pytest.raises(AssertionError, match="populated"):
+            contract.test_collection_is_a_cursor_page(client, {})
+
+
+@pytest.mark.parametrize("count", [2, 3, 60])
+def test_populated_collection_starter_walks_every_seeded_id(count):
+    contract = load_asset("test_http_contract")
+    records = [{"id": f"inc-{i}"} for i in range(count)]
+    expected = [item["id"] for item in records]
+    with TestClient(collection_app(records)) as client:
+        contract.test_populated_collection_limit_and_traversal(client, {}, expected)
+
+
+@pytest.mark.parametrize("defect,reason", [
+    ("empty", "exactly one"), ("ignored_limit", "exactly one"),
+    ("duplicate", "every seeded ID"), ("skip", "every seeded ID"),
+    ("wrong_order", "every seeded ID"), ("early_end", "every seeded ID"),
+    ("no_end", "terminate"), ("numeric_cursor", "next_cursor"),
+    ("empty_cursor", "next_cursor"),
+])
+def test_populated_collection_starter_rejects_broken_traversal(defect, reason):
+    contract = load_asset("test_http_contract")
+    records = [{"id": f"inc-{i}"} for i in range(3)]
+
+    def mutate(page, limit, cursor):
+        if defect == "empty" and cursor == 1:
+            page["data"] = []
+        elif defect == "ignored_limit":
+            page["data"] = records
+        elif defect == "duplicate" and cursor == 1:
+            page["data"] = records[:1]
+        elif defect == "skip" and cursor == 1:
+            page = {"data": records[2:], "next_cursor": None}
+        elif defect == "wrong_order" and cursor == 0:
+            page["data"] = records[1:2]
+        elif defect == "early_end" and cursor == 0:
+            page["next_cursor"] = None
+        elif defect == "no_end" and cursor == 2:
+            page["next_cursor"] = "3"
+        elif defect == "numeric_cursor" and cursor == 1:
+            page["next_cursor"] = 2
+        elif defect == "empty_cursor" and cursor == 2:
+            page["next_cursor"] = ""
+        return page
+
+    with TestClient(collection_app(records, mutate)) as client:
+        with pytest.raises(AssertionError, match=reason):
+            contract.test_populated_collection_limit_and_traversal(
+                client, {}, [item["id"] for item in records],
+            )
+
+
+@pytest.mark.parametrize("expected", [[], ["inc-0"], ["inc-0", "inc-0"]])
+def test_populated_collection_starter_requires_independent_multiple_seed_ids(expected):
+    contract = load_asset("test_http_contract")
+    with TestClient(collection_app([{"id": "inc-0"}])) as client:
+        with pytest.raises(AssertionError, match="seed at least two|unique IDs"):
+            contract.test_populated_collection_limit_and_traversal(client, {}, expected)

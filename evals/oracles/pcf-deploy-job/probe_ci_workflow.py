@@ -4,8 +4,9 @@ Usage: python probe_ci_workflow.py <case>
 Reads every workflow under .github/workflows/ of the current directory. Exit 0 when the case holds,
 1 with a reason when it does not. "A deploy job" is every job with a run step that invokes
 `cf push`; each per-job predicate below must hold for all of them. Every predicate is a sentence of
-the skill's always-on contract, of its PCF reference, or of the fixture's own stated conventions,
-never a stricter one:
+the skill's always-on contract, of its PCF reference, or of the fixture's own stated conventions.
+The artifact-promoted predicate additionally requires its documented bounded syntax; unsupported
+forms receive no promotion credit. Other predicates add no stricter requirement:
 
   lint                the pinned actionlint accepts every workflow file (syntax, expressions, and
                       untrusted-expression use; shellcheck and pyflakes are off so the verdict is
@@ -24,8 +25,8 @@ never a stricter one:
   reviewed-pins       every full action reference is on the seeded approved list;
                       editing docs/ci-pins.md does not approve additions
   no-injection        no run step in any workflow interpolates ${{ github.event.* }}
-  artifact-promoted   every deploy job downloads the `checkout-build` artifact and none runs the
-                      build script
+  artifact-promoted   each push uses the downloaded checkout.zip and the reviewed manifest;
+                      unsupported paths, shell forms, or intervening effects fail closed
   cf-auth-env         every `cf auth` has no positional argument, no `cf login` appears, and the
                       step that runs `cf auth` has CF_USERNAME and CF_PASSWORD in its effective env
                       mapped from `secrets.*`
@@ -41,7 +42,9 @@ never a stricter one:
 """
 import glob
 import os
+import posixpath
 import re
+import shlex
 import subprocess
 import sys
 
@@ -50,7 +53,12 @@ WORKFLOW_DIR = os.path.join(".github", "workflows")
 CONFIG_FILE = ".github/actionlint.yaml"
 CI_FILE = os.path.join(".github", "workflows", "ci.yml")
 ARTIFACT = "checkout-build"
-BUILD_SCRIPT = "build.sh"
+WORKSPACE = "/__github_workspace__"  # symbolic Linux runner root, never a host filesystem path
+FIXTURE_MANIFEST = {
+    "applications": [{"name": "checkout", "memory": "256M", "instances": 2,
+                      "path": "dist/checkout.zip", "health-check-type": "http",
+                      "health-check-http-endpoint": "/health"}],
+}
 RUNNER_LABELS = {"self-hosted", "pcf"}
 # Approved identities from the seeded list; agent edits cannot authorize another repository.
 REVIEWED_ACTIONS = {
@@ -289,14 +297,196 @@ def case_no_injection() -> str | None:
     return None
 
 
+def _promotion_expression(text: str, env: dict) -> str:
+    """Only workspace and literal env expressions are resolvable in this fixture."""
+    def replace(match):
+        name = match.group(1).strip()
+        value = WORKSPACE if name == "github.workspace" else env.get(name[4:]) if name.startswith("env.") else None
+        if not isinstance(value, str):
+            raise ValueError("unsupported or unresolved workflow expression in promotion path/script")
+        return value
+
+    return re.sub(r"\$\{\{(.*?)\}\}", replace, text)
+
+
+def _promotion_word(word: str, env: dict) -> str:
+    # Keep quotes while tokenizing: '$PATH' is literal, whereas "$PATH" expands. Concatenated
+    # quoting/escaping is deliberately unsupported rather than guessed by a shell interpreter.
+    quoted = word[:1] in ("'", '"')
+    quote = word[0] if quoted else ""
+    if quoted:
+        if len(word) < 2 or word[-1] != quote:
+            raise ValueError("unsupported quoting in promotion command")
+        word = word[1:-1]
+    if any(char in word for char in "'\"\\`\n\r") or "$(" in word:
+        raise ValueError("unsupported quoting, escaping, or substitution in promotion command")
+    if quote != "'":
+        def replace(match):
+            name = match.group(1) or match.group(2)
+            value = WORKSPACE if name == "GITHUB_WORKSPACE" else env.get(name)
+            if not isinstance(value, str) or (not quoted and re.search(r"\s", value)):
+                raise ValueError("unsupported or unresolved environment variable in promotion argument")
+            return value
+        word = re.sub(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}|\$([A-Za-z_][A-Za-z0-9_]*)", replace, word)
+    if not quoted and (not word or re.search(r"[\s*?\[\]{}~]", word)):
+        raise ValueError("unsupported unquoted shell word; expansion may remove or split arguments")
+    return word
+
+
+def _promotion_path(value, cwd: str, env: dict, *, shell: bool = False) -> str:
+    if not isinstance(value, str) or not value:
+        raise ValueError("unsupported or empty promotion path")
+    value = _promotion_word(value, env) if shell else _promotion_expression(value, env)
+    if not re.fullmatch(r"[A-Za-z0-9_./ -]+", value):
+        raise ValueError("unsupported or unresolved promotion path; use a literal path or literal env value")
+    return posixpath.normpath(posixpath.join(cwd, value))
+
+
+def _promotion_commands(text: str, env: dict) -> list[list[str]]:
+    """Tokenize straight-line commands; retain operators so validation cannot overlook writes."""
+    text = _promotion_expression(text, env)
+    commands, current = [], []
+    for line in text.splitlines():
+        # shlex consumes the newline after a comment. Tokenize physical lines separately so a
+        # command after a comment cannot become an ignored argument to a preceding echo/cf api.
+        lexer = shlex.shlex(line, posix=False, punctuation_chars=";&|<>()")
+        lexer.whitespace_split = True
+        tokens = list(lexer)
+        continued = bool(tokens and tokens[-1] == "\\")
+        if continued:
+            tokens.pop()
+        for token in tokens:
+            if token in (";", "&&"):
+                if current:
+                    commands.append(current)
+                    current = []
+            else:
+                current.append(token)
+        if current and not continued:
+            commands.append(current)
+            current = []
+    if current:
+        raise ValueError("unsupported incomplete line continuation in promotion command")
+    return commands
+
+
+def _promotion_push(command: list[str], cwd: str, env: dict, manifest: str | None,
+                    downloaded: set[str]) -> None:
+    options, names = {}, []
+    args = iter(command[2:])
+    for argument in args:
+        option, equals, inline = argument.partition("=")
+        word = {"--path": "-p", "--manifest": "-f"}.get(option, option)
+        if word in ("-p", "-f", "--strategy", "-b", "-m", "-i", "-k", "-t", "-c"):
+            value = inline if equals else next(args, None)
+            if value is None or word in options:
+                raise ValueError("missing or repeated cf push option in promotion command")
+            # Even flags unrelated to paths can inject -p/-f through shell word splitting.
+            _promotion_word(value, env)
+            options[word] = value
+        elif word in ("--no-start", "--no-route", "--random-route", "--no-wait"):
+            if equals and _promotion_word(inline, env) not in ("true", "false"):
+                raise ValueError("unsupported boolean cf push option value")
+            continue
+        elif word.startswith("-"):
+            raise ValueError("unsupported cf push option; promotion requires the reviewed manifest and ZIP payload")
+        else:
+            names.append(_promotion_word(argument, env))
+    if names not in ([], ["checkout"]):
+        raise ValueError("cf push does not select the reviewed checkout application")
+    selected_manifest = _promotion_path(options.get("-f", "manifest.yml"), cwd, env, shell=True)
+    if manifest and selected_manifest == posixpath.dirname(manifest) and "-f" in options:
+        selected_manifest = manifest  # cf also accepts the directory containing manifest.yml
+    if manifest is None or selected_manifest != manifest:
+        raise ValueError("cf push does not use manifest.yml from the reviewed checkout")
+    # CF resolves -p against the shell cwd; a manifest's path is relative to the manifest itself.
+    payload = (_promotion_path(options["-p"], cwd, env, shell=True) if "-p" in options
+               else posixpath.join(posixpath.dirname(manifest), "dist/checkout.zip"))
+    if payload not in downloaded:
+        raise ValueError("cf push payload is not the downloaded checkout-build/checkout.zip")
+
+
 def _artifact_promoted(job: dict, wf: dict) -> str | None:
-    for text in run_steps(job):
-        if BUILD_SCRIPT in text:
-            return f"rebuilds with {BUILD_SCRIPT} instead of promoting the built artifact"
-    for step in steps(job):
-        if str(step.get("uses", "")).startswith("actions/download-artifact@") and as_dict(step.get("with")).get("name") == ARTIFACT:
-            return None
-    return f"does not download the {ARTIFACT} artifact"
+    """Bounded static proof, never execution of candidate shell.
+
+    Supports checkout/download, literal paths and env values, run directory defaults, literal cd,
+    and straight-line bash/sh commands separated by newline, ; or &&. Unknown scripts, actions,
+    shell control flow, redirection, substitutions and rebuild/replacement commands are unsupported,
+    including after a direct push: opaque code can push again. This establishes path binding, not
+    runtime digests or deployment readiness.
+    """
+    import yaml
+
+    try:
+        if load("manifest.yml") != FIXTURE_MANIFEST:
+            return "manifest.yml differs from the reviewed fixture manifest"
+    except (OSError, yaml.YAMLError):
+        return "cannot read the reviewed fixture manifest.yml"
+    job_steps = steps(job)
+    manifest, downloaded, pushes = None, set(), 0
+    defaults = {**as_dict(as_dict(wf.get("defaults")).get("run")),
+                **as_dict(as_dict(job.get("defaults")).get("run"))}
+    try:
+        for step in job_steps:
+            env = {**as_dict(wf.get("env")), **as_dict(job.get("env")), **as_dict(step.get("env"))}
+            if any(name in env for name in ("BASH_ENV", "ENV", "CDPATH")):
+                raise ValueError("unsupported shell startup or directory environment override")
+            if step.get("if") not in (None, True, "true", "${{ true }}", "success()", "${{ success() }}"):
+                raise ValueError("unsupported conditional step before push; artifact provenance is unresolved")
+            if step.get("continue-on-error", False) not in (False, "false"):
+                raise ValueError("a prerequisite may fail and continue before cf push")
+            reference = str(step.get("uses", ""))
+            inputs = as_dict(step.get("with"))
+            if reference.startswith("actions/checkout@"):
+                if downloaded:
+                    raise ValueError("intervening checkout may replace the downloaded payload")
+                if inputs.get("clean", True) not in (True, "true") or "sparse-checkout" in inputs:
+                    raise ValueError("checkout may retain or omit the reviewed manifest")
+                if inputs.get("ref", "") not in ("", "${{ github.sha }}") or inputs.get("repository", "") not in ("", "${{ github.repository }}"):
+                    raise ValueError("checkout does not establish the reviewed source revision")
+                checkout = _promotion_path(inputs.get("path", "."), WORKSPACE, env)
+                if checkout != WORKSPACE and not checkout.startswith(WORKSPACE + "/"):
+                    raise ValueError("unsupported checkout path outside the workspace")
+                manifest = posixpath.join(checkout, "manifest.yml")
+                continue
+            if reference.startswith("actions/download-artifact@"):
+                if inputs.get("name") != ARTIFACT or any(key in inputs for key in ("run-id", "repository", "artifact-ids", "skip-decompress")):
+                    raise ValueError("download does not establish this run's checkout-build payload")
+                destination = _promotion_path(inputs.get("path", "."), WORKSPACE, env)
+                downloaded.add(posixpath.join(destination, "checkout.zip"))
+                continue
+            if reference:
+                raise ValueError("unsupported action before push; it may replace the reviewed files")
+            if not isinstance(step.get("run"), str):
+                continue
+            if step.get("shell", defaults.get("shell", "bash")) not in ("bash", "sh"):
+                raise ValueError("unsupported promotion shell; only straight-line bash/sh is checked")
+            cwd = _promotion_path(step.get("working-directory", defaults.get("working-directory", ".")), WORKSPACE, env)
+            commands = _promotion_commands(step["run"], env)
+            for command in commands:
+                if any(re.fullmatch(r"[;&|<>()\n]+", token)
+                       or (not token.startswith("'") and ("`" in token or "$" in re.sub(
+                           r"\$\{[A-Za-z_][A-Za-z0-9_]*\}|\$[A-Za-z_][A-Za-z0-9_]*", "", token)))
+                       for token in command):
+                    raise ValueError("unsupported shell operator or substitution before push; files may be replaced")
+                if command[:2] == ["cf", "push"]:
+                    _promotion_push(command, cwd, env, manifest, downloaded)
+                    pushes += 1
+                elif command[0] == "cd" and len(command) == 2:
+                    cwd = _promotion_path(command[1], cwd, env, shell=True)
+                elif command[:1] == ["cf"] and len(command) > 1 and command[1] in ("api", "auth", "target", "version", "app", "apps"):
+                    continue
+                elif command[0] in ("echo", "test", "[", "ls", "sha256sum"):
+                    continue
+                elif command[0] == "set" and all(re.fullmatch(r"-[euo]+|pipefail", word) for word in command[1:]):
+                    continue
+                elif command[0] == "umask" and len(command) == 2 and re.fullmatch(r"[0-7]{3,4}", command[1]):
+                    continue
+                else:
+                    raise ValueError("unsupported command before push; cannot exclude replacement or rebuild")
+    except ValueError as error:
+        return str(error)
+    return None if pushes else "no supported cf push command"
 
 
 def _cf_auth(job: dict, wf: dict) -> str | None:

@@ -38,5 +38,4 @@ just to test a backup; an in-place rehearsal also needs a second recovery copy.
   its owner before repeating the drill.
 - **Inconclusive:** missing evidence prevents judging either objective; do not report a pass.
 
-Never turn a partial drill into “probably fine.” Preserve `[verified]`, `[sourced]`, and
-`[unverified]` labels and report locate, restore, and verify timings separately.
+Report locate, restore, and verify timings separately.

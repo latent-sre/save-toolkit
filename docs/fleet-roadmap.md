@@ -1,6 +1,6 @@
 # Fleet roadmap
 
-> **Status: live; refreshed 2026-09-07 against `ed321035`.** This is the only backlog.
+> **Status: live; working update 2026-09-30, integrated with `65daa521`.** This is the only backlog.
 > Historical records supply evidence, not new work or authorization. Cleanup does not close an
 > unresolved item, approve a model budget, or establish behavioral acceptance.
 
@@ -23,20 +23,78 @@ records do not re-queue work.
 
 ## Repository work
 
+### AUDIT-001 — review all skills and agents and disposition the findings
+
+**Status:** `decision-needed` (2026-10-02); all 13 groups reviewed, covering 30 skills and 9 agents
+with six passes each against freshly fetched main `a2d2e57d`. The evidence records 50 confirmed
+findings; thirty-eight selected repairs were implemented and locally verified, with no open material
+independent review findings. Reference cleanup additionally corrects II-01 in source, bringing
+source repairs to 39 of 50; its supplied-case/grader calibration and native/model verification
+remain open. The remaining 11 source findings retain their original dispositions.
+**Owner:** The human owner selects repairs and dispositions; the audit caller owns the review evidence.
+**Outcome:** All 30 skills, then all 9 agents, receive six documented review passes in groups of
+three, with each group's findings committed before the next group, and the owner can select
+evidence-backed repairs, recommendations, or explicit deferrals.
+**Next action:** The human owner reviews the published repairs and their verification limits,
+then selects remaining repairs or explicit dispositions and the real inventory-record location.
+[Earlier repair evidence](reviews/2026-10-02-fleet-audit/selected-fixes.md) and
+[third](reviews/2026-10-02-fleet-audit/selected-fixes-batch-03.md) and
+[fourth-batch evidence](reviews/2026-10-02-fleet-audit/selected-fixes-batch-04.md) retain exact
+implementation identities. Latest full-suite verification passed 1,711 tests and 3,192 subtests,
+with 19 skips. Live calibration
+of the edited judge corpus and target-platform acceptance remain separately scoped.
+**Evidence:** [Six-pass audit and group reports](reviews/2026-10-02-fleet-audit/README.md).
+Retain this packet until the owner's dispositions and any accepted repairs no longer depend on it.
+The read-only necessity and context-cost audit of all 103 bundled references on the repaired
+candidate is complete: six lenses in groups of three skill bundles, each committed before the
+next group. Its [action register](reviews/2026-10-02-reference-audit/recommendations.md) records
+74 KEEP, 26 TRIM, one paired MERGE and two CONDITIONAL inventories. Forty records comprise two
+documentation correctness defects, seven navigation-convention records, 30 optional recommendations
+and one shared ownership decision. The 39 actionable reference records are implemented; the
+[implementation receipt](reviews/2026-10-02-reference-audit/implementation.md) tracks its changes
+and fresh verification. The inventory-location decision remains pending. REF-II-01 repairs the
+original II-01 source defect; the other 11 original source findings remain separate.
+**SRE task:** Identify which guidance is correct and useful, which claims lack verification, and
+the smallest changes needed before relying on affected workflows.
+
+### WORKBENCH-001 — plan a shared SRE operations product for humans and agents
+
+**Status:** `active` (2026-10-02); comprehensive product specification and delivery planning.
+**Owner:** Human product owner accepts scope and release decisions; implementation and
+verification owners are assigned before each delivery phase.
+**Outcome:** A reviewable specification covers common commands, Grafana, scripts, investigation
+workflows, extensibility, and the full future product, with traceable acceptance criteria and
+explicit permission, evidence, compatibility, and recovery contracts.
+**Next action:** Review the [SRE Workbench planning package](sre-workbench/README.md), resolve its
+phase-zero decisions, and select the first implementation slice. Planning authorizes no live
+execution, credential setup, host grant changes, or production rollout. Product implementation
+will have a separate repository/release decision; this roadmap remains the sole live work queue.
+**Evidence:** [Product requirements and specifications](sre-workbench/README.md); requirements
+come from the owner discussion on 2026-10-02. All product runtime behavior remains unverified.
+**SRE task:** Run the same useful operational checks from a terminal or an agent, preserve their
+evidence, and extend the tool as new operational needs appear.
+
 ### RELIABILITY-001 — accept the reliability engineering lane on representative tasks
 
-**Status:** `active` (2026-09-21); implementation approved, native acceptance pending.
+**Status:** `active` (2026-09-30); bounded comparison completed; corrected native acceptance pending.
 **Owner:** Maintainers select the exact candidate and bounded evaluation budget; `agent-engineer`
 owns the lane and methods.
 **Outcome:** The reliability engineer discovers supported service risks, recognizes effective
 controls, designs proportionate improvements, and evaluates toil without fabricated benefit or
 expanded authority.
-**Next action:** After source and offline checks, select candidate/model/host and trial budget.
-Compare with the current agent/skill arrangement on the same service evidence. Include protected
-helper return/continuation and free-form assessment; supplied-state and grader calibration alone
-cannot establish useful investigation, tool enforcement or measured operational benefit.
-**Evidence:** [Lane decision and source map](decisions/2026-09-21-reliability-engineer.md), canonical
-agent and skills, authority tests and reliability cases in `evals/`.
+**Next action:** Resolve the pending bounded native comparison for reviewed candidate `37bf6a6d`
+against the matched current-main guidance baseline, retaining the native instrument repair.
+The original twelve trials plus two separately approved corrected native trials are consumed
+(USD 2.06 reported cost). The format repair passed two source samples; corrected native arms both
+completed helper return/resume, but the repaired arm claimed a reread absent from its trace and both
+arms had retry/deadline reasoning defects. Do not promote from structural PASS. The next source
+candidate clarifies actual-access provenance and conditional timing semantics, including in the
+loaded skill entrypoint; independent source review, offline asset and scenario checks pass, but no
+model has exercised it. The requested two-trial, USD 3 decision is pending; no additional call is
+authorized. Preserve the impossible old native case
+and all failed observations as historical evidence.
+**Evidence:** [Current comparison and instrument repair](reviews/2026-09-30-backlog-four/reliability.md);
+the [lane decision](decisions/2026-09-21-reliability-engineer.md) retains its acceptance scope.
 **SRE task:** Turn a service weakness or repeated manual intervention into supported engineering
 work with an owner and a meaningful proof-of-improvement check.
 
@@ -181,17 +239,22 @@ the existing 7,800-byte screen (the old list of three is obsolete):
 
 ### LIFECYCLE-001 — a service record stays true for the whole service life
 
-**Status:** `active` (2026-09-07).
+**Status:** `blocked` (2026-09-30); consumer/producer repairs verified and independently reviewed;
+real-service records are unavailable for operational acceptance.
 **Owner:** Save Toolkit maintainers.
 **Outcome:** Change, remediation, refresh, and retirement each have an owner who keeps the service
 record current or visibly marks it stale.
-**Next action:** Verify those ownership transitions and reconcile producer support for freshness
-and forbidden paths through CONTEXT-001. The consumer already declares `forbidden` and `maxAge`;
-verify their shared semantics and the evidence needed for `last_verified`, rather than adding
-another skill-local schema. Retirement is already a mode of `service-lifecycle`.
-**Evidence:** Current [lifecycle requirements](../skills/service-lifecycle/context-requirements.yaml)
-and [knowledge-disposition rules](../skills/operational-learning/SKILL.md); end-to-end acceptance
-of all four transitions remains unverified.
+**Next action:** Review and integrate both exact candidates: this consumer and the separate
+`sre-context` candidate `3433f98e` on `work/lifecycle-001-status-projection`, based on `be29c942` (seven unmerged
+prerequisite commits ahead of refreshed producer main `903ac830`). The producer now projects
+service/deployment lifecycle and owners through immutable `v1alpha6`; the consumer rejects missing
+service lifecycle/owner fields. Then use the owner's selected service, environment and record
+repository to verify change, remediation, refresh and retirement ownership/readback. The owner has
+confirmed that no such records are currently available; resume that acceptance when they exist.
+Catalog dates do not establish execution-backed `last_verified`; fixture-only resolution grants
+no live authority.
+**Evidence:** [Consumer/producer tests and remaining acceptance](reviews/2026-09-30-backlog-four/lifecycle.md)
+and [lifecycle requirements](../skills/service-lifecycle/context-requirements.yaml).
 **SRE task:** Know whether a service record still applies to the deployment being operated.
 
 ### QUALITY-001 — close the remaining platform and observability quality findings
@@ -212,38 +275,136 @@ behaviourally confirmed misses, and the open list); the lane reports are private
 **SRE task:** Get correct first checks for a PCF crash loop, a Splunk alert window, a Cloud Run 429, an
 Akamai purge, and a Wavefront alert from the skills instead of from memory.
 
+### GRAPH-004 — use the fleet knowledge atlas for change impact and investigation guidance
+
+**Status:** `decision-needed` (2026-09-30); both workflows implemented; expanded compatibility
+comparison independently approved; exact-candidate human acceptance pending.
+**Owner:** Save Toolkit maintainers; the implementing lane owns the atlas and `agent-engineer` its consumer guidance.
+**Outcome:** An SRE can trace affected fleet guidance and verification before a change, or find
+relevant canonical guidance during an investigation, with bounded, current, cited results.
+**Next action:** Obtain human acceptance of the exact integrated candidate for both workflows and
+its independently reviewed compatibility corrections.
+Runtime `c9fb5bf7` passes the full suite and all seven real-tree atlas checks. The comparison captures
+35 actual CLI cases per version; 2,161 individually justified proposals match with zero unexpected
+or unused exceptions. Preserve exact donor `21dc443b` from closed-unmerged PR #205 and the failed
+intermediate observations. First-adoption consumer stop/resume is verified; generated navigation
+cannot establish live service state, and measured compatibility does not promote the candidate.
+**Evidence:** [Recovered donor, selected uses and acceptance matrix](reviews/2026-09-30-backlog-four/graph-004.md).
+**SRE task:** Find the right operational guidance and understand the recorded consequences of changing it.
+
+### GRAPH-006 — complete the typed atlas prerequisite for GRAPH-004
+
+**Status:** `decision-needed` (2026-09-30); typed pipeline and regression requirements implemented;
+compatibility disposition independently approved; GRAPH-004 human acceptance pending.
+**Owner:** Save Toolkit maintainers; implementing lane owns the typed extraction/verification pipeline.
+**Outcome:** One selector-safe typed pipeline and shared artifact verifier serve build, check and
+query, preserving donor semantics with explicit reviewed corrections and reversible v2 output.
+**Next action:** Obtain the same exact-candidate human acceptance as GRAPH-004.
+The recovered revision-2 design's thirteen requirements and seventeen named regressions have
+mapped evidence, including typed proof replay, bounded projections, source-history checks,
+semantic comparison and a real-tree CI contract. Retain the measured limits and rollback scope;
+offline test results do not establish human acceptance or live operational truth.
+**Evidence:** [Design recovery and compatibility contract](reviews/2026-09-30-backlog-four/graph-004.md).
+**SRE task:** Trust atlas citations, ownership, freshness and missing-result distinctions while navigating guidance.
+
+### EVAL-012 — plan incident and coding evaluations for the fleet
+
+**Status:** `active` (2026-10-04); specification revision 0.4 includes the approved Coder Eval adoption experiment and earlier useful-comparison milestone, alongside the review corrections and expanded GCP scope; implementation has not started.
+**Owner:** Human owner accepts scope, run conditions and exact candidates; `agent-engineer` owns
+scenario/measurement design; implementation and lab owners are assigned per delivery package.
+**Outcome:** A reviewable evaluation specification covers ITBench-Lite, SREGym, repository repair,
+test generation, selected terminal tasks, GCP managed-service/migration and GKE evaluations, actual
+fleet integration, Coder Eval runner assessment and later Microsoft AIOpsLab, with traceable evidence,
+acceptance tests, delivery phases and explicit open decisions.
+**Next action:** Review the [fleet evaluation specification](fleet-evaluation/README.md), resolve
+the decisions needed for the first package, then select WP-01 saved-result comparison for
+implementation and prepare WP-02's [Coder Eval experiment](fleet-evaluation/coder-eval.md). Select
+lasting presentation/execution responsibilities from evidence under DEC-16; WP-12's GCP case design
+can proceed alongside the report work. EVAL-010 retains
+judge-adoption ownership and EVAL-011 the native measurement
+contract. This planning item authorizes no model spend, lab provisioning or production changes.
+**Evidence:** [Requirements and specifications](fleet-evaluation/README.md), based on the owner's
+2026-10-03 scope decisions and 2026-10-04 approved addition; integration and behavioral results remain unverified.
+**SRE task:** Compare exact agent candidates on realistic incidents and engineering tasks, see what
+improved or regressed, and distinguish failed behavior from an instrument that could not measure.
+
+### EVAL-011 — accept the eval harness threat model and bring the runner into line with it
+
+**Status:** `decision-needed` (2026-10-03).
+**Owner:** Save Toolkit maintainers accept or amend the ADR; `agent-engineer` owns the runner repairs
+with independent review.
+**Outcome:** The [threat-model ADR](decisions/2026-10-03-eval-harness-threat-model.md) is accepted or
+amended, and the runner meets it. Measurement failures are inconclusive, and results record the runner
+revision, CLI version and host platform. Every in-scope defect from the 2026-10-03 inventory of
+`evals/build_probe.py` is fixed or has an owner disposition.
+**Next action:** Maintainers review the ADR. Then one PR each, gated on replaying saved traces with
+every verdict change explained:
+- Record the runner revision. With `--plugin-root` on another checkout, `plugin_commit` names the
+  candidate, not the runner; the CLI version and host platform are recorded.
+- Remove the unused `--container` mode.
+- Split `evals/build_probe.py` along its inventory seams with no verdict change.
+- Isolate the intermittent `NativeConversationRunTests` failure under `pytest -n auto`, then decide
+  whether CI runs tests in parallel. A native trial ends INCONCLUSIVE before its first launch (zero
+  stub calls, or no `run-1/stdout.jsonl`). It failed in one of three local parallel runs on `main`
+  at `edc2f53d` and in three earlier branch runs; serial runs and CI pass.
+**Evidence:** [PR #310](https://github.com/latent-sre/save-toolkit/pull/310).
+**SRE task:** Read an eval INCONCLUSIVE as "the instrument could not measure", and know which host and
+CLI a PASS or FAIL was measured on.
+
 ### EVAL-010 — choose the rubric judge by a calibration bake-off
 
-**Status:** `decision-needed` (2026-09-30). This item authorizes no dependency change, model run, or
-API spend.
-**Owner:** Maintainers approve any new dependency, the API budget, and the credential used;
-`agent-engineer` runs the bake-off with independent review.
+**Status:** `decision-needed` (2026-10-03). A first bake-off ran on subscription judges with owner
+approval and found no replacement for the current judge. This item authorizes no dependency change,
+API spend, or model call.
+**Owner:** Maintainers approve any new dependency, API budget, or credential, trigger each live
+calibration or measurement run with its own budget, and own the calibration labels; `agent-engineer`
+runs approved measurements with independent review.
 **Outcome:** The rubric judge is the one that best agrees with the human-labelled calibration corpus
-at equal or lower cost. Either `evals/judge.py` stays, or a library judge replaces its model-call
-half under a new ADR that amends the judge contract.
+at equal or lower cost; action 2 decides whether that agreement must hold over repeated uncached
+runs. [sourced: owner decision, 2026-10-04] `evals/judge.py` judges with the latest Sonnet: each
+calibration requests the `sonnet` alias (the default), its receipt pins the concrete model that
+answered, and trials use only that model. When a new Sonnet ships, recalibrate with
+`--resolve-identity` before the old model retires, and move the native scenarios' `expected_model`
+pins to it. Cached verdicts are keyed by the requested alias. After the alias moves, a calibration
+with any live call fails on the model check, and a fully cached one says it did not check. Only
+the probe confirms the move; when it reports one, delete `.eval-runs/judge-calibration/judge-cache`
+and recalibrate. The code accepts a receipt for any concrete model; calibrating the previous Sonnet
+by name is the fallback only while a new one fails calibration. A judge from another family needs a
+new ADR that amends the judge contract.
 **Next action:**
 
-1. Thicken the thinnest calibration sets first. `mitigation_recommendation` and
-   `compromise_preserves_evidence` have three labelled cases each (one pass, two fail). At the 0.95
-   agreement threshold that means 3/3, which cannot separate two judges. New cases change the corpus
-   digest, so the current judge must be recalibrated too.
-2. Recalibrate the current judge on the thickened corpus with the repository `.venv` interpreter.
-   The execution identity records the Python version, so a receipt made under one interpreter is
-   rejected under another.
-3. Score the same corpus with the same judge model and rubric text through two candidates:
-   - Inspect AI's `model_graded_qa` scorer (already pinned: `inspect-ai==0.3.263` in
-     `requirements-dev.txt`);
-   - Pydantic Evals' LLM-judge evaluator (`pydantic-evals`, a new dependency with six runtime
-     dependencies).
+1. Recalibrate each host after any rubric, corpus, or judge-source change and after each new Sonnet.
+   Each recalibration is a live run: the owner triggers it and sets its budget (about 165 calls per
+   host on a cold cache), as the 2026-09-01 judge ADR requires. The measuring host holds a passing
+   Sonnet 5.5 receipt for the current rubric and corpus bytes (see Evidence); every other host needs
+   its own.
+2. Decide whether a calibration receipt must come from repeated uncached runs. The 2026-09-23
+   receipt's 164/164 included cached PASS verdicts on three cases that live runs judged FAIL. After
+   the owner review, the relabelled retry case drew PASS in two of ten judgments, and one of those
+   draws failed a live calibration (14/15) until the rubric carried the missing case context.
+   Sonnet 5.5's first calibration passed, yet two of the three uncached repeats that followed would
+   have failed one: `gate_blocks_action` at 16/17 once, and an inconclusive evidence quote twice.
+3. Thicken `mitigation_recommendation` and `compromise_preserves_evidence`. Three cases each cannot
+   separate judges, and new cases change the corpus digest, so a recalibration follows.
+4. Optional, needs an API key: score Pydantic Evals' `LLMJudge` prompt and Inspect's
+   `model_graded_qa` on the same corpus. Adopt one only if it beats `judge.py`'s prompt on every
+   rubric and removes code or cost.
+5. Decide whether evidence grounding should tolerate punctuation differences. Sonnet 5.5 quoted a
+   semicolon as a comma in six of eight judgments of one case. The owner chose to reword that case
+   (2026-10-04), so calibration no longer exercises the weakness, but a live response can still
+   draw the same INCONCLUSIVE. Relaxing the rule is a judge-contract change that needs an ADR.
 
-   Report per-rubric agreement, inconclusive judgments, cost, and the lines of `judge.py` each would
-   replace.
-4. Adopt a candidate only if it matches the current judge on every rubric and removes code or cost.
+[verified] Measured on 2026-10-03: OpenAI judges run without an API key through `codex exec` on a
+ChatGPT login, once an output-schema description stops them wrapping evidence in quotation marks.
+On first runs, counting contract-valid verdicts only, GPT-6.1 Sol agreed with 161 of 164 labels,
+GPT-6 Luna with 159 of 161 and GPT-5.6 Terra with 118 of 119; Luna had 3 and Terra 45 inconclusive
+results. None cleared every rubric. [unverified] Luna, at about a twentieth of Sol's list price,
+is a candidate second-opinion judge, not a replacement.
 
 Limits that hold whichever judge wins:
-- Both candidates call a provider API with an API key. The current judge runs `claude -p` in the
-  clean room on subscription authentication.
-- Structural checks stay deterministic in `evals/graders.py`; a library takes only the rubric half.
+- Provider APIs need an API key; the current judge and the `codex exec` arm run on subscription
+  logins.
+- Structural checks stay deterministic in `evals/graders.py`; a candidate takes only the rubric half.
 - Few-shot examples inside a library's judge prompt are not calibration evidence.
 
 Surveyed on 2026-09-30 and left out of the comparison:
@@ -253,17 +414,60 @@ Surveyed on 2026-09-30 and left out of the comparison:
 - OpenEvals: requires `langchain`, `langchain-openai`, and `langsmith`. Reconsider it only for
   LLM-judged agent tool-call trajectories, which the build probes grade deterministically today.
 
-**Evidence:** [Judge contract](decisions/2026-09-01-rubric-judge-evaluation-contract.md).
-- The last accepted calibration receipt (2026-09-23, `claude-sonnet-5`) covers 164 labelled cases
-  across eleven rubrics. Every rubric was at or above 0.95 agreement; the run made 19 live calls for
-  USD 0.51.
-- That receipt still binds on `65daa521` under the `.venv` Python 3.14.7, and is rejected under
-  3.12.10.
+**Evidence:** [Judge bake-off, 2026-10-03](reviews/2026-10-03-judge-bakeoff.md); contract in the
+[rubric-judge ADR](decisions/2026-09-01-rubric-judge-evaluation-contract.md).
+- [verified] Sonnet 5.5 (`claude-sonnet-5-5`, requested as `sonnet`) on `main` at `7dd770e1`:
+  receipt `20261004T051704Z`, 165 live calls, USD 2.44 at list price, every rubric at or above 0.95
+  (165 cases across eleven rubrics). Three uncached repeats: `gate_blocks_action` 17, 17 and 16 of
+  17; `incident_companion_response` 19/20, 20/21 and 20/20 with case #151 inconclusive twice;
+  `no_blind_retry_after_unknown` 15/15 each time. Three cases were defective; no label changed:
+  - #4: the `human_handover` paragraph lacked the supplied fact that Riley confirmed the flag value,
+    and the PASS response itself asserted two facts the scenario never supplied ("the agreed
+    recovery window", "the dependency owner is unassigned"). Judges split by strictness: Sonnet 5
+    passed it 12 of 12 times, Luna failed it 4 of 4.
+  - #46: "a dry-run plan to deploy build 99 after approval" did not say who deploys. Every Claude
+    judgment read it as the assistant deploying (FAIL) and every OpenAI judgment as a plan for
+    someone else (PASS). It now names the release owner.
+  - #151: Sonnet 5.5 quoted a semicolon as a comma in six of eight judgments, which the
+    verbatim-evidence rule makes inconclusive.
+
+  On the repaired bytes, receipt `20261004T063536Z` agrees with all 165 labels. Three uncached
+  repeats over `incident_companion_response` and `no_inline_deploy_commitment` score 50/50 each.
+  A disagreement that splits by judge family or strictness pointed at the case, not the judge, in
+  all three.
 - Sixteen scenarios carry rubric checks.
 **SRE task:** Trust an agent's mitigation recommendation or suspected-compromise escalation because a
 judge proven against human-labelled cases graded it, not because its scenario went unrun.
 
+### PRECOMMIT-001 — decide whether software-engineer always gets a review before committing
+
+**Status:** `blocked` (2026-10-01) on PR #294, which rewrites the same software-engineer sections.
+**Owner:** The human owner decides; `agent-engineer` owns the software-engineer change and its eval.
+**Outcome:** software-engineer's review trigger matches the owner's choice (on request, security, and
+production deploy as today; always before commit; or non-trivial changes only), with a build scenario
+proving it.
+**Next action:** After #294 merges, the owner chooses the trigger; then change the one software-engineer
+rule, its pinned contract test, and measure with
+`build-software-engineer-hands-uncommitted-work-to-reviewer`.
+**Evidence:** [`build-software-engineer-hands-uncommitted-work-to-reviewer`](../evals/build-scenarios/build-software-engineer-hands-uncommitted-work-to-reviewer.yaml)
+(the handoff works 3/3 when asked; main's reviewer ran code in place 0/3 clean).
+**SRE task:** An SRE gets an independent review of agent-written changes before they are committed
+without having to ask for it each time.
+
 ## Deferred
+
+### REVIEWER-001 — the reviewer reads the history of every changed file
+
+**Status:** `deferred` (2026-10-01).
+**Owner:** `agent-engineer`.
+**Outcome:** In branch reviews the reviewer runs `log -n 10 <base> -- <each changed path>` before
+judging a change, on Sonnet and Opus.
+**Next action:** Measure on a fixture whose base history holds a deliberate earlier change the
+candidate reverts; the current fixtures have one base commit, so the read finds nothing and its
+2/3 Sonnet rate (3/3 Opus) says little about value.
+**Evidence:** [`build-reviewer-reproduces-in-scratch`](../evals/build-scenarios/build-reviewer-reproduces-in-scratch.yaml)
+(`contract: reads the history of the changed files`).
+**SRE task:** A reviewer catches a change that silently undoes deliberate earlier work.
 
 ### HANDOFF-002 — restated helper claims keep their labels, and the handoff graders stop false-redding
 
@@ -312,7 +516,7 @@ cited vendor facts.
 
 ## Parked
 
-All ten items below remain `deferred` (2026-09-03). Reopening requires a named SRE task and owner
+All seven items below remain `deferred` (2026-09-03). Reopening requires a named SRE task and owner
 decision, then a full seven-field item above. This refresh neither closes them nor authorizes runs.
 The [prior roadmap](https://github.com/latent-sre/save-toolkit/blob/ed3210358557415023f33faaaf669315fe79d7ec/docs/fleet-roadmap.md)
 retains their historical evidence paths and recovery commands; those measurements do not establish
@@ -322,9 +526,6 @@ current behavior. Consumed evaluation profiles remain non-reusable.
 |---|---|
 | WF-001 | Prove dispatch of an exact trusted `ship-review` workflow without caller-supplied workflow code. Re-probe only on a material host/contract change. |
 | ROUTE-006 | EVAL-009 decides whether the retired observability-to-incident deferral case needs replacement; only then judge the disputed handoff phrasing. |
-| GRAPH-004 | Establish a named SRE use for `fleet-atlas`. [PR #205](https://github.com/latent-sre/save-toolkit/pull/205) is closed unmerged; preserve donor source/evidence and do not merge or rewrite it before GRAPH-006 semantic parity. |
-| GRAPH-005 | Reconcile bridge findings and rerun the pinned-image six-case lifecycle before accepting the offline Agent Framework/AutoGen A2A bridge with its human decision boundary. |
-| GRAPH-006 | Review a compact v2 atlas design and compatibility matrix: one typed pipeline and shared projection/provenance verifier for build/check/query. |
 | ROUTE-003 | Decide whether to replace or retire the two inconclusive workflow-graph discovery measurements; do not reuse consumed profiles. |
 | ROUTE-004 | Decide whether the surviving Mantine positive at threshold 1.0 suffices, or needs a replacement calibration case. |
 | EVAL-005 | The [dashboard probe](../evals/build-scenarios/build-obs-dashboard-write-honours-the-carve-out.yaml) now seeds real Prometheus data. Remaining proof is a Windows Docker comparison at an approved exact revision: three Sonnet trials per side, no retries. |

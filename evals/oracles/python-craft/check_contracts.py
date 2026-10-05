@@ -159,14 +159,25 @@ def generator():
             CHECK.assertIs(iter(records), records)
             CHECK.assertEqual(next(records), "one")
             CHECK.assertTrue(handles, "the file was not opened")
-            CHECK.assertFalse(any(handle.eager or handle.eof for handle in handles),
-                              "source consumed eagerly before first yield")
             CHECK.assertTrue(any(not handle.closed for handle in handles))
             records.close()
             CHECK.assertTrue(all(handle.closed for handle in handles))
             handles.clear()
             CHECK.assertEqual(list(read(path)), ["one", "", "two"])
             CHECK.assertTrue(handles and all(handle.closed for handle in handles))
+        # Tiny files may fit within one bounded read. Measure first-yield progress separately
+        # on a source larger than the calibrated 4-, 64-, and 8192-character buffers.
+        path.write_text(" one \n" + " tail \n" * 8192, encoding="utf-8")
+        handles.clear()
+        with mock.patch("builtins.open", tracked_open), mock.patch("io.open", tracked_open):
+            records = read(path)
+            CHECK.assertEqual(next(records), "one")
+            CHECK.assertTrue(handles, "the file was not opened")
+            CHECK.assertFalse(any(handle.eager or handle.eof for handle in handles),
+                              "source consumed eagerly before first yield")
+            CHECK.assertTrue(any(not handle.closed for handle in handles))
+            records.close()
+            CHECK.assertTrue(all(handle.closed for handle in handles))
         path.write_bytes(b"\xff")
         handles.clear()
         with mock.patch("builtins.open", tracked_open), mock.patch("io.open", tracked_open):
@@ -359,18 +370,19 @@ def policy():
 
     def expected(sku, quantity, unit_cents):
         if not isinstance(sku, str) or not re.fullmatch(r"[A-Z]{3}-\d{4}", sku.strip().upper()):
-            return "invalid sku"
+            return ("raised", ValueError, "invalid sku")
         if isinstance(quantity, bool) or not isinstance(quantity, int) or not 1 <= quantity <= 999:
-            return "invalid quantity"
+            return ("raised", ValueError, "invalid quantity")
         if isinstance(unit_cents, bool) or not isinstance(unit_cents, int) or unit_cents < 0:
-            return "invalid price"
-        return {"sku": sku.strip().upper(), "quantity": quantity, "unit_cents": unit_cents}
+            return ("raised", ValueError, "invalid price")
+        return ("returned", {"sku": sku.strip().upper(), "quantity": quantity, "unit_cents": unit_cents})
 
     def observe(call):
         try:
-            return call()
+            return ("returned", call())
         except ValueError as exc:
-            return str(exc)
+            # Preserve the existing ValueError-family contract, including subclasses.
+            return ("raised", ValueError, str(exc))
 
     skus = [" abc-1234 ", "ABC-1234", "abc-12345", "ab-1234", "", None, 7]
     quantities = [0, 1, 99, 100, 999, 1000, True, "3", None]
@@ -402,11 +414,12 @@ def policy():
     marker = {"sku": "ZZZ-0000", "quantity": 5000, "unit_cents": 1}
     rejected = {"sku": "bad", "quantity": 5000, "unit_cents": -1}
     with mock.patch.object(owner, "normalize_order", return_value=marker) as shared:
-        CHECK.assertEqual(observe(lambda: api.submit(dict(rejected))), marker,
+        CHECK.assertEqual(observe(lambda: api.submit(dict(rejected))), ("returned", marker),
                           "api.submit bypassed the shared policy or kept its own rules")
-        CHECK.assertEqual(observe(lambda: cli.run("zzz-0000,5000,-1")), marker,
+        CHECK.assertEqual(observe(lambda: cli.run("zzz-0000,5000,-1")), ("returned", marker),
                           "cli.run bypassed the shared policy or kept its own rules")
-        CHECK.assertEqual(observe(lambda: batch.load(iter([dict(rejected), dict(rejected)]))), [marker, marker],
+        CHECK.assertEqual(observe(lambda: batch.load(iter([dict(rejected), dict(rejected)]))),
+                          ("returned", [marker, marker]),
                           "batch.load bypassed the shared policy or kept its own rules")
         CHECK.assertEqual(shared.call_count, 4, "shared policy call count")
         with CHECK.assertRaisesRegex(ValueError, "^expected integer quantity and unit_cents$"):
@@ -426,5 +439,8 @@ if __name__ == "__main__":
     checks = {"refactor": refactor, "generator": generator, "migration": migration,
               "unchanged": unchanged, "modules": modules, "calculation": calculation, "policy": policy,
               "scoped": scoped}
-    checks[sys.argv[1]]()
+    try:
+        checks[sys.argv[1]]()
+    except SystemExit as exc:
+        raise AssertionError("candidate exited before contract checks completed") from exc
     print("contract passed:", sys.argv[1])
