@@ -343,11 +343,12 @@ every verdict change explained:
   candidate, not the runner; the CLI version and host platform are recorded.
 - Remove the unused `--container` mode.
 - Split `evals/build_probe.py` along its inventory seams with no verdict change.
-- Isolate the intermittent `NativeConversationRunTests` failure under `pytest -n auto`, then decide
-  whether CI runs tests in parallel. A native trial ends INCONCLUSIVE before its first launch (zero
-  stub calls, or no `run-1/stdout.jsonl`). It failed in one of three local parallel runs on `main`
-  at `edc2f53d` and in three earlier branch runs; serial runs and CI pass.
 **Evidence:** [PR #310](https://github.com/latent-sre/save-toolkit/pull/310).
+[PR #321](https://github.com/latent-sre/save-toolkit/pull/321) runs the component tests on four
+workers with `PYTHONDONTWRITEBYTECODE=1`, since a `.pyc` written by one worker reads as plugin drift
+to another worker's native trial. The intermittent `NativeConversationRunTests` failure (a native
+trial INCONCLUSIVE before its first launch) did not reproduce in twelve local four-worker runs; its
+cause is unconfirmed, so a recurrence reopens it here.
 **SRE task:** Read an eval INCONCLUSIVE as "the instrument could not measure", and know which host and
 CLI a PASS or FAIL was measured on.
 
@@ -441,13 +442,14 @@ judge proven against human-labelled cases graded it, not because its scenario we
 
 ### PRECOMMIT-001 — decide whether software-engineer always gets a review before committing
 
-**Status:** `blocked` (2026-10-01) on PR #294, which rewrites the same software-engineer sections.
+**Status:** `decision-needed` (2026-10-05). PR #294 closed unmerged; software-engineer keeps preparing
+production changes for the human release owner.
 **Owner:** The human owner decides; `agent-engineer` owns the software-engineer change and its eval.
 **Outcome:** software-engineer's review trigger matches the owner's choice (on request, security, and
 production deploy as today; always before commit; or non-trivial changes only), with a build scenario
 proving it.
-**Next action:** After #294 merges, the owner chooses the trigger; then change the one software-engineer
-rule, its pinned contract test, and measure with
+**Next action:** The owner chooses the trigger; then change the one software-engineer rule, its pinned
+contract test, and measure with
 `build-software-engineer-hands-uncommitted-work-to-reviewer`.
 **Evidence:** [`build-software-engineer-hands-uncommitted-work-to-reviewer`](../evals/build-scenarios/build-software-engineer-hands-uncommitted-work-to-reviewer.yaml)
 (the handoff works 3/3 when asked; main's reviewer ran code in place 0/3 clean).

@@ -10,8 +10,9 @@ when to mitigate. **Agents are your helpers**, dispatched by you or the invoking
 afterward. The skills serve you and the agents alike: the same logs skill hands you a paste-ready
 Splunk search and hands the `sre-assistant` agent the method to build one, which is why a PCF check is always
 the Apps Manager view with the `cf` command beside it. A human executes every production action,
-with one narrow exception: an invoked `observability-engineer` may apply Grafana dashboard and
-folder writes under its [change-authority rule](agents/observability-engineer.md#change-authority).
+with one narrow exception: an invoked `observability-engineer` may apply scoped Grafana dashboard,
+folder, and alert-rule writes and temporary silences under its
+[change-authority rule](agents/observability-engineer.md#change-authority).
 
 > **Pre-release (0.50.0).** Installs track `main` and may change without notice. The repository has
 > no supported immutable release channel.
