@@ -28,12 +28,9 @@ jobs:
           python-version: '3.14'
           check-latest: true
 
-      # Gate A may import third-party packages; install pins first so a bare
-      # runner never hits an ImportError (see docs/decisions/2026-08-23).
-      - name: Install pinned gate dependencies
-        run: python -m pip install -r requirements-dev.txt
-
       # gate_a.py owns the structural roster; component suites run in the matrix below.
+      # No gate-path script imports a third-party package, so this job installs nothing;
+      # test_validate_workflow.py fails once one does (see docs/decisions/2026-08-23).
       - name: Gate A -- mechanical audit
         run: python scripts/gate_a.py
 
@@ -59,8 +56,14 @@ jobs:
       - name: Install pinned fleet test dependencies
         run: python -m pip install -r requirements-test.txt
 
+      # Four workers match the hosted runner's cores; loadfile keeps a test file on one worker.
+      # No bytecode: the eval runner digests every file under skills/, so a .pyc written by
+      # one worker reads as plugin drift to a native trial running in another.
       - name: Component tests
         run: python -m pytest -q
+        env:
+          PYTEST_ADDOPTS: -n 4 --dist loadfile --durations=20
+          PYTHONDONTWRITEBYTECODE: '1'
 
   claude-plugin-contract:
     runs-on: ubuntu-latest

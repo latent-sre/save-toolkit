@@ -2,9 +2,11 @@
 """Run the live-tree structural checks used by CI and before a push.
 
 This is the executable roster; CONTRIBUTING.md defines when component suites must also run.
-Checks run after `python -m pip install -r requirements-dev.txt` (the validate job installs
-it before invoking this gate), so gate-path scripts may import pinned third-party packages;
-they need neither a clean tree nor full Git history.
+No gate-path script imports a third-party package, so the gate runs on a bare interpreter and
+the validate job installs nothing. The first such import must add
+`python -m pip install -r requirements-dev.txt` to that job in the same change;
+test_validate_workflow.py fails until it does. Checks need neither a clean tree nor full Git
+history.
 All checks run even after a failure. Default output is one verdict plus failure diagnostics;
 --verbose includes successful step output. Structural success is not behavioral acceptance.
 """
