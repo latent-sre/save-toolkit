@@ -111,6 +111,35 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   or beat the current one on every check of all three probes; the replay header went 2/3 -> 3/3 and
   202 went 2/3 -> 3/3. No arm makes acknowledged webhook work recoverable after a crash (0/12 under
   the restart check), so the persist-before-ack line that was cut produced no recovery either.
+- `backend-craft` teaches recoverable post-acknowledgement work. SKILL.md's Background-work row,
+  which always loads, says to:
+  - answer `202`, or the provider's required code, while work is pending;
+  - persist everything still owed, enrichment included, as pending work resumed on startup.
+
+  It also gives the reason: an in-memory task dies with its process, and a sender given a 2xx won't
+  redeliver. `background-work.md` gains the mechanism: a pending step runs again after a crash and
+  on every instance that resumes it, so each step must be safe to repeat. A local step is marked
+  done in its own guarded transaction, a remote call or notification follows API-write recovery,
+  and a step whose repeat costs is claimed first under a short lease. Before, the reference was
+  read in only 4 of 9 webhook trials, and even then no trial recovered.
+
+  Measured on Sonnet 5.5 against main `7e21fb4e`, interleaved, four webhook trials per arm:
+  - the restart check went 0/4 -> 4/4;
+  - `202` was 3/4 on main and 4/4 on the candidate;
+  - the candidate passed all 14 checks in every trial.
+
+  One trial per arm on the writes and incidents-api probes passed every oracle check on both arms.
+
+  Two earlier wordings were measured on 2026-10-01 and replaced. The first raised recovery to 4/4
+  but pushed `202` down to 2/4, because agents that created the record up front answered 201; the
+  `202` clause beside the rule fixed that. The second held both at 4/4 but told the agent to mark
+  each step done in the transaction that commits its effect, which a remote call cannot do, and it
+  answered `202` even where a provider requires another code.
+
+  To fit under the screen, the Shutdown row's duplicated requeue clause was merged, and the
+  Outbound-calls row lost its inline `consuming-apis` link and its unconditional breaker clause.
+  The reference stays linked from the read-first table and keeps the conditional breaker rule.
+  SKILL.md is 7,718 -> 7,787 bytes.
 
 ### Fixed
 
