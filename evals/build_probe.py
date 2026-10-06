@@ -533,30 +533,38 @@ FORBIDDING_GRADERS = frozenset({"not_contains", "not_regex"})
 
 
 def check_polarity(check: dict) -> str:
+    """`forbids`, `requires`, or `both` for a check with a required floor and a forbidden ceiling."""
+    if not isinstance(check, dict):  # validation reports the shape; never crash classifying it
+        return "requires"
     kind = check.get("check")
     if kind == "fleet_grader":
         return "forbids" if check.get("name") in FORBIDDING_GRADERS else "requires"
-    if kind == "tool_call_count":  # a ceiling forbids extra calls; a positive floor requires some
-        return "requires" if (check.get("minimum") or 0) > 0 else "forbids"
+    if kind == "tool_call_count":  # its ceiling always forbids extra calls; a positive floor also requires some
+        return "both" if (check.get("minimum") or 0) > 0 else "forbids"
     return "forbids" if kind in FORBIDDING_CHECKS else "requires"
 
 
+def _entries(value: object) -> list:
+    return value if isinstance(value, list) else []
+
+
 def assertion_polarities(spec: dict) -> list[str]:
-    """`forbids` or `requires` for each graded expectation, in scenario_assertions() order."""
+    """`forbids`, `requires` or `both` for each graded expectation, in scenario_assertions() order."""
     polarities = []
     if spec.get("routing"):
         polarities.append("forbids" if _is_negative_routing(spec) else "requires")
     if spec.get("skill"):
         polarities.append("requires")
-    polarities += ["requires"] * len(spec.get("references") or [])
-    polarities += ["forbids" if g.get("type") in FORBIDDING_GRADERS else "requires" for g in spec.get("graders") or []]
+    polarities += ["requires"] * len(_entries(spec.get("references")))
+    polarities += ["forbids" if isinstance(g, dict) and g.get("type") in FORBIDDING_GRADERS else "requires"
+                   for g in _entries(spec.get("graders"))]
     if spec.get("followups"):
         polarities += ["requires"] * 3  # helper completed, parent continued, session resumed
-    return polarities + [check_polarity(c) for c in spec.get("checks") or []]
+    return polarities + [check_polarity(c) for c in _entries(spec.get("checks"))]
 
 
 def has_forbidding_assertion(spec: dict) -> bool:
-    return "forbids" in assertion_polarities(spec)
+    return any(polarity in ("forbids", "both") for polarity in assertion_polarities(spec))
 
 
 def _target_problem(target: object) -> str | None:
@@ -2920,8 +2928,21 @@ def _bounded(evidence: object) -> dict:
 def _grader_error(expectations: list[dict]) -> dict:
     """The first grading-machinery failure in a grade, if any (threat-model ADR rule 5)."""
     reason = next((str(e.get("evidence")).removeprefix("INCONCLUSIVE: ") for e in expectations
-                   if str(e.get("evidence") or "").startswith("INCONCLUSIVE: grader error: ")), None)
+                   if str(e.get("evidence") or "").startswith("INCONCLUSIVE: grader error: ")
+                   or rubric_judge.is_inconclusive(str(e.get("evidence") or ""))), None)
     return {"grader_error": reason} if reason else {}
+
+
+def _cut_short_bounds(check: dict, trace: TraceSummary, cut: str) -> dict:
+    """A tool_call_count with a floor and a ceiling on a run cut short: calls beyond the ceiling are a
+    violation already; a floor not yet reached proves nothing, because the run stopped early."""
+    count = trace.tool_counts.get(check["tool"], 0)
+    if count > check["maximum"]:
+        return {"text": describe(check), "passed": False,
+                "evidence": f"{check['tool']}: {count} attempted call(s) exceed the maximum {check['maximum']} "
+                            f"before the run was cut short ({cut})"[:600]}
+    return {"text": describe(check), "passed": False,
+            "evidence": f"INCONCLUSIVE: within the maximum, floor unproven before the run was cut short ({cut})"[:600]}
 
 
 def _cut_short(expectation: dict, cut: str) -> dict:
@@ -2953,7 +2974,11 @@ def grade(ctx: Context, *, inconclusive: str | None = None,
         else:
             expectations.append(_expectation(text, live, inconclusive))
     for check in ctx.spec.get("checks") or []:
-        forbids_on_cut = bool(cut) and polarities[len(expectations)] == "forbids"
+        polarity = polarities[len(expectations)]
+        if cut and polarity == "both":
+            expectations.append(_cut_short_bounds(check, ctx.trace, cut))
+            continue
+        forbids_on_cut = bool(cut) and polarity == "forbids"
         if inconclusive and not forbids_on_cut:
             passed, evidence = False, f"INCONCLUSIVE: {inconclusive}"
         else:
@@ -3012,8 +3037,16 @@ def trial_status(expectations: list[dict], unmeasured: str | None,
     return ("INCONCLUSIVE" if reason or "INCONCLUSIVE" in states else "PASS"), reason
 
 
+def known_usd(value: object) -> float | None:
+    """A reported cost, or None when it is missing, not a number, infinite, NaN or negative."""
+    if type(value) not in (int, float) or not math.isfinite(value) or value < 0:
+        return None
+    return float(value)
+
+
 def trial_cost(trial_usd: float | None, judge: dict) -> dict:
     """A trial's spend: the total only when every part is known, with the known floor beside it."""
+    trial_usd = known_usd(trial_usd)
     known = trial_usd is not None and judge["cost_usd"] is not None
     floor = round((trial_usd or 0.0) + judge["known_cost_usd"], 6)
     return {"cost_usd": floor if known else None, "known_cost_usd": floor, "cost_complete": known}
@@ -3030,7 +3063,7 @@ def judge_spend() -> dict:
     drain = getattr(sys.modules.get("judge"), "drain_spend", None)
     calls = list(drain()) if callable(drain) else []
     # A cached verdict is a known zero; a live call whose cost was not reported stays unknown.
-    priced = [float(c["cost_usd"]) for c in calls if type(c.get("cost_usd")) in (int, float)]
+    priced = [cost for cost in (known_usd(c.get("cost_usd")) for c in calls) if cost is not None]
     unknown = len(calls) - len(priced)
     return {
         "calls": len(calls),
@@ -3218,8 +3251,14 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
         return summary
     except BaseException as exc:
         if not published and attempt.exists():
+            reason = f"{type(exc).__name__}: {exc}"[:500]
             try:
-                _keep_attempt(attempt, history, number, "incomplete", f"{type(exc).__name__}: {exc}"[:500])
+                write_record(attempt, spec, label=label, run_number=run_number, attempt=number,
+                             started_at=started_at, model=model, timeout=timeout, end=("incomplete", reason))
+            except Exception as record_error:
+                print(f"warning: no record for the incomplete attempt {attempt}: {record_error}", file=sys.stderr)
+            try:
+                _keep_attempt(attempt, history, number, "incomplete", reason)
             except Exception as keep_error:
                 print(f"warning: could not keep the incomplete attempt {attempt}: {keep_error}", file=sys.stderr)
         raise
@@ -3267,7 +3306,8 @@ RECORD_FORMAT = {"name": "save-toolkit.eval-record", "version": 1}
 
 
 def write_record(run_dir: Path, spec: dict, *, label: str, run_number: int, attempt: int,
-                 started_at: str, model: str | None, timeout: int) -> dict:
+                 started_at: str, model: str | None, timeout: int,
+                 end: tuple[str, str | None] | None = None) -> dict:
     """The v1 result record (docs/fleet-evaluation/contracts.md#result-record-v1) for one attempt.
 
     It maps facts the attempt's own files already hold; unknown values stay null, never filled from
@@ -3295,9 +3335,11 @@ def write_record(run_dir: Path, spec: dict, *, label: str, run_number: int, atte
         "conditions": {"requested_model": model, "observed_models": summary.get("models"),
                        "runtime": provenance.get("runtime"), "turn_limit": spec.get("max_turns"),
                        "wall_clock_seconds": timeout},
-        "attempt": {"label": label, "slot": run_number, "number": attempt, "state": "final",
+        "attempt": {"label": label, "slot": run_number, "number": attempt,
+                    "state": "incomplete" if end and end[0] == "incomplete" else "final",
                     "started_at": started_at, "ended_at": _utc_now()},
-        "run_end": {"kind": ended, "reason": grading.get("inconclusive") or grading.get("unmeasured")},
+        "run_end": ({"kind": end[0], "reason": end[1]} if end else
+                    {"kind": ended, "reason": grading.get("inconclusive") or grading.get("unmeasured")}),
         "checks": [{"id": e.get("id"), "text": e.get("text"), "kind": e.get("kind"), "state": e.get("state"),
                     "evidence": e.get("evidence"), "evidence_truncated": bool(e.get("evidence_truncated"))}
                    for e in grading.get("expectations") or []],
@@ -3488,7 +3530,7 @@ def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, 
             "trial_duration_seconds": round(trial_seconds, 1),
             "total_duration_seconds": round(trial_seconds + judge["seconds"], 1),
             "num_turns": trace.num_turns,
-            "trial_cost_usd": trace.total_cost_usd,
+            "trial_cost_usd": known_usd(trace.total_cost_usd),
             "total_cost_usd": cost["cost_usd"],
             "known_cost_usd": cost["known_cost_usd"],
             "cost_complete": cost["cost_complete"],
@@ -3702,6 +3744,9 @@ def regrade_run(run_dir: Path, spec: dict, *, write: bool = True, relax_identity
         def forbids_on_cut() -> bool:
             return bool(cut) and polarities[len(expectations)] == "forbids"
 
+        def bounds_on_cut() -> bool:
+            return bool(cut) and polarities[len(expectations)] == "both"
+
         def keep(label: str, kept: str) -> dict:
             nonlocal unmeasured
             if inconclusive and not forbids_on_cut():
@@ -3728,7 +3773,9 @@ def regrade_run(run_dir: Path, spec: dict, *, write: bool = True, relax_identity
                 expectations.append(_expectation(label, live, inconclusive))
         for check in spec.get("checks") or []:
             label = describe(check)
-            if is_regradable(check) and not _needs_live_workspace(check, spec):
+            if bounds_on_cut():
+                expectations.append(_cut_short_bounds(check, trace, cut))
+            elif is_regradable(check) and not _needs_live_workspace(check, spec):
                 if forbids_on_cut():
                     expectations.append(_cut_short(_expectation(label, lambda c=check: CHECKS[c["check"]](ctx, c), None), cut))
                 else:
@@ -3765,30 +3812,39 @@ def regrade_run(run_dir: Path, spec: dict, *, write: bool = True, relax_identity
     }
     if not write:
         return grading
-    if not original.exists():  # keep the live verdict the first time a regrade overwrites it
-        original.write_text(json.dumps(old, indent=2, ensure_ascii=False), encoding="utf-8")
-    (run_dir / "grading.json").write_text(json.dumps(grading, indent=2, ensure_ascii=False), encoding="utf-8")
-    if reparsed is not None:
-        # Refresh only the trace-derived fields, so the artefact agrees with the grade just made.
-        # Workspace facts (inconclusive, commits, branch, state_files, plugin, isolation) are not
-        # in the trace and stay as the live run recorded them.
-        summary.update({
-            "initial_parent_reference_reads": trace.parent_reads_before_dispatch,
-            "initial_parent_skills_before_dispatch": trace.parent_skills_before_dispatch, "main_models": trace.main_models,
-            "models": trace.models, "usage_models": trace.usage_models, "num_turns": trace.num_turns,
-            "tool_counts": trace.tool_counts, "skills": trace.skills, "skills_failed": trace.skills_failed,
-            "advertised_tools": trace.advertised_tools, "mcp_servers": trace.mcp_servers,
-            "permission_mode": trace.permission_mode, "dispatches": trace.dispatches,
-            "denials": trace.denials, "bash_commands": trace.bash_commands,
-            "powershell_commands": trace.powershell_commands, "effect_calls": trace.effect_calls,
-            "tool_errors": trace.tool_errors, "denial_details": trace.denial_details,
-        })
-    # One authoritative verdict: the trace summary carries the same status as grading.json.
-    summary["status"] = grading["status"]
-    summary["inconclusive"] = grading["inconclusive"]
-    summary["scenario_sha256"] = grading["scenario_sha256"]
-    summary["regraded"] = True
-    (run_dir / "outputs" / "trace-summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
+    return _add_assessment(run_dir, grading, summary, trace if reparsed is not None else None)
+
+
+def _add_assessment(run_dir: Path, grading: dict, summary: dict, trace: TraceSummary | None) -> dict:
+    """Write a regrade as assessments/<k>/ beside the run's original grade, never over it
+    (threat-model ADR result rule 8), and list it in the attempt's v1 record."""
+    revisions = run_dir / "assessments"
+    taken = [int(p.name) for p in revisions.iterdir() if p.name.isdigit()] if revisions.is_dir() else []
+    revision = max(taken, default=0) + 1
+    target = revisions / str(revision)
+    target.mkdir(parents=True)
+    grading = {**grading, "assessment_revision": revision, "assessed_at": _utc_now(),
+               "runner_source_sha256": HARNESS_SOURCE_SHA256}
+    (target / "grading.json").write_text(json.dumps(grading, indent=2, ensure_ascii=False), encoding="utf-8")
+    # This assessment's own trace summary: its verdict, and the trace-derived facts as this runner
+    # reads them when the raw trace survives; the live run's summary beside it stays as recorded.
+    refreshed = {**summary, "status": grading["status"], "inconclusive": grading["inconclusive"],
+                 "scenario_sha256": grading["scenario_sha256"], "regraded": True}
+    if trace is not None:
+        refreshed.update(skills=trace.skills, skills_failed=trace.skills_failed, dispatches=trace.dispatches,
+                         bash_commands=trace.bash_commands, tool_counts=trace.tool_counts,
+                         denials=trace.denials, tool_errors=trace.tool_errors, models=trace.models)
+    (target / "trace-summary.json").write_text(json.dumps(refreshed, indent=2, ensure_ascii=False), encoding="utf-8")
+    record_path = run_dir / "record.json"
+    if record_path.is_file():
+        with contextlib.suppress(OSError, ValueError, AttributeError):
+            record = json.loads(record_path.read_text(encoding="utf-8"))
+            record.setdefault("assessments", []).append({
+                "revision": revision, "status": grading["status"],
+                "reason": grading.get("inconclusive") or grading.get("unmeasured"),
+                "grading": f"assessments/{revision}/grading.json",
+                "runner_source_sha256": HARNESS_SOURCE_SHA256, "assessed_at": grading["assessed_at"]})
+            record_path.write_text(json.dumps(record, indent=2, ensure_ascii=False), encoding="utf-8")
     return grading
 
 
@@ -3806,6 +3862,8 @@ def batch_identity_problem(entries: list[dict], scenarios: list[dict], plugin_sh
 
     A trial recorded before the CLI and host were recorded never pools with one that has them.
     """
+    if runtime is not None and not runtime.get("cli_version"):
+        return "the CLI did not report its version, so no result would identify it; fix --executable first"
     expected = {spec["id"]: scenario_digest(spec, judge_binding.metadata if judge_binding else None) for spec in scenarios}
     for entry in entries:
         scenario = entry.get("scenario")
@@ -3837,27 +3895,10 @@ def regrade(iteration_dir: Path, scenarios: list[dict]) -> list[dict]:
                                 "scenario_sha256": g["scenario_sha256"],
                                 "plugin_source_sha256": g["plugin_source_sha256"], "models": g["models"],
                                 "inconclusive": g["inconclusive"]})
-    # The iteration summaries are derived artifacts too: rewrite the entries the regrade touched.
-    for summary_path in sorted(iteration_dir.glob("summary-*.json")):
-        with contextlib.suppress(OSError, ValueError):
-            entries = json.loads(summary_path.read_text(encoding="utf-8"))
-            by_key = {(r["scenario"], r["label"], r["run"]): r for r in results}
-            for entry in entries:
-                update = by_key.get((entry.get("scenario"), entry.get("label"), entry.get("run")))
-                if update:
-                    # Run directories share labels across requested models. An overwrite can
-                    # leave another model's summary pointing at this slot; never copy its verdict.
-                    matches = all(re.fullmatch(r"[0-9a-f]{64}", str(update.get(key)))
-                                  and entry.get(key) == update[key]
-                                  for key in ("plugin_source_sha256", "scenario_sha256"))
-                    models = model_identities([update])
-                    if not matches or not models or model_identities([entry]) != models:
-                        entry.update(status="INCONCLUSIVE", passed=0, regraded=True,
-                                     inconclusive="saved run identity is missing or conflicts with this summary row")
-                        continue
-                    entry.update({"status": update["status"], "passed": update["passed"], "total": update["total"],
-                                  "inconclusive": update["inconclusive"], "regraded": True})
-            summary_path.write_text(json.dumps(entries, indent=2), encoding="utf-8")
+    # Saved summaries keep the verdicts their batch recorded; the regrade's rows go beside them.
+    if results:
+        (iteration_dir / f"regrade-{_utc_now().replace(':', '')}.json").write_text(json.dumps(
+            {"runner": HARNESS_IDENTITY, "runs": results}, indent=2, ensure_ascii=False), encoding="utf-8")
     return results
 
 
@@ -3865,7 +3906,11 @@ def _check_state(expectation: dict) -> str:
     evidence = str(expectation.get("evidence") or "")
     if expectation.get("passed"):
         return "PASS"
-    return "INCONCLUSIVE" if evidence.startswith("INCONCLUSIVE: ") or rubric_judge.is_inconclusive(evidence) else "FAIL"
+    # `instrument:` is how a check reports that the harness could not measure it (no snapshot, an
+    # unnamed Skill/Task call, a shim that wrote no log): a measurement failure, not the candidate's.
+    unmeasured = (evidence.startswith(("INCONCLUSIVE: ", "instrument: "))
+                  or rubric_judge.is_inconclusive(evidence))
+    return "INCONCLUSIVE" if unmeasured else "FAIL"
 
 
 def _verdicts(grading: dict) -> dict:
@@ -3971,6 +4016,17 @@ def _threshold(value: str) -> float:
     return number
 
 
+def _budget(value: str) -> float:
+    """A spend cap: finite and non-negative. NaN compares false against everything, so it would never stop."""
+    try:
+        number = float(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"--max-batch-usd must be a number, got {value!r}") from None
+    if not math.isfinite(number) or number < 0:
+        raise argparse.ArgumentTypeError(f"--max-batch-usd must be finite and >= 0, got {value!r}")
+    return number
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--scenario", default="all", help="scenario id under evals/build-scenarios, or 'all'")
@@ -3986,7 +4042,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--run-offset", type=int, default=0, help="first run number minus one, to append trials to an existing label")
     parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT)
-    parser.add_argument("--max-batch-usd", type=float, default=None, metavar="USD",
+    parser.add_argument("--max-batch-usd", type=_budget, default=None, metavar="USD",
                         help="stop scheduling trials once this batch's known spend reaches USD, or once a trial's cost is unknown")
     parser.add_argument("--out", type=Path, help="iteration directory for the reviewer/aggregator layout (required to run)")
     parser.add_argument("--executable", default=os.environ.get("CLAUDE_BIN", "claude"))
@@ -4112,9 +4168,16 @@ def main(argv: list[str] | None = None) -> int:
     blocked: str | None = None
     auth_failed = False
     planned = [(spec, i) for spec in scenarios for i in range(args.trials)]
-    spent = 0.0
+    selected_ids = {spec["id"] for spec in scenarios}
+    prior = [e for e in retained if e.get("scenario") in selected_ids]
+    spent = sum(known_usd(e.get("known_cost_usd")) or 0.0 for e in prior)
+    if args.max_batch_usd is not None and any(e.get("cost_complete") is not True for e in prior):
+        # A retained trial without a known cost leaves the batch's spend unknown; the cap cannot hold.
+        blocked = f"a retained trial's cost is unknown; the USD {args.max_batch_usd:g} cap cannot be enforced"
     machinery_stopped: dict[str, str] = {}
     for spec, i in planned:
+        if blocked:  # stopped before scheduling: a retained trial already broke the cap's accounting
+            break
         if spec["id"] in machinery_stopped:
             continue  # its grader cannot measure; more trials would spend for nothing
         if args.max_batch_usd is not None and spent >= args.max_batch_usd:

@@ -464,18 +464,22 @@ those were recorded never pools with one that has them. `provenance.json` also n
 `--plugin-root` on another checkout still says which runner graded it. The measured guard scripts
 include `readonly-guard-hook.ps1`, which `hooks/hooks.json` runs for PowerShell.
 
-Cost is the CLI's reported list-price estimate, not a subscription bill. `timing.json` and summary
+Cost is the CLI's reported list-price estimate, not a subscription bill; a missing, negative, infinite
+or NaN figure is unknown. `timing.json` and summary
 rows give `total_cost_usd` only when the trial and every judge call are priced; otherwise it is
 `null`, with `known_cost_usd` and `cost_complete: false` beside it, and a cached verdict counts as a
-known zero. `--max-batch-usd USD` stops scheduling once the batch's known spend reaches `USD`, or as
-soon as a trial's cost is unknown, because an unknown cost cannot be held to a cap. Judge calibration
+known zero. `--max-batch-usd USD` (finite, at least 0) stops scheduling once the batch's known spend,
+counting trials retained from an earlier invocation of the label, reaches `USD`, or as soon as any
+trial's cost is unknown, because an unknown cost cannot be held to a cap. A batch whose CLI does not
+report its version is refused before any model call. Judge calibration
 receipts still sum an unpriced call as zero: changing `judge.py` invalidates every receipt, so that
 fix waits for the next recalibration.
 
 Each graded attempt also writes `record.json`, the [v1 result record](../docs/fleet-evaluation/contracts.md#result-record-v1)
 that the comparison report reads: format and version, a `case_sha256` over the scenario, oracles and
 rubric definitions alone (unlike `scenario_sha256`, it survives a runner edit), candidate and runner
-identity, run conditions, attempt number and UTC times, how the run ended, each check's kind, state
+identity, run conditions, attempt number and UTC times, how the run ended (an attempt that raised keeps a partial record with
+`run_end: incomplete` and no verdict), each check's kind (forbids, requires, or both), state
 and truncation flag (evidence is cut at 600 characters and flagged), the verdict, the cost, and
 evidence paths relative to the attempt folder. Attempt folders are created with a plain `mkdir`, so
 they inherit `.eval-runs/` permissions; `tempfile.mkdtemp` made them readable only by the account
@@ -487,7 +491,8 @@ rubrics on first load for the process; file edits take effect in a new process. 
 same cached definitions. Appending requires candidate and scenario identities to match the existing
 batch before any model call. Scenario inputs are checked again before and after grading;
 a change in the effective definitions or oracle bytes invalidates the trial. Regrade identifies each assertion by its scenario digest and
-position and retains live-judge/workspace verdicts from `grading.original.json`; duplicate display
+position and retains live-judge/workspace verdicts from the live grade (`grading.original.json` for a
+run an older runner regraded in place); duplicate display
 labels cannot substitute one verdict for another. Legacy records without identities, changed
 scenarios, and missing original assertions are INCONCLUSIVE and require a fresh trial. Regrade does
 not call a judge or recover workspace evidence that was never recorded. Rubric regrades use the
@@ -513,10 +518,12 @@ checkouts and run `--rescore-diff BASE_DIR CANDIDATE_DIR`, which lists every run
 verdict differs and exits 1 when any does. Each runner commit explains every line it prints in its
 commit message.
 
-Run slots are shared across models under each label. Regrade copies a verdict into a summary only
-when its full candidate digest, scenario identity, and resolved model identity match the saved run.
-An overwritten slot or missing identity makes the conflicting summary row INCONCLUSIVE; it never
-acquires the replacement run's PASS. Prefer separate labels for separate model/candidate comparisons.
+A regrade never rewrites what a run recorded (threat-model ADR result rule 8): it writes
+`assessments/<k>/grading.json` and that assessment's trace summary beside the run, lists the revision
+in the attempt's `record.json` under `assessments`, and writes its rows to `regrade-<UTC>.json` in the
+iteration directory. `grading.json`, the run's trace summary and the batch `summary-*.json` files keep
+their recorded verdicts. Run slots are shared across models under each label; prefer separate labels
+for separate model/candidate comparisons.
 
 `--overwrite` prepares a complete replacement in a hidden sibling attempt directory. The previous
 run remains intact through execution, grading, artifact writes, and workspace cleanup. Publication
@@ -555,9 +562,12 @@ already in it is FAIL, while one with no violation yet and every requiring check
 the grade records `run_end: cut_short` so a regrade applies the same rule. Otherwise each check is PASS, FAIL or INCONCLUSIVE (its `state` in
 `grading.json`), and a trial with any failed check is FAIL even when another check could not be
 measured; that reason is kept as `unmeasured`. Without a failure, any unmeasured check makes the trial
-INCONCLUSIVE, with the reason in `inconclusive`. A grader that raises is a measurement failure: its
-check is INCONCLUSIVE (`grader error`), the grade names it as `grader_error`, and the batch runs no
-more trials of that scenario; a grader returns an error in the candidate's own output as a FAIL.
+INCONCLUSIVE, with the reason in `inconclusive`. A check that reports `instrument:` evidence could
+not be measured and is INCONCLUSIVE too. A grader that raises, or a judge that could not judge, is a
+measurement failure: its check is INCONCLUSIVE, the grade names it as `grader_error`, and the batch
+runs no more trials of that scenario; a grader returns an error in the candidate's own output as a
+FAIL. A `tool_call_count` with a positive minimum is both: on a run cut short, calls beyond its
+maximum FAIL while a minimum not yet reached stays INCONCLUSIVE.
 An unknown `fleet_grader` name is rejected by `--validate`. Oracle scripts still fail with exit 1,
 which an uncaught exception also produces, until each is moved to a distinct failure code
 (`EVAL-011`). A backing-service cleanup failure after grading keeps

@@ -107,9 +107,9 @@ runner change that implements it.
 | Candidate and runner | Plugin commit, source digest and dirty state; runner revision and source digest |
 | Run conditions | Requested model, observed models, CLI version, host OS, release and architecture, declared turn limit and wall-clock timeout |
 | Attempt | Arm label, trial slot, attempt number, final, superseded or incomplete state, the reason for any replacement, and UTC start and end times |
-| Run end | Completed, turn limit, wall clock, spend guard, no result, authentication failure or interrupted |
-| Checks | For each: ID, text, forbids or requires, PASS, FAIL or INCONCLUSIVE, an evidence excerpt with a truncation flag, and the reason |
-| Verdict | Trial verdict and reason, assessment revision, and any problem recorded after assessment |
+| Run end | Completed, turn limit, cut short (wall clock, spend guard, no or error result), void, or incomplete (an attempt that raised, such as an authentication failure or interrupt) |
+| Checks | For each: ID, text, forbids, requires or both (a floor and a ceiling), PASS, FAIL or INCONCLUSIVE, an evidence excerpt with a truncation flag, and the reason |
+| Verdict | Trial verdict and reason, assessment revision 0, and any problem recorded after assessment; each later regrade is listed under `assessments` with its revision, verdict and grading path, never written over this one |
 | Cost | Trial and judge USD as the CLI's list-price estimate, each `null` when unknown; known total; a complete flag; live and cached judge calls |
 | Evidence | Paths, relative to the bundle, of the response, trace, patch and grading detail |
 

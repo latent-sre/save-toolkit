@@ -6,6 +6,24 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ## [Unreleased]
 
+### Fixed
+
+- The 2026-10-06 review of PR #328 (ten findings on `evals/build_probe.py`):
+  - `--regrade` no longer rewrites a run or its batch summaries: each regrade is
+    `assessments/<k>/` beside the run, listed in `record.json`, with its rows in `regrade-<UTC>.json`.
+  - An attempt that raises keeps a partial `record.json` (`run_end: incomplete`, no verdict).
+  - A judge that could not judge stops its scenario like a grader crash; `instrument:` evidence is
+    INCONCLUSIVE, not a candidate FAIL.
+  - A `tool_call_count` floor and ceiling are both kept: a ceiling exceeded before a cut FAILs, an
+    unmet floor stays INCONCLUSIVE, and the scenario is held to every trial.
+  - A batch whose CLI reports no version is refused; `--max-batch-usd` rejects NaN, infinity and
+    negatives and counts retained trials when a label is resumed; NaN, infinite or negative costs
+    are unknown.
+  - `--validate` reports malformed checks instead of crashing on them.
+
+  [verified] Rescores of five saved campaigns (217 runs) with the PR head and this runner differ in
+  nothing, and no saved grade carries `instrument:` evidence.
+
 ### Removed
 
 - The eval runner's `--container` mode (`EVAL-011`). No saved run used it (every recorded run has
