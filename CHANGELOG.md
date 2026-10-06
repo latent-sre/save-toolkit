@@ -411,8 +411,8 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   - Evaluation cases: contract-change and new-system designs, each paired with an identical
     `software-engineer` arm and checked by a design-record oracle that separates labels from
     content, plus two routing positives and two boundary cases that keep reliability assessments
-    and small builds in their own lanes. Four native campaigns
-    (57 Sonnet trials, USD 13.33) are recorded under `PRINCIPAL-001`; acceptance is pending.
+    and small builds in their own lanes. Five native campaigns
+    (69 Sonnet trials, USD 15.71) are recorded under `PRINCIPAL-001`; acceptance is pending.
 - Every eval run records `runtime`: the CLI's `--version` line (`null` when it cannot report one)
   and the host's system, release, and machine. `main()` measures it once per batch and prints it in
   the batch header; each trial writes it to `provenance.json`, the trace summary, and its summary

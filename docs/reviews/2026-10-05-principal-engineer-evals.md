@@ -1,22 +1,24 @@
 # Principal-engineer lane: native evaluation
 
-**Conclusion:** the lane passed every case it owns on the final revisions and never took
+**Conclusion:** the lane passed every case it owns on every revision measured and never took
 reliability work or a small tool build. Against `software-engineer` on identical bytes, every arm
-made the same design decisions on both tasks.
+returned the same decision fields on both tasks.
 
-- **Contract change:** only the lane produced the complete design record, loaded `stack-profile`
-  and returned the closed reply.
-- **New system:** `software-engineer` matched the lane on every check and wrote the same
-  architecture.
+- **Contract change:** on the last two revisions the lane wrote the complete design record, loaded
+  `stack-profile` and returned the closed reply in all six trials. `software-engineer` wrote a
+  complete record once in six, in the one trial where it read `principal.md`.
+- **New system:** `software-engineer` read the reference in every trial and matched the lane on
+  every scored check.
 - **Likely reason for the difference [unverified]:** the new-system prompt names the "design
-  record", which may lead `software-engineer` to the reference's template.
-- **What the scores show, and what they do not:** on the scored dimensions the two agents were
-  equal on the new-system task. That the rewritten reference supplies most of the design quality
-  is a hypothesis these comparisons do not establish. Matching scores also hid real design
-  differences (below).
-- **What the lane measurably adds:** a consistent record when a request does not name it. It also
-  has a design-only boundary and its own entry in the Copilot picker, which only a human test can
-  measure.
+  record", which may lead `software-engineer` to the reference.
+- **What the scores show, and what they do not:**
+  - In the re-run, every trial that read `principal.md` filled all twelve slots, and the two that
+    did not filled six. On `7993b130`, one `software-engineer` trial read it and filled eleven.
+  - That the reference supplies most of the design quality remains a hypothesis. Matching scores
+    also hid real design differences (below).
+- **What the lane measurably adds:** it reads the reference and writes the record every time,
+  including when a request does not name the record. It also has a design-only boundary and its
+  own entry in the Copilot picker, which only a human test can measure.
 
 One neighbour routing case fails identically on main and on the candidate. These results inform
 `PRINCIPAL-001`; acceptance of the exact candidate remains the owner's decision.
@@ -25,12 +27,12 @@ One neighbour routing case fails identically on main and on the candidate. These
 
 | Item | Value |
 |---|---|
-| Candidate revisions | `56ac47b3` (digest `78fff82a…13b5e6`); `72f748a0` after the first review fixes (`0bdf82ef…dd253ed`); `7993b130` after the rename and the second review's fixes (`9ace6a27…14229ec8`); `e89bfdf2` with the new-system pair, the boundary cases and the `/adr` change (`bd55b8fa…7615a0f2`) |
+| Candidate revisions | `56ac47b3` (digest `78fff82a…13b5e6`); `72f748a0` after the first review fixes (`0bdf82ef…dd253ed`); `7993b130` after the rename and the second review's fixes (`9ace6a27…14229ec8`); `e89bfdf2` with the new-system pair, the boundary cases and the `/adr` change (`bd55b8fa…7615a0f2`); `af3531eb` with the later review's fixes (`bd28b4a2…e3f806c`) |
 | Incumbent | `8d7ecda1` (main, PR base), digest `d251ef68…3b03127` |
-| Host and model | Claude Code 2.1.290 on Windows 11; `sonnet` alias, every trial answered by `claude-sonnet-5-5` |
-| Windows (2026-10-06 UTC) | first campaign 00:00–00:17, re-measure 00:43–00:49, final 01:27–01:41, new-system pair and boundaries 03:14–03:21; three interleaved passes per arm (DEC-10) |
-| Budgets stated before running (DEC-04) | first: 21 trials, USD 4–6, cap 12; re-measure: 6 trials, USD 1.20, cap 3; final: 15 trials, USD 4.40, cap 7; new-system pair and boundaries: 12 trials, USD 3.50, cap 6 |
-| Actual | 57 trials, three of them attribution trials added to the first campaign; USD 13.33 recorded trial cost (5.64, 1.16, 3.94, 2.60); judge USD 0. One-word Haiku credential refreshes are not recorded |
+| Host and model | Claude Code 2.1.290 on Windows 11, and 2.1.291 for the `af3531eb` re-run; `sonnet` alias, every trial answered by `claude-sonnet-5-5` |
+| Windows (2026-10-06 UTC) | first campaign 00:00–00:17, re-measure 00:43–00:49, final 01:27–01:41, new-system pair and boundaries 03:14–03:21, re-run 06:06–06:16; three interleaved passes per arm (DEC-10) |
+| Budgets stated before running (DEC-04) | first: 21 trials, USD 4–6, cap 12; re-measure: 6 trials, USD 1.20, cap 3; final: 15 trials, USD 4.40, cap 7; new-system pair and boundaries: 12 trials, USD 3.50, cap 6; re-run: 12 trials, USD 2.60, cap 5 |
+| Actual | 69 trials, three of them attribution trials added to the first campaign; USD 15.71 recorded trial cost (5.64, 1.16, 3.94, 2.60, 2.37); judge USD 0. One-word Haiku credential refreshes are not recorded |
 
 ## Results
 
@@ -53,14 +55,18 @@ cases and the reliability neighbour were re-run on `7993b130`.
 ## Lane versus reference
 
 The first comparison changed the agent and the `eng-ladder` reference together, because the
-incumbent read main's reference, which has no design record. The final run separates them: both
+incumbent read main's reference, which has no design record. The `7993b130` run separates them: both
 agents on identical bytes, interleaved.
 
 | Arm, 3 trials each | Complete record (oracle) | Slots per document | Labels per document | Closed JSON reply | `stack-profile` loaded |
 |---|---|---|---|---|---|
-| Lane, final bytes | 3/3 | 12, 12, 12 | 17, 23, 20 | 3/3 | 3/3 |
-| `software-engineer`, final bytes | 0/3 | 11, 6, 6 | 23, 8, 11 | 0/3 | 0/3 |
+| Lane, `7993b130` bytes | 3/3 | 12, 12, 12 | 17, 23, 20 | 3/3 | 3/3 |
+| `software-engineer`, `7993b130` bytes | 0/3 | 11, 6, 6 | 23, 8, 11 | 0/3 | 0/3 |
 | `software-engineer`, main bytes | 0/3 | 7, 5, 6 | 0, 1, 4 | 0/3 | 0/3 |
+
+Slots were counted by the oracle of that revision. The committed oracle counts 11, 6, 5 and
+6, 5, 5 for the two `software-engineer` rows, because a phrase such as "Recommend expand…" no longer
+counts as a label. No record changes from incomplete to complete.
 
 - **The reference raises labelling.** It does so for an agent that loads it; trial-to-trial
   variation is large, and one `software-engineer` trial skipped `eng-ladder` and still wrote 8 labels.
@@ -92,7 +98,7 @@ agents on identical bytes, interleaved.
 | Lane | 3/3 | 26, 25, 26 | 3/3 | `stack-profile` + `eng-ladder` 3/3 |
 | `software-engineer` | 3/3 | 29, 26, 22 | 3/3 | `stack-profile` + `eng-ladder` 3/3 |
 
-- **The two arms are indistinguishable.** Every document from both designs a daily Python job run as
+- **The two arms matched on every scored check.** Every document from both designs a daily Python job run as
   a PCF task, writing to the team's Postgres and read by Grafana. Each rejects the Rust, Kafka and
   Cassandra suggestion and leaves the availability target to the owner.
 - **Prompt wording may explain the difference from the contract-change pair [unverified]:**
@@ -115,7 +121,13 @@ A later review read the saved designs and found three problems that passing scor
   - The worked example taught it: "a quiet period with no reads in the export's access logs".
   - Fixed in `principal.md`: the method now names consumer-side evidence for migration, and the
     example uses logs only to find readers, with owner confirmation as the gate.
-  - The fix is not yet measured.
+  - Measured in the re-run below.
+- **A detector that cannot see its failure (the worked example, found by a third review).** The
+  example detected a reader still using a stale `owner` with a nightly comparison of the export's
+  two fields. That comparison passes while the reader fails.
+  - None of the three re-run lane designs copied it. They called the failure undetectable from the
+    producer side and gated removal on owner confirmation.
+  - The example now detects it with a rename test through each reader's lookup. Not yet measured.
 - **Retired endpoints (first new-system pair).**
   - The lane's design keeps history and alerts on the latest scan per endpoint, but never says how
     an endpoint removed from the inventory stops paging.
@@ -126,6 +138,36 @@ A later review read the saved designs and found three problems that passing scor
 
 Section counts and the closed JSON fields cannot measure lifecycle, failure handling, or whether a
 proposed observation can produce the evidence a gate needs. Measuring those needs a judged case.
+
+## Re-run on `af3531eb`
+
+Both pairs on the second review's checks: 12 Sonnet trials, three interleaved passes, USD 2.37
+against a stated USD 2.60 and a USD 5 cap. Recorded verdicts come from the `af3531eb` checks; slots
+are counted by the committed oracle.
+
+| Arm, 3 trials each | Recorded | Read `principal.md` | Slots per document | Labels per document | Closed JSON reply | `stack-profile` |
+|---|---|---|---|---|---|---|
+| Lane, contract change | 3/3 | 3/3 | 12, 12, 12 | 15, 22, 22 | 3/3 | 3/3 |
+| `software-engineer`, contract change | 0/3 | 1/3 | 6, 6, 12 | 3, 0, 20 | 0/3 | 0/3 |
+| Lane, new system | 3/3 | 3/3 | 12, 12, 12 | 35, 30, 21 | 3/3 | 3/3 |
+| `software-engineer`, new system | 3/3 | 3/3 | 12, 12, 12 | 36, 24, 25 | 3/3 | 3/3 |
+
+- **The removal gate is fixed where the reference was read.**
+  - The three lane designs, and the one `software-engineer` design that read `principal.md`, say
+    request logs show callers but not which fields they read.
+  - Each gates removal on owner confirmation or consumer-side evidence.
+  - Before the fix, all three lane designs gated removal on access logs. That comparison also spans
+    a CLI update, from 2.1.290 to 2.1.291.
+- **Without the reference the habit remains.** One of the two `software-engineer` designs that did
+  not read it proposed "Access logs or field-level usage evidence show no client reading the legacy
+  fields" as the removal criterion, beside a note that access logs show only callers.
+- **`software-engineer`'s contract failures:**
+  - Two designs left six slots empty.
+  - The third wrote a complete record but ran `git status --short && git ls-files` and read files
+    through a shell loop. The assignment said "do not execute anything".
+  - The lane has no shell tool, so it passes the no-shell check by construction. That check
+    measures tool posture, not design reasoning.
+- **Every decision check passed in all twelve trials.**
 
 ## Re-measure after the first review fixes
 
@@ -222,12 +264,32 @@ saved record leaves a slot section empty. No recorded verdict depends on either 
   - All 6 `software-engineer` trials would fail the record check, and 2 of them ran read-only Git
     commands, which the no-shell check now fails.
 
+**After a third review, which the `af3531eb` re-run predates:**
+
+- **One label matcher for every format.**
+  - A label names a slot only when one of its parts, split at "and", "from", "for" and
+    punctuation, is exactly the slot's name or an alias.
+  - No label counts as content, in any format.
+  - **False passes closed:** a heading over its own empty label, over a table header only, or over
+    another slot's label.
+  - **False fail closed:** a complete bullet-form record failed on `af3531eb`.
+  - **Calibration:** each slot left empty alone in five formats (60 cases).
+- **Escaped field names.**
+  - A contract reply that respelled `decision_owner` as `decision_owner` passed every reply
+    check.
+  - A guard now rejects any field name with a unicode escape, the only way to respell a key.
+  - The new-system pair's `exact_json` check already decodes the reply and rejects the duplicate.
+- **No recorded verdict depends on these holes:**
+  - Re-scoring the 39 saved documents changed no verdict.
+  - None of the 39 saved replies has an escaped field name.
+
 ## What this does not establish
 
 - One model, one host, and Claude only; Copilot handoffs were not exercised. Picker selection is
   being measured by hand with a shared picker sheet, not in VS Code.
 - Whether prompt wording explains the two pairs' different results: no run varied it.
-- Whether the corrected worked example stops the unprovable removal gate: not yet re-run.
+- Whether the example's rename-test detector changes designs: the re-run measured the `af3531eb`
+  reference, before that change.
 - Lifecycle, failure handling, and evidence feasibility: no judged case measures them.
 - Every build prompt forbade delegation, so helper dispatch and return were not exercised.
 - Whether one design lane serves both depths better than separate principal and architect bodies.

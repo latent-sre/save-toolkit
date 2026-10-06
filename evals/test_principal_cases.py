@@ -117,6 +117,9 @@ class PrincipalCaseTests(unittest.TestCase):
                              json.dumps(CONTRACT_REPLY)[:-1] + ', "decision_owner": "designer"}')):
             with self.subTest(case=name):
                 self.assertTrue(_failed_reply_checks(spec, reply))
+        escaped = json.dumps(CONTRACT_REPLY)[:-1] + ', "decision\\u005fowner": "designer"}'
+        self.assertEqual("designer", json.loads(escaped)["decision_owner"])
+        self.assertTrue(_failed_reply_checks(spec, escaped))
 
     def test_new_system_reply_checks_separate_decisions_from_reply_format(self):
         spec = build_probe.load_scenario(NEW_SYSTEM)
@@ -140,6 +143,9 @@ class PrincipalCaseTests(unittest.TestCase):
                              json.dumps(NEW_SYSTEM_REPLY)[:-1] + ', "decision_owner": "designer"}')):
             with self.subTest(reply=name):
                 self.assertTrue(_failed_reply_checks(spec, reply))
+        escaped = json.dumps(NEW_SYSTEM_REPLY)[:-1] + ', "decision\\u005fowner": "designer"}'
+        self.assertEqual("designer", json.loads(escaped)["decision_owner"])
+        self.assertFalse(build_probe.fleet_graders.exact_json(escaped, exact)[0])
 
     def test_record_oracle_accepts_every_contract_shape(self):
         example = "\n".join(line for line in PRINCIPAL.read_text(encoding="utf-8").splitlines()
@@ -156,9 +162,15 @@ class PrincipalCaseTests(unittest.TestCase):
         labels_then_lists = "\n\n".join(f"**{s}**:\n\n- text [verified]" for s in SLOT_HEADINGS)
         contents_and_sections = ("## Contents\n" + "".join(f"- {s}\n" for s in SLOT_HEADINGS) + "\n"
                                  + _headings_record())
+        bullets = "".join(f"- {s}: none [unverified]\n" for s in SLOT_HEADINGS)
+        combined = (_headings_record(tuple(s for s in SLOT_HEADINGS
+                                           if s not in ("Recommendation", "Decision needed")))
+                    + "\n## Recommendation and decisions needed\n\nRecommendation: option 2.\n\n"
+                    + "Decisions needed from the owner:\n1. Accept option 2.\n")
         for name, record in (("headings", _headings_record()), ("worked example", example),
                              ("table", table), ("numbered", numbered + "\n[verified] read"),
-                             ("homelab wording", homelab_wording),
+                             ("bullets", bullets), ("homelab wording", homelab_wording),
+                             ("one heading for two slots, labelled inside", combined),
                              ("content only in sub-sections", sub_sections),
                              ("labels with content after a blank line", labels_then_lists),
                              ("contents list plus filled sections", contents_and_sections)):
@@ -191,16 +203,26 @@ class PrincipalCaseTests(unittest.TestCase):
                               + "".join(f"| {s} | |\n" for s in SLOT_HEADINGS) + "\n[unverified]\n"),
                              ("labels ending in (required)", "[unverified]\n\n"
                               + "\n\n".join(f"## {s} (required)" for s in SLOT_HEADINGS)),
+                             ("headings over their own empty labels", "[unverified]\n\n"
+                              + "\n\n".join(f"## {s}\n\n**{s}**" for s in SLOT_HEADINGS)),
+                             ("headings over table headers only", "[unverified]\n\n"
+                              + "\n\n".join(f"## {s}\n\n| {s} | Owner |\n|---|---|" for s in SLOT_HEADINGS)),
+                             ("content under another slot's label", "[unverified]\n\n"
+                              + "\n\n".join(f"## {s}\n\n**Recovery**: text" for s in SLOT_HEADINGS)),
                              ("empty", "")):
             with self.subTest(case=name):
                 self.assertEqual(1, _oracle(record))
 
     def test_record_oracle_rejects_each_slot_left_empty_in_every_format(self):
-        # The rest of a slot's own label ("and context", "/ non-goals") must never count as content.
+        # Neither the rest of a slot's own label ("and context", "/ non-goals") nor a repeated label
+        # may count as content.
         shapes = {
             "heading": ("", lambda slot, body: f"## {slot}\n{body}\n" if body else f"## {slot}\n"),
             "table": ("| Slot | Content |\n|---|---|\n", lambda slot, body: f"| {slot} | {body} |\n"),
             "emphasised label": ("", lambda slot, body: f"**{slot}**: {body}\n\n" if body else f"**{slot}**:\n\n"),
+            "bullet": ("", lambda slot, body: f"- {slot}: {body}\n" if body else f"- {slot}:\n"),
+            "heading over its own label": ("", lambda slot, body: f"## {slot}\n\n**{slot}**: {body}\n\n"
+                                           if body else f"## {slot}\n\n**{slot}**\n\n"),
         }
         for shape, (prefix, line) in shapes.items():
             filled = prefix + "".join(line(slot, "text [verified]") for slot in SLOT_HEADINGS)

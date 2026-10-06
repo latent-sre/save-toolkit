@@ -536,8 +536,8 @@ prove host containment, or establish operational benefit. Native acceptance stay
 `build-software-engineer-contract-change-baseline` grade a shared-contract design: an exact consumer
 inventory that includes a dashboard parsing the fields only in configuration, an external reader
 kept unknown, a compatible first release, removal only on evidence, and the owner's decision. Each
-field is its own reply check, so the pair compares decisions rather than reply format, and a guard
-rejects any field given twice. Both pairs also require the design-record oracle, skills loaded
+field is its own reply check, so the pair compares decisions rather than reply format, and guards
+reject a field given twice or spelled with a unicode escape. Both pairs also require the design-record oracle, skills loaded
 before the document is written, and no shell, as their prompts do.
 `build-principal-engineer-new-system` and its identical incumbent arm
 `build-software-engineer-new-system-baseline` check a new-system record with the
