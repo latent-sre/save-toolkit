@@ -8,6 +8,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- The eval-harness threat-model ADR is accepted (owner decision 2026-10-06) with eight result rules:
+  a supported failure is never hidden by an unmeasured check, forbidding checks count on runs cut
+  short, grading-machinery failures are inconclusive and stop that scenario, each scenario declares a
+  turn limit, and every attempt and unknown cost stays visible. The runner does not follow them yet;
+  `EVAL-011` sequences the changes before `EVAL-012` records comparison baselines.
 - CI runs the component tests on four workers and installs nothing for the structural gate. Over
   the 16 runs before this change the test step took a median 438 s and the whole run 484 s.
   - `component-tests` sets `PYTEST_ADDOPTS` to `-n 4 --dist loadfile --durations=20`; the command

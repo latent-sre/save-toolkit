@@ -371,29 +371,48 @@ contract. This planning item authorizes no model spend, lab provisioning or prod
 **SRE task:** Compare exact agent candidates on realistic incidents and engineering tasks, see what
 improved or regressed, and distinguish failed behavior from an instrument that could not measure.
 
-### EVAL-011 — accept the eval harness threat model and bring the runner into line with it
+### EVAL-011 — bring the eval runner into line with the accepted threat model
 
-**Status:** `decision-needed` (2026-10-03).
-**Owner:** Save Toolkit maintainers accept or amend the ADR; `agent-engineer` owns the runner repairs
+**Status:** `ready` (2026-10-06); the owner accepted the threat-model ADR on 2026-10-06, with result
+rules added from the EVAL-012 WP-00 review; no runner change has started.
+**Owner:** Save Toolkit maintainers review each runner change; `agent-engineer` owns the runner repairs
 with independent review.
-**Outcome:** The [threat-model ADR](decisions/2026-10-03-eval-harness-threat-model.md) is accepted or
-amended, and the runner meets it. Measurement failures are inconclusive, and results record the runner
-revision, CLI version and host platform. Every in-scope defect from the 2026-10-03 inventory of
-`evals/build_probe.py` is fixed or has an owner disposition.
-**Next action:** Maintainers review the ADR. Then one PR each, gated on replaying saved traces with
-every verdict change explained:
-- Record the runner revision. With `--plugin-root` on another checkout, `plugin_commit` names the
-  candidate, not the runner; the CLI version and host platform are recorded.
-- Remove the unused `--container` mode.
-- Split `evals/build_probe.py` along its inventory seams with no verdict change.
-**Evidence:** [PR #310](https://github.com/latent-sre/save-toolkit/pull/310).
+**Outcome:** The runner meets the accepted [threat-model ADR](decisions/2026-10-03-eval-harness-threat-model.md),
+including its result rules. Measurement failures are inconclusive and never hide a supported failure,
+and results record the runner revision, CLI version and host platform. Every in-scope defect from the
+2026-10-03 inventory of `evals/build_probe.py` is fixed or has an owner disposition.
+**Next action:** Land the runner changes one PR each, as one sequence finished before EVAL-012 records
+comparison baselines, because every runner edit changes the scenario digest and invalidates earlier
+regrades. The first PR adds a comparison that grades a saved
+trace under the old and new runner and keeps both assessments; each later PR uses it to explain every
+verdict change.
+- Result rules: three-state checks, each check type classed as forbidding or requiring; forbidding
+  checks evaluated on runs cut short; a supported failure wins; cleanup failures recorded beside the
+  verdict; a requested `--threshold` cannot lower a scenario that has a forbidding check.
+- Grading machinery: grader defects and misconfigured checks become inconclusive and stop that
+  scenario's trials; errors caused by the candidate stay failures; oracles fail with an exit code an
+  uncaught exception cannot produce.
+- Turn limits: each scenario declares one, passed as `--max-turns`; the wall clock and the native
+  spend cap remain instrument guards.
+- Attempts and cost: replaced and incomplete attempts are kept with trace, timing and cost; an
+  authentication failure exits distinctly and stops the batch; unknown cost stays null, including in
+  calibration receipts; a batch spending cap stops scheduling (EVAL-012 AC-18).
+- Identity: record the runner revision (with `--plugin-root` on another checkout, `plugin_commit` names
+  the candidate, not the runner; the CLI version and host platform are already recorded); refuse to
+  pool trials across CLI versions or hosts; include the PowerShell guard hook in the digest.
+- Remove the unused `--container` mode, and split `evals/build_probe.py` along its inventory seams with
+  no verdict change.
+
+EVAL-012's WP-00 decides whether its record-format and folder-permission changes join this sequence.
+**Evidence:** [PR #310](https://github.com/latent-sre/save-toolkit/pull/310); the amended ADR's
+Context records the 2026-10-06 source findings behind the result rules.
 [PR #321](https://github.com/latent-sre/save-toolkit/pull/321) runs the component tests on four
 workers with `PYTHONDONTWRITEBYTECODE=1`, since a `.pyc` written by one worker reads as plugin drift
 to another worker's native trial. The intermittent `NativeConversationRunTests` failure (a native
 trial INCONCLUSIVE before its first launch) did not reproduce in twelve local four-worker runs; its
 cause is unconfirmed, so a recurrence reopens it here.
-**SRE task:** Read an eval INCONCLUSIVE as "the instrument could not measure", and know which host and
-CLI a PASS or FAIL was measured on.
+**SRE task:** Read an eval INCONCLUSIVE as "the instrument could not measure", trust that it never hides
+a recorded failure, and know which host and CLI a PASS or FAIL was measured on.
 
 ### EVAL-010 — choose the rubric judge by a calibration bake-off
 
