@@ -398,6 +398,8 @@ saved runs with both and explains every line the diff prints.
 - Result rules: three-state checks, each check type classed as forbidding or requiring; forbidding
   checks evaluated on runs cut short; a supported failure wins; cleanup failures recorded beside the
   verdict; a requested `--threshold` cannot lower a scenario that has a forbidding check.
+  Implemented with the comparison on `work/eval-011-result-rules` (2026-10-06), awaiting review; its
+  rescore diffs over six saved campaigns are explained in the commit messages.
 - Grading machinery: grader defects and misconfigured checks become inconclusive and stop that
   scenario's trials; errors caused by the candidate stay failures; oracles fail with an exit code an
   uncaught exception cannot produce.

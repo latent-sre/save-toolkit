@@ -519,7 +519,11 @@ nonzero exit, or — where reads were granted — a successful read outside the 
 snapshot makes the trial **INCONCLUSIVE**, never a verdict. An auth failure aborts the batch.
 
 Those run-level failures mark every check INCONCLUSIVE, so nothing observed under the wrong plugin,
-model or tools counts. Otherwise each check is PASS, FAIL or INCONCLUSIVE (its `state` in
+model or tools counts. A run cut short on the declared profile is different: after a timeout, a
+missing result, an error result, a nonzero exit or the native spend cap, the partial trace must still
+show the declared plugin, tools and read boundary, and then a forbidding check whose violation is
+already in it is FAIL, while one with no violation yet and every requiring check stay INCONCLUSIVE;
+the grade records `run_end: cut_short` so a regrade applies the same rule. Otherwise each check is PASS, FAIL or INCONCLUSIVE (its `state` in
 `grading.json`), and a trial with any failed check is FAIL even when another check could not be
 measured; that reason is kept as `unmeasured`. Without a failure, any unmeasured check makes the trial
 INCONCLUSIVE, with the reason in `inconclusive`. A backing-service cleanup failure after grading keeps

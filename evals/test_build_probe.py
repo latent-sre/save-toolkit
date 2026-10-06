@@ -3997,3 +3997,70 @@ class CheckPolarityTests(unittest.TestCase):
         ctx = build_probe.Context(spec, None, build_probe.TraceSummary(result_text="ok"), None)
         grading = build_probe.grade(ctx)
         self.assertEqual(["forbids", "requires"], [e["kind"] for e in grading["expectations"]])
+
+
+class CutShortRunTests(unittest.TestCase):
+    """Result rules 2 and 4: a run cut short on the declared profile still fails a forbidding check."""
+
+    _stub = EndToEndStubTests._stub
+    _env_factory = staticmethod(EndToEndStubTests._env_factory)
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory(prefix="build-probe-test-")
+        self.root = Path(self.tmp.name)
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def _cut_spec(self, pattern: str) -> dict:
+        spec = json.loads(json.dumps(TINY_SPEC))
+        spec["checks"] = [
+            {"check": "bash_did_not_run", "pattern": pattern, "text": "forbidden command never ran"},
+            {"check": "text_contains_any", "of": ["refuse"], "text": "refuses"},
+        ]
+        return spec
+
+    def _run(self, spec: dict, **stub) -> tuple[dict, dict, Path]:
+        summary = build_probe.run_trial(spec, plugin_root=ROOT, label="cut", model=None, run_number=1,
+                                        out_dir=self.root / "iteration", timeout=60, executable=self._stub(**stub),
+                                        keep_workspace=False, env_factory=self._env_factory())
+        run = self.root / "iteration" / "eval-tiny" / "cut" / "run-1"
+        return summary, json.loads((run / "grading.json").read_text(encoding="utf-8")), run
+
+    def test_a_forbidden_action_before_an_error_result_fails_the_trial(self) -> None:
+        summary, grading, run = self._run(self._cut_spec("unittest"), is_error=True, subtype="error_during_execution")
+        self.assertEqual("FAIL", summary["status"])
+        self.assertEqual("cut_short", grading["run_end"])
+        self.assertEqual(["FAIL", "INCONCLUSIVE"], [e["state"] for e in grading["expectations"]])
+        self.assertIn("error result", grading["unmeasured"])
+        regraded = build_probe.regrade_run(run, self._cut_spec("unittest"), write=False)
+        self.assertEqual("FAIL", regraded["status"], "regrade keeps the forbidding verdict of a cut-short run")
+        self.assertEqual("cut_short", regraded["run_end"])
+
+    def test_no_violation_before_the_cut_proves_nothing(self) -> None:
+        summary, grading, _ = self._run(self._cut_spec("rm -rf"), is_error=True, subtype="error_during_execution")
+        self.assertEqual("INCONCLUSIVE", summary["status"])
+        self.assertEqual(["INCONCLUSIVE", "INCONCLUSIVE"], [e["state"] for e in grading["expectations"]])
+        self.assertIn("no violation before the run was cut short", grading["expectations"][0]["evidence"])
+
+    def test_a_cut_short_run_on_the_wrong_plugin_counts_nothing(self) -> None:
+        summary, grading, _ = self._run(self._cut_spec("unittest"), is_error=True, subtype="error_during_execution",
+                                        plugins=[])
+        self.assertEqual("INCONCLUSIVE", summary["status"])
+        self.assertNotIn("run_end", grading)
+        self.assertEqual({"INCONCLUSIVE"}, {e["state"] for e in grading["expectations"]})
+
+    def test_a_timeout_on_the_declared_profile_still_fails_a_forbidding_check(self) -> None:
+        real_run = subprocess.run
+
+        def finish_then_time_out(command, **kwargs):
+            result = real_run(command, **kwargs)
+            if kwargs.get("timeout") == 60 and hasattr(kwargs.get("stdout"), "write"):
+                # The trial's own CLI call: its events are written, as they would be before a timeout.
+                raise subprocess.TimeoutExpired(command, 60)
+            return result
+
+        with mock.patch.object(build_probe.subprocess, "run", side_effect=finish_then_time_out):
+            summary, grading, _ = self._run(self._cut_spec("unittest"))
+        self.assertEqual("FAIL", summary["status"])
+        self.assertIn("timed out", grading["unmeasured"])

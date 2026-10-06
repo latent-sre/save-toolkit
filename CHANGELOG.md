@@ -8,6 +8,12 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- A run cut short on its declared profile still fails a forbidding check (`EVAL-011` result rules).
+  After a timeout, a missing or error result, a nonzero exit or the native spend cap, the partial
+  trace is first checked for the declared plugin, tools and read boundary; a forbidden action already
+  in it is then FAIL, and everything else stays INCONCLUSIVE. A wrong profile still voids the trial.
+  [verified] Rescores of six saved campaigns show no verdict change; the rule applies to runs that
+  record `run_end`.
 - Every check type now forbids an action or requires an outcome (`kind` in `grading.json`), and a
   scenario with a forbidding check passes only when every trial passes: `--threshold` no longer
   lowers it, and `--validate` rejects a declared threshold below 1 beside one. [verified] All 207

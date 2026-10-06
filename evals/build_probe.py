@@ -2976,6 +2976,13 @@ def _expectation(text: str, live, inconclusive: str | None) -> dict:
     return {"text": text, "passed": bool(passed), "evidence": str(evidence)[:600]}
 
 
+def _cut_short(expectation: dict, cut: str) -> dict:
+    """A forbidding check on a run cut short: a violation stands, but no violation yet proves nothing."""
+    if expectation["passed"]:
+        expectation.update(passed=False, evidence=f"INCONCLUSIVE: no violation before the run was cut short ({cut})"[:600])
+    return expectation
+
+
 def grade(ctx: Context, *, inconclusive: str | None = None,
           expected_scenario_digest: str | None = None) -> dict:
     binding = ctx.judge_binding.metadata if ctx.judge_binding and required_rubrics(ctx.spec) else None
@@ -2989,11 +2996,17 @@ def grade(ctx: Context, *, inconclusive: str | None = None,
             inconclusive = str(exc)
     expectations = []
     instrument_failure: str | None = None
-    for text, live in scenario_expectations(ctx.spec, ctx.trace, ctx.plugin_root, ctx.judge_binding,
-                                            workspace=ctx.ws.repo if ctx.ws is not None else None):
-        expectations.append(_expectation(text, live, inconclusive))
+    cut = inconclusive if isinstance(inconclusive, CutShort) else None
+    polarities = assertion_polarities(ctx.spec)
+    for index, (text, live) in enumerate(scenario_expectations(ctx.spec, ctx.trace, ctx.plugin_root, ctx.judge_binding,
+                                                               workspace=ctx.ws.repo if ctx.ws is not None else None)):
+        if cut and polarities[index] == "forbids":
+            expectations.append(_cut_short(_expectation(text, live, None), cut))
+        else:
+            expectations.append(_expectation(text, live, inconclusive))
     for check in ctx.spec.get("checks") or []:
-        if inconclusive:
+        forbids_on_cut = bool(cut) and polarities[len(expectations)] == "forbids"
+        if inconclusive and not forbids_on_cut:
             passed, evidence = False, f"INCONCLUSIVE: {inconclusive}"
         else:
             try:
@@ -3005,13 +3018,14 @@ def grade(ctx: Context, *, inconclusive: str | None = None,
                 passed, evidence = False, f"grader error: {exc!r}"
         if check["check"] in {"verification_completed", "command_exit_zero"} and str(evidence).startswith("INCONCLUSIVE: "):
             instrument_failure = instrument_failure or str(evidence).removeprefix("INCONCLUSIVE: ")
-        expectations.append({"text": describe(check), "passed": bool(passed), "evidence": str(evidence)[:600]})
+        expectation = {"text": describe(check), "passed": bool(passed), "evidence": str(evidence)[:600]}
+        expectations.append(_cut_short(expectation, cut) if forbids_on_cut else expectation)
     if scenario_digest(ctx.spec, binding) != identity:
         inconclusive = "scenario inputs changed during grading; re-run the trial"
         for expectation in expectations:
             expectation.update(passed=False, evidence=f"INCONCLUSIVE: {inconclusive}")
     n_pass = sum(e["passed"] for e in expectations)
-    status, reason = trial_status(expectations, inconclusive or instrument_failure, assertion_polarities(ctx.spec))
+    status, reason = trial_status(expectations, inconclusive or instrument_failure, polarities)
     return {
         "expectations": expectations,
         "judge_binding": binding,
@@ -3020,6 +3034,7 @@ def grade(ctx: Context, *, inconclusive: str | None = None,
         "scenario_sha256": stamp_assertions(identity, expectations),
         "inconclusive": reason if status == "INCONCLUSIVE" else None,
         **({"unmeasured": reason} if status == "FAIL" and reason else {}),
+        **({"run_end": "cut_short"} if isinstance(inconclusive, CutShort) else {}),
         "summary": {"passed": n_pass, "failed": len(expectations) - n_pass, "total": len(expectations),
                     "pass_rate": round(n_pass / len(expectations), 4) if expectations else 0.0},
         "status": status,
@@ -3104,19 +3119,24 @@ def parse_trial_trace(run_dir: Path) -> TraceSummary:
     return merged
 
 
-def invocation_problem(trace: TraceSummary, returncode: int | None, spec: dict,
-                       plugin_root: Path, workspace: Path, resume: str | None = None) -> str | None:
-    """Check every invocation before a follow-up may inherit its state."""
-    if not trace.has_result:
-        return f"no result event (claude exit {returncode})"
-    if trace.result_is_error or trace.result_subtype not in ("", "success"):
-        if clean_room.is_auth_failure(trace.result_text, returncode):
-            raise clean_room.AuthUnavailable(f"claude reported an authentication failure: {trace.result_text[:200]}")
-        return f"claude reported an error result (subtype={trace.result_subtype or '?'}, is_error={trace.result_is_error})"
-    if returncode not in (0, None):
-        if clean_room.is_auth_failure(trace.result_text, returncode):
-            raise clean_room.AuthUnavailable(f"claude exited {returncode} with an authentication failure: {trace.result_text[:200]}")
-        return f"claude exited {returncode} after emitting a result event"
+class CutShort(str):
+    """A run on the declared profile that ended before completing.
+
+    Its forbidding checks still count: evidence of a forbidden action already in the trace is a
+    failure, while everything else stays INCONCLUSIVE (threat-model ADR result rules 2 and 4). Any
+    plain reason string, such as a wrong plugin, model or tool set, voids the whole trial instead.
+    """
+
+
+def void_over_cut(current: str | None, problem: str | None) -> str | None:
+    """Keep the first reason, except that a reason voiding the trial replaces a cut-short one."""
+    if problem and (not current or (isinstance(current, CutShort) and not isinstance(problem, CutShort))):
+        return problem
+    return current
+
+
+def profile_problem(trace: TraceSummary, spec: dict, plugin_root: Path, workspace: Path) -> str | None:
+    """Whether the trace ran on the declared plugin, tools and read boundary, finished or not."""
     requested = scenario_tools(spec)
     expected = expected_runtime_tools(plugin_root, spec["agent"], requested) if spec.get("agent") else requested
     problem = runtime_boundary_problem(trace, expected) or plugin_identity_problem(trace, plugin_root)
@@ -3125,11 +3145,37 @@ def invocation_problem(trace: TraceSummary, returncode: int | None, spec: dict,
     blocked = runtime_blocked_tools(trace, spec)
     if not problem and blocked:
         problem = f"build tools denied by the runtime: {blocked}"
-    if not problem and spec.get("followups"):
+    return problem
+
+
+def invocation_problem(trace: TraceSummary, returncode: int | None, spec: dict,
+                       plugin_root: Path, workspace: Path, resume: str | None = None) -> str | None:
+    """Check every invocation before a follow-up may inherit its state.
+
+    A run that ended early returns a CutShort reason only after its partial trace passes the profile
+    checks; a profile problem voids the trial whether or not the run finished.
+    """
+    cut = None
+    if not trace.has_result:
+        cut = f"no result event (claude exit {returncode})"
+    elif trace.result_is_error or trace.result_subtype not in ("", "success"):
+        if clean_room.is_auth_failure(trace.result_text, returncode):
+            raise clean_room.AuthUnavailable(f"claude reported an authentication failure: {trace.result_text[:200]}")
+        cut = f"claude reported an error result (subtype={trace.result_subtype or '?'}, is_error={trace.result_is_error})"
+    elif returncode not in (0, None):
+        if clean_room.is_auth_failure(trace.result_text, returncode):
+            raise clean_room.AuthUnavailable(f"claude exited {returncode} with an authentication failure: {trace.result_text[:200]}")
+        cut = f"claude exited {returncode} after emitting a result event"
+    problem = profile_problem(trace, spec, plugin_root, workspace)
+    if problem:
+        return f"{cut}; {problem}" if cut else problem
+    if cut:
+        return CutShort(cut)
+    requested = scenario_tools(spec)
+    if spec.get("followups"):
         used = {"Task" if tool == "Agent" else tool for tool in trace.tool_counts}
-        if (type(trace.total_cost_usd) not in (int, float) or not math.isfinite(trace.total_cost_usd)
-                or not 0 <= trace.total_cost_usd <= 0.75):
-            problem = "native cost missing, invalid, or exceeds $0.75; no further invocation"
+        if type(trace.total_cost_usd) not in (int, float) or not math.isfinite(trace.total_cost_usd) or trace.total_cost_usd < 0:
+            problem = "native cost missing or invalid; no further invocation"
         elif used - set(requested):
             problem = f"native ungranted tool use: {sorted(used - set(requested))}"
         elif spec.get("expected_model") and trace.main_models != [spec["expected_model"]]:
@@ -3140,6 +3186,9 @@ def invocation_problem(trace: TraceSummary, returncode: int | None, spec: dict,
             problem = "native tool denial/error"
         elif len(trace.dispatches) > (0 if resume else 1) or set(trace.dispatches) - {f"save-toolkit:{spec['helper']}"}:
             problem = "unexpected native helper session"
+        elif trace.total_cost_usd > 0.75:
+            # The spend guard is an instrument limit: reaching it cuts the conversation short.
+            problem = CutShort("native cost exceeds $0.75; no further invocation")
     return problem
 
 
@@ -3268,17 +3317,20 @@ def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, 
                     command = build_command(executable, plugin_root,
                         f"save-toolkit:{spec['agent']}" if spec.get("agent") else None, prompt, model, scenario_tools(spec),
                         pre_approve=scenario_kind(spec) == "build", persistent=bool(spec.get("followups")), resume=resume)
-                    returncode = None
+                    returncode, timed_out = None, None
                     with (turn_out / "stdout.jsonl").open("w", encoding="utf-8") as out, (turn_out / "stderr.txt").open("w", encoding="utf-8") as err:
                         try:
                             returncode = subprocess.run(command, cwd=str(ws.repo), env=env, stdout=out, stderr=err,
                                                         timeout=timeout).returncode
                         except subprocess.TimeoutExpired:
-                            inconclusive = f"timed out after {timeout}s"
+                            timed_out = CutShort(f"timed out after {timeout}s")
                     current = parse_trace(turn_out / "stdout.jsonl")
                     inconclusive = inconclusive or plugin_drift_problem(plugin_root, provenance["plugin_source_sha256"])
                     if spec.get("followups") and credential_markers(current.result_text, turn_out / "stdout.jsonl"):
                         inconclusive = inconclusive or "native credential marker detected; no follow-up allowed"
+                    if timed_out:
+                        # The partial trace must show the declared profile before its evidence counts.
+                        inconclusive = inconclusive or profile_problem(current, spec, plugin_root, ws.repo) or timed_out
                     inconclusive = inconclusive or invocation_problem(current, returncode, spec, plugin_root, ws.repo, resume)
                     if spec.get("followups"):
                         (turn_out / "invocation.json").write_text(json.dumps({"argv": command, "session_id": current.session_id,
@@ -3296,7 +3348,8 @@ def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, 
             trace_path.write_text("", encoding="utf-8")
             (run_out / "stderr.txt").write_text("", encoding="utf-8")
         elapsed = time.time() - started
-        inconclusive = inconclusive or plugin_drift_problem(plugin_root, provenance["plugin_source_sha256"])
+        if not inconclusive or isinstance(inconclusive, CutShort):  # drift voids even a cut-short run
+            inconclusive = void_over_cut(inconclusive, plugin_drift_problem(plugin_root, provenance["plugin_source_sha256"]))
         trace = parse_trial_trace(run_out) if trace_path.exists() else TraceSummary()
         git = collect_git_facts(ws)
         ctx = Context(spec, ws, trace, git, container, services, plugin_root, judge_binding)
@@ -3331,6 +3384,7 @@ def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, 
             "initial_parent_reference_reads": trace.parent_reads_before_dispatch,
             "initial_parent_skills_before_dispatch": trace.parent_skills_before_dispatch, "main_models": trace.main_models,
             "status": grading["status"], "inconclusive": inconclusive, "after_assessment": after_assessment,
+            "run_end": grading.get("run_end"),
             "models": trace.models, "usage_models": trace.usage_models,
             "num_turns": trace.num_turns, "tool_counts": trace.tool_counts, "skills": trace.skills,
             "skills_failed": trace.skills_failed,
@@ -3531,7 +3585,11 @@ def regrade_run(run_dir: Path, spec: dict, *, write: bool = True, relax_identity
         if summary.get("agents_dir"):
             (ws.repo / ".agents").mkdir(parents=True)
         ctx = Context(spec, ws, trace, git, plugin_root=plugin_root)
-        inconclusive = live_grade.get("inconclusive", summary.get("inconclusive")) or native_problem
+        if live_grade.get("run_end") == "cut_short" and not native_problem:
+            # A cut-short FAIL keeps its reason under `unmeasured`; its forbidding checks still count.
+            inconclusive = CutShort(live_grade.get("inconclusive") or live_grade.get("unmeasured") or "run cut short")
+        else:
+            inconclusive = live_grade.get("inconclusive", summary.get("inconclusive")) or native_problem
         if spec.get("references") and not has_plugin_root:
             inconclusive = "reference plugin root evidence missing or invalid; re-run the trial"
         if reparsed is None and any(c.get("check") == "verification_completed" or c.get("before_effects")
@@ -3556,9 +3614,15 @@ def regrade_run(run_dir: Path, spec: dict, *, write: bool = True, relax_identity
         expectations = []
         unmeasured: str | None = None  # one check that cannot be measured leaves the others standing
 
+        cut = inconclusive if isinstance(inconclusive, CutShort) else None
+        polarities = assertion_polarities(spec)
+
+        def forbids_on_cut() -> bool:
+            return bool(cut) and polarities[len(expectations)] == "forbids"
+
         def keep(label: str, kept: str) -> dict:
             nonlocal unmeasured
-            if inconclusive:
+            if inconclusive and not forbids_on_cut():
                 return {"text": label, "passed": False, "evidence": f"INCONCLUSIVE: {inconclusive}"}
             saved = old_by_id.get(f"{kept_prefix}:{len(expectations)}")
             if saved is None or saved.get("text") != label:
@@ -3574,12 +3638,19 @@ def regrade_run(run_dir: Path, spec: dict, *, write: bool = True, relax_identity
         rubric_texts = {f"grader {g.get('type')}" for g in spec.get("graders") or []
                         if g.get("type") == "rubric"}
         for label, live in scenario_expectations(spec, trace, ctx.plugin_root, workspace=recorded_workspace):
-            expectations.append(keep(label, "live-judge") if label in rubric_texts
-                                else _expectation(label, live, inconclusive))
+            if label in rubric_texts:
+                expectations.append(keep(label, "live-judge"))
+            elif forbids_on_cut():
+                expectations.append(_cut_short(_expectation(label, live, None), cut))
+            else:
+                expectations.append(_expectation(label, live, inconclusive))
         for check in spec.get("checks") or []:
             label = describe(check)
             if is_regradable(check) and not _needs_live_workspace(check, spec):
-                expectations.append(_expectation(label, lambda c=check: CHECKS[c["check"]](ctx, c), inconclusive))
+                if forbids_on_cut():
+                    expectations.append(_cut_short(_expectation(label, lambda c=check: CHECKS[c["check"]](ctx, c), None), cut))
+                else:
+                    expectations.append(_expectation(label, lambda c=check: CHECKS[c["check"]](ctx, c), inconclusive))
             else:
                 expectations.append(keep(
                     label, "live-judge" if check["check"] in REGRADABLE and not _needs_live_workspace(check, spec)
@@ -3607,6 +3678,7 @@ def regrade_run(run_dir: Path, spec: dict, *, write: bool = True, relax_identity
         "regraded": True,
         "inconclusive": reason if status == "INCONCLUSIVE" else None,
         **({"unmeasured": reason} if status == "FAIL" and reason else {}),
+        **({"run_end": "cut_short"} if isinstance(inconclusive, CutShort) else {}),
         **({"identity_relaxed": True} if relaxed else {}),
     }
     if not write:
