@@ -104,8 +104,10 @@ Results follow these rules:
   2026-09-01 contract. Native conversations' semantic assessment stays unverified; the result rules
   cover structural checks and calibrated rubric verdicts.
 - The scenario digest binds the runner's source, so every runner change invalidates earlier regrades.
-  The changes these rules require land as one sequence before EVAL-012 records comparison baselines,
-  and a regrade across them keeps the original assessment beside the new one.
+  The changes these rules require land as commits in one pull request, not one pull request per
+  change, before EVAL-012 records comparison baselines. Each commit explains every verdict its
+  regrade comparison changes, and a regrade across them keeps the original assessment beside the new
+  one.
 - `evals/README.md` documents the mechanics once they are implemented: which checks forbid and which
   require, an oracle exit code for failure that an uncaught exception cannot produce, each scenario's
   turn limit, and the attempt layout. Kept attempts are retained at least while an open roadmap item
