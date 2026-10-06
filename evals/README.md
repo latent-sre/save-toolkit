@@ -464,6 +464,14 @@ those were recorded never pools with one that has them. `provenance.json` also n
 `--plugin-root` on another checkout still says which runner graded it. The measured guard scripts
 include `readonly-guard-hook.ps1`, which `hooks/hooks.json` runs for PowerShell.
 
+Cost is the CLI's reported list-price estimate, not a subscription bill. `timing.json` and summary
+rows give `total_cost_usd` only when the trial and every judge call are priced; otherwise it is
+`null`, with `known_cost_usd` and `cost_complete: false` beside it, and a cached verdict counts as a
+known zero. `--max-batch-usd USD` stops scheduling once the batch's known spend reaches `USD`, or as
+soon as a trial's cost is unknown, because an unknown cost cannot be held to a cap. Judge calibration
+receipts still sum an unpriced call as zero: changing `judge.py` invalidates every receipt, so that
+fix waits for the next recalibration.
+
 Machine records retain the complete candidate digest and a scenario digest covering the spec, its
 referenced oracle files, the explicit judge binding when used, and the rubric definitions the judge actually consumes. The judge caches
 rubrics on first load for the process; file edits take effect in a new process. The digest uses those

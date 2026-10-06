@@ -3615,7 +3615,8 @@ class JudgeSpendAccountingTests(unittest.TestCase):
     def test_no_judge_module_means_no_spend(self) -> None:
         with mock.patch.dict(sys.modules, {}, clear=False):
             sys.modules.pop("judge", None)
-            self.assertEqual({"calls": 0, "cost_usd": 0.0, "seconds": 0.0}, build_probe.judge_spend())
+            self.assertEqual({"calls": 0, "cost_usd": 0.0, "known_cost_usd": 0, "unknown_cost_calls": 0, "seconds": 0.0},
+                             build_probe.judge_spend())
 
 
 class NormalJudgeBindingTests(unittest.TestCase):
@@ -3879,6 +3880,17 @@ class RescoreTests(unittest.TestCase):
         self.assertIn("JSONDecodeError", rows[1]["error"])
         self.assertEqual({"scenarios": ["retired-case"], "runs_without_trace_summary": 1}, skipped)
 
+    def test_an_unwritable_rescore_is_reported_and_the_rest_still_rescore(self) -> None:
+        with tempfile.TemporaryDirectory() as saved, tempfile.TemporaryDirectory() as out:
+            self._saved_run(Path(saved), run=1)
+            self._saved_run(Path(saved), run=2)
+            blocked = Path(out) / "eval-tiny" / "new_skill" / "run-1"
+            blocked.parent.mkdir(parents=True)
+            blocked.write_text("a file where the rescore wants a directory", encoding="utf-8")
+            rows = build_probe.rescore(Path(saved), [self.SPEC], Path(out))
+        self.assertIn("cannot write the rescored grade", rows[0]["error"])
+        self.assertEqual("PASS", rows[1]["rescored"]["status"])
+
     def test_rescore_diff_lists_status_check_and_coverage_changes(self) -> None:
         def row(run: int, status: str, state: str) -> dict:
             return {"scenario": "tiny", "label": "new_skill", "run": run,
@@ -4107,3 +4119,59 @@ class RunnerIdentityTests(unittest.TestCase):
             hook = plugin / "scripts" / "readonly-guard-hook.ps1"
             hook.write_bytes(hook.read_bytes() + b"\n# changed\n")
             self.assertNotEqual(before, build_probe.plugin_digest(plugin))
+
+
+class UnknownCostTests(unittest.TestCase):
+    """EVAL-011 attempts and cost: an unknown cost is recorded as unknown, never as zero."""
+
+    def test_an_unpriced_live_judge_call_leaves_the_judge_cost_unknown(self) -> None:
+        judge = mock.Mock(drain_spend=lambda: [{"cost_usd": 0.02, "seconds": 1.0, "cached": False},
+                                               {"cost_usd": None, "seconds": 1.0, "cached": False},
+                                               {"cost_usd": 0.0, "seconds": 0.0, "cached": True}])
+        with mock.patch.dict(sys.modules, {"judge": judge}):
+            spend = build_probe.judge_spend()
+        self.assertIsNone(spend["cost_usd"])
+        self.assertEqual((0.02, 1), (spend["known_cost_usd"], spend["unknown_cost_calls"]))
+
+    def test_a_trial_total_is_unknown_when_any_part_is(self) -> None:
+        known = {"cost_usd": 0.03, "known_cost_usd": 0.03}
+        unknown = {"cost_usd": None, "known_cost_usd": 0.02}
+        self.assertEqual({"cost_usd": 0.13, "known_cost_usd": 0.13, "cost_complete": True}, build_probe.trial_cost(0.1, known))
+        self.assertEqual({"cost_usd": None, "known_cost_usd": 0.03, "cost_complete": False}, build_probe.trial_cost(None, known))
+        self.assertEqual({"cost_usd": None, "known_cost_usd": 0.12, "cost_complete": False}, build_probe.trial_cost(0.1, unknown))
+
+
+class BatchSpendCapTests(unittest.TestCase):
+    """AC-18: the batch cap stops scheduling at the known spend, or when a cost is unknown."""
+
+    RUNTIME = {"cli_version": "x", "host_platform": {"system": "Windows", "release": "11", "machine": "AMD64"}}
+
+    def _main(self, costs: list[tuple[float | None, bool]], cap: str) -> tuple[int, list[int], str]:
+        import contextlib
+        import io
+        spec = build_probe.load_all_scenarios()[0]
+        calls: list[int] = []
+
+        def fake_run_trial(spec_arg, **kwargs):
+            calls.append(kwargs["run_number"])
+            known, complete = costs[len(calls) - 1]
+            return {"scenario": spec_arg["id"], "label": "l", "run": kwargs["run_number"], "status": "PASS",
+                    "passed": 1, "total": 1, "models": ["m"], "runtime": self.RUNTIME,
+                    "plugin_source_sha256": "0" * 64, "scenario_sha256": build_probe.scenario_digest(spec_arg),
+                    "cost_usd": known if complete else None, "known_cost_usd": known, "cost_complete": complete}
+
+        with tempfile.TemporaryDirectory() as tmp,                 mock.patch.object(build_probe, "plugin_provenance", return_value={"plugin_source_sha256": "0" * 64}),                 mock.patch.object(build_probe, "runtime_identity", return_value=self.RUNTIME),                 mock.patch.object(build_probe, "run_trial", side_effect=fake_run_trial),                 contextlib.redirect_stdout(io.StringIO()) as out:
+            code = build_probe.main(["--scenario", spec["id"], "--label", "l", "--trials", str(len(costs)),
+                                     "--out", str(Path(tmp) / "it"), "--max-batch-usd", cap])
+        return code, calls, out.getvalue()
+
+    def test_scheduling_stops_once_the_known_spend_reaches_the_cap(self) -> None:
+        code, calls, out = self._main([(0.6, True), (0.6, True), (0.6, True)], "1.0")
+        self.assertEqual([1, 2], calls)
+        self.assertEqual(2, code)
+        self.assertIn('"trials_not_run": 1', out)
+
+    def test_an_unknown_cost_stops_the_batch_because_the_cap_cannot_hold(self) -> None:
+        code, calls, out = self._main([(0.1, False), (0.1, True)], "20")
+        self.assertEqual([1], calls)
+        self.assertIn("cap cannot be enforced", out)

@@ -408,6 +408,9 @@ saved runs with both and explains every line the diff prints.
 - Attempts and cost: replaced and incomplete attempts are kept with trace, timing and cost; an
   authentication failure exits distinctly and stops the batch; unknown cost stays null, including in
   calibration receipts; a batch spending cap stops scheduling (EVAL-012 AC-18).
+  Unknown cost and the batch cap are implemented on `work/eval-011-attempts-cost` (2026-10-06), awaiting
+  review. The receipt fix waits for the next judge recalibration, because any `judge.py` or
+  `clean_room.py` edit invalidates the calibration receipt.
 - Identity: record the runner revision (with `--plugin-root` on another checkout, `plugin_commit` names
   the candidate, not the runner; the CLI version and host platform are already recorded); refuse to
   pool trials across CLI versions or hosts; include the PowerShell guard hook in the digest.

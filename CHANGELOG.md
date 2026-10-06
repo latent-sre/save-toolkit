@@ -8,6 +8,13 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- An unknown eval cost stays unknown, and a batch can be capped (`EVAL-011` attempts and cost). A
+  trial's total is `null` unless the trial and every judge call are priced, with `known_cost_usd` and
+  `cost_complete` beside it, and `--max-batch-usd` stops scheduling at the cap or at the first unknown
+  cost. `--rescore` now reports a run it cannot write, such as a path past Windows' 260-character
+  limit, instead of stopping. Calibration receipts keep summing an unpriced call as zero until the next
+  judge recalibration, since any `judge.py` edit invalidates them. [verified] Rescores of five saved
+  campaigns (217 runs) show no verdict change.
 - Eval results name the runner and never pool CLI versions or hosts (`EVAL-011` identity).
   `provenance.json` and summary rows record the runner's commit, dirty state and source digest; a
   batch refuses to pool trials whose recorded CLI version or host differ or are missing; and the

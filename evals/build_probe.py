@@ -3086,6 +3086,13 @@ def trial_status(expectations: list[dict], unmeasured: str | None,
     return ("INCONCLUSIVE" if reason or "INCONCLUSIVE" in states else "PASS"), reason
 
 
+def trial_cost(trial_usd: float | None, judge: dict) -> dict:
+    """A trial's spend: the total only when every part is known, with the known floor beside it."""
+    known = trial_usd is not None and judge["cost_usd"] is not None
+    floor = round((trial_usd or 0.0) + judge["known_cost_usd"], 6)
+    return {"cost_usd": floor if known else None, "known_cost_usd": floor, "cost_complete": known}
+
+
 def judge_spend() -> dict:
     """Drain and total the judge calls a `rubric` grader spent inside this trial's grading.
 
@@ -3096,10 +3103,15 @@ def judge_spend() -> dict:
     """
     drain = getattr(sys.modules.get("judge"), "drain_spend", None)
     calls = list(drain()) if callable(drain) else []
+    # A cached verdict is a known zero; a live call whose cost was not reported stays unknown.
+    priced = [float(c["cost_usd"]) for c in calls if type(c.get("cost_usd")) in (int, float)]
+    unknown = len(calls) - len(priced)
     return {
         "calls": len(calls),
         **({"records": calls} if calls else {}),
-        "cost_usd": round(sum(float(c.get("cost_usd") or 0.0) for c in calls), 6),
+        "cost_usd": None if unknown else round(sum(priced), 6),
+        "known_cost_usd": round(sum(priced), 6),
+        "unknown_cost_calls": unknown,
         "seconds": round(sum(float(c.get("seconds") or 0.0) for c in calls), 3),
     }
 
@@ -3427,6 +3439,7 @@ def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, 
         (run_out / "grading.json").write_text(json.dumps(grading, indent=2, ensure_ascii=False), encoding="utf-8")
         # Drained after grading: a rubric grader's judge call is spend this trial caused.
         judge = judge_spend()
+        cost = trial_cost(trace.total_cost_usd, judge)
         trial_seconds = (trace.duration_ms or elapsed * 1000) / 1000
         (run_out / "timing.json").write_text(json.dumps({
             "total_tokens": trace.total_tokens, "output_tokens": trace.output_tokens,
@@ -3435,8 +3448,9 @@ def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, 
             "total_duration_seconds": round(trial_seconds + judge["seconds"], 1),
             "num_turns": trace.num_turns,
             "trial_cost_usd": trace.total_cost_usd,
-            "total_cost_usd": (round((trace.total_cost_usd or 0.0) + judge["cost_usd"], 6)
-                               if trace.total_cost_usd is not None or judge["calls"] else None),
+            "total_cost_usd": cost["cost_usd"],
+            "known_cost_usd": cost["known_cost_usd"],
+            "cost_complete": cost["cost_complete"],
             "judge": judge,
             "requested_model": model, "models": trace.models, "label": label,
         }, indent=2), encoding="utf-8")
@@ -3450,7 +3464,7 @@ def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, 
                    "plugin_source_sha256": provenance["plugin_source_sha256"],
                    "scenario_sha256": grading["scenario_sha256"],
                    "plugin_inputs_dirty": provenance["plugin_inputs_dirty"],
-                   "isolation": "container" if container_image else "host", "runtime": runtime,
+                   "isolation": "container" if container_image else "host", "runtime": runtime, **cost,
                    **({"after_assessment": after_assessment} if after_assessment else {})}
         return summary
     finally:
@@ -3850,8 +3864,12 @@ def rescore(iteration_dir: Path, scenarios: list[dict], out_dir: Path) -> list[d
                 rows.append({**row, "error": f"{type(exc).__name__}: {exc}"[:300]})
                 continue
             target = out_dir / eval_dir.name / run_dir.parent.name / run_dir.name
-            target.mkdir(parents=True)
-            (target / "grading.json").write_text(json.dumps(grading, indent=2, ensure_ascii=False), encoding="utf-8")
+            try:
+                target.mkdir(parents=True)
+                (target / "grading.json").write_text(json.dumps(grading, indent=2, ensure_ascii=False), encoding="utf-8")
+            except OSError as exc:  # e.g. a path past Windows' 260-character limit: report it, keep going
+                rows.append({**row, "error": f"cannot write the rescored grade: {type(exc).__name__}: {exc}"[:300]})
+                continue
             rows.append({**row, "identity_relaxed": bool(grading.get("identity_relaxed")),
                          "saved": _verdicts(saved), "rescored": _verdicts(grading)})
     record = {"runner": HARNESS_IDENTITY, "iteration": str(iteration_dir), "runs": rows, "skipped": skipped}
@@ -3926,6 +3944,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--run-offset", type=int, default=0, help="first run number minus one, to append trials to an existing label")
     parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT)
+    parser.add_argument("--max-batch-usd", type=float, default=None, metavar="USD",
+                        help="stop scheduling trials once this batch's known spend reaches USD, or once a trial's cost is unknown")
     parser.add_argument("--out", type=Path, help="iteration directory for the reviewer/aggregator layout (required to run)")
     parser.add_argument("--executable", default=os.environ.get("CLAUDE_BIN", "claude"))
     parser.add_argument("--keep-workspace", action="store_true")
@@ -4062,7 +4082,11 @@ def main(argv: list[str] | None = None) -> int:
     results = []
     blocked: str | None = None
     planned = [(spec, i) for spec in scenarios for i in range(args.trials)]
+    spent = 0.0
     for spec, i in planned:
+        if args.max_batch_usd is not None and spent >= args.max_batch_usd:
+            blocked = f"batch spend USD {spent:.4f} reached the USD {args.max_batch_usd:g} cap"
+            break
         results.append(run_trial(
             spec, plugin_root=args.plugin_root.resolve(), label=args.label, model=args.model,
             run_number=args.run_offset + i + 1, out_dir=out, timeout=args.timeout,
@@ -4074,6 +4098,11 @@ def main(argv: list[str] | None = None) -> int:
         if results[-1].get("after_assessment"):
             # The finished trial keeps its verdict; nothing else may reuse the uncleaned environment.
             blocked = results[-1]["after_assessment"]
+            break
+        spent += float(results[-1].get("known_cost_usd") or 0.0)
+        if args.max_batch_usd is not None and results[-1].get("cost_complete") is False:
+            # An unknown cost cannot be held to a cap; stop before spending more blind.
+            blocked = f"trial cost unknown; the USD {args.max_batch_usd:g} cap cannot be enforced"
             break
     merged = _merge_summary_entries(existing, results)
     summary_path.write_text(json.dumps(merged, indent=2), encoding="utf-8")
