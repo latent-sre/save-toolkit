@@ -413,10 +413,12 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
     `reliability-engineer` names it as the owner of general system architecture.
   - Evaluation cases: contract-change, new-system and strict-reader migration designs, each paired
     with an identical `software-engineer` arm and checked by a design-record oracle that separates
-    labels from content. Two routing positives and four boundary cases keep reliability
-    assessments, small builds, design-document reviews and fleet workflow-graph design in their own
-    lanes. Eight native campaigns (93 Sonnet trials, USD 22.13) are recorded under
-    `PRINCIPAL-001`; acceptance is pending.
+    labels from content, plus a lane-only platform-selection build. Three routing positives and four
+    boundary cases keep reliability assessments, small builds, design-document reviews and fleet
+    workflow-graph design in their own lanes. Nine native campaigns (108 Sonnet trials, USD 26.31)
+    are recorded under `PRINCIPAL-001`; acceptance is pending.
+  - A step-1 rule asks the lane to load `obs-alerting` or `obs-dashboards` before a page, alert rule
+    or dashboard. It is not yet effective: 0/3 new-system trials loaded it.
 - Every eval run records `runtime`: the CLI's `--version` line (`null` when it cannot report one)
   and the host's system, release, and machine. `main()` measures it once per batch and prints it in
   the batch header; each trial writes it to `provenance.json`, the trace summary, and its summary

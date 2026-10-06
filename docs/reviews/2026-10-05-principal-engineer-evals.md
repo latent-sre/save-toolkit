@@ -1,9 +1,11 @@
 # Principal-engineer lane: native evaluation
 
-**Conclusion:** on the latest bytes for each case, the lane passed every build case it owns. One
-earlier failure was fixed and re-measured: the strict-reader case scored 1/3 on `e2759930`, missing
-a skill load, then 3/3 on `da8a110b`. It never took a boundary case's request, though the
-design-review negative cannot pass reliably until `EVAL-014`. Against `software-engineer` on identical bytes, every arm
+**Conclusion:** on the latest bytes for each case, the lane passed every build case it owns except
+one. The new-system case now fails 0/3 on a single new check, an `obs-alerting` load that
+`software-engineer` also never makes. Every other check passes. An earlier failure was fixed and
+re-measured: the strict-reader case scored 1/3 on `e2759930`, missing a skill load, then 3/3 on
+`da8a110b`. The lane never took a boundary case's request, though the design-review negative cannot
+pass reliably until `EVAL-014`. Against `software-engineer` on identical bytes, every arm
 returned the same decision fields on both tasks.
 
 - **Contract-change and new-system cases:** on `59fda81d`, their last run and the first graded by
@@ -13,6 +15,12 @@ returned the same decision fields on both tasks.
   prerequisite (`da8a110b`).
 - **Design-vocabulary boundaries:** the lane took none of the 8 independent design-review or fleet
   workflow-graph requests.
+- **Second reasoning depth:**
+  - Platform selections reached the lane 3/3.
+  - Its platform-selection build passed 3/3 on the corrected checker.
+  - It read `distinguished.md` in all 9 platform-selection trials.
+- **Alerting skill:** a step-1 rule to load `obs-alerting` before a paging rule changed nothing. The
+  lane loaded it in 0/3 new-system trials, the same as `software-engineer`.
 - **Contract change:** on the two revisions where both arms ran, `7993b130` and `af3531eb`, the lane
   wrote the complete design record, loaded `stack-profile` and returned the closed reply in all six
   trials. `software-engineer` wrote a complete record once in six, in the one trial where it read
@@ -37,12 +45,12 @@ One neighbour routing case fails identically on main and on the candidate. These
 
 | Item | Value |
 |---|---|
-| Candidate revisions | `56ac47b3` (digest `78fff82a…13b5e6`); `72f748a0` after the first review fixes (`0bdf82ef…dd253ed`); `7993b130` after the rename and the second review's fixes (`9ace6a27…14229ec8`); `e89bfdf2` with the new-system pair, the boundary cases and the `/adr` change (`bd55b8fa…7615a0f2`); `af3531eb` with the later review's fixes (`bd28b4a2…e3f806c`); `59fda81d` with the third review's fixes (`134b467f…4c4a302`); `e2759930` with the strict-reader pair and two boundary cases (`fe3affda…7306735`); `da8a110b` with the `database-reliability` prerequisite (`7f88202f…3645ce`) |
+| Candidate revisions | `56ac47b3` (digest `78fff82a…13b5e6`); `72f748a0` after the first review fixes (`0bdf82ef…dd253ed`); `7993b130` after the rename and the second review's fixes (`9ace6a27…14229ec8`); `e89bfdf2` with the new-system pair, the boundary cases and the `/adr` change (`bd55b8fa…7615a0f2`); `af3531eb` with the later review's fixes (`bd28b4a2…e3f806c`); `59fda81d` with the third review's fixes (`134b467f…4c4a302`); `e2759930` with the strict-reader pair and two boundary cases (`fe3affda…7306735`); `da8a110b` with the `database-reliability` prerequisite (`7f88202f…3645ce`); `ac061239` and `5a3c3fe5` with the follow-ups to the review of `91d97a57`, PR #327 (`37c59338…94b92`, identical plugin bytes) |
 | Incumbent | `8d7ecda1` (main, PR base), digest `d251ef68…3b03127` |
 | Host and model | Claude Code 2.1.290 on Windows 11, and 2.1.291 from the `af3531eb` re-run on; `sonnet` alias, every trial answered by `claude-sonnet-5-5` |
-| Windows (2026-10-06 UTC) | first campaign 00:00–00:17, re-measure 00:43–00:49, final 01:27–01:41, new-system pair and boundaries 03:14–03:21, re-run 06:06–06:16, final lane check 07:45–07:48, strict-reader pair and boundaries 13:59–14:14, prerequisite check 14:22–14:26; three interleaved passes per arm (DEC-10) |
-| Budgets stated before running (DEC-04) | first: 21 trials, USD 4–6, cap 12; re-measure: 6 trials, USD 1.20, cap 3; final: 15 trials, USD 4.40, cap 7; new-system pair and boundaries: 12 trials, USD 3.50, cap 6; re-run: 12 trials, USD 2.60, cap 5; final lane check: 6 trials, USD 1.20, cap 3; strict-reader pair and boundaries: 12 trials, USD 2.50, restated as USD 3.20 before launch, cap 5; prerequisite check: 6 trials, USD 1.30–1.80, cap 2.50 |
-| Actual | 93 trials, three of them attribution trials added to the first campaign and two voided by the runtime; 92 recorded, one voided slot having been re-run in place. USD 22.13 trial cost (5.64, 1.16, 3.94, 2.60, 2.37, 1.28, 3.97, 1.16); judge USD 0. One-word Haiku credential refreshes are not recorded |
+| Windows (2026-10-06 UTC) | first campaign 00:00–00:17, re-measure 00:43–00:49, final 01:27–01:41, new-system pair and boundaries 03:14–03:21, re-run 06:06–06:16, final lane check 07:45–07:48, strict-reader pair and boundaries 13:59–14:14, prerequisite check 14:22–14:26, review follow-ups 15:04–15:16 and 15:22–15:26; three interleaved passes per arm (DEC-10) |
+| Budgets stated before running (DEC-04) | first: 21 trials, USD 4–6, cap 12; re-measure: 6 trials, USD 1.20, cap 3; final: 15 trials, USD 4.40, cap 7; new-system pair and boundaries: 12 trials, USD 3.50, cap 6; re-run: 12 trials, USD 2.60, cap 5; final lane check: 6 trials, USD 1.20, cap 3; strict-reader pair and boundaries: 12 trials, USD 2.50, restated as USD 3.20 before launch, cap 5; prerequisite check: 6 trials, USD 1.30–1.80, cap 2.50; review follow-ups: 12 trials, USD 3.25, cap 5, then a 3-trial re-run inside the same cap |
+| Actual | 108 trials, three of them attribution trials added to the first campaign and two voided by the runtime; 107 recorded, one voided slot having been re-run in place. USD 26.31 trial cost (5.64, 1.16, 3.94, 2.60, 2.37, 1.28, 3.97, 1.16, 4.18); judge USD 0. One-word Haiku credential refreshes are not recorded |
 
 ## Results
 
@@ -58,8 +66,8 @@ One neighbour routing case fails identically on main and on the candidate. These
 | `discovery-reliability-defers-accepted-implementation` | candidate / main | 0/3 / 0/3 | — | — |
 
 Later runs have their own sections: the `e89bfdf2` pair and boundary cases, the `af3531eb` re-run,
-the final lane check on `59fda81d`, and the strict-reader pair and boundary cases on `e2759930` and
-`da8a110b`.
+the final lane check on `59fda81d`, the strict-reader pair and boundary cases on `e2759930` and
+`da8a110b`, and the review follow-ups on `ac061239` and `5a3c3fe5`.
 
 The lane's own four cases were 12/12 in the first campaign, plus 3/3 on the reliability neighbour.
 Both `software-engineer` failures are the `eng-ladder` load check; every decision check passed in
@@ -252,6 +260,43 @@ build case and the reworked review case for USD 1.16.
     then reviewed the document itself (next section).
   - The 2 trials that dispatched first both chose `reviewer`.
 
+## Review follow-ups on `ac061239` and `5a3c3fe5` (PR #327)
+
+The Codex and Copilot reviews of `91d97a57` landed after #325 merged. PR #327 answers them:
+
+- a step-1 rule to load `obs-alerting` or `obs-dashboards` before a page, alert rule, or dashboard;
+- an `obs-alerting` check in the new-system pair;
+- a platform-selection routing positive and a lane-only build case graded against
+  `distinguished.md`'s "Done means".
+
+Fifteen trials cost USD 4.18 against a USD 5 cap.
+
+| Case, 3 trials each | Result | Detail |
+|---|---|---|
+| New-system design, lane | 0/3 | Every other check passed; no trial loaded `obs-alerting` |
+| New-system design, `software-engineer` | 0/3 | The same single failure |
+| Platform-selection routing positive | 3/3 | Each dispatched the lane first, with no checkout read before deciding |
+| Platform-selection build, lane, on `ac061239` | 1/3 | Both failures were the checker missing "Decisions Morgan must make" |
+| Platform-selection build, lane, on `5a3c3fe5` | 3/3 | 15/15 checks each |
+
+- **The alerting rule did not work.** The new-system task asks for a page at 14 days, yet the
+  sentence moved neither arm.
+  - It differs from the `database-reliability` sentence that worked: it carries no "not ready to
+    return" consequence, and it keys on writing the page rather than on the requirement.
+  - The rule fired once in three platform-selection trials, where alerting on a missed run was
+    central.
+  - The `obs-alerting` check stays, so the new-system pair stays red until a wording works or the
+    rule is withdrawn.
+- **The second depth holds.**
+  - Every platform-selection trial read `distinguished.md`: 3 routing and 6 build.
+  - Every build trial recommended the accepted job-scheduler pattern, kept the vendor's claims
+    unverified, proposed a reversible first step, and left the record `proposed`.
+- **A checker false fail was fixed and calibrated.**
+  - "Decisions Morgan must make" names the owner inside the label, so no exact alias matched it.
+  - One pattern now credits it. Across 56 saved records only the two affected verdicts change.
+  - The re-run's records used "Decisions needed (Morgan)", which both checkers accept, so the
+    re-run does not exercise the fix. The calibration test does: it failed on the old checker.
+
 ## Routing trials can read the measured checkout
 
 A routing trial runs in an empty repository, but the plugin root, which is the measured checkout,
@@ -412,10 +457,12 @@ the record, so every slot's claims could sit unlabelled behind a single footer l
   detectors, but the `af3531eb` designs already had them.
 - `software-engineer` on the final bytes and checks: the final lane check ran the lane only.
 - The final bytes on every case:
-  - `da8a110b` ran only the strict-reader build and the design-review negative.
-  - The contract-change and new-system cases last ran on `59fda81d`. That was before three later
-    changes: the `/adr` proposed-status rule, which no native case exercises; the
-    `reliability-engineer` ownership line; and the step-1 prerequisite.
+  - `ac061239` ran the new-system pair and the platform-selection cases.
+  - The strict-reader build last ran on `da8a110b`, before the alerting sentence.
+  - The contract-change case last ran on `59fda81d`. Four changes came later: the `/adr`
+    proposed-status rule, which no native case exercises; the `reliability-engineer` ownership
+    line; and both step-1 prerequisites.
+- A wording of the alerting rule that works, or evidence that withdrawing it costs design quality.
 - Whether the design-review boundary holds in practice: the lane took none of 6 traced trials, but
   the case cannot pass reliably until `EVAL-014` is resolved.
 - Lifecycle, failure handling, and evidence feasibility: no judged case measures them.
