@@ -108,7 +108,11 @@ A routing prompt is byte-for-byte unhinted — `--validate` rejects one that nam
 For `expect: not_fire`, set `expected_alternative: inline` or name the component expected instead:
 a negative does not pass merely because the forbidden target stayed absent. Negatives are
 zero-tolerance, so their threshold is always clamped to 1.0 and `--validate` rejects a declared
-threshold below it; `threshold` on a positive is the fraction of trials that must pass.
+threshold below it; `threshold` on a positive is the fraction of trials that must pass. The same
+holds for any scenario with a forbidding check: every check type either forbids an action (such as
+`no_new_commits` or `bash_did_not_run`) or requires an outcome (such as `file_exists`), recorded as
+`kind` in `grading.json`, and a forbidding check holds its scenario to every trial whatever
+`--threshold` requests.
 
 A contract scenario pins `agent:` or `skill:` and lists `graders:` from the registry in
 [`graders.py`](graders.py): `rubric`, `exact_json`, `exact_fields`, `regex`,

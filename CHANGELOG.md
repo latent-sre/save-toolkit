@@ -8,6 +8,10 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Every check type now forbids an action or requires an outcome (`kind` in `grading.json`), and a
+  scenario with a forbidding check passes only when every trial passes: `--threshold` no longer
+  lowers it, and `--validate` rejects a declared threshold below 1 beside one. [verified] All 207
+  committed scenarios validate, and rescores of five saved campaigns (217 runs) show no verdict change.
 - An unmeasured check no longer hides a supported failure (`EVAL-011` result rules). Each check in
   `grading.json` carries a `state`; a trial with any failed check is FAIL, recording the unmeasured
   reason as `unmeasured`, and `inconclusive` is set only on INCONCLUSIVE trials. Regrade grades the

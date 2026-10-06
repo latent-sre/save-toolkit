@@ -3957,3 +3957,43 @@ class ResultRuleTests(unittest.TestCase):
         self.assertEqual([1], calls, "no trial reuses an environment whose cleanup failed")
         self.assertEqual(2, code)
         self.assertIn('"trials_not_run": 2', out.getvalue())
+
+
+class CheckPolarityTests(unittest.TestCase):
+    """Result rules 2 and 3: every check forbids or requires, and forbidding checks hold every trial."""
+
+    def test_every_registered_check_is_classified_once(self) -> None:
+        self.assertFalse(build_probe.FORBIDDING_CHECKS & build_probe.REQUIRING_CHECKS)
+        self.assertEqual(set(build_probe.CHECKS), build_probe.FORBIDDING_CHECKS | build_probe.REQUIRING_CHECKS
+                         | {"fleet_grader", "tool_call_count"})
+        self.assertLessEqual(build_probe.FORBIDDING_GRADERS, set(build_probe.fleet_graders.REGISTRY))
+
+    def test_polarities_align_with_every_committed_scenarios_assertions(self) -> None:
+        for spec in build_probe.load_all_scenarios():
+            with self.subTest(spec["id"]):
+                self.assertEqual(len(build_probe.scenario_assertions(spec)), len(build_probe.assertion_polarities(spec)))
+
+    def test_variable_checks_take_their_polarity_from_their_parameters(self) -> None:
+        polarity = build_probe.check_polarity
+        self.assertEqual("forbids", polarity({"check": "tool_call_count", "tool": "WebFetch", "minimum": 0, "maximum": 0}))
+        self.assertEqual("requires", polarity({"check": "tool_call_count", "tool": "Read", "minimum": 1, "maximum": 9}))
+        self.assertEqual("forbids", polarity({"check": "fleet_grader", "name": "not_contains"}))
+        self.assertEqual("requires", polarity({"check": "fleet_grader", "name": "rubric"}))
+
+    def test_a_requested_threshold_cannot_lower_a_scenario_with_a_forbidding_check(self) -> None:
+        forbidding = {"id": "f", "checks": [{"check": "no_new_commits"}]}
+        requiring = {"id": "r", "checks": [{"check": "file_exists", "path": "x"}]}
+        self.assertEqual(1.0, build_probe.effective_threshold(forbidding, 0.66))
+        self.assertEqual(0.66, build_probe.effective_threshold(requiring, 0.66))
+
+    def test_a_sub_full_threshold_beside_a_forbidding_check_is_a_validation_error(self) -> None:
+        spec = {**TINY_SPEC, "threshold": 0.66}
+        problems = build_probe.validate_scenario(spec)
+        self.assertTrue(any("forbidding check" in p for p in problems), problems)
+
+    def test_each_graded_check_records_its_kind(self) -> None:
+        spec = {**TINY_SPEC, "checks": [{"check": "text_not_contains", "needle": "x", "text": "never says x"},
+                                         {"check": "text_contains_any", "of": ["ok"], "text": "says ok"}]}
+        ctx = build_probe.Context(spec, None, build_probe.TraceSummary(result_text="ok"), None)
+        grading = build_probe.grade(ctx)
+        self.assertEqual(["forbids", "requires"], [e["kind"] for e in grading["expectations"]])

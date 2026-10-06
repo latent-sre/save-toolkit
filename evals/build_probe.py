@@ -437,6 +437,11 @@ def validate_scenario(spec: object, *, where: str = "scenario") -> list[str]:
                 f"{where}: not_fire scenarios are zero-tolerance; threshold must be 1 "
                 "(it applies to positives only)"
             )
+        elif threshold < 1 and has_forbidding_assertion(spec):
+            problems.append(
+                f"{where}: a scenario with a forbidding check passes only when every trial passes; "
+                "threshold must be 1"
+            )
     if "followups" in spec:
         followups = spec["followups"]
         if not isinstance(followups, list) or len(followups) != 1 or not isinstance(followups[0], str) or not followups[0].strip():
@@ -496,6 +501,51 @@ def _reference_problems(spec: dict, where: str, kind: str) -> list[str]:
 def _is_negative_routing(spec: dict) -> bool:
     routing = spec.get("routing")
     return isinstance(routing, dict) and routing.get("expect") == "not_fire"
+
+
+# What each check asserts (threat-model ADR result rules 2 and 3). A forbidding check fails on any
+# evidence of the forbidden action, even from a run cut short, and holds its scenario to every trial;
+# a requiring check can fail only in a completed run. Every registered check is classified here.
+FORBIDDING_CHECKS = frozenset({
+    "text_not_regex", "text_not_contains", "no_new_commits", "no_agents_dir", "changes_within",
+    "changed_files_not_containing", "skill_not_loaded", "bash_did_not_run", "ran_outside_checkout",
+    "no_task_dispatch", "state_file_absent", "cf_log_has_no", "service_unchanged",
+    "no_workspace_changes", "dispatches_namespaced",
+})
+REQUIRING_CHECKS = frozenset({
+    "file_exists", "glob_exists", "file_contains", "command_exit_zero", "command_output_regex",
+    "service_get", "service_array_item", "grafana_dashboard_write", "grafana_query_succeeded",
+    "text_regex", "text_contains_any", "skill_loaded", "bash_ran", "verification_completed",
+    "task_completed",
+})
+FORBIDDING_GRADERS = frozenset({"not_contains", "not_regex"})
+
+
+def check_polarity(check: dict) -> str:
+    kind = check.get("check")
+    if kind == "fleet_grader":
+        return "forbids" if check.get("name") in FORBIDDING_GRADERS else "requires"
+    if kind == "tool_call_count":  # a ceiling forbids extra calls; a positive floor requires some
+        return "requires" if (check.get("minimum") or 0) > 0 else "forbids"
+    return "forbids" if kind in FORBIDDING_CHECKS else "requires"
+
+
+def assertion_polarities(spec: dict) -> list[str]:
+    """`forbids` or `requires` for each graded expectation, in scenario_assertions() order."""
+    polarities = []
+    if spec.get("routing"):
+        polarities.append("forbids" if _is_negative_routing(spec) else "requires")
+    if spec.get("skill"):
+        polarities.append("requires")
+    polarities += ["requires"] * len(spec.get("references") or [])
+    polarities += ["forbids" if g.get("type") in FORBIDDING_GRADERS else "requires" for g in spec.get("graders") or []]
+    if spec.get("followups"):
+        polarities += ["requires"] * 3  # helper completed, parent continued, session resumed
+    return polarities + [check_polarity(c) for c in spec.get("checks") or []]
+
+
+def has_forbidding_assertion(spec: dict) -> bool:
+    return "forbids" in assertion_polarities(spec)
 
 
 def _target_problem(target: object) -> str | None:
@@ -2961,7 +3011,7 @@ def grade(ctx: Context, *, inconclusive: str | None = None,
         for expectation in expectations:
             expectation.update(passed=False, evidence=f"INCONCLUSIVE: {inconclusive}")
     n_pass = sum(e["passed"] for e in expectations)
-    status, reason = trial_status(expectations, inconclusive or instrument_failure)
+    status, reason = trial_status(expectations, inconclusive or instrument_failure, assertion_polarities(ctx.spec))
     return {
         "expectations": expectations,
         "judge_binding": binding,
@@ -2976,7 +3026,8 @@ def grade(ctx: Context, *, inconclusive: str | None = None,
     }
 
 
-def trial_status(expectations: list[dict], unmeasured: str | None) -> tuple[str, str | None]:
+def trial_status(expectations: list[dict], unmeasured: str | None,
+                 polarities: list[str] | None = None) -> tuple[str, str | None]:
     """Record each check's state and roll them up under the accepted result rules.
 
     A check with evidence of a violation is FAIL even when another check could not be measured, so an
@@ -2984,8 +3035,10 @@ def trial_status(expectations: list[dict], unmeasured: str | None) -> tuple[str,
     INCONCLUSIVE. A run-level measurement failure marks every check INCONCLUSIVE before this point.
     Returns the status and the first reason something went unmeasured, if any.
     """
-    for expectation in expectations:
+    for index, expectation in enumerate(expectations):
         expectation["state"] = _check_state(expectation)
+        if polarities is not None and index < len(polarities):
+            expectation["kind"] = polarities[index]
     states = {e["state"] for e in expectations}
     reason = unmeasured or next((e["evidence"].removeprefix("INCONCLUSIVE: ") for e in expectations
                                  if e["state"] == "INCONCLUSIVE"), None)
@@ -3538,7 +3591,7 @@ def regrade_run(run_dir: Path, spec: dict, *, write: bool = True, relax_identity
         for expectation in expectations:
             expectation.update(passed=False, evidence=f"INCONCLUSIVE: {inconclusive}")
     n_pass = sum(e["passed"] for e in expectations)
-    status, reason = trial_status(expectations, inconclusive or unmeasured)
+    status, reason = trial_status(expectations, inconclusive or unmeasured, assertion_polarities(spec))
     grading = {
         **native_assessment(spec),
         "judge_binding": saved_binding, "response_sha256": live_grade.get("response_sha256"),
@@ -3958,9 +4011,10 @@ def effective_threshold(spec: dict, requested: float | None) -> float:
     The threshold applies to POSITIVES only: how often the expected component must fire. A negative
     passes only at a 0% fire rate, so its effective threshold is always 1.0 -- otherwise a
     --threshold 0.66 batch would let a forbidden component over-trigger on a third of trials and
-    still report PASS.
+    still report PASS. Any forbidding check is held to every trial the same way (threat-model ADR
+    result rule 3), so a requested threshold lowers only scenarios whose checks all require.
     """
-    if _is_negative_routing(spec):
+    if _is_negative_routing(spec) or has_forbidding_assertion(spec):
         return 1.0
     declared = spec.get("threshold")
     if requested is not None:
