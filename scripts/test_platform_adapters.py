@@ -513,6 +513,7 @@ class PlatformAdapterTests(unittest.TestCase):
             # ADR currently needs no addressing rewrite: its full body and metadata must survive.
             self.assertEqual((root / "commands/adr.md").read_text(encoding="utf-8"), adr)
             self.assertIn("exactly `software-engineer` or exactly `principal-engineer`", adr)
+            self.assertIn("When the selected agent is `principal-engineer`, write the status as `proposed`", adr)
             self.assertIn("exclusive create-new operation", adr)
             self.assertIn("symlink, junction, or reparse point", adr)
             self.assertIn("disable-model-invocation: true", adr)

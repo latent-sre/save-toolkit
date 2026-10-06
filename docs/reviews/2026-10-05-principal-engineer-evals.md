@@ -321,6 +321,14 @@ saved record leaves a slot section empty. No recorded verdict depends on either 
   - None of the 39 saved replies has an escaped field name.
 - **First recorded run on these checks:** the final lane check on `59fda81d` (above).
 
+**Open, from Copilot's review of `af3531eb`:** the oracle requires one evidence label anywhere in
+the record, so every slot's claims could sit unlabelled behind a single footer label.
+
+- No saved record does this. All 37 passing records label claims in at least four slots, with 11 or
+  more labels each.
+- A per-slot rule would fail the reference's own worked example, which labels four of its twelve
+  slots.
+
 ## What this does not establish
 
 - One model, one host, and Claude only; Copilot handoffs were not exercised. Picker selection is
@@ -329,6 +337,8 @@ saved record leaves a slot section empty. No recorded verdict depends on either 
 - Whether the rename-test example changes designs: the final lane check found reader-side
   detectors, but the `af3531eb` designs already had them.
 - `software-engineer` on the final bytes and checks: the final lane check ran the lane only.
+- The `/adr` rule that writes `proposed` for `principal-engineer`, added after the final lane check:
+  no native case exercises `/adr`, and the plugin bytes differ from `59fda81d` only by that rule.
 - Lifecycle, failure handling, and evidence feasibility: no judged case measures them.
 - Every build prompt forbade delegation, so helper dispatch and return were not exercised.
 - Whether one design lane serves both depths better than separate principal and architect bodies.

@@ -8,16 +8,20 @@
 ## Context
 
 The owner asked for the principal engineer back and for a system architect in the roster. This
-repository has carried seniority as `eng-ladder` tiers since its first commit (`b7ce7480`). The
-owner's sibling fleet `latent-sre/homelab-agents` runs the role as an agent, and on 2026-09-07 it
-merged a separate `distinguished-architect` into `principal-engineer` (commit `07facd8c`) because
-both had the same tools, document-only mandate and handoffs and differed only in reasoning depth.
+repository has carried seniority as ladder skills, not agents, since its first content commit
+(`b7ce7480`, as `sde-ladder-*` skills), consolidated into `eng-ladder` tiers on 2026-07-14
+(`7d4270a6`) [verified]. The owner's sibling fleet `latent-sre/homelab-agents` runs the role as an
+agent. In commit `07facd8c` (2026-09-08 UTC) it merged a separate `distinguished-architect` into
+`principal-engineer`, because both had the same tools, document-only mandate and handoffs and
+differed only in reasoning depth [sourced] that repository's decision record.
 
 No lane here owns general design. `software-engineer` returns an unresolved fork to its caller
-(`agents/software-engineer.md:93`), `reliability-engineer` leaves general architecture with its
-existing owner (`agents/reliability-engineer.md:25`), and on Copilot a returned fork has no agent to
-select. The 2026-09-21 reliability decision declined a general architect as the answer to a
-reliability request; it did not settle the general question.
+(`agents/software-engineer.md:93`) [verified], `reliability-engineer` leaves general architecture
+with its existing owner (`agents/reliability-engineer.md:25`) [verified], and on Copilot a returned
+fork had no agent to select before this change [verified]. The 2026-09-21 reliability decision
+declined a general architect as the answer to a reliability request
+(`docs/decisions/2026-09-21-reliability-engineer.md:75`) [verified]; it did not settle the general
+question.
 
 ## Decision
 
@@ -46,10 +50,12 @@ Bash, web tools and the homelab guard text are not imported. The posture matches
 `reliability-engineer`: local reads, document-only Write/Edit, Skill, and three evidence helpers —
 `repository-investigator`, `sre-assistant` for history, consumers in other repositories and runtime
 evidence, and `researcher` for sanitized public questions. The document-only limit is cooperative.
-The guard's fleet-name inventory includes the lane for the credential tripwire. Copilot gains two
+The guard's fleet-name inventory includes the lane for the credential tripwire, and the validator
+requires that inventory to match the roster. Copilot gains two
 human-selected handoffs: `software-engineer` to `principal-engineer` for a returned fork, and
 `principal-engineer` to `software-engineer` for an accepted design. `/adr` admits
-`principal-engineer` under the same fail-closed preflight as `software-engineer`. Whether
+`principal-engineer` under the same fail-closed preflight as `software-engineer`, and writes the
+status of an ADR drafted with that lane selected as `proposed`. Whether
 Copilot's file tools provide the exclusive create the command requires is unverified, so on
 Copilot it may correctly refuse for either agent.
 
@@ -60,8 +66,8 @@ delegation by mutation, pin the projected Copilot tools and handoff graph, and b
 example to the record. They establish structure, not model competence.
 
 Native evaluations are recorded under `PRINCIPAL-001` in the live roadmap; acceptance remains
-pending. The homelab merger's routing comparison never ran, so neither fleet has measured one design
-lane against two.
+pending. The homelab merger's routing comparison has not run: that repository's roadmap still lists
+it as a next action [sourced]. Neither fleet has measured one design lane against two.
 
 ## Alternatives and rollback
 

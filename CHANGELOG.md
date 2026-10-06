@@ -407,7 +407,8 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
     strategic analysis.
   - Posture matches `reliability-engineer`: no shell or web, document-only writes, and three
     evidence helpers. Copilot gains handoffs to and from `software-engineer`, and `/adr` accepts
-    `principal-engineer` as the selected agent.
+    `principal-engineer` as the selected agent and writes its ADRs as `proposed`. The validator
+    requires the guard's fleet-name inventory to match the roster.
   - Evaluation cases: contract-change and new-system designs, each paired with an identical
     `software-engineer` arm and checked by a design-record oracle that separates labels from
     content, plus two routing positives and two boundary cases that keep reliability assessments

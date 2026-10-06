@@ -387,6 +387,13 @@ def validate_guard_wiring(root: Path, agent_names: list[str]) -> list[str]:
             f"guard roster names non-existent agent(s): {', '.join(unknown)}; the guard would "
             f"match nobody for those names"
         )
+    fleet = set(getattr(guard, "FLEET_AGENT_NAMES", set()))
+    if fleet != set(agent_names):
+        failures.append(
+            "guard fleet inventory mismatch: readonly-guard.py FLEET_AGENT_NAMES must name every "
+            f"canonical agent for the fleet-wide credential deny; missing "
+            f"{sorted(set(agent_names) - fleet)}, unknown {sorted(fleet - set(agent_names))}"
+        )
 
     plugin_name = getattr(guard, "PLUGIN_NAME", None)
     try:

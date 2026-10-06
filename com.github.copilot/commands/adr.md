@@ -48,6 +48,8 @@ For a valid probe, also add `Probe: ` followed by the exact received suffix imme
 
 Use the following Nygard template as the output scaffold. Keep its headings and accepted-ADR immutability comment; replace angle-bracket placeholders with known facts or `TBD`.
 
+When the selected agent is `principal-engineer`, write the status as `proposed` whatever `INPUT` says: that lane advises, and only the decision owner accepts.
+
 # ADR: <short decision title>
 
 - Date: <YYYY-MM-DD>
