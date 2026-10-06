@@ -267,7 +267,10 @@ class PrincipalCaseTests(unittest.TestCase):
                                            if s not in ("Recommendation", "Decision needed")))
                     + "\n## Recommendation and decisions needed\n\nRecommendation: option 2.\n\n"
                     + "Decisions needed from the owner:\n1. Accept option 2.\n")
+        owner_in_label = _headings_record(tuple("8. Decisions the owner (Morgan) must make"
+                                                if s == "Decision needed" else s for s in SLOT_HEADINGS))
         for name, record in (("headings", _headings_record()), ("worked example", example),
+                             ("owner named in the decisions label", owner_in_label),
                              ("table", table), ("numbered", numbered + "\n[verified] read"),
                              ("bullets", bullets), ("homelab wording", homelab_wording),
                              ("one heading for two slots, labelled inside", combined),
@@ -307,6 +310,9 @@ class PrincipalCaseTests(unittest.TestCase):
                               + "\n\n".join(f"## {s}\n\n**{s}**" for s in SLOT_HEADINGS)),
                              ("headings over table headers only", "[unverified]\n\n"
                               + "\n\n".join(f"## {s}\n\n| {s} | Owner |\n|---|---|" for s in SLOT_HEADINGS)),
+                             ("a decisions heading that is not the slot", _headings_record(tuple(
+                                 "Decisions already made" if s == "Decision needed" else s
+                                 for s in SLOT_HEADINGS))),
                              ("content under another slot's label", "[unverified]\n\n"
                               + "\n\n".join(f"## {s}\n\n**Recovery**: text" for s in SLOT_HEADINGS)),
                              ("empty", "")):
