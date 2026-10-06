@@ -384,15 +384,16 @@ improved or regressed, and distinguish failed behavior from an instrument that c
 **Status:** `active` (2026-10-06); the owner accepted the threat-model ADR on 2026-10-06, with result
 rules added from the EVAL-012 WP-00 review. The runner changes below are implemented on
 `work/eval-012-wp00-eval-011-runner`, one branch and one PR with EVAL-012 WP-00, awaiting review.
-**Owner:** Save Toolkit maintainers review each runner change; `agent-engineer` owns the runner repairs
-with independent review.
+**Owner:** Save Toolkit maintainers review the runner changes in one PR; `agent-engineer` owns the
+runner repairs with independent review.
 **Outcome:** The runner meets the accepted [threat-model ADR](decisions/2026-10-03-eval-harness-threat-model.md),
 including its result rules. Measurement failures are inconclusive and never hide a supported failure,
 and results record the runner revision, CLI version and host platform. Every in-scope defect from the
 2026-10-03 inventory of `evals/build_probe.py` is fixed or has an owner disposition.
-**Next action:** Maintainers review the one PR. Every runner edit changes the scenario digest, so the
-changes landed as one sequence, each gated by rescoring saved runs with the base and candidate
-runners (`--rescore`, `--rescore-diff`) and explaining every difference in its commit message. After
+**Next action:** Maintainers review the one PR. Runner changes land as commits in one PR, not one PR
+per change. Every runner edit changes the scenario digest, so each commit is gated by rescoring saved
+runs with the previous and new runners (`--rescore`, `--rescore-diff`) and explaining every difference
+in its commit message. After
 merge, record the frozen runner revision before EVAL-012 records comparison baselines. Implemented:
 - The comparison: `--rescore` grades saved runs into a new directory without writing them;
   `--rescore-diff` lists every verdict that differs between two rescores.

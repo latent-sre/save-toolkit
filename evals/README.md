@@ -510,7 +510,8 @@ run's saved and rescored verdicts, unreadable runs, and scenarios or runs it ski
 comparison, never a verdict: its differences from the saved verdicts also include scenario edits made
 since the run. To isolate a runner change, rescore the same runs with the base and candidate
 checkouts and run `--rescore-diff BASE_DIR CANDIDATE_DIR`, which lists every run and check whose
-verdict differs and exits 1 when any does. Each EVAL-011 runner change explains every line it prints.
+verdict differs and exits 1 when any does. Each runner commit explains every line it prints in its
+commit message.
 
 Run slots are shared across models under each label. Regrade copies a verdict into a summary only
 when its full candidate digest, scenario identity, and resolved model identity match the saved run.
