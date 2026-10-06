@@ -381,57 +381,50 @@ improved or regressed, and distinguish failed behavior from an instrument that c
 
 ### EVAL-011 — bring the eval runner into line with the accepted threat model
 
-**Status:** `ready` (2026-10-06); the owner accepted the threat-model ADR on 2026-10-06, with result
-rules added from the EVAL-012 WP-00 review; no runner change has started.
+**Status:** `active` (2026-10-06); the owner accepted the threat-model ADR on 2026-10-06, with result
+rules added from the EVAL-012 WP-00 review. The runner changes below are implemented on
+`work/eval-012-wp00-eval-011-runner`, one branch and one PR with EVAL-012 WP-00, awaiting review.
 **Owner:** Save Toolkit maintainers review each runner change; `agent-engineer` owns the runner repairs
 with independent review.
 **Outcome:** The runner meets the accepted [threat-model ADR](decisions/2026-10-03-eval-harness-threat-model.md),
 including its result rules. Measurement failures are inconclusive and never hide a supported failure,
 and results record the runner revision, CLI version and host platform. Every in-scope defect from the
 2026-10-03 inventory of `evals/build_probe.py` is fixed or has an owner disposition.
-**Next action:** Land the runner changes one PR each, as one sequence finished before EVAL-012 records
-comparison baselines, because every runner edit changes the scenario digest and invalidates earlier
-regrades. The first PR adds that comparison: `--rescore` grades saved runs with a
-checkout's runner into a new directory without writing the saved runs, and `--rescore-diff` lists
-every verdict that differs between the base and candidate rescores. Each later PR rescores the same
-saved runs with both and explains every line the diff prints.
+**Next action:** Maintainers review the one PR. Every runner edit changes the scenario digest, so the
+changes landed as one sequence, each gated by rescoring saved runs with the base and candidate
+runners (`--rescore`, `--rescore-diff`) and explaining every difference in its commit message. After
+merge, record the frozen runner revision before EVAL-012 records comparison baselines. Implemented:
+- The comparison: `--rescore` grades saved runs into a new directory without writing them;
+  `--rescore-diff` lists every verdict that differs between two rescores.
 - Result rules: three-state checks, each check type classed as forbidding or requiring; forbidding
   checks evaluated on runs cut short; a supported failure wins; cleanup failures recorded beside the
   verdict; a requested `--threshold` cannot lower a scenario that has a forbidding check.
-  Implemented with the comparison on `work/eval-011-result-rules` (2026-10-06), awaiting review; its
-  rescore diffs over six saved campaigns are explained in the commit messages.
-- Grading machinery: grader defects and misconfigured checks become inconclusive and stop that
-  scenario's trials; errors caused by the candidate stay failures; oracles fail with an exit code an
-  uncaught exception cannot produce. The in-process part is implemented on
-  `work/eval-011-grading-machinery` (2026-10-06), awaiting review; rescoring all 85 saved campaigns
-  (1,317 runs) found no grader crash on real candidate output. The oracle protocol remains: 16
-  oracles exit 1 to fail, which an uncaught exception also produces, and 7 of them run candidate code
-  (operator-cli, obs-burn-rules, pager-webhook, pcf-deploy-job and three python-craft), so each needs
-  candidate errors caught as FAIL before a crash can mean INCONCLUSIVE.
-- Turn limits: each scenario declares one, passed as `--max-turns`; the wall clock and the native
-  spend cap remain instrument guards. The mechanism is implemented on `work/eval-011-turn-limits`
-  (2026-10-06), awaiting review: an optional `max_turns` reaches the CLI, and stopping there is a
-  completed run. No scenario declares a value yet, so a looping candidate still reaches the wall
-  clock. Choosing values is open: saved runs give turn counts for 105 of 207 current scenarios
-  (per-scenario maximum: median 6, 90th percentile 20, highest 72).
-- Attempts and cost: replaced and incomplete attempts are kept with trace, timing and cost; an
-  authentication failure exits distinctly and stops the batch; unknown cost stays null, including in
-  calibration receipts; a batch spending cap stops scheduling (EVAL-012 AC-18).
-  Unknown cost, the batch cap, kept attempts and the authentication stop are implemented on
-  `work/eval-011-attempts-cost` and `work/eval-011-attempts` (2026-10-06), awaiting review. The receipt fix waits for the next judge recalibration, because any `judge.py` or
-  `clean_room.py` edit invalidates the calibration receipt.
-- Identity: record the runner revision (with `--plugin-root` on another checkout, `plugin_commit` names
-  the candidate, not the runner; the CLI version and host platform are already recorded); refuse to
-  pool trials across CLI versions or hosts; include the PowerShell guard hook in the digest.
-  Implemented on `work/eval-011-identity` (2026-10-06), awaiting review.
-- Record and folders (EVAL-012 DEC-22 and DEC-23): write one
-  [v1 record](fleet-evaluation/contracts.md#result-record-v1) per attempt, and create run folders that
-  inherit the permissions of `.eval-runs/` instead of owner-only temporary folders.
-  Implemented on `work/eval-011-record-v1` (2026-10-06), awaiting review.
-- Remove the unused `--container` mode, and split `evals/build_probe.py` along its inventory seams with
-  no verdict change. The removal is implemented on `work/eval-011-remove-container` (2026-10-06),
-  awaiting review; the split waits for the 2026-10-03 inventory's seams, which are not in the
-  repository.
+- Grading machinery, in process: a grader crash is inconclusive and stops its scenario; an unknown
+  grader is rejected at validation. Rescoring all 85 saved campaigns (1,317 runs) found no grader
+  crash on real candidate output.
+- Turn limits: an optional `max_turns` reaches the CLI as `--max-turns`, and stopping there is a
+  completed run; the wall clock and the native spend cap remain instrument guards.
+- Attempts and cost: replaced and incomplete attempts are kept; an authentication failure exits 4
+  and stops the batch; unknown trial and judge cost stays null; `--max-batch-usd` stops scheduling
+  (EVAL-012 AC-18).
+- Identity: the runner revision is recorded; trials from different CLI versions or hosts never
+  pool; the PowerShell guard hook is in the plugin digest.
+- Record and folders (EVAL-012 DEC-22 and DEC-23): one
+  [v1 record](fleet-evaluation/contracts.md#result-record-v1) per attempt, in run folders that inherit
+  the permissions of `.eval-runs/`.
+- The unused `--container` mode is removed.
+
+Remaining:
+- Oracle protocol: 16 oracles exit 1 to fail, which an uncaught exception also produces, and 7 of
+  them run candidate code (operator-cli, obs-burn-rules, pager-webhook, pcf-deploy-job and three
+  python-craft), so each needs candidate errors caught as FAIL before a crash can mean INCONCLUSIVE.
+- Turn-limit values: no scenario declares one, so a looping candidate still reaches the wall clock.
+  Saved runs give turn counts for 105 of 207 current scenarios (per-scenario maximum: median 6,
+  90th percentile 20, highest 72); choosing values is the evaluation owner's call.
+- Calibration receipts still sum an unpriced judge call as zero. The judge's identity binds
+  `judge.py` and `clean_room.py`, so the fix rides with the next owner-triggered recalibration.
+- Split `evals/build_probe.py` along its inventory seams with no verdict change, once the 2026-10-03
+  inventory (PR #310) supplies them.
 **Evidence:** [PR #310](https://github.com/latent-sre/save-toolkit/pull/310); the amended ADR's
 Context records the 2026-10-06 source findings behind the result rules.
 [PR #321](https://github.com/latent-sre/save-toolkit/pull/321) runs the component tests on four
