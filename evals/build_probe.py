@@ -2961,18 +2961,37 @@ def grade(ctx: Context, *, inconclusive: str | None = None,
         for expectation in expectations:
             expectation.update(passed=False, evidence=f"INCONCLUSIVE: {inconclusive}")
     n_pass = sum(e["passed"] for e in expectations)
-    instrument_failure = instrument_failure or next((e["evidence"] for e in expectations if rubric_judge.is_inconclusive(e["evidence"])), None)
+    status, reason = trial_status(expectations, inconclusive or instrument_failure)
     return {
         "expectations": expectations,
         "judge_binding": binding,
         "response_sha256": rubric_judge._digest(ctx.trace.result_text),
         **native_assessment(ctx.spec),
         "scenario_sha256": stamp_assertions(identity, expectations),
-        "inconclusive": inconclusive or instrument_failure,
+        "inconclusive": reason if status == "INCONCLUSIVE" else None,
+        **({"unmeasured": reason} if status == "FAIL" and reason else {}),
         "summary": {"passed": n_pass, "failed": len(expectations) - n_pass, "total": len(expectations),
                     "pass_rate": round(n_pass / len(expectations), 4) if expectations else 0.0},
-        "status": "INCONCLUSIVE" if inconclusive or instrument_failure else ("PASS" if n_pass == len(expectations) else "FAIL"),
+        "status": status,
     }
+
+
+def trial_status(expectations: list[dict], unmeasured: str | None) -> tuple[str, str | None]:
+    """Record each check's state and roll them up under the accepted result rules.
+
+    A check with evidence of a violation is FAIL even when another check could not be measured, so an
+    unmeasured check never hides a supported failure; otherwise anything unmeasured makes the trial
+    INCONCLUSIVE. A run-level measurement failure marks every check INCONCLUSIVE before this point.
+    Returns the status and the first reason something went unmeasured, if any.
+    """
+    for expectation in expectations:
+        expectation["state"] = _check_state(expectation)
+    states = {e["state"] for e in expectations}
+    reason = unmeasured or next((e["evidence"].removeprefix("INCONCLUSIVE: ") for e in expectations
+                                 if e["state"] == "INCONCLUSIVE"), None)
+    if "FAIL" in states:
+        return "FAIL", reason
+    return ("INCONCLUSIVE" if reason or "INCONCLUSIVE" in states else "PASS"), reason
 
 
 def judge_spend() -> dict:
@@ -3229,17 +3248,20 @@ def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, 
         git = collect_git_facts(ws)
         ctx = Context(spec, ws, trace, git, container, services, plugin_root, judge_binding)
         grading = grade(ctx, inconclusive=inconclusive, expected_scenario_digest=scenario_identity)
+        after_assessment = None
         if services:
             try:
                 stop_services(services, docker)
             except ServiceUnavailable as exc:
-                inconclusive = f"backing service cleanup failed: {exc}"
-                grading = grade(ctx, inconclusive=inconclusive, expected_scenario_digest=scenario_identity)
+                # The assessment already stands; a leftover service blocks reusing the environment.
+                after_assessment = f"backing service cleanup failed: {exc}"
             finally:
                 services = []
         drift = plugin_drift_problem(plugin_root, provenance["plugin_source_sha256"])
         if drift:
             grading = grade(ctx, inconclusive=drift, expected_scenario_digest=scenario_identity)
+        if after_assessment:
+            grading["after_assessment"] = after_assessment
         inconclusive = grading["inconclusive"]
         (run_out / "outputs" / "response.md").write_text(trace.result_text or "(no result)", encoding="utf-8")
         (run_out / "outputs" / "workspace.patch").write_text(git.patch or "(no changes)\n", encoding="utf-8")
@@ -3255,8 +3277,8 @@ def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, 
             "agent_returns": trace.agent_returns,
             "initial_parent_reference_reads": trace.parent_reads_before_dispatch,
             "initial_parent_skills_before_dispatch": trace.parent_skills_before_dispatch, "main_models": trace.main_models,
-            "status": grading["status"], "inconclusive": inconclusive, "models": trace.models,
-            "usage_models": trace.usage_models,
+            "status": grading["status"], "inconclusive": inconclusive, "after_assessment": after_assessment,
+            "models": trace.models, "usage_models": trace.usage_models,
             "num_turns": trace.num_turns, "tool_counts": trace.tool_counts, "skills": trace.skills,
             "skills_failed": trace.skills_failed,
             "advertised_tools": trace.advertised_tools, "mcp_servers": trace.mcp_servers, "permission_mode": trace.permission_mode,
@@ -3295,7 +3317,8 @@ def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, 
                    "plugin_source_sha256": provenance["plugin_source_sha256"],
                    "scenario_sha256": grading["scenario_sha256"],
                    "plugin_inputs_dirty": provenance["plugin_inputs_dirty"],
-                   "isolation": "container" if container_image else "host", "runtime": runtime}
+                   "isolation": "container" if container_image else "host", "runtime": runtime,
+                   **({"after_assessment": after_assessment} if after_assessment else {})}
         return summary
     finally:
         active_error = sys.exc_info()[1]
@@ -3478,16 +3501,17 @@ def regrade_run(run_dir: Path, spec: dict, *, write: bool = True, relax_identity
         elif len(old_by_id) != len(live_grade.get("expectations", [])):
             inconclusive = "saved assertion identities are duplicated; re-run the trial"
         expectations = []
+        unmeasured: str | None = None  # one check that cannot be measured leaves the others standing
 
         def keep(label: str, kept: str) -> dict:
-            nonlocal inconclusive
+            nonlocal unmeasured
             if inconclusive:
                 return {"text": label, "passed": False, "evidence": f"INCONCLUSIVE: {inconclusive}"}
             saved = old_by_id.get(f"{kept_prefix}:{len(expectations)}")
             if saved is None or saved.get("text") != label:
-                inconclusive = f"no saved verdict for a {kept} expectation; re-run the trial"
-                return {"text": label, "passed": False,
-                        "evidence": f"INCONCLUSIVE: {inconclusive}"}
+                missing = f"no saved verdict for a {kept} expectation; re-run the trial"
+                unmeasured = unmeasured or missing
+                return {"text": label, "passed": False, "evidence": f"INCONCLUSIVE: {missing}"}
             return {"text": label, "passed": bool(saved["passed"]),
                     "evidence": (saved["evidence"] + f" [kept: {kept}]")[:600]}
 
@@ -3508,12 +3532,13 @@ def regrade_run(run_dir: Path, spec: dict, *, write: bool = True, relax_identity
                     label, "live-judge" if check["check"] in REGRADABLE and not _needs_live_workspace(check, spec)
                     else "workspace-dependent"))
             if check["check"] in {"verification_completed", "command_exit_zero"} and expectations[-1]["evidence"].startswith("INCONCLUSIVE: "):
-                inconclusive = inconclusive or expectations[-1]["evidence"].removeprefix("INCONCLUSIVE: ")
+                unmeasured = unmeasured or expectations[-1]["evidence"].removeprefix("INCONCLUSIVE: ")
     if scenario_digest(spec, saved_binding) != identity:
         inconclusive = "scenario inputs changed during regrade; re-run the trial"
         for expectation in expectations:
             expectation.update(passed=False, evidence=f"INCONCLUSIVE: {inconclusive}")
     n_pass = sum(e["passed"] for e in expectations)
+    status, reason = trial_status(expectations, inconclusive or unmeasured)
     grading = {
         **native_assessment(spec),
         "judge_binding": saved_binding, "response_sha256": live_grade.get("response_sha256"),
@@ -3525,9 +3550,10 @@ def regrade_run(run_dir: Path, spec: dict, *, write: bool = True, relax_identity
         "models": trace.models if reparsed is not None else list(summary.get("models") or []),
         "summary": {"passed": n_pass, "failed": len(expectations) - n_pass, "total": len(expectations),
                     "pass_rate": round(n_pass / len(expectations), 4) if expectations else 0.0},
-        "status": "INCONCLUSIVE" if inconclusive else ("PASS" if n_pass == len(expectations) else "FAIL"),
+        "status": status,
         "regraded": True,
-        "inconclusive": inconclusive,
+        "inconclusive": reason if status == "INCONCLUSIVE" else None,
+        **({"unmeasured": reason} if status == "FAIL" and reason else {}),
         **({"identity_relaxed": True} if relaxed else {}),
     }
     if not write:
@@ -3552,7 +3578,7 @@ def regrade_run(run_dir: Path, spec: dict, *, write: bool = True, relax_identity
         })
     # One authoritative verdict: the trace summary carries the same status as grading.json.
     summary["status"] = grading["status"]
-    summary["inconclusive"] = inconclusive
+    summary["inconclusive"] = grading["inconclusive"]
     summary["scenario_sha256"] = grading["scenario_sha256"]
     summary["regraded"] = True
     (run_dir / "outputs" / "trace-summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -3876,16 +3902,21 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({"batch": "INCONCLUSIVE", "reason": problem}), flush=True)
         return 2
     results = []
-    for spec in scenarios:
-        for i in range(args.trials):
-            results.append(run_trial(
-                spec, plugin_root=args.plugin_root.resolve(), label=args.label, model=args.model,
-                run_number=args.run_offset + i + 1, out_dir=out, timeout=args.timeout,
-                executable=args.executable, keep_workspace=args.keep_workspace, overwrite=args.overwrite,
-                container_image=args.container, docker=args.docker,
-                expected_plugin_digest=provenance["plugin_source_sha256"],
-                judge_binding=judge_binding, runtime=runtime,
-            ))
+    blocked: str | None = None
+    planned = [(spec, i) for spec in scenarios for i in range(args.trials)]
+    for spec, i in planned:
+        results.append(run_trial(
+            spec, plugin_root=args.plugin_root.resolve(), label=args.label, model=args.model,
+            run_number=args.run_offset + i + 1, out_dir=out, timeout=args.timeout,
+            executable=args.executable, keep_workspace=args.keep_workspace, overwrite=args.overwrite,
+            container_image=args.container, docker=args.docker,
+            expected_plugin_digest=provenance["plugin_source_sha256"],
+            judge_binding=judge_binding, runtime=runtime,
+        ))
+        if results[-1].get("after_assessment"):
+            # The finished trial keeps its verdict; nothing else may reuse the uncleaned environment.
+            blocked = results[-1]["after_assessment"]
+            break
     merged = _merge_summary_entries(existing, results)
     summary_path.write_text(json.dumps(merged, indent=2), encoding="utf-8")
     # `--run-offset` appends trials to an existing label. The verdict is about that whole batch, not
@@ -3913,9 +3944,12 @@ def main(argv: list[str] | None = None) -> int:
     passed = sum(r["status"] == "PASS" for r in batch)
     print(f"{passed}/{len(batch)} trials PASS ({sum(r['status'] == 'INCONCLUSIVE' for r in batch)} inconclusive)")
     states = [v["verdict"] for v in verdicts.values()]
+    if blocked:
+        print(json.dumps({"batch": "INCONCLUSIVE", "reason": f"stopped after {blocked}",
+                          "trials_not_run": len(planned) - len(results)}), flush=True)
     if "FAIL" in states:
         return 1
-    return 2 if "INCONCLUSIVE" in states else 0
+    return 2 if blocked or "INCONCLUSIVE" in states else 0
 
 
 def effective_threshold(spec: dict, requested: float | None) -> float:

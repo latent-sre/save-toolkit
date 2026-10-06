@@ -514,6 +514,15 @@ exactly the requested tool inventory; a missing or foreign tool, an MCP server, 
 nonzero exit, or — where reads were granted — a successful read outside the workspace and plugin
 snapshot makes the trial **INCONCLUSIVE**, never a verdict. An auth failure aborts the batch.
 
+Those run-level failures mark every check INCONCLUSIVE, so nothing observed under the wrong plugin,
+model or tools counts. Otherwise each check is PASS, FAIL or INCONCLUSIVE (its `state` in
+`grading.json`), and a trial with any failed check is FAIL even when another check could not be
+measured; that reason is kept as `unmeasured`. Without a failure, any unmeasured check makes the trial
+INCONCLUSIVE, with the reason in `inconclusive`. A backing-service cleanup failure after grading keeps
+the verdict, is recorded as `after_assessment`, and stops the batch from starting another trial.
+These follow the result rules of the accepted
+[threat-model ADR](../docs/decisions/2026-10-03-eval-harness-threat-model.md).
+
 This is an evaluation boundary, **not an OS sandbox**. A build lane's Bash runs on the host with
 network, and the credential copy sits where an unguarded tool could reach it (the probe scans
 outputs for credential markers and warns). Under subscription login, Claude Code itself adds the

@@ -8,6 +8,15 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- An unmeasured check no longer hides a supported failure (`EVAL-011` result rules). Each check in
+  `grading.json` carries a `state`; a trial with any failed check is FAIL, recording the unmeasured
+  reason as `unmeasured`, and `inconclusive` is set only on INCONCLUSIVE trials. Regrade grades the
+  remaining checks after one it cannot measure instead of voiding them. A service-cleanup failure after
+  grading keeps the verdict as `after_assessment` and stops the batch. [verified] Base and candidate
+  rescores of six saved campaigns (324 runs) differ only in the 107 PRINCIPAL-001 runs: 25 trials
+  INCONCLUSIVE to FAIL, each already holding a failed check, and 276 checks INCONCLUSIVE to PASS that
+  the old regrade had voided.
+
 - The eval runner gains `--rescore` and `--rescore-diff` (`EVAL-011`'s first runner change). A runner
   edit changes every scenario identity, so `--regrade` voids every saved run after one. `--rescore`
   grades saved runs with a checkout's runner into a new directory, never writing the saved runs, and
