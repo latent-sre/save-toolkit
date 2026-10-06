@@ -370,8 +370,8 @@ acceptance tests, delivery phases and explicit open decisions.
 [specification](fleet-evaluation/README.md); WP-01 builds the
 minimal comparison over v1 records against a committed synthetic bundle; and WP-02 runs under its
 run plan, whose budget the owner approved on 2026-10-06 with a USD 20 cap. WP-12's GCP case design can proceed alongside. The
-[Coder Eval experiment](fleet-evaluation/coder-eval.md) waits for WP-15. Once, from an elevated
-prompt, grant the owner's everyday account read access to the older owner-only run folders. EVAL-010
+[Coder Eval experiment](fleet-evaluation/coder-eval.md) waits for WP-15. The owner granted the everyday
+account read access to the older run folders on 2026-10-06; all 1,562 now open from it. EVAL-010
 retains judge-adoption ownership and EVAL-011 the native measurement contract. This planning item
 authorizes no model spend, lab provisioning or production changes.
 **Evidence:** [Requirements and specifications](fleet-evaluation/README.md), based on the owner's
