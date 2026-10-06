@@ -1,12 +1,39 @@
 # Coder Eval adoption experiment
 
 The owner approved adding UiPath Coder Eval to the specification on 2026-10-04. It is the first
-candidate to pilot for custom agent/skill/tool regression execution in WP-02. Permanent adoption,
+candidate to pilot for custom agent/skill/tool regression execution, in WP-15. Permanent adoption,
 native compatibility and maintenance benefit remain [unverified]. This document specifies the
 experiment; it does not authorize implementation, model spend or environment provisioning.
 
 Use the exact project and revision in the [source register](sources.md#coder-eval-evidence).
 The current native runner remains the reference until an alternative earns its named responsibilities.
+
+## Postponement and prerequisites
+
+On 2026-10-06 the owner postponed this experiment until after the first useful native comparison
+and a go/no-go call (DEC-24). The 2026-10-06 upstream check in the
+[source register](sources.md#refresh-2026-10-06) found needs the native path does not have. Before
+any WP-15 trial:
+
+- **Trust:** an amendment to the [threat-model ADR](../decisions/2026-10-03-eval-harness-threat-model.md)
+  admits a pinned third-party runner. [sourced] Coder Eval sends telemetry by default
+  (`TELEMETRY_ENABLED=false` turns it off; confirm by observed network behavior), its default
+  `tempdir` driver runs as the host user, and its Docker driver mounts a read/write copy of
+  `~/.claude`, OAuth credentials included, unless `CODER_EVAL_NO_CLAUDE_MOUNT=1` is set.
+- **Pin:** a release, not a research snapshot. The inspected commit is release v0.12.10; re-inspect
+  the cited files at whichever release is pinned.
+- **Host:** one Linux or WSL 2 host for both arms, with the native runner checked there first.
+  [sourced] Upstream develops on macOS, runs CI on Linux, tests Python 3.13 only, covers Windows
+  with unit tests and one smoke task, and needs WSL 2 for Docker on Windows.
+- **Parity probes:** [sourced] the Claude adapter always denies ToolSearch, cannot set MCP servers per
+  task, loads project settings by default and defaults to `acceptEdits`, where the native runner uses
+  `dontAsk`. Add a deferred-tool probe to the canaries and keep lanes that need deferred or MCP tools
+  out of the pilot.
+- **People and cases:** a blinded reviewer and a second maintainer besides the case author, with
+  hours estimated under DEC-04; one GCP managed-service or migration case with withheld controls
+  (WP-12 authoring under DEC-14); WP-02's denied-tool canary.
+- **Adoption:** a limited or full role also needs a successor to the
+  [one-runner ADR](../decisions/2026-09-03-one-eval-runner.md) (DEC-16).
 
 ## Product boundaries
 

@@ -352,20 +352,28 @@ offline test results do not establish human acceptance or live operational truth
 
 ### EVAL-012 — plan incident and coding evaluations for the fleet
 
-**Status:** `active` (2026-10-05); specification revision 0.5 records the owner's 2026-10-05 decisions (DEC-01, DEC-02, DEC-04, DEC-10, DEC-11 and DEC-17 to DEC-20): repository-local implementation; Claude Code as the automated reference, with human-run acceptance cases as VS Code Copilot's verification method; existing Claude, Codex and OpenRouter access with a stated trial count, cost, human hours and cap per campaign; a per-experiment acceptance default; local raw artifacts with non-retaining, non-training OpenRouter providers; Sonnet and the latest Sol as default models; comparisons and Copilot acceptance before each major release; and a go/no-go call before each milestone. These sit on top of revision 0.4's Coder Eval adoption experiment, earlier useful-comparison milestone, review corrections and expanded GCP scope; implementation has not started.
+**Status:** `active` (2026-10-06); WP-00 is complete: the owner accepted specification revision 0.6
+on 2026-10-06 as the scope freeze. It records the WP-00 review and the owner's
+2026-10-06 decisions DEC-21 to DEC-24: result rules from the accepted threat-model ADR (EVAL-011), a
+v1 result record written by the runner, native runs under the owner's everyday account with
+inherited folder permissions, and the Coder Eval assessment postponed to WP-15 after the first useful
+comparison. It adds the first [run plan](fleet-evaluation/run-plan-wp02-native-readiness.md).
+Revision 0.5 recorded DEC-01, DEC-02, DEC-04, DEC-10, DEC-11 and DEC-17 to DEC-20 on 2026-10-05.
+Implementation has not started.
 **Owner:** Human owner accepts scope, run conditions and exact candidates; `agent-engineer` owns
 scenario/measurement design; implementation and lab owners are assigned per delivery package.
 **Outcome:** A reviewable evaluation specification covers ITBench-Lite, SREGym, repository repair,
 test generation, selected terminal tasks, GCP managed-service/migration and GKE evaluations, actual
 fleet integration, Coder Eval runner assessment and later Microsoft AIOpsLab, with traceable evidence,
 acceptance tests, delivery phases and explicit open decisions.
-**Next action:** Select WP-01 saved-result comparison for implementation in this repository; it
-needs no model calls. Review the [fleet evaluation specification](fleet-evaluation/README.md),
-resolve the remaining WP-00 decisions, and prepare WP-02's [Coder Eval experiment](fleet-evaluation/coder-eval.md). Select
-lasting presentation/execution responsibilities from evidence under DEC-16; WP-12's GCP case design
-can proceed alongside the report work. EVAL-010 retains
-judge-adoption ownership and EVAL-011 the native measurement
-contract. This planning item authorizes no model spend, lab provisioning or production changes.
+**Next action:** EVAL-011's runner sequence lands, including the v1 record, under the accepted
+[specification](fleet-evaluation/README.md); WP-01 builds the
+minimal comparison over v1 records against a committed synthetic bundle; and WP-02 runs under its
+run plan once the owner approves that budget. WP-12's GCP case design can proceed alongside. The
+[Coder Eval experiment](fleet-evaluation/coder-eval.md) waits for WP-15. Once, from an elevated
+prompt, grant the owner's everyday account read access to the older owner-only run folders. EVAL-010
+retains judge-adoption ownership and EVAL-011 the native measurement contract. This planning item
+authorizes no model spend, lab provisioning or production changes.
 **Evidence:** [Requirements and specifications](fleet-evaluation/README.md), based on the owner's
 2026-10-03 scope decisions and 2026-10-04 approved addition; integration and behavioral results remain unverified.
 **SRE task:** Compare exact agent candidates on realistic incidents and engineering tasks, see what
@@ -400,10 +408,11 @@ verdict change.
 - Identity: record the runner revision (with `--plugin-root` on another checkout, `plugin_commit` names
   the candidate, not the runner; the CLI version and host platform are already recorded); refuse to
   pool trials across CLI versions or hosts; include the PowerShell guard hook in the digest.
+- Record and folders (EVAL-012 DEC-22 and DEC-23): write one
+  [v1 record](fleet-evaluation/contracts.md#result-record-v1) per attempt, and create run folders that
+  inherit the permissions of `.eval-runs/` instead of owner-only temporary folders.
 - Remove the unused `--container` mode, and split `evals/build_probe.py` along its inventory seams with
   no verdict change.
-
-EVAL-012's WP-00 decides whether its record-format and folder-permission changes join this sequence.
 **Evidence:** [PR #310](https://github.com/latent-sre/save-toolkit/pull/310); the amended ADR's
 Context records the 2026-10-06 source findings behind the result rules.
 [PR #321](https://github.com/latent-sre/save-toolkit/pull/321) runs the component tests on four

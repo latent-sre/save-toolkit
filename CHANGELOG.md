@@ -13,6 +13,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   short, grading-machinery failures are inconclusive and stop that scenario, each scenario declares a
   turn limit, and every attempt and unknown cost stays visible. The runner does not follow them yet;
   `EVAL-011` sequences the changes before `EVAL-012` records comparison baselines.
+- The fleet evaluation specification reaches revision 0.6 (`EVAL-012` WP-00, owner decisions
+  2026-10-06): a v1 result record written by the runner, native runs under the owner's everyday
+  account with inherited folder permissions, the Coder Eval assessment postponed to WP-15 after the
+  first useful comparison, and the first run plan. The owner accepted it on 2026-10-06 as the scope
+  freeze, completing WP-00.
 - CI runs the component tests on four workers and installs nothing for the structural gate. Over
   the 16 runs before this change the test step took a median 438 s and the whole run 484 s.
   - `component-tests` sets `PYTEST_ADDOPTS` to `-n 4 --dist loadfile --durations=20`; the command

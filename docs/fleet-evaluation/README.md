@@ -1,24 +1,26 @@
 # Fleet evaluation project specification
 
-**Status:** Proposed specification, revision 0.5, 2026-10-05; revision 0.5 records the owner's
-DEC-01, DEC-02, DEC-04, DEC-10, DEC-11 and DEC-17 to DEC-20 decisions. The owner requested the complete
-plan and specifications before implementation. ITBench-Lite and SREGym are included; Microsoft
-AIOpsLab is a later phase. The coding track covers repository repair, test generation and selected
-terminal tasks. GCP has a dedicated managed-service, migration and GKE track. The owner approved
-adding UiPath Coder Eval as the first candidate to pilot for custom agent/skill/tool regression
-execution; adoption depends on the specified experiment. No integration or benchmark result is
-established by this planning package.
+**Status:** Accepted specification, revision 0.6; the owner accepted it on 2026-10-06 as the WP-00
+scope freeze. Revision 0.6 records the WP-00 review and the owner's DEC-21 to DEC-24 decisions:
+result rules from the accepted threat-model ADR, a v1 result record, the native host and account,
+and Coder Eval postponed to WP-15. Revision 0.5 recorded DEC-01, DEC-02, DEC-04, DEC-10, DEC-11 and
+DEC-17 to DEC-20. The owner requested the complete plan and specifications before implementation.
+ITBench-Lite and SREGym are included; Microsoft AIOpsLab is a later phase. The coding track covers
+repository repair, test generation and selected terminal tasks. GCP has a dedicated managed-service,
+migration and GKE track. The owner approved adding UiPath Coder Eval as the first candidate to pilot
+for custom agent/skill/tool regression execution; adoption depends on the specified experiment. No
+integration or benchmark result is established by this planning package.
 
 The project helps an SRE or maintainer decide whether a specific Save Toolkit candidate improves
 useful work. It measures incident diagnosis, investigation with a human, live lab investigation,
 code repair, test writing and the behavior of the wider fleet. Reports connect conclusions to
 the exact agent, scenario, environment and evidence measured.
 
-The first implementation slice will compare saved native results without model calls. An early
-six-task Coder Eval experiment will assess runner compatibility and maintainer usefulness, keeping
-the accepted graders and judge fixed. A first bounded incumbent/candidate comparison can proceed
-once native readiness and the portable report pass, while the alternative-runner assessment remains
-open. Broader milestones retain ITBench-Lite, SWE-bench repairs, required
+The first implementation slice is EVAL-011's runner sequence, which writes the v1 result record,
+and a minimal local comparison over it without model calls. A first bounded incumbent/candidate
+comparison follows once native readiness and that report pass. The six-task Coder Eval experiment,
+which assesses runner compatibility and maintainer usefulness with the accepted graders and judge
+fixed, waits until after that comparison. Broader milestones retain ITBench-Lite, SWE-bench repairs, required
 SREGym exercises and the 24-case GCP evidence pilot, followed by the full 64-case GCP catalog and
 bounded live cloud exercises. AIOpsLab extends the environment choices later. Cloud Run and GKE
 results remain separate.
@@ -31,7 +33,8 @@ results remain separate.
 | [Architecture](architecture.md) | Execution, adapters, evidence flow, host parity and trust boundaries |
 | [Contracts](contracts.md) | Cases, runs, assessments, errors, provenance, cache and comparison rules |
 | [Integrations](integrations.md) | Each benchmark and framework, its adapter work and adoption criteria |
-| [Coder Eval adoption experiment](coder-eval.md) | Product boundaries, six-task pilot, evidence mapping and retain/replace/reject criteria |
+| [Coder Eval adoption experiment](coder-eval.md) | Postponement and prerequisites, product boundaries, six-task pilot, evidence mapping and retain/replace/reject criteria |
+| [WP-02 run plan](run-plan-wp02-native-readiness.md) | The first live run: cases, conditions, budget and stop rules for native readiness |
 | [Scenario specifications](scenarios.md) | Incident pairs, coding tasks, wider-fleet cases and examples |
 | [GCP evaluation track](gcp.md) | 32 paired scenario families, migration and managed services, GKE, reusable foundations and cloud lab profiles |
 | [Measurement and verification](measurement.md) | Judge calibration, experiment design and acceptance tests |
@@ -50,8 +53,8 @@ results remain separate.
 | Fixed and authored branching incident conversations | Both included in WP-05, with separate acceptance evidence |
 | Coding evaluations for the existing software-engineer | Included; SWE-bench Verified is the proposed first dataset |
 | SWT-Bench and selected Terminal-Bench tasks | Planned coding coverage, delivered after the first repair integration |
-| UiPath Coder Eval | First custom behavioral-runner candidate piloted in WP-02; owner approved assessment, not permanent adoption |
-| promptfoo | Candidate presentation/import tool for WP-01; controlled repo/log/helper/judge adversarial cases in WP-10; execution remains optional |
+| UiPath Coder Eval | First custom behavioral-runner candidate, postponed to WP-15 after the first useful comparison (DEC-24); owner approved assessment, not permanent adoption |
+| promptfoo | Candidate long-term presentation, chosen under DEC-16 in WP-15; controlled repo/log/helper/judge adversarial cases in WP-10; execution remains optional |
 | DeepEval | Required judge candidate in the proposed comparison; permanent adoption is undecided |
 | Inspect AI, Inspect SWE and Pydantic Evals | Existing pilot or comparison candidates; select responsibilities from evidence |
 | Harbor | Candidate coding environment/executor; compare with Inspect and assess Coder Eval's existing bridge where relevant before building overlapping infrastructure |

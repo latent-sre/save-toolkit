@@ -112,6 +112,21 @@ The 64 cases are proposed local designs, not an imported or executed public GCP 
 - Validate availability of source URLs and upstream APIs; keep original source provenance if a
   project moves rather than silently relabelling an older result as current.
 
+## Refresh 2026-10-06
+
+The WP-00 review refreshed the baseline against `main` at `8d7ecda1`. The rows above keep their
+original provenance; this section records what changed.
+
+| Source | Observation |
+|---|---|
+| [Native runner](../../evals/build_probe.py) | [verified] 3,832 lines. Result-recording defects are listed in the accepted [threat-model ADR](../decisions/2026-10-03-eval-harness-threat-model.md)'s Context; none of AC-03/04/05/18/22/24 passes as written today |
+| Saved runs under `.eval-runs/` | [verified] No record carries a format version, timestamp or attempt ID; five summary shapes; CLI and host are recorded only since 2026-10-04 (95 of 1,222 rows). 1,368 of 1,562 run folders could not be read from the owner's everyday account, because `tempfile.mkdtemp` folders are owner-only on Windows (reproduced on Python 3.14.7) |
+| [Coder Eval releases](https://github.com/UiPath/coder_eval/releases) | [sourced] The inspected commit `0fa062a2` is release v0.12.10 (2026-10-03); v0.12.11 followed on 2026-10-05. Apache-2.0. The cited adapter, criteria and Harbor files are unchanged since the pin |
+| [Coder Eval configuration](https://github.com/UiPath/coder_eval/blob/0fa062a25e6db7cf76edc487cab6967ebe5c55bf/src/coder_eval/config.py) and [Claude adapter](https://github.com/UiPath/coder_eval/blob/0fa062a25e6db7cf76edc487cab6967ebe5c55bf/src/coder_eval/agents/claude_code_agent.py) | [sourced] Telemetry to Azure Application Insights is on by default; the adapter always denies ToolSearch and defaults `setting_sources` to the project. It authenticates with `ANTHROPIC_API_KEY` or a cached `claude login` session, requires Python 3.13 or later, and its Docker driver mounts `~/.claude` unless `CODER_EVAL_NO_CLAUDE_MOUNT=1` |
+| [Harbor](https://github.com/harbor-framework/harbor) | [sourced] Latest release v0.24.0 (2026-10-05); Coder Eval's Harbor extra pins 0.23.0. The cited documentation now redirects to [custom agents](https://docs.harborframework.com/agents/custom-agents) and [skills](https://docs.harborframework.com/jobs/skills) |
+| [promptfoo command line](https://www.promptfoo.dev/docs/usage/command-line/) | [sourced] `import` reads only promptfoo eval JSON or OpenAI Evals JSONL; telemetry is on by default. The project [joined OpenAI](https://www.promptfoo.dev/blog/promptfoo-joining-openai/) (announced 2026-03-09) and remains MIT |
+| Inspect on PyPI | [sourced] Latest inspect-ai 0.3.276 and inspect-swe 0.2.71; [requirements](../../requirements-dev.txt) still pins 0.3.263 and 0.2.70 |
+
 ## Remaining uncertainty
 
 Native parity of all new framework paths, lab capacity, benchmark environment reproducibility,

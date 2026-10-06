@@ -23,7 +23,7 @@ and failed cases. Preserve original benchmark metrics with their own labels and 
 
 ## Judge experiment
 
-Keep the currently accepted graders and judge fixed during WP-02's runner experiment. Refresh
+Keep the currently accepted graders and judge fixed during WP-15's runner experiment. Refresh
 EVAL-010's owner disposition before proposing any replacement; this candidate list does not reopen
 a settled decision or make judge replacement a prerequisite for useful evaluation.
 
@@ -67,7 +67,7 @@ count only by stating it before running. Three trials detect obvious variability
 safety. Report exact counts and sample size. Larger runs and uncertainty
 intervals should follow a specified analysis plan after measured costs and the needed decision are
 known. Do not pool model tiers, hosts or platform adaptations.
-The explicitly bounded [Coder Eval feasibility pilot](coder-eval.md#experiment-sequence) uses two
+The explicitly bounded [Coder Eval feasibility pilot](coder-eval.md#experiment-sequence), postponed to WP-15, uses two
 repetitions per runner/task; its 24 task trials do not establish statistical superiority. Holding the
 fleet fixed across runners measures runner influence. Agent/tool uplift requires a separate matched
 incumbent/candidate experiment with the execution and scoring conditions fixed.
@@ -129,11 +129,11 @@ Then run a small explicitly selected live compatibility set before a benchmark c
 integration passes only when identity, tools, hooks and transcript evidence are checked; a generic
 Claude Code run with good artifacts does not suffice. Retain human trace review wherever semantics
 are not covered by a calibrated grader.
-WP-02 includes the Coder Eval experiment under AC-36/37. A documented incompatibility or rejection
-can complete its assessment when the evidence and disposition are recorded; it cannot satisfy the
-separate native integration checks or remove their requirement. Use the accepted native path for
-the first useful candidate comparison once native/report readiness passes, including while the
-alternative assessment is pending or after it does not earn adoption.
+WP-15 holds the postponed Coder Eval experiment under AC-36/37. A documented incompatibility or
+rejection can complete its assessment when the evidence and disposition are recorded; it cannot
+satisfy WP-02's native checks or remove their requirement. Use the accepted native path for the first
+useful candidate comparison once native/report readiness passes. The first live compatibility set
+is the [WP-02 run plan](run-plan-wp02-native-readiness.md).
 
 Ordinary PR CI runs offline validation and adapter/fixture tests. Native paid runs remain manual in
 the clean room. External coding tasks require DEC-13 and AC-25 as well as the reviewed isolation
@@ -141,8 +141,10 @@ profile; containers alone do not admit execution. A separately authorized CI job
 repository commands without moving the evaluated model session into CI. Model-in-CI or direct lab
 execution by a changed agent policy needs its own decision. No production credentials enter these tasks.
 
-WP-01 completes only after AC-23 runs on both operating systems. Compare logical content rather than
-host-specific timestamps or rendered path strings; test opening relocated source links on each host.
+WP-01 completes only after AC-23 runs on both operating systems. Real run records are private and
+none comes from Linux or has a path with spaces, so AC-23 uses a committed synthetic bundle: the
+ubuntu CI job imports it, and a Windows run imports the same bytes. Compare logical content rather
+than host-specific timestamps or rendered path strings; test opening relocated source links on each host.
 This report/import acceptance does not establish Windows compatibility of Linux benchmark labs.
 
 GCP acceptance is staged. WP-12's model-free controls establish fixture/scorer discrimination and
