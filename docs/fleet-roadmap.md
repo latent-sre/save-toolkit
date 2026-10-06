@@ -409,7 +409,11 @@ saved runs with both and explains every line the diff prints.
   (operator-cli, obs-burn-rules, pager-webhook, pcf-deploy-job and three python-craft), so each needs
   candidate errors caught as FAIL before a crash can mean INCONCLUSIVE.
 - Turn limits: each scenario declares one, passed as `--max-turns`; the wall clock and the native
-  spend cap remain instrument guards.
+  spend cap remain instrument guards. The mechanism is implemented on `work/eval-011-turn-limits`
+  (2026-10-06), awaiting review: an optional `max_turns` reaches the CLI, and stopping there is a
+  completed run. No scenario declares a value yet, so a looping candidate still reaches the wall
+  clock. Choosing values is open: saved runs give turn counts for 105 of 207 current scenarios
+  (per-scenario maximum: median 6, 90th percentile 20, highest 72).
 - Attempts and cost: replaced and incomplete attempts are kept with trace, timing and cost; an
   authentication failure exits distinctly and stops the batch; unknown cost stays null, including in
   calibration receipts; a batch spending cap stops scheduling (EVAL-012 AC-18).

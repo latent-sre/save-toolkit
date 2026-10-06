@@ -561,7 +561,9 @@ An unknown `fleet_grader` name is rejected by `--validate`. Oracle scripts still
 which an uncaught exception also produces, until each is moved to a distinct failure code
 (`EVAL-011`). A backing-service cleanup failure after grading keeps
 the verdict, is recorded as `after_assessment`, and stops the batch from starting another trial.
-These follow the result rules of the accepted
+A scenario may declare `max_turns` (1 to 500), passed to the CLI as `--max-turns`; a session the CLI
+ends there is a completed run (`run_end: turn_limit`) whose unmet requirements fail, while the same
+stop without a declared limit is cut short. These follow the result rules of the accepted
 [threat-model ADR](../docs/decisions/2026-10-03-eval-harness-threat-model.md).
 
 This is an evaluation boundary, **not an OS sandbox**. A build lane's Bash runs on the host with

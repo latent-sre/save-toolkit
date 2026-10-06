@@ -8,6 +8,10 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Eval scenarios can declare a turn limit (`EVAL-011` turn limits). `max_turns` is passed to the CLI
+  as `--max-turns`, and a session the CLI ends there is a completed run whose unmet requirements fail,
+  so a candidate that never finishes can fail instead of timing out INCONCLUSIVE. No scenario declares
+  one yet; values are an open choice. [verified] Rescores of five saved campaigns show no verdict change.
 - A grader that crashes is now a measurement failure, not a candidate FAIL (`EVAL-011` grading
   machinery): its check is INCONCLUSIVE, the grade names `grader_error`, and the batch runs no more
   trials of that scenario. `--validate` rejects an unknown `fleet_grader` name. [verified] Rescoring

@@ -4318,3 +4318,53 @@ class GradingMachineryTests(unittest.TestCase):
         self.assertEqual([(specs[0]["id"], 1), (specs[1]["id"], 1), (specs[1]["id"], 2), (specs[1]["id"], 3)], calls)
         self.assertEqual(2, code)
         self.assertIn('"trials_not_run": 2', out.getvalue())
+
+
+class TurnLimitTests(unittest.TestCase):
+    """Threat-model ADR rule 4: a run the CLI ends at the declared turn limit is complete."""
+
+    _stub = EndToEndStubTests._stub
+    _env_factory = staticmethod(EndToEndStubTests._env_factory)
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory(prefix="build-probe-test-")
+        self.root = Path(self.tmp.name)
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def _spec(self, **extra) -> dict:
+        spec = json.loads(json.dumps(TINY_SPEC))
+        spec["checks"] = [{"check": "bash_ran", "pattern": "unittest", "text": "test command ran"},
+                          {"check": "text_contains_any", "of": ["finished"], "text": "says finished"}]
+        return {**spec, **extra}
+
+    def _run(self, spec: dict) -> tuple[dict, dict]:
+        summary = build_probe.run_trial(spec, plugin_root=ROOT, label="turns", model=None, run_number=1,
+                                        out_dir=self.root / "it", timeout=60,
+                                        executable=self._stub(is_error=True, subtype="error_max_turns", result="stopped"),
+                                        keep_workspace=False, env_factory=self._env_factory())
+        run = self.root / "it" / "eval-tiny" / "turns" / "run-1"
+        return summary, json.loads((run / "grading.json").read_text(encoding="utf-8"))
+
+    def test_a_declared_turn_limit_reaches_the_cli(self) -> None:
+        command = build_probe.build_command("claude", ROOT, None, "p", None, ("Read",), max_turns=12)
+        self.assertEqual(["--max-turns", "12"], command[command.index("--max-turns"):command.index("--max-turns") + 2])
+        self.assertNotIn("--max-turns", build_probe.build_command("claude", ROOT, None, "p", None, ("Read",)))
+
+    def test_stopping_at_the_declared_limit_is_graded_as_a_completed_run(self) -> None:
+        summary, grading = self._run(self._spec(max_turns=8))
+        self.assertEqual("FAIL", summary["status"], "an unmet requirement at the limit fails")
+        self.assertEqual("turn_limit", grading["run_end"])
+        self.assertEqual(["PASS", "FAIL"], [e["state"] for e in grading["expectations"]])
+
+    def test_without_a_declared_limit_the_same_stop_is_cut_short(self) -> None:
+        summary, grading = self._run(self._spec())
+        self.assertEqual("INCONCLUSIVE", summary["status"])
+        self.assertEqual("cut_short", grading["run_end"])
+
+    def test_the_validator_bounds_max_turns(self) -> None:
+        for bad in (0, -1, 501, 2.5, True, "10"):
+            with self.subTest(bad=bad):
+                self.assertTrue(any("max_turns" in p for p in build_probe.validate_scenario({**TINY_SPEC, "max_turns": bad})))
+        self.assertFalse(any("max_turns" in p for p in build_probe.validate_scenario({**TINY_SPEC, "max_turns": 40})))

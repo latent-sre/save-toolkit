@@ -437,6 +437,10 @@ def validate_scenario(spec: object, *, where: str = "scenario") -> list[str]:
                     source = (ROOT / str(rel)).resolve()
                     if not source.is_file() or ORACLE_DIR not in source.parents:
                         problems.append(f"{where}: checks[{i}] writes_from {rel!r} is not a file under evals/oracles/")
+    if "max_turns" in spec:
+        turns = spec["max_turns"]
+        if isinstance(turns, bool) or not isinstance(turns, int) or not 1 <= turns <= 500:
+            problems.append(f"{where}: max_turns must be an integer from 1 to 500")
     threshold = spec.get("threshold")
     if threshold is not None:
         if isinstance(threshold, bool) or not isinstance(threshold, (int, float)) or not 0 < threshold <= 1:
@@ -1383,7 +1387,8 @@ def scenario_tools(spec: dict) -> tuple[str, ...]:
 
 def build_command(executable: str, plugin_root: Path, agent: str | None, prompt: str,
                   model: str | None, tools: Sequence[str] = BUILD_TOOLS,
-                  *, pre_approve: bool = True, persistent: bool = False, resume: str | None = None) -> list[str]:
+                  *, pre_approve: bool = True, persistent: bool = False, resume: str | None = None,
+                  max_turns: int | None = None) -> list[str]:
     tools = tuple(tools)
     denied = [t for t in clean_room.DENIED_TOOLS if t not in tools]
     # `--executable` may be a bare binary or "python stub.py" (tests use a stub that emits stream-json).
@@ -1417,6 +1422,8 @@ def build_command(executable: str, plugin_root: Path, agent: str | None, prompt:
         command += ["--allowedTools", ",".join(tools), "--permission-mode", "dontAsk"]
     if model:
         command += ["--model", model]
+    if max_turns:  # the scenario's declared task budget; the CLI ends the session there (result rule 4)
+        command += ["--max-turns", str(max_turns)]
     return command
 
 
@@ -3086,6 +3093,7 @@ def grade(ctx: Context, *, inconclusive: str | None = None,
         "inconclusive": reason if status == "INCONCLUSIVE" else None,
         **({"unmeasured": reason} if status == "FAIL" and reason else {}),
         **({"run_end": "cut_short"} if isinstance(inconclusive, CutShort) else {}),
+        **({"run_end": "turn_limit"} if not inconclusive and reached_turn_limit(ctx.trace, ctx.spec) else {}),
         **_grader_error(expectations),
         "summary": {"passed": n_pass, "failed": len(expectations) - n_pass, "total": len(expectations),
                     "pass_rate": round(n_pass / len(expectations), 4) if expectations else 0.0},
@@ -3183,6 +3191,12 @@ def parse_trial_trace(run_dir: Path) -> TraceSummary:
     return merged
 
 
+def reached_turn_limit(trace: TraceSummary, spec: dict) -> bool:
+    """The CLI ended the session at the scenario's declared turn limit: a completed run whose unmet
+    requirements fail (threat-model ADR result rule 4). Without a declared limit it is cut short."""
+    return trace.result_subtype == "error_max_turns" and bool(spec.get("max_turns"))
+
+
 class CutShort(str):
     """A run on the declared profile that ended before completing.
 
@@ -3225,7 +3239,8 @@ def invocation_problem(trace: TraceSummary, returncode: int | None, spec: dict,
     elif trace.result_is_error or trace.result_subtype not in ("", "success"):
         if clean_room.is_auth_failure(trace.result_text, returncode):
             raise clean_room.AuthUnavailable(f"claude reported an authentication failure: {trace.result_text[:200]}")
-        cut = f"claude reported an error result (subtype={trace.result_subtype or '?'}, is_error={trace.result_is_error})"
+        if not reached_turn_limit(trace, spec):
+            cut = f"claude reported an error result (subtype={trace.result_subtype or '?'}, is_error={trace.result_is_error})"
     elif returncode not in (0, None):
         if clean_room.is_auth_failure(trace.result_text, returncode):
             raise clean_room.AuthUnavailable(f"claude exited {returncode} with an authentication failure: {trace.result_text[:200]}")
@@ -3378,7 +3393,7 @@ def write_record(run_dir: Path, spec: dict, *, label: str, run_number: int, atte
     grading, timing, provenance = read("grading.json"), read("timing.json"), read("provenance.json")
     summary = read("outputs/trace-summary.json")
     status = grading.get("status")
-    ended = ("cut_short" if grading.get("run_end") == "cut_short"
+    ended = (grading["run_end"] if grading.get("run_end") in ("cut_short", "turn_limit")
              else "void" if status == "INCONCLUSIVE" and grading.get("inconclusive") and not any(
                  e.get("state") in ("PASS", "FAIL") for e in grading.get("expectations") or [])
              else "completed")
@@ -3498,7 +3513,8 @@ def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, 
                     turn_out.mkdir(exist_ok=True)
                     command = build_command(executable, plugin_root,
                         f"save-toolkit:{spec['agent']}" if spec.get("agent") else None, prompt, model, scenario_tools(spec),
-                        pre_approve=scenario_kind(spec) == "build", persistent=bool(spec.get("followups")), resume=resume)
+                        pre_approve=scenario_kind(spec) == "build", persistent=bool(spec.get("followups")), resume=resume,
+                        max_turns=spec.get("max_turns"))
                     returncode, timed_out = None, None
                     with (turn_out / "stdout.jsonl").open("w", encoding="utf-8") as out, (turn_out / "stderr.txt").open("w", encoding="utf-8") as err:
                         try:
