@@ -102,7 +102,8 @@ work with an owner and a meaningful proof-of-improvement check.
 
 **Status:** `active` (2026-10-05); lane implemented at the owner's request; first native campaign
 complete: the lane passed 15 of 15 trials on its own cases, and on the paired task matched the
-incumbent's decisions while adding the design record. Owner acceptance pending.
+incumbent's decisions while adding the design record. After Codex's five review fixes, candidate
+`72f748a0` passed both build cases 6 of 6 again. Owner acceptance pending.
 **Owner:** Maintainers select the exact candidate and approve the evaluation budget;
 `agent-engineer` owns the lane and its `eng-ladder` method.
 **Outcome:** The principal engineer returns design records that name supported and unseen
@@ -110,10 +111,9 @@ consumers, plan compatible staged rollout and recovery, shape new systems agains
 profile, and leave every decision to the human owner without expanded authority. One lane is shown
 to serve both design depths, or the owner splits or removes it.
 **Next action:** The owner reviews the evaluation evidence and design documents and decides
-acceptance of the exact candidate. Open choices: whether the worked example's specific phrasing
-should stop being reused, an incumbent arm for the new-system case, the agent-picker labelling by
-the owner and one teammate, and a combined versus principal-only and architect-only body
-comparison. Each further campaign states trial count, estimated cost, review hours and cost cap
+acceptance of the exact candidate. Open choices: an incumbent arm for the new-system case, the
+agent-picker labelling by the owner and one teammate, and a combined versus principal-only and
+architect-only body comparison. Each further campaign states trial count, estimated cost, review hours and cost cap
 under DEC-04 before any call.
 **Evidence:** [First native evaluation](reviews/2026-10-05-principal-engineer-evals.md); the
 [lane decision](decisions/2026-10-05-principal-engineer.md) keeps its acceptance scope.

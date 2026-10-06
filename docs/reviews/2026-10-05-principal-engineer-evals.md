@@ -5,19 +5,21 @@
 `software-engineer` on main made the same five design decisions in all three trials. The lane's
 measured difference there is structure: a complete design record, evidence labels, and its required
 skill loads. One neighbour routing case fails identically on main and on the candidate, so it is not
-caused by this change. These results support `PRINCIPAL-001` but do not accept the lane; that
-remains the owner's decision on the exact candidate.
+caused by this change. After the review fixes, the two lane build cases passed 6 of 6 again on
+`72f748a0`; the anchoring phrases were gone and failure-mode owners appeared. These results support
+`PRINCIPAL-001` but do not accept the lane; that remains the owner's decision on the exact candidate.
 
 ## Identity and budget
 
 | Item | Value |
 |---|---|
-| Candidate | `56ac47b3`, plugin digest `78fff82a…13b5e6` |
+| Candidate | `56ac47b3`, plugin digest `78fff82a…13b5e6`; after the review fixes, `72f748a0`, digest `0bdf82ef…dd253ed` |
 | Incumbent | `8d7ecda1` (main, PR base), plugin digest `d251ef68…3b03127` |
 | Host and model | Claude Code 2.1.290 on Windows 11; `sonnet` alias, every trial answered by `claude-sonnet-5-5` |
 | Window | 2026-10-06 00:00–00:17 UTC; three interleaved passes per arm (DEC-10) |
 | Budget stated before running (DEC-04) | 21 trials, estimate USD 4–6, cap USD 12 with launchers stopping at USD 10; no judge spend; about one hour of owner review |
 | Actual | 24 trials (three attribution trials added); USD 5.64 recorded trial cost; judge USD 0. One-word Haiku credential refreshes before each trial are not recorded |
+| Re-measure | 6 trials stated as USD 1.20 estimated, USD 3 cap; actual USD 1.16, 2026-10-06 00:43–00:49 UTC |
 
 ## Results
 
@@ -64,9 +66,29 @@ were read, and one candidate contract document and one incumbent reply were read
 - **Worked-example anchoring:** the phrase "to avoid a flag day" from the `principal.md` example
   appears in 3/3 candidate contract documents, and its 30-day retirement proposal in 2/3, always
   labelled a proposal. It appears in 0/3 new-system documents and 0/3 incumbent documents. The
-  example teaches specifics as well as shape.
+  example teaches specifics as well as shape; the re-measure below shows the effect of removing them.
 - **Minor:** one contract document repeats its recommendation section, and one new-system document
   copies the "Before you return" checks into the record.
+
+## Re-measure after the review fixes
+
+Codex's review of `1d955923` found five issues, all fixed in `72f748a0`. The worked example now
+labels each option and names an owner per failure mode, its stage-3 recovery regenerates the field
+from current data, and the "flag day" phrasing and 30-day figure are gone. The Failure modes slot now
+asks for an owner. Both lane build cases were re-run three times under a new label.
+
+| Measure, per document | First run | After the fixes |
+|---|---|---|
+| Checks and record oracle | 6/6 pass | 6/6 pass |
+| "flag day" in contract-change documents | 3/3 | 0/3 |
+| 30-day retirement proposal in contract-change documents | 2/3 | 0/3 |
+| Failure-mode owner mentions, contract change | 1, 0, 0 | 6, 5, 9 |
+| Failure-mode owner mentions, new system | 1, 2, 0 | 4, 5, 4 |
+| Labels inside the contract-change Options section | 0, 4, 2 | 5, 1, 2 |
+
+The record change moved behaviour: owners now appear in every document. Labelling inside the Options
+section shows no clear change in three documents. The new example's wording still travels: "quiet
+period" appears in 3/3 contract-change documents and "day of release" in 1/3, both without a figure.
 
 ## The neighbour red is the base state
 
