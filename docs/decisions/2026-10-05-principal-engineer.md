@@ -57,8 +57,9 @@ Offline checks pin the authority and delegation, reject added execution, egress 
 delegation by mutation, pin the projected Copilot tools and handoff graph, and bind the worked
 example to the record. They establish structure, not model competence.
 
-Native evaluation is pending under `PRINCIPAL-001` in the live roadmap. The homelab merger's routing
-comparison never ran, so neither fleet has measured one design lane against two.
+The first native evaluation is recorded under `PRINCIPAL-001` in the live roadmap; acceptance remains
+pending. The homelab merger's routing comparison never ran, so neither fleet has measured one design
+lane against two.
 
 ## Alternatives and rollback
 
