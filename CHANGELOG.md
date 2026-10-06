@@ -6,6 +6,13 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ## [Unreleased]
 
+### Removed
+
+- The eval runner's `--container` mode (`EVAL-011`). No saved run used it (every recorded run has
+  `isolation: host`), native, PowerShell and service-backed trials already refused it, and externally
+  authored code runs only in separately authorized CI (`EVAL-012` DEC-13). `--docker` remains for
+  backing services. [verified] Rescores of five saved campaigns show no verdict change.
+
 ### Changed
 
 - Eval scenarios can declare a turn limit (`EVAL-011` turn limits). `max_turns` is passed to the CLI

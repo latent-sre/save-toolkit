@@ -938,17 +938,13 @@ class VerificationEvidenceTests(unittest.TestCase):
             result = build_probe.regrade_run(run, spec)
             self.assertEqual("PASS", result["status"], result["expectations"])
 
-    def test_explicit_powershell_tools_preserve_the_writing_and_container_boundaries(self):
+    def test_explicit_powershell_tools_preserve_the_writing_boundary(self):
         spec = {**TINY_SPEC, "tools": ["Read", "PowerShell"]}
         self.assertEqual(build_probe.scenario_tools(spec), ("Read", "PowerShell"))
         command = build_probe.build_command("claude", ROOT, "software-engineer", "work", "sonnet", spec["tools"])
         self.assertNotIn("--add-dir", command)
         trace = build_probe.TraceSummary(denials=["PowerShell"])
         self.assertEqual(build_probe.runtime_blocked_tools(trace, spec), ["PowerShell"])
-        with self.assertRaisesRegex(ValueError, "only the Bash wrapper boundary is established"):
-            build_probe._run_trial(spec, plugin_root=ROOT, label="test", model="sonnet", run_number=1,
-                                   run_out=Path("unused"), timeout=1, executable="never", keep_workspace=False,
-                                   container_image="fixture@sha256:unneeded")
 
     def test_coding_scenarios_select_supported_complete_verification_checks(self):
         for name, runner in (("cli-with-tests", "unittest"), ("incidents-api", "pytest"), ("incidents-page", "vitest")):
@@ -1892,52 +1888,6 @@ class ReviewFindingTests(unittest.TestCase):
             with self.subTest(expected=expected), mock.patch.object(build_probe, "regrade", return_value=rows):
                 self.assertEqual(expected, build_probe.main(["--regrade", str(self.root)]))
 
-    def test_unpinned_container_image_is_refused(self) -> None:
-        with self.assertRaises(SystemExit):
-            build_probe.main(["--container", "python:3.12", "--label", "x", "--out", str(self.root / "out")])
-        ws = build_probe.seed_workspace(self.spec, self.root / "ws", posix_paths=True)
-        with self.assertRaises(ValueError):
-            build_probe.write_container_wrapper(ws, ROOT, self.spec, "python:3.12")
-
-    def test_container_mode_routes_every_shell_call_into_a_networkless_container(self) -> None:
-        image = "python:3.12-bookworm@sha256:" + "0" * 64
-        ws = build_probe.seed_workspace(self.spec, self.root / "ws", posix_paths=True)
-        wrapper = build_probe.write_container_wrapper(ws, ROOT, self.spec, image)
-        text = wrapper.read_text(encoding="utf-8")
-        self.assertIn("--network none", text)
-        # Measured 2026-08-28: Git Bash reports $PWD under /tmp for a workspace in AppData\Local\Temp,
-        # so the mount, the alias, and -w must all agree whichever form the shell uses.
-        self.assertIn(f"WS_NAME='{ws.root.name}'", text)
-        self.assertIn('WS="/tmp/$WS_NAME"', text, "the container view of the workspace is /tmp/<name>")
-        self.assertIn(f'-v "{str(ws.root.resolve()).replace(chr(92), "/")}:$WS"', text, "workspace mounted there")
-        self.assertIn(f":{build_probe.agent_path(ws.root)}\"", text, "and at the drive-letter alias")
-        self.assertIn('-w "$WS$REL"', text, "the working directory is derived from the mount, never from a raw $PWD")
-        self.assertIn("REL=\"${PWD#*$WS_NAME}\"", text, "…by translating whichever form the shell reports")
-        self.assertIn(f":{build_probe.agent_path(ROOT)}:ro\"", text, "plugin root mounted read-only")
-        self.assertNotIn("CLAUDE_CONFIG_DIR", text, "the credential copy is never mounted")
-        self.assertTrue(text.rstrip().endswith('bash -c "$1"'), "the whole $1 string runs unchanged")
-        comments = [l for l in text.split("\n")[1:] if l.lstrip().startswith("#")]
-        self.assertEqual([], comments, "no comment reaches the workspace the agent can list")
-        env = build_probe.child_env({"PATH": "host-path", "TEMP": "host-temp"}, ws, self.spec, build_probe.ContainerMode(image, wrapper))
-        self.assertEqual(str(wrapper.resolve()).replace("\\", "/"), env["CLAUDE_CODE_SHELL_PREFIX"])
-        self.assertTrue(Path(env["TEMP"]).resolve().is_relative_to(ws.root.resolve()), "Claude's temp files land inside the mounted workspace")
-
-    def test_service_backed_scenarios_reject_container_mode_before_the_trial_starts(self) -> None:
-        spec = json.loads(json.dumps(TINY_SPEC))
-        spec["fixture"]["services"] = [{
-            "name": "grafana",
-            "image": "grafana/grafana@sha256:62d2b9d20a19714ebfe48d1bb405086081bc602aa053e28cf6d73c7537640dfb",
-            "port": 3000,
-        }]
-        with mock.patch.object(build_probe, "plugin_provenance", side_effect=AssertionError("trial started")):
-            with self.assertRaisesRegex(ValueError, "service-backed.*--container"):
-                build_probe.run_trial(
-                    spec, plugin_root=ROOT, label="candidate", model=None, run_number=1,
-                    out_dir=self.root / "out", timeout=60, executable="claude",
-                    keep_workspace=False,
-                    container_image="python:3.12-bookworm@sha256:" + "0" * 64,
-                )
-
     def test_service_start_failure_does_not_launch_the_model(self) -> None:
         """A missing fixture target must stop before an agent can probe unrelated host services."""
         out = self.root / "out"
@@ -2661,21 +2611,6 @@ class ReviewFindingTests(unittest.TestCase):
         else:
             self.assertEqual("/tmp/ws", build_probe.agent_path(Path("/tmp/ws")))
 
-    def test_container_paths_are_baked_into_the_fixture(self) -> None:
-        """The shim's log path and the fixture env must name the container's view, not the host's."""
-        spec = json.loads(json.dumps(TINY_SPEC))
-        spec["fixture"]["fake_bin"] = {"cf": '#!/bin/sh\necho "$*" >> "${STATE_DIR}/cf-invocations.log"\n'}
-        spec["fixture"]["env"] = {"CF_HOME_HINT": "${STATE_DIR}", "REPO_HINT": "${REPO}"}
-        ws = build_probe.seed_workspace(spec, self.root / "ws-container", posix_paths=True)
-        root = build_probe.container_root(ws)
-        self.assertEqual(f"/tmp/{ws.root.name}", root)
-        self.assertIn(f'{root}/state/cf-invocations.log', (ws.bin_dir / "cf").read_text(encoding="utf-8"))
-        env = build_probe.child_env({"PATH": "p"}, ws, spec, build_probe.ContainerMode("x@sha256:" + "0" * 64, ws.root / "w.sh"))
-        self.assertEqual(f"{root}/state", env["CF_HOME_HINT"])
-        self.assertEqual(f"{root}/repo", env["REPO_HINT"])
-        host = build_probe.seed_workspace(spec, self.root / "ws-host")
-        self.assertIn(str(host.state_dir.as_posix()), (host.bin_dir / "cf").read_text(encoding="utf-8"))
-
     def test_long_bash_commands_are_kept_whole_for_attempt_checks(self) -> None:
         trace = self.root / "trace.jsonl"
         command = "echo start\n" + ("# filler\n" * 400) + "cf push checkout"
@@ -2991,13 +2926,10 @@ class ConsolidationRegressionTests(unittest.TestCase):
         env = build_probe.child_env({"PATH": "/usr/bin"}, self._ws(), CONTRACT_SPEC)
         self.assertEqual(str(self.root / "home"), env["HOME"])
 
-    def test_a_fixtureless_spec_reaches_the_container_wrapper_and_grading_env(self) -> None:
+    def test_a_fixtureless_spec_reaches_the_grading_env(self) -> None:
         ws = self._ws()
         ws.repo.mkdir(parents=True, exist_ok=True)
         ws.state_dir.mkdir(parents=True, exist_ok=True)
-        image = "python@sha256:" + "0" * 64
-        wrapper = build_probe.write_container_wrapper(ws, ROOT, CONTRACT_SPEC, image)
-        self.assertTrue(wrapper.is_file())
         ctx = build_probe.Context(CONTRACT_SPEC, ws, build_probe.TraceSummary(),
                                   build_probe.GitFacts(0, "main", [], ""))
         self.assertEqual(str(ws.state_dir), build_probe.grading_env(ctx)["HARNESS_STATE_DIR"])

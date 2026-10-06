@@ -37,9 +37,9 @@ a different tier is a different baseline — record it and never average it with
 Compare an incumbent with `--plugin-root <worktree> --label incumbent`; `--expect-plugin-digest`
 refuses any other bytes. `--overwrite` replaces the selected run slots; use a new label when changing
 the candidate or scenario. `--regrade` re-grades saved traces offline only when the original scenario
-identity matches; `--rescore` and `--rescore-diff` compare runner revisions on saved traces (see
-[Provenance](#provenance)); and `--container IMAGE@sha256:…` runs every shell call inside a pinned, network-less
-container for a candidate that is not team-authored.
+identity matches, and `--rescore` and `--rescore-diff` compare runner revisions on saved traces (see
+[Provenance](#provenance)). Trials run on the host; externally authored code runs only in separately
+authorized CI, so the former `--container` mode was removed (`EVAL-011`).
 
 Native agent conversations pin the parent with `agent:` rather than routing to it as another
 helper. Their sole-helper boundary cannot also permit a second agent dispatch. Skill-based native
