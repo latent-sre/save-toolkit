@@ -10,6 +10,7 @@ to its first colon (a list item may also be the label alone). After numbering, m
 parenthesised or bracketed asides are removed, a label names each slot for which one of its parts,
 split at "and", "from", "for", commas, slashes, colons and semicolons, is exactly the slot's name or
 an alias below, so "Decisions needed from the owner" names a slot and "Consumers ignore JSON" does not.
+A part such as "decisions Morgan must make", which names the owner inside it, also names Decision needed.
 A label is never content: a heading is filled by the lines under it, a table row by its other cells,
 and any other label by the text after it or the lines that follow. Counting stops at the next label
 of any slot or at a heading that ends the label's section, and table header and separator rows are
@@ -36,6 +37,8 @@ SLOTS = {
     "Weakest point": ("weakest point",),
 }
 ALIASES = {alias: slot for slot, names in SLOTS.items() for alias in names}
+# "Decisions Morgan must make" names the owner inside the label, so it cannot be an exact alias.
+OWNER_DECISIONS = re.compile(r"decisions? (?:[a-z' ]+ )?(?:needed|must make|to make)")
 LABELS = ("[verified]", "[sourced]", "[unverified]")
 HEADING = re.compile(r"^\s*(#{1,6})\s+(.*)$")
 CONTENTS = re.compile(r"^\s*#{2,6}\s+(table of )?contents\b", re.IGNORECASE)
@@ -59,7 +62,11 @@ def _slots(label: str) -> set[str]:
     text = re.sub(r"\s+", " ", NUMBERING.sub("", text))
     if len(text) > LONGEST_LABEL:
         return set()
-    return {ALIASES[part] for part in PARTS.split(text) if part in ALIASES}
+    parts = PARTS.split(text)
+    slots = {ALIASES[part] for part in parts if part in ALIASES}
+    if any(OWNER_DECISIONS.fullmatch(part) for part in parts):
+        slots.add("Decision needed")
+    return slots
 
 
 def _header(lines: list[str], index: int) -> bool:

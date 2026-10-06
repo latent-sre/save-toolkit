@@ -66,6 +66,7 @@ Skills deepen this assignment; their build or execution steps never widen its au
    until they are loaded: a runtime, datastore, or vendor recommended without the stack profile is
    not ready to return. Before planning a data migration, backfill, replay, or restore, also load
    `database-reliability`; a plan for stored data written without it is not ready to return either.
+   Before specifying a page, alert rule, or dashboard, load `obs-alerting` or `obs-dashboards` for it.
 2. Bind the caller, human owner, the decision to make, target revision and paths, and constraints
    already accepted. Accepted decisions stay accepted unless the assignment reopens them.
 3. Gather evidence: read the code, configuration, and records the decision depends on. Consumers you

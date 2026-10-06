@@ -100,10 +100,12 @@ work with an owner and a meaningful proof-of-improvement check.
 
 ### PRINCIPAL-001 — accept the principal engineering lane on representative design tasks
 
-**Status:** `active` (2026-10-05); lane implemented at the owner's request; eight native campaigns
-complete (93 Sonnet trials). The lane passes every case it owns, including both build cases 6/6 on
-`59fda81d` and the strict-reader build 3/3 on `da8a110b`. It has taken none of the reliability,
-small-build, design-review or fleet workflow-graph requests in the boundary cases. On identical bytes `software-engineer` returned the same decision fields on both
+**Status:** `active` (2026-10-05); lane implemented at the owner's request; nine native campaigns
+complete (108 Sonnet trials). On each case's latest bytes the lane passes every case it owns except
+one: the new-system case fails 0/3 on a new `obs-alerting` load check, which `software-engineer`
+also never meets. Platform selection reaches the lane 3/3 and passes its build case 3/3. The lane
+has taken none of the reliability, small-build, design-review or fleet workflow-graph requests in
+the boundary cases. On identical bytes `software-engineer` returned the same decision fields on both
 design tasks:
 - On the contract-change task, on the two revisions where both arms ran, the lane wrote the
   complete design record in 6/6 trials; `software-engineer` did once in 6, when it read the
@@ -126,6 +128,8 @@ Open choices:
 - a judged case for endpoint lifecycle, failure handling, and whether a proposed observation can
   produce the evidence its gate needs;
 - a re-run that swaps the "design document" and "design record" wording;
+- the alerting rule: reword it in the form that worked for `database-reliability` and re-run the
+  lane's new-system case, or withdraw the rule and its check;
 - re-measuring the design-review boundary once `EVAL-014` keeps routing trials out of the
   measured checkout;
 - the combined versus principal-only and architect-only comparison, which the picker sheet decides.

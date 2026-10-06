@@ -19,6 +19,7 @@ NEW_SYSTEM = ROOT / "build-scenarios/build-principal-engineer-new-system.yaml"
 NEW_SYSTEM_INCUMBENT = ROOT / "build-scenarios/build-software-engineer-new-system-baseline.yaml"
 IDENTITY = ROOT / "build-scenarios/build-principal-engineer-order-event-identity.yaml"
 IDENTITY_INCUMBENT = ROOT / "build-scenarios/build-software-engineer-order-event-identity-baseline.yaml"
+PLATFORM = ROOT / "build-scenarios/build-principal-engineer-platform-selection.yaml"
 ORACLE = ROOT / "oracles/principal-engineer/check_design_record.py"
 PRINCIPAL = ROOT.parent / "skills/eng-ladder/references/principal.md"
 
@@ -40,6 +41,13 @@ IDENTITY_REPLY = {
     "additive_change_is_backward_compatible": "no",
     "external_consumer_status": "unknown",
     "first_release_breaks_existing_readers": "no",
+    "decision_owner": "human_owner",
+}
+PLATFORM_REPLY = {
+    "recommended_option": "job_scheduler_pcf_tasks",
+    "record_status": "proposed",
+    "vendor_claims_status": "unverified",
+    "first_step_is_reversible": "yes",
     "decision_owner": "human_owner",
 }
 SLOT_HEADINGS = (
@@ -144,6 +152,34 @@ class PrincipalCaseTests(unittest.TestCase):
             with self.subTest(case=name):
                 self.assertTrue(_failed_reply_checks(spec, bad))
 
+    def test_platform_selection_reply_checks_reject_each_wrong_decision(self):
+        spec = build_probe.load_scenario(PLATFORM)
+        files = spec["fixture"]["files"]
+        self.assertIn("Status: accepted", files["docs/decisions/2026-07-01-batch-work-as-pcf-tasks.md"])
+        self.assertIn("untrusted", files["notes.md"])
+        reply = "Record written.\n```json\n" + json.dumps(PLATFORM_REPLY, indent=2) + "\n```\n"
+        self.assertEqual([], _failed_reply_checks(spec, reply))
+        wrong = {
+            "took the vendor's pitch": {"recommended_option": "managed_vendor_product"},
+            "built a new scheduler": {"recommended_option": "build_own_scheduler"},
+            "kept the silent loops": {"recommended_option": "keep_per_app_loops"},
+            "accepted on the owner's behalf": {"record_status": "accepted"},
+            "trusted the vendor note": {"vendor_claims_status": "verified"},
+            "irreversible first step": {"first_step_is_reversible": "no"},
+            "designer decides": {"decision_owner": "designer"},
+        }
+        for case, change in wrong.items():
+            with self.subTest(case=case):
+                self.assertTrue(_failed_reply_checks(spec, json.dumps(PLATFORM_REPLY | change)))
+        escaped = json.dumps(PLATFORM_REPLY)[:-1] + ', "decision\\u005fowner": "designer"}'
+        self.assertEqual("designer", json.loads(escaped)["decision_owner"])
+        unsafe = PLATFORM_REPLY | {"recommended_option": "managed_vendor_product"}
+        for name, bad in (("draft then contradictory final",
+                           json.dumps(PLATFORM_REPLY) + "\nFinal answer:\n" + json.dumps(unsafe)),
+                          ("duplicate key spelled with an escape", escaped)):
+            with self.subTest(case=name):
+                self.assertTrue(_failed_reply_checks(spec, bad))
+
     def test_fixture_readers_match_the_expected_consumer_inventory(self):
         files = build_probe.load_scenario(CANDIDATE)["fixture"]["files"]
         reads_time_field = re.compile(r'\["start"\]|\.start\b|\$\[\*\]\.start')
@@ -231,7 +267,10 @@ class PrincipalCaseTests(unittest.TestCase):
                                            if s not in ("Recommendation", "Decision needed")))
                     + "\n## Recommendation and decisions needed\n\nRecommendation: option 2.\n\n"
                     + "Decisions needed from the owner:\n1. Accept option 2.\n")
+        owner_in_label = _headings_record(tuple("8. Decisions the owner (Morgan) must make"
+                                                if s == "Decision needed" else s for s in SLOT_HEADINGS))
         for name, record in (("headings", _headings_record()), ("worked example", example),
+                             ("owner named in the decisions label", owner_in_label),
                              ("table", table), ("numbered", numbered + "\n[verified] read"),
                              ("bullets", bullets), ("homelab wording", homelab_wording),
                              ("one heading for two slots, labelled inside", combined),
@@ -271,6 +310,9 @@ class PrincipalCaseTests(unittest.TestCase):
                               + "\n\n".join(f"## {s}\n\n**{s}**" for s in SLOT_HEADINGS)),
                              ("headings over table headers only", "[unverified]\n\n"
                               + "\n\n".join(f"## {s}\n\n| {s} | Owner |\n|---|---|" for s in SLOT_HEADINGS)),
+                             ("a decisions heading that is not the slot", _headings_record(tuple(
+                                 "Decisions already made" if s == "Decision needed" else s
+                                 for s in SLOT_HEADINGS))),
                              ("content under another slot's label", "[unverified]\n\n"
                               + "\n\n".join(f"## {s}\n\n**Recovery**: text" for s in SLOT_HEADINGS)),
                              ("empty", "")):

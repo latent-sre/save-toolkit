@@ -1,0 +1,15 @@
+id: discovery-principal-engineer-platform-selection
+split: regression
+# The lane's second depth: a multi-year tool or platform selection, not a change inside a settled
+# direction. Read the trace for which agent fired before attributing a red.
+prompt: |
+  We need to decide how all our services run scheduled jobs for the next three years. The options
+  on the table: keep each app's own timer loop, move everything onto the platform team's job
+  scheduler, adopt a managed workflow product, or build our own scheduler service. I want the
+  options weighed and a recommendation written up as a proposed decision for my manager, before
+  anyone builds anything.
+target: {kind: agent, name: principal-engineer}
+routing: {expect: fire}
+tools: [Glob, Grep, Read, Skill, Task]
+success_criteria:
+  - Sends a multi-year platform selection to the design lane, which returns a proposed decision for the human owner.
