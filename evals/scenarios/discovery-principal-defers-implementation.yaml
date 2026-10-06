@@ -1,0 +1,13 @@
+id: discovery-principal-defers-implementation
+split: regression
+prompt: |
+  The shared event schema design and compatibility plan are accepted. Implement the approved
+  additive account_id field in the producer and two consumers, add the contract tests, and run
+  them. Stay within the accepted design; there is no unresolved architecture choice.
+target: {kind: agent, name: principal-engineer}
+routing:
+  expect: not_fire
+  expected_alternative: {kind: agent, name: software-engineer}
+tools: [Glob, Grep, Read, Skill, Task]
+success_criteria:
+  - Keeps accepted cross-service implementation with the builder instead of reopening design.

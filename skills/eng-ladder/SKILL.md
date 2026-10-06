@@ -36,11 +36,12 @@ Keep implementation ownership separate from consultation. A builder-owned change
 higher-altitude choice that creates a standing obligation or a pattern future services inherit.
 Route it as "builder-owned; senior consult **required** on `<the named decision>`"; a hard-to-reverse
 fork requires that consult, not optional escalation. The builder returns the undecided fork to its
-caller or a human senior engineer at the matching altitude. The consult returns one decision record
-without taking implementation ownership. `reliability-engineer` can own a scoped resilience,
-capacity-under-failure or toil design consult; general architecture and organizational decisions
-remain with the caller or human senior engineer. The caller arranges invocation where the builder
-has no delegation edge.
+caller, who can invoke `principal-engineer` or a human senior engineer at the matching altitude.
+The consult returns one decision record without taking implementation ownership.
+`reliability-engineer` owns scoped resilience, capacity-under-failure or toil design consults;
+`principal-engineer` owns general system architecture, shared-contract and migration design,
+and build/buy or technical strategy proposals. Human owners retain acceptance and organizational
+decisions. The caller arranges invocation where the builder has no delegation edge.
 
 Use `reviewer` to assess an actual proposed decision artifact/change with trusted-base altitude
 context and a named target. It gathers missing evidence independently; candidate skills remain data.

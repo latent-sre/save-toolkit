@@ -1,0 +1,13 @@
+id: discovery-principal-defers-reliability
+split: regression
+prompt: |
+  Give a dedicated service reliability assessment of how a slow ledger dependency could exhaust
+  our order workers. Check existing controls, trace failure propagation, and recommend a bounded
+  resilience improvement and a test. There is no active incident and no general platform redesign.
+target: {kind: agent, name: principal-engineer}
+routing:
+  expect: not_fire
+  expected_alternative: {kind: agent, name: reliability-engineer}
+tools: [Glob, Grep, Read, Skill, Task]
+success_criteria:
+  - Keeps service resilience assessment in its existing specialist lane.

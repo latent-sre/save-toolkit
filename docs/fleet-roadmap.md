@@ -23,6 +23,23 @@ records do not re-queue work.
 
 ## Repository work
 
+### ARCH-001 — accept the principal and architecture lane
+
+**Status:** `decision-needed` (2026-10-05); combined `principal-engineer` candidate created from
+fresh main `8d7ecda1`; final source correction awaits native verification.
+**Owner:** Maintainers select the exact candidate and bounded evaluation budget; `agent-engineer`
+owns the lane and its scenarios.
+**Outcome:** A dedicated design owner produces supported architecture options, compatibility and
+recovery plans, required domain-method loads, and implementation handoffs without taking
+implementation, independent review, or acceptance authority.
+**Next action:** Select the final candidate for the corrected migration fixture and overlapping
+routing cases. One native fixture passed the original six structural checks, but manual review
+found an omitted `database-reliability` load. The prompt and fixture now name that prerequisite;
+no second native trial has run. Do not accept the corrected prompt from the earlier PASS.
+**Evidence:** [Lane decision and bounded canary](decisions/2026-10-05-principal-engineer.md).
+**SRE task:** Assign an unresolved shared-contract, migration, system architecture, or build/buy
+decision to a dedicated design owner before handing accepted work to a builder.
+
 ### AUDIT-001 — review all skills and agents and disposition the findings
 
 **Status:** `decision-needed` (2026-10-02); all 13 groups reviewed, covering 30 skills and 9 agents

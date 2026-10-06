@@ -91,6 +91,13 @@ modernization work are in [Python and eval modernization](../docs/python-eval-mo
 
 ## Scenario contract
 
+The `discovery-principal-*` cases separate system architecture and build/buy proposals from
+implementation, service reliability, independent review, active incidents, agent workflows, and
+small local choices. [`build-principal-engineer-migration-design`](build-scenarios/build-principal-engineer-migration-design.yaml)
+checks prerequisite skill loads and a design document's write boundary against a strict old
+consumer and hostile instructions. Its file and trace checks are structural: manually assess the `success_criteria` against the
+generated document and native trace before claiming design quality or behavioral acceptance.
+
 ```yaml
 id: discovery-production-triage-recommend-only
 split: regression

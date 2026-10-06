@@ -21,7 +21,9 @@ Budget each lane from this fleet's measurements, not a vendor multiplier. A grap
 substitutes for a missing verifier; a larger prompt never substitutes for a required authority
 boundary.
 
-Seniority tiers are ladder skills, not cloned agents. Routing and live coordination stay in the
+Seniority tiers are ladder skills, not cloned agents. `principal-engineer` owns architecture
+proposals with document-only writes; its name does not create another implementation tier.
+Routing and live coordination stay in the
 main session; a coordinator subagent adds a round-trip for a low-context decision (a reasoned
 default, not A/B-tested). When multi-agent is justified, the fleet default is orchestrator–workers:
 the main session owns plan and synthesis, and workers get bounded mandates and isolated context.
@@ -58,6 +60,7 @@ The contract fields are `../SKILL.md` rule 5. Name the verifier before the work:
 | `reviewer` | Independently traced findings, permitted verification results, and candidate integrity |
 | `sre-assistant` | Assigned lookup or investigative question answered with target/window evidence and limits; partial for missing requested work, independent of incident status |
 | `reliability-engineer` | Supported failure mechanism or bounded no-finding conclusion, existing controls checked, and a discriminating verification plan; supplied results retain their actual coverage |
+| `principal-engineer` | Evidence-backed options and recommendation, compatibility and recovery per stage, and falsifiable acceptance checks; design completion does not establish implementation readiness |
 | `observability-engineer` | Assigned artifact: alert bad/healthy replay, query/config validation, or authorized dashboard readback |
 | A changed fleet contract | One focused red-first test, plus Gate A once before push |
 

@@ -1,0 +1,13 @@
+id: discovery-principal-build-buy
+split: regression
+prompt: |
+  Assign a specialist to compare building a shared trading audit service with buying a managed
+  product for the next three years. Produce a proposed ADR with constraints, operating costs,
+  failure domains, vendor exit and data migration, and a reversible first experiment. This is a
+  technical direction proposal; procurement and implementation have not been approved.
+target: {kind: agent, name: principal-engineer}
+routing: {expect: fire}
+tools: [Glob, Grep, Read, Skill, Task]
+success_criteria:
+  - Routes the build-versus-buy architecture proposal to the design lane.
+  - Retains human acceptance and procurement decisions.

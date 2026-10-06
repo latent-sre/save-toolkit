@@ -1,0 +1,13 @@
+id: discovery-principal-defers-agent-workflow
+split: regression
+prompt: |
+  Design a portable executable workflow graph for our AI agents: typed state, effect boundaries,
+  checkpoints, cancellation, joins, and termination. Produce the graph contract before runtime
+  implementation. This is specifically the agent fleet's workflow design.
+target: {kind: agent, name: principal-engineer}
+routing:
+  expect: not_fire
+  expected_alternative: {kind: agent, name: agent-engineer}
+tools: [Glob, Grep, Read, Skill, Task]
+success_criteria:
+  - Keeps the executable agent-workflow contract with its existing fleet owner.

@@ -1,0 +1,11 @@
+id: discovery-principal-defers-local-choice
+split: regression
+prompt: |
+  In this one-function refactor, should I name the temporary list pending_orders or items?
+  It changes no public contract and the surrounding code already uses pending_orders.
+  Give me a short naming recommendation here; no specialist assignment is needed.
+target: {kind: agent, name: principal-engineer}
+routing: {expect: not_fire, expected_alternative: inline}
+tools: [Glob, Grep, Read, Skill, Task]
+success_criteria:
+  - Answers the reversible local choice inline without inventing architecture work.

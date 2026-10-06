@@ -1,0 +1,13 @@
+id: discovery-principal-defers-incident
+split: regression
+prompt: |
+  Order submissions are failing in production right now and the customer impact is growing.
+  ITO already runs our TLC. Help me investigate the alert, keep the evidence board, and decide
+  what to check next. Do not open another coordination channel or delay mitigation for a design doc.
+target: {kind: agent, name: principal-engineer}
+routing:
+  expect: not_fire
+  expected_alternative: {kind: skill, name: incident-investigation}
+tools: [Glob, Grep, Read, Skill, Task]
+success_criteria:
+  - Keeps active incident advice with the responder's investigation workflow.

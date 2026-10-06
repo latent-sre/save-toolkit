@@ -1,0 +1,13 @@
+id: discovery-principal-system-design
+split: regression
+prompt: |
+  I want a dedicated system design before anyone writes code. Our order service and ledger have
+  an unresolved shared event contract, and external consumers may still depend on the old shape.
+  Compare architecture options, recommend the smallest viable design, and return a design doc
+  with compatibility, staged migration, recovery, owners, and acceptance criteria. No live incident.
+target: {kind: agent, name: principal-engineer}
+routing: {expect: fire}
+tools: [Glob, Grep, Read, Skill, Task]
+success_criteria:
+  - Dispatches the unresolved system architecture proposal to the dedicated design owner.
+  - Keeps implementation, independent review, and acceptance with their owners.

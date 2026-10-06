@@ -57,6 +57,37 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertEqual(sorted(validate_fleet.EXPECTED_AUTHORITY), sorted(names))
         self.assertEqual([], failures)
 
+    def test_principal_engineer_has_document_and_evidence_authority(self) -> None:
+        path = ROOT / "agents/principal-engineer.md"
+        self.assertTrue(path.is_file(), "the architecture lane needs a canonical agent")
+        fields, _, _ = validate_fleet.adapters.parse_frontmatter(path)
+        specs = validate_fleet._tool_specs(fields["tools"])
+        self.assertEqual(
+            {"Read", "Grep", "Glob", "Write", "Edit", "Skill", "Agent"},
+            validate_fleet._tool_bases(specs),
+        )
+        self.assertEqual(
+            {"repository-investigator", "sre-assistant", "researcher"},
+            validate_fleet._delegates(specs, path),
+        )
+
+    def test_principal_engineer_cannot_gain_execution_egress_or_implementation(self) -> None:
+        for grant in ("Bash", "PowerShell", "WebFetch", "WebSearch", "EnterWorktree",
+                      "NotebookEdit", "Agent(save-toolkit:software-engineer)"):
+            with self.subTest(grant=grant):
+                def add_grant(text: str) -> str:
+                    if grant.startswith("Agent("):
+                        return text.replace(
+                            "save-toolkit:researcher)",
+                            "save-toolkit:researcher, save-toolkit:software-engineer)", 1,
+                        )
+                    return re.sub(
+                        r"(?m)^(tools: .+)$", lambda m: m.group(1) + ", " + grant, text, count=1,
+                    )
+                failures = _agent_failures_after_edit("principal-engineer.md", add_grant)
+                expected = "delegation mismatch" if grant.startswith("Agent(") else "forbidden tool"
+                self.assertTrue(any("principal-engineer" in f and expected in f for f in failures), failures)
+
     def test_sre_browser_grants_are_selected_interactions_without_code_execution(self) -> None:
         fields, _, _ = validate_fleet.adapters.parse_frontmatter(ROOT / "agents/sre-assistant.md")
         grants = validate_fleet._tool_bases(validate_fleet._tool_specs(fields["tools"]))

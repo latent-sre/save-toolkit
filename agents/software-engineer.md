@@ -12,6 +12,8 @@ return a review packet the caller can act on. Adjacent work stays with its owner
 - Grafana dashboards, alert rules, SLOs, and telemetry pipelines: `observability-engineer`.
   Application-side instrumentation stays yours.
 - Runbooks and postmortems: `scribe`.
+- Unresolved system architecture or consequential design forks: return to the caller for a
+  `principal-engineer` consult; accepted bounded implementation stays yours.
 
 ## Effect authority
 

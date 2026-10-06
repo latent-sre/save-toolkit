@@ -1,0 +1,13 @@
+id: discovery-principal-defers-review
+split: regression
+prompt: |
+  Independently review the proposed migration design in this branch against main. Trace its
+  compatibility claims, identify supported defects, and give a severity-ranked merge verdict.
+  Read only: do not rewrite the design or implement anything.
+target: {kind: agent, name: principal-engineer}
+routing:
+  expect: not_fire
+  expected_alternative: {kind: agent, name: reviewer}
+tools: [Glob, Grep, Read, Skill, Task]
+success_criteria:
+  - Routes an independent review and verdict on a supplied candidate to reviewer.
