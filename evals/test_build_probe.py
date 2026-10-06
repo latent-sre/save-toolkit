@@ -1648,7 +1648,7 @@ class EndToEndStubTests(unittest.TestCase):
         self.assertRegex(prov["plugin_source_sha256"], r"^[0-9a-f]{64}$")
         self.assertIsInstance(prov["plugin_inputs_dirty"], bool)
         trace = json.loads((run / "outputs" / "trace-summary.json").read_text(encoding="utf-8"))
-        self.assertEqual(prov, {**trace["plugin"], "runtime": trace["runtime"]})
+        self.assertEqual(prov, {**trace["plugin"], **build_probe.runner_provenance(), "runtime": trace["runtime"]})
         self.assertIsNone(prov["runtime"], "a direct run_trial call without a measured runtime records none")
         self.assertEqual({"mode": "host"}, trace["isolation"])
         self.assertEqual(list(build_probe.BUILD_TOOLS), trace["advertised_tools"])
@@ -3057,12 +3057,16 @@ class BatchAggregationTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.tmp.cleanup()
 
+    # One measured CLI and host, as a real batch records once; pooling needs it to match (EVAL-011).
+    RUNTIME = {"cli_version": "2.1.291 (Claude Code)",
+               "host_platform": {"system": "Windows", "release": "11", "machine": "AMD64"}}
+
     def _trial(self, run: int, status: str, model: str = "claude-sonnet-4-5") -> dict:
         return {"scenario": self.SPEC["id"], "label": "cand", "run": run, "status": status,
                 "passed": 1 if status == "PASS" else 0, "total": 1, "models": [model],
                 "tokens": 10, "seconds": 0.1, "plugin_commit": "0" * 12,
                 "plugin_source_sha256": "0" * 64, "scenario_sha256": build_probe.scenario_digest(self.SPEC),
-                "plugin_inputs_dirty": False, "isolation": "host"}
+                "plugin_inputs_dirty": False, "isolation": "host", "runtime": self.RUNTIME}
 
     def _main(self, trials: list[dict], *extra: str, plugin_sha: str = "0" * 64,
               expected_calls: int | None = None) -> tuple[int, str]:
@@ -3072,6 +3076,7 @@ class BatchAggregationTests(unittest.TestCase):
         buffer = io.StringIO()
         with mock.patch.object(build_probe, "load_all_scenarios", return_value=[self.SPEC]), \
                 mock.patch.object(build_probe, "plugin_provenance", return_value={"plugin_source_sha256": plugin_sha}), \
+                mock.patch.object(build_probe, "runtime_identity", return_value=self.RUNTIME), \
                 mock.patch.object(build_probe, "run_trial", side_effect=trials) as runner, \
                 contextlib.redirect_stdout(buffer):
             code = build_probe.main(["--scenario", self.SPEC["id"], "--label", "cand",
@@ -4064,3 +4069,41 @@ class CutShortRunTests(unittest.TestCase):
             summary, grading, _ = self._run(self._cut_spec("unittest"))
         self.assertEqual("FAIL", summary["status"])
         self.assertIn("timed out", grading["unmeasured"])
+
+
+class RunnerIdentityTests(unittest.TestCase):
+    """EVAL-011 identity: results name the runner, never pool CLI versions or hosts, and measure every hook."""
+
+    RUNTIME = {"cli_version": "2.1.291", "host_platform": {"system": "Windows", "release": "11", "machine": "AMD64"}}
+
+    def test_runner_provenance_names_this_checkout_and_its_source_digest(self) -> None:
+        runner = build_probe.runner_provenance()
+        self.assertEqual(build_probe.HARNESS_SOURCE_SHA256, runner["runner_source_sha256"])
+        self.assertRegex(runner["runner_commit"] or "", r"^[0-9a-f]{40}$")
+        self.assertIn(runner["runner_source_dirty"], (True, False))
+
+    def test_trials_from_another_cli_version_or_host_never_pool(self) -> None:
+        entry = {"scenario": "tiny", "plugin_source_sha256": "p", "runtime": self.RUNTIME,
+                 "scenario_sha256": build_probe.scenario_digest(TINY_SPEC)}
+        self.assertIsNone(build_probe.batch_identity_problem([entry], [TINY_SPEC], "p", None, self.RUNTIME))
+        newer = {**self.RUNTIME, "cli_version": "2.1.292"}
+        self.assertIn("CLI version or host", build_probe.batch_identity_problem([entry], [TINY_SPEC], "p", None, newer))
+        legacy = {key: value for key, value in entry.items() if key != "runtime"}
+        self.assertIn("CLI version or host",
+                      build_probe.batch_identity_problem([legacy], [TINY_SPEC], "p", None, self.RUNTIME))
+
+    def test_the_powershell_guard_hook_is_part_of_the_measured_plugin(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin = Path(tmp)
+            for relative in (*build_probe.PLUGIN_INPUT_PATHS, *build_probe.OPTIONAL_PLUGIN_INPUT_PATHS):
+                source, target = ROOT / relative, plugin / relative
+                if source.is_dir():
+                    import shutil
+                    shutil.copytree(source, target)
+                elif source.is_file():
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes(source.read_bytes())
+            before = build_probe.plugin_digest(plugin)
+            hook = plugin / "scripts" / "readonly-guard-hook.ps1"
+            hook.write_bytes(hook.read_bytes() + b"\n# changed\n")
+            self.assertNotEqual(before, build_probe.plugin_digest(plugin))

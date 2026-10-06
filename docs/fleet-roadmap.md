@@ -411,6 +411,7 @@ saved runs with both and explains every line the diff prints.
 - Identity: record the runner revision (with `--plugin-root` on another checkout, `plugin_commit` names
   the candidate, not the runner; the CLI version and host platform are already recorded); refuse to
   pool trials across CLI versions or hosts; include the PowerShell guard hook in the digest.
+  Implemented on `work/eval-011-identity` (2026-10-06), awaiting review.
 - Record and folders (EVAL-012 DEC-22 and DEC-23): write one
   [v1 record](fleet-evaluation/contracts.md#result-record-v1) per attempt, and create run folders that
   inherit the permissions of `.eval-runs/` instead of owner-only temporary folders.

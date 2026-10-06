@@ -1228,6 +1228,7 @@ PLUGIN_INPUT_PATHS = (
 OPTIONAL_PLUGIN_INPUT_PATHS = (
     "scripts/guard-session-preflight.py",
     "scripts/guard-session-preflight-hook.sh",
+    "scripts/readonly-guard-hook.ps1",  # hooks.json runs it for PowerShell; measured since 2026-10-06
 )
 
 
@@ -1303,6 +1304,29 @@ def plugin_provenance(plugin_root: Path) -> dict:
         "plugin_inputs_dirty": bool(dirty),
         "plugin_source_sha256": plugin_digest(plugin_root),
     }
+
+
+_RUNNER_PROVENANCE: dict | None = None
+
+
+def runner_provenance() -> dict:
+    """The runner that graded a run: its checkout's HEAD, whether its source files are dirty, and the
+    source digest that every scenario identity binds. With `--plugin-root` on another checkout,
+    `plugin_commit` names the candidate; this names the runner."""
+    global _RUNNER_PROVENANCE
+    if _RUNNER_PROVENANCE is None:
+        def _git_text(*args: str) -> str | None:
+            proc = subprocess.run(["git", *args], cwd=str(ROOT), capture_output=True, text=True,
+                                  encoding="utf-8", errors="replace")
+            return proc.stdout.strip() if proc.returncode == 0 else None
+
+        root = ROOT.resolve()
+        files = [path.relative_to(root).as_posix() for path in HARNESS_FILES if path.is_relative_to(root)]
+        dirty = _git_text("status", "--porcelain=v1", "--untracked-files=all", "--", *files)
+        _RUNNER_PROVENANCE = {"runner_commit": _git_text("rev-parse", "HEAD"),
+                              "runner_source_dirty": None if dirty is None else bool(dirty),
+                              "runner_source_sha256": HARNESS_SOURCE_SHA256}
+    return dict(_RUNNER_PROVENANCE)
 
 
 def runtime_identity(executable: str) -> dict:
@@ -3282,7 +3306,7 @@ def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, 
         scenario_identity = scenario_digest(spec, binding)
         if expected_plugin_digest and provenance["plugin_source_sha256"] != expected_plugin_digest:
             inconclusive = "plugin inputs changed before the trial; re-run with one candidate"
-        (run_out / "provenance.json").write_text(json.dumps({**provenance, "runtime": runtime, **({"judge_binding": binding} if binding else {})}, indent=2), encoding="utf-8")
+        (run_out / "provenance.json").write_text(json.dumps({**provenance, **runner_provenance(), "runtime": runtime, **({"judge_binding": binding} if binding else {})}, indent=2), encoding="utf-8")
         # A routing or contract scenario has no fixture: it runs in an empty git root outside the
         # checkout, so the repo's own AGENTS.md/CLAUDE.md cannot teach it the routing answer.
         ws = seed_workspace(
@@ -3421,6 +3445,8 @@ def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, 
                    "passed": grading["summary"]["passed"], "total": grading["summary"]["total"],
                    "models": trace.models, "tokens": trace.total_tokens, "seconds": round(elapsed, 1),
                    "plugin_commit": provenance["plugin_commit"][:12],
+                   "runner_commit": (runner_provenance()["runner_commit"] or "")[:12] or None,
+                   "runner_source_sha256": HARNESS_SOURCE_SHA256,
                    "plugin_source_sha256": provenance["plugin_source_sha256"],
                    "scenario_sha256": grading["scenario_sha256"],
                    "plugin_inputs_dirty": provenance["plugin_inputs_dirty"],
@@ -3718,7 +3744,12 @@ def _merge_summary_entries(existing: list[dict], updates: list[dict]) -> list[di
 
 
 def batch_identity_problem(entries: list[dict], scenarios: list[dict], plugin_sha: str,
-                           judge_binding: rubric_judge.JudgeBinding | None = None) -> str | None:
+                           judge_binding: rubric_judge.JudgeBinding | None = None,
+                           runtime: dict | None = None) -> str | None:
+    """Refuse to pool trials of another candidate, scenario, CLI version or host into one verdict.
+
+    A trial recorded before the CLI and host were recorded never pools with one that has them.
+    """
     expected = {spec["id"]: scenario_digest(spec, judge_binding.metadata if judge_binding else None) for spec in scenarios}
     for entry in entries:
         scenario = entry.get("scenario")
@@ -3726,6 +3757,8 @@ def batch_identity_problem(entries: list[dict], scenarios: list[dict], plugin_sh
             continue
         if entry.get("plugin_source_sha256") != plugin_sha:
             return "candidate digest is missing or differs; use a new label or overwrite every affected run"
+        if runtime is not None and entry.get("runtime") != runtime:
+            return "CLI version or host is missing or differs; use a new label or overwrite every affected run"
         if entry.get("scenario_sha256") != expected[scenario]:
             return f"{scenario}: scenario identity is missing or changed; use a new label or rerun the batch"
     return None
@@ -4022,7 +4055,7 @@ def main(argv: list[str] | None = None) -> int:
     replaced = {(s["id"], args.label, args.run_offset + i + 1) for s in scenarios for i in range(args.trials)}
     retained = [e for e in existing if not args.overwrite or
                 (e.get("scenario"), e.get("label"), e.get("run")) not in replaced]
-    problem = batch_identity_problem(retained, scenarios, provenance["plugin_source_sha256"], judge_binding)
+    problem = batch_identity_problem(retained, scenarios, provenance["plugin_source_sha256"], judge_binding, runtime)
     if problem:
         print(json.dumps({"batch": "INCONCLUSIVE", "reason": problem}), flush=True)
         return 2
@@ -4048,7 +4081,7 @@ def main(argv: list[str] | None = None) -> int:
     # about this invocation: a final one-trial append must not report PASS over earlier failures.
     selected = {spec["id"] for spec in scenarios}
     batch = [entry for entry in merged if entry.get("scenario") in selected]
-    problem = batch_identity_problem(batch, scenarios, provenance["plugin_source_sha256"], judge_binding)
+    problem = batch_identity_problem(batch, scenarios, provenance["plugin_source_sha256"], judge_binding, runtime)
     if problem:
         print(json.dumps({"batch": "INCONCLUSIVE", "reason": problem}), flush=True)
         return 2

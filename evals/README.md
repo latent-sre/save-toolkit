@@ -457,7 +457,12 @@ trials, timeout, per-trial duration, cost, and the exact argv. Each run also rec
 CLI's own `--version` line (`null` when it cannot report one) and the host's system, release, and
 machine, measured once per batch; `--regrade` keeps the recorded value. Identity hashes say two runs
 measured the same plugin; they do not say the runs measured it the same way — **pin `--model` and
-`--timeout` for any numbers you intend to diff, and compare runs only within one CLI version.**
+`--timeout` for any numbers you intend to diff, and compare runs only within one CLI version.** A
+batch refuses to pool trials whose recorded CLI version or host differ, and a trial recorded before
+those were recorded never pools with one that has them. `provenance.json` also names the runner:
+`runner_commit`, `runner_source_dirty` and `runner_source_sha256`, so a run graded with
+`--plugin-root` on another checkout still says which runner graded it. The measured guard scripts
+include `readonly-guard-hook.ps1`, which `hooks/hooks.json` runs for PowerShell.
 
 Machine records retain the complete candidate digest and a scenario digest covering the spec, its
 referenced oracle files, the explicit judge binding when used, and the rubric definitions the judge actually consumes. The judge caches

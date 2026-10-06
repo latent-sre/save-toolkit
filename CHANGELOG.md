@@ -8,6 +8,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Eval results name the runner and never pool CLI versions or hosts (`EVAL-011` identity).
+  `provenance.json` and summary rows record the runner's commit, dirty state and source digest; a
+  batch refuses to pool trials whose recorded CLI version or host differ or are missing; and the
+  plugin digest now measures `scripts/readonly-guard-hook.ps1`, which the PowerShell hook runs.
+  [verified] Rescores of five saved campaigns show no verdict change.
 - A run cut short on its declared profile still fails a forbidding check (`EVAL-011` result rules).
   After a timeout, a missing or error result, a nonzero exit or the native spend cap, the partial
   trace is first checked for the declared plugin, tools and read boundary; a forbidden action already
