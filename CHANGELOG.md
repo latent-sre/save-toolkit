@@ -408,9 +408,9 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   - Posture matches `reliability-engineer`: no shell or web, document-only writes, and three
     evidence helpers. Copilot gains handoffs to and from `software-engineer`.
   - Evaluation cases: a contract-change design paired with an identical `software-engineer` arm, a
-    new-system design checked by a design-record oracle, and two routing positives. The first
-    native evaluation (24 Sonnet trials, USD 5.64) and a re-measure after review fixes (6 trials,
-    USD 1.16) are recorded under `PRINCIPAL-001`; acceptance is pending.
+    new-system design checked by a design-record oracle, and two routing positives. Three native
+    campaigns (45 Sonnet trials, USD 10.73) are recorded under `PRINCIPAL-001`; acceptance is
+    pending.
 - Every eval run records `runtime`: the CLI's `--version` line (`null` when it cannot report one)
   and the host's system, release, and machine. `main()` measures it once per batch and prints it in
   the batch header; each trial writes it to `provenance.json`, the trace summary, and its summary

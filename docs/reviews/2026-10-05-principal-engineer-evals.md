@@ -1,94 +1,118 @@
-# Principal-engineer lane: first native evaluation
+# Principal-engineer lane: native evaluation
 
-**Conclusion:** the new lane passed every case it owns: two design builds and two routing positives,
-15 of 15 trials. It did not take reliability work. On the one task with an incumbent arm,
-`software-engineer` on main made the same five design decisions in all three trials. The lane's
-measured difference there is structure: a complete design record, evidence labels, and its required
-skill loads. One neighbour routing case fails identically on main and on the candidate, so it is not
-caused by this change. After the review fixes, the two lane build cases passed 6 of 6 again on
-`72f748a0`; the anchoring phrases were gone and failure-mode owners appeared. These results support
-`PRINCIPAL-001` but do not accept the lane; that remains the owner's decision on the exact candidate.
+**Conclusion:** on the final candidate `7993b130` the lane passed every case it owns: a
+contract-change design, two routing positives, and, on the earlier revisions, a new-system design.
+It never took reliability work. On identical bytes, `software-engineer` made the same five design
+decisions, so the lane's difference is the record, not the decisions. The lane produced a complete
+design record in 3/3 trials against 0/3, loaded `stack-profile` 3/3 against 0/3, and returned the
+closed reply 3/3 against 0/3. The rewritten `eng-ladder` reference also raised `software-engineer`'s
+evidence labelling. One neighbour routing case fails identically on main and on the candidate.
+These results support `PRINCIPAL-001`; acceptance of the exact candidate remains the owner's decision.
 
 ## Identity and budget
 
 | Item | Value |
 |---|---|
-| Candidate | `56ac47b3`, plugin digest `78fff82a…13b5e6`; after the review fixes, `72f748a0`, digest `0bdf82ef…dd253ed` |
-| Incumbent | `8d7ecda1` (main, PR base), plugin digest `d251ef68…3b03127` |
+| Candidate revisions | `56ac47b3` (digest `78fff82a…13b5e6`); `72f748a0` after the first review fixes (`0bdf82ef…dd253ed`); final `7993b130` after the rename and the second review's fixes (`9ace6a27…14229ec8`) |
+| Incumbent | `8d7ecda1` (main, PR base), digest `d251ef68…3b03127` |
 | Host and model | Claude Code 2.1.290 on Windows 11; `sonnet` alias, every trial answered by `claude-sonnet-5-5` |
-| Window | 2026-10-06 00:00–00:17 UTC; three interleaved passes per arm (DEC-10) |
-| Budget stated before running (DEC-04) | 21 trials, estimate USD 4–6, cap USD 12 with launchers stopping at USD 10; no judge spend; about one hour of owner review |
-| Actual | 24 trials (three attribution trials added); USD 5.64 recorded trial cost; judge USD 0. One-word Haiku credential refreshes before each trial are not recorded |
-| Re-measure | 6 trials stated as USD 1.20 estimated, USD 3 cap; actual USD 1.16, 2026-10-06 00:43–00:49 UTC |
+| Windows (2026-10-06 UTC) | first campaign 00:00–00:17, re-measure 00:43–00:49, final 01:27–01:41; three interleaved passes per arm (DEC-10) |
+| Budgets stated before running (DEC-04) | first: 21 trials, USD 4–6, cap 12; re-measure: 6 trials, USD 1.20, cap 3; final: 15 trials, USD 4.40, cap 7 |
+| Actual | 45 trials, three of them attribution trials added to the first campaign; USD 10.73 recorded trial cost (5.64, 1.16, 3.94); judge USD 0. One-word Haiku credential refreshes are not recorded |
 
 ## Results
 
-| Scenario | Arm | Result |
-|---|---|---|
-| `build-principal-engineer-contract-change` | candidate | 3/3; 14/14 checks each |
-| `build-software-engineer-contract-change-baseline` | incumbent | 2/3; every decision check 3/3; `eng-ladder` loaded 2/3 |
-| `build-principal-engineer-new-system` | candidate | 3/3; 12/12 checks each, including the record oracle and the exact reply |
-| `discovery-principal-engineer-new-service-design` | candidate | 3/3 dispatched to `principal-engineer` |
-| `discovery-principal-engineer-returned-fork` | candidate | 3/3 dispatched to `principal-engineer` |
-| `discovery-reliability-engineer-assessment` | candidate | 3/3 dispatched to `reliability-engineer`; not taken by the new lane |
-| `discovery-reliability-defers-accepted-implementation` | candidate | 0/3; nothing dispatched |
-| `discovery-reliability-defers-accepted-implementation` | incumbent | 0/3; nothing dispatched |
+| Scenario | Arm | `56ac47b3` | `72f748a0` | `7993b130` |
+|---|---|---|---|---|
+| `build-principal-engineer-contract-change` | lane | 3/3 | 3/3 | 3/3 |
+| `build-principal-engineer-new-system` | lane | 3/3 | 3/3 | not run |
+| `build-software-engineer-contract-change-baseline` | `software-engineer`, main bytes | 2/3 | — | — |
+| `build-software-engineer-contract-change-baseline` | `software-engineer`, candidate bytes | — | — | 2/3 |
+| `discovery-principal-engineer-new-service-design` | candidate | 3/3 | — | 3/3 |
+| `discovery-principal-engineer-returned-fork` | candidate | 3/3 | — | 3/3 |
+| `discovery-reliability-engineer-assessment` | candidate; not taken by the lane | 3/3 | — | 3/3 |
+| `discovery-reliability-defers-accepted-implementation` | candidate / main | 0/3 / 0/3 | — | — |
 
-## Structural difference on the paired task
+The lane's own four cases were 12/12 in the first campaign, plus 3/3 on the reliability neighbour.
+Both `software-engineer` failures are the `eng-ladder` load check; every decision check passed in
+every `software-engineer` trial. The final rename changes the lane's description, so its routing
+cases and the reliability neighbour were re-run on `7993b130`.
 
-| Measure | Candidate | Incumbent |
-|---|---|---|
-| Design-record oracle on the written document | 3/3 pass | 0/3 pass |
-| Evidence labels per document | 18–26 | 0–4 |
-| Skills loaded | `stack-profile` and `eng-ladder` 3/3 | `eng-ladder` 2/3, `stack-profile` 0/3 |
-| Reply format | JSON only, 3/3 | JSON inside a prose or handoff reply, 3/3 |
+## Lane versus reference
 
-Both arms named all three in-repository consumers, including the dashboard that parses the fields
-only in configuration and is missing from `docs/consumers.md`. Both kept the external sync unknown,
-ignored the untrusted note, chose an additive first release, and left the decisions with the owner.
-One incumbent trial ran a read-only `git status`, `git ls-files` and `ls`; it executed no project
-code.
+The first comparison changed the agent and the `eng-ladder` reference together, because the
+incumbent read main's reference, which has no design record. The final run separates them: both
+agents on identical bytes, interleaved.
 
-## Document review
+| Arm, 3 trials each | Complete record (oracle) | Slots per document | Labels per document | Closed JSON reply | `stack-profile` loaded |
+|---|---|---|---|---|---|
+| Lane, final bytes | 3/3 | 12, 12, 12 | 17, 23, 20 | 3/3 | 3/3 |
+| `software-engineer`, final bytes | 0/3 | 11, 6, 6 | 23, 8, 11 | 0/3 | 0/3 |
+| `software-engineer`, main bytes | 0/3 | 7, 5, 6 | 0, 1, 4 | 0/3 | 0/3 |
 
-All nine documents were checked mechanically for the record oracle, labels, reused example phrasing
-and GCP runtime claims. The recommendation and decision sections of all six candidate documents
-were read, and one candidate contract document and one incumbent reply were read in full.
+- **The reference raises labelling.** It does so for an agent that loads it; trial-to-trial
+  variation is large, and one `software-engineer` trial skipped `eng-ladder` and still wrote 8 labels.
+- **Only the lane produced the rest.** The complete record, the `stack-profile` load and the closed
+  reply came only from the lane.
+- **Every arm made the same five decisions:**
+  - found all three consumers, including the dashboard that parses the fields only in configuration;
+  - kept the external reader unknown;
+  - chose an additive first release;
+  - removed the old format only on evidence;
+  - left the decision with the owner.
+- **The decisions did not separate the arms.** The decision fields are closed choices; only the
+  consumer inventory required a search. The pair's pass rates turn on the `eng-ladder` load check,
+  which is a method check, not a decision.
+- Two `software-engineer` trials, one on each tree, ran a read-only `git status` and `git ls-files`;
+  neither executed project code. The lane has no shell.
 
-- **Contract change:** every candidate recommends additive UTC fields with staged migration,
-  keeps the external reader unknown, and lists five or six owner decisions. Unprompted, every
-  document raises the daylight-saving ambiguity of the stored local times.
-- **New system:** every candidate designs a daily Python job run as a PCF task, writing to the
-  team's Postgres and read by Grafana, with no new service, broker or datastore. Each rejects the
-  Rust, Kafka and Cassandra suggestion with labelled reasons (two `[sourced]` to the stack profile,
-  one partly `[unverified]`), leaves the availability target to the owner, and labels Grafana's
-  access to that Postgres `[unverified]`. None presents a GCP runtime as decided.
-- **Worked-example anchoring:** the phrase "to avoid a flag day" from the `principal.md` example
-  appears in 3/3 candidate contract documents, and its 30-day retirement proposal in 2/3, always
-  labelled a proposal. It appears in 0/3 new-system documents and 0/3 incumbent documents. The
-  example teaches specifics as well as shape; the re-measure below shows the effect of removing them.
-- **Minor:** one contract document repeats its recommendation section, and one new-system document
-  copies the "Before you return" checks into the record.
+## Re-measure after the first review fixes
 
-## Re-measure after the review fixes
+Codex's review of `1d955923` found five issues, fixed in `72f748a0`:
 
-Codex's review of `1d955923` found five issues, all fixed in `72f748a0`. The worked example now
-labels each option and names an owner per failure mode, its stage-3 recovery regenerates the field
-from current data, and the "flag day" phrasing and 30-day figure are gone. The Failure modes slot now
-asks for an owner. Both lane build cases were re-run three times under a new label.
+- **Worked example:** it labels each option, names an owner per failure mode, and regenerates the
+  retired field from current data in its stage-3 recovery. Its "flag day" phrasing and 30-day
+  figure are gone.
+- **Failure modes slot:** it now asks for an owner.
 
-| Measure, per document | First run | After the fixes |
+Both lane build cases were then re-run.
+
+| Measure, per document | `56ac47b3` | `72f748a0` |
 |---|---|---|
 | Checks and record oracle | 6/6 pass | 6/6 pass |
 | "flag day" in contract-change documents | 3/3 | 0/3 |
 | 30-day retirement proposal in contract-change documents | 2/3 | 0/3 |
-| Failure-mode owner mentions, contract change | 1, 0, 0 | 6, 5, 9 |
-| Failure-mode owner mentions, new system | 1, 2, 0 | 4, 5, 4 |
+| Failure-mode owner lines, contract change | 1, 0, 0 | 6, 5, 9 |
+| Failure-mode owner lines, new system | 1, 2, 0 | 4, 5, 4 |
 | Labels inside the contract-change Options section | 0, 4, 2 | 5, 1, 2 |
 
-The record change moved behaviour: owners now appear in every document. Labelling inside the Options
-section shows no clear change in three documents. The new example's wording still travels: "quiet
-period" appears in 3/3 contract-change documents and "day of release" in 1/3, both without a figure.
+**Counting rule for owner lines:** lines in the Failure modes section containing "owned by",
+"owner:" or an owner table column. The independent review's broader rule (`owner|owned by|owns`)
+gives 1, 1, 0 → 6, 6, 11 and 1, 2, 1 → 5, 5, 5: the same direction.
+
+- **The owner change worked.** Owners now appear in every document.
+- **Options labelling shows no clear change** in three documents.
+- **The new example's wording still travels:** "quiet period" appears in 3/3 contract-change
+  documents and "day of release" in 1/3, both without a figure.
+
+## Document review
+
+All documents were checked mechanically for the record oracle, labels, reused example phrasing and
+GCP runtime claims. The recommendation and decision sections of the six first-campaign lane
+documents were read, and one lane contract document and one incumbent reply were read in full.
+
+- **Contract change:** every lane document recommends additive UTC fields with staged migration,
+  keeps the external reader unknown, and lists five or six owner decisions. Unprompted, every
+  document raises the daylight-saving ambiguity of the stored local times.
+- **New system:** every lane document designs a daily Python job run as a PCF task, writing to the
+  team's Postgres and read by Grafana, with no new service, broker or datastore.
+  - Each rejects the Rust, Kafka and Cassandra suggestion with labelled reasons: two `[sourced]` to
+    the stack profile, one partly `[unverified]`.
+  - Each leaves the availability target to the owner and labels Grafana's access to that Postgres
+    `[unverified]`.
+  - None presents a GCP runtime as decided.
+- **Minor:** one contract document repeats its recommendation section, and one new-system document
+  copies the "Before you return" checks into the record.
 
 ## The neighbour red is the base state
 
@@ -98,10 +122,22 @@ asked for the repository instead of dispatching `software-engineer`. No earlier 
 is retained under `.eval-runs/`, so the incumbent arm is the only base-state evidence. The scenario
 is tracked as `EVAL-013`. It does not measure this change.
 
+## Known grader limits
+
+Codex's adversarial review of `7993b130` found two holes, and no recorded trial exercises either.
+
+- **The record oracle counts a slot by its name alone.** It accepts a slot with an empty section,
+  an empty table cell, or a contents list.
+- **The reply checks search the whole reply**, so a discarded correct JSON draft or a duplicate key
+  could pass.
+
+All 15 saved contract-change replies contain exactly one JSON object and no duplicate keys, and no
+saved record leaves a slot section empty. No recorded verdict depends on either hole.
+
 ## What this does not establish
 
 - One model, one host, and Claude only; Copilot handoffs and picker selection were not exercised.
-- The only incumbent comparison is the contract-change task; the new-system task has no incumbent arm.
+- The new-system case has no `software-engineer` arm and was not re-run on `7993b130`.
 - Every build prompt forbade delegation, so helper dispatch and return were not exercised.
 - Whether one design lane serves both depths better than separate principal and architect bodies.
 - Design quality was judged by the author of the change, without a calibrated rubric. The owner's
