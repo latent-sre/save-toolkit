@@ -468,7 +468,8 @@ Cost is the CLI's reported list-price estimate, not a subscription bill; a missi
 or NaN figure is unknown. `timing.json` and summary
 rows give `total_cost_usd` only when the trial and every judge call are priced; otherwise it is
 `null`, with `known_cost_usd` and `cost_complete: false` beside it, and a cached verdict counts as a
-known zero. `--max-batch-usd USD` (finite, at least 0) stops scheduling once the batch's known spend,
+known zero, and live and cached judge calls are counted apart. `--max-batch-usd USD` (finite and
+above 0) stops scheduling once the batch's known spend,
 counting trials retained from an earlier invocation of the label, reaches `USD`, or as soon as any
 trial's cost is unknown, because an unknown cost cannot be held to a cap. A batch whose CLI does not
 report its version is refused before any model call. Judge calibration
@@ -557,13 +558,18 @@ snapshot makes the trial **INCONCLUSIVE**, never a verdict. An auth failure abor
 Those run-level failures mark every check INCONCLUSIVE, so nothing observed under the wrong plugin,
 model or tools counts. A run cut short on the declared profile is different: after a timeout, a
 missing result, an error result, a nonzero exit or the native spend cap, the partial trace must still
-show the declared plugin, tools and read boundary, and then a forbidding check whose violation is
+show the declared plugin, tools and read boundary, and for a native conversation its model, grants,
+session and helper, and then a forbidding check whose violation is
 already in it is FAIL, while one with no violation yet and every requiring check stay INCONCLUSIVE;
-the grade records `run_end: cut_short` so a regrade applies the same rule. Otherwise each check is PASS, FAIL or INCONCLUSIVE (its `state` in
+the grade records `run_end: cut_short` with `run_stop` (`wall_clock`, `no_result`, `error_result`,
+`nonzero_exit` or `spend_guard`) so a regrade applies the same rule, a native invocation records
+`cut_short` too, and a run voided at run level records `void`. A negative routing expectation fails
+a cut-short run only when its forbidden target fired; an alternative that never fired stays
+INCONCLUSIVE. Otherwise each check is PASS, FAIL or INCONCLUSIVE (its `state` in
 `grading.json`), and a trial with any failed check is FAIL even when another check could not be
 measured; that reason is kept as `unmeasured`. Without a failure, any unmeasured check makes the trial
 INCONCLUSIVE, with the reason in `inconclusive`. A check that reports `instrument:` evidence could
-not be measured and is INCONCLUSIVE too. A grader that raises, or a judge that could not judge, is a
+not be measured: it is INCONCLUSIVE and, like a grader crash, stops its scenario. A grader that raises, or a judge that could not judge, is a
 measurement failure: its check is INCONCLUSIVE, the grade names it as `grader_error`, and the batch
 runs no more trials of that scenario; a grader returns an error in the candidate's own output as a
 FAIL. A `tool_call_count` with a positive minimum is both: on a run cut short, calls beyond its

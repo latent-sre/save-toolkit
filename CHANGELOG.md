@@ -23,6 +23,17 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
   [verified] Rescores of five saved campaigns (217 runs) with the PR head and this runner differ in
   nothing, and no saved grade carries `instrument:` evidence.
+- The 2026-10-06 Copilot review of PR #328:
+  - A cut-short native run is checked for its model, grants, session and helper before its forbidding
+    checks count, and a regrade keeps a native cut as a cut instead of voiding it.
+  - A negative routing expectation fails a cut-short run only when its forbidden target fired.
+  - `record.json` records how execution stopped (`stop`) and a run-level void, independently of the
+    check states; a grader crash on a completed run is no longer reported as void.
+  - Live and cached judge calls are counted apart; `instrument:` failures stop their scenario; a
+    zero spend cap is rejected.
+
+  [verified] Rescores of five saved campaigns (217 runs) with `b3524471` and this runner differ in
+  nothing.
 
 ### Removed
 

@@ -3566,7 +3566,8 @@ class JudgeSpendAccountingTests(unittest.TestCase):
     def test_no_judge_module_means_no_spend(self) -> None:
         with mock.patch.dict(sys.modules, {}, clear=False):
             sys.modules.pop("judge", None)
-            self.assertEqual({"calls": 0, "cost_usd": 0.0, "known_cost_usd": 0, "unknown_cost_calls": 0, "seconds": 0.0},
+            self.assertEqual({"calls": 0, "cost_usd": 0.0, "known_cost_usd": 0, "unknown_cost_calls": 0,
+                              "live_calls": 0, "cached_calls": 0, "seconds": 0.0},
                              build_probe.judge_spend())
 
 
@@ -4338,6 +4339,8 @@ class CodexReviewFindingTests(unittest.TestCase):
             with self.subTest(bad=bad), self.assertRaises(argparse.ArgumentTypeError):
                 build_probe._budget(bad)
         self.assertEqual(20.0, build_probe._budget("20"))
+        with self.assertRaises(argparse.ArgumentTypeError):
+            build_probe._budget("0")  # a zero cap would schedule nothing; a cap must be positive
 
     def test_an_instrument_failure_is_unmeasured_not_a_candidate_failure(self) -> None:
         state = build_probe._check_state({"passed": False, "evidence": "instrument: a Skill call carried no name"})
@@ -4396,3 +4399,78 @@ class CodexReviewFindingTests(unittest.TestCase):
         self.assertEqual(original["verdict"], record["verdict"], "the live verdict is never rewritten")
         self.assertEqual([1], [a["revision"] for a in record["assessments"]])
         self.assertEqual("assessments/1/grading.json", record["assessments"][0]["grading"])
+
+
+class CopilotReviewFindingTests(unittest.TestCase):
+    """The 2026-10-06 Copilot review of PR #328, each finding pinned by the behaviour it asked for."""
+
+    NATIVE = {**TINY_SPEC, "followups": ["and then?"], "helper": "sre-assistant", "tools": ["Skill", "Read", "Task"],
+              "expected_model": "claude-sonnet-5-5"}
+
+    def test_a_cut_short_native_run_on_the_wrong_model_is_void(self) -> None:
+        partial = build_probe.TraceSummary(main_models=["claude-opus-5-5"], init_session_ids=["s1"])
+        with mock.patch.object(build_probe, "profile_problem", return_value=None):
+            problem = build_probe.invocation_problem(partial, None, self.NATIVE, ROOT, ROOT)
+        self.assertIn("native parent model", problem)
+        self.assertNotIsInstance(problem, build_probe.CutShort)
+        right = build_probe.TraceSummary(main_models=["claude-sonnet-5-5"], init_session_ids=["s1"])
+        with mock.patch.object(build_probe, "profile_problem", return_value=None):
+            cut = build_probe.invocation_problem(right, None, self.NATIVE, ROOT, ROOT)
+        self.assertIsInstance(cut, build_probe.CutShort)
+        self.assertEqual("no_result", cut.kind)
+
+    def test_a_negative_routing_cut_fails_only_on_the_forbidden_target(self) -> None:
+        fired = {"text": "routing", "passed": False, "evidence": "routing unexpectedly fired save-toolkit:pcf-deploy"}
+        missing_alternative = {"text": "routing", "passed": False, "evidence": "routing expected inline; saw skills=[]"}
+        self.assertEqual("FAIL", build_probe._check_state(build_probe._cut_short_routing(dict(fired), "timed out")))
+        self.assertEqual("INCONCLUSIVE",
+                         build_probe._check_state(build_probe._cut_short_routing(dict(missing_alternative), "timed out")))
+        negative = {"id": "n", "target": {"kind": "skill", "name": "pcf-deploy"},
+                    "routing": {"expect": "not_fire", "expected_alternative": "inline"}}
+        self.assertEqual(["both"], build_probe.assertion_polarities(negative))
+
+    def test_the_record_carries_how_execution_stopped_not_what_the_checks_found(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            run = Path(tmp)
+            for grading, kind, stop in (
+                    ({"status": "INCONCLUSIVE", "inconclusive": "grader error: boom",
+                      "expectations": [{"state": "INCONCLUSIVE", "evidence": "INCONCLUSIVE: grader error: boom"}]},
+                     "completed", None),
+                    ({"status": "INCONCLUSIVE", "void": "wrong plugin", "inconclusive": "wrong plugin"}, "void", None),
+                    ({"status": "FAIL", "run_end": "cut_short", "run_stop": "spend_guard", "unmeasured": "cap"},
+                     "cut_short", "spend_guard")):
+                (run / "grading.json").write_text(json.dumps(grading), encoding="utf-8")
+                record = build_probe.write_record(run, TINY_SPEC, label="l", run_number=1, attempt=1,
+                                                  started_at="t", model=None, timeout=60)
+                with self.subTest(kind=kind):
+                    self.assertEqual((kind, stop), (record["run_end"]["kind"], record["run_end"]["stop"]))
+
+    def test_live_and_cached_judge_calls_are_counted_apart(self) -> None:
+        judge = mock.Mock(drain_spend=lambda: [{"cost_usd": 0.02, "seconds": 1.0, "cached": False},
+                                               {"cost_usd": 0.0, "seconds": 0.0, "cached": True}])
+        with mock.patch.dict(sys.modules, {"judge": judge}):
+            spend = build_probe.judge_spend()
+        self.assertEqual((1, 1), (spend["live_calls"], spend["cached_calls"]))
+
+    def test_a_native_cut_survives_regrade_as_a_cut(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            run = Path(tmp)
+            (run / "stdout.jsonl").write_text("", encoding="utf-8")
+            partial = build_probe.parse_trace(run / "stdout.jsonl")  # the runner records what it parsed
+            (run / "invocation.json").write_text(json.dumps({
+                "argv": ["claude", "--agent", "save-toolkit:software-engineer"], "session_id": partial.session_id,
+                "workspace": str(run.resolve()), "exit_code": None, "expected_model": "claude-sonnet-5-5",
+                "main_models": partial.main_models, "init_session_ids": partial.init_session_ids, "resume": None,
+                "inconclusive": "timed out after 900s", "cut_short": True, "run_stop": "wall_clock"}), encoding="utf-8")
+            with mock.patch.object(build_probe, "invocation_problem",
+                                   return_value=build_probe.CutShort("no result event", "no_result")):
+                kept = build_probe.native_regrade_problem(run, self.NATIVE, ROOT)
+            with mock.patch.object(build_probe, "invocation_problem", return_value="native parent model differs"):
+                voided = build_probe.native_regrade_problem(run, self.NATIVE, ROOT)
+        self.assertIsInstance(kept, build_probe.CutShort)
+        self.assertEqual(("timed out after 900s", "wall_clock"), (str(kept), kept.kind))
+        self.assertEqual("native parent model differs", voided)
+
+    def test_an_instrument_failure_stops_its_scenario(self) -> None:
+        reason = build_probe._grader_error([{"evidence": "instrument: a Skill call carried no name"}])["grader_error"]
+        self.assertIn("Skill call carried no name", reason)
