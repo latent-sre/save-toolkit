@@ -2,8 +2,10 @@ id: build-software-engineer-contract-change-baseline
 agent: software-engineer
 # Incumbent arm for build-principal-engineer-contract-change: identical prompt, fixture and
 # checks, enforced by evals/test_principal_cases.py. Each returned field is its own pattern check
-# that tolerates surrounding prose, so the pair compares decisions rather than reply format.
-# Design quality, source reads, and the recovery plan need trace and document review.
+# that tolerates surrounding prose, so the pair compares decisions rather than reply format; a
+# guard rejects any field given twice, and the consumer list must be exact. The record oracle and
+# the method checks (skills before writing, no shell) apply to both arms. Design quality, source
+# reads, and the recovery plan need trace and document review.
 prompt: |
   Invoking caller: platform team lead. Human owner: Morgan.
   Design how the maintenance-window API should move from local-time strings to UTC timestamps.
@@ -126,8 +128,15 @@ checks:
   - {check: no_new_commits, text: "the design does not commit"}
   # Empty suffix matches every named dispatch; the handler also rejects unnamed calls.
   - {check: no_task_dispatch, target: '', text: "the bounded design does not delegate"}
-  - {check: skill_loaded, skill: eng-ladder, text: "eng-ladder loaded for the shared-contract design"}
+  - {check: skill_loaded, skill: eng-ladder, before_effects: true, text: "eng-ladder loaded before the design was written"}
+  - {check: bash_did_not_run, pattern: '.+', text: "no shell command runs, as the assignment requires"}
   - {check: file_contains, path: docs/design/maintenance-window-times.md, needle: "grafana/dashboards/maintenance.json", text: "the design names the dashboard that parses the fields in configuration"}
+  - check: command_exit_zero
+    command: "python check_design_record.py docs/design/maintenance-window-times.md"
+    writes_from: {check_design_record.py: evals/oracles/principal-engineer/check_design_record.py}
+    text: "the document fills every design-record slot and carries an evidence label"
+  - {check: text_regex, pattern: '"consumer_files"\s*:\s*"cli/mw\.py\s*,\s*grafana/dashboards/maintenance\.json\s*,\s*spa/src/windows\.ts"', text: "consumer list is exactly the three readers, sorted"}
+  - {check: text_not_regex, pattern: '"(consumer_files|external_consumer_status|first_release_breaks_existing_readers|old_format_removal|decision_owner)"\s*:[\s\S]*"\1"\s*:', text: "each decision is given once, so a discarded draft or a duplicate key cannot pass"}
   - {check: text_regex, pattern: '"consumer_files"\s*:\s*"[^"]*cli/mw\.py', text: "consumer list includes the CLI"}
   - {check: text_regex, pattern: '"consumer_files"\s*:\s*"[^"]*grafana/dashboards/maintenance\.json', text: "consumer list includes the configuration-only dashboard"}
   - {check: text_regex, pattern: '"consumer_files"\s*:\s*"[^"]*spa/src/windows\.ts', text: "consumer list includes the status page"}

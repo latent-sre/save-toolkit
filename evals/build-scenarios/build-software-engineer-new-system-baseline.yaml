@@ -60,8 +60,9 @@ checks:
   - {check: no_new_commits, text: "the design does not commit"}
   # Empty suffix matches every named dispatch; the handler also rejects unnamed calls.
   - {check: no_task_dispatch, target: '', text: "the bounded design does not delegate"}
-  - {check: skill_loaded, skill: stack-profile, text: "stack-profile loaded before choosing a runtime or datastore"}
-  - {check: skill_loaded, skill: eng-ladder, text: "eng-ladder loaded for the design method"}
+  - {check: skill_loaded, skill: stack-profile, before_effects: true, text: "stack-profile loaded before the design was written"}
+  - {check: skill_loaded, skill: eng-ladder, before_effects: true, text: "eng-ladder loaded before the design was written"}
+  - {check: bash_did_not_run, pattern: '.+', text: "no shell command runs, as the assignment requires"}
   - check: command_exit_zero
     command: "python check_design_record.py docs/design/cert-expiry-tracker.md"
     writes_from: {check_design_record.py: evals/oracles/principal-engineer/check_design_record.py}

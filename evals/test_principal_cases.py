@@ -109,6 +109,14 @@ class PrincipalCaseTests(unittest.TestCase):
         for case, change in wrong.items():
             with self.subTest(case=case):
                 self.assertTrue(_failed_reply_checks(spec, json.dumps(CONTRACT_REPLY | change)))
+        unsafe = CONTRACT_REPLY | {"first_release_breaks_existing_readers": "yes",
+                                   "old_format_removal": "with_first_release", "decision_owner": "designer"}
+        for name, reply in (("draft then contradictory final",
+                             json.dumps(CONTRACT_REPLY) + "\nFinal answer:\n" + json.dumps(unsafe)),
+                            ("duplicate key overrides a safe value",
+                             json.dumps(CONTRACT_REPLY)[:-1] + ', "decision_owner": "designer"}')):
+            with self.subTest(case=name):
+                self.assertTrue(_failed_reply_checks(spec, reply))
 
     def test_new_system_reply_checks_separate_decisions_from_reply_format(self):
         spec = build_probe.load_scenario(NEW_SYSTEM)
@@ -181,9 +189,28 @@ class PrincipalCaseTests(unittest.TestCase):
                               + "".join(f"- {s}\n" for s in SLOT_HEADINGS) + "\n[unverified]\n"),
                              ("empty table cells", "| Slot | Content |\n|---|---|\n"
                               + "".join(f"| {s} | |\n" for s in SLOT_HEADINGS) + "\n[unverified]\n"),
+                             ("labels ending in (required)", "[unverified]\n\n"
+                              + "\n\n".join(f"## {s} (required)" for s in SLOT_HEADINGS)),
                              ("empty", "")):
             with self.subTest(case=name):
                 self.assertEqual(1, _oracle(record))
+
+    def test_record_oracle_rejects_each_slot_left_empty_in_every_format(self):
+        # The rest of a slot's own label ("and context", "/ non-goals") must never count as content.
+        shapes = {
+            "heading": ("", lambda slot, body: f"## {slot}\n{body}\n" if body else f"## {slot}\n"),
+            "table": ("| Slot | Content |\n|---|---|\n", lambda slot, body: f"| {slot} | {body} |\n"),
+            "emphasised label": ("", lambda slot, body: f"**{slot}**: {body}\n\n" if body else f"**{slot}**:\n\n"),
+        }
+        for shape, (prefix, line) in shapes.items():
+            filled = prefix + "".join(line(slot, "text [verified]") for slot in SLOT_HEADINGS)
+            with self.subTest(shape=shape, empty="none"):
+                self.assertEqual(0, _oracle(filled))
+            for empty in SLOT_HEADINGS:
+                record = prefix + "".join(line(slot, "" if slot == empty else "text [verified]")
+                                          for slot in SLOT_HEADINGS)
+                with self.subTest(shape=shape, empty=empty):
+                    self.assertEqual(1, _oracle(record))
 
 
 if __name__ == "__main__":

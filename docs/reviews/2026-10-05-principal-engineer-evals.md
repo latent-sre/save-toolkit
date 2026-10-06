@@ -10,9 +10,13 @@ made the same design decisions on both tasks.
   architecture.
 - **Likely reason for the difference [unverified]:** the new-system prompt names the "design
   record", which may lead `software-engineer` to the reference's template.
-- **Where the value lies:** most of the design quality comes from the rewritten `eng-ladder`
-  reference. The lane adds a consistent record when a request does not name it, a design-only
-  boundary, and its own entry in the Copilot picker, which only a human test can measure.
+- **What the scores show, and what they do not:** on the scored dimensions the two agents were
+  equal on the new-system task. That the rewritten reference supplies most of the design quality
+  is a hypothesis these comparisons do not establish. Matching scores also hid real design
+  differences (below).
+- **What the lane measurably adds:** a consistent record when a request does not name it. It also
+  has a design-only boundary and its own entry in the Copilot picker, which only a human test can
+  measure.
 
 One neighbour routing case fails identically on main and on the candidate. These results inform
 `PRINCIPAL-001`; acceptance of the exact candidate remains the owner's decision.
@@ -100,6 +104,29 @@ agents on identical bytes, interleaved.
 - **Test not yet run:** neither pair varied the wording, so a re-run with the words swapped would
   test the explanation.
 
+## Design defects the checks did not see
+
+A later review read the saved designs and found three problems that passing scores did not reveal.
+
+- **Unprovable removal gate (all three `7993b130` contract designs).** Each makes the old fields'
+  removal depend on access logs showing that no client reads them. One says "access logs show no
+  client has read `start`/`end`". Request logs show who calls the API, not which fields a client
+  parses, so the gate depends on evidence the proposed observation cannot produce.
+  - The worked example taught it: "a quiet period with no reads in the export's access logs".
+  - Fixed in `principal.md`: the method now names consumer-side evidence for migration, and the
+    example uses logs only to find readers, with owner confirmation as the gate.
+  - The fix is not yet measured.
+- **Retired endpoints (first new-system pair).**
+  - The lane's design keeps history and alerts on the latest scan per endpoint, but never says how
+    an endpoint removed from the inventory stops paging.
+  - `software-engineer`'s design keeps an `active` flag and alerts only on active endpoints.
+- **Database failure (first new-system pair).** Both designs promise a staleness page when Postgres
+  fails, while the heartbeat lives in that Postgres and Grafana queries it. Neither specifies the
+  query-error notification. Other sampled designs handle this, so it is variation between outputs.
+
+Section counts and the closed JSON fields cannot measure lifecycle, failure handling, or whether a
+proposed observation can produce the evidence a gate needs. Measuring those needs a judged case.
+
 ## Re-measure after the first review fixes
 
 Codex's review of `1d955923` found five issues, fixed in `72f748a0`:
@@ -176,11 +203,32 @@ saved record leaves a slot section empty. No recorded verdict depends on either 
   - Re-scoring the 21 saved documents and the six saved new-system replies changed no verdict.
 - **Still open for the contract-change pair.** Its recorded results were graded without the guard.
 
+**After a later review:**
+
+- **The oracle separates a slot's label from its content.** A heading's own text, the rest of a
+  label, or a table's first cell no longer counts as content.
+  - Twelve empty "(required)" headings now fail.
+  - Every single-empty-slot document fails in heading, table and emphasised-label form (36 cases).
+- **Both pairs gained checks:**
+  - **Both pairs:** skills must load before the document is written, and no shell may run, as the
+    prompts require.
+  - **Contract-change pair only:** the record oracle, an exact consumer list, and the
+    duplicate-field guard.
+- **Recorded verdicts no longer match the committed checks.** Every recorded result in this file
+  was graded by the earlier checks; a re-run is needed before citing them on the current ones.
+- **Offline re-score (diagnostic only, not evidence):**
+  - None of the 27 saved documents changes verdict under the new oracle.
+  - On the contract pair, all 9 lane trials would pass the new record, list and guard checks.
+  - All 6 `software-engineer` trials would fail the record check, and 2 of them ran read-only Git
+    commands, which the no-shell check now fails.
+
 ## What this does not establish
 
 - One model, one host, and Claude only; Copilot handoffs were not exercised. Picker selection is
   being measured by hand with a shared picker sheet, not in VS Code.
 - Whether prompt wording explains the two pairs' different results: no run varied it.
+- Whether the corrected worked example stops the unprovable removal gate: not yet re-run.
+- Lifecycle, failure handling, and evidence feasibility: no judged case measures them.
 - Every build prompt forbade delegation, so helper dispatch and return were not exercised.
 - Whether one design lane serves both depths better than separate principal and architect bodies.
 - Design quality was judged by the author of the change, without a calibrated rubric. The owner's

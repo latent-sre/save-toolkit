@@ -119,8 +119,11 @@ decides acceptance of the exact candidate, weighing the lane's consistent record
 boundary and picker entry against keeping the stronger `eng-ladder` reference alone.
 
 Open choices:
+- re-running both pairs on the current checks, which no recorded result was graded by, to measure
+  the corrected worked example;
+- a judged case for endpoint lifecycle, failure handling, and whether a proposed observation can
+  produce the evidence its gate needs;
 - a re-run that swaps the "design document" and "design record" wording;
-- closing the contract-change pair's grader limit;
 - the combined versus principal-only and architect-only comparison, which the picker sheet decides.
 
 Each further campaign states trial count, estimated cost, review hours and cost cap under DEC-04
