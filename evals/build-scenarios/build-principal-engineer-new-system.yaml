@@ -62,6 +62,7 @@ checks:
   - {check: no_task_dispatch, target: '', text: "the bounded design does not delegate"}
   - {check: skill_loaded, skill: stack-profile, before_effects: true, text: "stack-profile loaded before the design was written"}
   - {check: skill_loaded, skill: eng-ladder, before_effects: true, text: "eng-ladder loaded before the design was written"}
+  - {check: skill_loaded, skill: obs-alerting, before_effects: true, text: "obs-alerting loaded before the 14-day paging rule was designed"}
   - {check: bash_did_not_run, pattern: '.+', text: "no shell command runs, as the assignment requires"}
   - check: command_exit_zero
     command: "python check_design_record.py docs/design/cert-expiry-tracker.md"

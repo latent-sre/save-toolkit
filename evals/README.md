@@ -547,8 +547,13 @@ decision given twice, and the closed-reply contract that only the lane carries.
 `build-principal-engineer-order-event-identity` and its identical incumbent arm make the right
 answer the less obvious one: adding `account_id` looks backward compatible, but the fixture's
 fulfilment worker rejects any unexpected field, so the reply must say it is not. The pair also
-requires `database-reliability` before the backfill and replay plan. Two routing
-positives cover a new-service design assignment and a builder's returned fork; four negatives require
+requires `database-reliability` before the backfill and replay plan.
+`build-principal-engineer-platform-selection` is lane-only and grades the second reasoning depth
+against `distinguished.md`. It needs a proposed record, a reversible first step, and unverified
+vendor claims. The accepted job-scheduler pattern must beat a new runtime or a scheduler of our
+own. The new-system pair also requires `obs-alerting` before its paging rule. Three routing
+positives cover a new-service design assignment, a builder's returned fork, and a multi-year
+platform selection; four negatives require
 reliability assessments, small tool builds, an independent review of a design document, and the
 fleet's own workflow-graph design to reach their own lanes. The design-review negative cannot pass
 reliably until `EVAL-014` stops routing trials from reading the measured checkout. `python -m pytest

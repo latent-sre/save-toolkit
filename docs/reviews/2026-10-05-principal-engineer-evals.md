@@ -1,11 +1,13 @@
 # Principal-engineer lane: native evaluation
 
-**Conclusion:** the lane passed every case it owns on every revision measured and never took
-reliability work or a small tool build. Against `software-engineer` on identical bytes, every arm
+**Conclusion:** on the latest bytes for each case, the lane passed every build case it owns. One
+earlier failure was fixed and re-measured: the strict-reader case scored 1/3 on `e2759930`, missing
+a skill load, then 3/3 on `da8a110b`. It never took a boundary case's request, though the
+design-review negative cannot pass reliably until `EVAL-014`. Against `software-engineer` on identical bytes, every arm
 returned the same decision fields on both tasks.
 
-- **Final revision:** on `59fda81d`, the first run graded by the final checks, the lane passed both
-  build cases, 6/6.
+- **Contract-change and new-system cases:** on `59fda81d`, their last run and the first graded by
+  the final record checks, the lane passed both, 6/6.
 - **Data-plan method:** on a strict-reader migration, the lane loaded `database-reliability` before
   writing in 1/3 trials when the rule was a method-table row, and 3/3 once it became a step-1
   prerequisite (`da8a110b`).
@@ -390,6 +392,16 @@ the record, so every slot's claims could sit unlabelled behind a single footer l
   more labels each.
 - A per-slot rule would fail the reference's own worked example, which labels four of its twelve
   slots.
+
+**Open, from Codex's review of `91d97a57`:** a heading that names two slots credits both.
+
+- Example: "Recommendation and decisions needed" over a recommendation alone would pass the Decision
+  needed slot.
+- 12 of 54 saved records use such a heading, and 6 passing verdicts depend on it.
+- All 6 sections hold both a recommendation and a numbered decisions list, 123–220 words, so no
+  recorded verdict is wrong.
+- Rejecting combined headings would fail those 6 complete records, and prose cannot be attributed
+  to one slot mechanically. It stays a known limit.
 
 ## What this does not establish
 

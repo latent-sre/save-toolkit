@@ -27,7 +27,7 @@ it before recommending or changing supported runtime, tooling, or infrastructure
 | Skills or the ADR command | [`skills/`](skills) and [`commands/adr.md`](commands/adr.md); link bundled references from `SKILL.md` |
 | A live incident, a firing alert, or "what should I check next" | [`incident-investigation`](skills/incident-investigation/SKILL.md) advises the human responder and can dispatch a bounded lookup or investigation to `sre-assistant` |
 | Proactive service reliability, failure behavior, engineering improvements, or recurring toil | [`reliability-engineer`](agents/reliability-engineer.md), with [`resilience-analysis`](skills/resilience-analysis/SKILL.md) and [`toil-reduction`](skills/toil-reduction/SKILL.md) |
-| System design, architecture, a design doc or ADR, or a design fork a builder returned | [`principal-engineer`](agents/principal-engineer.md), with [`eng-ladder`](skills/eng-ladder/SKILL.md) |
+| Writing a system design, architecture, design doc or ADR, or resolving a design fork a builder returned; reviewing one goes to `reviewer` | [`principal-engineer`](agents/principal-engineer.md), with [`eng-ladder`](skills/eng-ladder/SKILL.md) |
 | Grafana dashboard interpretation, alert-rule operations, or temporary silences | [`grafana`](skills/grafana/SKILL.md); live writes belong to the invoked `observability-engineer` under its complete rule |
 | Guard behavior or wiring | [`readonly-guard.py`](scripts/readonly-guard.py) and [`hooks.json`](hooks/hooks.json); exit codes stay 42 allow / 43 deny / 44 indeterminate |
 | Repository changes, dependencies, or verification | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
