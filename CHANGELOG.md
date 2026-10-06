@@ -8,6 +8,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Each eval attempt writes the v1 result record, `record.json` (`EVAL-012` DEC-22, through `EVAL-011`),
+  with a case digest that survives runner edits, and evidence cut at 600 characters is flagged
+  `evidence_truncated`. Attempt folders now inherit `.eval-runs/` permissions instead of being
+  readable only by the account that ran them (DEC-23). [verified] Rescores of five saved campaigns
+  (217 runs) show no verdict change; a Windows test confirms inherited permissions.
 - No eval attempt is deleted any more (`EVAL-011` attempts and cost). A run replaced by `--overwrite`
   moves to `<label>/attempts/run-N/<k>/` as superseded, an attempt that raised moves there as
   incomplete with its reason, and each attempt records its number in `attempt.json` and the summary

@@ -418,6 +418,7 @@ saved runs with both and explains every line the diff prints.
 - Record and folders (EVAL-012 DEC-22 and DEC-23): write one
   [v1 record](fleet-evaluation/contracts.md#result-record-v1) per attempt, and create run folders that
   inherit the permissions of `.eval-runs/` instead of owner-only temporary folders.
+  Implemented on `work/eval-011-record-v1` (2026-10-06), awaiting review.
 - Remove the unused `--container` mode, and split `evals/build_probe.py` along its inventory seams with
   no verdict change.
 **Evidence:** [PR #310](https://github.com/latent-sre/save-toolkit/pull/310); the amended ADR's

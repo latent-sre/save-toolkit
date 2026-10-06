@@ -472,6 +472,15 @@ soon as a trial's cost is unknown, because an unknown cost cannot be held to a c
 receipts still sum an unpriced call as zero: changing `judge.py` invalidates every receipt, so that
 fix waits for the next recalibration.
 
+Each graded attempt also writes `record.json`, the [v1 result record](../docs/fleet-evaluation/contracts.md#result-record-v1)
+that the comparison report reads: format and version, a `case_sha256` over the scenario, oracles and
+rubric definitions alone (unlike `scenario_sha256`, it survives a runner edit), candidate and runner
+identity, run conditions, attempt number and UTC times, how the run ended, each check's kind, state
+and truncation flag (evidence is cut at 600 characters and flagged), the verdict, the cost, and
+evidence paths relative to the attempt folder. Attempt folders are created with a plain `mkdir`, so
+they inherit `.eval-runs/` permissions; `tempfile.mkdtemp` made them readable only by the account
+that ran them on Windows.
+
 Machine records retain the complete candidate digest and a scenario digest covering the spec, its
 referenced oracle files, the explicit judge binding when used, and the rubric definitions the judge actually consumes. The judge caches
 rubrics on first load for the process; file edits take effect in a new process. The digest uses those

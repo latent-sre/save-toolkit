@@ -206,7 +206,7 @@ def required_rubrics(spec: dict) -> set[str]:
             | {g["rubric_name"] for g in spec.get("checks", []) if g.get("check") == "fleet_grader" and g.get("name") == "rubric"})
 
 
-def scenario_digest(spec: dict, judge_binding: dict | None = None) -> str:
+def scenario_digest(spec: dict, judge_binding: dict | None = None, *, case_only: bool = False) -> str:
     """Bind the scenario, the judge's cached rubric definitions, and current oracle file bytes.
 
     The judge loads rubrics once per process. A disk edit takes effect in a new process, so hash
@@ -229,11 +229,20 @@ def scenario_digest(spec: dict, judge_binding: dict | None = None) -> str:
             path = (ROOT / relative).resolve()
             oracles[relative] = (hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
                                  if path.is_relative_to(ORACLE_DIR) and path.is_file() else None)
+    if case_only:
+        payload = {"scenario": spec, "rubrics": rubrics, "oracles": oracles}
+        return hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=True).encode("utf-8")).hexdigest()
     payload = {"scenario": spec, "rubrics": rubrics, "oracles": oracles,
                "implementation": HARNESS_IDENTITY}
     if required_rubrics(spec):
         payload["judge_binding"] = judge_binding
     return hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=True).encode("utf-8")).hexdigest()
+
+
+def case_digest(spec: dict) -> str:
+    """The case alone: scenario, oracle bytes and rubric definitions, without the runner, Python,
+    library versions or judge binding. Two runners grading the same case share it (DEC-22)."""
+    return scenario_digest(spec, case_only=True)
 
 
 def stamp_assertions(identity: str, expectations: list[dict]) -> str:
@@ -2998,7 +3007,13 @@ def _expectation(text: str, live, inconclusive: str | None) -> dict:
             passed, evidence = live()
         except Exception as exc:
             passed, evidence = False, f"grader error: {exc!r}"
-    return {"text": text, "passed": bool(passed), "evidence": str(evidence)[:600]}
+    return {"text": text, "passed": bool(passed), **_bounded(evidence)}
+
+
+def _bounded(evidence: object) -> dict:
+    """Evidence cut to 600 characters, flagged when cut, so a reader knows more existed."""
+    text = str(evidence)
+    return {"evidence": text[:600], **({"evidence_truncated": True} if len(text) > 600 else {})}
 
 
 def _cut_short(expectation: dict, cut: str) -> dict:
@@ -3043,7 +3058,7 @@ def grade(ctx: Context, *, inconclusive: str | None = None,
                 passed, evidence = False, f"grader error: {exc!r}"
         if check["check"] in {"verification_completed", "command_exit_zero"} and str(evidence).startswith("INCONCLUSIVE: "):
             instrument_failure = instrument_failure or str(evidence).removeprefix("INCONCLUSIVE: ")
-        expectation = {"text": describe(check), "passed": bool(passed), "evidence": str(evidence)[:600]}
+        expectation = {"text": describe(check), "passed": bool(passed), **_bounded(evidence)}
         expectations.append(_cut_short(expectation, cut) if forbids_on_cut else expectation)
     if scenario_digest(ctx.spec, binding) != identity:
         inconclusive = "scenario inputs changed during grading; re-run the trial"
@@ -3253,8 +3268,9 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
     kept = [int(p.name) for p in history.iterdir() if p.name.isdigit()] if history.is_dir() else []
     current = (_attempt_number(target) or max(kept, default=0) + 1) if target.exists() else None
     number = max([*kept, current or 0]) + 1
-    attempt = Path(tempfile.mkdtemp(prefix=f".{target.name}-attempt-", dir=target.parent))
+    attempt = _new_attempt_dir(target)
     _write_attempt(attempt, number, "final")
+    started_at = _utc_now()
     backup, published = None, False
     try:
         summary = _run_trial(spec, plugin_root=plugin_root, label=label, model=model,
@@ -3264,6 +3280,8 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
                              expected_plugin_digest=expected_plugin_digest, judge_binding=judge_binding,
                              runtime=runtime)
         summary["attempt"] = number
+        write_record(attempt, spec, label=label, run_number=run_number, attempt=number,
+                     started_at=started_at, model=model, timeout=timeout)
         if target.exists():
             backup = target.with_name(f".{target.name}-previous-{secrets.token_hex(8)}")
             target.rename(backup)
@@ -3290,6 +3308,19 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
         raise
 
 
+def _new_attempt_dir(target: Path) -> Path:
+    """A fresh hidden sibling for one attempt. A plain mkdir inherits the parent's permissions;
+    tempfile.mkdtemp makes the folder readable only by its creator on Windows (EVAL-012 DEC-23)."""
+    for _ in range(16):
+        attempt = target.with_name(f".{target.name}-attempt-{secrets.token_hex(8)}")
+        try:
+            attempt.mkdir()
+            return attempt
+        except FileExistsError:
+            continue
+    raise RuntimeError(f"could not create an attempt directory beside {target}")
+
+
 def _attempt_number(run_dir: Path) -> int | None:
     try:
         number = json.loads((run_dir / "attempt.json").read_text(encoding="utf-8")).get("attempt")
@@ -3301,8 +3332,71 @@ def _attempt_number(run_dir: Path) -> int | None:
 def _write_attempt(run_dir: Path, number: int, state: str, reason: str | None = None) -> None:
     (run_dir / "attempt.json").write_text(json.dumps({
         "attempt": number, "state": state, **({"reason": reason} if reason else {}),
-        "recorded_at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+        "recorded_at": _utc_now(),
     }, indent=2), encoding="utf-8")
+    record_path = run_dir / "record.json"
+    if record_path.is_file():
+        with contextlib.suppress(OSError, ValueError, AttributeError):
+            record = json.loads(record_path.read_text(encoding="utf-8"))
+            record["attempt"].update(number=number, state=state, **({"reason": reason} if reason else {}))
+            record_path.write_text(json.dumps(record, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def _utc_now() -> str:
+    return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+
+
+RECORD_FORMAT = {"name": "save-toolkit.eval-record", "version": 1}
+
+
+def write_record(run_dir: Path, spec: dict, *, label: str, run_number: int, attempt: int,
+                 started_at: str, model: str | None, timeout: int) -> dict:
+    """The v1 result record (docs/fleet-evaluation/contracts.md#result-record-v1) for one attempt.
+
+    It maps facts the attempt's own files already hold; unknown values stay null, never filled from
+    the computer writing it, and evidence paths are relative to the attempt folder.
+    """
+    def read(name: str) -> dict:
+        try:
+            value = json.loads((run_dir / name).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return {}
+        return value if isinstance(value, dict) else {}
+
+    grading, timing, provenance = read("grading.json"), read("timing.json"), read("provenance.json")
+    summary = read("outputs/trace-summary.json")
+    status = grading.get("status")
+    ended = ("cut_short" if grading.get("run_end") == "cut_short"
+             else "void" if status == "INCONCLUSIVE" and grading.get("inconclusive") and not any(
+                 e.get("state") in ("PASS", "FAIL") for e in grading.get("expectations") or [])
+             else "completed")
+    record = {
+        "format": RECORD_FORMAT,
+        "case": {"id": spec["id"], "case_sha256": case_digest(spec), "scenario_sha256": grading.get("scenario_sha256")},
+        "candidate": {key: provenance.get(key) for key in ("plugin_root", "plugin_commit", "plugin_inputs_dirty", "plugin_source_sha256")},
+        "runner": {key: provenance.get(key) for key in ("runner_commit", "runner_source_dirty", "runner_source_sha256")},
+        "conditions": {"requested_model": model, "observed_models": summary.get("models"),
+                       "runtime": provenance.get("runtime"), "turn_limit": spec.get("max_turns"),
+                       "wall_clock_seconds": timeout},
+        "attempt": {"label": label, "slot": run_number, "number": attempt, "state": "final",
+                    "started_at": started_at, "ended_at": _utc_now()},
+        "run_end": {"kind": ended, "reason": grading.get("inconclusive") or grading.get("unmeasured")},
+        "checks": [{"id": e.get("id"), "text": e.get("text"), "kind": e.get("kind"), "state": e.get("state"),
+                    "evidence": e.get("evidence"), "evidence_truncated": bool(e.get("evidence_truncated"))}
+                   for e in grading.get("expectations") or []],
+        "verdict": {"status": status, "reason": grading.get("inconclusive") or grading.get("unmeasured"),
+                    "assessment_revision": 0, "after_assessment": grading.get("after_assessment")},
+        "cost": {"trial_usd": timing.get("trial_cost_usd"),
+                 "judge_usd": (timing.get("judge") or {}).get("cost_usd"),
+                 "known_usd": timing.get("known_cost_usd"), "complete": timing.get("cost_complete"),
+                 "judge_calls": (timing.get("judge") or {}).get("calls"),
+                 "judge_unknown_cost_calls": (timing.get("judge") or {}).get("unknown_cost_calls")},
+        "evidence": {name: name for name in ("outputs/response.md", "stdout.jsonl", "outputs/workspace.patch",
+                                             "grading.json", "timing.json", "provenance.json")
+                     if (run_dir / name).is_file()},
+    }
+    (run_dir / "record.json").write_text(json.dumps(record, indent=2, ensure_ascii=False), encoding="utf-8")
+    return record
 
 
 def _keep_attempt(run_dir: Path, history: Path, number: int | None, state: str, reason: str) -> Path:

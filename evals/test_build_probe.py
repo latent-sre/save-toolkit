@@ -4210,3 +4210,64 @@ class AuthStopsTheBatchTests(unittest.TestCase):
         self.assertEqual((4, [1, 2]), (code, calls))
         self.assertIn("authentication unavailable", out.getvalue())
         self.assertIn('"trials_not_run": 2', out.getvalue())
+
+
+class ResultRecordV1Tests(unittest.TestCase):
+    """EVAL-012 DEC-22/23: one v1 record per attempt, in a folder that inherits its parent's permissions."""
+
+    _stub = EndToEndStubTests._stub
+    _env_factory = staticmethod(EndToEndStubTests._env_factory)
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory(prefix="build-probe-test-")
+        self.root = Path(self.tmp.name)
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def _run(self, *, overwrite: bool = False) -> Path:
+        spec = EndToEndStubTests._spec(self)
+        build_probe.run_trial(spec, plugin_root=ROOT, label="v1", model=None, run_number=1,
+                              out_dir=self.root / "it", timeout=60, executable=self._stub(),
+                              keep_workspace=False, env_factory=self._env_factory(), overwrite=overwrite)
+        return self.root / "it" / "eval-tiny" / "v1" / "run-1"
+
+    def test_each_attempt_writes_a_v1_record_of_facts_its_files_hold(self) -> None:
+        run = self._run()
+        record = json.loads((run / "record.json").read_text(encoding="utf-8"))
+        spec = EndToEndStubTests._spec(self)
+        self.assertEqual({"name": "save-toolkit.eval-record", "version": 1}, record["format"])
+        self.assertEqual(build_probe.case_digest(spec), record["case"]["case_sha256"])
+        self.assertEqual(build_probe.HARNESS_SOURCE_SHA256, record["runner"]["runner_source_sha256"])
+        self.assertEqual((1, "final", 1), (record["attempt"]["slot"], record["attempt"]["state"], record["attempt"]["number"]))
+        self.assertEqual("completed", record["run_end"]["kind"])
+        self.assertEqual(["PASS"] * 3, [c["state"] for c in record["checks"]])
+        self.assertTrue(all(c["kind"] in ("forbids", "requires") for c in record["checks"]))
+        self.assertTrue(all((run / path).is_file() for path in record["evidence"].values()))
+        # The stub CLI reports no cost: the record says unknown, not zero.
+        self.assertEqual((None, False), (record["cost"]["trial_usd"], record["cost"]["complete"]))
+
+    def test_a_superseded_attempt_records_its_state(self) -> None:
+        self._run()
+        run = self._run(overwrite=True)
+        kept = json.loads((run.parent / "attempts" / "run-1" / "1" / "record.json").read_text(encoding="utf-8"))
+        self.assertEqual((1, "superseded"), (kept["attempt"]["number"], kept["attempt"]["state"]))
+        self.assertEqual(2, json.loads((run / "record.json").read_text(encoding="utf-8"))["attempt"]["number"])
+
+    def test_the_case_digest_ignores_the_runner_while_the_scenario_digest_binds_it(self) -> None:
+        before = (build_probe.case_digest(TINY_SPEC), build_probe.scenario_digest(TINY_SPEC))
+        changed = {**build_probe.HARNESS_IDENTITY, "source_sha256": "0" * 64}
+        with mock.patch.object(build_probe, "HARNESS_IDENTITY", changed):
+            after = (build_probe.case_digest(TINY_SPEC), build_probe.scenario_digest(TINY_SPEC))
+        self.assertEqual(before[0], after[0])
+        self.assertNotEqual(before[1], after[1])
+
+    def test_long_evidence_is_flagged_as_truncated(self) -> None:
+        self.assertEqual({"evidence": "x" * 600, "evidence_truncated": True}, build_probe._bounded("x" * 601))
+        self.assertEqual({"evidence": "short"}, build_probe._bounded("short"))
+
+    @unittest.skipUnless(sys.platform == "win32", "Windows ACL inheritance")
+    def test_a_run_folder_inherits_its_parents_permissions(self) -> None:
+        run = self._run()
+        acl = subprocess.run(["icacls", str(run)], capture_output=True, text=True).stdout
+        self.assertIn("(I)", acl, "a mkdtemp folder lists only explicit owner-only entries")
