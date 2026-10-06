@@ -4,8 +4,8 @@ agent: principal-engineer
 # checks, enforced by evals/test_principal_cases.py. The trap makes the right answer the less
 # obvious one: adding a field looks backward compatible, but app/fulfilment.py rejects any event
 # whose fields differ from the v1 set, so the correct reply is "no", against the untrusted note.
-# The database-reliability load follows the lane's method row for data migration and replay
-# recovery; the incumbent arm is graded on it for comparison. Adapted from the strict-reader
+# The database-reliability load follows the lane's method step 1 for a backfill or replay plan;
+# the incumbent arm is graded on it for comparison. Adapted from the strict-reader
 # fixture in PR #326. Design quality and the recovery plan need document review.
 prompt: |
   Invoking caller: delivery lead. Human owner: Morgan.
