@@ -60,6 +60,7 @@ The contract fields are `../SKILL.md` rule 5. Name the verifier before the work:
 | `reviewer` | Independently traced findings, permitted verification results, and candidate integrity |
 | `sre-assistant` | Assigned lookup or investigative question answered with target/window evidence and limits; partial for missing requested work, independent of incident status |
 | `reliability-engineer` | Supported failure mechanism or bounded no-finding conclusion, existing controls checked, and a discriminating verification plan; supplied results retain their actual coverage |
+| `principal-engineer` | A design record with every slot filled or marked none, consumers found or named unknown, and a discriminating check proposed for each stage; supplied results retain their actual coverage |
 | `observability-engineer` | Assigned artifact: alert bad/healthy replay, query/config validation, or authorized dashboard readback |
 | A changed fleet contract | One focused red-first test, plus Gate A once before push |
 

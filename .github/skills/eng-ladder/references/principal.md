@@ -76,7 +76,7 @@ write "none" rather than drop one.
 | Options | Including do nothing; each with what it gives up and whether it is a one-way or two-way door |
 | Recommendation | One option and the trade-off accepted |
 | Contracts and consumers | Interfaces, schemas, and events created or changed; known consumers with evidence; consumers you cannot see named unknown |
-| Failure modes | Each with how it is detected |
+| Failure modes | Each with how it is detected and who owns the response |
 | Rollout and recovery | Per stage, with recovery that preserves accepted writes |
 | Verification | The checks that prove each stage; proposed checks kept apart from supplied results |
 | Operational cost | Who is paged, new signals and dashboards, and ongoing maintenance |
@@ -93,15 +93,15 @@ text, only when it clarifies a relationship.
 
 > **Problem and context**: `services.json`, written nightly by `catalog-export`, keys ownership by free-text team name, and two team renames this quarter each broke owner lookups for a day [sourced] caller-supplied incident notes. Readers in this repository are the on-call SPA and the `whoowns` CLI [verified] `spa/src/catalog.ts:41`, `cli/whoowns.py:88`.
 > **Goals / non-goals**: owner lookups survive team renames. Non-goal: redesigning the catalog store.
-> **Options**: (1) do nothing — renames keep breaking lookups; two-way door. (2) add `owner_team_id` beside `owner`, migrate readers, retire `owner` later — more steps, two-way until removal. (3) replace `owner` in place — one step, breaks every unmigrated reader; a one-way door for readers we cannot see.
-> **Recommendation**: (2). We accept a period of two fields to avoid a flag day.
+> **Options**: (1) do nothing — each rename can break lookups again, as both past renames did [sourced] the incident notes; two-way door. (2) add `owner_team_id` beside `owner`, migrate readers, retire `owner` later — more steps, and the export must derive both fields from one team record [unverified]; two-way until removal. (3) replace `owner` in place — one step, but both known readers read `owner` today [verified] and would break at release, as would any unseen reader that does [unverified]; a one-way door.
+> **Recommendation**: (2). We accept writing both fields until the last reader moves, so that no reader breaks on the day of release.
 > **Contracts and consumers**: `services.json` gains `owner_team_id`; `owner` keeps its meaning until retirement. Known consumers: the SPA and `whoowns` [verified]. Consumers outside this repository: unknown [unverified]; the export's access logs would settle it.
-> **Failure modes**: a reader keeps using a stale `owner` after a rename, detected by a nightly check that compares both fields; the export drops the new field, detected by a schema test that fails the job.
-> **Rollout and recovery**: stage 1 writes both fields (recovery: stop writing the new one; readers are unaffected); stage 2 migrates readers one at a time (recovery: revert that reader); stage 3 removes `owner` only after the access logs show no reader for 30 days (recovery: restore the field from the previous export).
+> **Failure modes**: a reader keeps using a stale `owner` after a rename, detected by a nightly check that compares both fields, owned by the catalog's maintainers; the export drops the new field, detected by a schema test that fails the job, owned by whoever merges the export change.
+> **Rollout and recovery**: stage 1 writes both fields (recovery: stop writing the new one; readers are unaffected); stage 2 migrates readers one at a time (recovery: revert that reader); stage 3 removes `owner` only once the owner's retirement criterion is met (recovery: re-add `owner`, generated from the current team record so no stale name returns).
 > **Verification**: a schema test on the export, and each reader's tests against both shapes; proposed, none run yet.
 > **Operational cost**: no new pages; one nightly check, owned by the catalog's maintainers.
-> **Decision needed**: accept option (2); set the retirement criterion for `owner` (30 days without a read is a proposal).
-> **Assumptions**: the export's access logs exist, identify readers, and are kept for 30 days [unverified].
+> **Decision needed**: accept option (2); set the retirement criterion for `owner`, such as a quiet period with no reads in the export's access logs, and its length.
+> **Assumptions**: the export's access logs exist, identify readers, and are kept long enough to cover that quiet period [unverified].
 > **Weakest point**: the unseen consumers — stage 3 depends on evidence we do not have yet.
 
 ## Before you return

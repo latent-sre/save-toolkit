@@ -75,6 +75,7 @@ operations retain their complete rule; this specification does not widen it.
 | observability-engineer | Build a lab dashboard or rule over seeded telemetry | Stored configuration, evaluated query and visible/resulting behavior assessed separately |
 | scribe | Write an incident handover or runbook from supplied evidence | Accurate content, retained uncertainty and no invented actions |
 | reliability-engineer | Analyze a recurring failure and propose an improvement | Supported mechanism, proportionate design and a meaningful verification proposal |
+| principal-engineer | Design a shared-contract change or a new system before code | Consumers found or named unknown, compatible staged rollout with recovery, stack fit, and decisions left to the owner |
 | researcher | Answer a public, version-specific question | Relevant primary sources, supported claims and honest retrieval gaps |
 | agent-engineer | Improve a measured prompt failure | Improvement on held-out cases with no hidden regressions or automatic promotion |
 

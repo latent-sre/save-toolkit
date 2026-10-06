@@ -462,6 +462,21 @@ Surveyed on 2026-09-30 and left out of the comparison:
 **SRE task:** Trust an agent's mitigation recommendation or suspected-compromise escalation because a
 judge proven against human-labelled cases graded it, not because its scenario went unrun.
 
+### EVAL-013 — repair the accepted-implementation routing case
+
+**Status:** `ready` (2026-10-05); `discovery-reliability-defers-accepted-implementation` fails 0/3
+on main `8d7ecda1` and 0/3 on the principal candidate, with nothing dispatched on either tree.
+**Owner:** `agent-engineer` owns the scenario; maintainers approve any paid re-run.
+**Outcome:** The case measures whether accepted implementation work reaches `software-engineer` and
+passes on main, or carries an owner disposition.
+**Next action:** `agent-engineer` checks whether a routing scenario can seed a fixture. If it can,
+seed a minimal checkout worker and its tests so dispatch is the reasonable action; if not, reword the
+prompt so it does not depend on code the workspace lacks. Prove the case offline, then re-run three
+Sonnet trials on main with the DEC-04 figures stated first.
+**Evidence:** [Principal-engineer evaluation, base-state section](reviews/2026-10-05-principal-engineer-evals.md#the-neighbour-red-is-the-base-state).
+**SRE task:** Hand over an accepted change and know the routing check truthfully shows whether it
+reaches the implementation lane.
+
 ### PRECOMMIT-001 — decide whether software-engineer always gets a review before committing
 
 **Status:** `decision-needed` (2026-10-05). PR #294 closed unmerged; software-engineer keeps preparing

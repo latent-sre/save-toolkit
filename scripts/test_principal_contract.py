@@ -74,6 +74,17 @@ class PrincipalContractTests(unittest.TestCase):
             self.assertIn(required, slots)
         for label in validate_fleet.EVIDENCE_TRIAD:
             self.assertIn(label, "\n".join(example))
+        by_slot = dict(zip(shown, example))
+        # The contract labels each option's costs and constraints, not only the example as a whole.
+        options = re.split(r"\(\d\)", by_slot["Options"])[1:]
+        self.assertGreater(len(options), 1)
+        for number, option in enumerate(options, 1):
+            with self.subTest(option=number):
+                self.assertTrue(any(label in option for label in validate_fleet.EVIDENCE_TRIAD))
+        # Every failure mode carries its detection and the owner of the response.
+        failures = by_slot["Failure modes"]
+        self.assertGreater(failures.count("detected by"), 0)
+        self.assertEqual(failures.count("detected by"), failures.count("owned by"))
 
 
 if __name__ == "__main__":

@@ -74,7 +74,7 @@ were read, and one candidate contract document and one incumbent reply were read
 work in a workspace with no application code. On both trees the session searched, found nothing, and
 asked for the repository instead of dispatching `software-engineer`. No earlier run of this scenario
 is retained under `.eval-runs/`, so the incumbent arm is the only base-state evidence. The scenario
-needs its own disposition. It does not measure this change.
+is tracked as `EVAL-013`. It does not measure this change.
 
 ## What this does not establish
 
