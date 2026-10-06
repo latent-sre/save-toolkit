@@ -45,6 +45,7 @@ from __future__ import annotations
 import argparse
 import base64
 import contextlib
+import datetime
 import fnmatch
 import hashlib
 import json
@@ -3246,8 +3247,15 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
     if target.exists() and not overwrite:
         raise RuntimeError(f"{target} already exists; pass --overwrite or a --run-offset")
     target.parent.mkdir(parents=True, exist_ok=True)
+    # Every attempt stays visible (threat-model ADR result rule 7): a replaced run and an attempt that
+    # never published move under <label>/attempts/run-N/<k>/, which run-N globs never match.
+    history = target.parent / "attempts" / target.name
+    kept = [int(p.name) for p in history.iterdir() if p.name.isdigit()] if history.is_dir() else []
+    current = (_attempt_number(target) or max(kept, default=0) + 1) if target.exists() else None
+    number = max([*kept, current or 0]) + 1
     attempt = Path(tempfile.mkdtemp(prefix=f".{target.name}-attempt-", dir=target.parent))
-    backup = None
+    _write_attempt(attempt, number, "final")
+    backup, published = None, False
     try:
         summary = _run_trial(spec, plugin_root=plugin_root, label=label, model=model,
                              run_number=run_number, run_out=attempt, timeout=timeout,
@@ -3255,25 +3263,57 @@ def run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, r
                              container_image=container_image, docker=docker,
                              expected_plugin_digest=expected_plugin_digest, judge_binding=judge_binding,
                              runtime=runtime)
+        summary["attempt"] = number
         if target.exists():
             backup = target.with_name(f".{target.name}-previous-{secrets.token_hex(8)}")
             target.rename(backup)
         try:
             attempt.rename(target)
+            published = True
         except BaseException:
             if backup is not None:
                 backup.rename(target)
             raise
         if backup is not None:
             try:
-                remove_tree(backup)
+                _keep_attempt(backup, history, current, "superseded", f"replaced by attempt {number}")
             except Exception as exc:
                 print(f"warning: published {target}; previous run retained at {backup}: {exc}", file=sys.stderr)
         print(json.dumps(summary), flush=True)
         return summary
-    finally:
-        if attempt.exists():
-            remove_tree(attempt)
+    except BaseException as exc:
+        if not published and attempt.exists():
+            try:
+                _keep_attempt(attempt, history, number, "incomplete", f"{type(exc).__name__}: {exc}"[:500])
+            except Exception as keep_error:
+                print(f"warning: could not keep the incomplete attempt {attempt}: {keep_error}", file=sys.stderr)
+        raise
+
+
+def _attempt_number(run_dir: Path) -> int | None:
+    try:
+        number = json.loads((run_dir / "attempt.json").read_text(encoding="utf-8")).get("attempt")
+    except (OSError, ValueError, AttributeError):
+        return None
+    return number if type(number) is int and number > 0 else None
+
+
+def _write_attempt(run_dir: Path, number: int, state: str, reason: str | None = None) -> None:
+    (run_dir / "attempt.json").write_text(json.dumps({
+        "attempt": number, "state": state, **({"reason": reason} if reason else {}),
+        "recorded_at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+    }, indent=2), encoding="utf-8")
+
+
+def _keep_attempt(run_dir: Path, history: Path, number: int | None, state: str, reason: str) -> Path:
+    """Move an attempt that is not the published run into the slot's history, never deleting it."""
+    history.mkdir(parents=True, exist_ok=True)
+    taken = {int(p.name) for p in history.iterdir() if p.name.isdigit()}
+    number = number if number and number not in taken else max(taken, default=0) + 1
+    destination = history / str(number)
+    run_dir.rename(destination)
+    _write_attempt(destination, number, state, reason)
+    return destination
 
 
 def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, run_number: int,
@@ -4081,20 +4121,26 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     results = []
     blocked: str | None = None
+    auth_failed = False
     planned = [(spec, i) for spec in scenarios for i in range(args.trials)]
     spent = 0.0
     for spec, i in planned:
         if args.max_batch_usd is not None and spent >= args.max_batch_usd:
             blocked = f"batch spend USD {spent:.4f} reached the USD {args.max_batch_usd:g} cap"
             break
-        results.append(run_trial(
-            spec, plugin_root=args.plugin_root.resolve(), label=args.label, model=args.model,
-            run_number=args.run_offset + i + 1, out_dir=out, timeout=args.timeout,
-            executable=args.executable, keep_workspace=args.keep_workspace, overwrite=args.overwrite,
-            container_image=args.container, docker=args.docker,
-            expected_plugin_digest=provenance["plugin_source_sha256"],
-            judge_binding=judge_binding, runtime=runtime,
-        ))
+        try:
+            results.append(run_trial(
+                spec, plugin_root=args.plugin_root.resolve(), label=args.label, model=args.model,
+                run_number=args.run_offset + i + 1, out_dir=out, timeout=args.timeout,
+                executable=args.executable, keep_workspace=args.keep_workspace, overwrite=args.overwrite,
+                container_image=args.container, docker=args.docker,
+                expected_plugin_digest=provenance["plugin_source_sha256"],
+                judge_binding=judge_binding, runtime=runtime,
+            ))
+        except clean_room.AuthUnavailable as exc:
+            # Every later trial would fail the same way; the attempt is kept, the batch stops.
+            blocked, auth_failed = f"authentication unavailable: {exc}", True
+            break
         if results[-1].get("after_assessment"):
             # The finished trial keeps its verdict; nothing else may reuse the uncleaned environment.
             blocked = results[-1]["after_assessment"]
@@ -4134,6 +4180,8 @@ def main(argv: list[str] | None = None) -> int:
     if blocked:
         print(json.dumps({"batch": "INCONCLUSIVE", "reason": f"stopped after {blocked}",
                           "trials_not_run": len(planned) - len(results)}), flush=True)
+    if auth_failed:
+        return 4  # distinct from FAIL (1) and INCONCLUSIVE (2): re-authenticate, then resume the batch
     if "FAIL" in states:
         return 1
     return 2 if blocked or "INCONCLUSIVE" in states else 0

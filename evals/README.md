@@ -511,9 +511,15 @@ acquires the replacement run's PASS. Prefer separate labels for separate model/c
 `--overwrite` prepares a complete replacement in a hidden sibling attempt directory. The previous
 run remains intact through execution, grading, artifact writes, and workspace cleanup. Publication
 renames the previous slot to a backup and restores it if the replacement rename fails; only a
-published attempt reports its summary. A failed backup cleanup warns and retains that backup.
-If the process stops between publication renames, inspect the `.run-N-previous-*` sibling before
-restoring it; a two-directory rename is not a crash-atomic filesystem transaction.
+published attempt reports its summary. No attempt is deleted: the replaced run moves to
+`<label>/attempts/run-N/<k>/` as `superseded`, and an attempt that raised before publishing (an
+interrupt, an authentication failure, a refused preflight) moves there as `incomplete` with the
+reason. Each attempt's `attempt.json` records its number, state and time, and the summary row carries
+the published attempt's number, so a re-run is never invisible. If moving the backup fails, it is
+retained beside the slot with a warning. If the process stops between publication renames, inspect
+the `.run-N-previous-*` sibling before restoring it; a two-directory rename is not a crash-atomic
+filesystem transaction. An authentication failure stops the batch and exits 4, distinct from FAIL (1)
+and INCONCLUSIVE (2); completed trials are still reported.
 
 ## Clean-room boundary
 

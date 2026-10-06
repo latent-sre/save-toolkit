@@ -1754,32 +1754,37 @@ class EndToEndStubTests(unittest.TestCase):
                             remove(path)
                         self.assertFalse(path.exists())
 
-    def test_published_overwrite_reports_success_if_only_backup_cleanup_fails(self) -> None:
+    def test_an_overwrite_keeps_the_replaced_run_as_a_superseded_attempt(self) -> None:
+        """Result rule 7: a replaced run moves to attempts/run-N/<k>, never deleted."""
         out = self.root / "iteration"
         run = out / "eval-tiny/replaced/run-1"
         run.mkdir(parents=True)
         (run / "grading.original.json").write_text("old original", encoding="utf-8")
-        rmtree = build_probe.shutil.rmtree
-        retained = []
-        def cleanup(path, **kwargs):
-            if "-previous-" in Path(path).name:
-                retained.append(Path(path))
-                return
-            rmtree(path, **kwargs)
-        try:
-            with mock.patch.object(build_probe.shutil, "rmtree", side_effect=cleanup), mock.patch.object(build_probe.time, "sleep"):
-                summary = build_probe.run_trial(
-                    self._spec(), plugin_root=ROOT, label="replaced", model=None, run_number=1,
-                    out_dir=out, timeout=60, executable=self._stub(), keep_workspace=False,
-                    env_factory=self._env_factory(), overwrite=True)
-            self.assertEqual("PASS", summary["status"])
-            self.assertTrue((run / "grading.json").is_file())
-            self.assertEqual(3, len(retained))
-            backups = list(run.parent.glob(".run-1-previous-*/grading.original.json"))
-            self.assertEqual(["old original"], [p.read_text(encoding="utf-8") for p in backups])
-        finally:
-            for path in set(retained):
-                build_probe.remove_tree(path)
+        summary = build_probe.run_trial(
+            self._spec(), plugin_root=ROOT, label="replaced", model=None, run_number=1,
+            out_dir=out, timeout=60, executable=self._stub(), keep_workspace=False,
+            env_factory=self._env_factory(), overwrite=True)
+        self.assertEqual(("PASS", 2), (summary["status"], summary["attempt"]))
+        kept = run.parent / "attempts" / "run-1" / "1"
+        self.assertEqual("old original", (kept / "grading.original.json").read_text(encoding="utf-8"))
+        self.assertEqual("superseded", json.loads((kept / "attempt.json").read_text(encoding="utf-8"))["state"])
+        final = json.loads((run / "attempt.json").read_text(encoding="utf-8"))
+        self.assertEqual((2, "final"), (final["attempt"], final["state"]))
+        self.assertEqual([], list(run.parent.glob(".run-1-*")), "no hidden attempt or backup is left behind")
+
+    def test_an_attempt_that_raises_is_kept_as_incomplete(self) -> None:
+        out = self.root / "iteration"
+        with self.assertRaises(build_probe.clean_room.AuthUnavailable):
+            build_probe.run_trial(self._spec(), plugin_root=ROOT, label="auth", model=None, run_number=1,
+                                  out_dir=out, timeout=60,
+                                  executable=self._stub(is_error=True, result="Not logged in. Please run /login.", exit_code=1),
+                                  keep_workspace=False, env_factory=self._env_factory())
+        kept = out / "eval-tiny" / "auth" / "attempts" / "run-1" / "1"
+        record = json.loads((kept / "attempt.json").read_text(encoding="utf-8"))
+        self.assertEqual("incomplete", record["state"])
+        self.assertIn("AuthUnavailable", record["reason"])
+        self.assertTrue((kept / "stdout.jsonl").is_file(), "the trace that showed the failure is kept")
+        self.assertFalse((out / "eval-tiny" / "auth" / "run-1").exists())
 
     def test_plugin_change_before_trial_does_not_start_services_or_model(self) -> None:
         with mock.patch.object(build_probe, "start_services", side_effect=AssertionError("no service launch")), \
@@ -4175,3 +4180,33 @@ class BatchSpendCapTests(unittest.TestCase):
         code, calls, out = self._main([(0.1, False), (0.1, True)], "20")
         self.assertEqual([1], calls)
         self.assertIn("cap cannot be enforced", out)
+
+
+class AuthStopsTheBatchTests(unittest.TestCase):
+    """An authentication failure exits 4 and stops the batch; completed trials are still reported."""
+
+    def test_an_auth_failure_stops_scheduling_and_exits_distinctly(self) -> None:
+        import contextlib
+        import io
+        runtime = {"cli_version": "x", "host_platform": {"system": "Windows", "release": "11", "machine": "AMD64"}}
+        spec = build_probe.load_all_scenarios()[0]
+        calls: list[int] = []
+
+        def fake_run_trial(spec_arg, **kwargs):
+            calls.append(kwargs["run_number"])
+            if len(calls) == 2:
+                raise build_probe.clean_room.AuthUnavailable("Not logged in")
+            return {"scenario": spec_arg["id"], "label": "l", "run": kwargs["run_number"], "status": "PASS",
+                    "passed": 1, "total": 1, "models": ["m"], "runtime": runtime,
+                    "plugin_source_sha256": "0" * 64, "scenario_sha256": build_probe.scenario_digest(spec_arg)}
+
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch.object(build_probe, "plugin_provenance", return_value={"plugin_source_sha256": "0" * 64}), \
+                mock.patch.object(build_probe, "runtime_identity", return_value=runtime), \
+                mock.patch.object(build_probe, "run_trial", side_effect=fake_run_trial), \
+                contextlib.redirect_stdout(io.StringIO()) as out:
+            code = build_probe.main(["--scenario", spec["id"], "--label", "l", "--trials", "3",
+                                     "--out", str(Path(tmp) / "it")])
+        self.assertEqual((4, [1, 2]), (code, calls))
+        self.assertIn("authentication unavailable", out.getvalue())
+        self.assertIn('"trials_not_run": 2', out.getvalue())

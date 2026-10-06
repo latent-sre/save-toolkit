@@ -8,6 +8,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- No eval attempt is deleted any more (`EVAL-011` attempts and cost). A run replaced by `--overwrite`
+  moves to `<label>/attempts/run-N/<k>/` as superseded, an attempt that raised moves there as
+  incomplete with its reason, and each attempt records its number in `attempt.json` and the summary
+  row. An authentication failure stops the batch and exits 4 instead of 1. [verified] Rescores of five
+  saved campaigns (217 runs) show no verdict change.
 - An unknown eval cost stays unknown, and a batch can be capped (`EVAL-011` attempts and cost). A
   trial's total is `null` unless the trial and every judge call are priced, with `known_cost_usd` and
   `cost_complete` beside it, and `--max-batch-usd` stops scheduling at the cap or at the first unknown
