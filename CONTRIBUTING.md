@@ -47,7 +47,8 @@ entry or a comment recording when a test first ran is not a retention reason. Re
 reports, retired eval fixtures, and restoration bundles once their current dependency is gone;
 an explicit preservation decision requires a successor or owner disposition, as in the
 [retention decision](docs/decisions/2026-09-07-historical-artifact-retention.md). Git retains the
-historical bytes; accepted ADRs remain immutable. Update live references in the same change.
+historical bytes; an accepted ADR changes only through a successor or its decision owner's dated
+amendment. Update live references in the same change.
 Gate A rejects uncited review packets; citation alone does not establish that a packet is still needed.
 
 | Change | Evidence |

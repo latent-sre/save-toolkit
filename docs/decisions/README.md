@@ -2,10 +2,12 @@
 
 Retained contracts for the current fleet and unresolved roadmap work. Completed renames,
 retired release and evaluation designs, and archive-location records are kept in Git history.
-Accepted ADRs stay byte-for-byte unchanged, including citations to historical paths. References
+Accepted ADRs stay byte-for-byte unchanged, including citations to historical paths, unless the
+ADR's decision owner, the business owner who accepted it, amends it. An owner amendment adds a dated
+`Amended:` line naming the change, and its commit message says the decision owner made it. References
 removed by this cleanup are in the [pre-cleanup snapshot](https://github.com/latent-sre/save-toolkit/tree/e6702ee04ca03f87e71595fb4dbf89a722df9fe9/docs/decisions);
 earlier missing references require their own historical revision.
-Change a decision through a successor as described in [`commands/adr.md`](../../commands/adr.md).
+Anyone else changes a decision through a successor as described in [`commands/adr.md`](../../commands/adr.md).
 
 The [retention successor](2026-09-07-historical-artifact-retention.md) explicitly replaces the
 incident-navigation and incident-autonomy bundle-preservation requirements when maintainers merge

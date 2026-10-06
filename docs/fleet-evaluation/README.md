@@ -73,8 +73,9 @@ proof that a specific package release works with this fleet.
 
 Execution status lives only in [EVAL-012 in the fleet roadmap](../fleet-roadmap.md#eval-012--plan-incident-and-coding-evaluations-for-the-fleet).
 The work packages here describe delivery, not a second live backlog. EVAL-010 retains ownership of
-judge adoption and EVAL-011 of the native measurement contract. Accepted ADRs stay immutable;
-implementation that changes their contracts needs a successor decision.
+judge adoption and EVAL-011 of the native measurement contract. An accepted ADR changes only
+through a successor or its decision owner's dated amendment; implementation that changes its
+contract needs one of them.
 
 ## Completion boundaries
 

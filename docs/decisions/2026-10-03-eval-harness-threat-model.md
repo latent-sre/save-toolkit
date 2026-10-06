@@ -1,7 +1,8 @@
 # ADR: What the eval harness defends against
 
 - **Date:** 2026-10-03
-- **Amended:** 2026-10-06, before acceptance: result rules added from the EVAL-012 WP-00 review
+- **Amended:** 2026-10-06, before acceptance: result rules added from the EVAL-012 WP-00 review;
+  2026-10-06, by the decision owner: EVAL-011's runner changes land in one pull request
 - **Status:** Accepted 2026-10-06
 - **Decision owner:** Save Toolkit maintainers
 - **Roadmap item:** `EVAL-011` in [the fleet roadmap](../fleet-roadmap.md)

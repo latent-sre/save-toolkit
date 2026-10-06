@@ -49,9 +49,9 @@ SELF_SKILL_PATH_RE = re.compile(
 # someone looking for authority to a file that is not there.
 #
 # Repairability is the whole selection rule, and it is why docs/decisions/ is NOT here. An accepted
-# ADR is append-only and immutable (commands/adr.md); the only sanctioned way to change one is to
-# write a successor. Gating a file the rules forbid repairing turns every retention pass into a red
-# gate with no legal fix -- 14 such links did exactly that on 2026-09-02. CONTRIBUTING's retention
+# ADR is append-only (commands/adr.md): it changes only through a successor or its decision owner's
+# dated amendment, never a routine link repair. Gating a file the rules forbid repairing turns every
+# retention pass into a red gate with no legal fix -- 14 such links did exactly that on 2026-09-02. CONTRIBUTING's retention
 # policy is that an evidence packet is kept only while something cites it -- but citation used to be
 # unenforced: a packet could sit uncited indefinitely and nothing failed. `_check_uncited_review_packets`
 # below makes citation a gate: an uncited packet under docs/reviews/ now fails Gate A directly,
