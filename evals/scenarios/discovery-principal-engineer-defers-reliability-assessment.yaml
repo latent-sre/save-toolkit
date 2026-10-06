@@ -1,0 +1,16 @@
+id: discovery-principal-engineer-defers-reliability-assessment
+split: regression
+# Reuses discovery-reliability-engineer-assessment's prompt, which dispatched reliability-engineer in
+# every recorded trial, so a red here means the design lane fired, not that nothing did.
+prompt: |
+  Give me a dedicated engineering assessment of why this service is fragile under dependency
+  slowdown. Trace how faults could spread, check whether the current controls already contain
+  them, and propose the smallest justified design improvement with a meaningful test. There is
+  no active outage; I want a scoped specialist assignment and a report before implementation.
+target: {kind: agent, name: principal-engineer}
+routing:
+  expect: not_fire
+  expected_alternative: {kind: agent, name: reliability-engineer}
+tools: [Glob, Grep, Read, Skill, Task]
+success_criteria:
+  - Leaves the resilience assessment with reliability-engineer; the design lane does not take it.

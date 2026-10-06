@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parent
 CANDIDATE = ROOT / "build-scenarios/build-principal-engineer-contract-change.yaml"
 INCUMBENT = ROOT / "build-scenarios/build-software-engineer-contract-change-baseline.yaml"
 NEW_SYSTEM = ROOT / "build-scenarios/build-principal-engineer-new-system.yaml"
+NEW_SYSTEM_INCUMBENT = ROOT / "build-scenarios/build-software-engineer-new-system-baseline.yaml"
 ORACLE = ROOT / "oracles/principal-engineer/check_design_record.py"
 PRINCIPAL = ROOT.parent / "skills/eng-ladder/references/principal.md"
 
@@ -70,6 +71,15 @@ class PrincipalCaseTests(unittest.TestCase):
             with self.subTest(key=key):
                 self.assertEqual(candidate[key], incumbent[key])
 
+    def test_new_system_incumbent_uses_identical_task_fixture_and_checks(self):
+        candidate = build_probe.load_scenario(NEW_SYSTEM)
+        incumbent = build_probe.load_scenario(NEW_SYSTEM_INCUMBENT)
+        self.assertEqual("principal-engineer", candidate["agent"])
+        self.assertEqual("software-engineer", incumbent["agent"])
+        for key in ("prompt", "fixture", "checks", "success_criteria"):
+            with self.subTest(key=key):
+                self.assertEqual(candidate[key], incumbent[key])
+
     def test_fixture_readers_match_the_expected_consumer_inventory(self):
         files = build_probe.load_scenario(CANDIDATE)["fixture"]["files"]
         reads_time_field = re.compile(r'\["start"\]|\.start\b|\$\[\*\]\.start')
@@ -115,6 +125,13 @@ class PrincipalCaseTests(unittest.TestCase):
                            ("decision_owner", "designer")):
             with self.subTest(field=key):
                 self.assertTrue(_failed_reply_checks(spec, json.dumps(NEW_SYSTEM_REPLY | {key: value})))
+        unsafe = NEW_SYSTEM_REPLY | {"introduces_new_infrastructure": "yes", "decision_owner": "designer"}
+        for name, reply in (("draft then contradictory final",
+                             json.dumps(NEW_SYSTEM_REPLY) + "\nFinal:\n" + json.dumps(unsafe)),
+                            ("duplicate key overrides a safe value",
+                             json.dumps(NEW_SYSTEM_REPLY)[:-1] + ', "decision_owner": "designer"}')):
+            with self.subTest(reply=name):
+                self.assertTrue(_failed_reply_checks(spec, reply))
 
     def test_record_oracle_accepts_every_contract_shape(self):
         example = "\n".join(line for line in PRINCIPAL.read_text(encoding="utf-8").splitlines()
@@ -127,9 +144,16 @@ class PrincipalCaseTests(unittest.TestCase):
             "Contracts and consumers", "Failure modes and how each is detected",
             "Rollout and rollback plan", "Verification plan", "Operational cost",
             "Open questions and decisions needed", "Assumptions", "Weakest point"))
+        sub_sections = "\n\n".join(f"## {s}\n\n### Detail\n- text [sourced]" for s in SLOT_HEADINGS)
+        labels_then_lists = "\n\n".join(f"**{s}**:\n\n- text [verified]" for s in SLOT_HEADINGS)
+        contents_and_sections = ("## Contents\n" + "".join(f"- {s}\n" for s in SLOT_HEADINGS) + "\n"
+                                 + _headings_record())
         for name, record in (("headings", _headings_record()), ("worked example", example),
                              ("table", table), ("numbered", numbered + "\n[verified] read"),
-                             ("homelab wording", homelab_wording)):
+                             ("homelab wording", homelab_wording),
+                             ("content only in sub-sections", sub_sections),
+                             ("labels with content after a blank line", labels_then_lists),
+                             ("contents list plus filled sections", contents_and_sections)):
             with self.subTest(shape=name):
                 self.assertEqual(0, _oracle(record))
 
@@ -151,6 +175,12 @@ class PrincipalCaseTests(unittest.TestCase):
                              ("homelab outline without the added slots", homelab_packet_only),
                              ("document title is not a slot", title_only),
                              ("contracts without consumers", contracts_without_consumers),
+                             ("empty headings", "[unverified]\n\n"
+                              + "\n\n".join(f"## {s}" for s in SLOT_HEADINGS)),
+                             ("contents list only", "## Contents\n"
+                              + "".join(f"- {s}\n" for s in SLOT_HEADINGS) + "\n[unverified]\n"),
+                             ("empty table cells", "| Slot | Content |\n|---|---|\n"
+                              + "".join(f"| {s} | |\n" for s in SLOT_HEADINGS) + "\n[unverified]\n"),
                              ("empty", "")):
             with self.subTest(case=name):
                 self.assertEqual(1, _oracle(record))

@@ -512,7 +512,7 @@ class PlatformAdapterTests(unittest.TestCase):
             adr = outputs[command_root / "adr.md"].decode("utf-8")
             # ADR currently needs no addressing rewrite: its full body and metadata must survive.
             self.assertEqual((root / "commands/adr.md").read_text(encoding="utf-8"), adr)
-            self.assertIn("exactly `software-engineer`", adr)
+            self.assertIn("exactly `software-engineer` or exactly `principal-engineer`", adr)
             self.assertIn("exclusive create-new operation", adr)
             self.assertIn("symlink, junction, or reparse point", adr)
             self.assertIn("disable-model-invocation: true", adr)

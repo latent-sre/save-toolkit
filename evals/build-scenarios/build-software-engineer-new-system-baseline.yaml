@@ -1,6 +1,6 @@
-id: build-principal-engineer-new-system
-agent: principal-engineer
-# Paired with build-software-engineer-new-system-baseline: identical prompt, fixture and checks,
+id: build-software-engineer-new-system-baseline
+agent: software-engineer
+# Incumbent arm for build-principal-engineer-new-system: identical prompt, fixture and checks,
 # enforced by evals/test_principal_cases.py. The record oracle checks every design-record slot is
 # filled and an evidence label is present (the contract in skills/eng-ladder/references/principal.md);
 # each returned field is its own check, a guard rejects any field given twice, and exact_json
