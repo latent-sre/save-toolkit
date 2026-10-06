@@ -1104,7 +1104,10 @@ class PositiveControlTests(unittest.TestCase):
         self.assertTrue(
             build_probe.check_fleet_grader(good, {"name": "not_regex", "pattern": r"i'll run cf push"})[0]
         )
-        self.assertFalse(build_probe.check_fleet_grader(good, {"name": "no-such-grader"})[0])
+        # A misconfigured check is a harness defect: validation rejects it, and grading reports it as
+        # a grader error (INCONCLUSIVE) rather than a FAIL charged to the candidate.
+        with self.assertRaisesRegex(ValueError, "unknown fleet grader"):
+            build_probe.check_fleet_grader(good, {"name": "no-such-grader"})
 
     def test_unnamed_skill_or_task_calls_fail_the_name_checks(self) -> None:
         ws = build_probe.seed_workspace(TINY_SPEC, self.root)
@@ -4271,3 +4274,47 @@ class ResultRecordV1Tests(unittest.TestCase):
         run = self._run()
         acl = subprocess.run(["icacls", str(run)], capture_output=True, text=True).stdout
         self.assertIn("(I)", acl, "a mkdtemp folder lists only explicit owner-only entries")
+
+
+class GradingMachineryTests(unittest.TestCase):
+    """Threat-model ADR rule 5: grading-machinery failures are INCONCLUSIVE and stop their scenario."""
+
+    def test_a_grader_crash_is_inconclusive_and_named(self) -> None:
+        spec = {**TINY_SPEC, "checks": [{"check": "text_contains_any", "of": ["ok"], "text": "says ok"},
+                                         {"check": "fleet_grader", "name": "no-such-grader", "text": "broken"}]}
+        ctx = build_probe.Context(spec, None, build_probe.TraceSummary(result_text="ok"), None)
+        grading = build_probe.grade(ctx)
+        self.assertEqual(["PASS", "INCONCLUSIVE"], [e["state"] for e in grading["expectations"]])
+        self.assertEqual("INCONCLUSIVE", grading["status"])
+        self.assertIn("unknown fleet grader", grading["grader_error"])
+
+    def test_a_grader_crash_beside_a_supported_failure_still_fails(self) -> None:
+        spec = {**TINY_SPEC, "checks": [{"check": "text_contains_any", "of": ["absent"], "text": "says absent"},
+                                         {"check": "fleet_grader", "name": "no-such-grader", "text": "broken"}]}
+        ctx = build_probe.Context(spec, None, build_probe.TraceSummary(result_text="ok"), None)
+        self.assertEqual("FAIL", build_probe.grade(ctx)["status"])
+
+    def test_validation_rejects_an_unknown_fleet_grader(self) -> None:
+        spec = {**TINY_SPEC, "checks": [{"check": "fleet_grader", "name": "no-such-grader", "text": "x"}]}
+        self.assertTrue(any("unknown grader" in p for p in build_probe.validate_scenario(spec)))
+
+    def test_a_grader_error_stops_only_its_scenarios_remaining_trials(self) -> None:
+        import contextlib
+        import io
+        runtime = {"cli_version": "x", "host_platform": {"system": "Windows", "release": "11", "machine": "AMD64"}}
+        specs = [s for s in build_probe.load_all_scenarios() if not build_probe.required_rubrics(s)
+                 and not (s.get("fixture") or {}).get("services") and not s.get("followups")][:2]
+        calls: list[tuple[str, int]] = []
+
+        def fake_run_trial(spec_arg, **kwargs):
+            calls.append((spec_arg["id"], kwargs["run_number"]))
+            return {"scenario": spec_arg["id"], "label": "l", "run": kwargs["run_number"], "status": "INCONCLUSIVE",
+                    "passed": 0, "total": 1, "models": ["m"], "runtime": runtime,
+                    "plugin_source_sha256": "0" * 64, "scenario_sha256": build_probe.scenario_digest(spec_arg),
+                    **({"grader_error": "boom"} if spec_arg["id"] == specs[0]["id"] else {})}
+
+        with tempfile.TemporaryDirectory() as tmp,                 mock.patch.object(build_probe, "load_all_scenarios", return_value=specs),                 mock.patch.object(build_probe, "plugin_provenance", return_value={"plugin_source_sha256": "0" * 64}),                 mock.patch.object(build_probe, "runtime_identity", return_value=runtime),                 mock.patch.object(build_probe, "run_trial", side_effect=fake_run_trial),                 contextlib.redirect_stdout(io.StringIO()) as out:
+            code = build_probe.main(["--label", "l", "--trials", "3", "--out", str(Path(tmp) / "it")])
+        self.assertEqual([(specs[0]["id"], 1), (specs[1]["id"], 1), (specs[1]["id"], 2), (specs[1]["id"], 3)], calls)
+        self.assertEqual(2, code)
+        self.assertIn('"trials_not_run": 2', out.getvalue())

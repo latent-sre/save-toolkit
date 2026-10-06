@@ -8,6 +8,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- A grader that crashes is now a measurement failure, not a candidate FAIL (`EVAL-011` grading
+  machinery): its check is INCONCLUSIVE, the grade names `grader_error`, and the batch runs no more
+  trials of that scenario. `--validate` rejects an unknown `fleet_grader` name. [verified] Rescoring
+  all 85 saved campaigns (1,317 runs) found no grader crash on real candidate output, and the five
+  gate campaigns show no verdict change. Oracle exit codes are unchanged for now.
 - Each eval attempt writes the v1 result record, `record.json` (`EVAL-012` DEC-22, through `EVAL-011`),
   with a case digest that survives runner edits, and evidence cut at 600 characters is flagged
   `evidence_truncated`. Attempt folders now inherit `.eval-runs/` permissions instead of being

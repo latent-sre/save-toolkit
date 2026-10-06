@@ -554,7 +554,12 @@ already in it is FAIL, while one with no violation yet and every requiring check
 the grade records `run_end: cut_short` so a regrade applies the same rule. Otherwise each check is PASS, FAIL or INCONCLUSIVE (its `state` in
 `grading.json`), and a trial with any failed check is FAIL even when another check could not be
 measured; that reason is kept as `unmeasured`. Without a failure, any unmeasured check makes the trial
-INCONCLUSIVE, with the reason in `inconclusive`. A backing-service cleanup failure after grading keeps
+INCONCLUSIVE, with the reason in `inconclusive`. A grader that raises is a measurement failure: its
+check is INCONCLUSIVE (`grader error`), the grade names it as `grader_error`, and the batch runs no
+more trials of that scenario; a grader returns an error in the candidate's own output as a FAIL.
+An unknown `fleet_grader` name is rejected by `--validate`. Oracle scripts still fail with exit 1,
+which an uncaught exception also produces, until each is moved to a distinct failure code
+(`EVAL-011`). A backing-service cleanup failure after grading keeps
 the verdict, is recorded as `after_assessment`, and stops the batch from starting another trial.
 These follow the result rules of the accepted
 [threat-model ADR](../docs/decisions/2026-10-03-eval-harness-threat-model.md).

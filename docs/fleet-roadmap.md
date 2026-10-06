@@ -402,7 +402,12 @@ saved runs with both and explains every line the diff prints.
   rescore diffs over six saved campaigns are explained in the commit messages.
 - Grading machinery: grader defects and misconfigured checks become inconclusive and stop that
   scenario's trials; errors caused by the candidate stay failures; oracles fail with an exit code an
-  uncaught exception cannot produce.
+  uncaught exception cannot produce. The in-process part is implemented on
+  `work/eval-011-grading-machinery` (2026-10-06), awaiting review; rescoring all 85 saved campaigns
+  (1,317 runs) found no grader crash on real candidate output. The oracle protocol remains: 16
+  oracles exit 1 to fail, which an uncaught exception also produces, and 7 of them run candidate code
+  (operator-cli, obs-burn-rules, pager-webhook, pcf-deploy-job and three python-craft), so each needs
+  candidate errors caught as FAIL before a crash can mean INCONCLUSIVE.
 - Turn limits: each scenario declares one, passed as `--max-turns`; the wall clock and the native
   spend cap remain instrument guards.
 - Attempts and cost: replaced and incomplete attempts are kept with trace, timing and cost; an

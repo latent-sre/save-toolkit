@@ -406,6 +406,8 @@ def validate_scenario(spec: object, *, where: str = "scenario") -> list[str]:
                 if not isinstance(check, dict) or check.get("check") not in CHECKS:
                     problems.append(f"{where}: checks[{i}] names an unknown check {check!r}"[:200])
                     continue
+                if check["check"] == "fleet_grader" and check.get("name") not in fleet_graders.REGISTRY:
+                    problems.append(f"{where}: checks[{i}] fleet_grader names an unknown grader {check.get('name')!r}")
                 if "scope" in check and (check["check"] not in ("bash_ran", "bash_did_not_run", "ran_outside_checkout")
                                          or check["scope"] != "subagent"):
                     problems.append(f"{where}: checks[{i}] scope is only `subagent`, on bash_ran, bash_did_not_run, "
@@ -2805,8 +2807,8 @@ def check_dispatches_namespaced(ctx: Context, p: dict) -> tuple[bool, str]:
 def check_fleet_grader(ctx: Context, p: dict) -> tuple[bool, str]:
     """Run one of the fleet's registered response graders (evals/graders.py) on the final text."""
     name = p["name"]
-    if name not in fleet_graders.REGISTRY:
-        return False, f"unknown fleet grader {name!r}"
+    if name not in fleet_graders.REGISTRY:  # validation rejects this; reaching it is a harness defect
+        raise ValueError(f"unknown fleet grader {name!r}")
     kwargs = {k: v for k, v in p.items() if k not in ("check", "name", "text")}
     if name == "rubric":
         # `rubric`'s own identity kwarg is also called `name`, which this config already spends on
@@ -2999,14 +3001,16 @@ def scenario_assertions(spec: dict) -> list[str]:
 
 
 def _expectation(text: str, live, inconclusive: str | None) -> dict:
-    """One graded expectation. A grader crash is a red with its reason, never a silent pass."""
+    """One graded expectation. A grader crash is a measurement failure (threat-model ADR rule 5):
+    INCONCLUSIVE with its reason, never a silent pass and never a verdict on the candidate. A grader
+    reaches an error in the candidate's own output or code as a FAIL it returns, not an exception."""
     if inconclusive:
         passed, evidence = False, f"INCONCLUSIVE: {inconclusive}"
     else:
         try:
             passed, evidence = live()
         except Exception as exc:
-            passed, evidence = False, f"grader error: {exc!r}"
+            passed, evidence = False, f"INCONCLUSIVE: grader error: {exc!r}"
     return {"text": text, "passed": bool(passed), **_bounded(evidence)}
 
 
@@ -3014,6 +3018,13 @@ def _bounded(evidence: object) -> dict:
     """Evidence cut to 600 characters, flagged when cut, so a reader knows more existed."""
     text = str(evidence)
     return {"evidence": text[:600], **({"evidence_truncated": True} if len(text) > 600 else {})}
+
+
+def _grader_error(expectations: list[dict]) -> dict:
+    """The first grading-machinery failure in a grade, if any (threat-model ADR rule 5)."""
+    reason = next((str(e.get("evidence")).removeprefix("INCONCLUSIVE: ") for e in expectations
+                   if str(e.get("evidence") or "").startswith("INCONCLUSIVE: grader error: ")), None)
+    return {"grader_error": reason} if reason else {}
 
 
 def _cut_short(expectation: dict, cut: str) -> dict:
@@ -3054,8 +3065,8 @@ def grade(ctx: Context, *, inconclusive: str | None = None,
             except ServiceUnavailable as exc:
                 instrument_failure = instrument_failure or str(exc)
                 passed, evidence = False, f"INCONCLUSIVE: backing service unavailable: {exc}"
-            except Exception as exc:  # a grader crash is a red with its reason, never a silent pass
-                passed, evidence = False, f"grader error: {exc!r}"
+            except Exception as exc:  # a grader crash is a measurement failure, never a verdict
+                passed, evidence = False, f"INCONCLUSIVE: grader error: {exc!r}"
         if check["check"] in {"verification_completed", "command_exit_zero"} and str(evidence).startswith("INCONCLUSIVE: "):
             instrument_failure = instrument_failure or str(evidence).removeprefix("INCONCLUSIVE: ")
         expectation = {"text": describe(check), "passed": bool(passed), **_bounded(evidence)}
@@ -3075,6 +3086,7 @@ def grade(ctx: Context, *, inconclusive: str | None = None,
         "inconclusive": reason if status == "INCONCLUSIVE" else None,
         **({"unmeasured": reason} if status == "FAIL" and reason else {}),
         **({"run_end": "cut_short"} if isinstance(inconclusive, CutShort) else {}),
+        **_grader_error(expectations),
         "summary": {"passed": n_pass, "failed": len(expectations) - n_pass, "total": len(expectations),
                     "pass_rate": round(n_pass / len(expectations), 4) if expectations else 0.0},
         "status": status,
@@ -3599,7 +3611,8 @@ def _run_trial(spec: dict, *, plugin_root: Path, label: str, model: str | None, 
                    "scenario_sha256": grading["scenario_sha256"],
                    "plugin_inputs_dirty": provenance["plugin_inputs_dirty"],
                    "isolation": "container" if container_image else "host", "runtime": runtime, **cost,
-                   **({"after_assessment": after_assessment} if after_assessment else {})}
+                   **({"after_assessment": after_assessment} if after_assessment else {}),
+                   **({"grader_error": grading["grader_error"]} if grading.get("grader_error") else {})}
         return summary
     finally:
         active_error = sys.exc_info()[1]
@@ -4218,7 +4231,10 @@ def main(argv: list[str] | None = None) -> int:
     auth_failed = False
     planned = [(spec, i) for spec in scenarios for i in range(args.trials)]
     spent = 0.0
+    machinery_stopped: dict[str, str] = {}
     for spec, i in planned:
+        if spec["id"] in machinery_stopped:
+            continue  # its grader cannot measure; more trials would spend for nothing
         if args.max_batch_usd is not None and spent >= args.max_batch_usd:
             blocked = f"batch spend USD {spent:.4f} reached the USD {args.max_batch_usd:g} cap"
             break
@@ -4235,6 +4251,10 @@ def main(argv: list[str] | None = None) -> int:
             # Every later trial would fail the same way; the attempt is kept, the batch stops.
             blocked, auth_failed = f"authentication unavailable: {exc}", True
             break
+        if results[-1].get("grader_error"):
+            machinery_stopped[spec["id"]] = results[-1]["grader_error"]
+            print(json.dumps({"scenario": spec["id"], "stopped": f"grading machinery failed: {results[-1]['grader_error']}"}),
+                  flush=True)
         if results[-1].get("after_assessment"):
             # The finished trial keeps its verdict; nothing else may reuse the uncleaned environment.
             blocked = results[-1]["after_assessment"]
@@ -4271,14 +4291,16 @@ def main(argv: list[str] | None = None) -> int:
     passed = sum(r["status"] == "PASS" for r in batch)
     print(f"{passed}/{len(batch)} trials PASS ({sum(r['status'] == 'INCONCLUSIVE' for r in batch)} inconclusive)")
     states = [v["verdict"] for v in verdicts.values()]
-    if blocked:
-        print(json.dumps({"batch": "INCONCLUSIVE", "reason": f"stopped after {blocked}",
+    if blocked or machinery_stopped:
+        print(json.dumps({"batch": "INCONCLUSIVE",
+                          "reason": f"stopped after {blocked}" if blocked else "grading machinery failed",
+                          **({"scenarios_stopped": sorted(machinery_stopped)} if machinery_stopped else {}),
                           "trials_not_run": len(planned) - len(results)}), flush=True)
     if auth_failed:
         return 4  # distinct from FAIL (1) and INCONCLUSIVE (2): re-authenticate, then resume the batch
     if "FAIL" in states:
         return 1
-    return 2 if blocked or "INCONCLUSIVE" in states else 0
+    return 2 if blocked or machinery_stopped or "INCONCLUSIVE" in states else 0
 
 
 def effective_threshold(spec: dict, requested: float | None) -> float:
