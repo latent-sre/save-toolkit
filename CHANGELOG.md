@@ -406,11 +406,12 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
     record with a complete worked example, and review checks; `distinguished.md` gains the
     strategic analysis.
   - Posture matches `reliability-engineer`: no shell or web, document-only writes, and three
-    evidence helpers. Copilot gains handoffs to and from `software-engineer`.
-  - Evaluation cases: a contract-change design paired with an identical `software-engineer` arm, a
-    new-system design checked by a design-record oracle, and two routing positives. Three native
-    campaigns (45 Sonnet trials, USD 10.73) are recorded under `PRINCIPAL-001`; acceptance is
-    pending.
+    evidence helpers. Copilot gains handoffs to and from `software-engineer`, and `/adr` accepts
+    `principal-engineer` as the selected agent.
+  - Evaluation cases: contract-change and new-system designs, each paired with an identical
+    `software-engineer` arm, a design-record oracle, two routing positives, and two boundary cases
+    that keep reliability assessments and small builds in their own lanes. Four native campaigns
+    (57 Sonnet trials, USD 13.33) are recorded under `PRINCIPAL-001`; acceptance is pending.
 - Every eval run records `runtime`: the CLI's `--version` line (`null` when it cannot report one)
   and the host's system, release, and machine. `main()` measures it once per batch and prints it in
   the batch header; each trial writes it to `provenance.json`, the trace summary, and its summary

@@ -48,8 +48,8 @@ Bash, web tools and the homelab guard text are not imported. The posture matches
 evidence, and `researcher` for sanitized public questions. The document-only limit is cooperative.
 The guard's fleet-name inventory includes the lane for the credential tripwire. Copilot gains two
 human-selected handoffs: `software-engineer` to `principal-engineer` for a returned fork, and
-`principal-engineer` to `software-engineer` for an accepted design. `/adr` keeps its
-`software-engineer` preflight; this lane writes ADRs directly.
+`principal-engineer` to `software-engineer` for an accepted design. `/adr` accepts either
+`software-engineer` or `principal-engineer` as the selected agent, so the lane's ADRs work on Copilot.
 
 ## Evidence and acceptance
 

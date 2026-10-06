@@ -1,24 +1,32 @@
 # Principal-engineer lane: native evaluation
 
-**Conclusion:** on the final candidate `7993b130` the lane passed every case it owns: a
-contract-change design, two routing positives, and, on the earlier revisions, a new-system design.
-It never took reliability work. On identical bytes, `software-engineer` made the same five design
-decisions, so the lane's difference is the record, not the decisions. The lane produced a complete
-design record in 3/3 trials against 0/3, loaded `stack-profile` 3/3 against 0/3, and returned the
-closed reply 3/3 against 0/3. The rewritten `eng-ladder` reference also raised `software-engineer`'s
-evidence labelling. One neighbour routing case fails identically on main and on the candidate.
-These results support `PRINCIPAL-001`; acceptance of the exact candidate remains the owner's decision.
+**Conclusion:** the lane passed every case it owns on the final revisions and never took
+reliability work or a small tool build. Against `software-engineer` on identical bytes, every arm
+made the same design decisions on both tasks.
+
+- **Contract change:** only the lane produced the complete design record, loaded `stack-profile`
+  and returned the closed reply.
+- **New system:** `software-engineer` matched the lane on every check and wrote the same
+  architecture.
+- **Likely reason for the difference [unverified]:** the new-system prompt names the "design
+  record", which may lead `software-engineer` to the reference's template.
+- **Where the value lies:** most of the design quality comes from the rewritten `eng-ladder`
+  reference. The lane adds a consistent record when a request does not name it, a design-only
+  boundary, and its own entry in the Copilot picker, which only a human test can measure.
+
+One neighbour routing case fails identically on main and on the candidate. These results inform
+`PRINCIPAL-001`; acceptance of the exact candidate remains the owner's decision.
 
 ## Identity and budget
 
 | Item | Value |
 |---|---|
-| Candidate revisions | `56ac47b3` (digest `78fff82a…13b5e6`); `72f748a0` after the first review fixes (`0bdf82ef…dd253ed`); final `7993b130` after the rename and the second review's fixes (`9ace6a27…14229ec8`) |
+| Candidate revisions | `56ac47b3` (digest `78fff82a…13b5e6`); `72f748a0` after the first review fixes (`0bdf82ef…dd253ed`); `7993b130` after the rename and the second review's fixes (`9ace6a27…14229ec8`); `e89bfdf2` with the new-system pair, the boundary cases and the `/adr` change (`bd55b8fa…7615a0f2`) |
 | Incumbent | `8d7ecda1` (main, PR base), digest `d251ef68…3b03127` |
 | Host and model | Claude Code 2.1.290 on Windows 11; `sonnet` alias, every trial answered by `claude-sonnet-5-5` |
-| Windows (2026-10-06 UTC) | first campaign 00:00–00:17, re-measure 00:43–00:49, final 01:27–01:41; three interleaved passes per arm (DEC-10) |
-| Budgets stated before running (DEC-04) | first: 21 trials, USD 4–6, cap 12; re-measure: 6 trials, USD 1.20, cap 3; final: 15 trials, USD 4.40, cap 7 |
-| Actual | 45 trials, three of them attribution trials added to the first campaign; USD 10.73 recorded trial cost (5.64, 1.16, 3.94); judge USD 0. One-word Haiku credential refreshes are not recorded |
+| Windows (2026-10-06 UTC) | first campaign 00:00–00:17, re-measure 00:43–00:49, final 01:27–01:41, new-system pair and boundaries 03:14–03:21; three interleaved passes per arm (DEC-10) |
+| Budgets stated before running (DEC-04) | first: 21 trials, USD 4–6, cap 12; re-measure: 6 trials, USD 1.20, cap 3; final: 15 trials, USD 4.40, cap 7; new-system pair and boundaries: 12 trials, USD 3.50, cap 6 |
+| Actual | 57 trials, three of them attribution trials added to the first campaign; USD 13.33 recorded trial cost (5.64, 1.16, 3.94, 2.60); judge USD 0. One-word Haiku credential refreshes are not recorded |
 
 ## Results
 
@@ -65,6 +73,32 @@ agents on identical bytes, interleaved.
   which is a method check, not a decision.
 - Two `software-engineer` trials, one on each tree, ran a read-only `git status` and `git ls-files`;
   neither executed project code. The lane has no shell.
+
+## New-system pair and boundary cases on `e89bfdf2`
+
+| Scenario, 3 trials each | Result |
+|---|---|
+| `build-principal-engineer-new-system`, lane | 3/3 |
+| `build-software-engineer-new-system-baseline`, `software-engineer` on the same bytes | 3/3 |
+| `discovery-principal-engineer-defers-reliability-assessment` | 3/3: `reliability-engineer` fired, the lane did not |
+| `discovery-principal-engineer-defers-small-tool-build` | 3/3: `software-engineer` fired, the lane did not |
+
+| New-system arm | Complete record | Labels per document | Closed JSON reply | Skills loaded |
+|---|---|---|---|---|
+| Lane | 3/3 | 26, 25, 26 | 3/3 | `stack-profile` + `eng-ladder` 3/3 |
+| `software-engineer` | 3/3 | 29, 26, 22 | 3/3 | `stack-profile` + `eng-ladder` 3/3 |
+
+- **The two arms are indistinguishable.** Every document from both designs a daily Python job run as
+  a PCF task, writing to the team's Postgres and read by Grafana. Each rejects the Rust, Kafka and
+  Cassandra suggestion and leaves the availability target to the owner.
+- **Prompt wording may explain the difference from the contract-change pair [unverified]:**
+  - The contract-change prompt asks for a "design document"; the new-system prompt asks for a
+    "design record", the reference's own term.
+  - A new-system design also needs a runtime choice, which is where `software-engineer` loads
+    `stack-profile`. The contract change needs none, so the lane's `stack-profile` load there is
+    consistency rather than a quality gain.
+- **Test not yet run:** neither pair varied the wording, so a re-run with the words swapped would
+  test the explanation.
 
 ## Re-measure after the first review fixes
 
@@ -126,7 +160,7 @@ is tracked as `EVAL-013`. It does not measure this change.
 
 Codex's adversarial review of `7993b130` found two holes, and no recorded trial exercises either.
 
-- **The record oracle counts a slot by its name alone.** It accepts a slot with an empty section,
+- **The record oracle counted a slot by its name alone.** It accepted a slot with an empty section,
   an empty table cell, or a contents list.
 - **The reply checks search the whole reply**, so a discarded correct JSON draft or a duplicate key
   could pass.
@@ -134,10 +168,19 @@ Codex's adversarial review of `7993b130` found two holes, and no recorded trial 
 All 15 saved contract-change replies contain exactly one JSON object and no duplicate keys, and no
 saved record leaves a slot section empty. No recorded verdict depends on either hole.
 
+**Status at `e89bfdf2`:**
+
+- **Closed for the new-system pair:**
+  - The oracle requires each slot to be filled and ignores a contents list.
+  - A guard rejects any decision given twice.
+  - Re-scoring the 21 saved documents and the six saved new-system replies changed no verdict.
+- **Still open for the contract-change pair.** Its recorded results were graded without the guard.
+
 ## What this does not establish
 
-- One model, one host, and Claude only; Copilot handoffs and picker selection were not exercised.
-- The new-system case has no `software-engineer` arm and was not re-run on `7993b130`.
+- One model, one host, and Claude only; Copilot handoffs were not exercised. Picker selection is
+  being measured by hand with a shared picker sheet, not in VS Code.
+- Whether prompt wording explains the two pairs' different results: no run varied it.
 - Every build prompt forbade delegation, so helper dispatch and return were not exercised.
 - Whether one design lane serves both depths better than separate principal and architect bodies.
 - Design quality was judged by the author of the change, without a calibrated rubric. The owner's

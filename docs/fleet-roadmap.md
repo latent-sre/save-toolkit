@@ -100,24 +100,32 @@ work with an owner and a meaningful proof-of-improvement check.
 
 ### PRINCIPAL-001 — accept the principal engineering lane on representative design tasks
 
-**Status:** `active` (2026-10-05); lane implemented at the owner's request; three native campaigns
-complete (45 Sonnet trials). On final candidate `7993b130` the lane passed its contract-change and
-routing cases 9 of 9 and left reliability work alone 3 of 3. On identical bytes it made the same
-decisions as `software-engineer`, and only the lane produced the complete design record (3/3 against
-0/3). Owner acceptance pending.
+**Status:** `active` (2026-10-05); lane implemented at the owner's request; four native campaigns
+complete (57 Sonnet trials). The lane passes every case it owns and leaves reliability assessments
+and small builds alone. On identical bytes `software-engineer` made the same decisions on both
+design tasks:
+- On the contract-change task, only the lane wrote the complete design record (3/3 against 0/3).
+- On the new-system task, whose prompt names the record, `software-engineer` matched it 3/3.
+
+Owner acceptance pending.
 **Owner:** Maintainers select the exact candidate and approve the evaluation budget;
 `agent-engineer` owns the lane and its `eng-ladder` method.
 **Outcome:** The principal engineer returns design records that name supported and unseen
 consumers, plan compatible staged rollout and recovery, shape new systems against the stack
 profile, and leave every decision to the human owner without expanded authority. One lane is shown
 to serve both design depths, or the owner splits or removes it.
-**Next action:** The owner reviews the evaluation evidence and design documents and decides
-acceptance of the exact candidate. Open choices: whether to close the two known grader limits from
-Codex's adversarial review, a `software-engineer` arm and a final-revision run for the new-system
-case, the agent-picker labelling by the owner and one teammate, and a combined versus
-principal-only and architect-only body comparison. Each further campaign states trial count, estimated cost, review hours and cost cap
-under DEC-04 before any call.
-**Evidence:** [First native evaluation](reviews/2026-10-05-principal-engineer-evals.md); the
+**Next action:** The owner and one teammate complete the agent-picker sheet. The owner then
+decides acceptance of the exact candidate, weighing the lane's consistent record, design-only
+boundary and picker entry against keeping the stronger `eng-ladder` reference alone.
+
+Open choices:
+- a re-run that swaps the "design document" and "design record" wording;
+- closing the contract-change pair's grader limit;
+- the combined versus principal-only and architect-only comparison, which the picker sheet decides.
+
+Each further campaign states trial count, estimated cost, review hours and cost cap under DEC-04
+before any call.
+**Evidence:** [Native evaluation](reviews/2026-10-05-principal-engineer-evals.md); the
 [lane decision](decisions/2026-10-05-principal-engineer.md) keeps its acceptance scope.
 **SRE task:** Get a reviewable design or architecture record, with options, staged rollout and
 recovery, and the decisions to make, before code is written.
