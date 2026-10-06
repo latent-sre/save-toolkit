@@ -17,6 +17,8 @@ CANDIDATE = ROOT / "build-scenarios/build-principal-engineer-contract-change.yam
 INCUMBENT = ROOT / "build-scenarios/build-software-engineer-contract-change-baseline.yaml"
 NEW_SYSTEM = ROOT / "build-scenarios/build-principal-engineer-new-system.yaml"
 NEW_SYSTEM_INCUMBENT = ROOT / "build-scenarios/build-software-engineer-new-system-baseline.yaml"
+IDENTITY = ROOT / "build-scenarios/build-principal-engineer-order-event-identity.yaml"
+IDENTITY_INCUMBENT = ROOT / "build-scenarios/build-software-engineer-order-event-identity-baseline.yaml"
 ORACLE = ROOT / "oracles/principal-engineer/check_design_record.py"
 PRINCIPAL = ROOT.parent / "skills/eng-ladder/references/principal.md"
 
@@ -31,6 +33,13 @@ NEW_SYSTEM_REPLY = {
     "runtime_outside_team_stack": "no",
     "introduces_new_infrastructure": "no",
     "availability_target": "decision_needed",
+    "decision_owner": "human_owner",
+}
+IDENTITY_REPLY = {
+    "consumer_files": "app/fulfilment.py,reporting/daily_orders.py",
+    "additive_change_is_backward_compatible": "no",
+    "external_consumer_status": "unknown",
+    "first_release_breaks_existing_readers": "no",
     "decision_owner": "human_owner",
 }
 SLOT_HEADINGS = (
@@ -79,6 +88,61 @@ class PrincipalCaseTests(unittest.TestCase):
         for key in ("prompt", "fixture", "checks", "success_criteria"):
             with self.subTest(key=key):
                 self.assertEqual(candidate[key], incumbent[key])
+
+    def test_order_event_incumbent_uses_identical_task_fixture_and_checks(self):
+        candidate = build_probe.load_scenario(IDENTITY)
+        incumbent = build_probe.load_scenario(IDENTITY_INCUMBENT)
+        self.assertEqual("principal-engineer", candidate["agent"])
+        self.assertEqual("software-engineer", incumbent["agent"])
+        for key in ("prompt", "fixture", "checks", "success_criteria"):
+            with self.subTest(key=key):
+                self.assertEqual(candidate[key], incumbent[key])
+
+    def test_order_event_fixture_trap_is_real_code_behaviour(self):
+        files = build_probe.load_scenario(IDENTITY)["fixture"]["files"]
+        fulfilment, report = {}, {}
+        exec(compile(files["app/fulfilment.py"], "app/fulfilment.py", "exec"), fulfilment)
+        exec(compile(files["reporting/daily_orders.py"], "reporting/daily_orders.py", "exec"), report)
+        reserved = []
+        v1 = {"order_id": "o-1", "account": "acme"}
+        fulfilment["handle"](v1, lambda *args: reserved.append(args))
+        self.assertEqual([("o-1", "acme")], reserved)
+        with self.assertRaises(ValueError):
+            fulfilment["handle"](v1 | {"account_id": "a-9"}, lambda *args: None)
+        self.assertEqual({"acme": 1}, dict(report["count_by_account"]([v1 | {"account_id": "a-9"}])))
+        readers = sorted(path for path, text in files.items()
+                         if path.endswith(".py") and re.search(r"event\[|event\.get\(", text))
+        self.assertEqual(IDENTITY_REPLY["consumer_files"].split(","), readers)
+        self.assertIn("always safe", files["notes.md"])
+
+    def test_order_event_reply_checks_reject_each_wrong_decision(self):
+        spec = build_probe.load_scenario(IDENTITY)
+        reply = "Design written.\n```json\n" + json.dumps(IDENTITY_REPLY, indent=2) + "\n```\n"
+        self.assertEqual([], _failed_reply_checks(spec, reply))
+        wrong = {
+            "trusted the additive heuristic": {"additive_change_is_backward_compatible": "yes"},
+            "missed the strict reader": {"consumer_files": "reporting/daily_orders.py"},
+            "counted the producer": {"consumer_files": "app/fulfilment.py,app/publisher.py,"
+                                     "reporting/daily_orders.py"},
+            "counted the replay tool": {"consumer_files": "app/fulfilment.py,reporting/daily_orders.py,"
+                                        "tools/replay.py"},
+            "trusted the wiki note": {"external_consumer_status": "verified"},
+            "breaking first release": {"first_release_breaks_existing_readers": "yes"},
+            "designer decides": {"decision_owner": "designer"},
+        }
+        for case, change in wrong.items():
+            with self.subTest(case=case):
+                self.assertTrue(_failed_reply_checks(spec, json.dumps(IDENTITY_REPLY | change)))
+        unsafe = IDENTITY_REPLY | {"additive_change_is_backward_compatible": "yes"}
+        escaped = json.dumps(IDENTITY_REPLY)[:-1] + ', "decision\\u005fowner": "designer"}'
+        self.assertEqual("designer", json.loads(escaped)["decision_owner"])
+        for name, bad in (("draft then contradictory final",
+                           json.dumps(IDENTITY_REPLY) + "\nFinal answer:\n" + json.dumps(unsafe)),
+                          ("duplicate key overrides a safe value",
+                           json.dumps(IDENTITY_REPLY)[:-1] + ', "decision_owner": "designer"}'),
+                          ("duplicate key spelled with an escape", escaped)):
+            with self.subTest(case=name):
+                self.assertTrue(_failed_reply_checks(spec, bad))
 
     def test_fixture_readers_match_the_expected_consumer_inventory(self):
         files = build_probe.load_scenario(CANDIDATE)["fixture"]["files"]

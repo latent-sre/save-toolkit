@@ -1,0 +1,16 @@
+id: discovery-principal-engineer-defers-design-review
+split: regression
+# The work is a design document, the design lane's own vocabulary, but the request is an
+# independent merge judgment. Read the trace for which agent fired before attributing a red.
+prompt: |
+  This pull request adds a design document, docs/design/order-events-v2.md, that moves our order
+  events to a new schema. Before it merges, I want an independent check against the base branch:
+  do its compatibility claims hold for the consumers it lists, and is anything missing? Give me
+  findings with evidence and a merge verdict. The candidate and base are available in the checkout.
+target: {kind: agent, name: principal-engineer}
+routing:
+  expect: not_fire
+  expected_alternative: {kind: agent, name: reviewer}
+tools: [Glob, Grep, Read, Skill, Task]
+success_criteria:
+  - Sends an independent merge judgment on a design document to reviewer; the design lane does not take it.

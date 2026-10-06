@@ -1,0 +1,15 @@
+id: discovery-principal-engineer-defers-agent-workflow
+split: regression
+# Architecture words for the fleet's own agent machinery, which agent-engineer owns. Read the trace
+# for which agent fired before attributing a red.
+prompt: |
+  I need the architecture for a portable executable workflow graph that our save-toolkit agents
+  run on: typed state, effect boundaries, checkpoints, cancellation, joins, and termination.
+  Write it up as a design before anyone builds the runtime.
+target: {kind: agent, name: principal-engineer}
+routing:
+  expect: not_fire
+  expected_alternative: {kind: agent, name: agent-engineer}
+tools: [Glob, Grep, Read, Skill, Task]
+success_criteria:
+  - Sends the fleet's workflow-graph design to agent-engineer; the design lane does not take it.

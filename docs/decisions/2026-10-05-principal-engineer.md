@@ -16,8 +16,8 @@ agent. In commit `07facd8c` (2026-09-08 UTC) it merged a separate `distinguished
 differed only in reasoning depth [sourced] that repository's decision record.
 
 No lane here owns general design. `software-engineer` returns an unresolved fork to its caller
-(`agents/software-engineer.md:93`) [verified], `reliability-engineer` leaves general architecture
-with its existing owner (`agents/reliability-engineer.md:25`) [verified], and on Copilot a returned
+(`agents/software-engineer.md:93`) [verified], `reliability-engineer` left general architecture
+with an unnamed existing owner (`agents/reliability-engineer.md:25`) [verified], and on Copilot a returned
 fork had no agent to select before this change [verified]. The 2026-09-21 reliability decision
 declined a general architect as the answer to a reliability request
 (`docs/decisions/2026-09-21-reliability-engineer.md:75`) [verified]; it did not settle the general
@@ -51,7 +51,8 @@ Bash, web tools and the homelab guard text are not imported. The posture matches
 `repository-investigator`, `sre-assistant` for history, consumers in other repositories and runtime
 evidence, and `researcher` for sanitized public questions. The document-only limit is cooperative.
 The guard's fleet-name inventory includes the lane for the credential tripwire, and the validator
-requires that inventory to match the roster. Copilot gains two
+requires that inventory to match the roster. `reliability-engineer` names this lane as the owner of
+general system architecture. Copilot gains two
 human-selected handoffs: `software-engineer` to `principal-engineer` for a returned fork, and
 `principal-engineer` to `software-engineer` for an accepted design. `/adr` admits
 `principal-engineer` under the same fail-closed preflight as `software-engineer`, and writes the

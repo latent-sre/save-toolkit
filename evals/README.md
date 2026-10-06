@@ -543,9 +543,14 @@ before the document is written, and no shell, as their prompts do.
 `build-software-engineer-new-system-baseline` check a new-system record with the
 [design-record oracle](oracles/principal-engineer/check_design_record.py), which requires every slot
 to be filled, plus stack fit, an unset availability target left to the owner, a guard against any
-decision given twice, and the closed-reply contract that only the lane carries. Two routing
-positives cover a new-service design assignment and a builder's returned fork; two negatives require
-reliability assessments and small tool builds to reach their own lanes. `python -m pytest
+decision given twice, and the closed-reply contract that only the lane carries.
+`build-principal-engineer-order-event-identity` and its identical incumbent arm make the right
+answer the less obvious one: adding `account_id` looks backward compatible, but the fixture's
+fulfilment worker rejects any unexpected field, so the reply must say it is not. The pair also
+requires `database-reliability` before the backfill and replay plan. Two routing
+positives cover a new-service design assignment and a builder's returned fork; four negatives require
+reliability assessments, small tool builds, an independent review of a design document, and the
+fleet's own workflow-graph design to reach their own lanes. `python -m pytest
 evals/test_principal_cases.py` calibrates them offline; design quality needs document review, and
 native acceptance stays open under `PRINCIPAL-001`.
 
