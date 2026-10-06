@@ -369,7 +369,7 @@ acceptance tests, delivery phases and explicit open decisions.
 **Next action:** EVAL-011's runner sequence lands, including the v1 record, under the accepted
 [specification](fleet-evaluation/README.md); WP-01 builds the
 minimal comparison over v1 records against a committed synthetic bundle; and WP-02 runs under its
-run plan once the owner approves that budget. WP-12's GCP case design can proceed alongside. The
+run plan, whose budget the owner approved on 2026-10-06 with a USD 20 cap. WP-12's GCP case design can proceed alongside. The
 [Coder Eval experiment](fleet-evaluation/coder-eval.md) waits for WP-15. Once, from an elevated
 prompt, grant the owner's everyday account read access to the older owner-only run folders. EVAL-010
 retains judge-adoption ownership and EVAL-011 the native measurement contract. This planning item

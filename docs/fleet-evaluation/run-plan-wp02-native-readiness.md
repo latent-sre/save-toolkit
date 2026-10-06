@@ -1,7 +1,8 @@
 # WP-02 run plan: native readiness
 
-- **Status:** Draft for the owner's approval, written 2026-10-06 as WP-00's run plan. It authorizes
-  no run; the owner approves the budget below before any paid call (DEC-04).
+- **Status:** Written 2026-10-06 as WP-00's run plan. The owner approved its budget on 2026-10-06
+  with a USD 20 cap (DEC-04). The run starts only when every precondition below holds; a change to
+  the cases, trial count or cap needs a new approval.
 - **Run owner:** the human owner starts the run; `agent-engineer` prepares it; `reviewer` checks the
   traces.
 - **Purpose:** show that the frozen native runner measures what the accepted
@@ -19,7 +20,6 @@ All of these hold before the first paid call:
    the permissions of `.eval-runs/` (DEC-23).
 3. Every case below declares its turn limit, and the denied-tool canary is written and proven offline.
 4. The model-free controls below pass.
-5. The owner approves the budget.
 
 ## Model-free controls
 
@@ -74,7 +74,7 @@ passes, chosen before the run.
 | Task spend | USD 4 to 8 | Six native conversations at USD 0.15 to 0.75 each (RELIABILITY-001's 14 trials cost USD 2.06, and the spend guard caps each at 0.75); twelve other trials at about USD 0.25 (PRINCIPAL-001's 108 trials cost USD 26.31) |
 | Judge spend | Under USD 0.10 | Three rubric calls at about USD 0.015 (the Sonnet 5.5 calibration's 165 calls cost USD 2.44) |
 | Human review | About 3 hours | Reading 18 traces, six of them two-turn conversations |
-| Cap | USD 15, task and judge together | Scheduling stops at the cap |
+| Cap | USD 20, task and judge together | Approved by the owner on 2026-10-06; scheduling stops at the cap |
 
 The estimates are [unverified] until the run reports its own spend, task and judge separately.
 
