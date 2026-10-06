@@ -100,12 +100,14 @@ work with an owner and a meaningful proof-of-improvement check.
 
 ### PRINCIPAL-001 — accept the principal engineering lane on representative design tasks
 
-**Status:** `active` (2026-10-05); lane implemented at the owner's request; five native campaigns
-complete (69 Sonnet trials). The lane passes every case it owns and leaves reliability assessments
-and small builds alone. On identical bytes `software-engineer` returned the same decision fields on
-both design tasks:
-- On the contract-change task, the lane wrote the complete design record in 6/6 trials on the last
-  two revisions; `software-engineer` did once in 6, when it read the reference.
+**Status:** `active` (2026-10-05); lane implemented at the owner's request; six native campaigns
+complete (75 Sonnet trials). The lane passes every case it owns, including both build cases 6/6 on
+the final revision `59fda81d` and its final checks, and leaves reliability assessments and small
+builds alone. On identical bytes `software-engineer` returned the same decision fields on both
+design tasks:
+- On the contract-change task, on the two revisions where both arms ran, the lane wrote the
+  complete design record in 6/6 trials; `software-engineer` did once in 6, when it read the
+  reference.
 - On the new-system task, whose prompt names the record, `software-engineer` matched it on every
   scored check, 6/6.
 
@@ -121,8 +123,6 @@ decides acceptance of the exact candidate, weighing the lane's consistent record
 boundary and picker entry against keeping the stronger `eng-ladder` reference alone.
 
 Open choices:
-- a lane-only run of both build cases on the final reference, whose rename-test detector and
-  record checks no recorded trial has met;
 - a judged case for endpoint lifecycle, failure handling, and whether a proposed observation can
   produce the evidence its gate needs;
 - a re-run that swaps the "design document" and "design record" wording;

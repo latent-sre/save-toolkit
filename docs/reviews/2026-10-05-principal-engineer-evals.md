@@ -4,9 +4,12 @@
 reliability work or a small tool build. Against `software-engineer` on identical bytes, every arm
 returned the same decision fields on both tasks.
 
-- **Contract change:** on the last two revisions the lane wrote the complete design record, loaded
-  `stack-profile` and returned the closed reply in all six trials. `software-engineer` wrote a
-  complete record once in six, in the one trial where it read `principal.md`.
+- **Final revision:** on `59fda81d`, the first run graded by the final checks, the lane passed both
+  build cases, 6/6.
+- **Contract change:** on the two revisions where both arms ran, `7993b130` and `af3531eb`, the lane
+  wrote the complete design record, loaded `stack-profile` and returned the closed reply in all six
+  trials. `software-engineer` wrote a complete record once in six, in the one trial where it read
+  `principal.md`.
 - **New system:** `software-engineer` read the reference in every trial and matched the lane on
   every scored check.
 - **Likely reason for the difference [unverified]:** the new-system prompt names the "design
@@ -27,12 +30,12 @@ One neighbour routing case fails identically on main and on the candidate. These
 
 | Item | Value |
 |---|---|
-| Candidate revisions | `56ac47b3` (digest `78fff82a…13b5e6`); `72f748a0` after the first review fixes (`0bdf82ef…dd253ed`); `7993b130` after the rename and the second review's fixes (`9ace6a27…14229ec8`); `e89bfdf2` with the new-system pair, the boundary cases and the `/adr` change (`bd55b8fa…7615a0f2`); `af3531eb` with the later review's fixes (`bd28b4a2…e3f806c`) |
+| Candidate revisions | `56ac47b3` (digest `78fff82a…13b5e6`); `72f748a0` after the first review fixes (`0bdf82ef…dd253ed`); `7993b130` after the rename and the second review's fixes (`9ace6a27…14229ec8`); `e89bfdf2` with the new-system pair, the boundary cases and the `/adr` change (`bd55b8fa…7615a0f2`); `af3531eb` with the later review's fixes (`bd28b4a2…e3f806c`); `59fda81d` with the third review's fixes (`134b467f…4c4a302`) |
 | Incumbent | `8d7ecda1` (main, PR base), digest `d251ef68…3b03127` |
-| Host and model | Claude Code 2.1.290 on Windows 11, and 2.1.291 for the `af3531eb` re-run; `sonnet` alias, every trial answered by `claude-sonnet-5-5` |
-| Windows (2026-10-06 UTC) | first campaign 00:00–00:17, re-measure 00:43–00:49, final 01:27–01:41, new-system pair and boundaries 03:14–03:21, re-run 06:06–06:16; three interleaved passes per arm (DEC-10) |
-| Budgets stated before running (DEC-04) | first: 21 trials, USD 4–6, cap 12; re-measure: 6 trials, USD 1.20, cap 3; final: 15 trials, USD 4.40, cap 7; new-system pair and boundaries: 12 trials, USD 3.50, cap 6; re-run: 12 trials, USD 2.60, cap 5 |
-| Actual | 69 trials, three of them attribution trials added to the first campaign; USD 15.71 recorded trial cost (5.64, 1.16, 3.94, 2.60, 2.37); judge USD 0. One-word Haiku credential refreshes are not recorded |
+| Host and model | Claude Code 2.1.290 on Windows 11, and 2.1.291 for the `af3531eb` re-run and the `59fda81d` check; `sonnet` alias, every trial answered by `claude-sonnet-5-5` |
+| Windows (2026-10-06 UTC) | first campaign 00:00–00:17, re-measure 00:43–00:49, final 01:27–01:41, new-system pair and boundaries 03:14–03:21, re-run 06:06–06:16, final lane check 07:45–07:48; three interleaved passes per arm (DEC-10) |
+| Budgets stated before running (DEC-04) | first: 21 trials, USD 4–6, cap 12; re-measure: 6 trials, USD 1.20, cap 3; final: 15 trials, USD 4.40, cap 7; new-system pair and boundaries: 12 trials, USD 3.50, cap 6; re-run: 12 trials, USD 2.60, cap 5; final lane check: 6 trials, USD 1.20, cap 3 |
+| Actual | 75 trials, three of them attribution trials added to the first campaign; USD 16.99 recorded trial cost (5.64, 1.16, 3.94, 2.60, 2.37, 1.28); judge USD 0. One-word Haiku credential refreshes are not recorded |
 
 ## Results
 
@@ -46,6 +49,9 @@ One neighbour routing case fails identically on main and on the candidate. These
 | `discovery-principal-engineer-returned-fork` | candidate | 3/3 | — | 3/3 |
 | `discovery-reliability-engineer-assessment` | candidate; not taken by the lane | 3/3 | — | 3/3 |
 | `discovery-reliability-defers-accepted-implementation` | candidate / main | 0/3 / 0/3 | — | — |
+
+Later runs have their own sections: the `e89bfdf2` pair and boundary cases, the `af3531eb` re-run,
+and the final lane check on `59fda81d`.
 
 The lane's own four cases were 12/12 in the first campaign, plus 3/3 on the reliability neighbour.
 Both `software-engineer` failures are the `eng-ladder` load check; every decision check passed in
@@ -169,6 +175,37 @@ are counted by the committed oracle.
     measures tool posture, not design reasoning.
 - **Every decision check passed in all twelve trials.**
 
+## Final lane check on `59fda81d`
+
+Both lane build cases on the final reference and checks: 6 Sonnet trials, three passes per case run
+in parallel, USD 1.28 against a stated USD 1.20 and a USD 3 cap, on Claude Code 2.1.291 as in the
+re-run. These are the first recorded results graded by the final checks.
+
+| Case, 3 trials each | Recorded | Slots per document | Labels per document | Closed JSON reply | `stack-profile` and `principal.md` |
+|---|---|---|---|---|---|
+| Contract change | 3/3 | 12, 12, 12 | 16, 21, 26 | 3/3 | 3/3 |
+| New system | 3/3 | 12, 12, 12 | 35, 30, 21 | 3/3 | 3/3 |
+
+- **Removal gate:** all three contract designs say request logs find callers but not which fields
+  they read. Owner confirmation or a compatibility test proves migration.
+- **Detectors match their failures.**
+  - Every reader failure is detected on the reader's side: a per-reader compatibility or
+    sample-payload test, owner confirmation, or watching the reader's own results.
+  - Producer checks appear only for producer drift.
+  - The `af3531eb` designs did the same, so this run does not show that the rename-test example
+    caused it.
+- **The example's new wording barely travelled.** No "rename test" phrasing appeared. "Fixture"
+  appeared in two of three contract designs, against none in the re-run, as test vocabulary for the
+  daylight-saving cases.
+- **Variation no check measures (new system):**
+  - All three designs make the alert's no-data state page, so a database or alert-path failure is
+    not silent.
+  - Endpoint lifecycle still varies:
+    - One design restricts paging to the latest run's endpoints.
+    - One pages on each endpoint's latest result with no inventory filter, so a removed endpoint
+      would keep paging.
+    - The third covers only an endpoint decommissioned but still listed.
+
 ## Re-measure after the first review fixes
 
 Codex's review of `1d955923` found five issues, fixed in `72f748a0`:
@@ -282,14 +319,16 @@ saved record leaves a slot section empty. No recorded verdict depends on either 
 - **No recorded verdict depends on these holes:**
   - Re-scoring the 39 saved documents changed no verdict.
   - None of the 39 saved replies has an escaped field name.
+- **First recorded run on these checks:** the final lane check on `59fda81d` (above).
 
 ## What this does not establish
 
 - One model, one host, and Claude only; Copilot handoffs were not exercised. Picker selection is
   being measured by hand with a shared picker sheet, not in VS Code.
 - Whether prompt wording explains the two pairs' different results: no run varied it.
-- Whether the example's rename-test detector changes designs: the re-run measured the `af3531eb`
-  reference, before that change.
+- Whether the rename-test example changes designs: the final lane check found reader-side
+  detectors, but the `af3531eb` designs already had them.
+- `software-engineer` on the final bytes and checks: the final lane check ran the lane only.
 - Lifecycle, failure handling, and evidence feasibility: no judged case measures them.
 - Every build prompt forbade delegation, so helper dispatch and return were not exercised.
 - Whether one design lane serves both depths better than separate principal and architect bodies.
