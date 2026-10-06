@@ -22,8 +22,8 @@ reliability request; it did not settle the general question.
 ## Decision
 
 Add one agent, `principal-engineer`, for system design and architecture: changes across existing
-boundaries, the architecture of a new system, and build-vs-buy or platform direction, in one
-engagement. Do not add a second architect agent. It would share this lane's tools and output, and a
+boundaries, the architecture of a new system, and tool or platform selection or multi-year
+direction, in one engagement. Do not add a second architect agent. It would share this lane's tools and output, and a
 split by size or by new-versus-existing mis-sorts mixed requests, such as a migration that also
 shapes its target system.
 

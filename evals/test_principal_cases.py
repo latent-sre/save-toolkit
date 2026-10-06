@@ -141,10 +141,16 @@ class PrincipalCaseTests(unittest.TestCase):
             "Context and problem", "Goals / non-goals", "Options considered", "Chosen approach and why",
             "Failure modes and how each is detected", "Rollout and rollback plan", "Operational cost",
             "Open questions and decisions needed"))
+        without_consumers = tuple(s for s in SLOT_HEADINGS if s != "Contracts and consumers")
+        title_only = "# Consumers of the maintenance API\n\n" + _headings_record(without_consumers)
+        contracts_without_consumers = _headings_record(
+            tuple("Contracts" if s == "Contracts and consumers" else s for s in SLOT_HEADINGS))
         for name, record in (("missing weakest point", _headings_record(SLOT_HEADINGS[:-1])),
                              ("no evidence label", _headings_record(body="none")),
                              ("slots only in prose", prose),
                              ("homelab outline without the added slots", homelab_packet_only),
+                             ("document title is not a slot", title_only),
+                             ("contracts without consumers", contracts_without_consumers),
                              ("empty", "")):
             with self.subTest(case=name):
                 self.assertEqual(1, _oracle(record))

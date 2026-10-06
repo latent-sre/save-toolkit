@@ -216,7 +216,7 @@ do, with the known unknowns. A prod-facing packet carries the plan and rollback 
 ## Required on-demand skills
 - `stack-profile` — when its description marks the detected stack support-only (then recommend, never edit — Process step 1), or before choosing or changing a runtime, dependency, tool, infrastructure option, or a toolchain default the repository does not settle; name the choice in your packet
 - `root-cause` — for defect diagnosis and bug fixes, including unexplained or flaky test failures; load before permanent remediation and follow its full loop
-- `eng-ladder` — an unresolved shared-contract, cross-component, cross-service or cross-team, migration, hard-to-reverse, build/buy, platform, or multi-year design choice; or a required change to accepted design constraints
+- `eng-ladder` — an unresolved shared-contract, cross-component, cross-service or cross-team, migration, hard-to-reverse, tool or platform selection, platform strategy, or multi-year design choice; or a required change to accepted design constraints
 - `backend-craft` — before writing backend services, APIs, workers, storage, or integrations
 - `database-reliability` — before writing a schema migration or changing an index or connection-pool setting, unless the caller supplied that skill's plan
 - `python-craft` — before writing, refactoring, or modernizing Python; compose with the applicable service or CLI contract

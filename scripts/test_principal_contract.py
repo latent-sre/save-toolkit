@@ -82,9 +82,12 @@ class PrincipalContractTests(unittest.TestCase):
             with self.subTest(option=number):
                 self.assertTrue(any(label in option for label in validate_fleet.EVIDENCE_TRIAD))
         # Every failure mode carries its detection and the owner of the response.
-        failures = by_slot["Failure modes"]
-        self.assertGreater(failures.count("detected by"), 0)
-        self.assertEqual(failures.count("detected by"), failures.count("owned by"))
+        modes = [mode for mode in by_slot["Failure modes"].split(":", 1)[1].split(";") if mode.strip()]
+        self.assertGreater(len(modes), 1)
+        for number, mode in enumerate(modes, 1):
+            with self.subTest(failure_mode=number):
+                self.assertIn("detected by", mode)
+                self.assertIn("owned by", mode)
 
 
 if __name__ == "__main__":

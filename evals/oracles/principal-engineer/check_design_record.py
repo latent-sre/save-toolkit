@@ -4,9 +4,10 @@ Usage: python check_design_record.py <record.md>
 
 The slots and the label rule restate skills/eng-ladder/references/principal.md ("Fill every slot;
 write none rather than drop one" and "Label every load-bearing claim") so a candidate's edit to that
-file cannot change what this oracle accepts. A slot counts on a structural line: a heading, list
-item, table row, quote, or emphasised label containing the slot's name near its start, or a plain
-line that opens with the name followed by a colon. Exit 0 passes, 1 fails, 2 is a usage error.
+file cannot change what this oracle accepts. A slot counts on a structural line: a second-level or
+deeper heading, list item, table row, quote, or emphasised label containing the slot's name near its
+start, or a plain line that opens with the name followed by a colon. The contracts slot must name
+consumers. Exit 0 passes, 1 fails, 2 is a usage error.
 """
 
 import re
@@ -18,7 +19,7 @@ SLOTS = {
     "Goals / non-goals": r"goals",
     "Options": r"options",
     "Recommendation": r"(recommend(ation|ed)?|chosen (approach|option)|proposed (approach|design|option))",
-    "Contracts and consumers": r"(contracts?|consumers)",
+    "Contracts and consumers": r"consumers?",
     "Failure modes": r"failure modes?",
     "Rollout and recovery": r"(rollout|recovery|rollback)",
     "Verification": r"verification",
@@ -28,7 +29,8 @@ SLOTS = {
     "Weakest point": r"weakest point",
 }
 LABELS = ("[verified]", "[sourced]", "[unverified]")
-MARKER = re.compile(r"^\s*(#{1,6}\s|\*\*|__|\||>|[-*+]\s|\d+[.)]\s)")
+# A level-1 heading is the document's title, not a slot, so matching starts at level 2.
+MARKER = re.compile(r"^\s*(#{2,6}\s|\*\*|__|\||>|[-*+]\s|\d+[.)]\s)")
 NEAR_START = 60
 
 

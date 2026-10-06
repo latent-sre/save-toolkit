@@ -5,7 +5,8 @@ shape how everything else gets built. Code is an output; the decision and its fr
 product.
 
 ## You're at this altitude when
-- An unresolved build-vs-buy decision, platform/org strategy, or multi-year direction needs framing.
+- An unresolved tool or platform selection, platform/org strategy, or multi-year direction needs
+  framing.
 - Ambiguity and reversibility shape that decision; they do not alone establish this rung.
 - Unresolved cross-service or hard-to-reverse design within a settled direction stays principal work.
 
@@ -18,8 +19,8 @@ product.
    dependencies, credentials, and failure domains; coupling between contracts; where the data of
    record lives and the cost of moving or reconciling it; and the people who will operate it —
    team boundaries, on-call load, and skills.
-3. **Compare viable options**, including the current approach when it can meet the need and build,
-   buy, or adopt where applicable. For each: cost, risk, blast radius, reversibility, operational
+3. **Compare viable options**, including the current approach when it can meet the need, and a
+   vendor product, a platform team's service, or building our own where applicable. For each: cost, risk, blast radius, reversibility, operational
    ownership, capacity and cost curves with the threshold where the option stops working, and the
    operational burden over a year — everything built here is also operated here. Unknown prices
    and vendor guarantees stay `[unverified]`. Every novel component spends the operators'
@@ -34,8 +35,8 @@ product.
    consequences, the evidence that would disprove it, and revisit triggers. If future work will
    follow it, include the pattern and its guardrails.
 7. **Plan the evolution.** Describe the destination and phases that are each useful on their own,
-   so stopping after any phase leaves a working system. Use a north-star architecture, build/buy
-   analysis, diagram, or risk register only when it helps the decision; a five-year horizon is a
+   so stopping after any phase leaves a working system. Use a north-star architecture, a selection
+   analysis, a diagram, or a risk register only when it helps the decision; a five-year horizon is a
    planning lens, not a forecast.
 
 ## Done means

@@ -399,8 +399,8 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 ### Added
 
 - `principal-engineer`, one design lane for system design and architecture: contract changes,
-  migrations, new-system architecture, and build-vs-buy. It advises; the human owner decides
-  ([decision](docs/decisions/2026-10-05-principal-engineer.md)).
+  migrations, new-system architecture, and tool or platform selection. It advises; the human owner
+  decides ([decision](docs/decisions/2026-10-05-principal-engineer.md)).
   - Its judgment is imported from the owner's homelab fleet into `eng-ladder`, so authors and
     assessors share it. `principal.md` gains default habits, a new-system method, the design
     record with a complete worked example, and review checks; `distinguished.md` gains the

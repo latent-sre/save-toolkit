@@ -30,7 +30,7 @@ why one file serves both targets.
 | `name`, `description` | Both emitted. `name` is optional (VS Code falls back to the file name; GitHub marks it optional); `description` is the trigger and the chat-input placeholder |
 | `tools` | Tool or tool-set names — aliases below. Emitted, mapped from the Claude grant |
 | `agents` | Agent names available as subagents; `*` allows all, `[]` prevents any. Emitted from the same `Agent(...)` grant that feeds the delegation graph |
-| `handoffs` | Human-selected ownership transfer — **VS Code only**; explicitly *"not supported for Copilot cloud agent on GitHub.com"*. Emitted for the five lanes in `COPILOT_HANDOFFS_BY_SOURCE` |
+| `handoffs` | Human-selected ownership transfer — **VS Code only**; explicitly *"not supported for Copilot cloud agent on GitHub.com"*. Emitted for the six lanes in `COPILOT_HANDOFFS_BY_SOURCE` |
 | `argument-hint` | **VS Code only**; unsupported on Copilot cloud alongside `handoffs`. Not emitted on agents; the fleet uses it on all skills |
 | `model` | Single model name or a prioritized array. Unused — no fleet agent pins one; dated pins go stale silently |
 | `user-invocable` | Boolean, default `true`; `false` hides the agent from the chat dropdown. Unused — every fleet lane is meant to be reachable by the human SRE |
@@ -95,6 +95,7 @@ The preview's explicit `--copilot` guard mode uses agent-hook scoping, not Claud
 | `reviewer` | Read/search/edit/execute, one local evidence helper, and todo; runs checks only in a scratch copy, and outside contributions only in isolated CI |
 | `sre-assistant` | Read/search, researcher delegation, and selected native/MCP browser viewing interactions under read-only session controls; the command preview adds only terminal execution/output for reviewed reads |
 | `repository-investigator`, `scribe` | File investigation or document edits; shell execution is outside their assignments |
+| `reliability-engineer`, `principal-engineer` | Read/search/edit and three scoped evidence helpers; no execute, because design documents are their only writes and live evidence comes through `sre-assistant` |
 | `researcher` | Public web access; no local files or shell. Adding exact Context7/GitHits tools needs the target host's registered tool IDs, not wildcard MCP grants. On Copilot cloud agent `web` does not apply, so researcher has no working tool there; route cited research through VS Code or Claude |
 
 Do not broaden `execute` or use `tools: ["*"]` merely to fix a missing interpreter, credential,
