@@ -391,9 +391,10 @@ and results record the runner revision, CLI version and host platform. Every in-
 2026-10-03 inventory of `evals/build_probe.py` is fixed or has an owner disposition.
 **Next action:** Land the runner changes one PR each, as one sequence finished before EVAL-012 records
 comparison baselines, because every runner edit changes the scenario digest and invalidates earlier
-regrades. The first PR adds a comparison that grades a saved
-trace under the old and new runner and keeps both assessments; each later PR uses it to explain every
-verdict change.
+regrades. The first PR adds that comparison: `--rescore` grades saved runs with a
+checkout's runner into a new directory without writing the saved runs, and `--rescore-diff` lists
+every verdict that differs between the base and candidate rescores. Each later PR rescores the same
+saved runs with both and explains every line the diff prints.
 - Result rules: three-state checks, each check type classed as forbidding or requiring; forbidding
   checks evaluated on runs cut short; a supported failure wins; cleanup failures recorded beside the
   verdict; a requested `--threshold` cannot lower a scenario that has a forbidding check.

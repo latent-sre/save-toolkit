@@ -37,7 +37,8 @@ a different tier is a different baseline — record it and never average it with
 Compare an incumbent with `--plugin-root <worktree> --label incumbent`; `--expect-plugin-digest`
 refuses any other bytes. `--overwrite` replaces the selected run slots; use a new label when changing
 the candidate or scenario. `--regrade` re-grades saved traces offline only when the original scenario
-identity matches, and `--container IMAGE@sha256:…` runs every shell call inside a pinned, network-less
+identity matches; `--rescore` and `--rescore-diff` compare runner revisions on saved traces (see
+[Provenance](#provenance)); and `--container IMAGE@sha256:…` runs every shell call inside a pinned, network-less
 container for a candidate that is not team-authored.
 
 Native agent conversations pin the parent with `agent:` rather than routing to it as another
@@ -474,6 +475,16 @@ identity is captured; subsequent source edits abort grading/regrade and require 
 than assigning changed disk bytes to already-imported code. The digest is conservative: even an
 unrelated evaluator edit invalidates prior scenario identities. In-process code replacement is
 unsupported; this is provenance for the trusted runner, not attestation of its Python environment.
+
+Because of that, `--regrade` cannot show what a runner edit changes. `--rescore ITERATION_DIR --out
+DIR` grades every saved run with the current runner into the new directory `DIR`, never writing the
+saved runs, and grades across a runner change by finding kept verdicts under the saved identity;
+those runs are marked `identity_relaxed`. `DIR/rescore.json` records the runner identity, each
+run's saved and rescored verdicts, unreadable runs, and scenarios or runs it skipped. A rescore is a
+comparison, never a verdict: its differences from the saved verdicts also include scenario edits made
+since the run. To isolate a runner change, rescore the same runs with the base and candidate
+checkouts and run `--rescore-diff BASE_DIR CANDIDATE_DIR`, which lists every run and check whose
+verdict differs and exits 1 when any does. Each EVAL-011 runner change explains every line it prints.
 
 Run slots are shared across models under each label. Regrade copies a verdict into a summary only
 when its full candidate digest, scenario identity, and resolved model identity match the saved run.

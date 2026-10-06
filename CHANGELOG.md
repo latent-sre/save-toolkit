@@ -8,6 +8,15 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- The eval runner gains `--rescore` and `--rescore-diff` (`EVAL-011`'s first runner change). A runner
+  edit changes every scenario identity, so `--regrade` voids every saved run after one. `--rescore`
+  grades saved runs with a checkout's runner into a new directory, never writing the saved runs, and
+  `--rescore-diff` lists each verdict that differs between two rescores, exiting 1 when any does.
+  [verified] On the 107 saved PRINCIPAL-001 runs, two rescores with the same runner differed in 0
+  verdicts; 36 differed from their saved verdicts, each because a scenario gained checks after the
+  run, which the rescore reports as INCONCLUSIVE rather than inventing a kept verdict. `--regrade` is
+  unchanged.
+
 - The eval-harness threat-model ADR is accepted (owner decision 2026-10-06) with eight result rules:
   a supported failure is never hidden by an unmeasured check, forbidding checks count on runs cut
   short, grading-machinery failures are inconclusive and stop that scenario, each scenario declares a

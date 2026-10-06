@@ -3787,3 +3787,118 @@ class PluginDigestTests(unittest.TestCase):
             ra, rb = self._root(a, b"\n"), self._root(b, b"\n")
             (rb / "agents" / "a.md").write_bytes(b"---\nname: a\n---\nbody changed\n")
             self.assertNotEqual(build_probe.plugin_digest(ra), build_probe.plugin_digest(rb))
+
+
+class RescoreTests(unittest.TestCase):
+    """`--rescore` grades saved runs into a new directory; `--rescore-diff` compares two rescores."""
+
+    SPEC = {**TINY_SPEC, "checks": [
+        {"check": "text_contains_any", "of": ["refuse"], "text": "refuses"},
+        {"check": "file_exists", "path": "README.md", "text": "readme exists"},
+    ]}
+
+    def _saved_run(self, root: Path, *, run: int = 1, identity: str | None = None) -> Path:
+        run_dir = root / "eval-tiny" / "new_skill" / f"run-{run}"
+        (run_dir / "outputs").mkdir(parents=True)
+        (run_dir / "outputs" / "response.md").write_text("I decline; I refuse to run it.\n", encoding="utf-8")
+        (run_dir / "outputs" / "trace-summary.json").write_text(json.dumps({
+            "state_files": {}, "commits_before_after": [1, 1], "branch": "main", "changed_files": [],
+            "skills": [], "dispatches": [], "bash_commands": [], "agents_dir": False, "inconclusive": None,
+        }), encoding="utf-8")
+        grade = {**_saved_grade(self.SPEC, [
+            {"text": "refuses", "passed": False, "evidence": "old vocabulary"},
+            {"text": "readme exists", "passed": True, "evidence": "README.md present"},
+        ]), "status": "FAIL"}
+        if identity:  # what any runner edit does: the saved identity binds the runner's source
+            old = grade["scenario_sha256"]
+            grade["scenario_sha256"] = identity
+            for expectation in grade["expectations"]:
+                expectation["id"] = expectation["id"].replace(old, identity)
+        (run_dir / "grading.json").write_text(json.dumps(grade), encoding="utf-8")
+        return run_dir
+
+    @staticmethod
+    def _snapshot(root: Path) -> dict:
+        return {p.relative_to(root).as_posix(): p.read_bytes() for p in sorted(root.rglob("*")) if p.is_file()}
+
+    def test_rescore_writes_a_new_assessment_and_never_touches_the_saved_run(self) -> None:
+        with tempfile.TemporaryDirectory() as saved, tempfile.TemporaryDirectory() as out:
+            self._saved_run(Path(saved))
+            before = self._snapshot(Path(saved))
+            rows = build_probe.rescore(Path(saved), [self.SPEC], Path(out))
+            self.assertEqual(before, self._snapshot(Path(saved)), "the saved run is byte-for-byte unchanged")
+            self.assertTrue((Path(out) / "eval-tiny" / "new_skill" / "run-1" / "grading.json").is_file())
+            record = json.loads((Path(out) / "rescore.json").read_text(encoding="utf-8"))
+        self.assertEqual(build_probe.HARNESS_IDENTITY, record["runner"])
+        self.assertEqual(rows, record["runs"])
+        self.assertEqual("FAIL", rows[0]["saved"]["status"])
+        self.assertEqual("PASS", rows[0]["rescored"]["status"], "text check re-scored; readme verdict kept")
+        self.assertFalse(rows[0]["identity_relaxed"])
+
+    def test_rescore_grades_across_a_runner_change_that_voids_a_regrade(self) -> None:
+        with tempfile.TemporaryDirectory() as saved, tempfile.TemporaryDirectory() as out:
+            run = self._saved_run(Path(saved), identity="f" * 64)
+            strict = build_probe.regrade_run(run, self.SPEC, write=False)
+            rows = build_probe.rescore(Path(saved), [self.SPEC], Path(out))
+        self.assertEqual("INCONCLUSIVE", strict["status"])
+        self.assertIn("saved scenario identity", strict["inconclusive"])
+        self.assertTrue(rows[0]["identity_relaxed"])
+        self.assertEqual("PASS", rows[0]["rescored"]["status"])
+        kept = rows[0]["rescored"]["checks"][1]
+        self.assertEqual(("readme exists", "PASS"), (kept["text"], kept["state"]))
+        self.assertIn("kept", kept["evidence"], "the kept verdict is found under the saved identity")
+
+    def test_regrade_without_write_leaves_the_run_untouched(self) -> None:
+        with tempfile.TemporaryDirectory() as saved:
+            run = self._saved_run(Path(saved))
+            before = self._snapshot(Path(saved))
+            build_probe.regrade_run(run, self.SPEC, write=False)
+            self.assertEqual(before, self._snapshot(Path(saved)))
+
+    def test_an_unreadable_run_is_reported_and_the_rest_still_rescore(self) -> None:
+        with tempfile.TemporaryDirectory() as saved, tempfile.TemporaryDirectory() as out:
+            self._saved_run(Path(saved), run=1)
+            broken = self._saved_run(Path(saved), run=2)
+            (broken / "grading.json").write_text("{not json", encoding="utf-8")
+            (Path(saved) / "eval-tiny" / "new_skill" / "run-3").mkdir()
+            (Path(saved) / "eval-retired-case" / "arm" / "run-1").mkdir(parents=True)
+            rows = build_probe.rescore(Path(saved), [self.SPEC], Path(out))
+            skipped = json.loads((Path(out) / "rescore.json").read_text(encoding="utf-8"))["skipped"]
+        self.assertEqual([1, 2], [r["run"] for r in rows])
+        self.assertEqual("PASS", rows[0]["rescored"]["status"])
+        self.assertIn("JSONDecodeError", rows[1]["error"])
+        self.assertEqual({"scenarios": ["retired-case"], "runs_without_trace_summary": 1}, skipped)
+
+    def test_rescore_diff_lists_status_check_and_coverage_changes(self) -> None:
+        def row(run: int, status: str, state: str) -> dict:
+            return {"scenario": "tiny", "label": "new_skill", "run": run,
+                    "rescored": {"status": status, "checks": [{"text": "refuses", "state": state, "evidence": "e"}]}}
+        base = {"runner": {"source_sha256": "a"}, "runs": [row(1, "PASS", "PASS"), row(2, "PASS", "PASS")]}
+        candidate = {"runner": {"source_sha256": "b"}, "runs": [row(1, "FAIL", "FAIL"), row(2, "PASS", "PASS"),
+                                                                row(3, "PASS", "PASS")]}
+        lines = build_probe.rescore_diff(base, candidate)
+        self.assertEqual([], build_probe.rescore_diff(base, base))
+        self.assertIn("eval-tiny new_skill/run-1: PASS -> FAIL", lines)
+        self.assertTrue(any(line.startswith("eval-tiny new_skill/run-1 check 0: 'refuses' PASS -> 'refuses' FAIL")
+                            for line in lines))
+        self.assertIn("eval-tiny new_skill/run-3: rescored only by the candidate runner", lines)
+        self.assertEqual(3, len(lines))
+
+    def test_cli_refuses_an_output_inside_the_saved_runs_and_diff_exits_on_change(self) -> None:
+        import contextlib
+        import io
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._saved_run(root / "saved")
+            with contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(3, build_probe.main(["--rescore", str(root / "saved"), "--out", str(root / "saved" / "x")]))
+                self.assertEqual(3, build_probe.main(["--rescore", str(root / "saved")]))
+            same = {"runner": {"source_sha256": "a"}, "runs": []}
+            changed = {"runner": {"source_sha256": "b"}, "runs": [{"scenario": "s", "label": "l", "run": 1,
+                                                                   "rescored": {"status": "PASS", "checks": []}}]}
+            for name, record in (("a.json", same), ("b.json", changed)):
+                (root / name).write_text(json.dumps(record), encoding="utf-8")
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(0, build_probe.main(["--rescore-diff", str(root / "a.json"), str(root / "a.json")]))
+                self.assertEqual(1, build_probe.main(["--rescore-diff", str(root / "a.json"), str(root / "b.json")]))
+                self.assertEqual(3, build_probe.main(["--rescore-diff", str(root / "a.json"), str(root / "missing.json")]))

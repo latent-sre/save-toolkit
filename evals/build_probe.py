@@ -3399,8 +3399,14 @@ def native_regrade_problem(run_dir: Path, spec: dict, plugin_root: Path) -> str 
     return None
 
 
-def regrade_run(run_dir: Path, spec: dict) -> dict:
-    """Re-score an unchanged scenario; keep only exactly identified original live verdicts."""
+def regrade_run(run_dir: Path, spec: dict, *, write: bool = True, relax_identity: bool = False) -> dict:
+    """Re-score an unchanged scenario; keep only exactly identified original live verdicts.
+
+    `write=False` leaves the run untouched and only returns the grade. `relax_identity` grades a run
+    whose saved scenario identity differs, as it does after any runner edit because the identity
+    binds the runner's source; kept verdicts are then found under the saved identity, and the grade
+    is marked `identity_relaxed` so it serves only to compare runners on the same trace.
+    """
     summary = json.loads((run_dir / "outputs" / "trace-summary.json").read_text(encoding="utf-8"))
     old = json.loads((run_dir / "grading.json").read_text(encoding="utf-8"))
     original = run_dir / "grading.original.json"
@@ -3409,6 +3415,8 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
     saved_binding = live_grade.get("judge_binding")
     identity = scenario_digest(spec, saved_binding)
     identity_matches = live_grade.get("scenario_sha256") == identity
+    relaxed = relax_identity and not identity_matches
+    kept_prefix = live_grade.get("scenario_sha256") if relaxed else identity
     text = (run_dir / "outputs" / "response.md").read_text(encoding="utf-8")
     saved_plugin_root = (summary.get("plugin") or {}).get("plugin_root")
     has_plugin_root = isinstance(saved_plugin_root, str) and _is_rooted(saved_plugin_root)
@@ -3465,7 +3473,7 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
             # (a subagent's refusal no longer voids a routing verdict), not the one saved that day.
             blocked = runtime_blocked_tools(trace, spec)
             inconclusive = f"build tools denied by the runtime: {blocked}" if blocked else None
-        if not identity_matches:
+        if not identity_matches and not relaxed:
             inconclusive = "saved scenario identity is missing or changed; re-run the trial"
         elif len(old_by_id) != len(live_grade.get("expectations", [])):
             inconclusive = "saved assertion identities are duplicated; re-run the trial"
@@ -3475,7 +3483,7 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
             nonlocal inconclusive
             if inconclusive:
                 return {"text": label, "passed": False, "evidence": f"INCONCLUSIVE: {inconclusive}"}
-            saved = old_by_id.get(f"{identity}:{len(expectations)}")
+            saved = old_by_id.get(f"{kept_prefix}:{len(expectations)}")
             if saved is None or saved.get("text") != label:
                 inconclusive = f"no saved verdict for a {kept} expectation; re-run the trial"
                 return {"text": label, "passed": False,
@@ -3520,7 +3528,10 @@ def regrade_run(run_dir: Path, spec: dict) -> dict:
         "status": "INCONCLUSIVE" if inconclusive else ("PASS" if n_pass == len(expectations) else "FAIL"),
         "regraded": True,
         "inconclusive": inconclusive,
+        **({"identity_relaxed": True} if relaxed else {}),
     }
+    if not write:
+        return grading
     if not original.exists():  # keep the live verdict the first time a regrade overwrites it
         original.write_text(json.dumps(old, indent=2, ensure_ascii=False), encoding="utf-8")
     (run_dir / "grading.json").write_text(json.dumps(grading, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -3610,6 +3621,93 @@ def regrade(iteration_dir: Path, scenarios: list[dict]) -> list[dict]:
     return results
 
 
+def _check_state(expectation: dict) -> str:
+    evidence = str(expectation.get("evidence") or "")
+    if expectation.get("passed"):
+        return "PASS"
+    return "INCONCLUSIVE" if evidence.startswith("INCONCLUSIVE: ") or rubric_judge.is_inconclusive(evidence) else "FAIL"
+
+
+def _verdicts(grading: dict) -> dict:
+    return {"status": grading.get("status"), "checks": [
+        {"text": e.get("text"), "state": _check_state(e), "evidence": str(e.get("evidence") or "")[:200]}
+        for e in grading.get("expectations") or []]}
+
+
+def rescore(iteration_dir: Path, scenarios: list[dict], out_dir: Path) -> list[dict]:
+    """Grade every saved run with this runner into `out_dir`, leaving the saved runs untouched.
+
+    A saved scenario identity binds the runner that graded it, so after any runner edit `--regrade`
+    voids every run. Rescoring grades across that change and marks such runs `identity_relaxed`:
+    two rescores of the same runs, one per runner revision, show what the edit changed
+    (`rescore_diff`). A rescore is a comparison, never a verdict of its own.
+    """
+    by_id = {s["id"]: s for s in scenarios}
+    rows = []
+    skipped = {"scenarios": [], "runs_without_trace_summary": 0}
+    for eval_dir in sorted(iteration_dir.glob("eval-*")):
+        spec = by_id.get(eval_dir.name.removeprefix("eval-"))
+        if spec is None:  # retired, renamed, or excluded by --scenario: visible, never silently dropped
+            skipped["scenarios"].append(eval_dir.name.removeprefix("eval-"))
+            continue
+        for run_dir in sorted(eval_dir.glob("*/run-*")):
+            if not re.fullmatch(r"run-\d+", run_dir.name):
+                continue
+            if not (run_dir / "outputs" / "trace-summary.json").exists():
+                skipped["runs_without_trace_summary"] += 1
+                continue
+            row = {"scenario": spec["id"], "label": run_dir.parent.name, "run": int(run_dir.name.removeprefix("run-"))}
+            try:
+                original = run_dir / "grading.original.json"
+                saved = json.loads((original if original.exists() else run_dir / "grading.json").read_text(encoding="utf-8"))
+                grading = regrade_run(run_dir, spec, write=False, relax_identity=True)
+            except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
+                # One unreadable or older-shaped run stays visible instead of ending the comparison.
+                rows.append({**row, "error": f"{type(exc).__name__}: {exc}"[:300]})
+                continue
+            target = out_dir / eval_dir.name / run_dir.parent.name / run_dir.name
+            target.mkdir(parents=True)
+            (target / "grading.json").write_text(json.dumps(grading, indent=2, ensure_ascii=False), encoding="utf-8")
+            rows.append({**row, "identity_relaxed": bool(grading.get("identity_relaxed")),
+                         "saved": _verdicts(saved), "rescored": _verdicts(grading)})
+    record = {"runner": HARNESS_IDENTITY, "iteration": str(iteration_dir), "runs": rows, "skipped": skipped}
+    (out_dir / "rescore.json").write_text(json.dumps(record, indent=2, ensure_ascii=False), encoding="utf-8")
+    return rows
+
+
+def rescore_diff(base: dict, candidate: dict) -> list[str]:
+    """Each run and check whose rescored verdict differs between two rescores of the same runs."""
+    def key(row: dict) -> tuple:
+        return row.get("scenario"), row.get("label"), row.get("run")
+
+    def outcome(row: dict) -> dict:
+        return {"status": "ERROR", "checks": []} if row.get("error") else row.get("rescored") or {}
+
+    left = {key(r): r for r in base.get("runs") or []}
+    right = {key(r): r for r in candidate.get("runs") or []}
+    lines = []
+    for k in sorted(left.keys() | right.keys(), key=lambda k: tuple(str(part) for part in k)):
+        name = f"eval-{k[0]} {k[1]}/run-{k[2]}"
+        if k not in left or k not in right:
+            lines.append(f"{name}: rescored only by the {'candidate' if k not in left else 'base'} runner")
+            continue
+        a, b = outcome(left[k]), outcome(right[k])
+        if a.get("status") != b.get("status"):
+            lines.append(f"{name}: {a.get('status')} -> {b.get('status')}")
+        checks_a, checks_b = a.get("checks") or [], b.get("checks") or []
+        for index in range(max(len(checks_a), len(checks_b))):
+            ca = checks_a[index] if index < len(checks_a) else {}
+            cb = checks_b[index] if index < len(checks_b) else {}
+            if (ca.get("text"), ca.get("state")) != (cb.get("text"), cb.get("state")):
+                lines.append(f"{name} check {index}: {ca.get('text')!r} {ca.get('state')} -> "
+                             f"{cb.get('text')!r} {cb.get('state')}: {cb.get('evidence') or ca.get('evidence')}")
+    return lines
+
+
+def _load_rescore(path: Path) -> dict:
+    return json.loads(((path / "rescore.json") if path.is_dir() else path).read_text(encoding="utf-8"))
+
+
 # --------------------------------------------------------------------------- cli
 
 
@@ -3651,6 +3749,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--validate", action="store_true", help="validate scenario specs and exit")
     parser.add_argument("--regrade", type=Path, metavar="ITERATION_DIR",
                         help="re-score saved runs under this directory with the current checks (no model); workspace-dependent verdicts are kept")
+    parser.add_argument("--rescore", type=Path, metavar="ITERATION_DIR",
+                        help="grade saved runs with this runner into --out, never writing the saved runs; a comparison across runner revisions, not a verdict")
+    parser.add_argument("--rescore-diff", type=Path, nargs=2, metavar=("BASE", "CANDIDATE"),
+                        help="list every verdict that differs between two --rescore outputs (exit 1 when any does)")
     parser.add_argument("--expect-plugin-digest", metavar="SHA256",
                         help="refuse to run unless the plugin root's source digest starts with this value (binds a batch to approved candidate bytes)")
     parser.add_argument("--container", metavar="IMAGE@sha256:DIGEST",
@@ -3661,6 +3763,20 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--trials must be at least 1 (an empty batch is not a green batch)")
     if args.container and "@sha256:" not in args.container:
         parser.error("--container must name a digest-pinned image (name@sha256:…)")
+
+    if args.rescore_diff:
+        try:
+            base, candidate = (_load_rescore(path) for path in args.rescore_diff)
+        except (OSError, ValueError) as exc:
+            print(f"cannot read a rescore: {exc}", file=sys.stderr)
+            return 3
+        lines = rescore_diff(base, candidate)
+        for line in lines:
+            print(line)
+        if base.get("runner") == candidate.get("runner"):
+            print("warning: both rescores came from the same runner identity", file=sys.stderr)
+        print(f"{len(lines)} difference(s)")
+        return 1 if lines else 0
 
     try:
         scenarios = load_all_scenarios()
@@ -3679,6 +3795,30 @@ def main(argv: list[str] | None = None) -> int:
         shape = ", ".join(f"{n} {k}" for k, n in sorted(kinds.items()))
         expectations = sum(len(scenario_assertions(s)) for s in scenarios)
         print(f"scenarios OK -- {len(scenarios)} spec(s) ({shape}), {expectations} graded expectations")
+        return 0
+    if args.rescore:
+        iteration, out = args.rescore.resolve(), (args.out.resolve() if args.out else None)
+        if out is None or out.exists() or out.is_relative_to(iteration):
+            print("--rescore needs --out naming a new directory outside the saved runs", file=sys.stderr)
+            return 3
+        out.mkdir(parents=True)
+        rows = rescore(iteration, scenarios, out)
+        changed = 0
+        for r in rows:
+            if r.get("error"):
+                print(f"eval-{r['scenario']} {r['label']}/run-{r['run']}: not rescored: {r['error']}")
+                continue
+            saved, now = r["saved"]["status"], r["rescored"]["status"]
+            changed += saved != now
+            relaxed = " (identity relaxed)" if r["identity_relaxed"] else ""
+            print(f"eval-{r['scenario']} {r['label']}/run-{r['run']}: saved {saved}, rescored {now}{relaxed}")
+        skipped = json.loads((out / "rescore.json").read_text(encoding="utf-8"))["skipped"]
+        if skipped["scenarios"]:
+            print(f"skipped scenario(s) not in this checkout: {', '.join(skipped['scenarios'])}")
+        if skipped["runs_without_trace_summary"]:
+            print(f"skipped {skipped['runs_without_trace_summary']} run(s) with no trace summary")
+        print(f"rescored {len(rows)} run(s) into {out}; {changed} differ from the saved verdict "
+              "(including any scenario edits since the run; diff two rescores to isolate a runner change)")
         return 0
     if args.regrade:
         rows = regrade(args.regrade.resolve(), scenarios)
