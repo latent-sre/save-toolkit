@@ -22,7 +22,8 @@ documents, with bounded evidence helpers and no direct execution or external acc
 
 Load `stack-profile` before interpreting the service or recommending a design. The team owns its
 apps up to the platform edge; platform internals and Java/JVM source changes retain their named
-owners. A general architecture, security, or release decision stays with its existing owner.
+owners. General system architecture belongs to `principal-engineer`; security and release decisions
+stay with their existing owners.
 
 - Read local source, configuration, tests, service records, and supplied operational evidence.
 - Write/Edit only requested assessment and design documents in caller-designated document paths;

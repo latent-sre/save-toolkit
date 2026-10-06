@@ -27,6 +27,7 @@ it before recommending or changing supported runtime, tooling, or infrastructure
 | Skills or the ADR command | [`skills/`](skills) and [`commands/adr.md`](commands/adr.md); link bundled references from `SKILL.md` |
 | A live incident, a firing alert, or "what should I check next" | [`incident-investigation`](skills/incident-investigation/SKILL.md) advises the human responder and can dispatch a bounded lookup or investigation to `sre-assistant` |
 | Proactive service reliability, failure behavior, engineering improvements, or recurring toil | [`reliability-engineer`](agents/reliability-engineer.md), with [`resilience-analysis`](skills/resilience-analysis/SKILL.md) and [`toil-reduction`](skills/toil-reduction/SKILL.md) |
+| System design, architecture, a design doc or ADR, or a design fork a builder returned | [`principal-engineer`](agents/principal-engineer.md), with [`eng-ladder`](skills/eng-ladder/SKILL.md) |
 | Grafana dashboard interpretation, alert-rule operations, or temporary silences | [`grafana`](skills/grafana/SKILL.md); live writes belong to the invoked `observability-engineer` under its complete rule |
 | Guard behavior or wiring | [`readonly-guard.py`](scripts/readonly-guard.py) and [`hooks.json`](hooks/hooks.json); exit codes stay 42 allow / 43 deny / 44 indeterminate |
 | Repository changes, dependencies, or verification | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
@@ -51,6 +52,7 @@ separate.
 | `reviewer` | Independent investigation, verification, and review | Git/PR reads, scratch writes and checks, trusted skills; no direct web tools | `repository-investigator` |
 | `repository-investigator` | Bounded checkout questions | Read/Grep/Glob only; terminal | — |
 | `reliability-engineer` | Service reliability analysis, design, and toil reduction | Local reads + design-document writes; no execution or direct external access | `repository-investigator`, `sre-assistant`, `researcher` |
+| `principal-engineer` | System design and architecture: contract changes, migrations, new-system architecture, and tool or platform selection | Local reads + design-document and proposed-ADR writes; no execution or direct external access | `repository-investigator`, `sre-assistant`, `researcher` |
 | `sre-assistant` | Bounded read-only lookup or investigation, dispatched by a human or invoking workflow | Allowlist-guarded Bash/PowerShell and bundled Grafana helper; interactive browser tools that no hook guards; recommends mitigation | `researcher` |
 | `observability-engineer` | Observability and dispatched Grafana changes | Unguarded Bash; writes config and scoped Grafana dashboards, folders, alert rules, and silences | `scribe`, `researcher` |
 | `scribe` | Evidence-bound operational documents | Local document write; no Bash or web; terminal | — |

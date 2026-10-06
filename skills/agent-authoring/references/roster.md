@@ -21,8 +21,10 @@ Budget each lane from this fleet's measurements, not a vendor multiplier. A grap
 substitutes for a missing verifier; a larger prompt never substitutes for a required authority
 boundary.
 
-Seniority tiers are ladder skills, not cloned agents. Routing and live coordination stay in the
-main session; a coordinator subagent adds a round-trip for a low-context decision (a reasoned
+Seniority tiers are ladder skills, not one agent per tier: `principal-engineer` is the single
+design lane and loads the principal and distinguished tiers at the depth a decision needs.
+Routing and live coordination stay in the main session; a coordinator subagent adds a round-trip
+for a low-context decision (a reasoned
 default, not A/B-tested). When multi-agent is justified, the fleet default is orchestrator–workers:
 the main session owns plan and synthesis, and workers get bounded mandates and isolated context.
 Fleet example: `repository-investigator` (local `Read`/`Grep`/`Glob` only) and `researcher`
@@ -58,6 +60,7 @@ The contract fields are `../SKILL.md` rule 5. Name the verifier before the work:
 | `reviewer` | Independently traced findings, permitted verification results, and candidate integrity |
 | `sre-assistant` | Assigned lookup or investigative question answered with target/window evidence and limits; partial for missing requested work, independent of incident status |
 | `reliability-engineer` | Supported failure mechanism or bounded no-finding conclusion, existing controls checked, and a discriminating verification plan; supplied results retain their actual coverage |
+| `principal-engineer` | A design record with every slot filled or marked none, consumers found or named unknown, and a discriminating check proposed for each stage; supplied results retain their actual coverage |
 | `observability-engineer` | Assigned artifact: alert bad/healthy replay, query/config validation, or authorized dashboard readback |
 | A changed fleet contract | One focused red-first test, plus Gate A once before push |
 

@@ -398,6 +398,25 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Added
 
+- `principal-engineer`, one design lane for system design and architecture: contract changes,
+  migrations, new-system architecture, and tool or platform selection. It advises; the human owner
+  decides ([decision](docs/decisions/2026-10-05-principal-engineer.md)).
+  - Its judgment is imported from the owner's homelab fleet into `eng-ladder`, so authors and
+    assessors share it. `principal.md` gains default habits, a new-system method, the design
+    record with a complete worked example, and review checks; `distinguished.md` gains the
+    strategic analysis.
+  - Posture matches `reliability-engineer`: no shell or web, document-only writes, and three
+    evidence helpers. Copilot gains handoffs to and from `software-engineer`, and `/adr` accepts
+    `principal-engineer` as the selected agent and writes its ADRs as `proposed`. The validator
+    requires the guard's fleet-name inventory to match the roster. The lane loads
+    `database-reliability` before planning a data migration, backfill, replay or restore, and
+    `reliability-engineer` names it as the owner of general system architecture.
+  - Evaluation cases: contract-change, new-system and strict-reader migration designs, each paired
+    with an identical `software-engineer` arm and checked by a design-record oracle that separates
+    labels from content. Two routing positives and four boundary cases keep reliability
+    assessments, small builds, design-document reviews and fleet workflow-graph design in their own
+    lanes. Eight native campaigns (93 Sonnet trials, USD 22.13) are recorded under
+    `PRINCIPAL-001`; acceptance is pending.
 - Every eval run records `runtime`: the CLI's `--version` line (`null` when it cannot report one)
   and the host's system, release, and machine. `main()` measures it once per batch and prints it in
   the batch header; each trial writes it to `provenance.json`, the trace summary, and its summary

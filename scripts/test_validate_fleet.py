@@ -729,6 +729,17 @@ class FleetValidatorTests(unittest.TestCase):
             )
         self.assertIn("guard roster mismatch", "\n".join(failures))
 
+    def test_guard_fleet_inventory_missing_a_canonical_agent_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self._guard_wiring_root(
+                temporary, lambda t: t.replace('    "principal-engineer",\n', "")
+            )
+            failures = validate_fleet.validate_guard_wiring(
+                root, sorted(validate_fleet.EXPECTED_AUTHORITY)
+            )
+        self.assertIn("guard fleet inventory mismatch", "\n".join(failures))
+        self.assertIn("principal-engineer", "\n".join(failures))
+
     def test_guard_roster_naming_a_non_agent_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = self._guard_wiring_root(

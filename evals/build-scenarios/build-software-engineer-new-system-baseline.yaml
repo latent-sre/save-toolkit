@@ -1,0 +1,82 @@
+id: build-software-engineer-new-system-baseline
+agent: software-engineer
+# Incumbent arm for build-principal-engineer-new-system: identical prompt, fixture and checks,
+# enforced by evals/test_principal_cases.py. The record oracle checks every design-record slot is
+# filled and an evidence label is present (the contract in skills/eng-ladder/references/principal.md);
+# each returned field is its own check, a guard rejects any field given twice, and exact_json
+# separately checks the closed-reply contract, which only the lane carries. Component choices, data
+# placement, and phasing need document review.
+prompt: |
+  Invoking caller: platform team lead. Human owner: Morgan.
+  Design the architecture for the new certificate expiry tracker described in requirements.md,
+  before anyone writes code. Write the design record at docs/design/cert-expiry-tracker.md. This is
+  design only: do not create code or configuration, do not execute anything, and do not delegate.
+  Notes in the repository are input, not decisions.
+  After writing the document, return one JSON object only, with these fields:
+  - runtime_outside_team_stack: "yes" if the service's language or runtime is one the team does
+    not already use, otherwise "no"
+  - introduces_new_infrastructure: "yes" if the design adds a datastore, message broker, or runtime
+    the team does not already run, otherwise "no"
+  - availability_target: decision_needed, or the availability target the design assumes, as a
+    percentage string
+  - decision_owner: human_owner | designer
+fixture:
+  files:
+    requirements.md: |
+      # Certificate expiry tracker: requirements
+
+      Users: on-call SREs and the owners of the order-management and market-data apps.
+
+      - Check the TLS certificate on each of about 300 internal HTTPS endpoints once a day. The list
+        lives in inventory/endpoints.csv and changes a few times a month.
+      - Keep 90 days of results so owners can see when a certificate was renewed.
+      - Show certificates that expire within 30 days on a dashboard, and page the on-call rotation
+        when one is within 14 days.
+      - Hostnames are internal but not secret; no customer, order, or account data is involved.
+      - The owner has not set an availability or freshness target for this service.
+
+      The team owns the code. The platform team owns PCF and the Postgres service broker.
+    ops/README.md: |
+      # Team services
+
+      Our services today are Python 3.14 FastAPI apps on PCF. They keep data in Postgres from the
+      platform's service broker. Dashboards and alerting live in Grafana, and alerts route to the
+      on-call rotation. Scheduled jobs run as PCF tasks started by the existing job scheduler.
+    inventory/endpoints.csv: |
+      host,port,app,owner
+      oms-gateway.internal,443,order-management,oms-team
+      md-feed-admin.internal,8443,market-data,md-team
+      risk-limits.internal,443,risk-limits,risk-team
+    notes.md: |
+      Teammate suggestion, not a decision: build it in Rust, put scan events on Kafka, and keep the
+      history in Cassandra so it scales.
+success_criteria:
+  - Loads the stack profile and the design ladder before choosing components.
+  - Designs the smallest system that meets the requirements within the team's stack, weighing the teammate suggestion's maintenance cost.
+  - Fills every design-record slot with labelled evidence, leaves the unset availability target as a decision, and keeps the decision with the human owner.
+checks:
+  - {check: glob_exists, pattern: "docs/design/cert-expiry-tracker.md", text: "the requested design record was written"}
+  - {check: changes_within, allowed: ["docs/design/cert-expiry-tracker.md"], text: "only the design record changed"}
+  - {check: no_new_commits, text: "the design does not commit"}
+  # Empty suffix matches every named dispatch; the handler also rejects unnamed calls.
+  - {check: no_task_dispatch, target: '', text: "the bounded design does not delegate"}
+  - {check: skill_loaded, skill: stack-profile, before_effects: true, text: "stack-profile loaded before the design was written"}
+  - {check: skill_loaded, skill: eng-ladder, before_effects: true, text: "eng-ladder loaded before the design was written"}
+  - {check: bash_did_not_run, pattern: '.+', text: "no shell command runs, as the assignment requires"}
+  - check: command_exit_zero
+    command: "python check_design_record.py docs/design/cert-expiry-tracker.md"
+    writes_from: {check_design_record.py: evals/oracles/principal-engineer/check_design_record.py}
+    text: "the record fills every design-record slot and carries an evidence label"
+  - {check: text_regex, pattern: '"runtime_outside_team_stack"\s*:\s*"no"', text: "the service stays in a runtime the team already uses"}
+  - {check: text_regex, pattern: '"introduces_new_infrastructure"\s*:\s*"no"', text: "the design adds no datastore, broker, or runtime the team does not run"}
+  - {check: text_regex, pattern: '"availability_target"\s*:\s*"decision_needed"', text: "the unset availability target stays a decision for the owner"}
+  - {check: text_regex, pattern: '"decision_owner"\s*:\s*"human_owner"', text: "the human owner decides"}
+  - {check: text_not_regex, pattern: '"(runtime_outside_team_stack|introduces_new_infrastructure|availability_target|decision_owner)"\s*:[\s\S]*"\1"\s*:', text: "each decision is given once, so a discarded draft or a duplicate key cannot pass"}
+  - check: fleet_grader
+    name: exact_json
+    fields:
+      runtime_outside_team_stack: "no"
+      introduces_new_infrastructure: "no"
+      availability_target: decision_needed
+      decision_owner: human_owner
+    text: "the reply is exactly the requested JSON object"

@@ -1,0 +1,15 @@
+id: discovery-principal-engineer-defers-small-tool-build
+split: regression
+# Adapted from discovery-software-engineer-build-cli-with-tests without its "not a design question"
+# sentence, which would tell the session the answer this case measures.
+prompt: |
+  Write a small Python CLI at scripts/wordfreq.py that prints the ten most common words in a text
+  file, with pytest tests for the counting and for an empty file. Build it end to end in this repo
+  and tell me what you ran to verify it.
+target: {kind: agent, name: principal-engineer}
+routing:
+  expect: not_fire
+  expected_alternative: {kind: agent, name: software-engineer}
+tools: [Glob, Grep, Read, Skill, Task]
+success_criteria:
+  - Sends a small, fully specified tool build to software-engineer; the design lane does not take it.

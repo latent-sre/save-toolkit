@@ -532,6 +532,29 @@ implementation separately. Offline checks calibrate fixtures and graders; they d
 prove host containment, or establish operational benefit. Native acceptance stays open under
 `RELIABILITY-001` until the candidate, host/model and budget are selected and the traces reviewed.
 
+`build-principal-engineer-contract-change` and its identical incumbent arm
+`build-software-engineer-contract-change-baseline` grade a shared-contract design: an exact consumer
+inventory that includes a dashboard parsing the fields only in configuration, an external reader
+kept unknown, a compatible first release, removal only on evidence, and the owner's decision. Each
+field is its own reply check, so the pair compares decisions rather than reply format, and guards
+reject a field given twice or spelled with a unicode escape. Both pairs also require the design-record oracle, skills loaded
+before the document is written, and no shell, as their prompts do.
+`build-principal-engineer-new-system` and its identical incumbent arm
+`build-software-engineer-new-system-baseline` check a new-system record with the
+[design-record oracle](oracles/principal-engineer/check_design_record.py), which requires every slot
+to be filled, plus stack fit, an unset availability target left to the owner, a guard against any
+decision given twice, and the closed-reply contract that only the lane carries.
+`build-principal-engineer-order-event-identity` and its identical incumbent arm make the right
+answer the less obvious one: adding `account_id` looks backward compatible, but the fixture's
+fulfilment worker rejects any unexpected field, so the reply must say it is not. The pair also
+requires `database-reliability` before the backfill and replay plan. Two routing
+positives cover a new-service design assignment and a builder's returned fork; four negatives require
+reliability assessments, small tool builds, an independent review of a design document, and the
+fleet's own workflow-graph design to reach their own lanes. The design-review negative cannot pass
+reliably until `EVAL-014` stops routing trials from reading the measured checkout. `python -m pytest
+evals/test_principal_cases.py` calibrates them offline; design quality needs document review, and
+native acceptance stays open under `PRINCIPAL-001`.
+
 The incident advisor now uses one seven-field board. Its structural check is
 `python evals/oracles/incident-closing-fields/probe_closing_fields.py <response.md> board`.
 Legacy `fields`/`checkpoint` expectations remain for historical comparisons, not current acceptance.
