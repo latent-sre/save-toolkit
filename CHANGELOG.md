@@ -408,12 +408,15 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   - Posture matches `reliability-engineer`: no shell or web, document-only writes, and three
     evidence helpers. Copilot gains handoffs to and from `software-engineer`, and `/adr` accepts
     `principal-engineer` as the selected agent and writes its ADRs as `proposed`. The validator
-    requires the guard's fleet-name inventory to match the roster.
-  - Evaluation cases: contract-change and new-system designs, each paired with an identical
-    `software-engineer` arm and checked by a design-record oracle that separates labels from
-    content, plus two routing positives and two boundary cases that keep reliability assessments
-    and small builds in their own lanes. Six native campaigns
-    (75 Sonnet trials, USD 16.99) are recorded under `PRINCIPAL-001`; acceptance is pending.
+    requires the guard's fleet-name inventory to match the roster. The lane loads
+    `database-reliability` before planning a data migration, backfill, replay or restore, and
+    `reliability-engineer` names it as the owner of general system architecture.
+  - Evaluation cases: contract-change, new-system and strict-reader migration designs, each paired
+    with an identical `software-engineer` arm and checked by a design-record oracle that separates
+    labels from content. Two routing positives and four boundary cases keep reliability
+    assessments, small builds, design-document reviews and fleet workflow-graph design in their own
+    lanes. Eight native campaigns (93 Sonnet trials, USD 22.13) are recorded under
+    `PRINCIPAL-001`; acceptance is pending.
 - Every eval run records `runtime`: the CLI's `--version` line (`null` when it cannot report one)
   and the host's system, release, and machine. `main()` measures it once per batch and prints it in
   the batch header; each trial writes it to `provenance.json`, the trace summary, and its summary

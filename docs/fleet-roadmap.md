@@ -100,10 +100,10 @@ work with an owner and a meaningful proof-of-improvement check.
 
 ### PRINCIPAL-001 — accept the principal engineering lane on representative design tasks
 
-**Status:** `active` (2026-10-05); lane implemented at the owner's request; six native campaigns
-complete (75 Sonnet trials). The lane passes every case it owns, including both build cases 6/6 on
-the final revision `59fda81d` and its final checks, and leaves reliability assessments and small
-builds alone. On identical bytes `software-engineer` returned the same decision fields on both
+**Status:** `active` (2026-10-05); lane implemented at the owner's request; eight native campaigns
+complete (93 Sonnet trials). The lane passes every case it owns, including both build cases 6/6 on
+`59fda81d` and the strict-reader build 3/3 on `da8a110b`. It has taken none of the reliability,
+small-build, design-review or fleet workflow-graph requests in the boundary cases. On identical bytes `software-engineer` returned the same decision fields on both
 design tasks:
 - On the contract-change task, on the two revisions where both arms ran, the lane wrote the
   complete design record in 6/6 trials; `software-engineer` did once in 6, when it read the
@@ -126,6 +126,8 @@ Open choices:
 - a judged case for endpoint lifecycle, failure handling, and whether a proposed observation can
   produce the evidence its gate needs;
 - a re-run that swaps the "design document" and "design record" wording;
+- re-measuring the design-review boundary once `EVAL-014` keeps routing trials out of the
+  measured checkout;
 - the combined versus principal-only and architect-only comparison, which the picker sheet decides.
 
 Each further campaign states trial count, estimated cost, review hours and cost cap under DEC-04
@@ -480,7 +482,8 @@ judge proven against human-labelled cases graded it, not because its scenario we
 ### EVAL-013 — repair the accepted-implementation routing case
 
 **Status:** `ready` (2026-10-05); `discovery-reliability-defers-accepted-implementation` fails 0/3
-on main `8d7ecda1` and 0/3 on the principal candidate, with nothing dispatched on either tree.
+on main `8d7ecda1` and 0/3 on the principal candidate, with nothing dispatched on either tree. In
+two of the candidate trials the session searched the measured checkout before deciding (`EVAL-014`).
 **Owner:** `agent-engineer` owns the scenario; maintainers approve any paid re-run.
 **Outcome:** The case measures whether accepted implementation work reaches `software-engineer` and
 passes on main, or carries an owner disposition.
@@ -491,6 +494,25 @@ Sonnet trials on main with the DEC-04 figures stated first.
 **Evidence:** [Principal-engineer evaluation, base-state section](reviews/2026-10-05-principal-engineer-evals.md#the-neighbour-red-is-the-base-state).
 **SRE task:** Hand over an accepted change and know the routing check truthfully shows whether it
 reaches the implementation lane.
+
+### EVAL-014 — keep routing trials out of the measured checkout
+
+**Status:** `ready` (2026-10-06). Routing trials run in an empty repository, yet the plugin root,
+the measured checkout, is readable from them.
+- Of 38 principal-campaign routing traces, the main session searched the checkout before choosing
+  an agent in 6. In 2 of those it read this repository's `evals/` fixtures.
+- None of 54 build traces reached the checkout outside `skills/`.
+
+**Owner:** `agent-engineer` owns the runner; maintainers approve any paid re-run.
+**Outcome:** A trial can read the plugin's shipped skills but not the rest of the checkout, so a
+routing verdict cannot be shaped by the repository's own evals, docs or history.
+**Next action:** Find how the plugin root becomes readable to the trial. Then test serving the run
+from a staged copy of only the shipped plugin inputs: agents, skills, commands, hooks and
+manifests. Prove offline that a trial can no longer list `evals/`. Then re-run the design-review
+and accepted-implementation routing cases with the DEC-04 figures stated first.
+**Evidence:** [Principal-engineer evaluation, checkout-read section](reviews/2026-10-05-principal-engineer-evals.md#routing-trials-can-read-the-measured-checkout).
+**SRE task:** Trust that a routing result reflects the agent descriptions, not files the test
+happened to find.
 
 ### PRECOMMIT-001 — decide whether software-engineer always gets a review before committing
 

@@ -550,7 +550,8 @@ fulfilment worker rejects any unexpected field, so the reply must say it is not.
 requires `database-reliability` before the backfill and replay plan. Two routing
 positives cover a new-service design assignment and a builder's returned fork; four negatives require
 reliability assessments, small tool builds, an independent review of a design document, and the
-fleet's own workflow-graph design to reach their own lanes. `python -m pytest
+fleet's own workflow-graph design to reach their own lanes. The design-review negative cannot pass
+reliably until `EVAL-014` stops routing trials from reading the measured checkout. `python -m pytest
 evals/test_principal_cases.py` calibrates them offline; design quality needs document review, and
 native acceptance stays open under `PRINCIPAL-001`.
 

@@ -6,6 +6,11 @@ returned the same decision fields on both tasks.
 
 - **Final revision:** on `59fda81d`, the first run graded by the final checks, the lane passed both
   build cases, 6/6.
+- **Data-plan method:** on a strict-reader migration, the lane loaded `database-reliability` before
+  writing in 1/3 trials when the rule was a method-table row, and 3/3 once it became a step-1
+  prerequisite (`da8a110b`).
+- **Design-vocabulary boundaries:** the lane took none of the 8 independent design-review or fleet
+  workflow-graph requests.
 - **Contract change:** on the two revisions where both arms ran, `7993b130` and `af3531eb`, the lane
   wrote the complete design record, loaded `stack-profile` and returned the closed reply in all six
   trials. `software-engineer` wrote a complete record once in six, in the one trial where it read
@@ -30,12 +35,12 @@ One neighbour routing case fails identically on main and on the candidate. These
 
 | Item | Value |
 |---|---|
-| Candidate revisions | `56ac47b3` (digest `78fff82a…13b5e6`); `72f748a0` after the first review fixes (`0bdf82ef…dd253ed`); `7993b130` after the rename and the second review's fixes (`9ace6a27…14229ec8`); `e89bfdf2` with the new-system pair, the boundary cases and the `/adr` change (`bd55b8fa…7615a0f2`); `af3531eb` with the later review's fixes (`bd28b4a2…e3f806c`); `59fda81d` with the third review's fixes (`134b467f…4c4a302`) |
+| Candidate revisions | `56ac47b3` (digest `78fff82a…13b5e6`); `72f748a0` after the first review fixes (`0bdf82ef…dd253ed`); `7993b130` after the rename and the second review's fixes (`9ace6a27…14229ec8`); `e89bfdf2` with the new-system pair, the boundary cases and the `/adr` change (`bd55b8fa…7615a0f2`); `af3531eb` with the later review's fixes (`bd28b4a2…e3f806c`); `59fda81d` with the third review's fixes (`134b467f…4c4a302`); `e2759930` with the strict-reader pair and two boundary cases (`fe3affda…7306735`); `da8a110b` with the `database-reliability` prerequisite (`7f88202f…3645ce`) |
 | Incumbent | `8d7ecda1` (main, PR base), digest `d251ef68…3b03127` |
-| Host and model | Claude Code 2.1.290 on Windows 11, and 2.1.291 for the `af3531eb` re-run and the `59fda81d` check; `sonnet` alias, every trial answered by `claude-sonnet-5-5` |
-| Windows (2026-10-06 UTC) | first campaign 00:00–00:17, re-measure 00:43–00:49, final 01:27–01:41, new-system pair and boundaries 03:14–03:21, re-run 06:06–06:16, final lane check 07:45–07:48; three interleaved passes per arm (DEC-10) |
-| Budgets stated before running (DEC-04) | first: 21 trials, USD 4–6, cap 12; re-measure: 6 trials, USD 1.20, cap 3; final: 15 trials, USD 4.40, cap 7; new-system pair and boundaries: 12 trials, USD 3.50, cap 6; re-run: 12 trials, USD 2.60, cap 5; final lane check: 6 trials, USD 1.20, cap 3 |
-| Actual | 75 trials, three of them attribution trials added to the first campaign; USD 16.99 recorded trial cost (5.64, 1.16, 3.94, 2.60, 2.37, 1.28); judge USD 0. One-word Haiku credential refreshes are not recorded |
+| Host and model | Claude Code 2.1.290 on Windows 11, and 2.1.291 from the `af3531eb` re-run on; `sonnet` alias, every trial answered by `claude-sonnet-5-5` |
+| Windows (2026-10-06 UTC) | first campaign 00:00–00:17, re-measure 00:43–00:49, final 01:27–01:41, new-system pair and boundaries 03:14–03:21, re-run 06:06–06:16, final lane check 07:45–07:48, strict-reader pair and boundaries 13:59–14:14, prerequisite check 14:22–14:26; three interleaved passes per arm (DEC-10) |
+| Budgets stated before running (DEC-04) | first: 21 trials, USD 4–6, cap 12; re-measure: 6 trials, USD 1.20, cap 3; final: 15 trials, USD 4.40, cap 7; new-system pair and boundaries: 12 trials, USD 3.50, cap 6; re-run: 12 trials, USD 2.60, cap 5; final lane check: 6 trials, USD 1.20, cap 3; strict-reader pair and boundaries: 12 trials, USD 2.50, restated as USD 3.20 before launch, cap 5; prerequisite check: 6 trials, USD 1.30–1.80, cap 2.50 |
+| Actual | 93 trials, three of them attribution trials added to the first campaign and two voided by the runtime; 92 recorded, one voided slot having been re-run in place. USD 22.13 trial cost (5.64, 1.16, 3.94, 2.60, 2.37, 1.28, 3.97, 1.16); judge USD 0. One-word Haiku credential refreshes are not recorded |
 
 ## Results
 
@@ -51,7 +56,8 @@ One neighbour routing case fails identically on main and on the candidate. These
 | `discovery-reliability-defers-accepted-implementation` | candidate / main | 0/3 / 0/3 | — | — |
 
 Later runs have their own sections: the `e89bfdf2` pair and boundary cases, the `af3531eb` re-run,
-and the final lane check on `59fda81d`.
+the final lane check on `59fda81d`, and the strict-reader pair and boundary cases on `e2759930` and
+`da8a110b`.
 
 The lane's own four cases were 12/12 in the first campaign, plus 3/3 on the reliability neighbour.
 Both `software-engineer` failures are the `eng-ladder` load check; every decision check passed in
@@ -206,6 +212,62 @@ re-run. These are the first recorded results graded by the final checks.
       would keep paging.
     - The third covers only an endpoint decommissioned but still listed.
 
+## Strict-reader pair and boundary cases on `e2759930` and `da8a110b`
+
+Three additions came from comparing this PR with PR #326:
+
+- a build pair whose fixture reader rejects any unexpected field;
+- routing negatives for two requests in the design lane's vocabulary;
+- that PR's prerequisite form for `database-reliability`.
+
+`e2759930` cost USD 3.97, including two make-up routing trials. `da8a110b` re-ran the lane's
+build case and the reworked review case for USD 1.16.
+
+| Strict-reader build, 3 trials each | Recorded | Trap and decision fields | `database-reliability` before writing | Complete record |
+|---|---|---|---|---|
+| Lane, `e2759930` (method-table row) | 1/3 | 3/3 | 1/3 | 3/3 |
+| `software-engineer`, `e2759930` | 0/3 | 3/3 | 0/3 | 1/3 |
+| Lane, `da8a110b` (step-1 prerequisite) | 3/3 | 3/3 | 3/3 | 3/3 |
+
+- **The trap did not separate the arms.** Adding `account_id` looks compatible, but
+  `app/fulfilment.py` rejects any unexpected field. Both agents read it and answered "not backward
+  compatible" in all six `e2759930` trials.
+- **Only the wording of the load rule changed between runs,** on the same host version and in
+  consecutive campaigns. The table row fired once in three; the step-1 sentence fired in all three.
+
+| Routing negative | Traced trials | Lane fired | Expected owner fired |
+|---|---|---|---|
+| Fleet workflow-graph architecture | 2; the third was not started under the cost cap | 0 | 2 (`agent-engineer`) |
+| Design-document review, pointing at a pull request | 3, one of them voided | 0 | 1 recorded pass (`reviewer`) |
+| Design-document review, document inline | 3 | 0 | 1 (`reviewer`) |
+
+- **The workflow-graph trials cost USD 0.86 and 1.14.** The dispatched `agent-engineer` completed
+  the design.
+- **The design-review case cannot pass reliably in this harness.** Without a fixture, the
+  session went looking, and the harness voided two trials whose reads outside the workspace were
+  refused.
+  - In 4 of the 6 traced trials the main session searched the measured checkout before choosing,
+    then reviewed the document itself (next section).
+  - The 2 trials that dispatched first both chose `reviewer`.
+
+## Routing trials can read the measured checkout
+
+A routing trial runs in an empty repository, but the plugin root, which is the measured checkout,
+is readable from it.
+
+- **Routing traces:** 24 of the 38 call into the checkout outside `skills/`.
+  - In 18 of those trials the reads came only after the routing decision, mostly by the
+    dispatched agent. The session's dispatch prompt named the checkout path in 15.
+  - In 6 the main session searched the checkout before choosing: 4 design-review trials and 2
+    trials of the accepted-implementation neighbour (`EVAL-013`).
+  - In 2 of those 6 it read this repository's `evals/` fixtures before deciding.
+- **Build traces:** none of the 54 reaches the checkout outside `skills/`. Every build trial works
+  in its fixture.
+- **Verdicts:**
+  - Recorded routing verdicts whose decision came before any checkout read stand.
+  - The design-review and `EVAL-013` verdicts may be shaped by these reads.
+  - Tracked as `EVAL-014`.
+
 ## Re-measure after the first review fixes
 
 Codex's review of `1d955923` found five issues, fixed in `72f748a0`:
@@ -337,8 +399,13 @@ the record, so every slot's claims could sit unlabelled behind a single footer l
 - Whether the rename-test example changes designs: the final lane check found reader-side
   detectors, but the `af3531eb` designs already had them.
 - `software-engineer` on the final bytes and checks: the final lane check ran the lane only.
-- The `/adr` rule that writes `proposed` for `principal-engineer`, added after the final lane check:
-  no native case exercises `/adr`, and the plugin bytes differ from `59fda81d` only by that rule.
+- The final bytes on every case:
+  - `da8a110b` ran only the strict-reader build and the design-review negative.
+  - The contract-change and new-system cases last ran on `59fda81d`. That was before three later
+    changes: the `/adr` proposed-status rule, which no native case exercises; the
+    `reliability-engineer` ownership line; and the step-1 prerequisite.
+- Whether the design-review boundary holds in practice: the lane took none of 6 traced trials, but
+  the case cannot pass reliably until `EVAL-014` is resolved.
 - Lifecycle, failure handling, and evidence feasibility: no judged case measures them.
 - Every build prompt forbade delegation, so helper dispatch and return were not exercised.
 - Whether one design lane serves both depths better than separate principal and architect bodies.
