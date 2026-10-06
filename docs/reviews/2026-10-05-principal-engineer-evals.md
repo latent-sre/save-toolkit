@@ -275,7 +275,7 @@ saved record leaves a slot section empty. No recorded verdict depends on either 
   - **False fail closed:** a complete bullet-form record failed on `af3531eb`.
   - **Calibration:** each slot left empty alone in five formats (60 cases).
 - **Escaped field names.**
-  - A contract reply that respelled `decision_owner` as `decision_owner` passed every reply
+  - A contract reply that respelled `decision_owner` as `decision\u005fowner` passed every reply
     check.
   - A guard now rejects any field name with a unicode escape, the only way to respell a key.
   - The new-system pair's `exact_json` check already decodes the reply and rejects the duplicate.
