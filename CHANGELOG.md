@@ -44,6 +44,12 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- The eval runner's result rules have property tests (`evals/test_result_rules_properties.py`):
+  Hypothesis searches for a hidden failure, a requiring check failing a cut-short run, an unknown
+  cost counted as zero, or an aggregate that improves when a trial worsens, and the trace parser must
+  account for every tool call it sees. Exact `--validate` problem lists pin the validator's wording
+  and order before it is restructured. Pydantic, Hypothesis, Ruff, mypy and the PyYAML stubs are
+  pinned in `requirements-dev.txt` and installed for CI by `requirements-test.txt`.
 - Eval scenarios can declare a turn limit (`EVAL-011` turn limits). `max_turns` is passed to the CLI
   as `--max-turns`, and a session the CLI ends there is a completed run whose unmet requirements fail,
   so a candidate that never finishes can fail instead of timing out INCONCLUSIVE. No scenario declares
