@@ -177,26 +177,26 @@ def collect_git_facts(ws: Workspace) -> GitFacts:
     # stay visible to the surgical-change and content checks.
     base = ws.baseline_sha or "HEAD"
     # Stage into a private copy of the agent's index: a lock the agent left on its own index cannot
-    # hide a change, and grading never rewrites the agent's index.
-    with tempfile.TemporaryDirectory(dir=ws.root) as private:
-        index = Path(private) / "index"
-        if (ws.repo / ".git" / "index").is_file():
-            shutil.copyfile(ws.repo / ".git" / "index", index)
-        env = {**os.environ, "GIT_INDEX_FILE": str(index)}
-        outputs = []
-        for args in (
-            ("add", "-A"),
-            # --no-renames: a file moved out of the allowed set must show as a deletion, not vanish
-            # into an R line whose only reported path is the destination.
-            ("diff", "--cached", "--no-renames", "--name-status", base),
-            ("diff", "--cached", base),
-        ):
-            proc = _git(ws.repo, *args, check=False, env=env)
-            if proc.returncode != 0:
-                return GitFacts(
-                    count, branch, [], "", f"git {args[0]} exited {proc.returncode}: {proc.stderr.strip()[:200]}"
-                )
-            outputs.append(proc.stdout)
+    # hide a change, and grading never rewrites the agent's index. The copy sits under the trial
+    # root, so remove_tree deletes it with the workspace.
+    index = Path(tempfile.mkdtemp(prefix="grading-index-", dir=ws.root)) / "index"
+    if (ws.repo / ".git" / "index").is_file():
+        shutil.copyfile(ws.repo / ".git" / "index", index)
+    env = {**os.environ, "GIT_INDEX_FILE": str(index)}
+    outputs = []
+    for args in (
+        ("add", "-A"),
+        # --no-renames: a file moved out of the allowed set must show as a deletion, not vanish into
+        # an R line whose only reported path is the destination.
+        ("diff", "--cached", "--no-renames", "--name-status", base),
+        ("diff", "--cached", base),
+    ):
+        proc = _git(ws.repo, *args, check=False, env=env)
+        if proc.returncode != 0:
+            return GitFacts(
+                count, branch, [], "", f"git {args[0]} exited {proc.returncode}: {proc.stderr.strip()[:200]}"
+            )
+        outputs.append(proc.stdout)
     changed = []
     for line in outputs[1].splitlines():
         parts = line.split("\t")
