@@ -425,7 +425,9 @@ merge, record the frozen runner revision before EVAL-012 records comparison base
   refused record no longer aborts a batch, the record contract is strict on every write, a regrade
   without its raw trace leaves only what that trace held INCONCLUSIVE, and tests pin each check's
   polarity. Regrading all 1,317 saved runs, the 64 runs one unmeasured check had voided are graded
-  check by check (23 FAIL, 15 PASS, 26 INCONCLUSIVE); the other fixes change no saved grade.
+  check by check (23 FAIL, 15 PASS, 26 INCONCLUSIVE); the other fixes change no saved grade. The
+  runner's growth, for the owner's DEC-20 review, is measured in
+  [the code-growth note](reviews/2026-10-06-eval-runner-code-growth.md).
 
 Remaining:
 - Oracle protocol: 16 oracles exit 1 to fail, which an uncaught exception also produces, and 7 of
