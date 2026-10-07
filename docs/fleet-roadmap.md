@@ -447,15 +447,20 @@ merge, record the frozen runner revision before EVAL-012 records comparison base
   three; `cli.run` remains); the review's S4, S7 and S8 are done; a usage error exits 3, `env` blocks and mount sources are validated, a
   non-git plugin root is refused with exit 3, and kept attempts count only toward their own model.
   Rescoring all saved runs after each runner commit differs in no verdict.
+- `work/runner-structure`: the review's S3 and S6 are done; S5 except which runs pool, since a
+  batch refuses trials unlike the candidate it is running while a regrade splits saved runs by the
+  identity each recorded; and S1 in the scoped form the owner chose (`turn_reason` keeps the loop's
+  precedence; a typed run end with one rule everywhere would change verdicts no rescore can check). 44 check assertions assert FAIL or INCONCLUSIVE, which
+  kills the `no_new_commits` mutant; the audit proxy and the PromQL and JSON readers have tests.
+  Rescoring all saved runs after each runner commit differs in no verdict.
 
 Remaining:
-- The 2026-10-07 review's open findings: check tests that cannot tell FAIL from INCONCLUSIVE (a
-  mutant of `no_new_commits` reporting INCONCLUSIVE survives every test) and an untested `run`
-  subcommand; a timeout saved before `run_end` regrades as void; `tool_call_count`'s regrade
-  override; stopping the audit proxy before grading; the review's structural changes S1 (a typed
-  run end), S2 (typed grade and summary rows), S3 (polarity carried by each expectation), S5 (one
-  owner per copied policy, including which runs pool) and S6 (`_run_trial`'s reason decision); and
-  the owner's compatibility decisions on the flat flags and `Outcome` as a tuple.
+- The 2026-10-07 review's open findings: an untested `run` subcommand; a timeout saved before
+  `run_end` regrades as void; `tool_call_count`'s regrade override; stopping the audit proxy before
+  grading; S2 (typed grade and summary rows), which `work/runner-structure` recommends against
+  because the strict `RecordV1` model already owns the record and most grade reads load JSON as
+  `Any`, so it waits on the owner's call; and the owner's compatibility decisions on the flat flags
+  and `Outcome` as a tuple.
 - Oracle protocol: 16 oracles exit 1 to fail, which an uncaught exception also produces, and 7 of
   them run candidate code (operator-cli, obs-burn-rules, pager-webhook, pcf-deploy-job and three
   python-craft), so each needs candidate errors caught as FAIL before a crash can mean INCONCLUSIVE.
