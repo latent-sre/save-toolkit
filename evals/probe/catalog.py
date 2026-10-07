@@ -369,6 +369,14 @@ def _check_problems(spec: Spec, where: str, kind: str) -> list[str]:
             source = (ROOT / str(rel)).resolve()
             if not source.is_file() or ORACLE_DIR not in source.parents:
                 problems.append(f"{where}: checks[{i}] writes_from {rel!r} is not a file under evals/oracles/")
+        writes = check.get("writes")
+        if writes is not None and not (isinstance(writes, dict) and all(isinstance(c, str) for c in writes.values())):
+            problems.append(f"{where}: checks[{i}] writes must be a mapping of path to text")
+            continue
+        for name in [*(writes or {}), *(writes_from or {})]:
+            problem = checking.probe_write_path_problem(name)
+            if problem:
+                problems.append(f"{where}: checks[{i}] {problem}")
     return problems
 
 

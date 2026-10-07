@@ -17,9 +17,13 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
     checks report `instrument:` evidence and stop their scenario (result rules 2 and 5). The trace
     summary records the failure as `git_problem`, so a regrade does not read the empty list as "no
     changes" either.
+  - A command check whose own probe files could not be staged, such as a `writes:` path outside the
+    repository, failed the candidate. It now reports `instrument:` evidence and stops its scenario
+    (result rule 5), and `validate` refuses what staging would refuse: an inline `writes:` that is not
+    a mapping of path to text, and a `writes:` or `writes_from:` destination outside the repository.
 
   [verified] Regrading all 1,317 saved runs with `adc13a88` and with these fixes differs in nothing;
-  no saved run records a git failure.
+  no saved run records a git failure, and a regrade keeps a command check's live verdict.
 - A regrade voided every check when a saved grade was INCONCLUSIVE because of one check, such as an
   instrument failure, a judge that could not judge or an unavailable service, so a supported FAIL
   beside it could never surface again. A regrade now voids a run only when the live grade did

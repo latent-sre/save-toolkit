@@ -54,6 +54,17 @@ def writes_from_shape_problem(value: object) -> str | None:
     return None
 
 
+def probe_write_path_problem(name: object) -> str | None:
+    """Why a probe-owned file cannot be written under that name inside the repo, or None.
+
+    Validation and staging both apply it, so a scenario that validates never has its own mistake
+    charged to the candidate at grading time.
+    """
+    if not isinstance(name, str) or not name or Path(name).is_absolute() or ".." in Path(name).parts:
+        return f"writes path {name!r} must stay inside the repo"
+    return None
+
+
 FORBIDDING_GRADERS = frozenset({"not_contains", "not_regex"})
 
 
@@ -274,8 +285,9 @@ def _stage_writes(ctx: Context, p: Params) -> str | None:
             return f"writes_from source {rel!r} must be a file under evals/oracles/"
         staged[name] = source.read_text(encoding="utf-8")
     for name, content in staged.items():
-        if Path(name).is_absolute() or ".." in Path(name).parts:
-            return f"writes path {name!r} must stay inside the repo"
+        problem = probe_write_path_problem(name)
+        if problem:
+            return problem
         (ctx.ws.repo / name).write_text(content, encoding="utf-8")
     return None
 
@@ -283,8 +295,8 @@ def _stage_writes(ctx: Context, p: Params) -> str | None:
 @declare("command_exit_zero", Polarity.REQUIRES, needs={Need.CHECKOUT}, names_unmeasured=True)
 def check_command_exit_zero(ctx: Context, p: Params) -> Outcome:
     problem = _stage_writes(ctx, p)
-    if problem:
-        return verdict(False, problem)
+    if problem:  # the check's own files: a misconfigured check, never the candidate (result rule 5)
+        return instrument(problem)
     try:
         proc = _run(ctx, p["command"], timeout=int(p.get("timeout", 180)))
     except subprocess.TimeoutExpired:
@@ -306,8 +318,8 @@ def check_command_output_regex(ctx: Context, p: Params) -> Outcome:
     input and answer the model never saw.
     """
     problem = _stage_writes(ctx, p)
-    if problem:
-        return verdict(False, problem)
+    if problem:  # the check's own files: a misconfigured check, never the candidate (result rule 5)
+        return instrument(problem)
     try:
         proc = _run(ctx, p["command"], timeout=int(p.get("timeout", 180)))
     except subprocess.TimeoutExpired:

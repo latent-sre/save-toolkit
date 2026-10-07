@@ -484,6 +484,31 @@ class WorkspaceAndCheckTests(unittest.TestCase):
         staged = build_probe._stage_writes(ctx, {"writes_from": ["evals/oracles/incidents-api/probe_checks.py"]})
         self.assertIn("writes_from must be a mapping", staged or "")
 
+    def test_validation_refuses_probe_writes_that_staging_would_refuse(self) -> None:
+        oracle = "evals/oracles/scribe-runbook/probe_runbook_slots.py"
+        cases = {
+            "inline path outside the repo": ({"writes": {"../escape.py": "print(1)\n"}}, "must stay inside the repo"),
+            "oracle destination outside the repo": ({"writes_from": {"../probe.py": oracle}}, "must stay inside the repo"),
+            "inline content that is not text": ({"writes": {"probe.py": 1}}, "writes must be a mapping of path to text"),
+            "inline writes that are not a mapping": ({"writes": ["probe.py"]}, "writes must be a mapping of path to text"),
+        }
+        for name, (writes, expected) in cases.items():
+            with self.subTest(case=name):
+                spec = {**TINY_SPEC, "checks": [{"check": "command_exit_zero", "command": "python -V", **writes}]}
+                problems = build_probe.validate_scenario(spec)
+                self.assertTrue(any(expected in p for p in problems), problems)
+
+    def test_a_probe_write_that_cannot_be_staged_is_not_charged_to_the_candidate(self) -> None:
+        # A misconfigured check is a measurement failure that stops its scenario (result rule 5).
+        for name in ("command_exit_zero", "command_output_regex"):
+            with self.subTest(check=name):
+                params = {"command": "python -V", "pattern": ".", "writes": {"../escape.py": "print(1)\n"}}
+                outcome = build_probe.CHECKS[name](_ctx(TINY_SPEC, self.ws), params)
+                self.assertEqual((build_probe.State.INCONCLUSIVE, True), (outcome.state, outcome.machinery),
+                                 outcome.evidence)
+                self.assertIn("must stay inside the repo", outcome.evidence)
+        self.assertFalse((self.ws.repo.parent / "escape.py").exists())
+
     def test_remove_tree_clears_gits_read_only_objects(self) -> None:
         # A seeded workspace holds read-only .git object files; plain rmtree leaves them behind on Windows.
         target = self.root / "victim"
