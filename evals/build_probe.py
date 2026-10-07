@@ -312,7 +312,11 @@ class _EntryPoint(types.ModuleType):
 
 def _readers(value: object) -> list[str]:
     """Each probe module's binding of this object: a function is bound only where it is defined, since
-    the package calls it through that module, while a class or constant is bound in each importer."""
+    the package calls it through that module, while a class or constant is bound in each importer. A
+    registered check is called through its registry entry, so that entry is where it is read."""
+    registered = [f"probe.checking.CHECKS[{name!r}]" for name, check in checking.CHECKS.items() if check.run is value]
+    if registered:
+        return registered
     bindings = [
         f"{module_name}.{name}"
         for module_name, module in sorted(sys.modules.items())

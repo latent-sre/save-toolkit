@@ -4854,10 +4854,14 @@ class PackageStructureTests(unittest.TestCase):
 
     def test_patching_a_name_on_the_entry_point_is_refused_rather_than_ignored(self) -> None:
         """The runner never looks a name up on build_probe, so a patch there would run real code. The
-        refusal names where the runner reads it: a function's own module, each importer of a constant."""
+        refusal names where the runner reads it: a function's own module, each importer of a constant,
+        and for a registered check its registry entry, through which grading calls it."""
+        from dataclasses import replace
+
         for name, readers in (
                 ("run_trial", {"probe.trials.run_trial"}),
                 ("plugin_provenance", {"probe.fingerprints.plugin_provenance"}),
+                ("check_text_regex", {"probe.checking.CHECKS['text_regex']"}),
                 ("ROOT", {"probe.constants.ROOT", "probe.checking.ROOT", "probe.trials.ROOT"}),
                 ("subprocess", {"probe.trials.subprocess", "probe.checking.subprocess"})):
             with self.subTest(name=name), \
@@ -4870,6 +4874,11 @@ class PackageStructureTests(unittest.TestCase):
                 self.assertEqual(readers, named, "a function is read only through its own module")
         with mock.patch.object(probe_trials, "run_trial", None):
             self.assertIsNone(probe_trials.run_trial)
+        # The named registry entry is where a patch takes effect.
+        patched = replace(probe_checking.CHECKS["text_regex"], run=lambda ctx, p: build_probe.verdict(True, "patched"))
+        ctx = build_probe.Context({}, None, build_probe.TraceSummary(result_text="no match here"), None)
+        with mock.patch.dict(probe_checking.CHECKS, {"text_regex": patched}):
+            self.assertEqual("patched", probe_checking.run(ctx, {"check": "text_regex", "pattern": "absent"}).evidence)
 
     def test_the_runner_identity_binds_every_module_in_the_package(self) -> None:
         package = {path.resolve() for path in (ROOT / "evals" / "probe").glob("*.py")}

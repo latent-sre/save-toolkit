@@ -44,6 +44,9 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   - `regrade` crashed on a folder beside the runs that is not a numbered run, such as an operator's
     `run-1-old`, after regrading it, and `rescore` passed it over without saying so. Both now find
     saved runs one way, which skips such a folder and lists it under `skipped`.
+  - `build_probe`'s refusal of a patch through its re-exports named `probe.checking.check_<name>` as
+    the place to patch a registered check, where a patch changes nothing because grading calls the
+    registry entry; it names `probe.checking.CHECKS['<name>']`.
 
   [verified] Regrading all 1,317 saved runs with `adc13a88` and with these fixes differs in nothing;
   no saved run records a git failure, and a regrade keeps a command check's live verdict.
