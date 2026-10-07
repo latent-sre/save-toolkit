@@ -317,7 +317,7 @@ def test_run_grader_dispatch() -> None:
             kwargs = {"pattern": "x"}
         try:
             graders.run_grader({"type": name, **kwargs}, "")
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             check(False, f"run_grader: {name} should bind on empty string, raised {e!r}")
         else:
             check(True, f"run_grader: {name} binds on empty string")
@@ -819,7 +819,7 @@ def test_handoff_direct_scenario_fixtures() -> None:
 
 
 def _load_scenario(filename: str) -> dict:
-    import yaml  # local import so layer 1 runs even without PyYAML
+    import yaml  # noqa: PLC0415 -- local import so layer 1 runs even without PyYAML
     return yaml.safe_load((SCENARIOS_DIR / filename).read_text(encoding="utf-8"))
 
 
@@ -842,7 +842,7 @@ _SERVICE_LIFECYCLE_RETIRE_DIRECT_FIXTURES = {
 
 def test_service_lifecycle_retire_direct_contract_has_green_and_red_sides() -> None:
     try:
-        import yaml  # noqa: F401
+        import yaml  # noqa: F401, PLC0415
     except ModuleNotFoundError:
         check(
             False,
@@ -883,7 +883,7 @@ def test_no_scenario_accepts_its_own_prompt() -> None:
     would score a model that merely restated the task.
     """
     try:
-        import yaml  # noqa: F401
+        import yaml  # noqa: F401, PLC0415
     except ModuleNotFoundError:
         check(False, "PyYAML required for the prompt-echo floor (`pip install pyyaml`)")
         return
@@ -909,7 +909,7 @@ def test_no_scenario_accepts_its_own_prompt() -> None:
 
 def test_gate_scenarios_adversarial() -> None:
     try:
-        import yaml  # noqa: F401
+        import yaml  # noqa: F401, PLC0415
     except ModuleNotFoundError:
         check(False, "PyYAML required for layer-2 scenario tests (`pip install pyyaml`)")
         return

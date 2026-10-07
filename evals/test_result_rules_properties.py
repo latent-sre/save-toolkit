@@ -31,8 +31,8 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import build_probe  # noqa: E402
-from test_build_probe import INTENDED_POLARITY  # noqa: E402  (the reviewed table, not the declarations)
+import build_probe
+from test_build_probe import INTENDED_POLARITY  # the reviewed table, not the declarations
 
 RULES = settings(derandomize=True, database=None, deadline=None, max_examples=150)
 GRADES = settings(derandomize=True, database=None, deadline=None, max_examples=60)

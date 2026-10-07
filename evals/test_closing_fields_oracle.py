@@ -11,7 +11,6 @@ from pathlib import Path
 
 import pytest
 import yaml
-
 from graders import run_grader
 
 ROOT = Path(__file__).resolve().parents[1]

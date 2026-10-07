@@ -1,16 +1,14 @@
 """Calibrate the partial-helper alert predicate without a model or Prometheus."""
 
-from pathlib import Path
 import shlex
 import subprocess
 import sys
 import tempfile
 import unittest
-
-import yaml
+from pathlib import Path
 
 import build_probe
-
+import yaml
 
 ROOT = Path(__file__).resolve().parent
 LONG = "checkout:availability:error_ratio_rate1h"

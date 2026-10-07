@@ -1,14 +1,13 @@
 """Calibrate the agent-engineer repair fixture without invoking a model."""
 
-from pathlib import Path
 import shlex
 import subprocess
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 
 import build_probe
-
 
 ROOT = Path(__file__).resolve().parent
 

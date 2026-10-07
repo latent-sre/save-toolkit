@@ -1,13 +1,12 @@
 """Offline calibration for the researcher/scribe probes; never invoke a model or external tool."""
 
-from pathlib import Path
 import json
 import runpy
+from pathlib import Path
 from types import SimpleNamespace
 
 import build_probe
 import pytest
-
 
 ROOT = Path(__file__).resolve().parent
 RUNBOOK = runpy.run_path(str(ROOT / "oracles/scribe-runbook/probe_runbook_slots.py"))

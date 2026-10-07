@@ -1,8 +1,8 @@
 """No-model regressions for the pager-webhook oracle: a house-rule reference passes, mutants fail."""
 from __future__ import annotations
 
-import os
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -247,7 +247,7 @@ def test_fixture_suite_passes_unchanged(tmp_path):
     ("pager-webhook", True), ("cli-with-tests", False),
 ])
 def test_review_dispatch_policy_matches_security_scope(tmp_path, scenario_name, permits_review):
-    import build_probe
+    import build_probe  # noqa: PLC0415 -- only this test needs the runner
 
     scenario = SCENARIO.with_name(f"build-software-engineer-{scenario_name}.yaml")
     spec = yaml.safe_load(scenario.read_text(encoding="utf-8"))

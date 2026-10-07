@@ -1,13 +1,12 @@
 """Offline instrument calibration, not native model acceptance or reasoning assessment."""
 import json
-from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 
 import build_probe
-
 
 ROOT = Path(__file__).resolve().parent
 SPEC = build_probe.load_scenario(ROOT / "build-scenarios/build-software-engineer-root-cause-reassessment.yaml")

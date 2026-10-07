@@ -1,16 +1,15 @@
 """Calibrate the principal-engineer evaluation fixtures, reply checks, and record oracle; no model calls."""
 
 import json
-from pathlib import Path
 import re
 import subprocess
 import sys
 import tempfile
-from types import SimpleNamespace
 import unittest
+from pathlib import Path
+from types import SimpleNamespace
 
 import build_probe
-
 
 ROOT = Path(__file__).resolve().parent
 CANDIDATE = ROOT / "build-scenarios/build-principal-engineer-contract-change.yaml"

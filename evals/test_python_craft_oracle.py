@@ -1,16 +1,15 @@
 """Calibrate the Python craft outcome oracles against correct and broken artifacts."""
 
 import json
-from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import textwrap
 import unittest
+from pathlib import Path
 
 import yaml
 from graders import exact_json
-
 
 ROOT = Path(__file__).resolve().parent
 ORACLE = ROOT / "oracles/python-craft/check_contracts.py"

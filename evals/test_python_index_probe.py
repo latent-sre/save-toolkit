@@ -1,14 +1,13 @@
 """Offline calibration of the indexed-membership build probe's actual command."""
 
-from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import textwrap
 import unittest
+from pathlib import Path
 
 import yaml
-
 
 ROOT = Path(__file__).resolve().parent
 SPEC = yaml.safe_load((ROOT / 'build-scenarios/build-python-indexed-membership.yaml').read_text(encoding='utf-8'))

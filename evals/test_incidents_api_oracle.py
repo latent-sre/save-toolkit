@@ -6,11 +6,9 @@ from pathlib import Path
 
 import pytest
 import yaml
-
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
-
 
 ROOT = Path(__file__).resolve().parents[1]
 SCENARIO = ROOT / "evals/build-scenarios/build-software-engineer-incidents-api.yaml"
@@ -84,9 +82,8 @@ def test_malformed_pagination_cursor_fails(oracle, rows, request_kind, capsys):
         if ((request_kind == "default" and limit == 50)
                 or (request_kind == "limited" and limit == 1)
                 or (request_kind == "walk" and limit == 40)
-                or (request_kind == "oversized" and limit == 100000)):
-            if body["next_cursor"] is not None:
-                body["next_cursor"] = int(body["next_cursor"])
+                or (request_kind == "oversized" and limit == 100000)) and body["next_cursor"] is not None:
+            body["next_cursor"] = int(body["next_cursor"])
         if request_kind == "last" and body["next_cursor"] is None:
             body["next_cursor"] = ""
         return body

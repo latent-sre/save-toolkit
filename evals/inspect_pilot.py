@@ -15,7 +15,6 @@ from inspect_ai.solver import TaskState
 from inspect_ai.util import sandbox
 from inspect_swe import claude_code
 
-
 ROOT = Path(__file__).resolve().parents[1]
 SCENARIO = ROOT / "evals/build-scenarios/build-software-engineer-cli-with-tests.yaml"
 COMPOSE = Path(__file__).with_name("inspect-compose.yaml")

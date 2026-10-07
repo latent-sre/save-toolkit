@@ -18,7 +18,6 @@ import runpy
 from collections.abc import Callable
 from pathlib import Path
 
-
 INCIDENT_BOARD_ORACLE = Path(__file__).resolve().parent / "oracles/incident-closing-fields/probe_closing_fields.py"
 _incident_board_check = runpy.run_path(str(INCIDENT_BOARD_ORACLE))["check"]
 
@@ -168,7 +167,7 @@ def _strict_json_value_problem(
         for key, item in value.items():
             if type(key) is not str:
                 return f"{path}: object key must be a string, got {type(key).__name__}"
-            problem = _strict_json_value_problem(item, f"{path}[{ascii(key)}]", active)
+            problem = _strict_json_value_problem(item, f"{path}[{key!a}]", active)
             if problem:
                 return problem
         return None
@@ -277,7 +276,7 @@ def rubric(response: str, name: str, params: dict | None = None, *, judge_bindin
     ever spawning a model. `judge` is imported lazily so that validating or running every OTHER
     grader never pulls in PyYAML or the clean-room subprocess machinery.
     """
-    import judge as _judge  # local import -- see docstring
+    import judge as _judge  # noqa: PLC0415 -- local import, see docstring
 
     params = params or {}
     rubrics = _judge.load_rubrics()

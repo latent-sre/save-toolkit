@@ -1,18 +1,17 @@
 """Calibrate reliability fixture semantics and result checks; never call a model."""
 
 import json
-from pathlib import Path
 import shlex
 import subprocess
 import sys
 import tempfile
-from types import SimpleNamespace
 import unittest
+from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import build_probe
 from probe import checking as probe_checking
-
 
 ROOT = Path(__file__).resolve().parent
 EXPECTED = {

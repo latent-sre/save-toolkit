@@ -2,15 +2,14 @@
 
 import json
 import os
-from pathlib import Path
 import sys
 import tempfile
-from types import ModuleType, SimpleNamespace
 import unittest
+from pathlib import Path
+from types import ModuleType, SimpleNamespace
 from unittest import mock
 
 import build_probe
-
 
 ROOT = Path(__file__).resolve().parent
 CASES = {
@@ -207,7 +206,7 @@ class ReviewerCaseTests(unittest.TestCase):
                 process([], emitted.append)
             error = RuntimeError("callback")
             def fail(_):
-                raise error
+                raise error  # noqa: B023 -- called within this iteration
             with self.assertRaises(RuntimeError) as caught:
                 submit([1], fail)
             self.assertIs(error, caught.exception)
@@ -233,7 +232,7 @@ class ReviewerCaseTests(unittest.TestCase):
         for files, expected in ((retry["files"], [("billing", "unreachable")]), (candidate, [])):
             mods, alerts = load_modules(files, "client", "monitor"), []
             down = SimpleNamespace(get=mock.Mock(side_effect=mods["client"].TransientError()))
-            mods["monitor"].check(down, "billing", lambda service, message: alerts.append((service, message)))
+            mods["monitor"].check(down, "billing", lambda service, message: alerts.append((service, message)))  # noqa: B023 -- called within this iteration
             self.assertEqual(expected, alerts, "candidate retries return None and silence the alert")
 
         tenant = scenario("finds-cross-tenant-read")["fixture"]
