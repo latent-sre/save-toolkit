@@ -1,9 +1,10 @@
 """What one attempt cost, and the v1 result record it publishes (EVAL-012 DEC-22).
 
-`RecordV1` is the record's contract: `write_record` validates every record against it before writing,
-and docs/fleet-evaluation/eval-record-v1.schema.json is generated from it (`build_probe.py schema`),
-so the published schema and the records cannot drift apart. Unknown values stay null; a record never
-fills a fact from the computer writing it.
+`RecordV1` is the record's contract: every write, the first and each later change, validates the
+record against it strictly, as the JSON its readers parse, and
+docs/fleet-evaluation/eval-record-v1.schema.json is generated from it (`build_probe.py schema`), so the
+published schema and the records cannot drift apart. Unknown values stay null; a record never fills a
+fact from the computer writing it.
 """
 
 from __future__ import annotations
@@ -12,14 +13,14 @@ import datetime
 import json
 import math
 import sys
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import Annotated, Any, Literal, cast
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, NonNegativeFloat, NonNegativeInt, PositiveInt, model_validator
 
 from . import fingerprints
-from .outcomes import Polarity, State, Stop
+from .outcomes import EVIDENCE_LIMIT, UNMEASURED, Polarity, State, Stop
 
 
 def known_usd(value: object) -> float | None:
@@ -51,11 +52,12 @@ def judge_spend() -> dict[str, Any]:
     # A cached verdict is a known zero; a live call whose cost was not reported stays unknown.
     priced = [cost for cost in (known_usd(c.get("cost_usd")) for c in calls) if cost is not None]
     unknown = len(calls) - len(priced)
+    known = round(math.fsum(priced), 6)  # a float even with no call, as the record writes it
     return {
         "calls": len(calls),
         **({"records": calls} if calls else {}),
-        "cost_usd": None if unknown else round(sum(priced), 6),
-        "known_cost_usd": round(sum(priced), 6),
+        "cost_usd": None if unknown else known,
+        "known_cost_usd": known,
         "unknown_cost_calls": unknown,
         "live_calls": sum(1 for c in calls if not c.get("cached")),
         "cached_calls": sum(1 for c in calls if c.get("cached")),
@@ -71,7 +73,14 @@ RECORD_FORMAT = {"name": "save-toolkit.eval-record", "version": 1}
 
 
 class _Section(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    # Strict: a value is checked as the JSON a reader parses, never coerced into place.
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+
+Sha256 = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
+UtcTime = Annotated[str, Field(pattern=r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|\+00:00)$")]
+# A path inside the attempt folder: relative, forward slashes, and no segment that starts with a dot.
+InsidePath = Annotated[str, Field(pattern=r"^[A-Za-z0-9_-][A-Za-z0-9_.-]*(/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*$")]
 
 
 class RecordFormat(_Section):
@@ -81,8 +90,8 @@ class RecordFormat(_Section):
 
 class Case(_Section):
     id: str
-    case_sha256: str = Field(description="The case alone: scenario, oracle bytes and rubrics, without the runner.")
-    scenario_sha256: str | None = Field(description="The case bound to the runner, Python and judge that graded it.")
+    case_sha256: Sha256 = Field(description="The case alone: scenario, oracle bytes and rubrics, without the runner.")
+    scenario_sha256: Sha256 | None = Field(description="The case bound to the runner, Python and judge that graded it.")
 
 
 class Candidate(_Section):
@@ -107,17 +116,17 @@ class Conditions(_Section):
     requested_model: str | None
     observed_models: list[str] | None
     runtime: Runtime | None
-    turn_limit: int | None
-    wall_clock_seconds: int
+    turn_limit: PositiveInt | None
+    wall_clock_seconds: PositiveInt
 
 
 class Attempt(_Section):
     label: str
-    slot: int
-    number: int
+    slot: PositiveInt
+    number: PositiveInt
     state: Literal["final", "superseded", "incomplete"]
-    started_at: str
-    ended_at: str
+    started_at: UtcTime
+    ended_at: UtcTime
     reason: str | None = None
 
 
@@ -128,41 +137,60 @@ class RunEnd(_Section):
     stop: Stop | None = Field(description="How a run cut short stopped.")
     reason: str | None
 
+    @model_validator(mode="after")
+    def _stop_only_when_cut(self) -> RunEnd:
+        if (self.stop is not None) != (self.kind == "cut_short"):
+            raise ValueError("a stop is recorded exactly when the run was cut short")
+        return self
+
 
 class Check(_Section):
-    id: str | None
-    text: str | None
-    kind: Polarity | None
-    state: State | None
-    evidence: str | None
+    id: str
+    text: str
+    kind: Polarity
+    state: State
+    reason: str | None = Field(description="Why an INCONCLUSIVE check could not measure; null for PASS and FAIL.")
+    evidence: str = Field(max_length=EVIDENCE_LIMIT)
     evidence_truncated: bool
+
+    @model_validator(mode="after")
+    def _reason_only_when_unmeasured(self) -> Check:
+        if (self.reason is not None) != (self.state is State.INCONCLUSIVE):
+            raise ValueError("a check carries a reason exactly when it is INCONCLUSIVE")
+        return self
 
 
 class Verdict(_Section):
     status: State | None = Field(description="Null for an incomplete attempt: never a guessed verdict.")
     reason: str | None
-    assessment_revision: int
+    assessment_revision: Literal[0] = Field(description="The original assessment; later ones are `assessments`.")
     after_assessment: str | None
 
 
 class Cost(_Section):
-    trial_usd: float | None
-    judge_usd: float | None
-    known_usd: float | None
+    trial_usd: NonNegativeFloat | None
+    judge_usd: NonNegativeFloat | None
+    known_usd: NonNegativeFloat | None
     complete: bool | None
-    judge_calls: int | None
-    judge_live_calls: int | None
-    judge_cached_calls: int | None
-    judge_unknown_cost_calls: int | None
+    judge_calls: NonNegativeInt | None
+    judge_live_calls: NonNegativeInt | None
+    judge_cached_calls: NonNegativeInt | None
+    judge_unknown_cost_calls: NonNegativeInt | None
+
+    @model_validator(mode="after")
+    def _complete_only_when_every_part_is_known(self) -> Cost:
+        if self.complete and (self.trial_usd is None or self.judge_usd is None):
+            raise ValueError("a cost is complete only when the trial and judge costs are both known")
+        return self
 
 
 class AssessmentEntry(_Section):
-    revision: int
+    revision: PositiveInt
     status: State
     reason: str | None
-    grading: str
-    runner_source_sha256: str
-    assessed_at: str
+    grading: InsidePath
+    runner_source_sha256: Sha256
+    assessed_at: UtcTime
 
 
 class RecordV1(_Section):
@@ -180,10 +208,21 @@ class RecordV1(_Section):
     checks: list[Check]
     verdict: Verdict
     cost: Cost
-    evidence: dict[str, str] = Field(description="Evidence files, by path relative to the attempt folder.")
+    evidence: dict[InsidePath, InsidePath] = Field(
+        description="Evidence files, by path relative to the attempt folder."
+    )
     assessments: list[AssessmentEntry] = Field(
         default_factory=list, description="Each later regrade, beside the original verdict."
     )
+
+    @model_validator(mode="after")
+    def _consistent(self) -> RecordV1:
+        incomplete = self.attempt.state == "incomplete"
+        if incomplete != (self.run_end.kind == "incomplete") or incomplete != (self.verdict.status is None):
+            raise ValueError("an incomplete attempt, and only one, ends incomplete and has no verdict")
+        if [entry.revision for entry in self.assessments] != list(range(1, len(self.assessments) + 1)):
+            raise ValueError("assessment revisions count up from 1")
+        return self
 
 
 def record_schema() -> dict[str, Any]:
@@ -205,8 +244,9 @@ def write_record(
 ) -> dict[str, Any]:
     """The v1 result record (docs/fleet-evaluation/contracts.md#result-record-v1) for one attempt.
 
-    It maps facts the attempt's own files already hold; unknown values stay null, never filled from
-    the computer writing it, and evidence paths are relative to the attempt folder.
+    It maps facts the attempt's own files already hold, so a record refused here can be written again
+    from them once the runner is fixed; unknown values stay null, never filled from the computer
+    writing it, and evidence paths are relative to the attempt folder.
     """
 
     def read(name: str) -> dict[str, Any]:
@@ -219,6 +259,7 @@ def write_record(
     grading, timing, provenance = read("grading.json"), read("timing.json"), read("provenance.json")
     summary = read("outputs/trace-summary.json")
     judge = timing.get("judge") or {}
+    incomplete = bool(end and end[0] == "incomplete")
     ended = (
         "void"
         if grading.get("void")
@@ -251,7 +292,7 @@ def write_record(
             "label": label,
             "slot": run_number,
             "number": attempt,
-            "state": "incomplete" if end and end[0] == "incomplete" else "final",
+            "state": "incomplete" if incomplete else "final",
             "started_at": started_at,
             "ended_at": utc_now(),
         },
@@ -270,14 +311,17 @@ def write_record(
                 "text": e.get("text"),
                 "kind": e.get("kind"),
                 "state": e.get("state"),
+                "reason": str(e.get("evidence")).removeprefix(UNMEASURED)
+                if e.get("state") == State.INCONCLUSIVE
+                else None,
                 "evidence": e.get("evidence"),
                 "evidence_truncated": bool(e.get("evidence_truncated")),
             }
             for e in grading.get("expectations") or []
         ],
         "verdict": {
-            "status": grading.get("status"),
-            "reason": grading.get("inconclusive") or grading.get("unmeasured"),
+            "status": None if incomplete else grading.get("status"),
+            "reason": None if incomplete else grading.get("inconclusive") or grading.get("unmeasured"),
             "assessment_revision": 0,
             "after_assessment": grading.get("after_assessment"),
         },
@@ -304,6 +348,25 @@ def write_record(
             if (run_dir / name).is_file()
         },
     }
-    record = RecordV1.model_validate(fields).model_dump(mode="json", exclude_unset=True)
-    (run_dir / "record.json").write_text(json.dumps(record, indent=2, ensure_ascii=False), encoding="utf-8")
+    return _store(run_dir / "record.json", fields)
+
+
+def update_record(run_dir: Path, change: Callable[[dict[str, Any]], object]) -> None:
+    """Change an attempt's record through the validation that wrote it. The verdict already stands, so
+    a change the contract refuses is reported and left unwritten, never raised (result rule 6)."""
+    path = run_dir / "record.json"
+    if not path.is_file():
+        return
+    try:
+        record = json.loads(path.read_text(encoding="utf-8"))
+        change(record)
+        _store(path, record)
+    except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
+        print(f"warning: {path} was not updated: {exc}", file=sys.stderr)
+
+
+def _store(path: Path, fields: Mapping[str, Any]) -> dict[str, Any]:
+    """Write a record only once it validates, as the JSON its readers parse."""
+    record = RecordV1.model_validate_json(json.dumps(fields)).model_dump(mode="json", exclude_unset=True)
+    path.write_text(json.dumps(record, indent=2, ensure_ascii=False), encoding="utf-8")
     return record

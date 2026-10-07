@@ -372,56 +372,59 @@ def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
         # A retained trial without a known cost leaves the batch's spend unknown; the cap cannot hold.
         blocked = f"a retained trial's cost is unknown; the USD {args.max_batch_usd:g} cap cannot be enforced"
     machinery_stopped: dict[str, str] = {}
-    for spec, i in planned:
-        if blocked:  # stopped before scheduling: a retained trial already broke the cap's accounting
-            break
-        if spec["id"] in machinery_stopped:
-            continue  # its grader cannot measure; more trials would spend for nothing
-        if args.max_batch_usd is not None and spent >= args.max_batch_usd:
-            blocked = f"batch spend USD {spent:.4f} reached the USD {args.max_batch_usd:g} cap"
-            break
-        try:
-            results.append(
-                trials.run_trial(
-                    spec,
-                    plugin_root=args.plugin_root.resolve(),
-                    label=args.label,
-                    model=args.model,
-                    run_number=args.run_offset + i + 1,
-                    out_dir=out,
-                    timeout=args.timeout,
-                    executable=args.executable,
-                    keep_workspace=args.keep_workspace,
-                    overwrite=args.overwrite,
-                    docker=args.docker,
-                    expected_plugin_digest=provenance["plugin_source_sha256"],
-                    judge_binding=judge_binding,
-                    runtime=runtime,
+    try:
+        for spec, i in planned:
+            if blocked:  # stopped before scheduling: a retained trial already broke the cap's accounting
+                break
+            if spec["id"] in machinery_stopped:
+                continue  # its grader cannot measure; more trials would spend for nothing
+            if args.max_batch_usd is not None and spent >= args.max_batch_usd:
+                blocked = f"batch spend USD {spent:.4f} reached the USD {args.max_batch_usd:g} cap"
+                break
+            try:
+                results.append(
+                    trials.run_trial(
+                        spec,
+                        plugin_root=args.plugin_root.resolve(),
+                        label=args.label,
+                        model=args.model,
+                        run_number=args.run_offset + i + 1,
+                        out_dir=out,
+                        timeout=args.timeout,
+                        executable=args.executable,
+                        keep_workspace=args.keep_workspace,
+                        overwrite=args.overwrite,
+                        docker=args.docker,
+                        expected_plugin_digest=provenance["plugin_source_sha256"],
+                        judge_binding=judge_binding,
+                        runtime=runtime,
+                    )
                 )
-            )
-        except clean_room.AuthUnavailable as exc:
-            # Every later trial would fail the same way; the attempt is kept, the batch stops.
-            blocked, auth_failed = f"authentication unavailable: {exc}", True
-            break
-        if results[-1].get("grader_error"):
-            machinery_stopped[spec["id"]] = results[-1]["grader_error"]
-            print(
-                json.dumps(
-                    {"scenario": spec["id"], "stopped": f"grading machinery failed: {results[-1]['grader_error']}"}
-                ),
-                flush=True,
-            )
-        if results[-1].get("after_assessment"):
-            # The finished trial keeps its verdict; nothing else may reuse the uncleaned environment.
-            blocked = results[-1]["after_assessment"]
-            break
-        spent += float(results[-1].get("known_cost_usd") or 0.0)
-        if args.max_batch_usd is not None and results[-1].get("cost_complete") is False:
-            # An unknown cost cannot be held to a cap; stop before spending more blind.
-            blocked = f"trial cost unknown; the USD {args.max_batch_usd:g} cap cannot be enforced"
-            break
-    merged = batches.merge_summary_entries(existing, results)
-    summary_path.write_text(json.dumps(merged, indent=2), encoding="utf-8")
+            except clean_room.AuthUnavailable as exc:
+                # Every later trial would fail the same way; the attempt is kept, the batch stops.
+                blocked, auth_failed = f"authentication unavailable: {exc}", True
+                break
+            if results[-1].get("grader_error"):
+                machinery_stopped[spec["id"]] = results[-1]["grader_error"]
+                print(
+                    json.dumps(
+                        {"scenario": spec["id"], "stopped": f"grading machinery failed: {results[-1]['grader_error']}"}
+                    ),
+                    flush=True,
+                )
+            if results[-1].get("after_assessment"):
+                # The finished trial keeps its verdict; nothing else may reuse the uncleaned environment.
+                blocked = results[-1]["after_assessment"]
+                break
+            spent += float(results[-1].get("known_cost_usd") or 0.0)
+            if args.max_batch_usd is not None and results[-1].get("cost_complete") is False:
+                # An unknown cost cannot be held to a cap; stop before spending more blind.
+                blocked = f"trial cost unknown; the USD {args.max_batch_usd:g} cap cannot be enforced"
+                break
+    finally:
+        # Written even when a trial raised: every trial that finished was paid for and stays counted.
+        merged = batches.merge_summary_entries(existing, results)
+        summary_path.write_text(json.dumps(merged, indent=2), encoding="utf-8")
     # `--run-offset` appends trials to an existing label. The verdict is about that whole batch, not
     # about this invocation: a final one-trial append must not report PASS over earlier failures.
     batch = [entry for entry in merged if entry.get("scenario") in selected_ids]

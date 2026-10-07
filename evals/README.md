@@ -64,15 +64,18 @@ in [`probe/`](probe), one module per job (its [`__init__.py`](probe/__init__.py)
   requiring sets, regradability and the cut-short rules are derived from those declarations.
 - **One grading loop.** `assessment.assess` grades a live trial and a regrade alike; a regrade
   supplies the saved verdicts it keeps. A result rule therefore changes in one place.
-- **A published record contract.** `records.RecordV1` validates each `record.json` before it is
-  written, and [`eval-record-v1.schema.json`](../docs/fleet-evaluation/eval-record-v1.schema.json)
-  is generated from it by `build_probe.py schema --out ...`; a test fails when the two differ.
+- **A published record contract.** `records.RecordV1` validates each `record.json` strictly, as
+  the JSON its readers parse, on the first write and on every later change, and
+  [`eval-record-v1.schema.json`](../docs/fleet-evaluation/eval-record-v1.schema.json) is generated
+  from it by `build_probe.py schema --out ...`; a test fails when the two differ.
 - **Static checks.** [`pyproject.toml`](../pyproject.toml) runs Ruff (lint and format) and strict
   mypy over the runner; CI runs them after the component tests. `python -m ruff check`,
   `python -m ruff format --check` and `python -m mypy` reproduce them locally.
 
 A function is patched in the module that defines it, such as `probe.trials.run_trial`: every other
-module calls it through that module, so one patch reaches every caller, and a test enforces it.
+module calls it through that module, so one patch reaches every caller, and a test enforces it. A
+class or constant is bound by name in each module that imports it, so a patch must reach each of
+them. `build_probe` refuses a patch of any name it re-exports and lists where the runner reads it.
 
 ## Inspect AI + Inspect SWE pilot
 
@@ -507,9 +510,11 @@ Each graded attempt also writes `record.json`, the [v1 result record](../docs/fl
 that the comparison report reads: format and version, a `case_sha256` over the scenario, oracles and
 rubric definitions alone (unlike `scenario_sha256`, it survives a runner edit), candidate and runner
 identity, run conditions, attempt number and UTC times, how the run ended (an attempt that raised keeps a partial record with
-`run_end: incomplete` and no verdict), each check's kind (forbids, requires, or both), state
-and truncation flag (evidence is cut at 600 characters and flagged), the verdict, the cost, and
-evidence paths relative to the attempt folder. Attempt folders are created with a plain `mkdir`, so
+`run_end: incomplete` and no verdict), each check's kind (forbids, requires, or both), state,
+reason when INCONCLUSIVE, and truncation flag (evidence is cut at 600 characters and flagged), the
+verdict, the cost, and evidence paths relative to the attempt folder. A record the contract refuses
+is not written, and the run is still published with its verdict: the record only maps facts the
+attempt's files keep, the summary row carries `record_problem`, and the batch goes on. Attempt folders are created with a plain `mkdir`, so
 they inherit `.eval-runs/` permissions; `tempfile.mkdtemp` made them readable only by the account
 that ran them on Windows.
 
@@ -528,7 +533,9 @@ immutable binding embedded in the original live grade, without reopening a curre
 recalibrating. Missing binding evidence or a changed judged response makes the regrade INCONCLUSIVE. A regrade voids a run only when its live grade
 did: the run-level reason that grade records as `void`, or, in a grade from before `void` was
 recorded, a reason every saved check carries. One check's own INCONCLUSIVE leaves the others
-measured, so a supported FAIL beside it stands (result rules 1 and 3).
+measured, so a supported FAIL beside it stands (result rules 1 and 3). Without the raw trace, a regrade re-measures
+only what the trace summary records; an expectation that reads what only the raw trace held
+(completion order, completed returns, reads, the plugin namespace) is INCONCLUSIVE on its own.
 
 The scenario digest also binds the evaluator implementation: `build_probe.py`, every module in
 `probe/` (found by listing the package, so a new module is bound the moment it exists), `graders.py`,

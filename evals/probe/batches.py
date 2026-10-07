@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping
+from fractions import Fraction
 from typing import Any
 
 import judge as rubric_judge
@@ -76,7 +77,9 @@ def model_identities(entries: list[dict[str, Any]]) -> list[str]:
 
 
 def aggregate_verdict(states: list[str], threshold: float) -> State:
-    required = math.ceil(len(states) * threshold)
+    """PASS when enough trials pass, FAIL when too few could, else INCONCLUSIVE. The threshold counts as
+    the decimal it was written as: 7 passes of 25 meet 0.28, which 25 * 0.28 in floating point misses."""
+    required = math.ceil(len(states) * Fraction(str(threshold)))
     passes = states.count(State.PASS)
     inconclusive = states.count(State.INCONCLUSIVE)
     if passes >= required:

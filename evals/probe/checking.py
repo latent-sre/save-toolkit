@@ -74,7 +74,8 @@ class Need(enum.StrEnum):
     """Evidence a check reads. A regrade re-measures a check only from evidence a saved run keeps."""
 
     TEXT = "final text"
-    TRACE = "trace"  # calls and dispatches, which a saved trace summary restores
+    TRACE = "trace"  # calls, call counts, loads and dispatches: the trace summary restores these
+    RAW_TRACE = "raw trace"  # completed returns, reads and the plugin namespace: only the raw trace holds them
     ORDERED_TRACE = "ordered trace"  # completion order, which only the raw trace holds
     CHANGES = "workspace changes"  # commit count, changed paths and `.agents/`, as the summary records them
     STATE = "state files"  # the fixture's state directory, as the summary records it
@@ -83,7 +84,11 @@ class Need(enum.StrEnum):
     JUDGE = "judge call"  # a paid, nondeterministic model judgment
 
 
-SAVED: Final = frozenset({Need.TEXT, Need.TRACE, Need.ORDERED_TRACE, Need.CHANGES, Need.STATE})
+SAVED: Final = frozenset({Need.TEXT, Need.TRACE, Need.RAW_TRACE, Need.ORDERED_TRACE, Need.CHANGES, Need.STATE})
+# What a saved run loses with its raw trace. A regrade cannot read it, and no other record of the run
+# restores it, so a check that needs it is INCONCLUSIVE there, never re-measured from the summary.
+RAW_ONLY: Final = frozenset({Need.RAW_TRACE, Need.ORDERED_TRACE})
+
 
 CheckRun = Callable[[Context, Params], Outcome]
 PolarityRule = Polarity | Callable[[Params], Polarity]
@@ -1115,7 +1120,8 @@ def check_bash_did_not_run(ctx: Context, p: Params) -> Outcome:
 def check_tool_call_count(ctx: Context, p: Params) -> Outcome:
     """Count attempts, including failed calls; a positive count does not establish retrieval success."""
     count = ctx.trace.tool_counts.get(p["tool"], 0)
-    return verdict(p["minimum"] <= count <= p["maximum"], f"{p['tool']}: {count} attempted call(s)")
+    evidence = f"{p['tool']}: {count} attempted call(s)"
+    return violation(evidence) if count > p["maximum"] else verdict(p["minimum"] <= count, evidence)
 
 
 @declare("no_task_dispatch", Polarity.FORBIDS, needs={Need.TRACE})
@@ -1126,7 +1132,7 @@ def check_no_task_dispatch(ctx: Context, p: Params) -> Outcome:
     return verdict(not hits, f"dispatches: {ctx.trace.dispatches or 'none'}")
 
 
-@declare("task_completed", Polarity.REQUIRES, needs={Need.TRACE})
+@declare("task_completed", Polarity.REQUIRES, needs={Need.RAW_TRACE})
 def check_task_completed(ctx: Context, p: Params) -> Outcome:
     """Require a non-error Task return from the exact canonical agent, not an attempted dispatch."""
     expected = f"{tracing.runtime_namespace(ctx.trace, ctx.plugin_root)}:{p['target']}"
@@ -1267,3 +1273,5 @@ def run(ctx: Context, check: Params) -> Outcome:
 # The result-rule tables, derived: a check whose polarity depends on its parameters is in neither.
 FORBIDDING_CHECKS = frozenset(name for name, c in CHECKS.items() if c.polarity is Polarity.FORBIDS)
 REQUIRING_CHECKS = frozenset(name for name, c in CHECKS.items() if c.polarity is Polarity.REQUIRES)
+# The checks a regrade re-measures with default parameters, as the hand-kept set of earlier runners named them.
+REGRADABLE = frozenset(name for name, c in CHECKS.items() if c.can_regrade({"check": name}, {}))

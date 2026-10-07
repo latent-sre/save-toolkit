@@ -16,14 +16,14 @@ import functools
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Any
+from typing import Any, Final
 
 import graders as fleet_graders
 import judge as rubric_judge
 
 from . import catalog, checking, fingerprints, invocation, outcomes, tracing
 from .backing import ServiceUnavailable
-from .checking import Context
+from .checking import Context, Need
 from .constants import ROOT
 from .outcomes import (
     EVIDENCE_LIMIT,
@@ -33,7 +33,6 @@ from .outcomes import (
     Polarity,
     State,
     grader_error,
-    legacy_state,
     unmeasured,
     verdict,
     violation,
@@ -120,28 +119,31 @@ def reference_read(trace: TraceSummary, reference: str, plugin_root: Path, works
     return verdict(False, f"{reference} was never read; reads: {[a['path'] for a in trace.read_attempts] or 'none'}")
 
 
+RAW: Final = frozenset({Need.RAW_TRACE})  # completed calls, reads, returns and the plugin namespace
+
+
 def _trace_expectations(
     spec: Spec, trace: TraceSummary, plugin_root: Path, judge_binding: Any = None, *, workspace: Path | None = None
-) -> list[tuple[str, Callable[[], Outcome], bool]]:
-    """Every expectation graded from the trace and final text, as (text, measure, paid), in grading order.
+) -> list[tuple[str, Callable[[], Outcome], frozenset[Need]]]:
+    """Every expectation graded from the trace and final text, as (text, measure, needs), in grading order.
 
     The scenario's `checks` follow these. One list keeps the live grade, the regrade, and the recorded
     assertion text from drifting apart -- a regrade matches saved verdicts by position and text.
-    `paid` marks a rubric grader, whose measurement spends a judge call.
+    `needs` is the evidence it reads, as a check declares it: a rubric grader's spends a judge call.
     """
-    graded: list[tuple[str, Callable[[], Outcome], bool]] = []
+    graded: list[tuple[str, Callable[[], Outcome], frozenset[Need]]] = []
     if spec.get("routing"):
         target = spec["target"]
         graded.append(
             (
                 f"routing {spec['routing']['expect']} {target['kind']}:{target['name']}",
                 lambda: grade_routing(spec, trace, plugin_root),
-                False,
+                RAW,
             )
         )
     if spec.get("skill"):
         graded.append(
-            (f"pinned skill {spec['skill']} completed", lambda: grade_skill_fired(spec, trace, plugin_root), False)
+            (f"pinned skill {spec['skill']} completed", lambda: grade_skill_fired(spec, trace, plugin_root), RAW)
         )
     reference_trace = (
         replace(trace, read_attempts=trace.parent_reads_before_dispatch) if spec.get("followups") else trace
@@ -152,7 +154,7 @@ def _trace_expectations(
             (
                 f"reference {reference} read{scope}",
                 functools.partial(reference_read, reference_trace, reference, plugin_root, workspace),
-                False,
+                RAW,
             )
         )
     for grader in spec.get("graders") or []:
@@ -160,7 +162,7 @@ def _trace_expectations(
             (
                 f"grader {grader.get('type')}",
                 functools.partial(_run_grader, grader, trace.result_text, judge_binding),
-                grader.get("type") == "rubric",
+                frozenset({Need.TEXT, Need.JUDGE}) if grader.get("type") == "rubric" else frozenset({Need.TEXT}),
             )
         )
     if spec.get("followups"):
@@ -176,12 +178,12 @@ def _trace_expectations(
                         trace.dispatches == [helper] and trace.agents == [helper],
                         f"dispatches={trace.dispatches}; completed={trace.agents}",
                     ),
-                    False,
+                    RAW,
                 ),
                 (
                     "parent continued after helper completion",
                     lambda: verdict(len(returns) == 1 and bool(returns[0]["continued"]), f"returns={returns}"),
-                    False,
+                    RAW,
                 ),
                 (
                     "human follow-up resumed the same session",
@@ -189,7 +191,7 @@ def _trace_expectations(
                         len(sessions) == 2 and bool(sessions[0]) and same_session,
                         f"invocations={len(sessions)}; same session={same_session}",
                     ),
-                    False,
+                    RAW,
                 ),
             ]
         )
@@ -251,20 +253,23 @@ def plan(
     *,
     workspace: Path | None = None,
     keep: bool = False,
+    raw_trace: bool = True,
 ) -> list[Expectation]:
     """Every expectation in grading order. With `keep`, a regrade's: an expectation the saved run cannot
-    re-measure (a paid judgment, or evidence that left with the workspace) carries why it is kept."""
+    re-measure (a paid judgment, or evidence that left with the workspace) carries why it is kept.
+    Without `raw_trace`, one that reads what only the raw trace held is INCONCLUSIVE on its own."""
     polarities = catalog.assertion_polarities(spec)
+    lost = frozenset() if raw_trace else checking.RAW_ONLY
     items: list[Expectation] = []
-    for text, measure, paid in _trace_expectations(spec, trace, plugin_root, judge_binding, workspace=workspace):
+    for text, measure, needs in _trace_expectations(spec, trace, plugin_root, judge_binding, workspace=workspace):
         polarity = polarities[len(items)]
         items.append(
             Expectation(
                 text,
-                measure,
+                _unless_lost(measure, needs & lost),
                 polarity,
                 on_cut=routing_on_cut if polarity is Polarity.BOTH else None,
-                kept_as="live-judge" if keep and paid else None,
+                kept_as="live-judge" if keep and Need.JUDGE in needs else None,
             )
         )
     for check in spec.get("checks") or []:
@@ -279,7 +284,7 @@ def plan(
         items.append(
             Expectation(
                 checking.describe(check),
-                _check_measure(ctx, check),
+                _unless_lost(_check_measure(ctx, check), checking.check_needs(check, spec) & lost),
                 polarity,
                 check=check,
                 on_cut=on_cut,
@@ -288,6 +293,14 @@ def plan(
             )
         )
     return items
+
+
+def _unless_lost(measure: Callable[[], Outcome], lost: frozenset[Need]) -> Callable[[], Outcome]:
+    """The measurement, or, when evidence it reads left with the raw trace, why it cannot be made: a
+    trace summary would read as "never happened" what it simply does not record."""
+    if not lost:
+        return measure
+    return functools.partial(unmeasured, "the raw trace this expectation reads is missing; re-run the trial")
 
 
 def _check_measure(ctx: Context | None, check: Mapping[str, Any]) -> Callable[[], Outcome]:
@@ -329,18 +342,27 @@ def _bound(outcome: Outcome) -> tuple[Outcome, bool]:
     return (outcome.with_evidence(outcome.evidence[:EVIDENCE_LIMIT]) if truncated else outcome), truncated
 
 
-def _measure(item: Expectation) -> tuple[Outcome, bool, str | None]:
-    """Measure one expectation, bounded. A grader crash is a measurement failure, never a verdict
-    (result rule 5); a backing service that stops answering is named as the trial's reason."""
-    service = None
+def _measure(item: Expectation) -> tuple[Outcome, str | None]:
+    """Measure one expectation. A grader crash is a measurement failure, never a verdict (result
+    rule 5); a backing service that stops answering is named as the trial's reason."""
     try:
-        outcome = outcomes.coerce(item.measure())
+        return outcomes.coerce(item.measure()), None
     except ServiceUnavailable as exc:
-        outcome, service = unmeasured(f"backing service unavailable: {exc}"), str(exc)
+        return unmeasured(f"backing service unavailable: {exc}"), str(exc)
     except Exception as exc:  # a grader crash is a measurement failure, never a verdict
-        outcome = grader_error(exc)
-    bounded, truncated = _bound(outcome)
-    return bounded, truncated, service
+        return grader_error(exc), None
+
+
+def _graded_on_cut(item: Expectation, cut: str) -> Outcome:
+    """A floor-and-ceiling expectation on a run cut short: measured, then graded by its cut rule. A
+    measurement that failed stays that grading-machinery failure, never "nothing forbidden yet"."""
+    measured, _ = _measure(item)
+    if measured.machinery or item.on_cut is None:
+        return measured
+    try:
+        return item.on_cut(measured, cut)
+    except Exception as exc:  # a crashing cut rule is a measurement failure too
+        return grader_error(exc)
 
 
 Kept = Callable[[int, Expectation], Outcome | None]
@@ -352,53 +374,53 @@ def assess(
     """Grade every expectation under the result rules, in order.
 
     `inconclusive` is the run-level reason, if any: a CutShort for a run that stopped early on its
-    declared profile, any other string for a void one. `kept`, given only by a regrade, returns the
-    saved live verdict of an expectation it keeps, or None when none was saved. Returns the graded
+    declared profile, any other string for a void one. `kept`, which a regrade's plan requires, returns
+    the saved live verdict of an expectation it keeps, or None when none was saved: measuring a kept
+    expectation live would spend a judge call or read a workspace that is gone. Returns the graded
     expectations and the first reason one of them went unmeasured that names the trial's reason.
     """
+    if kept is None and any(item.kept_as for item in items):
+        raise ValueError("this plan keeps live verdicts; assess it with `kept`, the saved verdicts")
     cut = inconclusive if isinstance(inconclusive, CutShort) else None
     graded: list[Graded] = []
     reason: str | None = None
     for index, item in enumerate(items):
         forbids_on_cut = cut is not None and item.polarity is Polarity.FORBIDS
-        truncated = False
         if cut is not None and item.polarity is Polarity.BOTH and item.on_cut is not None:
-            measured, truncated, _ = _measure(item)
-            outcome = item.on_cut(measured, cut)
-        elif item.kept_as is not None and kept is not None:
-            if inconclusive and not forbids_on_cut:
-                outcome, truncated = _bound(unmeasured(inconclusive))
-            else:
-                saved = kept(index, item)
-                if saved is None:
-                    missing = f"no saved verdict for a {item.kept_as} expectation; re-run the trial"
-                    reason = reason or missing
-                    saved = unmeasured(missing)
-                outcome = saved
+            outcome = _graded_on_cut(item, cut)
         elif inconclusive and not forbids_on_cut:
-            outcome, truncated = _bound(unmeasured(inconclusive))
+            outcome = unmeasured(inconclusive)
+        elif item.kept_as is not None and kept is not None:
+            saved = kept(index, item)
+            if saved is None:
+                missing = f"no saved verdict for a {item.kept_as} expectation; re-run the trial"
+                reason = reason or missing
+                saved = unmeasured(missing)
+            outcome = saved
         else:
-            outcome, truncated, service = _measure(item)
+            outcome, service = _measure(item)
             reason = reason or service
             if cut is not None and forbids_on_cut:
                 outcome = forbidden_on_cut(outcome, cut)
         if item.names_unmeasured and outcome.state is State.INCONCLUSIVE:
-            reason = reason or outcome.reason
-        graded.append(Graded(item, outcome, truncated))
+            reason = reason or outcome.reason  # whole: only the recorded evidence is cut
+        if item.polarity is Polarity.FORBIDS and outcome.state is State.FAIL:
+            outcome = outcome.as_violation()
+        graded.append(Graded(item, *_bound(outcome)))
     return graded, reason
 
 
 def unmeasured_all(graded: Sequence[Graded], reason: str) -> list[Graded]:
     """A run-level failure found after grading voids every check already graded (result rule 1)."""
-    return [Graded(g.expectation, unmeasured(reason), g.truncated) for g in graded]
+    return [Graded(g.expectation, *_bound(unmeasured(reason))) for g in graded]
 
 
-def roll_up(graded: Sequence[Graded], unmeasured_reason: str | None) -> tuple[State, str | None]:
+def roll_up(outcomes: Sequence[Outcome], unmeasured_reason: str | None) -> tuple[State, str | None]:
     """A trial's status: a supported FAIL wins, then anything unmeasured, then PASS (result rule 3).
     Returns it with the first reason something went unmeasured, if any."""
-    states = {g.outcome.state for g in graded}
+    states = [outcome.state for outcome in outcomes]
     reason = unmeasured_reason or next(
-        (g.outcome.reason for g in graded if g.outcome.state is State.INCONCLUSIVE), None
+        (outcome.reason for outcome in outcomes if outcome.state is State.INCONCLUSIVE), None
     )
     if State.FAIL in states:
         return State.FAIL, reason
@@ -472,7 +494,7 @@ def grade(
     if fingerprints.scenario_digest(ctx.spec, binding) != identity:
         inconclusive = "scenario inputs changed during grading; re-run the trial"
         graded = unmeasured_all(graded, inconclusive)
-    status, reason = roll_up(graded, inconclusive or reason)
+    status, reason = roll_up([g.outcome for g in graded], inconclusive or reason)
     expectations = records(graded)
     return {
         "expectations": expectations,
@@ -495,20 +517,10 @@ def grade(
 def trial_status(
     expectations: list[dict[str, Any]], unmeasured: str | None, polarities: Sequence[Polarity] | None = None
 ) -> tuple[State, str | None]:
-    """Roll up checks a saved grade records, under the same rules as `roll_up`, recording each state.
-
-    A check with evidence of a violation is FAIL even when another could not be measured, so an
-    unmeasured check never hides a supported failure; otherwise anything unmeasured makes the trial
-    INCONCLUSIVE. Returns the status and the first reason something went unmeasured, if any.
-    """
-    for index, expectation in enumerate(expectations):
-        expectation["state"] = legacy_state(expectation)
+    """`roll_up` over the checks a saved grade records, read from their text; records each one's state."""
+    read = [Outcome.read(e.get("passed"), e.get("evidence") or "") for e in expectations]
+    for index, (expectation, outcome) in enumerate(zip(expectations, read, strict=True)):
+        expectation["state"] = outcome.state
         if polarities is not None and index < len(polarities):
             expectation["kind"] = polarities[index]
-    states = {e["state"] for e in expectations}
-    reason = unmeasured or next(
-        (str(e["evidence"]).removeprefix(UNMEASURED) for e in expectations if e["state"] is State.INCONCLUSIVE), None
-    )
-    if State.FAIL in states:
-        return State.FAIL, reason
-    return (State.INCONCLUSIVE if reason or State.INCONCLUSIVE in states else State.PASS), reason
+    return roll_up(read, unmeasured)

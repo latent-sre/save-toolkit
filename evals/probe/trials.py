@@ -88,16 +88,22 @@ def run_trial(
             runtime=runtime,
         )
         summary["attempt"] = number
-        records.write_record(
-            attempt,
-            spec,
-            label=label,
-            run_number=run_number,
-            attempt=number,
-            started_at=started_at,
-            model=model,
-            timeout=timeout,
-        )
+        try:
+            records.write_record(
+                attempt,
+                spec,
+                label=label,
+                run_number=run_number,
+                attempt=number,
+                started_at=started_at,
+                model=model,
+                timeout=timeout,
+            )
+        except ValueError as exc:
+            # The verdict stands (result rule 6), and the record only maps facts the attempt's files
+            # keep, so it can be written once the runner is fixed; the batch goes on.
+            summary["record_problem"] = f"record refused: {exc}"[:500]
+            print(f"warning: {attempt} is published without record.json: {exc}", file=sys.stderr, flush=True)
         if target.exists():
             backup = target.with_name(f".{target.name}-previous-{secrets.token_hex(8)}")
             target.rename(backup)
@@ -173,12 +179,10 @@ def _write_attempt(run_dir: Path, number: int, state: str, reason: str | None = 
         ),
         encoding="utf-8",
     )
-    record_path = run_dir / "record.json"
-    if record_path.is_file():
-        with contextlib.suppress(OSError, ValueError, AttributeError):
-            record = json.loads(record_path.read_text(encoding="utf-8"))
-            record["attempt"].update(number=number, state=state, **({"reason": reason} if reason else {}))
-            record_path.write_text(json.dumps(record, indent=2, ensure_ascii=False), encoding="utf-8")
+    records.update_record(
+        run_dir,
+        lambda record: record["attempt"].update(number=number, state=state, **({"reason": reason} if reason else {})),
+    )
 
 
 def _keep_attempt(run_dir: Path, history: Path, number: int | None, state: str, reason: str) -> Path:

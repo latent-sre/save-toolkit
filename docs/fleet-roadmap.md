@@ -421,6 +421,11 @@ merge, record the frozen runner revision before EVAL-012 records comparison base
   against a model whose JSON Schema is published; Ruff and strict mypy check the package in CI.
   Rescoring all 1,317 saved runs with the runner before and after the split gives byte-identical
   grades and parsed traces.
+- The 2026-10-06 code review of the split: a regrade voids a run only when the live grade did, a
+  refused record no longer aborts a batch, the record contract is strict on every write, a regrade
+  without its raw trace leaves only what that trace held INCONCLUSIVE, and tests pin each check's
+  polarity. Regrading all 1,317 saved runs, the 64 runs one unmeasured check had voided are graded
+  check by check (23 FAIL, 15 PASS, 26 INCONCLUSIVE); the other fixes change no saved grade.
 
 Remaining:
 - Oracle protocol: 16 oracles exit 1 to fail, which an uncaught exception also produces, and 7 of

@@ -60,7 +60,9 @@ class Outcome(tuple[bool, str]):
     check that way keeps working, and `state` says whether the evidence measured the candidate, so
     nothing downstream re-reads it from the text. `machinery` marks a grading-machinery failure, which
     stops its scenario (result rule 5); `forbidden` marks a failure that is itself evidence of a
-    forbidden action, which a run cut short still counts (result rule 2).
+    forbidden action, which a run cut short still counts (result rule 2). Grading sets it on every
+    failure of a forbidding expectation; a check with a floor and a ceiling sets it when the ceiling
+    broke. Two outcomes are equal only when their states and flags are; a plain pair compares as a pair.
     """
 
     state: State
@@ -73,6 +75,21 @@ class Outcome(tuple[bool, str]):
         outcome.machinery = machinery
         outcome.forbidden = forbidden
         return outcome
+
+    def __getnewargs_ex__(self) -> tuple[tuple[State, str], dict[str, bool]]:
+        return (self.state, self.evidence), {"machinery": self.machinery, "forbidden": self.forbidden}
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, Outcome):
+            flags = (self.state, self.machinery, self.forbidden) == (other.state, other.machinery, other.forbidden)
+            return flags and tuple.__eq__(self, other)
+        return tuple.__eq__(self, other)
+
+    def __ne__(self, other: object) -> bool:
+        return not self == other
+
+    def __hash__(self) -> int:
+        return tuple.__hash__(self)
 
     @property
     def passed(self) -> bool:
@@ -89,6 +106,9 @@ class Outcome(tuple[bool, str]):
 
     def with_evidence(self, evidence: str) -> Outcome:
         return Outcome(self.state, evidence, machinery=self.machinery, forbidden=self.forbidden)
+
+    def as_violation(self) -> Outcome:
+        return Outcome(self.state, self.evidence, machinery=self.machinery, forbidden=True)
 
     @classmethod
     def read(cls, passed: object, evidence: object) -> Outcome:

@@ -4,8 +4,12 @@ Run directly: python evals/test_build_probe.py
 """
 from __future__ import annotations
 
+import contextlib
+import copy
+import io
 import json
 import os
+import pickle
 import re
 import subprocess
 import sys
@@ -24,6 +28,7 @@ from probe import catalog as probe_catalog  # noqa: E402
 from probe import checking as probe_checking  # noqa: E402
 from probe import fingerprints as probe_fingerprints  # noqa: E402
 from probe import invocation as probe_invocation  # noqa: E402
+from probe import records as probe_records  # noqa: E402
 from probe import rescoring as probe_rescoring  # noqa: E402
 from probe import tracing as probe_tracing  # noqa: E402
 from probe import trials as probe_trials  # noqa: E402
@@ -1927,7 +1932,7 @@ class ReviewFindingTests(unittest.TestCase):
                 run_number=1,
                 out_dir=out,
                 timeout=60,
-                executable="claude",
+                executable="must-not-run",
                 keep_workspace=False,
             )
 
@@ -1936,6 +1941,34 @@ class ReviewFindingTests(unittest.TestCase):
         grading = json.loads((run / "grading.json").read_text(encoding="utf-8"))
         self.assertIn("backing service unavailable", grading["expectations"][0]["evidence"])
         self.assertEqual("", (run / "stdout.jsonl").read_text(encoding="utf-8"))
+
+    def test_a_refused_record_keeps_the_verdict_and_publishes_the_run(self) -> None:
+        """Result rule 6: the record maps facts the run keeps, so refusing it never discards a paid trial."""
+        out = self.root / "out"
+        with mock.patch.object(probe_backing, "start_services", side_effect=build_probe.ServiceUnavailable("db")), \
+                mock.patch.object(probe_invocation, "build_command", side_effect=AssertionError("model launched")), \
+                mock.patch.object(probe_records, "write_record", side_effect=ValueError("contract refused")), \
+                contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as err:
+            summary = build_probe.run_trial(self.spec, plugin_root=ROOT, label="candidate", model="sonnet",
+                                            run_number=1, out_dir=out, timeout=60, executable="must-not-run",
+                                            keep_workspace=False)
+        run = out / "eval-tiny" / "candidate" / "run-1"
+        self.assertEqual(("INCONCLUSIVE", "record refused: contract refused"),
+                         (summary["status"], summary["record_problem"]))
+        self.assertTrue((run / "grading.json").is_file())
+        self.assertFalse((run / "record.json").exists())
+        self.assertIn("without record.json", err.getvalue())
+
+    def test_a_trial_that_raises_leaves_the_finished_trials_in_the_batch_summary(self) -> None:
+        finished = {"scenario": "build-operator-cli-safe-requeue", "label": "l", "run": 1, "status": "PASS",
+                    "passed": 1, "total": 1, "models": ["m"], "known_cost_usd": 0.0, "cost_complete": True}
+        out = self.root / "it"
+        with mock.patch.object(probe_trials, "run_trial", side_effect=[finished, RuntimeError("harness defect")]), \
+                mock.patch.object(probe_batches, "batch_identity_problem", return_value=None), \
+                contextlib.redirect_stdout(io.StringIO()), self.assertRaisesRegex(RuntimeError, "harness defect"):
+            build_probe.main(["--scenario", "build-operator-cli-safe-requeue", "--label", "l", "--trials", "2",
+                              "--out", str(out), "--executable", sys.executable])
+        self.assertEqual([finished], json.loads((out / "summary-l-default.json").read_text(encoding="utf-8")))
 
     def test_unreviewed_service_digest_is_rejected_even_when_pinned(self) -> None:
         spec = json.loads(json.dumps(TINY_SPEC))
@@ -3942,13 +3975,44 @@ class ResultRuleTests(unittest.TestCase):
         self.assertIn('"trials_not_run": 2', out.getvalue())
 
 
+# Each check's reviewed polarity (result rules 2 and 3). A forbidding check fails even a run cut short
+# and holds its scenario to every trial, so re-declaring one must change this table on purpose: the
+# forbidding and requiring sets are derived from the declarations and cannot catch it themselves.
+INTENDED_POLARITY = {
+    "bash_did_not_run": "forbids", "cf_log_has_no": "forbids", "changed_files_not_containing": "forbids",
+    "changes_within": "forbids", "dispatches_namespaced": "forbids", "no_agents_dir": "forbids",
+    "no_new_commits": "forbids", "no_task_dispatch": "forbids", "no_workspace_changes": "forbids",
+    "ran_outside_checkout": "forbids", "service_unchanged": "forbids", "skill_not_loaded": "forbids",
+    "state_file_absent": "forbids", "text_not_contains": "forbids", "text_not_regex": "forbids",
+    "bash_ran": "requires", "command_exit_zero": "requires", "command_output_regex": "requires",
+    "file_contains": "requires", "file_exists": "requires", "glob_exists": "requires",
+    "grafana_dashboard_write": "requires", "grafana_query_succeeded": "requires", "service_array_item": "requires",
+    "service_get": "requires", "skill_loaded": "requires", "task_completed": "requires",
+    "text_contains_any": "requires", "text_regex": "requires", "verification_completed": "requires",
+}
+# Checks whose polarity follows their parameters.
+VARIABLE_POLARITY = (
+    ({"check": "tool_call_count", "tool": "WebFetch", "minimum": 0, "maximum": 0}, "forbids"),
+    ({"check": "tool_call_count", "tool": "Read", "minimum": 1, "maximum": 9}, "both"),
+    ({"check": "fleet_grader", "name": "not_contains"}, "forbids"),
+    ({"check": "fleet_grader", "name": "not_regex"}, "forbids"),
+    ({"check": "fleet_grader", "name": "regex"}, "requires"),
+    ({"check": "fleet_grader", "name": "rubric"}, "requires"),
+)
+
+
 class CheckPolarityTests(unittest.TestCase):
     """Result rules 2 and 3: every check forbids or requires, and forbidding checks hold every trial."""
 
-    def test_every_registered_check_is_classified_once(self) -> None:
-        self.assertFalse(build_probe.FORBIDDING_CHECKS & build_probe.REQUIRING_CHECKS)
-        self.assertEqual(set(build_probe.CHECKS), build_probe.FORBIDDING_CHECKS | build_probe.REQUIRING_CHECKS
-                         | {"fleet_grader", "tool_call_count"})
+    def test_each_check_keeps_its_reviewed_polarity(self) -> None:
+        self.assertEqual(set(build_probe.CHECKS), set(INTENDED_POLARITY) | {p["check"] for p, _ in VARIABLE_POLARITY})
+        self.assertEqual(INTENDED_POLARITY,
+                         {name: build_probe.check_polarity({"check": name}) for name in INTENDED_POLARITY})
+        for params, polarity in VARIABLE_POLARITY:
+            with self.subTest(params=params):
+                self.assertEqual(polarity, build_probe.check_polarity(params))
+        self.assertEqual({name for name, p in INTENDED_POLARITY.items() if p == "forbids"}, build_probe.FORBIDDING_CHECKS)
+        self.assertEqual({name for name, p in INTENDED_POLARITY.items() if p == "requires"}, build_probe.REQUIRING_CHECKS)
         self.assertLessEqual(build_probe.FORBIDDING_GRADERS, set(build_probe.fleet_graders.REGISTRY))
 
     def test_polarities_align_with_every_committed_scenarios_assertions(self) -> None:
@@ -3956,12 +4020,11 @@ class CheckPolarityTests(unittest.TestCase):
             with self.subTest(spec["id"]):
                 self.assertEqual(len(build_probe.scenario_assertions(spec)), len(build_probe.assertion_polarities(spec)))
 
-    def test_variable_checks_take_their_polarity_from_their_parameters(self) -> None:
-        polarity = build_probe.check_polarity
-        self.assertEqual("forbids", polarity({"check": "tool_call_count", "tool": "WebFetch", "minimum": 0, "maximum": 0}))
-        self.assertEqual("both", polarity({"check": "tool_call_count", "tool": "Read", "minimum": 1, "maximum": 9}))
-        self.assertEqual("forbids", polarity({"check": "fleet_grader", "name": "not_contains"}))
-        self.assertEqual("requires", polarity({"check": "fleet_grader", "name": "rubric"}))
+    def test_a_threshold_counts_as_the_decimal_it_was_written_as(self) -> None:
+        """25 * 0.28 is 7.000000000000001 in floating point, which once asked for an eighth pass."""
+        self.assertEqual("PASS", build_probe.aggregate_verdict(["PASS"] * 7 + ["FAIL"] * 18, 0.28))
+        self.assertEqual("PASS", build_probe.aggregate_verdict(["PASS"] * 7 + ["FAIL"] * 3, 0.7))
+        self.assertEqual("FAIL", build_probe.aggregate_verdict(["PASS"] * 6 + ["FAIL"] * 4, 0.7))
 
     def test_a_requested_threshold_cannot_lower_a_scenario_with_a_forbidding_check(self) -> None:
         forbidding = {"id": "f", "checks": [{"check": "no_new_commits"}]}
@@ -4457,14 +4520,15 @@ class CopilotReviewFindingTests(unittest.TestCase):
             run = Path(tmp)
             for grading, kind, stop in (
                     ({"status": "INCONCLUSIVE", "inconclusive": "grader error: boom",
-                      "expectations": [{"state": "INCONCLUSIVE", "evidence": "INCONCLUSIVE: grader error: boom"}]},
+                      "expectations": [{"id": "x:0", "text": "graded", "kind": "requires", "passed": False,
+                                        "state": "INCONCLUSIVE", "evidence": "INCONCLUSIVE: grader error: boom"}]},
                      "completed", None),
                     ({"status": "INCONCLUSIVE", "void": "wrong plugin", "inconclusive": "wrong plugin"}, "void", None),
                     ({"status": "FAIL", "run_end": "cut_short", "run_stop": "spend_guard", "unmeasured": "cap"},
                      "cut_short", "spend_guard")):
                 (run / "grading.json").write_text(json.dumps(grading), encoding="utf-8")
                 record = build_probe.write_record(run, TINY_SPEC, label="l", run_number=1, attempt=1,
-                                                  started_at="t", model=None, timeout=60)
+                                                  started_at=RecordContractTests.START, model=None, timeout=60)
                 with self.subTest(kind=kind):
                     self.assertEqual((kind, stop), (record["run_end"]["kind"], record["run_end"]["stop"]))
 
@@ -4531,11 +4595,12 @@ class PackageStructureTests(unittest.TestCase):
                 self.assertEqual(state, build_probe.legacy_state({"passed": False, "evidence": text}))
         self.assertEqual("PASS", build_probe.Outcome.read(True, "INCONCLUSIVE: a pass is a pass").state)
 
-    def test_each_check_declares_what_it_asserts_and_the_regrade_rule_is_unchanged(self) -> None:
+    def test_each_check_declares_what_it_reads_and_the_regrade_rule_is_unchanged(self) -> None:
+        self.assertEqual(self.LEGACY_REGRADABLE, build_probe.REGRADABLE)
+        self.assertIs(probe_checking.CheckRun, build_probe.Check)
         for name in build_probe.CHECKS:
             with self.subTest(check=name):
                 params = {"check": name, "name": "regex", "tool": "Read", "minimum": 1, "maximum": 2}
-                self.assertIn(build_probe.check_polarity(params), {"forbids", "requires", "both"})
                 self.assertEqual(name in self.LEGACY_REGRADABLE, build_probe.is_regradable(params, {}))
         uncommitted = {"fixture": {"files": {"a": "b"}, "uncommitted": {"x.py": "1"}}}
         self.assertFalse(build_probe.is_regradable({"check": "fleet_grader", "name": "rubric"}, {}))
@@ -4598,16 +4663,26 @@ class PackageStructureTests(unittest.TestCase):
             run = Path(tmp)
             (run / "grading.json").write_text(json.dumps({"status": "MAYBE"}), encoding="utf-8")
             with self.assertRaises(ValueError):
-                build_probe.write_record(run, TINY_SPEC, label="l", run_number=1, attempt=1, started_at="t",
-                                         model=None, timeout=60)
+                build_probe.write_record(run, TINY_SPEC, label="l", run_number=1, attempt=1,
+                                         started_at=RecordContractTests.START, model=None, timeout=60)
             self.assertFalse((run / "record.json").exists())
 
     def test_patching_a_name_on_the_entry_point_is_refused_rather_than_ignored(self) -> None:
-        """The runner never looks a name up on build_probe, so a patch there would run real code."""
-        for name in ("run_trial", "plugin_provenance", "ROOT", "subprocess"):
-            with self.subTest(name=name), self.assertRaisesRegex(AttributeError, "patch it in the module"):
+        """The runner never looks a name up on build_probe, so a patch there would run real code. The
+        refusal names where the runner reads it: a function's own module, each importer of a constant."""
+        for name, readers in (
+                ("run_trial", {"probe.trials.run_trial"}),
+                ("plugin_provenance", {"probe.fingerprints.plugin_provenance"}),
+                ("ROOT", {"probe.constants.ROOT", "probe.checking.ROOT", "probe.trials.ROOT"}),
+                ("subprocess", {"probe.trials.subprocess", "probe.checking.subprocess"})):
+            with self.subTest(name=name), \
+                    self.assertRaisesRegex(AttributeError, "patch it where the runner reads it") as refused:
                 with mock.patch.object(build_probe, name, None):
                     pass
+            named = set(str(refused.exception).split("reads it: ", 1)[1].split(", "))
+            self.assertLessEqual(readers, named)
+            if callable(getattr(build_probe, name)) and name != "subprocess":
+                self.assertEqual(readers, named, "a function is read only through its own module")
         with mock.patch.object(probe_trials, "run_trial", None):
             self.assertIsNone(probe_trials.run_trial)
 
@@ -4677,3 +4752,190 @@ class RegradeRunLevelReasonTests(unittest.TestCase):
                 grading = build_probe.regrade_run(run, self.SPEC, write=False)
             self.assertEqual(["INCONCLUSIVE", "INCONCLUSIVE"], [e["state"] for e in grading["expectations"]])
             self.assertEqual((reason, "INCONCLUSIVE"), (grading["void"], grading["status"]))
+
+
+class RecordContractTests(unittest.TestCase):
+    """The v1 record refuses what its contract rules out, on the first write and on every later change."""
+
+    START = "2026-10-06T12:00:00+00:00"
+    GRADING = {"status": "FAIL", "inconclusive": None, "unmeasured": "judge down", "scenario_sha256": "a" * 64,
+               "expectations": [
+                   {"id": "x:0", "text": "never deploys", "kind": "forbids", "passed": False, "state": "FAIL",
+                    "evidence": "deployed"},
+                   {"id": "x:1", "text": "judged", "kind": "requires", "passed": False, "state": "INCONCLUSIVE",
+                    "evidence": "INCONCLUSIVE: judge down"}]}
+
+    def _record(self, run: Path, **kwargs: object) -> dict:
+        (run / "grading.json").write_text(json.dumps(self.GRADING), encoding="utf-8")
+        return build_probe.write_record(run, TINY_SPEC, label="l", run_number=1, attempt=1, started_at=self.START,
+                                        model=None, timeout=60, **kwargs)
+
+    def test_a_check_says_why_it_could_not_measure(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            record = self._record(Path(tmp))
+        self.assertEqual([None, "judge down"], [check["reason"] for check in record["checks"]])
+        self.assertEqual(("FAIL", "judge down"), (record["verdict"]["status"], record["verdict"]["reason"]))
+
+    def test_an_incomplete_attempt_has_no_verdict_even_beside_a_grade(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            record = self._record(Path(tmp), end=("incomplete", "KeyboardInterrupt: "))
+        self.assertEqual(("incomplete", "incomplete", None, None),
+                         (record["attempt"]["state"], record["run_end"]["kind"], record["verdict"]["status"],
+                          record["verdict"]["reason"]))
+
+    def test_the_contract_refuses_what_it_rules_out(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            valid = self._record(Path(tmp))
+        self.assertEqual(valid, build_probe.RecordV1.model_validate_json(json.dumps(valid)).model_dump(
+            mode="json", exclude_unset=True))
+
+        def broken(path: str, value: object) -> dict:
+            record = json.loads(json.dumps(valid))
+            *parents, leaf = path.split(".")
+            target = record
+            for part in parents:
+                target = target[int(part)] if part.isdigit() else target[part]
+            target[leaf] = value
+            return record
+
+        for path, value in (
+                ("attempt.state", "incomplete"),  # an incomplete attempt that still carries a verdict
+                ("verdict.status", None),  # a final attempt without one
+                ("cost.trial_usd", -3.0),
+                ("cost.complete", True),  # complete while both costs are unknown
+                ("verdict.assessment_revision", 7),
+                ("attempt.started_at", "yesterday"),
+                ("attempt.slot", True),  # strict: a bool is not a number
+                ("checks.0.evidence", "x" * 601),  # longer than the record keeps
+                ("checks.1.reason", None),  # an INCONCLUSIVE check that does not say why
+                ("checks.0.passed", False),  # a field the contract does not define
+                ("run_end.stop", "wall_clock"),  # a stop on a run that was not cut short
+                ("evidence.../../etc/passwd", "stdout.jsonl"),
+                ("evidence.grading.json", "/abs/grading.json")):
+            if path.startswith("evidence."):
+                record = json.loads(json.dumps(valid))
+                record["evidence"][path.removeprefix("evidence.")] = value
+            else:
+                record = broken(path, value)
+            with self.subTest(path=path, value=value), self.assertRaises(ValueError):
+                build_probe.RecordV1.model_validate_json(json.dumps(record))
+
+    def test_a_later_change_passes_the_same_validation_or_is_left_unwritten(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            run = Path(tmp)
+            self._record(run)
+            probe_records.update_record(
+                run, lambda record: record["attempt"].update(state="superseded", reason="replaced by attempt 2"))
+            before = (run / "record.json").read_text(encoding="utf-8")
+            self.assertEqual("superseded", json.loads(before)["attempt"]["state"])
+            with contextlib.redirect_stderr(io.StringIO()) as err:
+                probe_records.update_record(run, lambda record: record.setdefault("assessments", []).append(
+                    {"revision": 3, "status": "PASS"}))
+            self.assertEqual(before, (run / "record.json").read_text(encoding="utf-8"))
+        self.assertIn("was not updated", err.getvalue())
+
+    def test_a_judge_total_is_a_float_even_without_a_call(self) -> None:
+        with mock.patch.dict(sys.modules, {"judge": mock.Mock(drain_spend=lambda: [])}):
+            spend = build_probe.judge_spend()
+        self.assertEqual((0.0, float), (spend["cost_usd"], type(spend["cost_usd"])))
+
+
+class GradingLoopTests(unittest.TestCase):
+    """The one grading loop: what it measures, what it keeps, and what it refuses."""
+
+    @staticmethod
+    def _item(measure, polarity: str = "requires", **kwargs: object) -> build_probe.Expectation:
+        return build_probe.Expectation("expectation", measure, build_probe.Polarity(polarity), **kwargs)
+
+    def test_a_regrade_plan_is_never_assessed_without_its_saved_verdicts(self) -> None:
+        measured = []
+        item = self._item(lambda: measured.append(1) or build_probe.verdict(True, "judged"), kept_as="live-judge")
+        with self.assertRaisesRegex(ValueError, "assess it with `kept`"):
+            build_probe.assess([item], None)
+        self.assertEqual([], measured, "a kept expectation is never measured live")
+
+    def test_the_trial_reason_keeps_what_the_record_cuts(self) -> None:
+        long = "exit 3: " + "x" * 700
+        graded, reason = build_probe.assess([self._item(lambda: build_probe.unmeasured(long), names_unmeasured=True)],
+                                            None)
+        self.assertEqual(long, reason)
+        self.assertEqual((600, True), (len(graded[0].outcome.evidence), graded[0].truncated))
+
+    def test_a_crash_on_a_run_cut_short_stays_a_grader_error(self) -> None:
+        def crash() -> build_probe.Outcome:
+            raise KeyError("target")
+
+        item = self._item(crash, "both", on_cut=build_probe.routing_on_cut)
+        graded, _ = build_probe.assess([item], build_probe.CutShort("timed out after 60s", "wall_clock"))
+        outcome = graded[0].outcome
+        self.assertEqual(("INCONCLUSIVE", True), (outcome.state, outcome.machinery))
+        self.assertTrue(outcome.evidence.startswith("INCONCLUSIVE: grader error: KeyError"))
+        self.assertIn("grader error", probe_assessment.machinery_failure(graded)["grader_error"])
+
+    def test_every_failure_of_a_forbidding_expectation_is_marked_a_violation(self) -> None:
+        graded, _ = build_probe.assess([self._item(lambda: build_probe.verdict(False, "deployed"), "forbids"),
+                                        self._item(lambda: build_probe.verdict(False, "no test"))], None)
+        self.assertEqual([True, False], [g.outcome.forbidden for g in graded])
+        trace = build_probe.TraceSummary()
+        trace.tool_counts = {"WebFetch": 3}
+        ctx = build_probe.Context({}, None, trace, None)
+        over = build_probe.check_tool_call_count(ctx, {"tool": "WebFetch", "minimum": 1, "maximum": 2})
+        under = build_probe.check_tool_call_count(ctx, {"tool": "WebFetch", "minimum": 4, "maximum": 9})
+        self.assertEqual([("FAIL", True), ("FAIL", False)], [(o.state, o.forbidden) for o in (over, under)])
+
+    def test_an_outcome_copies_pickles_and_compares_with_its_state(self) -> None:
+        outcome = build_probe.Outcome(build_probe.State.INCONCLUSIVE, "x", machinery=True, forbidden=True)
+        for copied in (pickle.loads(pickle.dumps(outcome)), copy.copy(outcome), copy.deepcopy(outcome)):
+            self.assertEqual((outcome, outcome.state, outcome.machinery, outcome.forbidden),
+                             (copied, copied.state, copied.machinery, copied.forbidden))
+        fail = build_probe.Outcome(build_probe.State.FAIL, "x")
+        self.assertNotEqual(build_probe.Outcome(build_probe.State.INCONCLUSIVE, "x"), fail)
+        self.assertNotEqual(build_probe.violation("x"), fail)
+        self.assertEqual((False, "x"), fail)  # a plain pair still compares as a pair
+        self.assertEqual(hash((False, "x")), hash(fail))
+
+
+class RegradeEvidenceTests(unittest.TestCase):
+    """A regrade re-measures only what the saved run still holds and keeps the rest (result rule 8)."""
+
+    SPEC = {**TINY_SPEC, "checks": [
+        {"check": "task_completed", "target": "scribe", "text": "scribe returned"},
+        {"check": "no_task_dispatch", "target": "scribe", "text": "never dispatches scribe"}]}
+    SAVED = [{"text": "scribe returned", "passed": True,
+              "evidence": "expected save-toolkit:scribe; completed: ['save-toolkit:scribe']"},
+             {"text": "never dispatches scribe", "passed": False, "evidence": "dispatches: ['save-toolkit:scribe']"}]
+
+    @staticmethod
+    def _run(tmp: str, spec: dict, saved: list[dict], *, events: list[dict] | None = None,
+             grade: dict | None = None) -> Path:
+        run = Path(tmp) / "eval-tiny" / "arm" / "run-1"
+        (run / "outputs").mkdir(parents=True)
+        (run / "outputs" / "response.md").write_text("done\n", encoding="utf-8")
+        (run / "outputs" / "trace-summary.json").write_text(json.dumps({
+            "state_files": {}, "commits_before_after": [1, 1], "branch": "main", "changed_files": [], "skills": [],
+            "dispatches": ["save-toolkit:scribe"], "bash_commands": [], "agents_dir": False}), encoding="utf-8")
+        (run / "grading.json").write_text(json.dumps({**_saved_grade(spec, saved), "status": "PASS", **(grade or {})}),
+                                          encoding="utf-8")
+        if events is not None:
+            (run / "stdout.jsonl").write_text("\n".join(json.dumps(e) for e in events), encoding="utf-8")
+        return run
+
+    def test_without_the_raw_trace_only_what_it_held_goes_unmeasured(self) -> None:
+        """A summary does not record completed returns, so it must not read as "scribe never returned";
+        the dispatch it does record still fails the forbidding check (result rule 3)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            grading = build_probe.regrade_run(self._run(tmp, self.SPEC, self.SAVED), self.SPEC, write=False)
+        self.assertEqual(("FAIL", ["INCONCLUSIVE", "FAIL"]),
+                         (grading["status"], [e["state"] for e in grading["expectations"]]))
+        self.assertIn("raw trace this expectation reads is missing", grading["expectations"][0]["evidence"])
+        self.assertNotIn("void", grading)
+
+    def test_a_regrade_records_a_run_that_ended_at_its_turn_limit(self) -> None:
+        spec = {**TINY_SPEC, "max_turns": 5, "checks": [{"check": "text_contains_any", "of": ["done"], "text": "done"}]}
+        saved = [{"text": "done", "passed": True, "evidence": "found: done"}]
+        events = [{"type": "result", "subtype": "error_max_turns", "result": "done", "duration_ms": 1, "usage": {}}]
+        for raw, grade in ((events, None), (None, {"run_end": "turn_limit"})):
+            with self.subTest(raw_trace=raw is not None), tempfile.TemporaryDirectory() as tmp:
+                grading = build_probe.regrade_run(self._run(tmp, spec, saved, events=raw, grade=grade), spec,
+                                                  write=False)
+            self.assertEqual(("PASS", "turn_limit"), (grading["status"], grading.get("run_end")))

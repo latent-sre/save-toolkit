@@ -3,13 +3,13 @@
 A regrade re-measures what the saved run still supports -- the raw trace, the final text, the state
 files and git facts the summary recorded -- and keeps the live verdict of anything else, by position
 under the saved scenario identity: a paid rubric judgment, or a check whose evidence left with the
-workspace. It never rewrites the run (threat-model ADR result rule 8). Grading itself is the same
+workspace. When the raw trace is gone, what only it held is INCONCLUSIVE, check by check. It never
+rewrites the run (threat-model ADR result rule 8). Grading itself is the same
 `assessment.assess` loop the live grade uses.
 """
 
 from __future__ import annotations
 
-import contextlib
 import json
 import re
 import tempfile
@@ -20,8 +20,8 @@ from typing import Any
 import clean_room
 import judge as rubric_judge
 
-from . import assessment, checking, fingerprints, invocation, outcomes, records, tracing
-from .checking import Context, Need
+from . import assessment, fingerprints, invocation, outcomes, records, tracing
+from .checking import Context
 from .constants import ROOT
 from .fingerprints import HARNESS_IDENTITY, HARNESS_SOURCE_SHA256
 from .outcomes import EVIDENCE_LIMIT, UNMEASURED, CutShort, Outcome
@@ -162,12 +162,20 @@ def regrade_run(run_dir: Path, spec: Spec, *, write: bool = True, relax_identity
         # Routing, pinned-skill, reference, and non-rubric grader verdicts all come from the saved
         # trace, so a routing or contract run regrades like a build run. A rubric grader would spend
         # a live judge call, so it keeps the verdict the live batch paid for.
-        items = assessment.plan(spec, trace, ctx, ctx.plugin_root, workspace=recorded_workspace, keep=True)
+        items = assessment.plan(
+            spec, trace, ctx, ctx.plugin_root, workspace=recorded_workspace, keep=True, raw_trace=reparsed is not None
+        )
         graded, unmeasured = assessment.assess(items, inconclusive, kept=_saved_verdicts(old_by_id, kept_prefix))
     if fingerprints.scenario_digest(spec, saved_binding) != identity:
         inconclusive = "scenario inputs changed during regrade; re-run the trial"
         graded = assessment.unmeasured_all(graded, inconclusive)
-    status, reason = assessment.roll_up(graded, inconclusive or unmeasured)
+    status, reason = assessment.roll_up([g.outcome for g in graded], inconclusive or unmeasured)
+    # Without the raw trace the CLI's stop reason is gone; the live grade recorded what it saw.
+    turn_limit = not inconclusive and (
+        invocation.reached_turn_limit(trace, spec)
+        if reparsed is not None
+        else live_grade.get("run_end") == "turn_limit"
+    )
     expectations = assessment.records(graded)
     grading = {
         **assessment.native_assessment(spec),
@@ -185,7 +193,7 @@ def regrade_run(run_dir: Path, spec: Spec, *, write: bool = True, relax_identity
         "summary": assessment.summary_of(expectations),
         "status": status,
         "regraded": True,
-        **assessment.run_fields(status, reason, inconclusive),
+        **assessment.run_fields(status, reason, inconclusive, turn_limit=turn_limit),
         **({"identity_relaxed": True} if relaxed else {}),
     }
     if not write:
@@ -204,6 +212,7 @@ def _summary_trace(summary: Mapping[str, Any], text: str) -> TraceSummary:
         powershell_commands=list(summary.get("powershell_commands") or []),
         dispatches=list(summary.get("dispatches") or []),
         tool_errors=list(summary.get("tool_errors") or []),
+        tool_counts=dict(summary.get("tool_counts") or {}),
     )
 
 
@@ -231,8 +240,6 @@ def _run_level_reason(
         inconclusive = _saved_void(live_grade, summary) or native_problem
     if spec.get("references") and not has_plugin_root:
         inconclusive = "reference plugin root evidence missing or invalid; re-run the trial"
-    if not has_raw_trace and any(Need.ORDERED_TRACE in checking.check_needs(c, spec) for c in spec.get("checks") or []):
-        inconclusive = "raw trace required for ordered verification evidence; re-run the trial"
     required = fingerprints.required_rubrics(spec)
     if required and (not saved_binding or live_grade.get("response_sha256") != rubric_judge._digest(trace.result_text)):
         inconclusive = "saved judge binding or judged response identity is missing or changed; re-run the trial"
@@ -320,21 +327,15 @@ def _add_assessment(
             models=trace.models,
         )
     (target / "trace-summary.json").write_text(json.dumps(refreshed, indent=2, ensure_ascii=False), encoding="utf-8")
-    record_path = run_dir / "record.json"
-    if record_path.is_file():
-        with contextlib.suppress(OSError, ValueError, AttributeError):
-            record = json.loads(record_path.read_text(encoding="utf-8"))
-            record.setdefault("assessments", []).append(
-                {
-                    "revision": revision,
-                    "status": grading["status"],
-                    "reason": grading.get("inconclusive") or grading.get("unmeasured"),
-                    "grading": f"assessments/{revision}/grading.json",
-                    "runner_source_sha256": HARNESS_SOURCE_SHA256,
-                    "assessed_at": grading["assessed_at"],
-                }
-            )
-            record_path.write_text(json.dumps(record, indent=2, ensure_ascii=False), encoding="utf-8")
+    entry = {
+        "revision": revision,
+        "status": grading["status"],
+        "reason": grading.get("inconclusive") or grading.get("unmeasured"),
+        "grading": f"assessments/{revision}/grading.json",
+        "runner_source_sha256": HARNESS_SOURCE_SHA256,
+        "assessed_at": grading["assessed_at"],
+    }
+    records.update_record(run_dir, lambda record: record.setdefault("assessments", []).append(entry))
     return grading
 
 

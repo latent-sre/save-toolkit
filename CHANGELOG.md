@@ -18,6 +18,31 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   judge). 23 move from INCONCLUSIVE to FAIL, 26 stay INCONCLUSIVE with each check graded, and 15
   move to PASS, because today's runner re-measures their ordered verification as complete where the
   runner of the day did not. Nothing else changes.
+- The 2026-10-06 code review of the runner split (PR #328):
+  - A record the contract refuses after a paid trial no longer aborts the batch. The run is published
+    with its verdict and `record_problem` in its summary row, and the batch summary is written even
+    when a trial raises.
+  - The v1 record is validated strictly on every write, including later changes: an incomplete
+    attempt has no verdict, costs and counts are not negative, evidence paths stay inside the attempt
+    folder, evidence is at most 600 characters, times are UTC, and each INCONCLUSIVE check gives its
+    reason, which the contract already listed.
+  - A regrade without the raw trace no longer re-measures, from the trace summary, what only the raw
+    trace held: a completed `task_completed` read as FAIL. That expectation is INCONCLUSIVE on its
+    own, and an ordered check no longer voids the whole run. A regrade records a turn-limit stop.
+  - On a run cut short, a negative routing or tool-call check whose grader crashed stays a grader
+    error that stops its scenario, instead of reading as "nothing forbidden yet".
+  - A trial's reason is no longer cut with its evidence, and a threshold is read as the decimal it was
+    written as, so 7 of 25 trials meet 0.28 and 7 of 10 meet 0.7.
+  - `Outcome` copies, pickles and compares by its state; every failure of a forbidding check is
+    marked a violation; assessing a regrade's plan without its saved verdicts raises instead of
+    measuring them live.
+  - Tests pin each check's reviewed polarity and never hand a test the real CLI; the property tests
+    drive the production grading loop with an independent oracle. `build_probe` names where to patch
+    a name it refuses, exports `REGRADABLE` and `Check` again, and is type-checked with the package.
+
+  [verified] Regrading all 1,317 saved runs before and after these fixes gives byte-identical grades
+  and parsed traces; the full suite passes (1,822 tests), and flipping a check's polarity now fails
+  the tests.
 - The 2026-10-06 review of PR #328 (ten findings on `evals/build_probe.py`):
   - `--regrade` no longer rewrites a run or its batch summaries: each regrade is
     `assessments/<k>/` beside the run, listed in `record.json`, with its rows in `regrade-<UTC>.json`.

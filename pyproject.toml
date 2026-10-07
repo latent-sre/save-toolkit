@@ -18,7 +18,7 @@ ignore = ["E501"]  # the formatter owns line length; long messages and patterns 
 
 [tool.mypy]
 python_version = "3.12"
-files = ["evals/probe"]
+files = ["evals/probe", "evals/build_probe.py"]
 mypy_path = "evals"
 strict = true
 plugins = ["pydantic.mypy"]

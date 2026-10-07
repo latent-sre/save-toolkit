@@ -3,9 +3,11 @@
 Each property is a rule the runner promises for every input, not one example, and Hypothesis searches
 for a counterexample: a supported failure is never hidden (threat-model ADR result rule 3), a
 requiring check never fails a run that was cut short (rules 2 and 4), a run voided by its identity
-measures nothing (rule 1), an unknown cost never counts as zero (rule 7), and aggregation never
-improves when a trial gets worse. `derandomize` makes every run search the same examples, so a CI
-failure reproduces locally, and no example database is written into the checkout.
+measures nothing (rule 1), a grader crash is never a verdict (rule 5), an unknown cost never counts as
+zero (rule 7), and aggregation never improves when a trial gets worse. The grading properties drive
+the production loop, `assess` then `roll_up`, and each expected answer comes from the rule itself, not
+from the code under test. `derandomize` makes every run search the same examples, so a CI failure
+reproduces locally, and no example database is written into the checkout.
 
 The validator cases pin the exact problems `--validate` reports, in order: validation order and
 wording are a contract (docs/python-eval-modernization.md), so a refactor of the validator must keep
@@ -17,6 +19,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 import sys
 import tempfile
 import types
@@ -29,12 +32,15 @@ from hypothesis import strategies as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import build_probe  # noqa: E402
+from test_build_probe import INTENDED_POLARITY  # noqa: E402  (the reviewed table, not the declarations)
 
 RULES = settings(derandomize=True, database=None, deadline=None, max_examples=150)
 GRADES = settings(derandomize=True, database=None, deadline=None, max_examples=60)
 UNMEASURED_PREFIXES = ("INCONCLUSIVE: ", "instrument: ", build_probe.rubric_judge.INCONCLUSIVE_PREFIX)
 STATES = ("PASS", "INCONCLUSIVE", "FAIL")
 RANK = {"FAIL": 0, "INCONCLUSIVE": 1, "PASS": 2}
+FORBIDDING = sorted(name for name, polarity in INTENDED_POLARITY.items() if polarity == "forbids")
+REQUIRING = sorted(name for name, polarity in INTENDED_POLARITY.items() if polarity == "requires")
 
 free_text = st.text(max_size=30).filter(lambda text: not text.startswith(UNMEASURED_PREFIXES))
 letters = st.text(alphabet="abcdefgh ", max_size=30)
@@ -56,7 +62,9 @@ def graded_checks(draw: st.DrawFn) -> tuple[str, dict]:
     return state, {"text": "check", "passed": state == "PASS", "evidence": evidence}
 
 
-class TrialStatusProperties(unittest.TestCase):
+class SavedVerdictProperties(unittest.TestCase):
+    """A saved grade's checks, read from their text and rolled up as a regrade reads them."""
+
     @RULES
     @given(st.lists(graded_checks(), max_size=8), st.one_of(st.none(), free_text))
     def test_a_supported_failure_is_never_hidden(self, graded: list[tuple[str, dict]], unmeasured: str | None) -> None:
@@ -74,23 +82,107 @@ class TrialStatusProperties(unittest.TestCase):
             self.assertEqual("PASS", status)
 
 
+FOUND = ("pass", "fail", "violation", "unmeasured", "instrument", "crash")
+KEPT = (None, "pass", "fail", "unmeasured", "missing")
+
+
+@st.composite
+def plans(draw: st.DrawFn) -> tuple[list[dict], str]:
+    """Expectations as a grade or a regrade plans them, and how the run ended. Each has a polarity,
+    what measuring it would find, and, for a regrade, the live verdict it keeps instead (or none saved)."""
+    items = [{"polarity": draw(st.sampled_from(("forbids", "requires", "both"))),
+              "found": draw(st.sampled_from(FOUND)),
+              "kept": draw(st.sampled_from(KEPT))} for _ in range(draw(st.integers(min_value=0, max_value=6)))]
+    return items, draw(st.sampled_from(("completed", "cut", "void")))
+
+
+def _measured(found: str) -> build_probe.Outcome:
+    if found == "crash":
+        raise RuntimeError("grader defect")
+    return {"pass": build_probe.verdict(True, "seen"), "fail": build_probe.verdict(False, "not seen"),
+            "violation": build_probe.violation("did the forbidden thing"),
+            "unmeasured": build_probe.unmeasured("no data"), "instrument": build_probe.instrument("no snapshot")}[found]
+
+
+SAVED_VERDICTS = {"pass": build_probe.verdict(True, "kept pass"), "fail": build_probe.verdict(False, "kept fail"),
+                  "unmeasured": build_probe.unmeasured("kept unmeasured"), "missing": None}
+
+
+def _expected(item: dict, run: str) -> tuple[str, bool]:
+    """What the result rules say one expectation grades to, and whether it was measured."""
+    found = {"pass": "PASS", "fail": "FAIL", "violation": "FAIL"}.get(item["found"], "INCONCLUSIVE")
+    kept = None if item["kept"] is None else {"pass": "PASS", "fail": "FAIL"}.get(item["kept"], "INCONCLUSIVE")
+    if run == "void":
+        return "INCONCLUSIVE", False  # rule 1: a void run measures nothing
+    if run == "cut" and item["polarity"] == "both":  # measured; only the forbidden ceiling breaking stands
+        return ("FAIL" if item["found"] == "violation" else "INCONCLUSIVE"), True
+    if run == "cut" and item["polarity"] == "requires":
+        return "INCONCLUSIVE", False  # rules 2 and 4: an unmet requirement proves nothing yet
+    if kept is not None:
+        return kept, False
+    if run == "cut":  # forbids: evidence of the forbidden action stands, its absence proves nothing yet
+        return ("FAIL" if found == "FAIL" else "INCONCLUSIVE"), True
+    return found, True
+
+
+class GradingLoopProperties(unittest.TestCase):
+    @RULES
+    @given(plans())
+    def test_the_grading_loop_follows_the_result_rules(self, drawn: tuple[list[dict], str]) -> None:
+        items, run = drawn
+        calls: list[int] = []
+
+        def measure(index: int) -> build_probe.Outcome:
+            calls.append(index)
+            return _measured(items[index]["found"])
+
+        plan = [build_probe.Expectation(
+            f"e{index}", (lambda index=index: measure(index)), build_probe.Polarity(item["polarity"]),
+            on_cut=build_probe.routing_on_cut if item["polarity"] == "both" else None,
+            kept_as="workspace-dependent" if item["kept"] else None) for index, item in enumerate(items)]
+        inconclusive = {"completed": None, "void": "wrong plugin",
+                        "cut": build_probe.CutShort("timed out after 60s", "wall_clock")}[run]
+        kept = (lambda index, _item: SAVED_VERDICTS[items[index]["kept"]]) if any(i["kept"] for i in items) else None
+        graded, reason = build_probe.assess(plan, inconclusive, kept=kept)
+        status, _ = build_probe.roll_up([g.outcome for g in graded], inconclusive or reason)
+
+        expected = [_expected(item, run) for item in items]
+        self.assertEqual([state for state, _ in expected], [g.outcome.state for g in graded])
+        self.assertEqual([index for index, (_, measured) in enumerate(expected) if measured], calls)
+        machinery = [measured and item["found"] in ("instrument", "crash")
+                     for item, (_, measured) in zip(items, expected, strict=True)]
+        self.assertEqual(machinery, [g.outcome.machinery for g in graded], "rule 5: a machinery failure stays one")
+        self.assertEqual(any(machinery), bool(build_probe.assessment.machinery_failure(graded)))
+        for item, g in zip(items, graded, strict=True):
+            if item["polarity"] == "forbids" and g.outcome.state == "FAIL":
+                self.assertTrue(g.outcome.forbidden, "every failure of a forbidding expectation is a violation")
+        states = [state for state, _ in expected]
+        self.assertEqual("FAIL" if "FAIL" in states else "INCONCLUSIVE" if "INCONCLUSIVE" in states or inconclusive
+                         else "PASS", status)
+
+
 class AggregationProperties(unittest.TestCase):
+    @RULES
+    @given(st.lists(st.sampled_from(STATES), min_size=1, max_size=40), st.integers(min_value=1, max_value=100))
+    def test_a_threshold_is_met_by_exactly_its_share_of_passes(self, states: list[str], percent: int) -> None:
+        # In whole numbers: passes / trials >= percent / 100 exactly when 100 * passes >= percent * trials.
+        passes, unknown, trials = states.count("PASS"), states.count("INCONCLUSIVE"), len(states)
+        expected = ("PASS" if 100 * passes >= percent * trials
+                    else "FAIL" if 100 * (passes + unknown) < percent * trials else "INCONCLUSIVE")
+        self.assertEqual(expected, build_probe.aggregate_verdict(states, percent / 100))
+
     @RULES
     @given(st.lists(st.sampled_from(STATES), min_size=1, max_size=9), st.floats(min_value=0.01, max_value=1.0))
     def test_a_verdict_never_improves_when_a_trial_gets_worse(self, states: list[str], threshold: float) -> None:
         verdict = build_probe.aggregate_verdict(states, threshold)
-        required = math.ceil(len(states) * threshold)
-        passes, unknown = states.count("PASS"), states.count("INCONCLUSIVE")
-        self.assertEqual("PASS" if passes >= required else "FAIL" if passes + unknown < required else "INCONCLUSIVE",
-                         verdict)
         for index, state in enumerate(states):
             for worse in (s for s in STATES if RANK[s] < RANK[state]):
                 worsened = [*states[:index], worse, *states[index + 1:]]
                 self.assertLessEqual(RANK[build_probe.aggregate_verdict(worsened, threshold)], RANK[verdict])
 
     @RULES
-    @given(st.lists(st.sampled_from(sorted(build_probe.FORBIDDING_CHECKS)), min_size=1, max_size=3),
-           st.lists(st.sampled_from(sorted(build_probe.REQUIRING_CHECKS)), max_size=3),
+    @given(st.lists(st.sampled_from(FORBIDDING), min_size=1, max_size=3),
+           st.lists(st.sampled_from(REQUIRING), max_size=3),
            st.one_of(st.none(), st.floats(min_value=0.01, max_value=1.0)),
            st.one_of(st.none(), st.floats(min_value=0.01, max_value=1.0)))
     def test_a_forbidding_check_holds_every_trial(self, forbidding: list[str], requiring: list[str],
@@ -108,7 +200,7 @@ class AggregationProperties(unittest.TestCase):
         self.assertEqual(1.0, build_probe.effective_threshold(spec, requested))
 
     @RULES
-    @given(st.lists(st.sampled_from(sorted(build_probe.REQUIRING_CHECKS)), min_size=1, max_size=3),
+    @given(st.lists(st.sampled_from(REQUIRING), min_size=1, max_size=3),
            st.one_of(st.none(), st.floats(min_value=0.01, max_value=1.0)),
            st.one_of(st.none(), st.floats(min_value=0.01, max_value=1.0)))
     def test_only_requiring_checks_take_a_lower_threshold(self, requiring: list[str], requested: float | None,
@@ -222,6 +314,28 @@ class RescoreDiffProperties(unittest.TestCase):
         self.assertEqual([], build_probe.rescore_diff(base, base))
         self.assertEqual(len(build_probe.rescore_diff(base, candidate)),
                          len(build_probe.rescore_diff(candidate, base)))
+
+    @RULES
+    @given(rescores(), st.data())
+    def test_a_rescore_diff_names_exactly_the_runs_that_changed(self, base: dict, data: st.DataObject) -> None:
+        candidate = json.loads(json.dumps(base))
+        changed = set()
+        for row in candidate["runs"]:
+            change = data.draw(st.sampled_from(("none", "status", "check")))
+            if change == "none":
+                continue
+            if "error" in row:  # an unreadable run that now rescores
+                del row["error"]
+                row["rescored"] = {"status": "PASS", "checks": []}
+            elif change == "check" and row["rescored"]["checks"]:
+                check = row["rescored"]["checks"][data.draw(st.integers(0, len(row["rescored"]["checks"]) - 1))]
+                check["state"] = data.draw(st.sampled_from([s for s in STATES if s != check["state"]]))
+            else:
+                row["rescored"]["status"] = data.draw(st.sampled_from([s for s in STATES
+                                                                       if s != row["rescored"]["status"]]))
+            changed.add(row["run"])
+        named = {int(re.search(r"/run-(\d+)", line).group(1)) for line in build_probe.rescore_diff(base, candidate)}
+        self.assertEqual(changed, named)
 
 
 TOOL_INPUTS = {

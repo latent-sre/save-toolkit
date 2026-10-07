@@ -26,8 +26,10 @@ the batch. Each run also records the plugin root's commit,
 plugin-input dirty state, and source digest, and `--expect-plugin-digest` refuses any other bytes.
 
 The runner lives in the `probe` package beside this file (see probe/__init__.py); this module is its
-entry point and keeps every name the runner has always exported. Patch a function in the module
-that defines it, such as `probe.trials.run_trial`: every other module calls it through there.
+entry point and keeps every name the runner has always exported. Patch a name where the runner reads
+it: a function in the module that defines it, such as `probe.trials.run_trial`, since every other
+module calls it through there, and a class or constant in each module that imports it by name. A patch
+here is refused with the list of those places.
 
 Usage:
   python evals/build_probe.py run --scenario all --label new_skill --model sonnet --trials 2 \\
@@ -139,6 +141,7 @@ from probe.checking import (
     CHECKS,
     FORBIDDING_CHECKS,
     FORBIDDING_GRADERS,
+    REGRADABLE,
     REQUIRING_CHECKS,
     CheckType,
     Context,
@@ -183,6 +186,7 @@ from probe.checking import (
     grading_env,
     is_regradable,
 )
+from probe.checking import CheckRun as Check
 from probe.cli import DEFAULT_TIMEOUT, _budget, _threshold, main
 from probe.constants import (
     BUILD_TOOLS,
@@ -300,10 +304,23 @@ class _EntryPoint(types.ModuleType):
     def __setattr__(self, name: str, value: object) -> None:
         if name in _REEXPORTED:
             raise AttributeError(
-                f"build_probe.{name} is re-exported from the probe package; patch it in the module that "
-                "defines it (see probe/__init__.py)"
+                f"build_probe.{name} is only re-exported; patch it where the runner reads it: "
+                + ", ".join(_readers(getattr(self, name)))
             )
         super().__setattr__(name, value)
+
+
+def _readers(value: object) -> list[str]:
+    """Each probe module's binding of this object: a function is bound only where it is defined, since
+    the package calls it through that module, while a class or constant is bound in each importer."""
+    bindings = [
+        f"{module_name}.{name}"
+        for module_name, module in sorted(sys.modules.items())
+        if module_name.startswith("probe.")
+        for name, bound in vars(module).items()
+        if bound is value and not name.startswith("__")
+    ]
+    return bindings or ["the probe package (see probe/__init__.py)"]
 
 
 sys.modules[__name__].__class__ = _EntryPoint

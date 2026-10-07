@@ -5,6 +5,7 @@
       "additionalProperties": false,
       "properties": {
         "revision": {
+          "exclusiveMinimum": 0,
           "title": "Revision",
           "type": "integer"
         },
@@ -23,14 +24,17 @@
           "title": "Reason"
         },
         "grading": {
+          "pattern": "^[A-Za-z0-9_-][A-Za-z0-9_.-]*(/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*$",
           "title": "Grading",
           "type": "string"
         },
         "runner_source_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
           "title": "Runner Source Sha256",
           "type": "string"
         },
         "assessed_at": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|\\+00:00)$",
           "title": "Assessed At",
           "type": "string"
         }
@@ -54,10 +58,12 @@
           "type": "string"
         },
         "slot": {
+          "exclusiveMinimum": 0,
           "title": "Slot",
           "type": "integer"
         },
         "number": {
+          "exclusiveMinimum": 0,
           "title": "Number",
           "type": "integer"
         },
@@ -71,10 +77,12 @@
           "type": "string"
         },
         "started_at": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|\\+00:00)$",
           "title": "Started At",
           "type": "string"
         },
         "ended_at": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|\\+00:00)$",
           "title": "Ended At",
           "type": "string"
         },
@@ -168,12 +176,14 @@
         },
         "case_sha256": {
           "description": "The case alone: scenario, oracle bytes and rubrics, without the runner.",
+          "pattern": "^[0-9a-f]{64}$",
           "title": "Case Sha256",
           "type": "string"
         },
         "scenario_sha256": {
           "anyOf": [
             {
+              "pattern": "^[0-9a-f]{64}$",
               "type": "string"
             },
             {
@@ -196,48 +206,20 @@
       "additionalProperties": false,
       "properties": {
         "id": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Id"
+          "title": "Id",
+          "type": "string"
         },
         "text": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Text"
+          "title": "Text",
+          "type": "string"
         },
         "kind": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Polarity"
-            },
-            {
-              "type": "null"
-            }
-          ]
+          "$ref": "#/$defs/Polarity"
         },
         "state": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/State"
-            },
-            {
-              "type": "null"
-            }
-          ]
+          "$ref": "#/$defs/State"
         },
-        "evidence": {
+        "reason": {
           "anyOf": [
             {
               "type": "string"
@@ -246,7 +228,13 @@
               "type": "null"
             }
           ],
-          "title": "Evidence"
+          "description": "Why an INCONCLUSIVE check could not measure; null for PASS and FAIL.",
+          "title": "Reason"
+        },
+        "evidence": {
+          "maxLength": 600,
+          "title": "Evidence",
+          "type": "string"
         },
         "evidence_truncated": {
           "title": "Evidence Truncated",
@@ -258,6 +246,7 @@
         "text",
         "kind",
         "state",
+        "reason",
         "evidence",
         "evidence_truncated"
       ],
@@ -305,6 +294,7 @@
         "turn_limit": {
           "anyOf": [
             {
+              "exclusiveMinimum": 0,
               "type": "integer"
             },
             {
@@ -314,6 +304,7 @@
           "title": "Turn Limit"
         },
         "wall_clock_seconds": {
+          "exclusiveMinimum": 0,
           "title": "Wall Clock Seconds",
           "type": "integer"
         }
@@ -334,6 +325,7 @@
         "trial_usd": {
           "anyOf": [
             {
+              "minimum": 0,
               "type": "number"
             },
             {
@@ -345,6 +337,7 @@
         "judge_usd": {
           "anyOf": [
             {
+              "minimum": 0,
               "type": "number"
             },
             {
@@ -356,6 +349,7 @@
         "known_usd": {
           "anyOf": [
             {
+              "minimum": 0,
               "type": "number"
             },
             {
@@ -378,6 +372,7 @@
         "judge_calls": {
           "anyOf": [
             {
+              "minimum": 0,
               "type": "integer"
             },
             {
@@ -389,6 +384,7 @@
         "judge_live_calls": {
           "anyOf": [
             {
+              "minimum": 0,
               "type": "integer"
             },
             {
@@ -400,6 +396,7 @@
         "judge_cached_calls": {
           "anyOf": [
             {
+              "minimum": 0,
               "type": "integer"
             },
             {
@@ -411,6 +408,7 @@
         "judge_unknown_cost_calls": {
           "anyOf": [
             {
+              "minimum": 0,
               "type": "integer"
             },
             {
@@ -633,6 +631,8 @@
           "title": "Reason"
         },
         "assessment_revision": {
+          "const": 0,
+          "description": "The original assessment; later ones are `assessments`.",
           "title": "Assessment Revision",
           "type": "integer"
         },
@@ -696,10 +696,13 @@
       "$ref": "#/$defs/Cost"
     },
     "evidence": {
-      "additionalProperties": {
-        "type": "string"
-      },
       "description": "Evidence files, by path relative to the attempt folder.",
+      "patternProperties": {
+        "^[A-Za-z0-9_-][A-Za-z0-9_.-]*(/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*$": {
+          "pattern": "^[A-Za-z0-9_-][A-Za-z0-9_.-]*(/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*$",
+          "type": "string"
+        }
+      },
       "title": "Evidence",
       "type": "object"
     },
