@@ -442,14 +442,20 @@ merge, record the frozen runner revision before EVAL-012 records comparison base
   regrade no longer crashes on a native run whose plugin root is gone. Rescoring all saved runs
   differs only in those 7 runs, now INCONCLUSIVE; see
   [the second round](reviews/2026-10-07-eval-runner-refactoring-review.md#second-review-round).
+- PR #329: `build_probe.py` is only the command line (the owner retired the re-export promise);
+  the Grafana query check and backing-service start are broken into named functions (two of S9's
+  three; `cli.run` remains); the review's S4, S7 and S8 are done; a usage error exits 3, `env` blocks and mount sources are validated, a
+  non-git plugin root is refused with exit 3, and kept attempts count only toward their own model.
+  Rescoring all saved runs after each runner commit differs in no verdict.
 
 Remaining:
 - The 2026-10-07 review's open findings: check tests that cannot tell FAIL from INCONCLUSIVE (a
   mutant of `no_new_commits` reporting INCONCLUSIVE survives every test) and an untested `run`
   subcommand; a timeout saved before `run_end` regrades as void; `tool_call_count`'s regrade
-  override; stopping the audit proxy before grading; the second round's leftovers (a usage error
-  exits 2, `fixture.env` and `services[].env` crash validation, a non-git plugin root crashes with
-  exit 1); and the review's structural changes and compatibility decisions for the owner.
+  override; stopping the audit proxy before grading; the review's structural changes S1 (a typed
+  run end), S2 (typed grade and summary rows), S3 (polarity carried by each expectation), S5 (one
+  owner per copied policy, including which runs pool) and S6 (`_run_trial`'s reason decision); and
+  the owner's compatibility decisions on the flat flags and `Outcome` as a tuple.
 - Oracle protocol: 16 oracles exit 1 to fail, which an uncaught exception also produces, and 7 of
   them run candidate code (operator-cli, obs-burn-rules, pager-webhook, pcf-deploy-job and three
   python-craft), so each needs candidate errors caught as FAIL before a crash can mean INCONCLUSIVE.

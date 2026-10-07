@@ -8,6 +8,20 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- Four eval runner defects the second review round of PR #328 left open:
+  - A command-line usage error exited 2, INCONCLUSIVE's code; it now exits 3, a refused job, in
+    both command forms, and `--help` still exits 0.
+  - `fixture.env` and a service's `env` were never validated, so a list loaded and then crashed the
+    trial; `validate` now reports either as an authoring error, and a mount `source` written as a
+    list is reported instead of crashing validation.
+  - A plugin root that is not a git checkout stopped the batch on a traceback with exit 1; it is
+    refused with exit 3 before any trial.
+  - The spend cap counted every model's kept attempts under a label toward each model's batch; it
+    now counts an attempt only toward the model it ran for, and one whose model is unreadable
+    toward every model.
+
+  [verified] Each has a test that fails on the previous commit and passes after it; rescoring all
+  1,317 saved runs differs in no verdict.
 - `build_probe.py validate` crashed with TypeError when a scenario named a check, a `fleet_grader` or a
   grader `type` with a YAML list instead of a string; it now reports that as an unknown name, the
   authoring error it is. [verified] One validator case per site fails before the fix and passes after.
@@ -200,9 +214,12 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
     their hardening flags from one place (complexity 34 to 16, 31 lines shorter); a failed
     container command's stderr is quoted the same way everywhere.
   - The checks walk response JSON only through `json_pointer`.
-  - The pager-webhook mutants have their own test file, so a run split by file is no longer
-    bound by that one file, and 22 tests filed under the review that asked for them sit with the
-    behavior they check.
+  - Three functions only the tests called (`scenario_expectations`, `trial_status`, `bounded`) are
+    gone, their tests driving `plan`, `roll_up` and `_bound` as grading does; unused parameters,
+    impossible guards and hand-rolled helpers the review listed are removed; and the regrade's two
+    evidence flags are keyword-only.
+  - The pager-webhook mutants have their own test file, and 22 tests filed under the review that
+    asked for them sit with the behavior they check.
 
   [verified] After each runner commit, rescoring the 1,317 saved runs differs from the base in no
   verdict; the old and new `start_services` send the same docker commands to a recording fake.
