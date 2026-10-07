@@ -390,7 +390,7 @@ def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
     # Every attempt of the label was paid for, and each counts once: the summary's rows, those this
     # --overwrite replaces included, and the superseded and incomplete attempts kept beside them.
     paid = [e for e in existing if e.get("scenario") in selected_ids]
-    paid += trials.kept_attempt_costs(out, args.label, selected_ids)
+    paid += trials.kept_attempt_costs(out, args.label, selected_ids, args.model)
     spent = sum(records.known_usd(e.get("known_cost_usd")) or 0.0 for e in paid)
     if args.max_batch_usd is not None and any(e.get("cost_complete") is not True for e in paid):
         # An earlier attempt without a known cost leaves the batch's spend unknown; the cap cannot hold.

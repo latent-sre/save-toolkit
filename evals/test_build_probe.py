@@ -4759,6 +4759,31 @@ class BatchSpendCapTests(unittest.TestCase):
 
     RUNTIME = {"cli_version": "x", "host_platform": {"system": "Windows", "release": "11", "machine": "AMD64"}}
 
+    def test_kept_attempts_count_only_toward_the_model_that_ran_them(self) -> None:
+        """The batch summary is per label and model, but a label's kept attempts are shared: a capped
+        sonnet batch counted the opus attempts beside it. An attempt whose model is unreadable counts."""
+        with tempfile.TemporaryDirectory() as tmp:
+            kept = probe_trials.attempts_dir(Path(tmp) / "eval-tiny" / "l") / "run-1"
+            for number, timing, record in (
+                ("1", {"requested_model": "opus", "known_cost_usd": 0.9, "cost_complete": True}, None),
+                ("2", {"requested_model": "sonnet", "known_cost_usd": 0.2, "cost_complete": True}, None),
+                ("3", {"known_cost_usd": 0.0, "cost_complete": True}, {"conditions": {"requested_model": "opus"}}),
+                ("4", {"known_cost_usd": 0.0, "cost_complete": True}, {"conditions": {"requested_model": None}}),
+                ("5", None, None),
+            ):
+                (kept / number).mkdir(parents=True)
+                if timing is not None:
+                    (kept / number / "timing.json").write_text(json.dumps(timing), encoding="utf-8")
+                if record is not None:
+                    (kept / number / "record.json").write_text(json.dumps(record), encoding="utf-8")
+            costs = {model: probe_trials.kept_attempt_costs(Path(tmp), "l", ["tiny"], model)
+                     for model in ("sonnet", "opus", None)}
+        unknown = {"cost_complete": False}
+        self.assertEqual([0.2], [c["known_cost_usd"] for c in costs["sonnet"] if c != unknown])
+        self.assertEqual([0.9, 0.0], [c["known_cost_usd"] for c in costs["opus"] if c != unknown])
+        self.assertEqual([0.0], [c["known_cost_usd"] for c in costs[None] if c != unknown])
+        self.assertTrue(all(unknown in found for found in costs.values()), "an unreadable attempt counts for every model")
+
     def _main(self, costs: list[tuple[float | None, bool]], cap: str) -> tuple[int, list[int], str]:
         spec = probe_catalog.load_all_scenarios()[0]
         calls: list[int] = []
