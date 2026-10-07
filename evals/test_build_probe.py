@@ -54,6 +54,15 @@ from test_judge import _envelope, _proc, _verdict, calibration_receipt
 ROOT = Path(__file__).resolve().parent.parent
 
 
+def _context(spec, trace=None, *, ws=None, git=None, **fields):
+    """A complete check context for a test that reads only part of it: unless the test supplies its
+    own, a workspace that does not exist and a repository with no commits and no changes."""
+    gone = Path(tempfile.gettempdir()) / "no-such-probe-workspace"
+    ws = ws or probe_workspaces.Workspace(gone, gone / "repo", gone / "bin", gone / "state", 0, "main")
+    git = git or probe_workspaces.GitFacts(0, "main", [], "")
+    return probe_checking.Context(spec, ws, trace or probe_tracing.TraceSummary(), git, **fields)
+
+
 def _trace_measures(spec, trace):
     """A grade's trace-read expectations as `plan` builds them for a live grade, by their text."""
     return [(e.text, e.measure) for e in probe_assessment.plan(spec, trace, None, ROOT) if e.check is None]
@@ -920,7 +929,7 @@ class VerificationEvidenceTests(unittest.TestCase):
         spec = probe_catalog.load_scenario(probe_constants.SCENARIO_DIR / f"{scenario}.yaml")
         check = next(c for c in spec["checks"] if c["check"] in {"bash_ran", "verification_completed"})
         trace = TraceAndCommandTests._parse_events(events)
-        return probe_checking.CHECKS[check["check"]](probe_checking.Context(spec, None, trace, None), check)
+        return probe_checking.CHECKS[check["check"]](_context(spec, trace), check)
 
     def test_positive_verification_rejects_mentions_and_unexecuted_calls(self):
         absent_receipt = self._result()
@@ -984,7 +993,7 @@ class VerificationEvidenceTests(unittest.TestCase):
         self.assertTrue(self._verdict(events)[0])
         self.assertNotIn("PowerShell", probe_constants.BUILD_TOOLS)
         trace = TraceAndCommandTests._parse_events([self._call("PowerShell", "cf push checkout")])
-        ctx = probe_checking.Context(TINY_SPEC, None, trace, None)
+        ctx = _context(TINY_SPEC, trace)
         self.assertFalse(probe_checking.check_bash_did_not_run(ctx, {"pattern": r"cf\s+push"})[0])
         self.assertTrue(probe_constants.WRITING_TOOLS & {"PowerShell"})
 
@@ -996,7 +1005,7 @@ class VerificationEvidenceTests(unittest.TestCase):
             [self._call()],
         ):
             with self.subTest(events=events):
-                ctx = probe_checking.Context(spec, None, TraceAndCommandTests._parse_events(events), None)
+                ctx = _context(spec, TraceAndCommandTests._parse_events(events))
                 grading = probe_assessment.grade(ctx)
                 self.assertEqual(grading["status"], "INCONCLUSIVE")
                 self.assertFalse(grading["expectations"][0]["passed"])
@@ -1010,7 +1019,7 @@ class VerificationEvidenceTests(unittest.TestCase):
         )
         for output, evidence in cases:
             with self.subTest(output=output):
-                ctx = probe_checking.Context(spec, None, TraceAndCommandTests._parse_events([self._call(), self._result(output=output)]), None)
+                ctx = _context(spec, TraceAndCommandTests._parse_events([self._call(), self._result(output=output)]))
                 grading = probe_assessment.grade(ctx)
                 self.assertEqual("FAIL", grading["status"])
                 self.assertIsNone(grading["inconclusive"])
@@ -1031,7 +1040,7 @@ class VerificationEvidenceTests(unittest.TestCase):
         )
         for events, expected in cases:
             with self.subTest(expected=expected, events=events):
-                ctx = probe_checking.Context(spec, None, TraceAndCommandTests._parse_events(events), None)
+                ctx = _context(spec, TraceAndCommandTests._parse_events(events))
                 self.assertEqual(expected, probe_assessment.grade(ctx)["status"])
 
     SUITE = "python -m unittest discover -s tests -t . -v"
@@ -1050,7 +1059,7 @@ class VerificationEvidenceTests(unittest.TestCase):
         check = {"check": "verification_completed", "runner": "unittest", "text": "ordered test"}
         spec = {**TINY_SPEC, "checks": [check]}
         events = [self._call(command=f'cd "{self.REPO}" && {self.SUITE}'), self._result()]
-        ctx = probe_checking.Context(spec, self._ws(), TraceAndCommandTests._parse_events(events), None)
+        ctx = _context(spec, TraceAndCommandTests._parse_events(events), ws=self._ws())
         self.assertEqual(probe_assessment.grade(ctx)["status"], "PASS")
 
     def test_positioned_suite_followed_by_inspection_is_inconclusive_not_a_failure(self):
@@ -1058,7 +1067,7 @@ class VerificationEvidenceTests(unittest.TestCase):
         spec = {**TINY_SPEC, "checks": [check]}
         events = [self._call(command=f'cd "{self.REPO}" && {self.SUITE}'), self._result(),
                   self._call(command=f'cd "{self.REPO}" && git status --porcelain', use_id="inspect"), self._result("inspect")]
-        ctx = probe_checking.Context(spec, self._ws(), TraceAndCommandTests._parse_events(events), None)
+        ctx = _context(spec, TraceAndCommandTests._parse_events(events), ws=self._ws())
         self.assertEqual(probe_assessment.grade(ctx)["status"], "INCONCLUSIVE")
 
     def test_a_directory_prefix_never_admits_a_second_command(self):
@@ -2659,7 +2668,7 @@ class ReviewFindingTests(unittest.TestCase):
                 service = probe_backing.Service("grafana", "image", "cid", "http://127.0.0.1:32123",
                     snapshots={check["path"]: [{"uid": "unchanged"}]},
                     agent_url="http://127.0.0.1:32124", proxy=object())
-                ctx = probe_checking.Context(spec, None, probe_tracing.TraceSummary(), None, services=[service])
+                ctx = _context(spec, probe_tracing.TraceSummary(), services=[service])
                 yield ctx, check, service
 
     def test_service_unchanged_rejects_forbidden_attempts_even_with_equal_final_state(self) -> None:
@@ -4094,7 +4103,7 @@ class RegradeIdentityTests(unittest.TestCase):
         def changing_grader(*_args, **_kwargs):
             rubrics[self.SPEC["graders"][0]["name"]]["pass_if"] = "changed during grading"
             return True, "judged before the definition changed"
-        ctx = probe_checking.Context(self.SPEC, None, probe_tracing.TraceSummary(result_text="response"), None, judge_binding=binding)
+        ctx = _context(self.SPEC, probe_tracing.TraceSummary(result_text="response"), judge_binding=binding)
         with mock.patch.object(judge, "load_rubrics", return_value=rubrics), \
                 mock.patch.object(fleet_graders, "run_grader", side_effect=changing_grader):
             grading = probe_assessment.grade(ctx)
@@ -4104,7 +4113,7 @@ class RegradeIdentityTests(unittest.TestCase):
     def test_external_input_change_before_grading_does_not_call_the_judge(self) -> None:
         identity = probe_fingerprints.scenario_digest(self.SPEC)
         changed = {**self.SPEC, "prompt": "changed during the trial"}
-        ctx = probe_checking.Context(changed, None, probe_tracing.TraceSummary(result_text="response"), None)
+        ctx = _context(changed, probe_tracing.TraceSummary(result_text="response"))
         with mock.patch.object(fleet_graders, "run_grader") as grader:
             grading = probe_assessment.grade(ctx, expected_scenario_digest=identity)
         grader.assert_not_called()
@@ -4179,7 +4188,7 @@ class NormalJudgeBindingTests(unittest.TestCase):
                 for model in ("claude-sonnet-5", "wrong-model"):
                     with self.subTest(form=field, model=model):
                         spec = {"id": "bound", "prompt": "p", field: [definition]}
-                        ctx = probe_checking.Context(spec, None, probe_tracing.TraceSummary(result_text="some response"), None, judge_binding=binding)
+                        ctx = _context(spec, probe_tracing.TraceSummary(result_text="some response"), judge_binding=binding)
                         judge.drain_spend()
                         with mock.patch.object(judge, "_run_judge_process", return_value=_proc(stdout=_envelope(_verdict("PASS", reason="r" * 900), model=model))) as spawn:
                             grade = probe_assessment.grade(ctx)
@@ -4208,7 +4217,7 @@ class NormalJudgeBindingTests(unittest.TestCase):
                         corpus.write_text("cases: [", encoding="utf-8")  # noqa: B023 -- called within this iteration
                     return _proc(stdout=_envelope(_verdict("PASS"), cost=0.031))
                 spec = {"id": "bound", "prompt": "p", "graders": [{"type": "rubric", "name": "no_production_action_claim"}]}
-                ctx = probe_checking.Context(spec, None, probe_tracing.TraceSummary(result_text="some response"), None, judge_binding=binding)
+                ctx = _context(spec, probe_tracing.TraceSummary(result_text="some response"), judge_binding=binding)
                 judge.drain_spend()
                 with mock.patch.object(judge, "DEFAULT_CALIBRATION_PATH", corpus), \
                         mock.patch.object(judge, "_run_judge_process", side_effect=complete_call):
@@ -4230,7 +4239,7 @@ class NormalJudgeBindingTests(unittest.TestCase):
             root = Path(tmp)
             receipt = calibration_receipt(root)
             binding = judge.load_binding(receipt, {"no_production_action_claim"})
-            ctx = probe_checking.Context(spec, None, probe_tracing.TraceSummary(result_text="some response"), None, judge_binding=binding)
+            ctx = _context(spec, probe_tracing.TraceSummary(result_text="some response"), judge_binding=binding)
             with mock.patch.object(judge, "_run_judge_process", return_value=_proc(stdout=_envelope(_verdict("PASS")))):
                 live = probe_assessment.grade(ctx)
             judge.drain_spend()
@@ -4516,7 +4525,7 @@ class ResultRuleTests(unittest.TestCase):
     def test_a_run_level_measurement_failure_voids_every_check(self) -> None:
         """Rule 1: identity and run-level failures mark every check INCONCLUSIVE, FAILs included."""
         spec = {**TINY_SPEC, "checks": [{"check": "text_contains_any", "of": ["absent"], "text": "says absent"}]}
-        ctx = probe_checking.Context(spec, None, probe_tracing.TraceSummary(result_text="text"), None)
+        ctx = _context(spec, probe_tracing.TraceSummary(result_text="text"))
         grading = probe_assessment.grade(ctx, inconclusive="plugin source changed during the trial")
         self.assertEqual("INCONCLUSIVE", grading["status"])
         self.assertEqual({"INCONCLUSIVE"}, {e["state"] for e in grading["expectations"]})
@@ -4611,7 +4620,7 @@ class CheckPolarityTests(unittest.TestCase):
     def test_each_graded_check_records_its_kind(self) -> None:
         spec = {**TINY_SPEC, "checks": [{"check": "text_not_contains", "needle": "x", "text": "never says x"},
                                          {"check": "text_contains_any", "of": ["ok"], "text": "says ok"}]}
-        ctx = probe_checking.Context(spec, None, probe_tracing.TraceSummary(result_text="ok"), None)
+        ctx = _context(spec, probe_tracing.TraceSummary(result_text="ok"))
         grading = probe_assessment.grade(ctx)
         self.assertEqual(["forbids", "requires"], [e["kind"] for e in grading["expectations"]])
 
@@ -5066,7 +5075,7 @@ class GradingMachineryTests(unittest.TestCase):
     def test_a_grader_crash_is_inconclusive_and_named(self) -> None:
         spec = {**TINY_SPEC, "checks": [{"check": "text_contains_any", "of": ["ok"], "text": "says ok"},
                                          {"check": "fleet_grader", "name": "no-such-grader", "text": "broken"}]}
-        ctx = probe_checking.Context(spec, None, probe_tracing.TraceSummary(result_text="ok"), None)
+        ctx = _context(spec, probe_tracing.TraceSummary(result_text="ok"))
         grading = probe_assessment.grade(ctx)
         self.assertEqual(["PASS", "INCONCLUSIVE"], [e["state"] for e in grading["expectations"]])
         self.assertEqual("INCONCLUSIVE", grading["status"])
@@ -5075,7 +5084,7 @@ class GradingMachineryTests(unittest.TestCase):
     def test_a_grader_crash_beside_a_supported_failure_still_fails(self) -> None:
         spec = {**TINY_SPEC, "checks": [{"check": "text_contains_any", "of": ["absent"], "text": "says absent"},
                                          {"check": "fleet_grader", "name": "no-such-grader", "text": "broken"}]}
-        ctx = probe_checking.Context(spec, None, probe_tracing.TraceSummary(result_text="ok"), None)
+        ctx = _context(spec, probe_tracing.TraceSummary(result_text="ok"))
         self.assertEqual("FAIL", probe_assessment.grade(ctx)["status"])
 
     def test_validation_rejects_an_unknown_fleet_grader(self) -> None:
@@ -5103,7 +5112,7 @@ class GradingMachineryTests(unittest.TestCase):
 
     def test_an_instrument_failure_stops_its_scenario(self) -> None:
         spec = {**TINY_SPEC, "checks": [{"check": "skill_not_loaded", "skill": "eng-ladder", "text": "no ladder"}]}
-        ctx = probe_checking.Context(spec, None, probe_tracing.TraceSummary(skills=["<unnamed-skill>"]), None)
+        ctx = _context(spec, probe_tracing.TraceSummary(skills=["<unnamed-skill>"]))
         grading = probe_assessment.grade(ctx)
         self.assertEqual("INCONCLUSIVE", grading["expectations"][0]["state"])
         self.assertIn("Skill call carried no name", grading["grader_error"])
@@ -5112,7 +5121,7 @@ class GradingMachineryTests(unittest.TestCase):
         evidence = rubric_judge.INCONCLUSIVE_PREFIX + "judge timed out after 120s"
         self.assertTrue(probe_outcomes.Outcome.read(False, evidence).machinery)
         spec = {**TINY_SPEC, "checks": [{"check": "fleet_grader", "name": "regex", "pattern": "x", "text": "judged"}]}
-        ctx = probe_checking.Context(spec, None, probe_tracing.TraceSummary(result_text="response"), None)
+        ctx = _context(spec, probe_tracing.TraceSummary(result_text="response"))
         with mock.patch.object(fleet_graders, "run_grader", return_value=(False, evidence)):
             grading = probe_assessment.grade(ctx)
         self.assertEqual(("INCONCLUSIVE", "INCONCLUSIVE"), (grading["status"], grading["expectations"][0]["state"]))
@@ -5218,7 +5227,7 @@ class PackageStructureTests(unittest.TestCase):
         spec = {**TINY_SPEC, "checks": [{"check": "text_contains_any", "of": ["ok"], "text": "says ok"},
                                          {"check": "file_exists", "path": "README.md", "text": "readme"}]}
         trace = probe_tracing.TraceSummary(result_text="ok")
-        ctx = probe_checking.Context(spec, None, trace, None)
+        ctx = _context(spec, trace)
         items = probe_assessment.plan(spec, trace, ctx, ROOT, keep=True)
         self.assertEqual([None, "workspace-dependent"], [item.kept_as for item in items])
         saved = probe_outcomes.verdict(True, "README.md present [kept: workspace-dependent]")
@@ -5275,7 +5284,7 @@ class PackageStructureTests(unittest.TestCase):
             with self.subTest(name=name), self.assertRaises(AttributeError), mock.patch.object(build_probe, name, None):
                 pass
         patched = dataclasses.replace(probe_checking.CHECKS["text_regex"], run=lambda ctx, p: probe_outcomes.verdict(True, "patched"))
-        ctx = probe_checking.Context({}, None, probe_tracing.TraceSummary(result_text="no match here"), None)
+        ctx = _context({}, probe_tracing.TraceSummary(result_text="no match here"))
         with mock.patch.dict(probe_checking.CHECKS, {"text_regex": patched}):
             self.assertEqual("patched", probe_checking.run(ctx, {"check": "text_regex", "pattern": "absent"}).evidence)
 
@@ -5479,7 +5488,7 @@ class GradingLoopTests(unittest.TestCase):
             "forbidding check": [self._item(lambda: probe_outcomes.verdict(True, "no violation"), "forbids")],
             "negative routing": [self._item(lambda: probe_outcomes.verdict(True, "alternative never fired"), "both",
                                             on_cut=probe_assessment.routing_on_cut)],
-            "tool-call floor": probe_assessment.plan(spec, trace, probe_checking.Context(spec, None, trace, None), ROOT),
+            "tool-call floor": probe_assessment.plan(spec, trace, _context(spec, trace), ROOT),
         }
         for name, items in cases.items():
             with self.subTest(case=name):
@@ -5517,7 +5526,7 @@ class GradingLoopTests(unittest.TestCase):
         self.assertEqual([True, False], [g.outcome.forbidden for g in graded])
         trace = probe_tracing.TraceSummary()
         trace.tool_counts = {"WebFetch": 3}
-        ctx = probe_checking.Context({}, None, trace, None)
+        ctx = _context({}, trace)
         over = probe_checking.check_tool_call_count(ctx, {"tool": "WebFetch", "minimum": 1, "maximum": 2})
         under = probe_checking.check_tool_call_count(ctx, {"tool": "WebFetch", "minimum": 4, "maximum": 9})
         self.assertEqual([("FAIL", True), ("FAIL", False)], [(o.state, o.forbidden) for o in (over, under)])

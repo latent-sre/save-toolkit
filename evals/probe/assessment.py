@@ -477,7 +477,7 @@ def grade(
         ctx,
         ctx.plugin_root,
         ctx.judge_binding,
-        workspace=ctx.ws.repo if ctx.ws is not None else None,
+        workspace=ctx.ws.repo,
     )
     graded, reason = assess(items, inconclusive)
     if fingerprints.scenario_digest(ctx.spec, binding) != identity:

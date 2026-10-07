@@ -1098,7 +1098,7 @@ def check_verification_completed(ctx: Context, p: Params) -> Outcome:
     if not calls:
         return verdict(False, "no matched foreground verification evidence in the trace")
     call = calls[-1]
-    workdir = str(ctx.ws.command_repo or ctx.ws.repo) if ctx.ws else None  # tests may pass no workspace
+    workdir = str(ctx.ws.command_repo or ctx.ws.repo)
     if (
         call["tool"] not in SHELL_TOOLS
         or call["parent"]

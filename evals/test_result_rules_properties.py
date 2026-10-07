@@ -36,13 +36,12 @@ from probe import assessment as probe_assessment
 from probe import backing as probe_backing
 from probe import batches as probe_batches
 from probe import catalog as probe_catalog
-from probe import checking as probe_checking
 from probe import constants as probe_constants
 from probe import outcomes as probe_outcomes
 from probe import records as probe_records
 from probe import rescoring as probe_rescoring
 from probe import tracing as probe_tracing
-from test_build_probe import INTENDED_POLARITY  # the reviewed table, not the declarations
+from test_build_probe import INTENDED_POLARITY, _context  # the reviewed table, not the declarations
 
 RULES = settings(derandomize=True, database=None, deadline=None, max_examples=150)
 GRADES = settings(derandomize=True, database=None, deadline=None, max_examples=60)
@@ -270,7 +269,7 @@ class RunEndProperties(unittest.TestCase):
 
     @staticmethod
     def _grade(text: str, needle: str, word: str, inconclusive: str | None = None) -> dict:
-        ctx = probe_checking.Context(_text_spec(needle, word), None, probe_tracing.TraceSummary(result_text=text), None)
+        ctx = _context(_text_spec(needle, word), probe_tracing.TraceSummary(result_text=text))
         return probe_assessment.grade(ctx, inconclusive=inconclusive)
 
     @GRADES
