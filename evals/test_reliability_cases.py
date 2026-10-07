@@ -71,7 +71,7 @@ class ReliabilityCaseTests(unittest.TestCase):
                                   ([("??", "docs/assessments/checkout-slow-ledger.md"),
                                     ("M", "config/worker.yaml")], False)):
             with self.subTest(changed=changed):
-                ctx = SimpleNamespace(git=SimpleNamespace(changed=changed))
+                ctx = SimpleNamespace(git=build_probe.GitFacts(0, "main", changed, ""))
                 self.assertEqual(accepted, build_probe.CHECKS[check["check"]](ctx, check)[0])
 
     def test_source_case_rejects_dispatch_without_grader_errors(self):
