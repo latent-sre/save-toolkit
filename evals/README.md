@@ -68,9 +68,14 @@ in [`probe/`](probe), one module per job (its [`__init__.py`](probe/__init__.py)
   the JSON its readers parse, on the first write and on every later change, and
   [`eval-record-v1.schema.json`](../docs/fleet-evaluation/eval-record-v1.schema.json) is generated
   from it by `build_probe.py schema --out ...`; a test fails when the two differ.
-- **Static checks.** [`pyproject.toml`](../pyproject.toml) runs Ruff (lint and format) and strict
-  mypy over the runner; CI runs them after the component tests. `python -m ruff check`,
-  `python -m ruff format --check` and `python -m mypy` reproduce them locally.
+- **Static checks.** [`pyproject.toml`](../pyproject.toml) runs Ruff's lint rules over the runner,
+  `graders.py`, `inspect_pilot.py` and the `test_*.py` files, Ruff's formatter over all of them but
+  the tests, which keep their compact hand layout, and strict mypy over the same code without the
+  tests; CI runs them after the component tests. `python -m ruff check`,
+  `python -m ruff format --check` and `python -m mypy` reproduce them locally. `judge.py`,
+  `clean_room.py` and `oracles/` stay outside all three: the calibration receipt binds the first
+  two byte for byte and each case's identity binds the oracles, so even reformatting one would
+  reject the receipt or orphan the saved runs.
 
 A function is patched in the module that defines it, such as `probe.trials.run_trial`: every other
 module calls it through that module, so one patch reaches every caller, and a test enforces it. A

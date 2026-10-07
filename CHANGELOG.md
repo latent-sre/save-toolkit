@@ -187,6 +187,18 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- The runner's Ruff lint rules now hold for `evals/graders.py`, `evals/inspect_pilot.py` and every
+  `evals/test_*.py`, its formatter for the two modules, and strict mypy for the two modules, in CI.
+  The tests keep their hand layout. Imports were sorted and hoisted, nested `with` statements
+  merged, the two modules typed, and `EndToEndStubTests` starts each trial through one helper that
+  takes only what a test varies. The one behavior change is that `run_grader` given a non-string
+  grader `type` raises `ValueError` instead of `TypeError`. `evals/judge.py`,
+  `evals/clean_room.py` and `evals/oracles/` stay outside the checks and unchanged, because the
+  judge calibration receipt and each case's identity bind their bytes.
+
+  [verified] The suite collects the same 916 evals tests as main and passes; the formatted
+  modules' syntax trees are unchanged.
+
 - The eval runner is a package (`EVAL-011` split), `evals/probe/`, behind `evals/build_probe.py`,
   which keeps every name it exported. Checks return typed outcomes instead of encoding "could not
   measure" in their evidence text; each check declares its polarity and the evidence it reads, and the
