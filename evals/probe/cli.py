@@ -27,6 +27,7 @@ from .constants import ROOT
 
 DEFAULT_TIMEOUT = 900
 COMMANDS = ("run", "validate", "regrade", "rescore", "diff", "schema")
+MIXED_MODELS = "mixed resolved model identities"
 
 
 def _threshold(value: str) -> float:
@@ -445,6 +446,15 @@ def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
         if blocked or machinery_stopped
         else None
     )
+    if auth_failed and stop is not None:
+        # A resume replaces what this --overwrite had not reached yet, but keeps the other rows and
+        # this invocation's trials; name what they would still refuse.
+        kept = [e for e in batches.merge_summary_entries(retained, results) if e.get("scenario") in selected_ids]
+        unfixed = batches.batch_identity_problem(
+            kept, scenarios, provenance["plugin_source_sha256"], judge_binding, runtime
+        ) or (MIXED_MODELS if len(batches.model_identities(kept)) > 1 else None)
+        if unfixed:
+            stop["unfixed_by_resume"] = unfixed
     return _conclude(batch, scenarios, args.threshold, problem, stop, auth_failed=auth_failed)
 
 
@@ -461,6 +471,11 @@ def _conclude(
 
     `problem` is why the batch's trials cannot be pooled, and `stop` why scheduling ended early.
     """
+    if auth_failed and stop:
+        # Exit 4, distinct from FAIL (1) and INCONCLUSIVE (2): re-authenticate, then resume. Until
+        # then no verdict covers the batch, and nothing a later check refuses changes why it stopped.
+        print(json.dumps(stop), flush=True)
+        return 4
     if problem:
         print(json.dumps({"batch": "INCONCLUSIVE", "reason": problem}), flush=True)
         return 2
@@ -469,7 +484,7 @@ def _conclude(
         # Routing and behaviour are model-dependent, so trials under two resolved models are two
         # measurements. Aggregating them would emit one verdict for neither.
         print(
-            json.dumps({"batch": "INCONCLUSIVE", "reason": "mixed resolved model identities", "models": identities}),
+            json.dumps({"batch": "INCONCLUSIVE", "reason": MIXED_MODELS, "models": identities}),
             flush=True,
         )
         print(f"{len(batch)} trial(s) under {len(identities)} resolved models: not aggregated, not publishable")
@@ -494,8 +509,6 @@ def _conclude(
     states = [v["verdict"] for v in verdicts.values()]
     if stop:
         print(json.dumps(stop), flush=True)
-    if auth_failed:
-        return 4  # distinct from FAIL (1) and INCONCLUSIVE (2): re-authenticate, then resume the batch
     if "FAIL" in states:
         return 1
     return 2 if stop or "INCONCLUSIVE" in states else 0

@@ -575,7 +575,11 @@ the published attempt's number, so a re-run is never invisible. If moving the ba
 retained beside the slot with a warning. If the process stops between publication renames, inspect
 the `.run-N-previous-*` sibling before restoring it; a two-directory rename is not a crash-atomic
 filesystem transaction. An authentication failure stops the batch and exits 4, distinct from FAIL (1)
-and INCONCLUSIVE (2); completed trials are still reported.
+and INCONCLUSIVE (2), whatever else the batch holds: rows an `--overwrite` had not replaced yet
+cannot change that exit or its reason. It prints the stop line and no verdict, since the resumed
+batch decides it; the stop line's `unfixed_by_resume` names an identity or model problem that
+resuming would not fix. Each completed trial still prints its summary line as it publishes, and
+keeps its row in `summary-*.json`.
 
 ## Clean-room boundary
 

@@ -3348,6 +3348,38 @@ class BatchAggregationTests(unittest.TestCase):
             self.assertEqual(expected_calls, runner.call_count)
         return code, buffer.getvalue()
 
+    def test_an_auth_stop_exits_4_whatever_rows_an_overwrite_had_not_replaced(self) -> None:
+        """Copilot on PR #328: rows an --overwrite cut short had not replaced, of another candidate or
+        model, made the batch INCONCLUSIVE (2), whose advice to overwrite hid the lost authentication."""
+        seeded, _ = self._main([self._trial(1, "PASS"), self._trial(2, "PASS")])
+        self.assertEqual(0, seeded)
+        for sha, model in (("b" * 64, "claude-sonnet-4-5"), ("0" * 64, "claude-opus-4-1")):
+            with self.subTest(candidate=sha[0], model=model):
+                replacement = {**self._trial(1, "PASS", model), "plugin_source_sha256": sha}
+                auth = build_probe.clean_room.AuthUnavailable("Not logged in")
+                code, output = self._main([replacement, auth], "--overwrite", plugin_sha=sha, expected_calls=2)
+                self.assertEqual(4, code, output)
+                self.assertIn("stopped after authentication unavailable: Not logged in", output)
+                self.assertNotIn('"verdict"', output)
+                self.assertNotIn("unfixed_by_resume", output, "resuming the overwrite replaces those rows")
+
+    def test_an_auth_stop_exits_4_beside_a_failed_trial(self) -> None:
+        auth = build_probe.clean_room.AuthUnavailable("Not logged in")
+        code, output = self._main([self._trial(1, "FAIL"), auth], expected_calls=2)
+        self.assertEqual(4, code, output)
+
+    def test_an_auth_stop_names_what_a_resume_would_not_fix(self) -> None:
+        # The append's own trial resolved another model, then authentication was lost: resuming
+        # re-authenticates but cannot pool two models, so the stop line says so up front.
+        seeded, _ = self._main([self._trial(1, "PASS")])
+        self.assertEqual(0, seeded)
+        auth = build_probe.clean_room.AuthUnavailable("Not logged in")
+        code, output = self._main([self._trial(2, "PASS", "claude-opus-4-1"), auth], "--run-offset", "1",
+                                  expected_calls=2)
+        self.assertEqual(4, code, output)
+        stop = json.loads(next(line for line in output.splitlines() if "stopped after" in line))
+        self.assertEqual("mixed resolved model identities", stop.get("unfixed_by_resume"))
+
     def test_an_appended_run_is_aggregated_with_the_batch_it_appends_to(self) -> None:
         """P1: a final one-trial --run-offset append reported PASS over an earlier FAIL."""
         first, _ = self._main([self._trial(1, "FAIL")])

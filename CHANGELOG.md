@@ -32,6 +32,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
     planning the grade read the helper's plugin name from that root even for a run its replay had
     already voided. The name is read only when that check is measured, so such a run regrades
     INCONCLUSIVE with its reason; `rescore` had listed the same 7 saved runs as errors.
+  - An authentication failure exited 2, INCONCLUSIVE, instead of 4 when the batch it stopped could
+    not be pooled, as when an `--overwrite` cut short still held rows of another candidate or model:
+    those checks ran first, and their advice to overwrite hid that re-authentication was due. The stop
+    now exits 4 before any verdict, and its line names, as `unfixed_by_resume`, an identity or model
+    problem that resuming would not fix.
 
   [verified] Each fix's new test fails without it and passes with it.
 - The 2026-10-07 python-craft review of the eval runner (PR #328):
