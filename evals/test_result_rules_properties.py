@@ -1,4 +1,4 @@
-"""Property tests for the eval runner's result rules, trace parser and scenario contract.
+"""Property tests for the eval runner's result rules, trace parser, grading helpers and scenario contract.
 
 Each property is a rule the runner promises for every input, not one example, and Hypothesis searches
 for a counterexample: a supported failure is never hidden (threat-model ADR result rule 3), a
@@ -36,6 +36,7 @@ from probe import assessment as probe_assessment
 from probe import backing as probe_backing
 from probe import batches as probe_batches
 from probe import catalog as probe_catalog
+from probe import checking as probe_checking
 from probe import constants as probe_constants
 from probe import outcomes as probe_outcomes
 from probe import records as probe_records
@@ -411,6 +412,54 @@ class TraceParserProperties(unittest.TestCase):
         self.assertEqual(sum(name in probe_constants.WRITING_TOOLS | {"Task", "Agent"} for name in names),
                          len(trace.effect_calls))
         self.assertEqual(any(event["type"] == "result" for event in events), trace.has_result)
+
+
+PROMQL_LEXEMES = ("sum", "rate", "http_requests_total", "job:errors:ratio", "by", "(", ")", "{", "}", "[", "]", ":",
+                  ",", "=", "=~", "!=", "+", "/", ">=", "5m", "1h30m", "0.95", "1e3", "$__rate_interval", '"a b"',
+                  '"a  b"', "'x'", "`raw`")
+SEPARATORS = st.sampled_from((" ", "\n", "\t ", "\r\n", ' # a "quoted" note\n'))
+WINDOWS = {"30s": 30, "1m": 60, "2m": 120, "5m": 300, "1h": 3600}
+json_values = st.recursive(
+    st.none() | st.booleans() | st.integers() | st.text(max_size=4),
+    lambda children: st.lists(children, max_size=3)
+    | st.dictionaries(st.text("abc", min_size=1, max_size=2), children, max_size=3),
+    max_leaves=12,
+)
+
+
+class GradingHelperProperties(unittest.TestCase):
+    """The query and JSON readers the Grafana and service checks grade with keep the rules their
+    docstrings state, for every input rather than the few a check's examples reach."""
+
+    @RULES
+    @given(st.lists(st.sampled_from(PROMQL_LEXEMES), max_size=12), st.data())
+    def test_promql_spacing_and_comments_are_cosmetic_but_quoted_bytes_are_not(self, lexemes: list[str],
+                                                                              data: st.DataObject) -> None:
+        spaced = data.draw(SEPARATORS) + "".join(lexeme + data.draw(SEPARATORS) for lexeme in lexemes)
+        self.assertEqual(lexemes, probe_checking._promql_tokens(spaced))
+
+    @RULES
+    @given(st.lists(st.sampled_from(sorted(WINDOWS)), min_size=1, max_size=4),
+           st.sampled_from((0, 30, 60, 120, 300, 3600, 7200)), st.booleans())
+    def test_a_rate_interval_matches_one_window_no_shorter_than_the_minimum(self, windows: list[str], minimum: int,
+                                                                           renamed: bool) -> None:
+        persisted = " + ".join(f"rate(m{i}[$__rate_interval])" for i in range(len(windows)))
+        verified = " + ".join(f"rate({'n' if renamed and i == 0 else 'm'}{i}[{w}])" for i, w in enumerate(windows))
+        expected = not renamed and len(set(windows)) == 1 and WINDOWS[windows[0]] >= minimum
+        self.assertEqual(expected, probe_checking._same_query(persisted, verified, minimum))
+        self.assertTrue(probe_checking._same_query(persisted, persisted, minimum))
+
+    @RULES
+    @given(json_values, st.data())
+    def test_a_json_pointer_reads_what_indexing_reads_and_a_missing_path_reads_none(self, payload: object,
+                                                                                   data: st.DataObject) -> None:
+        node, parts = payload, []
+        while isinstance(node, (list, dict)) and node and data.draw(st.booleans()):
+            key = data.draw(st.sampled_from(sorted(node)) if isinstance(node, dict)
+                            else st.integers(-len(node), len(node) - 1))
+            node, parts = node[key], [*parts, str(key)]
+        self.assertIs(node, probe_backing.json_pointer(payload, "/".join(parts)))
+        self.assertIsNone(probe_backing.json_pointer(payload, "/".join([*parts, "zz"])))
 
 
 BUILD = {"id": "case", "agent": "software-engineer", "prompt": "do the thing",
