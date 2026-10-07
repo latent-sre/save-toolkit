@@ -147,6 +147,37 @@ lingering agent process to matter), D6 (no saved run here is affected; the fix n
 re-run the profile check on the raw trace), and R10 (a test pins the override to the earlier
 hand-kept regrade set, so removing it is a decision that changes regrades).
 
+## Second review round
+
+The bots' second review of PR #328, fixed on the same branch, with one finding of this review's own
+(B11) and one structural change. Each fix began with a test shown failing on the code before it.
+
+| Finding | Source | Commit |
+|---|---|---|
+| A negative `--run-offset` published `run-0`, which the v1 record refuses | Codex 4202914617 | `91361a52` |
+| `validate` crashed on a non-mapping `fixture.branches` or `fake_bin`, or a list `checkout` | Codex 4202914647 | `724678c5` |
+| A backing service lost during grading did not stop its scenario | Codex 4202914612 | `44539ffb` |
+| The version probe ran a multi-word `--executable` as one file name | Copilot 4202892538, Codex 4202914623 | `ff3086a5` |
+| B11: `regrade` crashed while planning a native run whose saved plugin root is gone, though its replay had voided it | this review | `a0c0980c` |
+| One function decides how a batch ends (`cli._conclude`); no behavior change | this review | `b3edbea8` |
+| An authentication stop exited 2 instead of 4 | Copilot 4202892510 | `fed9ef7a` |
+| The spend cap forgot overwritten, superseded and incomplete attempts | Copilot 4202892474, Codex 4202914606 | `56aea752` |
+| A trial whose trace names no model was pooled | Codex 4202914610 | `3b081e27` |
+| An identity failure did not stop the batch | Codex 4202914626 | `2bf90f91` |
+| `regrade` pooled runs across candidates, CLIs, hosts and scenario identities | Copilot 4202892437, Codex 4202914614 | `1c9de5aa` |
+| A linked optional plugin input read as absent | Codex 4202914633 | `0371c1f5` |
+
+The owner decided three behaviors: only an identity failure stops a batch (a service that never
+started stops its scenario, a failure the candidate causes voids its trial); a failed attempt records
+the cost it is known to have had, and a truly unknown cost blocks capped runs of its scenario under
+the label; a trial with no model is void at the identity check. Codex 4202914602, requiring
+`max_turns`, is still the owner's.
+
+[verified] Rescoring all 1,317 saved runs with `adc13a88` and with `0371c1f5` differs only in the 7
+native runs B11 fixes (`baseline-20261004` 3, `reliability-20260930` 2,
+`reliability-native-corrected-20260930` 2), from an error to INCONCLUSIVE. The rescores taken
+after B4, B11, B7, B3, B1 and B5 differ from one another only in what B11 changed.
+
 ## Next
 
 1. Tests that state the expected state (T1): replace each `assertFalse(check(...)[0])` with the
@@ -157,6 +188,13 @@ hand-kept regrade set, so removing it is a decision that changes regrades).
 4. The deferred findings, D6, R10 and R6's proxy ordering, each with a regrade comparison if it
    changes a verdict.
 5. Optional: S6 and S9.
+6. Found in the second round and not fixed: a command-line usage error exits 2, INCONCLUSIVE's code;
+   `fixture.env` and `services[].env` are iterated unvalidated and crash validation as B10 did; a
+   plugin root that is not a git checkout crashes the batch with exit 1; `service_unchanged`'s
+   audit-content raise, which a candidate's own request can reach, now stops its scenario as
+   machinery (the owner accepted a note); `batch_identity_problem` and `pool_identity` both decide
+   what pools; kept attempts are shared by every model of a label, so the cap over-counts a label
+   two models share; and S1 would give B3's identity classification a type instead of a field.
 
 ## Method and limits
 
@@ -177,3 +215,6 @@ hand-kept regrade set, so removing it is a decision that changes regrades).
 - Mutation checks ran in `git archive` exports made git checkouts, against an unmutated baseline and
   an always-FAIL control, comparing failing test IDs. A first attempt without the git checkout failed
   about 60 provenance tests in every variant and was discarded.
+- A rescore records a run that raises as an error row, so a run that errors under both runners can
+  show no difference: 7 did until B11. Rescores never reach `cli.run`, so the batch-ending changes
+  rest on the batch tests, which miss reordering the authentication and FAIL exits until `fed9ef7a`.

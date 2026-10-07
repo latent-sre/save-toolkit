@@ -64,7 +64,9 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
     with a traceback and exit 1, a FAIL batch's code: before any trial it refuses to run (exit 3),
     and a trial that meets one stops the batch.
 
-  [verified] Each fix's new test fails without it and passes with it.
+  [verified] Each fix's new test fails on the code before it and passes with it. Rescoring all
+  1,317 saved runs with `adc13a88` and with these fixes differs only in the 7 native runs whose
+  regrade crashed, which now regrade INCONCLUSIVE.
 - The 2026-10-07 python-craft review of the eval runner (PR #328):
   - A git command that failed while listing a trial's changes, such as `git add` blocked by an
     `index.lock` the agent left behind, read as "no changes", so `no_workspace_changes`,
