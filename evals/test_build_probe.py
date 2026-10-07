@@ -1760,6 +1760,21 @@ class EndToEndStubTests(unittest.TestCase):
         self.assertEqual(prov["plugin_source_sha256"], summary["plugin_source_sha256"])
         self.assertEqual("host", summary["isolation"])
 
+    def test_a_dirty_state_git_cannot_report_is_unknown_not_clean(self) -> None:
+        root = self.root / "plugin"
+        for relative in ("agents/a.md", "skills/s/SKILL.md", "commands/c.md", "hooks/hooks.json",
+                         ".claude-plugin/plugin.json", "scripts/fleet_frontmatter.py", "scripts/readonly-guard.py",
+                         "scripts/readonly-guard-hook.sh"):
+            (root / relative).parent.mkdir(parents=True, exist_ok=True)
+            (root / relative).write_text("x\n", encoding="utf-8")
+        build_probe._git(root, "init", "-q", "-b", "main")
+        build_probe._git(root, "add", "-A")
+        build_probe._git(root, "commit", "-q", "-m", "base")
+        (root / "agents" / "a.md").write_text("an uncommitted candidate edit\n", encoding="utf-8")
+        self.assertIs(True, build_probe.plugin_provenance(root)["plugin_inputs_dirty"])
+        (root / ".git" / "index").write_bytes(b"not an index")  # `git status` now fails; HEAD still resolves
+        self.assertIsNone(build_probe.plugin_provenance(root)["plugin_inputs_dirty"], "unknown, never clean")
+
     def test_bound_rubric_trial_retains_provenance_and_complete_call_records(self) -> None:
         from test_judge import calibration_receipt, _envelope, _proc, _verdict
         judge = build_probe.rubric_judge

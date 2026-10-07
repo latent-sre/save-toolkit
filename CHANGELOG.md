@@ -34,6 +34,8 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
     or a plugin root that no longer holds the agent included, as "boundary evidence missing or
     invalid; re-run the trial". Only unreadable or malformed saved evidence reads that way now; an
     unreadable plugin root is named as such, and a runner defect raises.
+  - `plugin_inputs_dirty` recorded a plugin root as clean when `git status` failed, as it does on a
+    damaged index; it is now null, unknown, as the runner's own provenance already recorded it.
 
   [verified] Regrading all 1,317 saved runs with `adc13a88` and with these fixes differs in nothing;
   no saved run records a git failure, and a regrade keeps a command check's live verdict.

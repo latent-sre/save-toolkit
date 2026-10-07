@@ -198,27 +198,34 @@ def plugin_digest(root: Path = ROOT) -> str:
     return digest.hexdigest()
 
 
+def _git_text(cwd: Path, *args: str) -> str | None:
+    """A git command's trimmed output, or None when it failed: an unknown answer, never an empty one."""
+    proc = subprocess.run(
+        ["git", *args], cwd=str(cwd), capture_output=True, text=True, encoding="utf-8", errors="replace"
+    )
+    return proc.stdout.strip() if proc.returncode == 0 else None
+
+
 def plugin_provenance(plugin_root: Path) -> dict[str, Any]:
     """Bind a run to the bytes it measured: the plugin root's HEAD, whether its plugin inputs are
-    dirty, and the plugin-source digest.
+    dirty (None when git could not say), and the plugin-source digest.
     A label such as `new_skill` is operator-chosen; this is what proves which revision was graded."""
-
-    def _git_text(*args: str) -> str | None:
-        proc = subprocess.run(
-            ["git", *args], cwd=str(plugin_root), capture_output=True, text=True, encoding="utf-8", errors="replace"
-        )
-        return proc.stdout.strip() if proc.returncode == 0 else None
-
-    commit = _git_text("rev-parse", "HEAD")
+    commit = _git_text(plugin_root, "rev-parse", "HEAD")
     if commit is None:
         raise RuntimeError(f"plugin root {plugin_root} is not a git checkout; provenance cannot be recorded")
     dirty = _git_text(
-        "status", "--porcelain=v1", "--untracked-files=all", "--", *PLUGIN_INPUT_PATHS, *OPTIONAL_PLUGIN_INPUT_PATHS
+        plugin_root,
+        "status",
+        "--porcelain=v1",
+        "--untracked-files=all",
+        "--",
+        *PLUGIN_INPUT_PATHS,
+        *OPTIONAL_PLUGIN_INPUT_PATHS,
     )
     return {
         "plugin_root": str(plugin_root.resolve()),
         "plugin_commit": commit,
-        "plugin_inputs_dirty": bool(dirty),
+        "plugin_inputs_dirty": None if dirty is None else bool(dirty),
         "plugin_source_sha256": plugin_digest(plugin_root),
     }
 
@@ -232,18 +239,11 @@ def runner_provenance() -> dict[str, Any]:
     `plugin_commit` names the candidate; this names the runner."""
     global _RUNNER_PROVENANCE
     if _RUNNER_PROVENANCE is None:
-
-        def _git_text(*args: str) -> str | None:
-            proc = subprocess.run(
-                ["git", *args], cwd=str(ROOT), capture_output=True, text=True, encoding="utf-8", errors="replace"
-            )
-            return proc.stdout.strip() if proc.returncode == 0 else None
-
         root = ROOT.resolve()
         files = [path.relative_to(root).as_posix() for path in HARNESS_FILES if path.is_relative_to(root)]
-        dirty = _git_text("status", "--porcelain=v1", "--untracked-files=all", "--", *files)
+        dirty = _git_text(ROOT, "status", "--porcelain=v1", "--untracked-files=all", "--", *files)
         _RUNNER_PROVENANCE = {
-            "runner_commit": _git_text("rev-parse", "HEAD"),
+            "runner_commit": _git_text(ROOT, "rev-parse", "HEAD"),
             "runner_source_dirty": None if dirty is None else bool(dirty),
             "runner_source_sha256": HARNESS_SOURCE_SHA256,
         }
