@@ -1903,6 +1903,17 @@ class EndToEndStubTests(unittest.TestCase):
         self.assertEqual((2, [("tiny", 1)]), (code, calls))
         self.assertIn("stopped after plugin inputs could not be measured", printed)
 
+    def test_a_plugin_root_that_is_not_a_git_checkout_is_refused_before_any_trial(self) -> None:
+        """A plugin root outside git has no commit to bind a run to. The batch stopped on a traceback,
+        exit 1, a FAIL batch's code, where a candidate it cannot identify is a refused job (3)."""
+        loose = self.root / "loose-plugin"
+        loose.mkdir()
+        with contextlib.redirect_stderr(io.StringIO()) as err:
+            code, calls, _ = self._batch(self.root / "out", self._stub(), [self._spec()],
+                                         "--scenario", "tiny", "--plugin-root", str(loose))
+        self.assertEqual((3, []), (code, calls))
+        self.assertIn("is not a git checkout", err.getvalue())
+
     def test_a_trial_whose_trace_names_no_model_is_void(self) -> None:
         """Codex on PR #328: a trial that resolved no model was graded PASS or FAIL and pooled with
         identified trials, where a result whose required identity is unknown is never merged."""
