@@ -54,6 +54,11 @@ from test_judge import _envelope, _proc, _verdict, calibration_receipt
 ROOT = Path(__file__).resolve().parent.parent
 
 
+def _trace_measures(spec, trace):
+    """A grade's trace-read expectations as `plan` builds them for a live grade, by their text."""
+    return [(e.text, e.measure) for e in probe_assessment.plan(spec, trace, None, ROOT) if e.check is None]
+
+
 def _posix_bash() -> str | None:
     """A POSIX bash: Git for Windows' on Windows (the bare `bash` there is WSL's stub), else `bash`."""
     if os.name != "nt":
@@ -1405,7 +1410,7 @@ class NativeConversationRunTests(unittest.TestCase):
         helper, target = "save-toolkit:sre-assistant", "save-toolkit:reliability-engineer"
         for agents in ([helper], [target], [target, helper]):
             trace = probe_tracing.TraceSummary(dispatches=agents, agents=agents)
-            checks = probe_assessment.scenario_expectations(spec, trace, ROOT)
+            checks = _trace_measures(spec, trace)
             self.assertFalse(all(check()[0] for _, check in checks[:2]))
         self.assertTrue(any("pin `agent`" in p for p in probe_catalog.validate_scenario(spec)))
 
@@ -1489,7 +1494,7 @@ class NativeConversationRunTests(unittest.TestCase):
                 for folder, events in ((run, initial), (run / "followup", followup)):
                     (folder / "stdout.jsonl").write_text("\n".join(json.dumps(event) for event in events), encoding="utf-8")
                 trace = probe_tracing.parse_trial_trace(run)
-                assertion = next(check for label, check in probe_assessment.scenario_expectations(spec, trace, ROOT)
+                assertion = next(check for label, check in _trace_measures(spec, trace)
                                  if label.startswith("reference "))
                 self.assertEqual(placement == "before", assertion()[0])
 
@@ -3763,7 +3768,7 @@ class ReferenceReadTests(unittest.TestCase):
     def test_relative_reference_without_a_known_workspace_fails_closed(self) -> None:
         reference = self.SPEC["references"][0]
         trace = self._trace([{"tool": "Read", "path": reference, "outcome": "allowed"}])
-        verdicts = dict(probe_assessment.scenario_expectations(self.SPEC, trace, ROOT))
+        verdicts = dict(_trace_measures(self.SPEC, trace))
         self.assertFalse(verdicts[f"reference {reference} read"]()[0])
 
     def test_references_are_graded_as_their_own_expectation(self) -> None:
@@ -3787,7 +3792,7 @@ class ReferenceReadTests(unittest.TestCase):
         for outcome, expected in ((None, False), ("denied", False), ("allowed", True)):
             with self.subTest(outcome=outcome):
                 attempts = [] if outcome is None else [{"tool": "Read", "path": str(ROOT / reference), "outcome": outcome}]
-                verdicts = dict(probe_assessment.scenario_expectations(spec, self._trace(attempts), ROOT))
+                verdicts = dict(_trace_measures(spec, self._trace(attempts)))
                 self.assertEqual(expected, verdicts[f"reference {reference} read"]()[0])
 
     def test_reference_prompt_uses_supplied_plugin_root(self) -> None:
@@ -3819,7 +3824,7 @@ class ReferenceReadTests(unittest.TestCase):
                 for outcome in (None, "denied", "allowed"):
                     reads = [] if outcome is None else [
                         {"tool": "Read", "path": str(ROOT / path), "outcome": outcome}]
-                    checks = dict(probe_assessment.scenario_expectations(spec, self._trace(reads), ROOT))
+                    checks = dict(_trace_measures(spec, self._trace(reads)))
                     self.assertEqual(outcome == "allowed", checks[f"reference {path} read"]()[0])
 
 
@@ -4490,17 +4495,23 @@ class ResultRuleTests(unittest.TestCase):
     def _e(text: str, passed: bool, evidence: str = "e") -> dict:
         return {"text": text, "passed": passed, "evidence": evidence}
 
+    @staticmethod
+    def _read(checks: list[dict]) -> list:
+        """A saved grade's checks as a regrade reads them, from their recorded text."""
+        return [probe_outcomes.Outcome.read(c["passed"], c["evidence"]) for c in checks]
+
     def test_a_supported_failure_beside_an_unmeasured_check_fails(self) -> None:
         checks = [self._e("forbidden write absent", False, "wrote deploy.yaml"),
                   self._e("suite green", False, "INCONCLUSIVE: backing service unavailable: db")]
-        self.assertEqual(("FAIL", "backing service unavailable: db"), probe_assessment.trial_status(checks, None))
-        self.assertEqual(["FAIL", "INCONCLUSIVE"], [c["state"] for c in checks])
+        read = self._read(checks)
+        self.assertEqual(("FAIL", "backing service unavailable: db"), probe_assessment.roll_up(read, None))
+        self.assertEqual(["FAIL", "INCONCLUSIVE"], [outcome.state for outcome in read])
 
     def test_unmeasured_without_a_failure_is_inconclusive_and_all_pass_is_pass(self) -> None:
-        self.assertEqual("INCONCLUSIVE", probe_assessment.trial_status(
-            [self._e("a", True), self._e("b", False, "INCONCLUSIVE: judge down")], None)[0])
-        self.assertEqual(("PASS", None), probe_assessment.trial_status([self._e("a", True)], None))
-        self.assertEqual(("INCONCLUSIVE", "timed out"), probe_assessment.trial_status([], "timed out"))
+        self.assertEqual("INCONCLUSIVE", probe_assessment.roll_up(
+            self._read([self._e("a", True), self._e("b", False, "INCONCLUSIVE: judge down")]), None)[0])
+        self.assertEqual(("PASS", None), probe_assessment.roll_up(self._read([self._e("a", True)]), None))
+        self.assertEqual(("INCONCLUSIVE", "timed out"), probe_assessment.roll_up([], "timed out"))
 
     def test_a_run_level_measurement_failure_voids_every_check(self) -> None:
         """Rule 1: identity and run-level failures mark every check INCONCLUSIVE, FAILs included."""
@@ -5008,8 +5019,10 @@ class ResultRecordV1Tests(unittest.TestCase):
         self.assertNotEqual(before[1], after[1])
 
     def test_long_evidence_is_flagged_as_truncated(self) -> None:
-        self.assertEqual({"evidence": "x" * 600, "evidence_truncated": True}, probe_outcomes.bounded("x" * 601))
-        self.assertEqual({"evidence": "short"}, probe_outcomes.bounded("short"))
+        cut, truncated = probe_assessment._bound(probe_outcomes.verdict(False, "x" * 601))
+        self.assertEqual(("x" * 600, True), (cut.evidence, truncated))
+        kept, truncated = probe_assessment._bound(probe_outcomes.verdict(False, "short"))
+        self.assertEqual(("short", False), (kept.evidence, truncated))
 
     @unittest.skipUnless(sys.platform == "win32", "Windows ACL inheritance")
     def test_a_run_folder_inherits_its_parents_permissions(self) -> None:

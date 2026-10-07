@@ -204,16 +204,6 @@ def _run_grader(grader: Mapping[str, Any], text: str, judge_binding: Any) -> Out
     return outcomes.coerce(fleet_graders.run_grader(dict(grader), text, judge_binding=judge_binding))
 
 
-def scenario_expectations(
-    spec: Spec, trace: TraceSummary, plugin_root: Path, judge_binding: Any = None, *, workspace: Path | None = None
-) -> list[tuple[str, Callable[[], Outcome]]]:
-    """Every trace-graded expectation as (text, measure), in the order a grade evaluates them."""
-    return [
-        (text, measure)
-        for text, measure, _ in _trace_expectations(spec, trace, plugin_root, judge_binding, workspace=workspace)
-    ]
-
-
 def scenario_assertions(spec: Spec) -> list[str]:
     """One line per graded expectation, in the order a grade evaluates them."""
     return [text for text, _, _ in _trace_expectations(spec, TraceSummary(), ROOT)] + [
@@ -511,15 +501,3 @@ def grade(
         "summary": summary_of(expectations),
         "status": status,
     }
-
-
-def trial_status(
-    expectations: list[dict[str, Any]], unmeasured: str | None, polarities: Sequence[Polarity] | None = None
-) -> tuple[State, str | None]:
-    """`roll_up` over the checks a saved grade records, read from their text; records each one's state."""
-    read = [Outcome.read(e.get("passed"), e.get("evidence") or "") for e in expectations]
-    for index, (expectation, outcome) in enumerate(zip(expectations, read, strict=True)):
-        expectation["state"] = outcome.state
-        if polarities is not None and index < len(polarities):
-            expectation["kind"] = polarities[index]
-    return roll_up(read, unmeasured)

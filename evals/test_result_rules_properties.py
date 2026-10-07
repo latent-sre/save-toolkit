@@ -80,8 +80,9 @@ class SavedVerdictProperties(unittest.TestCase):
     def test_a_supported_failure_is_never_hidden(self, graded: list[tuple[str, dict]], unmeasured: str | None) -> None:
         states = [state for state, _ in graded]
         checks = [check for _, check in graded]
-        status, reason = probe_assessment.trial_status(checks, unmeasured)
-        self.assertEqual(states, [check["state"] for check in checks])
+        read = [probe_outcomes.Outcome.read(c.get("passed"), c.get("evidence") or "") for c in checks]
+        status, reason = probe_assessment.roll_up(read, unmeasured)
+        self.assertEqual(states, [outcome.state for outcome in read])
         first = next((c["evidence"].removeprefix("INCONCLUSIVE: ") for s, c in graded if s == "INCONCLUSIVE"), None)
         self.assertEqual(unmeasured or first, reason)
         if "FAIL" in states:

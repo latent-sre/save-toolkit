@@ -171,12 +171,6 @@ def coerce(result: tuple[object, object]) -> Outcome:
     return Outcome.read(passed, evidence)
 
 
-def bounded(evidence: object) -> dict[str, Any]:
-    """Evidence cut to 600 characters, flagged when cut, so a reader knows more existed."""
-    text = str(evidence)
-    return {"evidence": text[:EVIDENCE_LIMIT], **({"evidence_truncated": True} if len(text) > EVIDENCE_LIMIT else {})}
-
-
 def legacy_state(expectation: Mapping[str, Any]) -> State:
     """The state of a check as a saved grade records it, read from its text by the result-rule table."""
     return Outcome.read(expectation.get("passed"), expectation.get("evidence") or "").state
