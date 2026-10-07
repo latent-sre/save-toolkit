@@ -4628,3 +4628,52 @@ class PackageStructureTests(unittest.TestCase):
                 if isinstance(node, ast.ImportFrom) and node.level == 1 and node.module and node.module != "outcomes":
                     with self.subTest(module=path.stem, source=node.module):
                         self.assertEqual(set(), {alias.name for alias in node.names} & functions.get(node.module, set()))
+
+
+class RegradeRunLevelReasonTests(unittest.TestCase):
+    """A regrade voids a run only when the live grade did (result rules 1 and 3)."""
+
+    SPEC = {**TINY_SPEC, "checks": [
+        {"check": "text_not_contains", "needle": "deploy", "text": "never says deploy"},
+        {"check": "skill_not_loaded", "skill": "eng-ladder", "text": "no ladder"}]}
+    UNNAMED = "instrument: a Skill call carried no name; cannot assert what was loaded"
+
+    def _run(self, tmp: str, *, inconclusive: str, evidence: tuple[str, str], void: str | None = None) -> Path:
+        run = Path(tmp) / "eval-tiny" / "arm" / "run-1"
+        (run / "outputs").mkdir(parents=True)
+        (run / "outputs" / "response.md").write_text("I will deploy it.\n", encoding="utf-8")
+        (run / "outputs" / "trace-summary.json").write_text(json.dumps({
+            "state_files": {}, "commits_before_after": [1, 1], "branch": "main", "changed_files": [],
+            "skills": [], "dispatches": [], "bash_commands": [], "agents_dir": False, "inconclusive": inconclusive,
+        }), encoding="utf-8")
+        grade = {**_saved_grade(self.SPEC, [{"text": "never says deploy", "passed": False, "evidence": evidence[0]},
+                                            {"text": "no ladder", "passed": False, "evidence": evidence[1]}]),
+                 "status": "INCONCLUSIVE", "inconclusive": inconclusive, **({"void": void} if void else {})}
+        (run / "grading.json").write_text(json.dumps(grade), encoding="utf-8")
+        events = [
+            {"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "s", "name": "Skill", "input": {}}]}},
+            {"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "s", "content": "done"}]}},
+            {"type": "result", "result": "I will deploy it.", "duration_ms": 1, "usage": {}},
+        ]
+        (run / "stdout.jsonl").write_text("\n".join(json.dumps(e) for e in events), encoding="utf-8")
+        return run
+
+    def test_one_unmeasured_check_neither_voids_the_run_nor_hides_a_failure(self) -> None:
+        # A grade from before the result rules: INCONCLUSIVE because one check could not measure,
+        # beside a check that saw the forbidden word.
+        with tempfile.TemporaryDirectory() as tmp:
+            run = self._run(tmp, inconclusive=self.UNNAMED, evidence=("'deploy' PRESENT in the final text", self.UNNAMED))
+            grading = build_probe.regrade_run(run, self.SPEC, write=False)
+        self.assertEqual(["FAIL", "INCONCLUSIVE"], [e["state"] for e in grading["expectations"]])
+        self.assertEqual("FAIL", grading["status"])
+        self.assertNotIn("void", grading)
+
+    def test_a_run_level_reason_still_voids_the_regrade(self) -> None:
+        reason = "runtime tool inventory mismatch (extra ['WebFetch'], missing [])"
+        marked = f"INCONCLUSIVE: {reason}"
+        for void in (reason, None):  # a current grade names it; an older grade marks every check with it
+            with self.subTest(void=void), tempfile.TemporaryDirectory() as tmp:
+                run = self._run(tmp, inconclusive=reason, evidence=(marked, marked), void=void)
+                grading = build_probe.regrade_run(run, self.SPEC, write=False)
+            self.assertEqual(["INCONCLUSIVE", "INCONCLUSIVE"], [e["state"] for e in grading["expectations"]])
+            self.assertEqual((reason, "INCONCLUSIVE"), (grading["void"], grading["status"]))

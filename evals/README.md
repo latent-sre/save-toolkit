@@ -525,7 +525,10 @@ labels cannot substitute one verdict for another. Legacy records without identit
 scenarios, and missing original assertions are INCONCLUSIVE and require a fresh trial. Regrade does
 not call a judge or recover workspace evidence that was never recorded. Rubric regrades use the
 immutable binding embedded in the original live grade, without reopening a current receipt or
-recalibrating. Missing binding evidence or a changed judged response makes the regrade INCONCLUSIVE.
+recalibrating. Missing binding evidence or a changed judged response makes the regrade INCONCLUSIVE. A regrade voids a run only when its live grade
+did: the run-level reason that grade records as `void`, or, in a grade from before `void` was
+recorded, a reason every saved check carries. One check's own INCONCLUSIVE leaves the others
+measured, so a supported FAIL beside it stands (result rules 1 and 3).
 
 The scenario digest also binds the evaluator implementation: `build_probe.py`, every module in
 `probe/` (found by listing the package, so a new module is bound the moment it exists), `graders.py`,

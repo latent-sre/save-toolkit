@@ -8,6 +8,16 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- A regrade voided every check when a saved grade was INCONCLUSIVE because of one check, such as an
+  instrument failure, a judge that could not judge or an unavailable service, so a supported FAIL
+  beside it could never surface again. A regrade now voids a run only when the live grade did
+  (result rules 1 and 3).
+
+  [verified] Regrading all 1,317 saved runs with the runner before and after the fix: 64 runs are no
+  longer voided, each because of one check (63 `verification_completed`, 1 a judge that could not
+  judge). 23 move from INCONCLUSIVE to FAIL, 26 stay INCONCLUSIVE with each check graded, and 15
+  move to PASS, because today's runner re-measures their ordered verification as complete where the
+  runner of the day did not. Nothing else changes.
 - The 2026-10-06 review of PR #328 (ten findings on `evals/build_probe.py`):
   - `--regrade` no longer rewrites a run or its batch summaries: each regrade is
     `assessments/<k>/` beside the run, listed in `record.json`, with its rows in `regrade-<UTC>.json`.

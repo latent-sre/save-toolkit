@@ -24,7 +24,7 @@ from . import assessment, checking, fingerprints, invocation, outcomes, records,
 from .checking import Context, Need
 from .constants import ROOT
 from .fingerprints import HARNESS_IDENTITY, HARNESS_SOURCE_SHA256
-from .outcomes import EVIDENCE_LIMIT, CutShort, Outcome
+from .outcomes import EVIDENCE_LIMIT, UNMEASURED, CutShort, Outcome
 from .tracing import TraceSummary
 from .workspaces import GitFacts, Workspace
 
@@ -228,7 +228,7 @@ def _run_level_reason(
             live_grade.get("run_stop") or "cut_short",
         )
     else:
-        inconclusive = live_grade.get("inconclusive", summary.get("inconclusive")) or native_problem
+        inconclusive = _saved_void(live_grade, summary) or native_problem
     if spec.get("references") and not has_plugin_root:
         inconclusive = "reference plugin root evidence missing or invalid; re-run the trial"
     if not has_raw_trace and any(Need.ORDERED_TRACE in checking.check_needs(c, spec) for c in spec.get("checks") or []):
@@ -247,6 +247,26 @@ def _run_level_reason(
         blocked = invocation.runtime_blocked_tools(trace, spec)
         inconclusive = f"{invocation.BLOCKED_TOOLS}: {blocked}" if blocked else None
     return inconclusive
+
+
+def _saved_void(live_grade: Mapping[str, Any], summary: Mapping[str, Any]) -> str | None:
+    """The reason the live grade measured nothing at all, if it had one (result rule 1).
+
+    A grade's `inconclusive` names the first reason anything went unmeasured: a run-level failure,
+    such as a wrong plugin or changed inputs, or one check's own, such as an instrument failure, a
+    judge that could not judge, or an unavailable service. Only the first voids the run. Reading
+    the second as run-level would void checks the live grade measured, and hide a supported FAIL
+    beside the unmeasured check (rule 3). A current grade records a run-level reason as `void`; an
+    older one did not, so its reason is run-level only when every saved check carries it.
+    """
+    if live_grade.get("void"):
+        return str(live_grade["void"])
+    reason = live_grade.get("inconclusive", summary.get("inconclusive"))
+    if not reason:
+        return None
+    marked = f"{UNMEASURED}{reason}"[:EVIDENCE_LIMIT]
+    expectations = live_grade.get("expectations") or []
+    return str(reason) if all(str(e.get("evidence") or "") == marked for e in expectations) else None
 
 
 def _saved_verdicts(old_by_id: Mapping[Any, Mapping[str, Any]], prefix: str | None) -> assessment.Kept:
