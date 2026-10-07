@@ -17,7 +17,7 @@ import yaml
 
 from . import checking
 from .backing import TRUSTED_SERVICE_IMAGES
-from .checking import CHECKS, FORBIDDING_GRADERS
+from .checking import FORBIDDING_GRADERS
 from .constants import BUILD_TOOLS, CONTRACT_SCENARIO_DIR, ORACLE_DIR, ROOT, SCENARIO_DIR
 from .outcomes import Polarity
 
@@ -331,11 +331,14 @@ def _check_problems(spec: Spec, where: str, kind: str) -> list[str]:
         return [f"{where}: checks must be a non-empty list"]
     problems = []
     for i, check in enumerate(checks):
-        if not isinstance(check, dict) or check.get("check") not in CHECKS:
+        if checking.registered(check) is None:  # also a name that is not a string, such as a list
             problems.append(f"{where}: checks[{i}] names an unknown check {check!r}"[:200])
             continue
-        if check["check"] == "fleet_grader" and check.get("name") not in fleet_graders.REGISTRY:
-            problems.append(f"{where}: checks[{i}] fleet_grader names an unknown grader {check.get('name')!r}")
+        grader_name = check.get("name")
+        if check["check"] == "fleet_grader" and (
+            not isinstance(grader_name, str) or grader_name not in fleet_graders.REGISTRY
+        ):
+            problems.append(f"{where}: checks[{i}] fleet_grader names an unknown grader {grader_name!r}")
         if "scope" in check and (
             check["check"] not in ("bash_ran", "bash_did_not_run", "ran_outside_checkout")
             or check["scope"] != "subagent"
@@ -570,7 +573,7 @@ def _grader_problems(spec: Spec, where: str) -> list[str]:
             problems.append(f"{where}: graders[{i}] must be a mapping")
             continue
         kind = grader.get("type")
-        if kind not in fleet_graders.REGISTRY:
+        if not isinstance(kind, str) or kind not in fleet_graders.REGISTRY:
             problems.append(f"{where}: graders[{i}] names an unknown grader type {kind!r}")
             continue
         try:

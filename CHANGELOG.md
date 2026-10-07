@@ -8,6 +8,9 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- `build_probe.py validate` crashed with TypeError when a scenario named a check, a `fleet_grader` or a
+  grader `type` with a YAML list instead of a string; it now reports that as an unknown name, the
+  authoring error it is. [verified] One validator case per site fails before the fix and passes after.
 - The second round of Copilot and Codex review comments on PR #328:
   - `--run-offset` accepted a negative number and published trials as `run-0` or `run--1`. The v1
     record refuses a slot below 1, so such a run had no `record.json` while the batch summary still
