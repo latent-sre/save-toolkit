@@ -24,6 +24,12 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   - `no_workspace_changes` compared seeded uncommitted files as newline-translated text, so a CRLF
     rewrite passed as "checkout unchanged", and a non-UTF-8 rewrite, the candidate's own output,
     crashed the grader. It compares bytes, and both now fail.
+  - Evidence the record cuts at 600 characters is flagged `evidence_truncated` everywhere: three
+    cut-short rules cut first and left no flag. A regrade's kept verdict now leads with its
+    `[kept: …]` marker, which the cut used to remove from a long verdict, and is flagged when cut;
+    `Outcome.read` reads past the marker, so the kept verdict reads back as the state it was kept
+    with. Of the 1,236 kept verdicts in a rescore of the saved runs, 9 had lost the marker and none
+    was flagged; all now carry it, those 9 are flagged, and every recorded state is unchanged.
 
   [verified] Regrading all 1,317 saved runs with `adc13a88` and with these fixes differs in nothing;
   no saved run records a git failure, and a regrade keeps a command check's live verdict.

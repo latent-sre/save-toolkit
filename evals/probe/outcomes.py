@@ -10,6 +10,7 @@ for a verdict a saved grade carries.
 from __future__ import annotations
 
 import enum
+import re
 from collections.abc import Mapping
 from typing import Any, Final
 
@@ -19,6 +20,13 @@ UNMEASURED: Final = "INCONCLUSIVE: "
 INSTRUMENT: Final = "instrument: "
 GRADER_ERROR: Final = UNMEASURED + "grader error: "
 EVIDENCE_LIMIT: Final = 600
+_KEPT: Final = re.compile(r"\[kept: [\w-]+\] ")
+
+
+def kept_evidence(kept_as: str, evidence: str) -> str:
+    """A saved live verdict a regrade keeps: its evidence behind a marker naming why. The marker leads,
+    so the 600-character cut, which keeps the start of the evidence, never removes it."""
+    return f"[kept: {kept_as}] {evidence}"
 
 
 class State(enum.StrEnum):
@@ -116,13 +124,16 @@ class Outcome(tuple[bool, str]):
 
         A pass is a pass. Otherwise evidence that says it could not measure, in any of the three
         spellings, is INCONCLUSIVE, and a grader error, an instrument failure or a judge that could not
-        judge is also a machinery failure. Any other failure is a supported FAIL.
+        judge is also a machinery failure. Any other failure is a supported FAIL. A regrade's kept
+        marker is read past, so a kept verdict reads back as the state it was kept with.
         """
         text = str(evidence)
         if passed:
             return cls(State.PASS, text)
-        machinery = text.startswith((GRADER_ERROR, INSTRUMENT)) or rubric_judge.is_inconclusive(text)
-        if machinery or text.startswith(UNMEASURED):
+        marker = _KEPT.match(text)
+        spelled = text[marker.end() :] if marker else text
+        machinery = spelled.startswith((GRADER_ERROR, INSTRUMENT)) or rubric_judge.is_inconclusive(spelled)
+        if machinery or spelled.startswith(UNMEASURED):
             return cls(State.INCONCLUSIVE, text, machinery=machinery)
         return cls(State.FAIL, text)
 

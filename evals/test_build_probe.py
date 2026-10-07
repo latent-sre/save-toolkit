@@ -4945,6 +4945,36 @@ class GradingLoopTests(unittest.TestCase):
         self.assertEqual(long, reason)
         self.assertEqual((600, True), (len(graded[0].outcome.evidence), graded[0].truncated))
 
+    def test_evidence_cut_on_a_run_cut_short_is_flagged(self) -> None:
+        # The record keeps 600 characters and flags a cut; a rule that cut first left no flag.
+        cut = build_probe.CutShort("claude reported an error result " + "x" * 700, "error_result")
+        trace = build_probe.TraceSummary(tool_counts={"Read": 1})
+        spec = {**TINY_SPEC, "checks": [{"check": "tool_call_count", "tool": "Read", "minimum": 2, "maximum": 3}]}
+        cases = {
+            "forbidding check": [self._item(lambda: build_probe.verdict(True, "no violation"), "forbids")],
+            "negative routing": [self._item(lambda: build_probe.verdict(True, "alternative never fired"), "both",
+                                            on_cut=build_probe.routing_on_cut)],
+            "tool-call floor": build_probe.plan(spec, trace, build_probe.Context(spec, None, trace, None), ROOT),
+        }
+        for name, items in cases.items():
+            with self.subTest(case=name):
+                graded, _ = build_probe.assess(items, cut)
+                self.assertEqual(("INCONCLUSIVE", 600, True),
+                                 (graded[0].outcome.state, len(graded[0].outcome.evidence), graded[0].truncated))
+
+    def test_a_kept_verdict_keeps_its_marker_and_its_truncation_flag(self) -> None:
+        item = self._item(lambda: build_probe.verdict(True, "never measured"), kept_as="live-judge")
+        for evidence, passed, state, truncated in (("J" * 600, False, "FAIL", True),
+                                                   ("judged", True, "PASS", False),
+                                                   ("INCONCLUSIVE: " + "u" * 586, False, "INCONCLUSIVE", True)):
+            with self.subTest(state=state):
+                saved = {"sha:0": {"id": "sha:0", "text": "expectation", "passed": passed, "evidence": evidence}}
+                graded, _ = build_probe.assess([item], None, kept=probe_rescoring._saved_verdicts(saved, "sha"))
+                record = probe_assessment.records(graded)[0]
+                self.assertTrue(record["evidence"].startswith("[kept: live-judge] "), record["evidence"])
+                self.assertEqual((state, truncated), (record["state"], bool(record.get("evidence_truncated"))))
+                self.assertEqual(state, build_probe.legacy_state(record), "the kept text reads back as its state")
+
     def test_a_crash_on_a_run_cut_short_stays_a_grader_error(self) -> None:
         def crash() -> build_probe.Outcome:
             raise KeyError("target")

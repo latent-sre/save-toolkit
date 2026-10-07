@@ -27,7 +27,6 @@ from .checking import Context, Need
 from .constants import ROOT
 from .outcomes import (
     EVIDENCE_LIMIT,
-    UNMEASURED,
     CutShort,
     Outcome,
     Polarity,
@@ -323,17 +322,13 @@ def routing_on_cut(outcome: Outcome, cut: str) -> Outcome:
     already; a declared alternative that never fired proves nothing, because the run stopped early."""
     if outcome.forbidden:
         return outcome
-    return Outcome(
-        State.INCONCLUSIVE, f"{UNMEASURED}no forbidden routing before the run was cut short ({cut})"[:EVIDENCE_LIMIT]
-    )
+    return unmeasured(f"no forbidden routing before the run was cut short ({cut})")
 
 
 def forbidden_on_cut(outcome: Outcome, cut: str) -> Outcome:
     """A forbidding check on a run cut short: a violation stands, but no violation yet proves nothing."""
     if outcome.state is State.PASS:
-        return Outcome(
-            State.INCONCLUSIVE, f"{UNMEASURED}no violation before the run was cut short ({cut})"[:EVIDENCE_LIMIT]
-        )
+        return unmeasured(f"no violation before the run was cut short ({cut})")
     return outcome
 
 

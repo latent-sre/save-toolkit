@@ -34,7 +34,7 @@ import judge as rubric_judge
 from . import backing, tracing, workspaces
 from .backing import Service, ServiceUnavailable
 from .constants import ORACLE_DIR, ROOT, SHELL_TOOLS
-from .outcomes import EVIDENCE_LIMIT, UNMEASURED, Outcome, Polarity, State, instrument, unmeasured, verdict, violation
+from .outcomes import Outcome, Polarity, instrument, unmeasured, verdict, violation
 from .tracing import TraceSummary
 from .workspaces import GitFacts, Workspace
 
@@ -201,12 +201,9 @@ def _tool_calls_on_cut(params: Params, trace: TraceSummary, cut: str) -> Outcome
     if count > params["maximum"]:
         return violation(
             f"{params['tool']}: {count} attempted call(s) exceed the maximum {params['maximum']} "
-            f"before the run was cut short ({cut})"[:EVIDENCE_LIMIT]
+            f"before the run was cut short ({cut})"
         )
-    return Outcome(
-        State.INCONCLUSIVE,
-        f"{UNMEASURED}within the maximum, floor unproven before the run was cut short ({cut})"[:EVIDENCE_LIMIT],
-    )
+    return unmeasured(f"within the maximum, floor unproven before the run was cut short ({cut})")
 
 
 def grading_env(ctx: Context) -> dict[str, str]:

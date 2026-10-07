@@ -288,7 +288,7 @@ def _saved_verdicts(old_by_id: Mapping[Any, Mapping[str, Any]], prefix: str | No
         if saved is None or saved.get("text") != item.text:
             return None
         read = Outcome.read(saved["passed"], saved["evidence"])
-        return read.with_evidence((saved["evidence"] + f" [kept: {item.kept_as}]")[:EVIDENCE_LIMIT])
+        return read.with_evidence(outcomes.kept_evidence(str(item.kept_as), str(saved["evidence"])))
 
     return kept
 
