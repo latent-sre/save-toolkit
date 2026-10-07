@@ -151,7 +151,8 @@ OPTIONAL_PLUGIN_INPUT_PATHS = (
 
 
 class MeasuredInputRefused(RuntimeError):
-    """A measured plugin input is missing, linked or unreadable, so the candidate cannot be identified."""
+    """A measured plugin input is missing, linked or unreadable, or the plugin root has no commit to
+    bind it to, so the candidate cannot be identified."""
 
 
 def _is_reparse_point(path: Path) -> bool:
@@ -220,7 +221,7 @@ def plugin_provenance(plugin_root: Path) -> dict[str, Any]:
     A label such as `new_skill` is operator-chosen; this is what proves which revision was graded."""
     commit = _git_text(plugin_root, "rev-parse", "HEAD")
     if commit is None:
-        raise RuntimeError(f"plugin root {plugin_root} is not a git checkout; provenance cannot be recorded")
+        raise MeasuredInputRefused(f"plugin root {plugin_root} is not a git checkout; provenance cannot be recorded")
     dirty = _git_text(
         plugin_root,
         "status",

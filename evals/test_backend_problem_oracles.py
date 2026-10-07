@@ -4,12 +4,11 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
+import pytest
+import yaml
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 from httpx import Response
-import pytest
-import yaml
-
 
 ROOT = Path(__file__).resolve().parents[1]
 ORACLES = ("incidents-api", "incident-writes", "pager-webhook")

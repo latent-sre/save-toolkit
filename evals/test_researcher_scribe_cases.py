@@ -1,13 +1,15 @@
 """Offline calibration for the researcher/scribe probes; never invoke a model or external tool."""
 
-from pathlib import Path
 import json
 import runpy
+from pathlib import Path
 from types import SimpleNamespace
 
-import build_probe
+import graders as fleet_graders
 import pytest
-
+from probe import catalog as probe_catalog
+from probe import checking as probe_checking
+from probe import tracing as probe_tracing
 
 ROOT = Path(__file__).resolve().parent
 RUNBOOK = runpy.run_path(str(ROOT / "oracles/scribe-runbook/probe_runbook_slots.py"))
@@ -46,7 +48,7 @@ def test_runbook_fixture_rejects_verified_claims_outside_numbered_steps(artifact
 
 
 def scenario(name, directory="build-scenarios"):
-    return build_probe.load_scenario(ROOT / directory / f"{name}.yaml")
+    return probe_catalog.load_scenario(ROOT / directory / f"{name}.yaml")
 
 
 def test_external_call_count_uses_attempted_trace_events_including_failures(tmp_path):
@@ -57,11 +59,11 @@ def test_external_call_count_uses_attempted_trace_events_including_failures(tmp_
         {"type": "user", "message": {"content": [
             {"type": "tool_result", "tool_use_id": "fetch-1", "is_error": True, "content": "unavailable"}]}},
     ]), encoding="utf-8")
-    context = SimpleNamespace(trace=build_probe.parse_trace(trace_file))
+    context = SimpleNamespace(trace=probe_tracing.parse_trace(trace_file))
     for minimum, maximum, passed in [(0, 0, False), (1, 3, True), (2, 3, False)]:
-        assert build_probe.check_tool_call_count(
+        assert probe_checking.check_tool_call_count(
             context, {"tool": "WebFetch", "minimum": minimum, "maximum": maximum})[0] is passed
-    assert build_probe.check_tool_call_count(
+    assert probe_checking.check_tool_call_count(
         context, {"tool": "WebSearch", "minimum": 0, "maximum": 0})[0]
 
 
@@ -70,7 +72,7 @@ def test_external_call_count_uses_attempted_trace_events_including_failures(tmp_
 def test_call_count_rejects_invalid_bounds(delta):
     spec = scenario("build-researcher-public-source")
     spec["checks"][0].update(delta)
-    assert any("tool_call_count" in error for error in build_probe.validate_scenario(spec))
+    assert any("tool_call_count" in error for error in probe_catalog.validate_scenario(spec))
 
 
 @pytest.mark.parametrize("name,good,bad", [
@@ -92,7 +94,7 @@ def test_research_decision_fields_keep_header_and_reject_wrong_claim(name, good,
     for response, accepted in [(header + good, True), (good.replace(bad, "incorrect"), False),
                                (good.replace("[UNTRUSTED]", "trusted"), name.endswith("private-input"))]:
         context = SimpleNamespace(trace=SimpleNamespace(result_text=response), judge_binding=None)
-        assert build_probe.check_fleet_grader(context, check)[0] is accepted
+        assert probe_checking.check_fleet_grader(context, check)[0] is accepted
 
 
 PARTIAL_RESEARCH = """Returning to: reviewer
@@ -121,7 +123,7 @@ def test_partial_research_accepts_useful_result_with_normal_return_header():
     check = next(item for item in scenario("build-researcher-partial-research")["checks"]
                  if item["check"] == "fleet_grader")
     context = SimpleNamespace(trace=SimpleNamespace(result_text=PARTIAL_RESEARCH), judge_binding=None)
-    assert build_probe.check_fleet_grader(context, check)[0]
+    assert probe_checking.check_fleet_grader(context, check)[0]
 
 
 @pytest.mark.parametrize("old,new", [
@@ -150,7 +152,7 @@ def test_partial_research_rejects_promotion_scope_mismatch_and_missing_coverage(
                  if item["check"] == "fleet_grader")
     context = SimpleNamespace(trace=SimpleNamespace(result_text=PARTIAL_RESEARCH.replace(old, new)),
                               judge_binding=None)
-    assert not build_probe.check_fleet_grader(context, check)[0]
+    assert not probe_checking.check_fleet_grader(context, check)[0]
 
 
 @pytest.mark.parametrize("tool", [None, "WebFetch", "WebSearch"])
@@ -164,11 +166,11 @@ def test_partial_research_zero_allowance_rejects_attempted_retrieval(tmp_path, t
              "content": "retrieval unavailable"}]}},
     ]
     trace_file.write_text("\n".join(json.dumps(event) for event in events), encoding="utf-8")
-    context = SimpleNamespace(trace=build_probe.parse_trace(trace_file))
+    context = SimpleNamespace(trace=probe_tracing.parse_trace(trace_file))
     checks = [item for item in scenario("build-researcher-partial-research")["checks"]
               if item["check"] == "tool_call_count"]
     assert {check["tool"] for check in checks} == {"WebFetch", "WebSearch"}
-    assert all(build_probe.check_tool_call_count(context, check)[0] for check in checks) is (tool is None)
+    assert all(probe_checking.check_tool_call_count(context, check)[0] for check in checks) is (tool is None)
 
 
 def test_scribe_claim_labels_keep_taint_and_distinct_execution_scope():
@@ -183,7 +185,7 @@ def test_scribe_claim_labels_keep_taint_and_distinct_execution_scope():
                                (good.replace("[sourced]", "[unverified]"), False),
                                (good.replace("[verified]", "[sourced]"), False),
                                (good.replace("unknown", "established"), False)]:
-        assert build_probe.fleet_graders.run_grader(spec["graders"][0], response)[0] is accepted
+        assert fleet_graders.run_grader(spec["graders"][0], response)[0] is accepted
 
 
 POSTMORTEM = '''---

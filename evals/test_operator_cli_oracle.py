@@ -1,13 +1,12 @@
 """Calibrate the operator-cli requeue oracle against a correct CLI, the seed, and single-rule breaks."""
 
-from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 
 import yaml
-
 
 ROOT = Path(__file__).resolve().parent
 ORACLE = ROOT / "oracles/operator-cli/check_requeue.py"

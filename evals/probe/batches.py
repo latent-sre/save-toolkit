@@ -64,7 +64,7 @@ def effective_threshold(spec: Mapping[str, Any], requested: float | None) -> flo
     still report PASS. Any forbidding check is held to every trial the same way (threat-model ADR
     result rule 3), so a requested threshold lowers only scenarios whose checks all require.
     """
-    if catalog.is_negative_routing(spec) or catalog.has_forbidding_assertion(spec):
+    if catalog.has_forbidding_assertion(spec):  # a negative routing case forbids its target
         return 1.0
     declared = spec.get("threshold")
     if requested is not None:

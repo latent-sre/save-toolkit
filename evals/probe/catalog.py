@@ -17,7 +17,7 @@ import yaml
 
 from . import checking
 from .backing import TRUSTED_SERVICE_IMAGES
-from .checking import CHECKS, FORBIDDING_GRADERS
+from .checking import FORBIDDING_GRADERS
 from .constants import BUILD_TOOLS, CONTRACT_SCENARIO_DIR, ORACLE_DIR, ROOT, SCENARIO_DIR
 from .outcomes import Polarity
 
@@ -110,11 +110,11 @@ def load_all_scenarios(directory: Path | None = None) -> list[dict[str, Any]]:
     for source in directories:
         if source.is_dir():
             specs += [load_scenario(p) for p in sorted(source.glob("*.yaml"))]
-    seen: dict[str, str] = {}
+    seen: set[str] = set()
     for spec in specs:
         if spec["id"] in seen:
             raise ValueError(f"duplicate scenario id {spec['id']!r}")
-        seen[spec["id"]] = spec["id"]
+        seen.add(spec["id"])
     return specs
 
 
@@ -257,9 +257,23 @@ def _fixture_problems(spec: Spec, where: str) -> list[str]:
     for name, content in fake_bin.items():
         if not isinstance(content, str) or not content.startswith("#!"):
             problems.append(f"{where}: fake_bin {name!r} must be a script starting with a shebang")
+    if not _is_env(fixture.get("env") or {}):
+        problems.append(f"{where}: fixture.env must map variable names to strings")
     for service in fixture.get("services") or []:
         problems += _service_problems(service, where)
     return problems
+
+
+def _is_env(env: object) -> bool:
+    """An `env` block as the trial and the service container read it: names mapped to string values.
+
+    A name is non-empty without `=`, and neither holds NUL: the OS refuses those when the trial starts
+    its process, after the batch began, and `docker run -e` would split a name at its `=`.
+    """
+    return isinstance(env, dict) and all(
+        isinstance(k, str) and isinstance(v, str) and k != "" and "=" not in k and "\0" not in k + v
+        for k, v in env.items()
+    )
 
 
 def _service_problems(service: object, where: str) -> list[str]:
@@ -286,6 +300,8 @@ def _service_problems(service: object, where: str) -> list[str]:
     ):
         problems.append(f"{where}: service {name!r} files must be relative path -> text mappings")
         files = {}
+    if not _is_env(service.get("env") or {}):
+        problems.append(f"{where}: service {name!r} env must map variable names to strings")
     mounts = service.get("mounts") or []
     if not isinstance(mounts, list):
         problems.append(f"{where}: service {name!r} mounts must be a list")
@@ -294,7 +310,7 @@ def _service_problems(service: object, where: str) -> list[str]:
         if not isinstance(mount, dict) or set(mount) != {"source", "target", "read_only"}:
             problems.append(f"{where}: service {name!r} mount needs source, target, and read_only")
             continue
-        if mount["source"] not in files:
+        if not isinstance(mount["source"], str) or mount["source"] not in files:
             problems.append(f"{where}: service {name!r} mount source must name a declared service file")
         target = str(mount["target"])
         if not target.startswith("/") or ".." in target.split("/"):
@@ -331,11 +347,14 @@ def _check_problems(spec: Spec, where: str, kind: str) -> list[str]:
         return [f"{where}: checks must be a non-empty list"]
     problems = []
     for i, check in enumerate(checks):
-        if not isinstance(check, dict) or check.get("check") not in CHECKS:
+        if checking.registered(check) is None:  # also a name that is not a string, such as a list
             problems.append(f"{where}: checks[{i}] names an unknown check {check!r}"[:200])
             continue
-        if check["check"] == "fleet_grader" and check.get("name") not in fleet_graders.REGISTRY:
-            problems.append(f"{where}: checks[{i}] fleet_grader names an unknown grader {check.get('name')!r}")
+        grader_name = check.get("name")
+        if check["check"] == "fleet_grader" and (
+            not isinstance(grader_name, str) or grader_name not in fleet_graders.REGISTRY
+        ):
+            problems.append(f"{where}: checks[{i}] fleet_grader names an unknown grader {grader_name!r}")
         if "scope" in check and (
             check["check"] not in ("bash_ran", "bash_did_not_run", "ran_outside_checkout")
             or check["scope"] != "subagent"
@@ -508,7 +527,7 @@ def _target_problem(target: object) -> str | None:
     if target.get("kind") not in TARGET_KINDS:
         return "kind must be 'skill' or 'agent'"
     name = target.get("name")
-    if not isinstance(name, str) or re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", name) is None:
+    if not isinstance(name, str) or SLUG.fullmatch(name) is None:
         return "name must be a canonical lowercase slug"
     return None
 
@@ -570,7 +589,7 @@ def _grader_problems(spec: Spec, where: str) -> list[str]:
             problems.append(f"{where}: graders[{i}] must be a mapping")
             continue
         kind = grader.get("type")
-        if kind not in fleet_graders.REGISTRY:
+        if not isinstance(kind, str) or kind not in fleet_graders.REGISTRY:
             problems.append(f"{where}: graders[{i}] names an unknown grader type {kind!r}")
             continue
         try:

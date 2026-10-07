@@ -8,6 +8,24 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- Four eval runner defects the second review round of PR #328 left open:
+  - A command-line usage error exited 2, INCONCLUSIVE's code; it now exits 3, a refused job, in
+    both command forms, and `--help` still exits 0.
+  - `fixture.env` and a service's `env` were never validated, so a list loaded and then crashed the
+    trial; `validate` now reports either as an authoring error, including a name that is empty or
+    holds `=` and NUL anywhere, which the OS refuses at launch, and a mount `source` written as a
+    list is reported instead of crashing validation.
+  - A plugin root that is not a git checkout stopped the batch on a traceback with exit 1; it is
+    refused with exit 3 before any trial.
+  - The spend cap counted every model's kept attempts under a label toward each model's batch; it
+    now counts an attempt only toward the model it ran for, and one whose model is unreadable or
+    malformed toward every model.
+
+  [verified] Each has a test that fails on the previous commit and passes after it; rescoring all
+  1,317 saved runs differs in no verdict.
+- `build_probe.py validate` crashed with TypeError when a scenario named a check, a `fleet_grader` or a
+  grader `type` with a YAML list instead of a string; it now reports that as an unknown name, the
+  authoring error it is. [verified] One validator case per site fails before the fix and passes after.
 - The second round of Copilot and Codex review comments on PR #328:
   - `--run-offset` accepted a negative number and published trials as `run-0` or `run--1`. The v1
     record refuses a slot below 1, so such a run had no `record.json` while the batch summary still
@@ -186,6 +204,38 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   backing services. [verified] Rescores of five saved campaigns show no verdict change.
 
 ### Changed
+
+- The eval runner is simpler to read and patch, with every saved verdict unchanged:
+  - `evals/build_probe.py` is only the command line (333 lines to 62). Tests and tools import the
+    `probe` module that defines each name, which is also where they patch it; the promise from
+    the `EVAL-011` split that the entry point keeps every exported name is retired.
+  - `check_grafana_query_succeeded` keeps its helpers at module level and collects the p95 panel's
+    queries once (McCabe complexity 66 to 19).
+  - `start_services` runs its steps as named functions and both of its `docker run` commands take
+    their hardening flags from one place (complexity 34 to 16, 31 lines shorter); a failed
+    container command's stderr is quoted the same way everywhere.
+  - The checks walk response JSON only through `json_pointer`.
+  - Three functions only the tests called (`scenario_expectations`, `trial_status`, `bounded`) are
+    gone, their tests driving `plan`, `roll_up` and `_bound` as grading does; unused parameters,
+    impossible guards and hand-rolled helpers the review listed are removed; and the regrade's two
+    evidence flags are keyword-only.
+  - The pager-webhook mutants have their own test file, and 22 tests filed under the review that
+    asked for them sit with the behavior they check.
+
+  [verified] After each runner commit, rescoring the 1,317 saved runs differs from the base in no
+  verdict; the old and new `start_services` send the same docker commands to a recording fake.
+
+- The runner's Ruff lint rules now hold for `evals/graders.py`, `evals/inspect_pilot.py` and every
+  `evals/test_*.py`, its formatter for the two modules, and strict mypy for the two modules, in CI.
+  The tests keep their hand layout. Imports were sorted and hoisted, nested `with` statements
+  merged, the two modules typed, and `EndToEndStubTests` starts each trial through one helper that
+  takes only what a test varies. The one behavior change is that `run_grader` given a non-string
+  grader `type` raises `ValueError` instead of `TypeError`. `evals/judge.py`,
+  `evals/clean_room.py` and `evals/oracles/` stay outside the checks and unchanged, because the
+  judge calibration receipt and each case's identity bind their bytes.
+
+  [verified] The suite collects the same 916 evals tests as main and passes; the formatted
+  modules' syntax trees are unchanged.
 
 - The eval runner is a package (`EVAL-011` split), `evals/probe/`, behind `evals/build_probe.py`,
   which keeps every name it exported. Checks return typed outcomes instead of encoding "could not

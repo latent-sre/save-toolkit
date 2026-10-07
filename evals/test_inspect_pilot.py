@@ -6,6 +6,7 @@ import os
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
+import inspect_pilot as pilot
 import pytest
 import yaml
 from inspect_ai import eval as inspect_eval
@@ -13,8 +14,6 @@ from inspect_ai.model import ChatCompletionChoice, ChatMessageAssistant, ModelOu
 from inspect_ai.solver import solver
 from inspect_ai.tool import ToolCall
 from inspect_ai.util import sandbox
-
-import inspect_pilot as pilot
 
 
 @pytest.fixture

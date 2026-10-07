@@ -194,21 +194,47 @@ def attempts_dir(label_dir: Path) -> Path:
     return label_dir / "attempts"
 
 
-def kept_attempt_costs(out_dir: Path, label: str, scenario_ids: Iterable[str]) -> list[dict[str, Any]]:
-    """The `timing.json` of each attempt a label keeps, superseded or incomplete: no batch summary lists
-    them, though each was paid for (result rule 7). One without a readable `timing.json` reads as an
-    unknown cost, never as zero."""
+def kept_attempt_costs(
+    out_dir: Path, label: str, scenario_ids: Iterable[str], model: str | None
+) -> list[dict[str, Any]]:
+    """The `timing.json` of each attempt a label keeps for `model`, superseded or incomplete: no batch
+    summary lists them, though each was paid for (result rule 7). The summary is per label and model,
+    while a label's attempts are shared, so another model's attempt does not count; one whose model
+    cannot be read does, and one without a readable `timing.json` reads as an unknown cost, never zero."""
     costs: list[dict[str, Any]] = []
     for scenario_id in sorted(scenario_ids):
         for attempt in sorted(attempts_dir(out_dir / f"eval-{scenario_id}" / label).glob("run-*/*")):
             if not attempt.name.isdigit():
                 continue
-            try:
-                timing = json.loads((attempt / "timing.json").read_text(encoding="utf-8"))
-            except (OSError, ValueError):
-                timing = None
+            timing = _read_json(attempt / "timing.json")
+            requested = _requested_model(timing, _read_json(attempt / "record.json"))
+            if requested is not _UNKNOWN and requested != model:
+                continue
             costs.append(timing if isinstance(timing, dict) else {"cost_complete": False})
     return costs
+
+
+_UNKNOWN = object()
+
+
+def _read_json(path: Path) -> object:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+def _requested_model(timing: object, record: object) -> object:
+    """The model an attempt was run for: a graded attempt's timing names it, a raised one's record does.
+
+    Only a string or null names a model; anything else is malformed and falls through, so a paid
+    attempt is never attributed to a model no batch runs.
+    """
+    conditions = record.get("conditions") if isinstance(record, dict) else None
+    for source in (timing, conditions):
+        if isinstance(source, dict) and isinstance(source.get("requested_model", _UNKNOWN), str | None):
+            return source["requested_model"]
+    return _UNKNOWN
 
 
 def _record_raised_cost(attempt: Path) -> None:
@@ -401,9 +427,7 @@ def _run_trial(
                                     "resume": resume,
                                     "inconclusive": inconclusive,
                                     "cut_short": isinstance(inconclusive, CutShort),
-                                    "run_stop": getattr(inconclusive, "kind", None)
-                                    if isinstance(inconclusive, CutShort)
-                                    else None,
+                                    "run_stop": inconclusive.kind if isinstance(inconclusive, CutShort) else None,
                                 },
                                 indent=2,
                             ),

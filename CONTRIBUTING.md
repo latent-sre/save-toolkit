@@ -56,7 +56,7 @@ Gate A rejects uncited review packets; citation alone does not establish that a 
 | Code, validator, or exit code | The affected tests |
 | Agent, skill, command, or bundled reference | The matching asset or contract test |
 | Routing description | The overlapping clean-room scenarios; pure wording changes need no live eval |
-| Eval harness or scenario | The affected `evals/test_*.py`; `python evals/build_probe.py validate` for parsing or targeting changes; `python -m ruff check`, `python -m ruff format --check` and `python -m mypy` for a change to the runner (`evals/build_probe.py`, `evals/probe/`); `python evals/judge.py --calibrate` after a rubric edit |
+| Eval harness or scenario | The affected `evals/test_*.py`; `python evals/build_probe.py validate` for parsing or targeting changes; `python -m ruff check`, `python -m ruff format --check` and `python -m mypy` for a change to the runner (`evals/build_probe.py`, `evals/probe/`), `evals/graders.py`, `evals/inspect_pilot.py` or an `evals/test_*.py`; `python evals/judge.py --calibrate` after a rubric edit |
 | Read-only guard or hook wiring | `python -m pytest scripts/test_readonly_guard.py scripts/test_hook_wiring.py`; exit codes stay 42 allow, 43 deny, 44 indeterminate |
 | Large agent, skill, or reference growth | State the byte delta and why the task needs it in the PR; no mechanical ceiling remains, so reviewers own the context-cost judgment |
 

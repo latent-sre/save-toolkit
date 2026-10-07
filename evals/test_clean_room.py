@@ -12,12 +12,13 @@ from __future__ import annotations
 
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import clean_room  # noqa: E402
+import clean_room
 
 _results: list[tuple[bool, str]] = []
 
@@ -143,7 +144,6 @@ def test_neutral_workspace_is_empty_outside_the_repository_and_removed() -> None
         check(sorted(path.name for path in workspace.iterdir()) == [".git"],
               "neutral workspace contains only its git-root boundary")
         check(not workspace.is_relative_to(Path.cwd()), "neutral workspace is outside the plugin repository")
-        import subprocess
         top = subprocess.run(
             ["git", "-C", str(workspace), "rev-parse", "--show-toplevel"],
             capture_output=True, text=True, check=True, encoding="utf-8",

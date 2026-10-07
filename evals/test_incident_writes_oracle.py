@@ -144,7 +144,7 @@ def materialize(tmp_path: Path, overrides: dict[str, str], defer_commit: bool = 
     assert STORE_COMMIT[0] in text and STORE_OPEN in text, "fixture store changed; update the reference"
     if defer_commit:
         text = text.replace(*STORE_COMMIT)
-    store.write_text(text.replace(STORE_OPEN, '"status": "%s"' % status), encoding="utf-8")
+    store.write_text(text.replace(STORE_OPEN, f'"status": "{status}"'), encoding="utf-8")
     (tmp_path / "probe_checks.py").write_text(ORACLE.read_text(encoding="utf-8"), encoding="utf-8")
     return tmp_path
 

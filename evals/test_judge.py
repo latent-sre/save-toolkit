@@ -17,7 +17,8 @@ from pathlib import Path
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import judge  # noqa: E402
+import graders
+import judge
 
 
 def _proc(*, returncode: int = 0, stdout: str = "", stderr: str = "") -> subprocess.CompletedProcess:
@@ -96,33 +97,41 @@ class RunGraderEmptyResponseTests(unittest.TestCase):
         self.assertEqual(detail, "empty response")
 
     def test_nonempty_normal_gateway_requires_runner_binding_before_spawn(self) -> None:
-        with mock.patch.object(judge, "_run_judge_process", side_effect=AssertionError("must not spawn")):
-            with self.assertRaisesRegex(judge.JudgeUnavailable, "calibration"):
-                self.graders.run_grader({"type": "rubric", "name": "no_production_action_claim"}, "some response")
+        with (
+            mock.patch.object(judge, "_run_judge_process", side_effect=AssertionError("must not spawn")),
+            self.assertRaisesRegex(judge.JudgeUnavailable, "calibration"),
+        ):
+            self.graders.run_grader({"type": "rubric", "name": "no_production_action_claim"}, "some response")
 
     def test_missing_params_raises_before_any_spawn(self) -> None:
-        with mock.patch.object(judge, "_run_judge_process", side_effect=AssertionError("must not spawn")):
-            with self.assertRaises(ValueError):
-                self.graders.run_grader(
-                    {
-                        "type": "rubric",
-                        "name": "unknown_outcome_reconcile_first",
-                        "params": {"owner": "Riley Chen"},
-                    },
-                    "",
-                )
+        with (
+            mock.patch.object(judge, "_run_judge_process", side_effect=AssertionError("must not spawn")),
+            self.assertRaises(ValueError),
+        ):
+            self.graders.run_grader(
+                {
+                    "type": "rubric",
+                    "name": "unknown_outcome_reconcile_first",
+                    "params": {"owner": "Riley Chen"},
+                },
+                "",
+            )
 
     def test_extra_params_raises_before_any_spawn(self) -> None:
-        with mock.patch.object(judge, "_run_judge_process", side_effect=AssertionError("must not spawn")):
-            with self.assertRaises(ValueError):
-                self.graders.run_grader(
-                    {"type": "rubric", "name": "no_production_action_claim", "params": {"bogus": 1}}, ""
-                )
+        with (
+            mock.patch.object(judge, "_run_judge_process", side_effect=AssertionError("must not spawn")),
+            self.assertRaises(ValueError),
+        ):
+            self.graders.run_grader(
+                {"type": "rubric", "name": "no_production_action_claim", "params": {"bogus": 1}}, ""
+            )
 
     def test_unknown_rubric_raises_before_any_spawn(self) -> None:
-        with mock.patch.object(judge, "_run_judge_process", side_effect=AssertionError("must not spawn")):
-            with self.assertRaises(ValueError):
-                self.graders.run_grader({"type": "rubric", "name": "not-a-real-rubric", "params": {}}, "")
+        with (
+            mock.patch.object(judge, "_run_judge_process", side_effect=AssertionError("must not spawn")),
+            self.assertRaises(ValueError),
+        ):
+            self.graders.run_grader({"type": "rubric", "name": "not-a-real-rubric", "params": {}}, "")
 
 
 def calibration_receipt(root: Path) -> Path:
@@ -146,7 +155,6 @@ class CalibrationBindingTests(unittest.TestCase):
         self.addCleanup(judge.drain_spend)
 
     def test_binding_pins_normal_gateway_and_retains_wrong_model_spend(self):
-        import graders
         binding = judge.load_binding(self.receipt, {"no_production_action_claim"})
         with mock.patch.dict(judge.os.environ, {"EVAL_JUDGE_MODEL": "other", "CLAUDE_BIN": "other-cli", "EVAL_JUDGE_CACHE": "wrong-cache"}), \
                 mock.patch.object(judge, "_run_judge_process", return_value=_proc(stdout=_envelope(_verdict("PASS"), model="wrong-model"))) as spawn:
@@ -165,9 +173,11 @@ class CalibrationBindingTests(unittest.TestCase):
         binding = judge.load_binding(self.receipt, {"no_production_action_claim"})
         rubrics = json.loads(json.dumps(judge.load_rubrics()))
         rubrics["no_production_action_claim"]["pass_if"] = "test-only rubric override"
-        with mock.patch.object(judge, "_run_judge_process", side_effect=AssertionError("must not spawn")):
-            with self.assertRaisesRegex(judge.JudgeUnavailable, "rubric"):
-                judge.judge("some response", "no_production_action_claim", {}, binding=binding, rubrics=rubrics)
+        with (
+            mock.patch.object(judge, "_run_judge_process", side_effect=AssertionError("must not spawn")),
+            self.assertRaisesRegex(judge.JudgeUnavailable, "rubric"),
+        ):
+            judge.judge("some response", "no_production_action_claim", {}, binding=binding, rubrics=rubrics)
 
     def test_unbound_bootstrap_keeps_explicit_rubric_overrides(self):
         rubrics = json.loads(json.dumps(judge.load_rubrics()))
@@ -183,9 +193,11 @@ class CalibrationBindingTests(unittest.TestCase):
                 receipt = json.loads(pristine)
                 receipt[damage] = False if damage == "accepted" else "changed"
                 self.receipt.write_text(json.dumps(receipt), encoding="utf-8")
-                with mock.patch.object(judge, "_run_judge_process", side_effect=AssertionError("must not spawn")):
-                    with self.assertRaises(judge.JudgeUnavailable):
-                        judge.load_binding(self.receipt, {"no_production_action_claim"})
+                with (
+                    mock.patch.object(judge, "_run_judge_process", side_effect=AssertionError("must not spawn")),
+                    self.assertRaises(judge.JudgeUnavailable),
+                ):
+                    judge.load_binding(self.receipt, {"no_production_action_claim"})
 
     def test_cache_identity_changes_with_execution_configuration(self):
         rubric = judge.load_rubrics()
@@ -196,7 +208,6 @@ class CalibrationBindingTests(unittest.TestCase):
         self.assertNotEqual(first, second)
 
     def test_bound_gateway_refuses_source_corpus_or_loaded_rubric_drift(self):
-        import graders
         binding = judge.load_binding(self.receipt, {"no_production_action_claim"})
         cases = judge._load_calibration(judge.DEFAULT_CALIBRATION_PATH)
         cases[0]["expect"] = "fail" if cases[0]["expect"] == "pass" else "pass"
@@ -207,17 +218,18 @@ class CalibrationBindingTests(unittest.TestCase):
         for patch in (mock.patch.object(judge, "_source_digest", return_value="changed"),
                       mock.patch.object(judge, "_load_calibration", return_value=cases),
                       mock.patch.object(judge, "RUBRICS_PATH", source)):
-            with patch, mock.patch.object(judge, "_run_judge_process", side_effect=AssertionError("must not spawn")):
-                with self.assertRaises(judge.JudgeUnavailable):
-                    graders.run_grader({"type": "rubric", "name": "no_production_action_claim"}, "some response", judge_binding=binding)
+            with (
+                patch,
+                mock.patch.object(judge, "_run_judge_process", side_effect=AssertionError("must not spawn")),
+                self.assertRaises(judge.JudgeUnavailable),
+            ):
+                graders.run_grader({"type": "rubric", "name": "no_production_action_claim"}, "some response", judge_binding=binding)
 
     def test_scenario_cannot_supply_its_own_judge_binding(self):
-        import graders
         with self.assertRaisesRegex(ValueError, "runner"):
             graders.run_grader({"type": "rubric", "name": "no_production_action_claim", "judge_binding": {}}, "response")
 
     def test_normal_gateway_rejudges_wrong_model_cache_and_retains_free_hits(self):
-        import graders
         cache = Path(self.tmp.name) / "cache"
         with mock.patch.dict(judge.os.environ, {"EVAL_JUDGE_CACHE": str(cache)}):
             binding = judge.load_binding(self.receipt, {"no_production_action_claim"})
@@ -288,7 +300,7 @@ class ParseVerdictTests(unittest.TestCase):
             return judge.judge("some response", "no_production_action_claim", {}, model="sonnet")
 
     def test_bare_json_object(self) -> None:
-        passed, detail = self._judge(_verdict("PASS"))
+        passed, _detail = self._judge(_verdict("PASS"))
         self.assertTrue(passed)
 
     def test_fenced_json_object(self) -> None:
@@ -410,7 +422,7 @@ class EvidenceGroundingTests(unittest.TestCase):
         self.assertIn("not verbatim", detail)
 
     def test_non_list_evidence_is_inconclusive(self) -> None:
-        passed, detail = self._judge("some response")
+        _passed, detail = self._judge("some response")
         self.assertTrue(judge.is_inconclusive(detail))
         self.assertIn("not a list", detail)
 
@@ -452,7 +464,7 @@ class EvidenceGroundingTests(unittest.TestCase):
         self.assertTrue(judge.is_inconclusive(detail))
 
     def test_elided_fragments_out_of_order_are_inconclusive(self) -> None:
-        passed, detail = self._judge(["with no Bash ... credential-free"], response="credential-free agent with no Bash")
+        _passed, detail = self._judge(["with no Bash ... credential-free"], response="credential-free agent with no Bash")
         self.assertTrue(judge.is_inconclusive(detail))
 
     def test_quote_mark_drift_is_still_grounded(self) -> None:
@@ -474,7 +486,7 @@ class EvidenceGroundingTests(unittest.TestCase):
         self.assertFalse(judge.is_inconclusive(detail))
 
     def test_paraphrase_is_still_inconclusive(self) -> None:
-        passed, detail = self._judge(["the checkout service has gone down"], response="the checkout service is down")
+        _passed, detail = self._judge(["the checkout service has gone down"], response="the checkout service is down")
         self.assertTrue(judge.is_inconclusive(detail))
 
     def test_empty_evidence_list_is_accepted(self) -> None:
@@ -630,7 +642,7 @@ class ModelIdentityTests(unittest.TestCase):
         self.assertIn('"cached": true', detail)
 
     def test_cached_verdict_with_ungrounded_evidence_is_re_judged(self) -> None:
-        key = judge._cache_key(  # noqa: SLF001 -- the cache layout is this module's own contract
+        key = judge._cache_key(  # the cache layout is this module's own contract
             "sonnet", "no_production_action_claim", "irrelevant", "some response"
         )
         (self.cache_dir / f"{key}.json").write_text(
@@ -662,16 +674,19 @@ class ModelIdentityTests(unittest.TestCase):
             "timeout": {"side_effect": subprocess.TimeoutExpired(cmd="claude", timeout=120)},
         }
         for label, kwargs in cases.items():
-            with self.subTest(case=label), mock.patch.object(judge, "_run_judge_process", **kwargs):
-                with self.assertRaises(judge.JudgeUnavailable):
-                    judge.resolve_model_identity("sonnet")
+            with (
+                self.subTest(case=label),
+                mock.patch.object(judge, "_run_judge_process", **kwargs),
+                self.assertRaises(judge.JudgeUnavailable),
+            ):
+                judge.resolve_model_identity("sonnet")
 
 
 class TransportTests(unittest.TestCase):
     """The untrusted response travels on stdin, under the configured CLI."""
 
     def test_prompt_is_not_an_argument(self) -> None:
-        argv = judge._judge_argv("sonnet")  # noqa: SLF001 -- this module owns the command shape
+        argv = judge._judge_argv("sonnet")  # this module owns the command shape
         self.assertNotIn("-p", argv[2:])
         self.assertEqual(argv[1], "-p")
         self.assertIn("--input-format", argv)
@@ -679,9 +694,9 @@ class TransportTests(unittest.TestCase):
 
     def test_configured_claude_bin_is_used(self) -> None:
         with mock.patch.dict(judge.os.environ, {"CLAUDE_BIN": "/opt/custom/claude"}):
-            self.assertEqual(judge._judge_argv("sonnet")[0], "/opt/custom/claude")  # noqa: SLF001
+            self.assertEqual(judge._judge_argv("sonnet")[0], "/opt/custom/claude")
         with mock.patch.dict(judge.os.environ, {}, clear=True):
-            self.assertEqual(judge._judge_argv("sonnet")[0], "claude")  # noqa: SLF001
+            self.assertEqual(judge._judge_argv("sonnet")[0], "claude")
 
     def test_prompt_is_written_to_stdin(self) -> None:
         import contextlib  # noqa: PLC0415
@@ -697,7 +712,7 @@ class TransportTests(unittest.TestCase):
         with mock.patch.object(judge.clean_room, "clean_env", _fake_env), \
              mock.patch.object(judge.clean_room, "neutral_workspace", _fake_cwd), \
              mock.patch.object(judge.subprocess, "run", return_value=_proc()) as run:
-            judge._run_judge_process("PROMPT WITH THE RESPONSE", "sonnet")  # noqa: SLF001
+            judge._run_judge_process("PROMPT WITH THE RESPONSE", "sonnet")
         self.assertEqual(run.call_args.kwargs["input"], "PROMPT WITH THE RESPONSE")
         self.assertNotIn("PROMPT WITH THE RESPONSE", run.call_args.args[0])
 
@@ -741,7 +756,7 @@ class CalibrateTests(unittest.TestCase):
         def _fake_judge(response, name, params, **call_kwargs):
             index = len(seen)
             seen.append(call_kwargs)
-            judge._SPEND.extend(spends[index])  # noqa: SLF001 -- standing in for a real judge call
+            judge._SPEND.extend(spends[index])  # standing in for a real judge call
             return verdicts[index]
 
         judge.drain_spend()
@@ -804,7 +819,7 @@ class CalibrateTests(unittest.TestCase):
         cache_dir.mkdir(parents=True)
         rubrics = judge.load_rubrics()
         for index in range(2):
-            key, _, _ = judge.prepare(  # noqa: SLF001 -- the cache layout is this module's contract
+            key, _, _ = judge.prepare(  # the cache layout is this module's contract
                 "no_production_action_claim", {}, f"response {index}", "sonnet", rubrics
             )
             (cache_dir / f"{key}.json").write_text(json.dumps({

@@ -6,16 +6,15 @@ substitutes MSW transport and the unused axe import; full mode uses the scenario
 MSW setup. Neither mode installs anything or establishes native browser behavior.
 INCIDENTS_PAGE_ORACLE may select an older oracle for red-before-green evidence.
 """
-from pathlib import Path
 import json
 import os
 import shutil
 import subprocess
 import tempfile
+from pathlib import Path
 
 import pytest
 import yaml
-
 
 ROOT = Path(__file__).resolve().parent
 SCENARIO = ROOT / "build-scenarios/build-software-engineer-incidents-page.yaml"
