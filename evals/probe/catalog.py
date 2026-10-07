@@ -257,9 +257,16 @@ def _fixture_problems(spec: Spec, where: str) -> list[str]:
     for name, content in fake_bin.items():
         if not isinstance(content, str) or not content.startswith("#!"):
             problems.append(f"{where}: fake_bin {name!r} must be a script starting with a shebang")
+    if not _is_env(fixture.get("env") or {}):
+        problems.append(f"{where}: fixture.env must map variable names to strings")
     for service in fixture.get("services") or []:
         problems += _service_problems(service, where)
     return problems
+
+
+def _is_env(env: object) -> bool:
+    """An `env` block as the trial and the service container read it: names mapped to string values."""
+    return isinstance(env, dict) and all(isinstance(k, str) and isinstance(v, str) for k, v in env.items())
 
 
 def _service_problems(service: object, where: str) -> list[str]:
@@ -286,6 +293,8 @@ def _service_problems(service: object, where: str) -> list[str]:
     ):
         problems.append(f"{where}: service {name!r} files must be relative path -> text mappings")
         files = {}
+    if not _is_env(service.get("env") or {}):
+        problems.append(f"{where}: service {name!r} env must map variable names to strings")
     mounts = service.get("mounts") or []
     if not isinstance(mounts, list):
         problems.append(f"{where}: service {name!r} mounts must be a list")
@@ -294,7 +303,7 @@ def _service_problems(service: object, where: str) -> list[str]:
         if not isinstance(mount, dict) or set(mount) != {"source", "target", "read_only"}:
             problems.append(f"{where}: service {name!r} mount needs source, target, and read_only")
             continue
-        if mount["source"] not in files:
+        if not isinstance(mount["source"], str) or mount["source"] not in files:
             problems.append(f"{where}: service {name!r} mount source must name a declared service file")
         target = str(mount["target"])
         if not target.startswith("/") or ".." in target.split("/"):

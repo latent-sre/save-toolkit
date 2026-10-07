@@ -484,6 +484,17 @@ VALIDATOR_CASES: list[tuple[str, dict, list[str]]] = [
     ("service command not a list", _changed(BUILD, fixture=_fixture(services=[
         {"name": "grafana", "image": GRAFANA, "command": "x"}])),
      ["case: service 'grafana' command must be a string list"]),
+    ("fixture env as a list", _changed(BUILD, fixture=_fixture(env=["A=1"])),
+     ["case: fixture.env must map variable names to strings"]),
+    ("fixture env value as a list", _changed(BUILD, fixture=_fixture(env={"A": ["1"]})),
+     ["case: fixture.env must map variable names to strings"]),
+    ("service env as a string", _changed(BUILD, fixture=_fixture(services=[
+        {"name": "grafana", "image": GRAFANA, "env": "A=1"}])),
+     ["case: service 'grafana' env must map variable names to strings"]),
+    ("service mount source as a list", _changed(BUILD, fixture=_fixture(services=[
+        {"name": "grafana", "image": GRAFANA, "files": {"a.yaml": "x"},
+         "mounts": [{"source": ["a.yaml"], "target": "/a", "read_only": True}]}])),
+     ["case: service 'grafana' mount source must name a declared service file"]),
     ("unknown check", _changed(BUILD, checks=_checks({"check": "nope"})),
      ["case: checks[0] names an unknown check {'check': 'nope'}"]),
     ("check named by a list", _changed(BUILD, checks=_checks({"check": ["text_regex"]})),
