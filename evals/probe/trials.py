@@ -283,6 +283,9 @@ def _run_trial(
     # home, where every trial would inherit their personal rules.
     root = clean_room.make_workspace("ws-")
     inconclusive: str | None = None
+    # A wrong candidate identity stops the batch; a backing service that never started, its scenario.
+    identity_failure: str | None = None
+    service_error: str | None = None
     trace = TraceSummary()
     services: list[Service] = []
     try:
@@ -292,7 +295,7 @@ def _run_trial(
         binding = judge_binding.metadata if judge_binding and fingerprints.required_rubrics(spec) else None
         scenario_identity = fingerprints.scenario_digest(spec, binding)
         if expected_plugin_digest and provenance["plugin_source_sha256"] != expected_plugin_digest:
-            inconclusive = "plugin inputs changed before the trial; re-run with one candidate"
+            inconclusive = identity_failure = "plugin inputs changed before the trial; re-run with one candidate"
         (run_out / "provenance.json").write_text(
             json.dumps(
                 {
@@ -316,7 +319,7 @@ def _run_trial(
                 services = backing.start_services(spec, docker)
             except ServiceUnavailable as exc:
                 services = []
-                inconclusive = f"backing service unavailable: {exc}"
+                inconclusive = service_error = f"backing service unavailable: {exc}"
         trace_path = run_out / "stdout.jsonl"
         started = time.monotonic()
         if inconclusive is None:
@@ -329,6 +332,7 @@ def _run_trial(
                     if fingerprints.scenario_digest(spec, binding) != scenario_identity:
                         inconclusive = "scenario inputs changed before invocation; re-run the trial"
                     if inconclusive:
+                        identity_failure = identity_failure or inconclusive
                         break
                     turn_out = run_out if turn == 0 else run_out / "followup"
                     turn_out.mkdir(exist_ok=True)
@@ -356,9 +360,14 @@ def _run_trial(
                         except subprocess.TimeoutExpired:
                             timed_out = CutShort(f"timed out after {timeout}s", Stop.WALL_CLOCK)
                     current = tracing.parse_trace(turn_out / "stdout.jsonl")
-                    inconclusive = inconclusive or fingerprints.plugin_drift_problem(
-                        plugin_root, provenance["plugin_source_sha256"]
+                    drift = fingerprints.plugin_drift_problem(plugin_root, provenance["plugin_source_sha256"])
+                    identity_failure = (
+                        identity_failure
+                        or drift
+                        or invocation.identity_problem(current, spec, plugin_root)
+                        or (invocation.native_model_problem(current, spec) if spec.get("followups") else None)
                     )
+                    inconclusive = inconclusive or drift
                     if spec.get("followups") and invocation.credential_markers(
                         current.result_text, turn_out / "stdout.jsonl"
                     ):
@@ -412,9 +421,9 @@ def _run_trial(
             (run_out / "stderr.txt").write_text("", encoding="utf-8")
         elapsed = time.monotonic() - started
         if not inconclusive or isinstance(inconclusive, CutShort):  # drift voids even a cut-short run
-            inconclusive = invocation.void_over_cut(
-                inconclusive, fingerprints.plugin_drift_problem(plugin_root, provenance["plugin_source_sha256"])
-            )
+            drift = fingerprints.plugin_drift_problem(plugin_root, provenance["plugin_source_sha256"])
+            identity_failure = identity_failure or drift
+            inconclusive = invocation.void_over_cut(inconclusive, drift)
         trace = tracing.parse_trial_trace(run_out) if trace_path.exists() else TraceSummary()
         git = workspaces.collect_git_facts(ws)
         ctx = Context(spec, ws, trace, git, services=services, plugin_root=plugin_root, judge_binding=judge_binding)
@@ -430,6 +439,7 @@ def _run_trial(
                 services = []
         drift = fingerprints.plugin_drift_problem(plugin_root, provenance["plugin_source_sha256"])
         if drift:
+            identity_failure = identity_failure or drift
             grading = assessment.grade(ctx, inconclusive=drift, expected_scenario_digest=scenario_identity)
         if after_assessment:
             grading["after_assessment"] = after_assessment
@@ -545,6 +555,8 @@ def _run_trial(
             **cost,
             **({"after_assessment": after_assessment} if after_assessment else {}),
             **({"grader_error": grading["grader_error"]} if grading.get("grader_error") else {}),
+            **({"identity_failure": identity_failure} if identity_failure else {}),
+            **({"service_error": service_error} if service_error else {}),
         }
         return summary
     finally:

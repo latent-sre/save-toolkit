@@ -379,10 +379,17 @@ def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
     if args.max_batch_usd is not None and any(e.get("cost_complete") is not True for e in paid):
         # An earlier attempt without a known cost leaves the batch's spend unknown; the cap cannot hold.
         blocked = f"an earlier attempt's cost is unknown; the USD {args.max_batch_usd:g} cap cannot be enforced"
+    # WP-02 stops a batch on an identity failure; an append to the label must not run past one.
+    failed = next(
+        (e["identity_failure"] for e in retained if e.get("scenario") in selected_ids and e.get("identity_failure")),
+        None,
+    )
+    if failed and not blocked:
+        blocked = f"an earlier trial failed its identity check: {failed}; --overwrite that run or use a new label"
     machinery_stopped: dict[str, str] = {}
     try:
         for spec, i in planned:
-            if blocked:  # stopped before scheduling: an earlier attempt already broke the cap's accounting
+            if blocked:  # stopped before scheduling, by the cap's accounting or an identity failure
                 break
             if spec["id"] in machinery_stopped:
                 continue  # its grader cannot measure; more trials would spend for nothing
@@ -412,14 +419,17 @@ def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
                 # Every later trial would fail the same way; the attempt is kept, the batch stops.
                 blocked, auth_failed = f"authentication unavailable: {exc}", True
                 break
-            if results[-1].get("grader_error"):
-                machinery_stopped[spec["id"]] = results[-1]["grader_error"]
+            machinery = results[-1].get("grader_error") or results[-1].get("service_error")
+            if machinery:
+                machinery_stopped[spec["id"]] = machinery
                 print(
-                    json.dumps(
-                        {"scenario": spec["id"], "stopped": f"grading machinery failed: {results[-1]['grader_error']}"}
-                    ),
+                    json.dumps({"scenario": spec["id"], "stopped": f"grading machinery failed: {machinery}"}),
                     flush=True,
                 )
+            if results[-1].get("identity_failure"):
+                # Every later trial would run as the same wrong candidate, plugin or model.
+                blocked = f"a trial failed its identity check: {results[-1]['identity_failure']}"
+                break
             if results[-1].get("after_assessment"):
                 # The finished trial keeps its verdict; nothing else may reuse the uncleaned environment.
                 blocked = results[-1]["after_assessment"]

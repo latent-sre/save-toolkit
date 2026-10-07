@@ -1722,6 +1722,58 @@ class EndToEndStubTests(unittest.TestCase):
 
         return plain
 
+    def _batch(self, out: Path, stub: str, specs: list[dict], *extra: str) -> tuple[int, list[tuple[str, int]], str]:
+        """Run main with the real run_trial and the stub CLI: the exit, each trial started, stdout."""
+        runtime = {"cli_version": "x", "host_platform": {"system": "Windows", "release": "11", "machine": "AMD64"}}
+        run_trial = probe_trials.run_trial
+        calls: list[tuple[str, int]] = []
+
+        def counted(spec_arg, **kwargs):
+            calls.append((spec_arg["id"], kwargs["run_number"]))
+            return run_trial(spec_arg, **kwargs, env_factory=self._env_factory())
+
+        with mock.patch.object(probe_catalog, "load_all_scenarios", return_value=specs), \
+                mock.patch.object(probe_fingerprints, "runtime_identity", return_value=runtime), \
+                mock.patch.object(probe_trials, "run_trial", side_effect=counted), \
+                contextlib.redirect_stdout(io.StringIO()) as printed:
+            code = build_probe.main(["run", "--label", "l", "--out", str(out), "--executable", stub, *extra])
+        return code, calls, printed.getvalue()
+
+    def test_a_trial_that_fails_its_identity_check_stops_the_batch(self) -> None:
+        """Codex on PR #328 and WP-02's stop rule: a wrong tool inventory, plugin or model stops the batch,
+        since every later trial would run as the same wrong candidate, in this invocation or the next."""
+        for failure, stub in (("inventory mismatch", {"tools": [*build_probe.BUILD_TOOLS, "WebFetch"]}),
+                              ("runtime plugin", {"plugins": []}),
+                              ("resolved model identity missing", {"resolved_model": ""})):
+            with self.subTest(failure=failure):
+                out = self.root / failure.replace(" ", "-")
+                code, calls, printed = self._batch(out, self._stub(**stub), [self._spec()],
+                                                   "--scenario", "tiny", "--trials", "3")
+                row = json.loads((out / "summary-l-default.json").read_text(encoding="utf-8"))[0]
+                stop = json.loads(next(line for line in printed.splitlines() if "stopped after" in line))
+                self.assertEqual((2, [("tiny", 1)]), (code, calls))
+                self.assertIn(failure, row.get("identity_failure", ""))
+                self.assertEqual(2, stop["trials_not_run"])
+                code, calls, printed = self._batch(out, self._stub(), [self._spec()],
+                                                   "--scenario", "tiny", "--trials", "1", "--run-offset", "3")
+                self.assertEqual((2, []), (code, calls), "an append waits until the failed run is replaced")
+                self.assertIn("identity check", printed)
+
+    def test_a_service_that_never_started_stops_only_its_scenario(self) -> None:
+        unserved, plain = {**self._spec(), "id": "tiny-service"}, self._spec()
+
+        def start(spec, docker):
+            if spec["id"] == unserved["id"]:
+                raise probe_backing.ServiceUnavailable("no container runtime")
+            return []
+
+        with mock.patch.object(probe_backing, "start_services", side_effect=start):
+            code, calls, printed = self._batch(self.root / "service", self._stub(), [unserved, plain],
+                                               "--scenario", "all", "--trials", "2")
+        self.assertEqual([("tiny-service", 1), ("tiny", 1), ("tiny", 2)], calls)
+        self.assertEqual(2, code)
+        self.assertIn('"scenarios_stopped": ["tiny-service"]', printed)
+
     def test_a_trial_whose_trace_names_no_model_is_void(self) -> None:
         """Codex on PR #328: a trial that resolved no model was graded PASS or FAIL and pooled with
         identified trials, where a result whose required identity is unknown is never merged."""

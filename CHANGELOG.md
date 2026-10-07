@@ -47,6 +47,12 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
     model, where a result whose model identity is unknown must never be merged. It is now void at the
     identity check that refuses a wrong plugin or tool list, so it is INCONCLUSIVE with the reason
     `resolved model identity missing`.
+  - A trial that ran as the wrong candidate, with the wrong tool inventory, plugin or model or with
+    plugin inputs that changed, was voided while the batch went on scheduling paid trials that would
+    run the same way, against WP-02's stop rule. Such a trial now stops the batch, its summary row
+    records `identity_failure`, and a later `--run-offset` invocation of the label schedules nothing
+    until that run is replaced. A backing service that never started stops only its scenario, and a
+    failure the candidate's own run causes still voids only its trial.
 
   [verified] Each fix's new test fails without it and passes with it.
 - The 2026-10-07 python-craft review of the eval runner (PR #328):

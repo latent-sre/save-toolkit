@@ -604,7 +604,13 @@ nonzero exit, or — where reads were granted — a successful read outside the 
 snapshot makes the trial **INCONCLUSIVE**, never a verdict. An auth failure aborts the batch.
 
 Those run-level failures mark every check INCONCLUSIVE, so nothing observed under the wrong plugin,
-model or tools counts. A run cut short on the declared profile is different: after a timeout, a
+model or tools counts. A trial whose identity is wrong — its tool inventory, plugin or model, or
+plugin inputs that changed — also stops the batch, since every later trial would run as the same
+wrong candidate: its summary row records `identity_failure`, and a later invocation of the label
+schedules nothing until that run is replaced with `--overwrite` or a new label is used. The batch
+then exits 2 unless a FAIL verdict decides it. A failure the candidate's own run causes, such as a
+read outside the workspace or a refused command, voids only its trial, and a backing service that
+never started stops only its scenario. A run cut short on the declared profile is different: after a timeout, a
 missing result, an error result, a nonzero exit or the native spend cap, the partial trace must still
 show the declared plugin, tools and read boundary, and for a native conversation its model, grants,
 session and helper, and then a forbidding check whose violation is

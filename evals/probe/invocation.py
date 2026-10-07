@@ -257,13 +257,21 @@ def void_over_cut(current: str | None, problem: str | None) -> str | None:
     return current
 
 
-def profile_problem(trace: TraceSummary, spec: Mapping[str, Any], plugin_root: Path, workspace: Path) -> str | None:
-    """Whether the trace ran on the declared plugin, tools and read boundary, finished or not."""
+def identity_problem(trace: TraceSummary, spec: Mapping[str, Any], plugin_root: Path) -> str | None:
+    """Whether the trace ran as the declared candidate: its plugin, tool inventory and model. A wrong
+    identity stops the batch, since every later trial would run as the same wrong candidate."""
     requested = catalog.scenario_tools(spec)
     expected = expected_runtime_tools(plugin_root, spec["agent"], requested) if spec.get("agent") else requested
     problem = runtime_boundary_problem(trace, expected) or plugin_identity_problem(trace, plugin_root)
     if not problem and not any(trace.models):  # a result whose model is unknown is never pooled
         problem = "resolved model identity missing"
+    return problem
+
+
+def profile_problem(trace: TraceSummary, spec: Mapping[str, Any], plugin_root: Path, workspace: Path) -> str | None:
+    """Whether the trace ran on the declared plugin, tools and read boundary, finished or not."""
+    requested = catalog.scenario_tools(spec)
+    problem = identity_problem(trace, spec, plugin_root)
     if not problem and read_boundary_applies(spec, requested):
         problem = read_boundary_problem(trace, (workspace, plugin_root.resolve()))
     blocked = runtime_blocked_tools(trace, spec)
@@ -320,6 +328,13 @@ def invocation_problem(
     return None
 
 
+def native_model_problem(trace: TraceSummary, spec: Mapping[str, Any]) -> str | None:
+    """Whether a native conversation's parent ran on the scenario's expected model, part of its identity."""
+    if spec.get("expected_model") and trace.main_models != [spec["expected_model"]]:
+        return f"native parent model missing or differs from {spec['expected_model']}: {trace.main_models}"
+    return None
+
+
 def native_identity_problem(
     trace: TraceSummary, spec: Mapping[str, Any], resume: str | None, *, complete: bool
 ) -> str | None:
@@ -329,8 +344,9 @@ def native_identity_problem(
     used = {"Task" if tool == "Agent" else tool for tool in trace.tool_counts}
     if used - set(requested):
         return f"native ungranted tool use: {sorted(used - set(requested))}"
-    if spec.get("expected_model") and trace.main_models != [spec["expected_model"]]:
-        return f"native parent model missing or differs from {spec['expected_model']}: {trace.main_models}"
+    model = native_model_problem(trace, spec)
+    if model:
+        return model
     sessions = trace.init_session_ids + ([trace.session_id] if complete else [])
     anchor = resume or (trace.session_id if complete else next(iter(trace.init_session_ids), None))
     if (complete and not trace.session_id) or not trace.init_session_ids or any(s != anchor for s in sessions):
