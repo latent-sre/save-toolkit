@@ -135,6 +135,24 @@ class ScenarioSpecTests(unittest.TestCase):
         self.assertTrue(any("missing key 'prompt'" in p for p in build_probe.validate_scenario(bad)))
         self.assertEqual([], build_probe.validate_scenario(TINY_SPEC))
 
+    def test_validate_reports_non_mapping_branches_and_fake_bin_instead_of_crashing(self) -> None:
+        # `validate` reports an authoring error and exits 3; a traceback exits 1, a FAIL batch's code.
+        # A `checkout` beside a non-mapping `branches` reaches the declared-branch lookup too. The
+        # wording itself is pinned in test_result_rules_properties.VALIDATOR_CASES.
+        cases = (({"branches": ["fork/x"]}, "fixture.branches"),
+                 ({"branches": 1, "checkout": "fork/x"}, "fixture.branches"),
+                 ({"checkout": ["fork/x"]}, "fixture.checkout"),
+                 ({"fake_bin": "#!/bin/sh\n"}, "fixture.fake_bin"))
+        for change, problem in cases:
+            spec = {**TINY_SPEC, "fixture": {**TINY_SPEC["fixture"], **change}}
+            with self.subTest(change=change), tempfile.TemporaryDirectory() as tmp, \
+                    mock.patch.object(probe_catalog, "SCENARIO_DIR", Path(tmp)), \
+                    mock.patch.object(probe_catalog, "CONTRACT_SCENARIO_DIR", Path(tmp) / "none"), \
+                    contextlib.redirect_stderr(io.StringIO()) as err:
+                (Path(tmp) / "tiny.yaml").write_text(json.dumps(spec), encoding="utf-8")  # JSON is YAML
+                self.assertEqual(3, build_probe.main(["validate"]))
+                self.assertIn(f"tiny.yaml: {problem}", err.getvalue())
+
     def test_runbook_probe_oracle_rejects_every_template_placeholder(self) -> None:
         # The scribe runbook probe ships its oracle through `writes_from:`; its literal list must be
         # the runbook template's placeholder set, or a copied slot left unfilled earns the point.

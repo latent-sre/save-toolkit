@@ -234,11 +234,15 @@ def _fixture_problems(spec: Spec, where: str) -> list[str]:
             problems.append(f"{where}: fixture file {name!r} content must be a string")
         if Path(name).is_absolute() or ".." in Path(name).parts:
             problems.append(f"{where}: fixture file {name!r} must be a relative path inside the repo")
-    for branch, body in (fixture.get("branches") or {}).items():
+    branches = fixture.get("branches") or {}
+    if not isinstance(branches, dict):
+        problems.append(f"{where}: fixture.branches must map branch names to branches that declare files")
+        branches = {}
+    for branch, body in branches.items():
         if not isinstance(body, dict) or not isinstance(body.get("files"), dict):
             problems.append(f"{where}: branch {branch!r} must declare files")
     checkout = fixture.get("checkout")
-    if checkout is not None and checkout != "main" and checkout not in (fixture.get("branches") or {}):
+    if checkout is not None and (not isinstance(checkout, str) or (checkout != "main" and checkout not in branches)):
         problems.append(f"{where}: fixture.checkout {checkout!r} must be main or a declared branch")
     uncommitted = fixture.get("uncommitted") or {}
     if not isinstance(uncommitted, dict) or not all(
@@ -246,7 +250,11 @@ def _fixture_problems(spec: Spec, where: str) -> list[str]:
         for n, c in uncommitted.items()
     ):
         problems.append(f"{where}: fixture.uncommitted must map relative paths to string content")
-    for name, content in (fixture.get("fake_bin") or {}).items():
+    fake_bin = fixture.get("fake_bin") or {}
+    if not isinstance(fake_bin, dict):
+        problems.append(f"{where}: fixture.fake_bin must map command names to scripts")
+        fake_bin = {}
+    for name, content in fake_bin.items():
         if not isinstance(content, str) or not content.startswith("#!"):
             problems.append(f"{where}: fake_bin {name!r} must be a script starting with a shebang")
     for service in fixture.get("services") or []:

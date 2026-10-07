@@ -13,6 +13,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
     record refuses a slot below 1, so such a run had no `record.json` while the batch summary still
     counted its verdict, and `regrade` and `rescore` skipped `run--1` as not a numbered run. A
     negative offset is now refused before any trial runs, as `--trials 0` is.
+  - `validate` crashed with a traceback, exiting 1 as a FAIL batch does, on a scenario whose
+    `fixture.branches` or `fixture.fake_bin` was a non-empty list, string or number instead of a
+    mapping, or whose `fixture.checkout` was a list; `run`, `regrade` and `rescore`, which load every
+    scenario first, crashed the same way. Each is now reported as an authoring error that exits 3, as
+    any invalid scenario does; an empty value still reads as none.
 
   [verified] Each fix's new test fails without it and passes with it.
 - The 2026-10-07 python-craft review of the eval runner (PR #328):
