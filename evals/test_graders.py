@@ -294,6 +294,12 @@ def test_run_grader_dispatch() -> None:
     except ValueError:
         raised = True
     check(raised, "run_grader: unknown type raises ValueError")
+    raised = False
+    try:
+        graders.run_grader({"type": ["regex"]}, "x")  # a YAML list where the grader's name belongs
+    except ValueError:
+        raised = True
+    check(raised, "run_grader: a type that is not a name raises ValueError")
     # Missing required kwarg surfaces as TypeError (this is what validate() now catches).
     raised = False
     try:

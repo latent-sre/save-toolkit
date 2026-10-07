@@ -5,12 +5,13 @@ import json
 import re
 from importlib.metadata import version
 from pathlib import Path
+from typing import Any
 
 import anthropic
 import yaml
 from inspect_ai import Task, task
 from inspect_ai.dataset import Sample
-from inspect_ai.scorer import Score, Target, accuracy, scorer
+from inspect_ai.scorer import Score, Scorer, Target, accuracy, scorer
 from inspect_ai.solver import TaskState
 from inspect_ai.util import sandbox
 from inspect_swe import claude_code
@@ -21,7 +22,7 @@ COMPOSE = Path(__file__).with_name("inspect-compose.yaml")
 ARTIFACT_CHECKS = {"file_exists", "glob_exists", "command_exit_zero", "command_output_regex"}
 
 
-def pilot_spec() -> tuple[dict, list[dict], list[str]]:
+def pilot_spec() -> tuple[dict[str, Any], list[dict[str, Any]], list[str]]:
     spec = yaml.safe_load(SCENARIO.read_text(encoding="utf-8"))
     checks = [check for check in spec["checks"] if check["check"] in ARTIFACT_CHECKS]
     omitted = [check["text"] for check in spec["checks"] if check["check"] not in ARTIFACT_CHECKS]
@@ -31,7 +32,7 @@ def pilot_spec() -> tuple[dict, list[dict], list[str]]:
 
 
 @scorer(metrics=[accuracy()])
-def artifact_checks(checks: list[dict]):
+def artifact_checks(checks: list[dict[str, Any]]) -> Scorer:
     async def score(state: TaskState, target: Target) -> Score:
         results = []
         for check in checks:

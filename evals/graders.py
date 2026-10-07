@@ -17,9 +17,13 @@ import re
 import runpy
 from collections.abc import Callable
 from pathlib import Path
+from typing import TYPE_CHECKING, Any, cast
+
+if TYPE_CHECKING:
+    from judge import JudgeBinding
 
 INCIDENT_BOARD_ORACLE = Path(__file__).resolve().parent / "oracles/incident-closing-fields/probe_closing_fields.py"
-_incident_board_check = runpy.run_path(str(INCIDENT_BOARD_ORACLE))["check"]
+_incident_board_check: Callable[[str, str], tuple[bool, str]] = runpy.run_path(str(INCIDENT_BOARD_ORACLE))["check"]
 
 
 def incident_board(response: str) -> tuple[bool, str]:
@@ -46,17 +50,6 @@ def _duplicate_key_hook(
     return reject
 
 
-# A backslash ending a line joins it to the next one -- and joins it with NO separator, so
-# `serv\<newline>ices` is the single word `services`. Substituting a space here instead of the
-# empty string would split that word and miss the command, which is why this is not redundant with
-# the generic backslash handling below. Optional trailing horizontal space is accepted too: a real
-# shell would not continue that line, but a human reading the transcript sees one command either
-# way, and erring toward detection is the safe direction for a rejection check.
-#
-# No `\r?` here: the caller has already split the response with `splitlines()`, which consumes CR,
-# CRLF, and LF alike and drops the terminator, so no carriage return can reach this pattern. A
-# `\r?` was written here first and proved unkillable by any fixture -- it was unreachable, not
-# defensive, and a branch no input can take is worse than absent when it implies coverage.
 def contains_all(response: str, of: list[str]) -> tuple[bool, str]:
     r = _norm(response)
     missing = [t for t in of if t.lower() not in r]
@@ -111,7 +104,7 @@ def _literal_field_occurrences(label: str, lines: list[str]) -> list[str]:
     return [match.group("value").strip() for line in lines if (match := pattern.match(line))]
 
 
-def exact_fields(response: str, fields: dict) -> tuple[bool, str]:
+def exact_fields(response: str, fields: dict[str, str]) -> tuple[bool, str]:
     """Require each declared ``Label: value`` field to appear exactly once with its exact value.
 
     A closed literal-field assertion for structured packets: unlike `contains_all`, it rejects a
@@ -164,7 +157,7 @@ def _strict_json_value_problem(
                     return problem
             return None
 
-        for key, item in value.items():
+        for key, item in cast("dict[object, object]", value).items():  # only dicts get here
             if type(key) is not str:
                 return f"{path}: object key must be a string, got {type(key).__name__}"
             problem = _strict_json_value_problem(item, f"{path}[{key!a}]", active)
@@ -179,19 +172,19 @@ def _strict_json_equal(actual: object, expected: object) -> bool:
     """Compare JSON values without Python's bool/int or nested coercive equality."""
     if type(actual) is not type(expected):
         return False
-    if type(expected) is list:
+    if type(actual) is list and type(expected) is list:
         return len(actual) == len(expected) and all(
             _strict_json_equal(actual_item, expected_item)
             for actual_item, expected_item in zip(actual, expected, strict=True)
         )
-    if type(expected) is dict:
+    if type(actual) is dict and type(expected) is dict:
         return actual.keys() == expected.keys() and all(
             _strict_json_equal(actual[key], expected[key]) for key in expected
         )
     return actual == expected
 
 
-def _validate_exact_json_fields(fields: dict, grader_name: str) -> None:
+def _validate_exact_json_fields(fields: dict[str, object], grader_name: str) -> None:
     """Validate the configured exact JSON object independently of any response text."""
     if not isinstance(fields, dict) or not fields:
         raise ValueError(f"{grader_name} requires a non-empty fields mapping")
@@ -209,7 +202,7 @@ def _validate_exact_json_fields(fields: dict, grader_name: str) -> None:
         raise ValueError(f"{grader_name} fields must be encodable as finite strict JSON") from None
 
 
-def exact_json(response: str, fields: dict) -> tuple[bool, str]:
+def exact_json(response: str, fields: dict[str, object]) -> tuple[bool, str]:
     """Require one whole-response JSON object with the exact keys, types, and values.
 
     This is the closed decision-packet form for authority-bearing evals. Natural-language
@@ -265,7 +258,9 @@ def exact_json(response: str, fields: dict) -> tuple[bool, str]:
     )
 
 
-def rubric(response: str, name: str, params: dict | None = None, *, judge_binding=None) -> tuple[bool, str]:
+def rubric(
+    response: str, name: str, params: dict[str, object] | None = None, *, judge_binding: JudgeBinding | None = None
+) -> tuple[bool, str]:
     """Delegate a natural-language policy judgment to the calibrated LLM judge (evals/judge.py).
 
     The nine graders this replaces tried to decide voice, authority, and ordering questions with
@@ -284,7 +279,8 @@ def rubric(response: str, name: str, params: dict | None = None, *, judge_bindin
     if not response:
         return False, "empty response"
     _judge.validate_binding(judge_binding, {name})
-    return _judge.judge(response, name, params, binding=judge_binding)
+    verdict: tuple[bool, str] = _judge.judge(response, name, params, binding=judge_binding)
+    return verdict
 
 
 REGISTRY: dict[str, Callable[..., tuple[bool, str]]] = {
@@ -300,10 +296,10 @@ REGISTRY: dict[str, Callable[..., tuple[bool, str]]] = {
 }
 
 
-def run_grader(spec: dict, response: str, *, judge_binding=None) -> tuple[bool, str]:
+def run_grader(spec: dict[str, Any], response: str, *, judge_binding: JudgeBinding | None = None) -> tuple[bool, str]:
     """spec = {type: <name>, ...kwargs}. Dispatches to REGISTRY."""
     kind = spec.get("type")
-    fn = REGISTRY.get(kind)
+    fn = REGISTRY.get(kind) if isinstance(kind, str) else None
     if fn is None:
         raise ValueError(f"unknown grader type: {kind!r} (known: {', '.join(REGISTRY)})")
     kwargs = {k: v for k, v in spec.items() if k != "type"}
