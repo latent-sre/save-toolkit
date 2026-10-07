@@ -1,0 +1,733 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "AssessmentEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "revision": {
+          "exclusiveMinimum": 0,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "status": {
+          "$ref": "#/$defs/State"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reason"
+        },
+        "grading": {
+          "pattern": "^[A-Za-z0-9_-][A-Za-z0-9_.-]*(/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*$",
+          "title": "Grading",
+          "type": "string"
+        },
+        "runner_source_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Runner Source Sha256",
+          "type": "string"
+        },
+        "assessed_at": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|\\+00:00)$",
+          "title": "Assessed At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "revision",
+        "status",
+        "reason",
+        "grading",
+        "runner_source_sha256",
+        "assessed_at"
+      ],
+      "title": "AssessmentEntry",
+      "type": "object"
+    },
+    "Attempt": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "slot": {
+          "exclusiveMinimum": 0,
+          "title": "Slot",
+          "type": "integer"
+        },
+        "number": {
+          "exclusiveMinimum": 0,
+          "title": "Number",
+          "type": "integer"
+        },
+        "state": {
+          "enum": [
+            "final",
+            "superseded",
+            "incomplete"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "started_at": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|\\+00:00)$",
+          "title": "Started At",
+          "type": "string"
+        },
+        "ended_at": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|\\+00:00)$",
+          "title": "Ended At",
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        }
+      },
+      "required": [
+        "label",
+        "slot",
+        "number",
+        "state",
+        "started_at",
+        "ended_at"
+      ],
+      "title": "Attempt",
+      "type": "object"
+    },
+    "Candidate": {
+      "additionalProperties": false,
+      "properties": {
+        "plugin_root": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Plugin Root"
+        },
+        "plugin_commit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Plugin Commit"
+        },
+        "plugin_inputs_dirty": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Plugin Inputs Dirty"
+        },
+        "plugin_source_sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Plugin Source Sha256"
+        }
+      },
+      "required": [
+        "plugin_root",
+        "plugin_commit",
+        "plugin_inputs_dirty",
+        "plugin_source_sha256"
+      ],
+      "title": "Candidate",
+      "type": "object"
+    },
+    "Case": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "case_sha256": {
+          "description": "The case alone: scenario, oracle bytes and rubrics, without the runner.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Case Sha256",
+          "type": "string"
+        },
+        "scenario_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The case bound to the runner, Python and judge that graded it.",
+          "title": "Scenario Sha256"
+        }
+      },
+      "required": [
+        "id",
+        "case_sha256",
+        "scenario_sha256"
+      ],
+      "title": "Case",
+      "type": "object"
+    },
+    "Check": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/Polarity"
+        },
+        "state": {
+          "$ref": "#/$defs/State"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Why an INCONCLUSIVE check could not measure; null for PASS and FAIL.",
+          "title": "Reason"
+        },
+        "evidence": {
+          "maxLength": 600,
+          "title": "Evidence",
+          "type": "string"
+        },
+        "evidence_truncated": {
+          "title": "Evidence Truncated",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "kind",
+        "state",
+        "reason",
+        "evidence",
+        "evidence_truncated"
+      ],
+      "title": "Check",
+      "type": "object"
+    },
+    "Conditions": {
+      "additionalProperties": false,
+      "properties": {
+        "requested_model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Requested Model"
+        },
+        "observed_models": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Observed Models"
+        },
+        "runtime": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Runtime"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "turn_limit": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Turn Limit"
+        },
+        "wall_clock_seconds": {
+          "exclusiveMinimum": 0,
+          "title": "Wall Clock Seconds",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "requested_model",
+        "observed_models",
+        "runtime",
+        "turn_limit",
+        "wall_clock_seconds"
+      ],
+      "title": "Conditions",
+      "type": "object"
+    },
+    "Cost": {
+      "additionalProperties": false,
+      "properties": {
+        "trial_usd": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Trial Usd"
+        },
+        "judge_usd": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Judge Usd"
+        },
+        "known_usd": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Known Usd"
+        },
+        "complete": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Complete"
+        },
+        "judge_calls": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Judge Calls"
+        },
+        "judge_live_calls": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Judge Live Calls"
+        },
+        "judge_cached_calls": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Judge Cached Calls"
+        },
+        "judge_unknown_cost_calls": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Judge Unknown Cost Calls"
+        }
+      },
+      "required": [
+        "trial_usd",
+        "judge_usd",
+        "known_usd",
+        "complete",
+        "judge_calls",
+        "judge_live_calls",
+        "judge_cached_calls",
+        "judge_unknown_cost_calls"
+      ],
+      "title": "Cost",
+      "type": "object"
+    },
+    "Polarity": {
+      "description": "What a check asserts (result rules 2 and 3).\n\nA forbidding check fails on any evidence of the forbidden action, even from a run cut short, and\nholds its scenario to every trial; a requiring check can fail only in a completed run. `both` has a\nrequired floor and a forbidden ceiling.",
+      "enum": [
+        "forbids",
+        "requires",
+        "both"
+      ],
+      "title": "Polarity",
+      "type": "string"
+    },
+    "RecordFormat": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "const": "save-toolkit.eval-record",
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "const": 1,
+          "title": "Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "title": "RecordFormat",
+      "type": "object"
+    },
+    "RunEnd": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "description": "How execution ended, independent of what the checks found.",
+          "enum": [
+            "completed",
+            "turn_limit",
+            "cut_short",
+            "void",
+            "incomplete"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "stop": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Stop"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "How a run cut short stopped."
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reason"
+        }
+      },
+      "required": [
+        "kind",
+        "stop",
+        "reason"
+      ],
+      "title": "RunEnd",
+      "type": "object"
+    },
+    "Runner": {
+      "additionalProperties": false,
+      "properties": {
+        "runner_commit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Runner Commit"
+        },
+        "runner_source_dirty": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Runner Source Dirty"
+        },
+        "runner_source_sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Runner Source Sha256"
+        }
+      },
+      "required": [
+        "runner_commit",
+        "runner_source_dirty",
+        "runner_source_sha256"
+      ],
+      "title": "Runner",
+      "type": "object"
+    },
+    "Runtime": {
+      "additionalProperties": false,
+      "properties": {
+        "cli_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cli Version"
+        },
+        "host_platform": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Host Platform",
+          "type": "object"
+        }
+      },
+      "required": [
+        "cli_version",
+        "host_platform"
+      ],
+      "title": "Runtime",
+      "type": "object"
+    },
+    "State": {
+      "description": "A check's or a trial's result. INCONCLUSIVE is never a verdict about the candidate.",
+      "enum": [
+        "PASS",
+        "FAIL",
+        "INCONCLUSIVE"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "Stop": {
+      "description": "How a run on the declared profile stopped before completing (result rule 4).",
+      "enum": [
+        "wall_clock",
+        "no_result",
+        "error_result",
+        "nonzero_exit",
+        "spend_guard",
+        "cut_short"
+      ],
+      "title": "Stop",
+      "type": "string"
+    },
+    "Verdict": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/State"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Null for an incomplete attempt: never a guessed verdict."
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reason"
+        },
+        "assessment_revision": {
+          "const": 0,
+          "description": "The original assessment; later ones are `assessments`.",
+          "title": "Assessment Revision",
+          "type": "integer"
+        },
+        "after_assessment": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "After Assessment"
+        }
+      },
+      "required": [
+        "status",
+        "reason",
+        "assessment_revision",
+        "after_assessment"
+      ],
+      "title": "Verdict",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One eval attempt's result record, version 1 (docs/fleet-evaluation/contracts.md).",
+  "properties": {
+    "format": {
+      "$ref": "#/$defs/RecordFormat"
+    },
+    "case": {
+      "$ref": "#/$defs/Case"
+    },
+    "candidate": {
+      "$ref": "#/$defs/Candidate"
+    },
+    "runner": {
+      "$ref": "#/$defs/Runner"
+    },
+    "conditions": {
+      "$ref": "#/$defs/Conditions"
+    },
+    "attempt": {
+      "$ref": "#/$defs/Attempt"
+    },
+    "run_end": {
+      "$ref": "#/$defs/RunEnd"
+    },
+    "checks": {
+      "items": {
+        "$ref": "#/$defs/Check"
+      },
+      "title": "Checks",
+      "type": "array"
+    },
+    "verdict": {
+      "$ref": "#/$defs/Verdict"
+    },
+    "cost": {
+      "$ref": "#/$defs/Cost"
+    },
+    "evidence": {
+      "description": "Evidence files, by path relative to the attempt folder.",
+      "patternProperties": {
+        "^[A-Za-z0-9_-][A-Za-z0-9_.-]*(/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*$": {
+          "pattern": "^[A-Za-z0-9_-][A-Za-z0-9_.-]*(/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*$",
+          "type": "string"
+        }
+      },
+      "title": "Evidence",
+      "type": "object"
+    },
+    "assessments": {
+      "description": "Each later regrade, beside the original verdict.",
+      "items": {
+        "$ref": "#/$defs/AssessmentEntry"
+      },
+      "title": "Assessments",
+      "type": "array"
+    }
+  },
+  "required": [
+    "format",
+    "case",
+    "candidate",
+    "runner",
+    "conditions",
+    "attempt",
+    "run_end",
+    "checks",
+    "verdict",
+    "cost",
+    "evidence"
+  ],
+  "title": "save-toolkit eval record, v1",
+  "type": "object"
+}

@@ -352,48 +352,121 @@ offline test results do not establish human acceptance or live operational truth
 
 ### EVAL-012 — plan incident and coding evaluations for the fleet
 
-**Status:** `active` (2026-10-05); specification revision 0.5 records the owner's 2026-10-05 decisions (DEC-01, DEC-02, DEC-04, DEC-10, DEC-11 and DEC-17 to DEC-20): repository-local implementation; Claude Code as the automated reference, with human-run acceptance cases as VS Code Copilot's verification method; existing Claude, Codex and OpenRouter access with a stated trial count, cost, human hours and cap per campaign; a per-experiment acceptance default; local raw artifacts with non-retaining, non-training OpenRouter providers; Sonnet and the latest Sol as default models; comparisons and Copilot acceptance before each major release; and a go/no-go call before each milestone. These sit on top of revision 0.4's Coder Eval adoption experiment, earlier useful-comparison milestone, review corrections and expanded GCP scope; implementation has not started.
+**Status:** `active` (2026-10-06); WP-00 is complete: the owner accepted specification revision 0.6
+on 2026-10-06 as the scope freeze. It records the WP-00 review and the owner's
+2026-10-06 decisions DEC-21 to DEC-24: result rules from the accepted threat-model ADR (EVAL-011), a
+v1 result record written by the runner, native runs under the owner's everyday account with
+inherited folder permissions, and the Coder Eval assessment postponed to WP-15 after the first useful
+comparison. It adds the first [run plan](fleet-evaluation/run-plan-wp02-native-readiness.md).
+Revision 0.5 recorded DEC-01, DEC-02, DEC-04, DEC-10, DEC-11 and DEC-17 to DEC-20 on 2026-10-05.
+Implementation has not started.
 **Owner:** Human owner accepts scope, run conditions and exact candidates; `agent-engineer` owns
 scenario/measurement design; implementation and lab owners are assigned per delivery package.
 **Outcome:** A reviewable evaluation specification covers ITBench-Lite, SREGym, repository repair,
 test generation, selected terminal tasks, GCP managed-service/migration and GKE evaluations, actual
 fleet integration, Coder Eval runner assessment and later Microsoft AIOpsLab, with traceable evidence,
 acceptance tests, delivery phases and explicit open decisions.
-**Next action:** Select WP-01 saved-result comparison for implementation in this repository; it
-needs no model calls. Review the [fleet evaluation specification](fleet-evaluation/README.md),
-resolve the remaining WP-00 decisions, and prepare WP-02's [Coder Eval experiment](fleet-evaluation/coder-eval.md). Select
-lasting presentation/execution responsibilities from evidence under DEC-16; WP-12's GCP case design
-can proceed alongside the report work. EVAL-010 retains
-judge-adoption ownership and EVAL-011 the native measurement
-contract. This planning item authorizes no model spend, lab provisioning or production changes.
+**Next action:** EVAL-011's runner sequence lands, including the v1 record, under the accepted
+[specification](fleet-evaluation/README.md); WP-01 builds the
+minimal comparison over v1 records against a committed synthetic bundle; and WP-02 runs under its
+run plan, whose budget the owner approved on 2026-10-06 with a USD 20 cap. WP-12's GCP case design can proceed alongside. The
+[Coder Eval experiment](fleet-evaluation/coder-eval.md) waits for WP-15. The owner granted the everyday
+account read access to the older run folders on 2026-10-06; all 1,562 now open from it. EVAL-010
+retains judge-adoption ownership and EVAL-011 the native measurement contract. This planning item
+authorizes no model spend, lab provisioning or production changes.
 **Evidence:** [Requirements and specifications](fleet-evaluation/README.md), based on the owner's
 2026-10-03 scope decisions and 2026-10-04 approved addition; integration and behavioral results remain unverified.
 **SRE task:** Compare exact agent candidates on realistic incidents and engineering tasks, see what
 improved or regressed, and distinguish failed behavior from an instrument that could not measure.
 
-### EVAL-011 — accept the eval harness threat model and bring the runner into line with it
+### EVAL-011 — bring the eval runner into line with the accepted threat model
 
-**Status:** `decision-needed` (2026-10-03).
-**Owner:** Save Toolkit maintainers accept or amend the ADR; `agent-engineer` owns the runner repairs
-with independent review.
-**Outcome:** The [threat-model ADR](decisions/2026-10-03-eval-harness-threat-model.md) is accepted or
-amended, and the runner meets it. Measurement failures are inconclusive, and results record the runner
-revision, CLI version and host platform. Every in-scope defect from the 2026-10-03 inventory of
-`evals/build_probe.py` is fixed or has an owner disposition.
-**Next action:** Maintainers review the ADR. Then one PR each, gated on replaying saved traces with
-every verdict change explained:
-- Record the runner revision. With `--plugin-root` on another checkout, `plugin_commit` names the
-  candidate, not the runner; the CLI version and host platform are recorded.
-- Remove the unused `--container` mode.
-- Split `evals/build_probe.py` along its inventory seams with no verdict change.
-**Evidence:** [PR #310](https://github.com/latent-sre/save-toolkit/pull/310).
+**Status:** `active` (2026-10-06); the owner accepted the threat-model ADR on 2026-10-06, with result
+rules added from the EVAL-012 WP-00 review. The runner changes below are implemented on
+`work/eval-012-wp00-eval-011-runner`, one branch and one PR with EVAL-012 WP-00, awaiting review.
+**Owner:** Save Toolkit maintainers review the runner changes in one PR; `agent-engineer` owns the
+runner repairs with independent review.
+**Outcome:** The runner meets the accepted [threat-model ADR](decisions/2026-10-03-eval-harness-threat-model.md),
+including its result rules. Measurement failures are inconclusive and never hide a supported failure,
+and results record the runner revision, CLI version and host platform. Every in-scope defect from the
+2026-10-03 inventory of `evals/build_probe.py` is fixed or has an owner disposition.
+**Next action:** Maintainers review the one PR. Runner changes land as commits in one PR, not one PR
+per change. Every runner edit changes the scenario digest, so each commit is gated by rescoring saved
+runs with the previous and new runners (`--rescore`, `--rescore-diff`) and explaining every difference
+in its commit message. After
+merge, record the frozen runner revision before EVAL-012 records comparison baselines. Implemented:
+- The comparison: `--rescore` grades saved runs into a new directory without writing them;
+  `--rescore-diff` lists every verdict that differs between two rescores.
+- Result rules: three-state checks, each check type classed as forbidding or requiring; forbidding
+  checks evaluated on runs cut short; a supported failure wins; cleanup failures recorded beside the
+  verdict; a requested `--threshold` cannot lower a scenario that has a forbidding check.
+- Grading machinery, in process: a grader crash is inconclusive and stops its scenario; an unknown
+  grader is rejected at validation. Rescoring all 85 saved campaigns (1,317 runs) found no grader
+  crash on real candidate output.
+- Turn limits: an optional `max_turns` reaches the CLI as `--max-turns`, and stopping there is a
+  completed run; the wall clock and the native spend cap remain instrument guards.
+- Attempts and cost: replaced and incomplete attempts are kept; an authentication failure exits 4
+  and stops the batch; unknown trial and judge cost stays null; `--max-batch-usd` stops scheduling
+  (EVAL-012 AC-18).
+- Identity: the runner revision is recorded; trials from different CLI versions or hosts never
+  pool; the PowerShell guard hook is in the plugin digest.
+- Record and folders (EVAL-012 DEC-22 and DEC-23): one
+  [v1 record](fleet-evaluation/contracts.md#result-record-v1) per attempt, in run folders that inherit
+  the permissions of `.eval-runs/`.
+- The unused `--container` mode is removed.
+- The runner is the `evals/probe` package behind `evals/build_probe.py`, split along the inventory
+  seams: checks return typed outcomes; each check declares its polarity and the evidence it reads,
+  from which regradability and the cut-short rules are derived; live grades and regrades share one
+  grading loop; jobs are subcommands, and the flat flags still work; each `record.json` is validated
+  against a model whose JSON Schema is published; Ruff and strict mypy check the package in CI.
+  Rescoring all 1,317 saved runs with the runner before and after the split gives byte-identical
+  grades and parsed traces.
+- The 2026-10-06 code review of the split: a regrade voids a run only when the live grade did, a
+  refused record no longer aborts a batch, the record contract is strict on every write, a regrade
+  without its raw trace leaves only what that trace held INCONCLUSIVE, and tests pin each check's
+  polarity. Regrading all 1,317 saved runs, the 64 runs one unmeasured check had voided are graded
+  check by check (23 FAIL, 15 PASS, 26 INCONCLUSIVE); the other fixes change no saved grade. The
+  runner's growth, for the owner's DEC-20 review, is measured in
+  [the code-growth note](reviews/2026-10-06-eval-runner-code-growth.md).
+- The 2026-10-07 python-craft review of the runner, fixed on `work/probe-craft-review` after this
+  PR's head: a failed git command no longer reads as an unchanged checkout, a check's own staging
+  mistake is no longer charged to the candidate, seeded files compare byte for byte, every cut of the
+  600-character evidence is flagged and a kept verdict keeps its marker, and ten smaller defects.
+  Rescoring all 1,317 saved runs before and after differs in no verdict. Findings and evidence are in
+  [the review](reviews/2026-10-07-eval-runner-refactoring-review.md).
+- The bots' second review of PR #328, on the same branch: an authentication stop exits 4 whatever
+  else the batch holds, the spend cap counts every attempt a label paid for, a trial that ran as the
+  wrong candidate stops the batch across `--run-offset` invocations, a trial whose trace names no
+  model is void, `regrade` pools only runs of one identity, a linked optional plugin input is
+  refused, a lost backing service stops its scenario, and four input and preflight defects; a
+  regrade no longer crashes on a native run whose plugin root is gone. Rescoring all saved runs
+  differs only in those 7 runs, now INCONCLUSIVE; see
+  [the second round](reviews/2026-10-07-eval-runner-refactoring-review.md#second-review-round).
+
+Remaining:
+- The 2026-10-07 review's open findings: check tests that cannot tell FAIL from INCONCLUSIVE (a
+  mutant of `no_new_commits` reporting INCONCLUSIVE survives every test) and an untested `run`
+  subcommand; a timeout saved before `run_end` regrades as void; `tool_call_count`'s regrade
+  override; stopping the audit proxy before grading; the second round's leftovers (a usage error
+  exits 2, `fixture.env` and `services[].env` crash validation, a non-git plugin root crashes with
+  exit 1); and the review's structural changes and compatibility decisions for the owner.
+- Oracle protocol: 16 oracles exit 1 to fail, which an uncaught exception also produces, and 7 of
+  them run candidate code (operator-cli, obs-burn-rules, pager-webhook, pcf-deploy-job and three
+  python-craft), so each needs candidate errors caught as FAIL before a crash can mean INCONCLUSIVE.
+- Turn-limit values: no scenario declares one, so a looping candidate still reaches the wall clock.
+  Saved runs give turn counts for 105 of 207 current scenarios (per-scenario maximum: median 6,
+  90th percentile 20, highest 72); choosing values is the evaluation owner's call.
+- Calibration receipts still sum an unpriced judge call as zero. The judge's identity binds
+  `judge.py` and `clean_room.py`, so the fix rides with the next owner-triggered recalibration.
+**Evidence:** [PR #310](https://github.com/latent-sre/save-toolkit/pull/310); the amended ADR's
+Context records the 2026-10-06 source findings behind the result rules.
 [PR #321](https://github.com/latent-sre/save-toolkit/pull/321) runs the component tests on four
 workers with `PYTHONDONTWRITEBYTECODE=1`, since a `.pyc` written by one worker reads as plugin drift
 to another worker's native trial. The intermittent `NativeConversationRunTests` failure (a native
 trial INCONCLUSIVE before its first launch) did not reproduce in twelve local four-worker runs; its
 cause is unconfirmed, so a recurrence reopens it here.
-**SRE task:** Read an eval INCONCLUSIVE as "the instrument could not measure", and know which host and
-CLI a PASS or FAIL was measured on.
+**SRE task:** Read an eval INCONCLUSIVE as "the instrument could not measure", trust that it never hides
+a recorded failure, and know which host and CLI a PASS or FAIL was measured on.
 
 ### EVAL-010 — choose the rubric judge by a calibration bake-off
 

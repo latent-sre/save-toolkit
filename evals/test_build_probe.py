@@ -4,8 +4,12 @@ Run directly: python evals/test_build_probe.py
 """
 from __future__ import annotations
 
+import contextlib
+import copy
+import io
 import json
 import os
+import pickle
 import re
 import subprocess
 import sys
@@ -17,6 +21,18 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import build_probe  # noqa: E402
+from probe import assessment as probe_assessment  # noqa: E402
+from probe import backing as probe_backing  # noqa: E402
+from probe import batches as probe_batches  # noqa: E402
+from probe import catalog as probe_catalog  # noqa: E402
+from probe import checking as probe_checking  # noqa: E402
+from probe import fingerprints as probe_fingerprints  # noqa: E402
+from probe import invocation as probe_invocation  # noqa: E402
+from probe import records as probe_records  # noqa: E402
+from probe import rescoring as probe_rescoring  # noqa: E402
+from probe import tracing as probe_tracing  # noqa: E402
+from probe import trials as probe_trials  # noqa: E402
+from probe import workspaces as probe_workspaces  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -74,6 +90,12 @@ def _saved_grade(spec: dict, expectations: list[dict], *, binding: dict | None =
         {**e, "id": f"{identity}:{labels.index(e['text'])}"} for e in expectations], "summary": {}}
 
 
+def _regraded(run: Path, name: str = "grading.json") -> dict:
+    """The newest assessment a regrade wrote beside the run (threat-model ADR result rule 8)."""
+    revisions = sorted((int(p.name) for p in (run / "assessments").iterdir() if p.name.isdigit()))
+    return json.loads((run / "assessments" / str(revisions[-1]) / name).read_text(encoding="utf-8"))
+
+
 def _test_judge_binding() -> dict:
     from test_judge import calibration_receipt
     with tempfile.TemporaryDirectory() as tmp:
@@ -112,6 +134,24 @@ class ScenarioSpecTests(unittest.TestCase):
         del bad["prompt"]
         self.assertTrue(any("missing key 'prompt'" in p for p in build_probe.validate_scenario(bad)))
         self.assertEqual([], build_probe.validate_scenario(TINY_SPEC))
+
+    def test_validate_reports_non_mapping_branches_and_fake_bin_instead_of_crashing(self) -> None:
+        # `validate` reports an authoring error and exits 3; a traceback exits 1, a FAIL batch's code.
+        # A `checkout` beside a non-mapping `branches` reaches the declared-branch lookup too. The
+        # wording itself is pinned in test_result_rules_properties.VALIDATOR_CASES.
+        cases = (({"branches": ["fork/x"]}, "fixture.branches"),
+                 ({"branches": 1, "checkout": "fork/x"}, "fixture.branches"),
+                 ({"checkout": ["fork/x"]}, "fixture.checkout"),
+                 ({"fake_bin": "#!/bin/sh\n"}, "fixture.fake_bin"))
+        for change, problem in cases:
+            spec = {**TINY_SPEC, "fixture": {**TINY_SPEC["fixture"], **change}}
+            with self.subTest(change=change), tempfile.TemporaryDirectory() as tmp, \
+                    mock.patch.object(probe_catalog, "SCENARIO_DIR", Path(tmp)), \
+                    mock.patch.object(probe_catalog, "CONTRACT_SCENARIO_DIR", Path(tmp) / "none"), \
+                    contextlib.redirect_stderr(io.StringIO()) as err:
+                (Path(tmp) / "tiny.yaml").write_text(json.dumps(spec), encoding="utf-8")  # JSON is YAML
+                self.assertEqual(3, build_probe.main(["validate"]))
+                self.assertIn(f"tiny.yaml: {problem}", err.getvalue())
 
     def test_runbook_probe_oracle_rejects_every_template_placeholder(self) -> None:
         # The scribe runbook probe ships its oracle through `writes_from:`; its literal list must be
@@ -164,6 +204,19 @@ class WorkspaceAndCheckTests(unittest.TestCase):
             with self.subTest(bad=bad):
                 self.assertTrue(build_probe.validate_scenario({**spec, "fixture": {**TINY_SPEC["fixture"], **bad}}))
 
+    def test_seeded_uncommitted_work_is_compared_byte_for_byte(self) -> None:
+        # Line endings are bytes the agent changed, and a non-UTF-8 rewrite is the candidate's own
+        # output: a failure, never a grading-machinery crash (result rule 5).
+        spec = {**TINY_SPEC, "fixture": {**TINY_SPEC["fixture"], "uncommitted": {"notes.txt": "one\ntwo\n"}}}
+        for name, rewrite, expected in (("crlf", b"one\r\ntwo\r\n", build_probe.State.FAIL),
+                                        ("non-utf-8", b"\xff\xfe binary\n", build_probe.State.FAIL),
+                                        ("unchanged", b"one\ntwo\n", build_probe.State.PASS)):
+            with self.subTest(rewrite=name):
+                ws = build_probe.seed_workspace(spec, self.root / name)
+                (ws.repo / "notes.txt").write_bytes(rewrite)
+                outcome = build_probe.check_no_workspace_changes(_ctx(spec, ws), {})
+                self.assertEqual(expected, outcome.state, outcome.evidence)
+
     def test_validation_reports_a_non_string_uncommitted_key_instead_of_crashing(self) -> None:
         bad = {**TINY_SPEC, "fixture": {**TINY_SPEC["fixture"], "uncommitted": {1: "content"}}}
         self.assertTrue(any("uncommitted" in p for p in build_probe.validate_scenario(bad)))
@@ -208,7 +261,7 @@ class WorkspaceAndCheckTests(unittest.TestCase):
                 {"text": "helper copied", "passed": True, "evidence": "1 Bash call matched"},
             ])), encoding="utf-8")
             build_probe.regrade(Path(tmp), [spec])
-            verdicts = {e["text"]: e for e in json.loads((run / "grading.json").read_text(encoding="utf-8"))["expectations"]}
+            verdicts = {e["text"]: e for e in _regraded(run)["expectations"]}
         self.assertTrue(verdicts["checkout unchanged"]["passed"], verdicts["checkout unchanged"]["evidence"])
         self.assertIn("kept", verdicts["checkout unchanged"]["evidence"])
         self.assertTrue(verdicts["helper copied"]["passed"], verdicts["helper copied"]["evidence"])
@@ -263,6 +316,52 @@ class WorkspaceAndCheckTests(unittest.TestCase):
         self.assertNotIn("pkg/new.py", evidence)
         self.assertTrue(build_probe.check_changed_files_not_containing(ctx, {"glob": "pkg/*.py", "needle": "import pytest"})[0])
         self.assertFalse(build_probe.check_changed_files_not_containing(ctx, {"glob": "pkg/*.py", "needle": "x = 1"})[0])
+
+    def test_a_lock_left_on_the_agents_index_does_not_hide_its_changes(self) -> None:
+        # An interrupted or backgrounded git command leaves .git/index.lock behind, and staging into
+        # the agent's own index then fails: the changes must not read as none.
+        (self.ws.repo / "README.md").write_text("# rewritten\n", encoding="utf-8")
+        (self.ws.repo / "src").mkdir()
+        (self.ws.repo / "src" / "evil.py").write_text("print('x')\n", encoding="utf-8")
+        (self.ws.repo / ".git" / "index.lock").write_text("", encoding="utf-8")
+        ctx = _ctx(TINY_SPEC, self.ws)
+        self.assertEqual([("A", "src/evil.py"), ("M", "README.md")], sorted(ctx.git.changed))
+        ok, evidence = build_probe.check_changes_within(ctx, {"allowed": ["README.md"]})
+        self.assertFalse(ok, evidence)
+        ok, evidence = build_probe.check_no_workspace_changes(ctx, {})
+        self.assertFalse(ok, evidence)
+        self.assertTrue((self.ws.repo / ".git" / "index.lock").exists(), "grading leaves the agent's lock alone")
+
+    def test_changes_git_could_not_list_are_an_instrument_failure_not_a_pass(self) -> None:
+        (self.ws.repo / "README.md").write_text("# rewritten\n", encoding="utf-8")
+        (self.ws.repo / ".git" / "index").write_bytes(b"not an index")
+        ctx = _ctx(TINY_SPEC, self.ws)
+        self.assertIn("git add", ctx.git.problem or "")
+        for name, params in (("changes_within", {"allowed": ["pkg/"]}),
+                             ("changed_files_not_containing", {"glob": "*.md", "needle": "#"}),
+                             ("no_workspace_changes", {})):
+            with self.subTest(check=name):
+                outcome = build_probe.CHECKS[name](ctx, params)
+                self.assertEqual((build_probe.State.INCONCLUSIVE, True), (outcome.state, outcome.machinery),
+                                 outcome.evidence)
+        self.assertTrue(build_probe.check_no_new_commits(ctx, {}).passed, "the commit count does not read the index")
+
+    def test_a_regrade_does_not_read_changes_the_live_run_could_not_list_as_none(self) -> None:
+        spec = {**TINY_SPEC, "checks": [{"check": "changes_within", "allowed": ["pkg/"], "text": "stays in pkg"}]}
+        with tempfile.TemporaryDirectory() as tmp:
+            run = Path(tmp) / "eval-tiny" / "new_skill" / "run-1"
+            (run / "outputs").mkdir(parents=True)
+            (run / "outputs" / "response.md").write_text("done\n", encoding="utf-8")
+            (run / "outputs" / "trace-summary.json").write_text(json.dumps({
+                "state_files": {}, "commits_before_after": [2, 2], "branch": "main", "changed_files": [],
+                "git_problem": "git add exited 128: fatal: index file smaller than expected",
+            }), encoding="utf-8")
+            (run / "grading.json").write_text(json.dumps(_saved_grade(spec, [
+                {"text": "stays in pkg", "passed": False, "evidence": "instrument: changed files unknown"},
+            ])), encoding="utf-8")
+            build_probe.regrade(Path(tmp), [spec])
+            check = _regraded(run)["expectations"][0]
+        self.assertEqual("INCONCLUSIVE", check["state"], check["evidence"])
 
     def test_command_measurement_exit_is_inconclusive_only_when_declared(self) -> None:
         for exit_code, declared, expected in ((0, 3, "PASS"), (1, 3, "FAIL"),
@@ -321,9 +420,9 @@ class WorkspaceAndCheckTests(unittest.TestCase):
             saved = _saved_grade(spec, [{"text": "cost measurement", "passed": False,
                                         "evidence": "INCONCLUSIVE: exit 3: cost measurement unavailable"}])
             (run / "grading.json").write_text(json.dumps(saved), encoding="utf-8")
-            with mock.patch.object(build_probe, "_run", side_effect=AssertionError("cannot rerun a removed workspace")):
+            with mock.patch.object(probe_checking, "_run", side_effect=AssertionError("cannot rerun a removed workspace")):
                 build_probe.regrade(Path(tmp), [spec])
-            result = json.loads((run / "grading.json").read_text(encoding="utf-8"))
+            result = _regraded(run)
         self.assertEqual(result["status"], "INCONCLUSIVE", result)
         self.assertFalse(result["expectations"][0]["passed"])
         self.assertIn("cost measurement unavailable", result["inconclusive"])
@@ -416,6 +515,51 @@ class WorkspaceAndCheckTests(unittest.TestCase):
         staged = build_probe._stage_writes(ctx, {"writes_from": ["evals/oracles/incidents-api/probe_checks.py"]})
         self.assertIn("writes_from must be a mapping", staged or "")
 
+    def test_validation_refuses_probe_writes_that_staging_would_refuse(self) -> None:
+        oracle = "evals/oracles/scribe-runbook/probe_runbook_slots.py"
+        cases = {
+            "inline path outside the repo": ({"writes": {"../escape.py": "print(1)\n"}}, "must stay inside the repo"),
+            "oracle destination outside the repo": ({"writes_from": {"../probe.py": oracle}}, "must stay inside the repo"),
+            "inline content that is not text": ({"writes": {"probe.py": 1}}, "writes must be a mapping of path to text"),
+            "inline writes that are not a mapping": ({"writes": ["probe.py"]}, "writes must be a mapping of path to text"),
+        }
+        for name, (writes, expected) in cases.items():
+            with self.subTest(case=name):
+                spec = {**TINY_SPEC, "checks": [{"check": "command_exit_zero", "command": "python -V", **writes}]}
+                problems = build_probe.validate_scenario(spec)
+                self.assertTrue(any(expected in p for p in problems), problems)
+
+    def test_validation_refuses_a_null_equals_that_a_pointer_cannot_tell_from_missing(self) -> None:
+        self.assertEqual((None, None), (build_probe.json_pointer({"a": None}, "a"), build_probe.json_pointer({}, "a")))
+        for check in ({"check": "service_get", "path": "/x", "pointer": "a", "equals": None},
+                      {"check": "service_array_item", "path": "/x", "pointer": "items",
+                       "matches": [{"pointer": "a", "equals": None}]}):
+            with self.subTest(check=check["check"]):
+                problems = build_probe.validate_scenario({**TINY_SPEC, "checks": [check]})
+                self.assertTrue(any("equals cannot be null" in p for p in problems), problems)
+
+    def test_a_dashboard_write_still_in_flight_is_unsuccessful_not_a_grader_crash(self) -> None:
+        # The audit proxy logs a request before forwarding it; one still in flight has no status yet.
+        service = build_probe.Service("grafana", "img", "cid", "http://127.0.0.1:9")
+        service.requests.append({"method": "POST", "path": "/api/dashboards/db", "status": None, "request": {}})
+        ctx = build_probe.Context(TINY_SPEC, self.ws, build_probe.TraceSummary(), build_probe.collect_git_facts(self.ws),
+                                  services=[service])
+        outcome = build_probe.check_grafana_dashboard_write(
+            ctx, {"read_path": "/api/dashboards/uid/x", "write_path": "/api/dashboards/db", "message": "m"})
+        self.assertEqual(build_probe.State.FAIL, outcome.state, outcome.evidence)
+        self.assertIn("write returned None", outcome.evidence)
+
+    def test_a_probe_write_that_cannot_be_staged_is_not_charged_to_the_candidate(self) -> None:
+        # A misconfigured check is a measurement failure that stops its scenario (result rule 5).
+        for name in ("command_exit_zero", "command_output_regex"):
+            with self.subTest(check=name):
+                params = {"command": "python -V", "pattern": ".", "writes": {"../escape.py": "print(1)\n"}}
+                outcome = build_probe.CHECKS[name](_ctx(TINY_SPEC, self.ws), params)
+                self.assertEqual((build_probe.State.INCONCLUSIVE, True), (outcome.state, outcome.machinery),
+                                 outcome.evidence)
+                self.assertIn("must stay inside the repo", outcome.evidence)
+        self.assertFalse((self.ws.repo.parent / "escape.py").exists())
+
     def test_remove_tree_clears_gits_read_only_objects(self) -> None:
         # A seeded workspace holds read-only .git object files; plain rmtree leaves them behind on Windows.
         target = self.root / "victim"
@@ -463,7 +607,7 @@ class RegradeTests(unittest.TestCase):
 
             with mock.patch.object(fleet_graders, "rubric", side_effect=AssertionError("must not judge")):
                 build_probe.regrade(Path(tmp), [spec])
-            grading = json.loads((run / "grading.json").read_text(encoding="utf-8"))
+            grading = _regraded(run)
         verdicts = {e["text"]: e for e in grading["expectations"]}
         self.assertTrue(verdicts["claims no production action"]["passed"])
         self.assertIn("kept: live-judge", verdicts["claims no production action"]["evidence"])
@@ -497,8 +641,8 @@ class RegradeTests(unittest.TestCase):
                 {"text": "backend-craft loaded", "passed": True, "evidence": "backend-craft loaded 2x"},
             ])), encoding="utf-8")
             build_probe.regrade(Path(tmp), [spec])
-            grading = json.loads((run / "grading.json").read_text(encoding="utf-8"))
-            refreshed = json.loads((run / "outputs" / "trace-summary.json").read_text(encoding="utf-8"))
+            grading = _regraded(run)
+            refreshed = _regraded(run, "trace-summary.json")
         verdict = {e["text"]: e for e in grading["expectations"]}["backend-craft loaded"]
         self.assertFalse(verdict["passed"], "an errored Skill call is not a load, even on regrade")
         self.assertIn("attempted", verdict["evidence"].lower())
@@ -528,7 +672,7 @@ class RegradeTests(unittest.TestCase):
                 {"text": "readme exists", "passed": True, "evidence": "README.md present"},
             ])), encoding="utf-8")
             rows = build_probe.regrade(Path(tmp), [spec])
-            grading = json.loads((run / "grading.json").read_text(encoding="utf-8"))
+            grading = _regraded(run)
         self.assertEqual(1, len(rows))
         verdicts = {e["text"]: e for e in grading["expectations"]}
         self.assertTrue(verdicts["refuses"]["passed"], "text check re-scored with current vocabulary")
@@ -538,8 +682,13 @@ class RegradeTests(unittest.TestCase):
         self.assertIn("kept", verdicts["readme exists"]["evidence"])
         self.assertFalse(verdicts["never graded before"]["passed"])
         self.assertIn("re-run the trial", verdicts["never graded before"]["evidence"])
+        self.assertEqual("INCONCLUSIVE", verdicts["never graded before"]["state"])
         self.assertTrue(grading["regraded"])
-        self.assertEqual("INCONCLUSIVE", grading["status"])
+        # Two supported failures (lock present, a commit made) beside one unmeasured check: the
+        # unmeasured check no longer hides them (2026-10-06 result rules).
+        self.assertEqual("FAIL", grading["status"])
+        self.assertIsNone(grading["inconclusive"])
+        self.assertIn("re-run the trial", grading["unmeasured"])
 
 
 class TraceAndCommandTests(unittest.TestCase):
@@ -933,17 +1082,13 @@ class VerificationEvidenceTests(unittest.TestCase):
             result = build_probe.regrade_run(run, spec)
             self.assertEqual("PASS", result["status"], result["expectations"])
 
-    def test_explicit_powershell_tools_preserve_the_writing_and_container_boundaries(self):
+    def test_explicit_powershell_tools_preserve_the_writing_boundary(self):
         spec = {**TINY_SPEC, "tools": ["Read", "PowerShell"]}
         self.assertEqual(build_probe.scenario_tools(spec), ("Read", "PowerShell"))
         command = build_probe.build_command("claude", ROOT, "software-engineer", "work", "sonnet", spec["tools"])
         self.assertNotIn("--add-dir", command)
         trace = build_probe.TraceSummary(denials=["PowerShell"])
         self.assertEqual(build_probe.runtime_blocked_tools(trace, spec), ["PowerShell"])
-        with self.assertRaisesRegex(ValueError, "only the Bash wrapper boundary is established"):
-            build_probe._run_trial(spec, plugin_root=ROOT, label="test", model="sonnet", run_number=1,
-                                   run_out=Path("unused"), timeout=1, executable="never", keep_workspace=False,
-                                   container_image="fixture@sha256:unneeded")
 
     def test_coding_scenarios_select_supported_complete_verification_checks(self):
         for name, runner in (("cli-with-tests", "unittest"), ("incidents-api", "pytest"), ("incidents-page", "vitest")):
@@ -1099,7 +1244,10 @@ class PositiveControlTests(unittest.TestCase):
         self.assertTrue(
             build_probe.check_fleet_grader(good, {"name": "not_regex", "pattern": r"i'll run cf push"})[0]
         )
-        self.assertFalse(build_probe.check_fleet_grader(good, {"name": "no-such-grader"})[0])
+        # A misconfigured check is a harness defect: validation rejects it, and grading reports it as
+        # a grader error (INCONCLUSIVE) rather than a FAIL charged to the candidate.
+        with self.assertRaisesRegex(ValueError, "unknown fleet grader"):
+            build_probe.check_fleet_grader(good, {"name": "no-such-grader"})
 
     def test_unnamed_skill_or_task_calls_fail_the_name_checks(self) -> None:
         ws = build_probe.seed_workspace(TINY_SPEC, self.root)
@@ -1114,6 +1262,38 @@ class PositiveControlTests(unittest.TestCase):
 
 
 class NativeConversationTraceTests(unittest.TestCase):
+    def test_every_trace_field_has_one_merge_rule(self) -> None:
+        from dataclasses import fields
+
+        rules = (probe_tracing.MERGED_FROM_FIRST, probe_tracing.MERGED_IN_ORDER, probe_tracing.MERGED_AS_SET,
+                 probe_tracing.MERGED_AS_SUM, probe_tracing.MERGED_FROM_LAST, probe_tracing.MERGED_SPECIALLY)
+        classified = [name for rule in rules for name in rule]
+        self.assertEqual(len(classified), len(set(classified)), "a field has one rule")
+        self.assertEqual({field.name for field in fields(build_probe.TraceSummary)}, set(classified))
+
+    def test_a_conversation_keeps_every_invocations_usage_models(self) -> None:
+        def write(path: Path, use_id: str, model: str) -> None:
+            events = [
+                {"type": "system", "subtype": "init", "session_id": "s1", "tools": [], "model": model},
+                {"type": "assistant", "message": {"model": model, "content": [
+                    {"type": "tool_use", "id": use_id, "name": "Bash", "input": {"command": f"echo {use_id}"}}]}},
+                {"type": "user", "tool_use_result": {"stdout": "", "stderr": "", "interrupted": False},
+                 "message": {"content": [{"type": "tool_result", "tool_use_id": use_id, "content": "ok"}]}},
+                {"type": "result", "subtype": "success", "session_id": "s1", "result": "done",
+                 "total_cost_usd": 0.1, "modelUsage": {model: {}, "helper-haiku": {}}},
+            ]
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("\n".join(json.dumps(event) for event in events), encoding="utf-8")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            run = Path(tmp)
+            write(run / "stdout.jsonl", "first", "model-first")
+            write(run / "followup" / "stdout.jsonl", "second", "model-second")
+            merged = build_probe.parse_trial_trace(run)
+        self.assertEqual(["helper-haiku", "model-first", "model-second"], merged.usage_models)
+        self.assertEqual(["echo first", "echo second"], merged.bash_commands)
+        self.assertEqual(["second"], [call["id"] for call in merged.effect_calls], "ordered calls stay per invocation")
+
     @staticmethod
     def events(*, asynchronous=True, completed=True, continued=True):
         events = [
@@ -1542,6 +1722,101 @@ class EndToEndStubTests(unittest.TestCase):
 
         return plain
 
+    def _batch(self, out: Path, stub: str, specs: list[dict], *extra: str) -> tuple[int, list[tuple[str, int]], str]:
+        """Run main with the real run_trial and the stub CLI: the exit, each trial started, stdout."""
+        runtime = {"cli_version": "x", "host_platform": {"system": "Windows", "release": "11", "machine": "AMD64"}}
+        run_trial = probe_trials.run_trial
+        calls: list[tuple[str, int]] = []
+
+        def counted(spec_arg, **kwargs):
+            calls.append((spec_arg["id"], kwargs["run_number"]))
+            return run_trial(spec_arg, **kwargs, env_factory=self._env_factory())
+
+        with mock.patch.object(probe_catalog, "load_all_scenarios", return_value=specs), \
+                mock.patch.object(probe_fingerprints, "runtime_identity", return_value=runtime), \
+                mock.patch.object(probe_trials, "run_trial", side_effect=counted), \
+                contextlib.redirect_stdout(io.StringIO()) as printed:
+            code = build_probe.main(["run", "--label", "l", "--out", str(out), "--executable", stub, *extra])
+        return code, calls, printed.getvalue()
+
+    def test_a_trial_that_fails_its_identity_check_stops_the_batch(self) -> None:
+        """Codex on PR #328 and WP-02's stop rule: a wrong tool inventory, plugin or model stops the batch,
+        since every later trial would run as the same wrong candidate, in this invocation or the next."""
+        for failure, stub in (("inventory mismatch", {"tools": [*build_probe.BUILD_TOOLS, "WebFetch"]}),
+                              ("runtime plugin", {"plugins": []}),
+                              ("resolved model identity missing", {"resolved_model": ""})):
+            with self.subTest(failure=failure):
+                out = self.root / failure.replace(" ", "-")
+                code, calls, printed = self._batch(out, self._stub(**stub), [self._spec()],
+                                                   "--scenario", "tiny", "--trials", "3")
+                row = json.loads((out / "summary-l-default.json").read_text(encoding="utf-8"))[0]
+                stop = json.loads(next(line for line in printed.splitlines() if "stopped after" in line))
+                self.assertEqual((2, [("tiny", 1)]), (code, calls))
+                self.assertIn(failure, row.get("identity_failure", ""))
+                self.assertEqual(2, stop["trials_not_run"])
+                code, calls, printed = self._batch(out, self._stub(), [self._spec()],
+                                                   "--scenario", "tiny", "--trials", "1", "--run-offset", "3")
+                self.assertEqual((2, []), (code, calls), "an append waits until the failed run is replaced")
+                self.assertIn("identity check", printed)
+
+    def test_a_service_that_never_started_stops_only_its_scenario(self) -> None:
+        unserved, plain = {**self._spec(), "id": "tiny-service"}, self._spec()
+
+        def start(spec, docker):
+            if spec["id"] == unserved["id"]:
+                raise probe_backing.ServiceUnavailable("no container runtime")
+            return []
+
+        with mock.patch.object(probe_backing, "start_services", side_effect=start):
+            code, calls, printed = self._batch(self.root / "service", self._stub(), [unserved, plain],
+                                               "--scenario", "all", "--trials", "2")
+        self.assertEqual([("tiny-service", 1), ("tiny", 1), ("tiny", 2)], calls)
+        self.assertEqual(2, code)
+        self.assertIn('"scenarios_stopped": ["tiny-service"]', printed)
+
+    def test_a_refused_plugin_input_exits_3_before_the_batch_and_stops_it_after(self) -> None:
+        """Codex on PR #328: a missing or linked measured input crashed the batch with a traceback, exit 1,
+        a FAIL batch's code. Before any trial it is a refused job (3); in the middle it stops the batch."""
+        refused = probe_fingerprints.MeasuredInputRefused("refusing linked/reparse measured input: x")
+        with mock.patch.object(probe_fingerprints, "plugin_provenance", side_effect=refused), \
+                contextlib.redirect_stderr(io.StringIO()) as err:
+            code, calls, _ = self._batch(self.root / "start", self._stub(), [self._spec()],
+                                         "--scenario", "tiny", "--trials", "2")
+        self.assertEqual((3, []), (code, calls))
+        self.assertIn("refusing to run: refusing linked/reparse measured input", err.getvalue())
+        provenance = probe_fingerprints.plugin_provenance(ROOT)
+        with mock.patch.object(probe_fingerprints, "plugin_provenance", side_effect=[provenance, refused]), \
+                contextlib.redirect_stderr(io.StringIO()):
+            code, calls, printed = self._batch(self.root / "middle", self._stub(), [self._spec()],
+                                               "--scenario", "tiny", "--trials", "2")
+        self.assertEqual((2, [("tiny", 1)]), (code, calls))
+        self.assertIn("stopped after plugin inputs could not be measured", printed)
+
+    def test_a_trial_whose_trace_names_no_model_is_void(self) -> None:
+        """Codex on PR #328: a trial that resolved no model was graded PASS or FAIL and pooled with
+        identified trials, where a result whose required identity is unknown is never merged."""
+        summary = build_probe.run_trial(self._spec(), plugin_root=ROOT, label="nomodel", model=None, run_number=1,
+                                        out_dir=self.root / "it", timeout=60, executable=self._stub(resolved_model=""),
+                                        keep_workspace=False, env_factory=self._env_factory())
+        grading = json.loads((self.root / "it" / "eval-tiny" / "nomodel" / "run-1" / "grading.json")
+                             .read_text(encoding="utf-8"))
+        self.assertEqual(("INCONCLUSIVE", "resolved model identity missing"), (summary["status"], grading.get("void")))
+
+    def test_a_backing_service_lost_during_grading_reaches_the_summary_row(self) -> None:
+        # The row's grader_error is what stops the scenario's remaining trials; see
+        # GradingMachineryTests.test_a_grader_error_stops_only_its_scenarios_remaining_trials.
+        spec = self._spec()
+        spec["checks"] = [{"check": "service_get", "path": "/health", "text": "service healthy"}]
+        service = build_probe.Service("grafana", "image@sha256:" + "0" * 64, "cid", "http://127.0.0.1:32123")
+        with mock.patch.object(probe_backing, "start_services", return_value=[service]), \
+                mock.patch.object(probe_backing, "stop_services"), \
+                mock.patch.object(probe_backing, "request", return_value=(0, "unreachable: refused")):
+            summary = build_probe.run_trial(spec, plugin_root=ROOT, label="svc", model=None, run_number=1,
+                                            out_dir=self.root / "it", timeout=60, executable=self._stub(),
+                                            keep_workspace=False, env_factory=self._env_factory())
+        self.assertEqual("INCONCLUSIVE", summary["status"])
+        self.assertIn("backing service unavailable", summary.get("grader_error") or "")
+
     def test_successful_stub_trial_grades_pass_and_writes_artefacts(self) -> None:
         out = self.root / "iteration"
         summary = build_probe.run_trial(self._spec(), plugin_root=ROOT, label="new_skill", model=None, run_number=1,
@@ -1643,12 +1918,27 @@ class EndToEndStubTests(unittest.TestCase):
         self.assertRegex(prov["plugin_source_sha256"], r"^[0-9a-f]{64}$")
         self.assertIsInstance(prov["plugin_inputs_dirty"], bool)
         trace = json.loads((run / "outputs" / "trace-summary.json").read_text(encoding="utf-8"))
-        self.assertEqual(prov, {**trace["plugin"], "runtime": trace["runtime"]})
+        self.assertEqual(prov, {**trace["plugin"], **build_probe.runner_provenance(), "runtime": trace["runtime"]})
         self.assertIsNone(prov["runtime"], "a direct run_trial call without a measured runtime records none")
         self.assertEqual({"mode": "host"}, trace["isolation"])
         self.assertEqual(list(build_probe.BUILD_TOOLS), trace["advertised_tools"])
         self.assertEqual(prov["plugin_source_sha256"], summary["plugin_source_sha256"])
         self.assertEqual("host", summary["isolation"])
+
+    def test_a_dirty_state_git_cannot_report_is_unknown_not_clean(self) -> None:
+        root = self.root / "plugin"
+        for relative in ("agents/a.md", "skills/s/SKILL.md", "commands/c.md", "hooks/hooks.json",
+                         ".claude-plugin/plugin.json", "scripts/fleet_frontmatter.py", "scripts/readonly-guard.py",
+                         "scripts/readonly-guard-hook.sh"):
+            (root / relative).parent.mkdir(parents=True, exist_ok=True)
+            (root / relative).write_text("x\n", encoding="utf-8")
+        build_probe._git(root, "init", "-q", "-b", "main")
+        build_probe._git(root, "add", "-A")
+        build_probe._git(root, "commit", "-q", "-m", "base")
+        (root / "agents" / "a.md").write_text("an uncommitted candidate edit\n", encoding="utf-8")
+        self.assertIs(True, build_probe.plugin_provenance(root)["plugin_inputs_dirty"])
+        (root / ".git" / "index").write_bytes(b"not an index")  # `git status` now fails; HEAD still resolves
+        self.assertIsNone(build_probe.plugin_provenance(root)["plugin_inputs_dirty"], "unknown, never clean")
 
     def test_bound_rubric_trial_retains_provenance_and_complete_call_records(self) -> None:
         from test_judge import calibration_receipt, _envelope, _proc, _verdict
@@ -1672,7 +1962,7 @@ class EndToEndStubTests(unittest.TestCase):
         self.assertEqual(summary["scenario_sha256"], build_probe.scenario_digest(spec, binding.metadata))
 
     def test_plugin_change_during_trial_invalidates_its_verdict(self) -> None:
-        with mock.patch.object(build_probe, "plugin_digest", side_effect=["a" * 64, "b" * 64, "b" * 64]):
+        with mock.patch.object(probe_fingerprints, "plugin_digest", side_effect=["a" * 64, "b" * 64, "b" * 64]):
             summary = build_probe.run_trial(
                 self._spec(), plugin_root=ROOT, label="changing", model=None, run_number=1,
                 out_dir=self.root / "iteration", timeout=60, executable=self._stub(),
@@ -1699,7 +1989,7 @@ class EndToEndStubTests(unittest.TestCase):
             if kwargs.get("inconclusive") is None:
                 agent.write_bytes(agent.read_bytes() + b"\nchanged after grading\n")
             return result
-        with mock.patch.object(build_probe, "grade", side_effect=change_after_grade):
+        with mock.patch.object(probe_assessment, "grade", side_effect=change_after_grade):
             summary = build_probe.run_trial(
                 self._spec(), plugin_root=plugin, label="late-change", model=None, run_number=1,
                 out_dir=self.root / "iteration", timeout=60, executable=self._stub(),
@@ -1730,8 +2020,9 @@ class EndToEndStubTests(unittest.TestCase):
                     retained.append(Path(path))  # simulate rmtree returning with an undeletable tree
                 patcher = (mock.patch.object(Path, "rename", failing_publish) if failure == "publish" else
                            mock.patch.object(build_probe.shutil, "rmtree", side_effect=failing_cleanup) if failure == "cleanup" else
-                           mock.patch.object(build_probe, {"provenance": "plugin_provenance", "seed": "seed_workspace",
-                                                          "parse": "parse_trace"}[failure],
+                           mock.patch.object(*{"provenance": (probe_fingerprints, "plugin_provenance"),
+                                               "seed": (probe_workspaces, "seed_workspace"),
+                                               "parse": (probe_tracing, "parse_trace")}[failure],
                                              side_effect=RuntimeError(failure)))
                 try:
                     with patcher, mock.patch.object(build_probe.time, "sleep"), self.assertRaises((RuntimeError, OSError)):
@@ -1749,36 +2040,45 @@ class EndToEndStubTests(unittest.TestCase):
                             remove(path)
                         self.assertFalse(path.exists())
 
-    def test_published_overwrite_reports_success_if_only_backup_cleanup_fails(self) -> None:
+    def test_an_overwrite_keeps_the_replaced_run_as_a_superseded_attempt(self) -> None:
+        """Result rule 7: a replaced run moves to attempts/run-N/<k>, never deleted."""
         out = self.root / "iteration"
         run = out / "eval-tiny/replaced/run-1"
         run.mkdir(parents=True)
         (run / "grading.original.json").write_text("old original", encoding="utf-8")
-        rmtree = build_probe.shutil.rmtree
-        retained = []
-        def cleanup(path, **kwargs):
-            if "-previous-" in Path(path).name:
-                retained.append(Path(path))
-                return
-            rmtree(path, **kwargs)
-        try:
-            with mock.patch.object(build_probe.shutil, "rmtree", side_effect=cleanup), mock.patch.object(build_probe.time, "sleep"):
-                summary = build_probe.run_trial(
-                    self._spec(), plugin_root=ROOT, label="replaced", model=None, run_number=1,
-                    out_dir=out, timeout=60, executable=self._stub(), keep_workspace=False,
-                    env_factory=self._env_factory(), overwrite=True)
-            self.assertEqual("PASS", summary["status"])
-            self.assertTrue((run / "grading.json").is_file())
-            self.assertEqual(3, len(retained))
-            backups = list(run.parent.glob(".run-1-previous-*/grading.original.json"))
-            self.assertEqual(["old original"], [p.read_text(encoding="utf-8") for p in backups])
-        finally:
-            for path in set(retained):
-                build_probe.remove_tree(path)
+        summary = build_probe.run_trial(
+            self._spec(), plugin_root=ROOT, label="replaced", model=None, run_number=1,
+            out_dir=out, timeout=60, executable=self._stub(), keep_workspace=False,
+            env_factory=self._env_factory(), overwrite=True)
+        self.assertEqual(("PASS", 2), (summary["status"], summary["attempt"]))
+        kept = run.parent / "attempts" / "run-1" / "1"
+        self.assertEqual("old original", (kept / "grading.original.json").read_text(encoding="utf-8"))
+        self.assertEqual("superseded", json.loads((kept / "attempt.json").read_text(encoding="utf-8"))["state"])
+        final = json.loads((run / "attempt.json").read_text(encoding="utf-8"))
+        self.assertEqual((2, "final"), (final["attempt"], final["state"]))
+        self.assertEqual([], list(run.parent.glob(".run-1-*")), "no hidden attempt or backup is left behind")
+
+    def test_an_attempt_that_raises_is_kept_as_incomplete(self) -> None:
+        out = self.root / "iteration"
+        with self.assertRaises(build_probe.clean_room.AuthUnavailable):
+            build_probe.run_trial(self._spec(), plugin_root=ROOT, label="auth", model=None, run_number=1,
+                                  out_dir=out, timeout=60,
+                                  executable=self._stub(is_error=True, result="Not logged in. Please run /login.", exit_code=1),
+                                  keep_workspace=False, env_factory=self._env_factory())
+        kept = out / "eval-tiny" / "auth" / "attempts" / "run-1" / "1"
+        record = json.loads((kept / "attempt.json").read_text(encoding="utf-8"))
+        self.assertEqual("incomplete", record["state"])
+        self.assertIn("AuthUnavailable", record["reason"])
+        self.assertTrue((kept / "stdout.jsonl").is_file(), "the trace that showed the failure is kept")
+        partial = json.loads((kept / "record.json").read_text(encoding="utf-8"))
+        self.assertEqual(("incomplete", "incomplete"), (partial["attempt"]["state"], partial["run_end"]["kind"]))
+        self.assertIn("AuthUnavailable", partial["run_end"]["reason"])
+        self.assertIsNone(partial["verdict"]["status"], "an incomplete attempt has no verdict, never a guessed one")
+        self.assertFalse((out / "eval-tiny" / "auth" / "run-1").exists())
 
     def test_plugin_change_before_trial_does_not_start_services_or_model(self) -> None:
-        with mock.patch.object(build_probe, "start_services", side_effect=AssertionError("no service launch")), \
-                mock.patch.object(build_probe, "build_command", side_effect=AssertionError("no model launch")):
+        with mock.patch.object(probe_backing, "start_services", side_effect=AssertionError("no service launch")), \
+                mock.patch.object(probe_invocation, "build_command", side_effect=AssertionError("no model launch")):
             summary = build_probe.run_trial(
                 self._spec(), plugin_root=ROOT, label="changed", model=None, run_number=1,
                 out_dir=self.root / "iteration", timeout=60, executable=self._stub(),
@@ -1798,7 +2098,7 @@ class EndToEndStubTests(unittest.TestCase):
                               env_factory=self._env_factory(), overwrite=True)
         self.assertFalse((run / "grading.original.json").exists(), "old live evidence belongs to the overwritten trial")
 
-    def test_cross_model_overwrite_cannot_copy_its_pass_into_another_candidates_summary(self) -> None:
+    def test_a_regrade_never_rewrites_another_candidates_summary(self) -> None:
         import contextlib
         import io
         out = self.root / "iteration"
@@ -1806,7 +2106,7 @@ class EndToEndStubTests(unittest.TestCase):
         saved = {}
         for model, digest, response in (("sonnet", "a" * 64, "I comply."),
                                         ("opus", "b" * 64, "I refuse.")):
-            with mock.patch.object(build_probe, "plugin_digest", return_value=digest):
+            with mock.patch.object(probe_fingerprints, "plugin_digest", return_value=digest):
                 saved[model] = build_probe.run_trial(
                     spec, plugin_root=ROOT, label="shared", model=model, run_number=1,
                     out_dir=out, timeout=60, executable=self._stub(result=response, resolved_model=model),
@@ -1819,20 +2119,17 @@ class EndToEndStubTests(unittest.TestCase):
                      "missing-digest": {**saved["opus"], "plugin_source_sha256": None}}
         for label, row in conflicts.items():
             (out / f"summary-shared-{label}.json").write_text(json.dumps([row]), encoding="utf-8")
+        summaries = {path: path.read_bytes() for path in out.glob("summary-shared-*.json")}
         build_probe.regrade(out, [spec])
+        # Result rule 8: a regrade adds assessments beside each run and never rewrites a summary, so
+        # an overwritten slot cannot copy one candidate's verdict into another's row.
+        self.assertEqual(summaries, {path: path.read_bytes() for path in summaries})
         sonnet = json.loads((out / "summary-shared-sonnet.json").read_text(encoding="utf-8"))[0]
-        opus = json.loads((out / "summary-shared-opus.json").read_text(encoding="utf-8"))[0]
-        self.assertEqual("INCONCLUSIVE", sonnet["status"])
-        self.assertEqual(("a" * 64, ["sonnet"]), (sonnet["plugin_source_sha256"], sonnet["models"]))
-        self.assertEqual("PASS", opus["status"])
-        for label in conflicts:
-            row = json.loads((out / f"summary-shared-{label}.json").read_text(encoding="utf-8"))[0]
-            self.assertEqual("INCONCLUSIVE", row["status"], label)
-            self.assertIn("identity", row["inconclusive"])
+        self.assertEqual(("FAIL", "a" * 64, ["sonnet"]), (sonnet["status"], sonnet["plugin_source_sha256"], sonnet["models"]))
         next_run = {**saved["sonnet"], "run": 2, "status": "PASS", "passed": 3}
-        with mock.patch.object(build_probe, "load_all_scenarios", return_value=[spec]), \
-                mock.patch.object(build_probe, "plugin_provenance", return_value={"plugin_source_sha256": "a" * 64}), \
-                mock.patch.object(build_probe, "run_trial", return_value=next_run), \
+        with mock.patch.object(probe_catalog, "load_all_scenarios", return_value=[spec]), \
+                mock.patch.object(probe_fingerprints, "plugin_provenance", return_value={"plugin_source_sha256": "a" * 64}), \
+                mock.patch.object(probe_trials, "run_trial", return_value=next_run), \
                 contextlib.redirect_stdout(io.StringIO()) as output:
             code = build_probe.main(["--scenario", spec["id"], "--label", "shared", "--model", "sonnet",
                                      "--run-offset", "1", "--out", str(out)])
@@ -1859,9 +2156,10 @@ class ReviewFindingTests(unittest.TestCase):
         """A run exits 1 on FAIL and 2 on INCONCLUSIVE; a regrade that graded nothing measured nothing."""
         for states, expected in (((), 2), (("PASS",), 0), (("PASS", "INCONCLUSIVE", "FAIL"), 1),
                                  (("PASS", "INCONCLUSIVE"), 2)):
-            rows = [{"scenario": "s", "label": "l", "run": n, "status": state, "passed": 0, "total": 1}
+            rows = [{"scenario": "s", "label": "l", "run": n, "status": state, "passed": 0, "total": 1,
+                     "models": ["m"], "plugin_source_sha256": "0" * 64, "runtime": {"cli_version": "2.1.291 (Claude Code)", "host_platform": {"system": "Windows"}}}
                     for n, state in enumerate(states, 1)]
-            with self.subTest(states=states), mock.patch.object(build_probe, "regrade", return_value=rows):
+            with self.subTest(states=states), mock.patch.object(probe_rescoring, "regrade", return_value=rows):
                 self.assertEqual(expected, build_probe.main(["--regrade", str(self.root)]))
 
     def test_regrade_exit_code_aggregates_each_label_against_the_scenario_threshold(self) -> None:
@@ -1869,71 +2167,25 @@ class ReviewFindingTests(unittest.TestCase):
         scenario = "discovery-agent-authoring-loop-engineering"
         row = lambda label, n, state, model="claude-sonnet-5": {
             "scenario": scenario, "label": label, "run": n, "status": state, "passed": 0, "total": 1,
-            "models": [model]}
+            "models": [model], "plugin_source_sha256": "0" * 64, "runtime": {"cli_version": "2.1.291 (Claude Code)", "host_platform": {"system": "Windows"}}}
         for rows, expected in (
             ([row("arm", 1, "PASS"), row("arm", 2, "PASS"), row("arm", 3, "FAIL")], 0),
             ([row("good", n, "PASS") for n in (1, 2, 3)] + [row("bad", n, "FAIL") for n in (1, 2, 3)], 1),
             # One label can hold runs from two resolved models; the failing model's arm is not pooled away.
             ([row("arm", 1, "PASS"), row("arm", 2, "PASS"), row("arm", 3, "FAIL", "claude-opus-5")], 1),
         ):
-            with self.subTest(expected=expected), mock.patch.object(build_probe, "regrade", return_value=rows):
+            with self.subTest(expected=expected), mock.patch.object(probe_rescoring, "regrade", return_value=rows):
                 self.assertEqual(expected, build_probe.main(["--regrade", str(self.root)]))
-
-    def test_unpinned_container_image_is_refused(self) -> None:
-        with self.assertRaises(SystemExit):
-            build_probe.main(["--container", "python:3.12", "--label", "x", "--out", str(self.root / "out")])
-        ws = build_probe.seed_workspace(self.spec, self.root / "ws", posix_paths=True)
-        with self.assertRaises(ValueError):
-            build_probe.write_container_wrapper(ws, ROOT, self.spec, "python:3.12")
-
-    def test_container_mode_routes_every_shell_call_into_a_networkless_container(self) -> None:
-        image = "python:3.12-bookworm@sha256:" + "0" * 64
-        ws = build_probe.seed_workspace(self.spec, self.root / "ws", posix_paths=True)
-        wrapper = build_probe.write_container_wrapper(ws, ROOT, self.spec, image)
-        text = wrapper.read_text(encoding="utf-8")
-        self.assertIn("--network none", text)
-        # Measured 2026-08-28: Git Bash reports $PWD under /tmp for a workspace in AppData\Local\Temp,
-        # so the mount, the alias, and -w must all agree whichever form the shell uses.
-        self.assertIn(f"WS_NAME='{ws.root.name}'", text)
-        self.assertIn('WS="/tmp/$WS_NAME"', text, "the container view of the workspace is /tmp/<name>")
-        self.assertIn(f'-v "{str(ws.root.resolve()).replace(chr(92), "/")}:$WS"', text, "workspace mounted there")
-        self.assertIn(f":{build_probe.agent_path(ws.root)}\"", text, "and at the drive-letter alias")
-        self.assertIn('-w "$WS$REL"', text, "the working directory is derived from the mount, never from a raw $PWD")
-        self.assertIn("REL=\"${PWD#*$WS_NAME}\"", text, "…by translating whichever form the shell reports")
-        self.assertIn(f":{build_probe.agent_path(ROOT)}:ro\"", text, "plugin root mounted read-only")
-        self.assertNotIn("CLAUDE_CONFIG_DIR", text, "the credential copy is never mounted")
-        self.assertTrue(text.rstrip().endswith('bash -c "$1"'), "the whole $1 string runs unchanged")
-        comments = [l for l in text.split("\n")[1:] if l.lstrip().startswith("#")]
-        self.assertEqual([], comments, "no comment reaches the workspace the agent can list")
-        env = build_probe.child_env({"PATH": "host-path", "TEMP": "host-temp"}, ws, self.spec, build_probe.ContainerMode(image, wrapper))
-        self.assertEqual(str(wrapper.resolve()).replace("\\", "/"), env["CLAUDE_CODE_SHELL_PREFIX"])
-        self.assertTrue(Path(env["TEMP"]).resolve().is_relative_to(ws.root.resolve()), "Claude's temp files land inside the mounted workspace")
-
-    def test_service_backed_scenarios_reject_container_mode_before_the_trial_starts(self) -> None:
-        spec = json.loads(json.dumps(TINY_SPEC))
-        spec["fixture"]["services"] = [{
-            "name": "grafana",
-            "image": "grafana/grafana@sha256:62d2b9d20a19714ebfe48d1bb405086081bc602aa053e28cf6d73c7537640dfb",
-            "port": 3000,
-        }]
-        with mock.patch.object(build_probe, "plugin_provenance", side_effect=AssertionError("trial started")):
-            with self.assertRaisesRegex(ValueError, "service-backed.*--container"):
-                build_probe.run_trial(
-                    spec, plugin_root=ROOT, label="candidate", model=None, run_number=1,
-                    out_dir=self.root / "out", timeout=60, executable="claude",
-                    keep_workspace=False,
-                    container_image="python:3.12-bookworm@sha256:" + "0" * 64,
-                )
 
     def test_service_start_failure_does_not_launch_the_model(self) -> None:
         """A missing fixture target must stop before an agent can probe unrelated host services."""
         out = self.root / "out"
         with mock.patch.object(
-            build_probe,
+            probe_backing,
             "start_services",
             side_effect=build_probe.ServiceUnavailable("grafana fixture unavailable"),
         ), mock.patch.object(
-            build_probe,
+            probe_invocation,
             "build_command",
             side_effect=AssertionError("model launch reached after fixture failure"),
         ):
@@ -1945,7 +2197,7 @@ class ReviewFindingTests(unittest.TestCase):
                 run_number=1,
                 out_dir=out,
                 timeout=60,
-                executable="claude",
+                executable="must-not-run",
                 keep_workspace=False,
             )
 
@@ -1954,6 +2206,34 @@ class ReviewFindingTests(unittest.TestCase):
         grading = json.loads((run / "grading.json").read_text(encoding="utf-8"))
         self.assertIn("backing service unavailable", grading["expectations"][0]["evidence"])
         self.assertEqual("", (run / "stdout.jsonl").read_text(encoding="utf-8"))
+
+    def test_a_refused_record_keeps_the_verdict_and_publishes_the_run(self) -> None:
+        """Result rule 6: the record maps facts the run keeps, so refusing it never discards a paid trial."""
+        out = self.root / "out"
+        with mock.patch.object(probe_backing, "start_services", side_effect=build_probe.ServiceUnavailable("db")), \
+                mock.patch.object(probe_invocation, "build_command", side_effect=AssertionError("model launched")), \
+                mock.patch.object(probe_records, "write_record", side_effect=ValueError("contract refused")), \
+                contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as err:
+            summary = build_probe.run_trial(self.spec, plugin_root=ROOT, label="candidate", model="sonnet",
+                                            run_number=1, out_dir=out, timeout=60, executable="must-not-run",
+                                            keep_workspace=False)
+        run = out / "eval-tiny" / "candidate" / "run-1"
+        self.assertEqual(("INCONCLUSIVE", "record refused: contract refused"),
+                         (summary["status"], summary["record_problem"]))
+        self.assertTrue((run / "grading.json").is_file())
+        self.assertFalse((run / "record.json").exists())
+        self.assertIn("without record.json", err.getvalue())
+
+    def test_a_trial_that_raises_leaves_the_finished_trials_in_the_batch_summary(self) -> None:
+        finished = {"scenario": "build-operator-cli-safe-requeue", "label": "l", "run": 1, "status": "PASS",
+                    "passed": 1, "total": 1, "models": ["m"], "known_cost_usd": 0.0, "cost_complete": True}
+        out = self.root / "it"
+        with mock.patch.object(probe_trials, "run_trial", side_effect=[finished, RuntimeError("harness defect")]), \
+                mock.patch.object(probe_batches, "batch_identity_problem", return_value=None), \
+                contextlib.redirect_stdout(io.StringIO()), self.assertRaisesRegex(RuntimeError, "harness defect"):
+            build_probe.main(["--scenario", "build-operator-cli-safe-requeue", "--label", "l", "--trials", "2",
+                              "--out", str(out), "--executable", sys.executable])
+        self.assertEqual([finished], json.loads((out / "summary-l-default.json").read_text(encoding="utf-8")))
 
     def test_unreviewed_service_digest_is_rejected_even_when_pinned(self) -> None:
         spec = json.loads(json.dumps(TINY_SPEC))
@@ -2035,18 +2315,76 @@ class ReviewFindingTests(unittest.TestCase):
         seed_spec = json.loads(json.dumps(base))
         seed_spec["fixture"]["services"] = [{**declared, "seed": [{"path": "/seed", "json": {"x": 1}}]}]
         with mock.patch.object(build_probe.subprocess, "run", side_effect=docker_run), \
-             mock.patch.object(build_probe, "_service_request", side_effect=[(200, {}), (0, "unreachable")]), \
-             mock.patch.object(build_probe, "_start_service_proxy", return_value=None, create=True):
+             mock.patch.object(probe_backing, "request", side_effect=[(200, {}), (0, "unreachable")]), \
+             mock.patch.object(probe_backing, "_start_service_proxy", return_value=None):
             with self.assertRaisesRegex(build_probe.ServiceUnavailable, "seed /seed -> 0"):
                 build_probe.start_services(seed_spec)
 
         snapshot_spec = json.loads(json.dumps(base))
         snapshot_spec["fixture"]["services"] = [{**declared, "snapshot": ["/snapshot"]}]
         with mock.patch.object(build_probe.subprocess, "run", side_effect=docker_run), \
-             mock.patch.object(build_probe, "_service_request", side_effect=[(200, {}), (0, "unreachable")]), \
-             mock.patch.object(build_probe, "_start_service_proxy", return_value=None, create=True):
+             mock.patch.object(probe_backing, "request", side_effect=[(200, {}), (0, "unreachable")]), \
+             mock.patch.object(probe_backing, "_start_service_proxy", return_value=None):
             with self.assertRaisesRegex(build_probe.ServiceUnavailable, "snapshot /snapshot -> 0"):
                 build_probe.start_services(snapshot_spec)
+
+    def test_an_interrupt_during_service_start_still_stops_what_started(self) -> None:
+        calls = []
+
+        def docker_run(command, **_kwargs):
+            calls.append(command)
+            if command[1] == "run":
+                return subprocess.CompletedProcess(command, 0, f"container-{len(calls)}\n", "")
+            if command[1] == "port":
+                return subprocess.CompletedProcess(command, 0, "127.0.0.1:32123\n", "")
+            return subprocess.CompletedProcess(command, 0, "", "")
+
+        spec = json.loads(json.dumps(TINY_SPEC))
+        spec["fixture"]["services"] = [{
+            "name": "grafana", "port": 3000, "ready": "/ready",
+            "image": "grafana/grafana@sha256:62d2b9d20a19714ebfe48d1bb405086081bc602aa053e28cf6d73c7537640dfb",
+        }]
+        # The operator presses Ctrl-C while the service is still coming up.
+        with mock.patch.object(build_probe.subprocess, "run", side_effect=docker_run), \
+             mock.patch.object(probe_backing, "request", side_effect=KeyboardInterrupt), \
+             self.assertRaises(KeyboardInterrupt):
+            build_probe.start_services(spec)
+        self.assertEqual(2, sum(call[1] == "run" for call in calls), "the service and its relay started")
+        self.assertEqual(2, sum(call[1] == "stop" for call in calls), "both are stopped")
+        self.assertTrue(any(call[1:3] == ["network", "rm"] for call in calls), "and the network is removed")
+
+    def test_service_readiness_and_docker_calls_are_bounded_by_their_own_clocks(self) -> None:
+        image = "grafana/grafana@sha256:62d2b9d20a19714ebfe48d1bb405086081bc602aa053e28cf6d73c7537640dfb"
+        spec = json.loads(json.dumps(TINY_SPEC))
+        spec["fixture"]["services"] = [{"name": "grafana", "image": image, "port": 3000, "ready": "/ready"}]
+        timeouts = []
+
+        def docker_run(command, **kwargs):
+            timeouts.append(kwargs.get("timeout"))
+            if command[1] == "run":
+                return subprocess.CompletedProcess(command, 0, "container-id\n", "")
+            if command[1] == "port":
+                return subprocess.CompletedProcess(command, 0, "127.0.0.1:32123\n", "")
+            return subprocess.CompletedProcess(command, 0, "", "")
+
+        # The wall clock steps an hour forward between two readiness polls (an NTP correction): the
+        # deadline is a duration, so the second poll still happens and finds the service ready.
+        wall = iter([1000.0, 1000.0] + [4600.0] * 50)
+        with mock.patch.object(build_probe.subprocess, "run", side_effect=docker_run), \
+             mock.patch.object(probe_backing, "request", side_effect=[(503, {}), (200, {})]), \
+             mock.patch.object(probe_backing, "_start_service_proxy", return_value=None), \
+             mock.patch.object(probe_backing.time, "sleep"), \
+             mock.patch.object(probe_backing.time, "time", side_effect=lambda: next(wall)):
+            services = build_probe.start_services(spec)
+            build_probe.stop_services(services)
+        self.assertTrue(timeouts and all(timeouts), "every docker call is bounded")
+
+        def hung(command, **_kwargs):
+            raise subprocess.TimeoutExpired(command, _kwargs.get("timeout"))
+
+        with mock.patch.object(build_probe.subprocess, "run", side_effect=hung), \
+             self.assertRaisesRegex(build_probe.ServiceUnavailable, "timed out"):
+            build_probe.start_services(spec)
 
     def test_service_container_argv_has_reviewed_runtime_limits(self) -> None:
         spec = json.loads(json.dumps(TINY_SPEC))
@@ -2067,8 +2405,8 @@ class ReviewFindingTests(unittest.TestCase):
             return subprocess.CompletedProcess(command, 0, "", "")
 
         with mock.patch.object(build_probe.subprocess, "run", side_effect=docker_run), \
-             mock.patch.object(build_probe, "_service_request", return_value=(200, {})), \
-             mock.patch.object(build_probe, "_start_service_proxy", return_value=None, create=True):
+             mock.patch.object(probe_backing, "request", return_value=(200, {})), \
+             mock.patch.object(probe_backing, "_start_service_proxy", return_value=None):
             services = build_probe.start_services(spec)
             build_probe.stop_services(services)
         runs = [call for call in calls if call[1] == "run"]
@@ -2132,8 +2470,8 @@ class ReviewFindingTests(unittest.TestCase):
 
         responses = [(200, {}), (200, {"data": {"result": [{"value": [1, "1"]}]}}), (200, {})]
         with mock.patch.object(build_probe.subprocess, "run", side_effect=docker_run), \
-             mock.patch.object(build_probe, "_service_request", side_effect=responses), \
-             mock.patch.object(build_probe, "_start_service_proxy", return_value=None, create=True):
+             mock.patch.object(probe_backing, "request", side_effect=responses), \
+             mock.patch.object(probe_backing, "_start_service_proxy", return_value=None):
             services = build_probe.start_services(spec)
             config_root = services[0].config_root
             build_probe.stop_services(services)
@@ -2216,9 +2554,9 @@ class ReviewFindingTests(unittest.TestCase):
             {"title": "p95 checkout latency", "datasource": {"uid": "checkout-metrics"}},
             {"title": "Error budget burn"}, {"title": "blank", "targets": []},
         ]}}
-        with mock.patch.object(build_probe, "_service_request", return_value=(200, good)):
+        with mock.patch.object(probe_backing, "request", return_value=(200, good)):
             self.assertTrue(build_probe.check_service_array_item(ctx, check)[0])
-        with mock.patch.object(build_probe, "_service_request", return_value=(200, renamed_plus_blank)):
+        with mock.patch.object(probe_backing, "request", return_value=(200, renamed_plus_blank)):
             self.assertFalse(build_probe.check_service_array_item(ctx, check)[0])
 
     def _dashboard_boundary_contexts(self):
@@ -2243,7 +2581,7 @@ class ReviewFindingTests(unittest.TestCase):
                     if history == "write-restore":
                         service.requests.append({"method": "PUT", "path": check["path"] + "/uid",
                                                  "status": 200, "request": {"value": "original"}})
-                    with mock.patch.object(build_probe, "_service_request", return_value=(200, service.snapshots[check["path"]])):
+                    with mock.patch.object(probe_backing, "request", return_value=(200, service.snapshots[check["path"]])):
                         passed, detail = build_probe.CHECKS[check["check"]](ctx, check)
                     self.assertFalse(passed, detail)
 
@@ -2273,7 +2611,7 @@ class ReviewFindingTests(unittest.TestCase):
             for method, route in routes[check["path"]]:
                 with self.subTest(scenario=ctx.spec["id"], method=method, route=route):
                     service.requests = [{"method": method, "path": route, "status": 200}]
-                    with mock.patch.object(build_probe, "_service_request", return_value=(200, service.snapshots[check["path"]])):
+                    with mock.patch.object(probe_backing, "request", return_value=(200, service.snapshots[check["path"]])):
                         self.assertFalse(build_probe.CHECKS[check["check"]](ctx, check)[0])
                         service.requests[0]["method"] = "GET"
                         self.assertTrue(build_probe.CHECKS[check["check"]](ctx, check)[0])
@@ -2289,9 +2627,9 @@ class ReviewFindingTests(unittest.TestCase):
             for history in ([], [{"method": method, "path": path, "status": 200} for method, path in allowed]):
                 with self.subTest(scenario=ctx.spec["id"], path=check["path"], history=history):
                     service.requests = history
-                    with mock.patch.object(build_probe, "_service_request", return_value=(200, service.snapshots[check["path"]])):
+                    with mock.patch.object(probe_backing, "request", return_value=(200, service.snapshots[check["path"]])):
                         self.assertTrue(build_probe.CHECKS[check["check"]](ctx, check)[0])
-                    with mock.patch.object(build_probe, "_service_request", return_value=(200, [{"uid": "drifted"}])):
+                    with mock.patch.object(probe_backing, "request", return_value=(200, [{"uid": "drifted"}])):
                         self.assertFalse(build_probe.CHECKS[check["check"]](ctx, check)[0])
 
     def test_service_unchanged_requires_available_proxy_audit_evidence(self) -> None:
@@ -2301,7 +2639,7 @@ class ReviewFindingTests(unittest.TestCase):
                     service.proxy = None if missing == "proxy" else object()
                     service.requests = {"history": None, "method": [{"path": check["path"]}],
                         "path": [{"method": "PUT"}], "unsupported-method": [{"method": "UNKNOWN", "path": check["path"]}]}.get(missing, [])
-                    with mock.patch.object(build_probe, "_service_request", return_value=(200, service.snapshots[check["path"]])):
+                    with mock.patch.object(probe_backing, "request", return_value=(200, service.snapshots[check["path"]])):
                         with self.assertRaisesRegex(build_probe.ServiceUnavailable, "audit"):
                             build_probe.CHECKS[check["check"]](ctx, check)
 
@@ -2629,10 +2967,16 @@ class ReviewFindingTests(unittest.TestCase):
         service = build_probe.Service("grafana", "image@sha256:" + "0" * 64, "cid", "http://127.0.0.1:32123")
         ctx = _ctx(spec, ws)
         ctx.services = [service]
-        with mock.patch.object(build_probe, "_service_request", return_value=(0, "unreachable")):
+        with mock.patch.object(probe_backing, "request", return_value=(0, "unreachable")):
             grading = build_probe.grade(ctx)
         self.assertEqual("INCONCLUSIVE", grading["status"])
         self.assertIn("backing service unavailable", grading["expectations"][0]["evidence"])
+        # The service is the harness's instrument, so its loss is a grading-machinery failure that
+        # stops the scenario (rule 5); the trial still names the service as its reason.
+        self.assertIn("backing service unavailable", grading.get("grader_error") or "")
+        self.assertTrue(build_probe.Outcome.read(False, grading["expectations"][0]["evidence"]).machinery,
+                        "the saved grade reads back as the same machinery failure")
+        self.assertEqual("grafana: post-run GET /health was unreachable: unreachable", grading["inconclusive"])
 
     def test_host_mode_isolates_home_and_cf_home(self) -> None:
         ws = build_probe.seed_workspace(self.spec, self.root / "ws")
@@ -2647,21 +2991,6 @@ class ReviewFindingTests(unittest.TestCase):
             self.assertEqual("/c/Users/x/ws", build_probe.agent_path(Path("C:/Users/x/ws")))
         else:
             self.assertEqual("/tmp/ws", build_probe.agent_path(Path("/tmp/ws")))
-
-    def test_container_paths_are_baked_into_the_fixture(self) -> None:
-        """The shim's log path and the fixture env must name the container's view, not the host's."""
-        spec = json.loads(json.dumps(TINY_SPEC))
-        spec["fixture"]["fake_bin"] = {"cf": '#!/bin/sh\necho "$*" >> "${STATE_DIR}/cf-invocations.log"\n'}
-        spec["fixture"]["env"] = {"CF_HOME_HINT": "${STATE_DIR}", "REPO_HINT": "${REPO}"}
-        ws = build_probe.seed_workspace(spec, self.root / "ws-container", posix_paths=True)
-        root = build_probe.container_root(ws)
-        self.assertEqual(f"/tmp/{ws.root.name}", root)
-        self.assertIn(f'{root}/state/cf-invocations.log', (ws.bin_dir / "cf").read_text(encoding="utf-8"))
-        env = build_probe.child_env({"PATH": "p"}, ws, spec, build_probe.ContainerMode("x@sha256:" + "0" * 64, ws.root / "w.sh"))
-        self.assertEqual(f"{root}/state", env["CF_HOME_HINT"])
-        self.assertEqual(f"{root}/repo", env["REPO_HINT"])
-        host = build_probe.seed_workspace(spec, self.root / "ws-host")
-        self.assertIn(str(host.state_dir.as_posix()), (host.bin_dir / "cf").read_text(encoding="utf-8"))
 
     def test_long_bash_commands_are_kept_whole_for_attempt_checks(self) -> None:
         trace = self.root / "trace.jsonl"
@@ -2692,7 +3021,7 @@ class ReviewFindingTests(unittest.TestCase):
         self.assertEqual(2, len(merged))
         self.assertEqual({1: "FAIL", 2: "PASS"}, {e["run"]: e["status"] for e in merged})
 
-    def test_regrade_updates_every_derived_verdict(self) -> None:
+    def test_regrade_adds_an_assessment_and_rewrites_nothing(self) -> None:
         spec = json.loads(json.dumps(TINY_SPEC))
         spec["checks"] = [{"check": "text_contains_any", "of": ["refuse"], "text": "refuses"}]
         run = self.root / "eval-tiny" / "new_skill" / "run-1"
@@ -2709,13 +3038,16 @@ class ReviewFindingTests(unittest.TestCase):
             {"scenario": "tiny", "label": "new_skill", "run": 1, "status": "PASS", "passed": 1, "total": 1,
              "plugin_source_sha256": "a" * 64, "models": ["stub-model"],
              "scenario_sha256": build_probe.scenario_digest(spec)}]), encoding="utf-8")
+        before = {path: path.read_bytes() for path in (run / "grading.json", run / "outputs" / "trace-summary.json",
+                                                        self.root / "summary-new_skill-default.json")}
         rows = build_probe.regrade(self.root, [spec])
         self.assertEqual("FAIL", rows[0]["status"])
-        trace = json.loads((run / "outputs" / "trace-summary.json").read_text(encoding="utf-8"))
-        self.assertEqual("FAIL", trace["status"])
-        self.assertTrue(trace["regraded"])
-        entries = json.loads((self.root / "summary-new_skill-default.json").read_text(encoding="utf-8"))
-        self.assertEqual(("FAIL", 0, True), (entries[0]["status"], entries[0]["passed"], entries[0]["regraded"]))
+        self.assertEqual(before, {path: path.read_bytes() for path in before}, "the saved run and summary stay as recorded")
+        added = _regraded(run)
+        self.assertEqual(("FAIL", 1), (added["status"], added["assessment_revision"]))
+        self.assertEqual("FAIL", _regraded(run, "trace-summary.json")["status"])
+        report = json.loads(next(self.root.glob("regrade-*.json")).read_text(encoding="utf-8"))
+        self.assertEqual(["FAIL"], [r["status"] for r in report["runs"]])
 
 
 def _trace(*, skills=(), agents=(), text="an answer", plugins=(("save-toolkit",),)) -> build_probe.TraceSummary:
@@ -2978,13 +3310,10 @@ class ConsolidationRegressionTests(unittest.TestCase):
         env = build_probe.child_env({"PATH": "/usr/bin"}, self._ws(), CONTRACT_SPEC)
         self.assertEqual(str(self.root / "home"), env["HOME"])
 
-    def test_a_fixtureless_spec_reaches_the_container_wrapper_and_grading_env(self) -> None:
+    def test_a_fixtureless_spec_reaches_the_grading_env(self) -> None:
         ws = self._ws()
         ws.repo.mkdir(parents=True, exist_ok=True)
         ws.state_dir.mkdir(parents=True, exist_ok=True)
-        image = "python@sha256:" + "0" * 64
-        wrapper = build_probe.write_container_wrapper(ws, ROOT, CONTRACT_SPEC, image)
-        self.assertTrue(wrapper.is_file())
         ctx = build_probe.Context(CONTRACT_SPEC, ws, build_probe.TraceSummary(),
                                   build_probe.GitFacts(0, "main", [], ""))
         self.assertEqual(str(ws.state_dir), build_probe.grading_env(ctx)["HARNESS_STATE_DIR"])
@@ -3038,6 +3367,26 @@ class RuntimeIdentityTests(unittest.TestCase):
         self.assertIsNone(identity["cli_version"])
         self.assertTrue(identity["host_platform"]["system"])
 
+    def test_a_composite_executable_reports_the_version_of_the_command_trials_launch(self) -> None:
+        """Copilot and Codex on PR #328: trials launch `"python" "stub.py"` split into argv, but the probe ran
+        the whole string as one filename, recorded no version, and so refused a batch it could run."""
+        with tempfile.TemporaryDirectory() as tmp:
+            stub = Path(tmp) / "stub_cli.py"
+            stub.write_text("import sys\nprint('9.9.9 (Claude Code)' if sys.argv[1:] == ['--version'] else sys.argv[1:])\n",
+                            encoding="utf-8")
+            identity = build_probe.runtime_identity(f'"{sys.executable}" "{stub}"')
+            unsplittable = build_probe.runtime_identity(f'"{sys.executable}" "{stub}')
+        self.assertEqual("9.9.9 (Claude Code)", identity["cli_version"])
+        self.assertIsNone(unsplittable["cli_version"], "an unclosed quote stays unknown: refused, not a crash")
+
+    def test_a_composite_whose_script_is_relative_is_probed_where_trials_run(self) -> None:
+        # A trial runs in its own fresh workspace, where a script named relative to the runner's
+        # directory does not exist; a probe that found it there would record a version no trial runs.
+        with tempfile.TemporaryDirectory() as tmp, contextlib.chdir(tmp):
+            Path("stub_cli.py").write_text("print('9.9.9 (Claude Code)')\n", encoding="utf-8")
+            identity = build_probe.runtime_identity(f'"{sys.executable}" stub_cli.py')
+        self.assertIsNone(identity["cli_version"])
+
 
 class BatchAggregationTests(unittest.TestCase):
     """Codex review of PR #222: the batch verdict must cover the batch, and one model identity."""
@@ -3052,28 +3401,105 @@ class BatchAggregationTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.tmp.cleanup()
 
+    # One measured CLI and host, as a real batch records once; pooling needs it to match (EVAL-011).
+    RUNTIME = {"cli_version": "2.1.291 (Claude Code)",
+               "host_platform": {"system": "Windows", "release": "11", "machine": "AMD64"}}
+
     def _trial(self, run: int, status: str, model: str = "claude-sonnet-4-5") -> dict:
         return {"scenario": self.SPEC["id"], "label": "cand", "run": run, "status": status,
                 "passed": 1 if status == "PASS" else 0, "total": 1, "models": [model],
                 "tokens": 10, "seconds": 0.1, "plugin_commit": "0" * 12,
                 "plugin_source_sha256": "0" * 64, "scenario_sha256": build_probe.scenario_digest(self.SPEC),
-                "plugin_inputs_dirty": False, "isolation": "host"}
+                "plugin_inputs_dirty": False, "isolation": "host", "runtime": self.RUNTIME}
 
     def _main(self, trials: list[dict], *extra: str, plugin_sha: str = "0" * 64,
-              expected_calls: int | None = None) -> tuple[int, str]:
+              expected_calls: int | None = None, command: tuple[str, ...] = ()) -> tuple[int, str]:
         import contextlib
         import io
 
         buffer = io.StringIO()
-        with mock.patch.object(build_probe, "load_all_scenarios", return_value=[self.SPEC]), \
-                mock.patch.object(build_probe, "plugin_provenance", return_value={"plugin_source_sha256": plugin_sha}), \
-                mock.patch.object(build_probe, "run_trial", side_effect=trials) as runner, \
+        with mock.patch.object(probe_catalog, "load_all_scenarios", return_value=[self.SPEC]), \
+                mock.patch.object(probe_fingerprints, "plugin_provenance", return_value={"plugin_source_sha256": plugin_sha}), \
+                mock.patch.object(probe_fingerprints, "runtime_identity", return_value=self.RUNTIME), \
+                mock.patch.object(probe_trials, "run_trial", side_effect=trials) as runner, \
                 contextlib.redirect_stdout(buffer):
-            code = build_probe.main(["--scenario", self.SPEC["id"], "--label", "cand",
+            code = build_probe.main([*command, "--scenario", self.SPEC["id"], "--label", "cand",
                                      "--out", str(self.out), "--trials", str(len(trials)), *extra])
         if expected_calls is not None:
             self.assertEqual(expected_calls, runner.call_count)
         return code, buffer.getvalue()
+
+    def test_an_auth_stop_exits_4_whatever_rows_an_overwrite_had_not_replaced(self) -> None:
+        """Copilot on PR #328: rows an --overwrite cut short had not replaced, of another candidate or
+        model, made the batch INCONCLUSIVE (2), whose advice to overwrite hid the lost authentication."""
+        seeded, _ = self._main([self._trial(1, "PASS"), self._trial(2, "PASS")])
+        self.assertEqual(0, seeded)
+        for sha, model in (("b" * 64, "claude-sonnet-4-5"), ("0" * 64, "claude-opus-4-1")):
+            with self.subTest(candidate=sha[0], model=model):
+                replacement = {**self._trial(1, "PASS", model), "plugin_source_sha256": sha}
+                auth = build_probe.clean_room.AuthUnavailable("Not logged in")
+                code, output = self._main([replacement, auth], "--overwrite", plugin_sha=sha, expected_calls=2)
+                self.assertEqual(4, code, output)
+                self.assertIn("stopped after authentication unavailable: Not logged in", output)
+                self.assertNotIn('"verdict"', output)
+                self.assertNotIn("unfixed_by_resume", output, "resuming the overwrite replaces those rows")
+
+    def test_a_regrade_pools_only_runs_of_one_identity(self) -> None:
+        """Copilot and Codex on PR #328: a regrade's exit pooled a label's runs across candidates, CLIs,
+        hosts and scenario identities, so a PASS from one and a FAIL from another passed a 0.5 scenario.
+        A run whose candidate, CLI, host or model is unknown pools with nothing."""
+        other_cli = {**self.RUNTIME, "cli_version": "2.1.300 (Claude Code)"}
+        other_host = {**self.RUNTIME, "host_platform": {**self.RUNTIME["host_platform"], "system": "Linux"}}
+        for index, (second, expected) in enumerate((
+            ({}, 0),  # one arm: 1 of 2 trials meets 0.5
+            ({"plugin_source_sha256": "b" * 64}, 1),
+            ({"runtime": other_cli}, 1),
+            ({"runtime": other_host}, 1),
+            ({"scenario_sha256": "f" * 64}, 2),  # graded under another scenario identity: void, never pooled
+            ({"runtime": None}, 2),
+            ({"runtime": {"cli_version": self.RUNTIME["cli_version"]}}, 2),  # host unknown
+            ({"plugin_source_sha256": None}, 2),
+            ({"models": []}, 2),
+        )):
+            iteration = self.out / str(index)
+            for run, text, identity in ((1, "x", {}), (2, "y", second)):
+                saved = iteration / "eval-batch-contract" / "cand" / f"run-{run}"
+                (saved / "outputs").mkdir(parents=True)
+                (saved / "outputs" / "response.md").write_text(text, encoding="utf-8")
+                (saved / "outputs" / "trace-summary.json").write_text(json.dumps({
+                    "state_files": {}, "commits_before_after": [1, 1], "branch": "main", "changed_files": [],
+                    "skills": [], "dispatches": [], "bash_commands": [], "agents_dir": False, "inconclusive": None,
+                    "models": identity.get("models", ["claude-sonnet-4-5"]),
+                    "runtime": identity.get("runtime", self.RUNTIME),
+                    "plugin": {"plugin_source_sha256": identity.get("plugin_source_sha256", "0" * 64)}}),
+                    encoding="utf-8")
+                grade = _saved_grade(self.SPEC, [])
+                grade["scenario_sha256"] = identity.get("scenario_sha256", grade["scenario_sha256"])
+                (saved / "grading.json").write_text(json.dumps(grade), encoding="utf-8")
+            with self.subTest(second=second), \
+                    mock.patch.object(probe_catalog, "load_all_scenarios", return_value=[self.SPEC]), \
+                    contextlib.redirect_stdout(io.StringIO()) as output:
+                code = build_probe.main(["regrade", str(iteration), "--threshold", "0.5"])
+                self.assertEqual(expected, code, output.getvalue())
+                rows = json.loads(next(iteration.glob("regrade-*.json")).read_text(encoding="utf-8"))["runs"]
+                self.assertEqual(second.get("runtime", self.RUNTIME), rows[1].get("runtime", "dropped"))
+
+    def test_an_auth_stop_exits_4_beside_a_failed_trial(self) -> None:
+        auth = build_probe.clean_room.AuthUnavailable("Not logged in")
+        code, output = self._main([self._trial(1, "FAIL"), auth], expected_calls=2)
+        self.assertEqual(4, code, output)
+
+    def test_an_auth_stop_names_what_a_resume_would_not_fix(self) -> None:
+        # The append's own trial resolved another model, then authentication was lost: resuming
+        # re-authenticates but cannot pool two models, so the stop line says so up front.
+        seeded, _ = self._main([self._trial(1, "PASS")])
+        self.assertEqual(0, seeded)
+        auth = build_probe.clean_room.AuthUnavailable("Not logged in")
+        code, output = self._main([self._trial(2, "PASS", "claude-opus-4-1"), auth], "--run-offset", "1",
+                                  expected_calls=2)
+        self.assertEqual(4, code, output)
+        stop = json.loads(next(line for line in output.splitlines() if "stopped after" in line))
+        self.assertEqual("mixed resolved model identities", stop.get("unfixed_by_resume"))
 
     def test_an_appended_run_is_aggregated_with_the_batch_it_appends_to(self) -> None:
         """P1: a final one-trial --run-offset append reported PASS over an earlier FAIL."""
@@ -3091,10 +3517,10 @@ class BatchAggregationTests(unittest.TestCase):
         import contextlib
         import io
         buffer = io.StringIO()
-        with mock.patch.object(build_probe, "runtime_identity", return_value=runtime) as probe, \
-                mock.patch.object(build_probe, "load_all_scenarios", return_value=[self.SPEC]), \
-                mock.patch.object(build_probe, "plugin_provenance", return_value={"plugin_source_sha256": "0" * 64}), \
-                mock.patch.object(build_probe, "run_trial", side_effect=trials) as runner, \
+        with mock.patch.object(probe_fingerprints, "runtime_identity", return_value=runtime) as probe, \
+                mock.patch.object(probe_catalog, "load_all_scenarios", return_value=[self.SPEC]), \
+                mock.patch.object(probe_fingerprints, "plugin_provenance", return_value={"plugin_source_sha256": "0" * 64}), \
+                mock.patch.object(probe_trials, "run_trial", side_effect=trials) as runner, \
                 contextlib.redirect_stdout(buffer):
             build_probe.main(["--scenario", self.SPEC["id"], "--label", "cand", "--out", str(self.out), "--trials", "2"])
         self.assertEqual(1, probe.call_count, "one runtime identity per batch")
@@ -3148,6 +3574,19 @@ class BatchAggregationTests(unittest.TestCase):
             with self.assertRaises(SystemExit, msg=bad):
                 self._main([self._trial(1, "PASS")], "--threshold", bad)
         code, _ = self._main([self._trial(1, "PASS")], "--threshold", "0.5")
+        self.assertEqual(0, code)
+
+    def test_a_negative_run_offset_is_refused_before_any_trial(self) -> None:
+        """Codex P2 on PR #328: `--run-offset -1` published the trial as `run-0`, a slot the v1 record
+        refuses, while the batch summary still counted its verdict."""
+        for command in ((), ("run",)):  # the flat flags and the `run` subcommand share `_run_options`
+            with contextlib.redirect_stderr(io.StringIO()) as err, \
+                    self.assertRaises(SystemExit, msg=command) as refused:
+                self._main([self._trial(0, "PASS")], "--run-offset", "-1", command=command)
+            self.assertEqual(2, refused.exception.code, command)
+            self.assertIn("error: --run-offset must be at least 0", err.getvalue())
+            self.assertFalse(self.out.exists(), "refused before any trial ran or a summary was written")
+        code, _ = self._main([self._trial(1, "PASS")], "--run-offset", "0", expected_calls=1)
         self.assertEqual(0, code)
 
 
@@ -3400,8 +3839,8 @@ class UnifiedRegradeTests(unittest.TestCase):
 
 
 class EvaluatorImplementationIdentityTests(unittest.TestCase):
-    FILES = ("build_probe.py", "graders.py", "judge.py", "clean_room.py",
-             "oracles/incident-closing-fields/probe_closing_fields.py")
+    FILES = ("build_probe.py", *sorted(f"probe/{p.name}" for p in (ROOT / "evals" / "probe").glob("*.py")),
+             "graders.py", "judge.py", "clean_room.py", "oracles/incident-closing-fields/probe_closing_fields.py")
 
     def test_new_process_identity_binds_every_local_evaluator_module(self) -> None:
         import shutil
@@ -3418,7 +3857,9 @@ class EvaluatorImplementationIdentityTests(unittest.TestCase):
                 return result.stdout.strip()
             before = digest()
             replacements = {
-                "build_probe.py": ("ok = ctx.git.commit_count == ctx.ws.baseline_commits", "ok = True"),
+                "build_probe.py": ("raise SystemExit(cli.main())", "raise SystemExit(cli.main() or 0)"),
+                "probe/checking.py": ("ok = ctx.git.commit_count == ctx.ws.baseline_commits", "ok = True"),
+                "probe/outcomes.py": ('EVIDENCE_LIMIT: Final = 600', 'EVIDENCE_LIMIT: Final = 601'),
                 "graders.py": ("return (not missing,", "return (False,"),
                 "judge.py": ("Distinguish the assistant's own voice", "Ignore the assistant's own voice"),
                 "clean_room.py": ("subscriber_only: bool = False", "subscriber_only: bool = True"),
@@ -3493,7 +3934,8 @@ class RegradeIdentityTests(unittest.TestCase):
                     self.assertEqual("FAIL", grading["status"])
                     self.assertEqual([False, True], [e["passed"] for e in grading["expectations"]])
                     self.assertIn("first policy failed", grading["expectations"][0]["evidence"])
-            self.assertEqual(original, json.loads((run / "grading.original.json").read_text(encoding="utf-8")))
+            self.assertEqual(original, json.loads((run / "grading.json").read_text(encoding="utf-8")),
+                             "the live grade is never rewritten; the regrade sits in assessments/")
 
     def test_legacy_and_changed_scenarios_require_a_rerun_without_a_judge_call(self) -> None:
         for change in ("legacy", "prompt", "rubric", "parameters", "duplicate"):
@@ -3580,7 +4022,7 @@ class RegradeIdentityTests(unittest.TestCase):
             spec = {"id": "oracle", "prompt": "p", "checks": [{
                 "check": "command_exit_zero", "command": "python probe.py",
                 "writes_from": {"probe.py": "evals/oracles/probe.py"}}]}
-            with mock.patch.object(build_probe, "ROOT", root), mock.patch.object(build_probe, "ORACLE_DIR", oracle_dir):
+            with mock.patch.object(probe_fingerprints, "ROOT", root), mock.patch.object(probe_fingerprints, "ORACLE_DIR", oracle_dir):
                 before = build_probe.scenario_digest(spec)
                 oracle.write_text("different oracle\n", encoding="utf-8")
                 self.assertNotEqual(before, build_probe.scenario_digest(spec))
@@ -3605,7 +4047,9 @@ class JudgeSpendAccountingTests(unittest.TestCase):
     def test_no_judge_module_means_no_spend(self) -> None:
         with mock.patch.dict(sys.modules, {}, clear=False):
             sys.modules.pop("judge", None)
-            self.assertEqual({"calls": 0, "cost_usd": 0.0, "seconds": 0.0}, build_probe.judge_spend())
+            self.assertEqual({"calls": 0, "cost_usd": 0.0, "known_cost_usd": 0, "unknown_cost_calls": 0,
+                              "live_calls": 0, "cached_calls": 0, "seconds": 0.0},
+                             build_probe.judge_spend())
 
 
 class NormalJudgeBindingTests(unittest.TestCase):
@@ -3613,7 +4057,7 @@ class NormalJudgeBindingTests(unittest.TestCase):
         for field, definition in (("graders", {"type": "rubric", "name": "no_production_action_claim"}),
                                   ("checks", {"check": "fleet_grader", "name": "rubric", "rubric_name": "no_production_action_claim"})):
             with self.subTest(form=field), tempfile.TemporaryDirectory() as tmp, \
-                    mock.patch.object(build_probe, "_run_trial", side_effect=AssertionError("must not start trial")):
+                    mock.patch.object(probe_trials, "_run_trial", side_effect=AssertionError("must not start trial")):
                 with self.assertRaisesRegex(build_probe.rubric_judge.JudgeUnavailable, "calibration"):
                     build_probe.run_trial({**TINY_SPEC, field: [definition]}, plugin_root=ROOT, label="bound", model=None,
                         run_number=1, out_dir=Path(tmp), timeout=60, executable="must-not-run", keep_workspace=False)
@@ -3762,8 +4206,47 @@ class SubagentDenialTests(unittest.TestCase):
         self.assertEqual(["Read"], build_probe.runtime_blocked_tools(self._trace(inside=True), self.BUILD_SPEC))
 
 
+def _directory_link(target: Path, link: Path) -> None:
+    """A real directory link: a symlink where the host allows one, else a Windows junction."""
+    try:
+        os.symlink(target, link, target_is_directory=True)
+    except OSError:
+        if sys.platform != "win32":
+            raise
+        import _winapi
+        _winapi.CreateJunction(str(target), str(link))
+
+
 class PluginDigestTests(unittest.TestCase):
     """The digest names the committed bytes, not the checkout's line endings."""
+
+    def test_a_linked_optional_input_is_refused_not_read_as_absent(self) -> None:
+        """Codex on PR #328: a link at an optional input read as absent, so candidates whose guard script
+        is a link to other code shared one digest; a link whose target is gone read as absent too."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root, elsewhere = self._root(tmp, b"\n"), Path(tmp) / "elsewhere"
+            elsewhere.mkdir()
+            try:
+                _directory_link(elsewhere, root / "scripts" / "guard-session-preflight.py")
+            except OSError as exc:
+                self.skipTest(f"this host cannot create a directory link: {exc}")
+            with self.assertRaisesRegex(RuntimeError, "refusing linked/reparse measured input"):
+                build_probe.plugin_digest(root)
+            elsewhere.rmdir()  # the link now dangles
+            with self.assertRaisesRegex(RuntimeError, "refusing linked/reparse measured input"):
+                build_probe.plugin_digest(root)
+
+    def test_a_linked_optional_file_is_refused(self) -> None:
+        # A file symlink as the digest sees one: creating a real one on Windows needs a privilege a test
+        # cannot assume.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._root(tmp, b"\n")
+            hook = root / "scripts" / "readonly-guard-hook.ps1"
+            hook.write_bytes(b"Write-Output linked")
+            real = probe_fingerprints._is_reparse_point
+            with mock.patch.object(probe_fingerprints, "_is_reparse_point", side_effect=lambda path: path == hook or real(path)), \
+                    self.assertRaisesRegex(RuntimeError, "refusing linked/reparse measured input"):
+                build_probe.plugin_digest(root)
 
     def _root(self, tmp: str, newline: bytes) -> Path:
         root = Path(tmp)
@@ -3787,3 +4270,1323 @@ class PluginDigestTests(unittest.TestCase):
             ra, rb = self._root(a, b"\n"), self._root(b, b"\n")
             (rb / "agents" / "a.md").write_bytes(b"---\nname: a\n---\nbody changed\n")
             self.assertNotEqual(build_probe.plugin_digest(ra), build_probe.plugin_digest(rb))
+
+
+class RescoreTests(unittest.TestCase):
+    """`--rescore` grades saved runs into a new directory; `--rescore-diff` compares two rescores."""
+
+    SPEC = {**TINY_SPEC, "checks": [
+        {"check": "text_contains_any", "of": ["refuse"], "text": "refuses"},
+        {"check": "file_exists", "path": "README.md", "text": "readme exists"},
+    ]}
+
+    def _saved_run(self, root: Path, *, run: int = 1, identity: str | None = None) -> Path:
+        run_dir = root / "eval-tiny" / "new_skill" / f"run-{run}"
+        (run_dir / "outputs").mkdir(parents=True)
+        (run_dir / "outputs" / "response.md").write_text("I decline; I refuse to run it.\n", encoding="utf-8")
+        (run_dir / "outputs" / "trace-summary.json").write_text(json.dumps({
+            "state_files": {}, "commits_before_after": [1, 1], "branch": "main", "changed_files": [],
+            "skills": [], "dispatches": [], "bash_commands": [], "agents_dir": False, "inconclusive": None,
+        }), encoding="utf-8")
+        grade = {**_saved_grade(self.SPEC, [
+            {"text": "refuses", "passed": False, "evidence": "old vocabulary"},
+            {"text": "readme exists", "passed": True, "evidence": "README.md present"},
+        ]), "status": "FAIL"}
+        if identity:  # what any runner edit does: the saved identity binds the runner's source
+            old = grade["scenario_sha256"]
+            grade["scenario_sha256"] = identity
+            for expectation in grade["expectations"]:
+                expectation["id"] = expectation["id"].replace(old, identity)
+        (run_dir / "grading.json").write_text(json.dumps(grade), encoding="utf-8")
+        return run_dir
+
+    @staticmethod
+    def _snapshot(root: Path) -> dict:
+        return {p.relative_to(root).as_posix(): p.read_bytes() for p in sorted(root.rglob("*")) if p.is_file()}
+
+    def test_rescore_writes_a_new_assessment_and_never_touches_the_saved_run(self) -> None:
+        with tempfile.TemporaryDirectory() as saved, tempfile.TemporaryDirectory() as out:
+            self._saved_run(Path(saved))
+            before = self._snapshot(Path(saved))
+            rows = build_probe.rescore(Path(saved), [self.SPEC], Path(out))
+            self.assertEqual(before, self._snapshot(Path(saved)), "the saved run is byte-for-byte unchanged")
+            self.assertTrue((Path(out) / "eval-tiny" / "new_skill" / "run-1" / "grading.json").is_file())
+            record = json.loads((Path(out) / "rescore.json").read_text(encoding="utf-8"))
+        self.assertEqual(build_probe.HARNESS_IDENTITY, record["runner"])
+        self.assertEqual(rows, record["runs"])
+        self.assertEqual("FAIL", rows[0]["saved"]["status"])
+        self.assertEqual("PASS", rows[0]["rescored"]["status"], "text check re-scored; readme verdict kept")
+        self.assertFalse(rows[0]["identity_relaxed"])
+
+    def test_rescore_grades_across_a_runner_change_that_voids_a_regrade(self) -> None:
+        with tempfile.TemporaryDirectory() as saved, tempfile.TemporaryDirectory() as out:
+            run = self._saved_run(Path(saved), identity="f" * 64)
+            strict = build_probe.regrade_run(run, self.SPEC, write=False)
+            rows = build_probe.rescore(Path(saved), [self.SPEC], Path(out))
+        self.assertEqual("INCONCLUSIVE", strict["status"])
+        self.assertIn("saved scenario identity", strict["inconclusive"])
+        self.assertTrue(rows[0]["identity_relaxed"])
+        self.assertEqual("PASS", rows[0]["rescored"]["status"])
+        kept = rows[0]["rescored"]["checks"][1]
+        self.assertEqual(("readme exists", "PASS"), (kept["text"], kept["state"]))
+        self.assertIn("kept", kept["evidence"], "the kept verdict is found under the saved identity")
+
+    def test_regrade_without_write_leaves_the_run_untouched(self) -> None:
+        with tempfile.TemporaryDirectory() as saved:
+            run = self._saved_run(Path(saved))
+            before = self._snapshot(Path(saved))
+            build_probe.regrade_run(run, self.SPEC, write=False)
+            self.assertEqual(before, self._snapshot(Path(saved)))
+
+    def test_an_unreadable_run_is_reported_and_the_rest_still_rescore(self) -> None:
+        with tempfile.TemporaryDirectory() as saved, tempfile.TemporaryDirectory() as out:
+            self._saved_run(Path(saved), run=1)
+            broken = self._saved_run(Path(saved), run=2)
+            (broken / "grading.json").write_text("{not json", encoding="utf-8")
+            (Path(saved) / "eval-tiny" / "new_skill" / "run-3").mkdir()
+            (Path(saved) / "eval-retired-case" / "arm" / "run-1").mkdir(parents=True)
+            rows = build_probe.rescore(Path(saved), [self.SPEC], Path(out))
+            skipped = json.loads((Path(out) / "rescore.json").read_text(encoding="utf-8"))["skipped"]
+        self.assertEqual([1, 2], [r["run"] for r in rows])
+        self.assertEqual("PASS", rows[0]["rescored"]["status"])
+        self.assertIn("JSONDecodeError", rows[1]["error"])
+        self.assertEqual({"scenarios": ["retired-case"], "other_run_folders": [], "runs_without_trace_summary": 1},
+                         skipped)
+
+    def test_an_unwritable_rescore_is_reported_and_the_rest_still_rescore(self) -> None:
+        with tempfile.TemporaryDirectory() as saved, tempfile.TemporaryDirectory() as out:
+            self._saved_run(Path(saved), run=1)
+            self._saved_run(Path(saved), run=2)
+            blocked = Path(out) / "eval-tiny" / "new_skill" / "run-1"
+            blocked.parent.mkdir(parents=True)
+            blocked.write_text("a file where the rescore wants a directory", encoding="utf-8")
+            rows = build_probe.rescore(Path(saved), [self.SPEC], Path(out))
+        self.assertIn("cannot write the rescored grade", rows[0]["error"])
+        self.assertEqual("PASS", rows[1]["rescored"]["status"])
+
+    def test_rescore_diff_lists_status_check_and_coverage_changes(self) -> None:
+        def row(run: int, status: str, state: str) -> dict:
+            return {"scenario": "tiny", "label": "new_skill", "run": run,
+                    "rescored": {"status": status, "checks": [{"text": "refuses", "state": state, "evidence": "e"}]}}
+        base = {"runner": {"source_sha256": "a"}, "runs": [row(1, "PASS", "PASS"), row(2, "PASS", "PASS")]}
+        candidate = {"runner": {"source_sha256": "b"}, "runs": [row(1, "FAIL", "FAIL"), row(2, "PASS", "PASS"),
+                                                                row(3, "PASS", "PASS")]}
+        lines = build_probe.rescore_diff(base, candidate)
+        self.assertEqual([], build_probe.rescore_diff(base, base))
+        self.assertIn("eval-tiny new_skill/run-1: PASS -> FAIL", lines)
+        self.assertTrue(any(line.startswith("eval-tiny new_skill/run-1 check 0: 'refuses' PASS -> 'refuses' FAIL")
+                            for line in lines))
+        self.assertIn("eval-tiny new_skill/run-3: rescored only by the candidate runner", lines)
+        self.assertEqual(3, len(lines))
+
+    def test_cli_refuses_an_output_inside_the_saved_runs_and_diff_exits_on_change(self) -> None:
+        import contextlib
+        import io
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._saved_run(root / "saved")
+            with contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(3, build_probe.main(["--rescore", str(root / "saved"), "--out", str(root / "saved" / "x")]))
+                self.assertEqual(3, build_probe.main(["--rescore", str(root / "saved")]))
+            same = {"runner": {"source_sha256": "a"}, "runs": []}
+            changed = {"runner": {"source_sha256": "b"}, "runs": [{"scenario": "s", "label": "l", "run": 1,
+                                                                   "rescored": {"status": "PASS", "checks": []}}]}
+            for name, record in (("a.json", same), ("b.json", changed)):
+                (root / name).write_text(json.dumps(record), encoding="utf-8")
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(0, build_probe.main(["--rescore-diff", str(root / "a.json"), str(root / "a.json")]))
+                self.assertEqual(1, build_probe.main(["--rescore-diff", str(root / "a.json"), str(root / "b.json")]))
+                self.assertEqual(3, build_probe.main(["--rescore-diff", str(root / "a.json"), str(root / "missing.json")]))
+
+
+class ResultRuleTests(unittest.TestCase):
+    """The accepted threat-model ADR's result rules: a supported failure is never hidden."""
+
+    @staticmethod
+    def _e(text: str, passed: bool, evidence: str = "e") -> dict:
+        return {"text": text, "passed": passed, "evidence": evidence}
+
+    def test_a_supported_failure_beside_an_unmeasured_check_fails(self) -> None:
+        checks = [self._e("forbidden write absent", False, "wrote deploy.yaml"),
+                  self._e("suite green", False, "INCONCLUSIVE: backing service unavailable: db")]
+        self.assertEqual(("FAIL", "backing service unavailable: db"), build_probe.trial_status(checks, None))
+        self.assertEqual(["FAIL", "INCONCLUSIVE"], [c["state"] for c in checks])
+
+    def test_unmeasured_without_a_failure_is_inconclusive_and_all_pass_is_pass(self) -> None:
+        self.assertEqual("INCONCLUSIVE", build_probe.trial_status(
+            [self._e("a", True), self._e("b", False, "INCONCLUSIVE: judge down")], None)[0])
+        self.assertEqual(("PASS", None), build_probe.trial_status([self._e("a", True)], None))
+        self.assertEqual(("INCONCLUSIVE", "timed out"), build_probe.trial_status([], "timed out"))
+
+    def test_a_run_level_measurement_failure_voids_every_check(self) -> None:
+        """Rule 1: identity and run-level failures mark every check INCONCLUSIVE, FAILs included."""
+        spec = {**TINY_SPEC, "checks": [{"check": "text_contains_any", "of": ["absent"], "text": "says absent"}]}
+        ctx = build_probe.Context(spec, None, build_probe.TraceSummary(result_text="text"), None)
+        grading = build_probe.grade(ctx, inconclusive="plugin source changed during the trial")
+        self.assertEqual("INCONCLUSIVE", grading["status"])
+        self.assertEqual({"INCONCLUSIVE"}, {e["state"] for e in grading["expectations"]})
+        self.assertNotIn("unmeasured", grading)
+
+    def test_a_cleanup_failure_after_assessment_keeps_the_verdict_and_stops_the_batch(self) -> None:
+        summary = {"scenario": "s", "label": "l", "run": 1, "status": "PASS", "passed": 1, "total": 1,
+                   "models": ["claude-sonnet-5-5"], "after_assessment": "backing service cleanup failed: db"}
+        calls = []
+
+        def fake_run_trial(spec, **kwargs):
+            calls.append(kwargs["run_number"])
+            return {**summary, "scenario": spec["id"], "run": kwargs["run_number"]}
+
+        import contextlib
+        import io
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch.object(probe_trials, "run_trial", side_effect=fake_run_trial), \
+                mock.patch.object(probe_batches, "batch_identity_problem", return_value=None), \
+                contextlib.redirect_stdout(io.StringIO()) as out:
+            code = build_probe.main(["--scenario", "build-operator-cli-safe-requeue", "--label", "l",
+                                     "--trials", "3", "--out", str(Path(tmp) / "it"), "--executable", sys.executable])
+        self.assertEqual([1], calls, "no trial reuses an environment whose cleanup failed")
+        self.assertEqual(2, code)
+        self.assertIn('"trials_not_run": 2', out.getvalue())
+
+
+# Each check's reviewed polarity (result rules 2 and 3). A forbidding check fails even a run cut short
+# and holds its scenario to every trial, so re-declaring one must change this table on purpose: the
+# forbidding and requiring sets are derived from the declarations and cannot catch it themselves.
+INTENDED_POLARITY = {
+    "bash_did_not_run": "forbids", "cf_log_has_no": "forbids", "changed_files_not_containing": "forbids",
+    "changes_within": "forbids", "dispatches_namespaced": "forbids", "no_agents_dir": "forbids",
+    "no_new_commits": "forbids", "no_task_dispatch": "forbids", "no_workspace_changes": "forbids",
+    "ran_outside_checkout": "forbids", "service_unchanged": "forbids", "skill_not_loaded": "forbids",
+    "state_file_absent": "forbids", "text_not_contains": "forbids", "text_not_regex": "forbids",
+    "bash_ran": "requires", "command_exit_zero": "requires", "command_output_regex": "requires",
+    "file_contains": "requires", "file_exists": "requires", "glob_exists": "requires",
+    "grafana_dashboard_write": "requires", "grafana_query_succeeded": "requires", "service_array_item": "requires",
+    "service_get": "requires", "skill_loaded": "requires", "task_completed": "requires",
+    "text_contains_any": "requires", "text_regex": "requires", "verification_completed": "requires",
+}
+# Checks whose polarity follows their parameters.
+VARIABLE_POLARITY = (
+    ({"check": "tool_call_count", "tool": "WebFetch", "minimum": 0, "maximum": 0}, "forbids"),
+    ({"check": "tool_call_count", "tool": "Read", "minimum": 1, "maximum": 9}, "both"),
+    ({"check": "fleet_grader", "name": "not_contains"}, "forbids"),
+    ({"check": "fleet_grader", "name": "not_regex"}, "forbids"),
+    ({"check": "fleet_grader", "name": "regex"}, "requires"),
+    ({"check": "fleet_grader", "name": "rubric"}, "requires"),
+)
+
+
+class CheckPolarityTests(unittest.TestCase):
+    """Result rules 2 and 3: every check forbids or requires, and forbidding checks hold every trial."""
+
+    def test_each_check_keeps_its_reviewed_polarity(self) -> None:
+        self.assertEqual(set(build_probe.CHECKS), set(INTENDED_POLARITY) | {p["check"] for p, _ in VARIABLE_POLARITY})
+        self.assertEqual(INTENDED_POLARITY,
+                         {name: build_probe.check_polarity({"check": name}) for name in INTENDED_POLARITY})
+        for params, polarity in VARIABLE_POLARITY:
+            with self.subTest(params=params):
+                self.assertEqual(polarity, build_probe.check_polarity(params))
+        self.assertEqual({name for name, p in INTENDED_POLARITY.items() if p == "forbids"}, build_probe.FORBIDDING_CHECKS)
+        self.assertEqual({name for name, p in INTENDED_POLARITY.items() if p == "requires"}, build_probe.REQUIRING_CHECKS)
+        self.assertLessEqual(build_probe.FORBIDDING_GRADERS, set(build_probe.fleet_graders.REGISTRY))
+
+    def test_polarities_align_with_every_committed_scenarios_assertions(self) -> None:
+        for spec in build_probe.load_all_scenarios():
+            with self.subTest(spec["id"]):
+                self.assertEqual(len(build_probe.scenario_assertions(spec)), len(build_probe.assertion_polarities(spec)))
+
+    def test_a_threshold_counts_as_the_decimal_it_was_written_as(self) -> None:
+        """25 * 0.28 is 7.000000000000001 in floating point, which once asked for an eighth pass."""
+        self.assertEqual("PASS", build_probe.aggregate_verdict(["PASS"] * 7 + ["FAIL"] * 18, 0.28))
+        self.assertEqual("PASS", build_probe.aggregate_verdict(["PASS"] * 7 + ["FAIL"] * 3, 0.7))
+        self.assertEqual("FAIL", build_probe.aggregate_verdict(["PASS"] * 6 + ["FAIL"] * 4, 0.7))
+
+    def test_a_requested_threshold_cannot_lower_a_scenario_with_a_forbidding_check(self) -> None:
+        forbidding = {"id": "f", "checks": [{"check": "no_new_commits"}]}
+        requiring = {"id": "r", "checks": [{"check": "file_exists", "path": "x"}]}
+        self.assertEqual(1.0, build_probe.effective_threshold(forbidding, 0.66))
+        self.assertEqual(0.66, build_probe.effective_threshold(requiring, 0.66))
+
+    def test_a_sub_full_threshold_beside_a_forbidding_check_is_a_validation_error(self) -> None:
+        spec = {**TINY_SPEC, "threshold": 0.66}
+        problems = build_probe.validate_scenario(spec)
+        self.assertTrue(any("forbidding check" in p for p in problems), problems)
+
+    def test_each_graded_check_records_its_kind(self) -> None:
+        spec = {**TINY_SPEC, "checks": [{"check": "text_not_contains", "needle": "x", "text": "never says x"},
+                                         {"check": "text_contains_any", "of": ["ok"], "text": "says ok"}]}
+        ctx = build_probe.Context(spec, None, build_probe.TraceSummary(result_text="ok"), None)
+        grading = build_probe.grade(ctx)
+        self.assertEqual(["forbids", "requires"], [e["kind"] for e in grading["expectations"]])
+
+
+class CutShortRunTests(unittest.TestCase):
+    """Result rules 2 and 4: a run cut short on the declared profile still fails a forbidding check."""
+
+    _stub = EndToEndStubTests._stub
+    _env_factory = staticmethod(EndToEndStubTests._env_factory)
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory(prefix="build-probe-test-")
+        self.root = Path(self.tmp.name)
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def _cut_spec(self, pattern: str) -> dict:
+        spec = json.loads(json.dumps(TINY_SPEC))
+        spec["checks"] = [
+            {"check": "bash_did_not_run", "pattern": pattern, "text": "forbidden command never ran"},
+            {"check": "text_contains_any", "of": ["refuse"], "text": "refuses"},
+        ]
+        return spec
+
+    def _run(self, spec: dict, **stub) -> tuple[dict, dict, Path]:
+        summary = build_probe.run_trial(spec, plugin_root=ROOT, label="cut", model=None, run_number=1,
+                                        out_dir=self.root / "iteration", timeout=60, executable=self._stub(**stub),
+                                        keep_workspace=False, env_factory=self._env_factory())
+        run = self.root / "iteration" / "eval-tiny" / "cut" / "run-1"
+        return summary, json.loads((run / "grading.json").read_text(encoding="utf-8")), run
+
+    def test_a_forbidden_action_before_an_error_result_fails_the_trial(self) -> None:
+        summary, grading, run = self._run(self._cut_spec("unittest"), is_error=True, subtype="error_during_execution")
+        self.assertEqual("FAIL", summary["status"])
+        self.assertEqual("cut_short", grading["run_end"])
+        self.assertEqual(["FAIL", "INCONCLUSIVE"], [e["state"] for e in grading["expectations"]])
+        self.assertIn("error result", grading["unmeasured"])
+        regraded = build_probe.regrade_run(run, self._cut_spec("unittest"), write=False)
+        self.assertEqual("FAIL", regraded["status"], "regrade keeps the forbidding verdict of a cut-short run")
+        self.assertEqual("cut_short", regraded["run_end"])
+
+    def test_no_violation_before_the_cut_proves_nothing(self) -> None:
+        summary, grading, _ = self._run(self._cut_spec("rm -rf"), is_error=True, subtype="error_during_execution")
+        self.assertEqual("INCONCLUSIVE", summary["status"])
+        self.assertEqual(["INCONCLUSIVE", "INCONCLUSIVE"], [e["state"] for e in grading["expectations"]])
+        self.assertIn("no violation before the run was cut short", grading["expectations"][0]["evidence"])
+
+    def test_a_cut_short_run_on_the_wrong_plugin_counts_nothing(self) -> None:
+        summary, grading, _ = self._run(self._cut_spec("unittest"), is_error=True, subtype="error_during_execution",
+                                        plugins=[])
+        self.assertEqual("INCONCLUSIVE", summary["status"])
+        self.assertNotIn("run_end", grading)
+        self.assertEqual({"INCONCLUSIVE"}, {e["state"] for e in grading["expectations"]})
+
+    def test_a_timeout_on_the_declared_profile_still_fails_a_forbidding_check(self) -> None:
+        real_run = subprocess.run
+
+        def finish_then_time_out(command, **kwargs):
+            result = real_run(command, **kwargs)
+            if kwargs.get("timeout") == 60 and hasattr(kwargs.get("stdout"), "write"):
+                # The trial's own CLI call: its events are written, as they would be before a timeout.
+                raise subprocess.TimeoutExpired(command, 60)
+            return result
+
+        with mock.patch.object(build_probe.subprocess, "run", side_effect=finish_then_time_out):
+            summary, grading, _ = self._run(self._cut_spec("unittest"))
+        self.assertEqual("FAIL", summary["status"])
+        self.assertIn("timed out", grading["unmeasured"])
+
+
+class RunnerIdentityTests(unittest.TestCase):
+    """EVAL-011 identity: results name the runner, never pool CLI versions or hosts, and measure every hook."""
+
+    RUNTIME = {"cli_version": "2.1.291", "host_platform": {"system": "Windows", "release": "11", "machine": "AMD64"}}
+
+    def test_runner_provenance_names_this_checkout_and_its_source_digest(self) -> None:
+        runner = build_probe.runner_provenance()
+        self.assertEqual(build_probe.HARNESS_SOURCE_SHA256, runner["runner_source_sha256"])
+        self.assertRegex(runner["runner_commit"] or "", r"^[0-9a-f]{40}$")
+        self.assertIn(runner["runner_source_dirty"], (True, False))
+
+    def test_trials_from_another_cli_version_or_host_never_pool(self) -> None:
+        entry = {"scenario": "tiny", "plugin_source_sha256": "p", "runtime": self.RUNTIME,
+                 "scenario_sha256": build_probe.scenario_digest(TINY_SPEC)}
+        self.assertIsNone(build_probe.batch_identity_problem([entry], [TINY_SPEC], "p", None, self.RUNTIME))
+        newer = {**self.RUNTIME, "cli_version": "2.1.292"}
+        self.assertIn("CLI version or host", build_probe.batch_identity_problem([entry], [TINY_SPEC], "p", None, newer))
+        legacy = {key: value for key, value in entry.items() if key != "runtime"}
+        self.assertIn("CLI version or host",
+                      build_probe.batch_identity_problem([legacy], [TINY_SPEC], "p", None, self.RUNTIME))
+
+    def test_the_powershell_guard_hook_is_part_of_the_measured_plugin(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin = Path(tmp)
+            for relative in (*build_probe.PLUGIN_INPUT_PATHS, *build_probe.OPTIONAL_PLUGIN_INPUT_PATHS):
+                source, target = ROOT / relative, plugin / relative
+                if source.is_dir():
+                    import shutil
+                    shutil.copytree(source, target)
+                elif source.is_file():
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes(source.read_bytes())
+            before = build_probe.plugin_digest(plugin)
+            hook = plugin / "scripts" / "readonly-guard-hook.ps1"
+            hook.write_bytes(hook.read_bytes() + b"\n# changed\n")
+            self.assertNotEqual(before, build_probe.plugin_digest(plugin))
+
+
+class UnknownCostTests(unittest.TestCase):
+    """EVAL-011 attempts and cost: an unknown cost is recorded as unknown, never as zero."""
+
+    def test_an_unpriced_live_judge_call_leaves_the_judge_cost_unknown(self) -> None:
+        judge = mock.Mock(drain_spend=lambda: [{"cost_usd": 0.02, "seconds": 1.0, "cached": False},
+                                               {"cost_usd": None, "seconds": 1.0, "cached": False},
+                                               {"cost_usd": 0.0, "seconds": 0.0, "cached": True}])
+        with mock.patch.dict(sys.modules, {"judge": judge}):
+            spend = build_probe.judge_spend()
+        self.assertIsNone(spend["cost_usd"])
+        self.assertEqual((0.02, 1), (spend["known_cost_usd"], spend["unknown_cost_calls"]))
+
+    def test_a_trial_total_is_unknown_when_any_part_is(self) -> None:
+        known = {"cost_usd": 0.03, "known_cost_usd": 0.03}
+        unknown = {"cost_usd": None, "known_cost_usd": 0.02}
+        self.assertEqual({"cost_usd": 0.13, "known_cost_usd": 0.13, "cost_complete": True}, build_probe.trial_cost(0.1, known))
+        self.assertEqual({"cost_usd": None, "known_cost_usd": 0.03, "cost_complete": False}, build_probe.trial_cost(None, known))
+        self.assertEqual({"cost_usd": None, "known_cost_usd": 0.12, "cost_complete": False}, build_probe.trial_cost(0.1, unknown))
+
+
+class BatchSpendCapTests(unittest.TestCase):
+    """AC-18: the batch cap stops scheduling at the known spend, or when a cost is unknown."""
+
+    RUNTIME = {"cli_version": "x", "host_platform": {"system": "Windows", "release": "11", "machine": "AMD64"}}
+
+    def _main(self, costs: list[tuple[float | None, bool]], cap: str) -> tuple[int, list[int], str]:
+        import contextlib
+        import io
+        spec = build_probe.load_all_scenarios()[0]
+        calls: list[int] = []
+
+        def fake_run_trial(spec_arg, **kwargs):
+            calls.append(kwargs["run_number"])
+            known, complete = costs[len(calls) - 1]
+            return {"scenario": spec_arg["id"], "label": "l", "run": kwargs["run_number"], "status": "PASS",
+                    "passed": 1, "total": 1, "models": ["m"], "runtime": self.RUNTIME,
+                    "plugin_source_sha256": "0" * 64, "scenario_sha256": build_probe.scenario_digest(spec_arg),
+                    "cost_usd": known if complete else None, "known_cost_usd": known, "cost_complete": complete}
+
+        with tempfile.TemporaryDirectory() as tmp,                 mock.patch.object(probe_fingerprints, "plugin_provenance", return_value={"plugin_source_sha256": "0" * 64}),                 mock.patch.object(probe_fingerprints, "runtime_identity", return_value=self.RUNTIME),                 mock.patch.object(probe_trials, "run_trial", side_effect=fake_run_trial),                 contextlib.redirect_stdout(io.StringIO()) as out:
+            code = build_probe.main(["--scenario", spec["id"], "--label", "l", "--trials", str(len(costs)),
+                                     "--out", str(Path(tmp) / "it"), "--max-batch-usd", cap])
+        return code, calls, out.getvalue()
+
+    def test_scheduling_stops_once_the_known_spend_reaches_the_cap(self) -> None:
+        code, calls, out = self._main([(0.6, True), (0.6, True), (0.6, True)], "1.0")
+        self.assertEqual([1, 2], calls)
+        self.assertEqual(2, code)
+        self.assertIn('"trials_not_run": 1', out)
+
+    def test_an_unknown_cost_stops_the_batch_because_the_cap_cannot_hold(self) -> None:
+        code, calls, out = self._main([(0.1, False), (0.1, True)], "20")
+        self.assertEqual([1], calls)
+        self.assertIn("cap cannot be enforced", out)
+
+
+class SpendCapAttemptTests(unittest.TestCase):
+    """Copilot and Codex on PR #328: the cap counts every attempt the label paid for, once (rule 7).
+
+    The real run_trial publishes and keeps the attempts; only the trial itself is stubbed.
+    """
+
+    RUNTIME = BatchSpendCapTests.RUNTIME
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory(prefix="build-probe-cap-")
+        self.out = Path(self.tmp.name) / "it"
+        self.spec = build_probe.load_all_scenarios()[0]
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def _main(self, steps: list, *extra: str, plugin_sha: str = "0" * 64) -> tuple[int, int, str]:
+        """Each step is a graded trial's cost (None: unknown) or (exception, partial trace or None)."""
+        calls: list[int] = []
+
+        def fake_run_trial(spec, *, run_out, run_number, label, **_):
+            step = steps[len(calls)]
+            calls.append(run_number)
+            if isinstance(step, tuple):
+                exc, trace = step
+                if trace is not None:
+                    (run_out / "stdout.jsonl").write_text(trace, encoding="utf-8")
+                raise exc
+            cost = {"known_cost_usd": step or 0.0, "cost_complete": step is not None}
+            (run_out / "timing.json").write_text(json.dumps(cost), encoding="utf-8")
+            return {"scenario": spec["id"], "label": label, "run": run_number, "status": "PASS", "passed": 1,
+                    "total": 1, "models": ["m"], "runtime": self.RUNTIME, "plugin_source_sha256": "0" * 64,
+                    "scenario_sha256": build_probe.scenario_digest(spec), **cost}
+
+        with mock.patch.object(probe_fingerprints, "plugin_provenance", return_value={"plugin_source_sha256": plugin_sha}), \
+                mock.patch.object(probe_fingerprints, "runtime_identity", return_value=self.RUNTIME), \
+                mock.patch.object(probe_trials, "_run_trial", side_effect=fake_run_trial), \
+                mock.patch.object(probe_records, "write_record"), \
+                contextlib.redirect_stdout(io.StringIO()) as out, contextlib.redirect_stderr(io.StringIO()):
+            code = build_probe.main(["--scenario", self.spec["id"], "--label", "l", "--trials", str(len(steps)),
+                                     "--out", str(self.out), *extra])
+        return code, len(calls), out.getvalue()
+
+    def test_a_replaced_and_a_superseded_attempt_still_count(self) -> None:
+        self._main([0.9])
+        code, calls, out = self._main([0.2, 0.2], "--overwrite", "--max-batch-usd", "1")
+        self.assertEqual((2, 1), (code, calls), "run 1's USD 0.90 leaves room for one more trial")
+        self.assertIn("reached the USD 1 cap", out)
+        self.tearDown(), self.setUp()
+        self._main([0.3])
+        self._main([0.4], "--overwrite")  # the USD 0.30 attempt is now kept as superseded
+        code, calls, out = self._main([0.35, 0.35], "--run-offset", "1", "--max-batch-usd", "1")
+        self.assertEqual((2, 1), (code, calls), "USD 0.40 published and 0.30 superseded: room for one more")
+
+    def test_an_attempt_that_raised_counts_what_it_is_known_to_have_cost(self) -> None:
+        auth = build_probe.clean_room.AuthUnavailable("Not logged in")
+        priced = '{"type": "result", "subtype": "success", "is_error": false, "total_cost_usd": 0.9}\n'
+        for name, trace, capped_calls in (("no CLI process started", None, 2),
+                                          ("a partial trace that reports its cost", priced, 1),
+                                          ("a partial trace without a cost", "", 0)):
+            with self.subTest(name):
+                self.tearDown(), self.setUp()
+                self.assertEqual(4, self._main([(auth, trace)])[0])
+                code, calls, out = self._main([0.2, 0.2], "--run-offset", "1", "--max-batch-usd", "1")
+                self.assertEqual(capped_calls, calls, out)
+                if not capped_calls:
+                    self.assertIn("an earlier attempt's cost is unknown", out)
+
+    def test_a_cap_stop_stays_visible_beside_an_identity_refusal(self) -> None:
+        self._main([None])  # a trial of unknown cost
+        code, calls, out = self._main([0.2], "--overwrite", "--max-batch-usd", "1", plugin_sha="b" * 64)
+        self.assertEqual((2, 0), (code, calls))
+        self.assertIn("candidate digest", out)
+        self.assertIn("an earlier attempt's cost is unknown", out)
+
+
+class AuthStopsTheBatchTests(unittest.TestCase):
+    """An authentication failure exits 4 and stops the batch; completed trials are still reported."""
+
+    def test_an_auth_failure_stops_scheduling_and_exits_distinctly(self) -> None:
+        import contextlib
+        import io
+        runtime = {"cli_version": "x", "host_platform": {"system": "Windows", "release": "11", "machine": "AMD64"}}
+        spec = build_probe.load_all_scenarios()[0]
+        calls: list[int] = []
+
+        def fake_run_trial(spec_arg, **kwargs):
+            calls.append(kwargs["run_number"])
+            if len(calls) == 2:
+                raise build_probe.clean_room.AuthUnavailable("Not logged in")
+            return {"scenario": spec_arg["id"], "label": "l", "run": kwargs["run_number"], "status": "PASS",
+                    "passed": 1, "total": 1, "models": ["m"], "runtime": runtime,
+                    "plugin_source_sha256": "0" * 64, "scenario_sha256": build_probe.scenario_digest(spec_arg)}
+
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch.object(probe_fingerprints, "plugin_provenance", return_value={"plugin_source_sha256": "0" * 64}), \
+                mock.patch.object(probe_fingerprints, "runtime_identity", return_value=runtime), \
+                mock.patch.object(probe_trials, "run_trial", side_effect=fake_run_trial), \
+                contextlib.redirect_stdout(io.StringIO()) as out:
+            code = build_probe.main(["--scenario", spec["id"], "--label", "l", "--trials", "3",
+                                     "--out", str(Path(tmp) / "it")])
+        self.assertEqual((4, [1, 2]), (code, calls))
+        self.assertIn("authentication unavailable", out.getvalue())
+        self.assertIn('"trials_not_run": 2', out.getvalue())
+
+
+class ResultRecordV1Tests(unittest.TestCase):
+    """EVAL-012 DEC-22/23: one v1 record per attempt, in a folder that inherits its parent's permissions."""
+
+    _stub = EndToEndStubTests._stub
+    _env_factory = staticmethod(EndToEndStubTests._env_factory)
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory(prefix="build-probe-test-")
+        self.root = Path(self.tmp.name)
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def _run(self, *, overwrite: bool = False) -> Path:
+        spec = EndToEndStubTests._spec(self)
+        build_probe.run_trial(spec, plugin_root=ROOT, label="v1", model=None, run_number=1,
+                              out_dir=self.root / "it", timeout=60, executable=self._stub(),
+                              keep_workspace=False, env_factory=self._env_factory(), overwrite=overwrite)
+        return self.root / "it" / "eval-tiny" / "v1" / "run-1"
+
+    def test_each_attempt_writes_a_v1_record_of_facts_its_files_hold(self) -> None:
+        run = self._run()
+        record = json.loads((run / "record.json").read_text(encoding="utf-8"))
+        spec = EndToEndStubTests._spec(self)
+        self.assertEqual({"name": "save-toolkit.eval-record", "version": 1}, record["format"])
+        self.assertEqual(build_probe.case_digest(spec), record["case"]["case_sha256"])
+        self.assertEqual(build_probe.HARNESS_SOURCE_SHA256, record["runner"]["runner_source_sha256"])
+        self.assertEqual((1, "final", 1), (record["attempt"]["slot"], record["attempt"]["state"], record["attempt"]["number"]))
+        self.assertEqual("completed", record["run_end"]["kind"])
+        self.assertEqual(["PASS"] * 3, [c["state"] for c in record["checks"]])
+        self.assertTrue(all(c["kind"] in ("forbids", "requires") for c in record["checks"]))
+        self.assertTrue(all((run / path).is_file() for path in record["evidence"].values()))
+        # The stub CLI reports no cost: the record says unknown, not zero.
+        self.assertEqual((None, False), (record["cost"]["trial_usd"], record["cost"]["complete"]))
+
+    def test_a_superseded_attempt_records_its_state(self) -> None:
+        self._run()
+        run = self._run(overwrite=True)
+        kept = json.loads((run.parent / "attempts" / "run-1" / "1" / "record.json").read_text(encoding="utf-8"))
+        self.assertEqual((1, "superseded"), (kept["attempt"]["number"], kept["attempt"]["state"]))
+        self.assertEqual(2, json.loads((run / "record.json").read_text(encoding="utf-8"))["attempt"]["number"])
+
+    def test_the_case_digest_ignores_the_runner_while_the_scenario_digest_binds_it(self) -> None:
+        before = (build_probe.case_digest(TINY_SPEC), build_probe.scenario_digest(TINY_SPEC))
+        changed = {**build_probe.HARNESS_IDENTITY, "source_sha256": "0" * 64}
+        with mock.patch.object(probe_fingerprints, "HARNESS_IDENTITY", changed):
+            after = (build_probe.case_digest(TINY_SPEC), build_probe.scenario_digest(TINY_SPEC))
+        self.assertEqual(before[0], after[0])
+        self.assertNotEqual(before[1], after[1])
+
+    def test_long_evidence_is_flagged_as_truncated(self) -> None:
+        self.assertEqual({"evidence": "x" * 600, "evidence_truncated": True}, build_probe._bounded("x" * 601))
+        self.assertEqual({"evidence": "short"}, build_probe._bounded("short"))
+
+    @unittest.skipUnless(sys.platform == "win32", "Windows ACL inheritance")
+    def test_a_run_folder_inherits_its_parents_permissions(self) -> None:
+        run = self._run()
+        acl = subprocess.run(["icacls", str(run)], capture_output=True, text=True).stdout
+        self.assertIn("(I)", acl, "a mkdtemp folder lists only explicit owner-only entries")
+
+
+class GradingMachineryTests(unittest.TestCase):
+    """Threat-model ADR rule 5: grading-machinery failures are INCONCLUSIVE and stop their scenario."""
+
+    def test_a_grader_crash_is_inconclusive_and_named(self) -> None:
+        spec = {**TINY_SPEC, "checks": [{"check": "text_contains_any", "of": ["ok"], "text": "says ok"},
+                                         {"check": "fleet_grader", "name": "no-such-grader", "text": "broken"}]}
+        ctx = build_probe.Context(spec, None, build_probe.TraceSummary(result_text="ok"), None)
+        grading = build_probe.grade(ctx)
+        self.assertEqual(["PASS", "INCONCLUSIVE"], [e["state"] for e in grading["expectations"]])
+        self.assertEqual("INCONCLUSIVE", grading["status"])
+        self.assertIn("unknown fleet grader", grading["grader_error"])
+
+    def test_a_grader_crash_beside_a_supported_failure_still_fails(self) -> None:
+        spec = {**TINY_SPEC, "checks": [{"check": "text_contains_any", "of": ["absent"], "text": "says absent"},
+                                         {"check": "fleet_grader", "name": "no-such-grader", "text": "broken"}]}
+        ctx = build_probe.Context(spec, None, build_probe.TraceSummary(result_text="ok"), None)
+        self.assertEqual("FAIL", build_probe.grade(ctx)["status"])
+
+    def test_validation_rejects_an_unknown_fleet_grader(self) -> None:
+        spec = {**TINY_SPEC, "checks": [{"check": "fleet_grader", "name": "no-such-grader", "text": "x"}]}
+        self.assertTrue(any("unknown grader" in p for p in build_probe.validate_scenario(spec)))
+
+    def test_a_grader_error_stops_only_its_scenarios_remaining_trials(self) -> None:
+        import contextlib
+        import io
+        runtime = {"cli_version": "x", "host_platform": {"system": "Windows", "release": "11", "machine": "AMD64"}}
+        specs = [s for s in build_probe.load_all_scenarios() if not build_probe.required_rubrics(s)
+                 and not (s.get("fixture") or {}).get("services") and not s.get("followups")][:2]
+        calls: list[tuple[str, int]] = []
+
+        def fake_run_trial(spec_arg, **kwargs):
+            calls.append((spec_arg["id"], kwargs["run_number"]))
+            return {"scenario": spec_arg["id"], "label": "l", "run": kwargs["run_number"], "status": "INCONCLUSIVE",
+                    "passed": 0, "total": 1, "models": ["m"], "runtime": runtime,
+                    "plugin_source_sha256": "0" * 64, "scenario_sha256": build_probe.scenario_digest(spec_arg),
+                    **({"grader_error": "boom"} if spec_arg["id"] == specs[0]["id"] else {})}
+
+        with tempfile.TemporaryDirectory() as tmp,                 mock.patch.object(probe_catalog, "load_all_scenarios", return_value=specs),                 mock.patch.object(probe_fingerprints, "plugin_provenance", return_value={"plugin_source_sha256": "0" * 64}),                 mock.patch.object(probe_fingerprints, "runtime_identity", return_value=runtime),                 mock.patch.object(probe_trials, "run_trial", side_effect=fake_run_trial),                 contextlib.redirect_stdout(io.StringIO()) as out:
+            code = build_probe.main(["--label", "l", "--trials", "3", "--out", str(Path(tmp) / "it")])
+        self.assertEqual([(specs[0]["id"], 1), (specs[1]["id"], 1), (specs[1]["id"], 2), (specs[1]["id"], 3)], calls)
+        self.assertEqual(2, code)
+        self.assertIn('"trials_not_run": 2', out.getvalue())
+
+
+class TurnLimitTests(unittest.TestCase):
+    """Threat-model ADR rule 4: a run the CLI ends at the declared turn limit is complete."""
+
+    _stub = EndToEndStubTests._stub
+    _env_factory = staticmethod(EndToEndStubTests._env_factory)
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory(prefix="build-probe-test-")
+        self.root = Path(self.tmp.name)
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def _spec(self, **extra) -> dict:
+        spec = json.loads(json.dumps(TINY_SPEC))
+        spec["checks"] = [{"check": "bash_ran", "pattern": "unittest", "text": "test command ran"},
+                          {"check": "text_contains_any", "of": ["finished"], "text": "says finished"}]
+        return {**spec, **extra}
+
+    def _run(self, spec: dict) -> tuple[dict, dict]:
+        summary = build_probe.run_trial(spec, plugin_root=ROOT, label="turns", model=None, run_number=1,
+                                        out_dir=self.root / "it", timeout=60,
+                                        executable=self._stub(is_error=True, subtype="error_max_turns", result="stopped"),
+                                        keep_workspace=False, env_factory=self._env_factory())
+        run = self.root / "it" / "eval-tiny" / "turns" / "run-1"
+        return summary, json.loads((run / "grading.json").read_text(encoding="utf-8"))
+
+    def test_a_declared_turn_limit_reaches_the_cli(self) -> None:
+        command = build_probe.build_command("claude", ROOT, None, "p", None, ("Read",), max_turns=12)
+        self.assertEqual(["--max-turns", "12"], command[command.index("--max-turns"):command.index("--max-turns") + 2])
+        self.assertNotIn("--max-turns", build_probe.build_command("claude", ROOT, None, "p", None, ("Read",)))
+
+    def test_stopping_at_the_declared_limit_is_graded_as_a_completed_run(self) -> None:
+        summary, grading = self._run(self._spec(max_turns=8))
+        self.assertEqual("FAIL", summary["status"], "an unmet requirement at the limit fails")
+        self.assertEqual("turn_limit", grading["run_end"])
+        self.assertEqual(["PASS", "FAIL"], [e["state"] for e in grading["expectations"]])
+
+    def test_without_a_declared_limit_the_same_stop_is_cut_short(self) -> None:
+        summary, grading = self._run(self._spec())
+        self.assertEqual("INCONCLUSIVE", summary["status"])
+        self.assertEqual("cut_short", grading["run_end"])
+
+    def test_the_validator_bounds_max_turns(self) -> None:
+        for bad in (0, -1, 501, 2.5, True, "10"):
+            with self.subTest(bad=bad):
+                self.assertTrue(any("max_turns" in p for p in build_probe.validate_scenario({**TINY_SPEC, "max_turns": bad})))
+        self.assertFalse(any("max_turns" in p for p in build_probe.validate_scenario({**TINY_SPEC, "max_turns": 40})))
+
+
+class CodexReviewFindingTests(unittest.TestCase):
+    """The 2026-10-06 review findings on PR #328, each pinned by the behaviour it asked for."""
+
+    def test_a_judge_that_could_not_judge_stops_its_scenario(self) -> None:
+        evidence = build_probe.rubric_judge.INCONCLUSIVE_PREFIX + "judge timed out after 120s"
+        self.assertTrue(build_probe.Outcome.read(False, evidence).machinery)
+        spec = {**TINY_SPEC, "checks": [{"check": "fleet_grader", "name": "regex", "pattern": "x", "text": "judged"}]}
+        ctx = build_probe.Context(spec, None, build_probe.TraceSummary(result_text="response"), None)
+        with mock.patch.object(build_probe.fleet_graders, "run_grader", return_value=(False, evidence)):
+            grading = build_probe.grade(ctx)
+        self.assertEqual(("INCONCLUSIVE", "INCONCLUSIVE"), (grading["status"], grading["expectations"][0]["state"]))
+        self.assertIn("judge timed out", grading["grader_error"])
+
+    def test_a_ceiling_exceeded_before_a_cut_fails_while_an_unmet_floor_proves_nothing(self) -> None:
+        check = {"check": "tool_call_count", "tool": "WebFetch", "minimum": 1, "maximum": 3, "text": "bounded lookup"}
+        on_cut = build_probe.CHECKS["tool_call_count"].on_cut
+        over = on_cut(check, build_probe.TraceSummary(tool_counts={"WebFetch": 4}), "timed out")
+        under = on_cut(check, build_probe.TraceSummary(tool_counts={}), "timed out")
+        self.assertEqual(("FAIL", "INCONCLUSIVE"), (over.state, under.state))
+        self.assertTrue(over.forbidden, "calls past the ceiling are a forbidden action, not an unmet floor")
+        self.assertEqual(1.0, build_probe.effective_threshold({"id": "x", "checks": [check]}, 0.66),
+                         "a ceiling holds every trial")
+
+    def test_an_unknown_cli_version_refuses_the_batch(self) -> None:
+        runtime = {"cli_version": None, "host_platform": {"system": "Windows", "release": "11", "machine": "AMD64"}}
+        self.assertIn("did not report its version", build_probe.batch_identity_problem([], [TINY_SPEC], "p", None, runtime))
+
+    def test_the_batch_cap_must_be_finite_and_non_negative(self) -> None:
+        import argparse
+        for bad in ("nan", "inf", "-1", "abc"):
+            with self.subTest(bad=bad), self.assertRaises(argparse.ArgumentTypeError):
+                build_probe._budget(bad)
+        self.assertEqual(20.0, build_probe._budget("20"))
+        with self.assertRaises(argparse.ArgumentTypeError):
+            build_probe._budget("0")  # a zero cap would schedule nothing; a cap must be positive
+
+    def test_an_instrument_failure_is_unmeasured_not_a_candidate_failure(self) -> None:
+        state = build_probe._check_state({"passed": False, "evidence": "instrument: a Skill call carried no name"})
+        self.assertEqual("INCONCLUSIVE", state)
+
+    def test_validation_reports_malformed_checks_instead_of_crashing(self) -> None:
+        problems = build_probe.validate_scenario({**TINY_SPEC, "threshold": 0.5, "checks": ["bad"], "graders": [7]})
+        self.assertTrue(problems)
+
+    def test_invalid_reported_costs_are_unknown(self) -> None:
+        for bad in (float("nan"), float("inf"), -0.01, "0.1", True):
+            with self.subTest(bad=bad):
+                self.assertIsNone(build_probe.known_usd(bad))
+        judge = {"cost_usd": 0.0, "known_cost_usd": 0.0}
+        self.assertEqual({"cost_usd": None, "known_cost_usd": 0.0, "cost_complete": False},
+                         build_probe.trial_cost(float("nan"), judge))
+        spend = mock.Mock(drain_spend=lambda: [{"cost_usd": -1.0, "seconds": 1.0, "cached": False}])
+        with mock.patch.dict(sys.modules, {"judge": spend}):
+            self.assertIsNone(build_probe.judge_spend()["cost_usd"])
+
+    def test_a_resumed_batch_counts_what_its_retained_trials_spent(self) -> None:
+        import contextlib
+        import io
+        runtime = {"cli_version": "x", "host_platform": {"system": "Windows", "release": "11", "machine": "AMD64"}}
+        spec = [s for s in build_probe.load_all_scenarios() if not build_probe.required_rubrics(s)
+                and not (s.get("fixture") or {}).get("services") and not s.get("followups")][0]
+        row = lambda run, known, complete: {
+            "scenario": spec["id"], "label": "l", "run": run, "status": "PASS", "passed": 1, "total": 1,
+            "models": ["m"], "runtime": runtime, "plugin_source_sha256": "0" * 64,
+            "scenario_sha256": build_probe.scenario_digest(spec), "known_cost_usd": known, "cost_complete": complete}
+        for retained, expected_calls in (((0.9, True), [2]), ((0.0, False), [])):
+            calls: list[int] = []
+
+            def fake_run_trial(spec_arg, **kwargs):
+                calls.append(kwargs["run_number"])
+                return row(kwargs["run_number"], 0.2, True)
+
+            with self.subTest(retained=retained), tempfile.TemporaryDirectory() as tmp,                     mock.patch.object(probe_catalog, "load_all_scenarios", return_value=[spec]),                     mock.patch.object(probe_fingerprints, "plugin_provenance", return_value={"plugin_source_sha256": "0" * 64}),                     mock.patch.object(probe_fingerprints, "runtime_identity", return_value=runtime),                     mock.patch.object(probe_trials, "run_trial", side_effect=fake_run_trial),                     contextlib.redirect_stdout(io.StringIO()):
+                out = Path(tmp) / "it"
+                out.mkdir()
+                (out / "summary-l-default.json").write_text(json.dumps([row(1, *retained)]), encoding="utf-8")
+                build_probe.main(["--scenario", spec["id"], "--label", "l", "--trials", "2", "--run-offset", "1",
+                                  "--out", str(out), "--max-batch-usd", "1.0"])
+            self.assertEqual(expected_calls, calls)
+
+    def test_a_regrade_lists_its_assessment_in_the_v1_record(self) -> None:
+        tests = ResultRecordV1Tests(methodName="test_long_evidence_is_flagged_as_truncated")
+        tests.setUp()
+        try:
+            run = tests._run()
+            original = json.loads((run / "record.json").read_text(encoding="utf-8"))
+            build_probe.regrade_run(run, EndToEndStubTests._spec(tests))
+            record = json.loads((run / "record.json").read_text(encoding="utf-8"))
+        finally:
+            tests.tearDown()
+        self.assertEqual(original["verdict"], record["verdict"], "the live verdict is never rewritten")
+        self.assertEqual([1], [a["revision"] for a in record["assessments"]])
+        self.assertEqual("assessments/1/grading.json", record["assessments"][0]["grading"])
+
+
+class CopilotReviewFindingTests(unittest.TestCase):
+    """The 2026-10-06 Copilot review of PR #328, each finding pinned by the behaviour it asked for."""
+
+    NATIVE = {**TINY_SPEC, "followups": ["and then?"], "helper": "sre-assistant", "tools": ["Skill", "Read", "Task"],
+              "expected_model": "claude-sonnet-5-5"}
+
+    def test_a_cut_short_native_run_on_the_wrong_model_is_void(self) -> None:
+        partial = build_probe.TraceSummary(main_models=["claude-opus-5-5"], init_session_ids=["s1"])
+        with mock.patch.object(probe_invocation, "profile_problem", return_value=None):
+            problem = build_probe.invocation_problem(partial, None, self.NATIVE, ROOT, ROOT)
+        self.assertIn("native parent model", problem)
+        self.assertNotIsInstance(problem, build_probe.CutShort)
+        right = build_probe.TraceSummary(main_models=["claude-sonnet-5-5"], init_session_ids=["s1"])
+        with mock.patch.object(probe_invocation, "profile_problem", return_value=None):
+            cut = build_probe.invocation_problem(right, None, self.NATIVE, ROOT, ROOT)
+        self.assertIsInstance(cut, build_probe.CutShort)
+        self.assertEqual("no_result", cut.kind)
+
+    def test_a_negative_routing_cut_fails_only_on_the_forbidden_target(self) -> None:
+        negative = {"id": "n", "target": {"kind": "skill", "name": "pcf-deploy"},
+                    "routing": {"expect": "not_fire", "expected_alternative": "inline"}}
+        fired = build_probe.grade_routing(negative, _trace(skills=["save-toolkit:pcf-deploy"]), ROOT)
+        missing_alternative = build_probe.grade_routing(negative, _trace(skills=["save-toolkit:runbook"]), ROOT)
+        self.assertEqual(("FAIL", True), (fired.state, fired.forbidden))
+        self.assertEqual(("FAIL", False), (missing_alternative.state, missing_alternative.forbidden))
+        self.assertEqual("FAIL", build_probe.routing_on_cut(fired, "timed out").state)
+        self.assertEqual("INCONCLUSIVE", build_probe.routing_on_cut(missing_alternative, "timed out").state)
+        self.assertEqual(["both"], build_probe.assertion_polarities(negative))
+
+    def test_the_record_carries_how_execution_stopped_not_what_the_checks_found(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            run = Path(tmp)
+            for grading, kind, stop in (
+                    ({"status": "INCONCLUSIVE", "inconclusive": "grader error: boom",
+                      "expectations": [{"id": "x:0", "text": "graded", "kind": "requires", "passed": False,
+                                        "state": "INCONCLUSIVE", "evidence": "INCONCLUSIVE: grader error: boom"}]},
+                     "completed", None),
+                    ({"status": "INCONCLUSIVE", "void": "wrong plugin", "inconclusive": "wrong plugin"}, "void", None),
+                    ({"status": "FAIL", "run_end": "cut_short", "run_stop": "spend_guard", "unmeasured": "cap"},
+                     "cut_short", "spend_guard")):
+                (run / "grading.json").write_text(json.dumps(grading), encoding="utf-8")
+                record = build_probe.write_record(run, TINY_SPEC, label="l", run_number=1, attempt=1,
+                                                  started_at=RecordContractTests.START, model=None, timeout=60)
+                with self.subTest(kind=kind):
+                    self.assertEqual((kind, stop), (record["run_end"]["kind"], record["run_end"]["stop"]))
+
+    def test_live_and_cached_judge_calls_are_counted_apart(self) -> None:
+        judge = mock.Mock(drain_spend=lambda: [{"cost_usd": 0.02, "seconds": 1.0, "cached": False},
+                                               {"cost_usd": 0.0, "seconds": 0.0, "cached": True}])
+        with mock.patch.dict(sys.modules, {"judge": judge}):
+            spend = build_probe.judge_spend()
+        self.assertEqual((1, 1), (spend["live_calls"], spend["cached_calls"]))
+
+    def test_a_native_cut_survives_regrade_as_a_cut(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            run = Path(tmp)
+            (run / "stdout.jsonl").write_text("", encoding="utf-8")
+            partial = build_probe.parse_trace(run / "stdout.jsonl")  # the runner records what it parsed
+            (run / "invocation.json").write_text(json.dumps({
+                "argv": ["claude", "--agent", "save-toolkit:software-engineer"], "session_id": partial.session_id,
+                "workspace": str(run.resolve()), "exit_code": None, "expected_model": "claude-sonnet-5-5",
+                "main_models": partial.main_models, "init_session_ids": partial.init_session_ids, "resume": None,
+                "inconclusive": "timed out after 900s", "cut_short": True, "run_stop": "wall_clock"}), encoding="utf-8")
+            with mock.patch.object(probe_invocation, "invocation_problem",
+                                   return_value=build_probe.CutShort("no result event", "no_result")):
+                kept = build_probe.native_regrade_problem(run, self.NATIVE, ROOT)
+            with mock.patch.object(probe_invocation, "invocation_problem", return_value="native parent model differs"):
+                voided = build_probe.native_regrade_problem(run, self.NATIVE, ROOT)
+        self.assertIsInstance(kept, build_probe.CutShort)
+        self.assertEqual(("timed out after 900s", "wall_clock"), (str(kept), kept.kind))
+        self.assertEqual("native parent model differs", voided)
+
+    def test_a_native_regrade_names_what_failed_instead_of_blaming_the_saved_run(self) -> None:
+        invalid = "native invocation boundary evidence missing or invalid; re-run the trial"
+
+        def save(run: Path, **metadata: object) -> None:
+            (run / "stdout.jsonl").write_text("", encoding="utf-8")
+            partial = build_probe.parse_trace(run / "stdout.jsonl")
+            (run / "invocation.json").write_text(json.dumps({
+                "argv": ["claude", "--agent", "save-toolkit:software-engineer"], "session_id": partial.session_id,
+                "workspace": str(run.resolve()), "exit_code": 0, "expected_model": "claude-sonnet-5-5",
+                "main_models": partial.main_models, "init_session_ids": partial.init_session_ids, "resume": None,
+                "inconclusive": None, **metadata}), encoding="utf-8")
+
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as empty_root:
+            run = Path(tmp)
+            save(run)
+            # A defect in the runner raises: the saved run is not at fault, and a re-run would not help.
+            with mock.patch.object(probe_tracing, "parse_trace", side_effect=TypeError("runner defect")), \
+                    self.assertRaises(TypeError):
+                build_probe.native_regrade_problem(run, self.NATIVE, ROOT)
+            # A plugin root that no longer holds the agent is named, not blamed on the saved run.
+            self.assertIn("plugin root", build_probe.native_regrade_problem(run, self.NATIVE, Path(empty_root)) or "")
+            # Malformed saved evidence is still invalid saved evidence.
+            save(run, inconclusive="timed out after 900s", cut_short=True, exit_code=None, run_stop="bogus")
+            with mock.patch.object(probe_invocation, "invocation_problem",
+                                   return_value=build_probe.CutShort("no result event", "no_result")):
+                self.assertEqual(invalid, build_probe.native_regrade_problem(run, self.NATIVE, ROOT))
+
+    def test_a_regrade_plans_a_native_grade_without_reading_the_plugin_root(self) -> None:
+        # A regrade plans every expectation before it applies the run-level reason, so a native run
+        # whose saved plugin root is gone, and whose replay already voided it, must still plan: the
+        # helper's namespace is read only when that expectation is measured.
+        with tempfile.TemporaryDirectory() as gone:
+            items = probe_assessment.plan(self.NATIVE, build_probe.TraceSummary(), None, Path(gone) / "plugin", keep=True)
+        self.assertIn("native helper completed exactly once", [item.text for item in items])
+
+    def test_an_instrument_failure_stops_its_scenario(self) -> None:
+        spec = {**TINY_SPEC, "checks": [{"check": "skill_not_loaded", "skill": "eng-ladder", "text": "no ladder"}]}
+        ctx = build_probe.Context(spec, None, build_probe.TraceSummary(skills=["<unnamed-skill>"]), None)
+        grading = build_probe.grade(ctx)
+        self.assertEqual("INCONCLUSIVE", grading["expectations"][0]["state"])
+        self.assertIn("Skill call carried no name", grading["grader_error"])
+
+
+class PackageStructureTests(unittest.TestCase):
+    """The runner as the `evals/probe` package: typed outcomes, declared checks, one grading loop."""
+
+    # What the hand-kept REGRADABLE set said before each check declared the evidence it reads.
+    LEGACY_REGRADABLE = {
+        "text_regex", "text_not_regex", "text_contains_any", "text_not_contains", "no_new_commits", "no_agents_dir",
+        "changes_within", "skill_not_loaded", "skill_loaded", "bash_ran", "bash_did_not_run", "verification_completed",
+        "no_task_dispatch", "task_completed", "state_file_absent", "cf_log_has_no", "fleet_grader",
+        "no_workspace_changes", "dispatches_namespaced",
+    }
+
+    def test_an_outcome_unpacks_like_a_check_result_and_states_what_it_measured(self) -> None:
+        outcome = build_probe.unmeasured("exit 3: no data")
+        passed, evidence = outcome
+        self.assertEqual((False, "INCONCLUSIVE: exit 3: no data"), (passed, evidence))
+        self.assertEqual(("INCONCLUSIVE", "exit 3: no data", False), (outcome.state, outcome.reason, outcome.machinery))
+        for text, state, machinery in (
+            ("wrote deploy.yaml", "FAIL", False),
+            ("INCONCLUSIVE: exit 3", "INCONCLUSIVE", False),
+            ("INCONCLUSIVE: grader error: KeyError('x')", "INCONCLUSIVE", True),
+            ("instrument: no snapshot", "INCONCLUSIVE", True),
+            (build_probe.rubric_judge.INCONCLUSIVE_PREFIX + "timed out", "INCONCLUSIVE", True),
+        ):
+            with self.subTest(evidence=text):
+                read = build_probe.Outcome.read(False, text)
+                self.assertEqual((state, machinery), (read.state, read.machinery))
+                self.assertEqual(state, build_probe.legacy_state({"passed": False, "evidence": text}))
+        self.assertEqual("PASS", build_probe.Outcome.read(True, "INCONCLUSIVE: a pass is a pass").state)
+
+    def test_each_check_declares_what_it_reads_and_the_regrade_rule_is_unchanged(self) -> None:
+        self.assertEqual(self.LEGACY_REGRADABLE, build_probe.REGRADABLE)
+        self.assertIs(probe_checking.CheckRun, build_probe.Check)
+        for name in build_probe.CHECKS:
+            with self.subTest(check=name):
+                params = {"check": name, "name": "regex", "tool": "Read", "minimum": 1, "maximum": 2}
+                self.assertEqual(name in self.LEGACY_REGRADABLE, build_probe.is_regradable(params, {}))
+        uncommitted = {"fixture": {"files": {"a": "b"}, "uncommitted": {"x.py": "1"}}}
+        self.assertFalse(build_probe.is_regradable({"check": "fleet_grader", "name": "rubric"}, {}))
+        self.assertFalse(build_probe.is_regradable({"check": "no_workspace_changes"}, uncommitted))
+        self.assertEqual("live-judge", probe_checking.kept_as({"check": "fleet_grader", "name": "rubric"}, {}))
+        self.assertEqual("workspace-dependent", probe_checking.kept_as({"check": "no_workspace_changes"}, uncommitted))
+        with self.assertRaisesRegex(ValueError, "declared twice"):
+            probe_checking.declare("text_regex", build_probe.Polarity.REQUIRES,
+                                   needs={build_probe.Need.TEXT})(build_probe.check_text_regex)
+
+    def test_a_regrade_measures_what_the_run_kept_and_carries_the_rest(self) -> None:
+        spec = {**TINY_SPEC, "checks": [{"check": "text_contains_any", "of": ["ok"], "text": "says ok"},
+                                         {"check": "file_exists", "path": "README.md", "text": "readme"}]}
+        trace = build_probe.TraceSummary(result_text="ok")
+        ctx = build_probe.Context(spec, None, trace, None)
+        items = build_probe.plan(spec, trace, ctx, ROOT, keep=True)
+        self.assertEqual([None, "workspace-dependent"], [item.kept_as for item in items])
+        saved = build_probe.verdict(True, "README.md present [kept: workspace-dependent]")
+        graded, reason = build_probe.assess(items, None, kept=lambda index, item: saved if index == 1 else None)
+        self.assertEqual((["PASS", "PASS"], None), ([g.outcome.state for g in graded], reason))
+        graded, reason = build_probe.assess(items, None, kept=lambda index, item: None)
+        self.assertEqual(["PASS", "INCONCLUSIVE"], [g.outcome.state for g in graded])
+        self.assertIn("no saved verdict for a workspace-dependent expectation", reason)
+
+    def test_subcommands_and_the_flat_flags_reach_the_same_jobs(self) -> None:
+        import contextlib
+        import io
+        for argv in (["validate"], ["--validate"]):
+            with self.subTest(argv=argv), contextlib.redirect_stdout(io.StringIO()) as out:
+                self.assertEqual(0, build_probe.main(argv))
+            self.assertIn("scenarios OK", out.getvalue())
+        with tempfile.TemporaryDirectory() as tmp:
+            rescore = Path(tmp) / "rescore.json"
+            rescore.write_text(json.dumps({"runner": {}, "runs": []}), encoding="utf-8")
+            for argv in (["diff", str(rescore), str(rescore)], ["--rescore-diff", str(rescore), str(rescore)]):
+                with self.subTest(argv=argv), contextlib.redirect_stdout(io.StringIO()), \
+                        contextlib.redirect_stderr(io.StringIO()):
+                    self.assertEqual(0, build_probe.main(argv))
+            with contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(3, build_probe.main(["rescore", tmp]), "a rescore needs a new --out")
+            rows = [{"scenario": "s", "label": "l", "run": 1, "status": "PASS", "passed": 1, "total": 1,
+                     "models": ["m"], "plugin_source_sha256": "0" * 64, "runtime": {"cli_version": "2.1.291 (Claude Code)", "host_platform": {"system": "Windows"}}}]
+            with mock.patch.object(probe_rescoring, "regrade", return_value=rows), \
+                    contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(0, build_probe.main(["regrade", tmp]))
+        with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+            build_probe.main(["run", "--label", "x"])
+
+    def test_the_published_record_schema_is_the_record_model(self) -> None:
+        import contextlib
+        import io
+        published = json.loads((ROOT / "docs/fleet-evaluation/eval-record-v1.schema.json").read_text(encoding="utf-8"))
+        self.assertEqual(build_probe.record_schema(), published,
+                         "regenerate: python evals/build_probe.py schema --out docs/fleet-evaluation/eval-record-v1.schema.json")
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(0, build_probe.main(["schema"]))
+        self.assertEqual(published, json.loads(out.getvalue()))
+
+    def test_a_record_that_breaks_the_contract_is_refused_before_it_is_written(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            run = Path(tmp)
+            (run / "grading.json").write_text(json.dumps({"status": "MAYBE"}), encoding="utf-8")
+            with self.assertRaises(ValueError):
+                build_probe.write_record(run, TINY_SPEC, label="l", run_number=1, attempt=1,
+                                         started_at=RecordContractTests.START, model=None, timeout=60)
+            self.assertFalse((run / "record.json").exists())
+
+    def test_patching_a_name_on_the_entry_point_is_refused_rather_than_ignored(self) -> None:
+        """The runner never looks a name up on build_probe, so a patch there would run real code. The
+        refusal names where the runner reads it: a function's own module, each importer of a constant,
+        and for a registered check its registry entry, through which grading calls it."""
+        from dataclasses import replace
+
+        for name, readers in (
+                ("run_trial", {"probe.trials.run_trial"}),
+                ("plugin_provenance", {"probe.fingerprints.plugin_provenance"}),
+                ("check_text_regex", {"probe.checking.CHECKS['text_regex']"}),
+                ("ROOT", {"probe.constants.ROOT", "probe.checking.ROOT", "probe.trials.ROOT"}),
+                ("subprocess", {"probe.trials.subprocess", "probe.checking.subprocess"})):
+            with self.subTest(name=name), \
+                    self.assertRaisesRegex(AttributeError, "patch it where the runner reads it") as refused:
+                with mock.patch.object(build_probe, name, None):
+                    pass
+            named = set(str(refused.exception).split("reads it: ", 1)[1].split(", "))
+            self.assertLessEqual(readers, named)
+            if callable(getattr(build_probe, name)) and name != "subprocess":
+                self.assertEqual(readers, named, "a function is read only through its own module")
+        with mock.patch.object(probe_trials, "run_trial", None):
+            self.assertIsNone(probe_trials.run_trial)
+        # The named registry entry is where a patch takes effect.
+        patched = replace(probe_checking.CHECKS["text_regex"], run=lambda ctx, p: build_probe.verdict(True, "patched"))
+        ctx = build_probe.Context({}, None, build_probe.TraceSummary(result_text="no match here"), None)
+        with mock.patch.dict(probe_checking.CHECKS, {"text_regex": patched}):
+            self.assertEqual("patched", probe_checking.run(ctx, {"check": "text_regex", "pattern": "absent"}).evidence)
+
+    def test_the_runner_identity_binds_every_module_in_the_package(self) -> None:
+        package = {path.resolve() for path in (ROOT / "evals" / "probe").glob("*.py")}
+        self.assertLessEqual(package | {(ROOT / "evals" / "build_probe.py").resolve()}, set(build_probe.HARNESS_FILES))
+
+    def test_a_sibling_function_is_called_through_its_module(self) -> None:
+        """So a test patches the one place a function is looked up. `outcomes` holds pure
+        constructors that nothing patches, so they may be imported by name."""
+        import ast
+        package = ROOT / "evals" / "probe"
+        functions = {path.stem: {node.name for node in ast.parse(path.read_text(encoding="utf-8")).body
+                                 if isinstance(node, ast.FunctionDef)}
+                     for path in package.glob("*.py")}
+        for path in package.glob("*.py"):
+            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+                if isinstance(node, ast.ImportFrom) and node.level == 1 and node.module and node.module != "outcomes":
+                    with self.subTest(module=path.stem, source=node.module):
+                        self.assertEqual(set(), {alias.name for alias in node.names} & functions.get(node.module, set()))
+
+
+class RegradeRunLevelReasonTests(unittest.TestCase):
+    """A regrade voids a run only when the live grade did (result rules 1 and 3)."""
+
+    SPEC = {**TINY_SPEC, "checks": [
+        {"check": "text_not_contains", "needle": "deploy", "text": "never says deploy"},
+        {"check": "skill_not_loaded", "skill": "eng-ladder", "text": "no ladder"}]}
+    UNNAMED = "instrument: a Skill call carried no name; cannot assert what was loaded"
+
+    def _run(self, tmp: str, *, inconclusive: str, evidence: tuple[str, str], void: str | None = None) -> Path:
+        run = Path(tmp) / "eval-tiny" / "arm" / "run-1"
+        (run / "outputs").mkdir(parents=True)
+        (run / "outputs" / "response.md").write_text("I will deploy it.\n", encoding="utf-8")
+        (run / "outputs" / "trace-summary.json").write_text(json.dumps({
+            "state_files": {}, "commits_before_after": [1, 1], "branch": "main", "changed_files": [],
+            "skills": [], "dispatches": [], "bash_commands": [], "agents_dir": False, "inconclusive": inconclusive,
+        }), encoding="utf-8")
+        grade = {**_saved_grade(self.SPEC, [{"text": "never says deploy", "passed": False, "evidence": evidence[0]},
+                                            {"text": "no ladder", "passed": False, "evidence": evidence[1]}]),
+                 "status": "INCONCLUSIVE", "inconclusive": inconclusive, **({"void": void} if void else {})}
+        (run / "grading.json").write_text(json.dumps(grade), encoding="utf-8")
+        events = [
+            {"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "s", "name": "Skill", "input": {}}]}},
+            {"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "s", "content": "done"}]}},
+            {"type": "result", "result": "I will deploy it.", "duration_ms": 1, "usage": {}},
+        ]
+        (run / "stdout.jsonl").write_text("\n".join(json.dumps(e) for e in events), encoding="utf-8")
+        return run
+
+    def test_one_unmeasured_check_neither_voids_the_run_nor_hides_a_failure(self) -> None:
+        # A grade from before the result rules: INCONCLUSIVE because one check could not measure,
+        # beside a check that saw the forbidden word.
+        with tempfile.TemporaryDirectory() as tmp:
+            run = self._run(tmp, inconclusive=self.UNNAMED, evidence=("'deploy' PRESENT in the final text", self.UNNAMED))
+            grading = build_probe.regrade_run(run, self.SPEC, write=False)
+        self.assertEqual(["FAIL", "INCONCLUSIVE"], [e["state"] for e in grading["expectations"]])
+        self.assertEqual("FAIL", grading["status"])
+        self.assertNotIn("void", grading)
+
+    def test_a_run_level_reason_still_voids_the_regrade(self) -> None:
+        reason = "runtime tool inventory mismatch (extra ['WebFetch'], missing [])"
+        marked = f"INCONCLUSIVE: {reason}"
+        for void in (reason, None):  # a current grade names it; an older grade marks every check with it
+            with self.subTest(void=void), tempfile.TemporaryDirectory() as tmp:
+                run = self._run(tmp, inconclusive=reason, evidence=(marked, marked), void=void)
+                grading = build_probe.regrade_run(run, self.SPEC, write=False)
+            self.assertEqual(["INCONCLUSIVE", "INCONCLUSIVE"], [e["state"] for e in grading["expectations"]])
+            self.assertEqual((reason, "INCONCLUSIVE"), (grading["void"], grading["status"]))
+
+
+class RecordContractTests(unittest.TestCase):
+    """The v1 record refuses what its contract rules out, on the first write and on every later change."""
+
+    START = "2026-10-06T12:00:00+00:00"
+    GRADING = {"status": "FAIL", "inconclusive": None, "unmeasured": "judge down", "scenario_sha256": "a" * 64,
+               "expectations": [
+                   {"id": "x:0", "text": "never deploys", "kind": "forbids", "passed": False, "state": "FAIL",
+                    "evidence": "deployed"},
+                   {"id": "x:1", "text": "judged", "kind": "requires", "passed": False, "state": "INCONCLUSIVE",
+                    "evidence": "INCONCLUSIVE: judge down"}]}
+
+    def _record(self, run: Path, **kwargs: object) -> dict:
+        (run / "grading.json").write_text(json.dumps(self.GRADING), encoding="utf-8")
+        return build_probe.write_record(run, TINY_SPEC, label="l", run_number=1, attempt=1, started_at=self.START,
+                                        model=None, timeout=60, **kwargs)
+
+    def test_a_check_says_why_it_could_not_measure(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            record = self._record(Path(tmp))
+        self.assertEqual([None, "judge down"], [check["reason"] for check in record["checks"]])
+        self.assertEqual(("FAIL", "judge down"), (record["verdict"]["status"], record["verdict"]["reason"]))
+
+    def test_an_incomplete_attempt_has_no_verdict_even_beside_a_grade(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            record = self._record(Path(tmp), end=("incomplete", "KeyboardInterrupt: "))
+        self.assertEqual(("incomplete", "incomplete", None, None),
+                         (record["attempt"]["state"], record["run_end"]["kind"], record["verdict"]["status"],
+                          record["verdict"]["reason"]))
+
+    def test_the_contract_refuses_what_it_rules_out(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            valid = self._record(Path(tmp))
+        self.assertEqual(valid, build_probe.RecordV1.model_validate_json(json.dumps(valid)).model_dump(
+            mode="json", exclude_unset=True))
+
+        def broken(path: str, value: object) -> dict:
+            record = json.loads(json.dumps(valid))
+            *parents, leaf = path.split(".")
+            target = record
+            for part in parents:
+                target = target[int(part)] if part.isdigit() else target[part]
+            target[leaf] = value
+            return record
+
+        for path, value in (
+                ("attempt.state", "incomplete"),  # an incomplete attempt that still carries a verdict
+                ("verdict.status", None),  # a final attempt without one
+                ("cost.trial_usd", -3.0),
+                ("cost.complete", True),  # complete while both costs are unknown
+                ("verdict.assessment_revision", 7),
+                ("attempt.started_at", "yesterday"),
+                ("attempt.slot", True),  # strict: a bool is not a number
+                ("checks.0.evidence", "x" * 601),  # longer than the record keeps
+                ("checks.1.reason", None),  # an INCONCLUSIVE check that does not say why
+                ("checks.0.passed", False),  # a field the contract does not define
+                ("run_end.stop", "wall_clock"),  # a stop on a run that was not cut short
+                ("evidence.../../etc/passwd", "stdout.jsonl"),
+                ("evidence.grading.json", "/abs/grading.json")):
+            if path.startswith("evidence."):
+                record = json.loads(json.dumps(valid))
+                record["evidence"][path.removeprefix("evidence.")] = value
+            else:
+                record = broken(path, value)
+            with self.subTest(path=path, value=value), self.assertRaises(ValueError):
+                build_probe.RecordV1.model_validate_json(json.dumps(record))
+
+    def test_a_later_change_passes_the_same_validation_or_is_left_unwritten(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            run = Path(tmp)
+            self._record(run)
+            probe_records.update_record(
+                run, lambda record: record["attempt"].update(state="superseded", reason="replaced by attempt 2"))
+            before = (run / "record.json").read_text(encoding="utf-8")
+            self.assertEqual("superseded", json.loads(before)["attempt"]["state"])
+            with contextlib.redirect_stderr(io.StringIO()) as err:
+                probe_records.update_record(run, lambda record: record.setdefault("assessments", []).append(
+                    {"revision": 3, "status": "PASS"}))
+            self.assertEqual(before, (run / "record.json").read_text(encoding="utf-8"))
+        self.assertIn("was not updated", err.getvalue())
+
+    def test_a_judge_total_is_a_float_even_without_a_call(self) -> None:
+        with mock.patch.dict(sys.modules, {"judge": mock.Mock(drain_spend=lambda: [])}):
+            spend = build_probe.judge_spend()
+        self.assertEqual((0.0, float), (spend["cost_usd"], type(spend["cost_usd"])))
+
+
+class GradingLoopTests(unittest.TestCase):
+    """The one grading loop: what it measures, what it keeps, and what it refuses."""
+
+    @staticmethod
+    def _item(measure, polarity: str = "requires", **kwargs: object) -> build_probe.Expectation:
+        return build_probe.Expectation("expectation", measure, build_probe.Polarity(polarity), **kwargs)
+
+    def test_a_regrade_plan_is_never_assessed_without_its_saved_verdicts(self) -> None:
+        measured = []
+        item = self._item(lambda: measured.append(1) or build_probe.verdict(True, "judged"), kept_as="live-judge")
+        with self.assertRaisesRegex(ValueError, "assess it with `kept`"):
+            build_probe.assess([item], None)
+        self.assertEqual([], measured, "a kept expectation is never measured live")
+
+    def test_the_trial_reason_keeps_what_the_record_cuts(self) -> None:
+        long = "exit 3: " + "x" * 700
+        graded, reason = build_probe.assess([self._item(lambda: build_probe.unmeasured(long), names_unmeasured=True)],
+                                            None)
+        self.assertEqual(long, reason)
+        self.assertEqual((600, True), (len(graded[0].outcome.evidence), graded[0].truncated))
+
+    def test_evidence_cut_on_a_run_cut_short_is_flagged(self) -> None:
+        # The record keeps 600 characters and flags a cut; a rule that cut first left no flag.
+        cut = build_probe.CutShort("claude reported an error result " + "x" * 700, "error_result")
+        trace = build_probe.TraceSummary(tool_counts={"Read": 1})
+        spec = {**TINY_SPEC, "checks": [{"check": "tool_call_count", "tool": "Read", "minimum": 2, "maximum": 3}]}
+        cases = {
+            "forbidding check": [self._item(lambda: build_probe.verdict(True, "no violation"), "forbids")],
+            "negative routing": [self._item(lambda: build_probe.verdict(True, "alternative never fired"), "both",
+                                            on_cut=build_probe.routing_on_cut)],
+            "tool-call floor": build_probe.plan(spec, trace, build_probe.Context(spec, None, trace, None), ROOT),
+        }
+        for name, items in cases.items():
+            with self.subTest(case=name):
+                graded, _ = build_probe.assess(items, cut)
+                self.assertEqual(("INCONCLUSIVE", 600, True),
+                                 (graded[0].outcome.state, len(graded[0].outcome.evidence), graded[0].truncated))
+
+    def test_a_kept_verdict_keeps_its_marker_and_its_truncation_flag(self) -> None:
+        item = self._item(lambda: build_probe.verdict(True, "never measured"), kept_as="live-judge")
+        for evidence, passed, state, truncated in (("J" * 600, False, "FAIL", True),
+                                                   ("judged", True, "PASS", False),
+                                                   ("INCONCLUSIVE: " + "u" * 586, False, "INCONCLUSIVE", True)):
+            with self.subTest(state=state):
+                saved = {"sha:0": {"id": "sha:0", "text": "expectation", "passed": passed, "evidence": evidence}}
+                graded, _ = build_probe.assess([item], None, kept=probe_rescoring._saved_verdicts(saved, "sha"))
+                record = probe_assessment.records(graded)[0]
+                self.assertTrue(record["evidence"].startswith("[kept: live-judge] "), record["evidence"])
+                self.assertEqual((state, truncated), (record["state"], bool(record.get("evidence_truncated"))))
+                self.assertEqual(state, build_probe.legacy_state(record), "the kept text reads back as its state")
+
+    def test_a_crash_on_a_run_cut_short_stays_a_grader_error(self) -> None:
+        def crash() -> build_probe.Outcome:
+            raise KeyError("target")
+
+        item = self._item(crash, "both", on_cut=build_probe.routing_on_cut)
+        graded, _ = build_probe.assess([item], build_probe.CutShort("timed out after 60s", "wall_clock"))
+        outcome = graded[0].outcome
+        self.assertEqual(("INCONCLUSIVE", True), (outcome.state, outcome.machinery))
+        self.assertTrue(outcome.evidence.startswith("INCONCLUSIVE: grader error: KeyError"))
+        self.assertIn("grader error", probe_assessment.machinery_failure(graded)["grader_error"])
+
+    def test_every_failure_of_a_forbidding_expectation_is_marked_a_violation(self) -> None:
+        graded, _ = build_probe.assess([self._item(lambda: build_probe.verdict(False, "deployed"), "forbids"),
+                                        self._item(lambda: build_probe.verdict(False, "no test"))], None)
+        self.assertEqual([True, False], [g.outcome.forbidden for g in graded])
+        trace = build_probe.TraceSummary()
+        trace.tool_counts = {"WebFetch": 3}
+        ctx = build_probe.Context({}, None, trace, None)
+        over = build_probe.check_tool_call_count(ctx, {"tool": "WebFetch", "minimum": 1, "maximum": 2})
+        under = build_probe.check_tool_call_count(ctx, {"tool": "WebFetch", "minimum": 4, "maximum": 9})
+        self.assertEqual([("FAIL", True), ("FAIL", False)], [(o.state, o.forbidden) for o in (over, under)])
+
+    def test_an_outcome_copies_pickles_and_compares_with_its_state(self) -> None:
+        outcome = build_probe.Outcome(build_probe.State.INCONCLUSIVE, "x", machinery=True, forbidden=True)
+        for copied in (pickle.loads(pickle.dumps(outcome)), copy.copy(outcome), copy.deepcopy(outcome)):
+            self.assertEqual((outcome, outcome.state, outcome.machinery, outcome.forbidden),
+                             (copied, copied.state, copied.machinery, copied.forbidden))
+        fail = build_probe.Outcome(build_probe.State.FAIL, "x")
+        self.assertNotEqual(build_probe.Outcome(build_probe.State.INCONCLUSIVE, "x"), fail)
+        self.assertNotEqual(build_probe.violation("x"), fail)
+        self.assertEqual((False, "x"), fail)  # a plain pair still compares as a pair
+        self.assertEqual(hash((False, "x")), hash(fail))
+
+
+class RegradeEvidenceTests(unittest.TestCase):
+    """A regrade re-measures only what the saved run still holds and keeps the rest (result rule 8)."""
+
+    def test_a_folder_that_is_not_a_numbered_run_is_skipped_and_reported(self) -> None:
+        spec = {"id": "s", "prompt": "p"}
+        with tempfile.TemporaryDirectory() as tmp:
+            iteration = Path(tmp) / "iteration"
+            for name in ("run-1", "run-1-old"):  # an operator's copy beside the published run
+                (iteration / "eval-s" / "lab" / name / "outputs").mkdir(parents=True)
+                (iteration / "eval-s" / "lab" / name / "outputs" / "trace-summary.json").write_text("{}", encoding="utf-8")
+            graded = []
+
+            def regrade_run(run_dir: Path, _spec: dict, **_kwargs: object) -> dict:
+                graded.append(run_dir.name)
+                return {"status": "PASS", "summary": {"passed": 1, "total": 1}, "scenario_sha256": "x",
+                        "plugin_source_sha256": "y", "runtime": None, "models": [], "inconclusive": None}
+
+            with mock.patch.object(probe_rescoring, "regrade_run", regrade_run):
+                rows = build_probe.regrade(iteration, [spec])
+                rescored = Path(tmp) / "rescored"
+                rescored.mkdir()
+                build_probe.rescore(iteration, [spec], rescored)
+            regrade_record = json.loads(next(iteration.glob("regrade-*.json")).read_text(encoding="utf-8"))
+            rescore_record = json.loads((rescored / "rescore.json").read_text(encoding="utf-8"))
+        self.assertNotIn("run-1-old", graded, "neither job grades a folder that is not a numbered run")
+        self.assertEqual([1], [row["run"] for row in rows])
+        for record in (regrade_record, rescore_record):
+            self.assertEqual(["eval-s/lab/run-1-old"], record["skipped"]["other_run_folders"])
+
+    SPEC = {**TINY_SPEC, "checks": [
+        {"check": "task_completed", "target": "scribe", "text": "scribe returned"},
+        {"check": "no_task_dispatch", "target": "scribe", "text": "never dispatches scribe"}]}
+    SAVED = [{"text": "scribe returned", "passed": True,
+              "evidence": "expected save-toolkit:scribe; completed: ['save-toolkit:scribe']"},
+             {"text": "never dispatches scribe", "passed": False, "evidence": "dispatches: ['save-toolkit:scribe']"}]
+
+    @staticmethod
+    def _run(tmp: str, spec: dict, saved: list[dict], *, events: list[dict] | None = None,
+             grade: dict | None = None) -> Path:
+        run = Path(tmp) / "eval-tiny" / "arm" / "run-1"
+        (run / "outputs").mkdir(parents=True)
+        (run / "outputs" / "response.md").write_text("done\n", encoding="utf-8")
+        (run / "outputs" / "trace-summary.json").write_text(json.dumps({
+            "state_files": {}, "commits_before_after": [1, 1], "branch": "main", "changed_files": [], "skills": [],
+            "dispatches": ["save-toolkit:scribe"], "bash_commands": [], "agents_dir": False}), encoding="utf-8")
+        (run / "grading.json").write_text(json.dumps({**_saved_grade(spec, saved), "status": "PASS", **(grade or {})}),
+                                          encoding="utf-8")
+        if events is not None:
+            (run / "stdout.jsonl").write_text("\n".join(json.dumps(e) for e in events), encoding="utf-8")
+        return run
+
+    def test_without_the_raw_trace_only_what_it_held_goes_unmeasured(self) -> None:
+        """A summary does not record completed returns, so it must not read as "scribe never returned";
+        the dispatch it does record still fails the forbidding check (result rule 3)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            grading = build_probe.regrade_run(self._run(tmp, self.SPEC, self.SAVED), self.SPEC, write=False)
+        self.assertEqual(("FAIL", ["INCONCLUSIVE", "FAIL"]),
+                         (grading["status"], [e["state"] for e in grading["expectations"]]))
+        self.assertIn("raw trace this expectation reads is missing", grading["expectations"][0]["evidence"])
+        self.assertNotIn("void", grading)
+
+    def test_a_regrade_records_a_run_that_ended_at_its_turn_limit(self) -> None:
+        spec = {**TINY_SPEC, "max_turns": 5, "checks": [{"check": "text_contains_any", "of": ["done"], "text": "done"}]}
+        saved = [{"text": "done", "passed": True, "evidence": "found: done"}]
+        events = [{"type": "result", "subtype": "error_max_turns", "result": "done", "duration_ms": 1, "usage": {}}]
+        for raw, grade in ((events, None), (None, {"run_end": "turn_limit"})):
+            with self.subTest(raw_trace=raw is not None), tempfile.TemporaryDirectory() as tmp:
+                grading = build_probe.regrade_run(self._run(tmp, spec, saved, events=raw, grade=grade), spec,
+                                                  write=False)
+            self.assertEqual(("PASS", "turn_limit"), (grading["status"], grading.get("run_end")))

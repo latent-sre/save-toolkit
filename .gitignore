@@ -19,3 +19,7 @@ __pycache__/
 # Live model-eval transcripts can contain prompts, tool results, and environment metadata.
 .eval-runs/
 
+
+# Lint and type-check caches for the eval runner (pyproject.toml).
+.mypy_cache/
+.ruff_cache/

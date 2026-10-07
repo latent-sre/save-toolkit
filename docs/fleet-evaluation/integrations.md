@@ -104,9 +104,10 @@ The project does not adopt both orchestration layers by default.
 ## promptfoo
 
 **Role:** candidate comparison presentation/import and WP-10 controlled adversarial cases; direct
-SDK execution is optional. WP-01 requires a trustworthy portable comparison, with final presentation
-selection under DEC-16 after the Coder Eval experiment. Do not maintain two dashboards without a
-distinct consumer need; a minimal local comparison can serve the initial import acceptance.
+SDK execution is optional. WP-01 delivers a minimal local comparison; final presentation is chosen
+under DEC-16 in WP-15. Do not maintain two dashboards without a distinct consumer need.
+[sourced] `promptfoo import` reads only promptfoo eval JSON or OpenAI Evals JSONL, so native records
+would need a converter, and its telemetry is on by default (`PROMPTFOO_DISABLE_TELEMETRY=1`).
 [sourced] The Python provider supports an existing runner wrapper. The Claude Agent SDK provider
 supports local plugins and records tool activity. Its default TaskOutput redaction can affect raw
 background-helper transcripts; verify the selected configuration against native behavior.
@@ -143,8 +144,9 @@ behavior; opt-out does not prevent deliberate model-provider calls or result upl
 
 ## UiPath Coder Eval
 
-**Role:** first candidate to pilot for custom agent, skill and tool regression execution in WP-02.
-The owner approved this assessment on 2026-10-04. It can later serve relevant WP-10 and WP-12/13
+**Role:** first candidate to pilot for custom agent, skill and tool regression execution, in WP-15
+after the first useful comparison (DEC-24). The owner approved this assessment on 2026-10-04; its
+[prerequisites](coder-eval.md#postponement-and-prerequisites) come first. It can later serve relevant WP-10 and WP-12/13
 cases if accepted; it supplies execution infrastructure rather than the required incident/GCP catalog.
 
 [sourced] Declarative tasks, agent adapters, variant experiments, command/skill criteria and result

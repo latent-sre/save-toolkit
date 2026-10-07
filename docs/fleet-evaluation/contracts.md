@@ -52,7 +52,9 @@ the resulting difference solely to prompt quality.
 ## Execution and assessment
 
 Execution status and agent assessment are separate. The executor can finish normally while the
-verifier cannot measure; conversely a completed verifier can show an agent failure.
+verifier cannot measure; conversely a completed verifier can show an agent failure. The result rules
+of the accepted [threat-model ADR](../decisions/2026-10-03-eval-harness-threat-model.md) govern
+verdicts (DEC-21); this table maps events to them and does not restate or override them.
 
 | Event | Execution record | Assessment treatment |
 |---|---|---|
@@ -68,9 +70,11 @@ verifier cannot measure; conversely a completed verifier can show an agent failu
 | Lab cleanup fails after a valid assessment | Separate cleanup failure | Retain assessment, mark lab unavailable and block reuse until reconciled |
 
 Each profile declares its task deadline, required submissions and instrument health evidence before
-execution. Apply this precedence per requirement: valid evidence of a violation is FAIL and valid
-evidence of satisfaction is PASS; otherwise an instrument failure or unresolved attribution is
-INCONCLUSIVE. A later unrelated instrument failure does not erase a supported result, but changed
+execution; for native runs the deadline is the scenario's turn limit, and the wall clock and spend
+cap are instrument guards. Apply this precedence per requirement: valid evidence of a violation is
+FAIL and valid evidence of satisfaction is PASS; otherwise an instrument failure or unresolved
+attribution is INCONCLUSIVE. A check that forbids an action can fail on a run cut short; a check that
+requires an outcome cannot. A later unrelated instrument failure does not erase a supported result, but changed
 artifacts or other invalidated evidence require reassessment. A timeout code or absent file alone
 does not identify the cause. Confirm that the candidate had the declared opportunity to complete
 and that artifact collection worked before attributing a missing submission to it.
@@ -88,6 +92,31 @@ Per-assertion records retain identity, scope, method, verdict, evidence referenc
 measurement gaps. Semantic outputs also retain judge model, rubric, calibration binding and any
 supporting quotes. Validate quotes against the assessed source. A score without usable evidence
 does not satisfy a requirement that explicitly needs evidence.
+
+## Result record v1
+
+DEC-22 freezes this record. The native runner writes one per attempt, beside that attempt's raw
+files, as part of EVAL-011's runner sequence; WP-01 reads only this format. It is a mapping of facts
+the runner already holds, not a new evidence store, and its exact field names are fixed in the
+runner change that implements it. Those names are published as a JSON Schema,
+[`eval-record-v1.schema.json`](eval-record-v1.schema.json), generated from the runner's record model,
+which validates every record before it is written.
+
+| Group | Fields |
+|---|---|
+| Format | Format name and major version; readers reject an unsupported major version |
+| Case | Case ID and a case digest over the scenario, its oracles and rubric material only, not the runner, Python or library versions |
+| Candidate and runner | Plugin commit, source digest and dirty state; runner revision and source digest |
+| Run conditions | Requested model, observed models, CLI version, host OS, release and architecture, declared turn limit and wall-clock timeout |
+| Attempt | Arm label, trial slot, attempt number, final, superseded or incomplete state, the reason for any replacement, and UTC start and end times |
+| Run end | How execution ended, independent of what the checks found: completed, turn limit, cut short with its stop (wall clock, spend guard, no result, error result or nonzero exit), void (wrong profile or identity), or incomplete (an attempt that raised, such as an authentication failure or interrupt) |
+| Checks | For each: ID, text, forbids, requires or both (a floor and a ceiling), PASS, FAIL or INCONCLUSIVE, an evidence excerpt with a truncation flag, and the reason |
+| Verdict | Trial verdict and reason, assessment revision 0, and any problem recorded after assessment; each later regrade is listed under `assessments` with its revision, verdict and grading path, never written over this one |
+| Cost | Trial and judge USD as the CLI's list-price estimate, each `null` when unknown; known total; a complete flag; live and cached judge calls |
+| Evidence | Paths, relative to the bundle, of the response, trace, patch and grading detail |
+
+An unknown value is `null`, never zero and never filled from the computer reading the record. Older
+runs have no v1 record; WP-01 lists them as legacy with the gaps their files leave.
 
 ## Report records
 
@@ -162,8 +191,10 @@ multi-host, multi-model and differently adapted suites stay separate.
 Use private ignored run storage under `.eval-runs/` for this repository. Preserve original traces and
 framework outputs; a bounded display excerpt links to the full evidence and states truncation.
 Portable references should resolve within the run bundle after relocation, without depending on a
-deleted temporary workspace. Apply the project's documented retention policy, with owner disposition
-for evidence supporting unresolved decisions.
+deleted temporary workspace. Run folders inherit the permissions of `.eval-runs/` rather than being
+readable only by the account that ran them (DEC-23). Apply the project's documented retention
+policy, with owner disposition for evidence supporting unresolved decisions; kept attempts stay at
+least while an open roadmap item cites their run.
 
 No signing, distributed writer coordination or exact-once effect guarantee is proposed. One writer
 owns a run directory. A failed import writes no replacement over the last complete report. Partial

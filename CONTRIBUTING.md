@@ -47,7 +47,8 @@ entry or a comment recording when a test first ran is not a retention reason. Re
 reports, retired eval fixtures, and restoration bundles once their current dependency is gone;
 an explicit preservation decision requires a successor or owner disposition, as in the
 [retention decision](docs/decisions/2026-09-07-historical-artifact-retention.md). Git retains the
-historical bytes; accepted ADRs remain immutable. Update live references in the same change.
+historical bytes; an accepted ADR changes only through a successor or its decision owner's dated
+amendment. Update live references in the same change.
 Gate A rejects uncited review packets; citation alone does not establish that a packet is still needed.
 
 | Change | Evidence |
@@ -55,7 +56,7 @@ Gate A rejects uncited review packets; citation alone does not establish that a 
 | Code, validator, or exit code | The affected tests |
 | Agent, skill, command, or bundled reference | The matching asset or contract test |
 | Routing description | The overlapping clean-room scenarios; pure wording changes need no live eval |
-| Eval harness or scenario | The affected `evals/test_*.py`; `python evals/build_probe.py --validate` for parsing or targeting changes; `python evals/judge.py --calibrate` after a rubric edit |
+| Eval harness or scenario | The affected `evals/test_*.py`; `python evals/build_probe.py validate` for parsing or targeting changes; `python -m ruff check`, `python -m ruff format --check` and `python -m mypy` for a change to the runner (`evals/build_probe.py`, `evals/probe/`); `python evals/judge.py --calibrate` after a rubric edit |
 | Read-only guard or hook wiring | `python -m pytest scripts/test_readonly_guard.py scripts/test_hook_wiring.py`; exit codes stay 42 allow, 43 deny, 44 indeterminate |
 | Large agent, skill, or reference growth | State the byte delta and why the task needs it in the PR; no mechanical ceiling remains, so reviewers own the context-cost judgment |
 

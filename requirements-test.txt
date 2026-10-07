@@ -1,5 +1,6 @@
 # Fleet, HTTP-starter, and Inspect regression tests; versions come from the development pin set.
 # Constraints exclude unrelated sandbox dependencies; runtime contract tests must not skip.
+# The eval runner's typed record, property tests, lint and type checks come from the same set.
 -c requirements-dev.txt
 pytest
 pyyaml
@@ -13,3 +14,8 @@ orjson
 pyahocorasick
 pytest-xdist
 rich
+hypothesis
+pydantic
+ruff
+mypy
+types-PyYAML

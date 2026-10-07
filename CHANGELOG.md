@@ -6,8 +6,276 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ## [Unreleased]
 
+### Fixed
+
+- The second round of Copilot and Codex review comments on PR #328:
+  - `--run-offset` accepted a negative number and published trials as `run-0` or `run--1`. The v1
+    record refuses a slot below 1, so such a run had no `record.json` while the batch summary still
+    counted its verdict, and `regrade` and `rescore` skipped `run--1` as not a numbered run. A
+    negative offset is now refused before any trial runs, as `--trials 0` is.
+  - `validate` crashed with a traceback, exiting 1 as a FAIL batch does, on a scenario whose
+    `fixture.branches` or `fixture.fake_bin` was a non-empty list, string or number instead of a
+    mapping, or whose `fixture.checkout` was a list; `run`, `regrade` and `rescore`, which load every
+    scenario first, crashed the same way. Each is now reported as an authoring error that exits 3, as
+    any invalid scenario does; an empty value still reads as none.
+  - A backing service that stopped answering while a check read it after the trial made that check
+    INCONCLUSIVE but was not counted as a grading-machinery failure, so the batch went on to run, and
+    pay for, every remaining trial of the scenario. The lost service is now the harness's own
+    instrument failing: the check reports `instrument:` evidence, the grade names it as
+    `grader_error`, and the scenario's remaining trials are not run (result rule 5).
+  - The CLI-version probe ran a multi-word `--executable`, such as `"python" "stub.py"`, as a single
+    file name, so it recorded no version and the mandatory version check refused a batch whose trials
+    could run. The probe now launches the argv the trials launch, from an empty directory as a trial
+    does, so a command whose script path is relative is still refused before any trial.
+  - `regrade` crashed with a traceback, exiting 1 as a FAIL batch does, on a native conversation
+    whose saved plugin root had since been deleted, as a candidate worktree is after its batch:
+    planning the grade read the helper's plugin name from that root even for a run its replay had
+    already voided. The name is read only when that check is measured, so such a run regrades
+    INCONCLUSIVE with its reason; `rescore` had listed the same 7 saved runs as errors.
+  - An authentication failure exited 2, INCONCLUSIVE, instead of 4 when the batch it stopped could
+    not be pooled, as when an `--overwrite` cut short still held rows of another candidate or model:
+    those checks ran first, and their advice to overwrite hid that re-authentication was due. The stop
+    now exits 4 before any verdict, and its line names, as `unfixed_by_resume`, an identity or model
+    problem that resuming would not fix.
+  - `--max-batch-usd` forgot spend already paid for: a run `--overwrite` replaced, and the superseded
+    and incomplete attempts kept under `attempts/`, so a resumed or repeated batch could spend past
+    its cap. The cap now counts each earlier attempt of the label once, and an attempt that raised
+    records what it is known to have cost, nothing when the CLI never started. An attempt whose cost
+    is unknown blocks capped runs of its scenario under that label, and a stop decided before any
+    trial is reported even when the batch's identity check refuses it too.
+  - A trial whose trace named no model was graded PASS or FAIL and pooled with trials of a known
+    model, where a result whose model identity is unknown must never be merged. It is now void at the
+    identity check that refuses a wrong plugin or tool list, so it is INCONCLUSIVE with the reason
+    `resolved model identity missing`.
+  - A trial that ran as the wrong candidate, with the wrong tool inventory, plugin or model or with
+    plugin inputs that changed, was voided while the batch went on scheduling paid trials that would
+    run the same way, against WP-02's stop rule. Such a trial now stops the batch, its summary row
+    records `identity_failure`, and a later `--run-offset` invocation of the label schedules nothing
+    until that run is replaced. A backing service that never started stops only its scenario, and a
+    failure the candidate's own run causes still voids only its trial.
+  - `regrade`'s exit code pooled a label's runs by resolved model alone, so runs of another candidate,
+    CLI version, host or scenario identity were aggregated into one verdict: a PASS from one and a
+    FAIL from another could pass a 0.5 scenario. It now pools only runs one batch could, and a run
+    whose model, candidate, CLI version or host is unknown counts as INCONCLUSIVE; the regrade rows
+    keep each run's `runtime`.
+  - The plugin digest read an optional guard script that was a link or junction, or a link whose
+    target was gone, as absent, so candidates whose hook ran different code shared one digest. Such
+    an input is now refused like a linked required one, and the refusal no longer crashes the batch
+    with a traceback and exit 1, a FAIL batch's code: before any trial it refuses to run (exit 3),
+    and a trial that meets one stops the batch.
+
+  [verified] Each fix's new test fails on the code before it and passes with it. Rescoring all
+  1,317 saved runs with `adc13a88` and with these fixes differs only in the 7 native runs whose
+  regrade crashed, which now regrade INCONCLUSIVE.
+- The 2026-10-07 python-craft review of the eval runner (PR #328):
+  - A git command that failed while listing a trial's changes, such as `git add` blocked by an
+    `index.lock` the agent left behind, read as "no changes", so `no_workspace_changes`,
+    `changes_within` and `changed_files_not_containing` passed on a changed checkout. Grading now
+    stages into a private copy of the agent's index, so the agent's lock cannot hide a change and its
+    index is no longer rewritten, and a git command that still fails leaves the changes unknown: those
+    checks report `instrument:` evidence and stop their scenario (result rules 2 and 5). The trace
+    summary records the failure as `git_problem`, so a regrade does not read the empty list as "no
+    changes" either.
+  - A command check whose own probe files could not be staged, such as a `writes:` path outside the
+    repository, failed the candidate. It now reports `instrument:` evidence and stops its scenario
+    (result rule 5), and `validate` refuses what staging would refuse: an inline `writes:` that is not
+    a mapping of path to text, and a `writes:` or `writes_from:` destination outside the repository.
+  - `no_workspace_changes` compared seeded uncommitted files as newline-translated text, so a CRLF
+    rewrite passed as "checkout unchanged", and a non-UTF-8 rewrite, the candidate's own output,
+    crashed the grader. It compares bytes, and both now fail.
+  - Evidence the record cuts at 600 characters is flagged `evidence_truncated` everywhere: three
+    cut-short rules cut first and left no flag. A regrade's kept verdict now leads with its
+    `[kept: …]` marker, which the cut used to remove from a long verdict, and is flagged when cut;
+    `Outcome.read` reads past the marker, so the kept verdict reads back as the state it was kept
+    with. Of the 1,236 kept verdicts in a rescore of the saved runs, 9 had lost the marker and none
+    was flagged; all now carry it, those 9 are flagged, and every recorded state is unchanged.
+  - A native conversation's regrade reported any exception in its boundary replay, a runner defect
+    or a plugin root that no longer holds the agent included, as "boundary evidence missing or
+    invalid; re-run the trial". Only unreadable or malformed saved evidence reads that way now; an
+    unreadable plugin root is named as such, and a runner defect raises.
+  - `plugin_inputs_dirty` recorded a plugin root as clean when `git status` failed, as it does on a
+    damaged index; it is now null, unknown, as the runner's own provenance already recorded it.
+  - An interrupt (Ctrl-C) while a backing service was starting skipped its cleanup and left the
+    service and relay containers running with their network; they are stopped on every exit, and the
+    interrupt still stops the batch. Readiness waits and trial durations use a monotonic clock, so a
+    wall-clock step cannot end a readiness wait early, and each docker call is bounded (600 s), so a
+    hung daemon makes the trial INCONCLUSIVE instead of stalling the batch.
+  - `regrade` crashed on a folder beside the runs that is not a numbered run, such as an operator's
+    `run-1-old`, after regrading it, and `rescore` passed it over without saying so. Both now find
+    saved runs one way, which skips such a folder and lists it under `skipped`.
+  - `build_probe`'s refusal of a patch through its re-exports named `probe.checking.check_<name>` as
+    the place to patch a registered check, where a patch changes nothing because grading calls the
+    registry entry; it names `probe.checking.CHECKS['<name>']`.
+  - A native conversation's two invocations were merged from a hand-kept list of fields, and a field
+    it missed kept only the follow-up's value: `usage_models` lost the first invocation's models.
+    Every trace field now has one merge rule, and a test fails when a new field has none.
+  - `grafana_dashboard_write` crashed, a grading-machinery failure, on a proxied write still in
+    flight, which has no recorded status yet; it is an unsuccessful write, as its sibling check
+    already read one. `validate` refuses `equals: null` on `service_get` and `service_array_item`,
+    since a pointer reads a missing value as null.
+
+  [verified] Regrading all 1,317 saved runs with `adc13a88` and with these fixes differs in nothing;
+  no saved run records a git failure, and a regrade keeps a command check's live verdict.
+- A regrade voided every check when a saved grade was INCONCLUSIVE because of one check, such as an
+  instrument failure, a judge that could not judge or an unavailable service, so a supported FAIL
+  beside it could never surface again. A regrade now voids a run only when the live grade did
+  (result rules 1 and 3).
+
+  [verified] Regrading all 1,317 saved runs with the runner before and after the fix: 64 runs are no
+  longer voided, each because of one check (63 `verification_completed`, 1 a judge that could not
+  judge). 23 move from INCONCLUSIVE to FAIL, 26 stay INCONCLUSIVE with each check graded, and 15
+  move to PASS, because today's runner re-measures their ordered verification as complete where the
+  runner of the day did not. Nothing else changes.
+- The 2026-10-06 code review of the runner split (PR #328):
+  - A record the contract refuses after a paid trial no longer aborts the batch. The run is published
+    with its verdict and `record_problem` in its summary row, and the batch summary is written even
+    when a trial raises.
+  - The v1 record is validated strictly on every write, including later changes: an incomplete
+    attempt has no verdict, costs and counts are not negative, evidence paths stay inside the attempt
+    folder, evidence is at most 600 characters, times are UTC, and each INCONCLUSIVE check gives its
+    reason, which the contract already listed.
+  - A regrade without the raw trace no longer re-measures, from the trace summary, what only the raw
+    trace held: a completed `task_completed` read as FAIL. That expectation is INCONCLUSIVE on its
+    own, and an ordered check no longer voids the whole run. A regrade records a turn-limit stop.
+  - On a run cut short, a negative routing or tool-call check whose grader crashed stays a grader
+    error that stops its scenario, instead of reading as "nothing forbidden yet".
+  - A trial's reason is no longer cut with its evidence, and a threshold is read as the decimal it was
+    written as, so 7 of 25 trials meet 0.28 and 7 of 10 meet 0.7.
+  - `Outcome` copies, pickles and compares by its state; every failure of a forbidding check is
+    marked a violation; assessing a regrade's plan without its saved verdicts raises instead of
+    measuring them live.
+  - Tests pin each check's reviewed polarity and never hand a test the real CLI; the property tests
+    drive the production grading loop with an independent oracle. `build_probe` names where to patch
+    a name it refuses, exports `REGRADABLE` and `Check` again, and is type-checked with the package.
+
+  [verified] Regrading all 1,317 saved runs before and after these fixes gives byte-identical grades
+  and parsed traces; the full suite passes (1,822 tests), and flipping a check's polarity now fails
+  the tests.
+- The 2026-10-06 review of PR #328 (ten findings on `evals/build_probe.py`):
+  - `--regrade` no longer rewrites a run or its batch summaries: each regrade is
+    `assessments/<k>/` beside the run, listed in `record.json`, with its rows in `regrade-<UTC>.json`.
+  - An attempt that raises keeps a partial `record.json` (`run_end: incomplete`, no verdict).
+  - A judge that could not judge stops its scenario like a grader crash; `instrument:` evidence is
+    INCONCLUSIVE, not a candidate FAIL.
+  - A `tool_call_count` floor and ceiling are both kept: a ceiling exceeded before a cut FAILs, an
+    unmet floor stays INCONCLUSIVE, and the scenario is held to every trial.
+  - A batch whose CLI reports no version is refused; `--max-batch-usd` rejects NaN, infinity and
+    negatives and counts retained trials when a label is resumed; NaN, infinite or negative costs
+    are unknown.
+  - `--validate` reports malformed checks instead of crashing on them.
+
+  [verified] Rescores of five saved campaigns (217 runs) with the PR head and this runner differ in
+  nothing, and no saved grade carries `instrument:` evidence.
+- The 2026-10-06 Copilot review of PR #328:
+  - A cut-short native run is checked for its model, grants, session and helper before its forbidding
+    checks count, and a regrade keeps a native cut as a cut instead of voiding it.
+  - A negative routing expectation fails a cut-short run only when its forbidden target fired.
+  - `record.json` records how execution stopped (`stop`) and a run-level void, independently of the
+    check states; a grader crash on a completed run is no longer reported as void.
+  - Live and cached judge calls are counted apart; `instrument:` failures stop their scenario; a
+    zero spend cap is rejected.
+
+  [verified] Rescores of five saved campaigns (217 runs) with `b3524471` and this runner differ in
+  nothing.
+
+### Removed
+
+- The eval runner's `--container` mode (`EVAL-011`). No saved run used it (every recorded run has
+  `isolation: host`), native, PowerShell and service-backed trials already refused it, and externally
+  authored code runs only in separately authorized CI (`EVAL-012` DEC-13). `--docker` remains for
+  backing services. [verified] Rescores of five saved campaigns show no verdict change.
+
 ### Changed
 
+- The eval runner is a package (`EVAL-011` split), `evals/probe/`, behind `evals/build_probe.py`,
+  which keeps every name it exported. Checks return typed outcomes instead of encoding "could not
+  measure" in their evidence text; each check declares its polarity and the evidence it reads, and the
+  forbidding, requiring and regradable sets and the cut-short rules are derived from those
+  declarations instead of kept by hand; live grades and regrades share one grading loop. Jobs are
+  subcommands (`run`, `validate`, `regrade`, `rescore`, `diff`, `schema`) and the flat flags still
+  work. Each `record.json` is validated before it is written against the model that generates
+  `docs/fleet-evaluation/eval-record-v1.schema.json`. Ruff and strict mypy check the package in CI.
+
+  [verified] Rescoring every saved run (1,317 runs in 78 campaigns) with the runner before the split
+  and after it gives byte-identical grades and byte-identical parsed traces; the five-campaign
+  `--rescore-diff` gate shows no difference, `validate` reports the same 207 scenarios and 863
+  expectations, and the full suite passes (1,803 tests).
+- The eval runner's result rules have property tests (`evals/test_result_rules_properties.py`):
+  Hypothesis searches for a hidden failure, a requiring check failing a cut-short run, an unknown
+  cost counted as zero, or an aggregate that improves when a trial worsens, and the trace parser must
+  account for every tool call it sees. Exact `--validate` problem lists pin the validator's wording
+  and order before it is restructured. Pydantic, Hypothesis, Ruff, mypy and the PyYAML stubs are
+  pinned in `requirements-dev.txt` and installed for CI by `requirements-test.txt`. [verified] They pass
+  against the runner before the split and after it.
+- Eval scenarios can declare a turn limit (`EVAL-011` turn limits). `max_turns` is passed to the CLI
+  as `--max-turns`, and a session the CLI ends there is a completed run whose unmet requirements fail,
+  so a candidate that never finishes can fail instead of timing out INCONCLUSIVE. No scenario declares
+  one yet; values are an open choice. [verified] Rescores of five saved campaigns show no verdict change.
+- A grader that crashes is now a measurement failure, not a candidate FAIL (`EVAL-011` grading
+  machinery): its check is INCONCLUSIVE, the grade names `grader_error`, and the batch runs no more
+  trials of that scenario. `--validate` rejects an unknown `fleet_grader` name. [verified] Rescoring
+  all 85 saved campaigns (1,317 runs) found no grader crash on real candidate output, and the five
+  gate campaigns show no verdict change. Oracle exit codes are unchanged for now.
+- Each eval attempt writes the v1 result record, `record.json` (`EVAL-012` DEC-22, through `EVAL-011`),
+  with a case digest that survives runner edits, and evidence cut at 600 characters is flagged
+  `evidence_truncated`. Attempt folders now inherit `.eval-runs/` permissions instead of being
+  readable only by the account that ran them (DEC-23). [verified] Rescores of five saved campaigns
+  (217 runs) show no verdict change; a Windows test confirms inherited permissions.
+- No eval attempt is deleted any more (`EVAL-011` attempts and cost). A run replaced by `--overwrite`
+  moves to `<label>/attempts/run-N/<k>/` as superseded, an attempt that raised moves there as
+  incomplete with its reason, and each attempt records its number in `attempt.json` and the summary
+  row. An authentication failure stops the batch and exits 4 instead of 1. [verified] Rescores of five
+  saved campaigns (217 runs) show no verdict change.
+- An unknown eval cost stays unknown, and a batch can be capped (`EVAL-011` attempts and cost). A
+  trial's total is `null` unless the trial and every judge call are priced, with `known_cost_usd` and
+  `cost_complete` beside it, and `--max-batch-usd` stops scheduling at the cap or at the first unknown
+  cost. `--rescore` now reports a run it cannot write, such as a path past Windows' 260-character
+  limit, instead of stopping. Calibration receipts keep summing an unpriced call as zero until the next
+  judge recalibration, since any `judge.py` edit invalidates them. [verified] Rescores of five saved
+  campaigns (217 runs) show no verdict change.
+- Eval results name the runner and never pool CLI versions or hosts (`EVAL-011` identity).
+  `provenance.json` and summary rows record the runner's commit, dirty state and source digest; a
+  batch refuses to pool trials whose recorded CLI version or host differ or are missing; and the
+  plugin digest now measures `scripts/readonly-guard-hook.ps1`, which the PowerShell hook runs.
+  [verified] Rescores of five saved campaigns show no verdict change.
+- A run cut short on its declared profile still fails a forbidding check (`EVAL-011` result rules).
+  After a timeout, a missing or error result, a nonzero exit or the native spend cap, the partial
+  trace is first checked for the declared plugin, tools and read boundary; a forbidden action already
+  in it is then FAIL, and everything else stays INCONCLUSIVE. A wrong profile still voids the trial.
+  [verified] Rescores of six saved campaigns show no verdict change; the rule applies to runs that
+  record `run_end`.
+- Every check type now forbids an action or requires an outcome (`kind` in `grading.json`), and a
+  scenario with a forbidding check passes only when every trial passes: `--threshold` no longer
+  lowers it, and `--validate` rejects a declared threshold below 1 beside one. [verified] All 207
+  committed scenarios validate, and rescores of five saved campaigns (217 runs) show no verdict change.
+- An unmeasured check no longer hides a supported failure (`EVAL-011` result rules). Each check in
+  `grading.json` carries a `state`; a trial with any failed check is FAIL, recording the unmeasured
+  reason as `unmeasured`, and `inconclusive` is set only on INCONCLUSIVE trials. Regrade grades the
+  remaining checks after one it cannot measure instead of voiding them. A service-cleanup failure after
+  grading keeps the verdict as `after_assessment` and stops the batch. [verified] Base and candidate
+  rescores of six saved campaigns (324 runs) differ only in the 107 PRINCIPAL-001 runs: 25 trials
+  INCONCLUSIVE to FAIL, each already holding a failed check, and 276 checks INCONCLUSIVE to PASS that
+  the old regrade had voided.
+
+- The eval runner gains `--rescore` and `--rescore-diff` (`EVAL-011`'s first runner change). A runner
+  edit changes every scenario identity, so `--regrade` voids every saved run after one. `--rescore`
+  grades saved runs with a checkout's runner into a new directory, never writing the saved runs, and
+  `--rescore-diff` lists each verdict that differs between two rescores, exiting 1 when any does.
+  [verified] On the 107 saved PRINCIPAL-001 runs, two rescores with the same runner differed in 0
+  verdicts; 36 differed from their saved verdicts, each because a scenario gained checks after the
+  run, which the rescore reports as INCONCLUSIVE rather than inventing a kept verdict. `--regrade` is
+  unchanged.
+
+- The eval-harness threat-model ADR is accepted (owner decision 2026-10-06) with eight result rules:
+  a supported failure is never hidden by an unmeasured check, forbidding checks count on runs cut
+  short, grading-machinery failures are inconclusive and stop that scenario, each scenario declares a
+  turn limit, and every attempt and unknown cost stays visible. The runner does not follow them yet;
+  `EVAL-011` sequences the changes before `EVAL-012` records comparison baselines.
+- The fleet evaluation specification reaches revision 0.6 (`EVAL-012` WP-00, owner decisions
+  2026-10-06): a v1 result record written by the runner, native runs under the owner's everyday
+  account with inherited folder permissions, the Coder Eval assessment postponed to WP-15 after the
+  first useful comparison, and the first run plan. The owner accepted it on 2026-10-06 as the scope
+  freeze, completing WP-00.
 - CI runs the component tests on four workers and installs nothing for the structural gate. Over
   the 16 runs before this change the test step took a median 438 s and the whole run 484 s.
   - `component-tests` sets `PYTEST_ADDOPTS` to `-n 4 --dist loadfile --durations=20`; the command

@@ -1,7 +1,7 @@
 # Fleet evals
 
-The native fleet runner, [`build_probe.py`](build_probe.py), grades four kinds of scenario, decided by the
-keys a spec carries rather than by a mode field.
+The native fleet runner, [`build_probe.py`](build_probe.py) and its [`probe`](probe) package, grades four
+kinds of scenario, decided by the keys a spec carries rather than by a mode field.
 
 | Kind | Where | Session | Graded on |
 |---|---|---|---|
@@ -20,15 +20,18 @@ compatibility floor is Python 3.12; installed hooks retain their separate Python
 
 ```bash
 python -m pip install -r requirements-dev.txt
-python evals/build_probe.py --validate                      # offline schema/grader/target check
-python evals/build_probe.py --scenario all --label baseline --model sonnet --trials 3 \
+python evals/build_probe.py validate                        # offline schema/grader/target check
+python evals/build_probe.py run --scenario all --label baseline --model sonnet --trials 3 \
   --out .eval-runs/<iteration>
-python evals/build_probe.py --scenario discovery-runbook-incident-update --label desc-change \
+python evals/build_probe.py run --scenario discovery-runbook-incident-update --label desc-change \
   --model sonnet --trials 3 --out .eval-runs/<iteration>
 ```
 
-`--validate` is the CI-safe check and the one to run on any scenario edit. `--run` equivalents need
-a Claude-enabled runner and start a fresh non-persistent process per trial.
+`validate` is the CI-safe check and the one to run on any scenario edit. `run` needs a
+Claude-enabled runner and starts a fresh non-persistent process per trial. The other jobs are
+`regrade`, `rescore`, `diff` and `schema`; `build_probe.py COMMAND --help` describes each. The flat
+flags of earlier runners (`--validate`, `--regrade DIR`, `--rescore DIR --out DIR`,
+`--rescore-diff BASE CANDIDATE`, and a bare run) still parse and reach the same jobs.
 
 **Pin `--model` on every run.** The fleet's measurement default is the `sonnet` alias unless the
 roadmap item names another tier: it is the tier the existing routing evidence was taken on. A run on
@@ -36,15 +39,43 @@ a different tier is a different baseline — record it and never average it with
 
 Compare an incumbent with `--plugin-root <worktree> --label incumbent`; `--expect-plugin-digest`
 refuses any other bytes. `--overwrite` replaces the selected run slots; use a new label when changing
-the candidate or scenario. `--regrade` re-grades saved traces offline only when the original scenario
-identity matches, and `--container IMAGE@sha256:…` runs every shell call inside a pinned, network-less
-container for a candidate that is not team-authored.
+the candidate or scenario. `regrade` re-grades saved traces offline only when the original scenario
+identity matches, and `rescore` and `diff` compare runner revisions on saved traces (see
+[Provenance](#provenance)). Trials run on the host; externally authored code runs only in separately
+authorized CI, so the former `--container` mode was removed (`EVAL-011`).
 
 Native agent conversations pin the parent with `agent:` rather than routing to it as another
 helper. Their sole-helper boundary cannot also permit a second agent dispatch. Skill-based native
 conversations retain positive main-session routing. Measure agent discovery with a separate unhinted
 routing scenario. Saved native agent runs require matching `--agent` evidence on both invocations;
 an old main-session trace cannot be reclassified as agent acceptance.
+
+## Runner layout
+
+`build_probe.py` is the entry point and keeps every name the runner has always exported; the code is
+in [`probe/`](probe), one module per job (its [`__init__.py`](probe/__init__.py) lists them):
+
+- **Typed results.** A check returns an `Outcome` that states whether its evidence measured the
+  candidate (`PASS`, `FAIL` or `INCONCLUSIVE`) and whether a failure was the grading machinery's. It
+  still unpacks as the `(passed, evidence)` pair, and saved grades keep the same text, so any runner
+  reads them; only `Outcome.read` interprets that text.
+- **Declared checks.** Each check in [`probe/checking.py`](probe/checking.py) is registered with
+  `@declare`: whether it forbids, requires or both, and the evidence it reads. The forbidding and
+  requiring sets, regradability and the cut-short rules are derived from those declarations.
+- **One grading loop.** `assessment.assess` grades a live trial and a regrade alike; a regrade
+  supplies the saved verdicts it keeps. A result rule therefore changes in one place.
+- **A published record contract.** `records.RecordV1` validates each `record.json` strictly, as
+  the JSON its readers parse, on the first write and on every later change, and
+  [`eval-record-v1.schema.json`](../docs/fleet-evaluation/eval-record-v1.schema.json) is generated
+  from it by `build_probe.py schema --out ...`; a test fails when the two differ.
+- **Static checks.** [`pyproject.toml`](../pyproject.toml) runs Ruff (lint and format) and strict
+  mypy over the runner; CI runs them after the component tests. `python -m ruff check`,
+  `python -m ruff format --check` and `python -m mypy` reproduce them locally.
+
+A function is patched in the module that defines it, such as `probe.trials.run_trial`: every other
+module calls it through that module, so one patch reaches every caller, and a test enforces it. A
+class or constant is bound by name in each module that imports it, so a patch must reach each of
+them. `build_probe` refuses a patch of any name it re-exports and lists where the runner reads it.
 
 ## Inspect AI + Inspect SWE pilot
 
@@ -107,7 +138,11 @@ A routing prompt is byte-for-byte unhinted — `--validate` rejects one that nam
 For `expect: not_fire`, set `expected_alternative: inline` or name the component expected instead:
 a negative does not pass merely because the forbidden target stayed absent. Negatives are
 zero-tolerance, so their threshold is always clamped to 1.0 and `--validate` rejects a declared
-threshold below it; `threshold` on a positive is the fraction of trials that must pass.
+threshold below it; `threshold` on a positive is the fraction of trials that must pass. The same
+holds for any scenario with a forbidding check: every check type either forbids an action (such as
+`no_new_commits` or `bash_did_not_run`) or requires an outcome (such as `file_exists`), recorded as
+`kind` in `grading.json`, and a forbidding check holds its scenario to every trial whatever
+`--threshold` requests.
 
 A contract scenario pins `agent:` or `skill:` and lists `graders:` from the registry in
 [`graders.py`](graders.py): `rubric`, `exact_json`, `exact_fields`, `regex`,
@@ -223,7 +258,7 @@ named broken artifacts. They reuse the native runner and standard-library checks
 
 ```bash
 python -m pytest evals/test_python_craft_oracle.py evals/test_python_new_code_probe.py evals/test_python_index_probe.py -q
-python evals/build_probe.py --validate
+python evals/build_probe.py validate
 ```
 
 The storage checks observe growth on two supplied workloads, calibrated against whole-row and
@@ -238,8 +273,8 @@ attestation.
 For an agreed native preflight, select each case separately and pin the model:
 
 ```bash
-python evals/build_probe.py --scenario build-python-new-streaming-cli --label candidate --model sonnet --trials 1 --out .eval-runs/python-craft-builds
-python evals/build_probe.py --scenario build-python-indexed-membership --label candidate --model sonnet --trials 1 --out .eval-runs/python-craft-builds
+python evals/build_probe.py run --scenario build-python-new-streaming-cli --label candidate --model sonnet --trials 1 --out .eval-runs/python-craft-builds
+python evals/build_probe.py run --scenario build-python-indexed-membership --label candidate --model sonnet --trials 1 --out .eval-runs/python-craft-builds
 ```
 
 The new probes also require the agent's own final foreground unittest receipt; later shell actions
@@ -404,7 +439,7 @@ trial INCONCLUSIVE. Normal build and contract rubric graders require one explici
 calibration receipt before starting the evaluated agent:
 
 ```bash
-python evals/build_probe.py --scenario <id> --label <label> --out <dir> --judge-calibration .eval-runs/judge-calibration/<run>/identity.json
+python evals/build_probe.py run --scenario <id> --label <label> --out <dir> --judge-calibration .eval-runs/judge-calibration/<run>/identity.json
 ```
 
 The receipt must cover the current canonical corpus (every rubric has PASS and FAIL cases),
@@ -452,7 +487,44 @@ trials, timeout, per-trial duration, cost, and the exact argv. Each run also rec
 CLI's own `--version` line (`null` when it cannot report one) and the host's system, release, and
 machine, measured once per batch; `--regrade` keeps the recorded value. Identity hashes say two runs
 measured the same plugin; they do not say the runs measured it the same way — **pin `--model` and
-`--timeout` for any numbers you intend to diff, and compare runs only within one CLI version.**
+`--timeout` for any numbers you intend to diff, and compare runs only within one CLI version.** A
+batch refuses to pool trials whose recorded CLI version or host differ, and a trial recorded before
+those were recorded never pools with one that has them. `provenance.json` also names the runner:
+`runner_commit`, `runner_source_dirty` and `runner_source_sha256`, so a run graded with
+`--plugin-root` on another checkout still says which runner graded it. The measured guard scripts
+include `readonly-guard-hook.ps1`, which `hooks/hooks.json` runs for PowerShell. A measured input that
+is a link or junction, its target present or not, or a required one that is missing, leaves the
+candidate unidentified: the batch refuses to run (exit 3), and a trial that finds one stops the batch.
+An optional guard script that is absent is measured as absent.
+
+Cost is the CLI's reported list-price estimate, not a subscription bill; a missing, negative, infinite
+or NaN figure is unknown. `timing.json` and summary
+rows give `total_cost_usd` only when the trial and every judge call are priced; otherwise it is
+`null`, with `known_cost_usd` and `cost_complete: false` beside it, and a cached verdict counts as a
+known zero, and live and cached judge calls are counted apart. `--max-batch-usd USD` (finite and
+above 0) stops scheduling once the batch's known spend reaches `USD`, or as soon as any attempt's
+cost is unknown, because an unknown cost cannot be held to a cap. That spend counts, once each, the
+rows of this label and model's summary for the selected scenarios, including those `--overwrite`
+replaces, and the superseded and incomplete attempts kept under the label's `attempts/`, which every
+model of the label shares. An attempt that raised records what it is known to have cost: nothing
+when the CLI never started, else what its partial trace reports, which is unknown without the
+trace's result event. One attempt of unknown cost, such as a wall-clock timeout, therefore blocks
+capped runs of its scenario under that label; run it uncapped or under a new label. A batch whose
+CLI does not report its version is refused before any model call. Judge calibration
+receipts still sum an unpriced call as zero: changing `judge.py` invalidates every receipt, so that
+fix waits for the next recalibration.
+
+Each graded attempt also writes `record.json`, the [v1 result record](../docs/fleet-evaluation/contracts.md#result-record-v1)
+that the comparison report reads: format and version, a `case_sha256` over the scenario, oracles and
+rubric definitions alone (unlike `scenario_sha256`, it survives a runner edit), candidate and runner
+identity, run conditions, attempt number and UTC times, how the run ended (an attempt that raised keeps a partial record with
+`run_end: incomplete` and no verdict), each check's kind (forbids, requires, or both), state,
+reason when INCONCLUSIVE, and truncation flag (evidence is cut at 600 characters and flagged), the
+verdict, the cost, and evidence paths relative to the attempt folder. A record the contract refuses
+is not written, and the run is still published with its verdict: the record only maps facts the
+attempt's files keep, the summary row carries `record_problem`, and the batch goes on. Attempt folders are created with a plain `mkdir`, so
+they inherit `.eval-runs/` permissions; `tempfile.mkdtemp` made them readable only by the account
+that ran them on Windows.
 
 Machine records retain the complete candidate digest and a scenario digest covering the spec, its
 referenced oracle files, the explicit judge binding when used, and the rubric definitions the judge actually consumes. The judge caches
@@ -460,32 +532,65 @@ rubrics on first load for the process; file edits take effect in a new process. 
 same cached definitions. Appending requires candidate and scenario identities to match the existing
 batch before any model call. Scenario inputs are checked again before and after grading;
 a change in the effective definitions or oracle bytes invalidates the trial. Regrade identifies each assertion by its scenario digest and
-position and retains live-judge/workspace verdicts from `grading.original.json`; duplicate display
+position and retains live-judge/workspace verdicts from the live grade (`grading.original.json` for a
+run an older runner regraded in place); duplicate display
 labels cannot substitute one verdict for another. Legacy records without identities, changed
 scenarios, and missing original assertions are INCONCLUSIVE and require a fresh trial. Regrade does
 not call a judge or recover workspace evidence that was never recorded. Rubric regrades use the
 immutable binding embedded in the original live grade, without reopening a current receipt or
-recalibrating. Missing binding evidence or a changed judged response makes the regrade INCONCLUSIVE.
+recalibrating. Missing binding evidence or a changed judged response makes the regrade INCONCLUSIVE. A regrade voids a run only when its live grade
+did: the run-level reason that grade records as `void`, or, in a grade from before `void` was
+recorded, a reason every saved check carries. One check's own INCONCLUSIVE leaves the others
+measured, so a supported FAIL beside it stands (result rules 1 and 3). Without the raw trace, a regrade re-measures
+only what the trace summary records; an expectation that reads what only the raw trace held
+(completion order, completed returns, reads, the plugin namespace) is INCONCLUSIVE on its own.
 
-The scenario digest also binds the evaluator implementation: `build_probe.py`, `graders.py`,
+The scenario digest also binds the evaluator implementation: `build_probe.py`, every module in
+`probe/` (found by listing the package, so a new module is bound the moment it exists), `graders.py`,
 `judge.py`, and `clean_room.py`, plus Python and PyYAML versions. Start the runner in a fresh process
-from a stable checkout with the pinned dependencies. All four modules are loaded before the source
-identity is captured; subsequent source edits abort grading/regrade and require a new process rather
-than assigning changed disk bytes to already-imported code. The digest is conservative: even an
+from a stable checkout with the pinned dependencies. Source edits made after the identity is
+captured abort grading/regrade and require a new process rather than assigning changed disk bytes to
+already-imported code. The digest is conservative: even an
 unrelated evaluator edit invalidates prior scenario identities. In-process code replacement is
 unsupported; this is provenance for the trusted runner, not attestation of its Python environment.
 
-Run slots are shared across models under each label. Regrade copies a verdict into a summary only
-when its full candidate digest, scenario identity, and resolved model identity match the saved run.
-An overwritten slot or missing identity makes the conflicting summary row INCONCLUSIVE; it never
-acquires the replacement run's PASS. Prefer separate labels for separate model/candidate comparisons.
+Because of that, `regrade` cannot show what a runner edit changes. `rescore ITERATION_DIR --out
+DIR` grades every saved run with the current runner into the new directory `DIR`, never writing the
+saved runs, and grades across a runner change by finding kept verdicts under the saved identity;
+those runs are marked `identity_relaxed`. `DIR/rescore.json` records the runner identity, each
+run's saved and rescored verdicts, unreadable runs, and scenarios or runs it skipped. A rescore is a
+comparison, never a verdict: its differences from the saved verdicts also include scenario edits made
+since the run. To isolate a runner change, rescore the same runs with the base and candidate
+checkouts and run `diff BASE_DIR CANDIDATE_DIR`, which lists every run and check whose
+verdict differs and exits 1 when any does. Each runner commit explains every line it prints in its
+commit message.
+
+A regrade never rewrites what a run recorded (threat-model ADR result rule 8): it writes
+`assessments/<k>/grading.json` and that assessment's trace summary beside the run, lists the revision
+in the attempt's `record.json` under `assessments`, and writes its rows to `regrade-<UTC>.json` in the
+iteration directory. `grading.json`, the run's trace summary and the batch `summary-*.json` files keep
+their recorded verdicts. Run slots are shared across models under each label; prefer separate labels
+for separate model/candidate comparisons. The regrade's exit code pools runs only as one batch could:
+each label, resolved model, candidate digest, CLI version and host, and scenario identity is
+aggregated apart, and a run whose model, candidate digest, CLI version or host is unknown pools with
+nothing and counts as INCONCLUSIVE.
 
 `--overwrite` prepares a complete replacement in a hidden sibling attempt directory. The previous
 run remains intact through execution, grading, artifact writes, and workspace cleanup. Publication
 renames the previous slot to a backup and restores it if the replacement rename fails; only a
-published attempt reports its summary. A failed backup cleanup warns and retains that backup.
-If the process stops between publication renames, inspect the `.run-N-previous-*` sibling before
-restoring it; a two-directory rename is not a crash-atomic filesystem transaction.
+published attempt reports its summary. No attempt is deleted: the replaced run moves to
+`<label>/attempts/run-N/<k>/` as `superseded`, and an attempt that raised before publishing (an
+interrupt, an authentication failure, a refused preflight) moves there as `incomplete` with the
+reason. Each attempt's `attempt.json` records its number, state and time, and the summary row carries
+the published attempt's number, so a re-run is never invisible. If moving the backup fails, it is
+retained beside the slot with a warning. If the process stops between publication renames, inspect
+the `.run-N-previous-*` sibling before restoring it; a two-directory rename is not a crash-atomic
+filesystem transaction. An authentication failure stops the batch and exits 4, distinct from FAIL (1)
+and INCONCLUSIVE (2), whatever else the batch holds: rows an `--overwrite` had not replaced yet
+cannot change that exit or its reason. It prints the stop line and no verdict, since the resumed
+batch decides it; the stop line's `unfixed_by_resume` names an identity or model problem that
+resuming would not fix. Each completed trial still prints its summary line as it publishes, and
+keeps its row in `summary-*.json`.
 
 ## Clean-room boundary
 
@@ -499,9 +604,44 @@ a change makes the trial INCONCLUSIVE, and a mismatch with the batch digest prev
 These checks detect persistent changes, not a transient edit restored between checks; keep the
 candidate checkout stable for the batch. Strict MCP mode supplies an explicit empty server set.
 Runtime init must report exactly one plugin with that checkout's identity and
-exactly the requested tool inventory; a missing or foreign tool, an MCP server, an error result, a
+exactly the requested tool inventory, and the trace must name the model it ran on; a missing or
+foreign tool, an MCP server, a trace that names no model, an error result, a
 nonzero exit, or — where reads were granted — a successful read outside the workspace and plugin
 snapshot makes the trial **INCONCLUSIVE**, never a verdict. An auth failure aborts the batch.
+
+Those run-level failures mark every check INCONCLUSIVE, so nothing observed under the wrong plugin,
+model or tools counts. A trial whose identity is wrong — its tool inventory, plugin or model, or
+plugin inputs that changed — also stops the batch, since every later trial would run as the same
+wrong candidate: its summary row records `identity_failure`, and a later invocation of the label
+schedules nothing until that run is replaced with `--overwrite` or a new label is used. The batch
+then exits 2 unless a FAIL verdict decides it. A failure the candidate's own run causes, such as a
+read outside the workspace or a refused command, voids only its trial, and a backing service that
+never started stops only its scenario. A run cut short on the declared profile is different: after a timeout, a
+missing result, an error result, a nonzero exit or the native spend cap, the partial trace must still
+show the declared plugin, tools and read boundary, and for a native conversation its model, grants,
+session and helper, and then a forbidding check whose violation is
+already in it is FAIL, while one with no violation yet and every requiring check stay INCONCLUSIVE;
+the grade records `run_end: cut_short` with `run_stop` (`wall_clock`, `no_result`, `error_result`,
+`nonzero_exit` or `spend_guard`) so a regrade applies the same rule, a native invocation records
+`cut_short` too, and a run voided at run level records `void`. A negative routing expectation fails
+a cut-short run only when its forbidden target fired; an alternative that never fired stays
+INCONCLUSIVE. Otherwise each check is PASS, FAIL or INCONCLUSIVE (its `state` in
+`grading.json`), and a trial with any failed check is FAIL even when another check could not be
+measured; that reason is kept as `unmeasured`. Without a failure, any unmeasured check makes the trial
+INCONCLUSIVE, with the reason in `inconclusive`. A check that reports `instrument:` evidence could
+not be measured, as when its backing service stops answering: it is INCONCLUSIVE and, like a grader crash, stops its scenario. A grader that raises, or a judge that could not judge, is a
+measurement failure: its check is INCONCLUSIVE, the grade names it as `grader_error`, and the batch
+runs no more trials of that scenario; a grader returns an error in the candidate's own output as a
+FAIL. A `tool_call_count` with a positive minimum is both: on a run cut short, calls beyond its
+maximum FAIL while a minimum not yet reached stays INCONCLUSIVE.
+An unknown `fleet_grader` name is rejected by `--validate`. Oracle scripts still fail with exit 1,
+which an uncaught exception also produces, until each is moved to a distinct failure code
+(`EVAL-011`). A backing-service cleanup failure after grading keeps
+the verdict, is recorded as `after_assessment`, and stops the batch from starting another trial.
+A scenario may declare `max_turns` (1 to 500), passed to the CLI as `--max-turns`; a session the CLI
+ends there is a completed run (`run_end: turn_limit`) whose unmet requirements fail, while the same
+stop without a declared limit is cut short. These follow the result rules of the accepted
+[threat-model ADR](../docs/decisions/2026-10-03-eval-harness-threat-model.md).
 
 This is an evaluation boundary, **not an OS sandbox**. A build lane's Bash runs on the host with
 network, and the credential copy sits where an unguarded tool could reach it (the probe scans

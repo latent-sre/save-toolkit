@@ -48,7 +48,7 @@ merge its operational-result model with candidate-comparison records.
 |---|---|---|
 | Saved native replay | Read-only importer | Original result and its original measurement identity |
 | Native fleet trial | Existing build_probe path | Actual plugin, model, tool inventory, helper and session evidence |
-| Custom behavioral-runner pilot | Native reference versus Coder Eval through a reviewed adapter in WP-02 | Matched six-task results, identity/tool/session controls and maintainer effort; no parity assumed |
+| Custom behavioral-runner pilot | Native reference versus Coder Eval through a reviewed adapter in WP-15 (postponed, DEC-24) | Matched six-task results, identity/tool/session controls and maintainer effort; no parity assumed |
 | Fixed evidence diagnosis | Native path with staged public/synthetic evidence | Response, source reads and hidden-answer separation |
 | Scripted incident conversation | Extended native path after compatibility checks | Every turn, evidence release and same-session identity |
 | SREGym diagnosis | SREGym environment plus reviewed fleet adapter | Fault state, read observations, submission and diagnosis oracle |

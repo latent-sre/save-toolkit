@@ -1,0 +1,30 @@
+# Lint, format and type-check configuration only: this file does not make the repository a package,
+# and every dependency stays pinned in requirements-dev.txt. The checks cover the eval runner
+# (evals/build_probe.py and evals/probe/); CI runs them in the component-tests job.
+
+[tool.ruff]
+target-version = "py312"  # the runner's compatibility floor (evals/README.md)
+line-length = 120
+include = ["evals/build_probe.py", "evals/probe/**/*.py"]
+
+[tool.ruff.lint]
+# The stack profile's bugbear (B) beside errors, imports, upgrades and simplifications. Local imports
+# are deliberate where a module is needed by one rarely used path, and are marked where they occur.
+select = ["E", "W", "F", "I", "B", "UP", "SIM", "RUF", "PLC0415"]
+ignore = ["E501"]  # the formatter owns line length; long messages and patterns stay whole
+
+[tool.ruff.lint.per-file-ignores]
+"evals/build_probe.py" = ["F401"]  # the entry point re-exports every name the runner has always exported
+
+[tool.mypy]
+python_version = "3.12"
+files = ["evals/probe", "evals/build_probe.py"]
+mypy_path = "evals"
+strict = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+# The evaluator's sibling modules are bound into the runner's identity but are not typed yet.
+module = ["clean_room", "graders", "judge"]
+follow_imports = "skip"
+ignore_missing_imports = true

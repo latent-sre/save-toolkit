@@ -11,6 +11,7 @@ import unittest
 from unittest.mock import patch
 
 import build_probe
+from probe import checking as probe_checking
 
 
 ROOT = Path(__file__).resolve().parent
@@ -70,7 +71,7 @@ class ReliabilityCaseTests(unittest.TestCase):
                                   ([("??", "docs/assessments/checkout-slow-ledger.md"),
                                     ("M", "config/worker.yaml")], False)):
             with self.subTest(changed=changed):
-                ctx = SimpleNamespace(git=SimpleNamespace(changed=changed))
+                ctx = SimpleNamespace(git=build_probe.GitFacts(0, "main", changed, ""))
                 self.assertEqual(accepted, build_probe.CHECKS[check["check"]](ctx, check)[0])
 
     def test_source_case_rejects_dispatch_without_grader_errors(self):
@@ -164,7 +165,7 @@ class ReliabilityAuthorizationTests(unittest.TestCase):
                 completed.append(result)
                 return result
 
-            with patch.object(build_probe, "_run", side_effect=run_actual):
+            with patch.object(probe_checking, "_run", side_effect=run_actual):
                 passed, evidence = build_probe.check_command_exit_zero(ctx, check)
             self.assertEqual(len(completed), 1, evidence)
             return completed[0].returncode, passed, evidence
