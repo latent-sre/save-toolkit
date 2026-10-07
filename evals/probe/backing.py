@@ -233,6 +233,107 @@ def _stderr(proc: subprocess.CompletedProcess[str]) -> str:
     return proc.stderr.strip()[:300]
 
 
+def _hardened_run(docker: str, pids_limit: int, memory: str) -> list[str]:
+    """`docker run` for a disposable container without capabilities or privilege escalation."""
+    hardening = ["--rm", "--cap-drop", "ALL", "--security-opt", "no-new-privileges"]
+    return [docker, "run", "-d", *hardening, "--pids-limit", str(pids_limit), "--memory", memory]
+
+
+def _write_service_files(root: Path, files: Mapping[str, object]) -> None:
+    for relative, content in files.items():
+        target = root / str(relative)
+        if target.is_absolute() and not target.resolve().is_relative_to(root.resolve()):
+            raise ServiceUnavailable(f"service file escapes its disposable root: {relative!r}")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(str(content), encoding="utf-8")
+
+
+def _service_command(docker: str, declared: Mapping[str, Any], network_name: str, config_root: Path) -> list[str]:
+    """The service's own container, reachable only on the probe's internal network by its declared name."""
+    name, image = str(declared["name"]), str(declared["image"])
+    command = [*_hardened_run(docker, 512, "2g"), "--network", network_name, "--network-alias", name]
+    for key, value in (declared.get("env") or {}).items():
+        command += ["-e", f"{key}={value}"]
+    for mount in declared.get("mounts") or []:
+        source = (config_root / str(mount["source"])).resolve()
+        if not source.is_relative_to(config_root.resolve()) or not source.is_file():
+            raise ServiceUnavailable(f"service mount source is not a declared runtime file: {mount['source']!r}")
+        option = f"type=bind,source={source},target={mount['target']}"
+        if mount.get("read_only") is True:
+            option += ",readonly"
+        command += ["--mount", option]
+    return [*command, image, *(str(item) for item in (declared.get("command") or []))]
+
+
+def _start_relay(service: Service, declared: Mapping[str, Any], docker: str) -> None:
+    """Publish the service through a relay and record the loopback URL the probe reaches it on.
+
+    Docker Desktop 29 suppresses host publication for containers on an --internal network. Keep the
+    service isolated and publish only a fixed-target TCP relay. The relay has no target-selection
+    input: every connection goes to this declared service.
+    """
+    published = ["--read-only", "--user", "65534:65534", "-p", f"127.0.0.1::{SERVICE_RELAY_PORT}"]
+    script = ["python", "-I", "-S", "-B", "-c", SERVICE_RELAY_SCRIPT, service.name, str(int(declared.get("port", 80)))]
+    relay_run = _run_docker([*_hardened_run(docker, 64, "64m"), *published, SERVICE_RELAY_IMAGE, *script])
+    if relay_run.returncode != 0:
+        raise ServiceUnavailable(f"{service.name}: relay docker run failed: {_stderr(relay_run)}")
+    service.relay_container_id = relay_run.stdout.strip()
+    alias = f"relay-{service.name}"
+    connected = _run_docker(
+        [docker, "network", "connect", "--alias", alias, service.network_name, service.relay_container_id]
+    )
+    if connected.returncode != 0:
+        raise ServiceUnavailable(f"{service.name}: relay network connect failed: {_stderr(connected)}")
+    port_result = _run_docker([docker, "port", service.relay_container_id, f"{SERVICE_RELAY_PORT}/tcp"])
+    mapped = port_result.stdout.strip()
+    if not mapped:
+        raise ServiceUnavailable(f"{service.name}: no published port: {_stderr(port_result)}")
+    service.base_url = "http://127.0.0.1:" + mapped.splitlines()[0].rsplit(":", 1)[1]
+
+
+def _wait_until_ready(service: Service, declared: Mapping[str, Any]) -> None:
+    deadline = time.monotonic() + int(declared.get("ready_timeout", 120))
+    ready_path = str(declared.get("ready", "/"))
+    while time.monotonic() < deadline:
+        status, _ = request(service, ready_path, timeout=5)
+        if status == 200:
+            break
+        time.sleep(2)
+    else:
+        raise ServiceUnavailable(f"{service.name}: never became ready at {ready_path}")
+    wait_for = declared.get("wait_for")
+    if wait_for:
+        while time.monotonic() < deadline:
+            status, payload = request(service, str(wait_for["path"]), timeout=5)
+            found = json_pointer(payload, str(wait_for["pointer"])) if status == 200 else None
+            equals_ready = (
+                "equals" in wait_for
+                and wait_for["equals"] is not None
+                and isinstance(wait_for["equals"], (str, int, float, bool))
+                and found is not None
+                and found == wait_for["equals"]
+            )
+            if (wait_for.get("nonempty") is True and bool(found)) or equals_ready:
+                break
+            time.sleep(2)
+        else:
+            raise ServiceUnavailable(
+                f"{service.name}: readiness data never appeared at {wait_for['path']} pointer {wait_for['pointer']}"
+            )
+
+
+def _seed_and_snapshot(service: Service, declared: Mapping[str, Any]) -> None:
+    for step in declared.get("seed") or []:
+        status, payload = request(service, str(step["path"]), str(step.get("method", "POST")), step.get("json"))
+        if status == 0 or status >= 400:
+            raise ServiceUnavailable(f"{service.name}: seed {step['path']} -> {status} {str(payload)[:200]}")
+    for path in declared.get("snapshot") or []:
+        status, payload = request(service, str(path))
+        if status == 0 or status >= 400:
+            raise ServiceUnavailable(f"{service.name}: snapshot {path} -> {status} {str(payload)[:200]}")
+        service.snapshots[str(path)] = payload
+
+
 def start_services(spec: Mapping[str, Any], docker: str = "docker") -> list[Service]:
     """Start each declared service, wait for its readiness path, seed it, and snapshot what must not change.
 
@@ -262,53 +363,16 @@ def start_services(spec: Mapping[str, Any], docker: str = "docker") -> list[Serv
             name = str(declared["name"])
             if re.fullmatch(r"[a-z][a-z0-9-]{0,62}", name) is None:
                 raise ServiceUnavailable(f"service needs a canonical name, got {name!r}")
+            # Recorded before anything is written into it, so a failure from here on removes it.
             pending_config_root = Path(tempfile.mkdtemp(prefix=f"build-probe-{name}-"))
-            for relative, content in (declared.get("files") or {}).items():
-                target = pending_config_root / str(relative)
-                if target.is_absolute() and not target.resolve().is_relative_to(pending_config_root.resolve()):
-                    raise ServiceUnavailable(f"service file escapes its disposable root: {relative!r}")
-                target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_text(str(content), encoding="utf-8")
-            command = [
-                docker,
-                "run",
-                "-d",
-                "--rm",
-                "--cap-drop",
-                "ALL",
-                "--security-opt",
-                "no-new-privileges",
-                "--pids-limit",
-                "512",
-                "--memory",
-                "2g",
-                "--network",
-                network_name,
-                "--network-alias",
-                name,
-            ]
-            for key, value in (declared.get("env") or {}).items():
-                command += ["-e", f"{key}={value}"]
-            for mount in declared.get("mounts") or []:
-                source = (pending_config_root / str(mount["source"])).resolve()
-                if not source.is_relative_to(pending_config_root.resolve()) or not source.is_file():
-                    raise ServiceUnavailable(
-                        f"service mount source is not a declared runtime file: {mount['source']!r}"
-                    )
-                option = f"type=bind,source={source},target={mount['target']}"
-                if mount.get("read_only") is True:
-                    option += ",readonly"
-                command += ["--mount", option]
-            command.append(image)
-            command.extend(str(item) for item in (declared.get("command") or []))
-            run = _run_docker(command)
+            _write_service_files(pending_config_root, declared.get("files") or {})
+            run = _run_docker(_service_command(docker, declared, network_name, pending_config_root))
             if run.returncode != 0:
                 raise ServiceUnavailable(f"{declared['name']}: docker run failed: {_stderr(run)}")
-            container_id = run.stdout.strip()
             service = Service(
                 name,
                 image,
-                container_id,
+                run.stdout.strip(),
                 "",
                 declared.get("auth"),
                 network_name=network_name,
@@ -316,104 +380,9 @@ def start_services(spec: Mapping[str, Any], docker: str = "docker") -> list[Serv
             )
             started.append(service)
             pending_config_root = None
-            # Docker Desktop 29 suppresses host publication for containers on an --internal
-            # network. Keep the service isolated and publish only a fixed-target TCP relay. The
-            # relay has no target-selection input: every connection goes to this declared service.
-            relay_command = [
-                docker,
-                "run",
-                "-d",
-                "--rm",
-                "--cap-drop",
-                "ALL",
-                "--security-opt",
-                "no-new-privileges",
-                "--pids-limit",
-                "64",
-                "--memory",
-                "64m",
-                "--read-only",
-                "--user",
-                "65534:65534",
-                "-p",
-                f"127.0.0.1::{SERVICE_RELAY_PORT}",
-                SERVICE_RELAY_IMAGE,
-                "python",
-                "-I",
-                "-S",
-                "-B",
-                "-c",
-                SERVICE_RELAY_SCRIPT,
-                name,
-                str(int(declared.get("port", 80))),
-            ]
-            relay_run = _run_docker(relay_command)
-            if relay_run.returncode != 0:
-                raise ServiceUnavailable(f"{service.name}: relay docker run failed: {_stderr(relay_run)}")
-            service.relay_container_id = relay_run.stdout.strip()
-            connected = _run_docker(
-                [
-                    docker,
-                    "network",
-                    "connect",
-                    "--alias",
-                    f"relay-{name}",
-                    network_name,
-                    service.relay_container_id,
-                ]
-            )
-            if connected.returncode != 0:
-                raise ServiceUnavailable(f"{service.name}: relay network connect failed: {_stderr(connected)}")
-            port_result = _run_docker(
-                [
-                    docker,
-                    "port",
-                    service.relay_container_id,
-                    f"{SERVICE_RELAY_PORT}/tcp",
-                ]
-            )
-            mapped = port_result.stdout.strip()
-            if not mapped:
-                raise ServiceUnavailable(f"{service.name}: no published port: {_stderr(port_result)}")
-            service.base_url = "http://127.0.0.1:" + mapped.splitlines()[0].rsplit(":", 1)[1]
-            deadline = time.monotonic() + int(declared.get("ready_timeout", 120))
-            ready_path = str(declared.get("ready", "/"))
-            while time.monotonic() < deadline:
-                status, _ = request(service, ready_path, timeout=5)
-                if status == 200:
-                    break
-                time.sleep(2)
-            else:
-                raise ServiceUnavailable(f"{service.name}: never became ready at {ready_path}")
-            wait_for = declared.get("wait_for")
-            if wait_for:
-                while time.monotonic() < deadline:
-                    status, payload = request(service, str(wait_for["path"]), timeout=5)
-                    found = json_pointer(payload, str(wait_for["pointer"])) if status == 200 else None
-                    equals_ready = (
-                        "equals" in wait_for
-                        and wait_for["equals"] is not None
-                        and isinstance(wait_for["equals"], (str, int, float, bool))
-                        and found is not None
-                        and found == wait_for["equals"]
-                    )
-                    if (wait_for.get("nonempty") is True and bool(found)) or equals_ready:
-                        break
-                    time.sleep(2)
-                else:
-                    raise ServiceUnavailable(
-                        f"{service.name}: readiness data never appeared at {wait_for['path']} "
-                        f"pointer {wait_for['pointer']}"
-                    )
-            for step in declared.get("seed") or []:
-                status, payload = request(service, str(step["path"]), str(step.get("method", "POST")), step.get("json"))
-                if status == 0 or status >= 400:
-                    raise ServiceUnavailable(f"{service.name}: seed {step['path']} -> {status} {str(payload)[:200]}")
-            for path in declared.get("snapshot") or []:
-                status, payload = request(service, str(path))
-                if status == 0 or status >= 400:
-                    raise ServiceUnavailable(f"{service.name}: snapshot {path} -> {status} {str(payload)[:200]}")
-                service.snapshots[str(path)] = payload
+            _start_relay(service, declared, docker)
+            _wait_until_ready(service, declared)
+            _seed_and_snapshot(service, declared)
             _start_service_proxy(service)
         return started
     except BaseException as exc:  # an interrupt still stops what already started
