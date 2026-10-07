@@ -517,6 +517,8 @@ VALIDATOR_CASES: list[tuple[str, dict, list[str]]] = [
      ["case: checks[0] scope is only `subagent`, on bash_ran, bash_did_not_run, or ran_outside_checkout"]),
     ("unknown test runner", _changed(BUILD, checks=_checks({"check": "verification_completed", "runner": "nose"})),
      ["case: checks[0] verification_completed needs runner unittest, pytest, or vitest"]),
+    ("test runner as a list", _changed(BUILD, checks=_checks({"check": "verification_completed", "runner": ["pytest"]})),
+     ["case: checks[0] verification_completed needs runner unittest, pytest, or vitest"]),
     ("measurement exit on another check", _changed(BUILD, checks=_checks({"check": "no_new_commits",
                                                                           "inconclusive_exit_code": 3})),
      ["case: checks[0] inconclusive_exit_code needs command_exit_zero and an integer from 1 to 255"]),

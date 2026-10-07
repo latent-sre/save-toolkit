@@ -20,6 +20,7 @@ from .backing import SERVICE_NAME, TRUSTED_SERVICE_IMAGES
 from .checking import FORBIDDING_GRADERS
 from .constants import BUILD_TOOLS, CONTRACT_SCENARIO_DIR, ROOT, SCENARIO_DIR
 from .outcomes import Polarity
+from .tracing import TEST_RUNNERS
 
 Spec = Mapping[str, Any]
 
@@ -358,8 +359,9 @@ def _check_problems(spec: Spec, where: str, kind: str) -> list[str]:
             problems.append(
                 f"{where}: checks[{i}] scope is only `subagent`, on bash_ran, bash_did_not_run, or ran_outside_checkout"
             )
-        if check["check"] == "verification_completed" and check.get("runner") not in {"unittest", "pytest", "vitest"}:
-            problems.append(f"{where}: checks[{i}] verification_completed needs runner unittest, pytest, or vitest")
+        if check["check"] == "verification_completed" and check.get("runner") not in TEST_RUNNERS:
+            runners = f"{', '.join(TEST_RUNNERS[:-1])}, or {TEST_RUNNERS[-1]}"
+            problems.append(f"{where}: checks[{i}] verification_completed needs runner {runners}")
         if "inconclusive_exit_code" in check and (
             check["check"] != "command_exit_zero"
             or type(check["inconclusive_exit_code"]) is not int

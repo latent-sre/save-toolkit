@@ -96,7 +96,7 @@ def is_guard_denial(reason: str) -> bool:
 # clean run gets. The exit code shows the command returned, so this exact shape completes the call; any
 # other text error (no such tool, an interruption) still leaves completion unknown.
 _FAILED_FOREGROUND_RECEIPT = re.compile(r"Error: Exit code \d+(?:\n|\Z)")
-_TEST_RUNNERS = ("unittest", "pytest", "vitest")
+TEST_RUNNERS = ("unittest", "pytest", "vitest")  # the runners whose summaries a trace recognizes
 
 
 def parse_trace(path: Path) -> TraceSummary:
@@ -381,8 +381,8 @@ class _Reader:
             output = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", receipt["stdout"] + "\n" + receipt["stderr"]).replace(
                 "\r\n", "\n"
             )
-            call["test_summaries"] = {runner: _successful_test_summary(output, runner) for runner in _TEST_RUNNERS}
-            call["test_failures"] = {runner: _recognized_test_failure(output, runner) for runner in _TEST_RUNNERS}
+            call["test_summaries"] = {runner: _successful_test_summary(output, runner) for runner in TEST_RUNNERS}
+            call["test_failures"] = {runner: _recognized_test_failure(output, runner) for runner in TEST_RUNNERS}
 
 
 def _successful_test_summary(output: str, runner: str) -> str:
