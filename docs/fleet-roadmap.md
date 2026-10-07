@@ -428,8 +428,19 @@ merge, record the frozen runner revision before EVAL-012 records comparison base
   check by check (23 FAIL, 15 PASS, 26 INCONCLUSIVE); the other fixes change no saved grade. The
   runner's growth, for the owner's DEC-20 review, is measured in
   [the code-growth note](reviews/2026-10-06-eval-runner-code-growth.md).
+- The 2026-10-07 python-craft review of the runner, fixed on `work/probe-craft-review` after this
+  PR's head: a failed git command no longer reads as an unchanged checkout, a check's own staging
+  mistake is no longer charged to the candidate, seeded files compare byte for byte, every cut of the
+  600-character evidence is flagged and a kept verdict keeps its marker, and ten smaller defects.
+  Rescoring all 1,317 saved runs before and after differs in no verdict. Findings and evidence are in
+  [the review](reviews/2026-10-07-eval-runner-refactoring-review.md).
 
 Remaining:
+- The 2026-10-07 review's open findings: check tests that cannot tell FAIL from INCONCLUSIVE (a
+  mutant of `no_new_commits` reporting INCONCLUSIVE survives every test) and an untested `run`
+  subcommand; a timeout saved before `run_end` regrades as void; `tool_call_count`'s regrade
+  override; stopping the audit proxy before grading; and the review's structural changes and
+  compatibility decisions for the owner.
 - Oracle protocol: 16 oracles exit 1 to fail, which an uncaught exception also produces, and 7 of
   them run candidate code (operator-cli, obs-burn-rules, pager-webhook, pcf-deploy-job and three
   python-craft), so each needs candidate errors caught as FAIL before a crash can mean INCONCLUSIVE.
