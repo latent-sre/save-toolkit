@@ -34,6 +34,7 @@ SERVICE_RELAY_IMAGE = (
 
 
 SERVICE_RELAY_PORT = 8080
+SERVICE_NAME = re.compile(r"[a-z][a-z0-9-]{0,62}")  # a container network alias and a temp-dir prefix
 
 
 SERVICE_RELAY_SCRIPT = r"""
@@ -291,6 +292,12 @@ def _start_relay(service: Service, declared: Mapping[str, Any], docker: str) -> 
     service.base_url = "http://127.0.0.1:" + mapped.splitlines()[0].rsplit(":", 1)[1]
 
 
+def wait_predicates(wait_for: Mapping[str, Any]) -> tuple[bool, bool]:
+    """The readiness predicates a `wait_for` declares: `nonempty: true`, and an `equals` scalar. A
+    null `equals` reads as absent, so validation refuses it."""
+    return wait_for.get("nonempty") is True, isinstance(wait_for.get("equals"), (str, int, float, bool))
+
+
 def _wait_until_ready(service: Service, declared: Mapping[str, Any]) -> None:
     deadline = time.monotonic() + int(declared.get("ready_timeout", 120))
     ready_path = str(declared.get("ready", "/"))
@@ -303,17 +310,11 @@ def _wait_until_ready(service: Service, declared: Mapping[str, Any]) -> None:
         raise ServiceUnavailable(f"{service.name}: never became ready at {ready_path}")
     wait_for = declared.get("wait_for")
     if wait_for:
+        nonempty, has_equals = wait_predicates(wait_for)
         while time.monotonic() < deadline:
             status, payload = request(service, str(wait_for["path"]), timeout=5)
             found = json_pointer(payload, str(wait_for["pointer"])) if status == 200 else None
-            equals_ready = (
-                "equals" in wait_for
-                and wait_for["equals"] is not None
-                and isinstance(wait_for["equals"], (str, int, float, bool))
-                and found is not None
-                and found == wait_for["equals"]
-            )
-            if (wait_for.get("nonempty") is True and bool(found)) or equals_ready:
+            if (nonempty and bool(found)) or (has_equals and found is not None and found == wait_for["equals"]):
                 break
             time.sleep(2)
         else:
@@ -361,7 +362,7 @@ def start_services(spec: Mapping[str, Any], docker: str = "docker") -> list[Serv
             if image not in TRUSTED_SERVICE_IMAGES:
                 raise ServiceUnavailable(f"service image has not been reviewed for this harness: {image!r}")
             name = str(declared["name"])
-            if re.fullmatch(r"[a-z][a-z0-9-]{0,62}", name) is None:
+            if SERVICE_NAME.fullmatch(name) is None:
                 raise ServiceUnavailable(f"service needs a canonical name, got {name!r}")
             # Recorded before anything is written into it, so a failure from here on removes it.
             pending_config_root = Path(tempfile.mkdtemp(prefix=f"build-probe-{name}-"))

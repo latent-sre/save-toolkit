@@ -15,8 +15,8 @@ from typing import Any
 import graders as fleet_graders
 import yaml
 
-from . import checking, constants
-from .backing import TRUSTED_SERVICE_IMAGES
+from . import backing, checking, constants
+from .backing import SERVICE_NAME, TRUSTED_SERVICE_IMAGES
 from .checking import FORBIDDING_GRADERS
 from .constants import BUILD_TOOLS, CONTRACT_SCENARIO_DIR, ROOT, SCENARIO_DIR
 from .outcomes import Polarity
@@ -281,7 +281,7 @@ def _service_problems(service: object, where: str) -> list[str]:
         return [f"{where}: each service needs a name and an image"]
     problems = []
     name = str(service["name"])
-    if re.fullmatch(r"[a-z][a-z0-9-]{0,62}", name) is None:
+    if SERVICE_NAME.fullmatch(name) is None:
         problems.append(f"{where}: service {name!r} needs a canonical name")
     elif "@sha256:" not in str(service["image"]):
         problems.append(f"{where}: service {service['name']!r} image must be pinned by digest")
@@ -323,11 +323,7 @@ def _service_problems(service: object, where: str) -> list[str]:
     wait_for = service.get("wait_for")
     if wait_for is not None:
         wait_mapping = wait_for if isinstance(wait_for, dict) else {}
-        nonempty_predicate = wait_mapping.get("nonempty") is True
-        equals_value = wait_mapping.get("equals")
-        equals_predicate = (
-            "equals" in wait_mapping and equals_value is not None and isinstance(equals_value, (str, int, float, bool))
-        )
+        nonempty_predicate, equals_predicate = backing.wait_predicates(wait_mapping)
         if (
             not isinstance(wait_for, dict)
             or set(wait_mapping) - {"path", "pointer", "nonempty", "equals"}
