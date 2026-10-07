@@ -18,6 +18,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
     mapping, or whose `fixture.checkout` was a list; `run`, `regrade` and `rescore`, which load every
     scenario first, crashed the same way. Each is now reported as an authoring error that exits 3, as
     any invalid scenario does; an empty value still reads as none.
+  - A backing service that stopped answering while a check read it after the trial made that check
+    INCONCLUSIVE but was not counted as a grading-machinery failure, so the batch went on to run, and
+    pay for, every remaining trial of the scenario. The lost service is now the harness's own
+    instrument failing: the check reports `instrument:` evidence, the grade names it as
+    `grader_error`, and the scenario's remaining trials are not run (result rule 5).
 
   [verified] Each fix's new test fails without it and passes with it.
 - The 2026-10-07 python-craft review of the eval runner (PR #328):

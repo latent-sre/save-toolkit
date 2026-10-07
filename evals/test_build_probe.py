@@ -1722,6 +1722,21 @@ class EndToEndStubTests(unittest.TestCase):
 
         return plain
 
+    def test_a_backing_service_lost_during_grading_reaches_the_summary_row(self) -> None:
+        # The row's grader_error is what stops the scenario's remaining trials; see
+        # GradingMachineryTests.test_a_grader_error_stops_only_its_scenarios_remaining_trials.
+        spec = self._spec()
+        spec["checks"] = [{"check": "service_get", "path": "/health", "text": "service healthy"}]
+        service = build_probe.Service("grafana", "image@sha256:" + "0" * 64, "cid", "http://127.0.0.1:32123")
+        with mock.patch.object(probe_backing, "start_services", return_value=[service]), \
+                mock.patch.object(probe_backing, "stop_services"), \
+                mock.patch.object(probe_backing, "request", return_value=(0, "unreachable: refused")):
+            summary = build_probe.run_trial(spec, plugin_root=ROOT, label="svc", model=None, run_number=1,
+                                            out_dir=self.root / "it", timeout=60, executable=self._stub(),
+                                            keep_workspace=False, env_factory=self._env_factory())
+        self.assertEqual("INCONCLUSIVE", summary["status"])
+        self.assertIn("backing service unavailable", summary.get("grader_error") or "")
+
     def test_successful_stub_trial_grades_pass_and_writes_artefacts(self) -> None:
         out = self.root / "iteration"
         summary = build_probe.run_trial(self._spec(), plugin_root=ROOT, label="new_skill", model=None, run_number=1,
@@ -2875,6 +2890,12 @@ class ReviewFindingTests(unittest.TestCase):
             grading = build_probe.grade(ctx)
         self.assertEqual("INCONCLUSIVE", grading["status"])
         self.assertIn("backing service unavailable", grading["expectations"][0]["evidence"])
+        # The service is the harness's instrument, so its loss is a grading-machinery failure that
+        # stops the scenario (rule 5); the trial still names the service as its reason.
+        self.assertIn("backing service unavailable", grading.get("grader_error") or "")
+        self.assertTrue(build_probe.Outcome.read(False, grading["expectations"][0]["evidence"]).machinery,
+                        "the saved grade reads back as the same machinery failure")
+        self.assertEqual("grafana: post-run GET /health was unreachable: unreachable", grading["inconclusive"])
 
     def test_host_mode_isolates_home_and_cf_home(self) -> None:
         ws = build_probe.seed_workspace(self.spec, self.root / "ws")

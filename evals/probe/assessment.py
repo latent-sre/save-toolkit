@@ -32,6 +32,7 @@ from .outcomes import (
     Polarity,
     State,
     grader_error,
+    instrument,
     unmeasured,
     verdict,
     violation,
@@ -339,11 +340,12 @@ def _bound(outcome: Outcome) -> tuple[Outcome, bool]:
 
 def _measure(item: Expectation) -> tuple[Outcome, str | None]:
     """Measure one expectation. A grader crash is a measurement failure, never a verdict (result
-    rule 5); a backing service that stops answering is named as the trial's reason."""
+    rule 5); so is a backing service that stops answering, the harness's own instrument, which is
+    also named as the trial's reason."""
     try:
         return outcomes.coerce(item.measure()), None
     except ServiceUnavailable as exc:
-        return unmeasured(f"backing service unavailable: {exc}"), str(exc)
+        return instrument(f"backing service unavailable: {exc}"), str(exc)
     except Exception as exc:  # a grader crash is a measurement failure, never a verdict
         return grader_error(exc), None
 

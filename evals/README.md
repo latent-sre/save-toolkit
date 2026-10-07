@@ -607,7 +607,7 @@ INCONCLUSIVE. Otherwise each check is PASS, FAIL or INCONCLUSIVE (its `state` in
 `grading.json`), and a trial with any failed check is FAIL even when another check could not be
 measured; that reason is kept as `unmeasured`. Without a failure, any unmeasured check makes the trial
 INCONCLUSIVE, with the reason in `inconclusive`. A check that reports `instrument:` evidence could
-not be measured: it is INCONCLUSIVE and, like a grader crash, stops its scenario. A grader that raises, or a judge that could not judge, is a
+not be measured, as when its backing service stops answering: it is INCONCLUSIVE and, like a grader crash, stops its scenario. A grader that raises, or a judge that could not judge, is a
 measurement failure: its check is INCONCLUSIVE, the grade names it as `grader_error`, and the batch
 runs no more trials of that scenario; a grader returns an error in the candidate's own output as a
 FAIL. A `tool_call_count` with a positive minimum is both: on a run cut short, calls beyond its
