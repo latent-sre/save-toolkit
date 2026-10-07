@@ -286,6 +286,8 @@ def rescore(iteration_dir: Path, out_dir: Path | None, scenarios: list[dict[str,
         print(f"skipped scenario(s) not in this checkout: {', '.join(skipped['scenarios'])}")
     if skipped["runs_without_trace_summary"]:
         print(f"skipped {skipped['runs_without_trace_summary']} run(s) with no trace summary")
+    if skipped["other_run_folders"]:
+        print(f"skipped folder(s) that are not numbered runs: {', '.join(skipped['other_run_folders'])}")
     print(
         f"rescored {len(rows)} run(s) into {out}; {changed} differ from the saved verdict "
         "(including any scenario edits since the run; diff two rescores to isolate a runner change)"

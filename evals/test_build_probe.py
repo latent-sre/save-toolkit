@@ -4034,7 +4034,8 @@ class RescoreTests(unittest.TestCase):
         self.assertEqual([1, 2], [r["run"] for r in rows])
         self.assertEqual("PASS", rows[0]["rescored"]["status"])
         self.assertIn("JSONDecodeError", rows[1]["error"])
-        self.assertEqual({"scenarios": ["retired-case"], "runs_without_trace_summary": 1}, skipped)
+        self.assertEqual({"scenarios": ["retired-case"], "other_run_folders": [], "runs_without_trace_summary": 1},
+                         skipped)
 
     def test_an_unwritable_rescore_is_reported_and_the_rest_still_rescore(self) -> None:
         with tempfile.TemporaryDirectory() as saved, tempfile.TemporaryDirectory() as out:
@@ -5111,6 +5112,32 @@ class GradingLoopTests(unittest.TestCase):
 
 class RegradeEvidenceTests(unittest.TestCase):
     """A regrade re-measures only what the saved run still holds and keeps the rest (result rule 8)."""
+
+    def test_a_folder_that_is_not_a_numbered_run_is_skipped_and_reported(self) -> None:
+        spec = {"id": "s", "prompt": "p"}
+        with tempfile.TemporaryDirectory() as tmp:
+            iteration = Path(tmp) / "iteration"
+            for name in ("run-1", "run-1-old"):  # an operator's copy beside the published run
+                (iteration / "eval-s" / "lab" / name / "outputs").mkdir(parents=True)
+                (iteration / "eval-s" / "lab" / name / "outputs" / "trace-summary.json").write_text("{}", encoding="utf-8")
+            graded = []
+
+            def regrade_run(run_dir: Path, _spec: dict, **_kwargs: object) -> dict:
+                graded.append(run_dir.name)
+                return {"status": "PASS", "summary": {"passed": 1, "total": 1}, "scenario_sha256": "x",
+                        "plugin_source_sha256": "y", "models": [], "inconclusive": None}
+
+            with mock.patch.object(probe_rescoring, "regrade_run", regrade_run):
+                rows = build_probe.regrade(iteration, [spec])
+                rescored = Path(tmp) / "rescored"
+                rescored.mkdir()
+                build_probe.rescore(iteration, [spec], rescored)
+            regrade_record = json.loads(next(iteration.glob("regrade-*.json")).read_text(encoding="utf-8"))
+            rescore_record = json.loads((rescored / "rescore.json").read_text(encoding="utf-8"))
+        self.assertNotIn("run-1-old", graded, "neither job grades a folder that is not a numbered run")
+        self.assertEqual([1], [row["run"] for row in rows])
+        for record in (regrade_record, rescore_record):
+            self.assertEqual(["eval-s/lab/run-1-old"], record["skipped"]["other_run_folders"])
 
     SPEC = {**TINY_SPEC, "checks": [
         {"check": "task_completed", "target": "scribe", "text": "scribe returned"},

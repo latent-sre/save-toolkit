@@ -359,35 +359,55 @@ def _add_assessment(
     return grading
 
 
-def regrade(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _saved_runs(
+    iteration_dir: Path, scenarios: list[dict[str, Any]]
+) -> tuple[list[tuple[dict[str, Any], Path]], dict[str, Any]]:
+    """Each published run in an iteration with its scenario, `eval-<id>/<label>/run-<n>` holding a trace
+    summary, and what was passed over: a scenario not loaded, a folder that is not a numbered run (an
+    operator's `run-1-old`), and a run without a trace summary. Nothing is dropped silently."""
     by_id = {s["id"]: s for s in scenarios}
-    results = []
+    runs: list[tuple[dict[str, Any], Path]] = []
+    skipped: dict[str, Any] = {"scenarios": [], "other_run_folders": [], "runs_without_trace_summary": 0}
     for eval_dir in sorted(iteration_dir.glob("eval-*")):
         spec = by_id.get(eval_dir.name.removeprefix("eval-"))
-        if spec is None:
+        if spec is None:  # retired, renamed, or excluded by --scenario
+            skipped["scenarios"].append(eval_dir.name.removeprefix("eval-"))
             continue
         for run_dir in sorted(eval_dir.glob("*/run-*")):
-            if (run_dir / "outputs" / "trace-summary.json").exists():
-                g = regrade_run(run_dir, spec)
-                results.append(
-                    {
-                        "scenario": spec["id"],
-                        "label": run_dir.parent.name,
-                        **assessment.native_assessment(spec),
-                        "run": int(run_dir.name.removeprefix("run-")),
-                        "status": g["status"],
-                        "passed": g["summary"]["passed"],
-                        "total": g["summary"]["total"],
-                        "scenario_sha256": g["scenario_sha256"],
-                        "plugin_source_sha256": g["plugin_source_sha256"],
-                        "models": g["models"],
-                        "inconclusive": g["inconclusive"],
-                    }
-                )
+            if not re.fullmatch(r"run-\d+", run_dir.name):
+                skipped["other_run_folders"].append(run_dir.relative_to(iteration_dir).as_posix())
+            elif not (run_dir / "outputs" / "trace-summary.json").exists():
+                skipped["runs_without_trace_summary"] += 1
+            else:
+                runs.append((spec, run_dir))
+    return runs, skipped
+
+
+def regrade(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    runs, skipped = _saved_runs(iteration_dir, scenarios)
+    results = []
+    for spec, run_dir in runs:
+        g = regrade_run(run_dir, spec)
+        results.append(
+            {
+                "scenario": spec["id"],
+                "label": run_dir.parent.name,
+                **assessment.native_assessment(spec),
+                "run": int(run_dir.name.removeprefix("run-")),
+                "status": g["status"],
+                "passed": g["summary"]["passed"],
+                "total": g["summary"]["total"],
+                "scenario_sha256": g["scenario_sha256"],
+                "plugin_source_sha256": g["plugin_source_sha256"],
+                "models": g["models"],
+                "inconclusive": g["inconclusive"],
+            }
+        )
     # Saved summaries keep the verdicts their batch recorded; the regrade's rows go beside them.
     if results:
         (iteration_dir / f"regrade-{records.utc_now().replace(':', '')}.json").write_text(
-            json.dumps({"runner": HARNESS_IDENTITY, "runs": results}, indent=2, ensure_ascii=False), encoding="utf-8"
+            json.dumps({"runner": HARNESS_IDENTITY, "runs": results, "skipped": skipped}, indent=2, ensure_ascii=False),
+            encoding="utf-8",
         )
     return results
 
@@ -410,48 +430,35 @@ def rescore(iteration_dir: Path, scenarios: list[dict[str, Any]], out_dir: Path)
     two rescores of the same runs, one per runner revision, show what the edit changed
     (`rescore_diff`). A rescore is a comparison, never a verdict of its own.
     """
-    by_id = {s["id"]: s for s in scenarios}
+    runs, skipped = _saved_runs(iteration_dir, scenarios)
     rows = []
-    skipped: dict[str, Any] = {"scenarios": [], "runs_without_trace_summary": 0}
-    for eval_dir in sorted(iteration_dir.glob("eval-*")):
-        spec = by_id.get(eval_dir.name.removeprefix("eval-"))
-        if spec is None:  # retired, renamed, or excluded by --scenario: visible, never silently dropped
-            skipped["scenarios"].append(eval_dir.name.removeprefix("eval-"))
-            continue
-        for run_dir in sorted(eval_dir.glob("*/run-*")):
-            if not re.fullmatch(r"run-\d+", run_dir.name):
-                continue
-            if not (run_dir / "outputs" / "trace-summary.json").exists():
-                skipped["runs_without_trace_summary"] += 1
-                continue
-            row = {"scenario": spec["id"], "label": run_dir.parent.name, "run": int(run_dir.name.removeprefix("run-"))}
-            try:
-                original = run_dir / "grading.original.json"
-                saved = json.loads(
-                    (original if original.exists() else run_dir / "grading.json").read_text(encoding="utf-8")
-                )
-                grading = regrade_run(run_dir, spec, write=False, relax_identity=True)
-            except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
-                # One unreadable or older-shaped run stays visible instead of ending the comparison.
-                rows.append({**row, "error": f"{type(exc).__name__}: {exc}"[:300]})
-                continue
-            target = out_dir / eval_dir.name / run_dir.parent.name / run_dir.name
-            try:
-                target.mkdir(parents=True)
-                (target / "grading.json").write_text(
-                    json.dumps(grading, indent=2, ensure_ascii=False), encoding="utf-8"
-                )
-            except OSError as exc:  # e.g. a path past Windows' 260-character limit: report it, keep going
-                rows.append({**row, "error": f"cannot write the rescored grade: {type(exc).__name__}: {exc}"[:300]})
-                continue
-            rows.append(
-                {
-                    **row,
-                    "identity_relaxed": bool(grading.get("identity_relaxed")),
-                    "saved": _verdicts(saved),
-                    "rescored": _verdicts(grading),
-                }
+    for spec, run_dir in runs:
+        row = {"scenario": spec["id"], "label": run_dir.parent.name, "run": int(run_dir.name.removeprefix("run-"))}
+        try:
+            original = run_dir / "grading.original.json"
+            saved = json.loads(
+                (original if original.exists() else run_dir / "grading.json").read_text(encoding="utf-8")
             )
+            grading = regrade_run(run_dir, spec, write=False, relax_identity=True)
+        except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
+            # One unreadable or older-shaped run stays visible instead of ending the comparison.
+            rows.append({**row, "error": f"{type(exc).__name__}: {exc}"[:300]})
+            continue
+        target = out_dir / run_dir.relative_to(iteration_dir)
+        try:
+            target.mkdir(parents=True)
+            (target / "grading.json").write_text(json.dumps(grading, indent=2, ensure_ascii=False), encoding="utf-8")
+        except OSError as exc:  # e.g. a path past Windows' 260-character limit: report it, keep going
+            rows.append({**row, "error": f"cannot write the rescored grade: {type(exc).__name__}: {exc}"[:300]})
+            continue
+        rows.append(
+            {
+                **row,
+                "identity_relaxed": bool(grading.get("identity_relaxed")),
+                "saved": _verdicts(saved),
+                "rescored": _verdicts(grading),
+            }
+        )
     record = {"runner": HARNESS_IDENTITY, "iteration": str(iteration_dir), "runs": rows, "skipped": skipped}
     (out_dir / "rescore.json").write_text(json.dumps(record, indent=2, ensure_ascii=False), encoding="utf-8")
     return rows
