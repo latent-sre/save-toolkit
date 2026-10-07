@@ -4795,6 +4795,21 @@ class BatchSpendCapTests(unittest.TestCase):
         self.assertEqual([0.0], [c["known_cost_usd"] for c in costs[None] if c != unknown])
         self.assertTrue(all(unknown in found for found in costs.values()), "an unreadable attempt counts for every model")
 
+    def test_a_malformed_attempt_model_never_hides_a_paid_attempt(self) -> None:
+        """Copilot on PR #329: a `requested_model` that is neither a string nor null was taken as a
+        model no batch runs, so the paid attempt counted toward none and the cap understated spend."""
+        with tempfile.TemporaryDirectory() as tmp:
+            kept = probe_trials.attempts_dir(Path(tmp) / "eval-tiny" / "l") / "run-1"
+            for number, model, record in (("1", [], {"conditions": {"requested_model": "sonnet"}}), ("2", 5, None)):
+                (kept / number).mkdir(parents=True)
+                timing = {"requested_model": model, "known_cost_usd": 0.4, "cost_complete": True}
+                (kept / number / "timing.json").write_text(json.dumps(timing), encoding="utf-8")
+                if record is not None:
+                    (kept / number / "record.json").write_text(json.dumps(record), encoding="utf-8")
+            counted = {model: len(probe_trials.kept_attempt_costs(Path(tmp), "l", ["tiny"], model))
+                       for model in ("sonnet", "opus", None)}
+        self.assertEqual({"sonnet": 2, "opus": 1, None: 1}, counted, "the record names the first; the second is unknown")
+
     def _main(self, costs: list[tuple[float | None, bool]], cap: str) -> tuple[int, list[int], str]:
         spec = probe_catalog.load_all_scenarios()[0]
         calls: list[int] = []

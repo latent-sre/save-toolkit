@@ -12,13 +12,14 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   - A command-line usage error exited 2, INCONCLUSIVE's code; it now exits 3, a refused job, in
     both command forms, and `--help` still exits 0.
   - `fixture.env` and a service's `env` were never validated, so a list loaded and then crashed the
-    trial; `validate` now reports either as an authoring error, and a mount `source` written as a
+    trial; `validate` now reports either as an authoring error, including a name that is empty or
+    holds `=` and NUL anywhere, which the OS refuses at launch, and a mount `source` written as a
     list is reported instead of crashing validation.
   - A plugin root that is not a git checkout stopped the batch on a traceback with exit 1; it is
     refused with exit 3 before any trial.
   - The spend cap counted every model's kept attempts under a label toward each model's batch; it
-    now counts an attempt only toward the model it ran for, and one whose model is unreadable
-    toward every model.
+    now counts an attempt only toward the model it ran for, and one whose model is unreadable or
+    malformed toward every model.
 
   [verified] Each has a test that fails on the previous commit and passes after it; rescoring all
   1,317 saved runs differs in no verdict.

@@ -225,12 +225,15 @@ def _read_json(path: Path) -> object:
 
 
 def _requested_model(timing: object, record: object) -> object:
-    """The model an attempt was run for: a graded attempt's timing names it, a raised one's record does."""
-    if isinstance(timing, dict) and "requested_model" in timing:
-        return timing["requested_model"]
+    """The model an attempt was run for: a graded attempt's timing names it, a raised one's record does.
+
+    Only a string or null names a model; anything else is malformed and falls through, so a paid
+    attempt is never attributed to a model no batch runs.
+    """
     conditions = record.get("conditions") if isinstance(record, dict) else None
-    if isinstance(conditions, dict) and "requested_model" in conditions:
-        return conditions["requested_model"]
+    for source in (timing, conditions):
+        if isinstance(source, dict) and isinstance(source.get("requested_model", _UNKNOWN), str | None):
+            return source["requested_model"]
     return _UNKNOWN
 
 
