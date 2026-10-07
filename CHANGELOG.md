@@ -44,12 +44,26 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- The eval runner is a package (`EVAL-011` split), `evals/probe/`, behind `evals/build_probe.py`,
+  which keeps every name it exported. Checks return typed outcomes instead of encoding "could not
+  measure" in their evidence text; each check declares its polarity and the evidence it reads, and the
+  forbidding, requiring and regradable sets and the cut-short rules are derived from those
+  declarations instead of kept by hand; live grades and regrades share one grading loop. Jobs are
+  subcommands (`run`, `validate`, `regrade`, `rescore`, `diff`, `schema`) and the flat flags still
+  work. Each `record.json` is validated before it is written against the model that generates
+  `docs/fleet-evaluation/eval-record-v1.schema.json`. Ruff and strict mypy check the package in CI.
+
+  [verified] Rescoring every saved run (1,317 runs in 78 campaigns) with the runner before the split
+  and after it gives byte-identical grades and byte-identical parsed traces; the five-campaign
+  `--rescore-diff` gate shows no difference, `validate` reports the same 207 scenarios and 863
+  expectations, and the full suite passes (1,803 tests).
 - The eval runner's result rules have property tests (`evals/test_result_rules_properties.py`):
   Hypothesis searches for a hidden failure, a requiring check failing a cut-short run, an unknown
   cost counted as zero, or an aggregate that improves when a trial worsens, and the trace parser must
   account for every tool call it sees. Exact `--validate` problem lists pin the validator's wording
   and order before it is restructured. Pydantic, Hypothesis, Ruff, mypy and the PyYAML stubs are
-  pinned in `requirements-dev.txt` and installed for CI by `requirements-test.txt`.
+  pinned in `requirements-dev.txt` and installed for CI by `requirements-test.txt`. [verified] They pass
+  against the runner before the split and after it.
 - Eval scenarios can declare a turn limit (`EVAL-011` turn limits). `max_turns` is passed to the CLI
   as `--max-turns`, and a session the CLI ends there is a completed run whose unmet requirements fail,
   so a candidate that never finishes can fail instead of timing out INCONCLUSIVE. No scenario declares

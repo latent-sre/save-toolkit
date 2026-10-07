@@ -144,7 +144,8 @@ class FrontmatterParserTests(unittest.TestCase):
             with self.subTest(path=relative.as_posix()):
                 text = (root / relative).read_text(encoding="utf-8")
                 self.assertNotIn("KEY_RE =", text)
-        eval_source = (root / "evals/build_probe.py").read_text(encoding="utf-8")
+        eval_source = "\n".join(path.read_text(encoding="utf-8") for path in (
+            root / "evals/build_probe.py", *sorted((root / "evals/probe").glob("*.py"))))
         self.assertNotIn('yaml.safe_load("\\n".join(lines[1:end]))', eval_source)
 
 

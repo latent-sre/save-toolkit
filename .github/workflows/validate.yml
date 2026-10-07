@@ -65,6 +65,16 @@ jobs:
           PYTEST_ADDOPTS: -n 4 --dist loadfile --durations=20
           PYTHONDONTWRITEBYTECODE: '1'
 
+      # pyproject.toml scopes these to the eval runner; they run even when a test failed.
+      - name: Lint, format and type-check the eval runner
+        if: ${{ !cancelled() }}
+        run: |
+          python -m ruff check
+          python -m ruff format --check
+          python -m mypy
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+
   claude-plugin-contract:
     runs-on: ubuntu-latest
     timeout-minutes: 15

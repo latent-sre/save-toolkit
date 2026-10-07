@@ -98,7 +98,9 @@ does not satisfy a requirement that explicitly needs evidence.
 DEC-22 freezes this record. The native runner writes one per attempt, beside that attempt's raw
 files, as part of EVAL-011's runner sequence; WP-01 reads only this format. It is a mapping of facts
 the runner already holds, not a new evidence store, and its exact field names are fixed in the
-runner change that implements it.
+runner change that implements it. Those names are published as a JSON Schema,
+[`eval-record-v1.schema.json`](eval-record-v1.schema.json), generated from the runner's record model,
+which validates every record before it is written.
 
 | Group | Fields |
 |---|---|

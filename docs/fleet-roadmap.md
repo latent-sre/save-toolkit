@@ -414,6 +414,13 @@ merge, record the frozen runner revision before EVAL-012 records comparison base
   [v1 record](fleet-evaluation/contracts.md#result-record-v1) per attempt, in run folders that inherit
   the permissions of `.eval-runs/`.
 - The unused `--container` mode is removed.
+- The runner is the `evals/probe` package behind `evals/build_probe.py`, split along the inventory
+  seams: checks return typed outcomes; each check declares its polarity and the evidence it reads,
+  from which regradability and the cut-short rules are derived; live grades and regrades share one
+  grading loop; jobs are subcommands, and the flat flags still work; each `record.json` is validated
+  against a model whose JSON Schema is published; Ruff and strict mypy check the package in CI.
+  Rescoring all 1,317 saved runs with the runner before and after the split gives byte-identical
+  grades and parsed traces.
 
 Remaining:
 - Oracle protocol: 16 oracles exit 1 to fail, which an uncaught exception also produces, and 7 of
@@ -424,8 +431,6 @@ Remaining:
   90th percentile 20, highest 72); choosing values is the evaluation owner's call.
 - Calibration receipts still sum an unpriced judge call as zero. The judge's identity binds
   `judge.py` and `clean_room.py`, so the fix rides with the next owner-triggered recalibration.
-- Split `evals/build_probe.py` along its inventory seams with no verdict change, once the 2026-10-03
-  inventory (PR #310) supplies them.
 **Evidence:** [PR #310](https://github.com/latent-sre/save-toolkit/pull/310); the amended ADR's
 Context records the 2026-10-06 source findings behind the result rules.
 [PR #321](https://github.com/latent-sre/save-toolkit/pull/321) runs the component tests on four

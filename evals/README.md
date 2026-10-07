@@ -1,7 +1,7 @@
 # Fleet evals
 
-The native fleet runner, [`build_probe.py`](build_probe.py), grades four kinds of scenario, decided by the
-keys a spec carries rather than by a mode field.
+The native fleet runner, [`build_probe.py`](build_probe.py) and its [`probe`](probe) package, grades four
+kinds of scenario, decided by the keys a spec carries rather than by a mode field.
 
 | Kind | Where | Session | Graded on |
 |---|---|---|---|
@@ -20,15 +20,18 @@ compatibility floor is Python 3.12; installed hooks retain their separate Python
 
 ```bash
 python -m pip install -r requirements-dev.txt
-python evals/build_probe.py --validate                      # offline schema/grader/target check
-python evals/build_probe.py --scenario all --label baseline --model sonnet --trials 3 \
+python evals/build_probe.py validate                        # offline schema/grader/target check
+python evals/build_probe.py run --scenario all --label baseline --model sonnet --trials 3 \
   --out .eval-runs/<iteration>
-python evals/build_probe.py --scenario discovery-runbook-incident-update --label desc-change \
+python evals/build_probe.py run --scenario discovery-runbook-incident-update --label desc-change \
   --model sonnet --trials 3 --out .eval-runs/<iteration>
 ```
 
-`--validate` is the CI-safe check and the one to run on any scenario edit. `--run` equivalents need
-a Claude-enabled runner and start a fresh non-persistent process per trial.
+`validate` is the CI-safe check and the one to run on any scenario edit. `run` needs a
+Claude-enabled runner and starts a fresh non-persistent process per trial. The other jobs are
+`regrade`, `rescore`, `diff` and `schema`; `build_probe.py COMMAND --help` describes each. The flat
+flags of earlier runners (`--validate`, `--regrade DIR`, `--rescore DIR --out DIR`,
+`--rescore-diff BASE CANDIDATE`, and a bare run) still parse and reach the same jobs.
 
 **Pin `--model` on every run.** The fleet's measurement default is the `sonnet` alias unless the
 roadmap item names another tier: it is the tier the existing routing evidence was taken on. A run on
@@ -36,8 +39,8 @@ a different tier is a different baseline — record it and never average it with
 
 Compare an incumbent with `--plugin-root <worktree> --label incumbent`; `--expect-plugin-digest`
 refuses any other bytes. `--overwrite` replaces the selected run slots; use a new label when changing
-the candidate or scenario. `--regrade` re-grades saved traces offline only when the original scenario
-identity matches, and `--rescore` and `--rescore-diff` compare runner revisions on saved traces (see
+the candidate or scenario. `regrade` re-grades saved traces offline only when the original scenario
+identity matches, and `rescore` and `diff` compare runner revisions on saved traces (see
 [Provenance](#provenance)). Trials run on the host; externally authored code runs only in separately
 authorized CI, so the former `--container` mode was removed (`EVAL-011`).
 
@@ -46,6 +49,30 @@ helper. Their sole-helper boundary cannot also permit a second agent dispatch. S
 conversations retain positive main-session routing. Measure agent discovery with a separate unhinted
 routing scenario. Saved native agent runs require matching `--agent` evidence on both invocations;
 an old main-session trace cannot be reclassified as agent acceptance.
+
+## Runner layout
+
+`build_probe.py` is the entry point and keeps every name the runner has always exported; the code is
+in [`probe/`](probe), one module per job (its [`__init__.py`](probe/__init__.py) lists them):
+
+- **Typed results.** A check returns an `Outcome` that states whether its evidence measured the
+  candidate (`PASS`, `FAIL` or `INCONCLUSIVE`) and whether a failure was the grading machinery's. It
+  still unpacks as the `(passed, evidence)` pair, and saved grades keep the same text, so any runner
+  reads them; only `Outcome.read` interprets that text.
+- **Declared checks.** Each check in [`probe/checking.py`](probe/checking.py) is registered with
+  `@declare`: whether it forbids, requires or both, and the evidence it reads. The forbidding and
+  requiring sets, regradability and the cut-short rules are derived from those declarations.
+- **One grading loop.** `assessment.assess` grades a live trial and a regrade alike; a regrade
+  supplies the saved verdicts it keeps. A result rule therefore changes in one place.
+- **A published record contract.** `records.RecordV1` validates each `record.json` before it is
+  written, and [`eval-record-v1.schema.json`](../docs/fleet-evaluation/eval-record-v1.schema.json)
+  is generated from it by `build_probe.py schema --out ...`; a test fails when the two differ.
+- **Static checks.** [`pyproject.toml`](../pyproject.toml) runs Ruff (lint and format) and strict
+  mypy over the runner; CI runs them after the component tests. `python -m ruff check`,
+  `python -m ruff format --check` and `python -m mypy` reproduce them locally.
+
+A function is patched in the module that defines it, such as `probe.trials.run_trial`: every other
+module calls it through that module, so one patch reaches every caller, and a test enforces it.
 
 ## Inspect AI + Inspect SWE pilot
 
@@ -228,7 +255,7 @@ named broken artifacts. They reuse the native runner and standard-library checks
 
 ```bash
 python -m pytest evals/test_python_craft_oracle.py evals/test_python_new_code_probe.py evals/test_python_index_probe.py -q
-python evals/build_probe.py --validate
+python evals/build_probe.py validate
 ```
 
 The storage checks observe growth on two supplied workloads, calibrated against whole-row and
@@ -243,8 +270,8 @@ attestation.
 For an agreed native preflight, select each case separately and pin the model:
 
 ```bash
-python evals/build_probe.py --scenario build-python-new-streaming-cli --label candidate --model sonnet --trials 1 --out .eval-runs/python-craft-builds
-python evals/build_probe.py --scenario build-python-indexed-membership --label candidate --model sonnet --trials 1 --out .eval-runs/python-craft-builds
+python evals/build_probe.py run --scenario build-python-new-streaming-cli --label candidate --model sonnet --trials 1 --out .eval-runs/python-craft-builds
+python evals/build_probe.py run --scenario build-python-indexed-membership --label candidate --model sonnet --trials 1 --out .eval-runs/python-craft-builds
 ```
 
 The new probes also require the agent's own final foreground unittest receipt; later shell actions
@@ -409,7 +436,7 @@ trial INCONCLUSIVE. Normal build and contract rubric graders require one explici
 calibration receipt before starting the evaluated agent:
 
 ```bash
-python evals/build_probe.py --scenario <id> --label <label> --out <dir> --judge-calibration .eval-runs/judge-calibration/<run>/identity.json
+python evals/build_probe.py run --scenario <id> --label <label> --out <dir> --judge-calibration .eval-runs/judge-calibration/<run>/identity.json
 ```
 
 The receipt must cover the current canonical corpus (every rubric has PASS and FAIL cases),
@@ -500,22 +527,23 @@ not call a judge or recover workspace evidence that was never recorded. Rubric r
 immutable binding embedded in the original live grade, without reopening a current receipt or
 recalibrating. Missing binding evidence or a changed judged response makes the regrade INCONCLUSIVE.
 
-The scenario digest also binds the evaluator implementation: `build_probe.py`, `graders.py`,
+The scenario digest also binds the evaluator implementation: `build_probe.py`, every module in
+`probe/` (found by listing the package, so a new module is bound the moment it exists), `graders.py`,
 `judge.py`, and `clean_room.py`, plus Python and PyYAML versions. Start the runner in a fresh process
-from a stable checkout with the pinned dependencies. All four modules are loaded before the source
-identity is captured; subsequent source edits abort grading/regrade and require a new process rather
-than assigning changed disk bytes to already-imported code. The digest is conservative: even an
+from a stable checkout with the pinned dependencies. Source edits made after the identity is
+captured abort grading/regrade and require a new process rather than assigning changed disk bytes to
+already-imported code. The digest is conservative: even an
 unrelated evaluator edit invalidates prior scenario identities. In-process code replacement is
 unsupported; this is provenance for the trusted runner, not attestation of its Python environment.
 
-Because of that, `--regrade` cannot show what a runner edit changes. `--rescore ITERATION_DIR --out
+Because of that, `regrade` cannot show what a runner edit changes. `rescore ITERATION_DIR --out
 DIR` grades every saved run with the current runner into the new directory `DIR`, never writing the
 saved runs, and grades across a runner change by finding kept verdicts under the saved identity;
 those runs are marked `identity_relaxed`. `DIR/rescore.json` records the runner identity, each
 run's saved and rescored verdicts, unreadable runs, and scenarios or runs it skipped. A rescore is a
 comparison, never a verdict: its differences from the saved verdicts also include scenario edits made
 since the run. To isolate a runner change, rescore the same runs with the base and candidate
-checkouts and run `--rescore-diff BASE_DIR CANDIDATE_DIR`, which lists every run and check whose
+checkouts and run `diff BASE_DIR CANDIDATE_DIR`, which lists every run and check whose
 verdict differs and exits 1 when any does. Each runner commit explains every line it prints in its
 commit message.
 
