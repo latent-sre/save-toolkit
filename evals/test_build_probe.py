@@ -2202,7 +2202,7 @@ class ReviewFindingTests(unittest.TestCase):
         seed_spec["fixture"]["services"] = [{**declared, "seed": [{"path": "/seed", "json": {"x": 1}}]}]
         with mock.patch.object(build_probe.subprocess, "run", side_effect=docker_run), \
              mock.patch.object(probe_backing, "request", side_effect=[(200, {}), (0, "unreachable")]), \
-             mock.patch.object(probe_backing, "_start_service_proxy", return_value=None, create=True):
+             mock.patch.object(probe_backing, "_start_service_proxy", return_value=None):
             with self.assertRaisesRegex(build_probe.ServiceUnavailable, "seed /seed -> 0"):
                 build_probe.start_services(seed_spec)
 
@@ -2210,7 +2210,7 @@ class ReviewFindingTests(unittest.TestCase):
         snapshot_spec["fixture"]["services"] = [{**declared, "snapshot": ["/snapshot"]}]
         with mock.patch.object(build_probe.subprocess, "run", side_effect=docker_run), \
              mock.patch.object(probe_backing, "request", side_effect=[(200, {}), (0, "unreachable")]), \
-             mock.patch.object(probe_backing, "_start_service_proxy", return_value=None, create=True):
+             mock.patch.object(probe_backing, "_start_service_proxy", return_value=None):
             with self.assertRaisesRegex(build_probe.ServiceUnavailable, "snapshot /snapshot -> 0"):
                 build_probe.start_services(snapshot_spec)
 
@@ -2292,7 +2292,7 @@ class ReviewFindingTests(unittest.TestCase):
 
         with mock.patch.object(build_probe.subprocess, "run", side_effect=docker_run), \
              mock.patch.object(probe_backing, "request", return_value=(200, {})), \
-             mock.patch.object(probe_backing, "_start_service_proxy", return_value=None, create=True):
+             mock.patch.object(probe_backing, "_start_service_proxy", return_value=None):
             services = build_probe.start_services(spec)
             build_probe.stop_services(services)
         runs = [call for call in calls if call[1] == "run"]
@@ -2357,7 +2357,7 @@ class ReviewFindingTests(unittest.TestCase):
         responses = [(200, {}), (200, {"data": {"result": [{"value": [1, "1"]}]}}), (200, {})]
         with mock.patch.object(build_probe.subprocess, "run", side_effect=docker_run), \
              mock.patch.object(probe_backing, "request", side_effect=responses), \
-             mock.patch.object(probe_backing, "_start_service_proxy", return_value=None, create=True):
+             mock.patch.object(probe_backing, "_start_service_proxy", return_value=None):
             services = build_probe.start_services(spec)
             config_root = services[0].config_root
             build_probe.stop_services(services)
