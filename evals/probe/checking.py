@@ -289,15 +289,24 @@ def _stage_writes(ctx: Context, p: Params) -> str | None:
     return None
 
 
-@declare("command_exit_zero", Polarity.REQUIRES, needs={Need.CHECKOUT}, names_unmeasured=True)
-def check_command_exit_zero(ctx: Context, p: Params) -> Outcome:
+def _staged_run(ctx: Context, p: Params) -> subprocess.CompletedProcess[str] | Outcome:
+    """Stage the check's own files and run its command: the finished process, or the outcome that
+    ends the check. A file the check cannot stage is misconfiguration, never the candidate (result
+    rule 5); a command that outlives its timeout fails."""
     problem = _stage_writes(ctx, p)
-    if problem:  # the check's own files: a misconfigured check, never the candidate (result rule 5)
+    if problem:
         return instrument(problem)
     try:
-        proc = _run(ctx, p["command"], timeout=int(p.get("timeout", 180)))
+        return _run(ctx, p["command"], timeout=int(p.get("timeout", 180)))
     except subprocess.TimeoutExpired:
         return verdict(False, f"{p['command']!r} timed out")
+
+
+@declare("command_exit_zero", Polarity.REQUIRES, needs={Need.CHECKOUT}, names_unmeasured=True)
+def check_command_exit_zero(ctx: Context, p: Params) -> Outcome:
+    proc = _staged_run(ctx, p)
+    if isinstance(proc, Outcome):
+        return proc
     tail = (proc.stdout + proc.stderr).strip()[-300:].replace("\n", " | ")
     evidence = f"{p['command']!r} exit {proc.returncode}: {tail}"
     unavailable = p.get("inconclusive_exit_code")
@@ -314,13 +323,9 @@ def check_command_output_regex(ctx: Context, p: Params) -> Outcome:
     runs it proves only that the two agree with each other; this check pins the behaviour to an
     input and answer the model never saw.
     """
-    problem = _stage_writes(ctx, p)
-    if problem:  # the check's own files: a misconfigured check, never the candidate (result rule 5)
-        return instrument(problem)
-    try:
-        proc = _run(ctx, p["command"], timeout=int(p.get("timeout", 180)))
-    except subprocess.TimeoutExpired:
-        return verdict(False, f"{p['command']!r} timed out")
+    proc = _staged_run(ctx, p)
+    if isinstance(proc, Outcome):
+        return proc
     m = re.search(p["pattern"], proc.stdout, re.IGNORECASE | re.DOTALL)
     ok = proc.returncode == 0 and m is not None
     return verdict(
