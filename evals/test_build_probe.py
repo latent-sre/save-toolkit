@@ -84,6 +84,9 @@ TINY_SPEC = {
     "checks": [{"check": "no_new_commits"}],
 }
 
+NATIVE_SPEC = {**TINY_SPEC, "followups": ["and then?"], "helper": "sre-assistant", "tools": ["Skill", "Read", "Task"],
+              "expected_model": "claude-sonnet-5-5"}
+
 
 def _ctx(spec: dict, ws: probe_workspaces.Workspace, *, text: str = "", skills=(), skills_failed=(), bash=(), dispatches=()) -> probe_checking.Context:
     trace = probe_tracing.TraceSummary(result_text=text, skills=list(skills), skills_failed=list(skills_failed),
@@ -179,6 +182,10 @@ class ScenarioSpecTests(unittest.TestCase):
         exec(compile(script, "probe_runbook_slots.py", "exec"), namespace)
         template = (ROOT / "skills" / "runbook" / "assets" / "runbook-template.md").read_text(encoding="utf-8")
         self.assertEqual(set(re.findall(r"<[^<>\n]*>", template)), set(namespace["TEMPLATE_LITERALS"]))
+
+    def test_validation_reports_malformed_checks_instead_of_crashing(self) -> None:
+        problems = probe_catalog.validate_scenario({**TINY_SPEC, "threshold": 0.5, "checks": ["bad"], "graders": [7]})
+        self.assertTrue(problems)
 
 
 class WorkspaceAndCheckTests(unittest.TestCase):
@@ -866,6 +873,22 @@ class TraceAndCommandTests(unittest.TestCase):
         self.assertEqual(sorted(probe_constants.BUILD_TOOLS), sorted(cmd[cmd.index("--allowedTools") + 1].split(",")))
         self.assertEqual("sonnet", cmd[cmd.index("--model") + 1])
         self.assertIn("--strict-mcp-config", cmd)
+
+    def test_the_measured_plugin_must_be_the_one_the_runtime_loaded(self) -> None:
+        """P1: no plugin, two plugins, or a plugin from another path is not a verdict about the agent."""
+        self.assertIsNone(probe_invocation.plugin_identity_problem(
+            probe_tracing.TraceSummary(runtime_plugins=[{"name": "save-toolkit", "path": str(ROOT)}]), ROOT))
+        for observed, marker in (
+            ([], "exactly one"),
+            ([{"name": "save-toolkit", "path": str(ROOT)}, {"name": "other", "path": str(ROOT)}], "exactly one"),
+            ([{"name": "impostor", "path": str(ROOT)}], "name"),
+            ([{"name": "save-toolkit", "path": str(ROOT / "skills")}], "path"),
+            ([{"name": "save-toolkit"}], "path"),
+        ):
+            problem = probe_invocation.plugin_identity_problem(
+                probe_tracing.TraceSummary(runtime_plugins=observed), ROOT)
+            self.assertIsNotNone(problem, observed)
+            self.assertIn(marker, problem)
 
 
 class VerificationEvidenceTests(unittest.TestCase):
@@ -1667,6 +1690,72 @@ class NativeConversationRunTests(unittest.TestCase):
                     events[-1].pop("total_cost_usd")
                 path.write_text("\n".join(json.dumps(event) for event in events), encoding="utf-8")
                 self.assertEqual("INCONCLUSIVE", probe_rescoring.regrade_run(run, self.SPEC)["status"])
+
+    def test_a_cut_short_native_run_on_the_wrong_model_is_void(self) -> None:
+        partial = probe_tracing.TraceSummary(main_models=["claude-opus-5-5"], init_session_ids=["s1"])
+        with mock.patch.object(probe_invocation, "profile_problem", return_value=None):
+            problem = probe_invocation.invocation_problem(partial, None, NATIVE_SPEC, ROOT, ROOT)
+        self.assertIn("native parent model", problem)
+        self.assertNotIsInstance(problem, probe_outcomes.CutShort)
+        right = probe_tracing.TraceSummary(main_models=["claude-sonnet-5-5"], init_session_ids=["s1"])
+        with mock.patch.object(probe_invocation, "profile_problem", return_value=None):
+            cut = probe_invocation.invocation_problem(right, None, NATIVE_SPEC, ROOT, ROOT)
+        self.assertIsInstance(cut, probe_outcomes.CutShort)
+        self.assertEqual("no_result", cut.kind)
+
+    def test_a_native_cut_survives_regrade_as_a_cut(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            run = Path(tmp)
+            (run / "stdout.jsonl").write_text("", encoding="utf-8")
+            partial = probe_tracing.parse_trace(run / "stdout.jsonl")  # the runner records what it parsed
+            (run / "invocation.json").write_text(json.dumps({
+                "argv": ["claude", "--agent", "save-toolkit:software-engineer"], "session_id": partial.session_id,
+                "workspace": str(run.resolve()), "exit_code": None, "expected_model": "claude-sonnet-5-5",
+                "main_models": partial.main_models, "init_session_ids": partial.init_session_ids, "resume": None,
+                "inconclusive": "timed out after 900s", "cut_short": True, "run_stop": "wall_clock"}), encoding="utf-8")
+            with mock.patch.object(probe_invocation, "invocation_problem",
+                                   return_value=probe_outcomes.CutShort("no result event", "no_result")):
+                kept = probe_rescoring.native_regrade_problem(run, NATIVE_SPEC, ROOT)
+            with mock.patch.object(probe_invocation, "invocation_problem", return_value="native parent model differs"):
+                voided = probe_rescoring.native_regrade_problem(run, NATIVE_SPEC, ROOT)
+        self.assertIsInstance(kept, probe_outcomes.CutShort)
+        self.assertEqual(("timed out after 900s", "wall_clock"), (str(kept), kept.kind))
+        self.assertEqual("native parent model differs", voided)
+
+    def test_a_native_regrade_names_what_failed_instead_of_blaming_the_saved_run(self) -> None:
+        invalid = "native invocation boundary evidence missing or invalid; re-run the trial"
+
+        def save(run: Path, **metadata: object) -> None:
+            (run / "stdout.jsonl").write_text("", encoding="utf-8")
+            partial = probe_tracing.parse_trace(run / "stdout.jsonl")
+            (run / "invocation.json").write_text(json.dumps({
+                "argv": ["claude", "--agent", "save-toolkit:software-engineer"], "session_id": partial.session_id,
+                "workspace": str(run.resolve()), "exit_code": 0, "expected_model": "claude-sonnet-5-5",
+                "main_models": partial.main_models, "init_session_ids": partial.init_session_ids, "resume": None,
+                "inconclusive": None, **metadata}), encoding="utf-8")
+
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as empty_root:
+            run = Path(tmp)
+            save(run)
+            # A defect in the runner raises: the saved run is not at fault, and a re-run would not help.
+            with mock.patch.object(probe_tracing, "parse_trace", side_effect=TypeError("runner defect")), \
+                    self.assertRaises(TypeError):
+                probe_rescoring.native_regrade_problem(run, NATIVE_SPEC, ROOT)
+            # A plugin root that no longer holds the agent is named, not blamed on the saved run.
+            self.assertIn("plugin root", probe_rescoring.native_regrade_problem(run, NATIVE_SPEC, Path(empty_root)) or "")
+            # Malformed saved evidence is still invalid saved evidence.
+            save(run, inconclusive="timed out after 900s", cut_short=True, exit_code=None, run_stop="bogus")
+            with mock.patch.object(probe_invocation, "invocation_problem",
+                                   return_value=probe_outcomes.CutShort("no result event", "no_result")):
+                self.assertEqual(invalid, probe_rescoring.native_regrade_problem(run, NATIVE_SPEC, ROOT))
+
+    def test_a_regrade_plans_a_native_grade_without_reading_the_plugin_root(self) -> None:
+        # A regrade plans every expectation before it applies the run-level reason, so a native run
+        # whose saved plugin root is gone, and whose replay already voided it, must still plan: the
+        # helper's namespace is read only when that expectation is measured.
+        with tempfile.TemporaryDirectory() as gone:
+            items = probe_assessment.plan(NATIVE_SPEC, probe_tracing.TraceSummary(), None, Path(gone) / "plugin", keep=True)
+        self.assertIn("native helper completed exactly once", [item.text for item in items])
 
 
 STUB_CLAUDE = '''
@@ -3121,6 +3210,17 @@ class RoutingGradeTests(unittest.TestCase):
         self.assertFalse(missing)
         self.assertIn("expected alternative", detail)
 
+    def test_a_negative_routing_cut_fails_only_on_the_forbidden_target(self) -> None:
+        negative = {"id": "n", "target": {"kind": "skill", "name": "pcf-deploy"},
+                    "routing": {"expect": "not_fire", "expected_alternative": "inline"}}
+        fired = probe_assessment.grade_routing(negative, _trace(skills=["save-toolkit:pcf-deploy"]), ROOT)
+        missing_alternative = probe_assessment.grade_routing(negative, _trace(skills=["save-toolkit:runbook"]), ROOT)
+        self.assertEqual(("FAIL", True), (fired.state, fired.forbidden))
+        self.assertEqual(("FAIL", False), (missing_alternative.state, missing_alternative.forbidden))
+        self.assertEqual("FAIL", probe_assessment.routing_on_cut(fired, "timed out").state)
+        self.assertEqual("INCONCLUSIVE", probe_assessment.routing_on_cut(missing_alternative, "timed out").state)
+        self.assertEqual(["both"], probe_catalog.assertion_polarities(negative))
+
 
 class ThresholdAggregationTests(unittest.TestCase):
     def test_positive_threshold_is_honoured(self) -> None:
@@ -3200,6 +3300,24 @@ class MainSessionCommandTests(unittest.TestCase):
         self.assertIn("--permission-mode", command)
         self.assertEqual(",".join(probe_constants.BUILD_TOOLS), command[command.index("--tools") + 1])
 
+    def test_a_pinned_contract_agent_is_not_handed_the_build_tool_set(self) -> None:
+        """P1: a text contract is graded on what the lane SAYS; it must not be able to act."""
+        self.assertEqual(("Skill", "Task"), probe_catalog.scenario_tools(CONTRACT_SPEC))
+        build_spec = {**CONTRACT_SPEC, "fixture": {"files": {"a.txt": "x"}}, "checks": []}
+        self.assertEqual(probe_constants.BUILD_TOOLS, probe_catalog.scenario_tools(build_spec))
+
+    def test_a_pinned_contract_agent_is_not_pre_approved_to_act(self) -> None:
+        command = probe_invocation.build_command(
+            "claude", ROOT, "save-toolkit:sre-assistant", "p", None,
+            probe_catalog.scenario_tools(CONTRACT_SPEC), pre_approve=False,
+        )
+        self.assertIn("--agent", command)
+        self.assertNotIn("--permission-mode", command)
+        self.assertNotIn("--allowedTools", command)
+        denied = command[command.index("--disallowedTools") + 1].split(",")
+        for tool in ("Bash", "Edit", "Write", "Read"):
+            self.assertIn(tool, denied)
+
 
 class ScenarioKindValidationTests(unittest.TestCase):
     def test_a_routing_scenario_may_not_pin_an_agent(self) -> None:
@@ -3277,8 +3395,8 @@ CONTRACT_SPEC = {
 }
 
 
-class ConsolidationRegressionTests(unittest.TestCase):
-    """Codex review of PR #222: what the fixture-less contract and routing path lost in the merge."""
+class FixturelessSpecTests(unittest.TestCase):
+    """Routing and contract scenarios carry no fixture; every path that reads one must tolerate that."""
 
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory(prefix="build-probe-consolidation-")
@@ -3304,39 +3422,14 @@ class ConsolidationRegressionTests(unittest.TestCase):
                                   probe_workspaces.GitFacts(0, "main", [], ""))
         self.assertEqual(str(ws.state_dir), probe_checking.grading_env(ctx)["HARNESS_STATE_DIR"])
 
-    def test_a_pinned_contract_agent_is_not_handed_the_build_tool_set(self) -> None:
-        """P1: a text contract is graded on what the lane SAYS; it must not be able to act."""
-        self.assertEqual(("Skill", "Task"), probe_catalog.scenario_tools(CONTRACT_SPEC))
-        build_spec = {**CONTRACT_SPEC, "fixture": {"files": {"a.txt": "x"}}, "checks": []}
-        self.assertEqual(probe_constants.BUILD_TOOLS, probe_catalog.scenario_tools(build_spec))
 
-    def test_a_pinned_contract_agent_is_not_pre_approved_to_act(self) -> None:
-        command = probe_invocation.build_command(
-            "claude", ROOT, "save-toolkit:sre-assistant", "p", None,
-            probe_catalog.scenario_tools(CONTRACT_SPEC), pre_approve=False,
-        )
-        self.assertIn("--agent", command)
-        self.assertNotIn("--permission-mode", command)
-        self.assertNotIn("--allowedTools", command)
-        denied = command[command.index("--disallowedTools") + 1].split(",")
-        for tool in ("Bash", "Edit", "Write", "Read"):
-            self.assertIn(tool, denied)
+    def test_start_services_without_a_fixture_starts_nothing(self) -> None:
+        self.assertEqual([], probe_backing.start_services({"id": "r", "prompt": "x"}))
 
-    def test_the_measured_plugin_must_be_the_one_the_runtime_loaded(self) -> None:
-        """P1: no plugin, two plugins, or a plugin from another path is not a verdict about the agent."""
-        self.assertIsNone(probe_invocation.plugin_identity_problem(
-            probe_tracing.TraceSummary(runtime_plugins=[{"name": "save-toolkit", "path": str(ROOT)}]), ROOT))
-        for observed, marker in (
-            ([], "exactly one"),
-            ([{"name": "save-toolkit", "path": str(ROOT)}, {"name": "other", "path": str(ROOT)}], "exactly one"),
-            ([{"name": "impostor", "path": str(ROOT)}], "name"),
-            ([{"name": "save-toolkit", "path": str(ROOT / "skills")}], "path"),
-            ([{"name": "save-toolkit"}], "path"),
-        ):
-            problem = probe_invocation.plugin_identity_problem(
-                probe_tracing.TraceSummary(runtime_plugins=observed), ROOT)
-            self.assertIsNotNone(problem, observed)
-            self.assertIn(marker, problem)
+    def test_seed_workspace_without_a_fixture_makes_an_empty_repo(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            probe_workspaces.seed_workspace({"id": "r", "prompt": "x"}, Path(tmp))
+            self.assertTrue((Path(tmp) / "repo" / ".git").exists())
 
 
 class RuntimeIdentityTests(unittest.TestCase):
@@ -4025,6 +4118,13 @@ class JudgeSpendAccountingTests(unittest.TestCase):
                               "live_calls": 0, "cached_calls": 0, "seconds": 0.0},
                              probe_records.judge_spend())
 
+    def test_live_and_cached_judge_calls_are_counted_apart(self) -> None:
+        judge = mock.Mock(drain_spend=lambda: [{"cost_usd": 0.02, "seconds": 1.0, "cached": False},
+                                               {"cost_usd": 0.0, "seconds": 0.0, "cached": True}])
+        with mock.patch.dict(sys.modules, {"judge": judge}):
+            spend = probe_records.judge_spend()
+        self.assertEqual((1, 1), (spend["live_calls"], spend["cached_calls"]))
+
 
 class NormalJudgeBindingTests(unittest.TestCase):
     def test_run_trial_preflights_both_rubric_forms_before_agent_spend(self):
@@ -4120,18 +4220,6 @@ class NormalJudgeBindingTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
-
-class FixturelessSpecTests(unittest.TestCase):
-    """Routing and contract scenarios carry no fixture; every path that reads one must tolerate that."""
-
-    def test_start_services_without_a_fixture_starts_nothing(self) -> None:
-        self.assertEqual([], probe_backing.start_services({"id": "r", "prompt": "x"}))
-
-    def test_seed_workspace_without_a_fixture_makes_an_empty_repo(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            probe_workspaces.seed_workspace({"id": "r", "prompt": "x"}, Path(tmp))
-            self.assertTrue((Path(tmp) / "repo" / ".git").exists())
 
 
 class SubagentDenialTests(unittest.TestCase):
@@ -4416,6 +4504,10 @@ class ResultRuleTests(unittest.TestCase):
         self.assertEqual(2, code)
         self.assertIn('"trials_not_run": 2', out.getvalue())
 
+    def test_an_instrument_failure_is_unmeasured_not_a_candidate_failure(self) -> None:
+        state = probe_outcomes.legacy_state({"passed": False, "evidence": "instrument: a Skill call carried no name"})
+        self.assertEqual("INCONCLUSIVE", state)
+
 
 # Each check's reviewed polarity (result rules 2 and 3). A forbidding check fails even a run cut short
 # and holds its scenario to every trial, so re-declaring one must change this table on purpose: the
@@ -4553,6 +4645,16 @@ class CutShortRunTests(unittest.TestCase):
         self.assertEqual("FAIL", summary["status"])
         self.assertIn("timed out", grading["unmeasured"])
 
+    def test_a_ceiling_exceeded_before_a_cut_fails_while_an_unmet_floor_proves_nothing(self) -> None:
+        check = {"check": "tool_call_count", "tool": "WebFetch", "minimum": 1, "maximum": 3, "text": "bounded lookup"}
+        on_cut = probe_checking.CHECKS["tool_call_count"].on_cut
+        over = on_cut(check, probe_tracing.TraceSummary(tool_counts={"WebFetch": 4}), "timed out")
+        under = on_cut(check, probe_tracing.TraceSummary(tool_counts={}), "timed out")
+        self.assertEqual(("FAIL", "INCONCLUSIVE"), (over.state, under.state))
+        self.assertTrue(over.forbidden, "calls past the ceiling are a forbidden action, not an unmet floor")
+        self.assertEqual(1.0, probe_batches.effective_threshold({"id": "x", "checks": [check]}, 0.66),
+                         "a ceiling holds every trial")
+
 
 class RunnerIdentityTests(unittest.TestCase):
     """EVAL-011 identity: results name the runner, never pool CLI versions or hosts, and measure every hook."""
@@ -4590,6 +4692,10 @@ class RunnerIdentityTests(unittest.TestCase):
             hook.write_bytes(hook.read_bytes() + b"\n# changed\n")
             self.assertNotEqual(before, probe_fingerprints.plugin_digest(plugin))
 
+    def test_an_unknown_cli_version_refuses_the_batch(self) -> None:
+        runtime = {"cli_version": None, "host_platform": {"system": "Windows", "release": "11", "machine": "AMD64"}}
+        self.assertIn("did not report its version", probe_batches.batch_identity_problem([], [TINY_SPEC], "p", None, runtime))
+
 
 class UnknownCostTests(unittest.TestCase):
     """EVAL-011 attempts and cost: an unknown cost is recorded as unknown, never as zero."""
@@ -4609,6 +4715,17 @@ class UnknownCostTests(unittest.TestCase):
         self.assertEqual({"cost_usd": 0.13, "known_cost_usd": 0.13, "cost_complete": True}, probe_records.trial_cost(0.1, known))
         self.assertEqual({"cost_usd": None, "known_cost_usd": 0.03, "cost_complete": False}, probe_records.trial_cost(None, known))
         self.assertEqual({"cost_usd": None, "known_cost_usd": 0.12, "cost_complete": False}, probe_records.trial_cost(0.1, unknown))
+
+    def test_invalid_reported_costs_are_unknown(self) -> None:
+        for bad in (float("nan"), float("inf"), -0.01, "0.1", True):
+            with self.subTest(bad=bad):
+                self.assertIsNone(probe_records.known_usd(bad))
+        judge = {"cost_usd": 0.0, "known_cost_usd": 0.0}
+        self.assertEqual({"cost_usd": None, "known_cost_usd": 0.0, "cost_complete": False},
+                         probe_records.trial_cost(float("nan"), judge))
+        spend = mock.Mock(drain_spend=lambda: [{"cost_usd": -1.0, "seconds": 1.0, "cached": False}])
+        with mock.patch.dict(sys.modules, {"judge": spend}):
+            self.assertIsNone(probe_records.judge_spend()["cost_usd"])
 
 
 class BatchSpendCapTests(unittest.TestCase):
@@ -4643,6 +4760,46 @@ class BatchSpendCapTests(unittest.TestCase):
         _code, calls, out = self._main([(0.1, False), (0.1, True)], "20")
         self.assertEqual([1], calls)
         self.assertIn("cap cannot be enforced", out)
+
+    def test_the_batch_cap_must_be_finite_and_non_negative(self) -> None:
+        for bad in ("nan", "inf", "-1", "abc"):
+            with self.subTest(bad=bad), self.assertRaises(argparse.ArgumentTypeError):
+                probe_cli._budget(bad)
+        self.assertEqual(20.0, probe_cli._budget("20"))
+        with self.assertRaises(argparse.ArgumentTypeError):
+            probe_cli._budget("0")  # a zero cap would schedule nothing; a cap must be positive
+
+    def test_a_resumed_batch_counts_what_its_retained_trials_spent(self) -> None:
+        runtime = {"cli_version": "x", "host_platform": {"system": "Windows", "release": "11", "machine": "AMD64"}}
+        spec = next(s for s in probe_catalog.load_all_scenarios() if not probe_fingerprints.required_rubrics(s)
+                    and not (s.get("fixture") or {}).get("services") and not s.get("followups"))
+        def row(run, known, complete):
+            return {
+            "scenario": spec["id"], "label": "l", "run": run, "status": "PASS", "passed": 1, "total": 1,
+            "models": ["m"], "runtime": runtime, "plugin_source_sha256": "0" * 64,
+            "scenario_sha256": probe_fingerprints.scenario_digest(spec), "known_cost_usd": known, "cost_complete": complete}
+        for retained, expected_calls in (((0.9, True), [2]), ((0.0, False), [])):
+            calls: list[int] = []
+
+            def fake_run_trial(spec_arg, **kwargs):
+                calls.append(kwargs["run_number"])  # noqa: B023 -- called within this iteration
+                return row(kwargs["run_number"], 0.2, True)
+
+            with (
+                self.subTest(retained=retained),
+                tempfile.TemporaryDirectory() as tmp,
+                mock.patch.object(probe_catalog, "load_all_scenarios", return_value=[spec]),
+                mock.patch.object(probe_fingerprints, "plugin_provenance", return_value={"plugin_source_sha256": "0" * 64}),
+                mock.patch.object(probe_fingerprints, "runtime_identity", return_value=runtime),
+                mock.patch.object(probe_trials, "run_trial", side_effect=fake_run_trial),
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                out = Path(tmp) / "it"
+                out.mkdir()
+                (out / "summary-l-default.json").write_text(json.dumps([row(1, *retained)]), encoding="utf-8")
+                probe_cli.main(["--scenario", spec["id"], "--label", "l", "--trials", "2", "--run-offset", "1",
+                                  "--out", str(out), "--max-batch-usd", "1.0"])
+            self.assertEqual(expected_calls, calls)
 
 
 class SpendCapAttemptTests(unittest.TestCase):
@@ -4809,6 +4966,20 @@ class ResultRecordV1Tests(unittest.TestCase):
         acl = subprocess.run(["icacls", str(run)], capture_output=True, text=True).stdout
         self.assertIn("(I)", acl, "a mkdtemp folder lists only explicit owner-only entries")
 
+    def test_a_regrade_lists_its_assessment_in_the_v1_record(self) -> None:
+        tests = ResultRecordV1Tests(methodName="test_long_evidence_is_flagged_as_truncated")
+        tests.setUp()
+        try:
+            run = tests._run()
+            original = json.loads((run / "record.json").read_text(encoding="utf-8"))
+            probe_rescoring.regrade_run(run, EndToEndStubTests._spec(tests))
+            record = json.loads((run / "record.json").read_text(encoding="utf-8"))
+        finally:
+            tests.tearDown()
+        self.assertEqual(original["verdict"], record["verdict"], "the live verdict is never rewritten")
+        self.assertEqual([1], [a["revision"] for a in record["assessments"]])
+        self.assertEqual("assessments/1/grading.json", record["assessments"][0]["grading"])
+
 
 class GradingMachineryTests(unittest.TestCase):
     """Threat-model ADR rule 5: grading-machinery failures are INCONCLUSIVE and stop their scenario."""
@@ -4850,6 +5021,23 @@ class GradingMachineryTests(unittest.TestCase):
         self.assertEqual([(specs[0]["id"], 1), (specs[1]["id"], 1), (specs[1]["id"], 2), (specs[1]["id"], 3)], calls)
         self.assertEqual(2, code)
         self.assertIn('"trials_not_run": 2', out.getvalue())
+
+    def test_an_instrument_failure_stops_its_scenario(self) -> None:
+        spec = {**TINY_SPEC, "checks": [{"check": "skill_not_loaded", "skill": "eng-ladder", "text": "no ladder"}]}
+        ctx = probe_checking.Context(spec, None, probe_tracing.TraceSummary(skills=["<unnamed-skill>"]), None)
+        grading = probe_assessment.grade(ctx)
+        self.assertEqual("INCONCLUSIVE", grading["expectations"][0]["state"])
+        self.assertIn("Skill call carried no name", grading["grader_error"])
+
+    def test_a_judge_that_could_not_judge_stops_its_scenario(self) -> None:
+        evidence = rubric_judge.INCONCLUSIVE_PREFIX + "judge timed out after 120s"
+        self.assertTrue(probe_outcomes.Outcome.read(False, evidence).machinery)
+        spec = {**TINY_SPEC, "checks": [{"check": "fleet_grader", "name": "regex", "pattern": "x", "text": "judged"}]}
+        ctx = probe_checking.Context(spec, None, probe_tracing.TraceSummary(result_text="response"), None)
+        with mock.patch.object(fleet_graders, "run_grader", return_value=(False, evidence)):
+            grading = probe_assessment.grade(ctx)
+        self.assertEqual(("INCONCLUSIVE", "INCONCLUSIVE"), (grading["status"], grading["expectations"][0]["state"]))
+        self.assertIn("judge timed out", grading["grader_error"])
 
 
 class TurnLimitTests(unittest.TestCase):
@@ -4900,222 +5088,6 @@ class TurnLimitTests(unittest.TestCase):
             with self.subTest(bad=bad):
                 self.assertTrue(any("max_turns" in p for p in probe_catalog.validate_scenario({**TINY_SPEC, "max_turns": bad})))
         self.assertFalse(any("max_turns" in p for p in probe_catalog.validate_scenario({**TINY_SPEC, "max_turns": 40})))
-
-
-class CodexReviewFindingTests(unittest.TestCase):
-    """The 2026-10-06 review findings on PR #328, each pinned by the behaviour it asked for."""
-
-    def test_a_judge_that_could_not_judge_stops_its_scenario(self) -> None:
-        evidence = rubric_judge.INCONCLUSIVE_PREFIX + "judge timed out after 120s"
-        self.assertTrue(probe_outcomes.Outcome.read(False, evidence).machinery)
-        spec = {**TINY_SPEC, "checks": [{"check": "fleet_grader", "name": "regex", "pattern": "x", "text": "judged"}]}
-        ctx = probe_checking.Context(spec, None, probe_tracing.TraceSummary(result_text="response"), None)
-        with mock.patch.object(fleet_graders, "run_grader", return_value=(False, evidence)):
-            grading = probe_assessment.grade(ctx)
-        self.assertEqual(("INCONCLUSIVE", "INCONCLUSIVE"), (grading["status"], grading["expectations"][0]["state"]))
-        self.assertIn("judge timed out", grading["grader_error"])
-
-    def test_a_ceiling_exceeded_before_a_cut_fails_while_an_unmet_floor_proves_nothing(self) -> None:
-        check = {"check": "tool_call_count", "tool": "WebFetch", "minimum": 1, "maximum": 3, "text": "bounded lookup"}
-        on_cut = probe_checking.CHECKS["tool_call_count"].on_cut
-        over = on_cut(check, probe_tracing.TraceSummary(tool_counts={"WebFetch": 4}), "timed out")
-        under = on_cut(check, probe_tracing.TraceSummary(tool_counts={}), "timed out")
-        self.assertEqual(("FAIL", "INCONCLUSIVE"), (over.state, under.state))
-        self.assertTrue(over.forbidden, "calls past the ceiling are a forbidden action, not an unmet floor")
-        self.assertEqual(1.0, probe_batches.effective_threshold({"id": "x", "checks": [check]}, 0.66),
-                         "a ceiling holds every trial")
-
-    def test_an_unknown_cli_version_refuses_the_batch(self) -> None:
-        runtime = {"cli_version": None, "host_platform": {"system": "Windows", "release": "11", "machine": "AMD64"}}
-        self.assertIn("did not report its version", probe_batches.batch_identity_problem([], [TINY_SPEC], "p", None, runtime))
-
-    def test_the_batch_cap_must_be_finite_and_non_negative(self) -> None:
-        for bad in ("nan", "inf", "-1", "abc"):
-            with self.subTest(bad=bad), self.assertRaises(argparse.ArgumentTypeError):
-                probe_cli._budget(bad)
-        self.assertEqual(20.0, probe_cli._budget("20"))
-        with self.assertRaises(argparse.ArgumentTypeError):
-            probe_cli._budget("0")  # a zero cap would schedule nothing; a cap must be positive
-
-    def test_an_instrument_failure_is_unmeasured_not_a_candidate_failure(self) -> None:
-        state = probe_outcomes.legacy_state({"passed": False, "evidence": "instrument: a Skill call carried no name"})
-        self.assertEqual("INCONCLUSIVE", state)
-
-    def test_validation_reports_malformed_checks_instead_of_crashing(self) -> None:
-        problems = probe_catalog.validate_scenario({**TINY_SPEC, "threshold": 0.5, "checks": ["bad"], "graders": [7]})
-        self.assertTrue(problems)
-
-    def test_invalid_reported_costs_are_unknown(self) -> None:
-        for bad in (float("nan"), float("inf"), -0.01, "0.1", True):
-            with self.subTest(bad=bad):
-                self.assertIsNone(probe_records.known_usd(bad))
-        judge = {"cost_usd": 0.0, "known_cost_usd": 0.0}
-        self.assertEqual({"cost_usd": None, "known_cost_usd": 0.0, "cost_complete": False},
-                         probe_records.trial_cost(float("nan"), judge))
-        spend = mock.Mock(drain_spend=lambda: [{"cost_usd": -1.0, "seconds": 1.0, "cached": False}])
-        with mock.patch.dict(sys.modules, {"judge": spend}):
-            self.assertIsNone(probe_records.judge_spend()["cost_usd"])
-
-    def test_a_resumed_batch_counts_what_its_retained_trials_spent(self) -> None:
-        runtime = {"cli_version": "x", "host_platform": {"system": "Windows", "release": "11", "machine": "AMD64"}}
-        spec = next(s for s in probe_catalog.load_all_scenarios() if not probe_fingerprints.required_rubrics(s)
-                    and not (s.get("fixture") or {}).get("services") and not s.get("followups"))
-        def row(run, known, complete):
-            return {
-            "scenario": spec["id"], "label": "l", "run": run, "status": "PASS", "passed": 1, "total": 1,
-            "models": ["m"], "runtime": runtime, "plugin_source_sha256": "0" * 64,
-            "scenario_sha256": probe_fingerprints.scenario_digest(spec), "known_cost_usd": known, "cost_complete": complete}
-        for retained, expected_calls in (((0.9, True), [2]), ((0.0, False), [])):
-            calls: list[int] = []
-
-            def fake_run_trial(spec_arg, **kwargs):
-                calls.append(kwargs["run_number"])  # noqa: B023 -- called within this iteration
-                return row(kwargs["run_number"], 0.2, True)
-
-            with (
-                self.subTest(retained=retained),
-                tempfile.TemporaryDirectory() as tmp,
-                mock.patch.object(probe_catalog, "load_all_scenarios", return_value=[spec]),
-                mock.patch.object(probe_fingerprints, "plugin_provenance", return_value={"plugin_source_sha256": "0" * 64}),
-                mock.patch.object(probe_fingerprints, "runtime_identity", return_value=runtime),
-                mock.patch.object(probe_trials, "run_trial", side_effect=fake_run_trial),
-                contextlib.redirect_stdout(io.StringIO()),
-            ):
-                out = Path(tmp) / "it"
-                out.mkdir()
-                (out / "summary-l-default.json").write_text(json.dumps([row(1, *retained)]), encoding="utf-8")
-                probe_cli.main(["--scenario", spec["id"], "--label", "l", "--trials", "2", "--run-offset", "1",
-                                  "--out", str(out), "--max-batch-usd", "1.0"])
-            self.assertEqual(expected_calls, calls)
-
-    def test_a_regrade_lists_its_assessment_in_the_v1_record(self) -> None:
-        tests = ResultRecordV1Tests(methodName="test_long_evidence_is_flagged_as_truncated")
-        tests.setUp()
-        try:
-            run = tests._run()
-            original = json.loads((run / "record.json").read_text(encoding="utf-8"))
-            probe_rescoring.regrade_run(run, EndToEndStubTests._spec(tests))
-            record = json.loads((run / "record.json").read_text(encoding="utf-8"))
-        finally:
-            tests.tearDown()
-        self.assertEqual(original["verdict"], record["verdict"], "the live verdict is never rewritten")
-        self.assertEqual([1], [a["revision"] for a in record["assessments"]])
-        self.assertEqual("assessments/1/grading.json", record["assessments"][0]["grading"])
-
-
-class CopilotReviewFindingTests(unittest.TestCase):
-    """The 2026-10-06 Copilot review of PR #328, each finding pinned by the behaviour it asked for."""
-
-    NATIVE = {**TINY_SPEC, "followups": ["and then?"], "helper": "sre-assistant", "tools": ["Skill", "Read", "Task"],
-              "expected_model": "claude-sonnet-5-5"}
-
-    def test_a_cut_short_native_run_on_the_wrong_model_is_void(self) -> None:
-        partial = probe_tracing.TraceSummary(main_models=["claude-opus-5-5"], init_session_ids=["s1"])
-        with mock.patch.object(probe_invocation, "profile_problem", return_value=None):
-            problem = probe_invocation.invocation_problem(partial, None, self.NATIVE, ROOT, ROOT)
-        self.assertIn("native parent model", problem)
-        self.assertNotIsInstance(problem, probe_outcomes.CutShort)
-        right = probe_tracing.TraceSummary(main_models=["claude-sonnet-5-5"], init_session_ids=["s1"])
-        with mock.patch.object(probe_invocation, "profile_problem", return_value=None):
-            cut = probe_invocation.invocation_problem(right, None, self.NATIVE, ROOT, ROOT)
-        self.assertIsInstance(cut, probe_outcomes.CutShort)
-        self.assertEqual("no_result", cut.kind)
-
-    def test_a_negative_routing_cut_fails_only_on_the_forbidden_target(self) -> None:
-        negative = {"id": "n", "target": {"kind": "skill", "name": "pcf-deploy"},
-                    "routing": {"expect": "not_fire", "expected_alternative": "inline"}}
-        fired = probe_assessment.grade_routing(negative, _trace(skills=["save-toolkit:pcf-deploy"]), ROOT)
-        missing_alternative = probe_assessment.grade_routing(negative, _trace(skills=["save-toolkit:runbook"]), ROOT)
-        self.assertEqual(("FAIL", True), (fired.state, fired.forbidden))
-        self.assertEqual(("FAIL", False), (missing_alternative.state, missing_alternative.forbidden))
-        self.assertEqual("FAIL", probe_assessment.routing_on_cut(fired, "timed out").state)
-        self.assertEqual("INCONCLUSIVE", probe_assessment.routing_on_cut(missing_alternative, "timed out").state)
-        self.assertEqual(["both"], probe_catalog.assertion_polarities(negative))
-
-    def test_the_record_carries_how_execution_stopped_not_what_the_checks_found(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            run = Path(tmp)
-            for grading, kind, stop in (
-                    ({"status": "INCONCLUSIVE", "inconclusive": "grader error: boom",
-                      "expectations": [{"id": "x:0", "text": "graded", "kind": "requires", "passed": False,
-                                        "state": "INCONCLUSIVE", "evidence": "INCONCLUSIVE: grader error: boom"}]},
-                     "completed", None),
-                    ({"status": "INCONCLUSIVE", "void": "wrong plugin", "inconclusive": "wrong plugin"}, "void", None),
-                    ({"status": "FAIL", "run_end": "cut_short", "run_stop": "spend_guard", "unmeasured": "cap"},
-                     "cut_short", "spend_guard")):
-                (run / "grading.json").write_text(json.dumps(grading), encoding="utf-8")
-                record = probe_records.write_record(run, TINY_SPEC, label="l", run_number=1, attempt=1,
-                                                  started_at=RecordContractTests.START, model=None, timeout=60)
-                with self.subTest(kind=kind):
-                    self.assertEqual((kind, stop), (record["run_end"]["kind"], record["run_end"]["stop"]))
-
-    def test_live_and_cached_judge_calls_are_counted_apart(self) -> None:
-        judge = mock.Mock(drain_spend=lambda: [{"cost_usd": 0.02, "seconds": 1.0, "cached": False},
-                                               {"cost_usd": 0.0, "seconds": 0.0, "cached": True}])
-        with mock.patch.dict(sys.modules, {"judge": judge}):
-            spend = probe_records.judge_spend()
-        self.assertEqual((1, 1), (spend["live_calls"], spend["cached_calls"]))
-
-    def test_a_native_cut_survives_regrade_as_a_cut(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            run = Path(tmp)
-            (run / "stdout.jsonl").write_text("", encoding="utf-8")
-            partial = probe_tracing.parse_trace(run / "stdout.jsonl")  # the runner records what it parsed
-            (run / "invocation.json").write_text(json.dumps({
-                "argv": ["claude", "--agent", "save-toolkit:software-engineer"], "session_id": partial.session_id,
-                "workspace": str(run.resolve()), "exit_code": None, "expected_model": "claude-sonnet-5-5",
-                "main_models": partial.main_models, "init_session_ids": partial.init_session_ids, "resume": None,
-                "inconclusive": "timed out after 900s", "cut_short": True, "run_stop": "wall_clock"}), encoding="utf-8")
-            with mock.patch.object(probe_invocation, "invocation_problem",
-                                   return_value=probe_outcomes.CutShort("no result event", "no_result")):
-                kept = probe_rescoring.native_regrade_problem(run, self.NATIVE, ROOT)
-            with mock.patch.object(probe_invocation, "invocation_problem", return_value="native parent model differs"):
-                voided = probe_rescoring.native_regrade_problem(run, self.NATIVE, ROOT)
-        self.assertIsInstance(kept, probe_outcomes.CutShort)
-        self.assertEqual(("timed out after 900s", "wall_clock"), (str(kept), kept.kind))
-        self.assertEqual("native parent model differs", voided)
-
-    def test_a_native_regrade_names_what_failed_instead_of_blaming_the_saved_run(self) -> None:
-        invalid = "native invocation boundary evidence missing or invalid; re-run the trial"
-
-        def save(run: Path, **metadata: object) -> None:
-            (run / "stdout.jsonl").write_text("", encoding="utf-8")
-            partial = probe_tracing.parse_trace(run / "stdout.jsonl")
-            (run / "invocation.json").write_text(json.dumps({
-                "argv": ["claude", "--agent", "save-toolkit:software-engineer"], "session_id": partial.session_id,
-                "workspace": str(run.resolve()), "exit_code": 0, "expected_model": "claude-sonnet-5-5",
-                "main_models": partial.main_models, "init_session_ids": partial.init_session_ids, "resume": None,
-                "inconclusive": None, **metadata}), encoding="utf-8")
-
-        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as empty_root:
-            run = Path(tmp)
-            save(run)
-            # A defect in the runner raises: the saved run is not at fault, and a re-run would not help.
-            with mock.patch.object(probe_tracing, "parse_trace", side_effect=TypeError("runner defect")), \
-                    self.assertRaises(TypeError):
-                probe_rescoring.native_regrade_problem(run, self.NATIVE, ROOT)
-            # A plugin root that no longer holds the agent is named, not blamed on the saved run.
-            self.assertIn("plugin root", probe_rescoring.native_regrade_problem(run, self.NATIVE, Path(empty_root)) or "")
-            # Malformed saved evidence is still invalid saved evidence.
-            save(run, inconclusive="timed out after 900s", cut_short=True, exit_code=None, run_stop="bogus")
-            with mock.patch.object(probe_invocation, "invocation_problem",
-                                   return_value=probe_outcomes.CutShort("no result event", "no_result")):
-                self.assertEqual(invalid, probe_rescoring.native_regrade_problem(run, self.NATIVE, ROOT))
-
-    def test_a_regrade_plans_a_native_grade_without_reading_the_plugin_root(self) -> None:
-        # A regrade plans every expectation before it applies the run-level reason, so a native run
-        # whose saved plugin root is gone, and whose replay already voided it, must still plan: the
-        # helper's namespace is read only when that expectation is measured.
-        with tempfile.TemporaryDirectory() as gone:
-            items = probe_assessment.plan(self.NATIVE, probe_tracing.TraceSummary(), None, Path(gone) / "plugin", keep=True)
-        self.assertIn("native helper completed exactly once", [item.text for item in items])
-
-    def test_an_instrument_failure_stops_its_scenario(self) -> None:
-        spec = {**TINY_SPEC, "checks": [{"check": "skill_not_loaded", "skill": "eng-ladder", "text": "no ladder"}]}
-        ctx = probe_checking.Context(spec, None, probe_tracing.TraceSummary(skills=["<unnamed-skill>"]), None)
-        grading = probe_assessment.grade(ctx)
-        self.assertEqual("INCONCLUSIVE", grading["expectations"][0]["state"])
-        self.assertIn("Skill call carried no name", grading["grader_error"])
 
 
 class PackageStructureTests(unittest.TestCase):
@@ -5379,6 +5351,23 @@ class RecordContractTests(unittest.TestCase):
         with mock.patch.dict(sys.modules, {"judge": mock.Mock(drain_spend=lambda: [])}):
             spend = probe_records.judge_spend()
         self.assertEqual((0.0, float), (spend["cost_usd"], type(spend["cost_usd"])))
+
+    def test_the_record_carries_how_execution_stopped_not_what_the_checks_found(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            run = Path(tmp)
+            for grading, kind, stop in (
+                    ({"status": "INCONCLUSIVE", "inconclusive": "grader error: boom",
+                      "expectations": [{"id": "x:0", "text": "graded", "kind": "requires", "passed": False,
+                                        "state": "INCONCLUSIVE", "evidence": "INCONCLUSIVE: grader error: boom"}]},
+                     "completed", None),
+                    ({"status": "INCONCLUSIVE", "void": "wrong plugin", "inconclusive": "wrong plugin"}, "void", None),
+                    ({"status": "FAIL", "run_end": "cut_short", "run_stop": "spend_guard", "unmeasured": "cap"},
+                     "cut_short", "spend_guard")):
+                (run / "grading.json").write_text(json.dumps(grading), encoding="utf-8")
+                record = probe_records.write_record(run, TINY_SPEC, label="l", run_number=1, attempt=1,
+                                                  started_at=RecordContractTests.START, model=None, timeout=60)
+                with self.subTest(kind=kind):
+                    self.assertEqual((kind, stop), (record["run_end"]["kind"], record["run_end"]["stop"]))
 
 
 class GradingLoopTests(unittest.TestCase):
