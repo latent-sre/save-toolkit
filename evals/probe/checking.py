@@ -512,9 +512,9 @@ def check_grafana_dashboard_write(ctx: Context, p: Params) -> Outcome:
             reasons.append("no successful fresh dashboard read preceded the write")
             continue
         live = prior["response"]
-        meta = live.get("meta") if isinstance(live, dict) else None
+        meta = backing.json_pointer(live, "meta")
         dashboard = body.get("dashboard")
-        live_dashboard = live.get("dashboard") if isinstance(live, dict) else None
+        live_dashboard = backing.json_pointer(live, "dashboard")
         if not isinstance(meta, dict) or meta.get("canSave") is not True or meta.get("provisioned") is not False:
             reasons.append("preflight did not prove canSave=true and provisioned=false")
             continue
@@ -665,9 +665,7 @@ def check_grafana_query_succeeded(ctx: Context, p: Params) -> Outcome:
     def persisted_on_p95_panel(expression: str) -> bool:
         if not required_quantile(expression):
             return False
-        body = write.get("request")
-        dashboard = body.get("dashboard") if isinstance(body, dict) else None
-        panels = dashboard.get("panels") if isinstance(dashboard, dict) else None
+        panels = backing.json_pointer(write, "request/dashboard/panels")
         if not isinstance(panels, list):
             return False
         for panel in panels:
@@ -690,7 +688,7 @@ def check_grafana_query_succeeded(ctx: Context, p: Params) -> Outcome:
         return type(value) is int or (type(value) is float and math.isfinite(value))
 
     def frames_have_data(result: object, ref_id: object) -> bool:
-        frames = result.get("frames") if isinstance(result, dict) else None
+        frames = backing.json_pointer(result, "frames")
         if not isinstance(frames, list):
             return False
         found = False
@@ -767,15 +765,14 @@ def check_grafana_query_succeeded(ctx: Context, p: Params) -> Outcome:
             if not grafana_response_ok(response):
                 reasons.append("Grafana batch response carried an error or invalid status")
                 continue
-            request = entry.get("request")
-            queries = request.get("queries") if isinstance(request, dict) else None
+            queries = backing.json_pointer(entry, "request/queries")
             results = backing.json_pointer(response, "results")
             if not isinstance(queries, list) or not isinstance(results, dict):
                 reasons.append("Grafana batch response could not be bound to query refIds")
                 continue
             for query in queries:
-                expression = query.get("expr") if isinstance(query, dict) else None
-                ref_id = query.get("refId") if isinstance(query, dict) else None
+                expression = backing.json_pointer(query, "expr")
+                ref_id = backing.json_pointer(query, "refId")
                 if (
                     not isinstance(expression, str)
                     or metric not in expression.lower()
@@ -1259,7 +1256,7 @@ def describe(check: Params) -> str:
 
 
 def registered(check: object) -> CheckType | None:
-    name = check.get("check") if isinstance(check, dict) else None
+    name = backing.json_pointer(check, "check")
     return CHECKS.get(name) if isinstance(name, str) else None
 
 
