@@ -17,7 +17,7 @@ import os
 import sys
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 import clean_room
 import judge as rubric_judge
@@ -118,8 +118,16 @@ def _run_options(parser: argparse.ArgumentParser, *, required: bool) -> None:
     parser.add_argument("--docker", default="docker", help="container runtime executable used by backing services")
 
 
+class _Parser(argparse.ArgumentParser):
+    """argparse exits 2 on a usage error, which here means an INCONCLUSIVE batch; a refused command line is 3."""
+
+    def error(self, message: str) -> NoReturn:
+        self.print_usage(sys.stderr)
+        self.exit(3, f"{self.prog}: error: {message}\n")
+
+
 def _command_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="build_probe.py", description=(__doc__ or "").split("\n\n")[0])
+    parser = _Parser(prog="build_probe.py", description=(__doc__ or "").split("\n\n")[0])
     commands = parser.add_subparsers(dest="command", required=True, metavar="COMMAND")
     _run_options(
         commands.add_parser("run", help="run trials of the selected scenarios and publish each attempt"), required=True
@@ -150,7 +158,7 @@ def _command_parser() -> argparse.ArgumentParser:
 
 def _legacy_parser() -> argparse.ArgumentParser:
     """The flat flags every earlier runner took; each one maps onto a subcommand."""
-    parser = argparse.ArgumentParser(
+    parser = _Parser(
         prog="build_probe.py",
         description=(__doc__ or "").split("\n\n")[0],
         epilog=f"Subcommands: {', '.join(COMMANDS)}. Run `build_probe.py COMMAND --help` for each.",

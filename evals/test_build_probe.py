@@ -3649,6 +3649,21 @@ class BatchAggregationTests(unittest.TestCase):
         code, _ = self._main([self._trial(1, "PASS")], "--threshold", "0.5")
         self.assertEqual(0, code)
 
+    def test_a_usage_error_exits_3_not_inconclusive_2(self) -> None:
+        """Exit 2 means an INCONCLUSIVE batch; a command line the runner refuses is exit 3, in both forms."""
+        for argv in (["--no-such-flag"], ["run", "--no-such-flag"], ["regrade"], ["no-such-scenario-dir", "--x"]):
+            with (
+                self.subTest(argv=argv),
+                contextlib.redirect_stderr(io.StringIO()) as err,
+                self.assertRaises(SystemExit) as refused,
+            ):
+                probe_cli.main(argv)
+            self.assertEqual(3, refused.exception.code, err.getvalue())
+            self.assertIn("error:", err.getvalue())
+        with contextlib.redirect_stdout(io.StringIO()), self.assertRaises(SystemExit) as helped:
+            probe_cli.main(["--help"])
+        self.assertEqual(0, helped.exception.code)
+
     def test_a_negative_run_offset_is_refused_before_any_trial(self) -> None:
         """Codex P2 on PR #328: `--run-offset -1` published the trial as `run-0`, a slot the v1 record
         refuses, while the batch summary still counted its verdict."""
@@ -3656,7 +3671,7 @@ class BatchAggregationTests(unittest.TestCase):
             with contextlib.redirect_stderr(io.StringIO()) as err, \
                     self.assertRaises(SystemExit, msg=command) as refused:
                 self._main([self._trial(0, "PASS")], "--run-offset", "-1", command=command)
-            self.assertEqual(2, refused.exception.code, command)
+            self.assertEqual(3, refused.exception.code, command)  # refused: bad input, not INCONCLUSIVE
             self.assertIn("error: --run-offset must be at least 0", err.getvalue())
             self.assertFalse(self.out.exists(), "refused before any trial ran or a summary was written")
         code, _ = self._main([self._trial(1, "PASS")], "--run-offset", "0", expected_calls=1)
