@@ -1724,6 +1724,18 @@ class EndToEndStubTests(unittest.TestCase):
 
         return plain
 
+    def _run_trial(self, out_dir: Path, spec: dict | None = None, **changes):
+        """`run_trial` with this class's usual arguments; a test passes only the ones it varies.
+
+        The stub is written only when the test passes no `executable`: every stub is the same file,
+        so writing the default one would replace a stub the test had just written.
+        """
+        options = {"plugin_root": ROOT, "label": "new_skill", "model": None, "run_number": 1, "out_dir": out_dir,
+                   "timeout": 60, "keep_workspace": False, "env_factory": self._env_factory(), **changes}
+        if "executable" not in options:
+            options["executable"] = self._stub()
+        return build_probe.run_trial(self._spec() if spec is None else spec, **options)
+
     def _batch(self, out: Path, stub: str, specs: list[dict], *extra: str) -> tuple[int, list[tuple[str, int]], str]:
         """Run main with the real run_trial and the stub CLI: the exit, each trial started, stdout."""
         runtime = {"cli_version": "x", "host_platform": {"system": "Windows", "release": "11", "machine": "AMD64"}}
@@ -1797,9 +1809,7 @@ class EndToEndStubTests(unittest.TestCase):
     def test_a_trial_whose_trace_names_no_model_is_void(self) -> None:
         """Codex on PR #328: a trial that resolved no model was graded PASS or FAIL and pooled with
         identified trials, where a result whose required identity is unknown is never merged."""
-        summary = build_probe.run_trial(self._spec(), plugin_root=ROOT, label="nomodel", model=None, run_number=1,
-                                        out_dir=self.root / "it", timeout=60, executable=self._stub(resolved_model=""),
-                                        keep_workspace=False, env_factory=self._env_factory())
+        summary = self._run_trial(self.root / "it", label="nomodel", executable=self._stub(resolved_model=""))
         grading = json.loads((self.root / "it" / "eval-tiny" / "nomodel" / "run-1" / "grading.json")
                              .read_text(encoding="utf-8"))
         self.assertEqual(("INCONCLUSIVE", "resolved model identity missing"), (summary["status"], grading.get("void")))
@@ -1813,17 +1823,13 @@ class EndToEndStubTests(unittest.TestCase):
         with mock.patch.object(probe_backing, "start_services", return_value=[service]), \
                 mock.patch.object(probe_backing, "stop_services"), \
                 mock.patch.object(probe_backing, "request", return_value=(0, "unreachable: refused")):
-            summary = build_probe.run_trial(spec, plugin_root=ROOT, label="svc", model=None, run_number=1,
-                                            out_dir=self.root / "it", timeout=60, executable=self._stub(),
-                                            keep_workspace=False, env_factory=self._env_factory())
+            summary = self._run_trial(self.root / "it", spec, label="svc")
         self.assertEqual("INCONCLUSIVE", summary["status"])
         self.assertIn("backing service unavailable", summary.get("grader_error") or "")
 
     def test_successful_stub_trial_grades_pass_and_writes_artefacts(self) -> None:
         out = self.root / "iteration"
-        summary = build_probe.run_trial(self._spec(), plugin_root=ROOT, label="new_skill", model=None, run_number=1,
-                                        out_dir=out, timeout=60, executable=self._stub(), keep_workspace=False,
-                                        env_factory=self._env_factory())
+        summary = self._run_trial(out)
         self.assertEqual("PASS", summary["status"])
         run = out / "eval-tiny" / "new_skill" / "run-1"
         for name in ("grading.json", "timing.json", "stdout.jsonl", "outputs/response.md", "outputs/workspace.patch", "outputs/trace-summary.json"):
@@ -1835,15 +1841,12 @@ class EndToEndStubTests(unittest.TestCase):
         self.assertEqual(["stub-model"], timing["models"])
         self.assertEqual(120, timing["total_tokens"])
         with self.assertRaises(RuntimeError):  # a second run into the same slot refuses without --overwrite
-            build_probe.run_trial(self._spec(), plugin_root=ROOT, label="new_skill", model=None, run_number=1,
-                                  out_dir=out, timeout=60, executable=self._stub(), keep_workspace=False,
-                                  env_factory=self._env_factory())
+            self._run_trial(out)
 
     def test_error_result_is_inconclusive_not_a_verdict(self) -> None:
         out = self.root / "iteration"
-        summary = build_probe.run_trial(self._spec(), plugin_root=ROOT, label="new_skill", model=None, run_number=1,
-                                        out_dir=out, timeout=60, executable=self._stub(is_error=True, subtype="error_max_turns", result="stopped"),
-                                        keep_workspace=False, env_factory=self._env_factory())
+        summary = self._run_trial(out,
+                                  executable=self._stub(is_error=True, subtype="error_max_turns", result="stopped"))
         self.assertEqual("INCONCLUSIVE", summary["status"])
         grading = json.loads((out / "eval-tiny" / "new_skill" / "run-1" / "grading.json").read_text(encoding="utf-8"))
         self.assertTrue(all(not e["passed"] for e in grading["expectations"]))
@@ -1853,20 +1856,16 @@ class EndToEndStubTests(unittest.TestCase):
         out = self.root / "iteration"
         # The fleet gates auth failures on a non-zero exit: a healthy SRE answer may quote "Not logged in".
         with self.assertRaises(build_probe.clean_room.AuthUnavailable):
-            build_probe.run_trial(self._spec(), plugin_root=ROOT, label="new_skill", model=None, run_number=1,
-                                  out_dir=out, timeout=60, executable=self._stub(is_error=True, result="Not logged in. Please run /login.", exit_code=1),
-                                  keep_workspace=False, env_factory=self._env_factory())
-        summary = build_probe.run_trial(self._spec(), plugin_root=ROOT, label="new_skill", model=None, run_number=2,
-                                        out_dir=out, timeout=60, executable=self._stub(is_error=True, result="Not logged in. Please run /login."),
-                                        keep_workspace=False, env_factory=self._env_factory())
+            self._run_trial(out,
+                            executable=self._stub(is_error=True, result="Not logged in. Please run /login.", exit_code=1))
+        summary = self._run_trial(out, run_number=2,
+                                  executable=self._stub(is_error=True, result="Not logged in. Please run /login."))
         self.assertEqual("INCONCLUSIVE", summary["status"], "rc 0 with an auth phrase is an error result, not an auth abort")
 
     def test_nonzero_exit_after_a_result_event_is_inconclusive(self) -> None:
         """Review P1: a wrapper or transport failure after a success-looking result invalidates the trial."""
         out = self.root / "iteration"
-        summary = build_probe.run_trial(self._spec(), plugin_root=ROOT, label="new_skill", model=None, run_number=1,
-                                        out_dir=out, timeout=60, executable=self._stub(exit_code=2),
-                                        keep_workspace=False, env_factory=self._env_factory())
+        summary = self._run_trial(out, executable=self._stub(exit_code=2))
         self.assertEqual("INCONCLUSIVE", summary["status"])
         grading = json.loads((out / "eval-tiny" / "new_skill" / "run-1" / "grading.json").read_text(encoding="utf-8"))
         self.assertIn("exited 2", grading["expectations"][0]["evidence"])
@@ -1874,13 +1873,9 @@ class EndToEndStubTests(unittest.TestCase):
     def test_foreign_or_missing_tool_inventory_is_inconclusive(self) -> None:
         """Review P2: the observed init inventory, not the requested flags, decides the boundary."""
         out = self.root / "iteration"
-        extra = build_probe.run_trial(self._spec(), plugin_root=ROOT, label="new_skill", model=None, run_number=1,
-                                      out_dir=out, timeout=60, executable=self._stub(tools=[*build_probe.BUILD_TOOLS, "WebFetch"]),
-                                      keep_workspace=False, env_factory=self._env_factory())
+        extra = self._run_trial(out, executable=self._stub(tools=[*build_probe.BUILD_TOOLS, "WebFetch"]))
         self.assertEqual("INCONCLUSIVE", extra["status"])
-        missing = build_probe.run_trial(self._spec(), plugin_root=ROOT, label="new_skill", model=None, run_number=2,
-                                        out_dir=out, timeout=60, executable=self._stub(tools=["Bash", "Skill"]),
-                                        keep_workspace=False, env_factory=self._env_factory())
+        missing = self._run_trial(out, run_number=2, executable=self._stub(tools=["Bash", "Skill"]))
         self.assertEqual("INCONCLUSIVE", missing["status"])
         evidence = json.loads((out / "eval-tiny" / "new_skill" / "run-2" / "grading.json").read_text(encoding="utf-8"))["expectations"][0]["evidence"]
         self.assertIn("inventory mismatch", evidence)
@@ -1898,22 +1893,16 @@ class EndToEndStubTests(unittest.TestCase):
         spec = self._spec()
         spec["agent"] = "sre-assistant"
         out = self.root / "iteration"
-        summary = build_probe.run_trial(spec, plugin_root=ROOT, label="new_skill", model=None, run_number=1,
-                                        out_dir=out, timeout=60, executable=self._stub(tools=list(expected)),
-                                        keep_workspace=False, env_factory=self._env_factory())
+        summary = self._run_trial(out, spec, executable=self._stub(tools=list(expected)))
         self.assertNotEqual("INCONCLUSIVE", summary["status"], "a read-only lane's smaller inventory is not a boundary failure")
         # …and a tool it never declared still is.
-        broken = build_probe.run_trial(spec, plugin_root=ROOT, label="new_skill", model=None, run_number=2,
-                                       out_dir=out, timeout=60, executable=self._stub(tools=[*expected, "Write"]),
-                                       keep_workspace=False, env_factory=self._env_factory())
+        broken = self._run_trial(out, spec, run_number=2, executable=self._stub(tools=[*expected, "Write"]))
         self.assertEqual("INCONCLUSIVE", broken["status"])
 
     def test_provenance_and_isolation_are_recorded_per_run(self) -> None:
         """Review P1: the label is operator-chosen; the digest, commit, and dirty state bind the bytes."""
         out = self.root / "iteration"
-        summary = build_probe.run_trial(self._spec(), plugin_root=ROOT, label="new_skill", model=None, run_number=1,
-                                        out_dir=out, timeout=60, executable=self._stub(), keep_workspace=False,
-                                        env_factory=self._env_factory())
+        summary = self._run_trial(out)
         run = out / "eval-tiny" / "new_skill" / "run-1"
         prov = json.loads((run / "provenance.json").read_text(encoding="utf-8"))
         self.assertRegex(prov["plugin_commit"], r"^[0-9a-f]{40}$")
@@ -1949,9 +1938,8 @@ class EndToEndStubTests(unittest.TestCase):
         spec["checks"] = [{"check": "fleet_grader", "name": "rubric", "rubric_name": "no_production_action_claim"}]
         judge.drain_spend()
         with mock.patch.object(judge, "_run_judge_process", return_value=_proc(stdout=_envelope(_verdict("PASS")))):
-            summary = build_probe.run_trial(spec, plugin_root=ROOT, label="bound", model=None, run_number=1,
-                out_dir=self.root / "iteration", timeout=60, executable=self._stub(result="some response"),
-                keep_workspace=False, env_factory=self._env_factory(), judge_binding=binding)
+            summary = self._run_trial(self.root / "iteration", spec, label="bound",
+                                      executable=self._stub(result="some response"), judge_binding=binding)
         self.assertEqual("PASS", summary["status"])
         run = self.root / "iteration/eval-tiny/bound/run-1"
         provenance = json.loads((run / "provenance.json").read_text(encoding="utf-8"))
@@ -1964,10 +1952,7 @@ class EndToEndStubTests(unittest.TestCase):
 
     def test_plugin_change_during_trial_invalidates_its_verdict(self) -> None:
         with mock.patch.object(probe_fingerprints, "plugin_digest", side_effect=["a" * 64, "b" * 64, "b" * 64]):
-            summary = build_probe.run_trial(
-                self._spec(), plugin_root=ROOT, label="changing", model=None, run_number=1,
-                out_dir=self.root / "iteration", timeout=60, executable=self._stub(),
-                keep_workspace=False, env_factory=self._env_factory())
+            summary = self._run_trial(self.root / "iteration", label="changing")
         self.assertEqual("INCONCLUSIVE", summary["status"])
 
     def test_plugin_change_after_grading_invalidates_the_published_verdict(self) -> None:
@@ -1991,10 +1976,7 @@ class EndToEndStubTests(unittest.TestCase):
                 agent.write_bytes(agent.read_bytes() + b"\nchanged after grading\n")
             return result
         with mock.patch.object(probe_assessment, "grade", side_effect=change_after_grade):
-            summary = build_probe.run_trial(
-                self._spec(), plugin_root=plugin, label="late-change", model=None, run_number=1,
-                out_dir=self.root / "iteration", timeout=60, executable=self._stub(),
-                keep_workspace=False, env_factory=self._env_factory())
+            summary = self._run_trial(self.root / "iteration", plugin_root=plugin, label="late-change")
         self.assertEqual("INCONCLUSIVE", summary["status"])
         self.assertEqual(0, summary["passed"])
 
@@ -2027,9 +2009,7 @@ class EndToEndStubTests(unittest.TestCase):
                                              side_effect=RuntimeError(failure)))
                 try:
                     with patcher, mock.patch.object(build_probe.time, "sleep"), self.assertRaises((RuntimeError, OSError)):
-                        build_probe.run_trial(self._spec(), plugin_root=ROOT, label="replaced", model=None,
-                                              run_number=1, out_dir=out, timeout=60, executable=self._stub(),
-                                              keep_workspace=False, env_factory=self._env_factory(), overwrite=True)
+                        self._run_trial(out, label="replaced", overwrite=True)
                     self.assertEqual(original, {p.relative_to(run).as_posix(): p.read_bytes()
                                                 for p in run.rglob("*") if p.is_file()})
                     if failure == "cleanup":
@@ -2047,10 +2027,7 @@ class EndToEndStubTests(unittest.TestCase):
         run = out / "eval-tiny/replaced/run-1"
         run.mkdir(parents=True)
         (run / "grading.original.json").write_text("old original", encoding="utf-8")
-        summary = build_probe.run_trial(
-            self._spec(), plugin_root=ROOT, label="replaced", model=None, run_number=1,
-            out_dir=out, timeout=60, executable=self._stub(), keep_workspace=False,
-            env_factory=self._env_factory(), overwrite=True)
+        summary = self._run_trial(out, label="replaced", overwrite=True)
         self.assertEqual(("PASS", 2), (summary["status"], summary["attempt"]))
         kept = run.parent / "attempts" / "run-1" / "1"
         self.assertEqual("old original", (kept / "grading.original.json").read_text(encoding="utf-8"))
@@ -2062,10 +2039,8 @@ class EndToEndStubTests(unittest.TestCase):
     def test_an_attempt_that_raises_is_kept_as_incomplete(self) -> None:
         out = self.root / "iteration"
         with self.assertRaises(build_probe.clean_room.AuthUnavailable):
-            build_probe.run_trial(self._spec(), plugin_root=ROOT, label="auth", model=None, run_number=1,
-                                  out_dir=out, timeout=60,
-                                  executable=self._stub(is_error=True, result="Not logged in. Please run /login.", exit_code=1),
-                                  keep_workspace=False, env_factory=self._env_factory())
+            self._run_trial(out, label="auth",
+                            executable=self._stub(is_error=True, result="Not logged in. Please run /login.", exit_code=1))
         kept = out / "eval-tiny" / "auth" / "attempts" / "run-1" / "1"
         record = json.loads((kept / "attempt.json").read_text(encoding="utf-8"))
         self.assertEqual("incomplete", record["state"])
@@ -2080,10 +2055,7 @@ class EndToEndStubTests(unittest.TestCase):
     def test_plugin_change_before_trial_does_not_start_services_or_model(self) -> None:
         with mock.patch.object(probe_backing, "start_services", side_effect=AssertionError("no service launch")), \
                 mock.patch.object(probe_invocation, "build_command", side_effect=AssertionError("no model launch")):
-            summary = build_probe.run_trial(
-                self._spec(), plugin_root=ROOT, label="changed", model=None, run_number=1,
-                out_dir=self.root / "iteration", timeout=60, executable=self._stub(),
-                keep_workspace=False, env_factory=self._env_factory(), expected_plugin_digest="f" * 64)
+            summary = self._run_trial(self.root / "iteration", label="changed", expected_plugin_digest="f" * 64)
         self.assertEqual("INCONCLUSIVE", summary["status"])
         run = self.root / "iteration/eval-tiny/changed/run-1"
         self.assertEqual("", (run / "stdout.jsonl").read_text(encoding="utf-8"))
@@ -2094,9 +2066,7 @@ class EndToEndStubTests(unittest.TestCase):
         run.mkdir(parents=True)
         (run / "grading.json").write_text("{}", encoding="utf-8")
         (run / "grading.original.json").write_text('{"status": "PASS"}', encoding="utf-8")
-        build_probe.run_trial(self._spec(), plugin_root=ROOT, label="replaced", model=None, run_number=1,
-                              out_dir=out, timeout=60, executable=self._stub(), keep_workspace=False,
-                              env_factory=self._env_factory(), overwrite=True)
+        self._run_trial(out, label="replaced", overwrite=True)
         self.assertFalse((run / "grading.original.json").exists(), "old live evidence belongs to the overwritten trial")
 
     def test_a_regrade_never_rewrites_another_candidates_summary(self) -> None:
@@ -2106,10 +2076,9 @@ class EndToEndStubTests(unittest.TestCase):
         for model, digest, response in (("sonnet", "a" * 64, "I comply."),
                                         ("opus", "b" * 64, "I refuse.")):
             with mock.patch.object(probe_fingerprints, "plugin_digest", return_value=digest):
-                saved[model] = build_probe.run_trial(
-                    spec, plugin_root=ROOT, label="shared", model=model, run_number=1,
-                    out_dir=out, timeout=60, executable=self._stub(result=response, resolved_model=model),
-                    keep_workspace=False, env_factory=self._env_factory(), overwrite=model == "opus")
+                saved[model] = self._run_trial(out, spec, label="shared", model=model,
+                                               executable=self._stub(result=response, resolved_model=model),
+                                               overwrite=model == "opus")
             (out / f"summary-shared-{model}.json").write_text(json.dumps([saved[model]]), encoding="utf-8")
         self.assertEqual("FAIL", saved["sonnet"]["status"])
         self.assertEqual("PASS", saved["opus"]["status"])
