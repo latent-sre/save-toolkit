@@ -31,9 +31,9 @@ import clean_room
 import graders as fleet_graders
 import judge as rubric_judge
 
-from . import backing, tracing, workspaces
+from . import backing, constants, tracing, workspaces
 from .backing import Service, ServiceUnavailable
-from .constants import ORACLE_DIR, ROOT, SHELL_TOOLS
+from .constants import ROOT, SHELL_TOOLS
 from .outcomes import Outcome, Polarity, instrument, unmeasured, verdict, violation
 from .tracing import TraceSummary
 from .workspaces import GitFacts, Workspace
@@ -277,8 +277,8 @@ def _stage_writes(ctx: Context, p: Params) -> str | None:
     if shape:
         return shape
     for name, rel in (writes_from or {}).items():
-        source = (ROOT / rel).resolve()
-        if not source.is_file() or ORACLE_DIR not in source.parents:
+        source = constants.oracle_source(rel)
+        if source is None:
             return f"writes_from source {rel!r} must be a file under evals/oracles/"
         staged[name] = source.read_text(encoding="utf-8")
     for name, content in staged.items():

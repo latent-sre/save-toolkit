@@ -15,10 +15,10 @@ from typing import Any
 import graders as fleet_graders
 import yaml
 
-from . import checking
+from . import checking, constants
 from .backing import TRUSTED_SERVICE_IMAGES
 from .checking import FORBIDDING_GRADERS
-from .constants import BUILD_TOOLS, CONTRACT_SCENARIO_DIR, ORACLE_DIR, ROOT, SCENARIO_DIR
+from .constants import BUILD_TOOLS, CONTRACT_SCENARIO_DIR, ROOT, SCENARIO_DIR
 from .outcomes import Polarity
 
 Spec = Mapping[str, Any]
@@ -393,8 +393,7 @@ def _check_problems(spec: Spec, where: str, kind: str) -> list[str]:
             problems.append(f"{where}: checks[{i}] {shape}")
             continue
         for rel in (writes_from or {}).values():
-            source = (ROOT / str(rel)).resolve()
-            if not source.is_file() or ORACLE_DIR not in source.parents:
+            if constants.oracle_source(rel) is None:
                 problems.append(f"{where}: checks[{i}] writes_from {rel!r} is not a file under evals/oracles/")
         if check["check"] in ("service_get", "service_array_item"):
             assertions = [check, *(m for m in check.get("matches") or [] if isinstance(m, dict))]

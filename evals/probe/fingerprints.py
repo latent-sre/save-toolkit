@@ -24,7 +24,8 @@ import graders as fleet_graders
 import judge as rubric_judge
 import yaml
 
-from .constants import EVALS_DIR, ORACLE_DIR, PACKAGE_DIR, ROOT
+from . import constants
+from .constants import EVALS_DIR, PACKAGE_DIR, ROOT
 
 # Every file whose code grades a trial. The package is globbed, so a module added to it is bound the
 # moment it exists; a hand-kept list could leave one out of the identity without anyone noticing.
@@ -94,11 +95,9 @@ def _case_payload(spec: Mapping[str, Any]) -> dict[str, Any]:
                 available = rubric_judge.load_rubrics()
             rubrics[name] = available.get(name)
         for relative in (definition.get("writes_from") or {}).values():
-            path = (ROOT / relative).resolve()
+            source = constants.oracle_source(relative)
             oracles[relative] = (
-                hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
-                if path.is_relative_to(ORACLE_DIR) and path.is_file()
-                else None
+                hashlib.sha256(source.read_bytes().replace(b"\r\n", b"\n")).hexdigest() if source else None
             )
     return {"scenario": spec, "rubrics": rubrics, "oracles": oracles}
 

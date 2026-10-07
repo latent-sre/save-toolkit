@@ -4131,7 +4131,7 @@ class RegradeIdentityTests(unittest.TestCase):
             spec = {"id": "oracle", "prompt": "p", "checks": [{
                 "check": "command_exit_zero", "command": "python probe.py",
                 "writes_from": {"probe.py": "evals/oracles/probe.py"}}]}
-            with mock.patch.object(probe_fingerprints, "ROOT", root), mock.patch.object(probe_fingerprints, "ORACLE_DIR", oracle_dir):
+            with mock.patch.object(probe_constants, "ROOT", root), mock.patch.object(probe_constants, "ORACLE_DIR", oracle_dir):
                 before = probe_fingerprints.scenario_digest(spec)
                 oracle.write_text("different oracle\n", encoding="utf-8")
                 self.assertNotEqual(before, probe_fingerprints.scenario_digest(spec))
