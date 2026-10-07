@@ -493,20 +493,30 @@ def _entries(value: object) -> list[Any]:
     return value if isinstance(value, list) else []
 
 
+def routing_polarity(spec: Spec) -> Polarity:
+    """A negative routing case forbids its target and requires its declared alternative."""
+    return Polarity.BOTH if is_negative_routing(spec) else Polarity.REQUIRES
+
+
+def grader_polarity(grader: object) -> Polarity:
+    """A registered forbidding grader forbids; every other grader requires."""
+    kind = grader.get("type") if isinstance(grader, dict) else None
+    return Polarity.FORBIDS if isinstance(kind, str) and kind in FORBIDDING_GRADERS else Polarity.REQUIRES
+
+
 def assertion_polarities(spec: Spec) -> list[Polarity]:
-    """`forbids`, `requires` or `both` for each graded expectation, in scenario_assertions() order."""
+    """`forbids`, `requires` or `both` for each graded expectation, in scenario_assertions() order.
+
+    Validation reads it on specs that may be malformed; grading takes each expectation's polarity
+    from the same per-family rules as it builds the expectation.
+    """
     polarities = []
-    if spec.get("routing"):  # a negative forbids its target and requires its declared alternative
-        polarities.append(Polarity.BOTH if is_negative_routing(spec) else Polarity.REQUIRES)
+    if spec.get("routing"):
+        polarities.append(routing_polarity(spec))
     if spec.get("skill"):
         polarities.append(Polarity.REQUIRES)
     polarities += [Polarity.REQUIRES] * len(_entries(spec.get("references")))
-    polarities += [
-        Polarity.FORBIDS
-        if isinstance(g, dict) and isinstance(g.get("type"), str) and g["type"] in FORBIDDING_GRADERS
-        else Polarity.REQUIRES
-        for g in _entries(spec.get("graders"))
-    ]
+    polarities += [grader_polarity(g) for g in _entries(spec.get("graders"))]
     if spec.get("followups"):
         polarities += [Polarity.REQUIRES] * 3  # helper completed, parent continued, session resumed
     return polarities + [checking.check_polarity(c) for c in _entries(spec.get("checks"))]

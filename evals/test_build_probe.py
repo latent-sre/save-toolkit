@@ -4584,6 +4584,14 @@ VARIABLE_POLARITY = (
 class CheckPolarityTests(unittest.TestCase):
     """Result rules 2 and 3: every check forbids or requires, and forbidding checks hold every trial."""
 
+    def test_each_planned_expectation_carries_the_polarity_validation_declares(self) -> None:
+        """Validation reads `assertion_polarities` and grading each expectation's own polarity; both come
+        from the same per-family rules, so they agree for every scenario the runner owns."""
+        for spec in probe_catalog.load_all_scenarios():
+            with self.subTest(scenario=spec["id"]):
+                planned = [item.polarity for item in probe_assessment.plan(spec, probe_tracing.TraceSummary(), None, ROOT)]
+                self.assertEqual(probe_catalog.assertion_polarities(spec), planned)
+
     def test_each_check_keeps_its_reviewed_polarity(self) -> None:
         self.assertEqual(set(probe_checking.CHECKS), set(INTENDED_POLARITY) | {p["check"] for p, _ in VARIABLE_POLARITY})
         self.assertEqual(INTENDED_POLARITY,
