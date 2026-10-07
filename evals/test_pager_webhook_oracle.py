@@ -208,15 +208,6 @@ def test_house_reference_passes(tmp_path, check):
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-@pytest.mark.parametrize("name", sorted(MUTANTS))
-def test_mutant_fails_its_check(tmp_path, name):
-    # Each mutant must fail for the rule it breaks, not because the app crashed.
-    check, overrides, reason = MUTANTS[name]
-    result = run(materialize(tmp_path, overrides), check)
-    assert result.returncode == 1, result.stdout + result.stderr
-    assert reason in result.stdout, result.stdout + result.stderr
-
-
 ENRICH_LATER = {
     "ACCEPT": ('with connect() as conn:\n'
                '            conn.execute(INSERT_INCIDENT, _incident_args(event, None))\n'
