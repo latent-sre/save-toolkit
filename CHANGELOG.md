@@ -30,6 +30,10 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
     `Outcome.read` reads past the marker, so the kept verdict reads back as the state it was kept
     with. Of the 1,236 kept verdicts in a rescore of the saved runs, 9 had lost the marker and none
     was flagged; all now carry it, those 9 are flagged, and every recorded state is unchanged.
+  - A native conversation's regrade reported any exception in its boundary replay, a runner defect
+    or a plugin root that no longer holds the agent included, as "boundary evidence missing or
+    invalid; re-run the trial". Only unreadable or malformed saved evidence reads that way now; an
+    unreadable plugin root is named as such, and a runner defect raises.
 
   [verified] Regrading all 1,317 saved runs with `adc13a88` and with these fixes differs in nothing;
   no saved run records a git failure, and a regrade keeps a command check's live verdict.

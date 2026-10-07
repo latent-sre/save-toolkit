@@ -31,8 +31,16 @@ from .workspaces import GitFacts, Workspace
 Spec = Mapping[str, Any]
 
 
+_INVALID_NATIVE_EVIDENCE = "native invocation boundary evidence missing or invalid; re-run the trial"
+
+
 def native_regrade_problem(run_dir: Path, spec: Spec, plugin_root: Path) -> str | None:
-    """Replay each invocation's boundary checks using its saved cwd after the workspace is gone."""
+    """Replay each invocation's boundary checks using its saved cwd after the workspace is gone.
+
+    Saved evidence that is missing or malformed, or a plugin root the regrade cannot read, leaves the
+    run unmeasured under a reason that names it; a defect in the runner raises instead of being
+    reported as the saved run's fault.
+    """
     resume, workspace = None, None
     for folder in (run_dir, run_dir / "followup"):
         trace_path, metadata_path = folder / "stdout.jsonl", folder / "invocation.json"
@@ -40,51 +48,59 @@ def native_regrade_problem(run_dir: Path, spec: Spec, plugin_root: Path) -> str 
             return "native conversation trace missing; re-run the trial"
         try:
             metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-            saved_cut = isinstance(metadata, dict) and metadata.get("cut_short") is True
-            if (
-                not isinstance(metadata, dict)
-                or not tracing.is_rooted(metadata.get("workspace"))
-                or not (type(metadata.get("exit_code")) is int or (saved_cut and metadata.get("exit_code") is None))
-                or not {"expected_model", "resume", "inconclusive"} <= metadata.keys()
-            ):
-                return "native invocation boundary evidence missing or invalid; re-run the trial"
-            if metadata["inconclusive"] and not saved_cut:
-                return str(metadata["inconclusive"])
-            recorded_workspace = Path(metadata["workspace"]).resolve()
-            if (
-                metadata.get("resume") != resume
-                or metadata["expected_model"] != spec.get("expected_model")
-                or (workspace is not None and recorded_workspace != workspace)
-            ):
-                return "native invocation session, workspace, or model binding changed; re-run the trial"
-            argv = metadata.get("argv")
-            if not isinstance(argv, list) or not all(isinstance(arg, str) for arg in argv):
-                return "native invocation agent command evidence missing; re-run the trial"
-            pins = [argv[i + 1] if i + 1 < len(argv) else None for i, arg in enumerate(argv) if arg == "--agent"]
-            expected_pins = [f"save-toolkit:{spec['agent']}"] if spec.get("agent") else []
-            if pins != expected_pins:
-                return "native invocation agent pin differs from scenario; re-run the trial"
             trace = tracing.parse_trace(trace_path)
-            if invocation.credential_markers(trace.result_text, trace_path):
-                return "native credential marker detected; re-run the trial"
+        except (OSError, ValueError):
+            return _INVALID_NATIVE_EVIDENCE
+        saved_cut = isinstance(metadata, dict) and metadata.get("cut_short") is True
+        if (
+            not isinstance(metadata, dict)
+            or not tracing.is_rooted(metadata.get("workspace"))
+            or not (type(metadata.get("exit_code")) is int or (saved_cut and metadata.get("exit_code") is None))
+            or not {"expected_model", "resume", "inconclusive"} <= metadata.keys()
+        ):
+            return _INVALID_NATIVE_EVIDENCE
+        if metadata["inconclusive"] and not saved_cut:
+            return str(metadata["inconclusive"])
+        recorded_workspace = Path(metadata["workspace"]).resolve()
+        if (
+            metadata.get("resume") != resume
+            or metadata["expected_model"] != spec.get("expected_model")
+            or (workspace is not None and recorded_workspace != workspace)
+        ):
+            return "native invocation session, workspace, or model binding changed; re-run the trial"
+        argv = metadata.get("argv")
+        if not isinstance(argv, list) or not all(isinstance(arg, str) for arg in argv):
+            return "native invocation agent command evidence missing; re-run the trial"
+        pins = [argv[i + 1] if i + 1 < len(argv) else None for i, arg in enumerate(argv) if arg == "--agent"]
+        expected_pins = [f"save-toolkit:{spec['agent']}"] if spec.get("agent") else []
+        if pins != expected_pins:
+            return "native invocation agent pin differs from scenario; re-run the trial"
+        if invocation.credential_markers(trace.result_text, trace_path):
+            return "native credential marker detected; re-run the trial"
+        try:
             problem = invocation.invocation_problem(
                 trace, metadata["exit_code"], spec, plugin_root, recorded_workspace, resume
             )
-            if problem and not (saved_cut and isinstance(problem, CutShort)):
-                return problem
-            if (
-                metadata.get("session_id") != trace.session_id
-                or metadata.get("main_models") != trace.main_models
-                or metadata.get("init_session_ids") != trace.init_session_ids
-            ):
-                return "native invocation identity differs from its trace; re-run the trial"
-            if saved_cut:
-                # The partial trace still shows the declared identity; the saved stop stays a cut, so
-                # a forbidding check it already failed survives the regrade. No follow-up started.
+        except (OSError, json.JSONDecodeError) as exc:
+            return f"plugin root {plugin_root} could not be read ({type(exc).__name__}); restore it to regrade the run"
+        except clean_room.AuthUnavailable:
+            return "native invocation reported an authentication failure; re-run the trial"
+        if problem and not (saved_cut and isinstance(problem, CutShort)):
+            return problem
+        if (
+            metadata.get("session_id") != trace.session_id
+            or metadata.get("main_models") != trace.main_models
+            or metadata.get("init_session_ids") != trace.init_session_ids
+        ):
+            return "native invocation identity differs from its trace; re-run the trial"
+        if saved_cut:
+            # The partial trace still shows the declared identity; the saved stop stays a cut, so
+            # a forbidding check it already failed survives the regrade. No follow-up started.
+            try:
                 return CutShort(str(metadata["inconclusive"]), metadata.get("run_stop") or "cut_short")
-            resume, workspace = trace.session_id, recorded_workspace
-        except (OSError, ValueError, TypeError, KeyError, AttributeError, clean_room.AuthUnavailable):
-            return "native invocation boundary evidence missing or invalid; re-run the trial"
+            except ValueError:  # a saved stop this runner does not know
+                return _INVALID_NATIVE_EVIDENCE
+        resume, workspace = trace.session_id, recorded_workspace
     return None
 
 

@@ -4642,6 +4642,33 @@ class CopilotReviewFindingTests(unittest.TestCase):
         self.assertEqual(("timed out after 900s", "wall_clock"), (str(kept), kept.kind))
         self.assertEqual("native parent model differs", voided)
 
+    def test_a_native_regrade_names_what_failed_instead_of_blaming_the_saved_run(self) -> None:
+        invalid = "native invocation boundary evidence missing or invalid; re-run the trial"
+
+        def save(run: Path, **metadata: object) -> None:
+            (run / "stdout.jsonl").write_text("", encoding="utf-8")
+            partial = build_probe.parse_trace(run / "stdout.jsonl")
+            (run / "invocation.json").write_text(json.dumps({
+                "argv": ["claude", "--agent", "save-toolkit:software-engineer"], "session_id": partial.session_id,
+                "workspace": str(run.resolve()), "exit_code": 0, "expected_model": "claude-sonnet-5-5",
+                "main_models": partial.main_models, "init_session_ids": partial.init_session_ids, "resume": None,
+                "inconclusive": None, **metadata}), encoding="utf-8")
+
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as empty_root:
+            run = Path(tmp)
+            save(run)
+            # A defect in the runner raises: the saved run is not at fault, and a re-run would not help.
+            with mock.patch.object(probe_tracing, "parse_trace", side_effect=TypeError("runner defect")), \
+                    self.assertRaises(TypeError):
+                build_probe.native_regrade_problem(run, self.NATIVE, ROOT)
+            # A plugin root that no longer holds the agent is named, not blamed on the saved run.
+            self.assertIn("plugin root", build_probe.native_regrade_problem(run, self.NATIVE, Path(empty_root)) or "")
+            # Malformed saved evidence is still invalid saved evidence.
+            save(run, inconclusive="timed out after 900s", cut_short=True, exit_code=None, run_stop="bogus")
+            with mock.patch.object(probe_invocation, "invocation_problem",
+                                   return_value=build_probe.CutShort("no result event", "no_result")):
+                self.assertEqual(invalid, build_probe.native_regrade_problem(run, self.NATIVE, ROOT))
+
     def test_an_instrument_failure_stops_its_scenario(self) -> None:
         spec = {**TINY_SPEC, "checks": [{"check": "skill_not_loaded", "skill": "eng-ladder", "text": "no ladder"}]}
         ctx = build_probe.Context(spec, None, build_probe.TraceSummary(skills=["<unnamed-skill>"]), None)
