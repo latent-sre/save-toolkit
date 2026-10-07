@@ -173,7 +173,14 @@ def regrade_run(run_dir: Path, spec: Spec, *, write: bool = True, relax_identity
             (ws.repo / ".agents").mkdir(parents=True)
         ctx = Context(dict(spec), ws, trace, git, plugin_root=plugin_root)
         inconclusive = _run_level_reason(
-            spec, live_grade, summary, trace, native_problem, reparsed is not None, has_plugin_root, saved_binding
+            spec,
+            live_grade,
+            summary,
+            trace,
+            native_problem,
+            saved_binding,
+            has_raw_trace=reparsed is not None,
+            has_plugin_root=has_plugin_root,
         )
         if not identity_matches and not relaxed:
             inconclusive = "saved scenario identity is missing or changed; re-run the trial"
@@ -242,9 +249,10 @@ def _run_level_reason(
     summary: Mapping[str, Any],
     trace: TraceSummary,
     native_problem: str | None,
+    saved_binding: Any,
+    *,
     has_raw_trace: bool,
     has_plugin_root: bool,
-    saved_binding: Any,
 ) -> str | None:
     """Why the regrade cannot measure the run at all, or how it was cut short, from saved evidence."""
     inconclusive: str | None
