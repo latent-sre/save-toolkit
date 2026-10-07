@@ -15,7 +15,7 @@ import json
 import math
 import re
 import runpy
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
@@ -104,7 +104,7 @@ def _literal_field_occurrences(label: str, lines: list[str]) -> list[str]:
     return [match.group("value").strip() for line in lines if (match := pattern.match(line))]
 
 
-def exact_fields(response: str, fields: dict[str, str]) -> tuple[bool, str]:
+def exact_fields(response: str, fields: Mapping[str, str]) -> tuple[bool, str]:
     """Require each declared ``Label: value`` field to appear exactly once with its exact value.
 
     A closed literal-field assertion for structured packets: unlike `contains_all`, it rejects a
@@ -184,7 +184,7 @@ def _strict_json_equal(actual: object, expected: object) -> bool:
     return actual == expected
 
 
-def _validate_exact_json_fields(fields: dict[str, object], grader_name: str) -> None:
+def _validate_exact_json_fields(fields: Mapping[str, object], grader_name: str) -> None:
     """Validate the configured exact JSON object independently of any response text."""
     if not isinstance(fields, dict) or not fields:
         raise ValueError(f"{grader_name} requires a non-empty fields mapping")
@@ -202,7 +202,7 @@ def _validate_exact_json_fields(fields: dict[str, object], grader_name: str) -> 
         raise ValueError(f"{grader_name} fields must be encodable as finite strict JSON") from None
 
 
-def exact_json(response: str, fields: dict[str, object]) -> tuple[bool, str]:
+def exact_json(response: str, fields: Mapping[str, object]) -> tuple[bool, str]:
     """Require one whole-response JSON object with the exact keys, types, and values.
 
     This is the closed decision-packet form for authority-bearing evals. Natural-language
