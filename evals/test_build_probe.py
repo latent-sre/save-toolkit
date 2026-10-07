@@ -546,7 +546,8 @@ class WorkspaceAndCheckTests(unittest.TestCase):
             "prompt": "p",
             "agent": "software-engineer",
             "fixture": "incidents-api",
-            "checks": [{"check": "command_exit_zero", "writes_from": ["evals/oracles/incidents-api/probe_checks.py"]}],
+            "checks": [{"check": "command_exit_zero", "command": "python probe_checks.py",
+                        "writes_from": ["evals/oracles/incidents-api/probe_checks.py"]}],
         }
         problems = probe_catalog.validate_scenario(spec)
         self.assertTrue(any("writes_from must be a mapping" in p for p in problems), problems)

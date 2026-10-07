@@ -344,9 +344,15 @@ def _check_problems(spec: Spec, where: str, kind: str) -> list[str]:
         return [f"{where}: checks must be a non-empty list"]
     problems = []
     for i, check in enumerate(checks):
-        if checking.registered(check) is None:  # also a name that is not a string, such as a list
+        declared = checking.registered(check)
+        if declared is None:  # also a name that is not a string, such as a list
             problems.append(f"{where}: checks[{i}] names an unknown check {check!r}"[:200])
             continue
+        if missing := declared.missing(check):  # grading would crash on it, after the trial was paid for
+            problems.append(f"{where}: checks[{i}] {declared.name} needs {', '.join(missing)}")
+            continue
+        if unknown := declared.unknown(check):
+            problems.append(f"{where}: checks[{i}] {declared.name} has unknown key(s): {', '.join(unknown)}")
         grader_name = check.get("name")
         if check["check"] == "fleet_grader" and (
             not isinstance(grader_name, str) or grader_name not in fleet_graders.REGISTRY

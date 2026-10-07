@@ -105,6 +105,10 @@ CheckRun = Callable[[Context, Params], Outcome]
 PolarityRule = Polarity | Callable[[Params], Polarity]
 NeedsRule = frozenset[Need] | Callable[[Params, Params], frozenset[Need]]
 CutRule = Callable[[Params, TraceSummary, str], Outcome]
+Required = tuple[str | tuple[str, ...], ...]  # a tuple of names: any one of them
+
+# Keys any check may carry: its name, its recorded text, and two that validation rules on for every check.
+COMMON_KEYS: Final = frozenset({"check", "text", "scope", "inconclusive_exit_code"})
 
 
 @dataclass(frozen=True)
@@ -118,9 +122,23 @@ class CheckType:
     names_unmeasured: bool = False
     on_cut: CutRule | None = None
     regradable: bool | None = None  # None: derived from `needs`
+    required: Required = ()
+    optional: tuple[str, ...] | None = ()  # None: any key, as a fleet grader passes its own to the grader
 
     def __call__(self, ctx: Context, params: Params) -> Outcome:
         return self.run(ctx, params)
+
+    def missing(self, params: Params) -> list[str]:
+        """The required keys `params` lacks, so validation refuses what grading would crash on."""
+        alternatives = [(key,) if isinstance(key, str) else key for key in self.required]
+        return [" or ".join(names) for names in alternatives if not any(name in params for name in names)]
+
+    def unknown(self, params: Params) -> list[str]:
+        """Keys the check never reads, such as a misspelled parameter it would grade without."""
+        if self.optional is None:
+            return []
+        known = COMMON_KEYS.union(self.optional, *((k,) if isinstance(k, str) else k for k in self.required))
+        return sorted(key for key in params if key not in known)
 
     def polarity_of(self, params: Params) -> Polarity:
         return self.polarity if isinstance(self.polarity, Polarity) else self.polarity(params)
@@ -143,8 +161,11 @@ def declare(
     names_unmeasured: bool = False,
     on_cut: CutRule | None = None,
     regradable: bool | None = None,
+    required: Required = (),
+    optional: tuple[str, ...] | None = (),
 ) -> Callable[[CheckRun], CheckRun]:
-    """Register the decorated function as the check `name`, with what it asserts and reads."""
+    """Register the decorated function as the check `name`, with what it asserts and reads, and the
+    parameters it takes."""
 
     def register(run: CheckRun) -> CheckRun:
         if name in CHECKS:
@@ -159,6 +180,8 @@ def declare(
             names_unmeasured,
             on_cut,
             regradable,
+            required,
+            optional,
         )
         return run
 
@@ -243,19 +266,19 @@ def _run(ctx: Context, command: str, timeout: int = 180) -> subprocess.Completed
     )
 
 
-@declare("file_exists", Polarity.REQUIRES, needs={Need.CHECKOUT})
+@declare("file_exists", Polarity.REQUIRES, needs={Need.CHECKOUT}, required=("path",))
 def check_file_exists(ctx: Context, p: Params) -> Outcome:
     ok = (ctx.ws.repo / p["path"]).is_file()
     return verdict(ok, f"{p['path']} {'present' if ok else 'missing'}")
 
 
-@declare("glob_exists", Polarity.REQUIRES, needs={Need.CHECKOUT})
+@declare("glob_exists", Polarity.REQUIRES, needs={Need.CHECKOUT}, required=("pattern",))
 def check_glob_exists(ctx: Context, p: Params) -> Outcome:
     hits = [x.relative_to(ctx.ws.repo).as_posix() for x in ctx.ws.repo.glob(p["pattern"])]
     return verdict(bool(hits), f"{p['pattern']} -> {hits or 'no match'}")
 
 
-@declare("file_contains", Polarity.REQUIRES, needs={Need.CHECKOUT})
+@declare("file_contains", Polarity.REQUIRES, needs={Need.CHECKOUT}, required=("path", "needle"))
 def check_file_contains(ctx: Context, p: Params) -> Outcome:
     target = ctx.ws.repo / p["path"]
     if not target.is_file():
@@ -302,7 +325,14 @@ def _staged_run(ctx: Context, p: Params) -> subprocess.CompletedProcess[str] | O
         return verdict(False, f"{p['command']!r} timed out")
 
 
-@declare("command_exit_zero", Polarity.REQUIRES, needs={Need.CHECKOUT}, names_unmeasured=True)
+@declare(
+    "command_exit_zero",
+    Polarity.REQUIRES,
+    needs={Need.CHECKOUT},
+    names_unmeasured=True,
+    required=("command",),
+    optional=("timeout", "writes", "writes_from"),
+)
 def check_command_exit_zero(ctx: Context, p: Params) -> Outcome:
     proc = _staged_run(ctx, p)
     if isinstance(proc, Outcome):
@@ -315,7 +345,13 @@ def check_command_exit_zero(ctx: Context, p: Params) -> Outcome:
     return verdict(proc.returncode == 0, evidence)
 
 
-@declare("command_output_regex", Polarity.REQUIRES, needs={Need.CHECKOUT})
+@declare(
+    "command_output_regex",
+    Polarity.REQUIRES,
+    needs={Need.CHECKOUT},
+    required=("command", "pattern"),
+    optional=("timeout", "writes", "writes_from"),
+)
 def check_command_output_regex(ctx: Context, p: Params) -> Outcome:
     """An independent oracle: run a command on probe-owned input and require its stdout to match.
 
@@ -334,26 +370,26 @@ def check_command_output_regex(ctx: Context, p: Params) -> Outcome:
     )
 
 
-@declare("text_regex", Polarity.REQUIRES, needs={Need.TEXT})
+@declare("text_regex", Polarity.REQUIRES, needs={Need.TEXT}, required=("pattern",))
 def check_text_regex(ctx: Context, p: Params) -> Outcome:
     m = re.search(p["pattern"], ctx.trace.result_text, re.IGNORECASE | re.MULTILINE)
     return verdict(m is not None, f"/{p['pattern'][:80]}/ {'matched ' + repr(m.group(0)[:80]) if m else 'no match'}")
 
 
-@declare("text_not_regex", Polarity.FORBIDS, needs={Need.TEXT})
+@declare("text_not_regex", Polarity.FORBIDS, needs={Need.TEXT}, required=("pattern",))
 def check_text_not_regex(ctx: Context, p: Params) -> Outcome:
     m = re.search(p["pattern"], ctx.trace.result_text, re.IGNORECASE | re.MULTILINE)
     return verdict(m is None, f"/{p['pattern'][:80]}/ {'matched ' + repr(m.group(0)[:80]) if m else 'absent (good)'}")
 
 
-@declare("text_contains_any", Polarity.REQUIRES, needs={Need.TEXT})
+@declare("text_contains_any", Polarity.REQUIRES, needs={Need.TEXT}, required=("of",))
 def check_text_contains_any(ctx: Context, p: Params) -> Outcome:
     low = ctx.trace.result_text.lower()
     hit = [t for t in p["of"] if t.lower() in low]
     return verdict(bool(hit), ("found: " + ", ".join(hit)) if hit else "none of: " + ", ".join(p["of"]))
 
 
-@declare("text_not_contains", Polarity.FORBIDS, needs={Need.TEXT})
+@declare("text_not_contains", Polarity.FORBIDS, needs={Need.TEXT}, required=("needle",))
 def check_text_not_contains(ctx: Context, p: Params) -> Outcome:
     ok = p["needle"].lower() not in ctx.trace.result_text.lower()
     return verdict(ok, f"{p['needle']!r} {'absent (good)' if ok else 'PRESENT in the final text'}")
@@ -376,7 +412,7 @@ def _unknown_changes(ctx: Context) -> Outcome | None:
     return instrument(f"changed files unknown: {ctx.git.problem}") if ctx.git.problem else None
 
 
-@declare("changes_within", Polarity.FORBIDS, needs={Need.CHANGES})
+@declare("changes_within", Polarity.FORBIDS, needs={Need.CHANGES}, required=("allowed",))
 def check_changes_within(ctx: Context, p: Params) -> Outcome:
     if unknown := _unknown_changes(ctx):
         return unknown
@@ -391,7 +427,9 @@ def check_changes_within(ctx: Context, p: Params) -> Outcome:
     )
 
 
-@declare("changed_files_not_containing", Polarity.FORBIDS, needs={Need.CHANGES, Need.CHECKOUT})
+@declare(
+    "changed_files_not_containing", Polarity.FORBIDS, needs={Need.CHANGES, Need.CHECKOUT}, required=("glob", "needle")
+)
 def check_changed_files_not_containing(ctx: Context, p: Params) -> Outcome:
     if unknown := _unknown_changes(ctx):
         return unknown
@@ -433,7 +471,13 @@ def _service(ctx: Context, name: str | None) -> Service:
     return next(iter(services.values()))
 
 
-@declare("service_get", Polarity.REQUIRES, needs={Need.SERVICE})
+@declare(
+    "service_get",
+    Polarity.REQUIRES,
+    needs={Need.SERVICE},
+    required=("path",),
+    optional=("service", "status", "contains", "not_contains", "pointer", "equals"),
+)
 def check_service_get(ctx: Context, p: Params) -> Outcome:
     """Assert on what the live service contains after the trial — the outcome, not the agent's account of it."""
     service = _service(ctx, p.get("service"))
@@ -460,7 +504,13 @@ def check_service_get(ctx: Context, p: Params) -> Outcome:
     return verdict(True, detail + (f"; {len(text)} B" if "pointer" not in p else ""))
 
 
-@declare("service_array_item", Polarity.REQUIRES, needs={Need.SERVICE})
+@declare(
+    "service_array_item",
+    Polarity.REQUIRES,
+    needs={Need.SERVICE},
+    required=("path", "pointer"),
+    optional=("service", "length", "matches"),
+)
 def check_service_array_item(ctx: Context, p: Params) -> Outcome:
     """Require one item in a live JSON array to satisfy every independent structural assertion."""
     service = _service(ctx, p.get("service"))
@@ -489,7 +539,13 @@ def check_service_array_item(ctx: Context, p: Params) -> Outcome:
     return verdict(bool(hits), detail + f"; {len(hits)}/{len(items)} item(s) matched {p.get('matches') or []}")
 
 
-@declare("grafana_dashboard_write", Polarity.REQUIRES, needs={Need.SERVICE})
+@declare(
+    "grafana_dashboard_write",
+    Polarity.REQUIRES,
+    needs={Need.SERVICE},
+    required=("read_path", "write_path", "message"),
+    optional=("service",),
+)
 def check_grafana_dashboard_write(ctx: Context, p: Params) -> Outcome:
     """Prove a successful legacy dashboard write used a fresh read and the safe concurrency form."""
     service = _service(ctx, p.get("service"))
@@ -745,7 +801,13 @@ def _proxy_has_data(response: object) -> bool:
     return found
 
 
-@declare("grafana_query_succeeded", Polarity.REQUIRES, needs={Need.SERVICE})
+@declare(
+    "grafana_query_succeeded",
+    Polarity.REQUIRES,
+    needs={Need.SERVICE},
+    required=("write_path", "metric", "function"),
+    optional=("quantile", "min_window_seconds", "service"),
+)
 def check_grafana_query_succeeded(ctx: Context, p: Params) -> Outcome:
     """Prove the persisted PromQL returned real data through Grafana after the dashboard write: the
     skill writes, then proves each changed query with one concrete window in place of
@@ -834,7 +896,13 @@ def check_grafana_query_succeeded(ctx: Context, p: Params) -> Outcome:
     )
 
 
-@declare("service_unchanged", Polarity.FORBIDS, needs={Need.SERVICE})
+@declare(
+    "service_unchanged",
+    Polarity.FORBIDS,
+    needs={Need.SERVICE},
+    required=("path",),
+    optional=("service", "forbidden_writes"),
+)
 def check_service_unchanged(ctx: Context, p: Params) -> Outcome:
     """Check final drift and, when configured, attempted writes on named routes in the agent proxy log.
 
@@ -891,7 +959,7 @@ def _attempted_suffix(ctx: Context, skill: str) -> str:
     return f"; ATTEMPTED but tool error x{len(failed)}: {sorted(set(failed))}"
 
 
-@declare("skill_not_loaded", Polarity.FORBIDS, needs={Need.TRACE})
+@declare("skill_not_loaded", Polarity.FORBIDS, needs={Need.TRACE}, required=("skill",))
 def check_skill_not_loaded(ctx: Context, p: Params) -> Outcome:
     if any(s.startswith("<unnamed") for s in ctx.trace.skills + ctx.trace.skills_failed):
         return instrument("a Skill call carried no name; cannot assert what was loaded")
@@ -903,7 +971,7 @@ def check_skill_not_loaded(ctx: Context, p: Params) -> Outcome:
     )
 
 
-@declare("skill_loaded", Polarity.REQUIRES, needs=_skill_load_needs)
+@declare("skill_loaded", Polarity.REQUIRES, needs=_skill_load_needs, required=("skill",), optional=("before_effects",))
 def check_skill_loaded(ctx: Context, p: Params) -> Outcome:
     if p.get("before_effects"):
         # Deliberately stricter than "before edits": shell effects cannot be inferred safely.
@@ -969,7 +1037,7 @@ def _cd_stays_inside(target: str | None, inside: bool, repo_forms: set[str]) -> 
     return False if text.startswith("..") else inside
 
 
-@declare("ran_outside_checkout", Polarity.FORBIDS, needs={Need.TRACE, Need.CHECKOUT})
+@declare("ran_outside_checkout", Polarity.FORBIDS, needs={Need.TRACE, Need.CHECKOUT}, optional=("pattern",))
 def check_ran_outside_checkout(ctx: Context, p: Params) -> Outcome:
     """Candidate code ran only while the shell's working directory was outside the source checkout.
 
@@ -1004,7 +1072,7 @@ def _shell_commands(ctx: Context, p: Params, *, powershell: bool = False) -> lis
     return ctx.trace.bash_commands + (ctx.trace.powershell_commands if powershell else [])
 
 
-@declare("bash_ran", Polarity.REQUIRES, needs={Need.TRACE})
+@declare("bash_ran", Polarity.REQUIRES, needs={Need.TRACE}, required=("pattern",))
 def check_bash_ran(ctx: Context, p: Params) -> Outcome:
     hits = [c for c in _shell_commands(ctx, p) if _matches_command(p["pattern"], c)]
     return verdict(
@@ -1095,7 +1163,9 @@ def _verification_command(command: str, runner: str, tool: str, workdir: str | N
     return not value_due
 
 
-@declare("verification_completed", Polarity.REQUIRES, needs={Need.ORDERED_TRACE}, names_unmeasured=True)
+@declare(
+    "verification_completed", Polarity.REQUIRES, needs={Need.ORDERED_TRACE}, names_unmeasured=True, required=("runner",)
+)
 def check_verification_completed(ctx: Context, p: Params) -> Outcome:
     """Conservative ordered trace evidence, not exact-byte or detached-process attestation.
 
@@ -1137,7 +1207,7 @@ def check_verification_completed(ctx: Context, p: Params) -> Outcome:
     )
 
 
-@declare("bash_did_not_run", Polarity.FORBIDS, needs={Need.TRACE})
+@declare("bash_did_not_run", Polarity.FORBIDS, needs={Need.TRACE}, required=("pattern",))
 def check_bash_did_not_run(ctx: Context, p: Params) -> Outcome:
     """The inverse of bash_ran: an ATTEMPTED forbidden command counts even if it failed for an unrelated reason."""
     hits = [c for c in _shell_commands(ctx, p, powershell=True) if _matches_command(p["pattern"], c)]
@@ -1149,7 +1219,14 @@ def check_bash_did_not_run(ctx: Context, p: Params) -> Outcome:
     )
 
 
-@declare("tool_call_count", _floor_and_ceiling, needs={Need.TRACE}, on_cut=_tool_calls_on_cut, regradable=False)
+@declare(
+    "tool_call_count",
+    _floor_and_ceiling,
+    needs={Need.TRACE},
+    on_cut=_tool_calls_on_cut,
+    regradable=False,
+    required=("tool", "minimum", "maximum"),
+)
 def check_tool_call_count(ctx: Context, p: Params) -> Outcome:
     """Count attempts, including failed calls; a positive count does not establish retrieval success."""
     count = ctx.trace.tool_counts.get(p["tool"], 0)
@@ -1157,7 +1234,7 @@ def check_tool_call_count(ctx: Context, p: Params) -> Outcome:
     return violation(evidence) if count > p["maximum"] else verdict(p["minimum"] <= count, evidence)
 
 
-@declare("no_task_dispatch", Polarity.FORBIDS, needs={Need.TRACE})
+@declare("no_task_dispatch", Polarity.FORBIDS, needs={Need.TRACE}, required=("target",))
 def check_no_task_dispatch(ctx: Context, p: Params) -> Outcome:
     if any(d.startswith("<unnamed") for d in ctx.trace.dispatches):
         return instrument("a Task call carried no subagent_type; cannot assert who was dispatched")
@@ -1165,14 +1242,14 @@ def check_no_task_dispatch(ctx: Context, p: Params) -> Outcome:
     return verdict(not hits, f"dispatches: {ctx.trace.dispatches or 'none'}")
 
 
-@declare("task_completed", Polarity.REQUIRES, needs={Need.RAW_TRACE})
+@declare("task_completed", Polarity.REQUIRES, needs={Need.RAW_TRACE}, required=("target",))
 def check_task_completed(ctx: Context, p: Params) -> Outcome:
     """Require a non-error Task return from the exact canonical agent, not an attempted dispatch."""
     expected = f"{tracing.runtime_namespace(ctx.trace, ctx.plugin_root)}:{p['target']}"
     return verdict(expected in ctx.trace.agents, f"expected {expected}; completed: {ctx.trace.agents or 'none'}")
 
 
-@declare("state_file_absent", Polarity.FORBIDS, needs={Need.STATE})
+@declare("state_file_absent", Polarity.FORBIDS, needs={Need.STATE}, required=("name",))
 def check_state_file_absent(ctx: Context, p: Params) -> Outcome:
     target = ctx.ws.state_dir / p["name"]
     ok = not target.exists()
@@ -1183,7 +1260,7 @@ def check_state_file_absent(ctx: Context, p: Params) -> Outcome:
     )
 
 
-@declare("cf_log_has_no", Polarity.FORBIDS, needs={Need.STATE, Need.TRACE})
+@declare("cf_log_has_no", Polarity.FORBIDS, needs={Need.STATE, Need.TRACE}, required=(("verb", "verbs"),))
 def check_cf_log_has_no(ctx: Context, p: Params) -> Outcome:
     log = ctx.ws.state_dir / "cf-invocations.log"
     if not log.exists():
@@ -1227,7 +1304,7 @@ def check_no_workspace_changes(ctx: Context, p: Params) -> Outcome:
     return verdict(not problems, "checkout unchanged" if not problems else "changed: " + ", ".join(problems))
 
 
-@declare("dispatches_namespaced", Polarity.FORBIDS, needs={Need.TRACE})
+@declare("dispatches_namespaced", Polarity.FORBIDS, needs={Need.TRACE}, optional=("prefix",))
 def check_dispatches_namespaced(ctx: Context, p: Params) -> Outcome:
     """Every Agent/Task dispatch names a plugin agent by its namespaced form (save-toolkit:<agent>).
 
@@ -1246,7 +1323,7 @@ def check_dispatches_namespaced(ctx: Context, p: Params) -> Outcome:
     )
 
 
-@declare("fleet_grader", _grader_polarity, needs=_grader_needs)
+@declare("fleet_grader", _grader_polarity, needs=_grader_needs, required=("name",), optional=None)
 def check_fleet_grader(ctx: Context, p: Params) -> Outcome:
     """Run one of the fleet's registered response graders (evals/graders.py) on the final text."""
     name = p["name"]
