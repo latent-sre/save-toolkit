@@ -413,6 +413,15 @@ def _successful_status(status: object) -> bool:
     return type(status) is int and 200 <= status < 300
 
 
+def _post_run_get(service: Service, path: str) -> tuple[int, object]:
+    """A check's own GET against a service after the run. A service that no longer answers is the
+    harness's failure, never the candidate's, so it raises for grading to name (result rule 5)."""
+    status, payload = backing.request(service, path)
+    if status == 0:
+        raise ServiceUnavailable(f"{service.name}: post-run GET {path} was unreachable: {payload}")
+    return status, payload
+
+
 def _service(ctx: Context, name: str | None) -> Service:
     services = {s.name: s for s in ctx.services}
     if name:
@@ -428,10 +437,8 @@ def _service(ctx: Context, name: str | None) -> Service:
 def check_service_get(ctx: Context, p: Params) -> Outcome:
     """Assert on what the live service contains after the trial — the outcome, not the agent's account of it."""
     service = _service(ctx, p.get("service"))
-    status, payload = backing.request(service, str(p["path"]))
+    status, payload = _post_run_get(service, str(p["path"]))
     detail = f"GET {p['path']} -> {status}"
-    if status == 0:
-        raise ServiceUnavailable(f"{service.name}: post-run GET {p['path']} was unreachable: {payload}")
     if "status" in p and status != int(p["status"]):
         return verdict(False, detail + f" (expected {p['status']})")
     if status >= 400 and "status" not in p:
@@ -457,10 +464,8 @@ def check_service_get(ctx: Context, p: Params) -> Outcome:
 def check_service_array_item(ctx: Context, p: Params) -> Outcome:
     """Require one item in a live JSON array to satisfy every independent structural assertion."""
     service = _service(ctx, p.get("service"))
-    status, payload = backing.request(service, str(p["path"]))
+    status, payload = _post_run_get(service, str(p["path"]))
     detail = f"GET {p['path']} -> {status}"
-    if status == 0:
-        raise ServiceUnavailable(f"{service.name}: post-run GET {p['path']} was unreachable: {payload}")
     if status >= 400:
         return verdict(False, detail + f": {str(payload)[:160]}")
     items = backing.json_pointer(payload, str(p["pointer"]))
@@ -868,9 +873,7 @@ def check_service_unchanged(ctx: Context, p: Params) -> Outcome:
             ):
                 forbidden.append(f"{entry['method']} {route} (status={entry.get('status')!r})")
     before = service.snapshots[path]
-    status, after = backing.request(service, path)
-    if status == 0:
-        raise ServiceUnavailable(f"{service.name}: post-run GET {path} was unreachable: {after}")
+    status, after = _post_run_get(service, path)
     if status >= 400:
         return verdict(False, f"GET {path} -> {status} after the trial: {str(after)[:160]}")
     ok = json.dumps(before, sort_keys=True) == json.dumps(after, sort_keys=True)
