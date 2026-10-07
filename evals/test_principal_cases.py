@@ -9,7 +9,9 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
-import build_probe
+import graders as fleet_graders
+from probe import catalog as probe_catalog
+from probe import checking as probe_checking
 
 ROOT = Path(__file__).resolve().parent
 CANDIDATE = ROOT / "build-scenarios/build-principal-engineer-contract-change.yaml"
@@ -62,7 +64,7 @@ def _reply_checks(spec: dict) -> list[dict]:
 
 def _failed_reply_checks(spec: dict, reply: str) -> list[str]:
     ctx = SimpleNamespace(trace=SimpleNamespace(result_text=reply))
-    return [c["text"] for c in _reply_checks(spec) if not build_probe.CHECKS[c["check"]](ctx, c)[0]]
+    return [c["text"] for c in _reply_checks(spec) if not probe_checking.CHECKS[c["check"]](ctx, c)[0]]
 
 
 def _oracle(text: str) -> int:
@@ -79,8 +81,8 @@ def _headings_record(slots=SLOT_HEADINGS, body="Supplied requirement [sourced] r
 
 class PrincipalCaseTests(unittest.TestCase):
     def test_incumbent_comparison_uses_identical_task_fixture_and_checks(self):
-        candidate = build_probe.load_scenario(CANDIDATE)
-        incumbent = build_probe.load_scenario(INCUMBENT)
+        candidate = probe_catalog.load_scenario(CANDIDATE)
+        incumbent = probe_catalog.load_scenario(INCUMBENT)
         self.assertEqual("principal-engineer", candidate["agent"])
         self.assertEqual("software-engineer", incumbent["agent"])
         for key in ("prompt", "fixture", "checks", "success_criteria"):
@@ -88,8 +90,8 @@ class PrincipalCaseTests(unittest.TestCase):
                 self.assertEqual(candidate[key], incumbent[key])
 
     def test_new_system_incumbent_uses_identical_task_fixture_and_checks(self):
-        candidate = build_probe.load_scenario(NEW_SYSTEM)
-        incumbent = build_probe.load_scenario(NEW_SYSTEM_INCUMBENT)
+        candidate = probe_catalog.load_scenario(NEW_SYSTEM)
+        incumbent = probe_catalog.load_scenario(NEW_SYSTEM_INCUMBENT)
         self.assertEqual("principal-engineer", candidate["agent"])
         self.assertEqual("software-engineer", incumbent["agent"])
         for key in ("prompt", "fixture", "checks", "success_criteria"):
@@ -97,8 +99,8 @@ class PrincipalCaseTests(unittest.TestCase):
                 self.assertEqual(candidate[key], incumbent[key])
 
     def test_order_event_incumbent_uses_identical_task_fixture_and_checks(self):
-        candidate = build_probe.load_scenario(IDENTITY)
-        incumbent = build_probe.load_scenario(IDENTITY_INCUMBENT)
+        candidate = probe_catalog.load_scenario(IDENTITY)
+        incumbent = probe_catalog.load_scenario(IDENTITY_INCUMBENT)
         self.assertEqual("principal-engineer", candidate["agent"])
         self.assertEqual("software-engineer", incumbent["agent"])
         for key in ("prompt", "fixture", "checks", "success_criteria"):
@@ -106,7 +108,7 @@ class PrincipalCaseTests(unittest.TestCase):
                 self.assertEqual(candidate[key], incumbent[key])
 
     def test_order_event_fixture_trap_is_real_code_behaviour(self):
-        files = build_probe.load_scenario(IDENTITY)["fixture"]["files"]
+        files = probe_catalog.load_scenario(IDENTITY)["fixture"]["files"]
         fulfilment, report = {}, {}
         exec(compile(files["app/fulfilment.py"], "app/fulfilment.py", "exec"), fulfilment)
         exec(compile(files["reporting/daily_orders.py"], "reporting/daily_orders.py", "exec"), report)
@@ -123,7 +125,7 @@ class PrincipalCaseTests(unittest.TestCase):
         self.assertIn("always safe", files["notes.md"])
 
     def test_order_event_reply_checks_reject_each_wrong_decision(self):
-        spec = build_probe.load_scenario(IDENTITY)
+        spec = probe_catalog.load_scenario(IDENTITY)
         reply = "Design written.\n```json\n" + json.dumps(IDENTITY_REPLY, indent=2) + "\n```\n"
         self.assertEqual([], _failed_reply_checks(spec, reply))
         wrong = {
@@ -152,7 +154,7 @@ class PrincipalCaseTests(unittest.TestCase):
                 self.assertTrue(_failed_reply_checks(spec, bad))
 
     def test_platform_selection_reply_checks_reject_each_wrong_decision(self):
-        spec = build_probe.load_scenario(PLATFORM)
+        spec = probe_catalog.load_scenario(PLATFORM)
         files = spec["fixture"]["files"]
         self.assertIn("Status: accepted", files["docs/decisions/2026-07-01-batch-work-as-pcf-tasks.md"])
         self.assertIn("untrusted", files["notes.md"])
@@ -180,7 +182,7 @@ class PrincipalCaseTests(unittest.TestCase):
                 self.assertTrue(_failed_reply_checks(spec, bad))
 
     def test_fixture_readers_match_the_expected_consumer_inventory(self):
-        files = build_probe.load_scenario(CANDIDATE)["fixture"]["files"]
+        files = probe_catalog.load_scenario(CANDIDATE)["fixture"]["files"]
         reads_time_field = re.compile(r'\["start"\]|\.start\b|\$\[\*\]\.start')
         producer_and_documents = {"api/windows.py", "config/api.yaml", "docs/consumers.md", "notes.md"}
         readers = sorted(path for path, text in files.items()
@@ -190,12 +192,12 @@ class PrincipalCaseTests(unittest.TestCase):
         self.assertNotIn("grafana", files["docs/consumers.md"].lower())
 
     def test_contract_reply_checks_accept_a_correct_reply_with_prose(self):
-        spec = build_probe.load_scenario(CANDIDATE)
+        spec = probe_catalog.load_scenario(CANDIDATE)
         reply = "Design written.\n```json\n" + json.dumps(CONTRACT_REPLY, indent=2) + "\n```\n"
         self.assertEqual([], _failed_reply_checks(spec, reply))
 
     def test_contract_reply_checks_reject_each_wrong_decision(self):
-        spec = build_probe.load_scenario(CANDIDATE)
+        spec = probe_catalog.load_scenario(CANDIDATE)
         wrong = {
             "missed the dashboard": {"consumer_files": "cli/mw.py,spa/src/windows.ts"},
             "counted the producer": {"consumer_files": "api/windows.py,cli/mw.py,"
@@ -221,14 +223,14 @@ class PrincipalCaseTests(unittest.TestCase):
         self.assertTrue(_failed_reply_checks(spec, escaped))
 
     def test_new_system_reply_checks_separate_decisions_from_reply_format(self):
-        spec = build_probe.load_scenario(NEW_SYSTEM)
+        spec = probe_catalog.load_scenario(NEW_SYSTEM)
         exact = next(c for c in spec["checks"] if c.get("name") == "exact_json")["fields"]
         self.assertEqual(NEW_SYSTEM_REPLY, exact)
         self.assertEqual([], _failed_reply_checks(spec, json.dumps(NEW_SYSTEM_REPLY)))
-        self.assertTrue(build_probe.fleet_graders.exact_json(json.dumps(NEW_SYSTEM_REPLY), exact)[0])
+        self.assertTrue(fleet_graders.exact_json(json.dumps(NEW_SYSTEM_REPLY), exact)[0])
         wrapped = "Here is the result:\n" + json.dumps(NEW_SYSTEM_REPLY)
         self.assertEqual([], _failed_reply_checks(spec, wrapped))
-        self.assertFalse(build_probe.fleet_graders.exact_json(wrapped, exact)[0])
+        self.assertFalse(fleet_graders.exact_json(wrapped, exact)[0])
         for key, value in (("runtime_outside_team_stack", "yes"),
                            ("introduces_new_infrastructure", "yes"),
                            ("availability_target", "99.9"),
@@ -244,7 +246,7 @@ class PrincipalCaseTests(unittest.TestCase):
                 self.assertTrue(_failed_reply_checks(spec, reply))
         escaped = json.dumps(NEW_SYSTEM_REPLY)[:-1] + ', "decision\\u005fowner": "designer"}'
         self.assertEqual("designer", json.loads(escaped)["decision_owner"])
-        self.assertFalse(build_probe.fleet_graders.exact_json(escaped, exact)[0])
+        self.assertFalse(fleet_graders.exact_json(escaped, exact)[0])
 
     def test_record_oracle_accepts_every_contract_shape(self):
         example = "\n".join(line for line in PRINCIPAL.read_text(encoding="utf-8").splitlines()

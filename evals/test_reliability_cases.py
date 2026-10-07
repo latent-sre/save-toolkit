@@ -10,8 +10,10 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-import build_probe
+import graders as fleet_graders
+from probe import catalog as probe_catalog
 from probe import checking as probe_checking
+from probe import workspaces as probe_workspaces
 
 ROOT = Path(__file__).resolve().parent
 EXPECTED = {
@@ -51,9 +53,9 @@ EXPECTED = {
 
 class ReliabilityCaseTests(unittest.TestCase):
     def test_incumbent_comparison_uses_identical_task_fixture_and_outcome_checks(self):
-        candidate = build_probe.load_scenario(
+        candidate = probe_catalog.load_scenario(
             ROOT / "build-scenarios/build-reliability-engineer-redelivery.yaml")
-        incumbent = build_probe.load_scenario(
+        incumbent = probe_catalog.load_scenario(
             ROOT / "build-scenarios/build-sre-assistant-redelivery-baseline.yaml")
         self.assertEqual(candidate["agent"], "reliability-engineer")
         self.assertEqual(incumbent["agent"], "sre-assistant")
@@ -62,7 +64,7 @@ class ReliabilityCaseTests(unittest.TestCase):
                 self.assertEqual(candidate[key], incumbent[key])
 
     def test_document_boundary_accepts_requested_doc_and_rejects_config_edit(self):
-        spec = build_probe.load_scenario(
+        spec = probe_catalog.load_scenario(
             ROOT / "build-scenarios/build-reliability-engineer-doc-boundary.yaml")
         check = next(c for c in spec["checks"] if c["check"] == "changes_within")
         for changed, accepted in (([("??", "docs/assessments/checkout-slow-ledger.md")], True),
@@ -70,11 +72,11 @@ class ReliabilityCaseTests(unittest.TestCase):
                                   ([("??", "docs/assessments/checkout-slow-ledger.md"),
                                     ("M", "config/worker.yaml")], False)):
             with self.subTest(changed=changed):
-                ctx = SimpleNamespace(git=build_probe.GitFacts(0, "main", changed, ""))
-                self.assertEqual(accepted, build_probe.CHECKS[check["check"]](ctx, check)[0])
+                ctx = SimpleNamespace(git=probe_workspaces.GitFacts(0, "main", changed, ""))
+                self.assertEqual(accepted, probe_checking.CHECKS[check["check"]](ctx, check)[0])
 
     def test_source_case_rejects_dispatch_without_grader_errors(self):
-        spec = build_probe.load_scenario(
+        spec = probe_catalog.load_scenario(
             ROOT / "build-scenarios/build-reliability-engineer-redelivery.yaml")
         check = next(c for c in spec["checks"] if c["check"] == "no_task_dispatch")
         for dispatches, accepted in (([], True), (["save-toolkit:sre-assistant"], False),
@@ -82,11 +84,11 @@ class ReliabilityCaseTests(unittest.TestCase):
                                      (["<unnamed Task>"], False)):
             with self.subTest(dispatches=dispatches):
                 ctx = SimpleNamespace(trace=SimpleNamespace(dispatches=dispatches))
-                self.assertEqual(accepted, build_probe.CHECKS[check["check"]](ctx, check)[0])
+                self.assertEqual(accepted, probe_checking.CHECKS[check["check"]](ctx, check)[0])
 
     def test_result_checks_reject_wrong_evidence_controls_and_economics(self):
         for name, expected in EXPECTED.items():
-            spec = build_probe.load_scenario(
+            spec = probe_catalog.load_scenario(
                 ROOT / "scenarios" / f"agent-direct-reliability-engineer-{name}.yaml")
             fields = spec["graders"][0]["fields"]
             responses = [(expected, True), ({}, False)]
@@ -96,11 +98,11 @@ class ReliabilityCaseTests(unittest.TestCase):
                 responses.append((expected | {key: wrong}, False))
             for response, accepted in responses:
                 with self.subTest(scenario=name, response=response):
-                    self.assertEqual(accepted, build_probe.fleet_graders.exact_json(
+                    self.assertEqual(accepted, fleet_graders.exact_json(
                         json.dumps(response), fields)[0])
 
     def test_redelivery_fixture_exposes_duplicate_effect_and_effective_control(self):
-        spec = build_probe.load_scenario(
+        spec = probe_catalog.load_scenario(
             ROOT / "build-scenarios/build-reliability-engineer-redelivery.yaml")
         # Execute only these reviewed local contract fixtures, never an agent-produced artifact.
         files = spec["fixture"]["files"]
@@ -134,7 +136,7 @@ class ReliabilityCaseTests(unittest.TestCase):
                                    (good | {"runtime_evidence": "executed"}, False)):
             ctx = SimpleNamespace(trace=SimpleNamespace(result_text=json.dumps(response)),
                                   judge_binding=None)
-            self.assertEqual(accepted, all(build_probe.CHECKS[c["check"]](ctx, c)[0]
+            self.assertEqual(accepted, all(probe_checking.CHECKS[c["check"]](ctx, c)[0]
                                            for c in checks))
 
 
@@ -142,7 +144,7 @@ class ReliabilityAuthorizationTests(unittest.TestCase):
     """Run the actual probe-owned artifact check; ambiguous prose needs human review."""
 
     def assess(self, statement):
-        spec = build_probe.load_scenario(
+        spec = probe_catalog.load_scenario(
             ROOT / "build-scenarios/build-reliability-engineer-resumes-after-partial-helper.yaml")
         check = [item for item in spec["checks"] if item["check"] == "command_exit_zero"][1]
         with tempfile.TemporaryDirectory(prefix="reliability-authorization-") as directory:
@@ -165,7 +167,7 @@ class ReliabilityAuthorizationTests(unittest.TestCase):
                 return result
 
             with patch.object(probe_checking, "_run", side_effect=run_actual):
-                passed, evidence = build_probe.check_command_exit_zero(ctx, check)
+                passed, evidence = probe_checking.check_command_exit_zero(ctx, check)
             self.assertEqual(len(completed), 1, evidence)
             return completed[0].returncode, passed, evidence
 

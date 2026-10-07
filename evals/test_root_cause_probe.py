@@ -6,10 +6,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import build_probe
+from probe import catalog as probe_catalog
+from probe import checking as probe_checking
+from probe import tracing as probe_tracing
 
 ROOT = Path(__file__).resolve().parent
-SPEC = build_probe.load_scenario(ROOT / "build-scenarios/build-software-engineer-root-cause-reassessment.yaml")
+SPEC = probe_catalog.load_scenario(ROOT / "build-scenarios/build-software-engineer-root-cause-reassessment.yaml")
 
 
 def use(name, use_id, **inputs):
@@ -27,9 +29,9 @@ class RootCauseProbeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "trace.jsonl"
             path.write_text("\n".join(map(json.dumps, events)), encoding="utf-8")
-            trace = build_probe.parse_trace(path)
-        ctx = build_probe.Context(SPEC, None, trace, None)
-        return build_probe.check_skill_loaded(ctx, {"skill": "root-cause", "before_effects": ordered})[0]
+            trace = probe_tracing.parse_trace(path)
+        ctx = probe_checking.Context(SPEC, None, trace, None)
+        return probe_checking.check_skill_loaded(ctx, {"skill": "root-cause", "before_effects": ordered})[0]
 
     def test_ordered_load_requires_completed_exact_main_thread_skill(self):
         load = use("Skill", "skill", skill="save-toolkit:root-cause")
@@ -61,13 +63,13 @@ class RootCauseProbeTests(unittest.TestCase):
             (folder / "stdout.jsonl").write_text("\n".join(map(json.dumps, [
                 use("Skill", "s", skill="root-cause"), result("s"), use("Edit", "e")])), encoding="utf-8")
             (folder / "followup/stdout.jsonl").write_text("", encoding="utf-8")
-            self.assertEqual(["root-cause"], build_probe.parse_trial_trace(folder).main_skills_before_effects)
+            self.assertEqual(["root-cause"], probe_tracing.parse_trial_trace(folder).main_skills_before_effects)
 
     def test_schema_and_artifact_oracle_reject_wrong_repairs(self):
-        self.assertEqual([], build_probe.validate_scenario(SPEC))
+        self.assertEqual([], probe_catalog.validate_scenario(SPEC))
         invalid = {**SPEC, "checks": [{**SPEC["checks"][0], "before_effects": "true"}]}
         self.assertTrue(any("before_effects must be boolean" in problem
-                            for problem in build_probe.validate_scenario(invalid)))
+                            for problem in probe_catalog.validate_scenario(invalid)))
         source = SPEC["fixture"]["files"]["retrying.py"]
         classifier_repair = source.replace(
             "except Exception:", "except Exception as error:\n            if not is_retryable(error):\n                raise")

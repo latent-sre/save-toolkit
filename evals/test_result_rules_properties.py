@@ -31,12 +31,22 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import build_probe
+import judge as rubric_judge
+from probe import assessment as probe_assessment
+from probe import backing as probe_backing
+from probe import batches as probe_batches
+from probe import catalog as probe_catalog
+from probe import checking as probe_checking
+from probe import constants as probe_constants
+from probe import outcomes as probe_outcomes
+from probe import records as probe_records
+from probe import rescoring as probe_rescoring
+from probe import tracing as probe_tracing
 from test_build_probe import INTENDED_POLARITY  # the reviewed table, not the declarations
 
 RULES = settings(derandomize=True, database=None, deadline=None, max_examples=150)
 GRADES = settings(derandomize=True, database=None, deadline=None, max_examples=60)
-UNMEASURED_PREFIXES = ("INCONCLUSIVE: ", "instrument: ", build_probe.rubric_judge.INCONCLUSIVE_PREFIX)
+UNMEASURED_PREFIXES = ("INCONCLUSIVE: ", "instrument: ", rubric_judge.INCONCLUSIVE_PREFIX)
 STATES = ("PASS", "INCONCLUSIVE", "FAIL")
 RANK = {"FAIL": 0, "INCONCLUSIVE": 1, "PASS": 2}
 FORBIDDING = sorted(name for name, polarity in INTENDED_POLARITY.items() if polarity == "forbids")
@@ -70,7 +80,7 @@ class SavedVerdictProperties(unittest.TestCase):
     def test_a_supported_failure_is_never_hidden(self, graded: list[tuple[str, dict]], unmeasured: str | None) -> None:
         states = [state for state, _ in graded]
         checks = [check for _, check in graded]
-        status, reason = build_probe.trial_status(checks, unmeasured)
+        status, reason = probe_assessment.trial_status(checks, unmeasured)
         self.assertEqual(states, [check["state"] for check in checks])
         first = next((c["evidence"].removeprefix("INCONCLUSIVE: ") for s, c in graded if s == "INCONCLUSIVE"), None)
         self.assertEqual(unmeasured or first, reason)
@@ -96,16 +106,16 @@ def plans(draw: st.DrawFn) -> tuple[list[dict], str]:
     return items, draw(st.sampled_from(("completed", "cut", "void")))
 
 
-def _measured(found: str) -> build_probe.Outcome:
+def _measured(found: str) -> probe_outcomes.Outcome:
     if found == "crash":
         raise RuntimeError("grader defect")
-    return {"pass": build_probe.verdict(True, "seen"), "fail": build_probe.verdict(False, "not seen"),
-            "violation": build_probe.violation("did the forbidden thing"),
-            "unmeasured": build_probe.unmeasured("no data"), "instrument": build_probe.instrument("no snapshot")}[found]
+    return {"pass": probe_outcomes.verdict(True, "seen"), "fail": probe_outcomes.verdict(False, "not seen"),
+            "violation": probe_outcomes.violation("did the forbidden thing"),
+            "unmeasured": probe_outcomes.unmeasured("no data"), "instrument": probe_outcomes.instrument("no snapshot")}[found]
 
 
-SAVED_VERDICTS = {"pass": build_probe.verdict(True, "kept pass"), "fail": build_probe.verdict(False, "kept fail"),
-                  "unmeasured": build_probe.unmeasured("kept unmeasured"), "missing": None}
+SAVED_VERDICTS = {"pass": probe_outcomes.verdict(True, "kept pass"), "fail": probe_outcomes.verdict(False, "kept fail"),
+                  "unmeasured": probe_outcomes.unmeasured("kept unmeasured"), "missing": None}
 
 
 def _expected(item: dict, run: str) -> tuple[str, bool]:
@@ -132,19 +142,19 @@ class GradingLoopProperties(unittest.TestCase):
         items, run = drawn
         calls: list[int] = []
 
-        def measure(index: int) -> build_probe.Outcome:
+        def measure(index: int) -> probe_outcomes.Outcome:
             calls.append(index)
             return _measured(items[index]["found"])
 
-        plan = [build_probe.Expectation(
-            f"e{index}", (lambda index=index: measure(index)), build_probe.Polarity(item["polarity"]),
-            on_cut=build_probe.routing_on_cut if item["polarity"] == "both" else None,
+        plan = [probe_assessment.Expectation(
+            f"e{index}", (lambda index=index: measure(index)), probe_outcomes.Polarity(item["polarity"]),
+            on_cut=probe_assessment.routing_on_cut if item["polarity"] == "both" else None,
             kept_as="workspace-dependent" if item["kept"] else None) for index, item in enumerate(items)]
         inconclusive = {"completed": None, "void": "wrong plugin",
-                        "cut": build_probe.CutShort("timed out after 60s", "wall_clock")}[run]
+                        "cut": probe_outcomes.CutShort("timed out after 60s", "wall_clock")}[run]
         kept = (lambda index, _item: SAVED_VERDICTS[items[index]["kept"]]) if any(i["kept"] for i in items) else None
-        graded, reason = build_probe.assess(plan, inconclusive, kept=kept)
-        status, _ = build_probe.roll_up([g.outcome for g in graded], inconclusive or reason)
+        graded, reason = probe_assessment.assess(plan, inconclusive, kept=kept)
+        status, _ = probe_assessment.roll_up([g.outcome for g in graded], inconclusive or reason)
 
         expected = [_expected(item, run) for item in items]
         self.assertEqual([state for state, _ in expected], [g.outcome.state for g in graded])
@@ -152,7 +162,7 @@ class GradingLoopProperties(unittest.TestCase):
         machinery = [measured and item["found"] in ("instrument", "crash")
                      for item, (_, measured) in zip(items, expected, strict=True)]
         self.assertEqual(machinery, [g.outcome.machinery for g in graded], "rule 5: a machinery failure stays one")
-        self.assertEqual(any(machinery), bool(build_probe.assessment.machinery_failure(graded)))
+        self.assertEqual(any(machinery), bool(probe_assessment.machinery_failure(graded)))
         for item, g in zip(items, graded, strict=True):
             if item["polarity"] == "forbids" and g.outcome.state == "FAIL":
                 self.assertTrue(g.outcome.forbidden, "every failure of a forbidding expectation is a violation")
@@ -169,16 +179,16 @@ class AggregationProperties(unittest.TestCase):
         passes, unknown, trials = states.count("PASS"), states.count("INCONCLUSIVE"), len(states)
         expected = ("PASS" if 100 * passes >= percent * trials
                     else "FAIL" if 100 * (passes + unknown) < percent * trials else "INCONCLUSIVE")
-        self.assertEqual(expected, build_probe.aggregate_verdict(states, percent / 100))
+        self.assertEqual(expected, probe_batches.aggregate_verdict(states, percent / 100))
 
     @RULES
     @given(st.lists(st.sampled_from(STATES), min_size=1, max_size=9), st.floats(min_value=0.01, max_value=1.0))
     def test_a_verdict_never_improves_when_a_trial_gets_worse(self, states: list[str], threshold: float) -> None:
-        verdict = build_probe.aggregate_verdict(states, threshold)
+        verdict = probe_batches.aggregate_verdict(states, threshold)
         for index, state in enumerate(states):
             for worse in (s for s in STATES if RANK[s] < RANK[state]):
                 worsened = [*states[:index], worse, *states[index + 1:]]
-                self.assertLessEqual(RANK[build_probe.aggregate_verdict(worsened, threshold)], RANK[verdict])
+                self.assertLessEqual(RANK[probe_batches.aggregate_verdict(worsened, threshold)], RANK[verdict])
 
     @RULES
     @given(st.lists(st.sampled_from(FORBIDDING), min_size=1, max_size=3),
@@ -189,7 +199,7 @@ class AggregationProperties(unittest.TestCase):
                                                   requested: float | None, declared: float | None) -> None:
         spec = {"id": "s", "checks": [{"check": name} for name in [*requiring, *forbidding]],
                 **({"threshold": declared} if declared is not None else {})}
-        self.assertEqual(1.0, build_probe.effective_threshold(spec, requested))
+        self.assertEqual(1.0, probe_batches.effective_threshold(spec, requested))
 
     @RULES
     @given(st.integers(min_value=0, max_value=5), st.integers(min_value=0, max_value=5),
@@ -197,7 +207,7 @@ class AggregationProperties(unittest.TestCase):
     def test_a_tool_call_ceiling_holds_every_trial(self, minimum: int, extra: int, requested: float | None) -> None:
         spec = {"id": "s", "checks": [{"check": "tool_call_count", "tool": "WebFetch",
                                        "minimum": minimum, "maximum": minimum + extra}]}
-        self.assertEqual(1.0, build_probe.effective_threshold(spec, requested))
+        self.assertEqual(1.0, probe_batches.effective_threshold(spec, requested))
 
     @RULES
     @given(st.lists(st.sampled_from(REQUIRING), min_size=1, max_size=3),
@@ -208,7 +218,7 @@ class AggregationProperties(unittest.TestCase):
         spec = {"id": "s", "checks": [{"check": name} for name in requiring],
                 **({"threshold": declared} if declared is not None else {})}
         expected = requested if requested is not None else declared if declared is not None else 1.0
-        self.assertEqual(expected, build_probe.effective_threshold(spec, requested))
+        self.assertEqual(expected, probe_batches.effective_threshold(spec, requested))
 
 
 costs = st.one_of(st.none(), st.booleans(), st.text(max_size=3), st.integers(min_value=-5, max_value=5),
@@ -220,7 +230,7 @@ class CostProperties(unittest.TestCase):
     @given(costs)
     def test_only_a_finite_non_negative_number_is_a_known_cost(self, value: object) -> None:
         valid = type(value) in (int, float) and math.isfinite(value) and value >= 0
-        known = build_probe.known_usd(value)
+        known = probe_records.known_usd(value)
         self.assertEqual(valid, known is not None)
         if valid:
             self.assertEqual(float(value), known)
@@ -229,11 +239,11 @@ class CostProperties(unittest.TestCase):
     @given(costs, st.one_of(st.none(), st.floats(min_value=0, max_value=100)), st.floats(min_value=0, max_value=100))
     def test_a_total_is_known_only_when_every_part_is(self, trial: object, judge_total: float | None,
                                                       judge_known: float) -> None:
-        cost = build_probe.trial_cost(trial, {"cost_usd": judge_total, "known_cost_usd": judge_known})
-        complete = build_probe.known_usd(trial) is not None and judge_total is not None
+        cost = probe_records.trial_cost(trial, {"cost_usd": judge_total, "known_cost_usd": judge_known})
+        complete = probe_records.known_usd(trial) is not None and judge_total is not None
         self.assertEqual(complete, cost["cost_complete"])
         self.assertEqual(complete, cost["cost_usd"] is not None)
-        self.assertAlmostEqual((build_probe.known_usd(trial) or 0.0) + judge_known, cost["known_cost_usd"], places=5)
+        self.assertAlmostEqual((probe_records.known_usd(trial) or 0.0) + judge_known, cost["known_cost_usd"], places=5)
 
     @RULES
     @given(st.lists(st.fixed_dictionaries({"cost_usd": costs, "seconds": st.floats(min_value=0, max_value=60),
@@ -241,8 +251,8 @@ class CostProperties(unittest.TestCase):
     def test_an_unpriced_judge_call_leaves_the_judge_total_unknown(self, calls: list[dict]) -> None:
         stub = types.SimpleNamespace(drain_spend=lambda: list(calls))
         with mock.patch.dict(sys.modules, {"judge": stub}):
-            spend = build_probe.judge_spend()
-        unknown = sum(build_probe.known_usd(call["cost_usd"]) is None for call in calls)
+            spend = probe_records.judge_spend()
+        unknown = sum(probe_records.known_usd(call["cost_usd"]) is None for call in calls)
         self.assertEqual((len(calls), unknown), (spend["calls"], spend["unknown_cost_calls"]))
         self.assertEqual(unknown == 0, spend["cost_usd"] is not None)
         self.assertEqual(len(calls), spend["live_calls"] + spend["cached_calls"])
@@ -259,14 +269,14 @@ class RunEndProperties(unittest.TestCase):
 
     @staticmethod
     def _grade(text: str, needle: str, word: str, inconclusive: str | None = None) -> dict:
-        ctx = build_probe.Context(_text_spec(needle, word), None, build_probe.TraceSummary(result_text=text), None)
-        return build_probe.grade(ctx, inconclusive=inconclusive)
+        ctx = probe_checking.Context(_text_spec(needle, word), None, probe_tracing.TraceSummary(result_text=text), None)
+        return probe_assessment.grade(ctx, inconclusive=inconclusive)
 
     @GRADES
     @given(letters, needles, needles)
     def test_a_cut_short_run_fails_only_on_evidence_of_a_forbidden_action(self, text: str, needle: str,
                                                                           word: str) -> None:
-        grading = self._grade(text, needle, word, build_probe.CutShort("timed out after 60s", "wall_clock"))
+        grading = self._grade(text, needle, word, probe_outcomes.CutShort("timed out after 60s", "wall_clock"))
         violated = needle in text
         self.assertEqual(["FAIL" if violated else "INCONCLUSIVE", "INCONCLUSIVE"],
                          [e["state"] for e in grading["expectations"]])
@@ -311,9 +321,9 @@ class RescoreDiffProperties(unittest.TestCase):
     @given(rescores(), rescores())
     def test_a_rescore_diff_is_empty_against_itself_and_the_same_size_both_ways(self, base: dict,
                                                                                candidate: dict) -> None:
-        self.assertEqual([], build_probe.rescore_diff(base, base))
-        self.assertEqual(len(build_probe.rescore_diff(base, candidate)),
-                         len(build_probe.rescore_diff(candidate, base)))
+        self.assertEqual([], probe_rescoring.rescore_diff(base, base))
+        self.assertEqual(len(probe_rescoring.rescore_diff(base, candidate)),
+                         len(probe_rescoring.rescore_diff(candidate, base)))
 
     @RULES
     @given(rescores(), st.data())
@@ -334,7 +344,7 @@ class RescoreDiffProperties(unittest.TestCase):
                 row["rescored"]["status"] = data.draw(st.sampled_from([s for s in STATES
                                                                        if s != row["rescored"]["status"]]))
             changed.add(row["run"])
-        named = {int(re.search(r"/run-(\d+)", line).group(1)) for line in build_probe.rescore_diff(base, candidate)}
+        named = {int(re.search(r"/run-(\d+)", line).group(1)) for line in probe_rescoring.rescore_diff(base, candidate)}
         self.assertEqual(changed, named)
 
 
@@ -383,7 +393,7 @@ class TraceParserProperties(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "stdout.jsonl"
             path.write_text("\n".join(json.dumps(event) for event in events), encoding="utf-8")
-            trace = build_probe.parse_trace(path)
+            trace = probe_tracing.parse_trace(path)
         names = [name for name, _, _ in calls]
         clean = [name for name, _, returned in calls if returned == "clean"]
         self.assertEqual(len(calls), sum(trace.tool_counts.values()))
@@ -398,7 +408,7 @@ class TraceParserProperties(unittest.TestCase):
         self.assertEqual((dispatched, completed, dispatched - completed),
                          (len(trace.dispatches), len(trace.agents), len(trace.agents_failed)))
         self.assertEqual(sum(names.count(tool) for tool in ("Read", "Grep", "Glob")), len(trace.read_attempts))
-        self.assertEqual(sum(name in build_probe.WRITING_TOOLS | {"Task", "Agent"} for name in names),
+        self.assertEqual(sum(name in probe_constants.WRITING_TOOLS | {"Task", "Agent"} for name in names),
                          len(trace.effect_calls))
         self.assertEqual(any(event["type"] == "result" for event in events), trace.has_result)
 
@@ -468,7 +478,7 @@ VALIDATOR_CASES: list[tuple[str, dict, list[str]]] = [
      ["case: fixture.fake_bin must map command names to scripts", "case: each service needs a name and an image"]),
     ("unreviewed service image", _changed(BUILD, fixture=_fixture(services=[
         {"name": "grafana", "image": "example.invalid/x@sha256:" + "0" * 64}])),
-     [f"case: service 'grafana' must use a reviewed service image; allowed: {sorted(build_probe.TRUSTED_SERVICE_IMAGES)}"]),
+     [f"case: service 'grafana' must use a reviewed service image; allowed: {sorted(probe_backing.TRUSTED_SERVICE_IMAGES)}"]),
     ("service without an image", _changed(BUILD, fixture=_fixture(services=[{"name": "grafana"}])),
      ["case: each service needs a name and an image"]),
     ("service command not a list", _changed(BUILD, fixture=_fixture(services=[
@@ -556,12 +566,12 @@ class ValidatorParityTests(unittest.TestCase):
     def test_the_valid_bases_report_nothing(self) -> None:
         for name, spec in (("build", BUILD), ("contract", CONTRACT), ("routing", ROUTING), ("native", NATIVE)):
             with self.subTest(base=name):
-                self.assertEqual([], build_probe.validate_scenario(spec, where="case"))
+                self.assertEqual([], probe_catalog.validate_scenario(spec, where="case"))
 
     def test_each_problem_keeps_its_wording_and_order(self) -> None:
         for name, spec, expected in VALIDATOR_CASES:
             with self.subTest(case=name):
-                self.assertEqual(expected, build_probe.validate_scenario(spec, where="case"))
+                self.assertEqual(expected, probe_catalog.validate_scenario(spec, where="case"))
 
 
 if __name__ == "__main__":

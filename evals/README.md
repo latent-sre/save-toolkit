@@ -52,8 +52,8 @@ an old main-session trace cannot be reclassified as agent acceptance.
 
 ## Runner layout
 
-`build_probe.py` is the entry point and keeps every name the runner has always exported; the code is
-in [`probe/`](probe), one module per job (its [`__init__.py`](probe/__init__.py) lists them):
+`build_probe.py` is only the command line; the code is in [`probe/`](probe), one module per job (its
+[`__init__.py`](probe/__init__.py) lists them), and tests and tools import those modules directly:
 
 - **Typed results.** A check returns an `Outcome` that states whether its evidence measured the
   candidate (`PASS`, `FAIL` or `INCONCLUSIVE`) and whether a failure was the grading machinery's. It
@@ -80,7 +80,8 @@ in [`probe/`](probe), one module per job (its [`__init__.py`](probe/__init__.py)
 A function is patched in the module that defines it, such as `probe.trials.run_trial`: every other
 module calls it through that module, so one patch reaches every caller, and a test enforces it. A
 class or constant is bound by name in each module that imports it, so a patch must reach each of
-them. `build_probe` refuses a patch of any name it re-exports and lists where the runner reads it.
+them. `build_probe` holds no runner name, so a patch aimed at it fails instead of leaving real code
+running.
 
 ## Inspect AI + Inspect SWE pilot
 

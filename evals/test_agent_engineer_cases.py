@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import build_probe
+from probe import catalog as probe_catalog
 
 ROOT = Path(__file__).resolve().parent
 
@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parent
 class AgentEngineerCaseTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        spec = build_probe.load_scenario(
+        spec = probe_catalog.load_scenario(
             ROOT / "build-scenarios/build-agent-engineer-resumes-after-partial-research.yaml"
         )
         cls.seed = spec["fixture"]["files"]["skills/weekly-report/SKILL.md"]

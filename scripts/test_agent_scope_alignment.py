@@ -16,9 +16,9 @@ ROOT = Path(__file__).resolve().parents[1]
 class AgentScopeAlignmentTests(unittest.TestCase):
     def test_reviewer_example_requires_rejection_for_the_execution_path(self) -> None:
         sys.path.insert(0, str(ROOT / "evals"))
-        import build_probe
+        from probe import catalog, checking
 
-        spec = build_probe.load_scenario(
+        spec = catalog.load_scenario(
             ROOT / "evals/build-scenarios/build-reviewer-executes-nothing.yaml"
         )
         response_checks = [c for c in spec["checks"]
@@ -42,7 +42,7 @@ class AgentScopeAlignmentTests(unittest.TestCase):
         for response, expected in cases:
             with self.subTest(response=response):
                 ctx = SimpleNamespace(trace=SimpleNamespace(result_text=response), judge_binding=None)
-                passed = all(build_probe.CHECKS[c["check"]](ctx, c)[0] for c in response_checks)
+                passed = all(checking.CHECKS[c["check"]](ctx, c)[0] for c in response_checks)
                 self.assertEqual(expected, passed)
 
     def test_reviewer_default_header_carries_review_binding(self) -> None:

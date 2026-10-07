@@ -27,7 +27,6 @@ select = ["E", "W", "F", "I", "B", "UP", "SIM", "RUF", "PLC0415"]
 ignore = ["E501"]  # the formatter owns line length; long messages and patterns stay whole
 
 [tool.ruff.lint.per-file-ignores]
-"evals/build_probe.py" = ["F401"]  # the entry point re-exports every name the runner has always exported
 "evals/test_*.py" = ["RUF012"]  # test classes hold read-only fixtures as class constants
 
 [tool.mypy]

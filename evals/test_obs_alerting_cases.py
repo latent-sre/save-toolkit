@@ -7,8 +7,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import build_probe
 import yaml
+from probe import catalog as probe_catalog
 
 ROOT = Path(__file__).resolve().parent
 LONG = "checkout:availability:error_ratio_rate1h"
@@ -18,7 +18,7 @@ SHORT = "checkout:availability:error_ratio_rate5m"
 class AlertPredicateCaseTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        spec = build_probe.load_scenario(
+        spec = probe_catalog.load_scenario(
             ROOT / "build-scenarios/build-observability-engineer-resumes-after-partial-helper.yaml"
         )
         cls.seed = spec["fixture"]["files"]["alerts/checkout.rules.yml"]

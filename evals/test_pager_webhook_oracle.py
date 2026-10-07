@@ -247,7 +247,8 @@ def test_fixture_suite_passes_unchanged(tmp_path):
     ("pager-webhook", True), ("cli-with-tests", False),
 ])
 def test_review_dispatch_policy_matches_security_scope(tmp_path, scenario_name, permits_review):
-    import build_probe  # noqa: PLC0415 -- only this test needs the runner
+    from probe import checking as probe_checking  # noqa: PLC0415 -- only this test needs the runner
+    from probe import tracing as probe_tracing  # noqa: PLC0415
 
     scenario = SCENARIO.with_name(f"build-software-engineer-{scenario_name}.yaml")
     spec = yaml.safe_load(scenario.read_text(encoding="utf-8"))
@@ -264,11 +265,11 @@ def test_review_dispatch_policy_matches_security_scope(tmp_path, scenario_name, 
     ]
     trace_path = tmp_path / "review.jsonl"
     trace_path.write_text("\n".join(json.dumps(event) for event in events), encoding="utf-8")
-    trace = build_probe.parse_trace(trace_path)
+    trace = probe_tracing.parse_trace(trace_path)
     assert trace.dispatches == ["save-toolkit:reviewer"]
     ctx = SimpleNamespace(trace=trace)
     checks = [check for check in spec["checks"] if check["check"] == "no_task_dispatch"]
-    results = [build_probe.CHECKS[check["check"]](ctx, check) for check in checks]
+    results = [probe_checking.CHECKS[check["check"]](ctx, check) for check in checks]
     assert all(passed for passed, _ in results) is permits_review, results
     if not permits_review:
         assert any(check["target"] == "reviewer" for check in checks)
