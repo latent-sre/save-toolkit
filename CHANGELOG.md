@@ -47,6 +47,9 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   - `build_probe`'s refusal of a patch through its re-exports named `probe.checking.check_<name>` as
     the place to patch a registered check, where a patch changes nothing because grading calls the
     registry entry; it names `probe.checking.CHECKS['<name>']`.
+  - A native conversation's two invocations were merged from a hand-kept list of fields, and a field
+    it missed kept only the follow-up's value: `usage_models` lost the first invocation's models.
+    Every trace field now has one merge rule, and a test fails when a new field has none.
 
   [verified] Regrading all 1,317 saved runs with `adc13a88` and with these fixes differs in nothing;
   no saved run records a git failure, and a regrade keeps a command check's live verdict.

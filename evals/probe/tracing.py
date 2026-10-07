@@ -435,45 +435,70 @@ def is_rooted(value: object) -> bool:
     return Path(str(value)).is_absolute()
 
 
+# How a native conversation's invocations combine into one trace. Every TraceSummary field has a rule,
+# so a new field is merged on purpose rather than kept from the last invocation by default.
+MERGED_FROM_FIRST = (
+    "main_skills",
+    "main_skills_before_effects",
+    "parent_reads_before_dispatch",
+    "parent_skills_before_dispatch",
+)
+MERGED_IN_ORDER = (
+    "skills",
+    "skills_failed",
+    "bash_commands",
+    "powershell_commands",
+    "subagent_bash_commands",
+    "dispatches",
+    "agents",
+    "agents_failed",
+    "read_attempts",
+    "denials",
+    "tool_errors",
+    "denial_details",
+    "subagent_tool_ids",
+    "agent_returns",
+    "init_session_ids",
+)
+MERGED_AS_SET = ("models", "main_models", "usage_models")
+MERGED_AS_SUM = ("duration_ms", "total_tokens", "output_tokens", "num_turns", "total_cost_usd")  # unknown if any is
+# The conversation's final result and session, and the runtime profile each invocation is checked on
+# before grading, come from the last invocation; so do the ordered effect calls, whose trace line
+# numbers count within one invocation's file.
+MERGED_FROM_LAST = (
+    "result_text",
+    "has_result",
+    "result_is_error",
+    "result_subtype",
+    "session_id",
+    "saw_init",
+    "advertised_tools",
+    "mcp_servers",
+    "permission_mode",
+    "runtime_plugins",
+    "effect_calls",
+)
+MERGED_SPECIALLY = ("tool_counts", "conversation_sessions")  # summed per tool; one session per invocation
+
+
 def parse_trial_trace(run_dir: Path) -> TraceSummary:
     """Merge invocation evidence, charging only the last cumulative result within each invocation."""
     traces = [parse_trace(run_dir / "stdout.jsonl")]
     followup = run_dir / "followup" / "stdout.jsonl"
     if followup.is_file():
         traces.append(parse_trace(followup))
-    merged = replace(
-        traces[-1],
-        main_skills=traces[0].main_skills,
-        main_skills_before_effects=traces[0].main_skills_before_effects,
-        parent_reads_before_dispatch=traces[0].parent_reads_before_dispatch,
-        parent_skills_before_dispatch=traces[0].parent_skills_before_dispatch,
-        conversation_sessions=[trace.session_id for trace in traces],
-    )
-    for name in (
-        "skills",
-        "skills_failed",
-        "bash_commands",
-        "powershell_commands",
-        "subagent_bash_commands",
-        "dispatches",
-        "agents",
-        "agents_failed",
-        "read_attempts",
-        "denials",
-        "tool_errors",
-        "denial_details",
-        "subagent_tool_ids",
-        "agent_returns",
-        "init_session_ids",
-    ):
+    merged = replace(traces[-1], conversation_sessions=[trace.session_id for trace in traces])
+    for name in MERGED_FROM_FIRST:
+        setattr(merged, name, getattr(traces[0], name))
+    for name in MERGED_IN_ORDER:
         setattr(merged, name, [value for trace in traces for value in getattr(trace, name)])
-    merged.models = sorted({model for trace in traces for model in trace.models})
-    merged.main_models = sorted({model for trace in traces for model in trace.main_models})
+    for name in MERGED_AS_SET:
+        setattr(merged, name, sorted({value for trace in traces for value in getattr(trace, name)}))
     merged.tool_counts = {
         name: sum(trace.tool_counts.get(name, 0) for trace in traces)
         for name in {name for trace in traces for name in trace.tool_counts}
     }
-    for name in ("duration_ms", "total_tokens", "output_tokens", "num_turns", "total_cost_usd"):
+    for name in MERGED_AS_SUM:
         values = [getattr(trace, name) for trace in traces]
         setattr(merged, name, sum(values) if all(value is not None for value in values) else None)
     return merged

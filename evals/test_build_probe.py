@@ -1224,6 +1224,38 @@ class PositiveControlTests(unittest.TestCase):
 
 
 class NativeConversationTraceTests(unittest.TestCase):
+    def test_every_trace_field_has_one_merge_rule(self) -> None:
+        from dataclasses import fields
+
+        rules = (probe_tracing.MERGED_FROM_FIRST, probe_tracing.MERGED_IN_ORDER, probe_tracing.MERGED_AS_SET,
+                 probe_tracing.MERGED_AS_SUM, probe_tracing.MERGED_FROM_LAST, probe_tracing.MERGED_SPECIALLY)
+        classified = [name for rule in rules for name in rule]
+        self.assertEqual(len(classified), len(set(classified)), "a field has one rule")
+        self.assertEqual({field.name for field in fields(build_probe.TraceSummary)}, set(classified))
+
+    def test_a_conversation_keeps_every_invocations_usage_models(self) -> None:
+        def write(path: Path, use_id: str, model: str) -> None:
+            events = [
+                {"type": "system", "subtype": "init", "session_id": "s1", "tools": [], "model": model},
+                {"type": "assistant", "message": {"model": model, "content": [
+                    {"type": "tool_use", "id": use_id, "name": "Bash", "input": {"command": f"echo {use_id}"}}]}},
+                {"type": "user", "tool_use_result": {"stdout": "", "stderr": "", "interrupted": False},
+                 "message": {"content": [{"type": "tool_result", "tool_use_id": use_id, "content": "ok"}]}},
+                {"type": "result", "subtype": "success", "session_id": "s1", "result": "done",
+                 "total_cost_usd": 0.1, "modelUsage": {model: {}, "helper-haiku": {}}},
+            ]
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("\n".join(json.dumps(event) for event in events), encoding="utf-8")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            run = Path(tmp)
+            write(run / "stdout.jsonl", "first", "model-first")
+            write(run / "followup" / "stdout.jsonl", "second", "model-second")
+            merged = build_probe.parse_trial_trace(run)
+        self.assertEqual(["helper-haiku", "model-first", "model-second"], merged.usage_models)
+        self.assertEqual(["echo first", "echo second"], merged.bash_commands)
+        self.assertEqual(["second"], [call["id"] for call in merged.effect_calls], "ordered calls stay per invocation")
+
     @staticmethod
     def events(*, asynchronous=True, completed=True, continued=True):
         events = [
