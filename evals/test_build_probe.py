@@ -186,6 +186,19 @@ class WorkspaceAndCheckTests(unittest.TestCase):
             with self.subTest(bad=bad):
                 self.assertTrue(build_probe.validate_scenario({**spec, "fixture": {**TINY_SPEC["fixture"], **bad}}))
 
+    def test_seeded_uncommitted_work_is_compared_byte_for_byte(self) -> None:
+        # Line endings are bytes the agent changed, and a non-UTF-8 rewrite is the candidate's own
+        # output: a failure, never a grading-machinery crash (result rule 5).
+        spec = {**TINY_SPEC, "fixture": {**TINY_SPEC["fixture"], "uncommitted": {"notes.txt": "one\ntwo\n"}}}
+        for name, rewrite, expected in (("crlf", b"one\r\ntwo\r\n", build_probe.State.FAIL),
+                                        ("non-utf-8", b"\xff\xfe binary\n", build_probe.State.FAIL),
+                                        ("unchanged", b"one\ntwo\n", build_probe.State.PASS)):
+            with self.subTest(rewrite=name):
+                ws = build_probe.seed_workspace(spec, self.root / name)
+                (ws.repo / "notes.txt").write_bytes(rewrite)
+                outcome = build_probe.check_no_workspace_changes(_ctx(spec, ws), {})
+                self.assertEqual(expected, outcome.state, outcome.evidence)
+
     def test_validation_reports_a_non_string_uncommitted_key_instead_of_crashing(self) -> None:
         bad = {**TINY_SPEC, "fixture": {**TINY_SPEC["fixture"], "uncommitted": {1: "content"}}}
         self.assertTrue(any("uncommitted" in p for p in build_probe.validate_scenario(bad)))

@@ -21,6 +21,9 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
     repository, failed the candidate. It now reports `instrument:` evidence and stops its scenario
     (result rule 5), and `validate` refuses what staging would refuse: an inline `writes:` that is not
     a mapping of path to text, and a `writes:` or `writes_from:` destination outside the repository.
+  - `no_workspace_changes` compared seeded uncommitted files as newline-translated text, so a CRLF
+    rewrite passed as "checkout unchanged", and a non-UTF-8 rewrite, the candidate's own output,
+    crashed the grader. It compares bytes, and both now fail.
 
   [verified] Regrading all 1,317 saved runs with `adc13a88` and with these fixes differs in nothing;
   no saved run records a git failure, and a regrade keeps a command check's live verdict.

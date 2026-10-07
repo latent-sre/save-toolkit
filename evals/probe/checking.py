@@ -1210,7 +1210,7 @@ def check_no_workspace_changes(ctx: Context, p: Params) -> Outcome:
     problems = [f"{s} {path}" for s, path in ctx.git.changed if path not in seeded]
     for path, content in seeded.items():
         target = ctx.ws.repo / path
-        if not target.is_file() or target.read_text(encoding="utf-8") != content:
+        if not target.is_file() or target.read_bytes() != content.encode("utf-8"):
             problems.append(f"uncommitted {path} altered or removed")
     return verdict(not problems, "checkout unchanged" if not problems else "changed: " + ", ".join(problems))
 
