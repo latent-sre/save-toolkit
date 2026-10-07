@@ -15,7 +15,7 @@ import stat
 import subprocess
 import sys
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from contextlib import AbstractContextManager
 from pathlib import Path
 from typing import Any
@@ -62,7 +62,7 @@ def run_trial(
     target.parent.mkdir(parents=True, exist_ok=True)
     # Every attempt stays visible (threat-model ADR result rule 7): a replaced run and an attempt that
     # never published move under <label>/attempts/run-N/<k>/, which run-N globs never match.
-    history = target.parent / "attempts" / target.name
+    history = attempts_dir(target.parent) / target.name
     kept = [int(p.name) for p in history.iterdir() if p.name.isdigit()] if history.is_dir() else []
     current = (_attempt_number(target) or max(kept, default=0) + 1) if target.exists() else None
     number = max([*kept, current or 0]) + 1
@@ -125,6 +125,10 @@ def run_trial(
         if not published and attempt.exists():
             reason = f"{type(exc).__name__}: {exc}"[:500]
             try:
+                _record_raised_cost(attempt)
+            except Exception as cost_error:  # no timing.json leaves the cost unknown, which the cap refuses
+                print(f"warning: no cost recorded for the incomplete attempt {attempt}: {cost_error}", file=sys.stderr)
+            try:
                 records.write_record(
                     attempt,
                     spec,
@@ -182,6 +186,50 @@ def _write_attempt(run_dir: Path, number: int, state: str, reason: str | None = 
     records.update_record(
         run_dir,
         lambda record: record["attempt"].update(number=number, state=state, **({"reason": reason} if reason else {})),
+    )
+
+
+def attempts_dir(label_dir: Path) -> Path:
+    """Where a label keeps the attempts that are not its published runs, as attempts/run-N/<k>/."""
+    return label_dir / "attempts"
+
+
+def kept_attempt_costs(out_dir: Path, label: str, scenario_ids: Iterable[str]) -> list[dict[str, Any]]:
+    """The `timing.json` of each attempt a label keeps, superseded or incomplete: no batch summary lists
+    them, though each was paid for (result rule 7). One without a readable `timing.json` reads as an
+    unknown cost, never as zero."""
+    costs: list[dict[str, Any]] = []
+    for scenario_id in sorted(scenario_ids):
+        for attempt in sorted(attempts_dir(out_dir / f"eval-{scenario_id}" / label).glob("run-*/*")):
+            if not attempt.name.isdigit():
+                continue
+            try:
+                timing = json.loads((attempt / "timing.json").read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                timing = None
+            costs.append(timing if isinstance(timing, dict) else {"cost_complete": False})
+    return costs
+
+
+def _record_raised_cost(attempt: Path) -> None:
+    """Write what an attempt that raised is known to have cost, as a graded trial's `timing.json` does:
+    nothing for the CLI when it never started, else what its partial trace reports, which is unknown
+    without a result event; plus any judge call its grading made."""
+    if (attempt / "timing.json").exists():  # it was graded before it raised
+        return
+    trace_path = attempt / "stdout.jsonl"
+    trial_usd = tracing.parse_trace(trace_path).total_cost_usd if trace_path.exists() else 0.0
+    cost = records.trial_cost(trial_usd, records.judge_spend())
+    (attempt / "timing.json").write_text(
+        json.dumps(
+            {
+                "total_cost_usd": cost["cost_usd"],
+                "known_cost_usd": cost["known_cost_usd"],
+                "cost_complete": cost["cost_complete"],
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
     )
 
 

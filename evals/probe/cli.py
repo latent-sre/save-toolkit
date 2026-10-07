@@ -371,15 +371,18 @@ def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
     auth_failed = False
     planned = [(spec, i) for spec in scenarios for i in range(args.trials)]
     selected_ids = {spec["id"] for spec in scenarios}
-    prior = [e for e in retained if e.get("scenario") in selected_ids]
-    spent = sum(records.known_usd(e.get("known_cost_usd")) or 0.0 for e in prior)
-    if args.max_batch_usd is not None and any(e.get("cost_complete") is not True for e in prior):
-        # A retained trial without a known cost leaves the batch's spend unknown; the cap cannot hold.
-        blocked = f"a retained trial's cost is unknown; the USD {args.max_batch_usd:g} cap cannot be enforced"
+    # Every attempt of the label was paid for, and each counts once: the summary's rows, those this
+    # --overwrite replaces included, and the superseded and incomplete attempts kept beside them.
+    paid = [e for e in existing if e.get("scenario") in selected_ids]
+    paid += trials.kept_attempt_costs(out, args.label, selected_ids)
+    spent = sum(records.known_usd(e.get("known_cost_usd")) or 0.0 for e in paid)
+    if args.max_batch_usd is not None and any(e.get("cost_complete") is not True for e in paid):
+        # An earlier attempt without a known cost leaves the batch's spend unknown; the cap cannot hold.
+        blocked = f"an earlier attempt's cost is unknown; the USD {args.max_batch_usd:g} cap cannot be enforced"
     machinery_stopped: dict[str, str] = {}
     try:
         for spec, i in planned:
-            if blocked:  # stopped before scheduling: a retained trial already broke the cap's accounting
+            if blocked:  # stopped before scheduling: an earlier attempt already broke the cap's accounting
                 break
             if spec["id"] in machinery_stopped:
                 continue  # its grader cannot measure; more trials would spend for nothing
@@ -476,18 +479,20 @@ def _conclude(
         # then no verdict covers the batch, and nothing a later check refuses changes why it stopped.
         print(json.dumps(stop), flush=True)
         return 4
-    if problem:
-        print(json.dumps({"batch": "INCONCLUSIVE", "reason": problem}), flush=True)
-        return 2
     identities = batches.model_identities(batch)
-    if len(identities) > 1:
-        # Routing and behaviour are model-dependent, so trials under two resolved models are two
-        # measurements. Aggregating them would emit one verdict for neither.
-        print(
-            json.dumps({"batch": "INCONCLUSIVE", "reason": MIXED_MODELS, "models": identities}),
-            flush=True,
-        )
-        print(f"{len(batch)} trial(s) under {len(identities)} resolved models: not aggregated, not publishable")
+    if problem or len(identities) > 1:
+        if problem:
+            print(json.dumps({"batch": "INCONCLUSIVE", "reason": problem}), flush=True)
+        else:
+            # Routing and behaviour are model-dependent, so trials under two resolved models are two
+            # measurements. Aggregating them would emit one verdict for neither.
+            print(
+                json.dumps({"batch": "INCONCLUSIVE", "reason": MIXED_MODELS, "models": identities}),
+                flush=True,
+            )
+            print(f"{len(batch)} trial(s) under {len(identities)} resolved models: not aggregated, not publishable")
+        if stop:  # why scheduling also ended early, which the refusal must not hide
+            print(json.dumps(stop), flush=True)
         return 2
     verdicts = batches.aggregate_by_scenario(scenarios, batch, threshold)
     for scenario_id, verdict in sorted(verdicts.items()):

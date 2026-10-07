@@ -4520,6 +4520,82 @@ class BatchSpendCapTests(unittest.TestCase):
         self.assertIn("cap cannot be enforced", out)
 
 
+class SpendCapAttemptTests(unittest.TestCase):
+    """Copilot and Codex on PR #328: the cap counts every attempt the label paid for, once (rule 7).
+
+    The real run_trial publishes and keeps the attempts; only the trial itself is stubbed.
+    """
+
+    RUNTIME = BatchSpendCapTests.RUNTIME
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory(prefix="build-probe-cap-")
+        self.out = Path(self.tmp.name) / "it"
+        self.spec = build_probe.load_all_scenarios()[0]
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def _main(self, steps: list, *extra: str, plugin_sha: str = "0" * 64) -> tuple[int, int, str]:
+        """Each step is a graded trial's cost (None: unknown) or (exception, partial trace or None)."""
+        calls: list[int] = []
+
+        def fake_run_trial(spec, *, run_out, run_number, label, **_):
+            step = steps[len(calls)]
+            calls.append(run_number)
+            if isinstance(step, tuple):
+                exc, trace = step
+                if trace is not None:
+                    (run_out / "stdout.jsonl").write_text(trace, encoding="utf-8")
+                raise exc
+            cost = {"known_cost_usd": step or 0.0, "cost_complete": step is not None}
+            (run_out / "timing.json").write_text(json.dumps(cost), encoding="utf-8")
+            return {"scenario": spec["id"], "label": label, "run": run_number, "status": "PASS", "passed": 1,
+                    "total": 1, "models": ["m"], "runtime": self.RUNTIME, "plugin_source_sha256": "0" * 64,
+                    "scenario_sha256": build_probe.scenario_digest(spec), **cost}
+
+        with mock.patch.object(probe_fingerprints, "plugin_provenance", return_value={"plugin_source_sha256": plugin_sha}), \
+                mock.patch.object(probe_fingerprints, "runtime_identity", return_value=self.RUNTIME), \
+                mock.patch.object(probe_trials, "_run_trial", side_effect=fake_run_trial), \
+                mock.patch.object(probe_records, "write_record"), \
+                contextlib.redirect_stdout(io.StringIO()) as out, contextlib.redirect_stderr(io.StringIO()):
+            code = build_probe.main(["--scenario", self.spec["id"], "--label", "l", "--trials", str(len(steps)),
+                                     "--out", str(self.out), *extra])
+        return code, len(calls), out.getvalue()
+
+    def test_a_replaced_and_a_superseded_attempt_still_count(self) -> None:
+        self._main([0.9])
+        code, calls, out = self._main([0.2, 0.2], "--overwrite", "--max-batch-usd", "1")
+        self.assertEqual((2, 1), (code, calls), "run 1's USD 0.90 leaves room for one more trial")
+        self.assertIn("reached the USD 1 cap", out)
+        self.tearDown(), self.setUp()
+        self._main([0.3])
+        self._main([0.4], "--overwrite")  # the USD 0.30 attempt is now kept as superseded
+        code, calls, out = self._main([0.35, 0.35], "--run-offset", "1", "--max-batch-usd", "1")
+        self.assertEqual((2, 1), (code, calls), "USD 0.40 published and 0.30 superseded: room for one more")
+
+    def test_an_attempt_that_raised_counts_what_it_is_known_to_have_cost(self) -> None:
+        auth = build_probe.clean_room.AuthUnavailable("Not logged in")
+        priced = '{"type": "result", "subtype": "success", "is_error": false, "total_cost_usd": 0.9}\n'
+        for name, trace, capped_calls in (("no CLI process started", None, 2),
+                                          ("a partial trace that reports its cost", priced, 1),
+                                          ("a partial trace without a cost", "", 0)):
+            with self.subTest(name):
+                self.tearDown(), self.setUp()
+                self.assertEqual(4, self._main([(auth, trace)])[0])
+                code, calls, out = self._main([0.2, 0.2], "--run-offset", "1", "--max-batch-usd", "1")
+                self.assertEqual(capped_calls, calls, out)
+                if not capped_calls:
+                    self.assertIn("an earlier attempt's cost is unknown", out)
+
+    def test_a_cap_stop_stays_visible_beside_an_identity_refusal(self) -> None:
+        self._main([None])  # a trial of unknown cost
+        code, calls, out = self._main([0.2], "--overwrite", "--max-batch-usd", "1", plugin_sha="b" * 64)
+        self.assertEqual((2, 0), (code, calls))
+        self.assertIn("candidate digest", out)
+        self.assertIn("an earlier attempt's cost is unknown", out)
+
+
 class AuthStopsTheBatchTests(unittest.TestCase):
     """An authentication failure exits 4 and stops the batch; completed trials are still reported."""
 

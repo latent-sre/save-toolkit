@@ -499,10 +499,15 @@ or NaN figure is unknown. `timing.json` and summary
 rows give `total_cost_usd` only when the trial and every judge call are priced; otherwise it is
 `null`, with `known_cost_usd` and `cost_complete: false` beside it, and a cached verdict counts as a
 known zero, and live and cached judge calls are counted apart. `--max-batch-usd USD` (finite and
-above 0) stops scheduling once the batch's known spend,
-counting trials retained from an earlier invocation of the label, reaches `USD`, or as soon as any
-trial's cost is unknown, because an unknown cost cannot be held to a cap. A batch whose CLI does not
-report its version is refused before any model call. Judge calibration
+above 0) stops scheduling once the batch's known spend reaches `USD`, or as soon as any attempt's
+cost is unknown, because an unknown cost cannot be held to a cap. That spend counts, once each, the
+rows of this label and model's summary for the selected scenarios, including those `--overwrite`
+replaces, and the superseded and incomplete attempts kept under the label's `attempts/`, which every
+model of the label shares. An attempt that raised records what it is known to have cost: nothing
+when the CLI never started, else what its partial trace reports, which is unknown without the
+trace's result event. One attempt of unknown cost, such as a wall-clock timeout, therefore blocks
+capped runs of its scenario under that label; run it uncapped or under a new label. A batch whose
+CLI does not report its version is refused before any model call. Judge calibration
 receipts still sum an unpriced call as zero: changing `judge.py` invalidates every receipt, so that
 fix waits for the next recalibration.
 

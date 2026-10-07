@@ -37,6 +37,12 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
     those checks ran first, and their advice to overwrite hid that re-authentication was due. The stop
     now exits 4 before any verdict, and its line names, as `unfixed_by_resume`, an identity or model
     problem that resuming would not fix.
+  - `--max-batch-usd` forgot spend already paid for: a run `--overwrite` replaced, and the superseded
+    and incomplete attempts kept under `attempts/`, so a resumed or repeated batch could spend past
+    its cap. The cap now counts each earlier attempt of the label once, and an attempt that raised
+    records what it is known to have cost, nothing when the CLI never started. An attempt whose cost
+    is unknown blocks capped runs of its scenario under that label, and a stop decided before any
+    trial is reported even when the batch's identity check refuses it too.
 
   [verified] Each fix's new test fails without it and passes with it.
 - The 2026-10-07 python-craft review of the eval runner (PR #328):
