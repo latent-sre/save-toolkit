@@ -43,6 +43,10 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
     records what it is known to have cost, nothing when the CLI never started. An attempt whose cost
     is unknown blocks capped runs of its scenario under that label, and a stop decided before any
     trial is reported even when the batch's identity check refuses it too.
+  - A trial whose trace named no model was graded PASS or FAIL and pooled with trials of a known
+    model, where a result whose model identity is unknown must never be merged. It is now void at the
+    identity check that refuses a wrong plugin or tool list, so it is INCONCLUSIVE with the reason
+    `resolved model identity missing`.
 
   [verified] Each fix's new test fails without it and passes with it.
 - The 2026-10-07 python-craft review of the eval runner (PR #328):

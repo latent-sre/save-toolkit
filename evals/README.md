@@ -598,7 +598,8 @@ a change makes the trial INCONCLUSIVE, and a mismatch with the batch digest prev
 These checks detect persistent changes, not a transient edit restored between checks; keep the
 candidate checkout stable for the batch. Strict MCP mode supplies an explicit empty server set.
 Runtime init must report exactly one plugin with that checkout's identity and
-exactly the requested tool inventory; a missing or foreign tool, an MCP server, an error result, a
+exactly the requested tool inventory, and the trace must name the model it ran on; a missing or
+foreign tool, an MCP server, a trace that names no model, an error result, a
 nonzero exit, or — where reads were granted — a successful read outside the workspace and plugin
 snapshot makes the trial **INCONCLUSIVE**, never a verdict. An auth failure aborts the batch.
 

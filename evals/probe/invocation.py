@@ -262,6 +262,8 @@ def profile_problem(trace: TraceSummary, spec: Mapping[str, Any], plugin_root: P
     requested = catalog.scenario_tools(spec)
     expected = expected_runtime_tools(plugin_root, spec["agent"], requested) if spec.get("agent") else requested
     problem = runtime_boundary_problem(trace, expected) or plugin_identity_problem(trace, plugin_root)
+    if not problem and not any(trace.models):  # a result whose model is unknown is never pooled
+        problem = "resolved model identity missing"
     if not problem and read_boundary_applies(spec, requested):
         problem = read_boundary_problem(trace, (workspace, plugin_root.resolve()))
     blocked = runtime_blocked_tools(trace, spec)

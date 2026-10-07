@@ -1722,6 +1722,16 @@ class EndToEndStubTests(unittest.TestCase):
 
         return plain
 
+    def test_a_trial_whose_trace_names_no_model_is_void(self) -> None:
+        """Codex on PR #328: a trial that resolved no model was graded PASS or FAIL and pooled with
+        identified trials, where a result whose required identity is unknown is never merged."""
+        summary = build_probe.run_trial(self._spec(), plugin_root=ROOT, label="nomodel", model=None, run_number=1,
+                                        out_dir=self.root / "it", timeout=60, executable=self._stub(resolved_model=""),
+                                        keep_workspace=False, env_factory=self._env_factory())
+        grading = json.loads((self.root / "it" / "eval-tiny" / "nomodel" / "run-1" / "grading.json")
+                             .read_text(encoding="utf-8"))
+        self.assertEqual(("INCONCLUSIVE", "resolved model identity missing"), (summary["status"], grading.get("void")))
+
     def test_a_backing_service_lost_during_grading_reaches_the_summary_row(self) -> None:
         # The row's grader_error is what stops the scenario's remaining trials; see
         # GradingMachineryTests.test_a_grader_error_stops_only_its_scenarios_remaining_trials.
