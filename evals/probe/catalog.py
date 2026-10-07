@@ -265,8 +265,15 @@ def _fixture_problems(spec: Spec, where: str) -> list[str]:
 
 
 def _is_env(env: object) -> bool:
-    """An `env` block as the trial and the service container read it: names mapped to string values."""
-    return isinstance(env, dict) and all(isinstance(k, str) and isinstance(v, str) for k, v in env.items())
+    """An `env` block as the trial and the service container read it: names mapped to string values.
+
+    A name is non-empty without `=`, and neither holds NUL: the OS refuses those when the trial starts
+    its process, after the batch began, and `docker run -e` would split a name at its `=`.
+    """
+    return isinstance(env, dict) and all(
+        isinstance(k, str) and isinstance(v, str) and k != "" and "=" not in k and "\0" not in k + v
+        for k, v in env.items()
+    )
 
 
 def _service_problems(service: object, where: str) -> list[str]:

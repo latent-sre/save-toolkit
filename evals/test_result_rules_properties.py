@@ -489,6 +489,16 @@ VALIDATOR_CASES: list[tuple[str, dict, list[str]]] = [
      ["case: fixture.env must map variable names to strings"]),
     ("fixture env value as a list", _changed(BUILD, fixture=_fixture(env={"A": ["1"]})),
      ["case: fixture.env must map variable names to strings"]),
+    # The OS refuses these when the trial starts its process, after the batch began.
+    ("fixture env name with equals", _changed(BUILD, fixture=_fixture(env={"A=B": "x"})),
+     ["case: fixture.env must map variable names to strings"]),
+    ("fixture env name empty", _changed(BUILD, fixture=_fixture(env={"": "x"})),
+     ["case: fixture.env must map variable names to strings"]),
+    ("fixture env value with NUL", _changed(BUILD, fixture=_fixture(env={"A": "x\0y"})),
+     ["case: fixture.env must map variable names to strings"]),
+    ("service env name with equals", _changed(BUILD, fixture=_fixture(services=[
+        {"name": "grafana", "image": GRAFANA, "env": {"GF=X": "1"}}])),
+     ["case: service 'grafana' env must map variable names to strings"]),
     ("service env as a string", _changed(BUILD, fixture=_fixture(services=[
         {"name": "grafana", "image": GRAFANA, "env": "A=1"}])),
      ["case: service 'grafana' env must map variable names to strings"]),
