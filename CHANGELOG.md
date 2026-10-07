@@ -187,6 +187,23 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- The eval runner is simpler to read and patch, with every saved verdict unchanged:
+  - `evals/build_probe.py` is only the command line (333 lines to 62). Tests and tools import the
+    `probe` module that defines each name, which is also where they patch it; the promise from
+    the `EVAL-011` split that the entry point keeps every exported name is retired.
+  - `check_grafana_query_succeeded` keeps its helpers at module level and collects the p95 panel's
+    queries once (McCabe complexity 66 to 19).
+  - `start_services` runs its steps as named functions and both of its `docker run` commands take
+    their hardening flags from one place (complexity 34 to 16, 31 lines shorter); a failed
+    container command's stderr is quoted the same way everywhere.
+  - The checks walk response JSON only through `json_pointer`.
+  - The pager-webhook mutants have their own test file, so a run split by file is no longer
+    bound by that one file, and 22 tests filed under the review that asked for them sit with the
+    behavior they check.
+
+  [verified] After each runner commit, rescoring the 1,317 saved runs differs from the base in no
+  verdict; the old and new `start_services` send the same docker commands to a recording fake.
+
 - The runner's Ruff lint rules now hold for `evals/graders.py`, `evals/inspect_pilot.py` and every
   `evals/test_*.py`, its formatter for the two modules, and strict mypy for the two modules, in CI.
   The tests keep their hand layout. Imports were sorted and hoisted, nested `with` statements
