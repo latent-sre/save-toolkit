@@ -8,6 +8,18 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- The 2026-10-07 python-craft review of the eval runner (PR #328):
+  - A git command that failed while listing a trial's changes, such as `git add` blocked by an
+    `index.lock` the agent left behind, read as "no changes", so `no_workspace_changes`,
+    `changes_within` and `changed_files_not_containing` passed on a changed checkout. Grading now
+    stages into a private copy of the agent's index, so the agent's lock cannot hide a change and its
+    index is no longer rewritten, and a git command that still fails leaves the changes unknown: those
+    checks report `instrument:` evidence and stop their scenario (result rules 2 and 5). The trace
+    summary records the failure as `git_problem`, so a regrade does not read the empty list as "no
+    changes" either.
+
+  [verified] Regrading all 1,317 saved runs with `adc13a88` and with these fixes differs in nothing;
+  no saved run records a git failure.
 - A regrade voided every check when a saved grade was INCONCLUSIVE because of one check, such as an
   instrument failure, a judge that could not judge or an unavailable service, so a supported FAIL
   beside it could never surface again. A regrade now voids a run only when the live grade did

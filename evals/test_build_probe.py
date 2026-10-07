@@ -286,6 +286,52 @@ class WorkspaceAndCheckTests(unittest.TestCase):
         self.assertTrue(build_probe.check_changed_files_not_containing(ctx, {"glob": "pkg/*.py", "needle": "import pytest"})[0])
         self.assertFalse(build_probe.check_changed_files_not_containing(ctx, {"glob": "pkg/*.py", "needle": "x = 1"})[0])
 
+    def test_a_lock_left_on_the_agents_index_does_not_hide_its_changes(self) -> None:
+        # An interrupted or backgrounded git command leaves .git/index.lock behind, and staging into
+        # the agent's own index then fails: the changes must not read as none.
+        (self.ws.repo / "README.md").write_text("# rewritten\n", encoding="utf-8")
+        (self.ws.repo / "src").mkdir()
+        (self.ws.repo / "src" / "evil.py").write_text("print('x')\n", encoding="utf-8")
+        (self.ws.repo / ".git" / "index.lock").write_text("", encoding="utf-8")
+        ctx = _ctx(TINY_SPEC, self.ws)
+        self.assertEqual([("A", "src/evil.py"), ("M", "README.md")], sorted(ctx.git.changed))
+        ok, evidence = build_probe.check_changes_within(ctx, {"allowed": ["README.md"]})
+        self.assertFalse(ok, evidence)
+        ok, evidence = build_probe.check_no_workspace_changes(ctx, {})
+        self.assertFalse(ok, evidence)
+        self.assertTrue((self.ws.repo / ".git" / "index.lock").exists(), "grading leaves the agent's lock alone")
+
+    def test_changes_git_could_not_list_are_an_instrument_failure_not_a_pass(self) -> None:
+        (self.ws.repo / "README.md").write_text("# rewritten\n", encoding="utf-8")
+        (self.ws.repo / ".git" / "index").write_bytes(b"not an index")
+        ctx = _ctx(TINY_SPEC, self.ws)
+        self.assertIn("git add", ctx.git.problem or "")
+        for name, params in (("changes_within", {"allowed": ["pkg/"]}),
+                             ("changed_files_not_containing", {"glob": "*.md", "needle": "#"}),
+                             ("no_workspace_changes", {})):
+            with self.subTest(check=name):
+                outcome = build_probe.CHECKS[name](ctx, params)
+                self.assertEqual((build_probe.State.INCONCLUSIVE, True), (outcome.state, outcome.machinery),
+                                 outcome.evidence)
+        self.assertTrue(build_probe.check_no_new_commits(ctx, {}).passed, "the commit count does not read the index")
+
+    def test_a_regrade_does_not_read_changes_the_live_run_could_not_list_as_none(self) -> None:
+        spec = {**TINY_SPEC, "checks": [{"check": "changes_within", "allowed": ["pkg/"], "text": "stays in pkg"}]}
+        with tempfile.TemporaryDirectory() as tmp:
+            run = Path(tmp) / "eval-tiny" / "new_skill" / "run-1"
+            (run / "outputs").mkdir(parents=True)
+            (run / "outputs" / "response.md").write_text("done\n", encoding="utf-8")
+            (run / "outputs" / "trace-summary.json").write_text(json.dumps({
+                "state_files": {}, "commits_before_after": [2, 2], "branch": "main", "changed_files": [],
+                "git_problem": "git add exited 128: fatal: index file smaller than expected",
+            }), encoding="utf-8")
+            (run / "grading.json").write_text(json.dumps(_saved_grade(spec, [
+                {"text": "stays in pkg", "passed": False, "evidence": "instrument: changed files unknown"},
+            ])), encoding="utf-8")
+            build_probe.regrade(Path(tmp), [spec])
+            check = _regraded(run)["expectations"][0]
+        self.assertEqual("INCONCLUSIVE", check["state"], check["evidence"])
+
     def test_command_measurement_exit_is_inconclusive_only_when_declared(self) -> None:
         for exit_code, declared, expected in ((0, 3, "PASS"), (1, 3, "FAIL"),
                                                (3, None, "FAIL"), (3, 3, "INCONCLUSIVE")):

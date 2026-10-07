@@ -357,8 +357,15 @@ def check_no_agents_dir(ctx: Context, p: Params) -> Outcome:
     return verdict(ok, ".agents/ " + ("absent (good)" if ok else "was created"))
 
 
+def _unknown_changes(ctx: Context) -> Outcome | None:
+    """A failed git command left the changed paths unknown; no verdict may rest on an empty list."""
+    return instrument(f"changed files unknown: {ctx.git.problem}") if ctx.git.problem else None
+
+
 @declare("changes_within", Polarity.FORBIDS, needs={Need.CHANGES})
 def check_changes_within(ctx: Context, p: Params) -> Outcome:
+    if unknown := _unknown_changes(ctx):
+        return unknown
     allowed = [a.rstrip("/") for a in p["allowed"]]
     outside = [
         path
@@ -372,6 +379,8 @@ def check_changes_within(ctx: Context, p: Params) -> Outcome:
 
 @declare("changed_files_not_containing", Polarity.FORBIDS, needs={Need.CHANGES, Need.CHECKOUT})
 def check_changed_files_not_containing(ctx: Context, p: Params) -> Outcome:
+    if unknown := _unknown_changes(ctx):
+        return unknown
     bad = []
     for _, path in ctx.git.changed:
         if fnmatch.fnmatch(path, p["glob"]):
@@ -1183,6 +1192,8 @@ def check_cf_log_has_no(ctx: Context, p: Params) -> Outcome:
 @declare("no_workspace_changes", Polarity.FORBIDS, needs=_workspace_change_needs)
 def check_no_workspace_changes(ctx: Context, p: Params) -> Outcome:
     """A read-only lane leaves the checkout byte-identical to the fixture baseline, seeded uncommitted work included."""
+    if unknown := _unknown_changes(ctx):
+        return unknown
     seeded = (ctx.spec.get("fixture") or {}).get("uncommitted") or {}
     problems = [f"{s} {path}" for s, path in ctx.git.changed if path not in seeded]
     for path, content in seeded.items():

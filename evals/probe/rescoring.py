@@ -133,7 +133,11 @@ def regrade_run(run_dir: Path, spec: Spec, *, write: bool = True, relax_identity
         trace = _summary_trace(summary, text)
     before, after = summary.get("commits_before_after") or [0, 0]
     git = GitFacts(
-        int(after), str(summary.get("branch") or ""), [tuple(x) for x in summary.get("changed_files") or []], ""
+        int(after),
+        str(summary.get("branch") or ""),
+        [tuple(x) for x in summary.get("changed_files") or []],
+        "",
+        str(summary["git_problem"]) if summary.get("git_problem") else None,
     )
     with tempfile.TemporaryDirectory(prefix="regrade-") as tmp:
         state = Path(tmp) / "state"

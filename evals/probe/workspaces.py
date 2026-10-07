@@ -12,6 +12,7 @@ import os
 import shutil
 import stat
 import subprocess
+import tempfile
 import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -40,7 +41,9 @@ class Workspace:
     command_repo: Path | None = None
 
 
-def _git(repo: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
+def _git(
+    repo: Path, *args: str, check: bool = True, env: Mapping[str, str] | None = None
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["git", *GIT_IDENTITY, *args],
         cwd=str(repo),
@@ -49,6 +52,7 @@ def _git(repo: Path, *args: str, check: bool = True) -> subprocess.CompletedProc
         encoding="utf-8",
         errors="replace",
         check=check,
+        env=env,
     )
 
 
@@ -162,6 +166,8 @@ class GitFacts:
     branch: str
     changed: list[tuple[str, str]]  # (status, posix path)
     patch: str
+    # Why the changed paths could not be listed: a git command failed, so they are unknown, not none.
+    problem: str | None = None
 
 
 def collect_git_facts(ws: Workspace) -> GitFacts:
@@ -170,17 +176,33 @@ def collect_git_facts(ws: Workspace) -> GitFacts:
     # Diff against the fixture baseline, not the current HEAD: changes the agent committed must
     # stay visible to the surgical-change and content checks.
     base = ws.baseline_sha or "HEAD"
-    _git(ws.repo, "add", "-A", check=False)
-    # --no-renames: a file moved out of the allowed set must show as a deletion, not vanish into
-    # an R line whose only reported path is the destination.
-    status = _git(ws.repo, "diff", "--cached", "--no-renames", "--name-status", base, check=False).stdout
+    # Stage into a private copy of the agent's index: a lock the agent left on its own index cannot
+    # hide a change, and grading never rewrites the agent's index.
+    with tempfile.TemporaryDirectory(dir=ws.root) as private:
+        index = Path(private) / "index"
+        if (ws.repo / ".git" / "index").is_file():
+            shutil.copyfile(ws.repo / ".git" / "index", index)
+        env = {**os.environ, "GIT_INDEX_FILE": str(index)}
+        outputs = []
+        for args in (
+            ("add", "-A"),
+            # --no-renames: a file moved out of the allowed set must show as a deletion, not vanish
+            # into an R line whose only reported path is the destination.
+            ("diff", "--cached", "--no-renames", "--name-status", base),
+            ("diff", "--cached", base),
+        ):
+            proc = _git(ws.repo, *args, check=False, env=env)
+            if proc.returncode != 0:
+                return GitFacts(
+                    count, branch, [], "", f"git {args[0]} exited {proc.returncode}: {proc.stderr.strip()[:200]}"
+                )
+            outputs.append(proc.stdout)
     changed = []
-    for line in status.splitlines():
+    for line in outputs[1].splitlines():
         parts = line.split("\t")
         if len(parts) >= 2:
             changed.append((parts[0][:1], parts[-1].replace("\\", "/")))
-    patch = _git(ws.repo, "diff", "--cached", base, check=False).stdout
-    return GitFacts(count, branch, changed, patch)
+    return GitFacts(count, branch, changed, outputs[2])
 
 
 def remove_tree(root: Path) -> None:

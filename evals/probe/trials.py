@@ -432,6 +432,7 @@ def _run_trial(
                     "commits_before_after": [ws.baseline_commits, git.commit_count],
                     "branch": git.branch,
                     "changed_files": ctx.git.changed,
+                    **({"git_problem": git.problem} if git.problem else {}),
                     "state_files": state_files,
                     "agents_dir": (ws.repo / ".agents").exists(),
                     "plugin": provenance,
