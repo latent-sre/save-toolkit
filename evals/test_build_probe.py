@@ -3286,6 +3286,26 @@ class RuntimeIdentityTests(unittest.TestCase):
         self.assertIsNone(identity["cli_version"])
         self.assertTrue(identity["host_platform"]["system"])
 
+    def test_a_composite_executable_reports_the_version_of_the_command_trials_launch(self) -> None:
+        """Copilot and Codex on PR #328: trials launch `"python" "stub.py"` split into argv, but the probe ran
+        the whole string as one filename, recorded no version, and so refused a batch it could run."""
+        with tempfile.TemporaryDirectory() as tmp:
+            stub = Path(tmp) / "stub_cli.py"
+            stub.write_text("import sys\nprint('9.9.9 (Claude Code)' if sys.argv[1:] == ['--version'] else sys.argv[1:])\n",
+                            encoding="utf-8")
+            identity = build_probe.runtime_identity(f'"{sys.executable}" "{stub}"')
+            unsplittable = build_probe.runtime_identity(f'"{sys.executable}" "{stub}')
+        self.assertEqual("9.9.9 (Claude Code)", identity["cli_version"])
+        self.assertIsNone(unsplittable["cli_version"], "an unclosed quote stays unknown: refused, not a crash")
+
+    def test_a_composite_whose_script_is_relative_is_probed_where_trials_run(self) -> None:
+        # A trial runs in its own fresh workspace, where a script named relative to the runner's
+        # directory does not exist; a probe that found it there would record a version no trial runs.
+        with tempfile.TemporaryDirectory() as tmp, contextlib.chdir(tmp):
+            Path("stub_cli.py").write_text("print('9.9.9 (Claude Code)')\n", encoding="utf-8")
+            identity = build_probe.runtime_identity(f'"{sys.executable}" stub_cli.py')
+        self.assertIsNone(identity["cli_version"])
+
 
 class BatchAggregationTests(unittest.TestCase):
     """Codex review of PR #222: the batch verdict must cover the batch, and one model identity."""

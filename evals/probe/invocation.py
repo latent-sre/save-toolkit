@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import json
 import re
-import shlex
 from collections.abc import Mapping, Sequence
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -17,7 +16,7 @@ from typing import Any
 import clean_room
 import yaml
 
-from . import catalog, records, tracing
+from . import catalog, fingerprints, records, tracing
 from .constants import BUILD_TOOLS, READ_TOOLS, SHELL_TOOLS, WRITING_TOOLS
 from .outcomes import CutShort, Stop
 from .tracing import TraceSummary
@@ -38,9 +37,7 @@ def build_command(
 ) -> list[str]:
     tools = tuple(tools)
     denied = [t for t in clean_room.DENIED_TOOLS if t not in tools]
-    # `--executable` may be a bare binary or "python stub.py" (tests use a stub that emits stream-json).
-    exe = [t.strip('"') for t in shlex.split(executable, posix=False)] if " " in executable else [executable]
-    command = [*exe]
+    command = fingerprints.executable_argv(executable)
     if agent:
         command += ["--agent", agent]
     command += [

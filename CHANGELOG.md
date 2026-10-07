@@ -23,6 +23,10 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
     pay for, every remaining trial of the scenario. The lost service is now the harness's own
     instrument failing: the check reports `instrument:` evidence, the grade names it as
     `grader_error`, and the scenario's remaining trials are not run (result rule 5).
+  - The CLI-version probe ran a multi-word `--executable`, such as `"python" "stub.py"`, as a single
+    file name, so it recorded no version and the mandatory version check refused a batch whose trials
+    could run. The probe now launches the argv the trials launch, from an empty directory as a trial
+    does, so a command whose script path is relative is still refused before any trial.
 
   [verified] Each fix's new test fails without it and passes with it.
 - The 2026-10-07 python-craft review of the eval runner (PR #328):

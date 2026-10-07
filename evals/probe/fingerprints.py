@@ -9,9 +9,11 @@ from __future__ import annotations
 import hashlib
 import json
 import platform
+import shlex
 import stat
 import subprocess
 import sys
+import tempfile
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -250,15 +252,31 @@ def runner_provenance() -> dict[str, Any]:
     return dict(_RUNNER_PROVENANCE)
 
 
+def executable_argv(executable: str) -> list[str]:
+    """The argv `--executable` launches: a bare binary, or a command such as "python stub.py" split into
+    words (tests use a stub that emits stream-json). Trials and the version probe launch this argv from
+    a fresh directory, so a command must name its script by absolute path."""
+    return [t.strip('"') for t in shlex.split(executable, posix=False)] if " " in executable else [executable]
+
+
 def runtime_identity(executable: str) -> dict[str, Any]:
     """The CLI version and host platform a batch measured; a version the CLI cannot report is null."""
     try:
-        proc = subprocess.run(
-            [executable, "--version"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30
-        )
+        # From an empty directory, as a trial runs from its fresh workspace: a script path relative to
+        # the runner's directory finds nothing here, as it would find nothing in a trial.
+        with tempfile.TemporaryDirectory(prefix="cli-version-", ignore_cleanup_errors=True) as neutral:
+            proc = subprocess.run(
+                [*executable_argv(executable), "--version"],
+                cwd=neutral,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=30,
+            )
         lines = proc.stdout.strip().splitlines() if proc.returncode == 0 else []
         version = lines[0].strip() if lines else None
-    except (OSError, subprocess.TimeoutExpired):
+    except (OSError, ValueError, subprocess.TimeoutExpired):  # ValueError: a command with an unclosed quote
         version = None
     return {
         "cli_version": version,
