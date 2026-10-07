@@ -53,6 +53,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
     records `identity_failure`, and a later `--run-offset` invocation of the label schedules nothing
     until that run is replaced. A backing service that never started stops only its scenario, and a
     failure the candidate's own run causes still voids only its trial.
+  - `regrade`'s exit code pooled a label's runs by resolved model alone, so runs of another candidate,
+    CLI version, host or scenario identity were aggregated into one verdict: a PASS from one and a
+    FAIL from another could pass a 0.5 scenario. It now pools only runs one batch could, and a run
+    whose model, candidate, CLI version or host is unknown counts as INCONCLUSIVE; the regrade rows
+    keep each run's `runtime`.
 
   [verified] Each fix's new test fails without it and passes with it.
 - The 2026-10-07 python-craft review of the eval runner (PR #328):

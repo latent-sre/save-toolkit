@@ -302,19 +302,23 @@ def regrade(iteration_dir: Path, scenarios: list[dict[str, Any]], threshold: flo
     rows = rescoring.regrade(iteration_dir.resolve(), scenarios)
     for r in rows:
         scope = " (structural only; semantics UNVERIFIED)" if r.get("semantic_assessment") else ""
+        if batches.pool_identity(r) is None:
+            scope += " (model, candidate, CLI or host unknown: not pooled)"
         print(f"eval-{r['scenario']} {r['label']}/run-{r['run']}: {r['status']} {r['passed']}/{r['total']}{scope}")
     print(f"regraded {len(rows)} run(s)")
 
-    # Exit like a run: trials aggregate per scenario against its threshold within one label and one
-    # resolved model (a directory can hold several arms, and a label's slots several models), then
-    # 1 for any FAIL verdict and 2 for any INCONCLUSIVE one. Regrading nothing measured nothing.
-    def arm(row: dict[str, Any]) -> tuple[str, tuple[str, ...]]:
-        return row["label"], tuple(batches.model_identities([row]))
-
+    # Exit like a run: trials aggregate per scenario against its threshold only within one arm, the
+    # runs one batch could pool -- one label, resolved model, candidate, CLI and host, and scenario
+    # identity (a directory can hold several arms) -- then 1 for any FAIL verdict and 2 for any
+    # INCONCLUSIVE one. A run whose identity is unknown pools with nothing, as a batch refuses it, so
+    # its arm is INCONCLUSIVE. Regrading nothing measured nothing.
+    arms: dict[tuple[str, str | None], list[dict[str, Any]]] = {}
+    for r in rows:
+        arms.setdefault((r["label"], batches.pool_identity(r)), []).append(r)
     states = [
-        verdict["verdict"]
-        for key in sorted({arm(r) for r in rows})
-        for verdict in batches.aggregate_by_scenario(scenarios, [r for r in rows if arm(r) == key], threshold).values()
+        verdict["verdict"] if identity is not None else "INCONCLUSIVE"
+        for (_, identity), arm in arms.items()
+        for verdict in batches.aggregate_by_scenario(scenarios, arm, threshold).values()
     ]
     if "FAIL" in states:
         return 1

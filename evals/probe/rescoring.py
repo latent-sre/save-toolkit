@@ -399,6 +399,7 @@ def regrade(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> list[dict[s
                 "total": g["summary"]["total"],
                 "scenario_sha256": g["scenario_sha256"],
                 "plugin_source_sha256": g["plugin_source_sha256"],
+                "runtime": g["runtime"],
                 "models": g["models"],
                 "inconclusive": g["inconclusive"],
             }

@@ -2138,7 +2138,8 @@ class ReviewFindingTests(unittest.TestCase):
         """A run exits 1 on FAIL and 2 on INCONCLUSIVE; a regrade that graded nothing measured nothing."""
         for states, expected in (((), 2), (("PASS",), 0), (("PASS", "INCONCLUSIVE", "FAIL"), 1),
                                  (("PASS", "INCONCLUSIVE"), 2)):
-            rows = [{"scenario": "s", "label": "l", "run": n, "status": state, "passed": 0, "total": 1}
+            rows = [{"scenario": "s", "label": "l", "run": n, "status": state, "passed": 0, "total": 1,
+                     "models": ["m"], "plugin_source_sha256": "0" * 64, "runtime": {"cli_version": "2.1.291 (Claude Code)", "host_platform": {"system": "Windows"}}}
                     for n, state in enumerate(states, 1)]
             with self.subTest(states=states), mock.patch.object(probe_rescoring, "regrade", return_value=rows):
                 self.assertEqual(expected, build_probe.main(["--regrade", str(self.root)]))
@@ -2148,7 +2149,7 @@ class ReviewFindingTests(unittest.TestCase):
         scenario = "discovery-agent-authoring-loop-engineering"
         row = lambda label, n, state, model="claude-sonnet-5": {
             "scenario": scenario, "label": label, "run": n, "status": state, "passed": 0, "total": 1,
-            "models": [model]}
+            "models": [model], "plugin_source_sha256": "0" * 64, "runtime": {"cli_version": "2.1.291 (Claude Code)", "host_platform": {"system": "Windows"}}}
         for rows, expected in (
             ([row("arm", 1, "PASS"), row("arm", 2, "PASS"), row("arm", 3, "FAIL")], 0),
             ([row("good", n, "PASS") for n in (1, 2, 3)] + [row("bad", n, "FAIL") for n in (1, 2, 3)], 1),
@@ -3424,6 +3425,46 @@ class BatchAggregationTests(unittest.TestCase):
                 self.assertIn("stopped after authentication unavailable: Not logged in", output)
                 self.assertNotIn('"verdict"', output)
                 self.assertNotIn("unfixed_by_resume", output, "resuming the overwrite replaces those rows")
+
+    def test_a_regrade_pools_only_runs_of_one_identity(self) -> None:
+        """Copilot and Codex on PR #328: a regrade's exit pooled a label's runs across candidates, CLIs,
+        hosts and scenario identities, so a PASS from one and a FAIL from another passed a 0.5 scenario.
+        A run whose candidate, CLI, host or model is unknown pools with nothing."""
+        other_cli = {**self.RUNTIME, "cli_version": "2.1.300 (Claude Code)"}
+        other_host = {**self.RUNTIME, "host_platform": {**self.RUNTIME["host_platform"], "system": "Linux"}}
+        for index, (second, expected) in enumerate((
+            ({}, 0),  # one arm: 1 of 2 trials meets 0.5
+            ({"plugin_source_sha256": "b" * 64}, 1),
+            ({"runtime": other_cli}, 1),
+            ({"runtime": other_host}, 1),
+            ({"scenario_sha256": "f" * 64}, 2),  # graded under another scenario identity: void, never pooled
+            ({"runtime": None}, 2),
+            ({"runtime": {"cli_version": self.RUNTIME["cli_version"]}}, 2),  # host unknown
+            ({"plugin_source_sha256": None}, 2),
+            ({"models": []}, 2),
+        )):
+            iteration = self.out / str(index)
+            for run, text, identity in ((1, "x", {}), (2, "y", second)):
+                saved = iteration / "eval-batch-contract" / "cand" / f"run-{run}"
+                (saved / "outputs").mkdir(parents=True)
+                (saved / "outputs" / "response.md").write_text(text, encoding="utf-8")
+                (saved / "outputs" / "trace-summary.json").write_text(json.dumps({
+                    "state_files": {}, "commits_before_after": [1, 1], "branch": "main", "changed_files": [],
+                    "skills": [], "dispatches": [], "bash_commands": [], "agents_dir": False, "inconclusive": None,
+                    "models": identity.get("models", ["claude-sonnet-4-5"]),
+                    "runtime": identity.get("runtime", self.RUNTIME),
+                    "plugin": {"plugin_source_sha256": identity.get("plugin_source_sha256", "0" * 64)}}),
+                    encoding="utf-8")
+                grade = _saved_grade(self.SPEC, [])
+                grade["scenario_sha256"] = identity.get("scenario_sha256", grade["scenario_sha256"])
+                (saved / "grading.json").write_text(json.dumps(grade), encoding="utf-8")
+            with self.subTest(second=second), \
+                    mock.patch.object(probe_catalog, "load_all_scenarios", return_value=[self.SPEC]), \
+                    contextlib.redirect_stdout(io.StringIO()) as output:
+                code = build_probe.main(["regrade", str(iteration), "--threshold", "0.5"])
+                self.assertEqual(expected, code, output.getvalue())
+                rows = json.loads(next(iteration.glob("regrade-*.json")).read_text(encoding="utf-8"))["runs"]
+                self.assertEqual(second.get("runtime", self.RUNTIME), rows[1].get("runtime", "dropped"))
 
     def test_an_auth_stop_exits_4_beside_a_failed_trial(self) -> None:
         auth = build_probe.clean_room.AuthUnavailable("Not logged in")
@@ -5128,7 +5169,8 @@ class PackageStructureTests(unittest.TestCase):
                     self.assertEqual(0, build_probe.main(argv))
             with contextlib.redirect_stderr(io.StringIO()):
                 self.assertEqual(3, build_probe.main(["rescore", tmp]), "a rescore needs a new --out")
-            rows = [{"scenario": "s", "label": "l", "run": 1, "status": "PASS", "passed": 1, "total": 1}]
+            rows = [{"scenario": "s", "label": "l", "run": 1, "status": "PASS", "passed": 1, "total": 1,
+                     "models": ["m"], "plugin_source_sha256": "0" * 64, "runtime": {"cli_version": "2.1.291 (Claude Code)", "host_platform": {"system": "Windows"}}}]
             with mock.patch.object(probe_rescoring, "regrade", return_value=rows), \
                     contextlib.redirect_stdout(io.StringIO()):
                 self.assertEqual(0, build_probe.main(["regrade", tmp]))
@@ -5436,7 +5478,7 @@ class RegradeEvidenceTests(unittest.TestCase):
             def regrade_run(run_dir: Path, _spec: dict, **_kwargs: object) -> dict:
                 graded.append(run_dir.name)
                 return {"status": "PASS", "summary": {"passed": 1, "total": 1}, "scenario_sha256": "x",
-                        "plugin_source_sha256": "y", "models": [], "inconclusive": None}
+                        "plugin_source_sha256": "y", "runtime": None, "models": [], "inconclusive": None}
 
             with mock.patch.object(probe_rescoring, "regrade_run", regrade_run):
                 rows = build_probe.regrade(iteration, [spec])

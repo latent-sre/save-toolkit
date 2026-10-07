@@ -6,6 +6,7 @@ with a forbidding check or a negative routing expectation holds every trial (res
 
 from __future__ import annotations
 
+import json
 import math
 from collections.abc import Mapping
 from fractions import Fraction
@@ -74,6 +75,23 @@ def effective_threshold(spec: Mapping[str, Any], requested: float | None) -> flo
 def model_identities(entries: list[dict[str, Any]]) -> list[str]:
     """Every concrete model recorded across a batch's trials. A mutable alias can resolve twice."""
     return sorted({str(model) for entry in entries for model in (entry.get("models") or [])})
+
+
+def pool_identity(entry: dict[str, Any]) -> str | None:
+    """What a trial pools under besides its label: its resolved model, candidate, CLI and host, and
+    scenario identity. None when its model, candidate, CLI version or host is unknown: results whose
+    required identity is unknown are never merged, so such a trial pools with nothing."""
+    runtime = entry.get("runtime")
+    models = [model for model in model_identities([entry]) if model]
+    if (
+        len(models) != 1
+        or not entry.get("plugin_source_sha256")
+        or not isinstance(runtime, dict)
+        or not runtime.get("cli_version")
+        or not runtime.get("host_platform")
+    ):
+        return None
+    return json.dumps([models, entry["plugin_source_sha256"], runtime, entry.get("scenario_sha256")], sort_keys=True)
 
 
 def aggregate_verdict(states: list[str], threshold: float) -> State:

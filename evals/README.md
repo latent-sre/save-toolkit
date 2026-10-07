@@ -567,7 +567,10 @@ A regrade never rewrites what a run recorded (threat-model ADR result rule 8): i
 in the attempt's `record.json` under `assessments`, and writes its rows to `regrade-<UTC>.json` in the
 iteration directory. `grading.json`, the run's trace summary and the batch `summary-*.json` files keep
 their recorded verdicts. Run slots are shared across models under each label; prefer separate labels
-for separate model/candidate comparisons.
+for separate model/candidate comparisons. The regrade's exit code pools runs only as one batch could:
+each label, resolved model, candidate digest, CLI version and host, and scenario identity is
+aggregated apart, and a run whose model, candidate digest, CLI version or host is unknown pools with
+nothing and counts as INCONCLUSIVE.
 
 `--overwrite` prepares a complete replacement in a hidden sibling attempt directory. The previous
 run remains intact through execution, grading, artifact writes, and workspace cleanup. Publication
