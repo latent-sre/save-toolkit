@@ -492,7 +492,10 @@ batch refuses to pool trials whose recorded CLI version or host differ, and a tr
 those were recorded never pools with one that has them. `provenance.json` also names the runner:
 `runner_commit`, `runner_source_dirty` and `runner_source_sha256`, so a run graded with
 `--plugin-root` on another checkout still says which runner graded it. The measured guard scripts
-include `readonly-guard-hook.ps1`, which `hooks/hooks.json` runs for PowerShell.
+include `readonly-guard-hook.ps1`, which `hooks/hooks.json` runs for PowerShell. A measured input that
+is a link or junction, its target present or not, or a required one that is missing, leaves the
+candidate unidentified: the batch refuses to run (exit 3), and a trial that finds one stops the batch.
+An optional guard script that is absent is measured as absent.
 
 Cost is the CLI's reported list-price estimate, not a subscription bill; a missing, negative, infinite
 or NaN figure is unknown. `timing.json` and summary

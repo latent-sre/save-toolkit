@@ -1774,6 +1774,24 @@ class EndToEndStubTests(unittest.TestCase):
         self.assertEqual(2, code)
         self.assertIn('"scenarios_stopped": ["tiny-service"]', printed)
 
+    def test_a_refused_plugin_input_exits_3_before_the_batch_and_stops_it_after(self) -> None:
+        """Codex on PR #328: a missing or linked measured input crashed the batch with a traceback, exit 1,
+        a FAIL batch's code. Before any trial it is a refused job (3); in the middle it stops the batch."""
+        refused = probe_fingerprints.MeasuredInputRefused("refusing linked/reparse measured input: x")
+        with mock.patch.object(probe_fingerprints, "plugin_provenance", side_effect=refused), \
+                contextlib.redirect_stderr(io.StringIO()) as err:
+            code, calls, _ = self._batch(self.root / "start", self._stub(), [self._spec()],
+                                         "--scenario", "tiny", "--trials", "2")
+        self.assertEqual((3, []), (code, calls))
+        self.assertIn("refusing to run: refusing linked/reparse measured input", err.getvalue())
+        provenance = probe_fingerprints.plugin_provenance(ROOT)
+        with mock.patch.object(probe_fingerprints, "plugin_provenance", side_effect=[provenance, refused]), \
+                contextlib.redirect_stderr(io.StringIO()):
+            code, calls, printed = self._batch(self.root / "middle", self._stub(), [self._spec()],
+                                               "--scenario", "tiny", "--trials", "2")
+        self.assertEqual((2, [("tiny", 1)]), (code, calls))
+        self.assertIn("stopped after plugin inputs could not be measured", printed)
+
     def test_a_trial_whose_trace_names_no_model_is_void(self) -> None:
         """Codex on PR #328: a trial that resolved no model was graded PASS or FAIL and pooled with
         identified trials, where a result whose required identity is unknown is never merged."""
@@ -4188,8 +4206,47 @@ class SubagentDenialTests(unittest.TestCase):
         self.assertEqual(["Read"], build_probe.runtime_blocked_tools(self._trace(inside=True), self.BUILD_SPEC))
 
 
+def _directory_link(target: Path, link: Path) -> None:
+    """A real directory link: a symlink where the host allows one, else a Windows junction."""
+    try:
+        os.symlink(target, link, target_is_directory=True)
+    except OSError:
+        if sys.platform != "win32":
+            raise
+        import _winapi
+        _winapi.CreateJunction(str(target), str(link))
+
+
 class PluginDigestTests(unittest.TestCase):
     """The digest names the committed bytes, not the checkout's line endings."""
+
+    def test_a_linked_optional_input_is_refused_not_read_as_absent(self) -> None:
+        """Codex on PR #328: a link at an optional input read as absent, so candidates whose guard script
+        is a link to other code shared one digest; a link whose target is gone read as absent too."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root, elsewhere = self._root(tmp, b"\n"), Path(tmp) / "elsewhere"
+            elsewhere.mkdir()
+            try:
+                _directory_link(elsewhere, root / "scripts" / "guard-session-preflight.py")
+            except OSError as exc:
+                self.skipTest(f"this host cannot create a directory link: {exc}")
+            with self.assertRaisesRegex(RuntimeError, "refusing linked/reparse measured input"):
+                build_probe.plugin_digest(root)
+            elsewhere.rmdir()  # the link now dangles
+            with self.assertRaisesRegex(RuntimeError, "refusing linked/reparse measured input"):
+                build_probe.plugin_digest(root)
+
+    def test_a_linked_optional_file_is_refused(self) -> None:
+        # A file symlink as the digest sees one: creating a real one on Windows needs a privilege a test
+        # cannot assume.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._root(tmp, b"\n")
+            hook = root / "scripts" / "readonly-guard-hook.ps1"
+            hook.write_bytes(b"Write-Output linked")
+            real = probe_fingerprints._is_reparse_point
+            with mock.patch.object(probe_fingerprints, "_is_reparse_point", side_effect=lambda path: path == hook or real(path)), \
+                    self.assertRaisesRegex(RuntimeError, "refusing linked/reparse measured input"):
+                build_probe.plugin_digest(root)
 
     def _root(self, tmp: str, newline: bytes) -> Path:
         root = Path(tmp)

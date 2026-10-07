@@ -337,7 +337,11 @@ def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
     except rubric_judge.JudgeUnavailable as exc:
         print(f"refusing to run: {exc}", file=sys.stderr)
         return 3
-    provenance = fingerprints.plugin_provenance(args.plugin_root.resolve())
+    try:
+        provenance = fingerprints.plugin_provenance(args.plugin_root.resolve())
+    except fingerprints.MeasuredInputRefused as exc:
+        print(f"refusing to run: {exc}", file=sys.stderr)
+        return 3
     runtime = fingerprints.runtime_identity(args.executable)
     print(
         json.dumps(
@@ -422,6 +426,10 @@ def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
             except clean_room.AuthUnavailable as exc:
                 # Every later trial would fail the same way; the attempt is kept, the batch stops.
                 blocked, auth_failed = f"authentication unavailable: {exc}", True
+                break
+            except fingerprints.MeasuredInputRefused as exc:
+                # The candidate changed under the batch; the attempt is kept, the batch stops.
+                blocked = f"plugin inputs could not be measured: {exc}"
                 break
             machinery = results[-1].get("grader_error") or results[-1].get("service_error")
             if machinery:

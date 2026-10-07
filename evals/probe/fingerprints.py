@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import platform
 import shlex
 import stat
@@ -149,12 +150,16 @@ OPTIONAL_PLUGIN_INPUT_PATHS = (
 )
 
 
+class MeasuredInputRefused(RuntimeError):
+    """A measured plugin input is missing, linked or unreadable, so the candidate cannot be identified."""
+
+
 def _is_reparse_point(path: Path) -> bool:
     """True for links/junctions, so a measured input cannot be redirected outside the checkout."""
     try:
         info = path.lstat()
     except OSError as exc:
-        raise RuntimeError(f"could not inspect path {path}: {exc}") from exc
+        raise MeasuredInputRefused(f"could not inspect path {path}: {exc}") from exc
     attributes = getattr(info, "st_file_attributes", 0)
     return path.is_symlink() or bool(attributes & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0))
 
@@ -163,16 +168,16 @@ def _files_under(*relative_roots: str, root: Path) -> list[Path]:
     files: list[Path] = []
     for relative in relative_roots:
         path = root / relative
-        if not path.exists():
-            raise RuntimeError(f"required measured input is missing: {path}")
-        if _is_reparse_point(path):
-            raise RuntimeError(f"refusing linked/reparse measured input: {path}")
+        if not os.path.lexists(path):
+            raise MeasuredInputRefused(f"required measured input is missing: {path}")
+        if _is_reparse_point(path):  # a link is refused even when its target is gone
+            raise MeasuredInputRefused(f"refusing linked/reparse measured input: {path}")
         if path.is_file():
             files.append(path)
         elif path.is_dir():
             for child in path.rglob("*"):
                 if _is_reparse_point(child):
-                    raise RuntimeError(f"refusing linked/reparse measured input: {child}")
+                    raise MeasuredInputRefused(f"refusing linked/reparse measured input: {child}")
                 if child.is_file():
                     files.append(child)
     return files
@@ -185,11 +190,12 @@ def plugin_digest(root: Path = ROOT) -> str:
     with autocrlf holds CRLF for whatever git wrote and LF for whatever a tool rewrote, and a raw
     digest therefore named the host, not the bytes (2026-09-03: three values for one commit).
     """
-    files = _files_under(*PLUGIN_INPUT_PATHS, root=root)
-    files.extend(
-        path
-        for relative in OPTIONAL_PLUGIN_INPUT_PATHS
-        if (path := root / relative).is_file() and not _is_reparse_point(path)
+    # A present optional input is measured as a required one is, so a link there is refused, never
+    # read as absent; one that is absent is a property of an older plugin image.
+    files = _files_under(
+        *PLUGIN_INPUT_PATHS,
+        *(relative for relative in OPTIONAL_PLUGIN_INPUT_PATHS if os.path.lexists(root / relative)),
+        root=root,
     )
     digest = hashlib.sha256()
     for path in sorted((p for p in files if p.is_file()), key=lambda p: p.as_posix()):

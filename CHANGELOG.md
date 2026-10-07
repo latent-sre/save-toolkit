@@ -58,6 +58,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
     FAIL from another could pass a 0.5 scenario. It now pools only runs one batch could, and a run
     whose model, candidate, CLI version or host is unknown counts as INCONCLUSIVE; the regrade rows
     keep each run's `runtime`.
+  - The plugin digest read an optional guard script that was a link or junction, or a link whose
+    target was gone, as absent, so candidates whose hook ran different code shared one digest. Such
+    an input is now refused like a linked required one, and the refusal no longer crashes the batch
+    with a traceback and exit 1, a FAIL batch's code: before any trial it refuses to run (exit 3),
+    and a trial that meets one stops the batch.
 
   [verified] Each fix's new test fails without it and passes with it.
 - The 2026-10-07 python-craft review of the eval runner (PR #328):
