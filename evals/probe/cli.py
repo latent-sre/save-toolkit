@@ -435,6 +435,32 @@ def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
     problem = batches.batch_identity_problem(
         batch, scenarios, provenance["plugin_source_sha256"], judge_binding, runtime
     )
+    stop = (
+        {
+            "batch": "INCONCLUSIVE",
+            "reason": f"stopped after {blocked}" if blocked else "grading machinery failed",
+            **({"scenarios_stopped": sorted(machinery_stopped)} if machinery_stopped else {}),
+            "trials_not_run": len(planned) - len(results),
+        }
+        if blocked or machinery_stopped
+        else None
+    )
+    return _conclude(batch, scenarios, args.threshold, problem, stop, auth_failed=auth_failed)
+
+
+def _conclude(
+    batch: list[dict[str, Any]],
+    scenarios: list[dict[str, Any]],
+    threshold: float | None,
+    problem: str | None,
+    stop: dict[str, Any] | None,
+    *,
+    auth_failed: bool,
+) -> int:
+    """Print how the batch ended and return its exit code; the order of these exits is the policy.
+
+    `problem` is why the batch's trials cannot be pooled, and `stop` why scheduling ended early.
+    """
     if problem:
         print(json.dumps({"batch": "INCONCLUSIVE", "reason": problem}), flush=True)
         return 2
@@ -448,7 +474,7 @@ def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
         )
         print(f"{len(batch)} trial(s) under {len(identities)} resolved models: not aggregated, not publishable")
         return 2
-    verdicts = batches.aggregate_by_scenario(scenarios, batch, args.threshold)
+    verdicts = batches.aggregate_by_scenario(scenarios, batch, threshold)
     for scenario_id, verdict in sorted(verdicts.items()):
         print(
             json.dumps(
@@ -466,20 +492,10 @@ def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
     passed = sum(r["status"] == "PASS" for r in batch)
     print(f"{passed}/{len(batch)} trials PASS ({sum(r['status'] == 'INCONCLUSIVE' for r in batch)} inconclusive)")
     states = [v["verdict"] for v in verdicts.values()]
-    if blocked or machinery_stopped:
-        print(
-            json.dumps(
-                {
-                    "batch": "INCONCLUSIVE",
-                    "reason": f"stopped after {blocked}" if blocked else "grading machinery failed",
-                    **({"scenarios_stopped": sorted(machinery_stopped)} if machinery_stopped else {}),
-                    "trials_not_run": len(planned) - len(results),
-                }
-            ),
-            flush=True,
-        )
+    if stop:
+        print(json.dumps(stop), flush=True)
     if auth_failed:
         return 4  # distinct from FAIL (1) and INCONCLUSIVE (2): re-authenticate, then resume the batch
     if "FAIL" in states:
         return 1
-    return 2 if blocked or machinery_stopped or "INCONCLUSIVE" in states else 0
+    return 2 if stop or "INCONCLUSIVE" in states else 0
