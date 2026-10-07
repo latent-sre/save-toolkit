@@ -28,7 +28,7 @@ from .backing import Service, ServiceUnavailable
 from .checking import Context
 from .constants import ROOT
 from .fingerprints import HARNESS_SOURCE_SHA256
-from .outcomes import CutShort, Stop
+from .outcomes import CutShort, Stop, void_over_cut
 from .tracing import TraceSummary
 
 
@@ -386,33 +386,19 @@ def _run_trial(
                         except subprocess.TimeoutExpired:
                             timed_out = CutShort(f"timed out after {timeout}s", Stop.WALL_CLOCK)
                     current = tracing.parse_trace(turn_out / "stdout.jsonl")
-                    drift = fingerprints.plugin_drift_problem(plugin_root, provenance["plugin_source_sha256"])
-                    identity_failure = (
-                        identity_failure
-                        or drift
-                        or invocation.identity_problem(current, spec, plugin_root)
-                        or (invocation.native_model_problem(current, spec) if spec.get("followups") else None)
+                    reason, failed = invocation.turn_reason(
+                        current,
+                        returncode,
+                        timed_out,
+                        spec,
+                        plugin_root,
+                        provenance["plugin_source_sha256"],
+                        ws.repo,
+                        resume,
+                        turn_out / "stdout.jsonl",
                     )
-                    inconclusive = inconclusive or drift
-                    if spec.get("followups") and invocation.credential_markers(
-                        current.result_text, turn_out / "stdout.jsonl"
-                    ):
-                        inconclusive = inconclusive or "native credential marker detected; no follow-up allowed"
-                    if timed_out:
-                        # The partial trace must show the declared profile before its evidence counts.
-                        inconclusive = (
-                            inconclusive
-                            or invocation.profile_problem(current, spec, plugin_root, ws.repo)
-                            or (
-                                invocation.native_identity_problem(current, spec, resume, complete=False)
-                                if spec.get("followups")
-                                else None
-                            )
-                            or timed_out
-                        )
-                    inconclusive = inconclusive or invocation.invocation_problem(
-                        current, returncode, spec, plugin_root, ws.repo, resume
-                    )
+                    identity_failure = identity_failure or failed
+                    inconclusive = inconclusive or reason
                     if spec.get("followups"):
                         (turn_out / "invocation.json").write_text(
                             json.dumps(
@@ -447,7 +433,7 @@ def _run_trial(
         if not inconclusive or isinstance(inconclusive, CutShort):  # drift voids even a cut-short run
             drift = fingerprints.plugin_drift_problem(plugin_root, provenance["plugin_source_sha256"])
             identity_failure = identity_failure or drift
-            inconclusive = invocation.void_over_cut(inconclusive, drift)
+            inconclusive = void_over_cut(inconclusive, drift)
         trace = tracing.parse_trial_trace(run_out) if trace_path.exists() else TraceSummary()
         git = workspaces.collect_git_facts(ws)
         ctx = Context(spec, ws, trace, git, services=services, plugin_root=plugin_root, judge_binding=judge_binding)

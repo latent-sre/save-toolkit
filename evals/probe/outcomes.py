@@ -191,3 +191,10 @@ class CutShort(str):
         value = super().__new__(cls, reason)
         value.kind = Stop(kind)
         return value
+
+
+def void_over_cut(current: str | None, problem: str | None) -> str | None:
+    """Keep the first reason, except that a reason voiding the trial replaces a cut-short one."""
+    if problem and (not current or (isinstance(current, CutShort) and not isinstance(problem, CutShort))):
+        return problem
+    return current

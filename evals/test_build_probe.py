@@ -5136,6 +5136,47 @@ class GradingMachineryTests(unittest.TestCase):
         self.assertIn("judge timed out", grading["grader_error"])
 
 
+class TurnReasonTests(unittest.TestCase):
+    """How one invocation ends its trial: the order of the checks is the precedence, first reason wins."""
+
+    def _reason(self, *, drift=None, profile=None, problem=None, timed_out=None, marker=False):
+        spec = {**TINY_SPEC, **({"followups": ["and then?"], "helper": "sre-assistant"} if marker else {})}
+        with (
+            mock.patch.object(probe_fingerprints, "plugin_drift_problem", return_value=drift),
+            mock.patch.object(probe_invocation, "identity_problem", return_value=None),
+            mock.patch.object(probe_invocation, "native_model_problem", return_value=None),
+            mock.patch.object(probe_invocation, "credential_markers", return_value=["token"] if marker else []),
+            mock.patch.object(probe_invocation, "profile_problem", return_value=profile),
+            mock.patch.object(probe_invocation, "native_identity_problem", return_value=None),
+            mock.patch.object(probe_invocation, "invocation_problem", return_value=problem),
+        ):
+            return probe_invocation.turn_reason(probe_tracing.TraceSummary(), 0, timed_out, spec, ROOT, "0" * 64,
+                                                ROOT, None, ROOT / "stdout.jsonl")
+
+    def test_drift_wins_and_is_an_identity_failure(self) -> None:
+        cut = probe_outcomes.CutShort("timed out after 60s", probe_outcomes.Stop.WALL_CLOCK)
+        self.assertEqual(("drift", "drift"), self._reason(drift="drift", timed_out=cut, problem="void"))
+
+    def test_a_timeout_on_the_declared_profile_stays_cut_short(self) -> None:
+        cut = probe_outcomes.CutShort("timed out after 60s", probe_outcomes.Stop.WALL_CLOCK)
+        reason, failed = self._reason(timed_out=cut, problem="a later void")
+        self.assertIs(cut, reason, "a later problem does not void a run the timeout cut short")
+        self.assertIsNone(failed)
+
+    def test_a_timeout_off_the_declared_profile_is_void(self) -> None:
+        cut = probe_outcomes.CutShort("timed out after 60s", probe_outcomes.Stop.WALL_CLOCK)
+        self.assertEqual("wrong tools", self._reason(timed_out=cut, profile="wrong tools")[0])
+
+    def test_a_finished_run_takes_the_invocation_problem(self) -> None:
+        self.assertEqual(("no result event", None), self._reason(problem="no result event"))
+        self.assertEqual((None, None), self._reason())
+
+    def test_a_native_credential_marker_comes_before_the_timeout(self) -> None:
+        cut = probe_outcomes.CutShort("timed out after 60s", probe_outcomes.Stop.WALL_CLOCK)
+        self.assertEqual("native credential marker detected; no follow-up allowed",
+                         self._reason(timed_out=cut, marker=True)[0])
+
+
 class TurnLimitTests(unittest.TestCase):
     """Threat-model ADR rule 4: a run the CLI ends at the declared turn limit is complete."""
 
