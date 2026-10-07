@@ -4867,6 +4867,14 @@ class CopilotReviewFindingTests(unittest.TestCase):
                                    return_value=build_probe.CutShort("no result event", "no_result")):
                 self.assertEqual(invalid, build_probe.native_regrade_problem(run, self.NATIVE, ROOT))
 
+    def test_a_regrade_plans_a_native_grade_without_reading_the_plugin_root(self) -> None:
+        # A regrade plans every expectation before it applies the run-level reason, so a native run
+        # whose saved plugin root is gone, and whose replay already voided it, must still plan: the
+        # helper's namespace is read only when that expectation is measured.
+        with tempfile.TemporaryDirectory() as gone:
+            items = probe_assessment.plan(self.NATIVE, build_probe.TraceSummary(), None, Path(gone) / "plugin", keep=True)
+        self.assertIn("native helper completed exactly once", [item.text for item in items])
+
     def test_an_instrument_failure_stops_its_scenario(self) -> None:
         spec = {**TINY_SPEC, "checks": [{"check": "skill_not_loaded", "skill": "eng-ladder", "text": "no ladder"}]}
         ctx = build_probe.Context(spec, None, build_probe.TraceSummary(skills=["<unnamed-skill>"]), None)

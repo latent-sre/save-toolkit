@@ -166,20 +166,22 @@ def _trace_expectations(
             )
         )
     if spec.get("followups"):
-        helper = f"{tracing.runtime_namespace(trace, plugin_root)}:{spec['helper']}"
         returns = trace.agent_returns
         sessions = trace.conversation_sessions
         same_session = len(set(sessions + trace.init_session_ids)) == 1
+
+        def helper_completed_once() -> Outcome:
+            # Read the namespace when measured, as routing and pinned skills do: a regrade also plans a
+            # void run, whose saved plugin root may be gone.
+            helper = f"{tracing.runtime_namespace(trace, plugin_root)}:{spec['helper']}"
+            return verdict(
+                trace.dispatches == [helper] and trace.agents == [helper],
+                f"dispatches={trace.dispatches}; completed={trace.agents}",
+            )
+
         graded.extend(
             [
-                (
-                    "native helper completed exactly once",
-                    lambda: verdict(
-                        trace.dispatches == [helper] and trace.agents == [helper],
-                        f"dispatches={trace.dispatches}; completed={trace.agents}",
-                    ),
-                    RAW,
-                ),
+                ("native helper completed exactly once", helper_completed_once, RAW),
                 (
                     "parent continued after helper completion",
                     lambda: verdict(len(returns) == 1 and bool(returns[0]["continued"]), f"returns={returns}"),

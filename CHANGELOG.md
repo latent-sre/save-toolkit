@@ -27,6 +27,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
     file name, so it recorded no version and the mandatory version check refused a batch whose trials
     could run. The probe now launches the argv the trials launch, from an empty directory as a trial
     does, so a command whose script path is relative is still refused before any trial.
+  - `regrade` crashed with a traceback, exiting 1 as a FAIL batch does, on a native conversation
+    whose saved plugin root had since been deleted, as a candidate worktree is after its batch:
+    planning the grade read the helper's plugin name from that root even for a run its replay had
+    already voided. The name is read only when that check is measured, so such a run regrades
+    INCONCLUSIVE with its reason; `rescore` had listed the same 7 saved runs as errors.
 
   [verified] Each fix's new test fails without it and passes with it.
 - The 2026-10-07 python-craft review of the eval runner (PR #328):
