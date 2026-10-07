@@ -2162,6 +2162,64 @@ class ReviewFindingTests(unittest.TestCase):
             with self.assertRaisesRegex(build_probe.ServiceUnavailable, "snapshot /snapshot -> 0"):
                 build_probe.start_services(snapshot_spec)
 
+    def test_an_interrupt_during_service_start_still_stops_what_started(self) -> None:
+        calls = []
+
+        def docker_run(command, **_kwargs):
+            calls.append(command)
+            if command[1] == "run":
+                return subprocess.CompletedProcess(command, 0, f"container-{len(calls)}\n", "")
+            if command[1] == "port":
+                return subprocess.CompletedProcess(command, 0, "127.0.0.1:32123\n", "")
+            return subprocess.CompletedProcess(command, 0, "", "")
+
+        spec = json.loads(json.dumps(TINY_SPEC))
+        spec["fixture"]["services"] = [{
+            "name": "grafana", "port": 3000, "ready": "/ready",
+            "image": "grafana/grafana@sha256:62d2b9d20a19714ebfe48d1bb405086081bc602aa053e28cf6d73c7537640dfb",
+        }]
+        # The operator presses Ctrl-C while the service is still coming up.
+        with mock.patch.object(build_probe.subprocess, "run", side_effect=docker_run), \
+             mock.patch.object(probe_backing, "request", side_effect=KeyboardInterrupt), \
+             self.assertRaises(KeyboardInterrupt):
+            build_probe.start_services(spec)
+        self.assertEqual(2, sum(call[1] == "run" for call in calls), "the service and its relay started")
+        self.assertEqual(2, sum(call[1] == "stop" for call in calls), "both are stopped")
+        self.assertTrue(any(call[1:3] == ["network", "rm"] for call in calls), "and the network is removed")
+
+    def test_service_readiness_and_docker_calls_are_bounded_by_their_own_clocks(self) -> None:
+        image = "grafana/grafana@sha256:62d2b9d20a19714ebfe48d1bb405086081bc602aa053e28cf6d73c7537640dfb"
+        spec = json.loads(json.dumps(TINY_SPEC))
+        spec["fixture"]["services"] = [{"name": "grafana", "image": image, "port": 3000, "ready": "/ready"}]
+        timeouts = []
+
+        def docker_run(command, **kwargs):
+            timeouts.append(kwargs.get("timeout"))
+            if command[1] == "run":
+                return subprocess.CompletedProcess(command, 0, "container-id\n", "")
+            if command[1] == "port":
+                return subprocess.CompletedProcess(command, 0, "127.0.0.1:32123\n", "")
+            return subprocess.CompletedProcess(command, 0, "", "")
+
+        # The wall clock steps an hour forward between two readiness polls (an NTP correction): the
+        # deadline is a duration, so the second poll still happens and finds the service ready.
+        wall = iter([1000.0, 1000.0] + [4600.0] * 50)
+        with mock.patch.object(build_probe.subprocess, "run", side_effect=docker_run), \
+             mock.patch.object(probe_backing, "request", side_effect=[(503, {}), (200, {})]), \
+             mock.patch.object(probe_backing, "_start_service_proxy", return_value=None), \
+             mock.patch.object(probe_backing.time, "sleep"), \
+             mock.patch.object(probe_backing.time, "time", side_effect=lambda: next(wall)):
+            services = build_probe.start_services(spec)
+            build_probe.stop_services(services)
+        self.assertTrue(timeouts and all(timeouts), "every docker call is bounded")
+
+        def hung(command, **_kwargs):
+            raise subprocess.TimeoutExpired(command, _kwargs.get("timeout"))
+
+        with mock.patch.object(build_probe.subprocess, "run", side_effect=hung), \
+             self.assertRaisesRegex(build_probe.ServiceUnavailable, "timed out"):
+            build_probe.start_services(spec)
+
     def test_service_container_argv_has_reviewed_runtime_limits(self) -> None:
         spec = json.loads(json.dumps(TINY_SPEC))
         spec["fixture"]["services"] = [{

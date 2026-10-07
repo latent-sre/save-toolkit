@@ -270,7 +270,7 @@ def _run_trial(
                 services = []
                 inconclusive = f"backing service unavailable: {exc}"
         trace_path = run_out / "stdout.jsonl"
-        started = time.time()
+        started = time.monotonic()
         if inconclusive is None:
             make_env = env_factory or (lambda: clean_room.clean_env(subscriber_only=True))
             with make_env() as base_env:
@@ -362,7 +362,7 @@ def _run_trial(
             # agent discover or mutate an unrelated host service.
             trace_path.write_text("", encoding="utf-8")
             (run_out / "stderr.txt").write_text("", encoding="utf-8")
-        elapsed = time.time() - started
+        elapsed = time.monotonic() - started
         if not inconclusive or isinstance(inconclusive, CutShort):  # drift voids even a cut-short run
             inconclusive = invocation.void_over_cut(
                 inconclusive, fingerprints.plugin_drift_problem(plugin_root, provenance["plugin_source_sha256"])

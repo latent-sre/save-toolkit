@@ -36,6 +36,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
     unreadable plugin root is named as such, and a runner defect raises.
   - `plugin_inputs_dirty` recorded a plugin root as clean when `git status` failed, as it does on a
     damaged index; it is now null, unknown, as the runner's own provenance already recorded it.
+  - An interrupt (Ctrl-C) while a backing service was starting skipped its cleanup and left the
+    service and relay containers running with their network; they are stopped on every exit, and the
+    interrupt still stops the batch. Readiness waits and trial durations use a monotonic clock, so a
+    wall-clock step cannot end a readiness wait early, and each docker call is bounded (600 s), so a
+    hung daemon makes the trial INCONCLUSIVE instead of stalling the batch.
 
   [verified] Regrading all 1,317 saved runs with `adc13a88` and with these fixes differs in nothing;
   no saved run records a git failure, and a regrade keeps a command check's live verdict.

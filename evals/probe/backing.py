@@ -216,9 +216,14 @@ def _start_service_proxy(service: Service) -> None:
     service.agent_url = f"http://127.0.0.1:{server.server_address[1]}"
 
 
+DOCKER_TIMEOUT = 600  # seconds: room for an image pull, while a hung daemon cannot stall the batch
+
+
 def _run_docker(command: list[str]) -> subprocess.CompletedProcess[str]:
     try:
-        return subprocess.run(command, capture_output=True, text=True)
+        return subprocess.run(command, capture_output=True, text=True, timeout=DOCKER_TIMEOUT)
+    except subprocess.TimeoutExpired as exc:
+        raise ServiceUnavailable(f"container runtime {command[0]!r} timed out after {DOCKER_TIMEOUT}s") from exc
     except OSError as exc:
         raise ServiceUnavailable(f"container runtime {command[0]!r} failed: {exc}") from exc
 
@@ -368,9 +373,9 @@ def start_services(spec: Mapping[str, Any], docker: str = "docker") -> list[Serv
             if not mapped:
                 raise ServiceUnavailable(f"{service.name}: no published port: {port_result.stderr.strip()[:300]}")
             service.base_url = "http://127.0.0.1:" + mapped.splitlines()[0].rsplit(":", 1)[1]
-            deadline = time.time() + int(declared.get("ready_timeout", 120))
+            deadline = time.monotonic() + int(declared.get("ready_timeout", 120))
             ready_path = str(declared.get("ready", "/"))
-            while time.time() < deadline:
+            while time.monotonic() < deadline:
                 status, _ = request(service, ready_path, timeout=5)
                 if status == 200:
                     break
@@ -379,7 +384,7 @@ def start_services(spec: Mapping[str, Any], docker: str = "docker") -> list[Serv
                 raise ServiceUnavailable(f"{service.name}: never became ready at {ready_path}")
             wait_for = declared.get("wait_for")
             if wait_for:
-                while time.time() < deadline:
+                while time.monotonic() < deadline:
                     status, payload = request(service, str(wait_for["path"]), timeout=5)
                     found = json_pointer(payload, str(wait_for["pointer"])) if status == 200 else None
                     equals_ready = (
@@ -408,7 +413,7 @@ def start_services(spec: Mapping[str, Any], docker: str = "docker") -> list[Serv
                 service.snapshots[str(path)] = payload
             _start_service_proxy(service)
         return started
-    except Exception as exc:
+    except BaseException as exc:  # an interrupt still stops what already started
         cleanup_error: ServiceUnavailable | None = None
         try:
             stop_services(started, docker)
@@ -426,6 +431,9 @@ def start_services(spec: Mapping[str, Any], docker: str = "docker") -> list[Serv
             except ServiceUnavailable as cleanup_exc:
                 cleanup_error = cleanup_exc
         if cleanup_error is not None:
+            if not isinstance(exc, Exception):  # an interrupt stays an interrupt; the leftover is noted on it
+                exc.add_note(f"service cleanup also failed: {cleanup_error}")
+                raise
             raise ServiceUnavailable(f"{exc}; cleanup also failed: {cleanup_error}") from exc
         raise
 
