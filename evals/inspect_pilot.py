@@ -43,25 +43,45 @@ def artifact_checks(checks: list[dict]):
             if kind == "file_exists":
                 command = ["/usr/bin/test", "-f", check["path"]]
             elif kind == "glob_exists":
-                command = ["/usr/local/bin/python", "-c", "import glob,sys; sys.exit(not glob.glob(sys.argv[1]))", check["pattern"]]
+                command = [
+                    "/usr/local/bin/python",
+                    "-c",
+                    "import glob,sys; sys.exit(not glob.glob(sys.argv[1]))",
+                    check["pattern"],
+                ]
             elif kind in {"command_exit_zero", "command_output_regex"}:
                 command = ["/bin/bash", "-c", check["command"]]
             else:
                 raise ValueError(f"unsupported artifact check: {kind}")
             # Sandbox/timeout exceptions become Inspect sample errors, not agent failures.
-            result = await sandbox().exec(command, timeout=check.get("timeout", 60), env={
-                "PATH": "/usr/local/bin:/usr/bin:/bin", "BASH_ENV": "/dev/null",
-                "PYTHONPATH": "", "PYTHONSAFEPATH": "1", "PYTHONNOUSERSITE": "1",
-            })
+            result = await sandbox().exec(
+                command,
+                timeout=check.get("timeout", 60),
+                env={
+                    "PATH": "/usr/local/bin:/usr/bin:/bin",
+                    "BASH_ENV": "/dev/null",
+                    "PYTHONPATH": "",
+                    "PYTHONSAFEPATH": "1",
+                    "PYTHONNOUSERSITE": "1",
+                },
+            )
             passed = result.success
             if kind == "command_output_regex":
                 passed = passed and re.search(check["pattern"], result.stdout, re.MULTILINE) is not None
-            results.append({"check": check["text"], "passed": passed,
-                            "returncode": result.returncode, "stdout": result.stdout,
-                            "stderr": result.stderr})
-        return Score(value=int(all(item["passed"] for item in results)),
-                     explanation="Artifact checks only; native fleet behavior is unverified.",
-                     metadata={"checks": results, "assessment_scope": "artifact_only"})
+            results.append(
+                {
+                    "check": check["text"],
+                    "passed": passed,
+                    "returncode": result.returncode,
+                    "stdout": result.stdout,
+                    "stderr": result.stderr,
+                }
+            )
+        return Score(
+            value=int(all(item["passed"] for item in results)),
+            explanation="Artifact checks only; native fleet behavior is unverified.",
+            metadata={"checks": results, "assessment_scope": "artifact_only"},
+        )
 
     return score
 
@@ -77,15 +97,30 @@ def wordfreq(claude_version: str = "latest") -> Task:
     setup += "for name, content in files.items():\n p = Path(name)\n p.parent.mkdir(parents=True, exist_ok=True)\n p.write_text(content, encoding='utf-8')\nPY\n"
     return Task(
         dataset=[Sample(id=spec["id"], input=spec["prompt"], setup=setup)],
-        solver=claude_code(version=claude_version, attempts=1,
-                           retry_refusals=0, retry_uncaught_errors=0,
-                           disallowed_tools=["WebSearch", "WebFetch"], cwd="/workspace"),
-        scorer=artifact_checks(checks), sandbox=("docker", str(COMPOSE)),
-        epochs=1, token_limit=20000, time_limit=300, cost_limit=1.0,
-        fail_on_error=True, score_on_error=False,
-        metadata={"assessment_scope": "artifact_only", "native_fleet_parity": False,
-                  "scenario_sha256": hashlib.sha256(SCENARIO.read_bytes()).hexdigest(),
-                  "omitted_checks": omitted, "claude_version_requested": claude_version,
-                  "inspect_ai": version("inspect-ai"), "inspect_swe": version("inspect-swe"),
-                  "anthropic": anthropic.__version__},
+        solver=claude_code(
+            version=claude_version,
+            attempts=1,
+            retry_refusals=0,
+            retry_uncaught_errors=0,
+            disallowed_tools=["WebSearch", "WebFetch"],
+            cwd="/workspace",
+        ),
+        scorer=artifact_checks(checks),
+        sandbox=("docker", str(COMPOSE)),
+        epochs=1,
+        token_limit=20000,
+        time_limit=300,
+        cost_limit=1.0,
+        fail_on_error=True,
+        score_on_error=False,
+        metadata={
+            "assessment_scope": "artifact_only",
+            "native_fleet_parity": False,
+            "scenario_sha256": hashlib.sha256(SCENARIO.read_bytes()).hexdigest(),
+            "omitted_checks": omitted,
+            "claude_version_requested": claude_version,
+            "inspect_ai": version("inspect-ai"),
+            "inspect_swe": version("inspect-swe"),
+            "anthropic": anthropic.__version__,
+        },
     )

@@ -8,6 +8,7 @@ not prose quality. For nuanced judgment, add a model-based grader (see README).
 
 Each grader returns (passed: bool, detail: str).
 """
+
 from __future__ import annotations
 
 import json
@@ -202,15 +203,11 @@ def _validate_exact_json_fields(fields: dict, grader_name: str) -> None:
     except RecursionError:
         raise ValueError(f"{grader_name} fields exceed safe JSON nesting") from None
     if config_problem:
-        raise ValueError(
-            f"{grader_name} fields must be finite strict JSON: {config_problem}"
-        )
+        raise ValueError(f"{grader_name} fields must be finite strict JSON: {config_problem}")
     try:
         json.dumps(fields, allow_nan=False)
     except (TypeError, ValueError):
-        raise ValueError(
-            f"{grader_name} fields must be encodable as finite strict JSON"
-        ) from None
+        raise ValueError(f"{grader_name} fields must be encodable as finite strict JSON") from None
 
 
 def exact_json(response: str, fields: dict) -> tuple[bool, str]:
