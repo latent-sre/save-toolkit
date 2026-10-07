@@ -402,6 +402,12 @@ def check_changed_files_not_containing(ctx: Context, p: Params) -> Outcome:
     )
 
 
+def _successful_status(status: object) -> bool:
+    """A recorded 2xx status. The audit proxy logs a request before forwarding it, so an entry still
+    in flight carries no status yet."""
+    return type(status) is int and 200 <= status < 300
+
+
 def _service(ctx: Context, name: str | None) -> Service:
     services = {s.name: s for s in ctx.services}
     if name:
@@ -484,7 +490,7 @@ def check_grafana_dashboard_write(ctx: Context, p: Params) -> Outcome:
     for index, entry in enumerate(service.requests):
         if entry.get("method") != "POST" or entry.get("path") != write_path:
             continue
-        if not 200 <= int(entry.get("status", 0)) < 300:
+        if not _successful_status(entry.get("status")):
             reasons.append(f"write returned {entry.get('status')}")
             continue
         body = entry.get("request")
@@ -547,21 +553,18 @@ def check_grafana_query_succeeded(ctx: Context, p: Params) -> Outcome:
     function = str(p["function"]).lower()
     minimum_seconds = float(p.get("min_window_seconds") or 0)  # the reference's four scrape intervals
 
-    def successful_status(status: object) -> bool:
-        return type(status) is int and 200 <= status < 300
-
     def grafana_response_ok(response: object) -> bool:
         return (
             isinstance(response, dict)
             and response.get("error") in (None, "")
-            and ("status" not in response or successful_status(response["status"]))
+            and ("status" not in response or _successful_status(response["status"]))
         )
 
     writes = [entry for entry in service.requests if entry.get("method") == "POST" and entry.get("path") == write_path]
     if not writes:
         return verdict(False, f"no dashboard write to {write_path} was observed")
     # The last accepted write holds what the instance persisted; a rejected attempt does not.
-    accepted = [entry for entry in writes if successful_status(entry.get("status"))]
+    accepted = [entry for entry in writes if _successful_status(entry.get("status"))]
     write = (accepted or writes)[-1]
     after_write = service.requests[service.requests.index(write) + 1 :]
 
@@ -756,7 +759,7 @@ def check_grafana_query_succeeded(ctx: Context, p: Params) -> Outcome:
         path = urllib.parse.unquote(parsed_path.path)
         if "/api/ds/query" not in path and "/api/datasources/proxy/" not in path:
             continue
-        if not successful_status(entry.get("status")):
+        if not _successful_status(entry.get("status")):
             reasons.append(f"Grafana query returned {entry.get('status')}")
             continue
         response = entry.get("response")

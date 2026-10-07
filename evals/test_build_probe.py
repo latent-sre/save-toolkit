@@ -511,6 +511,26 @@ class WorkspaceAndCheckTests(unittest.TestCase):
                 problems = build_probe.validate_scenario(spec)
                 self.assertTrue(any(expected in p for p in problems), problems)
 
+    def test_validation_refuses_a_null_equals_that_a_pointer_cannot_tell_from_missing(self) -> None:
+        self.assertEqual((None, None), (build_probe.json_pointer({"a": None}, "a"), build_probe.json_pointer({}, "a")))
+        for check in ({"check": "service_get", "path": "/x", "pointer": "a", "equals": None},
+                      {"check": "service_array_item", "path": "/x", "pointer": "items",
+                       "matches": [{"pointer": "a", "equals": None}]}):
+            with self.subTest(check=check["check"]):
+                problems = build_probe.validate_scenario({**TINY_SPEC, "checks": [check]})
+                self.assertTrue(any("equals cannot be null" in p for p in problems), problems)
+
+    def test_a_dashboard_write_still_in_flight_is_unsuccessful_not_a_grader_crash(self) -> None:
+        # The audit proxy logs a request before forwarding it; one still in flight has no status yet.
+        service = build_probe.Service("grafana", "img", "cid", "http://127.0.0.1:9")
+        service.requests.append({"method": "POST", "path": "/api/dashboards/db", "status": None, "request": {}})
+        ctx = build_probe.Context(TINY_SPEC, self.ws, build_probe.TraceSummary(), build_probe.collect_git_facts(self.ws),
+                                  services=[service])
+        outcome = build_probe.check_grafana_dashboard_write(
+            ctx, {"read_path": "/api/dashboards/uid/x", "write_path": "/api/dashboards/db", "message": "m"})
+        self.assertEqual(build_probe.State.FAIL, outcome.state, outcome.evidence)
+        self.assertIn("write returned None", outcome.evidence)
+
     def test_a_probe_write_that_cannot_be_staged_is_not_charged_to_the_candidate(self) -> None:
         # A misconfigured check is a measurement failure that stops its scenario (result rule 5).
         for name in ("command_exit_zero", "command_output_regex"):

@@ -369,6 +369,10 @@ def _check_problems(spec: Spec, where: str, kind: str) -> list[str]:
             source = (ROOT / str(rel)).resolve()
             if not source.is_file() or ORACLE_DIR not in source.parents:
                 problems.append(f"{where}: checks[{i}] writes_from {rel!r} is not a file under evals/oracles/")
+        if check["check"] in ("service_get", "service_array_item"):
+            assertions = [check, *(m for m in check.get("matches") or [] if isinstance(m, dict))]
+            if any("equals" in assertion and assertion["equals"] is None for assertion in assertions):
+                problems.append(f"{where}: checks[{i}] equals cannot be null: a pointer reads a missing value as null")
         writes = check.get("writes")
         if writes is not None and not (isinstance(writes, dict) and all(isinstance(c, str) for c in writes.values())):
             problems.append(f"{where}: checks[{i}] writes must be a mapping of path to text")

@@ -476,7 +476,11 @@ class ServiceUnavailable(RuntimeError):
 
 
 def json_pointer(payload: object, pointer: str) -> object:
-    """Walk a slash-separated path through parsed JSON: `dashboard/version`, `0/message`."""
+    """Walk a slash-separated path through parsed JSON: `dashboard/version`, `0/message`.
+
+    A missing path and an explicit JSON null both read as None, which is why validation refuses
+    `equals: null`; a negative list index counts from the end.
+    """
     node = payload
     for part in [p for p in pointer.split("/") if p]:
         if isinstance(node, list):

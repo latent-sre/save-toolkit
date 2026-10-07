@@ -50,6 +50,10 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   - A native conversation's two invocations were merged from a hand-kept list of fields, and a field
     it missed kept only the follow-up's value: `usage_models` lost the first invocation's models.
     Every trace field now has one merge rule, and a test fails when a new field has none.
+  - `grafana_dashboard_write` crashed, a grading-machinery failure, on a proxied write still in
+    flight, which has no recorded status yet; it is an unsuccessful write, as its sibling check
+    already read one. `validate` refuses `equals: null` on `service_get` and `service_array_item`,
+    since a pointer reads a missing value as null.
 
   [verified] Regrading all 1,317 saved runs with `adc13a88` and with these fixes differs in nothing;
   no saved run records a git failure, and a regrade keeps a command check's live verdict.
