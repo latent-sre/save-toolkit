@@ -9,6 +9,7 @@ import ast
 import contextlib
 import copy
 import dataclasses
+import http.server
 import io
 import json
 import os
@@ -16,11 +17,14 @@ import pickle
 import platform
 import re
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
+import threading
 import types
 import unittest
+import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -5134,6 +5138,106 @@ class GradingMachineryTests(unittest.TestCase):
             grading = probe_assessment.grade(ctx)
         self.assertEqual(("INCONCLUSIVE", "INCONCLUSIVE"), (grading["status"], grading["expectations"][0]["state"]))
         self.assertIn("judge timed out", grading["grader_error"])
+
+
+class AuditProxyTests(unittest.TestCase):
+    """The loopback proxy a service-backed trial's agent talks through: it forwards every request to
+    its one service and keeps what the checks grade, with no service container needed."""
+
+    def setUp(self) -> None:
+        self.seen_auth: list[str | None] = []
+        self.release = threading.Event()
+        test = self
+
+        class Upstream(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *_args: object) -> None:
+                return
+
+            def _reply(self, status: int, payload: object) -> None:
+                raw = json.dumps(payload).encode()
+                self.send_response(status)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(raw)))
+                self.end_headers()
+                if self.command != "HEAD":
+                    self.wfile.write(raw)
+
+            def do_GET(self) -> None:
+                if self.path == "/slow":
+                    test.release.wait(10)
+                self._reply(200 if self.path in ("/ok", "/slow") else 404, {"ok": True} if self.path != "/missing" else {"message": "nope"})
+
+            do_HEAD = do_GET
+
+            def do_POST(self) -> None:
+                test.seen_auth.append(self.headers.get("Authorization"))
+                body = self.rfile.read(int(self.headers.get("Content-Length", "0")))
+                self._reply(201, {"echo": json.loads(body)})
+
+        self.upstream = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Upstream)
+        threading.Thread(target=self.upstream.serve_forever, daemon=True).start()
+        self.addCleanup(self.upstream.server_close)
+        self.addCleanup(self.upstream.shutdown)
+        self.addCleanup(self.release.set)
+        self.service = probe_backing.Service("grafana", "image", "container",
+                                             f"http://127.0.0.1:{self.upstream.server_address[1]}")
+        probe_backing._start_service_proxy(self.service)
+        self.addCleanup(self.service.proxy.server_close)
+        self.addCleanup(self.service.proxy.shutdown)
+
+    def _call(self, path: str, method: str = "GET", body: object = None, headers: dict[str, str] | None = None):
+        data = json.dumps(body).encode() if body is not None else None
+        request = urllib.request.Request(self.service.agent_url + path, data=data, method=method,
+                                         headers={"Content-Type": "application/json", **(headers or {})})
+        try:
+            with urllib.request.urlopen(request, timeout=10) as response:
+                return response.status, response.read()
+        except urllib.error.HTTPError as exc:
+            return exc.code, exc.read()
+
+    def test_forwards_each_request_and_keeps_it_without_its_credentials(self) -> None:
+        self.assertEqual((200, b'{"ok": true}'), self._call("/ok"))
+        status, raw = self._call("/api/dashboards/db", "POST", {"title": "p95"}, {"Authorization": "Basic c2VjcmV0"})
+        self.assertEqual((201, {"echo": {"title": "p95"}}), (status, json.loads(raw)))
+        self.assertEqual(["Basic c2VjcmV0"], self.seen_auth, "the service still receives the credential")
+        self.assertEqual(
+            [{"method": "GET", "path": "/ok", "status": 200, "request": None, "response": {"ok": True}},
+             {"method": "POST", "path": "/api/dashboards/db", "status": 201, "request": {"title": "p95"},
+              "response": {"echo": {"title": "p95"}}}],
+            self.service.requests)
+        self.assertNotIn("c2VjcmV0", json.dumps(self.service.requests))
+
+    def test_an_error_status_is_forwarded_and_kept(self) -> None:
+        self.assertEqual((404, b'{"message": "nope"}'), self._call("/missing"))
+        self.assertEqual(404, self.service.requests[-1]["status"])
+
+    def test_an_unreachable_service_answers_502_with_the_reason(self) -> None:
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            closed = probe.getsockname()[1]
+        self.service.base_url = f"http://127.0.0.1:{closed}"
+        status, raw = self._call("/ok")
+        self.assertEqual(502, status)
+        self.assertIn("backing service unreachable", json.loads(raw)["message"])
+        self.assertEqual(502, self.service.requests[-1]["status"])
+
+    def test_head_returns_the_headers_without_a_body(self) -> None:
+        self.assertEqual((200, b""), self._call("/ok", "HEAD"))
+
+    def test_a_request_is_kept_when_it_arrives_before_the_service_answers(self) -> None:
+        """So a fast request issued later cannot appear to have preceded a slow write."""
+        answered: list[object] = []
+        caller = threading.Thread(target=lambda: answered.append(self._call("/slow")))
+        caller.start()
+        deadline = time.monotonic() + 10
+        while not self.service.requests and time.monotonic() < deadline:
+            time.sleep(0.01)
+        self.assertEqual([{"method": "GET", "path": "/slow", "status": None, "request": None, "response": None}],
+                         self.service.requests, "kept on arrival, before the service answered")
+        self.release.set()
+        caller.join(10)
+        self.assertEqual([(200, b'{"ok": true}')], answered)
+        self.assertEqual(200, self.service.requests[0]["status"])
 
 
 class TurnReasonTests(unittest.TestCase):
