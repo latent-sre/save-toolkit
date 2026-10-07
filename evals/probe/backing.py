@@ -228,6 +228,11 @@ def _run_docker(command: list[str]) -> subprocess.CompletedProcess[str]:
         raise ServiceUnavailable(f"container runtime {command[0]!r} failed: {exc}") from exc
 
 
+def _stderr(proc: subprocess.CompletedProcess[str]) -> str:
+    """The part of a failed container command's stderr that a failure message quotes."""
+    return proc.stderr.strip()[:300]
+
+
 def start_services(spec: Mapping[str, Any], docker: str = "docker") -> list[Service]:
     """Start each declared service, wait for its readiness path, seed it, and snapshot what must not change.
 
@@ -246,7 +251,7 @@ def start_services(spec: Mapping[str, Any], docker: str = "docker") -> list[Serv
     try:
         network = _run_docker([docker, "network", "create", "--driver", "bridge", "--internal", network_name])
         if network.returncode != 0:
-            raise ServiceUnavailable(f"docker network create failed: {network.stderr.strip()[:300]}")
+            raise ServiceUnavailable(f"docker network create failed: {_stderr(network)}")
         network_created = True
         for declared in declared_services:
             image = str(declared["image"])
@@ -298,7 +303,7 @@ def start_services(spec: Mapping[str, Any], docker: str = "docker") -> list[Serv
             command.extend(str(item) for item in (declared.get("command") or []))
             run = _run_docker(command)
             if run.returncode != 0:
-                raise ServiceUnavailable(f"{declared['name']}: docker run failed: {run.stderr.strip()[:300]}")
+                raise ServiceUnavailable(f"{declared['name']}: docker run failed: {_stderr(run)}")
             container_id = run.stdout.strip()
             service = Service(
                 name,
@@ -344,7 +349,7 @@ def start_services(spec: Mapping[str, Any], docker: str = "docker") -> list[Serv
             ]
             relay_run = _run_docker(relay_command)
             if relay_run.returncode != 0:
-                raise ServiceUnavailable(f"{service.name}: relay docker run failed: {relay_run.stderr.strip()[:300]}")
+                raise ServiceUnavailable(f"{service.name}: relay docker run failed: {_stderr(relay_run)}")
             service.relay_container_id = relay_run.stdout.strip()
             connected = _run_docker(
                 [
@@ -358,9 +363,7 @@ def start_services(spec: Mapping[str, Any], docker: str = "docker") -> list[Serv
                 ]
             )
             if connected.returncode != 0:
-                raise ServiceUnavailable(
-                    f"{service.name}: relay network connect failed: {connected.stderr.strip()[:300]}"
-                )
+                raise ServiceUnavailable(f"{service.name}: relay network connect failed: {_stderr(connected)}")
             port_result = _run_docker(
                 [
                     docker,
@@ -371,7 +374,7 @@ def start_services(spec: Mapping[str, Any], docker: str = "docker") -> list[Serv
             )
             mapped = port_result.stdout.strip()
             if not mapped:
-                raise ServiceUnavailable(f"{service.name}: no published port: {port_result.stderr.strip()[:300]}")
+                raise ServiceUnavailable(f"{service.name}: no published port: {_stderr(port_result)}")
             service.base_url = "http://127.0.0.1:" + mapped.splitlines()[0].rsplit(":", 1)[1]
             deadline = time.monotonic() + int(declared.get("ready_timeout", 120))
             ready_path = str(declared.get("ready", "/"))
@@ -425,9 +428,7 @@ def start_services(spec: Mapping[str, Any], docker: str = "docker") -> list[Serv
             try:
                 removed = _run_docker([docker, "network", "rm", network_name])
                 if removed.returncode != 0:
-                    cleanup_error = ServiceUnavailable(
-                        f"docker network rm {network_name} failed: {removed.stderr.strip()[:300]}"
-                    )
+                    cleanup_error = ServiceUnavailable(f"docker network rm {network_name} failed: {_stderr(removed)}")
             except ServiceUnavailable as cleanup_exc:
                 cleanup_error = cleanup_exc
         if cleanup_error is not None:
@@ -452,7 +453,7 @@ def stop_services(services: list[Service], docker: str = "docker") -> None:
             try:
                 stopped = _run_docker([docker, "stop", "-t", "2", container_id])
                 if stopped.returncode != 0:
-                    errors.append(f"docker stop {container_id} failed: {stopped.stderr.strip()[:200]}")
+                    errors.append(f"docker stop {container_id} failed: {_stderr(stopped)}")
             except ServiceUnavailable as exc:
                 errors.append(str(exc))
         if service.config_root is not None:
@@ -464,7 +465,7 @@ def stop_services(services: list[Service], docker: str = "docker") -> None:
         try:
             removed = _run_docker([docker, "network", "rm", network_name])
             if removed.returncode != 0:
-                errors.append(f"docker network rm {network_name} failed: {removed.stderr.strip()[:200]}")
+                errors.append(f"docker network rm {network_name} failed: {_stderr(removed)}")
         except ServiceUnavailable as exc:
             errors.append(str(exc))
     if errors:
