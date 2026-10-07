@@ -62,18 +62,23 @@ HARNESS_IDENTITY = {
 }
 
 
+def _rubric_name(definition: Mapping[str, Any]) -> str | None:
+    """The rubric a grader or `fleet_grader` check asks the judge for, when it is a rubric."""
+    if definition.get("type") == "rubric":
+        return definition.get("name")
+    if definition.get("check") == "fleet_grader" and definition.get("name") == "rubric":
+        return definition.get("rubric_name")
+    return None
+
+
 def required_rubrics(spec: Mapping[str, Any]) -> set[str]:
-    return {g["name"] for g in spec.get("graders", []) if g.get("type") == "rubric"} | {
-        g["rubric_name"]
-        for g in spec.get("checks", [])
-        if g.get("check") == "fleet_grader" and g.get("name") == "rubric"
-    }
+    definitions = [*spec.get("graders", []), *spec.get("checks", [])]
+    return {name for definition in definitions if (name := _rubric_name(definition))}
 
 
-def scenario_digest(
-    spec: Mapping[str, Any], judge_binding: dict[str, Any] | None = None, *, case_only: bool = False
-) -> str:
-    """Bind the scenario, the judge's cached rubric definitions, and current oracle file bytes.
+def _case_payload(spec: Mapping[str, Any]) -> dict[str, Any]:
+    """The case a verdict is about: the scenario, the judge's cached rubric definitions, and current
+    oracle file bytes.
 
     The judge loads rubrics once per process. A disk edit takes effect in a new process, so hash
     the same cached definitions it consumes rather than attributing a verdict to unconsumed bytes.
@@ -83,13 +88,7 @@ def scenario_digest(
     rubrics, oracles = {}, {}
     available = None
     for definition in [*spec.get("graders", []), *spec.get("checks", [])]:
-        name = (
-            definition.get("name")
-            if definition.get("type") == "rubric"
-            else definition.get("rubric_name")
-            if definition.get("check") == "fleet_grader" and definition.get("name") == "rubric"
-            else None
-        )
+        name = _rubric_name(definition)
         if name:
             if available is None:
                 available = rubric_judge.load_rubrics()
@@ -101,24 +100,26 @@ def scenario_digest(
                 if path.is_relative_to(ORACLE_DIR) and path.is_file()
                 else None
             )
-    payload: dict[str, Any] = {"scenario": spec, "rubrics": rubrics, "oracles": oracles}
-    if case_only:
-        return hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=True).encode("utf-8")).hexdigest()
-    payload = {
-        "scenario": spec,
-        "rubrics": rubrics,
-        "oracles": oracles,
-        "implementation": HARNESS_IDENTITY,
-    }
+    return {"scenario": spec, "rubrics": rubrics, "oracles": oracles}
+
+
+def _digest(payload: Mapping[str, Any]) -> str:
+    return hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=True).encode("utf-8")).hexdigest()
+
+
+def scenario_digest(spec: Mapping[str, Any], judge_binding: dict[str, Any] | None = None) -> str:
+    """The case bound to the runner, Python and libraries that grade it, and to the judge binding
+    when a rubric is graded."""
+    payload = {**_case_payload(spec), "implementation": HARNESS_IDENTITY}
     if required_rubrics(spec):
         payload["judge_binding"] = judge_binding
-    return hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=True).encode("utf-8")).hexdigest()
+    return _digest(payload)
 
 
 def case_digest(spec: Mapping[str, Any]) -> str:
     """The case alone: scenario, oracle bytes and rubric definitions, without the runner, Python,
     library versions or judge binding. Two runners grading the same case share it (DEC-22)."""
-    return scenario_digest(spec, case_only=True)
+    return _digest(_case_payload(spec))
 
 
 def stamp_assertions(identity: str, expectations: list[dict[str, Any]]) -> str:
