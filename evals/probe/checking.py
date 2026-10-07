@@ -1016,12 +1016,12 @@ def _normalized_dir(text: str) -> str:
     return path.rstrip("/").casefold() or "/"
 
 
-def _strip_workdir_prefix(command: str, tool: str, workdirs: tuple[str, ...]) -> str | None:
+def _strip_workdir_prefix(command: str, workdir: str | None) -> str | None:
     """Remove one leading change-directory step that only positions the suite, or reject the command.
 
     Returns the remaining command (unchanged when there is no prefix) for the strict matcher below,
-    or None when a prefix is present but not an accepted one. `workdirs` holds the trial repository's
-    host path and, in container mode, its container path; compare them with `_normalized_dir`.
+    or None when a prefix is present but not an accepted one. `workdir` is the trial repository's
+    path, compared with `_normalized_dir`; with none, no prefix is accepted.
     The remainder is still checked by `_verification_command`, so a prefix can never admit a second command.
     Accepted: `cd` or `Set-Location` into the trial repository, joined by `&&` so the suite runs only
     after the change succeeded. Any other target, `;`, `||`, or a missing command rejects.
@@ -1031,14 +1031,14 @@ def _strip_workdir_prefix(command: str, tool: str, workdirs: tuple[str, ...]) ->
     m = re.fullmatch(
         r"\s*(?:cd|set-location)\s+(\"[^\"]+\"|'[^']+'|[^\s\"';&|]+)\s*&&\s*(\S.*)", command, re.IGNORECASE | re.DOTALL
     )
-    if not m or _normalized_dir(m.group(1)) not in {_normalized_dir(w) for w in workdirs}:
+    if not m or workdir is None or _normalized_dir(m.group(1)) != _normalized_dir(workdir):
         return None
     return m.group(2)
 
 
-def _verification_command(command: str, runner: str, tool: str, workdirs: tuple[str, ...] = ()) -> bool:
+def _verification_command(command: str, runner: str, tool: str, workdir: str | None = None) -> bool:
     """A bounded native test invocation, never a shell program or an arbitrary wrapper."""
-    stripped = _strip_workdir_prefix(command, tool, workdirs)
+    stripped = _strip_workdir_prefix(command, workdir)
     if stripped is None:
         return False
     command = stripped
@@ -1098,19 +1098,16 @@ def check_verification_completed(ctx: Context, p: Params) -> Outcome:
     if not calls:
         return verdict(False, "no matched foreground verification evidence in the trace")
     call = calls[-1]
-    workdirs: tuple[str, ...] = ()
-    if ctx.ws:
-        repo = ctx.ws.command_repo or ctx.ws.repo
-        workdirs = (str(repo),)
+    workdir = str(ctx.ws.command_repo or ctx.ws.repo) if ctx.ws else None  # tests may pass no workspace
     if (
         call["tool"] not in SHELL_TOOLS
         or call["parent"]
-        or not _verification_command(call["command"], p["runner"], call["tool"], workdirs)
+        or not _verification_command(call["command"], p["runner"], call["tool"], workdir)
     ):
         if any(
             prior["success"]
             and prior.get("test_summaries", {}).get(p["runner"])
-            and _verification_command(prior["command"], p["runner"], prior["tool"], workdirs)
+            and _verification_command(prior["command"], p["runner"], prior["tool"], workdir)
             for prior in calls[:-1]
         ):
             return unmeasured("a later potentially mutating tool action leaves final-state verification unknown")
@@ -1126,7 +1123,6 @@ def check_verification_completed(ctx: Context, p: Params) -> Outcome:
         failure = call.get("test_failures", {}).get(p["runner"])
         if failure:
             return verdict(False, failure)
-    if not summary:
         return unmeasured("matched shell result has no supported nonzero passing test summary")
     return verdict(
         True, f"{call['tool']} {call['id']} at trace lines {call['issued'] + 1}/{call['completed'] + 1}: {summary}"

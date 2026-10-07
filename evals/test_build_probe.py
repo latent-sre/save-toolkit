@@ -1046,7 +1046,7 @@ class VerificationEvidenceTests(unittest.TestCase):
         """Every 2026-09-23 cli-with-tests trial ran `cd "<repo>" && <suite>`; the bare-only matcher failed all six."""
         for prefix in (f'cd "{self.REPO}" && ', "cd /f/iso-tmp/run/ws-abc/repo && ", "cd F:/iso-tmp/run/ws-abc/repo/ && "):
             with self.subTest(prefix=prefix):
-                self.assertTrue(probe_checking._verification_command(prefix + self.SUITE, "unittest", "Bash", (self.REPO,)))
+                self.assertTrue(probe_checking._verification_command(prefix + self.SUITE, "unittest", "Bash", self.REPO))
         check = {"check": "verification_completed", "runner": "unittest", "text": "ordered test"}
         spec = {**TINY_SPEC, "checks": [check]}
         events = [self._call(command=f'cd "{self.REPO}" && {self.SUITE}'), self._result()]
@@ -1071,18 +1071,18 @@ class VerificationEvidenceTests(unittest.TestCase):
             f'cd "{self.REPO}" || {self.SUITE}',
         ):
             with self.subTest(command=command):
-                self.assertFalse(probe_checking._verification_command(command, "unittest", "Bash", (self.REPO,)))
+                self.assertFalse(probe_checking._verification_command(command, "unittest", "Bash", self.REPO))
 
     def test_only_a_cd_into_the_trial_repo_joined_by_and_positions_the_suite(self):
         self.assertTrue(probe_checking._verification_command(
-            f'Set-Location "{self.REPO}" && {self.SUITE}', "unittest", "PowerShell", (self.REPO,)))
-        for command, workdirs in (
-            (f'cd "F:\\iso-tmp\\run\\ws-other\\repo" && {self.SUITE}', (self.REPO,)),
-            (f'cd "{self.REPO}"; {self.SUITE}', (self.REPO,)),
-            (f'cd "{self.REPO}" && {self.SUITE}', ()),
+            f'Set-Location "{self.REPO}" && {self.SUITE}', "unittest", "PowerShell", self.REPO))
+        for command, workdir in (
+            (f'cd "F:\\iso-tmp\\run\\ws-other\\repo" && {self.SUITE}', self.REPO),
+            (f'cd "{self.REPO}"; {self.SUITE}', self.REPO),
+            (f'cd "{self.REPO}" && {self.SUITE}', None),
         ):
-            with self.subTest(command=command, workdirs=workdirs):
-                self.assertFalse(probe_checking._verification_command(command, "unittest", "Bash", workdirs))
+            with self.subTest(command=command, workdir=workdir):
+                self.assertFalse(probe_checking._verification_command(command, "unittest", "Bash", workdir))
 
     def test_ordered_verification_regrade_needs_the_raw_trace(self):
         check = {"check": "verification_completed", "runner": "unittest", "text": "ordered test"}

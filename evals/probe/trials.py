@@ -424,9 +424,7 @@ def _run_trial(
                                     "resume": resume,
                                     "inconclusive": inconclusive,
                                     "cut_short": isinstance(inconclusive, CutShort),
-                                    "run_stop": getattr(inconclusive, "kind", None)
-                                    if isinstance(inconclusive, CutShort)
-                                    else None,
+                                    "run_stop": inconclusive.kind if isinstance(inconclusive, CutShort) else None,
                                 },
                                 indent=2,
                             ),

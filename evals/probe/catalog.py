@@ -110,11 +110,11 @@ def load_all_scenarios(directory: Path | None = None) -> list[dict[str, Any]]:
     for source in directories:
         if source.is_dir():
             specs += [load_scenario(p) for p in sorted(source.glob("*.yaml"))]
-    seen: dict[str, str] = {}
+    seen: set[str] = set()
     for spec in specs:
         if spec["id"] in seen:
             raise ValueError(f"duplicate scenario id {spec['id']!r}")
-        seen[spec["id"]] = spec["id"]
+        seen.add(spec["id"])
     return specs
 
 
@@ -520,7 +520,7 @@ def _target_problem(target: object) -> str | None:
     if target.get("kind") not in TARGET_KINDS:
         return "kind must be 'skill' or 'agent'"
     name = target.get("name")
-    if not isinstance(name, str) or re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", name) is None:
+    if not isinstance(name, str) or SLUG.fullmatch(name) is None:
         return "name must be a canonical lowercase slug"
     return None
 

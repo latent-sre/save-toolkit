@@ -11,6 +11,7 @@ INCONCLUSIVE batch, 3 a refused job (bad input or scenario), 4 authentication lo
 from __future__ import annotations
 
 import argparse
+import collections
 import json
 import math
 import os
@@ -267,9 +268,7 @@ def schema(out: Path | None) -> int:
 
 
 def validate(scenarios: list[dict[str, Any]]) -> int:
-    kinds: dict[str, int] = {}
-    for spec in scenarios:
-        kinds[catalog.scenario_kind(spec)] = kinds.get(catalog.scenario_kind(spec), 0) + 1
+    kinds = collections.Counter(catalog.scenario_kind(spec) for spec in scenarios)
     shape = ", ".join(f"{n} {k}" for k, n in sorted(kinds.items()))
     expectations = sum(len(assessment.scenario_assertions(s)) for s in scenarios)
     print(f"scenarios OK -- {len(scenarios)} spec(s) ({shape}), {expectations} graded expectations")

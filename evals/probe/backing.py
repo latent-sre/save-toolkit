@@ -242,7 +242,7 @@ def _hardened_run(docker: str, pids_limit: int, memory: str) -> list[str]:
 def _write_service_files(root: Path, files: Mapping[str, object]) -> None:
     for relative, content in files.items():
         target = root / str(relative)
-        if target.is_absolute() and not target.resolve().is_relative_to(root.resolve()):
+        if not target.resolve().is_relative_to(root.resolve()):
             raise ServiceUnavailable(f"service file escapes its disposable root: {relative!r}")
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(str(content), encoding="utf-8")
