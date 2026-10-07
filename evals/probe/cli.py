@@ -206,6 +206,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         command = _legacy_command(args)
     if getattr(args, "trials", 1) < 1:
         parser.error("--trials must be at least 1 (an empty batch is not a green batch)")
+    if getattr(args, "run_offset", 0) < 0:
+        parser.error("--run-offset must be at least 0 (run numbers start at 1)")
     if command == "diff":
         return diff(args.diff_paths)
     if command == "schema":

@@ -3273,7 +3273,7 @@ class BatchAggregationTests(unittest.TestCase):
                 "plugin_inputs_dirty": False, "isolation": "host", "runtime": self.RUNTIME}
 
     def _main(self, trials: list[dict], *extra: str, plugin_sha: str = "0" * 64,
-              expected_calls: int | None = None) -> tuple[int, str]:
+              expected_calls: int | None = None, command: tuple[str, ...] = ()) -> tuple[int, str]:
         import contextlib
         import io
 
@@ -3283,7 +3283,7 @@ class BatchAggregationTests(unittest.TestCase):
                 mock.patch.object(probe_fingerprints, "runtime_identity", return_value=self.RUNTIME), \
                 mock.patch.object(probe_trials, "run_trial", side_effect=trials) as runner, \
                 contextlib.redirect_stdout(buffer):
-            code = build_probe.main(["--scenario", self.SPEC["id"], "--label", "cand",
+            code = build_probe.main([*command, "--scenario", self.SPEC["id"], "--label", "cand",
                                      "--out", str(self.out), "--trials", str(len(trials)), *extra])
         if expected_calls is not None:
             self.assertEqual(expected_calls, runner.call_count)
@@ -3362,6 +3362,19 @@ class BatchAggregationTests(unittest.TestCase):
             with self.assertRaises(SystemExit, msg=bad):
                 self._main([self._trial(1, "PASS")], "--threshold", bad)
         code, _ = self._main([self._trial(1, "PASS")], "--threshold", "0.5")
+        self.assertEqual(0, code)
+
+    def test_a_negative_run_offset_is_refused_before_any_trial(self) -> None:
+        """Codex P2 on PR #328: `--run-offset -1` published the trial as `run-0`, a slot the v1 record
+        refuses, while the batch summary still counted its verdict."""
+        for command in ((), ("run",)):  # the flat flags and the `run` subcommand share `_run_options`
+            with contextlib.redirect_stderr(io.StringIO()) as err, \
+                    self.assertRaises(SystemExit, msg=command) as refused:
+                self._main([self._trial(0, "PASS")], "--run-offset", "-1", command=command)
+            self.assertEqual(2, refused.exception.code, command)
+            self.assertIn("error: --run-offset must be at least 0", err.getvalue())
+            self.assertFalse(self.out.exists(), "refused before any trial ran or a summary was written")
+        code, _ = self._main([self._trial(1, "PASS")], "--run-offset", "0", expected_calls=1)
         self.assertEqual(0, code)
 
 

@@ -8,6 +8,13 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- The second round of Copilot and Codex review comments on PR #328:
+  - `--run-offset` accepted a negative number and published trials as `run-0` or `run--1`. The v1
+    record refuses a slot below 1, so such a run had no `record.json` while the batch summary still
+    counted its verdict, and `regrade` and `rescore` skipped `run--1` as not a numbered run. A
+    negative offset is now refused before any trial runs, as `--trials 0` is.
+
+  [verified] Each fix's new test fails without it and passes with it.
 - The 2026-10-07 python-craft review of the eval runner (PR #328):
   - A git command that failed while listing a trial's changes, such as `git add` blocked by an
     `index.lock` the agent left behind, read as "no changes", so `no_workspace_changes`,
