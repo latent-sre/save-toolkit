@@ -453,13 +453,21 @@ merge, record the frozen runner revision before EVAL-012 records comparison base
   precedence; a typed run end with one rule everywhere would change verdicts no rescore can check).
   The owner declined S2 (typed grade rows), since the strict `RecordV1` model already owns the record
   and most grade reads load JSON as `Any`, and type-checking the tests. 44 check assertions assert
-  FAIL or INCONCLUSIVE, which kills the `no_new_commits` mutant; the audit proxy and the PromQL and
-  JSON readers have tests. Rescoring all saved runs after each runner commit differs in no verdict.
+  FAIL or INCONCLUSIVE, which kills the `no_new_commits` mutant; the audit proxy, the service
+  checks' verdict rules and the PromQL and JSON readers have tests. Each check declares its
+  parameters, so `validate` refuses a missing or misspelled one that grading would crash on after a
+  paid trial; a batch's shared values travel as one `BatchSettings`; and `cli.run` names its
+  preflight and stop rules, the last of S9. Rescoring all saved runs after each runner commit
+  differs in no verdict.
 
 Remaining:
 - The 2026-10-07 review's open findings: an untested `run` subcommand; a timeout saved before
   `run_end` regrades as void; `tool_call_count`'s regrade override; stopping the audit proxy before
   grading; and the owner's compatibility decisions on the flat flags and `Outcome` as a tuple.
+- `service_get` and `service_array_item` compare `equals` with Python equality, so `equals: 1`
+  passes against JSON `true`. No committed scenario is affected (every `equals` is a string).
+  Strict JSON equality would also fail `equals: 3` against `3.0`, so the comparison is the
+  evaluation owner's call.
 - Oracle protocol: 16 oracles exit 1 to fail, which an uncaught exception also produces, and 7 of
   them run candidate code (operator-cli, obs-burn-rules, pager-webhook, pcf-deploy-job and three
   python-craft), so each needs candidate errors caught as FAIL before a crash can mean INCONCLUSIVE.
