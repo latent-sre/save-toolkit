@@ -275,7 +275,7 @@ class FleetValidatorTests(unittest.TestCase):
                 _markdown_section(Path("agents/software-engineer.md"), "## Handoffs"),
                 (
                     "a nit (process step 5) returns the evidence packet to the caller without spawning a review",
-                    "a non-trivial change is ready to commit or return",
+                    "a change other than a nit is ready to commit or return",
                     "caller requests review",
                     "security-sensitive",
                     "production deployment",
@@ -286,9 +286,9 @@ class FleetValidatorTests(unittest.TestCase):
                 "software-engineer-precommit-review",
                 _markdown_section(Path("agents/software-engineer.md"), "## Process"),
                 (
-                    "before you commit or return a non-trivial change, dispatch `reviewer`",
-                    "non-trivial means it adds or changes behavior, however small",
-                    "nits need no review: documentation, comments, formatting, naming, typo or wording fixes",
+                    "before you commit or return a change, dispatch `reviewer` on it and answer its findings (handoffs), unless it is a nit",
+                    "nits are only documentation, comments, formatting, naming, typo or wording fixes",
+                    "everything else needs review, however small",
                 ),
                 (),
             ),
