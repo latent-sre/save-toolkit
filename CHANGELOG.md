@@ -241,14 +241,16 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
-- `software-engineer` sends every non-trivial change to `reviewer` before committing or returning
-  it, unasked (`PRECOMMIT-001`, owner's choice 2026-10-07). Trivial is a closed list: documentation,
-  comments, formatting, or one local fix proven by its regression test; a caller may decline the
-  review, and the gap is reported. The four build scenarios that forbade an unasked review lose
-  that check; `build-software-engineer-reviews-nontrivial-change` and its over-trigger control
-  `build-software-engineer-skips-review-for-trivial-fix` own the contract. [verified] Sonnet, 3/3
-  each at `0638610f`; the first wording, an open definition of non-trivial, passed 1/3 because the
-  agent skipped review for "a small change".
+- `software-engineer` sends every change except a nit to `reviewer` before committing or returning
+  it, unasked (`PRECOMMIT-001`, owner's choice 2026-10-07). Nits are a closed list: documentation,
+  comments, formatting, naming, typo or wording fixes, lint fixes, dead-code removal, a small
+  refactor that leaves behavior unchanged, or one local bug fix proven by its regression test; a
+  caller may decline the review, and the gap is reported. The four build scenarios that forbade an
+  unasked review lose that check; `build-software-engineer-reviews-nontrivial-change` and its two
+  over-trigger controls, `build-software-engineer-skips-review-for-trivial-fix` (a README typo) and
+  `build-software-engineer-skips-review-for-code-nit` (a rename), own the contract. [verified]
+  Sonnet, 3/3 on all three at `697e9372`. Wordings that defined "non-trivial" positively passed
+  the feature 1/3, the agent skipping review as "a small change".
 - The judge calibration corpus has 175 cases: five more each for `mitigation_recommendation` and
   `compromise_preserves_evidence`, labelled by the owner. `compromise_preserves_evidence` now says
   that naming an availability option only for the security owner to weigh after their decision is
