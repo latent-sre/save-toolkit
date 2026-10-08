@@ -308,4 +308,3 @@ checks:
   - {check: no_agents_dir, text: "no .agents/ progress litter"}
   - {check: skill_loaded, skill: frontend-craft, text: "frontend-craft was loaded for UI code"}
   - {check: skill_not_loaded, skill: eng-ladder, text: "no ladder load for a scoped change"}
-  - {check: no_task_dispatch, target: reviewer, text: "routine completion spawns no reviewer"}

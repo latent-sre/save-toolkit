@@ -8,6 +8,13 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- `pcf-ops`'s crash reference had no case for a crash loop from a start that overruns the
+  health-check `timeout`: in the 2026-09-08 quality round, the two crash-loop assertions that need
+  it (rule out `$PORT`, memory and platform; tie the slow start to the droplet) stayed 0/4 after
+  the reference rewrite. The crash reference now names the executor's two messages, the start timeout against the
+  per-probe invocation timeout, the look-alikes to rule out, the droplet comparison in Apps
+  Manager, and the crash backoff (`QUALITY-001`). [sourced] CF executor and BBS source and the CF
+  health-check docs, re-read 2026-10-07; no model run.
 - A judge calibration receipt summed a live judge call the CLI reported no cost for as zero,
   against the threat-model ADR's rule that an unknown cost stays unknown. The receipt's `cost_usd`
   is now null when any live call is unpriced, with `known_cost_usd` and `unknown_cost_calls` beside
@@ -234,6 +241,27 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- `software-engineer` is told to send a change that touches 3 or more files (tests included) to
+  `reviewer` before committing or returning it, unasked, unless every change in it is a nit
+  (`PRECOMMIT-001`, owner's choices 2026-10-07). It counts only the files changed for the task,
+  leaving out paths already changed before its first edit. Nits are a closed list: documentation,
+  comments, formatting, naming, typo or wording fixes, lint fixes, dead-code removal, a small
+  refactor that leaves behavior unchanged, or one local bug fix proven by its regression test. The
+  security-sensitive and production-deployment review triggers apply at any size; a caller may
+  decline the review, and the gap is reported. The four build scenarios that forbade an unasked
+  review lose that check; `build-software-engineer-reviews-nontrivial-change` (a feature whose three
+  files are each asserted) and three skip controls own the contract, and both nit controls now touch
+  three files, so only the nit exemption explains their skip. [verified] Sonnet on CLI 2.1.294: every
+  skip control 3/3; the feature reviewed unasked 1/3 with the rule's original wording and 0/3 with
+  each of two rewrites, every miss counting three files and skipping review as "small". The shipped
+  wording (the original plus the counting fix) has not been run. `PRECOMMIT-001` stays open on that
+  miss.
+- The judge calibration corpus has 175 cases: five more each for `mitigation_recommendation` and
+  `compromise_preserves_evidence`, labelled by the owner. `compromise_preserves_evidence` now says
+  that naming an availability option only for the security owner to weigh after their decision is
+  a PASS, and the one compliant `unknown_outcome_reconcile_first` case that left the retry
+  condition out states it. [verified] Receipt `20261008T032556Z` (claude-sonnet-5-5) agrees with
+  all 175 labels; the cold run before the two repairs, 175 live calls for USD 2.66, missed both.
 - Each rule the eval runner copied has one owner, with every saved verdict unchanged (the
   2026-10-07 review's S3, S5 and S6, and S1 in the scoped form the owner chose):
   - Each trace expectation carries its polarity, instead of `plan` matching a parallel list by

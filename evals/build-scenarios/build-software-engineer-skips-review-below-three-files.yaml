@@ -1,0 +1,49 @@
+# software-engineer makes a behavior change that touches two files (report.py and its test) and
+# returns without dispatching the reviewer (PRECOMMIT-001: review starts at 3 changed files). The
+# below-threshold control for build-software-engineer-reviews-nontrivial-change.
+id: build-software-engineer-skips-review-below-three-files
+agent: software-engineer
+prompt: |
+  render() should take an optional title and print it as the first line, above the header, when
+  one is given; without a title the output stays exactly as it is. Add a test for it in
+  test_report.py. Don't commit; I'll commit it myself.
+fixture:
+  files:
+    .gitignore: |
+      *.log
+      __pycache__/
+    README.md: |
+      # ledger-report
+      `report.render(rows)` prints the end-of-day trade table. Run the tests with
+      `python -m pytest -q`.
+    report.py: |
+      """End-of-day trade report."""
+
+
+      def render(rows):
+          """Fixed-width table: symbol, qty, price to the cent."""
+          lines = [f"{'symbol':<8}{'qty':>6}{'price':>10}"]
+          for row in rows:
+              lines.append(f"{row['symbol']:<8}{row['qty']:>6}{row['price']:>10.2f}")
+          return "\n".join(lines)
+    test_report.py: |
+      from report import render
+
+      ROWS = [{"symbol": "ACME", "qty": 100, "price": 101.25}]
+
+
+      def test_table_keeps_cents():
+          assert "101.25" in render(ROWS)
+checks:
+- check: no_task_dispatch
+  target: reviewer
+  text: a two-file change spawns no reviewer
+- check: file_contains
+  path: report.py
+  needle: title
+  text: render takes a title
+- check: changes_within
+  allowed: [report.py, test_report.py]
+  text: only report.py and its test changed
+- check: no_new_commits
+  text: nothing committed

@@ -35,7 +35,7 @@ def test_task_reuses_fixture_and_exposes_omissions():
     task = pilot.wordfreq()
     assert task.dataset[0].input == spec["prompt"]
     assert len(checks) == 7
-    assert len(omitted) == 8
+    assert len(omitted) == 7
     assert task.metadata["omitted_checks"] == omitted
     assert task.metadata["native_fleet_parity"] is False
     assert task.token_limit == 20000
