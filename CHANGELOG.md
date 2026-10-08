@@ -778,13 +778,14 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   unusable record and legacy run. Trials keep their recorded verdicts, and an arm pools its trials
   against the case's native threshold only while the scenario still has the digest its records
   name. A run published without its record keeps its slot and fails to measure, arms that ran
-  different trial slots are not compared, and every attempt whose cost it cannot read counts as
-  unknown. It grades nothing, so it sits outside the runner's identity: the runner digest is
-  unchanged.
-  - A committed synthetic bundle, `evals/fixtures/v1-bundle`, holds twenty cases, one behavior
+  different trial slots or wall-clock limits are not compared, every kept attempt is listed by
+  folder, and every cost or judge-call count it cannot read counts as unknown. It grades nothing, so
+  it sits outside the runner's identity: the runner digest is unchanged.
+  - A committed synthetic bundle, `evals/fixtures/v1-bundle`, holds twenty-two cases, one behavior
     each. `evals/test_comparison.py` checks AC-01, AC-02, AC-17's attempt counts, AC-19 and AC-23
     against one committed report, including from a relocated copy under a path with spaces.
-    [verified] The twelve tests pass on Windows; twenty planted defects each fail at least one.
+    [verified] The fifteen tests pass on Windows and Linux CI; twenty-six planted defects each fail
+    at least one.
 - `principal-engineer`, one design lane for system design and architecture: contract changes,
   migrations, new-system architecture, and tool or platform selection. It advises; the human owner
   decides ([decision](docs/decisions/2026-10-05-principal-engineer.md)).

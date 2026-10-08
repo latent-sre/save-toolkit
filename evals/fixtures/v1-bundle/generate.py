@@ -49,6 +49,8 @@ CASES = {
     "synthetic-model": {},
     "synthetic-runner": {},
     "synthetic-misfiled": {},
+    "synthetic-refused": {},
+    "synthetic-wall-clock": {},
 }
 
 
@@ -142,8 +144,11 @@ def main() -> None:
         return attempt(folder, record(case_id, digests[case_id], label, slot, number, status, **kw), files=files,
                        tweak=tweak)
 
-    def recordless(folder: Path) -> None:
-        """An attempt the runner kept or published without record.json: its grade and response only."""
+    def recordless(folder: Path, state: str = "final") -> None:
+        """An attempt the runner kept or published without record.json: the attempt.json it writes as
+        every attempt starts, its grade and its response."""
+        attempt_file = {"attempt": 1, "state": state, "recorded_at": "2026-10-01T00:00:00+00:00"}
+        write(folder / "attempt.json", json.dumps(attempt_file, indent=2) + "\n")
         write(folder / "grading.json", json.dumps({"status": "FAIL", "expectations": []}, indent=2) + "\n")
         write(folder / "outputs" / "response.md", "Synthetic response with no record.\n")
 
@@ -197,7 +202,7 @@ def main() -> None:
     for slot in (1, 2):
         run("synthetic-recordless", "incumbent", slot, "PASS")
     run("synthetic-recordless", "candidate", 1, "PASS", number=2)
-    recordless(RUNS / "eval-synthetic-recordless" / "candidate" / "attempts" / "run-1" / "1")
+    recordless(RUNS / "eval-synthetic-recordless" / "candidate" / "attempts" / "run-1" / "1", "superseded")
     recordless(RUNS / "eval-synthetic-recordless" / "candidate" / "run-2")
     # A batch that stopped early ran fewer slots: never set beside a complete arm.
     for slot, status in enumerate(("PASS", "FAIL", "FAIL"), 1):
@@ -226,6 +231,14 @@ def main() -> None:
         requested_model="opus", observed_models=["claude-synthetic-opus"]))
     run("synthetic-runner", "incumbent", 1, "PASS")
     run("synthetic-runner", "candidate", 1, "PASS", tweak=lambda r: r["case"].update(scenario_sha256="f" * 64))
+    # A case whose only attempt the runner published without a record is not legacy: its attempt.json
+    # names a runner that writes records, so the slot stays and fails to measure.
+    run("synthetic-refused", "incumbent", 1, "PASS")
+    recordless(RUNS / "eval-synthetic-refused" / "candidate" / "run-1")
+    # Arms run under different wall-clock limits are not one comparison.
+    run("synthetic-wall-clock", "incumbent", 1, "PASS")
+    run("synthetic-wall-clock", "candidate", 1, "PASS",
+        tweak=lambda r: r["conditions"].update(wall_clock_seconds=300))
     # Records filed in a folder they disagree with, one field each.
     for slot in (1, 2, 3, 4):
         run("synthetic-misfiled", "incumbent", slot, "PASS")

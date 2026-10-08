@@ -2,18 +2,19 @@
   "arms": {
     "candidate": {
       "attempts": {
-        "final": 21,
+        "final": 22,
         "incomplete": 1,
         "superseded": 1,
         "unpublished": 1,
-        "unusable": 9
+        "unusable": 10
       },
-      "cases": 19,
+      "cases": 21,
       "cost": {
         "judge_cached_calls": 1,
+        "judge_calls_unknown_attempts": 1,
         "judge_live_calls": 1,
-        "known_usd": 2.31,
-        "unknown_cost_attempts": 11
+        "known_usd": 2.41,
+        "unknown_cost_attempts": 12
       },
       "later_assessments": 1,
       "legacy_runs": 0,
@@ -21,25 +22,26 @@
       "published_trials": {
         "FAIL": 2,
         "INCONCLUSIVE": 1,
-        "PASS": 18
+        "PASS": 19
       },
-      "slots": 28,
-      "slots_without_trial": 7,
+      "slots": 30,
+      "slots_without_trial": 8,
       "truncated_checks": 1
     },
     "incumbent": {
       "attempts": {
-        "final": 30,
+        "final": 32,
         "incomplete": 0,
         "superseded": 0,
         "unpublished": 0,
         "unusable": 0
       },
-      "cases": 19,
+      "cases": 21,
       "cost": {
         "judge_cached_calls": 0,
+        "judge_calls_unknown_attempts": 0,
         "judge_live_calls": 0,
-        "known_usd": 3.0,
+        "known_usd": 3.2,
         "unknown_cost_attempts": 1
       },
       "later_assessments": 0,
@@ -48,9 +50,9 @@
       "published_trials": {
         "FAIL": 5,
         "INCONCLUSIVE": 0,
-        "PASS": 25
+        "PASS": 27
       },
-      "slots": 30,
+      "slots": 32,
       "slots_without_trial": 0,
       "truncated_checks": 0
     }
@@ -75,7 +77,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
         },
         "passed": 1,
         "reason": null,
@@ -104,6 +107,25 @@
               "eval-synthetic-attempts/candidate/run-1/outputs/response.md"
             ],
             "folder": "eval-synthetic-attempts/candidate/run-1",
+            "kept": [
+              {
+                "attempt": 1,
+                "cost": {
+                  "complete": true,
+                  "judge_usd": 0.0,
+                  "known_usd": 0.2,
+                  "trial_usd": 0.2
+                },
+                "evidence": [
+                  "eval-synthetic-attempts/candidate/attempts/run-1/1/outputs/response.md"
+                ],
+                "folder": "eval-synthetic-attempts/candidate/attempts/run-1/1",
+                "missing_evidence": [],
+                "reason": "replaced by attempt 2",
+                "state": "superseded",
+                "status": "FAIL"
+              }
+            ],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
@@ -125,6 +147,23 @@
             "cost": null,
             "evidence": [],
             "folder": null,
+            "kept": [
+              {
+                "attempt": 1,
+                "cost": {
+                  "complete": null,
+                  "judge_usd": null,
+                  "known_usd": null,
+                  "trial_usd": null
+                },
+                "evidence": [],
+                "folder": "eval-synthetic-attempts/candidate/attempts/run-2/1",
+                "missing_evidence": [],
+                "reason": null,
+                "state": "incomplete",
+                "status": null
+              }
+            ],
             "missing_evidence": [],
             "run_end": null,
             "slot": 2,
@@ -152,7 +191,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
         },
         "passed": 2,
         "reason": null,
@@ -181,6 +221,7 @@
               "eval-synthetic-attempts/incumbent/run-1/outputs/response.md"
             ],
             "folder": "eval-synthetic-attempts/incumbent/run-1",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
@@ -209,6 +250,7 @@
               "eval-synthetic-attempts/incumbent/run-2/outputs/response.md"
             ],
             "folder": "eval-synthetic-attempts/incumbent/run-2",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 2,
@@ -239,7 +281,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
         },
         "passed": 1,
         "reason": "the scenario given differs from the case these trials measured",
@@ -268,6 +311,7 @@
               "eval-synthetic-case-changed/candidate/run-1/outputs/response.md"
             ],
             "folder": "eval-synthetic-case-changed/candidate/run-1",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
@@ -295,7 +339,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
         },
         "passed": 1,
         "reason": null,
@@ -324,6 +369,7 @@
               "eval-synthetic-case-changed/incumbent/run-1/outputs/response.md"
             ],
             "folder": "eval-synthetic-case-changed/incumbent/run-1",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
@@ -354,7 +400,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
         },
         "passed": 1,
         "reason": null,
@@ -383,6 +430,7 @@
               "eval-synthetic-conditions/candidate/run-1/outputs/response.md"
             ],
             "folder": "eval-synthetic-conditions/candidate/run-1",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
@@ -410,7 +458,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
         },
         "passed": 1,
         "reason": null,
@@ -439,6 +488,7 @@
               "eval-synthetic-conditions/incumbent/run-1/outputs/response.md"
             ],
             "folder": "eval-synthetic-conditions/incumbent/run-1",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
@@ -469,7 +519,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
         },
         "passed": 1,
         "reason": null,
@@ -498,6 +549,7 @@
               "eval-synthetic-gain/candidate/run-1/outputs/response.md"
             ],
             "folder": "eval-synthetic-gain/candidate/run-1",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
@@ -525,7 +577,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
         },
         "passed": 0,
         "reason": null,
@@ -554,6 +607,7 @@
               "eval-synthetic-gain/incumbent/run-1/outputs/response.md"
             ],
             "folder": "eval-synthetic-gain/incumbent/run-1",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
@@ -584,7 +638,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
         },
         "passed": 1,
         "reason": "the CLI version or host is unknown",
@@ -613,6 +668,7 @@
               "eval-synthetic-identity-gap/candidate/run-1/outputs/response.md"
             ],
             "folder": "eval-synthetic-identity-gap/candidate/run-1",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
@@ -640,7 +696,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
         },
         "passed": 1,
         "reason": null,
@@ -669,6 +726,7 @@
               "eval-synthetic-identity-gap/incumbent/run-1/outputs/response.md"
             ],
             "folder": "eval-synthetic-identity-gap/incumbent/run-1",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
@@ -699,7 +757,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
         },
         "passed": 1,
         "reason": null,
@@ -728,6 +787,7 @@
               "eval-synthetic-legacy/candidate/run-1/outputs/response.md"
             ],
             "folder": "eval-synthetic-legacy/candidate/run-1",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
@@ -760,7 +820,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
         },
         "passed": 1,
         "reason": null,
@@ -782,6 +843,7 @@
             "cost": null,
             "evidence": [],
             "folder": null,
+            "kept": [],
             "missing_evidence": [],
             "run_end": null,
             "slot": 1,
@@ -803,6 +865,7 @@
             "cost": null,
             "evidence": [],
             "folder": null,
+            "kept": [],
             "missing_evidence": [],
             "run_end": null,
             "slot": 2,
@@ -824,6 +887,7 @@
             "cost": null,
             "evidence": [],
             "folder": null,
+            "kept": [],
             "missing_evidence": [],
             "run_end": null,
             "slot": 3,
@@ -852,6 +916,7 @@
               "eval-synthetic-misfiled/candidate/run-4/outputs/response.md"
             ],
             "folder": "eval-synthetic-misfiled/candidate/run-4",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 4,
@@ -879,7 +944,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
         },
         "passed": 4,
         "reason": null,
@@ -908,6 +974,7 @@
               "eval-synthetic-misfiled/incumbent/run-1/outputs/response.md"
             ],
             "folder": "eval-synthetic-misfiled/incumbent/run-1",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
@@ -936,6 +1003,7 @@
               "eval-synthetic-misfiled/incumbent/run-2/outputs/response.md"
             ],
             "folder": "eval-synthetic-misfiled/incumbent/run-2",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 2,
@@ -964,6 +1032,7 @@
               "eval-synthetic-misfiled/incumbent/run-3/outputs/response.md"
             ],
             "folder": "eval-synthetic-misfiled/incumbent/run-3",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 3,
@@ -992,6 +1061,7 @@
               "eval-synthetic-misfiled/incumbent/run-4/outputs/response.md"
             ],
             "folder": "eval-synthetic-misfiled/incumbent/run-4",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 4,
@@ -1024,7 +1094,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
         },
         "passed": 1,
         "reason": null,
@@ -1053,6 +1124,7 @@
               "eval-synthetic-missing/incumbent/run-1/outputs/response.md"
             ],
             "folder": "eval-synthetic-missing/incumbent/run-1",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
@@ -1095,6 +1167,7 @@
               "eval-synthetic-mixed-candidate/candidate/run-1/outputs/response.md"
             ],
             "folder": "eval-synthetic-mixed-candidate/candidate/run-1",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
@@ -1123,6 +1196,7 @@
               "eval-synthetic-mixed-candidate/candidate/run-2/outputs/response.md"
             ],
             "folder": "eval-synthetic-mixed-candidate/candidate/run-2",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 2,
@@ -1150,7 +1224,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
         },
         "passed": 2,
         "reason": null,
@@ -1179,6 +1254,7 @@
               "eval-synthetic-mixed-candidate/incumbent/run-1/outputs/response.md"
             ],
             "folder": "eval-synthetic-mixed-candidate/incumbent/run-1",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
@@ -1207,6 +1283,7 @@
               "eval-synthetic-mixed-candidate/incumbent/run-2/outputs/response.md"
             ],
             "folder": "eval-synthetic-mixed-candidate/incumbent/run-2",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 2,
@@ -1237,7 +1314,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
         },
         "passed": 1,
         "reason": null,
@@ -1266,6 +1344,7 @@
               "eval-synthetic-model/candidate/run-1/outputs/response.md"
             ],
             "folder": "eval-synthetic-model/candidate/run-1",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
@@ -1293,7 +1372,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
         },
         "passed": 1,
         "reason": null,
@@ -1322,6 +1402,7 @@
               "eval-synthetic-model/incumbent/run-1/outputs/response.md"
             ],
             "folder": "eval-synthetic-model/incumbent/run-1",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
@@ -1352,7 +1433,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
         },
         "passed": 1,
         "reason": null,
@@ -1381,6 +1463,7 @@
               "eval-synthetic-recordless/candidate/run-1/outputs/response.md"
             ],
             "folder": "eval-synthetic-recordless/candidate/run-1",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
@@ -1402,6 +1485,7 @@
             "cost": null,
             "evidence": [],
             "folder": null,
+            "kept": [],
             "missing_evidence": [],
             "run_end": null,
             "slot": 2,
@@ -1429,7 +1513,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
         },
         "passed": 2,
         "reason": null,
@@ -1458,6 +1543,7 @@
               "eval-synthetic-recordless/incumbent/run-1/outputs/response.md"
             ],
             "folder": "eval-synthetic-recordless/incumbent/run-1",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
@@ -1486,9 +1572,104 @@
               "eval-synthetic-recordless/incumbent/run-2/outputs/response.md"
             ],
             "folder": "eval-synthetic-recordless/incumbent/run-2",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 2,
+            "status": "PASS",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "PASS"
+      },
+      "outcome": "unmeasured",
+      "reason": "no PASS or FAIL verdict for the candidate"
+    },
+    {
+      "candidate": {
+        "conditions": null,
+        "passed": 0,
+        "reason": "no published trial has a usable record",
+        "slots": 1,
+        "threshold": null,
+        "trials": [
+          {
+            "attempts": {
+              "final": 0,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 1
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 0
+            },
+            "cost": null,
+            "evidence": [],
+            "folder": null,
+            "kept": [],
+            "missing_evidence": [],
+            "run_end": null,
+            "slot": 1,
+            "status": null,
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": null
+      },
+      "case": "synthetic-refused",
+      "incumbent": {
+        "conditions": {
+          "case_sha256": "5f78e0a0ebcf985c34630bfb0213ca8be26eb5bfcb52a0732c3d87d677ec73bd",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "1111111111111111111111111111111111111111",
+          "plugin_source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
+        },
+        "passed": 1,
+        "reason": null,
+        "slots": 1,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-refused/incumbent/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-refused/incumbent/run-1",
+            "kept": [],
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
             "status": "PASS",
             "truncated_checks": 0
           }
@@ -1516,7 +1697,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
         },
         "passed": 1,
         "reason": null,
@@ -1545,6 +1727,7 @@
               "eval-synthetic-regraded/candidate/run-1/outputs/response.md"
             ],
             "folder": "eval-synthetic-regraded/candidate/run-1",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
@@ -1572,7 +1755,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
         },
         "passed": 1,
         "reason": null,
@@ -1601,6 +1785,7 @@
               "eval-synthetic-regraded/incumbent/run-1/outputs/response.md"
             ],
             "folder": "eval-synthetic-regraded/incumbent/run-1",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
@@ -1631,7 +1816,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
         },
         "passed": 0,
         "reason": null,
@@ -1660,6 +1846,7 @@
               "eval-synthetic-regression/candidate/run-1/outputs/response.md"
             ],
             "folder": "eval-synthetic-regression/candidate/run-1",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
@@ -1687,7 +1874,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
         },
         "passed": 1,
         "reason": null,
@@ -1716,6 +1904,7 @@
               "eval-synthetic-regression/incumbent/run-1/outputs/response.md"
             ],
             "folder": "eval-synthetic-regression/incumbent/run-1",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
@@ -1746,7 +1935,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          "scenario_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "wall_clock_seconds": 600
         },
         "passed": 1,
         "reason": null,
@@ -1775,6 +1965,7 @@
               "eval-synthetic-runner/candidate/run-1/outputs/response.md"
             ],
             "folder": "eval-synthetic-runner/candidate/run-1",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
@@ -1802,7 +1993,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
         },
         "passed": 1,
         "reason": null,
@@ -1831,6 +2023,7 @@
               "eval-synthetic-runner/incumbent/run-1/outputs/response.md"
             ],
             "folder": "eval-synthetic-runner/incumbent/run-1",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
@@ -1861,7 +2054,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
         },
         "passed": 1,
         "reason": null,
@@ -1890,6 +2084,7 @@
               "eval-synthetic-stopped-early/candidate/run-1/outputs/response.md"
             ],
             "folder": "eval-synthetic-stopped-early/candidate/run-1",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
@@ -1917,7 +2112,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
         },
         "passed": 1,
         "reason": null,
@@ -1946,6 +2142,7 @@
               "eval-synthetic-stopped-early/incumbent/run-1/outputs/response.md"
             ],
             "folder": "eval-synthetic-stopped-early/incumbent/run-1",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
@@ -1974,6 +2171,7 @@
               "eval-synthetic-stopped-early/incumbent/run-2/outputs/response.md"
             ],
             "folder": "eval-synthetic-stopped-early/incumbent/run-2",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 2,
@@ -2002,6 +2200,7 @@
               "eval-synthetic-stopped-early/incumbent/run-3/outputs/response.md"
             ],
             "folder": "eval-synthetic-stopped-early/incumbent/run-3",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 3,
@@ -2032,7 +2231,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
         },
         "passed": 2,
         "reason": null,
@@ -2061,6 +2261,7 @@
               "eval-synthetic-threshold/candidate/run-1/outputs/response.md"
             ],
             "folder": "eval-synthetic-threshold/candidate/run-1",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
@@ -2089,6 +2290,7 @@
               "eval-synthetic-threshold/candidate/run-2/outputs/response.md"
             ],
             "folder": "eval-synthetic-threshold/candidate/run-2",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 2,
@@ -2117,6 +2319,7 @@
               "eval-synthetic-threshold/candidate/run-3/outputs/response.md"
             ],
             "folder": "eval-synthetic-threshold/candidate/run-3",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 3,
@@ -2144,7 +2347,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
         },
         "passed": 1,
         "reason": null,
@@ -2173,6 +2377,7 @@
               "eval-synthetic-threshold/incumbent/run-1/outputs/response.md"
             ],
             "folder": "eval-synthetic-threshold/incumbent/run-1",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
@@ -2201,6 +2406,7 @@
               "eval-synthetic-threshold/incumbent/run-2/outputs/response.md"
             ],
             "folder": "eval-synthetic-threshold/incumbent/run-2",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 2,
@@ -2229,6 +2435,7 @@
               "eval-synthetic-threshold/incumbent/run-3/outputs/response.md"
             ],
             "folder": "eval-synthetic-threshold/incumbent/run-3",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 3,
@@ -2259,7 +2466,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
         },
         "passed": 1,
         "reason": null,
@@ -2289,6 +2497,7 @@
               "eval-synthetic-unchanged/candidate/run-1/stdout.jsonl"
             ],
             "folder": "eval-synthetic-unchanged/candidate/run-1",
+            "kept": [],
             "missing_evidence": [
               "eval-synthetic-unchanged/candidate/run-1/stdout.jsonl"
             ],
@@ -2318,7 +2527,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
         },
         "passed": 1,
         "reason": null,
@@ -2347,6 +2557,7 @@
               "eval-synthetic-unchanged/incumbent/run-1/outputs/response.md"
             ],
             "folder": "eval-synthetic-unchanged/incumbent/run-1",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
@@ -2377,7 +2588,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
         },
         "passed": 0,
         "reason": null,
@@ -2406,6 +2618,7 @@
               "eval-synthetic-unmeasured/candidate/run-1/outputs/response.md"
             ],
             "folder": "eval-synthetic-unmeasured/candidate/run-1",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
@@ -2433,7 +2646,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
         },
         "passed": 1,
         "reason": null,
@@ -2462,6 +2676,7 @@
               "eval-synthetic-unmeasured/incumbent/run-1/outputs/response.md"
             ],
             "folder": "eval-synthetic-unmeasured/incumbent/run-1",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
@@ -2492,7 +2707,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
         },
         "passed": 1,
         "reason": null,
@@ -2521,6 +2737,7 @@
               "eval-synthetic-unpublished/candidate/run-1/outputs/response.md"
             ],
             "folder": "eval-synthetic-unpublished/candidate/run-1",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
@@ -2548,7 +2765,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
         },
         "passed": 1,
         "reason": null,
@@ -2577,6 +2795,7 @@
               "eval-synthetic-unpublished/incumbent/run-1/outputs/response.md"
             ],
             "folder": "eval-synthetic-unpublished/incumbent/run-1",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
@@ -2612,6 +2831,7 @@
             "cost": null,
             "evidence": [],
             "folder": null,
+            "kept": [],
             "missing_evidence": [],
             "run_end": null,
             "slot": 1,
@@ -2633,6 +2853,7 @@
             "cost": null,
             "evidence": [],
             "folder": null,
+            "kept": [],
             "missing_evidence": [],
             "run_end": null,
             "slot": 2,
@@ -2660,7 +2881,8 @@
               "system": "Linux"
             }
           },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
         },
         "passed": 2,
         "reason": null,
@@ -2689,6 +2911,7 @@
               "eval-synthetic-unusable/incumbent/run-1/outputs/response.md"
             ],
             "folder": "eval-synthetic-unusable/incumbent/run-1",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
@@ -2717,6 +2940,7 @@
               "eval-synthetic-unusable/incumbent/run-2/outputs/response.md"
             ],
             "folder": "eval-synthetic-unusable/incumbent/run-2",
+            "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 2,
@@ -2728,6 +2952,125 @@
       },
       "outcome": "unmeasured",
       "reason": "no PASS or FAIL verdict for the candidate"
+    },
+    {
+      "candidate": {
+        "conditions": {
+          "case_sha256": "886c73d12e2916a63a575736f22becd6b926b4573ddd625826e1ebc2906c58a1",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "2222222222222222222222222222222222222222",
+          "plugin_source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 300
+        },
+        "passed": 1,
+        "reason": null,
+        "slots": 1,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-wall-clock/candidate/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-wall-clock/candidate/run-1",
+            "kept": [],
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "PASS"
+      },
+      "case": "synthetic-wall-clock",
+      "incumbent": {
+        "conditions": {
+          "case_sha256": "886c73d12e2916a63a575736f22becd6b926b4573ddd625826e1ebc2906c58a1",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "1111111111111111111111111111111111111111",
+          "plugin_source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "wall_clock_seconds": 600
+        },
+        "passed": 1,
+        "reason": null,
+        "slots": 1,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-wall-clock/incumbent/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-wall-clock/incumbent/run-1",
+            "kept": [],
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "PASS"
+      },
+      "outcome": "not_compared",
+      "reason": "the arms differ in wall_clock_seconds"
     }
   ],
   "format": {
@@ -2749,10 +3092,10 @@
   "outcomes": {
     "gain": 2,
     "missing_pair": 2,
-    "not_compared": 6,
+    "not_compared": 7,
     "regression": 1,
     "unchanged": 3,
-    "unmeasured": 6
+    "unmeasured": 7
   },
   "problems": [
     {
@@ -2777,6 +3120,10 @@
     },
     {
       "folder": "eval-synthetic-recordless/candidate/run-2",
+      "problem": "published without record.json: the runner refused or failed to write it, so it cannot be measured"
+    },
+    {
+      "folder": "eval-synthetic-refused/candidate/run-1",
       "problem": "published without record.json: the runner refused or failed to write it, so it cannot be measured"
     },
     {

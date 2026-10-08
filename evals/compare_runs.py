@@ -28,6 +28,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+import yaml
 from probe import batches, catalog, fingerprints
 from probe.outcomes import State
 from probe.records import RECORD_FORMAT, RecordV1
@@ -44,7 +45,7 @@ LEGACY_GAPS = {
 }
 
 # What both arms must share for a pair to be compared; the candidate's plugin is what may differ.
-MATCHED = ("case_sha256", "scenario_sha256", "requested_model", "observed_models", "runtime")
+MATCHED = ("case_sha256", "scenario_sha256", "requested_model", "observed_models", "runtime", "wall_clock_seconds")
 # What one arm's trials of a case must share to pool, as a batch refuses to pool anything else.
 POOLED = (*MATCHED, "plugin_source_sha256")
 DECIDED = (State.PASS, State.FAIL)
@@ -125,10 +126,11 @@ def read_label(bundle: Path, label: str) -> Label:
                 }
             )
         folders = list(_attempt_folders(label_dir))
-        # A case the label ran before v1 records existed is legacy throughout. Once any attempt of it has
-        # a record, one without is an attempt whose record the runner refused or failed to write: its
+        # A case the label ran before v1 records existed is legacy throughout. The runner that writes
+        # records writes attempt.json as each attempt starts, so once any folder of the case holds
+        # either, one without a record is an attempt whose record was refused or never written: its
         # slot stays and fails to measure, so the arm never pools over fewer trials than it ran.
-        if not any((folder / "record.json").exists() for folder, _, _ in folders):
+        if not any((folder / "record.json").exists() or (folder / "attempt.json").exists() for folder, _, _ in folders):
             for folder, _, _ in folders:
                 where = folder.relative_to(bundle).as_posix()
                 held.legacy.append({"folder": where, "label": label, "gaps": _legacy_gaps(folder)})
@@ -142,8 +144,7 @@ def read_label(bundle: Path, label: str) -> Label:
                 held.problems.append({"folder": where, "problem": record})
                 entry.unusable += 1
                 continue
-            missing = tuple(f"{where}/{path}" for path in record.evidence.values() if not (folder / path).is_file())
-            trial = Trial(where, record, missing)
+            trial = Trial(where, record, _unavailable(folder, where, record))
             if number is None:
                 entry.final = trial
             else:
@@ -172,6 +173,18 @@ def _numbered(parent: Path, prefix: str) -> list[tuple[Path, int]]:
             if child.is_dir() and digits.isascii() and digits.isdigit() and digits == str(int(digits)) != "0":
                 found.append((child, int(digits)))
     return sorted(found, key=lambda item: item[1])
+
+
+def _unavailable(folder: Path, where: str, record: RecordV1) -> tuple[str, ...]:
+    """The evidence links a reviewer could not open: missing, or present but unreadable."""
+    unavailable = []
+    for path in record.evidence.values():
+        try:
+            with (folder / path).open("rb"):
+                pass
+        except OSError:
+            unavailable.append(f"{where}/{path}")
+    return tuple(unavailable)
 
 
 def _usable_record(folder: Path, case_id: str, label: str, slot: int, number: int | None) -> RecordV1 | str:
@@ -247,6 +260,7 @@ def _conditions(record: RecordV1) -> dict[str, Any]:
         "requested_model": record.conditions.requested_model,
         "observed_models": record.conditions.observed_models,
         "runtime": runtime.model_dump(mode="json") if runtime else None,
+        "wall_clock_seconds": record.conditions.wall_clock_seconds,
         "plugin_source_sha256": record.candidate.plugin_source_sha256,
         "plugin_commit": record.candidate.plugin_commit,
     }
@@ -315,10 +329,22 @@ def _trial_row(number: int, slot: Slot) -> dict[str, Any]:
         "run_end": record.run_end.kind if record else None,
         "checks": {state.value: states.count(state) for state in State},
         "truncated_checks": sum(check.evidence_truncated for check in record.checks) if record else 0,
-        "evidence": [f"{final.folder}/{path}" for path in record.evidence.values()] if final and record else [],
+        "evidence": _links(final) if final else [],
         "missing_evidence": list(final.missing_evidence) if final else [],
-        # The record's own figures: a known floor reads as a total only when `complete` is true.
-        "cost": record.cost.model_dump(include={"trial_usd", "judge_usd", "known_usd", "complete"}) if record else None,
+        "cost": _cost(final.record) if final else None,
+        "kept": [
+            {
+                "attempt": t.record.attempt.number,
+                "state": t.record.attempt.state,
+                "reason": t.record.attempt.reason,
+                "folder": t.folder,
+                "status": t.record.verdict.status,
+                "evidence": _links(t),
+                "missing_evidence": list(t.missing_evidence),
+                "cost": _cost(t.record),
+            }
+            for t in sorted(slot.kept, key=lambda t: t.record.attempt.number)
+        ],
         "attempts": {
             "final": int(final is not None),
             "superseded": sum(t.record.attempt.state == "superseded" for t in slot.kept),
@@ -326,6 +352,15 @@ def _trial_row(number: int, slot: Slot) -> dict[str, Any]:
             "unusable": slot.unusable,
         },
     }
+
+
+def _links(trial: Trial) -> list[str]:
+    return [f"{trial.folder}/{path}" for path in trial.record.evidence.values()]
+
+
+def _cost(record: RecordV1) -> dict[str, Any]:
+    """The record's own figures: a known floor reads as a total only when `complete` is true."""
+    return record.cost.model_dump(include={"trial_usd", "judge_usd", "known_usd", "complete"})
 
 
 def _pair(incumbent: Mapping[str, Any] | None, candidate: Mapping[str, Any] | None) -> tuple[str, str | None]:
@@ -383,6 +418,9 @@ def _arm_summary(held: Label) -> dict[str, Any]:
             + len(held.legacy),
             "judge_live_calls": sum(cost.judge_live_calls or 0 for cost in costs),
             "judge_cached_calls": sum(cost.judge_cached_calls or 0 for cost in costs),
+            "judge_calls_unknown_attempts": sum(
+                cost.judge_live_calls is None or cost.judge_cached_calls is None for cost in costs
+            ),
         },
     }
 
@@ -444,7 +482,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 3
     try:
         scenarios = catalog.load_all_scenarios(args.scenarios)
-    except ValueError as exc:
+    except (ValueError, OSError, yaml.YAMLError) as exc:
         print(f"invalid scenario: {exc}", file=sys.stderr)
         return 3
     try:
