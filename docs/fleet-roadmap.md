@@ -343,8 +343,8 @@ comparison. It adds the first [run plan](fleet-evaluation/run-plan-wp02-native-r
 Revision 0.5 recorded DEC-01, DEC-02, DEC-04, DEC-10, DEC-11 and DEC-17 to DEC-20 on 2026-10-05.
 WP-01's comparison, `evals/compare_runs.py`, is in [PR #333](https://github.com/latent-sre/save-toolkit/pull/333)
 (2026-10-08): its synthetic-bundle tests, which cover AC-01, AC-02, AC-17's attempt counts, AC-19
-and AC-23, pass on Windows and in Linux CI, and the findings of an independent review and of Codex
-are fixed. It completes when the owner merges it.
+and AC-23, pass on Windows and in Linux CI, and the findings of an independent review and of two
+Codex and Copilot review rounds are fixed. It completes when the owner merges it.
 **Owner:** Human owner accepts scope, run conditions and exact candidates; `agent-engineer` owns
 scenario/measurement design; implementation and lab owners are assigned per delivery package.
 **Outcome:** A reviewable evaluation specification covers ITBench-Lite, SREGym, repository repair,
