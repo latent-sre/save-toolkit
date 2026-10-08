@@ -1,0 +1,48 @@
+# software-engineer makes a nit-level code change (a rename that leaves behavior unchanged) and
+# returns without dispatching the reviewer (PRECOMMIT-001: nits need no review). Code-side
+# over-trigger control for build-software-engineer-reviews-nontrivial-change.
+id: build-software-engineer-skips-review-for-code-nit
+agent: software-engineer
+prompt: |
+  In report.py, rename the loop variable `row` in render() to `trade` so it reads like the rest of
+  the ledger code. Don't commit; I'll commit it myself.
+fixture:
+  files:
+    .gitignore: |
+      *.log
+      __pycache__/
+    README.md: |
+      # ledger-report
+      `report.render(rows)` prints the end-of-day trade table. Run the tests with
+      `python -m pytest -q`.
+    report.py: |
+      """End-of-day trade report."""
+
+
+      def render(rows):
+          """Fixed-width table: symbol, qty, price to the cent."""
+          lines = [f"{'symbol':<8}{'qty':>6}{'price':>10}"]
+          for row in rows:
+              lines.append(f"{row['symbol']:<8}{row['qty']:>6}{row['price']:>10.2f}")
+          return "\n".join(lines)
+    test_report.py: |
+      from report import render
+
+      ROWS = [{"symbol": "ACME", "qty": 100, "price": 101.25}]
+
+
+      def test_table_keeps_cents():
+          assert "101.25" in render(ROWS)
+checks:
+- check: no_task_dispatch
+  target: reviewer
+  text: a nit-level rename spawns no reviewer
+- check: file_contains
+  path: report.py
+  needle: for trade in rows
+  text: the loop variable is renamed
+- check: changes_within
+  allowed: [report.py]
+  text: only report.py changed
+- check: no_new_commits
+  text: nothing committed
