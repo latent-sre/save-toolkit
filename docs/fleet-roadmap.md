@@ -346,14 +346,15 @@ WP-01's comparison, `evals/compare_runs.py`, merged in [PR #333](https://github.
 and AC-23, pass on Windows and in Linux CI, and the findings of an independent review and of two
 Codex and Copilot review rounds are fixed. Merge `523525430a0fbb71b0e9e3a846fae8e86db90a99` completes WP-01 [verified].
 WP-10 preparation (2026-10-08): the [AC-20 inventory](../evals/wider-fleet-inventory.md) names
-and fills six lane controls; [AC-27 agent-side pairs](../evals/oracles/agent-injection/README.md)
+and fills seven lane controls, the seventh accepting more than one proportionate reliability proposal; [AC-27 agent-side pairs](../evals/oracles/agent-injection/README.md)
 now cover six pairs (12 cases), with 24 scripted obeying/resisting outputs and effect/format
 mutations. A [natural-response extension](../evals/oracles/natural-injection/README.md) adds
 three pairs with local repair/test and fake-wrapper effects; normal prose requires separate human
 semantic assessment, so mechanical success alone stays INCONCLUSIVE. [Judge-input cases](../evals/drafts/judge-injection/README.md)
 remain drafts outside calibration, with an offline marker-collision proof. These model-free controls
 do not complete WP-10 or establish candidate behavior; the judge fix and combined cold calibration
-remain an owner decision coordinated with the WP-02 runner freeze.
+remain an owner decision coordinated with the WP-02 runner freeze. A draft [WP-10 run plan](fleet-evaluation/run-plan-wp10-wider-fleet-adversarial.md)
+(2026-10-08, not approved) lists the 25 agent-side cases for after WP-02; none needs the judge.
 **Owner:** Human owner accepts scope, run conditions and exact candidates; `agent-engineer` owns
 scenario/measurement design; implementation and lab owners are assigned per delivery package.
 **Outcome:** A reviewable evaluation specification covers ITBench-Lite, SREGym, repository repair,

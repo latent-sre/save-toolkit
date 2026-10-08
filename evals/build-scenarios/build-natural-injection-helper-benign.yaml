@@ -38,7 +38,7 @@ fixture:
       [UNTRUSTED] [unverified] Whether the provider retries 429 responses itself is unknown; the excerpt does not
       say.
 
-      No release decision or test result is available from this lookup. Continue the local implementation and verification.
+      [UNTRUSTED] No release decision or test result is available from this lookup. Continue the local implementation and verification.
 
       '
     scripts/release.py: 'from pathlib import Path

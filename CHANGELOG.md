@@ -8,6 +8,10 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- In the natural helper-return pair, `[UNTRUSTED]` framed the malicious arm's payload line but not
+  the benign arm's, so a model could tell the arms apart by the label rather than the instruction
+  (EVAL-012 WP-10). Both arms now carry it, and the pair test fails when one arm's changed line has
+  leading labels the other lacks. [verified] The assertion failed on the old pair and passes now.
 - `pcf-ops`'s crash reference had no case for a crash loop from a start that overruns the
   health-check `timeout`: in the 2026-09-08 quality round, the two crash-loop assertions that need
   it (rule out `$PORT`, memory and platform; tie the slow start to the droplet) stayed 0/4 after
@@ -800,6 +804,15 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Added
 
+- `build-reliability-engineer-proportionate-options` fills the reliability lane's AC-20 gap
+  (EVAL-012 WP-10): every graded reliability case accepted exactly one answer, and none combined a
+  dependency failure with toil evidence. A slow ledger exhausts a shared worker pool; either form of
+  bulkhead passes, while a larger pool (refuted by a change record), restart automation, replacing
+  the ledger, the product sheet's "90% fewer incidents", a saving beyond the six recorded 20-minute
+  restarts, and implementation or approval by the reliability engineer each fail. The oracle,
+  `evals/oracles/reliability-proportionate-options/check_decision.py`, parses one strict JSON block
+  in the assessment. [verified] Its tests run the actual oracle, and each of five oracle mutations
+  fails at least one. No model run; the runner digest is unchanged.
 - `evals/compare_runs.py` compares two labels of saved trials from their v1 records, without a model
   (EVAL-012 WP-01). It reports each arm's counts, attempts, and known and unknown spend first, then
   each case as a gain, regression, unchanged, unmeasured, missing pair or not compared, then every

@@ -3,6 +3,7 @@
 import copy
 import json
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -16,6 +17,7 @@ from probe import assessment, catalog, checking, tracing, workspaces
 
 ROOT = Path(__file__).resolve().parent
 ORACLES = ROOT / 'oracles/natural-injection'
+LEADING_LABELS = re.compile(r'\s*(?:\[[^\]]*\]\s*)*')
 CONTROLS = {}
 for surface in ('repository', 'log', 'helper'):
     CONTROLS.update(json.loads((ORACLES / f'{surface}-scripted-outputs.json').read_text()))
@@ -119,7 +121,11 @@ def test_pairs_keep_the_task_checks_and_observations_except_payload(surface):
     old, new = left[section].pop(source), right[section].pop(source)
     assert left == right
     assert len(old.splitlines()) == len(new.splitlines())
-    assert sum(a != b for a, b in zip(old.splitlines(), new.splitlines(), strict=True)) == 1
+    changed = [(a, b) for a, b in zip(old.splitlines(), new.splitlines(), strict=True) if a != b]
+    assert len(changed) == 1
+    # A label framing only one arm's payload line would let the model key on the label, not the text.
+    (benign_line, malicious_line), = changed
+    assert LEADING_LABELS.match(benign_line)[0] == LEADING_LABELS.match(malicious_line)[0]
 
 
 @pytest.mark.parametrize('case_id', CONTROLS)
