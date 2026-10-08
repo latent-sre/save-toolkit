@@ -122,6 +122,9 @@ the owner's call:
 | Flat flags (`cli.py:150-194`) | Docs, CI and scripts all use subcommands | 17 tests reach the flat run form (every test that schedules trials), against 2 that use subcommands; a rescore gate may run a pre-#328 runner with the same command line (43 lines) |
 | `Outcome` as a `tuple` subclass (`outcomes.py:56-127`) | No runner code uses its tuple protocol; its equality is not transitive (`fail == (False, "x") == unknown`, yet `fail != unknown`) | 174 test sites use it: 136 `[0]` reads and 33 unpackings |
 
+The owner retired the re-export list and patch guard (PR #329). The flat flags and `Outcome` as a
+tuple are still open; see the third round.
+
 ## Fixes
 
 On `work/probe-craft-review`, off `adc13a88`. Each fix began with its reproduction as a failing test,
@@ -180,6 +183,9 @@ after B4, B11, B7, B3, B1 and B5 differ from one another only in what B11 change
 
 ## Next
 
+PR #329 and the third round, below, settled T1, S4, and items 2, 5 and 6; what is still open is
+listed at the end of the third round.
+
 1. Tests that state the expected state (T1): replace each `assertFalse(check(...)[0])` with the
    FAIL or INCONCLUSIVE it means, starting with the forbidding checks; test the `run` subcommand (T2).
 2. Structure without behavior change: S1, S2, S3, S5, S7, S8, each gated by a rescore of the saved
@@ -195,6 +201,53 @@ after B4, B11, B7, B3, B1 and B5 differ from one another only in what B11 change
    machinery (the owner accepted a note); `batch_identity_problem` and `pool_identity` both decide
    what pools; kept attempts are shared by every model of a label, so the cap over-counts a label
    two models share; and S1 would give B3's identity classification a type instead of a field.
+
+## Third round
+
+On `work/runner-structure` (PR #330), off `67faeac2`. Each runner commit was gated by a rescore of
+the 1,317 saved runs that differed from `16952c53` in no verdict; three findings are this round's
+own (N1 to N3).
+
+| Finding | Commit |
+|---|---|
+| S8's last two `ctx.ws` guards, kept for tests that passed `None` | `845d2562` |
+| S5: the case payload and rubric name; the oracle path; stage-and-run; the service-name pattern and `wait_for`; the test runners; the post-run service read | `af7b5b87`, `2bcc4bf8`, `d8c9b5ac`, `afa1141a`, `2d6b8865`, `0f3c0047` |
+| S3 | `c7ef8f55` |
+| S6, with S1 in the scoped form below | `d17ba65e` |
+| The audit proxy's handler, never run by a test | `af22a72f` |
+| T1, which also kills the `no_new_commits` mutant | `07ee61c0` |
+| The PromQL and JSON readers, by property | `528c574f` |
+| Codex 4211260055: the exact graders typed as taking any mapping, which they refuse | `275c0af3`, reverting `3952fed7` |
+| N1: 24 of 32 checks validated with a missing or misspelled parameter, then crashed grading after the paid trial | `c2c95103` |
+| N2: `service_get` and `service_array_item` verdict rules ran only in live trials | `00687907` |
+| N3: 13 batch-wide values threaded through `run_trial` (15 parameters) and `_run_trial` (14) | `3c50e796` |
+| S9's last function, `cli.run`, and `_run_trial`'s turn loop | `de6e20d1` |
+
+The owner decided:
+
+- S1 in its scoped form: `invocation.turn_reason` keeps the loop's precedence. A typed run end with
+  one precedence rule would let a later void replace a cut inside the loop, changing verdicts no
+  rescore can check, since rescoring never runs the live loop.
+- S2 declined: the strict `RecordV1` model already owns the record, and most grade reads load
+  `grading.json` as `Any`, so a `Grade` TypedDict would type about 15 reads the end-to-end tests run.
+- Type-checking the tests declined: mypy reports 198 errors in 17 files, and the 18 read were test
+  idioms, not defects.
+- S5's run pooling left as two rules: a batch refuses trials unlike the candidate it runs, while a
+  regrade splits saved runs by the identity each recorded.
+
+Still the owner's:
+
+- The flat flags (43 lines) and `Outcome` as a `tuple` subclass (83 `[0]`/`[1]` reads in
+  `test_build_probe.py` alone).
+- N4: the service checks compare `equals` with Python equality, so `equals: 1` passes against JSON
+  `true`. No committed scenario is affected; strict JSON equality would also fail `3` against `3.0`.
+- Codex 4202914602, requiring `max_turns`.
+
+Not done: T2 (the `run` subcommand), D6, R10 and R6's proxy ordering, as in Next.
+
+[verified] At `c321011d`, against `67faeac2`: the 207 scenarios' case digests, their scenario
+digests with the runner identity held fixed, and the 863 planned expectations' text and polarity
+are byte-identical; the full suite passes (1,882 tests).
 
 ## Method and limits
 

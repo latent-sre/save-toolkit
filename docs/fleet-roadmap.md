@@ -476,6 +476,11 @@ Remaining:
   90th percentile 20, highest 72); choosing values is the evaluation owner's call.
 - Calibration receipts still sum an unpriced judge call as zero. The judge's identity binds
   `judge.py` and `clean_room.py`, so the fix rides with the next owner-triggered recalibration.
+- `judge.py`, `clean_room.py` and `evals/oracles/` stay outside the runner's lint, format and type
+  checks, because the judge receipt binds the first two files' bytes and each case's identity binds
+  its oracle's. Bringing them in is the owner's choice: with the next recalibration (165 judge calls
+  in the accepted receipt) and new case identities, or under an AST-based identity, which would
+  admit only formatting and comment changes.
 **Evidence:** [PR #310](https://github.com/latent-sre/save-toolkit/pull/310); the amended ADR's
 Context records the 2026-10-06 source findings behind the result rules.
 [PR #321](https://github.com/latent-sre/save-toolkit/pull/321) runs the component tests on four
