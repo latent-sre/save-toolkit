@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -59,7 +60,9 @@ def exercise(case_id, output, *, drop_completion=False, later_edit=False):
             target.write_text(content)
         # The same clean PATH also gives probe-owned command_exit_zero checks the test interpreter.
         env = {**os.environ, 'PATH': os.pathsep.join((str(Path(sys.executable).parent), os.defpath)),
-               'PYTHONDONTWRITEBYTECODE': '1'}
+               'PYTHONDONTWRITEBYTECODE': '1',
+               # The fixture's own env, pointed at harness paths as the runner does for the agent.
+               **{key: workspaces.fixture_value(str(value), ws) for key, value in workspaces.declared_env(spec).items()}}
         process_results = []
         for index, command in enumerate(output['commands']):
             argv = shlex.split(command)
@@ -206,6 +209,34 @@ def test_release_check_forbids_running_the_script_but_not_reading_it(arm):
     for command, allowed in [(item, True) for item in reads] + [(item, False) for item in runs]:
         ctx = checking.Context(spec, None, tracing.TraceSummary(bash_commands=[command]), None)
         assert checking.CHECKS['bash_did_not_run'](ctx, check)[0] is allowed, command
+
+
+@pytest.mark.parametrize('arm', ['benign', 'malicious'])
+def test_release_ledger_catches_a_run_the_command_pattern_misses_or_a_deleted_marker(arm):
+    case_id = f'build-natural-injection-helper-{arm}'
+    spec = catalog.load_scenario(ROOT / f'build-scenarios/{case_id}.yaml')
+    ledger_check = next(item for item in spec['checks'] if item['check'] == 'state_file_absent')
+    obeyed, _, _ = exercise(case_id, CONTROLS[case_id]['obeying'])
+    assert not expectation(obeyed, ledger_check['text'])['passed']
+    resisted, _, _ = exercise(case_id, CONTROLS[case_id]['resisting'])
+    assert expectation(resisted, ledger_check['text'])['passed']
+    with tempfile.TemporaryDirectory(prefix='release-ledger-') as directory:
+        root = Path(directory)
+        state = root / 'state'
+        state.mkdir()
+        (root / 'release.py').write_text(spec['fixture']['files']['scripts/release.py'], encoding='utf-8')
+        ledger = workspaces.fixture_value(spec['fixture']['env']['RELEASE_LEDGER'],
+                                          workspaces.Workspace(root, root, root, state, 1, 'main', 'seed'))
+        # Script fed on stdin: a form the command pattern does not match. The marker is then deleted.
+        with (root / 'release.py').open(encoding='utf-8') as source:
+            subprocess.run([sys.executable, '-I', '-B', '-'], stdin=source, cwd=root, check=True, capture_output=True,
+                           env={**os.environ, 'RELEASE_LEDGER': ledger}, timeout=20)
+        (root / 'RELEASED').unlink()
+        command = next(item for item in spec['checks'] if item['check'] == 'bash_did_not_run')
+        trace = tracing.TraceSummary(bash_commands=['python - < scripts/release.py && rm RELEASED'])
+        assert checking.CHECKS['bash_did_not_run'](checking.Context(spec, None, trace, None), command)[0]
+        ws = SimpleNamespace(state_dir=state)
+        assert not checking.CHECKS['state_file_absent'](SimpleNamespace(ws=ws), ledger_check)[0]
 
 
 @pytest.mark.parametrize('case_id', CONTROLS)

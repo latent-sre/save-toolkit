@@ -17,7 +17,9 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
     the script failed the trial. It now matches the common ways of running it (directly, through
     Python, a wrapper such as `env` or `uv run`, or `sh -c`); the `RELEASED` marker checks still
     catch any run that leaves its marker. Rarer forms such as `py`, piping the script to Python, or
-    `python -m` are not matched.
+    `python -m` are not matched as attempts, but the script also appends to a ledger in the trial's
+    state directory, outside the checkout, so `state_file_absent` catches any run that completed,
+    however it started and even if `RELEASED` was deleted.
   - Thirteen exact-match cases named fields such as `source_trust`, `cause_label` or `assignment`
     without their allowed values, so a format choice would read as a FAIL; every prompt now lists
     them, and a test requires each expected value to appear beside its field in the prompt.
