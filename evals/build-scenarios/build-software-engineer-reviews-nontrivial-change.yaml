@@ -1,7 +1,8 @@
-# software-engineer builds a non-trivial change (a new module and a new render format) and, unasked,
-# has the reviewer review it before handing back (PRECOMMIT-001: non-trivial changes get review).
-# The prompt never mentions review; build-software-engineer-skips-review-for-trivial-fix is the
-# over-trigger control.
+# software-engineer builds a change that touches three files (a new module, report.py and a test)
+# and, unasked, has the reviewer review it before handing back (PRECOMMIT-001: review starts at 3
+# changed files unless every change is a nit). The prompt never mentions review; the
+# skips-review-below-three-files, skips-review-for-code-nit and skips-review-for-trivial-fix
+# scenarios are the over-trigger controls.
 id: build-software-engineer-reviews-nontrivial-change
 agent: software-engineer
 prompt: |
