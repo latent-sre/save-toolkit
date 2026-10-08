@@ -15,11 +15,12 @@ from typing import Any
 import graders as fleet_graders
 import yaml
 
-from . import checking
-from .backing import TRUSTED_SERVICE_IMAGES
+from . import backing, checking, constants
+from .backing import SERVICE_NAME, TRUSTED_SERVICE_IMAGES
 from .checking import FORBIDDING_GRADERS
-from .constants import BUILD_TOOLS, CONTRACT_SCENARIO_DIR, ORACLE_DIR, ROOT, SCENARIO_DIR
+from .constants import BUILD_TOOLS, CONTRACT_SCENARIO_DIR, ROOT, SCENARIO_DIR
 from .outcomes import Polarity
+from .tracing import TEST_RUNNERS
 
 Spec = Mapping[str, Any]
 
@@ -281,7 +282,7 @@ def _service_problems(service: object, where: str) -> list[str]:
         return [f"{where}: each service needs a name and an image"]
     problems = []
     name = str(service["name"])
-    if re.fullmatch(r"[a-z][a-z0-9-]{0,62}", name) is None:
+    if SERVICE_NAME.fullmatch(name) is None:
         problems.append(f"{where}: service {name!r} needs a canonical name")
     elif "@sha256:" not in str(service["image"]):
         problems.append(f"{where}: service {service['name']!r} image must be pinned by digest")
@@ -323,11 +324,7 @@ def _service_problems(service: object, where: str) -> list[str]:
     wait_for = service.get("wait_for")
     if wait_for is not None:
         wait_mapping = wait_for if isinstance(wait_for, dict) else {}
-        nonempty_predicate = wait_mapping.get("nonempty") is True
-        equals_value = wait_mapping.get("equals")
-        equals_predicate = (
-            "equals" in wait_mapping and equals_value is not None and isinstance(equals_value, (str, int, float, bool))
-        )
+        nonempty_predicate, equals_predicate = backing.wait_predicates(wait_mapping)
         if (
             not isinstance(wait_for, dict)
             or set(wait_mapping) - {"path", "pointer", "nonempty", "equals"}
@@ -347,14 +344,25 @@ def _check_problems(spec: Spec, where: str, kind: str) -> list[str]:
         return [f"{where}: checks must be a non-empty list"]
     problems = []
     for i, check in enumerate(checks):
-        if checking.registered(check) is None:  # also a name that is not a string, such as a list
+        declared = checking.registered(check)
+        if declared is None:  # also a name that is not a string, such as a list
             problems.append(f"{where}: checks[{i}] names an unknown check {check!r}"[:200])
             continue
+        if missing := declared.missing(check):  # grading would crash on it, after the trial was paid for
+            problems.append(f"{where}: checks[{i}] {declared.name} needs {', '.join(missing)}")
+            continue
+        if unknown := declared.unknown(check):
+            problems.append(f"{where}: checks[{i}] {declared.name} has unknown key(s): {', '.join(unknown)}")
         grader_name = check.get("name")
         if check["check"] == "fleet_grader" and (
             not isinstance(grader_name, str) or grader_name not in fleet_graders.REGISTRY
         ):
             problems.append(f"{where}: checks[{i}] fleet_grader names an unknown grader {grader_name!r}")
+        elif check["check"] == "fleet_grader":
+            try:  # as for top-level graders: each validates its own arguments before reading any text
+                fleet_graders.run_grader(checking.fleet_grader_spec(check), "")
+            except Exception as exc:
+                problems.append(f"{where}: checks[{i}] fleet_grader ({grader_name}) has invalid configuration: {exc}")
         if "scope" in check and (
             check["check"] not in ("bash_ran", "bash_did_not_run", "ran_outside_checkout")
             or check["scope"] != "subagent"
@@ -362,8 +370,9 @@ def _check_problems(spec: Spec, where: str, kind: str) -> list[str]:
             problems.append(
                 f"{where}: checks[{i}] scope is only `subagent`, on bash_ran, bash_did_not_run, or ran_outside_checkout"
             )
-        if check["check"] == "verification_completed" and check.get("runner") not in {"unittest", "pytest", "vitest"}:
-            problems.append(f"{where}: checks[{i}] verification_completed needs runner unittest, pytest, or vitest")
+        if check["check"] == "verification_completed" and check.get("runner") not in TEST_RUNNERS:
+            runners = f"{', '.join(TEST_RUNNERS[:-1])}, or {TEST_RUNNERS[-1]}"
+            problems.append(f"{where}: checks[{i}] verification_completed needs runner {runners}")
         if "inconclusive_exit_code" in check and (
             check["check"] != "command_exit_zero"
             or type(check["inconclusive_exit_code"]) is not int
@@ -393,8 +402,7 @@ def _check_problems(spec: Spec, where: str, kind: str) -> list[str]:
             problems.append(f"{where}: checks[{i}] {shape}")
             continue
         for rel in (writes_from or {}).values():
-            source = (ROOT / str(rel)).resolve()
-            if not source.is_file() or ORACLE_DIR not in source.parents:
+            if constants.oracle_source(rel) is None:
                 problems.append(f"{where}: checks[{i}] writes_from {rel!r} is not a file under evals/oracles/")
         if check["check"] in ("service_get", "service_array_item"):
             assertions = [check, *(m for m in check.get("matches") or [] if isinstance(m, dict))]
@@ -496,20 +504,30 @@ def _entries(value: object) -> list[Any]:
     return value if isinstance(value, list) else []
 
 
+def routing_polarity(spec: Spec) -> Polarity:
+    """A negative routing case forbids its target and requires its declared alternative."""
+    return Polarity.BOTH if is_negative_routing(spec) else Polarity.REQUIRES
+
+
+def grader_polarity(grader: object) -> Polarity:
+    """A registered forbidding grader forbids; every other grader requires."""
+    kind = grader.get("type") if isinstance(grader, dict) else None
+    return Polarity.FORBIDS if isinstance(kind, str) and kind in FORBIDDING_GRADERS else Polarity.REQUIRES
+
+
 def assertion_polarities(spec: Spec) -> list[Polarity]:
-    """`forbids`, `requires` or `both` for each graded expectation, in scenario_assertions() order."""
+    """`forbids`, `requires` or `both` for each graded expectation, in scenario_assertions() order.
+
+    Validation reads it on specs that may be malformed; grading takes each expectation's polarity
+    from the same per-family rules as it builds the expectation.
+    """
     polarities = []
-    if spec.get("routing"):  # a negative forbids its target and requires its declared alternative
-        polarities.append(Polarity.BOTH if is_negative_routing(spec) else Polarity.REQUIRES)
+    if spec.get("routing"):
+        polarities.append(routing_polarity(spec))
     if spec.get("skill"):
         polarities.append(Polarity.REQUIRES)
     polarities += [Polarity.REQUIRES] * len(_entries(spec.get("references")))
-    polarities += [
-        Polarity.FORBIDS
-        if isinstance(g, dict) and isinstance(g.get("type"), str) and g["type"] in FORBIDDING_GRADERS
-        else Polarity.REQUIRES
-        for g in _entries(spec.get("graders"))
-    ]
+    polarities += [grader_polarity(g) for g in _entries(spec.get("graders"))]
     if spec.get("followups"):
         polarities += [Polarity.REQUIRES] * 3  # helper completed, parent continued, session resumed
     return polarities + [checking.check_polarity(c) for c in _entries(spec.get("checks"))]

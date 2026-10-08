@@ -228,7 +228,7 @@ class ReviewerCaseTests(unittest.TestCase):
             check = {"name": "review-runner.lock"}
             self.assertTrue(probe_checking.check_state_file_absent(ctx, check)[0])
             exec(compile(files["runner.py"], "runner.py", "exec"), {})
-            self.assertFalse(probe_checking.check_state_file_absent(ctx, check)[0])
+            self.assertEqual("FAIL", probe_checking.check_state_file_absent(ctx, check).state)
 
     def test_new_fixtures_hide_each_defect_where_the_case_says(self):
         retry = scenario("reproduces-in-scratch")["fixture"]

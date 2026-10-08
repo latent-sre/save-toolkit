@@ -447,15 +447,27 @@ merge, record the frozen runner revision before EVAL-012 records comparison base
   three; `cli.run` remains); the review's S4, S7 and S8 are done; a usage error exits 3, `env` blocks and mount sources are validated, a
   non-git plugin root is refused with exit 3, and kept attempts count only toward their own model.
   Rescoring all saved runs after each runner commit differs in no verdict.
+- `work/runner-structure`: the review's S3 and S6 are done; S5 except which runs pool, since a
+  batch refuses trials unlike the candidate it is running while a regrade splits saved runs by the
+  identity each recorded; and S1 in the scoped form the owner chose (`turn_reason` keeps the loop's
+  precedence; a typed run end with one rule everywhere would change verdicts no rescore can check).
+  The owner declined S2 (typed grade rows), since the strict `RecordV1` model already owns the record
+  and most grade reads load JSON as `Any`, and type-checking the tests. 44 check assertions assert
+  FAIL or INCONCLUSIVE, which kills the `no_new_commits` mutant; the audit proxy, the service
+  checks' verdict rules and the PromQL and JSON readers have tests. Each check declares its
+  parameters, so `validate` refuses a missing or misspelled one that grading would crash on after a
+  paid trial; a batch's shared values travel as one `BatchSettings`; and `cli.run` names its
+  preflight and stop rules, the last of S9. Rescoring all saved runs after each runner commit
+  differs in no verdict.
 
 Remaining:
-- The 2026-10-07 review's open findings: check tests that cannot tell FAIL from INCONCLUSIVE (a
-  mutant of `no_new_commits` reporting INCONCLUSIVE survives every test) and an untested `run`
-  subcommand; a timeout saved before `run_end` regrades as void; `tool_call_count`'s regrade
-  override; stopping the audit proxy before grading; the review's structural changes S1 (a typed
-  run end), S2 (typed grade and summary rows), S3 (polarity carried by each expectation), S5 (one
-  owner per copied policy, including which runs pool) and S6 (`_run_trial`'s reason decision); and
-  the owner's compatibility decisions on the flat flags and `Outcome` as a tuple.
+- The 2026-10-07 review's open findings: an untested `run` subcommand; a timeout saved before
+  `run_end` regrades as void; `tool_call_count`'s regrade override; stopping the audit proxy before
+  grading; and the owner's compatibility decisions on the flat flags and `Outcome` as a tuple.
+- `service_get` and `service_array_item` compare `equals` with Python equality, so `equals: 1`
+  passes against JSON `true`. No committed scenario is affected (every `equals` is a string).
+  Strict JSON equality would also fail `equals: 3` against `3.0`, so the comparison is the
+  evaluation owner's call.
 - Oracle protocol: 16 oracles exit 1 to fail, which an uncaught exception also produces, and 7 of
   them run candidate code (operator-cli, obs-burn-rules, pager-webhook, pcf-deploy-job and three
   python-craft), so each needs candidate errors caught as FAIL before a crash can mean INCONCLUSIVE.
@@ -464,6 +476,11 @@ Remaining:
   90th percentile 20, highest 72); choosing values is the evaluation owner's call.
 - Calibration receipts still sum an unpriced judge call as zero. The judge's identity binds
   `judge.py` and `clean_room.py`, so the fix rides with the next owner-triggered recalibration.
+- `judge.py`, `clean_room.py` and `evals/oracles/` stay outside the runner's lint, format and type
+  checks, because the judge receipt binds the first two files' bytes and each case's identity binds
+  its oracle's. Bringing them in is the owner's choice: with the next recalibration (165 judge calls
+  in the accepted receipt) and new case identities, or under an AST-based identity, which would
+  admit only formatting and comment changes.
 **Evidence:** [PR #310](https://github.com/latent-sre/save-toolkit/pull/310); the amended ADR's
 Context records the 2026-10-06 source findings behind the result rules.
 [PR #321](https://github.com/latent-sre/save-toolkit/pull/321) runs the component tests on four

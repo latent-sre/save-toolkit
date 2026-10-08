@@ -8,6 +8,17 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- `build_probe.py validate` accepted a check that omitted or misspelled a parameter it reads, for
+  24 of the 32 checks: `file_exists` with `pth:` validated, the trial ran and was paid for, and
+  grading crashed, leaving the scenario INCONCLUSIVE with a grader error. Each check now declares
+  its required and optional parameters, and `validate` reports a missing or unknown key, including
+  one YAML reads as a number or null; a `fleet_grader` check's arguments are tried on an empty
+  response, as top-level graders' already were. Every existing message is unchanged. [verified]
+  Five validator cases fail before the fix and pass after; all 207 committed scenarios still
+  validate, and no saved run recorded such a crash.
+- `build_probe.py validate` crashed with TypeError when a `verification_completed` check named its
+  `runner` with a YAML list; it now reports the authoring error. [verified] The validator case fails
+  on the previous commit and passes after.
 - Four eval runner defects the second review round of PR #328 left open:
   - A command-line usage error exited 2, INCONCLUSIVE's code; it now exits 3, a refused job, in
     both command forms, and `--help` still exits 0.
@@ -205,6 +216,33 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Each rule the eval runner copied has one owner, with every saved verdict unchanged (the
+  2026-10-07 review's S3, S5 and S6, and S1 in the scoped form the owner chose):
+  - Each trace expectation carries its polarity, instead of `plan` matching a parallel list by
+    position; a test holds validation's polarities to grading's for every scenario.
+  - `invocation.turn_reason` decides how a turn ends its trial, in a stated precedence that five
+    tests pin, and `void_over_cut` sits beside `CutShort`.
+  - One owner each for whether a `writes_from` path is an oracle, the case payload and a rubric's
+    name, a check's staged command, the post-run service read, the service-name pattern and
+    `wait_for` predicates, and the supported test runners.
+  - Tests build complete check contexts through one factory, so two `ctx.ws` guards that only tests
+    needed are gone.
+  - What a batch's trials share travels as one `BatchSettings` instead of 13 keyword arguments
+    through `run_trial` and `_run_trial`, and the turn loop, the batch's preflight refusals and the
+    after-trial stops are named functions (complexity of `_run_trial` 23 to 17, `cli.run` 21 to 16,
+    the last of the review's S9).
+
+  [verified] After each runner commit, rescoring the 1,317 saved runs differs from the base in no
+  verdict; against main, the 207 scenarios' case digests, their scenario digests with the runner's
+  own identity held fixed, and the 863 planned expectations' text and polarity are unchanged.
+- The runner's tests tell FAIL from INCONCLUSIVE: 44 check assertions that read only `passed` now
+  assert the state, the audit proxy's request handler, which no test ran, has five tests against a
+  local service, `service_get` and `service_array_item`, whose verdict rules ran only in live
+  trials, have six, and property tests cover the PromQL lexer, the rate-interval comparison and
+  `json_pointer`. [verified] The review's `no_new_commits` mutant that reports INCONCLUSIVE, a proxy
+  that keeps a request only after the service answers, five mutants of the service checks, and a
+  lexer that stops treating a carriage return as whitespace each pass the previous tests and fail
+  these.
 - The eval runner is simpler to read and patch, with every saved verdict unchanged:
   - `evals/build_probe.py` is only the command line (333 lines to 62). Tests and tools import the
     `probe` module that defines each name, which is also where they patch it; the promise from

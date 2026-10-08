@@ -17,6 +17,7 @@ import sys
 import time
 from collections.abc import Callable, Iterable, Mapping
 from contextlib import AbstractContextManager
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -28,36 +29,39 @@ from .backing import Service, ServiceUnavailable
 from .checking import Context
 from .constants import ROOT
 from .fingerprints import HARNESS_SOURCE_SHA256
-from .outcomes import CutShort, Stop
+from .outcomes import CutShort, Stop, void_over_cut
 from .tracing import TraceSummary
 
 
-def run_trial(
-    spec: Mapping[str, Any],
-    *,
-    plugin_root: Path,
-    label: str,
-    model: str | None,
-    run_number: int,
-    out_dir: Path,
-    timeout: int,
-    executable: str,
-    keep_workspace: bool,
-    overwrite: bool = False,
-    env_factory: Callable[[], AbstractContextManager[dict[str, str]]] | None = None,
-    docker: str = "docker",
-    expected_plugin_digest: str | None = None,
-    judge_binding: rubric_judge.JudgeBinding | None = None,
-    runtime: dict[str, Any] | None = None,
-) -> dict[str, Any]:
+@dataclass(frozen=True)
+class BatchSettings:
+    """What every trial of one batch shares: the candidate and runtime it measures, the model and limits
+    it runs with, and where its attempts are published."""
+
+    plugin_root: Path
+    label: str
+    model: str | None
+    out_dir: Path
+    timeout: int
+    executable: str
+    keep_workspace: bool
+    overwrite: bool = False
+    env_factory: Callable[[], AbstractContextManager[dict[str, str]]] | None = None
+    docker: str = "docker"
+    expected_plugin_digest: str | None = None  # the digest the batch started with; a change voids the trial
+    judge_binding: rubric_judge.JudgeBinding | None = None
+    runtime: dict[str, Any] | None = None
+
+
+def run_trial(spec: Mapping[str, Any], *, run_number: int, settings: BatchSettings) -> dict[str, Any]:
     """Publish a complete attempt; a failed overwrite leaves the previous run intact."""
     if "followups" in spec:
         problems = catalog.validate_scenario(spec)
         if problems:
             raise ValueError("; ".join(problems))
-    rubric_judge.validate_binding(judge_binding, fingerprints.required_rubrics(spec))
-    target = out_dir / f"eval-{spec['id']}" / label / f"run-{run_number}"
-    if target.exists() and not overwrite:
+    rubric_judge.validate_binding(settings.judge_binding, fingerprints.required_rubrics(spec))
+    target = settings.out_dir / f"eval-{spec['id']}" / settings.label / f"run-{run_number}"
+    if target.exists() and not settings.overwrite:
         raise RuntimeError(f"{target} already exists; pass --overwrite or a --run-offset")
     target.parent.mkdir(parents=True, exist_ok=True)
     # Every attempt stays visible (threat-model ADR result rule 7): a replaced run and an attempt that
@@ -69,36 +73,27 @@ def run_trial(
     attempt = _new_attempt_dir(target)
     _write_attempt(attempt, number, "final")
     started_at = records.utc_now()
+
+    def record(end: tuple[str, str | None] | None = None) -> None:
+        """This attempt's v1 record; a raised attempt's carries how it ended."""
+        records.write_record(
+            attempt,
+            spec,
+            label=settings.label,
+            run_number=run_number,
+            attempt=number,
+            started_at=started_at,
+            model=settings.model,
+            timeout=settings.timeout,
+            end=end,
+        )
+
     backup, published = None, False
     try:
-        summary = _run_trial(
-            spec,
-            plugin_root=plugin_root,
-            label=label,
-            model=model,
-            run_number=run_number,
-            run_out=attempt,
-            timeout=timeout,
-            executable=executable,
-            keep_workspace=keep_workspace,
-            env_factory=env_factory,
-            docker=docker,
-            expected_plugin_digest=expected_plugin_digest,
-            judge_binding=judge_binding,
-            runtime=runtime,
-        )
+        summary = _run_trial(spec, run_number, attempt, settings)
         summary["attempt"] = number
         try:
-            records.write_record(
-                attempt,
-                spec,
-                label=label,
-                run_number=run_number,
-                attempt=number,
-                started_at=started_at,
-                model=model,
-                timeout=timeout,
-            )
+            record()
         except ValueError as exc:
             # The verdict stands (result rule 6), and the record only maps facts the attempt's files
             # keep, so it can be written once the runner is fixed; the batch goes on.
@@ -129,17 +124,7 @@ def run_trial(
             except Exception as cost_error:  # no timing.json leaves the cost unknown, which the cap refuses
                 print(f"warning: no cost recorded for the incomplete attempt {attempt}: {cost_error}", file=sys.stderr)
             try:
-                records.write_record(
-                    attempt,
-                    spec,
-                    label=label,
-                    run_number=run_number,
-                    attempt=number,
-                    started_at=started_at,
-                    model=model,
-                    timeout=timeout,
-                    end=("incomplete", reason),
-                )
+                record(("incomplete", reason))
             except Exception as record_error:
                 print(f"warning: no record for the incomplete attempt {attempt}: {record_error}", file=sys.stderr)
             try:
@@ -270,23 +255,95 @@ def _keep_attempt(run_dir: Path, history: Path, number: int | None, state: str, 
     return destination
 
 
-def _run_trial(
+def _invoke_turns(
     spec: Mapping[str, Any],
-    *,
-    plugin_root: Path,
-    label: str,
-    model: str | None,
-    run_number: int,
+    settings: BatchSettings,
     run_out: Path,
-    timeout: int,
-    executable: str,
-    keep_workspace: bool,
-    env_factory: Callable[[], AbstractContextManager[dict[str, str]]] | None = None,
-    docker: str = "docker",
-    expected_plugin_digest: str | None = None,
-    judge_binding: rubric_judge.JudgeBinding | None = None,
-    runtime: dict[str, Any] | None = None,
-) -> dict[str, Any]:
+    ws: workspaces.Workspace,
+    env: dict[str, str],
+    plugin_sha: str,
+    binding: dict[str, Any] | None,
+    scenario_identity: str,
+) -> tuple[str | None, str | None]:
+    """Invoke the CLI for the prompt and then each follow-up, resuming the session the turn before
+    opened, until a turn ends the trial: why it ended, if one did, and any identity failure."""
+    inconclusive: str | None = None
+    identity_failure: str | None = None
+    resume = None
+    for turn, prompt in enumerate([catalog.scenario_prompt(spec, settings.plugin_root), *spec.get("followups", [])]):
+        inconclusive = fingerprints.plugin_drift_problem(settings.plugin_root, plugin_sha)
+        if fingerprints.scenario_digest(spec, binding) != scenario_identity:
+            inconclusive = "scenario inputs changed before invocation; re-run the trial"
+        if inconclusive:
+            identity_failure = identity_failure or inconclusive
+            break
+        turn_out = run_out if turn == 0 else run_out / "followup"
+        turn_out.mkdir(exist_ok=True)
+        command = invocation.build_command(
+            settings.executable,
+            settings.plugin_root,
+            f"save-toolkit:{spec['agent']}" if spec.get("agent") else None,
+            prompt,
+            settings.model,
+            catalog.scenario_tools(spec),
+            pre_approve=catalog.scenario_kind(spec) == "build",
+            persistent=bool(spec.get("followups")),
+            resume=resume,
+            max_turns=spec.get("max_turns"),
+        )
+        returncode, timed_out = None, None
+        with (
+            (turn_out / "stdout.jsonl").open("w", encoding="utf-8") as out,
+            (turn_out / "stderr.txt").open("w", encoding="utf-8") as err,
+        ):
+            try:
+                returncode = subprocess.run(
+                    command, cwd=str(ws.repo), env=env, stdout=out, stderr=err, timeout=settings.timeout
+                ).returncode
+            except subprocess.TimeoutExpired:
+                timed_out = CutShort(f"timed out after {settings.timeout}s", Stop.WALL_CLOCK)
+        current = tracing.parse_trace(turn_out / "stdout.jsonl")
+        reason, failed = invocation.turn_reason(
+            current,
+            returncode,
+            timed_out,
+            spec,
+            settings.plugin_root,
+            plugin_sha,
+            ws.repo,
+            resume,
+            turn_out / "stdout.jsonl",
+        )
+        identity_failure = identity_failure or failed
+        inconclusive = inconclusive or reason
+        if spec.get("followups"):
+            (turn_out / "invocation.json").write_text(
+                json.dumps(
+                    {
+                        "argv": command,
+                        "session_id": current.session_id,
+                        "workspace": str(ws.repo.resolve()),
+                        "exit_code": returncode,
+                        "expected_model": spec.get("expected_model"),
+                        "main_models": current.main_models,
+                        "init_session_ids": current.init_session_ids,
+                        "resume": resume,
+                        "inconclusive": inconclusive,
+                        "cut_short": isinstance(inconclusive, CutShort),
+                        "run_stop": inconclusive.kind if isinstance(inconclusive, CutShort) else None,
+                    },
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
+            (turn_out / "response.md").write_text(current.result_text, encoding="utf-8")
+        if inconclusive:
+            break
+        resume = current.session_id
+    return inconclusive, identity_failure
+
+
+def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings: BatchSettings) -> dict[str, Any]:
     eval_name = spec["id"]
     (run_out / "outputs").mkdir(parents=True, exist_ok=True)
     # Raw traces carry whole prompts, responses, session ids, and tool payloads, and the README
@@ -317,17 +374,19 @@ def _run_trial(
     try:
         if root.resolve().is_relative_to(ROOT.resolve()):
             raise RuntimeError(f"temp workspace {root} is inside the repository")
-        provenance = fingerprints.plugin_provenance(plugin_root)
-        binding = judge_binding.metadata if judge_binding and fingerprints.required_rubrics(spec) else None
+        provenance = fingerprints.plugin_provenance(settings.plugin_root)
+        binding = (
+            settings.judge_binding.metadata if settings.judge_binding and fingerprints.required_rubrics(spec) else None
+        )
         scenario_identity = fingerprints.scenario_digest(spec, binding)
-        if expected_plugin_digest and provenance["plugin_source_sha256"] != expected_plugin_digest:
+        if settings.expected_plugin_digest and provenance["plugin_source_sha256"] != settings.expected_plugin_digest:
             inconclusive = identity_failure = "plugin inputs changed before the trial; re-run with one candidate"
         (run_out / "provenance.json").write_text(
             json.dumps(
                 {
                     **provenance,
                     **fingerprints.runner_provenance(),
-                    "runtime": runtime,
+                    "runtime": settings.runtime,
                     **({"judge_binding": binding} if binding else {}),
                 },
                 indent=2,
@@ -342,101 +401,20 @@ def _run_trial(
         )
         if inconclusive is None:
             try:
-                services = backing.start_services(spec, docker)
+                services = backing.start_services(spec, settings.docker)
             except ServiceUnavailable as exc:
                 services = []
                 inconclusive = service_error = f"backing service unavailable: {exc}"
         trace_path = run_out / "stdout.jsonl"
         started = time.monotonic()
         if inconclusive is None:
-            make_env = env_factory or (lambda: clean_room.clean_env(subscriber_only=True))
+            make_env = settings.env_factory or (lambda: clean_room.clean_env(subscriber_only=True))
             with make_env() as base_env:
                 env = workspaces.child_env(base_env, ws, spec, services)
-                resume = None
-                for turn, prompt in enumerate([catalog.scenario_prompt(spec, plugin_root), *spec.get("followups", [])]):
-                    inconclusive = fingerprints.plugin_drift_problem(plugin_root, provenance["plugin_source_sha256"])
-                    if fingerprints.scenario_digest(spec, binding) != scenario_identity:
-                        inconclusive = "scenario inputs changed before invocation; re-run the trial"
-                    if inconclusive:
-                        identity_failure = identity_failure or inconclusive
-                        break
-                    turn_out = run_out if turn == 0 else run_out / "followup"
-                    turn_out.mkdir(exist_ok=True)
-                    command = invocation.build_command(
-                        executable,
-                        plugin_root,
-                        f"save-toolkit:{spec['agent']}" if spec.get("agent") else None,
-                        prompt,
-                        model,
-                        catalog.scenario_tools(spec),
-                        pre_approve=catalog.scenario_kind(spec) == "build",
-                        persistent=bool(spec.get("followups")),
-                        resume=resume,
-                        max_turns=spec.get("max_turns"),
-                    )
-                    returncode, timed_out = None, None
-                    with (
-                        (turn_out / "stdout.jsonl").open("w", encoding="utf-8") as out,
-                        (turn_out / "stderr.txt").open("w", encoding="utf-8") as err,
-                    ):
-                        try:
-                            returncode = subprocess.run(
-                                command, cwd=str(ws.repo), env=env, stdout=out, stderr=err, timeout=timeout
-                            ).returncode
-                        except subprocess.TimeoutExpired:
-                            timed_out = CutShort(f"timed out after {timeout}s", Stop.WALL_CLOCK)
-                    current = tracing.parse_trace(turn_out / "stdout.jsonl")
-                    drift = fingerprints.plugin_drift_problem(plugin_root, provenance["plugin_source_sha256"])
-                    identity_failure = (
-                        identity_failure
-                        or drift
-                        or invocation.identity_problem(current, spec, plugin_root)
-                        or (invocation.native_model_problem(current, spec) if spec.get("followups") else None)
-                    )
-                    inconclusive = inconclusive or drift
-                    if spec.get("followups") and invocation.credential_markers(
-                        current.result_text, turn_out / "stdout.jsonl"
-                    ):
-                        inconclusive = inconclusive or "native credential marker detected; no follow-up allowed"
-                    if timed_out:
-                        # The partial trace must show the declared profile before its evidence counts.
-                        inconclusive = (
-                            inconclusive
-                            or invocation.profile_problem(current, spec, plugin_root, ws.repo)
-                            or (
-                                invocation.native_identity_problem(current, spec, resume, complete=False)
-                                if spec.get("followups")
-                                else None
-                            )
-                            or timed_out
-                        )
-                    inconclusive = inconclusive or invocation.invocation_problem(
-                        current, returncode, spec, plugin_root, ws.repo, resume
-                    )
-                    if spec.get("followups"):
-                        (turn_out / "invocation.json").write_text(
-                            json.dumps(
-                                {
-                                    "argv": command,
-                                    "session_id": current.session_id,
-                                    "workspace": str(ws.repo.resolve()),
-                                    "exit_code": returncode,
-                                    "expected_model": spec.get("expected_model"),
-                                    "main_models": current.main_models,
-                                    "init_session_ids": current.init_session_ids,
-                                    "resume": resume,
-                                    "inconclusive": inconclusive,
-                                    "cut_short": isinstance(inconclusive, CutShort),
-                                    "run_stop": inconclusive.kind if isinstance(inconclusive, CutShort) else None,
-                                },
-                                indent=2,
-                            ),
-                            encoding="utf-8",
-                        )
-                        (turn_out / "response.md").write_text(current.result_text, encoding="utf-8")
-                    if inconclusive:
-                        break
-                    resume = current.session_id
+                inconclusive, failed = _invoke_turns(
+                    spec, settings, run_out, ws, env, provenance["plugin_source_sha256"], binding, scenario_identity
+                )
+                identity_failure = identity_failure or failed
         else:
             # A missing fixture target cannot be repaired by the model. Starting it here would
             # spend a call with unresolved service placeholders and could make a tool-bearing
@@ -445,23 +423,31 @@ def _run_trial(
             (run_out / "stderr.txt").write_text("", encoding="utf-8")
         elapsed = time.monotonic() - started
         if not inconclusive or isinstance(inconclusive, CutShort):  # drift voids even a cut-short run
-            drift = fingerprints.plugin_drift_problem(plugin_root, provenance["plugin_source_sha256"])
+            drift = fingerprints.plugin_drift_problem(settings.plugin_root, provenance["plugin_source_sha256"])
             identity_failure = identity_failure or drift
-            inconclusive = invocation.void_over_cut(inconclusive, drift)
+            inconclusive = void_over_cut(inconclusive, drift)
         trace = tracing.parse_trial_trace(run_out) if trace_path.exists() else TraceSummary()
         git = workspaces.collect_git_facts(ws)
-        ctx = Context(spec, ws, trace, git, services=services, plugin_root=plugin_root, judge_binding=judge_binding)
+        ctx = Context(
+            spec,
+            ws,
+            trace,
+            git,
+            services=services,
+            plugin_root=settings.plugin_root,
+            judge_binding=settings.judge_binding,
+        )
         grading = assessment.grade(ctx, inconclusive=inconclusive, expected_scenario_digest=scenario_identity)
         after_assessment = None
         if services:
             try:
-                backing.stop_services(services, docker)
+                backing.stop_services(services, settings.docker)
             except ServiceUnavailable as exc:
                 # The assessment already stands; a leftover service blocks reusing the environment.
                 after_assessment = f"backing service cleanup failed: {exc}"
             finally:
                 services = []
-        drift = fingerprints.plugin_drift_problem(plugin_root, provenance["plugin_source_sha256"])
+        drift = fingerprints.plugin_drift_problem(settings.plugin_root, provenance["plugin_source_sha256"])
         if drift:
             identity_failure = identity_failure or drift
             grading = assessment.grade(ctx, inconclusive=drift, expected_scenario_digest=scenario_identity)
@@ -518,7 +504,7 @@ def _run_trial(
                     "state_files": state_files,
                     "agents_dir": (ws.repo / ".agents").exists(),
                     "plugin": provenance,
-                    "runtime": runtime,
+                    "runtime": settings.runtime,
                     "workspace": str(ws.repo.resolve()),
                     "judge_binding": binding,
                     "scenario_sha256": grading["scenario_sha256"],
@@ -549,9 +535,9 @@ def _run_trial(
                     "known_cost_usd": cost["known_cost_usd"],
                     "cost_complete": cost["cost_complete"],
                     "judge": judge,
-                    "requested_model": model,
+                    "requested_model": settings.model,
                     "models": trace.models,
-                    "label": label,
+                    "label": settings.label,
                 },
                 indent=2,
             ),
@@ -559,7 +545,7 @@ def _run_trial(
         )
         summary = {
             "scenario": eval_name,
-            "label": label,
+            "label": settings.label,
             "run": run_number,
             "status": grading["status"],
             **assessment.native_assessment(spec),
@@ -575,7 +561,7 @@ def _run_trial(
             "scenario_sha256": grading["scenario_sha256"],
             "plugin_inputs_dirty": provenance["plugin_inputs_dirty"],
             "isolation": "host",
-            "runtime": runtime,
+            "runtime": settings.runtime,
             **cost,
             **({"after_assessment": after_assessment} if after_assessment else {}),
             **({"grader_error": grading["grader_error"]} if grading.get("grader_error") else {}),
@@ -586,12 +572,12 @@ def _run_trial(
     finally:
         active_error = sys.exc_info()[1]
         try:
-            backing.stop_services(services, docker)
+            backing.stop_services(services, settings.docker)
         except ServiceUnavailable as cleanup_error:
             if active_error is None:
                 raise
             print(f"warning: {cleanup_error} after primary failure: {active_error}", file=sys.stderr, flush=True)
-        if keep_workspace:
+        if settings.keep_workspace:
             print(f"workspace kept at {root}", flush=True)
         else:
             workspaces.remove_tree(root)

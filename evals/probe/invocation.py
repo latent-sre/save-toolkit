@@ -250,11 +250,43 @@ def reached_turn_limit(trace: TraceSummary, spec: Mapping[str, Any]) -> bool:
     return trace.result_subtype == "error_max_turns" and bool(spec.get("max_turns"))
 
 
-def void_over_cut(current: str | None, problem: str | None) -> str | None:
-    """Keep the first reason, except that a reason voiding the trial replaces a cut-short one."""
-    if problem and (not current or (isinstance(current, CutShort) and not isinstance(problem, CutShort))):
-        return problem
-    return current
+def turn_reason(
+    current: TraceSummary,
+    returncode: int | None,
+    timed_out: CutShort | None,
+    spec: Mapping[str, Any],
+    plugin_root: Path,
+    plugin_sha: str,
+    workdir: Path,
+    resume: str | None,
+    stdout: Path,
+) -> tuple[str | None, str | None]:
+    """How one invocation ends its trial early, if it does, and any identity failure it showed.
+
+    The order of the checks is the precedence, and the first reason found wins: plugin drift, then a
+    native run's credential marker, then a timed-out run's profile and identity (its partial trace
+    must show the declared profile before its evidence counts), then the timeout itself, then the
+    invocation's own problems. Once a timeout makes the run cut short, a later problem here does not
+    void it; after the run, `outcomes.void_over_cut` lets drift do so.
+    """
+    followups = bool(spec.get("followups"))
+    drift = fingerprints.plugin_drift_problem(plugin_root, plugin_sha)
+    identity = (
+        drift
+        or identity_problem(current, spec, plugin_root)
+        or (native_model_problem(current, spec) if followups else None)
+    )
+    reason = drift
+    if followups and credential_markers(current.result_text, stdout):
+        reason = reason or "native credential marker detected; no follow-up allowed"
+    if timed_out:
+        reason = (
+            reason
+            or profile_problem(current, spec, plugin_root, workdir)
+            or (native_identity_problem(current, spec, resume, complete=False) if followups else None)
+            or timed_out
+        )
+    return reason or invocation_problem(current, returncode, spec, plugin_root, workdir, resume), identity
 
 
 def identity_problem(trace: TraceSummary, spec: Mapping[str, Any], plugin_root: Path) -> str | None:

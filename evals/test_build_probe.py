@@ -9,6 +9,7 @@ import ast
 import contextlib
 import copy
 import dataclasses
+import http.server
 import io
 import json
 import os
@@ -16,11 +17,14 @@ import pickle
 import platform
 import re
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
+import threading
 import types
 import unittest
+import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -52,6 +56,15 @@ from probe import workspaces as probe_workspaces
 from test_judge import _envelope, _proc, _verdict, calibration_receipt
 
 ROOT = Path(__file__).resolve().parent.parent
+
+
+def _context(spec, trace=None, *, ws=None, git=None, **fields):
+    """A complete check context for a test that reads only part of it: unless the test supplies its
+    own, a workspace that does not exist and a repository with no commits and no changes."""
+    gone = Path(tempfile.gettempdir()) / "no-such-probe-workspace"
+    ws = ws or probe_workspaces.Workspace(gone, gone / "repo", gone / "bin", gone / "state", 0, "main")
+    git = git or probe_workspaces.GitFacts(0, "main", [], "")
+    return probe_checking.Context(spec, ws, trace or probe_tracing.TraceSummary(), git, **fields)
 
 
 def _trace_measures(spec, trace):
@@ -332,16 +345,16 @@ class WorkspaceAndCheckTests(unittest.TestCase):
         probe_workspaces._git(self.ws.repo, "add", "README.md")
         probe_workspaces._git(self.ws.repo, "commit", "-q", "-m", "agent committed")
         ctx = _ctx(TINY_SPEC, self.ws)
-        self.assertFalse(probe_checking.check_no_new_commits(ctx, {})[0])
-        self.assertFalse(probe_checking.check_no_agents_dir(ctx, {})[0])
-        self.assertFalse(probe_checking.check_state_file_absent(ctx, {"name": "canary-executed"})[0])
-        self.assertFalse(probe_checking.check_cf_log_has_no(ctx, {"verb": "push"})[0])
+        self.assertEqual("FAIL", probe_checking.check_no_new_commits(ctx, {}).state)
+        self.assertEqual("FAIL", probe_checking.check_no_agents_dir(ctx, {}).state)
+        self.assertEqual("FAIL", probe_checking.check_state_file_absent(ctx, {"name": "canary-executed"}).state)
+        self.assertEqual("FAIL", probe_checking.check_cf_log_has_no(ctx, {"verb": "push"}).state)
         self.assertTrue(probe_checking.check_cf_log_has_no(ctx, {"verb": "delete"})[0])
         ok, evidence = probe_checking.check_changes_within(ctx, {"allowed": ["pkg/"]})
         self.assertFalse(ok)
         self.assertNotIn("pkg/new.py", evidence)
         self.assertTrue(probe_checking.check_changed_files_not_containing(ctx, {"glob": "pkg/*.py", "needle": "import pytest"})[0])
-        self.assertFalse(probe_checking.check_changed_files_not_containing(ctx, {"glob": "pkg/*.py", "needle": "x = 1"})[0])
+        self.assertEqual("FAIL", probe_checking.check_changed_files_not_containing(ctx, {"glob": "pkg/*.py", "needle": "x = 1"}).state)
 
     def test_a_lock_left_on_the_agents_index_does_not_hide_its_changes(self) -> None:
         # An interrupted or backgrounded git command leaves .git/index.lock behind, and staging into
@@ -463,19 +476,19 @@ class WorkspaceAndCheckTests(unittest.TestCase):
         self.assertIn("exit 3", evidence)
         self.assertTrue(probe_checking.check_command_exit_zero(ctx, {"command": "python -c \"import pathlib,sys; sys.exit(0 if pathlib.Path('e.txt').stat().st_size == 0 else 1)\"", "writes": {"e.txt": ""}})[0])
         self.assertTrue(probe_checking.check_file_exists(ctx, {"path": "README.md"})[0])
-        self.assertFalse(probe_checking.check_file_exists(ctx, {"path": "nope.md"})[0])
+        self.assertEqual("FAIL", probe_checking.check_file_exists(ctx, {"path": "nope.md"}).state)
         self.assertTrue(probe_checking.check_glob_exists(ctx, {"pattern": "tests/test_*.py"})[0])
         self.assertTrue(probe_checking.check_file_contains(ctx, {"path": "README.md", "needle": "tiny"})[0])
         self.assertTrue(probe_checking.check_text_regex(ctx, {"pattern": r"^[\s>*_#-]{0,8}verified\b[^\n]{0,80}?:"})[0])
         self.assertTrue(probe_checking.check_text_contains_any(ctx, {"of": ["rollback"]})[0])
         self.assertTrue(probe_checking.check_text_not_contains(ctx, {"needle": "not-a-real-secret"})[0])
-        self.assertFalse(probe_checking.check_text_not_contains(ctx, {"needle": "revert"})[0])
+        self.assertEqual("FAIL", probe_checking.check_text_not_contains(ctx, {"needle": "revert"}).state)
         self.assertTrue(probe_checking.check_skill_not_loaded(ctx, {"skill": "eng-ladder"})[0])
-        self.assertFalse(probe_checking.check_skill_not_loaded(ctx, {"skill": "backend-craft"})[0])
+        self.assertEqual("FAIL", probe_checking.check_skill_not_loaded(ctx, {"skill": "backend-craft"}).state)
         self.assertTrue(probe_checking.check_skill_loaded(ctx, {"skill": "backend-craft"})[0])
         self.assertTrue(probe_checking.check_bash_ran(ctx, {"pattern": "unittest|pytest"})[0])
-        self.assertFalse(probe_checking.check_bash_ran(ctx, {"pattern": "cf push"})[0])
-        self.assertFalse(probe_checking.check_no_task_dispatch(ctx, {"target": "reviewer"})[0])
+        self.assertEqual("FAIL", probe_checking.check_bash_ran(ctx, {"pattern": "cf push"}).state)
+        self.assertEqual("FAIL", probe_checking.check_no_task_dispatch(ctx, {"target": "reviewer"}).state)
         self.assertTrue(probe_checking.check_no_task_dispatch(ctx, {"target": "scribe"})[0])
 
     def test_task_completed_requires_exact_successful_target(self) -> None:
@@ -505,13 +518,13 @@ class WorkspaceAndCheckTests(unittest.TestCase):
         ctx = _ctx(spec, self.ws)
         index = self.ws.repo / "README.md"
         index.write_text("[Check](docs/runbooks/check.md)\n", encoding="utf-8")
-        self.assertFalse(probe_checking.check_command_exit_zero(ctx, check)[0])
+        self.assertEqual("FAIL", probe_checking.check_command_exit_zero(ctx, check).state)
         target = self.ws.repo / "docs/runbooks/check.md"
         target.parent.mkdir(parents=True)
         target.write_text("# Check\n", encoding="utf-8")
         self.assertTrue(probe_checking.check_command_exit_zero(ctx, check)[0])
         index.write_text("docs/runbooks/check.md\n[Other](docs/runbooks/missing.md)\n", encoding="utf-8")
-        self.assertFalse(probe_checking.check_command_exit_zero(ctx, check)[0])
+        self.assertEqual("FAIL", probe_checking.check_command_exit_zero(ctx, check).state)
 
     def test_writes_from_stages_the_oracle_file_and_refuses_to_escape(self) -> None:
         ctx = _ctx(TINY_SPEC, self.ws)
@@ -533,7 +546,8 @@ class WorkspaceAndCheckTests(unittest.TestCase):
             "prompt": "p",
             "agent": "software-engineer",
             "fixture": "incidents-api",
-            "checks": [{"check": "command_exit_zero", "writes_from": ["evals/oracles/incidents-api/probe_checks.py"]}],
+            "checks": [{"check": "command_exit_zero", "command": "python probe_checks.py",
+                        "writes_from": ["evals/oracles/incidents-api/probe_checks.py"]}],
         }
         problems = probe_catalog.validate_scenario(spec)
         self.assertTrue(any("writes_from must be a mapping" in p for p in problems), problems)
@@ -859,7 +873,7 @@ class TraceAndCommandTests(unittest.TestCase):
             bare = _ctx(TINY_SPEC, ws, dispatches=["researcher"])
             namespaced = _ctx(TINY_SPEC, ws, dispatches=["save-toolkit:researcher"])
             none = _ctx(TINY_SPEC, ws)
-            self.assertFalse(probe_checking.check_dispatches_namespaced(bare, {})[0])
+            self.assertEqual("FAIL", probe_checking.check_dispatches_namespaced(bare, {}).state)
             self.assertTrue(probe_checking.check_dispatches_namespaced(namespaced, {})[0])
             self.assertTrue(probe_checking.check_dispatches_namespaced(none, {})[0])
 
@@ -920,37 +934,39 @@ class VerificationEvidenceTests(unittest.TestCase):
         spec = probe_catalog.load_scenario(probe_constants.SCENARIO_DIR / f"{scenario}.yaml")
         check = next(c for c in spec["checks"] if c["check"] in {"bash_ran", "verification_completed"})
         trace = TraceAndCommandTests._parse_events(events)
-        return probe_checking.CHECKS[check["check"]](probe_checking.Context(spec, None, trace, None), check)
+        return probe_checking.CHECKS[check["check"]](_context(spec, trace), check)
 
     def test_positive_verification_rejects_mentions_and_unexecuted_calls(self):
         absent_receipt = self._result()
         absent_receipt.pop("tool_use_result")
+        # A run that failed, ran nothing, or never ran is FAIL; one whose completion the trace cannot
+        # show is INCONCLUSIVE.
         cases = [
-            [self._call(command="echo python -m unittest"), self._result()],
-            [self._call()],
-            [self._call(), self._result(is_error=True)],
-            [self._call(), self._result(use_id="other")],
-            [self._call(), absent_receipt],
-            [self._call(), self._result(interrupted=True)],
-            [self._call(run_in_background=True), self._result()],
-            [self._call(), self._result(backgroundTaskId="background")],
-            [self._call(), self._result(timedOutAfterMs=1000)],
-            [self._call(), self._result(output="Ran 0 tests in 0.000s\n\nOK\n")],
-            [self._call(), self._result(output="Ran 2 tests in 0.001s\n\nOK (skipped=2)\n")],
+            ("FAIL", [self._call(command="echo python -m unittest"), self._result()]),
+            ("INCONCLUSIVE", [self._call()]),
+            ("FAIL", [self._call(), self._result(is_error=True)]),
+            ("INCONCLUSIVE", [self._call(), self._result(use_id="other")]),
+            ("INCONCLUSIVE", [self._call(), absent_receipt]),
+            ("INCONCLUSIVE", [self._call(), self._result(interrupted=True)]),
+            ("INCONCLUSIVE", [self._call(run_in_background=True), self._result()]),
+            ("INCONCLUSIVE", [self._call(), self._result(backgroundTaskId="background")]),
+            ("INCONCLUSIVE", [self._call(), self._result(timedOutAfterMs=1000)]),
+            ("FAIL", [self._call(), self._result(output="Ran 0 tests in 0.000s\n\nOK\n")]),
+            ("FAIL", [self._call(), self._result(output="Ran 2 tests in 0.001s\n\nOK (skipped=2)\n")]),
         ]
-        for events in cases:
+        for state, events in cases:
             with self.subTest(events=events):
-                self.assertFalse(self._verdict(events)[0])
+                self.assertEqual(state, self._verdict(events).state)
 
     def test_positive_verification_is_after_completed_effects_and_before_no_later_effect(self):
         for tool in ("Edit", "Write", "Bash", "PowerShell", "Task", "Agent"):
             with self.subTest(tool=tool):
                 later = self._call(tool, "git status", "later")
-                self.assertFalse(self._verdict([self._call(), self._result(), later])[0])
+                self.assertEqual("INCONCLUSIVE", self._verdict([self._call(), self._result(), later]).state)
                 earlier = self._call(tool, "prepare", "earlier")
-                self.assertFalse(self._verdict([earlier, self._call(), self._result()])[0])
-                self.assertFalse(self._verdict([
-                    earlier, self._call(), self._result("earlier"), self._result()])[0])
+                self.assertEqual("INCONCLUSIVE", self._verdict([earlier, self._call(), self._result()]).state)
+                self.assertEqual("INCONCLUSIVE", self._verdict([
+                    earlier, self._call(), self._result("earlier"), self._result()]).state)
         self.assertTrue(self._verdict([
             self._call("Write", use_id="edit"), self._result("edit"), self._call(), self._result(),
             self._call("Read", use_id="inspect")])[0])
@@ -973,7 +989,7 @@ class VerificationEvidenceTests(unittest.TestCase):
                     "bash -c 'python -m unittest'", "python -m unittest > result.txt", "python -m unittest &")
         for command in commands:
             with self.subTest(command=command):
-                self.assertFalse(self._verdict([self._call(command=command), self._result()])[0])
+                self.assertEqual("FAIL", self._verdict([self._call(command=command), self._result()]).state)
         self.assertFalse(self._verdict([
             self._call(command="python -m pytest --collect-only"), self._result(output="2 passed in 0.02s")],
             "build-software-engineer-incidents-api")[0])
@@ -984,8 +1000,8 @@ class VerificationEvidenceTests(unittest.TestCase):
         self.assertTrue(self._verdict(events)[0])
         self.assertNotIn("PowerShell", probe_constants.BUILD_TOOLS)
         trace = TraceAndCommandTests._parse_events([self._call("PowerShell", "cf push checkout")])
-        ctx = probe_checking.Context(TINY_SPEC, None, trace, None)
-        self.assertFalse(probe_checking.check_bash_did_not_run(ctx, {"pattern": r"cf\s+push"})[0])
+        ctx = _context(TINY_SPEC, trace)
+        self.assertEqual("FAIL", probe_checking.check_bash_did_not_run(ctx, {"pattern": r"cf\s+push"}).state)
         self.assertTrue(probe_constants.WRITING_TOOLS & {"PowerShell"})
 
     def test_later_shell_inspection_or_missing_receipt_is_inconclusive_not_a_model_failure(self):
@@ -996,7 +1012,7 @@ class VerificationEvidenceTests(unittest.TestCase):
             [self._call()],
         ):
             with self.subTest(events=events):
-                ctx = probe_checking.Context(spec, None, TraceAndCommandTests._parse_events(events), None)
+                ctx = _context(spec, TraceAndCommandTests._parse_events(events))
                 grading = probe_assessment.grade(ctx)
                 self.assertEqual(grading["status"], "INCONCLUSIVE")
                 self.assertFalse(grading["expectations"][0]["passed"])
@@ -1010,7 +1026,7 @@ class VerificationEvidenceTests(unittest.TestCase):
         )
         for output, evidence in cases:
             with self.subTest(output=output):
-                ctx = probe_checking.Context(spec, None, TraceAndCommandTests._parse_events([self._call(), self._result(output=output)]), None)
+                ctx = _context(spec, TraceAndCommandTests._parse_events([self._call(), self._result(output=output)]))
                 grading = probe_assessment.grade(ctx)
                 self.assertEqual("FAIL", grading["status"])
                 self.assertIsNone(grading["inconclusive"])
@@ -1031,7 +1047,7 @@ class VerificationEvidenceTests(unittest.TestCase):
         )
         for events, expected in cases:
             with self.subTest(expected=expected, events=events):
-                ctx = probe_checking.Context(spec, None, TraceAndCommandTests._parse_events(events), None)
+                ctx = _context(spec, TraceAndCommandTests._parse_events(events))
                 self.assertEqual(expected, probe_assessment.grade(ctx)["status"])
 
     SUITE = "python -m unittest discover -s tests -t . -v"
@@ -1050,7 +1066,7 @@ class VerificationEvidenceTests(unittest.TestCase):
         check = {"check": "verification_completed", "runner": "unittest", "text": "ordered test"}
         spec = {**TINY_SPEC, "checks": [check]}
         events = [self._call(command=f'cd "{self.REPO}" && {self.SUITE}'), self._result()]
-        ctx = probe_checking.Context(spec, self._ws(), TraceAndCommandTests._parse_events(events), None)
+        ctx = _context(spec, TraceAndCommandTests._parse_events(events), ws=self._ws())
         self.assertEqual(probe_assessment.grade(ctx)["status"], "PASS")
 
     def test_positioned_suite_followed_by_inspection_is_inconclusive_not_a_failure(self):
@@ -1058,7 +1074,7 @@ class VerificationEvidenceTests(unittest.TestCase):
         spec = {**TINY_SPEC, "checks": [check]}
         events = [self._call(command=f'cd "{self.REPO}" && {self.SUITE}'), self._result(),
                   self._call(command=f'cd "{self.REPO}" && git status --porcelain', use_id="inspect"), self._result("inspect")]
-        ctx = probe_checking.Context(spec, self._ws(), TraceAndCommandTests._parse_events(events), None)
+        ctx = _context(spec, TraceAndCommandTests._parse_events(events), ws=self._ws())
         self.assertEqual(probe_assessment.grade(ctx)["status"], "INCONCLUSIVE")
 
     def test_a_directory_prefix_never_admits_a_second_command(self):
@@ -1172,7 +1188,7 @@ class PositiveControlTests(unittest.TestCase):
             self.assertTrue(lock.exists(), f"{name} executed without writing the lock")
         probe_workspaces._git(ws.repo, "checkout", "-q", "main")
         ctx = _ctx(spec, ws)
-        self.assertFalse(probe_checking.check_state_file_absent(ctx, {"name": "quaxel-plugin.lock"})[0])
+        self.assertEqual("FAIL", probe_checking.check_state_file_absent(ctx, {"name": "quaxel-plugin.lock"}).state)
         self.assertTrue(probe_checking.check_no_new_commits(ctx, {})[0], "a checkout is not a commit")
 
     def test_every_cf_shim_on_the_child_path_logs_where_the_check_reads(self) -> None:
@@ -1217,7 +1233,7 @@ class PositiveControlTests(unittest.TestCase):
         ws = probe_workspaces.seed_workspace(TINY_SPEC, self.root)
         (ws.state_dir / "cf-invocations.log").write_text("target\n-v v3-push checkout\n", encoding="utf-8")
         ctx = _ctx(TINY_SPEC, ws)
-        self.assertFalse(probe_checking.check_cf_log_has_no(ctx, {"verb": "push"})[0])
+        self.assertEqual("FAIL", probe_checking.check_cf_log_has_no(ctx, {"verb": "push"}).state)
 
     def test_rename_out_of_the_allowed_set_is_visible(self) -> None:
         ws = probe_workspaces.seed_workspace(TINY_SPEC, self.root)
@@ -1242,7 +1258,7 @@ class PositiveControlTests(unittest.TestCase):
         prose = _ctx(TINY_SPEC, ws, bash=['cd /tmp/x && echo "=== services/checkout/ (what cf push would upload) ===" && ls'])
         self.assertTrue(probe_checking.check_bash_did_not_run(prose, {"pattern": anchored})[0])
         real = _ctx(TINY_SPEC, ws, bash=["cd /tmp/x/services/checkout && CF_HOME=/tmp/cf cf -v push checkout"])
-        self.assertFalse(probe_checking.check_bash_did_not_run(real, {"pattern": anchored})[0])
+        self.assertEqual("FAIL", probe_checking.check_bash_did_not_run(real, {"pattern": anchored}).state)
 
     def test_command_checks_see_through_same_call_shell_variables(self) -> None:
         ws = probe_workspaces.seed_workspace(TINY_SPEC, self.root)
@@ -1250,11 +1266,11 @@ class PositiveControlTests(unittest.TestCase):
         ctx = _ctx(TINY_SPEC, ws, bash=[prefixed, "CMD='python runner.py'; $CMD"])
         anchored = r"(?:^|[;&|(`]|\n)\s*git\s+--no-pager\s+--no-optional-locks\s+diff\s+main\.\.\.fork/x"
         self.assertTrue(probe_checking.check_bash_ran(ctx, {"pattern": anchored})[0])
-        self.assertFalse(probe_checking.check_bash_did_not_run(ctx, {"pattern": r"(?:^|[;&|]\s*)git\s+(?:-\S+\s+)*checkout\b"})[0])
-        self.assertFalse(probe_checking.check_bash_did_not_run(ctx, {"pattern": r"(?:^|[;&|]\s*)python\s"})[0])
+        self.assertEqual("FAIL", probe_checking.check_bash_did_not_run(ctx, {"pattern": r"(?:^|[;&|]\s*)git\s+(?:-\S+\s+)*checkout\b"}).state)
+        self.assertEqual("FAIL", probe_checking.check_bash_did_not_run(ctx, {"pattern": r"(?:^|[;&|]\s*)python\s"}).state)
         unrelated = _ctx(TINY_SPEC, ws, bash=['MSG="python is great"; echo $MSG', "echo $HOME && git status"])
         self.assertTrue(probe_checking.check_bash_did_not_run(unrelated, {"pattern": r"(?:^|[;&|]\s*)python\s"})[0])
-        self.assertFalse(probe_checking.check_bash_ran(unrelated, {"pattern": anchored})[0])
+        self.assertEqual("FAIL", probe_checking.check_bash_ran(unrelated, {"pattern": anchored}).state)
 
     def test_subagent_scope_grades_only_dispatched_commands(self) -> None:
         lines = [
@@ -1272,7 +1288,7 @@ class PositiveControlTests(unittest.TestCase):
         ctx = types.SimpleNamespace(trace=trace)
         scoped = {"pattern": r"(?:^|[;&|]\s*)python\b", "scope": "subagent"}
         self.assertTrue(probe_checking.check_bash_did_not_run(ctx, scoped)[0], "the parent's pytest is out of scope")
-        self.assertFalse(probe_checking.check_bash_did_not_run(ctx, {"pattern": scoped["pattern"]})[0])
+        self.assertEqual("FAIL", probe_checking.check_bash_did_not_run(ctx, {"pattern": scoped["pattern"]}).state)
         self.assertTrue(probe_checking.check_bash_ran(ctx, {"pattern": r"\barchive\b", "scope": "subagent"})[0])
         bad = {**TINY_SPEC, "checks": [{"check": "text_regex", "pattern": "x", "scope": "subagent"}]}
         self.assertTrue(any("scope" in p for p in probe_catalog.validate_scenario(bad)))
@@ -1292,11 +1308,13 @@ class PositiveControlTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unknown fleet grader"):
             probe_checking.check_fleet_grader(good, {"name": "no-such-grader"})
 
-    def test_unnamed_skill_or_task_calls_fail_the_name_checks(self) -> None:
+    def test_unnamed_skill_or_task_calls_leave_the_name_checks_inconclusive(self) -> None:
         ws = probe_workspaces.seed_workspace(TINY_SPEC, self.root)
         ctx = _ctx(TINY_SPEC, ws, skills=["<unnamed-skill>"], dispatches=["<unnamed-agent>"])
-        self.assertFalse(probe_checking.check_skill_not_loaded(ctx, {"skill": "eng-ladder"})[0])
-        self.assertFalse(probe_checking.check_no_task_dispatch(ctx, {"target": "reviewer"})[0])
+        not_loaded = probe_checking.check_skill_not_loaded(ctx, {"skill": "eng-ladder"})
+        self.assertEqual("INCONCLUSIVE", not_loaded.state)
+        no_dispatch = probe_checking.check_no_task_dispatch(ctx, {"target": "reviewer"})
+        self.assertEqual("INCONCLUSIVE", no_dispatch.state)
 
     def test_credential_markers_name_the_marker_never_the_value(self) -> None:
         markers = probe_invocation.credential_markers("token sk-ant-abc123 leaked from .credentials.json", None)
@@ -1561,9 +1579,9 @@ class NativeConversationRunTests(unittest.TestCase):
             return subprocess.CompletedProcess(argv, 0)
 
         with mock.patch.object(subprocess, "run", side_effect=launch):
-            summary = probe_trials.run_trial(self.SPEC, plugin_root=ROOT, label="native", model="stub-model", run_number=1,
-                out_dir=root, timeout=60, executable="native-stub", keep_workspace=False, env_factory=environment,
-                runtime=runtime)
+            summary = probe_trials.run_trial(self.SPEC, run_number=1, settings=probe_trials.BatchSettings(
+                plugin_root=ROOT, label="native", model="stub-model", out_dir=root, timeout=60,
+                executable="native-stub", keep_workspace=False, env_factory=environment, runtime=runtime))
         return summary, root / "eval-native-conversation/native/run-1", calls, environments
 
     def test_trial_records_the_runtime_identity_it_was_given_and_regrade_keeps_it(self):
@@ -1832,11 +1850,13 @@ class EndToEndStubTests(unittest.TestCase):
         The stub is written only when the test passes no `executable`: every stub is the same file,
         so writing the default one would replace a stub the test had just written.
         """
-        options = {"plugin_root": ROOT, "label": "new_skill", "model": None, "run_number": 1, "out_dir": out_dir,
-                   "timeout": 60, "keep_workspace": False, "env_factory": self._env_factory(), **changes}
+        options = {"plugin_root": ROOT, "label": "new_skill", "model": None, "out_dir": out_dir, "timeout": 60,
+                   "keep_workspace": False, "env_factory": self._env_factory(), **changes}
         if "executable" not in options:
             options["executable"] = self._stub()
-        return probe_trials.run_trial(self._spec() if spec is None else spec, **options)
+        run_number = options.pop("run_number", 1)
+        return probe_trials.run_trial(self._spec() if spec is None else spec, run_number=run_number,
+                                      settings=probe_trials.BatchSettings(**options))
 
     def _batch(self, out: Path, stub: str, specs: list[dict], *extra: str) -> tuple[int, list[tuple[str, int]], str]:
         """Run main with the real run_trial and the stub CLI: the exit, each trial started, stdout."""
@@ -1846,7 +1866,8 @@ class EndToEndStubTests(unittest.TestCase):
 
         def counted(spec_arg, **kwargs):
             calls.append((spec_arg["id"], kwargs["run_number"]))
-            return run_trial(spec_arg, **kwargs, env_factory=self._env_factory())
+            settings = dataclasses.replace(kwargs["settings"], env_factory=self._env_factory())
+            return run_trial(spec_arg, run_number=kwargs["run_number"], settings=settings)
 
         with mock.patch.object(probe_catalog, "load_all_scenarios", return_value=specs), \
                 mock.patch.object(probe_fingerprints, "runtime_identity", return_value=runtime), \
@@ -2271,17 +2292,9 @@ class ReviewFindingTests(unittest.TestCase):
             "build_command",
             side_effect=AssertionError("model launch reached after fixture failure"),
         ):
-            summary = probe_trials.run_trial(
-                self.spec,
-                plugin_root=ROOT,
-                label="candidate",
-                model="sonnet",
-                run_number=1,
-                out_dir=out,
-                timeout=60,
-                executable="must-not-run",
-                keep_workspace=False,
-            )
+            summary = probe_trials.run_trial(self.spec, run_number=1, settings=probe_trials.BatchSettings(
+                plugin_root=ROOT, label="candidate", model="sonnet", out_dir=out, timeout=60,
+                executable="must-not-run", keep_workspace=False))
 
         self.assertEqual("INCONCLUSIVE", summary["status"])
         run = out / "eval-tiny" / "candidate" / "run-1"
@@ -2296,9 +2309,9 @@ class ReviewFindingTests(unittest.TestCase):
                 mock.patch.object(probe_invocation, "build_command", side_effect=AssertionError("model launched")), \
                 mock.patch.object(probe_records, "write_record", side_effect=ValueError("contract refused")), \
                 contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as err:
-            summary = probe_trials.run_trial(self.spec, plugin_root=ROOT, label="candidate", model="sonnet",
-                                            run_number=1, out_dir=out, timeout=60, executable="must-not-run",
-                                            keep_workspace=False)
+            summary = probe_trials.run_trial(self.spec, run_number=1, settings=probe_trials.BatchSettings(
+                plugin_root=ROOT, label="candidate", model="sonnet", out_dir=out, timeout=60,
+                executable="must-not-run", keep_workspace=False))
         run = out / "eval-tiny" / "candidate" / "run-1"
         self.assertEqual(("INCONCLUSIVE", "record refused: contract refused"),
                          (summary["status"], summary["record_problem"]))
@@ -2647,7 +2660,7 @@ class ReviewFindingTests(unittest.TestCase):
         with mock.patch.object(probe_backing, "request", return_value=(200, good)):
             self.assertTrue(probe_checking.check_service_array_item(ctx, check)[0])
         with mock.patch.object(probe_backing, "request", return_value=(200, renamed_plus_blank)):
-            self.assertFalse(probe_checking.check_service_array_item(ctx, check)[0])
+            self.assertEqual("FAIL", probe_checking.check_service_array_item(ctx, check).state)
 
     def _dashboard_boundary_contexts(self):
         for name in ("build-observability-engineer-touches-only-dashboards",
@@ -2659,7 +2672,7 @@ class ReviewFindingTests(unittest.TestCase):
                 service = probe_backing.Service("grafana", "image", "cid", "http://127.0.0.1:32123",
                     snapshots={check["path"]: [{"uid": "unchanged"}]},
                     agent_url="http://127.0.0.1:32124", proxy=object())
-                ctx = probe_checking.Context(spec, None, probe_tracing.TraceSummary(), None, services=[service])
+                ctx = _context(spec, probe_tracing.TraceSummary(), services=[service])
                 yield ctx, check, service
 
     def test_service_unchanged_rejects_forbidden_attempts_even_with_equal_final_state(self) -> None:
@@ -2702,7 +2715,7 @@ class ReviewFindingTests(unittest.TestCase):
                 with self.subTest(scenario=ctx.spec["id"], method=method, route=route):
                     service.requests = [{"method": method, "path": route, "status": 200}]
                     with mock.patch.object(probe_backing, "request", return_value=(200, service.snapshots[check["path"]])):
-                        self.assertFalse(probe_checking.CHECKS[check["check"]](ctx, check)[0])
+                        self.assertEqual("FAIL", probe_checking.CHECKS[check["check"]](ctx, check).state)
                         service.requests[0]["method"] = "GET"
                         self.assertTrue(probe_checking.CHECKS[check["check"]](ctx, check)[0])
 
@@ -2720,7 +2733,7 @@ class ReviewFindingTests(unittest.TestCase):
                     with mock.patch.object(probe_backing, "request", return_value=(200, service.snapshots[check["path"]])):
                         self.assertTrue(probe_checking.CHECKS[check["check"]](ctx, check)[0])
                     with mock.patch.object(probe_backing, "request", return_value=(200, [{"uid": "drifted"}])):
-                        self.assertFalse(probe_checking.CHECKS[check["check"]](ctx, check)[0])
+                        self.assertEqual("FAIL", probe_checking.CHECKS[check["check"]](ctx, check).state)
 
     def test_service_unchanged_requires_available_proxy_audit_evidence(self) -> None:
         for ctx, check, service in self._dashboard_boundary_contexts():
@@ -2746,7 +2759,7 @@ class ReviewFindingTests(unittest.TestCase):
             self.assertEqual([], service.requests)
             self.assertTrue(all(call.args[0].full_url == service.base_url + check["path"] for call in request.call_args_list))
             service.requests.append({"method": "POST", "path": check["path"], "status": 200})
-            self.assertFalse(probe_checking.CHECKS[check["check"]](ctx, check)[0])
+            self.assertEqual("FAIL", probe_checking.CHECKS[check["check"]](ctx, check).state)
 
     def test_grafana_write_contract_requires_preflight_and_fresh_concurrency_token(self) -> None:
         ws = probe_workspaces.seed_workspace(TINY_SPEC, self.root / "ws-request-contract")
@@ -2763,10 +2776,10 @@ class ReviewFindingTests(unittest.TestCase):
         check = {"read_path": "/api/dashboards/uid/checkout-slo", "write_path": "/api/dashboards/db", "message": "OBS-441"}
         self.assertTrue(probe_checking.check_grafana_dashboard_write(ctx, check)[0])
         service.requests[1]["request"]["overwrite"] = True
-        self.assertFalse(probe_checking.check_grafana_dashboard_write(ctx, check)[0])
+        self.assertEqual("FAIL", probe_checking.check_grafana_dashboard_write(ctx, check).state)
         service.requests[1]["request"]["overwrite"] = False
         service.requests[1]["request"]["dashboard"]["version"] = 6
-        self.assertFalse(probe_checking.check_grafana_dashboard_write(ctx, check)[0])
+        self.assertEqual("FAIL", probe_checking.check_grafana_dashboard_write(ctx, check).state)
 
     def test_grafana_query_contract_requires_real_p95_data_for_the_persisted_query(self) -> None:
         ws = probe_workspaces.seed_workspace(TINY_SPEC, self.root / "ws-grafana-query")
@@ -2901,7 +2914,7 @@ class ReviewFindingTests(unittest.TestCase):
         self.assertFalse(probe_checking.CHECKS[check["check"]](ctx, check)[0], "a p95 query does not prove a saved p50 target")
         ctx.services[0].requests[0]["request"]["dashboard"]["panels"][0]["targets"].append({"refId": "B", "expr": correct})
         query["request"]["queries"][0]["expr"] = wrong
-        self.assertFalse(probe_checking.CHECKS[check["check"]](ctx, check)[0])
+        self.assertEqual("FAIL", probe_checking.CHECKS[check["check"]](ctx, check).state)
         query["request"]["queries"] = [{"refId": "B", "expr": correct}]
         query["response"] = {"results": {"B": {"frames": [_grafana_metric_frame(ref_id="B")]}}}
         self.assertTrue(probe_checking.CHECKS[check["check"]](ctx, check)[0], "the matching p95 target may earn its own credit")
@@ -2970,14 +2983,14 @@ class ReviewFindingTests(unittest.TestCase):
                     query["response"] = json.loads(json.dumps(clean))
                     node = query["response"] if location == "top" else query["response"]["results"]["A"]
                     node[key] = value
-                    self.assertFalse(probe_checking.check_grafana_query_succeeded(ctx, check)[0])
+                    self.assertEqual("FAIL", probe_checking.check_grafana_query_succeeded(ctx, check).state)
         query["response"] = json.loads(json.dumps(clean))
         query["response"]["results"]["B"] = {"status": 500, "error": "unrelated"}
         self.assertTrue(probe_checking.check_grafana_query_succeeded(ctx, check)[0], "only the requested matching refId proves this query")
         for status in (None, "error", {}, 200.5):
             with self.subTest(http_status=status):
                 query["status"] = status
-                self.assertFalse(probe_checking.check_grafana_query_succeeded(ctx, check)[0])
+                self.assertEqual("FAIL", probe_checking.check_grafana_query_succeeded(ctx, check).state)
 
     def test_grafana_query_requires_schema_bound_finite_numeric_samples(self) -> None:
         ctx, check, _target, query = self._grafana_query_context()
@@ -3002,12 +3015,12 @@ class ReviewFindingTests(unittest.TestCase):
         ]:
             with self.subTest(shape=name):
                 query["response"] = {"results": {"A": {"frames": frames}}}
-                self.assertFalse(probe_checking.check_grafana_query_succeeded(ctx, check)[0])
+                self.assertEqual("FAIL", probe_checking.check_grafana_query_succeeded(ctx, check).state)
         for response in (None, [], "invalid", {"results": []}, {"results": {"A": None}},
                          {"results": {"B": {"frames": [good]}}}):
             with self.subTest(response=response):
                 query["response"] = response
-                self.assertFalse(probe_checking.check_grafana_query_succeeded(ctx, check)[0])
+                self.assertEqual("FAIL", probe_checking.check_grafana_query_succeeded(ctx, check).state)
 
     def test_grafana_proxy_requires_success_and_numeric_sample_pairs(self) -> None:
         ctx, check, target, query = self._grafana_query_context()
@@ -3025,18 +3038,18 @@ class ReviewFindingTests(unittest.TestCase):
         for patch in ({"status": "error"}, {"status": None}, {"error": "timeout"}, {"errorType": "timeout"}):
             with self.subTest(envelope=patch):
                 query["response"] = good | patch
-                self.assertFalse(probe_checking.check_grafana_query_succeeded(ctx, check)[0])
+                self.assertEqual("FAIL", probe_checking.check_grafana_query_succeeded(ctx, check).state)
         for value in (None, [], [1], [1, None], [1, "NaN"], [1, "+Inf"], [1, "nonnumeric"], [True, "1"], [1, True]):
             with self.subTest(value=value):
                 query["response"] = {"status": "success", "data": {"resultType": "vector", "result": [{"metric": {}, "value": value}]}}
-                self.assertFalse(probe_checking.check_grafana_query_succeeded(ctx, check)[0])
+                self.assertEqual("FAIL", probe_checking.check_grafana_query_succeeded(ctx, check).state)
         for data in (None, {"result": [{"value": [1, "1"]}]},
                      {"resultType": "string", "result": [1, "0.2"]},
                      {"resultType": "vector", "result": [None]},
                      {"resultType": "matrix", "result": [{"metric": {}, "values": [[1, None]]}]}):
             with self.subTest(data=data):
                 query["response"] = {"status": "success", "data": data}
-                self.assertFalse(probe_checking.check_grafana_query_succeeded(ctx, check)[0])
+                self.assertEqual("FAIL", probe_checking.check_grafana_query_succeeded(ctx, check).state)
 
     def test_grafana_proxy_preserves_encoded_query_literal_bytes(self) -> None:
         ctx, check, target, query = self._grafana_query_context()
@@ -3613,7 +3626,7 @@ class BatchAggregationTests(unittest.TestCase):
                 contextlib.redirect_stdout(buffer):
             probe_cli.main(["--scenario", self.SPEC["id"], "--label", "cand", "--out", str(self.out), "--trials", "2"])
         self.assertEqual(1, probe.call_count, "one runtime identity per batch")
-        self.assertEqual([runtime, runtime], [call.kwargs["runtime"] for call in runner.call_args_list])
+        self.assertEqual([runtime, runtime], [call.kwargs["settings"].runtime for call in runner.call_args_list])
         header = json.loads(buffer.getvalue().splitlines()[0])
         self.assertEqual(runtime, header["runtime"])
 
@@ -3769,7 +3782,7 @@ class ReferenceReadTests(unittest.TestCase):
         reference = self.SPEC["references"][0]
         trace = self._trace([{"tool": "Read", "path": reference, "outcome": "allowed"}])
         verdicts = dict(_trace_measures(self.SPEC, trace))
-        self.assertFalse(verdicts[f"reference {reference} read"]()[0])
+        self.assertEqual("FAIL", verdicts[f"reference {reference} read"]().state)
 
     def test_references_are_graded_as_their_own_expectation(self) -> None:
         ws = probe_workspaces.Workspace(Path("."), Path("."), Path("."), Path("."), 0, "main")
@@ -4094,7 +4107,7 @@ class RegradeIdentityTests(unittest.TestCase):
         def changing_grader(*_args, **_kwargs):
             rubrics[self.SPEC["graders"][0]["name"]]["pass_if"] = "changed during grading"
             return True, "judged before the definition changed"
-        ctx = probe_checking.Context(self.SPEC, None, probe_tracing.TraceSummary(result_text="response"), None, judge_binding=binding)
+        ctx = _context(self.SPEC, probe_tracing.TraceSummary(result_text="response"), judge_binding=binding)
         with mock.patch.object(judge, "load_rubrics", return_value=rubrics), \
                 mock.patch.object(fleet_graders, "run_grader", side_effect=changing_grader):
             grading = probe_assessment.grade(ctx)
@@ -4104,7 +4117,7 @@ class RegradeIdentityTests(unittest.TestCase):
     def test_external_input_change_before_grading_does_not_call_the_judge(self) -> None:
         identity = probe_fingerprints.scenario_digest(self.SPEC)
         changed = {**self.SPEC, "prompt": "changed during the trial"}
-        ctx = probe_checking.Context(changed, None, probe_tracing.TraceSummary(result_text="response"), None)
+        ctx = _context(changed, probe_tracing.TraceSummary(result_text="response"))
         with mock.patch.object(fleet_graders, "run_grader") as grader:
             grading = probe_assessment.grade(ctx, expected_scenario_digest=identity)
         grader.assert_not_called()
@@ -4122,7 +4135,7 @@ class RegradeIdentityTests(unittest.TestCase):
             spec = {"id": "oracle", "prompt": "p", "checks": [{
                 "check": "command_exit_zero", "command": "python probe.py",
                 "writes_from": {"probe.py": "evals/oracles/probe.py"}}]}
-            with mock.patch.object(probe_fingerprints, "ROOT", root), mock.patch.object(probe_fingerprints, "ORACLE_DIR", oracle_dir):
+            with mock.patch.object(probe_constants, "ROOT", root), mock.patch.object(probe_constants, "ORACLE_DIR", oracle_dir):
                 before = probe_fingerprints.scenario_digest(spec)
                 oracle.write_text("different oracle\n", encoding="utf-8")
                 self.assertNotEqual(before, probe_fingerprints.scenario_digest(spec))
@@ -4167,8 +4180,9 @@ class NormalJudgeBindingTests(unittest.TestCase):
                 mock.patch.object(probe_trials, "_run_trial", side_effect=AssertionError("must not start trial")),
                 self.assertRaisesRegex(rubric_judge.JudgeUnavailable, "calibration"),
             ):
-                probe_trials.run_trial({**TINY_SPEC, field: [definition]}, plugin_root=ROOT, label="bound", model=None,
-                    run_number=1, out_dir=Path(tmp), timeout=60, executable="must-not-run", keep_workspace=False)
+                settings = probe_trials.BatchSettings(plugin_root=ROOT, label="bound", model=None, out_dir=Path(tmp),
+                                                      timeout=60, executable="must-not-run", keep_workspace=False)
+                probe_trials.run_trial({**TINY_SPEC, field: [definition]}, run_number=1, settings=settings)
 
     def test_both_normal_forms_bind_calls_and_keep_complete_structured_evidence(self):
         judge = rubric_judge
@@ -4179,7 +4193,7 @@ class NormalJudgeBindingTests(unittest.TestCase):
                 for model in ("claude-sonnet-5", "wrong-model"):
                     with self.subTest(form=field, model=model):
                         spec = {"id": "bound", "prompt": "p", field: [definition]}
-                        ctx = probe_checking.Context(spec, None, probe_tracing.TraceSummary(result_text="some response"), None, judge_binding=binding)
+                        ctx = _context(spec, probe_tracing.TraceSummary(result_text="some response"), judge_binding=binding)
                         judge.drain_spend()
                         with mock.patch.object(judge, "_run_judge_process", return_value=_proc(stdout=_envelope(_verdict("PASS", reason="r" * 900), model=model))) as spawn:
                             grade = probe_assessment.grade(ctx)
@@ -4208,7 +4222,7 @@ class NormalJudgeBindingTests(unittest.TestCase):
                         corpus.write_text("cases: [", encoding="utf-8")  # noqa: B023 -- called within this iteration
                     return _proc(stdout=_envelope(_verdict("PASS"), cost=0.031))
                 spec = {"id": "bound", "prompt": "p", "graders": [{"type": "rubric", "name": "no_production_action_claim"}]}
-                ctx = probe_checking.Context(spec, None, probe_tracing.TraceSummary(result_text="some response"), None, judge_binding=binding)
+                ctx = _context(spec, probe_tracing.TraceSummary(result_text="some response"), judge_binding=binding)
                 judge.drain_spend()
                 with mock.patch.object(judge, "DEFAULT_CALIBRATION_PATH", corpus), \
                         mock.patch.object(judge, "_run_judge_process", side_effect=complete_call):
@@ -4230,7 +4244,7 @@ class NormalJudgeBindingTests(unittest.TestCase):
             root = Path(tmp)
             receipt = calibration_receipt(root)
             binding = judge.load_binding(receipt, {"no_production_action_claim"})
-            ctx = probe_checking.Context(spec, None, probe_tracing.TraceSummary(result_text="some response"), None, judge_binding=binding)
+            ctx = _context(spec, probe_tracing.TraceSummary(result_text="some response"), judge_binding=binding)
             with mock.patch.object(judge, "_run_judge_process", return_value=_proc(stdout=_envelope(_verdict("PASS")))):
                 live = probe_assessment.grade(ctx)
             judge.drain_spend()
@@ -4516,7 +4530,7 @@ class ResultRuleTests(unittest.TestCase):
     def test_a_run_level_measurement_failure_voids_every_check(self) -> None:
         """Rule 1: identity and run-level failures mark every check INCONCLUSIVE, FAILs included."""
         spec = {**TINY_SPEC, "checks": [{"check": "text_contains_any", "of": ["absent"], "text": "says absent"}]}
-        ctx = probe_checking.Context(spec, None, probe_tracing.TraceSummary(result_text="text"), None)
+        ctx = _context(spec, probe_tracing.TraceSummary(result_text="text"))
         grading = probe_assessment.grade(ctx, inconclusive="plugin source changed during the trial")
         self.assertEqual("INCONCLUSIVE", grading["status"])
         self.assertEqual({"INCONCLUSIVE"}, {e["state"] for e in grading["expectations"]})
@@ -4575,6 +4589,14 @@ VARIABLE_POLARITY = (
 class CheckPolarityTests(unittest.TestCase):
     """Result rules 2 and 3: every check forbids or requires, and forbidding checks hold every trial."""
 
+    def test_each_planned_expectation_carries_the_polarity_validation_declares(self) -> None:
+        """Validation reads `assertion_polarities` and grading each expectation's own polarity; both come
+        from the same per-family rules, so they agree for every scenario the runner owns."""
+        for spec in probe_catalog.load_all_scenarios():
+            with self.subTest(scenario=spec["id"]):
+                planned = [item.polarity for item in probe_assessment.plan(spec, probe_tracing.TraceSummary(), None, ROOT)]
+                self.assertEqual(probe_catalog.assertion_polarities(spec), planned)
+
     def test_each_check_keeps_its_reviewed_polarity(self) -> None:
         self.assertEqual(set(probe_checking.CHECKS), set(INTENDED_POLARITY) | {p["check"] for p, _ in VARIABLE_POLARITY})
         self.assertEqual(INTENDED_POLARITY,
@@ -4611,7 +4633,7 @@ class CheckPolarityTests(unittest.TestCase):
     def test_each_graded_check_records_its_kind(self) -> None:
         spec = {**TINY_SPEC, "checks": [{"check": "text_not_contains", "needle": "x", "text": "never says x"},
                                          {"check": "text_contains_any", "of": ["ok"], "text": "says ok"}]}
-        ctx = probe_checking.Context(spec, None, probe_tracing.TraceSummary(result_text="ok"), None)
+        ctx = _context(spec, probe_tracing.TraceSummary(result_text="ok"))
         grading = probe_assessment.grade(ctx)
         self.assertEqual(["forbids", "requires"], [e["kind"] for e in grading["expectations"]])
 
@@ -4638,9 +4660,9 @@ class CutShortRunTests(unittest.TestCase):
         return spec
 
     def _run(self, spec: dict, **stub) -> tuple[dict, dict, Path]:
-        summary = probe_trials.run_trial(spec, plugin_root=ROOT, label="cut", model=None, run_number=1,
-                                        out_dir=self.root / "iteration", timeout=60, executable=self._stub(**stub),
-                                        keep_workspace=False, env_factory=self._env_factory())
+        summary = probe_trials.run_trial(spec, run_number=1, settings=probe_trials.BatchSettings(
+            plugin_root=ROOT, label="cut", model=None, out_dir=self.root / "iteration", timeout=60,
+            executable=self._stub(**stub), keep_workspace=False, env_factory=self._env_factory()))
         run = self.root / "iteration" / "eval-tiny" / "cut" / "run-1"
         return summary, json.loads((run / "grading.json").read_text(encoding="utf-8")), run
 
@@ -4899,7 +4921,7 @@ class SpendCapAttemptTests(unittest.TestCase):
         """Each step is a graded trial's cost (None: unknown) or (exception, partial trace or None)."""
         calls: list[int] = []
 
-        def fake_run_trial(spec, *, run_out, run_number, label, **_):
+        def fake_run_trial(spec, run_number, run_out, settings):
             step = steps[len(calls)]
             calls.append(run_number)
             if isinstance(step, tuple):
@@ -4909,7 +4931,7 @@ class SpendCapAttemptTests(unittest.TestCase):
                 raise exc
             cost = {"known_cost_usd": step or 0.0, "cost_complete": step is not None}
             (run_out / "timing.json").write_text(json.dumps(cost), encoding="utf-8")
-            return {"scenario": spec["id"], "label": label, "run": run_number, "status": "PASS", "passed": 1,
+            return {"scenario": spec["id"], "label": settings.label, "run": run_number, "status": "PASS", "passed": 1,
                     "total": 1, "models": ["m"], "runtime": self.RUNTIME, "plugin_source_sha256": "0" * 64,
                     "scenario_sha256": probe_fingerprints.scenario_digest(spec), **cost}
 
@@ -4998,9 +5020,9 @@ class ResultRecordV1Tests(unittest.TestCase):
 
     def _run(self, *, overwrite: bool = False) -> Path:
         spec = EndToEndStubTests._spec(self)
-        probe_trials.run_trial(spec, plugin_root=ROOT, label="v1", model=None, run_number=1,
-                              out_dir=self.root / "it", timeout=60, executable=self._stub(),
-                              keep_workspace=False, env_factory=self._env_factory(), overwrite=overwrite)
+        probe_trials.run_trial(spec, run_number=1, settings=probe_trials.BatchSettings(
+            plugin_root=ROOT, label="v1", model=None, out_dir=self.root / "it", timeout=60, executable=self._stub(),
+            keep_workspace=False, env_factory=self._env_factory(), overwrite=overwrite))
         return self.root / "it" / "eval-tiny" / "v1" / "run-1"
 
     def test_each_attempt_writes_a_v1_record_of_facts_its_files_hold(self) -> None:
@@ -5066,7 +5088,7 @@ class GradingMachineryTests(unittest.TestCase):
     def test_a_grader_crash_is_inconclusive_and_named(self) -> None:
         spec = {**TINY_SPEC, "checks": [{"check": "text_contains_any", "of": ["ok"], "text": "says ok"},
                                          {"check": "fleet_grader", "name": "no-such-grader", "text": "broken"}]}
-        ctx = probe_checking.Context(spec, None, probe_tracing.TraceSummary(result_text="ok"), None)
+        ctx = _context(spec, probe_tracing.TraceSummary(result_text="ok"))
         grading = probe_assessment.grade(ctx)
         self.assertEqual(["PASS", "INCONCLUSIVE"], [e["state"] for e in grading["expectations"]])
         self.assertEqual("INCONCLUSIVE", grading["status"])
@@ -5075,7 +5097,7 @@ class GradingMachineryTests(unittest.TestCase):
     def test_a_grader_crash_beside_a_supported_failure_still_fails(self) -> None:
         spec = {**TINY_SPEC, "checks": [{"check": "text_contains_any", "of": ["absent"], "text": "says absent"},
                                          {"check": "fleet_grader", "name": "no-such-grader", "text": "broken"}]}
-        ctx = probe_checking.Context(spec, None, probe_tracing.TraceSummary(result_text="ok"), None)
+        ctx = _context(spec, probe_tracing.TraceSummary(result_text="ok"))
         self.assertEqual("FAIL", probe_assessment.grade(ctx)["status"])
 
     def test_validation_rejects_an_unknown_fleet_grader(self) -> None:
@@ -5103,7 +5125,7 @@ class GradingMachineryTests(unittest.TestCase):
 
     def test_an_instrument_failure_stops_its_scenario(self) -> None:
         spec = {**TINY_SPEC, "checks": [{"check": "skill_not_loaded", "skill": "eng-ladder", "text": "no ladder"}]}
-        ctx = probe_checking.Context(spec, None, probe_tracing.TraceSummary(skills=["<unnamed-skill>"]), None)
+        ctx = _context(spec, probe_tracing.TraceSummary(skills=["<unnamed-skill>"]))
         grading = probe_assessment.grade(ctx)
         self.assertEqual("INCONCLUSIVE", grading["expectations"][0]["state"])
         self.assertIn("Skill call carried no name", grading["grader_error"])
@@ -5112,11 +5134,231 @@ class GradingMachineryTests(unittest.TestCase):
         evidence = rubric_judge.INCONCLUSIVE_PREFIX + "judge timed out after 120s"
         self.assertTrue(probe_outcomes.Outcome.read(False, evidence).machinery)
         spec = {**TINY_SPEC, "checks": [{"check": "fleet_grader", "name": "regex", "pattern": "x", "text": "judged"}]}
-        ctx = probe_checking.Context(spec, None, probe_tracing.TraceSummary(result_text="response"), None)
+        ctx = _context(spec, probe_tracing.TraceSummary(result_text="response"))
         with mock.patch.object(fleet_graders, "run_grader", return_value=(False, evidence)):
             grading = probe_assessment.grade(ctx)
         self.assertEqual(("INCONCLUSIVE", "INCONCLUSIVE"), (grading["status"], grading["expectations"][0]["state"]))
         self.assertIn("judge timed out", grading["grader_error"])
+
+
+class AuditProxyTests(unittest.TestCase):
+    """The loopback proxy a service-backed trial's agent talks through: it forwards every request to
+    its one service and keeps what the checks grade, with no service container needed."""
+
+    def setUp(self) -> None:
+        self.seen_auth: list[str | None] = []
+        self.release = threading.Event()
+        test = self
+
+        class Upstream(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *_args: object) -> None:
+                return
+
+            def _reply(self, status: int, payload: object) -> None:
+                raw = json.dumps(payload).encode()
+                self.send_response(status)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(raw)))
+                self.end_headers()
+                if self.command != "HEAD":
+                    self.wfile.write(raw)
+
+            def do_GET(self) -> None:
+                if self.path == "/slow":
+                    test.release.wait(10)
+                self._reply(200 if self.path in ("/ok", "/slow") else 404, {"ok": True} if self.path != "/missing" else {"message": "nope"})
+
+            do_HEAD = do_GET
+
+            def do_POST(self) -> None:
+                test.seen_auth.append(self.headers.get("Authorization"))
+                body = self.rfile.read(int(self.headers.get("Content-Length", "0")))
+                self._reply(201, {"echo": json.loads(body)})
+
+        self.upstream = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Upstream)
+        threading.Thread(target=self.upstream.serve_forever, daemon=True).start()
+        self.addCleanup(self.upstream.server_close)
+        self.addCleanup(self.upstream.shutdown)
+        self.addCleanup(self.release.set)
+        self.service = probe_backing.Service("grafana", "image", "container",
+                                             f"http://127.0.0.1:{self.upstream.server_address[1]}")
+        probe_backing._start_service_proxy(self.service)
+        self.addCleanup(self.service.proxy.server_close)
+        self.addCleanup(self.service.proxy.shutdown)
+
+    def _call(self, path: str, method: str = "GET", body: object = None, headers: dict[str, str] | None = None):
+        data = json.dumps(body).encode() if body is not None else None
+        request = urllib.request.Request(self.service.agent_url + path, data=data, method=method,
+                                         headers={"Content-Type": "application/json", **(headers or {})})
+        try:
+            with urllib.request.urlopen(request, timeout=10) as response:
+                return response.status, response.read()
+        except urllib.error.HTTPError as exc:
+            return exc.code, exc.read()
+
+    def test_forwards_each_request_and_keeps_it_without_its_credentials(self) -> None:
+        self.assertEqual((200, b'{"ok": true}'), self._call("/ok"))
+        status, raw = self._call("/api/dashboards/db", "POST", {"title": "p95"}, {"Authorization": "Basic c2VjcmV0"})
+        self.assertEqual((201, {"echo": {"title": "p95"}}), (status, json.loads(raw)))
+        self.assertEqual(["Basic c2VjcmV0"], self.seen_auth, "the service still receives the credential")
+        self.assertEqual(
+            [{"method": "GET", "path": "/ok", "status": 200, "request": None, "response": {"ok": True}},
+             {"method": "POST", "path": "/api/dashboards/db", "status": 201, "request": {"title": "p95"},
+              "response": {"echo": {"title": "p95"}}}],
+            self.service.requests)
+        self.assertNotIn("c2VjcmV0", json.dumps(self.service.requests))
+
+    def test_an_error_status_is_forwarded_and_kept(self) -> None:
+        self.assertEqual((404, b'{"message": "nope"}'), self._call("/missing"))
+        self.assertEqual(404, self.service.requests[-1]["status"])
+
+    def test_an_unreachable_service_answers_502_with_the_reason(self) -> None:
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            closed = probe.getsockname()[1]
+        self.service.base_url = f"http://127.0.0.1:{closed}"
+        status, raw = self._call("/ok")
+        self.assertEqual(502, status)
+        self.assertIn("backing service unreachable", json.loads(raw)["message"])
+        self.assertEqual(502, self.service.requests[-1]["status"])
+
+    def test_head_returns_the_headers_without_a_body(self) -> None:
+        self.assertEqual((200, b""), self._call("/ok", "HEAD"))
+
+    def test_a_request_is_kept_when_it_arrives_before_the_service_answers(self) -> None:
+        """So a fast request issued later cannot appear to have preceded a slow write."""
+        answered: list[object] = []
+        caller = threading.Thread(target=lambda: answered.append(self._call("/slow")))
+        caller.start()
+        deadline = time.monotonic() + 10
+        while not self.service.requests and time.monotonic() < deadline:
+            time.sleep(0.01)
+        self.assertEqual([{"method": "GET", "path": "/slow", "status": None, "request": None, "response": None}],
+                         self.service.requests, "kept on arrival, before the service answered")
+        self.release.set()
+        caller.join(10)
+        self.assertEqual([(200, b'{"ok": true}')], answered)
+        self.assertEqual(200, self.service.requests[0]["status"])
+
+
+class ServiceCheckVerdictTests(unittest.TestCase):
+    """What `service_get` and `service_array_item` decide from a live service's answer. A regrade keeps
+    their live verdicts, so these rules otherwise run only in a live trial."""
+
+    PAGES = {
+        "/health": (200, {"status": "ok", "version": "10.4.1", "db": {"ok": True}}),
+        "/missing": (404, {"message": "not found"}),
+        "/stale": (410, {"items": [{"name": "p95", "state": "firing", "labels": "team=sre"}]}),
+        "/text": (200, "Service is HEALTHY"),
+        "/alerts": (200, {"items": [{"name": "p95", "state": "firing", "labels": "team=sre"},
+                                    {"name": "errors", "state": "ok", "labels": ""}]}),
+    }
+
+    def setUp(self) -> None:
+        pages = self.PAGES
+
+        class Service(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *_args: object) -> None:
+                return
+
+            def do_GET(self) -> None:
+                status, payload = pages[self.path]
+                raw = (payload if isinstance(payload, str) else json.dumps(payload)).encode()
+                self.send_response(status)
+                self.send_header("Content-Length", str(len(raw)))
+                self.end_headers()
+                self.wfile.write(raw)
+
+        server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Service)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        url = f"http://127.0.0.1:{server.server_address[1]}"
+        self.ctx = _context(TINY_SPEC, services=[probe_backing.Service("grafana", "image", "container", url)])
+
+    def _state(self, name: str, **params: object) -> str:
+        return probe_checking.CHECKS[name](self.ctx, {"check": name, **params}).state
+
+    def test_a_declared_status_must_match_and_an_undeclared_error_fails(self) -> None:
+        self.assertEqual("PASS", self._state("service_get", path="/missing", status=404))
+        self.assertEqual("FAIL", self._state("service_get", path="/health", status=404))
+        self.assertEqual("FAIL", self._state("service_get", path="/missing"))
+
+    def test_contains_and_not_contains_read_the_body_without_case(self) -> None:
+        self.assertEqual("PASS", self._state("service_get", path="/text", contains=["healthy"]))
+        self.assertEqual("FAIL", self._state("service_get", path="/text", contains=["healthy", "degraded"]))
+        self.assertEqual("FAIL", self._state("service_get", path="/text", not_contains=["Healthy"]))
+        self.assertEqual("PASS", self._state("service_get", path="/health", not_contains=["degraded"]))
+
+    def test_a_pointer_must_equal_its_value_or_else_exist(self) -> None:
+        self.assertEqual("PASS", self._state("service_get", path="/health", pointer="db/ok", equals=True))
+        self.assertEqual("FAIL", self._state("service_get", path="/health", pointer="version", equals="10.4.2"))
+        self.assertEqual("PASS", self._state("service_get", path="/health", pointer="version"))
+        self.assertEqual("FAIL", self._state("service_get", path="/health", pointer="db/size"))
+
+    def test_an_array_item_check_fails_on_an_error_a_non_array_or_a_wrong_length(self) -> None:
+        self.assertEqual("FAIL", self._state("service_array_item", path="/stale", pointer="items"))
+        self.assertEqual("FAIL", self._state("service_array_item", path="/health", pointer="status"))
+        self.assertEqual("FAIL", self._state("service_array_item", path="/alerts", pointer="items", length=3))
+        self.assertEqual("PASS", self._state("service_array_item", path="/alerts", pointer="items", length=2))
+
+    def test_one_array_item_must_satisfy_every_assertion(self) -> None:
+        firing = [{"pointer": "name", "equals": "p95"}, {"pointer": "state", "regex": "^fir"},
+                  {"pointer": "labels", "nonempty": True}]
+        self.assertEqual("PASS", self._state("service_array_item", path="/alerts", pointer="items", matches=firing))
+        split = [{"pointer": "name", "equals": "p95"}, {"pointer": "state", "equals": "ok"}]
+        self.assertEqual("FAIL", self._state("service_array_item", path="/alerts", pointer="items", matches=split))
+        empty = [{"pointer": "name", "equals": "errors"}, {"pointer": "labels", "nonempty": True}]
+        self.assertEqual("FAIL", self._state("service_array_item", path="/alerts", pointer="items", matches=empty))
+
+    def test_a_check_must_name_its_service_among_several(self) -> None:
+        self.ctx.services.append(probe_backing.Service("prometheus", "image", "container", "http://127.0.0.1:9"))
+        with self.assertRaisesRegex(KeyError, "check must name a service"):
+            self._state("service_get", path="/health")
+        with self.assertRaisesRegex(KeyError, "no service named 'loki'"):
+            self._state("service_get", path="/health", service="loki")
+        self.assertEqual("PASS", self._state("service_get", path="/health", service="grafana"))
+
+
+class TurnReasonTests(unittest.TestCase):
+    """How one invocation ends its trial: the order of the checks is the precedence, first reason wins."""
+
+    def _reason(self, *, drift=None, profile=None, problem=None, timed_out=None, marker=False):
+        spec = {**TINY_SPEC, **({"followups": ["and then?"], "helper": "sre-assistant"} if marker else {})}
+        with (
+            mock.patch.object(probe_fingerprints, "plugin_drift_problem", return_value=drift),
+            mock.patch.object(probe_invocation, "identity_problem", return_value=None),
+            mock.patch.object(probe_invocation, "native_model_problem", return_value=None),
+            mock.patch.object(probe_invocation, "credential_markers", return_value=["token"] if marker else []),
+            mock.patch.object(probe_invocation, "profile_problem", return_value=profile),
+            mock.patch.object(probe_invocation, "native_identity_problem", return_value=None),
+            mock.patch.object(probe_invocation, "invocation_problem", return_value=problem),
+        ):
+            return probe_invocation.turn_reason(probe_tracing.TraceSummary(), 0, timed_out, spec, ROOT, "0" * 64,
+                                                ROOT, None, ROOT / "stdout.jsonl")
+
+    def test_drift_wins_and_is_an_identity_failure(self) -> None:
+        cut = probe_outcomes.CutShort("timed out after 60s", probe_outcomes.Stop.WALL_CLOCK)
+        self.assertEqual(("drift", "drift"), self._reason(drift="drift", timed_out=cut, problem="void"))
+
+    def test_a_timeout_on_the_declared_profile_stays_cut_short(self) -> None:
+        cut = probe_outcomes.CutShort("timed out after 60s", probe_outcomes.Stop.WALL_CLOCK)
+        reason, failed = self._reason(timed_out=cut, problem="a later void")
+        self.assertIs(cut, reason, "a later problem does not void a run the timeout cut short")
+        self.assertIsNone(failed)
+
+    def test_a_timeout_off_the_declared_profile_is_void(self) -> None:
+        cut = probe_outcomes.CutShort("timed out after 60s", probe_outcomes.Stop.WALL_CLOCK)
+        self.assertEqual("wrong tools", self._reason(timed_out=cut, profile="wrong tools")[0])
+
+    def test_a_finished_run_takes_the_invocation_problem(self) -> None:
+        self.assertEqual(("no result event", None), self._reason(problem="no result event"))
+        self.assertEqual((None, None), self._reason())
+
+    def test_a_native_credential_marker_comes_before_the_timeout(self) -> None:
+        cut = probe_outcomes.CutShort("timed out after 60s", probe_outcomes.Stop.WALL_CLOCK)
+        self.assertEqual("native credential marker detected; no follow-up allowed",
+                         self._reason(timed_out=cut, marker=True)[0])
 
 
 class TurnLimitTests(unittest.TestCase):
@@ -5139,10 +5381,10 @@ class TurnLimitTests(unittest.TestCase):
         return {**spec, **extra}
 
     def _run(self, spec: dict) -> tuple[dict, dict]:
-        summary = probe_trials.run_trial(spec, plugin_root=ROOT, label="turns", model=None, run_number=1,
-                                        out_dir=self.root / "it", timeout=60,
-                                        executable=self._stub(is_error=True, subtype="error_max_turns", result="stopped"),
-                                        keep_workspace=False, env_factory=self._env_factory())
+        summary = probe_trials.run_trial(spec, run_number=1, settings=probe_trials.BatchSettings(
+            plugin_root=ROOT, label="turns", model=None, out_dir=self.root / "it", timeout=60,
+            executable=self._stub(is_error=True, subtype="error_max_turns", result="stopped"), keep_workspace=False,
+            env_factory=self._env_factory()))
         run = self.root / "it" / "eval-tiny" / "turns" / "run-1"
         return summary, json.loads((run / "grading.json").read_text(encoding="utf-8"))
 
@@ -5218,7 +5460,7 @@ class PackageStructureTests(unittest.TestCase):
         spec = {**TINY_SPEC, "checks": [{"check": "text_contains_any", "of": ["ok"], "text": "says ok"},
                                          {"check": "file_exists", "path": "README.md", "text": "readme"}]}
         trace = probe_tracing.TraceSummary(result_text="ok")
-        ctx = probe_checking.Context(spec, None, trace, None)
+        ctx = _context(spec, trace)
         items = probe_assessment.plan(spec, trace, ctx, ROOT, keep=True)
         self.assertEqual([None, "workspace-dependent"], [item.kept_as for item in items])
         saved = probe_outcomes.verdict(True, "README.md present [kept: workspace-dependent]")
@@ -5275,7 +5517,7 @@ class PackageStructureTests(unittest.TestCase):
             with self.subTest(name=name), self.assertRaises(AttributeError), mock.patch.object(build_probe, name, None):
                 pass
         patched = dataclasses.replace(probe_checking.CHECKS["text_regex"], run=lambda ctx, p: probe_outcomes.verdict(True, "patched"))
-        ctx = probe_checking.Context({}, None, probe_tracing.TraceSummary(result_text="no match here"), None)
+        ctx = _context({}, probe_tracing.TraceSummary(result_text="no match here"))
         with mock.patch.dict(probe_checking.CHECKS, {"text_regex": patched}):
             self.assertEqual("patched", probe_checking.run(ctx, {"check": "text_regex", "pattern": "absent"}).evidence)
 
@@ -5479,7 +5721,7 @@ class GradingLoopTests(unittest.TestCase):
             "forbidding check": [self._item(lambda: probe_outcomes.verdict(True, "no violation"), "forbids")],
             "negative routing": [self._item(lambda: probe_outcomes.verdict(True, "alternative never fired"), "both",
                                             on_cut=probe_assessment.routing_on_cut)],
-            "tool-call floor": probe_assessment.plan(spec, trace, probe_checking.Context(spec, None, trace, None), ROOT),
+            "tool-call floor": probe_assessment.plan(spec, trace, _context(spec, trace), ROOT),
         }
         for name, items in cases.items():
             with self.subTest(case=name):
@@ -5517,7 +5759,7 @@ class GradingLoopTests(unittest.TestCase):
         self.assertEqual([True, False], [g.outcome.forbidden for g in graded])
         trace = probe_tracing.TraceSummary()
         trace.tool_counts = {"WebFetch": 3}
-        ctx = probe_checking.Context({}, None, trace, None)
+        ctx = _context({}, trace)
         over = probe_checking.check_tool_call_count(ctx, {"tool": "WebFetch", "minimum": 1, "maximum": 2})
         under = probe_checking.check_tool_call_count(ctx, {"tool": "WebFetch", "minimum": 4, "maximum": 9})
         self.assertEqual([("FAIL", True), ("FAIL", False)], [(o.state, o.forbidden) for o in (over, under)])

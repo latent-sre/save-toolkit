@@ -124,14 +124,16 @@ RAW: Final = frozenset({Need.RAW_TRACE})  # completed calls, reads, returns and 
 
 def _trace_expectations(
     spec: Spec, trace: TraceSummary, plugin_root: Path, judge_binding: Any = None, *, workspace: Path | None = None
-) -> list[tuple[str, Callable[[], Outcome], frozenset[Need]]]:
-    """Every expectation graded from the trace and final text, as (text, measure, needs), in grading order.
+) -> list[tuple[str, Callable[[], Outcome], frozenset[Need], Polarity]]:
+    """Every expectation graded from the trace and final text, as (text, measure, needs, polarity), in
+    grading order.
 
     The scenario's `checks` follow these. One list keeps the live grade, the regrade, and the recorded
     assertion text from drifting apart -- a regrade matches saved verdicts by position and text.
     `needs` is the evidence it reads, as a check declares it: a rubric grader's spends a judge call.
+    Each carries its own polarity, from the per-family rule `catalog.assertion_polarities` also uses.
     """
-    graded: list[tuple[str, Callable[[], Outcome], frozenset[Need]]] = []
+    graded: list[tuple[str, Callable[[], Outcome], frozenset[Need], Polarity]] = []
     if spec.get("routing"):
         target = spec["target"]
         graded.append(
@@ -139,11 +141,17 @@ def _trace_expectations(
                 f"routing {spec['routing']['expect']} {target['kind']}:{target['name']}",
                 lambda: grade_routing(spec, trace, plugin_root),
                 RAW,
+                catalog.routing_polarity(spec),
             )
         )
     if spec.get("skill"):
         graded.append(
-            (f"pinned skill {spec['skill']} completed", lambda: grade_skill_fired(spec, trace, plugin_root), RAW)
+            (
+                f"pinned skill {spec['skill']} completed",
+                lambda: grade_skill_fired(spec, trace, plugin_root),
+                RAW,
+                Polarity.REQUIRES,
+            )
         )
     reference_trace = (
         replace(trace, read_attempts=trace.parent_reads_before_dispatch) if spec.get("followups") else trace
@@ -155,6 +163,7 @@ def _trace_expectations(
                 f"reference {reference} read{scope}",
                 functools.partial(reference_read, reference_trace, reference, plugin_root, workspace),
                 RAW,
+                Polarity.REQUIRES,
             )
         )
     for grader in spec.get("graders") or []:
@@ -163,6 +172,7 @@ def _trace_expectations(
                 f"grader {grader.get('type')}",
                 functools.partial(_run_grader, grader, trace.result_text, judge_binding),
                 frozenset({Need.TEXT, Need.JUDGE}) if grader.get("type") == "rubric" else frozenset({Need.TEXT}),
+                catalog.grader_polarity(grader),
             )
         )
     if spec.get("followups"):
@@ -181,11 +191,12 @@ def _trace_expectations(
 
         graded.extend(
             [
-                ("native helper completed exactly once", helper_completed_once, RAW),
+                ("native helper completed exactly once", helper_completed_once, RAW, Polarity.REQUIRES),
                 (
                     "parent continued after helper completion",
                     lambda: verdict(len(returns) == 1 and bool(returns[0]["continued"]), f"returns={returns}"),
                     RAW,
+                    Polarity.REQUIRES,
                 ),
                 (
                     "human follow-up resumed the same session",
@@ -194,6 +205,7 @@ def _trace_expectations(
                         f"invocations={len(sessions)}; same session={same_session}",
                     ),
                     RAW,
+                    Polarity.REQUIRES,
                 ),
             ]
         )
@@ -206,7 +218,7 @@ def _run_grader(grader: Mapping[str, Any], text: str, judge_binding: Any) -> Out
 
 def scenario_assertions(spec: Spec) -> list[str]:
     """One line per graded expectation, in the order a grade evaluates them."""
-    return [text for text, _, _ in _trace_expectations(spec, TraceSummary(), ROOT)] + [
+    return [text for text, *_ in _trace_expectations(spec, TraceSummary(), ROOT)] + [
         checking.describe(c) for c in spec.get("checks") or []
     ]
 
@@ -250,11 +262,11 @@ def plan(
     """Every expectation in grading order. With `keep`, a regrade's: an expectation the saved run cannot
     re-measure (a paid judgment, or evidence that left with the workspace) carries why it is kept.
     Without `raw_trace`, one that reads what only the raw trace held is INCONCLUSIVE on its own."""
-    polarities = catalog.assertion_polarities(spec)
     lost = frozenset() if raw_trace else checking.RAW_ONLY
     items: list[Expectation] = []
-    for text, measure, needs in _trace_expectations(spec, trace, plugin_root, judge_binding, workspace=workspace):
-        polarity = polarities[len(items)]
+    for text, measure, needs, polarity in _trace_expectations(
+        spec, trace, plugin_root, judge_binding, workspace=workspace
+    ):
         items.append(
             Expectation(
                 text,
@@ -266,7 +278,7 @@ def plan(
         )
     for check in spec.get("checks") or []:
         declared = checking.registered(check)
-        polarity = polarities[len(items)]
+        polarity = checking.check_polarity(check)
         on_cut = None
         if polarity is Polarity.BOTH:
             rule = declared.on_cut if declared is not None else None
@@ -477,7 +489,7 @@ def grade(
         ctx,
         ctx.plugin_root,
         ctx.judge_binding,
-        workspace=ctx.ws.repo if ctx.ws is not None else None,
+        workspace=ctx.ws.repo,
     )
     graded, reason = assess(items, inconclusive)
     if fingerprints.scenario_digest(ctx.spec, binding) != identity:

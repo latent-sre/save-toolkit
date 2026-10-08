@@ -1,4 +1,4 @@
-"""Property tests for the eval runner's result rules, trace parser and scenario contract.
+"""Property tests for the eval runner's result rules, trace parser, grading helpers and scenario contract.
 
 Each property is a rule the runner promises for every input, not one example, and Hypothesis searches
 for a counterexample: a supported failure is never hidden (threat-model ADR result rule 3), a
@@ -42,7 +42,7 @@ from probe import outcomes as probe_outcomes
 from probe import records as probe_records
 from probe import rescoring as probe_rescoring
 from probe import tracing as probe_tracing
-from test_build_probe import INTENDED_POLARITY  # the reviewed table, not the declarations
+from test_build_probe import INTENDED_POLARITY, _context  # the reviewed table, not the declarations
 
 RULES = settings(derandomize=True, database=None, deadline=None, max_examples=150)
 GRADES = settings(derandomize=True, database=None, deadline=None, max_examples=60)
@@ -270,7 +270,7 @@ class RunEndProperties(unittest.TestCase):
 
     @staticmethod
     def _grade(text: str, needle: str, word: str, inconclusive: str | None = None) -> dict:
-        ctx = probe_checking.Context(_text_spec(needle, word), None, probe_tracing.TraceSummary(result_text=text), None)
+        ctx = _context(_text_spec(needle, word), probe_tracing.TraceSummary(result_text=text))
         return probe_assessment.grade(ctx, inconclusive=inconclusive)
 
     @GRADES
@@ -414,6 +414,54 @@ class TraceParserProperties(unittest.TestCase):
         self.assertEqual(any(event["type"] == "result" for event in events), trace.has_result)
 
 
+PROMQL_LEXEMES = ("sum", "rate", "http_requests_total", "job:errors:ratio", "by", "(", ")", "{", "}", "[", "]", ":",
+                  ",", "=", "=~", "!=", "+", "/", ">=", "5m", "1h30m", "0.95", "1e3", "$__rate_interval", '"a b"',
+                  '"a  b"', "'x'", "`raw`")
+SEPARATORS = st.sampled_from((" ", "\n", "\t ", "\r\n", ' # a "quoted" note\n'))
+WINDOWS = {"30s": 30, "1m": 60, "2m": 120, "5m": 300, "1h": 3600}
+json_values = st.recursive(
+    st.none() | st.booleans() | st.integers() | st.text(max_size=4),
+    lambda children: st.lists(children, max_size=3)
+    | st.dictionaries(st.text("abc", min_size=1, max_size=2), children, max_size=3),
+    max_leaves=12,
+)
+
+
+class GradingHelperProperties(unittest.TestCase):
+    """The query and JSON readers the Grafana and service checks grade with keep the rules their
+    docstrings state, for every input rather than the few a check's examples reach."""
+
+    @RULES
+    @given(st.lists(st.sampled_from(PROMQL_LEXEMES), max_size=12), st.data())
+    def test_promql_spacing_and_comments_are_cosmetic_but_quoted_bytes_are_not(self, lexemes: list[str],
+                                                                              data: st.DataObject) -> None:
+        spaced = data.draw(SEPARATORS) + "".join(lexeme + data.draw(SEPARATORS) for lexeme in lexemes)
+        self.assertEqual(lexemes, probe_checking._promql_tokens(spaced))
+
+    @RULES
+    @given(st.lists(st.sampled_from(sorted(WINDOWS)), min_size=1, max_size=4),
+           st.sampled_from((0, 30, 60, 120, 300, 3600, 7200)), st.booleans())
+    def test_a_rate_interval_matches_one_window_no_shorter_than_the_minimum(self, windows: list[str], minimum: int,
+                                                                           renamed: bool) -> None:
+        persisted = " + ".join(f"rate(m{i}[$__rate_interval])" for i in range(len(windows)))
+        verified = " + ".join(f"rate({'n' if renamed and i == 0 else 'm'}{i}[{w}])" for i, w in enumerate(windows))
+        expected = not renamed and len(set(windows)) == 1 and WINDOWS[windows[0]] >= minimum
+        self.assertEqual(expected, probe_checking._same_query(persisted, verified, minimum))
+        self.assertTrue(probe_checking._same_query(persisted, persisted, minimum))
+
+    @RULES
+    @given(json_values, st.data())
+    def test_a_json_pointer_reads_what_indexing_reads_and_a_missing_path_reads_none(self, payload: object,
+                                                                                   data: st.DataObject) -> None:
+        node, parts = payload, []
+        while isinstance(node, (list, dict)) and node and data.draw(st.booleans()):
+            key = data.draw(st.sampled_from(sorted(node)) if isinstance(node, dict)
+                            else st.integers(-len(node), len(node) - 1))
+            node, parts = node[key], [*parts, str(key)]
+        self.assertIs(node, probe_backing.json_pointer(payload, "/".join(parts)))
+        self.assertIsNone(probe_backing.json_pointer(payload, "/".join([*parts, "zz"])))
+
+
 BUILD = {"id": "case", "agent": "software-engineer", "prompt": "do the thing",
          "fixture": {"files": {"README.md": "# tiny\n"}}, "checks": [{"check": "no_new_commits"}]}
 CONTRACT = {"id": "case", "agent": "sre-assistant", "prompt": "p", "graders": [{"type": "contains_any", "of": ["x"]}]}
@@ -518,6 +566,8 @@ VALIDATOR_CASES: list[tuple[str, dict, list[str]]] = [
      ["case: checks[0] scope is only `subagent`, on bash_ran, bash_did_not_run, or ran_outside_checkout"]),
     ("unknown test runner", _changed(BUILD, checks=_checks({"check": "verification_completed", "runner": "nose"})),
      ["case: checks[0] verification_completed needs runner unittest, pytest, or vitest"]),
+    ("test runner as a list", _changed(BUILD, checks=_checks({"check": "verification_completed", "runner": ["pytest"]})),
+     ["case: checks[0] verification_completed needs runner unittest, pytest, or vitest"]),
     ("measurement exit on another check", _changed(BUILD, checks=_checks({"check": "no_new_commits",
                                                                           "inconclusive_exit_code": 3})),
      ["case: checks[0] inconclusive_exit_code needs command_exit_zero and an integer from 1 to 255"]),
@@ -533,6 +583,19 @@ VALIDATOR_CASES: list[tuple[str, dict, list[str]]] = [
     ("writes_from outside the oracles", _changed(BUILD, checks=_checks({"check": "command_exit_zero", "command": "x",
                                                                         "writes_from": {"p.py": "evals/build_probe.py"}})),
      ["case: checks[0] writes_from 'evals/build_probe.py' is not a file under evals/oracles/"]),
+    ("check without its parameter", _changed(BUILD, checks=_checks({"check": "file_exists"})),
+     ["case: checks[0] file_exists needs path"]),
+    ("misspelled check parameter", _changed(BUILD, checks=_checks({"check": "text_regex", "pattern": "x",
+                                                                   "pattren": "y"})),
+     ["case: checks[0] text_regex has unknown key(s): pattren"]),
+    ("cf log check without verbs", _changed(BUILD, checks=_checks({"check": "cf_log_has_no"})),
+     ["case: checks[0] cf_log_has_no needs verb or verbs"]),
+    ("non-string check key", _changed(BUILD, checks=_checks({"check": "file_exists", "path": "a", 1: "b"})),
+     ["case: checks[0] file_exists has unknown key(s): 1"]),
+    ("fleet grader without its grader's argument", _changed(BUILD, checks=_checks({"check": "fleet_grader",
+                                                                                   "name": "exact_fields"})),
+     ["case: checks[0] fleet_grader (exact_fields) has invalid configuration: "
+      "exact_fields() missing 1 required positional argument: 'fields'"]),
     ("zero turns", _changed(BUILD, max_turns=0), ["case: max_turns must be an integer from 1 to 500"]),
     ("threshold out of range", _changed(BUILD, threshold=1.5), ["case: threshold must be > 0 and <= 1"]),
     ("lowered threshold beside a forbidding check", _changed(BUILD, threshold=0.5),

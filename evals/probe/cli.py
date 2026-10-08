@@ -334,6 +334,127 @@ def regrade(iteration_dir: Path, scenarios: list[dict[str, Any]], threshold: flo
 
 def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
     """Run the batch, publish every attempt, and exit on the batch's verdict."""
+    prepared = _preflight(args, scenarios)
+    if isinstance(prepared, int):
+        return prepared
+    judge_binding, provenance, runtime = prepared
+    out = args.out.resolve()
+    out.mkdir(parents=True, exist_ok=True)
+    summary_path = out / f"summary-{args.label}-{args.model or 'default'}.json"
+    existing = json.loads(summary_path.read_text(encoding="utf-8")) if summary_path.exists() else []
+    replaced = {(s["id"], args.label, args.run_offset + i + 1) for s in scenarios for i in range(args.trials)}
+    retained = [
+        e for e in existing if not args.overwrite or (e.get("scenario"), e.get("label"), e.get("run")) not in replaced
+    ]
+
+    def identity_problem(entries: list[dict[str, Any]]) -> str | None:
+        """Why these trials cannot pool with this batch's candidate, judge and runtime, if they cannot."""
+        return batches.batch_identity_problem(
+            entries, scenarios, provenance["plugin_source_sha256"], judge_binding, runtime
+        )
+
+    problem = identity_problem(retained)
+    if problem:
+        print(json.dumps({"batch": "INCONCLUSIVE", "reason": problem}), flush=True)
+        return 2
+    results: list[dict[str, Any]] = []
+    blocked: str | None = None
+    auth_failed = False
+    planned = [(spec, i) for spec in scenarios for i in range(args.trials)]
+    selected_ids = {spec["id"] for spec in scenarios}
+    # Every attempt of the label was paid for, and each counts once: the summary's rows, those this
+    # --overwrite replaces included, and the superseded and incomplete attempts kept beside them.
+    paid = [e for e in existing if e.get("scenario") in selected_ids]
+    paid += trials.kept_attempt_costs(out, args.label, selected_ids, args.model)
+    spent = sum(records.known_usd(e.get("known_cost_usd")) or 0.0 for e in paid)
+    if args.max_batch_usd is not None and any(e.get("cost_complete") is not True for e in paid):
+        # An earlier attempt without a known cost leaves the batch's spend unknown; the cap cannot hold.
+        blocked = f"an earlier attempt's cost is unknown; the USD {args.max_batch_usd:g} cap cannot be enforced"
+    # WP-02 stops a batch on an identity failure; an append to the label must not run past one.
+    failed = next(
+        (e["identity_failure"] for e in retained if e.get("scenario") in selected_ids and e.get("identity_failure")),
+        None,
+    )
+    if failed and not blocked:
+        blocked = f"an earlier trial failed its identity check: {failed}; --overwrite that run or use a new label"
+    machinery_stopped: dict[str, str] = {}
+    settings = trials.BatchSettings(
+        plugin_root=args.plugin_root.resolve(),
+        label=args.label,
+        model=args.model,
+        out_dir=out,
+        timeout=args.timeout,
+        executable=args.executable,
+        keep_workspace=args.keep_workspace,
+        overwrite=args.overwrite,
+        docker=args.docker,
+        expected_plugin_digest=provenance["plugin_source_sha256"],
+        judge_binding=judge_binding,
+        runtime=runtime,
+    )
+    try:
+        for spec, i in planned:
+            if blocked:  # stopped before scheduling, by the cap's accounting or an identity failure
+                break
+            if spec["id"] in machinery_stopped:
+                continue  # its grader cannot measure; more trials would spend for nothing
+            if args.max_batch_usd is not None and spent >= args.max_batch_usd:
+                blocked = f"batch spend USD {spent:.4f} reached the USD {args.max_batch_usd:g} cap"
+                break
+            try:
+                results.append(trials.run_trial(spec, run_number=args.run_offset + i + 1, settings=settings))
+            except clean_room.AuthUnavailable as exc:
+                # Every later trial would fail the same way; the attempt is kept, the batch stops.
+                blocked, auth_failed = f"authentication unavailable: {exc}", True
+                break
+            except fingerprints.MeasuredInputRefused as exc:
+                # The candidate changed under the batch; the attempt is kept, the batch stops.
+                blocked = f"plugin inputs could not be measured: {exc}"
+                break
+            machinery = results[-1].get("grader_error") or results[-1].get("service_error")
+            if machinery:
+                machinery_stopped[spec["id"]] = machinery
+                print(
+                    json.dumps({"scenario": spec["id"], "stopped": f"grading machinery failed: {machinery}"}),
+                    flush=True,
+                )
+            spent += float(results[-1].get("known_cost_usd") or 0.0)
+            blocked = _stop_after(results[-1], args.max_batch_usd)
+            if blocked:
+                break
+    finally:
+        # Written even when a trial raised: every trial that finished was paid for and stays counted.
+        merged = batches.merge_summary_entries(existing, results)
+        summary_path.write_text(json.dumps(merged, indent=2), encoding="utf-8")
+    # `--run-offset` appends trials to an existing label. The verdict is about that whole batch, not
+    # about this invocation: a final one-trial append must not report PASS over earlier failures.
+    batch = [entry for entry in merged if entry.get("scenario") in selected_ids]
+    problem = identity_problem(batch)
+    stop = (
+        {
+            "batch": "INCONCLUSIVE",
+            "reason": f"stopped after {blocked}" if blocked else "grading machinery failed",
+            **({"scenarios_stopped": sorted(machinery_stopped)} if machinery_stopped else {}),
+            "trials_not_run": len(planned) - len(results),
+        }
+        if blocked or machinery_stopped
+        else None
+    )
+    if auth_failed and stop is not None:
+        # A resume replaces what this --overwrite had not reached yet, but keeps the other rows and
+        # this invocation's trials; name what they would still refuse.
+        kept = [e for e in batches.merge_summary_entries(retained, results) if e.get("scenario") in selected_ids]
+        unfixed = identity_problem(kept) or (MIXED_MODELS if len(batches.model_identities(kept)) > 1 else None)
+        if unfixed:
+            stop["unfixed_by_resume"] = unfixed
+    return _conclude(batch, scenarios, args.threshold, problem, stop, auth_failed=auth_failed)
+
+
+def _preflight(
+    args: argparse.Namespace, scenarios: list[dict[str, Any]]
+) -> tuple[rubric_judge.JudgeBinding | None, dict[str, Any], dict[str, Any]] | int:
+    """The judge binding, candidate and runtime a batch measures with, or exit 3 when it must refuse
+    to start; the candidate and runtime are printed before any trial."""
     required = set().union(*(fingerprints.required_rubrics(spec) for spec in scenarios))
     judge_binding = None
     try:
@@ -367,127 +488,21 @@ def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
             file=sys.stderr,
         )
         return 3
-    out = args.out.resolve()
-    out.mkdir(parents=True, exist_ok=True)
-    summary_path = out / f"summary-{args.label}-{args.model or 'default'}.json"
-    existing = json.loads(summary_path.read_text(encoding="utf-8")) if summary_path.exists() else []
-    replaced = {(s["id"], args.label, args.run_offset + i + 1) for s in scenarios for i in range(args.trials)}
-    retained = [
-        e for e in existing if not args.overwrite or (e.get("scenario"), e.get("label"), e.get("run")) not in replaced
-    ]
-    problem = batches.batch_identity_problem(
-        retained, scenarios, provenance["plugin_source_sha256"], judge_binding, runtime
-    )
-    if problem:
-        print(json.dumps({"batch": "INCONCLUSIVE", "reason": problem}), flush=True)
-        return 2
-    results: list[dict[str, Any]] = []
-    blocked: str | None = None
-    auth_failed = False
-    planned = [(spec, i) for spec in scenarios for i in range(args.trials)]
-    selected_ids = {spec["id"] for spec in scenarios}
-    # Every attempt of the label was paid for, and each counts once: the summary's rows, those this
-    # --overwrite replaces included, and the superseded and incomplete attempts kept beside them.
-    paid = [e for e in existing if e.get("scenario") in selected_ids]
-    paid += trials.kept_attempt_costs(out, args.label, selected_ids, args.model)
-    spent = sum(records.known_usd(e.get("known_cost_usd")) or 0.0 for e in paid)
-    if args.max_batch_usd is not None and any(e.get("cost_complete") is not True for e in paid):
-        # An earlier attempt without a known cost leaves the batch's spend unknown; the cap cannot hold.
-        blocked = f"an earlier attempt's cost is unknown; the USD {args.max_batch_usd:g} cap cannot be enforced"
-    # WP-02 stops a batch on an identity failure; an append to the label must not run past one.
-    failed = next(
-        (e["identity_failure"] for e in retained if e.get("scenario") in selected_ids and e.get("identity_failure")),
-        None,
-    )
-    if failed and not blocked:
-        blocked = f"an earlier trial failed its identity check: {failed}; --overwrite that run or use a new label"
-    machinery_stopped: dict[str, str] = {}
-    try:
-        for spec, i in planned:
-            if blocked:  # stopped before scheduling, by the cap's accounting or an identity failure
-                break
-            if spec["id"] in machinery_stopped:
-                continue  # its grader cannot measure; more trials would spend for nothing
-            if args.max_batch_usd is not None and spent >= args.max_batch_usd:
-                blocked = f"batch spend USD {spent:.4f} reached the USD {args.max_batch_usd:g} cap"
-                break
-            try:
-                results.append(
-                    trials.run_trial(
-                        spec,
-                        plugin_root=args.plugin_root.resolve(),
-                        label=args.label,
-                        model=args.model,
-                        run_number=args.run_offset + i + 1,
-                        out_dir=out,
-                        timeout=args.timeout,
-                        executable=args.executable,
-                        keep_workspace=args.keep_workspace,
-                        overwrite=args.overwrite,
-                        docker=args.docker,
-                        expected_plugin_digest=provenance["plugin_source_sha256"],
-                        judge_binding=judge_binding,
-                        runtime=runtime,
-                    )
-                )
-            except clean_room.AuthUnavailable as exc:
-                # Every later trial would fail the same way; the attempt is kept, the batch stops.
-                blocked, auth_failed = f"authentication unavailable: {exc}", True
-                break
-            except fingerprints.MeasuredInputRefused as exc:
-                # The candidate changed under the batch; the attempt is kept, the batch stops.
-                blocked = f"plugin inputs could not be measured: {exc}"
-                break
-            machinery = results[-1].get("grader_error") or results[-1].get("service_error")
-            if machinery:
-                machinery_stopped[spec["id"]] = machinery
-                print(
-                    json.dumps({"scenario": spec["id"], "stopped": f"grading machinery failed: {machinery}"}),
-                    flush=True,
-                )
-            if results[-1].get("identity_failure"):
-                # Every later trial would run as the same wrong candidate, plugin or model.
-                blocked = f"a trial failed its identity check: {results[-1]['identity_failure']}"
-                break
-            if results[-1].get("after_assessment"):
-                # The finished trial keeps its verdict; nothing else may reuse the uncleaned environment.
-                blocked = results[-1]["after_assessment"]
-                break
-            spent += float(results[-1].get("known_cost_usd") or 0.0)
-            if args.max_batch_usd is not None and results[-1].get("cost_complete") is False:
-                # An unknown cost cannot be held to a cap; stop before spending more blind.
-                blocked = f"trial cost unknown; the USD {args.max_batch_usd:g} cap cannot be enforced"
-                break
-    finally:
-        # Written even when a trial raised: every trial that finished was paid for and stays counted.
-        merged = batches.merge_summary_entries(existing, results)
-        summary_path.write_text(json.dumps(merged, indent=2), encoding="utf-8")
-    # `--run-offset` appends trials to an existing label. The verdict is about that whole batch, not
-    # about this invocation: a final one-trial append must not report PASS over earlier failures.
-    batch = [entry for entry in merged if entry.get("scenario") in selected_ids]
-    problem = batches.batch_identity_problem(
-        batch, scenarios, provenance["plugin_source_sha256"], judge_binding, runtime
-    )
-    stop = (
-        {
-            "batch": "INCONCLUSIVE",
-            "reason": f"stopped after {blocked}" if blocked else "grading machinery failed",
-            **({"scenarios_stopped": sorted(machinery_stopped)} if machinery_stopped else {}),
-            "trials_not_run": len(planned) - len(results),
-        }
-        if blocked or machinery_stopped
-        else None
-    )
-    if auth_failed and stop is not None:
-        # A resume replaces what this --overwrite had not reached yet, but keeps the other rows and
-        # this invocation's trials; name what they would still refuse.
-        kept = [e for e in batches.merge_summary_entries(retained, results) if e.get("scenario") in selected_ids]
-        unfixed = batches.batch_identity_problem(
-            kept, scenarios, provenance["plugin_source_sha256"], judge_binding, runtime
-        ) or (MIXED_MODELS if len(batches.model_identities(kept)) > 1 else None)
-        if unfixed:
-            stop["unfixed_by_resume"] = unfixed
-    return _conclude(batch, scenarios, args.threshold, problem, stop, auth_failed=auth_failed)
+    return judge_binding, provenance, runtime
+
+
+def _stop_after(result: dict[str, Any], cap: float | None) -> str | None:
+    """Why the batch stops after this finished trial, if it does."""
+    if result.get("identity_failure"):
+        # Every later trial would run as the same wrong candidate, plugin or model.
+        return f"a trial failed its identity check: {result['identity_failure']}"
+    if result.get("after_assessment"):
+        # The finished trial keeps its verdict; nothing else may reuse the uncleaned environment.
+        return str(result["after_assessment"])
+    if cap is not None and result.get("cost_complete") is False:
+        # An unknown cost cannot be held to a cap; stop before spending more blind.
+        return f"trial cost unknown; the USD {cap:g} cap cannot be enforced"
+    return None
 
 
 def _conclude(
