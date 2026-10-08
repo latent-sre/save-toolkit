@@ -219,6 +219,7 @@ own (N1 to N3).
 | The PromQL and JSON readers, by property | `528c574f` |
 | Codex 4211260055: the exact graders typed as taking any mapping, which they refuse | `275c0af3`, reverting `3952fed7` |
 | N1: 24 of 32 checks validated with a missing or misspelled parameter, then crashed grading after the paid trial | `c2c95103` |
+| Copilot 4213444985 (N1's report crashed `validate` on a non-string key) and 4213445019 (a `fleet_grader`'s arguments went unvalidated) | `82ff7b01` |
 | N2: `service_get` and `service_array_item` verdict rules ran only in live trials | `00687907` |
 | N3: 13 batch-wide values threaded through `run_trial` (15 parameters) and `_run_trial` (14) | `3c50e796` |
 | S9's last function, `cli.run`, and `_run_trial`'s turn loop | `de6e20d1` |

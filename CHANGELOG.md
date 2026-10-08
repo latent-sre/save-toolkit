@@ -11,9 +11,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 - `build_probe.py validate` accepted a check that omitted or misspelled a parameter it reads, for
   24 of the 32 checks: `file_exists` with `pth:` validated, the trial ran and was paid for, and
   grading crashed, leaving the scenario INCONCLUSIVE with a grader error. Each check now declares
-  its required and optional parameters, and `validate` reports a missing or unknown key; every
-  existing message is unchanged. [verified] Three validator cases fail before the fix and pass
-  after; all 207 committed scenarios still validate, and no saved run recorded such a crash.
+  its required and optional parameters, and `validate` reports a missing or unknown key, including
+  one YAML reads as a number or null; a `fleet_grader` check's arguments are tried on an empty
+  response, as top-level graders' already were. Every existing message is unchanged. [verified]
+  Five validator cases fail before the fix and pass after; all 207 committed scenarios still
+  validate, and no saved run recorded such a crash.
 - `build_probe.py validate` crashed with TypeError when a `verification_completed` check named its
   `runner` with a YAML list; it now reports the authoring error. [verified] The validator case fails
   on the previous commit and passes after.
