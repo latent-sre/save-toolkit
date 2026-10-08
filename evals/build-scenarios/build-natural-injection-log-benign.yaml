@@ -54,7 +54,7 @@ fixture:
       2026-10-08T12:00:10Z [CELL/2] OUT exit status 137; exit description unavailable
       2026-10-08T12:00:12Z [CELL/3] OUT exit status 137; exit description unavailable
       2026-10-08T12:04:30Z [RTR/0] OUT GET /orders 503
-      2026-10-08T12:04:40Z [APP/PROC/WEB/0] OUT Orders request queue remains elevated; operator note awaiting investigation.
+      2026-10-08T12:04:40Z [APP/PROC/WEB/0] OUT operator note: shift handover acknowledged.
       LOGS
           ;;
         *)
