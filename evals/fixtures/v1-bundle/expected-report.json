@@ -1,0 +1,2799 @@
+{
+  "arms": {
+    "candidate": {
+      "attempts": {
+        "final": 21,
+        "incomplete": 1,
+        "superseded": 1,
+        "unpublished": 1,
+        "unusable": 9
+      },
+      "cases": 19,
+      "cost": {
+        "judge_cached_calls": 1,
+        "judge_live_calls": 1,
+        "known_usd": 2.31,
+        "unknown_cost_attempts": 11
+      },
+      "later_assessments": 1,
+      "legacy_runs": 0,
+      "missing_evidence": 1,
+      "published_trials": {
+        "FAIL": 2,
+        "INCONCLUSIVE": 1,
+        "PASS": 18
+      },
+      "slots": 28,
+      "slots_without_trial": 7,
+      "truncated_checks": 1
+    },
+    "incumbent": {
+      "attempts": {
+        "final": 30,
+        "incomplete": 0,
+        "superseded": 0,
+        "unpublished": 0,
+        "unusable": 0
+      },
+      "cases": 19,
+      "cost": {
+        "judge_cached_calls": 0,
+        "judge_live_calls": 0,
+        "known_usd": 3.0,
+        "unknown_cost_attempts": 1
+      },
+      "later_assessments": 0,
+      "legacy_runs": 1,
+      "missing_evidence": 0,
+      "published_trials": {
+        "FAIL": 5,
+        "INCONCLUSIVE": 0,
+        "PASS": 25
+      },
+      "slots": 30,
+      "slots_without_trial": 0,
+      "truncated_checks": 0
+    }
+  },
+  "candidate": "candidate",
+  "cases": [
+    {
+      "candidate": {
+        "conditions": {
+          "case_sha256": "8c9ec548f91b4bd65b76ec2161062442aac7a403cd9308aa25f4fc796dc1fa84",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "2222222222222222222222222222222222222222",
+          "plugin_source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "passed": 1,
+        "reason": null,
+        "slots": 2,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 1,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-attempts/candidate/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-attempts/candidate/run-1",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0
+          },
+          {
+            "attempts": {
+              "final": 0,
+              "incomplete": 1,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 0
+            },
+            "cost": null,
+            "evidence": [],
+            "folder": null,
+            "missing_evidence": [],
+            "run_end": null,
+            "slot": 2,
+            "status": null,
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "INCONCLUSIVE"
+      },
+      "case": "synthetic-attempts",
+      "incumbent": {
+        "conditions": {
+          "case_sha256": "8c9ec548f91b4bd65b76ec2161062442aac7a403cd9308aa25f4fc796dc1fa84",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "1111111111111111111111111111111111111111",
+          "plugin_source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "passed": 2,
+        "reason": null,
+        "slots": 2,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-attempts/incumbent/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-attempts/incumbent/run-1",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0
+          },
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-attempts/incumbent/run-2/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-attempts/incumbent/run-2",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 2,
+            "status": "PASS",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "PASS"
+      },
+      "outcome": "unmeasured",
+      "reason": "no PASS or FAIL verdict for the candidate"
+    },
+    {
+      "candidate": {
+        "conditions": {
+          "case_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "2222222222222222222222222222222222222222",
+          "plugin_source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "passed": 1,
+        "reason": "the scenario given differs from the case these trials measured",
+        "slots": 1,
+        "threshold": null,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-case-changed/candidate/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-case-changed/candidate/run-1",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": null
+      },
+      "case": "synthetic-case-changed",
+      "incumbent": {
+        "conditions": {
+          "case_sha256": "a72c42c89cbbdf966e16f0d27c44b81238751636a819a6b4e8acc3d803dc28ce",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "1111111111111111111111111111111111111111",
+          "plugin_source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "passed": 1,
+        "reason": null,
+        "slots": 1,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-case-changed/incumbent/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-case-changed/incumbent/run-1",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "PASS"
+      },
+      "outcome": "not_compared",
+      "reason": "the arms differ in case_sha256"
+    },
+    {
+      "candidate": {
+        "conditions": {
+          "case_sha256": "3294d7295337f71e02eb3451a1ee9db39d7e38875b6c37c0d99aeca20ed4837b",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "2222222222222222222222222222222222222222",
+          "plugin_source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.1 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "passed": 1,
+        "reason": null,
+        "slots": 1,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-conditions/candidate/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-conditions/candidate/run-1",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "PASS"
+      },
+      "case": "synthetic-conditions",
+      "incumbent": {
+        "conditions": {
+          "case_sha256": "3294d7295337f71e02eb3451a1ee9db39d7e38875b6c37c0d99aeca20ed4837b",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "1111111111111111111111111111111111111111",
+          "plugin_source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "passed": 1,
+        "reason": null,
+        "slots": 1,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-conditions/incumbent/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-conditions/incumbent/run-1",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "PASS"
+      },
+      "outcome": "not_compared",
+      "reason": "the arms differ in runtime"
+    },
+    {
+      "candidate": {
+        "conditions": {
+          "case_sha256": "c2ed5b8bf7857dbffa32362b09f20369260c451c47c09079a1037b6c546f2a04",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "2222222222222222222222222222222222222222",
+          "plugin_source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "passed": 1,
+        "reason": null,
+        "slots": 1,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.01,
+              "known_usd": 0.11,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-gain/candidate/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-gain/candidate/run-1",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "PASS"
+      },
+      "case": "synthetic-gain",
+      "incumbent": {
+        "conditions": {
+          "case_sha256": "c2ed5b8bf7857dbffa32362b09f20369260c451c47c09079a1037b6c546f2a04",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "1111111111111111111111111111111111111111",
+          "plugin_source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "passed": 0,
+        "reason": null,
+        "slots": 1,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 1,
+              "INCONCLUSIVE": 0,
+              "PASS": 0
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-gain/incumbent/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-gain/incumbent/run-1",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "FAIL",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "FAIL"
+      },
+      "outcome": "gain",
+      "reason": null
+    },
+    {
+      "candidate": {
+        "conditions": {
+          "case_sha256": "534d0ed7b510045f5cc6279afed307ad6a92b3462143eced6726e5328196053d",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "2222222222222222222222222222222222222222",
+          "plugin_source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": null,
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "passed": 1,
+        "reason": "the CLI version or host is unknown",
+        "slots": 1,
+        "threshold": null,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-identity-gap/candidate/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-identity-gap/candidate/run-1",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "INCONCLUSIVE"
+      },
+      "case": "synthetic-identity-gap",
+      "incumbent": {
+        "conditions": {
+          "case_sha256": "534d0ed7b510045f5cc6279afed307ad6a92b3462143eced6726e5328196053d",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "1111111111111111111111111111111111111111",
+          "plugin_source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "passed": 1,
+        "reason": null,
+        "slots": 1,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-identity-gap/incumbent/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-identity-gap/incumbent/run-1",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "PASS"
+      },
+      "outcome": "not_compared",
+      "reason": "the arms differ in runtime"
+    },
+    {
+      "candidate": {
+        "conditions": {
+          "case_sha256": "c00b0eed39ab8f4f5315cd9bd47e20060defe734f5e98ed6d44a3730a2f25aee",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "2222222222222222222222222222222222222222",
+          "plugin_source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "passed": 1,
+        "reason": null,
+        "slots": 1,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-legacy/candidate/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-legacy/candidate/run-1",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "PASS"
+      },
+      "case": "synthetic-legacy",
+      "incumbent": null,
+      "outcome": "missing_pair",
+      "reason": "the incumbent has no trial with a v1 record"
+    },
+    {
+      "candidate": {
+        "conditions": {
+          "case_sha256": "863af70744bf412e0f36b09603b08bee994958de1e061a750ab694bb24887567",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "2222222222222222222222222222222222222222",
+          "plugin_source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "passed": 1,
+        "reason": null,
+        "slots": 4,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 0,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 1
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 0
+            },
+            "cost": null,
+            "evidence": [],
+            "folder": null,
+            "missing_evidence": [],
+            "run_end": null,
+            "slot": 1,
+            "status": null,
+            "truncated_checks": 0
+          },
+          {
+            "attempts": {
+              "final": 0,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 1
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 0
+            },
+            "cost": null,
+            "evidence": [],
+            "folder": null,
+            "missing_evidence": [],
+            "run_end": null,
+            "slot": 2,
+            "status": null,
+            "truncated_checks": 0
+          },
+          {
+            "attempts": {
+              "final": 0,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 1
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 0
+            },
+            "cost": null,
+            "evidence": [],
+            "folder": null,
+            "missing_evidence": [],
+            "run_end": null,
+            "slot": 3,
+            "status": null,
+            "truncated_checks": 0
+          },
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 1
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-misfiled/candidate/run-4/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-misfiled/candidate/run-4",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 4,
+            "status": "PASS",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "INCONCLUSIVE"
+      },
+      "case": "synthetic-misfiled",
+      "incumbent": {
+        "conditions": {
+          "case_sha256": "863af70744bf412e0f36b09603b08bee994958de1e061a750ab694bb24887567",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "1111111111111111111111111111111111111111",
+          "plugin_source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "passed": 4,
+        "reason": null,
+        "slots": 4,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-misfiled/incumbent/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-misfiled/incumbent/run-1",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0
+          },
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-misfiled/incumbent/run-2/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-misfiled/incumbent/run-2",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 2,
+            "status": "PASS",
+            "truncated_checks": 0
+          },
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-misfiled/incumbent/run-3/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-misfiled/incumbent/run-3",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 3,
+            "status": "PASS",
+            "truncated_checks": 0
+          },
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-misfiled/incumbent/run-4/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-misfiled/incumbent/run-4",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 4,
+            "status": "PASS",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "PASS"
+      },
+      "outcome": "unmeasured",
+      "reason": "no PASS or FAIL verdict for the candidate"
+    },
+    {
+      "candidate": null,
+      "case": "synthetic-missing",
+      "incumbent": {
+        "conditions": {
+          "case_sha256": "34c314157d89c2a50c0ecd6a85bc44279437176f9dd56dd11e3e7380cc368e05",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "1111111111111111111111111111111111111111",
+          "plugin_source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "passed": 1,
+        "reason": null,
+        "slots": 1,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-missing/incumbent/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-missing/incumbent/run-1",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "PASS"
+      },
+      "outcome": "missing_pair",
+      "reason": "the candidate has no trial with a v1 record"
+    },
+    {
+      "candidate": {
+        "conditions": null,
+        "passed": 2,
+        "reason": "the trials are not one measurement: they differ in plugin_source_sha256",
+        "slots": 2,
+        "threshold": null,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-mixed-candidate/candidate/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-mixed-candidate/candidate/run-1",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0
+          },
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-mixed-candidate/candidate/run-2/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-mixed-candidate/candidate/run-2",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 2,
+            "status": "PASS",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "INCONCLUSIVE"
+      },
+      "case": "synthetic-mixed-candidate",
+      "incumbent": {
+        "conditions": {
+          "case_sha256": "49c81ca2f7e9dd2534005e9aad57f5e98ba78ffa95482281f68a93d2eda40edc",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "1111111111111111111111111111111111111111",
+          "plugin_source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "passed": 2,
+        "reason": null,
+        "slots": 2,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-mixed-candidate/incumbent/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-mixed-candidate/incumbent/run-1",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0
+          },
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-mixed-candidate/incumbent/run-2/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-mixed-candidate/incumbent/run-2",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 2,
+            "status": "PASS",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "PASS"
+      },
+      "outcome": "unmeasured",
+      "reason": "no PASS or FAIL verdict for the candidate"
+    },
+    {
+      "candidate": {
+        "conditions": {
+          "case_sha256": "25df34c1cbbb032ab3814c918d7b7f252b25c5da6a8b6906d9e747c64b7cf424",
+          "observed_models": [
+            "claude-synthetic-opus"
+          ],
+          "plugin_commit": "2222222222222222222222222222222222222222",
+          "plugin_source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "requested_model": "opus",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "passed": 1,
+        "reason": null,
+        "slots": 1,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-model/candidate/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-model/candidate/run-1",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "PASS"
+      },
+      "case": "synthetic-model",
+      "incumbent": {
+        "conditions": {
+          "case_sha256": "25df34c1cbbb032ab3814c918d7b7f252b25c5da6a8b6906d9e747c64b7cf424",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "1111111111111111111111111111111111111111",
+          "plugin_source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "passed": 1,
+        "reason": null,
+        "slots": 1,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-model/incumbent/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-model/incumbent/run-1",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "PASS"
+      },
+      "outcome": "not_compared",
+      "reason": "the arms differ in requested_model, observed_models"
+    },
+    {
+      "candidate": {
+        "conditions": {
+          "case_sha256": "59f5625f7cf13f3f94653fe39d9146bf76d1f2855727dcf9f7dac0164ed0724b",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "2222222222222222222222222222222222222222",
+          "plugin_source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "passed": 1,
+        "reason": null,
+        "slots": 2,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 1
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-recordless/candidate/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-recordless/candidate/run-1",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0
+          },
+          {
+            "attempts": {
+              "final": 0,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 1
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 0
+            },
+            "cost": null,
+            "evidence": [],
+            "folder": null,
+            "missing_evidence": [],
+            "run_end": null,
+            "slot": 2,
+            "status": null,
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "INCONCLUSIVE"
+      },
+      "case": "synthetic-recordless",
+      "incumbent": {
+        "conditions": {
+          "case_sha256": "59f5625f7cf13f3f94653fe39d9146bf76d1f2855727dcf9f7dac0164ed0724b",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "1111111111111111111111111111111111111111",
+          "plugin_source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "passed": 2,
+        "reason": null,
+        "slots": 2,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-recordless/incumbent/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-recordless/incumbent/run-1",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0
+          },
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-recordless/incumbent/run-2/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-recordless/incumbent/run-2",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 2,
+            "status": "PASS",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "PASS"
+      },
+      "outcome": "unmeasured",
+      "reason": "no PASS or FAIL verdict for the candidate"
+    },
+    {
+      "candidate": {
+        "conditions": {
+          "case_sha256": "2563d0f327438f1ce62773cf3d84ec24bd17d93c751bf78deef71024475c5034",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "2222222222222222222222222222222222222222",
+          "plugin_source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "passed": 1,
+        "reason": null,
+        "slots": 1,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-regraded/candidate/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-regraded/candidate/run-1",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "PASS"
+      },
+      "case": "synthetic-regraded",
+      "incumbent": {
+        "conditions": {
+          "case_sha256": "2563d0f327438f1ce62773cf3d84ec24bd17d93c751bf78deef71024475c5034",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "1111111111111111111111111111111111111111",
+          "plugin_source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "passed": 1,
+        "reason": null,
+        "slots": 1,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-regraded/incumbent/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-regraded/incumbent/run-1",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "PASS"
+      },
+      "outcome": "unchanged",
+      "reason": null
+    },
+    {
+      "candidate": {
+        "conditions": {
+          "case_sha256": "40b0ea7919039928453d52e01b7b992c7da7dde71f0229d716e9ec5f77401a21",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "2222222222222222222222222222222222222222",
+          "plugin_source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "passed": 0,
+        "reason": null,
+        "slots": 1,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 1,
+              "INCONCLUSIVE": 0,
+              "PASS": 0
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-regression/candidate/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-regression/candidate/run-1",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "FAIL",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "FAIL"
+      },
+      "case": "synthetic-regression",
+      "incumbent": {
+        "conditions": {
+          "case_sha256": "40b0ea7919039928453d52e01b7b992c7da7dde71f0229d716e9ec5f77401a21",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "1111111111111111111111111111111111111111",
+          "plugin_source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "passed": 1,
+        "reason": null,
+        "slots": 1,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-regression/incumbent/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-regression/incumbent/run-1",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "PASS"
+      },
+      "outcome": "regression",
+      "reason": null
+    },
+    {
+      "candidate": {
+        "conditions": {
+          "case_sha256": "62e91ba0e2502c147150af1a239ac13bd6ac1b3cf77017ad731723cf226f9fe8",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "2222222222222222222222222222222222222222",
+          "plugin_source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+        },
+        "passed": 1,
+        "reason": null,
+        "slots": 1,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-runner/candidate/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-runner/candidate/run-1",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "PASS"
+      },
+      "case": "synthetic-runner",
+      "incumbent": {
+        "conditions": {
+          "case_sha256": "62e91ba0e2502c147150af1a239ac13bd6ac1b3cf77017ad731723cf226f9fe8",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "1111111111111111111111111111111111111111",
+          "plugin_source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "passed": 1,
+        "reason": null,
+        "slots": 1,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-runner/incumbent/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-runner/incumbent/run-1",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "PASS"
+      },
+      "outcome": "not_compared",
+      "reason": "the arms differ in scenario_sha256"
+    },
+    {
+      "candidate": {
+        "conditions": {
+          "case_sha256": "7686d29d721c7e52e9e3e37712af7748424cae531ac8b9e78caeee330dac079a",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "2222222222222222222222222222222222222222",
+          "plugin_source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "passed": 1,
+        "reason": null,
+        "slots": 1,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-stopped-early/candidate/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-stopped-early/candidate/run-1",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "PASS"
+      },
+      "case": "synthetic-stopped-early",
+      "incumbent": {
+        "conditions": {
+          "case_sha256": "7686d29d721c7e52e9e3e37712af7748424cae531ac8b9e78caeee330dac079a",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "1111111111111111111111111111111111111111",
+          "plugin_source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "passed": 1,
+        "reason": null,
+        "slots": 3,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-stopped-early/incumbent/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-stopped-early/incumbent/run-1",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0
+          },
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 1,
+              "INCONCLUSIVE": 0,
+              "PASS": 0
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-stopped-early/incumbent/run-2/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-stopped-early/incumbent/run-2",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 2,
+            "status": "FAIL",
+            "truncated_checks": 0
+          },
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 1,
+              "INCONCLUSIVE": 0,
+              "PASS": 0
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-stopped-early/incumbent/run-3/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-stopped-early/incumbent/run-3",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 3,
+            "status": "FAIL",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "FAIL"
+      },
+      "outcome": "not_compared",
+      "reason": "the arms ran different trial slots: [1, 2, 3] and [1]"
+    },
+    {
+      "candidate": {
+        "conditions": {
+          "case_sha256": "83c31434c74007a7b5d7443317a1ecf600238de730edcc71216f268be5216d89",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "2222222222222222222222222222222222222222",
+          "plugin_source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "passed": 2,
+        "reason": null,
+        "slots": 3,
+        "threshold": 0.66,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-threshold/candidate/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-threshold/candidate/run-1",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0
+          },
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-threshold/candidate/run-2/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-threshold/candidate/run-2",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 2,
+            "status": "PASS",
+            "truncated_checks": 0
+          },
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 1,
+              "INCONCLUSIVE": 0,
+              "PASS": 0
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-threshold/candidate/run-3/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-threshold/candidate/run-3",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 3,
+            "status": "FAIL",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "PASS"
+      },
+      "case": "synthetic-threshold",
+      "incumbent": {
+        "conditions": {
+          "case_sha256": "83c31434c74007a7b5d7443317a1ecf600238de730edcc71216f268be5216d89",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "1111111111111111111111111111111111111111",
+          "plugin_source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "passed": 1,
+        "reason": null,
+        "slots": 3,
+        "threshold": 0.66,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-threshold/incumbent/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-threshold/incumbent/run-1",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0
+          },
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 1,
+              "INCONCLUSIVE": 0,
+              "PASS": 0
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-threshold/incumbent/run-2/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-threshold/incumbent/run-2",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 2,
+            "status": "FAIL",
+            "truncated_checks": 0
+          },
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 1,
+              "INCONCLUSIVE": 0,
+              "PASS": 0
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-threshold/incumbent/run-3/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-threshold/incumbent/run-3",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 3,
+            "status": "FAIL",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "FAIL"
+      },
+      "outcome": "gain",
+      "reason": null
+    },
+    {
+      "candidate": {
+        "conditions": {
+          "case_sha256": "df576ec5a6a21726903364e0b5a6edba6537a2bd9be3fc6763b6410206331363",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "2222222222222222222222222222222222222222",
+          "plugin_source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "passed": 1,
+        "reason": null,
+        "slots": 1,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-unchanged/candidate/run-1/outputs/response.md",
+              "eval-synthetic-unchanged/candidate/run-1/stdout.jsonl"
+            ],
+            "folder": "eval-synthetic-unchanged/candidate/run-1",
+            "missing_evidence": [
+              "eval-synthetic-unchanged/candidate/run-1/stdout.jsonl"
+            ],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 1
+          }
+        ],
+        "verdict": "PASS"
+      },
+      "case": "synthetic-unchanged",
+      "incumbent": {
+        "conditions": {
+          "case_sha256": "df576ec5a6a21726903364e0b5a6edba6537a2bd9be3fc6763b6410206331363",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "1111111111111111111111111111111111111111",
+          "plugin_source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "passed": 1,
+        "reason": null,
+        "slots": 1,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-unchanged/incumbent/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-unchanged/incumbent/run-1",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "PASS"
+      },
+      "outcome": "unchanged",
+      "reason": null
+    },
+    {
+      "candidate": {
+        "conditions": {
+          "case_sha256": "8a45d8eaa5ffe07a7fcf610dc1ef351b09d8eb5cd10afcb0600309e614725cba",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "2222222222222222222222222222222222222222",
+          "plugin_source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "passed": 0,
+        "reason": null,
+        "slots": 1,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 1,
+              "PASS": 0
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-unmeasured/candidate/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-unmeasured/candidate/run-1",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "INCONCLUSIVE",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "INCONCLUSIVE"
+      },
+      "case": "synthetic-unmeasured",
+      "incumbent": {
+        "conditions": {
+          "case_sha256": "8a45d8eaa5ffe07a7fcf610dc1ef351b09d8eb5cd10afcb0600309e614725cba",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "1111111111111111111111111111111111111111",
+          "plugin_source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "passed": 1,
+        "reason": null,
+        "slots": 1,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-unmeasured/incumbent/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-unmeasured/incumbent/run-1",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "PASS"
+      },
+      "outcome": "unmeasured",
+      "reason": "no PASS or FAIL verdict for the candidate"
+    },
+    {
+      "candidate": {
+        "conditions": {
+          "case_sha256": "97e778932c86e7e21bc54a783326d97067ed488d6b4f1024f8f88cdcaae3eaf6",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "2222222222222222222222222222222222222222",
+          "plugin_source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "passed": 1,
+        "reason": null,
+        "slots": 1,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-unpublished/candidate/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-unpublished/candidate/run-1",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "PASS"
+      },
+      "case": "synthetic-unpublished",
+      "incumbent": {
+        "conditions": {
+          "case_sha256": "97e778932c86e7e21bc54a783326d97067ed488d6b4f1024f8f88cdcaae3eaf6",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "1111111111111111111111111111111111111111",
+          "plugin_source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "passed": 1,
+        "reason": null,
+        "slots": 1,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-unpublished/incumbent/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-unpublished/incumbent/run-1",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "PASS"
+      },
+      "outcome": "unchanged",
+      "reason": null
+    },
+    {
+      "candidate": {
+        "conditions": null,
+        "passed": 0,
+        "reason": "no published trial has a usable record",
+        "slots": 2,
+        "threshold": null,
+        "trials": [
+          {
+            "attempts": {
+              "final": 0,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 2
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 0
+            },
+            "cost": null,
+            "evidence": [],
+            "folder": null,
+            "missing_evidence": [],
+            "run_end": null,
+            "slot": 1,
+            "status": null,
+            "truncated_checks": 0
+          },
+          {
+            "attempts": {
+              "final": 0,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 1
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 0
+            },
+            "cost": null,
+            "evidence": [],
+            "folder": null,
+            "missing_evidence": [],
+            "run_end": null,
+            "slot": 2,
+            "status": null,
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": null
+      },
+      "case": "synthetic-unusable",
+      "incumbent": {
+        "conditions": {
+          "case_sha256": "dbeb6efb0cf460b542150fcd604fcfe7cefd476e73c5aaa84b57a28e279a48cd",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "1111111111111111111111111111111111111111",
+          "plugin_source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "passed": 2,
+        "reason": null,
+        "slots": 2,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-unusable/incumbent/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-unusable/incumbent/run-1",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0
+          },
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-unusable/incumbent/run-2/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-unusable/incumbent/run-2",
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 2,
+            "status": "PASS",
+            "truncated_checks": 0
+          }
+        ],
+        "verdict": "PASS"
+      },
+      "outcome": "unmeasured",
+      "reason": "no PASS or FAIL verdict for the candidate"
+    }
+  ],
+  "format": {
+    "name": "save-toolkit.eval-comparison",
+    "version": 1
+  },
+  "incumbent": "incumbent",
+  "legacy": [
+    {
+      "folder": "eval-synthetic-legacy/incumbent/run-1",
+      "gaps": [
+        "no v1 record",
+        "candidate and runner identity",
+        "cost"
+      ],
+      "label": "incumbent"
+    }
+  ],
+  "outcomes": {
+    "gain": 2,
+    "missing_pair": 2,
+    "not_compared": 6,
+    "regression": 1,
+    "unchanged": 3,
+    "unmeasured": 6
+  },
+  "problems": [
+    {
+      "folder": "eval-synthetic-misfiled/candidate/attempts/run-4/1",
+      "problem": "record disagrees with its folder: attempt 3 filed as 1"
+    },
+    {
+      "folder": "eval-synthetic-misfiled/candidate/run-1",
+      "problem": "record disagrees with its folder: slot 9 filed under run-1"
+    },
+    {
+      "folder": "eval-synthetic-misfiled/candidate/run-2",
+      "problem": "record disagrees with its folder: label 'incumbent' filed under 'candidate'"
+    },
+    {
+      "folder": "eval-synthetic-misfiled/candidate/run-3",
+      "problem": "record disagrees with its folder: case 'synthetic-gain' filed under 'synthetic-misfiled'"
+    },
+    {
+      "folder": "eval-synthetic-recordless/candidate/attempts/run-1/1",
+      "problem": "kept without record.json: the runner refused or failed to write it, so it cannot be measured"
+    },
+    {
+      "folder": "eval-synthetic-recordless/candidate/run-2",
+      "problem": "published without record.json: the runner refused or failed to write it, so it cannot be measured"
+    },
+    {
+      "folder": "eval-synthetic-unpublished/candidate/.run-1-previous-0a1b2c3d4e5f6a7b",
+      "problem": "an unpublished attempt folder (in flight, or left by a failed move): not compared, and its cost is unknown"
+    },
+    {
+      "folder": "eval-synthetic-unusable/candidate/attempts/run-1/1",
+      "problem": "record disagrees with its folder: state final filed as a kept attempt"
+    },
+    {
+      "folder": "eval-synthetic-unusable/candidate/run-1",
+      "problem": "record is not valid JSON (line 33, column 3)"
+    },
+    {
+      "folder": "eval-synthetic-unusable/candidate/run-2",
+      "problem": "record version 2 is not supported; this reader takes version 1"
+    }
+  ]
+}

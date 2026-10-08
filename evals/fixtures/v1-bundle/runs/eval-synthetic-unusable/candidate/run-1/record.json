@@ -1,0 +1,33 @@
+{
+  "format": {
+    "name": "save-toolkit.eval-record",
+    "version": 1
+  },
+  "case": {
+    "id": "synthetic-unusable",
+    "case_sha256": "dbeb6efb0cf460b542150fcd604fcfe7cefd476e73c5aaa84b57a28e279a48cd",
+    "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  },
+  "candidate": {
+    "plugin_root": "/synthetic/candidate",
+    "plugin_commit": "2222222222222222222222222222222222222222",
+    "plugin_inputs_dirty": false,
+    "plugin_source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "runner": {
+    "runner_commit": "3333333333333333333333333333333333333333",
+    "runner_source_dirty": false,
+    "runner_source_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  "conditions": {
+    "requested_model": "sonnet",
+    "observed_models": [
+      "claude-synthetic"
+    ],
+    "runtime": {
+      "cli_version": "0.0.0 (synthetic)",
+      "host_platform": {
+        "system": "Linux",
+        "release": "synthetic",
+        "machine": "x86_64"
+  
