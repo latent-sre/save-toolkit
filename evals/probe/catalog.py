@@ -358,6 +358,11 @@ def _check_problems(spec: Spec, where: str, kind: str) -> list[str]:
             not isinstance(grader_name, str) or grader_name not in fleet_graders.REGISTRY
         ):
             problems.append(f"{where}: checks[{i}] fleet_grader names an unknown grader {grader_name!r}")
+        elif check["check"] == "fleet_grader":
+            try:  # as for top-level graders: each validates its own arguments before reading any text
+                fleet_graders.run_grader(checking.fleet_grader_spec(check), "")
+            except Exception as exc:
+                problems.append(f"{where}: checks[{i}] fleet_grader ({grader_name}) has invalid configuration: {exc}")
         if "scope" in check and (
             check["check"] not in ("bash_ran", "bash_did_not_run", "ran_outside_checkout")
             or check["scope"] != "subagent"

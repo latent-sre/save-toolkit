@@ -138,7 +138,7 @@ class CheckType:
         if self.optional is None:
             return []
         known = COMMON_KEYS.union(self.optional, *((k,) if isinstance(k, str) else k for k in self.required))
-        return sorted(key for key in params if key not in known)
+        return sorted(str(key) for key in params if key not in known)  # YAML keys need not be strings
 
     def polarity_of(self, params: Params) -> Polarity:
         return self.polarity if isinstance(self.polarity, Polarity) else self.polarity(params)
@@ -1323,20 +1323,26 @@ def check_dispatches_namespaced(ctx: Context, p: Params) -> Outcome:
     )
 
 
+def fleet_grader_spec(p: Params) -> dict[str, Any]:
+    """The grader configuration a `fleet_grader` check runs, which validation also tries on an empty
+    response: the check's other keys are the grader's arguments."""
+    kwargs = {k: v for k, v in p.items() if k not in ("check", "name", "text")}
+    if p["name"] == "rubric":
+        # `rubric`'s own identity kwarg is also called `name`, which this config already spends on
+        # the registered grader TYPE ("rubric"). Spell the rubric identity `rubric_name` here and
+        # translate it to the `name` kwarg `graders.rubric()` expects.
+        kwargs["name"] = kwargs.pop("rubric_name")
+    return {"type": p["name"], **kwargs}
+
+
 @declare("fleet_grader", _grader_polarity, needs=_grader_needs, required=("name",), optional=None)
 def check_fleet_grader(ctx: Context, p: Params) -> Outcome:
     """Run one of the fleet's registered response graders (evals/graders.py) on the final text."""
     name = p["name"]
     if name not in fleet_graders.REGISTRY:  # validation rejects this; reaching it is a harness defect
         raise ValueError(f"unknown fleet grader {name!r}")
-    kwargs = {k: v for k, v in p.items() if k not in ("check", "name", "text")}
-    if name == "rubric":
-        # `rubric`'s own identity kwarg is also called `name`, which this config already spends on
-        # the registered grader TYPE ("rubric"). Spell the rubric identity `rubric_name` here and
-        # translate it to the `name` kwarg `graders.rubric()` expects.
-        kwargs["name"] = kwargs.pop("rubric_name")
     passed, detail = fleet_graders.run_grader(
-        {"type": name, **kwargs}, ctx.trace.result_text, judge_binding=ctx.judge_binding
+        fleet_grader_spec(p), ctx.trace.result_text, judge_binding=ctx.judge_binding
     )
     return Outcome.read(passed, detail)
 

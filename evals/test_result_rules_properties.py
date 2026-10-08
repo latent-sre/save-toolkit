@@ -590,6 +590,12 @@ VALIDATOR_CASES: list[tuple[str, dict, list[str]]] = [
      ["case: checks[0] text_regex has unknown key(s): pattren"]),
     ("cf log check without verbs", _changed(BUILD, checks=_checks({"check": "cf_log_has_no"})),
      ["case: checks[0] cf_log_has_no needs verb or verbs"]),
+    ("non-string check key", _changed(BUILD, checks=_checks({"check": "file_exists", "path": "a", 1: "b"})),
+     ["case: checks[0] file_exists has unknown key(s): 1"]),
+    ("fleet grader without its grader's argument", _changed(BUILD, checks=_checks({"check": "fleet_grader",
+                                                                                   "name": "exact_fields"})),
+     ["case: checks[0] fleet_grader (exact_fields) has invalid configuration: "
+      "exact_fields() missing 1 required positional argument: 'fields'"]),
     ("zero turns", _changed(BUILD, max_turns=0), ["case: max_turns must be an integer from 1 to 500"]),
     ("threshold out of range", _changed(BUILD, threshold=1.5), ["case: threshold must be > 0 and <= 1"]),
     ("lowered threshold beside a forbidding check", _changed(BUILD, threshold=0.5),
