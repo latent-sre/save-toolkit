@@ -4,15 +4,15 @@
     "version": 1
   },
   "case": {
-    "id": "synthetic-mixed-candidate",
-    "case_sha256": "49c81ca2f7e9dd2534005e9aad57f5e98ba78ffa95482281f68a93d2eda40edc",
+    "id": "synthetic-mixed-trials",
+    "case_sha256": "ddf7ed04d3b139c0080744274a9f45a3552383a2891a2f7f1e1af8d23a637579",
     "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
   },
   "candidate": {
-    "plugin_root": "/synthetic/incumbent",
-    "plugin_commit": "1111111111111111111111111111111111111111",
+    "plugin_root": "/synthetic/candidate",
+    "plugin_commit": "2222222222222222222222222222222222222222",
     "plugin_inputs_dirty": false,
-    "plugin_source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    "plugin_source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
   },
   "runner": {
     "runner_commit": "3333333333333333333333333333333333333333",
@@ -22,7 +22,7 @@
   "conditions": {
     "requested_model": "sonnet",
     "observed_models": [
-      "claude-synthetic"
+      "claude-synthetic-opus"
     ],
     "runtime": {
       "cli_version": "0.0.0 (synthetic)",
@@ -36,7 +36,7 @@
     "wall_clock_seconds": 600
   },
   "attempt": {
-    "label": "incumbent",
+    "label": "candidate",
     "slot": 2,
     "number": 1,
     "state": "final",

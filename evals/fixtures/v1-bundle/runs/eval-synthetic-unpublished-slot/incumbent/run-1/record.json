@@ -4,15 +4,15 @@
     "version": 1
   },
   "case": {
-    "id": "synthetic-regraded",
-    "case_sha256": "2563d0f327438f1ce62773cf3d84ec24bd17d93c751bf78deef71024475c5034",
+    "id": "synthetic-unpublished-slot",
+    "case_sha256": "dee5f4db42a3fa51c7bda22987020e4e3d05100565421f0faaa97f2e7e1e84d4",
     "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
   },
   "candidate": {
-    "plugin_root": "/synthetic/candidate",
-    "plugin_commit": "2222222222222222222222222222222222222222",
+    "plugin_root": "/synthetic/incumbent",
+    "plugin_commit": "1111111111111111111111111111111111111111",
     "plugin_inputs_dirty": false,
-    "plugin_source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    "plugin_source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   },
   "runner": {
     "runner_commit": "3333333333333333333333333333333333333333",
@@ -36,7 +36,7 @@
     "wall_clock_seconds": 600
   },
   "attempt": {
-    "label": "candidate",
+    "label": "incumbent",
     "slot": 1,
     "number": 1,
     "state": "final",
@@ -77,23 +77,5 @@
   },
   "evidence": {
     "outputs/response.md": "outputs/response.md"
-  },
-  "assessments": [
-    {
-      "revision": 1,
-      "status": "FAIL",
-      "reason": null,
-      "grading": "grading.regrade-1.json",
-      "runner_source_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
-      "assessed_at": "2026-10-02T00:00:00+00:00"
-    },
-    {
-      "revision": 2,
-      "status": "FAIL",
-      "reason": null,
-      "grading": "grading.regrade-2.json",
-      "runner_source_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-      "assessed_at": "2026-10-03T00:00:00+00:00"
-    }
-  ]
+  }
 }

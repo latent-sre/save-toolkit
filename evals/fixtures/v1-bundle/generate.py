@@ -44,13 +44,15 @@ CASES = {
     "synthetic-stopped-early": {},
     "synthetic-unpublished": {},
     "synthetic-identity-gap": {},
-    "synthetic-mixed-candidate": {},
+    "synthetic-mixed-trials": {},
     "synthetic-regraded": {},
     "synthetic-model": {},
     "synthetic-runner": {},
     "synthetic-misfiled": {},
     "synthetic-refused": {},
     "synthetic-wall-clock": {},
+    "synthetic-unpublished-slot": {},
+    "synthetic-turn-limit": {},
 }
 
 
@@ -182,6 +184,7 @@ def main() -> None:
     run("synthetic-missing", "incumbent", 1, "PASS")
     legacy = RUNS / "eval-synthetic-legacy" / "incumbent" / "run-1"
     write(legacy / "grading.json", json.dumps({"status": "PASS", "expectations": []}, indent=2) + "\n")
+    write(legacy / "provenance.json", json.dumps({"runtime": RUNTIME}, indent=2) + "\n")
     run("synthetic-legacy", "candidate", 1, "PASS")
     run("synthetic-case-changed", "incumbent", 1, "PASS")
     run("synthetic-case-changed", "candidate", 1, "PASS", case_sha="e" * 64)
@@ -208,23 +211,33 @@ def main() -> None:
     for slot, status in enumerate(("PASS", "FAIL", "FAIL"), 1):
         run("synthetic-stopped-early", "incumbent", slot, status)
     run("synthetic-stopped-early", "candidate", 1, "PASS")
-    # A previous run whose move into attempts/ failed: paid for, never published.
+    # A previous run whose move into attempts/ failed: paid for and never published, with a readable
+    # record that gives its cost.
     run("synthetic-unpublished", "incumbent", 1, "PASS")
-    run("synthetic-unpublished", "candidate", 1, "PASS")
-    recordless(RUNS / "eval-synthetic-unpublished" / "candidate" / ".run-1-previous-0a1b2c3d4e5f6a7b")
-    # Identity a batch would refuse to pool on: an unknown CLI, and two candidates in one arm.
+    run("synthetic-unpublished", "candidate", 1, "PASS", number=2)
+    attempt(RUNS / "eval-synthetic-unpublished" / "candidate" / ".run-1-previous-0a1b2c3d4e5f6a7b",
+            record("synthetic-unpublished", digests["synthetic-unpublished"], "candidate", 1, 1, "FAIL", cost={
+                "trial_usd": 0.3, "judge_usd": 0.0, "known_usd": 0.3, "complete": True, "judge_calls": 0,
+                "judge_live_calls": 0, "judge_cached_calls": 0, "judge_unknown_cost_calls": 0}))
+    # An attempt that never published started a slot of its own: the arms then ran different slots.
+    run("synthetic-unpublished-slot", "incumbent", 1, "PASS")
+    run("synthetic-unpublished-slot", "candidate", 1, "PASS")
+    recordless(RUNS / "eval-synthetic-unpublished-slot" / "candidate" / ".run-2-attempt-1a2b3c4d5e6f7a8b")
+    # Identity a batch would refuse to pool on: an unknown CLI, and two models in one arm's case.
     run("synthetic-identity-gap", "incumbent", 1, "PASS")
     run("synthetic-identity-gap", "candidate", 1, "PASS", runtime={**RUNTIME, "cli_version": None})
     for slot in (1, 2):
-        run("synthetic-mixed-candidate", "incumbent", slot, "PASS")
-    run("synthetic-mixed-candidate", "candidate", 1, "PASS")
-    run("synthetic-mixed-candidate", "candidate", 2, "PASS",
-        tweak=lambda r: r["candidate"].update(plugin_source_sha256="f" * 64))
+        run("synthetic-mixed-trials", "incumbent", slot, "PASS")
+    run("synthetic-mixed-trials", "candidate", 1, "PASS")
+    run("synthetic-mixed-trials", "candidate", 2, "PASS",
+        tweak=lambda r: r["conditions"].update(observed_models=["claude-synthetic-opus"]))
     # A later regrade sits beside the original verdict; the comparison keeps revision 0.
     run("synthetic-regraded", "incumbent", 1, "PASS")
-    run("synthetic-regraded", "candidate", 1, "PASS", tweak=lambda r: r.update(assessments=[{
-        "revision": 1, "status": "FAIL", "reason": None, "grading": "grading.regrade-1.json",
-        "runner_source_sha256": "e" * 64, "assessed_at": "2026-10-02T00:00:00+00:00"}]))
+    run("synthetic-regraded", "candidate", 1, "PASS", tweak=lambda r: r.update(assessments=[
+        {"revision": 1, "status": "FAIL", "reason": None, "grading": "grading.regrade-1.json",
+         "runner_source_sha256": "e" * 64, "assessed_at": "2026-10-02T00:00:00+00:00"},
+        {"revision": 2, "status": "FAIL", "reason": None, "grading": "grading.regrade-2.json",
+         "runner_source_sha256": "f" * 64, "assessed_at": "2026-10-03T00:00:00+00:00"}]))
     # Arms measured on another model, or graded by another runner, are not one comparison.
     run("synthetic-model", "incumbent", 1, "PASS")
     run("synthetic-model", "candidate", 1, "PASS", tweak=lambda r: r["conditions"].update(
@@ -239,6 +252,8 @@ def main() -> None:
     run("synthetic-wall-clock", "incumbent", 1, "PASS")
     run("synthetic-wall-clock", "candidate", 1, "PASS",
         tweak=lambda r: r["conditions"].update(wall_clock_seconds=300))
+    run("synthetic-turn-limit", "incumbent", 1, "PASS")
+    run("synthetic-turn-limit", "candidate", 1, "PASS", tweak=lambda r: r["conditions"].update(turn_limit=5))
     # Records filed in a folder they disagree with, one field each.
     for slot in (1, 2, 3, 4):
         run("synthetic-misfiled", "incumbent", slot, "PASS")

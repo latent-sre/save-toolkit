@@ -1,10 +1,10 @@
 """The WP-01 comparison over v1 records, on the committed synthetic bundle (EVAL-012 AC-01/02/17/19/23).
 
 The bundle (evals/fixtures/v1-bundle, written by its generate.py) holds an incumbent and a candidate
-label over twenty-two synthetic cases, one behavior each, named for it: verdict pairs, a native 0.66
+label over twenty-four synthetic cases, one behavior each, named for it: verdict pairs, a native 0.66
 threshold, replaced and raised attempts, missing, legacy, recordless and refused runs, an arm that
-stopped early, an unpublished folder, unusable and misfiled records, and arms that differ in case,
-model, runner, CLI, wall-clock limit or candidate. CI runs these tests on Linux and the owner's host runs them on Windows over
+stopped early, unpublished folders, unusable and misfiled records, a twice-regraded trial, and arms
+that differ in case, model, runner, CLI, wall-clock or turn limit. CI runs these tests on Linux and the owner's host runs them on Windows over
 the same bytes, against one committed expected report.
 """
 
@@ -74,11 +74,13 @@ class ComparisonTests(unittest.TestCase):
                 "synthetic-unusable": ("unmeasured", "no PASS or FAIL verdict for the candidate"),
                 "synthetic-recordless": ("unmeasured", "no PASS or FAIL verdict for the candidate"),
                 "synthetic-misfiled": ("unmeasured", "no PASS or FAIL verdict for the candidate"),
-                "synthetic-mixed-candidate": ("unmeasured", "no PASS or FAIL verdict for the candidate"),
+                "synthetic-mixed-trials": ("unmeasured", "no PASS or FAIL verdict for the candidate"),
                 "synthetic-regraded": ("unchanged", None),
                 "synthetic-unpublished": ("unchanged", None),
                 "synthetic-refused": ("unmeasured", "no PASS or FAIL verdict for the candidate"),
                 "synthetic-wall-clock": ("not_compared", "the arms differ in wall_clock_seconds"),
+                "synthetic-turn-limit": ("not_compared", "the arms differ in turn_limit"),
+                "synthetic-unpublished-slot": ("not_compared", "the arms ran different trial slots: [1] and [1, 2]"),
             },
             outcomes,
         )
@@ -88,22 +90,22 @@ class ComparisonTests(unittest.TestCase):
         self.assertEqual(("PASS", 2, 3), tuple(threshold["candidate"][k] for k in ("verdict", "passed", "slots")))
 
     def test_an_arm_pools_only_one_measurement_with_known_identity(self) -> None:
-        """What a batch refuses to pool, the comparison refuses to pool: an unknown CLI, two candidates
-        in one arm. A later regrade sits beside the original verdict, which is the one compared."""
+        """What a batch refuses to pool, the comparison refuses to pool: an unknown CLI, two models in one
+        arm's case. Later regrades sit beside the original verdict, which is the one compared."""
         arms = {
             name: (case(self.report, name)["candidate"]["verdict"], case(self.report, name)["candidate"]["reason"])
-            for name in ("synthetic-identity-gap", "synthetic-mixed-candidate", "synthetic-regraded")
+            for name in ("synthetic-identity-gap", "synthetic-mixed-trials", "synthetic-regraded")
         }
         self.assertEqual(
             {
                 "synthetic-identity-gap": ("INCONCLUSIVE", "the CLI version or host is unknown"),
-                "synthetic-mixed-candidate": (
-                    "INCONCLUSIVE", "the trials are not one measurement: they differ in plugin_source_sha256"),
+                "synthetic-mixed-trials": (
+                    "INCONCLUSIVE", "the trials are not one measurement: they differ in observed_models"),
                 "synthetic-regraded": ("PASS", None),
             },
             arms,
         )
-        self.assertEqual(1, self.report["arms"]["candidate"]["later_assessments"])
+        self.assertEqual(2, self.report["arms"]["candidate"]["later_assessments"])  # one trial, two regrades
 
     def test_source_verdicts_checks_and_costs_are_preserved(self) -> None:
         """AC-01: every published trial, and every attempt kept beside it, reports its record's own
@@ -126,13 +128,16 @@ class ComparisonTests(unittest.TestCase):
                                       record["verdict"]["status"]), (row["attempt"], row["state"], row["status"]))
                     self.assertEqual({k: record["cost"][k] for k in COST_FIELDS}, row["cost"])
                     kept += 1
-        self.assertEqual((54, 2), (seen, kept))
+        self.assertEqual((58, 2), (seen, kept))
         candidate = self.report["arms"]["candidate"]["cost"]
-        # Twenty-one final trials at 0.10, the judged gain at 0.11, and the replaced attempt's 0.20, paid too.
-        self.assertEqual(2.41, candidate["known_usd"])
-        # The raised attempt's judge calls are unknown: counted as unknown, not summed as zero.
-        self.assertEqual((1, 1, 1), tuple(candidate[k] for k in (
+        # Twenty-three final trials at 0.10, the judged gain at 0.11, the replaced attempt's 0.20 and the
+        # unpublished previous run's 0.30, read from its record: every paid attempt with a known cost.
+        self.assertEqual(2.91, candidate["known_usd"])
+        # Judge calls are unknown for the raised attempt, ten unusable records and one unreadable
+        # unpublished folder: counted as unknown, never summed as zero.
+        self.assertEqual((1, 1, 12), tuple(candidate[k] for k in (
             "judge_live_calls", "judge_cached_calls", "judge_calls_unknown_attempts")))
+        self.assertEqual(1, self.report["arms"]["incumbent"]["cost"]["judge_calls_unknown_attempts"])  # legacy
 
     def test_every_paid_attempt_is_in_the_spend(self) -> None:
         """AC-17 (model-free) and result rule 7: a replacement fills its slot once, a raised attempt fills
@@ -140,8 +145,8 @@ class ComparisonTests(unittest.TestCase):
         attempts = case(self.report, "synthetic-attempts")["candidate"]
         self.assertEqual("INCONCLUSIVE", attempts["verdict"])
         self.assertEqual(
-            [("PASS", {"final": 1, "superseded": 1, "incomplete": 0, "unusable": 0}),
-             (None, {"final": 0, "superseded": 0, "incomplete": 1, "unusable": 0})],
+            [("PASS", {"final": 1, "superseded": 1, "incomplete": 0, "unusable": 0, "unpublished": 0}),
+             (None, {"final": 0, "superseded": 0, "incomplete": 1, "unusable": 0, "unpublished": 0})],
             [(t["status"], t["attempts"]) for t in attempts["trials"]],
         )
         # Each kept attempt is reachable by its folder, with its own verdict, cost and evidence.
@@ -153,17 +158,27 @@ class ComparisonTests(unittest.TestCase):
               for k in t["kept"]] for t in attempts["trials"]],
         )
         arm = self.report["arms"]["candidate"]
-        self.assertEqual({"final": 22, "superseded": 1, "incomplete": 1, "unusable": 10, "unpublished": 1}, arm["attempts"])
-        self.assertEqual((30, 8), (arm["slots"], arm["slots_without_trial"]))
-        # The raised attempt, ten unusable records and the unpublished folder.
+        self.assertEqual({"final": 24, "superseded": 1, "incomplete": 1, "unusable": 10, "unpublished": 2}, arm["attempts"])
+        self.assertEqual((33, 9), (arm["slots"], arm["slots_without_trial"]))
+        # The raised attempt, ten unusable records and the unpublished folder with no record.
         self.assertEqual(12, arm["cost"]["unknown_cost_attempts"])
         self.assertEqual(1, self.report["arms"]["incumbent"]["cost"]["unknown_cost_attempts"])  # its legacy run
+        # Unpublished folders are listed, keep the slot they started, and add their cost when it is known.
         self.assertEqual(
             [("candidate/.run-1-previous-0a1b2c3d4e5f6a7b",
-              "an unpublished attempt folder (in flight, or left by a failed move): not compared, "
-              "and its cost is unknown")],
+              "an unpublished attempt folder (in flight, or left by a failed move): not compared; "
+              "its record gives its cost")],
             problems(self.report, "synthetic-unpublished"),
         )
+        self.assertEqual(
+            [("candidate/.run-2-attempt-1a2b3c4d5e6f7a8b",
+              "an unpublished attempt folder (in flight, or left by a failed move): not compared; "
+              "its cost is unknown")],
+            problems(self.report, "synthetic-unpublished-slot"),
+        )
+        started = case(self.report, "synthetic-unpublished-slot")["candidate"]["trials"][1]
+        self.assertEqual((2, None, [{"folder": "eval-synthetic-unpublished-slot/candidate/.run-2-attempt-1a2b3c4d5e6f7a8b",
+                                     "cost": None}]), (started["slot"], started["status"], started["unpublished"]))
 
     def test_a_run_without_its_record_or_a_short_arm_never_pools_as_fewer_trials(self) -> None:
         """AC-02 'missing record': a published FAIL whose record was refused fails to measure instead of
@@ -172,9 +187,9 @@ class ComparisonTests(unittest.TestCase):
         self.assertEqual(("INCONCLUSIVE", 1, 2), (recordless["verdict"], recordless["passed"], recordless["slots"]))
         self.assertEqual(
             [("candidate/attempts/run-1/1",
-              "kept without record.json: the runner refused or failed to write it, so it cannot be measured"),
+              "kept without record.json, so it cannot be measured (a refused or unwritten record, or a run from before v1 records)"),
              ("candidate/run-2",
-              "published without record.json: the runner refused or failed to write it, so it cannot be measured")],
+              "published without record.json, so it cannot be measured (a refused or unwritten record, or a run from before v1 records)")],
             problems(self.report, "synthetic-recordless"),
         )
         # A case whose only attempt lost its record is not legacy: its attempt.json names a runner that
@@ -183,7 +198,7 @@ class ComparisonTests(unittest.TestCase):
         self.assertEqual((None, 1), (refused["verdict"], refused["slots"]))
         self.assertEqual(
             [("candidate/run-1",
-              "published without record.json: the runner refused or failed to write it, so it cannot be measured")],
+              "published without record.json, so it cannot be measured (a refused or unwritten record, or a run from before v1 records)")],
             problems(self.report, "synthetic-refused"),
         )
         stopped = case(self.report, "synthetic-stopped-early")
@@ -249,9 +264,27 @@ class ComparisonTests(unittest.TestCase):
                          (gain["candidate"]["verdict"], gain["candidate"]["reason"]))
         self.assertEqual("unmeasured", gain["outcome"])
 
+    def test_a_label_holding_several_candidates_is_not_one_candidate(self) -> None:
+        """A label reused for another candidate on some cases would add several candidates' results into
+        one set of outcome counts, so none of its cases is measured."""
+        with tempfile.TemporaryDirectory() as tmp:
+            runs = Path(tmp) / "runs"
+            shutil.copytree(RUNS, runs)
+            path = runs / "eval-synthetic-gain" / "candidate" / "run-1" / "record.json"
+            record = json.loads(path.read_text(encoding="utf-8"))
+            record["candidate"]["plugin_source_sha256"] = "f" * 64
+            path.write_text(json.dumps(record), encoding="utf-8")
+            report = report_for(runs)
+        self.assertEqual(["b" * 64, "f" * 64], report["arms"]["candidate"]["candidates"])
+        self.assertEqual(["a" * 64], report["arms"]["incumbent"]["candidates"])
+        self.assertEqual((0, 0, 0), tuple(report["outcomes"][k] for k in ("gain", "regression", "unchanged")))
+        self.assertEqual(("INCONCLUSIVE", "the label holds 2 candidates across its cases"),
+                         (case(report, "synthetic-regression")["candidate"]["verdict"],
+                          case(report, "synthetic-regression")["candidate"]["reason"]))
+
     def test_without_the_measured_scenario_no_verdict_is_assumed(self) -> None:
         report = report_for(RUNS, scenarios=[])
-        self.assertEqual({"unmeasured": 13, "missing_pair": 2, "not_compared": 7},
+        self.assertEqual({"unmeasured": 13, "missing_pair": 2, "not_compared": 9},
                          {k: v for k, v in report["outcomes"].items() if v})
         changed = case(self.report, "synthetic-case-changed")["candidate"]
         self.assertEqual((None, "the scenario given differs from the case these trials measured"),
@@ -308,9 +341,18 @@ class CompareCommandTests(unittest.TestCase):
                                     "--scenarios", str(BUNDLE / "scenarios"))
         self.assertEqual(0, code)
         lines = out.splitlines()
-        self.assertTrue(lines[3].startswith("incumbent incumbent: 21 case(s), 32 slot(s)"), lines[3])
-        self.assertIn("2 gain, 1 regression, 3 unchanged, 7 unmeasured, 2 missing pair, 7 not compared", out)
+        self.assertTrue(lines[3].startswith("incumbent incumbent: 23 case(s), 34 slot(s)"), lines[3])
+        self.assertIn("2 gain, 1 regression, 3 unchanged, 7 unmeasured, 2 missing pair, 9 not compared", out)
         self.assertIn("regression    synthetic-regression  PASS 1/1 -> FAIL 0/1", out)
+        # Every attempt behind a case line is traced to its folder, cost and unavailable evidence.
+        for line in (
+            "    candidate slot 1: PASS eval-synthetic-attempts/candidate/run-1 (USD 0.100000)",
+            "      kept attempt 1 superseded FAIL eval-synthetic-attempts/candidate/attempts/run-1/1 (USD 0.200000)",
+            "      kept attempt 1 incomplete no verdict eval-synthetic-attempts/candidate/attempts/run-2/1 (USD unknown)",
+            "      unpublished eval-synthetic-unpublished/candidate/.run-1-previous-0a1b2c3d4e5f6a7b (USD 0.300000)",
+            "      unavailable evidence eval-synthetic-unchanged/candidate/run-1/stdout.jsonl",
+        ):
+            self.assertIn(line, lines)
 
     def test_refuses_what_it_cannot_report(self) -> None:
         """AC-02: a duplicate or absent label, a missing bundle and a usage error are refused before

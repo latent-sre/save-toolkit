@@ -4,15 +4,15 @@
     "version": 1
   },
   "case": {
-    "id": "synthetic-mixed-candidate",
-    "case_sha256": "49c81ca2f7e9dd2534005e9aad57f5e98ba78ffa95482281f68a93d2eda40edc",
+    "id": "synthetic-turn-limit",
+    "case_sha256": "bee0acfe4c61095879b4916a781a750006d176df09223998b3efd408ea84601a",
     "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
   },
   "candidate": {
-    "plugin_root": "/synthetic/candidate",
-    "plugin_commit": "2222222222222222222222222222222222222222",
+    "plugin_root": "/synthetic/incumbent",
+    "plugin_commit": "1111111111111111111111111111111111111111",
     "plugin_inputs_dirty": false,
-    "plugin_source_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    "plugin_source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   },
   "runner": {
     "runner_commit": "3333333333333333333333333333333333333333",
@@ -36,8 +36,8 @@
     "wall_clock_seconds": 600
   },
   "attempt": {
-    "label": "candidate",
-    "slot": 2,
+    "label": "incumbent",
+    "slot": 1,
     "number": 1,
     "state": "final",
     "started_at": "2026-10-01T00:00:00+00:00",

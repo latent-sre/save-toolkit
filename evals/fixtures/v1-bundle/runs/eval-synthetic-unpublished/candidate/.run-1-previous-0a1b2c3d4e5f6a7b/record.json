@@ -4,8 +4,8 @@
     "version": 1
   },
   "case": {
-    "id": "synthetic-regraded",
-    "case_sha256": "2563d0f327438f1ce62773cf3d84ec24bd17d93c751bf78deef71024475c5034",
+    "id": "synthetic-unpublished",
+    "case_sha256": "97e778932c86e7e21bc54a783326d97067ed488d6b4f1024f8f88cdcaae3eaf6",
     "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
   },
   "candidate": {
@@ -53,22 +53,22 @@
       "id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd:0",
       "text": "routes to the reviewer",
       "kind": "requires",
-      "state": "PASS",
+      "state": "FAIL",
       "reason": null,
-      "evidence": "synthetic evidence, PASS",
+      "evidence": "synthetic evidence, FAIL",
       "evidence_truncated": false
     }
   ],
   "verdict": {
-    "status": "PASS",
+    "status": "FAIL",
     "reason": null,
     "assessment_revision": 0,
     "after_assessment": null
   },
   "cost": {
-    "trial_usd": 0.1,
+    "trial_usd": 0.3,
     "judge_usd": 0.0,
-    "known_usd": 0.1,
+    "known_usd": 0.3,
     "complete": true,
     "judge_calls": 0,
     "judge_live_calls": 0,
@@ -77,23 +77,5 @@
   },
   "evidence": {
     "outputs/response.md": "outputs/response.md"
-  },
-  "assessments": [
-    {
-      "revision": 1,
-      "status": "FAIL",
-      "reason": null,
-      "grading": "grading.regrade-1.json",
-      "runner_source_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
-      "assessed_at": "2026-10-02T00:00:00+00:00"
-    },
-    {
-      "revision": 2,
-      "status": "FAIL",
-      "reason": null,
-      "grading": "grading.regrade-2.json",
-      "runner_source_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-      "assessed_at": "2026-10-03T00:00:00+00:00"
-    }
-  ]
+  }
 }

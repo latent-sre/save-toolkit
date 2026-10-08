@@ -2,46 +2,52 @@
   "arms": {
     "candidate": {
       "attempts": {
-        "final": 22,
+        "final": 24,
         "incomplete": 1,
         "superseded": 1,
-        "unpublished": 1,
+        "unpublished": 2,
         "unusable": 10
       },
-      "cases": 21,
+      "candidates": [
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      ],
+      "cases": 23,
       "cost": {
         "judge_cached_calls": 1,
-        "judge_calls_unknown_attempts": 1,
+        "judge_calls_unknown_attempts": 12,
         "judge_live_calls": 1,
-        "known_usd": 2.41,
+        "known_usd": 2.91,
         "unknown_cost_attempts": 12
       },
-      "later_assessments": 1,
+      "later_assessments": 2,
       "legacy_runs": 0,
       "missing_evidence": 1,
       "published_trials": {
         "FAIL": 2,
         "INCONCLUSIVE": 1,
-        "PASS": 19
+        "PASS": 21
       },
-      "slots": 30,
-      "slots_without_trial": 8,
+      "slots": 33,
+      "slots_without_trial": 9,
       "truncated_checks": 1
     },
     "incumbent": {
       "attempts": {
-        "final": 32,
+        "final": 34,
         "incomplete": 0,
         "superseded": 0,
         "unpublished": 0,
         "unusable": 0
       },
-      "cases": 21,
+      "candidates": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "cases": 23,
       "cost": {
         "judge_cached_calls": 0,
-        "judge_calls_unknown_attempts": 0,
+        "judge_calls_unknown_attempts": 1,
         "judge_live_calls": 0,
-        "known_usd": 3.2,
+        "known_usd": 3.4,
         "unknown_cost_attempts": 1
       },
       "later_assessments": 0,
@@ -50,9 +56,9 @@
       "published_trials": {
         "FAIL": 5,
         "INCONCLUSIVE": 0,
-        "PASS": 27
+        "PASS": 29
       },
-      "slots": 32,
+      "slots": 34,
       "slots_without_trial": 0,
       "truncated_checks": 0
     }
@@ -78,6 +84,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 1,
@@ -90,6 +97,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 1,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -130,13 +138,15 @@
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           },
           {
             "attempts": {
               "final": 0,
               "incomplete": 1,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -168,7 +178,8 @@
             "run_end": null,
             "slot": 2,
             "status": null,
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "INCONCLUSIVE"
@@ -192,6 +203,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 2,
@@ -204,6 +216,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -226,13 +239,15 @@
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           },
           {
             "attempts": {
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -255,7 +270,8 @@
             "run_end": "completed",
             "slot": 2,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "PASS"
@@ -282,6 +298,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 1,
@@ -294,6 +311,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -316,7 +334,8 @@
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": null
@@ -340,6 +359,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 1,
@@ -352,6 +372,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -374,7 +395,8 @@
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "PASS"
@@ -401,6 +423,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 1,
@@ -413,6 +436,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -435,7 +459,8 @@
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "PASS"
@@ -459,6 +484,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 1,
@@ -471,6 +497,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -493,7 +520,8 @@
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "PASS"
@@ -520,6 +548,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 1,
@@ -532,6 +561,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -554,7 +584,8 @@
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "PASS"
@@ -578,6 +609,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 0,
@@ -590,6 +622,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -612,7 +645,8 @@
             "run_end": "completed",
             "slot": 1,
             "status": "FAIL",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "FAIL"
@@ -639,6 +673,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 1,
@@ -651,6 +686,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -673,7 +709,8 @@
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "INCONCLUSIVE"
@@ -697,6 +734,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 1,
@@ -709,6 +747,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -731,7 +770,8 @@
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "PASS"
@@ -758,6 +798,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 1,
@@ -770,6 +811,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -792,7 +834,8 @@
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "PASS"
@@ -821,6 +864,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 1,
@@ -833,6 +877,7 @@
               "final": 0,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 1
             },
             "checks": {
@@ -848,13 +893,15 @@
             "run_end": null,
             "slot": 1,
             "status": null,
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           },
           {
             "attempts": {
               "final": 0,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 1
             },
             "checks": {
@@ -870,13 +917,15 @@
             "run_end": null,
             "slot": 2,
             "status": null,
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           },
           {
             "attempts": {
               "final": 0,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 1
             },
             "checks": {
@@ -892,13 +941,15 @@
             "run_end": null,
             "slot": 3,
             "status": null,
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           },
           {
             "attempts": {
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 1
             },
             "checks": {
@@ -921,7 +972,8 @@
             "run_end": "completed",
             "slot": 4,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "INCONCLUSIVE"
@@ -945,6 +997,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 4,
@@ -957,6 +1010,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -979,13 +1033,15 @@
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           },
           {
             "attempts": {
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -1008,13 +1064,15 @@
             "run_end": "completed",
             "slot": 2,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           },
           {
             "attempts": {
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -1037,13 +1095,15 @@
             "run_end": "completed",
             "slot": 3,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           },
           {
             "attempts": {
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -1066,7 +1126,8 @@
             "run_end": "completed",
             "slot": 4,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "PASS"
@@ -1095,6 +1156,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 1,
@@ -1107,6 +1169,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -1129,7 +1192,8 @@
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "PASS"
@@ -1141,7 +1205,7 @@
       "candidate": {
         "conditions": null,
         "passed": 2,
-        "reason": "the trials are not one measurement: they differ in plugin_source_sha256",
+        "reason": "the trials are not one measurement: they differ in observed_models",
         "slots": 2,
         "threshold": null,
         "trials": [
@@ -1150,6 +1214,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -1164,21 +1229,23 @@
               "trial_usd": 0.1
             },
             "evidence": [
-              "eval-synthetic-mixed-candidate/candidate/run-1/outputs/response.md"
+              "eval-synthetic-mixed-trials/candidate/run-1/outputs/response.md"
             ],
-            "folder": "eval-synthetic-mixed-candidate/candidate/run-1",
+            "folder": "eval-synthetic-mixed-trials/candidate/run-1",
             "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           },
           {
             "attempts": {
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -1193,23 +1260,24 @@
               "trial_usd": 0.1
             },
             "evidence": [
-              "eval-synthetic-mixed-candidate/candidate/run-2/outputs/response.md"
+              "eval-synthetic-mixed-trials/candidate/run-2/outputs/response.md"
             ],
-            "folder": "eval-synthetic-mixed-candidate/candidate/run-2",
+            "folder": "eval-synthetic-mixed-trials/candidate/run-2",
             "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 2,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "INCONCLUSIVE"
       },
-      "case": "synthetic-mixed-candidate",
+      "case": "synthetic-mixed-trials",
       "incumbent": {
         "conditions": {
-          "case_sha256": "49c81ca2f7e9dd2534005e9aad57f5e98ba78ffa95482281f68a93d2eda40edc",
+          "case_sha256": "ddf7ed04d3b139c0080744274a9f45a3552383a2891a2f7f1e1af8d23a637579",
           "observed_models": [
             "claude-synthetic"
           ],
@@ -1225,6 +1293,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 2,
@@ -1237,6 +1306,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -1251,21 +1321,23 @@
               "trial_usd": 0.1
             },
             "evidence": [
-              "eval-synthetic-mixed-candidate/incumbent/run-1/outputs/response.md"
+              "eval-synthetic-mixed-trials/incumbent/run-1/outputs/response.md"
             ],
-            "folder": "eval-synthetic-mixed-candidate/incumbent/run-1",
+            "folder": "eval-synthetic-mixed-trials/incumbent/run-1",
             "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           },
           {
             "attempts": {
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -1280,15 +1352,16 @@
               "trial_usd": 0.1
             },
             "evidence": [
-              "eval-synthetic-mixed-candidate/incumbent/run-2/outputs/response.md"
+              "eval-synthetic-mixed-trials/incumbent/run-2/outputs/response.md"
             ],
-            "folder": "eval-synthetic-mixed-candidate/incumbent/run-2",
+            "folder": "eval-synthetic-mixed-trials/incumbent/run-2",
             "kept": [],
             "missing_evidence": [],
             "run_end": "completed",
             "slot": 2,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "PASS"
@@ -1315,6 +1388,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 1,
@@ -1327,6 +1401,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -1349,7 +1424,8 @@
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "PASS"
@@ -1373,6 +1449,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 1,
@@ -1385,6 +1462,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -1407,7 +1485,8 @@
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "PASS"
@@ -1434,6 +1513,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 1,
@@ -1446,6 +1526,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 1
             },
             "checks": {
@@ -1468,13 +1549,15 @@
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           },
           {
             "attempts": {
               "final": 0,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 1
             },
             "checks": {
@@ -1490,7 +1573,8 @@
             "run_end": null,
             "slot": 2,
             "status": null,
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "INCONCLUSIVE"
@@ -1514,6 +1598,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 2,
@@ -1526,6 +1611,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -1548,13 +1634,15 @@
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           },
           {
             "attempts": {
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -1577,7 +1665,8 @@
             "run_end": "completed",
             "slot": 2,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "PASS"
@@ -1598,6 +1687,7 @@
               "final": 0,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 1
             },
             "checks": {
@@ -1613,7 +1703,8 @@
             "run_end": null,
             "slot": 1,
             "status": null,
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": null
@@ -1637,6 +1728,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 1,
@@ -1649,6 +1741,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -1671,7 +1764,8 @@
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "PASS"
@@ -1698,6 +1792,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 1,
@@ -1710,6 +1805,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -1732,7 +1828,8 @@
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "PASS"
@@ -1756,6 +1853,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 1,
@@ -1768,6 +1866,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -1790,7 +1889,8 @@
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "PASS"
@@ -1817,6 +1917,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 0,
@@ -1829,6 +1930,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -1851,7 +1953,8 @@
             "run_end": "completed",
             "slot": 1,
             "status": "FAIL",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "FAIL"
@@ -1875,6 +1978,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 1,
@@ -1887,6 +1991,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -1909,7 +2014,8 @@
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "PASS"
@@ -1936,6 +2042,7 @@
             }
           },
           "scenario_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 1,
@@ -1948,6 +2055,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -1970,7 +2078,8 @@
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "PASS"
@@ -1994,6 +2103,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 1,
@@ -2006,6 +2116,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -2028,7 +2139,8 @@
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "PASS"
@@ -2055,6 +2167,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 1,
@@ -2067,6 +2180,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -2089,7 +2203,8 @@
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "PASS"
@@ -2113,6 +2228,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 1,
@@ -2125,6 +2241,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -2147,13 +2264,15 @@
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           },
           {
             "attempts": {
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -2176,13 +2295,15 @@
             "run_end": "completed",
             "slot": 2,
             "status": "FAIL",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           },
           {
             "attempts": {
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -2205,7 +2326,8 @@
             "run_end": "completed",
             "slot": 3,
             "status": "FAIL",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "FAIL"
@@ -2232,6 +2354,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 2,
@@ -2244,6 +2367,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -2266,13 +2390,15 @@
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           },
           {
             "attempts": {
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -2295,13 +2421,15 @@
             "run_end": "completed",
             "slot": 2,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           },
           {
             "attempts": {
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -2324,7 +2452,8 @@
             "run_end": "completed",
             "slot": 3,
             "status": "FAIL",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "PASS"
@@ -2348,6 +2477,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 1,
@@ -2360,6 +2490,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -2382,13 +2513,15 @@
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           },
           {
             "attempts": {
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -2411,13 +2544,15 @@
             "run_end": "completed",
             "slot": 2,
             "status": "FAIL",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           },
           {
             "attempts": {
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -2440,13 +2575,139 @@
             "run_end": "completed",
             "slot": 3,
             "status": "FAIL",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "FAIL"
       },
       "outcome": "gain",
       "reason": null
+    },
+    {
+      "candidate": {
+        "conditions": {
+          "case_sha256": "bee0acfe4c61095879b4916a781a750006d176df09223998b3efd408ea84601a",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "2222222222222222222222222222222222222222",
+          "plugin_source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": 5,
+          "wall_clock_seconds": 600
+        },
+        "passed": 1,
+        "reason": null,
+        "slots": 1,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unpublished": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-turn-limit/candidate/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-turn-limit/candidate/run-1",
+            "kept": [],
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0,
+            "unpublished": []
+          }
+        ],
+        "verdict": "PASS"
+      },
+      "case": "synthetic-turn-limit",
+      "incumbent": {
+        "conditions": {
+          "case_sha256": "bee0acfe4c61095879b4916a781a750006d176df09223998b3efd408ea84601a",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "1111111111111111111111111111111111111111",
+          "plugin_source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
+          "wall_clock_seconds": 600
+        },
+        "passed": 1,
+        "reason": null,
+        "slots": 1,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unpublished": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-turn-limit/incumbent/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-turn-limit/incumbent/run-1",
+            "kept": [],
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0,
+            "unpublished": []
+          }
+        ],
+        "verdict": "PASS"
+      },
+      "outcome": "not_compared",
+      "reason": "the arms differ in turn_limit"
     },
     {
       "candidate": {
@@ -2467,6 +2728,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 1,
@@ -2479,6 +2741,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -2504,7 +2767,8 @@
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 1
+            "truncated_checks": 1,
+            "unpublished": []
           }
         ],
         "verdict": "PASS"
@@ -2528,6 +2792,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 1,
@@ -2540,6 +2805,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -2562,7 +2828,8 @@
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "PASS"
@@ -2589,6 +2856,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 0,
@@ -2601,6 +2869,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -2623,7 +2892,8 @@
             "run_end": "completed",
             "slot": 1,
             "status": "INCONCLUSIVE",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "INCONCLUSIVE"
@@ -2647,6 +2917,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 1,
@@ -2659,6 +2930,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -2681,7 +2953,8 @@
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "PASS"
@@ -2708,6 +2981,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 1,
@@ -2720,6 +2994,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 1,
               "unusable": 0
             },
             "checks": {
@@ -2742,7 +3017,18 @@
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": [
+              {
+                "cost": {
+                  "complete": true,
+                  "judge_usd": 0.0,
+                  "known_usd": 0.3,
+                  "trial_usd": 0.3
+                },
+                "folder": "eval-synthetic-unpublished/candidate/.run-1-previous-0a1b2c3d4e5f6a7b"
+              }
+            ]
           }
         ],
         "verdict": "PASS"
@@ -2766,6 +3052,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 1,
@@ -2778,6 +3065,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -2800,13 +3088,168 @@
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "PASS"
       },
       "outcome": "unchanged",
       "reason": null
+    },
+    {
+      "candidate": {
+        "conditions": {
+          "case_sha256": "dee5f4db42a3fa51c7bda22987020e4e3d05100565421f0faaa97f2e7e1e84d4",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "2222222222222222222222222222222222222222",
+          "plugin_source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
+          "wall_clock_seconds": 600
+        },
+        "passed": 1,
+        "reason": null,
+        "slots": 2,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unpublished": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-unpublished-slot/candidate/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-unpublished-slot/candidate/run-1",
+            "kept": [],
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0,
+            "unpublished": []
+          },
+          {
+            "attempts": {
+              "final": 0,
+              "incomplete": 0,
+              "superseded": 0,
+              "unpublished": 1,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 0
+            },
+            "cost": null,
+            "evidence": [],
+            "folder": null,
+            "kept": [],
+            "missing_evidence": [],
+            "run_end": null,
+            "slot": 2,
+            "status": null,
+            "truncated_checks": 0,
+            "unpublished": [
+              {
+                "cost": null,
+                "folder": "eval-synthetic-unpublished-slot/candidate/.run-2-attempt-1a2b3c4d5e6f7a8b"
+              }
+            ]
+          }
+        ],
+        "verdict": "INCONCLUSIVE"
+      },
+      "case": "synthetic-unpublished-slot",
+      "incumbent": {
+        "conditions": {
+          "case_sha256": "dee5f4db42a3fa51c7bda22987020e4e3d05100565421f0faaa97f2e7e1e84d4",
+          "observed_models": [
+            "claude-synthetic"
+          ],
+          "plugin_commit": "1111111111111111111111111111111111111111",
+          "plugin_source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "requested_model": "sonnet",
+          "runtime": {
+            "cli_version": "0.0.0 (synthetic)",
+            "host_platform": {
+              "machine": "x86_64",
+              "release": "synthetic",
+              "system": "Linux"
+            }
+          },
+          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
+          "wall_clock_seconds": 600
+        },
+        "passed": 1,
+        "reason": null,
+        "slots": 1,
+        "threshold": 1.0,
+        "trials": [
+          {
+            "attempts": {
+              "final": 1,
+              "incomplete": 0,
+              "superseded": 0,
+              "unpublished": 0,
+              "unusable": 0
+            },
+            "checks": {
+              "FAIL": 0,
+              "INCONCLUSIVE": 0,
+              "PASS": 1
+            },
+            "cost": {
+              "complete": true,
+              "judge_usd": 0.0,
+              "known_usd": 0.1,
+              "trial_usd": 0.1
+            },
+            "evidence": [
+              "eval-synthetic-unpublished-slot/incumbent/run-1/outputs/response.md"
+            ],
+            "folder": "eval-synthetic-unpublished-slot/incumbent/run-1",
+            "kept": [],
+            "missing_evidence": [],
+            "run_end": "completed",
+            "slot": 1,
+            "status": "PASS",
+            "truncated_checks": 0,
+            "unpublished": []
+          }
+        ],
+        "verdict": "PASS"
+      },
+      "outcome": "not_compared",
+      "reason": "the arms ran different trial slots: [1] and [1, 2]"
     },
     {
       "candidate": {
@@ -2821,6 +3264,7 @@
               "final": 0,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 2
             },
             "checks": {
@@ -2836,13 +3280,15 @@
             "run_end": null,
             "slot": 1,
             "status": null,
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           },
           {
             "attempts": {
               "final": 0,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 1
             },
             "checks": {
@@ -2858,7 +3304,8 @@
             "run_end": null,
             "slot": 2,
             "status": null,
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": null
@@ -2882,6 +3329,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 2,
@@ -2894,6 +3342,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -2916,13 +3365,15 @@
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           },
           {
             "attempts": {
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -2945,7 +3396,8 @@
             "run_end": "completed",
             "slot": 2,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "PASS"
@@ -2972,6 +3424,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 300
         },
         "passed": 1,
@@ -2984,6 +3437,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -3006,7 +3460,8 @@
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "PASS"
@@ -3030,6 +3485,7 @@
             }
           },
           "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "turn_limit": null,
           "wall_clock_seconds": 600
         },
         "passed": 1,
@@ -3042,6 +3498,7 @@
               "final": 1,
               "incomplete": 0,
               "superseded": 0,
+              "unpublished": 0,
               "unusable": 0
             },
             "checks": {
@@ -3064,7 +3521,8 @@
             "run_end": "completed",
             "slot": 1,
             "status": "PASS",
-            "truncated_checks": 0
+            "truncated_checks": 0,
+            "unpublished": []
           }
         ],
         "verdict": "PASS"
@@ -3092,7 +3550,7 @@
   "outcomes": {
     "gain": 2,
     "missing_pair": 2,
-    "not_compared": 7,
+    "not_compared": 9,
     "regression": 1,
     "unchanged": 3,
     "unmeasured": 7
@@ -3116,19 +3574,23 @@
     },
     {
       "folder": "eval-synthetic-recordless/candidate/attempts/run-1/1",
-      "problem": "kept without record.json: the runner refused or failed to write it, so it cannot be measured"
+      "problem": "kept without record.json, so it cannot be measured (a refused or unwritten record, or a run from before v1 records)"
     },
     {
       "folder": "eval-synthetic-recordless/candidate/run-2",
-      "problem": "published without record.json: the runner refused or failed to write it, so it cannot be measured"
+      "problem": "published without record.json, so it cannot be measured (a refused or unwritten record, or a run from before v1 records)"
     },
     {
       "folder": "eval-synthetic-refused/candidate/run-1",
-      "problem": "published without record.json: the runner refused or failed to write it, so it cannot be measured"
+      "problem": "published without record.json, so it cannot be measured (a refused or unwritten record, or a run from before v1 records)"
+    },
+    {
+      "folder": "eval-synthetic-unpublished-slot/candidate/.run-2-attempt-1a2b3c4d5e6f7a8b",
+      "problem": "an unpublished attempt folder (in flight, or left by a failed move): not compared; its cost is unknown"
     },
     {
       "folder": "eval-synthetic-unpublished/candidate/.run-1-previous-0a1b2c3d4e5f6a7b",
-      "problem": "an unpublished attempt folder (in flight, or left by a failed move): not compared, and its cost is unknown"
+      "problem": "an unpublished attempt folder (in flight, or left by a failed move): not compared; its record gives its cost"
     },
     {
       "folder": "eval-synthetic-unusable/candidate/attempts/run-1/1",

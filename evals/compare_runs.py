@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 import sys
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -37,15 +38,21 @@ from pydantic import ValidationError
 REPORT_FORMAT = {"name": "save-toolkit.eval-comparison", "version": 1}
 OUTCOMES = ("gain", "regression", "unchanged", "unmeasured", "missing_pair", "not_compared")
 
-# What a run folder without a v1 record cannot supply when one of these files is missing.
-LEGACY_GAPS = {
-    "grading.json": "verdict and checks",
-    "provenance.json": "candidate and runner identity",
-    "timing.json": "cost",
-}
+# The provenance fields that identify a legacy run's candidate and runner.
+IDENTITY_FIELDS = ("plugin_commit", "plugin_source_sha256", "runner_source_sha256")
+# An unpublished attempt folder: `.run-N-attempt-<token>` or `.run-N-previous-<token>`.
+HIDDEN_SLOT = re.compile(r"^\.run-([1-9][0-9]*)-")
 
 # What both arms must share for a pair to be compared; the candidate's plugin is what may differ.
-MATCHED = ("case_sha256", "scenario_sha256", "requested_model", "observed_models", "runtime", "wall_clock_seconds")
+MATCHED = (
+    "case_sha256",
+    "scenario_sha256",
+    "requested_model",
+    "observed_models",
+    "runtime",
+    "wall_clock_seconds",
+    "turn_limit",
+)
 # What one arm's trials of a case must share to pool, as a batch refuses to pool anything else.
 POOLED = (*MATCHED, "plugin_source_sha256")
 DECIDED = (State.PASS, State.FAIL)
@@ -67,6 +74,7 @@ class Slot:
     final: Trial | None = None
     kept: list[Trial] = field(default_factory=list)
     unusable: int = 0
+    unpublished: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -76,7 +84,8 @@ class Label:
     cases: dict[str, dict[int, Slot]] = field(default_factory=dict)
     problems: list[dict[str, str]] = field(default_factory=list)
     legacy: list[dict[str, Any]] = field(default_factory=list)
-    unpublished: int = 0  # hidden attempt folders: paid for, never published
+    # Hidden attempt folders, paid for and never published: each one's record, or None when unreadable.
+    unpublished: list[RecordV1 | None] = field(default_factory=list)
 
 
 def label_present(bundle: Path, label: str) -> bool:
@@ -88,11 +97,12 @@ def compare_bundle(
 ) -> dict[str, Any]:
     """The logical comparison of two labels in one bundle: host-independent, so it can be diffed."""
     labels = {label: read_label(bundle, label) for label in (incumbent, candidate)}
+    mixed = {label: _mixed_candidates(held) for label, held in labels.items()}
     by_id = {spec["id"]: spec for spec in scenarios}
     cases = []
     for case_id in sorted(labels[incumbent].cases.keys() | labels[candidate].cases.keys()):
-        old = _assess(labels[incumbent].cases.get(case_id), by_id.get(case_id))
-        new = _assess(labels[candidate].cases.get(case_id), by_id.get(case_id))
+        old = _assess(labels[incumbent].cases.get(case_id), by_id.get(case_id), mixed[incumbent])
+        new = _assess(labels[candidate].cases.get(case_id), by_id.get(case_id), mixed[candidate])
         outcome, reason = _pair(old, new)
         cases.append({"case": case_id, "outcome": outcome, "reason": reason, "incumbent": old, "candidate": new})
     return {
@@ -109,6 +119,18 @@ def compare_bundle(
     }
 
 
+def _candidates(held: Label) -> list[str]:
+    """The candidate digests a label's published trials name, across all its cases."""
+    finals = (slot.final for case in held.cases.values() for slot in case.values() if slot.final)
+    return sorted({digest for t in finals if (digest := t.record.candidate.plugin_source_sha256)})
+
+
+def _mixed_candidates(held: Label) -> str | None:
+    """Why a label is not one candidate: its outcome counts would add up several candidates' results."""
+    digests = _candidates(held)
+    return f"the label holds {len(digests)} candidates across its cases" if len(digests) > 1 else None
+
+
 def read_label(bundle: Path, label: str) -> Label:
     held = Label()
     for case_dir in sorted(bundle.glob("eval-*")):
@@ -116,15 +138,23 @@ def read_label(bundle: Path, label: str) -> Label:
         if not label_dir.is_dir():
             continue
         case_id = case_dir.name.removeprefix("eval-")
-        for hidden in sorted(label_dir.glob(".run-*")):
-            held.unpublished += 1
+        hidden = []
+        for folder in sorted(label_dir.glob(".run-*")):
+            read = _read_record(folder / "record.json")
+            saved = read if isinstance(read, RecordV1) else None
+            held.unpublished.append(saved)
+            where = folder.relative_to(bundle).as_posix()
+            cost = "its record gives its cost" if saved else "its cost is unknown"
             held.problems.append(
                 {
-                    "folder": hidden.relative_to(bundle).as_posix(),
-                    "problem": "an unpublished attempt folder (in flight, or left by a failed move): "
-                    "not compared, and its cost is unknown",
+                    "folder": where,
+                    "problem": f"an unpublished attempt folder (in flight, or left by a failed move): "
+                    f"not compared; {cost}",
                 }
             )
+            match = HIDDEN_SLOT.match(folder.name)
+            if match:
+                hidden.append((int(match.group(1)), {"folder": where, "cost": _cost(saved) if saved else None}))
         folders = list(_attempt_folders(label_dir))
         # A case the label ran before v1 records existed is legacy throughout. The runner that writes
         # records writes attempt.json as each attempt starts, so once any folder of the case holds
@@ -149,6 +179,10 @@ def read_label(bundle: Path, label: str) -> Label:
                 entry.final = trial
             else:
                 entry.kept.append(trial)
+        # An attempt that never published still started its slot: a slot only it holds fails to
+        # measure, and an arm that tried a slot the other did not is not set beside it.
+        for slot, row in hidden:
+            slots.setdefault(slot, Slot()).unpublished.append(row)
         held.cases[case_id] = slots
     return held
 
@@ -191,7 +225,10 @@ def _usable_record(folder: Path, case_id: str, label: str, slot: int, number: in
     """The folder's record, or why it cannot be used."""
     if not (folder / "record.json").exists():
         published = "published" if number is None else "kept"
-        return f"{published} without record.json: the runner refused or failed to write it, so it cannot be measured"
+        return (
+            f"{published} without record.json, so it cannot be measured "
+            "(a refused or unwritten record, or a run from before v1 records)"
+        )
     record = _read_record(folder / "record.json")
     if isinstance(record, str):
         return record
@@ -242,12 +279,21 @@ def _folder_problem(record: RecordV1, case_id: str, label: str, slot: int, numbe
 
 
 def _legacy_gaps(folder: Path) -> list[str]:
-    gaps = ["no v1 record", *(gap for name, gap in LEGACY_GAPS.items() if not (folder / name).is_file())]
+    """What a run folder without a v1 record cannot supply. A gap is cleared only by content that fills
+    it: an unreadable or partial provenance.json leaves the identity gaps named."""
     try:
-        provenance = json.loads((folder / "provenance.json").read_text(encoding="utf-8"))
+        loaded = json.loads((folder / "provenance.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        return gaps
-    if not isinstance(provenance, dict) or not provenance.get("runtime"):
+        loaded = None
+    provenance = loaded if isinstance(loaded, dict) else {}
+    gaps = ["no v1 record"]
+    if not (folder / "grading.json").is_file():
+        gaps.append("verdict and checks")
+    if not all(provenance.get(field) for field in IDENTITY_FIELDS):
+        gaps.append("candidate and runner identity")
+    if not (folder / "timing.json").is_file():
+        gaps.append("cost")
+    if not provenance.get("runtime"):
         gaps.append("CLI version and host")
     return gaps
 
@@ -261,6 +307,7 @@ def _conditions(record: RecordV1) -> dict[str, Any]:
         "observed_models": record.conditions.observed_models,
         "runtime": runtime.model_dump(mode="json") if runtime else None,
         "wall_clock_seconds": record.conditions.wall_clock_seconds,
+        "turn_limit": record.conditions.turn_limit,
         "plugin_source_sha256": record.candidate.plugin_source_sha256,
         "plugin_commit": record.candidate.plugin_commit,
     }
@@ -281,7 +328,9 @@ def _identity_gap(conditions: Mapping[str, Any]) -> str | None:
     return None
 
 
-def _assess(slots: Mapping[int, Slot] | None, spec: Mapping[str, Any] | None) -> dict[str, Any] | None:
+def _assess(
+    slots: Mapping[int, Slot] | None, spec: Mapping[str, Any] | None, mixed: str | None = None
+) -> dict[str, Any] | None:
     """One arm's trials of one case, pooled as the runner pools a batch, or None when it has none."""
     if not slots:
         return None
@@ -300,6 +349,8 @@ def _assess(slots: Mapping[int, Slot] | None, spec: Mapping[str, Any] | None) ->
     }
     if not finals:
         return {**row, "reason": "no published trial has a usable record"}
+    if mixed:
+        return {**row, "verdict": State.INCONCLUSIVE, "reason": mixed}
     each = [_conditions(t.record) for t in finals]
     varied = [key for key in POOLED if len({json.dumps(c[key], sort_keys=True) for c in each}) > 1]
     if varied:
@@ -345,11 +396,13 @@ def _trial_row(number: int, slot: Slot) -> dict[str, Any]:
             }
             for t in sorted(slot.kept, key=lambda t: t.record.attempt.number)
         ],
+        "unpublished": slot.unpublished,
         "attempts": {
             "final": int(final is not None),
             "superseded": sum(t.record.attempt.state == "superseded" for t in slot.kept),
             "incomplete": sum(t.record.attempt.state == "incomplete" for t in slot.kept),
             "unusable": slot.unusable,
+            "unpublished": len(slot.unpublished),
         },
     }
 
@@ -391,9 +444,13 @@ def _arm_summary(held: Label) -> dict[str, Any]:
     slots = [slot for case in held.cases.values() for slot in case.values()]
     trials = [t for slot in slots for t in ([slot.final] if slot.final else []) + slot.kept]
     published = [slot.final.record.verdict.status for slot in slots if slot.final]
-    costs = [t.record.cost for t in trials]
+    costs = [t.record.cost for t in trials] + [record.cost for record in held.unpublished if record]
+    # Attempts with no figures this reader can use: unusable records, unreadable unpublished folders
+    # and legacy runs. Their cost and judge calls are unknown, never zero.
+    unread = sum(slot.unusable for slot in slots) + held.unpublished.count(None) + len(held.legacy)
     return {
         "cases": len(held.cases),
+        "candidates": _candidates(held),
         "slots": len(slots),
         "published_trials": {state.value: published.count(state) for state in State},
         "slots_without_trial": sum(slot.final is None for slot in slots),
@@ -402,25 +459,22 @@ def _arm_summary(held: Label) -> dict[str, Any]:
             "superseded": sum(t.record.attempt.state == "superseded" for t in trials),
             "incomplete": sum(t.record.attempt.state == "incomplete" for t in trials),
             "unusable": sum(slot.unusable for slot in slots),
-            "unpublished": held.unpublished,
+            "unpublished": len(held.unpublished),
         },
-        "later_assessments": sum(bool(t.record.assessments) for t in trials),
+        "later_assessments": sum(len(t.record.assessments) for t in trials),
         "truncated_checks": sum(check.evidence_truncated for t in trials for check in t.record.checks),
         "missing_evidence": sum(len(t.missing_evidence) for t in trials),
         "legacy_runs": len(held.legacy),
         "cost": {
-            # Superseded and incomplete attempts were paid for too. An unusable record, an unpublished
-            # folder and a legacy run each cost something this reader does not know: unknown, never zero.
+            # Superseded, incomplete and readable unpublished attempts were paid for too.
             "known_usd": round(math.fsum(cost.known_usd or 0.0 for cost in costs), 6),
-            "unknown_cost_attempts": sum(cost.complete is not True for cost in costs)
-            + sum(slot.unusable for slot in slots)
-            + held.unpublished
-            + len(held.legacy),
+            "unknown_cost_attempts": sum(cost.complete is not True for cost in costs) + unread,
             "judge_live_calls": sum(cost.judge_live_calls or 0 for cost in costs),
             "judge_cached_calls": sum(cost.judge_cached_calls or 0 for cost in costs),
             "judge_calls_unknown_attempts": sum(
                 cost.judge_live_calls is None or cost.judge_cached_calls is None for cost in costs
-            ),
+            )
+            + unread,
         },
     }
 
@@ -449,12 +503,43 @@ def render_text(report: Mapping[str, Any], bundle: Path) -> str:
         sides = " -> ".join(_side(case[role]) for role in ("incumbent", "candidate"))
         reason = f" ({case['reason']})" if case["reason"] else ""
         lines.append(f"{case['outcome'].replace('_', ' '):<13} {case['case']}  {sides}{reason}")
+        lines += _attempt_lines(case)
     if report["problems"]:
         lines += ["", "problems:"] + [f"  {p['folder']}: {p['problem']}" for p in report["problems"]]
     if report["legacy"]:
         lines += ["", "legacy runs, not compared, cost unknown:"]
         lines += [f"  {run['folder']}: {', '.join(run['gaps'])}" for run in report["legacy"]]
     return "\n".join(lines)
+
+
+def _attempt_lines(case: Mapping[str, Any]) -> list[str]:
+    """Every attempt behind a case line, by folder, so the counts above can be traced to evidence."""
+    lines = []
+    for role in ("incumbent", "candidate"):
+        for trial in (case[role] or {}).get("trials", []):
+            published = (
+                f"{trial['status']} {trial['folder']} ({_usd(trial['cost'])})" if trial["folder"] else "no trial"
+            )
+            lines.append(f"    {role} slot {trial['slot']}: {published}")
+            for kept in trial["kept"]:
+                verdict = kept["status"] or "no verdict"
+                lines.append(
+                    f"      kept attempt {kept['attempt']} {kept['state']} {verdict} {kept['folder']} ({_usd(kept['cost'])})"
+                )
+            lines += [f"      unpublished {row['folder']} ({_usd(row['cost'])})" for row in trial["unpublished"]]
+            missing = [
+                *trial["missing_evidence"],
+                *(link for kept in trial["kept"] for link in kept["missing_evidence"]),
+            ]
+            lines += [f"      unavailable evidence {link}" for link in missing]
+    return lines
+
+
+def _usd(cost: Mapping[str, Any] | None) -> str:
+    known = (cost or {}).get("known_usd")
+    if known is None:
+        return "USD unknown"
+    return f"USD {known:.6f}" + ("" if cost and cost.get("complete") else ", a floor")
 
 
 def _side(arm: Mapping[str, Any] | None) -> str:

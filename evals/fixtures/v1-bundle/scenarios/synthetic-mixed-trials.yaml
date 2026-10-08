@@ -1,4 +1,4 @@
-id: synthetic-mixed-candidate
+id: synthetic-mixed-trials
 prompt: |
   Synthetic case for the WP-01 comparison bundle; no trial ever runs it.
 target: {kind: agent, name: reviewer}
