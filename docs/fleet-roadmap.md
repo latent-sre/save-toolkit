@@ -483,36 +483,48 @@ a recorded failure, and know which host and CLI a PASS or FAIL was measured on.
 
 ### EVAL-013 — repair the accepted-implementation routing case
 
-**Status:** `ready` (2026-10-05); `discovery-reliability-defers-accepted-implementation` fails 0/3
-on main `8d7ecda1` and 0/3 on the principal candidate, with nothing dispatched on either tree. In
-two of the candidate trials the session searched the measured checkout before deciding (`EVAL-014`).
+**Status:** `decision-needed` (2026-10-08); the case now seeds the checkout worker its assignment
+names, and still fails 0/3 on main `f3335ec3`, for a new reason: the session reads the worker,
+tries to edit it itself, is refused Write and Edit by the clean room, and reports the change it
+would have made. `reliability-engineer` never fired and nothing was dispatched in any trial. The
+earlier 0/6 on an empty workspace, where the session searched and asked for the repository, is
+superseded.
 **Owner:** `agent-engineer` owns the scenario; maintainers approve any paid re-run.
 **Outcome:** The case measures whether accepted implementation work reaches `software-engineer` and
 passes on main, or carries an owner disposition.
-**Next action:** `agent-engineer` checks whether a routing scenario can seed a fixture. If it can,
-seed a minimal checkout worker and its tests so dispatch is the reasonable action; if not, reword the
-prompt so it does not depend on code the workspace lacks. Prove the case offline, then re-run three
-Sonnet trials on main with the DEC-04 figures stated first.
-**Evidence:** [Principal-engineer evaluation, base-state section](reviews/2026-10-05-principal-engineer-evals.md#the-neighbour-red-is-the-base-state).
+**Next action:** The owner chooses: keep the case red as base-state evidence that the main session
+implements rather than dispatches once the code is present (the small-tool-build negative that
+passes 3/3 loaded `python-craft` before dispatching; this session loads no skill), or set its
+`expected_alternative` to `inline` so it guards only against the design lane taking accepted
+implementation work. No further paid run is authorized.
+**Evidence:** Three Sonnet trials, label `image-sonnet`, USD 0.42, under
+`.eval-runs/eval-013-014-20261008/`; the earlier base state is in the
+[principal-engineer evaluation](reviews/2026-10-05-principal-engineer-evals.md#the-neighbour-red-is-the-base-state).
 **SRE task:** Hand over an accepted change and know the routing check truthfully shows whether it
 reaches the implementation lane.
 
 ### EVAL-014 — keep routing trials out of the measured checkout
 
-**Status:** `ready` (2026-10-06). Routing trials run in an empty repository, yet the plugin root,
-the measured checkout, is readable from them.
-- Of 38 principal-campaign routing traces, the main session searched the checkout before choosing
-  an agent in 6. In 2 of those it read this repository's `evals/` fixtures.
-- None of 54 build traces reached the checkout outside `skills/`.
+**Status:** `decision-needed` (2026-10-08). `--plugin-dir` and `--add-dir` named the checkout; since
+`f3335ec3` the runner serves each trial an image of the measured plugin inputs beside its git root,
+and the checkout is no longer readable from a trial.
+- One Haiku trial each way on CLI 2.1.295: a Glob of the checkout's `evals/*.py` returned 65
+  matches before and was denied after, with the plugin loaded from the image.
+- Six re-run Sonnet trials: none read outside its workspace and image. The design-review case
+  failed 2/3 with one trial void: the session searched the trial root, the parent of its repo and
+  the image, the CLI denied it, and the runtime-denial rule voided the trial. Each session
+  answered inline instead of dispatching `reviewer`.
 
 **Owner:** `agent-engineer` owns the runner; maintainers approve any paid re-run.
 **Outcome:** A trial can read the plugin's shipped skills but not the rest of the checkout, so a
 routing verdict cannot be shaped by the repository's own evals, docs or history.
-**Next action:** Find how the plugin root becomes readable to the trial. Then test serving the run
-from a staged copy of only the shipped plugin inputs: agents, skills, commands, hooks and
-manifests. Prove offline that a trial can no longer list `evals/`. Then re-run the design-review
-and accepted-implementation routing cases with the DEC-04 figures stated first.
-**Evidence:** [Principal-engineer evaluation, checkout-read section](reviews/2026-10-05-principal-engineer-evals.md#routing-trials-can-read-the-measured-checkout).
+**Next action:** The owner chooses whether a denied read outside the workspace and image is the
+boundary holding, so the trial keeps its verdict, or stays a runtime denial that voids it under
+the threat-model result rules; the first needs a rule change in `runtime_blocked_tools` with its
+regrade. No further paid run is authorized.
+**Evidence:** The Haiku pair under `.eval-runs/eval-014-20261008/` and the six trials, label
+`image-sonnet`, USD 0.81 in all, under `.eval-runs/eval-013-014-20261008/`; the checkout reads are in
+the [principal-engineer evaluation](reviews/2026-10-05-principal-engineer-evals.md#routing-trials-can-read-the-measured-checkout).
 **SRE task:** Trust that a routing result reflects the agent descriptions, not files the test
 happened to find.
 

@@ -8,6 +8,27 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- A trial ran in an empty repository, but `--plugin-dir` and `--add-dir` named the checkout, so a
+  routing session could read this repository's evals, docs and history before choosing an agent:
+  6 of 38 principal-campaign routing traces searched the checkout first, 2 of them `evals/`
+  fixtures. The runner now stages the measured plugin inputs beside the trial's git root, serves
+  that image, records it as `plugin_served_from`, and refuses a copy whose digest differs from the
+  candidate's; a regrade restages the image at the recorded path while it runs, and a routing
+  trial keeps the read boundary when it carries a fixture (`EVAL-014`). [verified] One Haiku
+  trial each way on CLI 2.1.295: a Glob of the checkout's `evals/*.py` returned 65 matches before
+  and was denied after, with the plugin loaded from the image. The three new runner tests fail on
+  the previous commit and pass after it. Six Sonnet re-run trials on `f3335ec3` (USD 0.81) read
+  nothing outside their workspace and image; the design-review negative failed 2/3 with one trial
+  void after the CLI denied a Grep of the trial root, a denial the runtime-denial rule still
+  counts as void. The item stays open on that rule.
+- `discovery-reliability-defers-accepted-implementation` asked for work on code its workspace
+  lacked, so the session searched, found nothing and asked for the repository instead of
+  dispatching `software-engineer`, 0/6 on two trees. The case now seeds a small checkout worker
+  whose request carries a deadline the ledger call never receives, with a passing two-test suite;
+  its calibration test seeds the fixture, runs the suite and checks that shape (`EVAL-013`).
+  [verified] Still 0/3 on `f3335ec3`, for a new reason: the session reads the worker, tries to
+  edit it itself, is refused by the clean room and reports its plan; nothing is dispatched and
+  `reliability-engineer` never fires. The item stays open for the owner's disposition.
 - `pcf-ops`'s crash reference had no case for a crash loop from a start that overruns the
   health-check `timeout`: in the 2026-09-08 quality round, the two crash-loop assertions that need
   it (rule out `$PORT`, memory and platform; tie the slow start to the droplet) stayed 0/4 after
