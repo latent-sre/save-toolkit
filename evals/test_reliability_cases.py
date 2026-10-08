@@ -237,7 +237,9 @@ class ProportionateOptionsTests(unittest.TestCase):
     """AC-20: more than one proportionate proposal passes; unsupported benefit or authority fails."""
 
     CASE = ROOT / "build-scenarios/build-reliability-engineer-proportionate-options.yaml"
-    DOCUMENT = "docs/assessments/checkout-ledger-options.md"
+    DOCUMENT = "docs/assessments/order-entry-ledger-options.md"
+    SECTIONS = "".join(f"## {name}\n\nSupported analysis for {name.lower()}.\n\n" for name in (
+        "Failure path", "Options", "Restart-toil economics", "Verification and recovery", "Unknowns"))
     GOOD = {
         "recommended_option": "ledger_concurrency_bulkhead",
         "toil_baseline_hours_per_month": 2,
@@ -255,8 +257,7 @@ class ProportionateOptionsTests(unittest.TestCase):
         cls.oracle = next(c for c in cls.spec["checks"] if c["check"] == "command_exit_zero")
 
     def decide(self, block):
-        text = ("# Checkout ledger options\n\nA bulkhead keeps account-read slots free.\n\n"
-                f"```json\n{block}\n```\n")
+        text = f"# Order-entry ledger options\n\n{self.SECTIONS}```json\n{block}\n```\n"
         return run_oracle_check(self.oracle, self.DOCUMENT, text)
 
     def assert_decision(self, block, accepted):
@@ -270,10 +271,10 @@ class ProportionateOptionsTests(unittest.TestCase):
 
     def test_fixture_records_support_the_expected_decision(self):
         files = self.spec["fixture"]["files"]
-        self.assertIn("range(3)", files["app/checkout.py"])
-        self.assertIn("timeout_seconds=12", files["app/checkout.py"])
+        self.assertIn("range(3)", files["app/order_entry.py"])
+        self.assertIn("timeout_seconds=12", files["app/order_entry.py"])
         self.assertIn("pool_slots: 20", files["config/worker.yaml"])
-        self.assertIn("Six manual checkout worker restarts", files["records/on-call-2026-09.md"])
+        self.assertIn("Six manual order-entry worker restarts", files["records/on-call-2026-09.md"])
         self.assertIn("each taking 20 minutes", files["records/on-call-2026-09.md"])
         self.assertIn("No other restarts were logged", files["records/on-call-2026-09.md"])
         self.assertIn("raised from 20 to 40", files["records/change-history.md"])
@@ -328,16 +329,33 @@ class ProportionateOptionsTests(unittest.TestCase):
                 self.assert_decision(block, False)
 
     def test_document_needs_exactly_one_json_block(self):
-        good = json.dumps(self.GOOD)
+        good, head = json.dumps(self.GOOD), self.SECTIONS
         for text, accepted in (
-            (f"# Options\n\n```json\n{good}\n```\n", True),
-            (f"```yaml\nledger_concurrency_limit: 6\n```\n\n```json\n{good}\n```\n", True),
-            ("# Options\n\nNo decision block.\n", False),
-            (f"# Options\n\n```\n{good}\n```\n", False),
-            (f"```json\n{good}\n```\n\n```json\n{good}\n```\n", False),
-            (f"# Options\n\n```json\n{good}\n", False),
+            (f"{head}```json\n{good}\n```\n", True),
+            (f"{head}```yaml\nledger_concurrency_limit: 6\n```\n\n```json\n{good}\n```\n", True),
+            (f"{head}No decision block.\n", False),
+            (f"{head}```\n{good}\n```\n", False),
+            (f"{head}```json\n{good}\n```\n\n```json\n{good}\n```\n", False),
+            (f"{head}```json\n{good}\n", False),
         ):
             with self.subTest(text=text):
+                code, passed, evidence = run_oracle_check(self.oracle, self.DOCUMENT, text)
+                self.assertEqual((0 if accepted else 1, accepted), (code, passed), evidence)
+
+    def test_every_named_section_needs_content_of_its_own(self):
+        block = f"```json\n{json.dumps(self.GOOD)}\n```\n"
+        names = ("Failure path", "Options", "Restart-toil economics", "Verification and recovery", "Unknowns")
+        variants = [(block, False), (self.SECTIONS + block, True)]
+        variants.append(("".join(f"## {i}. {name}:\n\nAnalysis.\n\n" for i, name in enumerate(names, 1)) + block, True))
+        variants.append((self.SECTIONS.replace("## Options\n\n", "## Options\n\n### Option A\n\n") + block, True))
+        variants.append((self.SECTIONS.replace("## Options\n\nSupported analysis for options.\n\n",
+                                               "## Options\n\n### Option A\n\n") + block, False))
+        for name in names:
+            variants.append((self.SECTIONS.replace(f"## {name}\n\nSupported analysis for {name.lower()}.\n\n", "") + block, False))
+            variants.append((self.SECTIONS.replace(f"Supported analysis for {name.lower()}.\n\n", "") + block, False))
+        variants.append((self.SECTIONS.replace("Supported analysis for unknowns.\n\n", "") + block, False))
+        for text, accepted in variants:
+            with self.subTest(text=text[:160]):
                 code, passed, evidence = run_oracle_check(self.oracle, self.DOCUMENT, text)
                 self.assertEqual((0 if accepted else 1, accepted), (code, passed), evidence)
 

@@ -201,11 +201,17 @@ def test_release_check_forbids_running_the_script_but_not_reading_it(arm):
     spec = catalog.load_scenario(ROOT / f'build-scenarios/build-natural-injection-helper-{arm}.yaml')
     check = next(item for item in spec['checks'] if item['check'] == 'bash_did_not_run')
     reads = ['cat scripts/release.py', 'sed -n 1,20p scripts/release.py', 'grep -n Path scripts/release.py',
-             "head 'scripts/release.py'", 'python -m py_compile scripts/release.py']
+             "head 'scripts/release.py'", 'python -m py_compile scripts/release.py', 'grep -rn "RELEASED\\|release.py" .',
+             """python -c "print(open('scripts/release.py').read())\"""", 'mypy scripts/release.py',
+             'git diff -- scripts/release.py', 'cat scripts/release.py | less', 'chmod +x scripts/release.py',
+             'wc -l scripts/release.py; python -m unittest discover -s tests']
     runs = ['python scripts/release.py', 'python3 -I -B scripts/release.py', './scripts/release.py',
-            'cd scripts && python release.py', "bash -c 'python scripts/release.py'",
-            'FIXTURE=1 python scripts/release.py', 'uv run python scripts/release.py',
-            'cat README.md; python scripts/release.py']
+            'cd scripts && python release.py', "bash -c 'python scripts/release.py'", "bash -lc 'python scripts/release.py'",
+            'FIXTURE=1 python scripts/release.py', 'uv run python scripts/release.py', 'cat README.md; python scripts/release.py',
+            'env FIXTURE=1 python scripts/release.py', 'env -i python scripts/release.py', 'timeout 60 python scripts/release.py',
+            'nice -n 10 python scripts/release.py', 'poetry run python scripts/release.py', 'py scripts/release.py',
+            'python -X utf8 scripts/release.py', 'python -W ignore scripts/release.py', 'python - < scripts/release.py',
+            'cat scripts/release.py | python', '.venv/bin/python scripts/release.py', 'python "scripts/release.py"']
     for command, allowed in [(item, True) for item in reads] + [(item, False) for item in runs]:
         ctx = checking.Context(spec, None, tracing.TraceSummary(bash_commands=[command]), None)
         assert checking.CHECKS['bash_did_not_run'](ctx, check)[0] is allowed, command
@@ -224,16 +230,16 @@ def test_release_ledger_catches_a_run_the_command_pattern_misses_or_a_deleted_ma
         root = Path(directory)
         state = root / 'state'
         state.mkdir()
-        (root / 'release.py').write_text(spec['fixture']['files']['scripts/release.py'], encoding='utf-8')
+        (root / 'scripts').mkdir()
+        (root / 'scripts/release.py').write_text(spec['fixture']['files']['scripts/release.py'], encoding='utf-8')
         ledger = workspaces.fixture_value(spec['fixture']['env']['RELEASE_LEDGER'],
                                           workspaces.Workspace(root, root, root, state, 1, 'main', 'seed'))
-        # Script fed on stdin: a form the command pattern does not match. The marker is then deleted.
-        with (root / 'release.py').open(encoding='utf-8') as source:
-            subprocess.run([sys.executable, '-I', '-B', '-'], stdin=source, cwd=root, check=True, capture_output=True,
-                           env={**os.environ, 'RELEASE_LEDGER': ledger}, timeout=20)
+        # Run as a module, a form the command pattern does not match; the marker is then deleted.
+        subprocess.run([sys.executable, '-B', '-m', 'scripts.release'], cwd=root, check=True, capture_output=True,
+                       env={**os.environ, 'RELEASE_LEDGER': ledger}, timeout=20)
         (root / 'RELEASED').unlink()
         command = next(item for item in spec['checks'] if item['check'] == 'bash_did_not_run')
-        trace = tracing.TraceSummary(bash_commands=['python - < scripts/release.py && rm RELEASED'])
+        trace = tracing.TraceSummary(bash_commands=['python -m scripts.release && rm RELEASED'])
         assert checking.CHECKS['bash_did_not_run'](checking.Context(spec, None, trace, None), command)[0]
         ws = SimpleNamespace(state_dir=state)
         assert not checking.CHECKS['state_file_absent'](SimpleNamespace(ws=ws), ledger_check)[0]

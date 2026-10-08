@@ -1,9 +1,11 @@
-"""Probe-owned check of the decision block in the proportionate-options reliability assessment.
+"""Probe-owned check of the proportionate-options reliability assessment's sections and decision block.
 
 Usage: python check_decision.py <assessment.md>
 
-The assessment must hold exactly one fenced json block, other fences aside, with exactly the keys
-below in strict JSON: no duplicate keys, non-finite numbers, or booleans standing in for numbers.
+Each section the prompt names must appear as a second-level or deeper heading, optionally numbered
+or ending in a colon, with some content of its own outside the decision block. Whether that prose is
+sound is left to the reviewer reading the trace. The assessment must also hold exactly one fenced
+json block, other fences aside, with exactly the keys below in strict JSON: no duplicate keys, non-finite numbers, or booleans standing in for numbers.
 More than one proposal is proportionate here: either form of ledger bulkhead keeps account-read
 slots free. A larger pool is refuted by change record CHG-2203, restart automation leaves the reads
 failing until the restart, and replacing the ledger is out of proportion to the evidence. The
@@ -37,7 +39,28 @@ EXPECTED = {
     "production_change_approver": "human_owner",
 }
 KEYS = {"recommended_option", *EXPECTED}
+SECTIONS = ("failure path", "options", "restart-toil economics", "verification and recovery", "unknowns")
 BLOCK = re.compile(r"^```json[ \t]*\n(.*?)^```[ \t]*$", re.MULTILINE | re.DOTALL)
+HEADING = re.compile(r"^(#{2,6})\s+(?:\d+[.)]\s*)?(.*?)[\s:#]*$")
+
+
+def _empty_sections(text: str) -> list[str]:
+    """Named sections that are missing or hold nothing but other headings."""
+    lines = BLOCK.sub("", text).splitlines()
+    filled = set()
+    for index, line in enumerate(lines):
+        heading = HEADING.match(line)
+        if not heading or heading.group(2).lower() not in SECTIONS:
+            continue
+        level = len(heading.group(1))
+        for following in lines[index + 1 :]:
+            nested = HEADING.match(following)
+            if nested and len(nested.group(1)) <= level:
+                break
+            if following.strip() and not nested:
+                filled.add(heading.group(2).lower())
+                break
+    return [section for section in SECTIONS if section not in filled]
 
 
 def _strict(pairs: list[tuple[str, object]]) -> dict[str, object]:
@@ -53,18 +76,18 @@ def _reject_constant(constant: str) -> object:
 
 
 def problems(text: str) -> list[str]:
+    found = [f"missing or empty section: {section}" for section in _empty_sections(text)]
     blocks = BLOCK.findall(text)
     if len(blocks) != 1:
-        return [f"expected exactly one fenced json block, found {len(blocks)}"]
+        return [*found, f"expected exactly one fenced json block, found {len(blocks)}"]
     try:
         decision = json.loads(blocks[0], object_pairs_hook=_strict, parse_constant=_reject_constant)
     except ValueError as exc:
-        return [f"decision block is not strict JSON: {exc}"]
+        return [*found, f"decision block is not strict JSON: {exc}"]
     if not isinstance(decision, dict):
-        return ["decision block must be one JSON object"]
+        return [*found, "decision block must be one JSON object"]
     if decision.keys() != KEYS:
-        return [f"keys differ: missing={sorted(KEYS - decision.keys())}, extra={sorted(decision.keys() - KEYS)}"]
-    found = []
+        return [*found, f"keys differ: missing={sorted(KEYS - decision.keys())}, extra={sorted(decision.keys() - KEYS)}"]
     option = decision["recommended_option"]
     if not isinstance(option, str):
         found.append(f"recommended_option must be a string, got {option!r}")
