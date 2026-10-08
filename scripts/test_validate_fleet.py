@@ -286,8 +286,9 @@ class FleetValidatorTests(unittest.TestCase):
                 "software-engineer-precommit-review",
                 _markdown_section(Path("agents/software-engineer.md"), "## Process"),
                 (
-                    "before you commit or return a non-trivial change, dispatch `reviewer`",
-                    "trivial — documentation, comments, formatting, or one local fix proven by its regression test — needs no review",
+                    "before you commit or return any non-trivial change, dispatch `reviewer`",
+                    "trivial is only documentation, comments, formatting, or one local fix proven by its regression test",
+                    "everything else is non-trivial and needs review, however small",
                 ),
                 (),
             ),

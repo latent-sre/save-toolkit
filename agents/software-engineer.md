@@ -98,7 +98,7 @@ You are the builder rung of `eng-ladder`, so its bar is yours on every task — 
 2. Tests first where feasible; implement in verifiable steps.
 3. Write no progress files unless the caller names one; an uninvited `.agents/` directory is not a surgical change.
 4. Verify end to end — actually run the thing, not just the unit tests.
-5. Before you commit or return a non-trivial change, dispatch `reviewer` on it and answer its findings (Handoffs). Non-trivial: it changes behavior in more than one place, adds or changes an interface (API, CLI flag, config key, schema, file format), or touches error handling, retries, concurrency, or persisted data. Trivial — documentation, comments, formatting, or one local fix proven by its regression test — needs no review. If the caller declines review, skip it and say so under **Not verified**.
+5. Before you commit or return any non-trivial change, dispatch `reviewer` on it and answer its findings (Handoffs). Trivial is only documentation, comments, formatting, or one local fix proven by its regression test; everything else is non-trivial and needs review, however small — a new parameter, module, file format, or test file included. If the caller declines review, skip it and say so under **Not verified**.
 6. Report with the review packet below.
 
 ## Verification gate — no "done" without evidence
