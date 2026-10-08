@@ -1,0 +1,59 @@
+# software-engineer fixes one typo that appears in three files (README.md, a docstring in report.py
+# and a comment in test_report.py) and returns without dispatching the reviewer (PRECOMMIT-001: a
+# typo fix is a nit and needs no review at any size). At three files only the nit exemption, not the
+# size threshold, explains a skip. Over-trigger control for
+# build-software-engineer-reviews-nontrivial-change.
+id: build-software-engineer-skips-review-for-trivial-fix
+agent: software-engineer
+prompt: |
+  "recieve" is misspelled for "receive" in README.md, in report.py and in test_report.py. Fix the
+  spelling everywhere. Don't commit; I'll commit it myself.
+fixture:
+  files:
+    .gitignore: |
+      *.log
+      __pycache__/
+    README.md: |
+      # ledger-report
+      `report.render(rows)` prints the end-of-day trade table. Downstream jobs recieve the table on
+      stdout. Run the tests with `python -m pytest -q`.
+    report.py: |
+      """End-of-day trade report; downstream jobs recieve it on stdout."""
+
+
+      def render(rows):
+          """Fixed-width table: symbol, qty, price to the cent."""
+          lines = [f"{'symbol':<8}{'qty':>6}{'price':>10}"]
+          for row in rows:
+              lines.append(f"{row['symbol']:<8}{row['qty']:>6}{row['price']:>10.2f}")
+          return "\n".join(lines)
+    test_report.py: |
+      from report import render
+
+      # Downstream jobs recieve exactly this table, so the cents must survive.
+      ROWS = [{"symbol": "ACME", "qty": 100, "price": 101.25}]
+
+
+      def test_table_keeps_cents():
+          assert "101.25" in render(ROWS)
+checks:
+- check: no_task_dispatch
+  target: reviewer
+  text: a three-file typo fix spawns no reviewer
+- check: file_contains
+  path: README.md
+  needle: Downstream jobs receive the table
+  text: the README typo is fixed
+- check: file_contains
+  path: report.py
+  needle: downstream jobs receive it
+  text: the docstring typo is fixed
+- check: file_contains
+  path: test_report.py
+  needle: Downstream jobs receive exactly
+  text: the test comment typo is fixed
+- check: changes_within
+  allowed: [README.md, report.py, test_report.py]
+  text: only the three files with the typo changed
+- check: no_new_commits
+  text: nothing committed

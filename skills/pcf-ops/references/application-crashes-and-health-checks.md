@@ -33,6 +33,31 @@ human approval, and the state-changing-command stop; this file grants no executi
   does not restart it.
 - Slow `/health` timing out? A human release owner may propose raising the invocation timeout:
   `cf set-health-check <app> http --endpoint /health/live --invocation-timeout 10`.
+- **Slow start, not a broken app.** A crash loop after a push or restart whose logs show
+  `Failed after <duration>: startup health check never passed.` and whose crash event reads
+  `Instance never healthy after <duration>: <check error>` means the app did not answer its health
+  check within the start `timeout` (manifest `timeout`, `cf push -t`): 60 s by default, capped by the
+  foundation's `cc.maximum_health_check_timeout`, 180 s by default. Older Diego releases say
+  "readiness health check" in the first line. The startup check reuses the liveness check's type,
+  endpoint and invocation timeout.
+  1. Rule out the look-alikes from the same evidence: an OOM kill reads `Exited with status 137`,
+     not "never healthy"; a `$PORT` mismatch keeps failing however long the app is given, and the
+     app's own log names another port; a platform fault reaches other apps too (the parent skill's
+     boundary check).
+  2. Tie the slow start to the droplet. In Apps Manager → app → Logs (`cf logs <app> --recent`),
+     compare the time from start to the app's listening line on this droplet and the previous one;
+     read the crash in Events (`cf events <app>`). A new dependency warm-up, a migration at boot or a
+     larger classpath explains a start that now overruns; raising the timeout without that cause
+     hides a regression.
+  3. A human release owner may propose raising the start timeout (`timeout` / `-t`), not the
+     invocation timeout, which bounds each probe (1 s by default) and fixes only a slow endpoint.
+
+  Repeated crashes back off: three immediate restarts, then a 30 s wait that doubles up to 16 min,
+  and no restarts after the 200th. Apps Manager → app → Settings → Health Check shows the check
+  type and endpoint; whether it shows the start timeout is `[unverified]`.
+  *[sourced: cloudfoundry/executor `depot/steps/health_check_step.go`; CF docs, manifest
+  `timeout` and `health-check-invocation-timeout`, and "Using App Health Checks"; cloudfoundry/bbs
+  `models/restart_calculator.go`]*
 
 These are documented behavior shapes, not live observations. Exact target-foundation behavior
 remains `[unverified]`. Changing a health check requires the exact approved-change packet in the

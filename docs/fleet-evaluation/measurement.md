@@ -23,11 +23,11 @@ and failed cases. Preserve original benchmark metrics with their own labels and 
 
 ## Judge experiment
 
-Keep the currently accepted graders and judge fixed during WP-15's runner experiment. Refresh
-EVAL-010's owner disposition before proposing any replacement; this candidate list does not reopen
+Keep the currently accepted graders and judge fixed during WP-15's runner experiment. Reopen
+EVAL-015 before proposing any replacement; this candidate list does not reopen
 a settled decision or make judge replacement a prerequisite for useful evaluation.
 
-EVAL-010 remains the owning roadmap item. Extend its candidate set with DeepEval only through the
+EVAL-015 is the owning roadmap item. Extend its candidate set with DeepEval only through the
 recorded experiment design, keeping the current judge, Inspect and Pydantic Evals. The existing
 calibration agreement requirement is 0.95 per rubric with no inconclusive cases; this proposal does
 not lower it. Final adoption additionally needs held-out evidence and a maintenance/cost disposition.

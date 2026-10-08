@@ -235,7 +235,7 @@ def test_fixture_suite_passes_unchanged(tmp_path):
 
 
 @pytest.mark.parametrize("scenario_name,permits_review", [
-    ("pager-webhook", True), ("cli-with-tests", False),
+    ("pager-webhook", True), ("cli-with-tests", True), ("skips-review-for-trivial-fix", False),
 ])
 def test_review_dispatch_policy_matches_security_scope(tmp_path, scenario_name, permits_review):
     from probe import checking as probe_checking  # noqa: PLC0415 -- only this test needs the runner

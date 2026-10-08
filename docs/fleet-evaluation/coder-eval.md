@@ -176,6 +176,6 @@ pass, even while this assessment remains open. That does not admit the alternati
 
 Select reporting after this evidence: promptfoo remains a presentation/adversarial-authoring
 candidate, Coder Eval's report may suffice, or a minimal local view may be retained. Reports must
-still pass Windows/Linux import and relocation acceptance. Judge replacement remains EVAL-010's
+still pass Windows/Linux import and relocation acceptance. Judge replacement remains EVAL-015's
 separate decision; the coding environment remains DEC-06's decision. No tool score promotes a fleet
 candidate. Implementation status belongs only to [EVAL-012](../fleet-roadmap.md#eval-012--plan-incident-and-coding-evaluations-for-the-fleet).

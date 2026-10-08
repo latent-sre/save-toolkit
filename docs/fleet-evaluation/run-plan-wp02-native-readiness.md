@@ -60,7 +60,7 @@ passes, chosen before the run.
 - **Model:** the `sonnet` alias (DEC-17). The native cases pin `claude-sonnet-5-5`; any other
   resolved model voids the trial.
 - **Judge:** the incumbent judge, with a passing calibration receipt for the current rubric and
-  corpus on this host (EVAL-010), for the one rubric check.
+  corpus on this host ([the rubric judge](../../evals/README.md#the-rubric-judge)), for the one rubric check.
 - **Trials:** three per case, serial, with cases interleaved (DEC-10): 18 trials.
 - **Limits:** each case's declared turn limit, the 900-second wall clock, and the USD 0.75 spend
   guard on native conversations.
