@@ -1,0 +1,46 @@
+# software-engineer builds a non-trivial change (a new module and a new render format) and, unasked,
+# has the reviewer review it before handing back (PRECOMMIT-001: non-trivial changes get review).
+# The prompt never mentions review; build-software-engineer-skips-review-for-trivial-fix is the
+# over-trigger control.
+id: build-software-engineer-reviews-nontrivial-change
+agent: software-engineer
+prompt: |
+  Add CSV output for the end-of-day reconciliation upload. Put it in a new module export.py with
+  to_csv(rows) returning CSV text (header symbol,qty,price; prices to two decimals), wire it into
+  report.render(rows, fmt="csv"), and add tests. Don't commit; I'll commit it myself.
+fixture:
+  files:
+    .gitignore: |
+      *.log
+    README.md: |
+      # ledger-report
+      `report.render(rows)` prints the end-of-day trade table. The reconciliation upload needs the
+      same rows as CSV with prices to the cent (two decimals): the exchange file is matched to the cent.
+      Run the tests with `python -m pytest -q`.
+    report.py: |
+      """End-of-day trade report."""
+
+
+      def render(rows):
+          """Fixed-width table: symbol, qty, price to the cent."""
+          lines = [f"{'symbol':<8}{'qty':>6}{'price':>10}"]
+          for row in rows:
+              lines.append(f"{row['symbol']:<8}{row['qty']:>6}{row['price']:>10.2f}")
+          return "\n".join(lines)
+    test_report.py: |
+      from report import render
+
+      ROWS = [{"symbol": "ACME", "qty": 100, "price": 101.25}]
+
+
+      def test_table_keeps_cents():
+          assert "101.25" in render(ROWS)
+checks:
+- check: task_completed
+  target: reviewer
+  text: the reviewer was dispatched unasked and returned
+- check: no_new_commits
+  text: nothing committed
+- check: file_exists
+  path: export.py
+  text: the new module exists

@@ -274,10 +274,20 @@ class FleetValidatorTests(unittest.TestCase):
                 "software-engineer-boundary",
                 _markdown_section(Path("agents/software-engineer.md"), "## Handoffs"),
                 (
-                    "routine completion returns the evidence packet to the caller without spawning a review",
+                    "a trivial change (process step 5) returns the evidence packet to the caller without spawning a review",
+                    "a non-trivial change is ready to commit or return",
                     "caller requests review",
                     "security-sensitive",
                     "production deployment",
+                ),
+                (),
+            ),
+            (
+                "software-engineer-precommit-review",
+                _markdown_section(Path("agents/software-engineer.md"), "## Process"),
+                (
+                    "before you commit or return a non-trivial change, dispatch `reviewer`",
+                    "trivial — documentation, comments, formatting, or one local fix proven by its regression test — needs no review",
                 ),
                 (),
             ),
