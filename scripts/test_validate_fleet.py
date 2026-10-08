@@ -286,10 +286,9 @@ class FleetValidatorTests(unittest.TestCase):
                 "software-engineer-precommit-review",
                 _markdown_section(Path("agents/software-engineer.md"), "## Process"),
                 (
-                    "before you commit or return a change, count the files you changed for this task",
-                    "leave out any path that was already changed before your first edit",
-                    "at 3 or more, dispatch `reviewer` on the change",
-                    "however small the change seems, unless every change in it is a nit",
+                    "before you commit or return a change that touches 3 or more files",
+                    "leaving out any path already changed before your first edit",
+                    "unless every change in it is a nit",
                     "a change to fewer than 3 files needs no review here",
                     "the security-sensitive and production-deployment triggers in handoffs apply at any size",
                 ),

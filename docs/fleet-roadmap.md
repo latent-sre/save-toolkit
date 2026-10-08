@@ -513,6 +513,28 @@ and accepted-implementation routing cases with the DEC-04 figures stated first.
 **SRE task:** Trust that a routing result reflects the agent descriptions, not files the test
 happened to find.
 
+### PRECOMMIT-001 — software-engineer reviews a 3-file change before committing, unasked
+
+**Status:** `active` (2026-10-08). The owner chose the trigger on 2026-10-07: review at 3 or more
+changed files unless every change is a nit. software-engineer's Process step 5 carries it, counting
+only the files changed for the task. The skip controls hold; the unasked review on a small 3-file
+feature mostly does not fire.
+**Owner:** The human owner decides the mechanism; `agent-engineer` owns the software-engineer rule and
+its scenarios.
+**Outcome:** software-engineer dispatches `reviewer` unasked on a 3-file feature in most trials, and
+still skips a change below 3 files or one made only of nits, on the current CLI.
+**Next action:** The owner chooses: try step 5 as a concrete action ("your next tool call is
+`reviewer`"), measured interleaved against the shipped line, or accept the limit and close the item.
+Every miss so far counted 3 files and skipped review as "small", whatever the wording.
+**Evidence:** Sonnet on CLI 2.1.294, with the scenarios Codex's PR #332 review made exact (the feature
+case asserts all three files; both nit controls touch three files):
+`build-software-engineer-reviews-nontrivial-change` reviewed 1/3 with #332's original line and 0/3
+with each of two rewrites; the three skip controls passed 3/3 each. The shipped line is the original
+plus the counting fix and has not been run. Earlier, on CLI 2.1.292 and the previous feature case,
+five wordings reviewed in 10 of 15 trials. Runs are private under `.eval-runs/precommit-20261008/`.
+**SRE task:** An SRE gets an independent review of agent-written changes before they are committed
+without having to ask for it each time.
+
 ## Deferred
 
 ### REVIEWER-001 — the reviewer reads the history of every changed file
