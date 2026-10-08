@@ -20,7 +20,7 @@ from typing import Any
 import clean_room
 import judge as rubric_judge
 
-from . import assessment, fingerprints, invocation, outcomes, records, tracing
+from . import assessment, checking, fingerprints, invocation, outcomes, records, tracing
 from .checking import Context
 from .constants import ROOT
 from .fingerprints import HARNESS_IDENTITY, HARNESS_SOURCE_SHA256
@@ -192,7 +192,8 @@ def regrade_run(run_dir: Path, spec: Spec, *, write: bool = True, relax_identity
         items = assessment.plan(
             spec, trace, ctx, ctx.plugin_root, workspace=recorded_workspace, keep=True, raw_trace=reparsed is not None
         )
-        graded, unmeasured = assessment.assess(items, inconclusive, kept=_saved_verdicts(old_by_id, kept_prefix))
+        kept = _saved_verdicts(old_by_id, kept_prefix, stale_judge=_stale_judge(spec, saved_binding))
+        graded, unmeasured = assessment.assess(items, inconclusive, kept=kept)
     if fingerprints.scenario_digest(spec, saved_binding) != identity:
         inconclusive = "scenario inputs changed during regrade; re-run the trial"
         graded = assessment.unmeasured_all(graded, inconclusive)
@@ -274,6 +275,8 @@ def _run_level_reason(
     elif required:
         try:
             rubric_judge.validate_binding(rubric_judge.JudgeBinding(json.dumps(saved_binding)), required, current=False)
+        except rubric_judge.JudgeExecutionChanged:
+            pass  # the run's evidence is intact; only its kept judgments fall (`_stale_judge`)
         except rubric_judge.JudgeUnavailable as exc:
             inconclusive = str(exc)
     if has_raw_trace and str(inconclusive or "").startswith(invocation.BLOCKED_TOOLS):
@@ -304,10 +307,35 @@ def _saved_void(live_grade: Mapping[str, Any], summary: Mapping[str, Any]) -> st
     return str(reason) if all(str(e.get("evidence") or "") == marked for e in expectations) else None
 
 
-def _saved_verdicts(old_by_id: Mapping[Any, Mapping[str, Any]], prefix: str | None) -> assessment.Kept:
-    """The live verdict an expectation kept by a regrade carries, found by its position and text."""
+def _stale_judge(spec: Spec, saved_binding: Any) -> str | None:
+    """Why the run's kept judgments cannot stand when only the judge has changed since the run.
+
+    A judge whose code or configuration differs from the one the saved binding certified leaves
+    each kept judgment INCONCLUSIVE; the checks the saved trace re-measures keep their verdicts,
+    so a supported FAIL beside them still fails (result rule 3). Any other binding problem voids
+    the whole run in `_run_level_reason`.
+    """
+    required = fingerprints.required_rubrics(spec)
+    if not required or not saved_binding:
+        return None
+    try:
+        rubric_judge.validate_binding(rubric_judge.JudgeBinding(json.dumps(saved_binding)), required, current=False)
+    except rubric_judge.JudgeExecutionChanged as exc:
+        return f"{exc}; the kept judgment needs a re-run under the current judge"
+    except rubric_judge.JudgeUnavailable:
+        return None
+    return None
+
+
+def _saved_verdicts(
+    old_by_id: Mapping[Any, Mapping[str, Any]], prefix: str | None, *, stale_judge: str | None = None
+) -> assessment.Kept:
+    """The live verdict an expectation kept by a regrade carries, found by its position and text,
+    unless it is a judgment by a judge that has changed since (`stale_judge`)."""
 
     def kept(index: int, item: assessment.Expectation) -> Outcome | None:
+        if stale_judge and item.kept_as == checking.LIVE_JUDGE:
+            return outcomes.unmeasured(stale_judge)
         saved = old_by_id.get(f"{prefix}:{index}")
         if saved is None or saved.get("text") != item.text:
             return None

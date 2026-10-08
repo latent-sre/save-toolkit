@@ -273,7 +273,7 @@ def plan(
                 _unless_lost(measure, needs & lost),
                 polarity,
                 on_cut=routing_on_cut if polarity is Polarity.BOTH else None,
-                kept_as="live-judge" if keep and Need.JUDGE in needs else None,
+                kept_as=checking.LIVE_JUDGE if keep and Need.JUDGE in needs else None,
             )
         )
     for check in spec.get("checks") or []:

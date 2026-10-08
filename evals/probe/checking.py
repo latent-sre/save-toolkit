@@ -1376,9 +1376,13 @@ def is_regradable(check: Params, spec: Params | None = None) -> bool:
     return declared is not None and declared.can_regrade(check, spec or {})
 
 
+# Why a regrade keeps a live verdict that a judge call paid for.
+LIVE_JUDGE = "live-judge"
+
+
 def kept_as(check: Params, spec: Params) -> str:
     """Why a regrade keeps this check's live verdict: a paid judgment, or evidence that left with the workspace."""
-    return "live-judge" if Need.JUDGE in check_needs(check, spec) else "workspace-dependent"
+    return LIVE_JUDGE if Need.JUDGE in check_needs(check, spec) else "workspace-dependent"
 
 
 def run(ctx: Context, check: Params) -> Outcome:

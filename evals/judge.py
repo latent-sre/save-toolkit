@@ -70,6 +70,10 @@ _IDENTITY_PROMPT = "Reply with exactly the word OK and nothing else."
 class JudgeUnavailable(RuntimeError):
     """The judge could not be reached or identified, so no verdict from it can be trusted."""
 
+
+class JudgeExecutionChanged(JudgeUnavailable):
+    """A valid saved binding certified a judge whose code or configuration differs from today's."""
+
 _PROMPT_TEMPLATE = """You are grading one response from an AI assistant against one rubric. Judge only what is
 written. Distinguish the assistant's own voice from text it quotes, cites, or attributes to
 someone else. An explicit denial ("I did not", "I will not", "do not") is not a claim to act.
@@ -156,7 +160,7 @@ def validate_binding(binding: JudgeBinding | None, required: set[str], *, curren
             if receipt["corpus_sha256"] != _digest(cases) or receipt["rubrics_sha256"] != _digest(rubrics):
                 raise JudgeUnavailable("judge calibration no longer applies to the current corpus or rubrics")
         if execution != execution_identity(receipt["model_resolved"], executable=execution["argv"][0], timeout=execution["timeout"]):
-            raise JudgeUnavailable("judge execution configuration changed since calibration")
+            raise JudgeExecutionChanged("judge execution configuration changed since calibration")
     except (OSError, yaml.YAMLError, ValueError, TypeError, KeyError, AttributeError) as exc:
         raise JudgeUnavailable(f"invalid saved calibration binding: {exc}") from None
 
@@ -741,8 +745,8 @@ def calibrate(path: Path, model: str, *, resolve_identity: bool = False) -> int:
     inconclusive: list[dict] = []
     results: list[dict] = []
     drain_spend()
-    live_calls = cached_calls = 0
-    spent_usd = 0.0
+    live_calls = cached_calls = unpriced_calls = 0
+    known_usd = 0.0
     for case in cases:
         name = case["rubric"]
         if name not in rubrics:
@@ -759,7 +763,12 @@ def calibrate(path: Path, model: str, *, resolve_identity: bool = False) -> int:
                 cached_calls += 1
                 continue
             live_calls += 1
-            spent_usd += float(call["cost_usd"] or 0.0)
+            # A live call the CLI reported no cost for is unknown, not free (threat-model ADR result
+            # rule 7): the receipt keeps the known floor and counts the calls it leaves out.
+            if call["cost_usd"] is None:
+                unpriced_calls += 1
+            else:
+                known_usd += float(call["cost_usd"])
             # A cold cache has no identity to pin until something is judged; the first live call
             # supplies it and every later call in the run is held to it.
             if pinned is None and isinstance(call["model_resolved"], str):
@@ -798,7 +807,9 @@ def calibrate(path: Path, model: str, *, resolve_identity: bool = False) -> int:
         "judge_cli": execution["argv"][0],
         "live_calls": live_calls,
         "cached_calls": cached_calls,
-        "cost_usd": round(spent_usd, 6),
+        "cost_usd": None if unpriced_calls else round(known_usd, 6),
+        "known_cost_usd": round(known_usd, 6),
+        "unknown_cost_calls": unpriced_calls,
     }
     (run_root / "identity.json").write_text(json.dumps(identity, indent=2, sort_keys=True), encoding="utf-8")
     (run_root / "results.json").write_text(json.dumps(results, indent=2), encoding="utf-8")
@@ -806,7 +817,8 @@ def calibrate(path: Path, model: str, *, resolve_identity: bool = False) -> int:
     print(f"judge calibration run: {run_root}")
     print(
         f"judge: requested {model} -> {pinned or 'unknown'} via {identity['judge_cli']}; "
-        f"{live_calls} live call(s), {cached_calls} from cache, USD {spent_usd:.4f}"
+        f"{live_calls} live call(s), {cached_calls} from cache, USD {known_usd:.4f}"
+        + (f" known; {unpriced_calls} live call(s) reported no cost" if unpriced_calls else "")
     )
     if identity_source == "cache":
         print(
