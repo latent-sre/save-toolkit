@@ -21,23 +21,27 @@ All of these hold before the first paid call:
 3. Every case below declares its turn limit, and the denied-tool canary is written and proven offline.
    The canary is written (`build-repository-investigator-denied-shell-canary`, `max_turns: 15`) and
    proven by `evals/test_native_readiness_cases.py`. The other five limits come from this host's
-   saved runs: `python evals/turn_counts.py .eval-runs --scenario <id>` for each case. The proposed
+   saved runs, retained attempts included: `python evals/turn_counts.py .eval-runs --scenario <id>`
+   for each case. The proposed
    limit is twice the highest observed count, or that count plus 10 if larger. Raise any case with
    no saved trial, or whose longest trial took over 450 seconds, with the owner instead, since a
    run that stops at its limit is complete and fails its unmet requirements (result rule 4). Adding
    a limit changes the case identity, not the runner identity.
 4. The model-free controls below pass.
 5. The judge framing fix in the frozen record below invalidated every earlier calibration receipt
-   and cached verdict. A cold calibration of the changed judge (181 judgments; the last cold run,
-   175 calls, cost USD 2.66) passes on this host under the everyday account, triggered and budgeted
+   and cached verdict. A cold calibration of the changed judge (181 judgments, of which the six
+   AC-27 judge-input cases must each agree; the last cold run, 175 calls, cost USD 2.66) passes on
+   this host under the everyday account, triggered and budgeted
    by the owner separately from this plan's cap. The one rubric check below needs that receipt.
 
 ## Frozen runner record
 
-[verified] Re-recorded 2026-10-08 for the judge framing fix (EVAL-012 WP-10), which lands with
-this record before WP-02 starts. Latest identity-input commit:
-`4022ba744650be0dc8ff16f0e330f78bca0c566d`. `probe.fingerprints.harness_source_digest()` returns
-`20039ef716110644352199ec2e78135bf34d7cb8b4db3ee6072d7451987e46b6`. It replaces the first record,
+[verified] Re-recorded 2026-10-08 for the judge framing fix and its required calibration cases
+(EVAL-012 WP-10), which land with this record before WP-02 starts. Latest identity-input commit:
+`2ae94bafbc2b33e3087fcdea3b9c06152fff6549`. `probe.fingerprints.harness_source_digest()` returns
+`14d28710b8319576cff49bee3047f9b76e7ec2dda83cc876b9a902ec09435d66`. Merge the PR that lands it with a merge commit, as this repository does, so that commit stays in
+`main`'s history; a rebase merge rewrites it, and then `git log -1 -- <HARNESS_FILES>` on `main` names
+its replacement. The digest is what WP-02 checks either way. It replaces the first record,
 taken from checkout `523525430a0fbb71b0e9e3a846fae8e86db90a99` after PR #328 (latest identity input
 `effa23d7795ea527efce3a5de2c27375cb0f0b89`, digest
 `633770b9656dbd8980df842af9d0e41e7e233ab293f69338de05f280c9d249d3`).

@@ -16,7 +16,10 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   quotes stay verbatim. The six judge-input cases drafted in PR #334 are now in
   `rubrics-calibration.yaml` (181 cases), and `test_judge_injection.py` replaces the draft test.
   [verified] Its breakout test fails on the previous `judge.py`, where the frame closes inside the
-  response, and passes now. The edit changes `judge.py`, so the runner identity becomes `20039ef7…`
+  response, and passes now. The six cases are `required`: a calibration in which any of them
+  disagrees is rejected, and `load_binding` refuses such a receipt, so the rubric's 0.95 tolerance
+  cannot absorb the breakout case (24/25 would otherwise pass). [verified] Those tests fail on the
+  judge without the rule. The edits change `judge.py`, so the runner identity becomes `14d28710…`
   and no existing calibration receipt or cached verdict applies: the cache key includes the
   template and judge source. It needs one owner-approved cold calibration of 181 judgments before
   any rubric trial; it lands before WP-02 starts, with a re-recorded frozen runner and that
@@ -849,8 +852,9 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   detection and the marker offline. No model run; the runner digest is unchanged.
 - `evals/turn_counts.py` summarizes the turn counts saved trials recorded, per scenario, so WP-02's
   five remaining `max_turns` can be set from the Windows host's saved runs rather than guessed; the
-  run plan proposes twice the highest observed count. It reads `timing.json` only and grades
-  nothing. [verified] Its tests cover unreadable, missing and boolean counts and absent scenarios.
+  run plan proposes twice the highest observed count. It reads the `timing.json` of published runs
+  and retained attempts, which can hold the highest count, and grades nothing. [verified] Its tests
+  cover retained attempts and unreadable, missing and boolean counts and absent scenarios.
 - `build-reliability-engineer-proportionate-options` fills the reliability lane's AC-20 gap
   (EVAL-012 WP-10): every graded reliability case accepted exactly one answer, and none combined a
   dependency failure with toil evidence. In a synthetic order-entry service, a slow ledger exhausts a

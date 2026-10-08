@@ -390,10 +390,11 @@ including its result rules. Measurement failures are inconclusive and never hide
 and results record the runner revision, CLI version and host platform. Every in-scope defect from the
 2026-10-03 inventory of `evals/build_probe.py` is fixed or has an owner disposition.
 **Next action:** Keep the runner frozen through WP-02; run its remaining preconditions and native
-checks under the approved run plan. [verified] Re-frozen on 2026-10-08 with the judge framing fix;
-latest commit touching runner identity inputs: `4022ba744650be0dc8ff16f0e330f78bca0c566d`. The
+checks under the approved run plan. [verified] Re-frozen on 2026-10-08 with the judge framing fix
+and its required calibration cases; latest commit touching runner identity inputs:
+`2ae94bafbc2b33e3087fcdea3b9c06152fff6549` (reachable from `main` when its PR merges with a merge commit). The
 runner's own normalized source SHA-256 is
-`20039ef716110644352199ec2e78135bf34d7cb8b4db3ee6072d7451987e46b6`, computed by
+`14d28710b8319576cff49bee3047f9b76e7ec2dda83cc876b9a902ec09435d66`, computed by
 `probe.fingerprints.harness_source_digest()` over `HARNESS_FILES`. This includes the judge and
 graders; scenario/oracle additions outside those inputs do not change it. See the
 [WP-02 freeze record](fleet-evaluation/run-plan-wp02-native-readiness.md#frozen-runner-record).
