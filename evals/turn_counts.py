@@ -2,9 +2,11 @@
 
     python evals/turn_counts.py RUNS_ROOT [--scenario ID ...]
 
-Reads `timing.json` from every trial folder under RUNS_ROOT (`<iteration>/eval-<scenario>/<label>/run-N/`)
-and prints, per scenario, how many trials recorded a turn count, their minimum, median and maximum,
-how many recorded none, and the longest trial in seconds. A native conversation's count sums its
+Reads `timing.json` from every published trial under RUNS_ROOT (`<iteration>/eval-<scenario>/<label>/run-N/`)
+and every retained attempt (`<label>/attempts/run-N/<k>/`): a replaced or unpublished attempt can hold
+the highest count or the longest run. It prints, per scenario, how many records gave a turn count,
+their minimum, median and maximum, how many gave none, how many were retained attempts, and the
+longest trial in seconds. A native conversation's count sums its
 invocations and its stream's last count is not an exact provider-turn count, so read it as an upper
 estimate. A named scenario with no saved trial is listed with zero trials rather than left out.
 
@@ -26,6 +28,7 @@ from pathlib import Path
 class Observed:
     turns: list[int] = field(default_factory=list)
     unknown: int = 0
+    retained: int = 0
     longest_seconds: float | None = None
 
 
@@ -33,14 +36,25 @@ def _number(value: object) -> float | None:
     return float(value) if isinstance(value, int | float) and not isinstance(value, bool) else None
 
 
+def _timings(root: Path) -> list[tuple[str, bool, Path]]:
+    """(scenario, retained, timing.json) for every published run and every retained attempt."""
+    published = [(path.parents[2].name, False, path) for path in root.glob("**/eval-*/*/run-*/timing.json")]
+    retained = [
+        (path.parents[4].name, True, path)
+        for path in root.glob("**/eval-*/*/attempts/run-*/*/timing.json")
+        if path.parent.name.isdigit()
+    ]
+    return sorted((name.removeprefix("eval-"), kept, path) for name, kept, path in published + retained)
+
+
 def collect(root: Path, wanted: set[str]) -> dict[str, Observed]:
     """Turn counts per scenario from every saved trial under root, limited to `wanted` when given."""
     observed: dict[str, Observed] = {name: Observed() for name in wanted}
-    for timing in sorted(root.glob("**/eval-*/*/run-*/timing.json")):
-        scenario = timing.parents[2].name.removeprefix("eval-")
+    for scenario, retained, timing in _timings(root):
         if wanted and scenario not in wanted:
             continue
         entry = observed.setdefault(scenario, Observed())
+        entry.retained += retained
         try:
             data = json.loads(timing.read_text(encoding="utf-8"))
         except (OSError, ValueError):
@@ -58,7 +72,7 @@ def collect(root: Path, wanted: set[str]) -> dict[str, Observed]:
 
 
 def report(observed: dict[str, Observed]) -> str:
-    rows = [("scenario", "trials", "min", "median", "max", "no count", "longest s")]
+    rows = [("scenario", "trials", "min", "median", "max", "no count", "retained", "longest s")]
     for scenario, entry in sorted(observed.items()):
         counts = entry.turns
         rows.append(
@@ -69,6 +83,7 @@ def report(observed: dict[str, Observed]) -> str:
                 f"{statistics.median(counts):g}" if counts else "-",
                 str(max(counts)) if counts else "-",
                 str(entry.unknown),
+                str(entry.retained),
                 f"{entry.longest_seconds:g}" if entry.longest_seconds is not None else "-",
             )
         )

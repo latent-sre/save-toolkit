@@ -6,8 +6,9 @@ from pathlib import Path
 import turn_counts
 
 
-def write_trial(root, scenario, run, payload, label='baseline'):
-    folder = root / 'iter-1' / f'eval-{scenario}' / label / f'run-{run}'
+def write_trial(root, scenario, run, payload, label='baseline', attempt=None):
+    folder = root / 'iter-1' / f'eval-{scenario}' / label
+    folder = folder / 'attempts' / f'run-{run}' / str(attempt) if attempt is not None else folder / f'run-{run}'
     folder.mkdir(parents=True)
     text = payload if isinstance(payload, str) else json.dumps(payload)
     (folder / 'timing.json').write_text(text, encoding='utf-8')
@@ -33,10 +34,21 @@ def test_named_scenarios_limit_the_report_and_absent_ones_show_zero_trials(tmp_p
     write_trial(tmp_path, 'case-b', 1, {'num_turns': 9})
     assert turn_counts.main([str(tmp_path), '--scenario', 'case-a', '--scenario', 'never-run']) == 0
     lines = capsys.readouterr().out.splitlines()
-    assert lines[0].split() == ['scenario', 'trials', 'min', 'median', 'max', 'no', 'count', 'longest', 's']
-    assert lines[1].split() == ['case-a', '1', '7', '7', '7', '0', '-']
-    assert lines[2].split() == ['never-run', '0', '-', '-', '-', '0', '-']
+    assert lines[0].split() == ['scenario', 'trials', 'min', 'median', 'max', 'no', 'count', 'retained', 'longest', 's']
+    assert lines[1].split() == ['case-a', '1', '7', '7', '7', '0', '0', '-']
+    assert lines[2].split() == ['never-run', '0', '-', '-', '-', '0', '0', '-']
     assert len(lines) == 3
+
+
+def test_retained_attempts_count_toward_the_highest_turns_and_longest_trial(tmp_path):
+    write_trial(tmp_path, 'case-a', 1, {'num_turns': 10, 'trial_duration_seconds': 60})
+    write_trial(tmp_path, 'case-a', 1, {'num_turns': 41, 'trial_duration_seconds': 512}, attempt=1)
+    write_trial(tmp_path, 'case-a', 2, {'num_turns': 12}, attempt=2)
+    write_trial(tmp_path, 'case-a', 1, {'num_turns': 99}, attempt='notes')  # not an attempt folder
+    entry = turn_counts.collect(tmp_path, set())['case-a']
+    assert sorted(entry.turns) == [10, 12, 41]
+    assert entry.retained == 2
+    assert entry.longest_seconds == 512
 
 
 def test_missing_root_exits_three(tmp_path, capsys):
