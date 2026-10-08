@@ -341,18 +341,27 @@ v1 result record written by the runner, native runs under the owner's everyday a
 inherited folder permissions, and the Coder Eval assessment postponed to WP-15 after the first useful
 comparison. It adds the first [run plan](fleet-evaluation/run-plan-wp02-native-readiness.md).
 Revision 0.5 recorded DEC-01, DEC-02, DEC-04, DEC-10, DEC-11 and DEC-17 to DEC-20 on 2026-10-05.
-WP-01's comparison, `evals/compare_runs.py`, is in [PR #333](https://github.com/latent-sre/save-toolkit/pull/333)
+WP-01's comparison, `evals/compare_runs.py`, merged in [PR #333](https://github.com/latent-sre/save-toolkit/pull/333)
 (2026-10-08): its synthetic-bundle tests, which cover AC-01, AC-02, AC-17's attempt counts, AC-19
 and AC-23, pass on Windows and in Linux CI, and the findings of an independent review and of two
-Codex and Copilot review rounds are fixed. It completes when the owner merges it.
+Codex and Copilot review rounds are fixed. Merge `523525430a0fbb71b0e9e3a846fae8e86db90a99` completes WP-01 [verified].
+WP-10 preparation (2026-10-08): the [AC-20 inventory](../evals/wider-fleet-inventory.md) names
+and fills six lane controls; [AC-27 agent-side pairs](../evals/oracles/agent-injection/README.md)
+now cover six pairs (12 cases), with 24 scripted obeying/resisting outputs and effect/format
+mutations. A [natural-response extension](../evals/oracles/natural-injection/README.md) adds
+three pairs with local repair/test and fake-wrapper effects; normal prose requires separate human
+semantic assessment, so mechanical success alone stays INCONCLUSIVE. [Judge-input cases](../evals/drafts/judge-injection/README.md)
+remain drafts outside calibration, with an offline marker-collision proof. These model-free controls
+do not complete WP-10 or establish candidate behavior; the judge fix and combined cold calibration
+remain an owner decision coordinated with the WP-02 runner freeze.
 **Owner:** Human owner accepts scope, run conditions and exact candidates; `agent-engineer` owns
 scenario/measurement design; implementation and lab owners are assigned per delivery package.
 **Outcome:** A reviewable evaluation specification covers ITBench-Lite, SREGym, repository repair,
 test generation, selected terminal tasks, GCP managed-service/migration and GKE evaluations, actual
 fleet integration, Coder Eval runner assessment and later Microsoft AIOpsLab, with traceable evidence,
 acceptance tests, delivery phases and explicit open decisions.
-**Next action:** EVAL-011's runner sequence lands, including the v1 record, under the accepted
-[specification](fleet-evaluation/README.md); the owner merges WP-01's comparison (PR #333); and
+**Next action:** Use the recorded frozen runner identity below and the merged WP-01 comparison
+(PR #333) for WP-02 under the accepted [specification](fleet-evaluation/README.md).
 WP-02 runs under its
 run plan, whose budget the owner approved on 2026-10-06 with a USD 20 cap. WP-12's GCP case design can proceed alongside. The
 [Coder Eval experiment](fleet-evaluation/coder-eval.md) waits for WP-15. The owner granted the everyday
@@ -367,19 +376,28 @@ improved or regressed, and distinguish failed behavior from an instrument that c
 ### EVAL-011 — bring the eval runner into line with the accepted threat model
 
 **Status:** `active` (2026-10-06); the owner accepted the threat-model ADR on 2026-10-06, with result
-rules added from the EVAL-012 WP-00 review. The runner changes below are implemented on
-`work/eval-012-wp00-eval-011-runner`, one branch and one PR with EVAL-012 WP-00, awaiting review.
+rules added from the EVAL-012 WP-00 review. The initial runner changes merged in [PR #328](https://github.com/latent-sre/save-toolkit/pull/328)
+on 2026-10-07, merge `88cc514333ec2d7f1f717b86e8f2e18dc2d9f485` [verified]. Subsequent
+merged fixes are included in the frozen runner identity recorded below; the remaining findings
+retain their dispositions and do not become completed by recording this freeze.
 **Owner:** Save Toolkit maintainers review the runner changes in one PR; `agent-engineer` owns the
 runner repairs with independent review.
 **Outcome:** The runner meets the accepted [threat-model ADR](decisions/2026-10-03-eval-harness-threat-model.md),
 including its result rules. Measurement failures are inconclusive and never hide a supported failure,
 and results record the runner revision, CLI version and host platform. Every in-scope defect from the
 2026-10-03 inventory of `evals/build_probe.py` is fixed or has an owner disposition.
-**Next action:** Maintainers review the one PR. Runner changes land as commits in one PR, not one PR
-per change. Every runner edit changes the scenario digest, so each commit is gated by rescoring saved
-runs with the previous and new runners (`--rescore`, `--rescore-diff`) and explaining every difference
-in its commit message. After
-merge, record the frozen runner revision before EVAL-012 records comparison baselines. Implemented:
+**Next action:** Keep the runner frozen through WP-02; run its remaining preconditions and native
+checks under the approved run plan. [verified] Frozen on 2026-10-08 from checkout
+`523525430a0fbb71b0e9e3a846fae8e86db90a99`; latest commit touching runner identity inputs:
+`effa23d7795ea527efce3a5de2c27375cb0f0b89`. The runner's own normalized source SHA-256 is
+`633770b9656dbd8980df842af9d0e41e7e233ab293f69338de05f280c9d249d3`, computed by
+`probe.fingerprints.harness_source_digest()` over `HARNESS_FILES`. This includes the judge and
+graders; scenario/oracle additions outside those inputs do not change it. See the
+[WP-02 freeze record](fleet-evaluation/run-plan-wp02-native-readiness.md#frozen-runner-record).
+The proposed judge marker fix and calibration-corpus additions remain drafts until an owner decision;
+a judge source change requires a new runner identity and coordinated cold calibration. Any future
+runner edit retains the saved-run rescore/diff gate and an explanation of every verdict difference.
+Implemented:
 - The comparison: `--rescore` grades saved runs into a new directory without writing them;
   `--rescore-diff` lists every verdict that differs between two rescores.
 - Result rules: three-state checks, each check type classed as forbidding or requiring; forbidding

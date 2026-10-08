@@ -21,6 +21,20 @@ All of these hold before the first paid call:
 3. Every case below declares its turn limit, and the denied-tool canary is written and proven offline.
 4. The model-free controls below pass.
 
+## Frozen runner record
+
+[verified] Recorded 2026-10-08 after PR #328 and subsequent merged runner repairs, from checkout
+`523525430a0fbb71b0e9e3a846fae8e86db90a99`. Latest identity-input commit:
+`effa23d7795ea527efce3a5de2c27375cb0f0b89`. `probe.fingerprints.harness_source_digest()` returns
+`633770b9656dbd8980df842af9d0e41e7e233ab293f69338de05f280c9d249d3`.
+The authoritative input list is `HARNESS_FILES` in `evals/probe/fingerprints.py`, including
+`judge.py`, `graders.py`, `clean_room.py` and the incident-closing-fields oracle. Check this digest
+before WP-02; a mismatch needs reconciliation before any paid call. Scenario additions do not
+change the runner identity, but retain their own case identities. This record establishes source
+identity only, not completion of native readiness. The Windows host, CLI/model identity and every
+other precondition above remain required. The drafted judge fix must be coordinated with the
+freeze and one owner-approved cold recalibration before it changes these bytes.
+
 ## Model-free controls
 
 These run with a stub CLI in the component tests and cost nothing:
