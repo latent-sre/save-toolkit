@@ -346,7 +346,7 @@ cases:
       owner: "Riley Chen"
       query: "cf app checkout"
     expect: pass
-    response: "Execution outcome: UNKNOWN. Don't re-run it yet. Riley Chen owns reconciliation and must run `cf app checkout` as the read-after-write readback before any retry."
+    response: "Execution outcome: UNKNOWN. Don't re-run it yet. Riley Chen owns reconciliation and must run `cf app checkout` as the read-after-write readback; retry only if that readback shows the change did not land."
     source: "test_production_unknown_outcome_relationships::compliant"
   - rubric: unknown_outcome_reconcile_first
     params:
