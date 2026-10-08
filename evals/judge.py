@@ -196,6 +196,8 @@ def load_binding(path: Path, required: set[str]) -> JudgeBinding:
                     or result["expected"] != case["expect"] or result["judge_verdict"] not in {"pass", "fail"}
                     or detail.get("model_resolved") != model or _evidence_problem(detail.get("evidence"), case["response"])):
                 raise JudgeUnavailable("calibration result does not bind a conclusive judgment to the canonical case")
+            if case.get("required") and result["judge_verdict"] != case["expect"]:
+                raise JudgeUnavailable("a required calibration case did not agree")
             totals[case["rubric"]][0] += result["judge_verdict"] == case["expect"]
             totals[case["rubric"]][1] += 1
         if totals != receipt["agreement"] or any(not n or agree / n < CALIBRATION_AGREEMENT_THRESHOLD for agree, n, _ in totals.values()):
@@ -681,8 +683,8 @@ def _load_calibration(path: Path) -> list[dict]:
     if not isinstance(data, dict) or data.get("schema_version") != 1 or not isinstance(data.get("cases"), list):
         raise ValueError(f"{path}: not a valid calibration file (need schema_version: 1 and a cases list)")
     for case in data["cases"]:
-        if not isinstance(case, dict) or case.get("expect") not in ("pass", "fail"):
-            raise ValueError(f"{path}: every case needs rubric/params/expect(pass|fail)/response/source")
+        if not isinstance(case, dict) or case.get("expect") not in ("pass", "fail") or not isinstance(case.get("required", False), bool):
+            raise ValueError(f"{path}: every case needs rubric/params/expect(pass|fail)/response/source and an optional boolean required")
     return data["cases"]
 
 
@@ -806,10 +808,13 @@ def calibrate(path: Path, model: str, *, resolve_identity: bool = False) -> int:
             disagreements.append(record)
         results.append({**record, "agree": agree})
 
+    # A required case guards one named failure, such as a response escaping its frame, so the rubric's
+    # 0.95 tolerance must not absorb it: it agrees, or the calibration is rejected.
+    required_misses = [r for case, r in zip(cases, results, strict=True) if case.get("required") and r["agree"] is not True]
     identity_source = "probe" if resolve_identity else ("live" if live_calls else "cache")
     identity = {
         "schema_version": 1, "completed": True,
-        "accepted": all(n and not inc and agree / n >= CALIBRATION_AGREEMENT_THRESHOLD for agree, n, inc in totals.values()),
+        "accepted": not required_misses and all(n and not inc and agree / n >= CALIBRATION_AGREEMENT_THRESHOLD for agree, n, inc in totals.values()),
         "corpus_sha256": _digest(cases), "rubrics_sha256": _digest(rubrics),
         "results_sha256": _digest(results), "agreement": totals, "execution": execution,
         "model_requested": model,
@@ -838,7 +843,7 @@ def calibrate(path: Path, model: str, *, resolve_identity: bool = False) -> int:
             f"{model!r} still resolves there. Pass --resolve-identity to confirm that with one call."
         )
     print("per-rubric agreement (over conclusive judgments):")
-    all_ok = not inconclusive
+    all_ok = not inconclusive and not required_misses
     for name in sorted(totals):
         agree_n, total_n, inconclusive_n = totals[name]
         rate = agree_n / total_n if total_n else 0.0
@@ -856,6 +861,11 @@ def calibrate(path: Path, model: str, *, resolve_identity: bool = False) -> int:
             print(f"    {d['detail']}")
     else:
         print("\nno disagreements")
+
+    if required_misses:
+        print(f"\n{len(required_misses)} required case(s) did not agree, so the calibration is rejected:")
+        for d in required_misses:
+            print(f"  [{d['rubric']}] expected={d['expected']} judge={d['judge_verdict']} source={d['source']}")
 
     if inconclusive:
         # Not a rubric result: the judge never judged these. The run fails so nobody reads the

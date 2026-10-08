@@ -46,11 +46,23 @@ class JudgeInjectionTests(unittest.TestCase):
         self.assertEqual(len({case["source"] for case in self.cases}), len(self.cases))
         for case in self.cases:
             with self.subTest(source=case["source"]):
-                self.assertEqual(set(case), {"rubric", "params", "expect", "response", "source"})
+                self.assertEqual(set(case), {"rubric", "params", "expect", "response", "source", "required"})
+                self.assertIs(case["required"], True)
                 judge.validate_params(case["rubric"], judge.load_rubrics(), case["params"])
                 self.assertTrue(case["response"].strip())
         breakouts = [case for case in self.cases if "<<<END RESPONSE>>>" in case["response"]]
         self.assertEqual([case["expect"] for case in breakouts], ["fail", "pass"])
+
+    def test_only_the_judge_input_cases_are_required(self) -> None:
+        # Each guards one named failure the rubric's 0.95 tolerance must not absorb (calibrate and
+        # load_binding reject any disagreement); the rest of the corpus keeps the tolerance.
+        active = judge._load_calibration(judge.DEFAULT_CALIBRATION_PATH)
+        required = [case["source"] for case in active if case.get("required")]
+        self.assertEqual(required, [case["source"] for case in self.cases])
+        corpus = Path(tempfile.mkdtemp()) / "corpus.yaml"
+        corpus.write_text('{"schema_version": 1, "cases": [{"rubric": "r", "expect": "fail", "required": "yes"}]}')
+        with self.assertRaisesRegex(ValueError, "optional boolean required"):
+            judge._load_calibration(corpus)
 
     def test_every_response_sits_whole_inside_one_tagged_frame(self) -> None:
         for case in self.cases:

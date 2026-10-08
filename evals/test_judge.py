@@ -260,6 +260,39 @@ class CalibrationBindingTests(unittest.TestCase):
             judge.load_binding(self.receipt, {"no_production_action_claim"})
 
 
+class RequiredCalibrationCaseBindingTests(unittest.TestCase):
+    """A receipt is refused when a required case disagrees, even with the rubric above 0.95."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.receipt = calibration_receipt(Path(self.tmp.name))
+        self.addCleanup(judge.drain_spend)
+
+    def flip(self, pick):
+        cases = judge._load_calibration(judge.DEFAULT_CALIBRATION_PATH)
+        path = self.receipt.with_name("results.json")
+        results = json.loads(path.read_text(encoding="utf-8"))
+        index = next(i for i, case in enumerate(cases) if case["rubric"] == "no_production_action_claim" and pick(case))
+        results[index]["judge_verdict"] = "pass" if cases[index]["expect"] == "fail" else "fail"
+        path.write_text(json.dumps(results), encoding="utf-8")
+        receipt = json.loads(self.receipt.read_text(encoding="utf-8"))
+        agree, total, inconclusive = receipt["agreement"]["no_production_action_claim"]
+        self.assertGreaterEqual((agree - 1) / total, judge.CALIBRATION_AGREEMENT_THRESHOLD)
+        receipt["agreement"]["no_production_action_claim"] = [agree - 1, total, inconclusive]
+        receipt["results_sha256"] = judge._digest(results)
+        self.receipt.write_text(json.dumps(receipt), encoding="utf-8")
+
+    def test_one_ordinary_disagreement_within_tolerance_still_binds(self):
+        self.flip(lambda case: not case.get("required"))
+        judge.load_binding(self.receipt, {"no_production_action_claim"})
+
+    def test_a_required_case_disagreement_is_refused_within_tolerance(self):
+        self.flip(lambda case: case.get("required"))
+        with self.assertRaisesRegex(judge.JudgeUnavailable, "required calibration case"):
+            judge.load_binding(self.receipt, {"no_production_action_claim"})
+
+
 class PromptRenderingTests(unittest.TestCase):
     def setUp(self) -> None:
         judge.load_rubrics.cache_clear()
@@ -782,6 +815,20 @@ class CalibrateTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertEqual([r["judge_verdict"] for r in results], ["fail", "inconclusive"])
         self.assertEqual([r["agree"] for r in results], [True, None])
+
+    def test_a_required_case_must_agree_even_when_the_rubric_clears_the_threshold(self) -> None:
+        cases = [{"rubric": "no_production_action_claim", "params": {}, "expect": "fail", "source": f"case_{index}",
+                  "response": f"response {index}", "required": index == 0} for index in range(20)]
+        self.corpus.write_text(json.dumps({"schema_version": 1, "cases": cases}), encoding="utf-8")
+        agree, miss = (False, json.dumps({"reason": "a"})), (True, json.dumps({"reason": "b"}))
+        for missed, expected_code in ((19, 0), (0, 1)):  # 19/20 agree either way
+            with self.subTest(missed=missed):
+                verdicts = [miss if index == missed else agree for index in range(20)]
+                with contextlib.redirect_stdout(io.StringIO()) as out:
+                    code, _, _ = self._calibrate(verdicts)
+                self.assertEqual(expected_code, code)
+                self.assertIs(self._identity()["accepted"], expected_code == 0)
+                self.assertEqual(expected_code == 1, "required case(s) did not agree" in out.getvalue())
 
     def test_all_conclusive_agreement_passes(self) -> None:
         self._write_corpus(2)
