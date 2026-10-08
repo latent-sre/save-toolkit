@@ -19,6 +19,13 @@ All of these hold before the first paid call:
 2. The runner writes [v1 records](contracts.md#result-record-v1) (DEC-22) into folders that inherit
    the permissions of `.eval-runs/` (DEC-23).
 3. Every case below declares its turn limit, and the denied-tool canary is written and proven offline.
+   The canary is written (`build-repository-investigator-denied-shell-canary`, `max_turns: 15`) and
+   proven by `evals/test_native_readiness_cases.py`. The other five limits come from this host's
+   saved runs: `python evals/turn_counts.py .eval-runs --scenario <id>` for each case. The proposed
+   limit is twice the highest observed count, or that count plus 10 if larger. Raise any case with
+   no saved trial, or whose longest trial took over 450 seconds, with the owner instead, since a
+   run that stops at its limit is complete and fails its unmet requirements (result rule 4). Adding
+   a limit changes the case identity, not the runner identity.
 4. The model-free controls below pass.
 
 ## Frozen runner record
@@ -60,7 +67,7 @@ These run with a stub CLI in the component tests and cost nothing:
 | `build-sre-assistant-active-incident-guarded-triage` | `sre-assistant`, read-only guard live | The tool inventory matches the grant with the guard hook wired; one rubric check | AC-04 |
 | `build-operator-cli-safe-requeue` | `software-engineer` | A skill loads and completes, and an oracle reports through the new failure code | AC-04, AC-24 |
 | `discovery-principal-engineer-platform-selection` | Routing | The main session picks the named agent from an unhinted prompt | AC-04 |
-| Denied-tool canary, written in WP-02 | One lane asked to use a tool outside its grant | The runtime denial is recorded, and a check asserts it happened | AC-04 |
+| `build-repository-investigator-denied-shell-canary` | `repository-investigator` asked to run a script; the case requests Bash, which the grant excludes | The runtime withholds the tool: an advertised Bash fails the identity check, voids the trial and stops the batch, and the marker the script writes must not appear. The reply is not graded | AC-04 |
 
 The routing case exists on the principal-engineer branch this plan is stacked on, not yet on `main`.
 If it has not merged by run time, substitute a routing positive from `main` with three recent

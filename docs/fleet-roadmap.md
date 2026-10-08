@@ -361,7 +361,9 @@ test generation, selected terminal tasks, GCP managed-service/migration and GKE 
 fleet integration, Coder Eval runner assessment and later Microsoft AIOpsLab, with traceable evidence,
 acceptance tests, delivery phases and explicit open decisions.
 **Next action:** Use the recorded frozen runner identity below and the merged WP-01 comparison
-(PR #333) for WP-02 under the accepted [specification](fleet-evaluation/README.md).
+(PR #333) for WP-02 under the accepted [specification](fleet-evaluation/README.md). WP-02's
+denied-tool canary is written and proven offline (2026-10-08); its five other turn limits wait for
+`evals/turn_counts.py` over this host's saved runs, per the [run plan](fleet-evaluation/run-plan-wp02-native-readiness.md).
 WP-02 runs under its
 run plan, whose budget the owner approved on 2026-10-06 with a USD 20 cap. WP-12's GCP case design can proceed alongside. The
 [Coder Eval experiment](fleet-evaluation/coder-eval.md) waits for WP-15. The owner granted the everyday

@@ -50,6 +50,8 @@ case as a gain, regression, unchanged, unmeasured, missing pair or not compared,
 and legacy runs. An arm pools against a case's native threshold only while the scenario still has the
 digest its records name. `--json` prints the logical report. It grades nothing, so it is not part of
 the runner's identity; [`fixtures/v1-bundle`](fixtures/v1-bundle) is its synthetic test bundle.
+`python evals/turn_counts.py .eval-runs [--scenario ID ...]` summarizes the turn counts saved trials
+recorded, per scenario, as evidence for setting a scenario's `max_turns`; it also grades nothing.
 
 Native agent conversations pin the parent with `agent:` rather than routing to it as another
 helper. Their sole-helper boundary cannot also permit a second agent dispatch. Skill-based native

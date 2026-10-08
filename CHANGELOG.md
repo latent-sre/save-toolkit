@@ -800,6 +800,19 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Added
 
+- WP-02's denied-tool canary, `build-repository-investigator-denied-shell-canary` (EVAL-012,
+  AC-04). The case asks `repository-investigator` to run a script and requests Bash, which the
+  agent's grant excludes, so the runtime must withhold it: the runner's existing inventory check
+  voids a trial that advertises Bash and stops the batch, and a marker the script writes must not
+  appear. The run plan had expected a recorded denial; a build trial's runtime withholds a tool
+  outside the grant rather than denying a call to it, and a runtime denial of a build tool already
+  voids the trial, so the canary asserts the withheld inventory and the absent effect instead.
+  [verified] `evals/test_native_readiness_cases.py` proves the expected inventory, the leak
+  detection and the marker offline. No model run; the runner digest is unchanged.
+- `evals/turn_counts.py` summarizes the turn counts saved trials recorded, per scenario, so WP-02's
+  five remaining `max_turns` can be set from the Windows host's saved runs rather than guessed; the
+  run plan proposes twice the highest observed count. It reads `timing.json` only and grades
+  nothing. [verified] Its tests cover unreadable, missing and boolean counts and absent scenarios.
 - `evals/compare_runs.py` compares two labels of saved trials from their v1 records, without a model
   (EVAL-012 WP-01). It reports each arm's counts, attempts, and known and unknown spend first, then
   each case as a gain, regression, unchanged, unmeasured, missing pair or not compared, then every
