@@ -8,6 +8,14 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- A judge calibration receipt summed a live judge call the CLI reported no cost for as zero,
+  against the threat-model ADR's rule that an unknown cost stays unknown. The receipt's `cost_usd`
+  is now null when any live call is unpriced, with `known_cost_usd` and `unknown_cost_calls` beside
+  it, the vocabulary trial records already use. [verified] The new receipt test and the two
+  updated ones fail on the previous commit and pass after it. The edit changes `judge.py`'s bytes, so
+  the next calibration re-judges the corpus; no receipt carries over to it. For the same reason,
+  rescoring all 1,556 saved runs changes 11 verdicts, and only those: the runs that carry a receipt
+  binding, which a rescore now refuses, go from FAIL to INCONCLUSIVE (EVAL-011 records it).
 - `build_probe.py validate` accepted a check that omitted or misspelled a parameter it reads, for
   24 of the 32 checks: `file_exists` with `pth:` validated, the trial ran and was paid for, and
   grading crashed, leaving the scenario INCONCLUSIVE with a grader error. Each check now declares

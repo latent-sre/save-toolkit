@@ -807,10 +807,27 @@ class CalibrateTests(unittest.TestCase):
         self.assertEqual(identity["identity_source"], "live")
         self.assertEqual(identity["live_calls"], 3)
         self.assertAlmostEqual(identity["cost_usd"], 0.09)
+        self.assertAlmostEqual(identity["known_cost_usd"], 0.09)
+        self.assertEqual(identity["unknown_cost_calls"], 0)
         # The first call has nothing to be held to; every later one is pinned to what judged first.
         self.assertIsNone(seen[0]["expected_model_id"])
         self.assertEqual(seen[1]["expected_model_id"], "claude-sonnet-5")
         self.assertEqual(seen[2]["expected_model_id"], "claude-sonnet-5")
+
+    def test_a_live_call_without_a_reported_cost_leaves_the_receipt_cost_unknown(self) -> None:
+        """Threat-model ADR result rule 7: an unpriced call is unknown, never summed as zero."""
+        self._write_corpus(3)
+        unpriced = {**self._spend(), "cost_usd": None}
+        code, _, _ = self._calibrate(
+            [(False, json.dumps({"reason": "a"}))] * 3,
+            spends=[[self._spend()], [unpriced], [self._spend()]],
+        )
+        self.assertEqual(code, 0)
+        identity = self._identity()
+        self.assertEqual(identity["live_calls"], 3)
+        self.assertIsNone(identity["cost_usd"])
+        self.assertAlmostEqual(identity["known_cost_usd"], 0.06)
+        self.assertEqual(identity["unknown_cost_calls"], 1)
 
     def test_a_fully_cached_run_costs_nothing_and_names_its_judge(self) -> None:
         """A re-check of cached verdicts must stay free, and must not claim it called a model."""
@@ -840,6 +857,7 @@ class CalibrateTests(unittest.TestCase):
         self.assertEqual(identity["live_calls"], 0)
         self.assertEqual(identity["cached_calls"], 2)
         self.assertEqual(identity["cost_usd"], 0.0)
+        self.assertEqual(identity["unknown_cost_calls"], 0)
         cases = judge._load_calibration(self.corpus)
         cases[0]["expect"] = "pass"
         self.corpus.write_text(json.dumps({"schema_version": 1, "cases": cases}), encoding="utf-8")

@@ -459,8 +459,19 @@ merge, record the frozen runner revision before EVAL-012 records comparison base
   paid trial; a batch's shared values travel as one `BatchSettings`; and `cli.run` names its
   preflight and stop rules, the last of S9. Rescoring all saved runs after each runner commit
   differs in no verdict.
+- `work/eval-010-judge-receipt`: a calibration receipt no longer sums an unpriced live judge call as
+  zero; its `cost_usd` is null beside `known_cost_usd` and `unknown_cost_calls`. The next
+  calibration (EVAL-010 action 1) re-judges under the changed `judge.py`.
 
 Remaining:
+- A rescore voids the whole run when the run's saved judge binding names a `judge.py` other than
+  the current one, though it keeps the saved rubric verdict and calls no judge. Structural FAILs beside
+  the rubric check become INCONCLUSIVE, against result rule 3. [verified 2026-10-07] With the
+  unpriced-cost fix, rescoring all 85 saved campaigns (1,556 runs) changes only the 11 runs that
+  carry a receipt binding: 9 in `baseline-20261004` and 2 in `smoke-20261004`, each FAIL to
+  INCONCLUSIVE with "judge execution configuration changed since calibration". Any `judge.py` edit
+  does the same. Whether a stale binding should void only the rubric check, or nothing because the
+  kept verdict was certified when it was paid for, is the evaluation owner's call.
 - The 2026-10-07 review's open findings: an untested `run` subcommand; a timeout saved before
   `run_end` regrades as void; `tool_call_count`'s regrade override; stopping the audit proxy before
   grading; and the owner's compatibility decisions on the flat flags and `Outcome` as a tuple.
@@ -474,8 +485,6 @@ Remaining:
 - Turn-limit values: no scenario declares one, so a looping candidate still reaches the wall clock.
   Saved runs give turn counts for 105 of 207 current scenarios (per-scenario maximum: median 6,
   90th percentile 20, highest 72); choosing values is the evaluation owner's call.
-- Calibration receipts still sum an unpriced judge call as zero. The judge's identity binds
-  `judge.py` and `clean_room.py`, so the fix rides with the next owner-triggered recalibration.
 - `judge.py`, `clean_room.py` and `evals/oracles/` stay outside the runner's lint, format and type
   checks, because the judge receipt binds the first two files' bytes and each case's identity binds
   its oracle's. Bringing them in is the owner's choice: with the next recalibration (165 judge calls
@@ -515,9 +524,14 @@ new ADR that amends the judge contract.
 
 1. Recalibrate each host after any rubric, corpus, or judge-source change and after each new Sonnet.
    Each recalibration is a live run: the owner triggers it and sets its budget (about 165 calls per
-   host on a cold cache), as the 2026-09-01 judge ADR requires. The measuring host holds a passing
-   Sonnet 5.5 receipt for the current rubric and corpus bytes (see Evidence); every other host needs
-   its own.
+   host on a cold cache), as the 2026-09-01 judge ADR requires. No current receipt applies on
+   this host. [verified 2026-10-07] Receipt `20261004T063536Z` still matches the corpus, the rubrics,
+   Python and PyYAML, but it binds the CLI path under the profile of the Windows account that ran
+   it, so `load_binding` refuses it under the everyday account DEC-23 names for native runs. The receipt fixes the CLI path, not the CLI version. The
+   unpriced-cost fix on `work/eval-010-judge-receipt` also changes `judge.py`, so any receipt made
+   before it merges would be refused. Every rubric trial on this host, WP-02's included, waits for
+   one calibration run as that account after the merge. Land any other judge-file or corpus change
+   first (actions 3 and 5, and the lint decision under EVAL-011), so that one cold run covers them.
 2. Decide whether a calibration receipt must come from repeated uncached runs. The 2026-09-23
    receipt's 164/164 included cached PASS verdicts on three cases that live runs judged FAIL. After
    the owner review, the relabelled retry case drew PASS in two of ten judgments, and one of those
