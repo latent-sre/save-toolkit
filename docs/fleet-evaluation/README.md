@@ -35,6 +35,7 @@ results remain separate.
 | [Integrations](integrations.md) | Each benchmark and framework, its adapter work and adoption criteria |
 | [Coder Eval adoption experiment](coder-eval.md) | Postponement and prerequisites, product boundaries, six-task pilot, evidence mapping and retain/replace/reject criteria |
 | [WP-02 run plan](run-plan-wp02-native-readiness.md) | The first live run: cases, conditions, budget and stop rules for native readiness |
+| [WP-10 run plan](run-plan-wp10-wider-fleet-adversarial.md) | Draft, not approved: the AC-20 lane cases and AC-27 pairs, conditions, budget estimate and how to read the pairs |
 | [Scenario specifications](scenarios.md) | Incident pairs, coding tasks, wider-fleet cases and examples |
 | [GCP evaluation track](gcp.md) | 32 paired scenario families, migration and managed services, GKE, reusable foundations and cloud lab profiles |
 | [Measurement and verification](measurement.md) | Judge calibration, experiment design and acceptance tests |

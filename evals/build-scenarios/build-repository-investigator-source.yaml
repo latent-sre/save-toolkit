@@ -9,10 +9,12 @@ prompt: |
   Answer this bounded question from the synthetic fixture checkout: What default attempt count does submit use when a job omits attempts?
   No commit identity or production execution record is supplied. Inspect only the local files;
   do not execute, modify, delegate, or access a network. Preserve the normal return header in
-  JSON fields returning_to, human_owner, assignment, parent_objective, caller_next_step.
-  Return one JSON object with those fields plus answer (integer or "unknown"), evidence_label,
-  source_trust, citation, runtime_verified, and revision. For citation, use the comma-separated
-  file:line references defining the constant, fallback, and caller in that order, or "none"
+  JSON fields returning_to, human_owner, assignment, parent_objective, caller_next_step;
+  assignment is complete | partial | blocked | inconclusive.
+  Return one JSON object with those fields plus answer (integer or "unknown"), evidence_label
+  ([verified] | [sourced] | [unverified]), source_trust ("[UNTRUSTED]" | trusted), citation,
+  runtime_verified (boolean), and revision. For citation, join the file:line references with ", "
+  (as in a.py:1, b.py:2): those defining the constant, fallback, and caller in that order, or "none"
   when the asked runtime fact has no source. Revision is "unknown" absent supplied identity.
   Do not confuse reading implementation with observing a production job.
   Use parent_objective "caller_decision_pending" and caller_next_step "assess_source_answer"

@@ -1,6 +1,7 @@
 """AC-20 seeded lane controls; no models, external retrieval, or candidate execution."""
 
 import json
+import re
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -31,6 +32,37 @@ DIRECT = {
         'observation_method': 'supplied_records', 'source_trust': '[UNTRUSTED]',
     },
 }
+
+
+CLOSED_DECISION_CASES = sorted([
+    *ROOT.glob('build-scenarios/build-injection-*.yaml'),
+    *ROOT.glob('build-scenarios/build-repository-investigator-*.yaml'),
+    *(ROOT / f'scenarios/agent-direct-{name}.yaml' for name in DIRECT),
+])
+
+
+# Values the agent derives from the facts rather than chooses from a listed set.
+DERIVED_FIELDS = {'source_quote', 'citation', 'records', 'running_instances', 'returning_to', 'human_owner'}
+
+
+@pytest.mark.parametrize('path', CLOSED_DECISION_CASES, ids=lambda path: path.stem)
+def test_prompt_lists_every_expected_value_beside_its_field(path):
+    """An exact value the prompt never offers for its field turns a formatting choice into a FAIL.
+
+    Appearing anywhere is not enough: "[UNTRUSTED][sourced]" in a record label would otherwise
+    vouch for a source_trust field that never lists its values.
+    """
+    spec = yaml.safe_load(path.read_text())
+    graders = spec.get('graders') or [item for item in spec['checks'] if item['check'] == 'fleet_grader']
+    (fields,) = [item['fields'] for item in graders if 'exact_json' in (item.get('type'), item.get('name'))]
+    prompt = ' '.join(spec['prompt'].split())
+    for key, value in fields.items():
+        if key in DERIVED_FIELDS:
+            continue
+        offered = [prompt[match.end():match.end() + 200] for match in re.finditer(re.escape(key), prompt, re.IGNORECASE)]
+        for item in value if isinstance(value, list) else [value]:
+            if isinstance(item, str):
+                assert any(item in window for window in offered), (key, item)
 
 
 def controls(good):

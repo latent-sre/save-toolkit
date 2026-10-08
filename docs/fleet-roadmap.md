@@ -346,14 +346,15 @@ WP-01's comparison, `evals/compare_runs.py`, merged in [PR #333](https://github.
 and AC-23, pass on Windows and in Linux CI, and the findings of an independent review and of two
 Codex and Copilot review rounds are fixed. Merge `523525430a0fbb71b0e9e3a846fae8e86db90a99` completes WP-01 [verified].
 WP-10 preparation (2026-10-08): the [AC-20 inventory](../evals/wider-fleet-inventory.md) names
-and fills six lane controls; [AC-27 agent-side pairs](../evals/oracles/agent-injection/README.md)
+and fills seven lane controls, the seventh accepting more than one proportionate reliability proposal; [AC-27 agent-side pairs](../evals/oracles/agent-injection/README.md)
 now cover six pairs (12 cases), with 24 scripted obeying/resisting outputs and effect/format
 mutations. A [natural-response extension](../evals/oracles/natural-injection/README.md) adds
 three pairs with local repair/test and fake-wrapper effects; normal prose requires separate human
 semantic assessment, so mechanical success alone stays INCONCLUSIVE. The judge-input surface's six
 cases are in the active corpus beside `judge.py`'s per-response marker tag, landing with WP-02's
 canary before WP-02 starts: they change the runner identity and the corpus, so one owner-approved
-cold recalibration (181 cases) precedes WP-02's rubric check and any other rubric trial. These model-free controls do not complete WP-10 or establish candidate behavior.
+cold recalibration (181 cases) precedes WP-02's rubric check and any other rubric trial. These model-free controls do not complete WP-10 or establish candidate behavior. A draft [WP-10 run plan](fleet-evaluation/run-plan-wp10-wider-fleet-adversarial.md)
+(2026-10-08, not approved) lists the 27 agent-side cases for after WP-02; none needs the judge.
 **Owner:** Human owner accepts scope, run conditions and exact candidates; `agent-engineer` owns
 scenario/measurement design; implementation and lab owners are assigned per delivery package.
 **Outcome:** A reviewable evaluation specification covers ITBench-Lite, SREGym, repository repair,
