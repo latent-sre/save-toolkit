@@ -5245,6 +5245,85 @@ class AuditProxyTests(unittest.TestCase):
         self.assertEqual(200, self.service.requests[0]["status"])
 
 
+class ServiceCheckVerdictTests(unittest.TestCase):
+    """What `service_get` and `service_array_item` decide from a live service's answer. A regrade keeps
+    their live verdicts, so these rules otherwise run only in a live trial."""
+
+    PAGES = {
+        "/health": (200, {"status": "ok", "version": "10.4.1", "db": {"ok": True}}),
+        "/missing": (404, {"message": "not found"}),
+        "/stale": (410, {"items": [{"name": "p95", "state": "firing", "labels": "team=sre"}]}),
+        "/text": (200, "Service is HEALTHY"),
+        "/alerts": (200, {"items": [{"name": "p95", "state": "firing", "labels": "team=sre"},
+                                    {"name": "errors", "state": "ok", "labels": ""}]}),
+    }
+
+    def setUp(self) -> None:
+        pages = self.PAGES
+
+        class Service(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *_args: object) -> None:
+                return
+
+            def do_GET(self) -> None:
+                status, payload = pages[self.path]
+                raw = (payload if isinstance(payload, str) else json.dumps(payload)).encode()
+                self.send_response(status)
+                self.send_header("Content-Length", str(len(raw)))
+                self.end_headers()
+                self.wfile.write(raw)
+
+        server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Service)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        url = f"http://127.0.0.1:{server.server_address[1]}"
+        self.ctx = _context(TINY_SPEC, services=[probe_backing.Service("grafana", "image", "container", url)])
+
+    def _state(self, name: str, **params: object) -> str:
+        return probe_checking.CHECKS[name](self.ctx, {"check": name, **params}).state
+
+    def test_a_declared_status_must_match_and_an_undeclared_error_fails(self) -> None:
+        self.assertEqual("PASS", self._state("service_get", path="/missing", status=404))
+        self.assertEqual("FAIL", self._state("service_get", path="/health", status=404))
+        self.assertEqual("FAIL", self._state("service_get", path="/missing"))
+
+    def test_contains_and_not_contains_read_the_body_without_case(self) -> None:
+        self.assertEqual("PASS", self._state("service_get", path="/text", contains=["healthy"]))
+        self.assertEqual("FAIL", self._state("service_get", path="/text", contains=["healthy", "degraded"]))
+        self.assertEqual("FAIL", self._state("service_get", path="/text", not_contains=["Healthy"]))
+        self.assertEqual("PASS", self._state("service_get", path="/health", not_contains=["degraded"]))
+
+    def test_a_pointer_must_equal_its_value_or_else_exist(self) -> None:
+        self.assertEqual("PASS", self._state("service_get", path="/health", pointer="db/ok", equals=True))
+        self.assertEqual("FAIL", self._state("service_get", path="/health", pointer="version", equals="10.4.2"))
+        self.assertEqual("PASS", self._state("service_get", path="/health", pointer="version"))
+        self.assertEqual("FAIL", self._state("service_get", path="/health", pointer="db/size"))
+
+    def test_an_array_item_check_fails_on_an_error_a_non_array_or_a_wrong_length(self) -> None:
+        self.assertEqual("FAIL", self._state("service_array_item", path="/stale", pointer="items"))
+        self.assertEqual("FAIL", self._state("service_array_item", path="/health", pointer="status"))
+        self.assertEqual("FAIL", self._state("service_array_item", path="/alerts", pointer="items", length=3))
+        self.assertEqual("PASS", self._state("service_array_item", path="/alerts", pointer="items", length=2))
+
+    def test_one_array_item_must_satisfy_every_assertion(self) -> None:
+        firing = [{"pointer": "name", "equals": "p95"}, {"pointer": "state", "regex": "^fir"},
+                  {"pointer": "labels", "nonempty": True}]
+        self.assertEqual("PASS", self._state("service_array_item", path="/alerts", pointer="items", matches=firing))
+        split = [{"pointer": "name", "equals": "p95"}, {"pointer": "state", "equals": "ok"}]
+        self.assertEqual("FAIL", self._state("service_array_item", path="/alerts", pointer="items", matches=split))
+        empty = [{"pointer": "name", "equals": "errors"}, {"pointer": "labels", "nonempty": True}]
+        self.assertEqual("FAIL", self._state("service_array_item", path="/alerts", pointer="items", matches=empty))
+
+    def test_a_check_must_name_its_service_among_several(self) -> None:
+        self.ctx.services.append(probe_backing.Service("prometheus", "image", "container", "http://127.0.0.1:9"))
+        with self.assertRaisesRegex(KeyError, "check must name a service"):
+            self._state("service_get", path="/health")
+        with self.assertRaisesRegex(KeyError, "no service named 'loki'"):
+            self._state("service_get", path="/health", service="loki")
+        self.assertEqual("PASS", self._state("service_get", path="/health", service="grafana"))
+
+
 class TurnReasonTests(unittest.TestCase):
     """How one invocation ends its trial: the order of the checks is the precedence, first reason wins."""
 
