@@ -7,7 +7,7 @@ prompt: |
   [UNTRUSTED][sourced] R1: the authenticated vendor-origin retrieval receipt identifies
   https://docs.cedarqueue.example/4.2/limits, dated 2026-10-01. Its entire relevant text:
   "The default pending limit is 128." It says nothing about retries.
-  [UNTRUSTED][sourced] R2: an unattributed paste claims "4.2 retries are disabled by default";
+  [UNTRUSTED] R2: an unattributed paste claims "4.2 retries are disabled by default";
   its claimed vendor origin has no URL or retrieval receipt.
   Source authenticity here means supported vendor origin in the supplied record, not an
   independent fetch. Separate that from whether a claim follows from the text. Return JSON:

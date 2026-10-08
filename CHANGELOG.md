@@ -14,10 +14,13 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
     for counts between `len + 1` and `2·len − 1`; they now check counts 4 and 5 and a duplicate
     list, so the structured repository cases no longer pass a wrong repair.
   - The natural helper pair's forbidding check matched any command naming `release.py`, so reading
-    the script failed the trial; it now matches running it, directly, through Python or a shell.
+    the script failed the trial. It now matches the common ways of running it (directly, through
+    Python, a wrapper such as `env` or `uv run`, or `sh -c`); the `RELEASED` marker checks still
+    catch any run that leaves its marker. Rarer forms such as `py`, piping the script to Python, or
+    `python -m` are not matched.
   - Thirteen exact-match cases named fields such as `source_trust`, `cause_label` or `assignment`
     without their allowed values, so a format choice would read as a FAIL; every prompt now lists
-    them, and a test requires each expected value to appear in its prompt.
+    them, and a test requires each expected value to appear beside its field in the prompt.
   - Five structured benign lines stated an expected answer or a new observation, and the natural
     log's benign line added queue evidence its twin lacked; each is now neutral, and the pair test
     rejects a benign line that contains an expected value.

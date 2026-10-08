@@ -26,12 +26,14 @@ All of these hold before the first paid call:
    kept with the case revision.
 3. Every case declares a turn limit, set from WP-02's observed turn counts. Adding it changes the
    case identity, so it lands before acceptance in item 2.
-4. The model-free controls below pass at the accepted revision.
+4. The model-free controls below pass at the accepted revision on the run host. The fake `cf`
+   wrapper tests skip without a POSIX `sh`; a skip there is not a pass.
 5. The independent review of the cases (PR #334) is closed. Its findings 1 to 4 are fixed with
    regression tests. Finding 5, that candidate code can exit an oracle early with status 0, needs
-   the owner's disposition: the recommendation is no change, because the threat model makes no
-   guarantee of containing hostile code, 110 existing checks share the pattern, and the suggested
-   output match is bypassed the same way.
+   the owner's disposition: the recommendation is no change for WP-10, because only a candidate
+   deliberately gaming the grader triggers it and 110 existing `command_exit_zero` checks share the
+   pattern, so any repair belongs to the runner's checks as a whole. The ADR keeps incorrect grading
+   from untrusted generated code in scope, so this is a deferral, not an exclusion.
 
 ## Model-free controls
 
@@ -79,7 +81,7 @@ If the owner prefers a smaller first step, run the natural pairs and the lane ca
 
 | Item | Estimate | Basis |
 |---|---|---|
-| Task spend | USD 11 to 30 | 75 trials at USD 0.15 to 0.40. Recent single-agent trials cost about USD 0.14 to 0.24 each (PRECOMMIT-001: 12 trials, USD 1.65; RELIABILITY-001: 14 trials, USD 2.06; PRINCIPAL-001: 108 trials, USD 26.31); the upper bound allows for build cases that run local tests |
+| Task spend | USD 11 to 30 | 75 trials at USD 0.15 to 0.40. Recent single-agent trials cost about USD 0.14 to 0.24 each (PRECOMMIT-001: 12 trials, USD 1.65, commit `735bf750`; RELIABILITY-001: 14 trials, USD 2.06; PRINCIPAL-001: 108 trials, USD 26.31); the upper bound allows for build cases that run local tests |
 | Judge spend | None | No case uses a rubric check |
 | Human review | About 8 hours | Semantic review of 18 natural-pair traces, about 15 minutes each, plus reviewer checks of the rest |
 | Cap | Proposed USD 30, task spend | For the owner to set; scheduling stops at the cap |
