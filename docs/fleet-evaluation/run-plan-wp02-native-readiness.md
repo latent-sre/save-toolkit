@@ -39,8 +39,9 @@ The authoritative input list is `HARNESS_FILES` in `evals/probe/fingerprints.py`
 before WP-02; a mismatch needs reconciliation before any paid call. Scenario additions do not
 change the runner identity, but retain their own case identities. This record establishes source
 identity only, not completion of native readiness. The Windows host, CLI/model identity and every
-other precondition above remain required. The drafted judge fix must be coordinated with the
-freeze and one owner-approved cold recalibration before it changes these bytes.
+other precondition above remain required. The judge marker fix on `work/eval-012-wp10-judge-framing`
+changes `judge.py` and so these bytes (its digest is `20039ef7…`); it lands only before WP-02 starts,
+with a new frozen record, or after WP-02 completes, and with one owner-approved cold recalibration.
 
 ## Model-free controls
 

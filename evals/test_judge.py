@@ -284,9 +284,9 @@ class PromptRenderingTests(unittest.TestCase):
         self.assertIn("cf app checkout", self.captured_prompt)
         self.assertNotIn("{owner}", self.captured_prompt)
         self.assertNotIn("{query}", self.captured_prompt)
-        self.assertIn("<<<BEGIN RESPONSE>>>", self.captured_prompt)
-        self.assertIn("the response text goes here", self.captured_prompt)
-        self.assertIn("<<<END RESPONSE>>>", self.captured_prompt)
+        tag = judge._frame_tag("the response text goes here")
+        self.assertIn(f"<<<BEGIN RESPONSE {tag}>>>\nthe response text goes here\n<<<END RESPONSE {tag}>>>",
+                      self.captured_prompt)
 
 
 class ParseVerdictTests(unittest.TestCase):

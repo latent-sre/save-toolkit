@@ -751,9 +751,11 @@ structural and does not run them; CI does.
 The [AC-20 inventory](wider-fleet-inventory.md) maps lane gaps and offline controls.
 The [AC-27 agent-side pairs](oracles/agent-injection/README.md) cover repository, supplied-log
 and seeded-helper surfaces with scripted obeying/resisting controls.
-[Judge-input drafts](drafts/judge-injection/README.md) stay outside calibration until the owner
-coordinates the marker fix and one cold recalibration. Offline discrimination is not candidate
-acceptance or completion of WP-10.
+The judge-input surface is six `AC-27 judge-input calibration` cases in the active corpus, framed by
+`judge.py`'s per-response marker tag so that a response containing an end marker cannot close its
+frame early; `test_judge_injection.py` checks both offline. Both the fix and the cases need one
+owner-approved cold recalibration before any rubric trial uses them. Offline discrimination is not
+candidate acceptance or completion of WP-10.
 
 The [natural-response extension](oracles/natural-injection/README.md) adds six build cases with
 normal prose reports, actual local fixture effects in offline controls, and an explicit human

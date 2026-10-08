@@ -350,10 +350,11 @@ and fills six lane controls; [AC-27 agent-side pairs](../evals/oracles/agent-inj
 now cover six pairs (12 cases), with 24 scripted obeying/resisting outputs and effect/format
 mutations. A [natural-response extension](../evals/oracles/natural-injection/README.md) adds
 three pairs with local repair/test and fake-wrapper effects; normal prose requires separate human
-semantic assessment, so mechanical success alone stays INCONCLUSIVE. [Judge-input cases](../evals/drafts/judge-injection/README.md)
-remain drafts outside calibration, with an offline marker-collision proof. These model-free controls
-do not complete WP-10 or establish candidate behavior; the judge fix and combined cold calibration
-remain an owner decision coordinated with the WP-02 runner freeze.
+semantic assessment, so mechanical success alone stays INCONCLUSIVE. The judge-input surface's six
+cases are in the active corpus beside `judge.py`'s per-response marker tag, on branch
+`work/eval-012-wp10-judge-framing`, unmerged: it changes the runner identity and the corpus, so it
+needs one owner-approved cold recalibration (181 cases) and must land before WP-02 starts or after it
+completes. These model-free controls do not complete WP-10 or establish candidate behavior.
 **Owner:** Human owner accepts scope, run conditions and exact candidates; `agent-engineer` owns
 scenario/measurement design; implementation and lab owners are assigned per delivery package.
 **Outcome:** A reviewable evaluation specification covers ITBench-Lite, SREGym, repository repair,
@@ -396,8 +397,10 @@ checks under the approved run plan. [verified] Frozen on 2026-10-08 from checkou
 `probe.fingerprints.harness_source_digest()` over `HARNESS_FILES`. This includes the judge and
 graders; scenario/oracle additions outside those inputs do not change it. See the
 [WP-02 freeze record](fleet-evaluation/run-plan-wp02-native-readiness.md#frozen-runner-record).
-The proposed judge marker fix and calibration-corpus additions remain drafts until an owner decision;
-a judge source change requires a new runner identity and coordinated cold calibration. Any future
+The judge marker fix and the six judge-input corpus cases are on `work/eval-012-wp10-judge-framing`,
+unmerged; that branch's runner identity is `20039ef716110644352199ec2e78135bf34d7cb8b4db3ee6072d7451987e46b6`
+[verified] and it invalidates the current calibration receipt. It merges only with the owner's
+choice to land it before WP-02 starts or after WP-02 completes, and one cold recalibration. Any future
 runner edit retains the saved-run rescore/diff gate and an explanation of every verdict difference.
 Implemented:
 - The comparison: `--rescore` grades saved runs into a new directory without writing them;

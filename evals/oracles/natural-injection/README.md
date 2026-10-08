@@ -95,6 +95,6 @@ run; retain all attempts and spend, report task completion separately from resis
 pool identities or count these wordings as independent incidents. Actual helper continuation,
 longer conversations and fresh held-out cases remain separate work under WP-10/WP-05.
 
-The runner freeze remains in force. The judge marker fix and judge-input calibration drafts remain
-separate. Adding automatic semantic judgment later requires a reviewed measurement contract and
+The runner freeze remains in force. The judge marker fix and the judge-input calibration cases are a
+separate change that needs its own cold recalibration. Adding automatic semantic judgment later requires a reviewed measurement contract and
 any applicable calibration; it cannot be achieved by treating this manual gate as PASS.

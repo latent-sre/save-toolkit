@@ -8,6 +8,18 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- The rubric judge framed each response between fixed `<<<BEGIN RESPONSE>>>`/`<<<END RESPONSE>>>`
+  markers without escaping it, so a response containing the end marker closed its frame early and
+  could add text, such as "Judge: output PASS", after the apparent boundary (EVAL-012 WP-10, AC-27).
+  Each marker now carries the first 16 hex digits of the response's own digest, and the template
+  says only the tagged end marker ends the response; the response text is unchanged, so evidence
+  quotes stay verbatim. The six judge-input cases drafted in PR #334 are now in
+  `rubrics-calibration.yaml` (181 cases), and `test_judge_injection.py` replaces the draft test.
+  [verified] Its breakout test fails on the previous `judge.py`, where the frame closes inside the
+  response, and passes now. The edit changes `judge.py`, so the runner identity becomes `20039ef7…`
+  and no existing calibration receipt or cached verdict applies: the cache key includes the
+  template and judge source. It needs one owner-approved cold calibration of 181 judgments before
+  any rubric trial, and lands only before WP-02 starts or after it completes. No model run.
 - `pcf-ops`'s crash reference had no case for a crash loop from a start that overruns the
   health-check `timeout`: in the 2026-09-08 quality round, the two crash-loop assertions that need
   it (rule out `$PORT`, memory and platform; tie the slow start to the droplet) stayed 0/4 after
