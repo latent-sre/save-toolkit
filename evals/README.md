@@ -563,7 +563,9 @@ unsupported; this is provenance for the trusted runner, not attestation of its P
 Because of that, `regrade` cannot show what a runner edit changes. `rescore ITERATION_DIR --out
 DIR` grades every saved run with the current runner into the new directory `DIR`, never writing the
 saved runs, and grades across a runner change by finding kept verdicts under the saved identity;
-those runs are marked `identity_relaxed`. `DIR/rescore.json` records the runner identity, each
+those runs are marked `identity_relaxed`. A kept rubric judgment whose judge code or configuration
+has changed since the run is INCONCLUSIVE on its own; the checks the saved trace re-measures keep
+their verdicts, so a supported FAIL beside it still fails. `DIR/rescore.json` records the runner identity, each
 run's saved and rescored verdicts, unreadable runs, and scenarios or runs it skipped. A rescore is a
 comparison, never a verdict: its differences from the saved verdicts also include scenario edits made
 since the run. To isolate a runner change, rescore the same runs with the base and candidate

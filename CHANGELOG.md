@@ -14,8 +14,18 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   it, the vocabulary trial records already use. [verified] The new receipt test and the two
   updated ones fail on the previous commit and pass after it. The edit changes `judge.py`'s bytes, so
   the next calibration re-judges the corpus; no receipt carries over to it. For the same reason,
-  rescoring all 1,556 saved runs changes 11 verdicts, and only those: the runs that carry a receipt
-  binding, which a rescore now refuses, go from FAIL to INCONCLUSIVE (EVAL-011 records it).
+  rescoring the 1,317 saved runs whose scenarios this checkout still holds changes 11 verdicts, each
+  FAIL to INCONCLUSIVE: the runs whose judge binding matched the previous `judge.py`, 9 in
+  `baseline-20261004` and 2 in `smoke-20261004`. A rescore already voided the 92 runs with older
+  bindings the same way; the next entry fixes both.
+- A rescore voided every check of a run whose saved judge binding certified a `judge.py` other than
+  the current one, so the run's structural FAILs read INCONCLUSIVE, against result rule 3 (a
+  supported failure wins). Only the kept rubric judgment is INCONCLUSIVE now; the checks the saved
+  trace re-measures keep their verdicts. A binding that is missing, incomplete or rejected still
+  voids the run. [verified] The new regrade test fails on the previous commit and passes after it.
+  Rescoring the 1,317 runs differs from the previous commit in 102 runs, each INCONCLUSIVE to FAIL,
+  and from `817f2193` in 93: the 92 runs with older bindings show their FAILs, and
+  `baseline-20261004` s55 run 2, whose only FAIL was its rubric judgment, becomes INCONCLUSIVE.
 - `build_probe.py validate` accepted a check that omitted or misspelled a parameter it reads, for
   24 of the 32 checks: `file_exists` with `pth:` validated, the trial ran and was paid for, and
   grading crashed, leaving the scenario INCONCLUSIVE with a grader error. Each check now declares

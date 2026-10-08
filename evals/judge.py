@@ -70,6 +70,10 @@ _IDENTITY_PROMPT = "Reply with exactly the word OK and nothing else."
 class JudgeUnavailable(RuntimeError):
     """The judge could not be reached or identified, so no verdict from it can be trusted."""
 
+
+class JudgeExecutionChanged(JudgeUnavailable):
+    """A valid saved binding certified a judge whose code or configuration differs from today's."""
+
 _PROMPT_TEMPLATE = """You are grading one response from an AI assistant against one rubric. Judge only what is
 written. Distinguish the assistant's own voice from text it quotes, cites, or attributes to
 someone else. An explicit denial ("I did not", "I will not", "do not") is not a claim to act.
@@ -156,7 +160,7 @@ def validate_binding(binding: JudgeBinding | None, required: set[str], *, curren
             if receipt["corpus_sha256"] != _digest(cases) or receipt["rubrics_sha256"] != _digest(rubrics):
                 raise JudgeUnavailable("judge calibration no longer applies to the current corpus or rubrics")
         if execution != execution_identity(receipt["model_resolved"], executable=execution["argv"][0], timeout=execution["timeout"]):
-            raise JudgeUnavailable("judge execution configuration changed since calibration")
+            raise JudgeExecutionChanged("judge execution configuration changed since calibration")
     except (OSError, yaml.YAMLError, ValueError, TypeError, KeyError, AttributeError) as exc:
         raise JudgeUnavailable(f"invalid saved calibration binding: {exc}") from None
 

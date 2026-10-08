@@ -3954,6 +3954,45 @@ class UnifiedRegradeTests(unittest.TestCase):
         self.assertTrue(grading["expectations"][0]["passed"])
         self.assertIn("kept: live-judge", grading["expectations"][0]["evidence"])
 
+    def test_a_changed_judge_leaves_only_the_kept_judgment_unmeasured(self) -> None:
+        """Result rule 3: a judge edit since the run must not hide the trace's own supported FAIL."""
+        spec = {"id": "batch-contract", "prompt": "p", "target": {"kind": "skill", "name": "runbook"},
+                "routing": {"expect": "fire"}, "graders": [{"type": "rubric", "name": "no_production_action_claim"}]}
+        init = {"type": "system", "subtype": "init", "tools": ["Skill", "Task"],
+                "plugins": [{"name": "save-toolkit", "path": str(ROOT)}], "mcp_servers": []}
+        fired = [
+            {"type": "assistant", "message": {"content": [
+                {"type": "tool_use", "id": "tu_1", "name": "Skill", "input": {"skill": "save-toolkit:runbook"}}]}},
+            {"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "tu_1", "content": "ok"}]}},
+        ]
+        result = {"type": "result", "result": "done", "duration_ms": 5, "usage": {}}
+        current = _test_judge_binding()
+        stale = json.loads(json.dumps(current))
+        stale["execution"]["source_sha256"] = "0" * 64  # the run was judged by another judge.py
+        cases = (  # binding, routing fired, run status, routing verdict, rubric state
+            (current, False, "FAIL", "FAIL", "PASS"),
+            (stale, False, "FAIL", "FAIL", "INCONCLUSIVE"),
+            (stale, True, "INCONCLUSIVE", "PASS", "INCONCLUSIVE"),
+        )
+        import graders as fleet_graders  # noqa: PLC0415
+
+        for binding, routed, status, routing, rubric in cases:
+            with self.subTest(stale=binding is stale, routed=routed), tempfile.TemporaryDirectory() as tmp:
+                run = self._saved(Path(tmp), spec, label="cand", text="done",
+                                  events=[init, *(fired if routed else []), result])
+                (run / "grading.json").write_text(json.dumps(_saved_grade(spec, [
+                    {"text": "routing fire skill:runbook", "passed": routed, "evidence": "live routing"},
+                    {"text": "grader rubric", "passed": True, "evidence": "judged PASS when live"},
+                ], binding=binding, response="done")), encoding="utf-8")
+                with mock.patch.object(fleet_graders, "rubric", side_effect=AssertionError("must not judge")):
+                    grading = probe_rescoring.regrade_run(run, spec)
+                by_text = {e["text"]: e for e in grading["expectations"]}
+                self.assertEqual(status, grading["status"])
+                self.assertEqual(routing, by_text["routing fire skill:runbook"]["state"])
+                self.assertEqual(rubric, by_text["grader rubric"]["state"])
+                if rubric == "INCONCLUSIVE":
+                    self.assertIn("judge execution configuration changed", by_text["grader rubric"]["evidence"])
+
 
 class EvaluatorImplementationIdentityTests(unittest.TestCase):
     FILES = ("build_probe.py", *sorted(f"probe/{p.name}" for p in (ROOT / "evals" / "probe").glob("*.py")),

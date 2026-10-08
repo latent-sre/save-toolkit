@@ -461,17 +461,13 @@ merge, record the frozen runner revision before EVAL-012 records comparison base
   differs in no verdict.
 - `work/eval-010-judge-receipt`: a calibration receipt no longer sums an unpriced live judge call as
   zero; its `cost_usd` is null beside `known_cost_usd` and `unknown_cost_calls`. The next
-  calibration (EVAL-010 action 1) re-judges under the changed `judge.py`.
+  calibration (EVAL-010 action 1) re-judges under the changed `judge.py`. A rescore no longer voids
+  a whole run when only the judge changed since it: the kept rubric judgment is INCONCLUSIVE and the
+  trace's own checks keep their verdicts (result rule 3), as the owner chose on 2026-10-07. Rescoring
+  the 1,317 runs whose scenarios the checkout holds, 92 runs with older bindings now show the FAILs
+  a rescore on `817f2193` hid.
 
 Remaining:
-- A rescore voids the whole run when the run's saved judge binding names a `judge.py` other than
-  the current one, though it keeps the saved rubric verdict and calls no judge. Structural FAILs beside
-  the rubric check become INCONCLUSIVE, against result rule 3. [verified 2026-10-07] With the
-  unpriced-cost fix, rescoring all 85 saved campaigns (1,556 runs) changes only the 11 runs that
-  carry a receipt binding: 9 in `baseline-20261004` and 2 in `smoke-20261004`, each FAIL to
-  INCONCLUSIVE with "judge execution configuration changed since calibration". Any `judge.py` edit
-  does the same. Whether a stale binding should void only the rubric check, or nothing because the
-  kept verdict was certified when it was paid for, is the evaluation owner's call.
 - The 2026-10-07 review's open findings: an untested `run` subcommand; a timeout saved before
   `run_end` regrades as void; `tool_call_count`'s regrade override; stopping the audit proxy before
   grading; and the owner's compatibility decisions on the flat flags and `Outcome` as a tuple.
