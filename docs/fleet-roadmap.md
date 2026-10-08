@@ -359,9 +359,10 @@ v1 result record written by the runner, native runs under the owner's everyday a
 inherited folder permissions, and the Coder Eval assessment postponed to WP-15 after the first useful
 comparison. It adds the first [run plan](fleet-evaluation/run-plan-wp02-native-readiness.md).
 Revision 0.5 recorded DEC-01, DEC-02, DEC-04, DEC-10, DEC-11 and DEC-17 to DEC-20 on 2026-10-05.
-On 2026-10-07 WP-01's comparison, `evals/compare_runs.py`, was implemented on
-`work/eval-012-wp01-compare` and passed its synthetic-bundle tests on Windows; its Linux CI run and
-independent review are pending.
+WP-01's comparison, `evals/compare_runs.py`, is in [PR #333](https://github.com/latent-sre/save-toolkit/pull/333)
+(2026-10-08): its synthetic-bundle tests, which cover AC-01, AC-02, AC-17's attempt counts, AC-19
+and AC-23, pass on Windows and in Linux CI, and the findings of an independent review and of Codex
+are fixed. It completes when the owner merges it.
 **Owner:** Human owner accepts scope, run conditions and exact candidates; `agent-engineer` owns
 scenario/measurement design; implementation and lab owners are assigned per delivery package.
 **Outcome:** A reviewable evaluation specification covers ITBench-Lite, SREGym, repository repair,
@@ -369,8 +370,8 @@ test generation, selected terminal tasks, GCP managed-service/migration and GKE 
 fleet integration, Coder Eval runner assessment and later Microsoft AIOpsLab, with traceable evidence,
 acceptance tests, delivery phases and explicit open decisions.
 **Next action:** EVAL-011's runner sequence lands, including the v1 record, under the accepted
-[specification](fleet-evaluation/README.md); WP-01's comparison is reviewed and merged, completing
-once CI has run AC-23 on Linux; and WP-02 runs under its
+[specification](fleet-evaluation/README.md); the owner merges WP-01's comparison (PR #333); and
+WP-02 runs under its
 run plan, whose budget the owner approved on 2026-10-06 with a USD 20 cap. WP-12's GCP case design can proceed alongside. The
 [Coder Eval experiment](fleet-evaluation/coder-eval.md) waits for WP-15. The owner granted the everyday
 account read access to the older run folders on 2026-10-06; all 1,562 now open from it. EVAL-010
