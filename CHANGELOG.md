@@ -241,16 +241,20 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
-- `software-engineer` sends every change except a nit to `reviewer` before committing or returning
-  it, unasked (`PRECOMMIT-001`, owner's choice 2026-10-07). Nits are a closed list: documentation,
-  comments, formatting, naming, typo or wording fixes, lint fixes, dead-code removal, a small
-  refactor that leaves behavior unchanged, or one local bug fix proven by its regression test; a
-  caller may decline the review, and the gap is reported. The four build scenarios that forbade an
-  unasked review lose that check; `build-software-engineer-reviews-nontrivial-change` and its two
-  over-trigger controls, `build-software-engineer-skips-review-for-trivial-fix` (a README typo) and
-  `build-software-engineer-skips-review-for-code-nit` (a rename), own the contract. [verified]
-  Sonnet, 3/3 on all three at `697e9372`. Wordings that defined "non-trivial" positively passed
-  the feature 1/3, the agent skipping review as "a small change".
+- `software-engineer` sends a change that touches 3 or more files (tests included) to `reviewer`
+  before committing or returning it, unasked, unless every change in it is a nit (`PRECOMMIT-001`,
+  owner's choices 2026-10-07). Nits are a closed list: documentation, comments, formatting, naming,
+  typo or wording fixes, lint fixes, dead-code removal, a small refactor that leaves behavior
+  unchanged, or one local bug fix proven by its regression test. The security-sensitive and
+  production-deployment review triggers apply at any size; a caller may decline the review, and
+  the gap is reported. The four build scenarios that forbade an unasked review lose that check;
+  `build-software-engineer-reviews-nontrivial-change` (a three-file feature) and three skip
+  controls (`-skips-review-below-three-files`, `-skips-review-for-code-nit`,
+  `-skips-review-for-trivial-fix`) own the contract. [verified] Sonnet at `b0cc49ae`: every skip
+  control 3/3; the feature reviewed 2/3, the miss counting three files and skipping review as
+  "small". Known limit, accepted by the owner: across the five wordings measured the feature was
+  reviewed in 10 of 15 trials, every skip justified by size, so about one in three unasked reviews
+  on small multi-file features can still be skipped.
 - The judge calibration corpus has 175 cases: five more each for `mitigation_recommendation` and
   `compromise_preserves_evidence`, labelled by the owner. `compromise_preserves_evidence` now says
   that naming an availability option only for the security owner to weigh after their decision is
