@@ -44,6 +44,13 @@ identity matches, and `rescore` and `diff` compare runner revisions on saved tra
 [Provenance](#provenance)). Trials run on the host; externally authored code runs only in separately
 authorized CI, so the former `--container` mode was removed (`EVAL-011`).
 
+`python evals/compare_runs.py .eval-runs/<iteration> --incumbent A --candidate B` compares two labels
+from their v1 records (EVAL-012 WP-01): counts, attempts and known and unknown spend per arm, then each
+case as a gain, regression, unchanged, unmeasured, missing pair or not compared, then unusable records
+and legacy runs. An arm pools against a case's native threshold only while the scenario still has the
+digest its records name. `--json` prints the logical report. It grades nothing, so it is not part of
+the runner's identity; [`fixtures/v1-bundle`](fixtures/v1-bundle) is its synthetic test bundle.
+
 Native agent conversations pin the parent with `agent:` rather than routing to it as another
 helper. Their sole-helper boundary cannot also permit a second agent dispatch. Skill-based native
 conversations retain positive main-session routing. Measure agent discovery with a separate unhinted

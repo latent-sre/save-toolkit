@@ -1,0 +1,10 @@
+{
+  "runtime": {
+    "cli_version": "0.0.0 (synthetic)",
+    "host_platform": {
+      "system": "Linux",
+      "release": "synthetic",
+      "machine": "x86_64"
+    }
+  }
+}

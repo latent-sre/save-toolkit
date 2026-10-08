@@ -1,0 +1,82 @@
+{
+  "format": {
+    "name": "save-toolkit.eval-record",
+    "version": 1
+  },
+  "case": {
+    "id": "synthetic-unchanged",
+    "case_sha256": "df576ec5a6a21726903364e0b5a6edba6537a2bd9be3fc6763b6410206331363",
+    "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  },
+  "candidate": {
+    "plugin_root": "/synthetic/candidate",
+    "plugin_commit": "2222222222222222222222222222222222222222",
+    "plugin_inputs_dirty": false,
+    "plugin_source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "runner": {
+    "runner_commit": "3333333333333333333333333333333333333333",
+    "runner_source_dirty": false,
+    "runner_source_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  "conditions": {
+    "requested_model": "sonnet",
+    "observed_models": [
+      "claude-synthetic"
+    ],
+    "runtime": {
+      "cli_version": "0.0.0 (synthetic)",
+      "host_platform": {
+        "system": "Linux",
+        "release": "synthetic",
+        "machine": "x86_64"
+      }
+    },
+    "turn_limit": null,
+    "wall_clock_seconds": 600
+  },
+  "attempt": {
+    "label": "candidate",
+    "slot": 1,
+    "number": 1,
+    "state": "final",
+    "started_at": "2026-10-01T00:00:00+00:00",
+    "ended_at": "2026-10-01T00:01:00+00:00"
+  },
+  "run_end": {
+    "kind": "completed",
+    "stop": null,
+    "reason": null
+  },
+  "checks": [
+    {
+      "id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd:0",
+      "text": "routes to the reviewer",
+      "kind": "requires",
+      "state": "PASS",
+      "reason": null,
+      "evidence": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "evidence_truncated": true
+    }
+  ],
+  "verdict": {
+    "status": "PASS",
+    "reason": null,
+    "assessment_revision": 0,
+    "after_assessment": null
+  },
+  "cost": {
+    "trial_usd": 0.1,
+    "judge_usd": 0.0,
+    "known_usd": 0.1,
+    "complete": true,
+    "judge_calls": 0,
+    "judge_live_calls": 0,
+    "judge_cached_calls": 0,
+    "judge_unknown_cost_calls": 0
+  },
+  "evidence": {
+    "outputs/response.md": "outputs/response.md",
+    "stdout.jsonl": "stdout.jsonl"
+  }
+}

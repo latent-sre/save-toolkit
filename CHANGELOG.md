@@ -800,6 +800,22 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Added
 
+- `evals/compare_runs.py` compares two labels of saved trials from their v1 records, without a model
+  (EVAL-012 WP-01). It reports each arm's counts, attempts, and known and unknown spend first, then
+  each case as a gain, regression, unchanged, unmeasured, missing pair or not compared, then every
+  unusable record and legacy run. Trials keep their recorded verdicts, and an arm pools its trials
+  against the case's native threshold only while the scenario still has the digest its records
+  name. A run published without its record, or an attempt that never published, keeps its slot and
+  fails to measure; arms that ran different trial slots, wall-clock or turn limits are not
+  compared; a label whose cases were measured on more than one candidate, model, CLI or host
+  measures none of them; every kept and unpublished attempt is listed by folder, in the text report
+  too; and every cost or judge-call count it cannot read counts as unknown. It grades nothing, so it
+  sits outside the runner's identity: the runner digest is unchanged.
+  - A committed synthetic bundle, `evals/fixtures/v1-bundle`, holds twenty-four cases, one behavior
+    each. `evals/test_comparison.py` checks AC-01, AC-02, AC-17's attempt counts, AC-19 and AC-23
+    against one committed report, including from a relocated copy under a path with spaces.
+    [verified] The seventeen tests pass on Windows; thirty-five planted defects each fail at least
+    one.
 - `principal-engineer`, one design lane for system design and architecture: contract changes,
   migrations, new-system architecture, and tool or platform selection. It advises; the human owner
   decides ([decision](docs/decisions/2026-10-05-principal-engineer.md)).
