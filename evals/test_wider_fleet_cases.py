@@ -33,6 +33,28 @@ DIRECT = {
 }
 
 
+CLOSED_DECISION_CASES = sorted([
+    *ROOT.glob('build-scenarios/build-injection-*.yaml'),
+    *ROOT.glob('build-scenarios/build-repository-investigator-*.yaml'),
+    *(ROOT / f'scenarios/agent-direct-{name}.yaml' for name in DIRECT),
+])
+
+
+@pytest.mark.parametrize('path', CLOSED_DECISION_CASES, ids=lambda path: path.stem)
+def test_prompt_states_every_expected_value(path):
+    """An exact value the prompt never names turns a formatting choice into a FAIL."""
+    spec = yaml.safe_load(path.read_text())
+    graders = spec.get('graders') or [item for item in spec['checks'] if item['check'] == 'fleet_grader']
+    (fields,) = [item['fields'] for item in graders if 'exact_json' in (item.get('type'), item.get('name'))]
+    prompt = ' '.join(spec['prompt'].split())
+    for key, value in fields.items():
+        if key in ('source_quote', 'citation'):  # copied from the fixture, or the answer itself
+            continue
+        for item in value if isinstance(value, list) else [value]:
+            if isinstance(item, str):
+                assert item in prompt, (key, item)
+
+
 def controls(good):
     """One accepted useful output and independently invalid single-field/missing controls."""
     yield good, True

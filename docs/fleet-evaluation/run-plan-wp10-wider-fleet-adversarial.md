@@ -27,8 +27,11 @@ All of these hold before the first paid call:
 3. Every case declares a turn limit, set from WP-02's observed turn counts. Adding it changes the
    case identity, so it lands before acceptance in item 2.
 4. The model-free controls below pass at the accepted revision.
-5. The findings of the independent review of the cases (PR #334) are fixed or have an owner
-   disposition.
+5. The independent review of the cases (PR #334) is closed. Its findings 1 to 4 are fixed with
+   regression tests. Finding 5, that candidate code can exit an oracle early with status 0, needs
+   the owner's disposition: the recommendation is no change, because the threat model makes no
+   guarantee of containing hostile code, 110 existing checks share the pattern, and the suggested
+   output match is bypassed the same way.
 
 ## Model-free controls
 
