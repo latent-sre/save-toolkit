@@ -19,7 +19,8 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   response, and passes now. The edit changes `judge.py`, so the runner identity becomes `20039ef7…`
   and no existing calibration receipt or cached verdict applies: the cache key includes the
   template and judge source. It needs one owner-approved cold calibration of 181 judgments before
-  any rubric trial, and lands only before WP-02 starts or after it completes. No model run.
+  any rubric trial; it lands before WP-02 starts, with a re-recorded frozen runner and that
+  calibration added to WP-02's preconditions. No model run.
 - `pcf-ops`'s crash reference had no case for a crash loop from a start that overruns the
   health-check `timeout`: in the 2026-09-08 quality round, the two crash-loop assertions that need
   it (rule out `$PORT`, memory and platform; tie the slow start to the droplet) stayed 0/4 after

@@ -351,10 +351,9 @@ now cover six pairs (12 cases), with 24 scripted obeying/resisting outputs and e
 mutations. A [natural-response extension](../evals/oracles/natural-injection/README.md) adds
 three pairs with local repair/test and fake-wrapper effects; normal prose requires separate human
 semantic assessment, so mechanical success alone stays INCONCLUSIVE. The judge-input surface's six
-cases are in the active corpus beside `judge.py`'s per-response marker tag, on branch
-`work/eval-012-wp10-judge-framing`, unmerged: it changes the runner identity and the corpus, so it
-needs one owner-approved cold recalibration (181 cases) and must land before WP-02 starts or after it
-completes. These model-free controls do not complete WP-10 or establish candidate behavior.
+cases are in the active corpus beside `judge.py`'s per-response marker tag, landing with WP-02's
+canary before WP-02 starts: they change the runner identity and the corpus, so one owner-approved
+cold recalibration (181 cases) precedes WP-02's rubric check and any other rubric trial. These model-free controls do not complete WP-10 or establish candidate behavior.
 **Owner:** Human owner accepts scope, run conditions and exact candidates; `agent-engineer` owns
 scenario/measurement design; implementation and lab owners are assigned per delivery package.
 **Outcome:** A reviewable evaluation specification covers ITBench-Lite, SREGym, repository repair,
@@ -390,17 +389,18 @@ including its result rules. Measurement failures are inconclusive and never hide
 and results record the runner revision, CLI version and host platform. Every in-scope defect from the
 2026-10-03 inventory of `evals/build_probe.py` is fixed or has an owner disposition.
 **Next action:** Keep the runner frozen through WP-02; run its remaining preconditions and native
-checks under the approved run plan. [verified] Frozen on 2026-10-08 from checkout
-`523525430a0fbb71b0e9e3a846fae8e86db90a99`; latest commit touching runner identity inputs:
-`effa23d7795ea527efce3a5de2c27375cb0f0b89`. The runner's own normalized source SHA-256 is
-`633770b9656dbd8980df842af9d0e41e7e233ab293f69338de05f280c9d249d3`, computed by
+checks under the approved run plan. [verified] Re-frozen on 2026-10-08 with the judge framing fix;
+latest commit touching runner identity inputs: `4022ba744650be0dc8ff16f0e330f78bca0c566d`. The
+runner's own normalized source SHA-256 is
+`20039ef716110644352199ec2e78135bf34d7cb8b4db3ee6072d7451987e46b6`, computed by
 `probe.fingerprints.harness_source_digest()` over `HARNESS_FILES`. This includes the judge and
 graders; scenario/oracle additions outside those inputs do not change it. See the
 [WP-02 freeze record](fleet-evaluation/run-plan-wp02-native-readiness.md#frozen-runner-record).
-The judge marker fix and the six judge-input corpus cases are on `work/eval-012-wp10-judge-framing`,
-unmerged; that branch's runner identity is `20039ef716110644352199ec2e78135bf34d7cb8b4db3ee6072d7451987e46b6`
-[verified] and it invalidates the current calibration receipt. It merges only with the owner's
-choice to land it before WP-02 starts or after WP-02 completes, and one cold recalibration. Any future
+It replaces the first freeze (checkout `523525430a0fbb71b0e9e3a846fae8e86db90a99`, identity input
+`effa23d7795ea527efce3a5de2c27375cb0f0b89`, digest
+`633770b9656dbd8980df842af9d0e41e7e233ab293f69338de05f280c9d249d3`): the owner chose to land the judge
+marker fix and the six judge-input corpus cases before WP-02 starts. They invalidate every earlier
+calibration receipt, so one cold recalibration precedes any rubric trial (WP-02 precondition 5). Any future
 runner edit retains the saved-run rescore/diff gate and an explanation of every verdict difference.
 Implemented:
 - The comparison: `--rescore` grades saved runs into a new directory without writing them;

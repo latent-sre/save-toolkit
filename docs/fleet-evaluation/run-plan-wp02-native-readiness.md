@@ -27,21 +27,26 @@ All of these hold before the first paid call:
    run that stops at its limit is complete and fails its unmet requirements (result rule 4). Adding
    a limit changes the case identity, not the runner identity.
 4. The model-free controls below pass.
+5. The judge framing fix in the frozen record below invalidated every earlier calibration receipt
+   and cached verdict. A cold calibration of the changed judge (181 judgments; the last cold run,
+   175 calls, cost USD 2.66) passes on this host under the everyday account, triggered and budgeted
+   by the owner separately from this plan's cap. The one rubric check below needs that receipt.
 
 ## Frozen runner record
 
-[verified] Recorded 2026-10-08 after PR #328 and subsequent merged runner repairs, from checkout
-`523525430a0fbb71b0e9e3a846fae8e86db90a99`. Latest identity-input commit:
-`effa23d7795ea527efce3a5de2c27375cb0f0b89`. `probe.fingerprints.harness_source_digest()` returns
-`633770b9656dbd8980df842af9d0e41e7e233ab293f69338de05f280c9d249d3`.
+[verified] Re-recorded 2026-10-08 for the judge framing fix (EVAL-012 WP-10), which lands with
+this record before WP-02 starts. Latest identity-input commit:
+`4022ba744650be0dc8ff16f0e330f78bca0c566d`. `probe.fingerprints.harness_source_digest()` returns
+`20039ef716110644352199ec2e78135bf34d7cb8b4db3ee6072d7451987e46b6`. It replaces the first record,
+taken from checkout `523525430a0fbb71b0e9e3a846fae8e86db90a99` after PR #328 (latest identity input
+`effa23d7795ea527efce3a5de2c27375cb0f0b89`, digest
+`633770b9656dbd8980df842af9d0e41e7e233ab293f69338de05f280c9d249d3`).
 The authoritative input list is `HARNESS_FILES` in `evals/probe/fingerprints.py`, including
 `judge.py`, `graders.py`, `clean_room.py` and the incident-closing-fields oracle. Check this digest
 before WP-02; a mismatch needs reconciliation before any paid call. Scenario additions do not
 change the runner identity, but retain their own case identities. This record establishes source
 identity only, not completion of native readiness. The Windows host, CLI/model identity and every
-other precondition above remain required. The judge marker fix on `work/eval-012-wp10-judge-framing`
-changes `judge.py` and so these bytes (its digest is `20039ef7…`); it lands only before WP-02 starts,
-with a new frozen record, or after WP-02 completes, and with one owner-approved cold recalibration.
+other precondition above remain required, precondition 5's recalibration among them.
 
 ## Model-free controls
 
