@@ -334,39 +334,10 @@ def regrade(iteration_dir: Path, scenarios: list[dict[str, Any]], threshold: flo
 
 def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
     """Run the batch, publish every attempt, and exit on the batch's verdict."""
-    required = set().union(*(fingerprints.required_rubrics(spec) for spec in scenarios))
-    judge_binding = None
-    try:
-        if required:
-            if not args.judge_calibration:
-                raise rubric_judge.JudgeUnavailable("rubric-backed trials require --judge-calibration identity.json")
-            judge_binding = rubric_judge.load_binding(args.judge_calibration, required)
-    except rubric_judge.JudgeUnavailable as exc:
-        print(f"refusing to run: {exc}", file=sys.stderr)
-        return 3
-    try:
-        provenance = fingerprints.plugin_provenance(args.plugin_root.resolve())
-    except fingerprints.MeasuredInputRefused as exc:
-        print(f"refusing to run: {exc}", file=sys.stderr)
-        return 3
-    runtime = fingerprints.runtime_identity(args.executable)
-    print(
-        json.dumps(
-            {
-                "plugin": provenance,
-                "runtime": runtime,
-                "judge_binding": judge_binding.metadata if judge_binding else None,
-            }
-        ),
-        flush=True,
-    )
-    if args.expect_plugin_digest and not provenance["plugin_source_sha256"].startswith(args.expect_plugin_digest):
-        print(
-            f"refusing to run: plugin source digest {provenance['plugin_source_sha256'][:12]}… does not match "
-            "--expect-plugin-digest",
-            file=sys.stderr,
-        )
-        return 3
+    prepared = _preflight(args, scenarios)
+    if isinstance(prepared, int):
+        return prepared
+    judge_binding, provenance, runtime = prepared
     out = args.out.resolve()
     out.mkdir(parents=True, exist_ok=True)
     summary_path = out / f"summary-{args.label}-{args.model or 'default'}.json"
@@ -447,18 +418,9 @@ def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
                     json.dumps({"scenario": spec["id"], "stopped": f"grading machinery failed: {machinery}"}),
                     flush=True,
                 )
-            if results[-1].get("identity_failure"):
-                # Every later trial would run as the same wrong candidate, plugin or model.
-                blocked = f"a trial failed its identity check: {results[-1]['identity_failure']}"
-                break
-            if results[-1].get("after_assessment"):
-                # The finished trial keeps its verdict; nothing else may reuse the uncleaned environment.
-                blocked = results[-1]["after_assessment"]
-                break
             spent += float(results[-1].get("known_cost_usd") or 0.0)
-            if args.max_batch_usd is not None and results[-1].get("cost_complete") is False:
-                # An unknown cost cannot be held to a cap; stop before spending more blind.
-                blocked = f"trial cost unknown; the USD {args.max_batch_usd:g} cap cannot be enforced"
+            blocked = _stop_after(results[-1], args.max_batch_usd)
+            if blocked:
                 break
     finally:
         # Written even when a trial raised: every trial that finished was paid for and stays counted.
@@ -486,6 +448,61 @@ def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
         if unfixed:
             stop["unfixed_by_resume"] = unfixed
     return _conclude(batch, scenarios, args.threshold, problem, stop, auth_failed=auth_failed)
+
+
+def _preflight(
+    args: argparse.Namespace, scenarios: list[dict[str, Any]]
+) -> tuple[rubric_judge.JudgeBinding | None, dict[str, Any], dict[str, Any]] | int:
+    """The judge binding, candidate and runtime a batch measures with, or exit 3 when it must refuse
+    to start; the candidate and runtime are printed before any trial."""
+    required = set().union(*(fingerprints.required_rubrics(spec) for spec in scenarios))
+    judge_binding = None
+    try:
+        if required:
+            if not args.judge_calibration:
+                raise rubric_judge.JudgeUnavailable("rubric-backed trials require --judge-calibration identity.json")
+            judge_binding = rubric_judge.load_binding(args.judge_calibration, required)
+    except rubric_judge.JudgeUnavailable as exc:
+        print(f"refusing to run: {exc}", file=sys.stderr)
+        return 3
+    try:
+        provenance = fingerprints.plugin_provenance(args.plugin_root.resolve())
+    except fingerprints.MeasuredInputRefused as exc:
+        print(f"refusing to run: {exc}", file=sys.stderr)
+        return 3
+    runtime = fingerprints.runtime_identity(args.executable)
+    print(
+        json.dumps(
+            {
+                "plugin": provenance,
+                "runtime": runtime,
+                "judge_binding": judge_binding.metadata if judge_binding else None,
+            }
+        ),
+        flush=True,
+    )
+    if args.expect_plugin_digest and not provenance["plugin_source_sha256"].startswith(args.expect_plugin_digest):
+        print(
+            f"refusing to run: plugin source digest {provenance['plugin_source_sha256'][:12]}… does not match "
+            "--expect-plugin-digest",
+            file=sys.stderr,
+        )
+        return 3
+    return judge_binding, provenance, runtime
+
+
+def _stop_after(result: dict[str, Any], cap: float | None) -> str | None:
+    """Why the batch stops after this finished trial, if it does."""
+    if result.get("identity_failure"):
+        # Every later trial would run as the same wrong candidate, plugin or model.
+        return f"a trial failed its identity check: {result['identity_failure']}"
+    if result.get("after_assessment"):
+        # The finished trial keeps its verdict; nothing else may reuse the uncleaned environment.
+        return str(result["after_assessment"])
+    if cap is not None and result.get("cost_complete") is False:
+        # An unknown cost cannot be held to a cap; stop before spending more blind.
+        return f"trial cost unknown; the USD {cap:g} cap cannot be enforced"
+    return None
 
 
 def _conclude(

@@ -255,6 +255,94 @@ def _keep_attempt(run_dir: Path, history: Path, number: int | None, state: str, 
     return destination
 
 
+def _invoke_turns(
+    spec: Mapping[str, Any],
+    settings: BatchSettings,
+    run_out: Path,
+    ws: workspaces.Workspace,
+    env: dict[str, str],
+    plugin_sha: str,
+    binding: dict[str, Any] | None,
+    scenario_identity: str,
+) -> tuple[str | None, str | None]:
+    """Invoke the CLI for the prompt and then each follow-up, resuming the session the turn before
+    opened, until a turn ends the trial: why it ended, if one did, and any identity failure."""
+    inconclusive: str | None = None
+    identity_failure: str | None = None
+    resume = None
+    for turn, prompt in enumerate([catalog.scenario_prompt(spec, settings.plugin_root), *spec.get("followups", [])]):
+        inconclusive = fingerprints.plugin_drift_problem(settings.plugin_root, plugin_sha)
+        if fingerprints.scenario_digest(spec, binding) != scenario_identity:
+            inconclusive = "scenario inputs changed before invocation; re-run the trial"
+        if inconclusive:
+            identity_failure = identity_failure or inconclusive
+            break
+        turn_out = run_out if turn == 0 else run_out / "followup"
+        turn_out.mkdir(exist_ok=True)
+        command = invocation.build_command(
+            settings.executable,
+            settings.plugin_root,
+            f"save-toolkit:{spec['agent']}" if spec.get("agent") else None,
+            prompt,
+            settings.model,
+            catalog.scenario_tools(spec),
+            pre_approve=catalog.scenario_kind(spec) == "build",
+            persistent=bool(spec.get("followups")),
+            resume=resume,
+            max_turns=spec.get("max_turns"),
+        )
+        returncode, timed_out = None, None
+        with (
+            (turn_out / "stdout.jsonl").open("w", encoding="utf-8") as out,
+            (turn_out / "stderr.txt").open("w", encoding="utf-8") as err,
+        ):
+            try:
+                returncode = subprocess.run(
+                    command, cwd=str(ws.repo), env=env, stdout=out, stderr=err, timeout=settings.timeout
+                ).returncode
+            except subprocess.TimeoutExpired:
+                timed_out = CutShort(f"timed out after {settings.timeout}s", Stop.WALL_CLOCK)
+        current = tracing.parse_trace(turn_out / "stdout.jsonl")
+        reason, failed = invocation.turn_reason(
+            current,
+            returncode,
+            timed_out,
+            spec,
+            settings.plugin_root,
+            plugin_sha,
+            ws.repo,
+            resume,
+            turn_out / "stdout.jsonl",
+        )
+        identity_failure = identity_failure or failed
+        inconclusive = inconclusive or reason
+        if spec.get("followups"):
+            (turn_out / "invocation.json").write_text(
+                json.dumps(
+                    {
+                        "argv": command,
+                        "session_id": current.session_id,
+                        "workspace": str(ws.repo.resolve()),
+                        "exit_code": returncode,
+                        "expected_model": spec.get("expected_model"),
+                        "main_models": current.main_models,
+                        "init_session_ids": current.init_session_ids,
+                        "resume": resume,
+                        "inconclusive": inconclusive,
+                        "cut_short": isinstance(inconclusive, CutShort),
+                        "run_stop": inconclusive.kind if isinstance(inconclusive, CutShort) else None,
+                    },
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
+            (turn_out / "response.md").write_text(current.result_text, encoding="utf-8")
+        if inconclusive:
+            break
+        resume = current.session_id
+    return inconclusive, identity_failure
+
+
 def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings: BatchSettings) -> dict[str, Any]:
     eval_name = spec["id"]
     (run_out / "outputs").mkdir(parents=True, exist_ok=True)
@@ -323,81 +411,10 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
             make_env = settings.env_factory or (lambda: clean_room.clean_env(subscriber_only=True))
             with make_env() as base_env:
                 env = workspaces.child_env(base_env, ws, spec, services)
-                resume = None
-                for turn, prompt in enumerate(
-                    [catalog.scenario_prompt(spec, settings.plugin_root), *spec.get("followups", [])]
-                ):
-                    inconclusive = fingerprints.plugin_drift_problem(
-                        settings.plugin_root, provenance["plugin_source_sha256"]
-                    )
-                    if fingerprints.scenario_digest(spec, binding) != scenario_identity:
-                        inconclusive = "scenario inputs changed before invocation; re-run the trial"
-                    if inconclusive:
-                        identity_failure = identity_failure or inconclusive
-                        break
-                    turn_out = run_out if turn == 0 else run_out / "followup"
-                    turn_out.mkdir(exist_ok=True)
-                    command = invocation.build_command(
-                        settings.executable,
-                        settings.plugin_root,
-                        f"save-toolkit:{spec['agent']}" if spec.get("agent") else None,
-                        prompt,
-                        settings.model,
-                        catalog.scenario_tools(spec),
-                        pre_approve=catalog.scenario_kind(spec) == "build",
-                        persistent=bool(spec.get("followups")),
-                        resume=resume,
-                        max_turns=spec.get("max_turns"),
-                    )
-                    returncode, timed_out = None, None
-                    with (
-                        (turn_out / "stdout.jsonl").open("w", encoding="utf-8") as out,
-                        (turn_out / "stderr.txt").open("w", encoding="utf-8") as err,
-                    ):
-                        try:
-                            returncode = subprocess.run(
-                                command, cwd=str(ws.repo), env=env, stdout=out, stderr=err, timeout=settings.timeout
-                            ).returncode
-                        except subprocess.TimeoutExpired:
-                            timed_out = CutShort(f"timed out after {settings.timeout}s", Stop.WALL_CLOCK)
-                    current = tracing.parse_trace(turn_out / "stdout.jsonl")
-                    reason, failed = invocation.turn_reason(
-                        current,
-                        returncode,
-                        timed_out,
-                        spec,
-                        settings.plugin_root,
-                        provenance["plugin_source_sha256"],
-                        ws.repo,
-                        resume,
-                        turn_out / "stdout.jsonl",
-                    )
-                    identity_failure = identity_failure or failed
-                    inconclusive = inconclusive or reason
-                    if spec.get("followups"):
-                        (turn_out / "invocation.json").write_text(
-                            json.dumps(
-                                {
-                                    "argv": command,
-                                    "session_id": current.session_id,
-                                    "workspace": str(ws.repo.resolve()),
-                                    "exit_code": returncode,
-                                    "expected_model": spec.get("expected_model"),
-                                    "main_models": current.main_models,
-                                    "init_session_ids": current.init_session_ids,
-                                    "resume": resume,
-                                    "inconclusive": inconclusive,
-                                    "cut_short": isinstance(inconclusive, CutShort),
-                                    "run_stop": inconclusive.kind if isinstance(inconclusive, CutShort) else None,
-                                },
-                                indent=2,
-                            ),
-                            encoding="utf-8",
-                        )
-                        (turn_out / "response.md").write_text(current.result_text, encoding="utf-8")
-                    if inconclusive:
-                        break
-                    resume = current.session_id
+                inconclusive, failed = _invoke_turns(
+                    spec, settings, run_out, ws, env, provenance["plugin_source_sha256"], binding, scenario_identity
+                )
+                identity_failure = identity_failure or failed
         else:
             # A missing fixture target cannot be repaired by the model. Starting it here would
             # spend a call with unresolved service placeholders and could make a tool-bearing
