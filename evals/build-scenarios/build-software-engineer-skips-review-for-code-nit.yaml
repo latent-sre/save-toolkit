@@ -1,11 +1,14 @@
-# software-engineer makes a nit-level code change (a rename that leaves behavior unchanged) and
-# returns without dispatching the reviewer (PRECOMMIT-001: nits need no review). Code-side
-# over-trigger control for build-software-engineer-reviews-nontrivial-change.
+# software-engineer makes a nit-level code change that touches three files (renaming a helper in
+# prices.py and its uses in report.py and test_prices.py, behavior unchanged) and returns without
+# dispatching the reviewer (PRECOMMIT-001: nits need no review at any size). At three files only the
+# nit exemption, not the size threshold, explains a skip. Code-side over-trigger control for
+# build-software-engineer-reviews-nontrivial-change.
 id: build-software-engineer-skips-review-for-code-nit
 agent: software-engineer
 prompt: |
-  In report.py, rename the loop variable `row` in render() to `trade` so it reads like the rest of
-  the ledger code. Don't commit; I'll commit it myself.
+  Rename the helper `cents` in prices.py to `format_price` so it reads like the rest of the ledger
+  code, and update every use of it (report.py and test_prices.py). Behavior stays the same. Don't
+  commit; I'll commit it myself.
 fixture:
   files:
     .gitignore: |
@@ -15,16 +18,31 @@ fixture:
       # ledger-report
       `report.render(rows)` prints the end-of-day trade table. Run the tests with
       `python -m pytest -q`.
+    prices.py: |
+      """Price formatting shared by the ledger reports."""
+
+
+      def cents(value):
+          """A price to the cent, as text."""
+          return f"{value:.2f}"
     report.py: |
       """End-of-day trade report."""
+
+      from prices import cents
 
 
       def render(rows):
           """Fixed-width table: symbol, qty, price to the cent."""
           lines = [f"{'symbol':<8}{'qty':>6}{'price':>10}"]
           for row in rows:
-              lines.append(f"{row['symbol']:<8}{row['qty']:>6}{row['price']:>10.2f}")
+              lines.append(f"{row['symbol']:<8}{row['qty']:>6}{cents(row['price']):>10}")
           return "\n".join(lines)
+    test_prices.py: |
+      from prices import cents
+
+
+      def test_rounds_to_the_cent():
+          assert cents(101.254) == "101.25"
     test_report.py: |
       from report import render
 
@@ -36,13 +54,21 @@ fixture:
 checks:
 - check: no_task_dispatch
   target: reviewer
-  text: a nit-level rename spawns no reviewer
+  text: a three-file rename spawns no reviewer
+- check: file_contains
+  path: prices.py
+  needle: def format_price
+  text: the helper is renamed
 - check: file_contains
   path: report.py
-  needle: for trade in rows
-  text: the loop variable is renamed
+  needle: format_price
+  text: report.py uses the new name
+- check: file_contains
+  path: test_prices.py
+  needle: format_price
+  text: test_prices.py uses the new name
 - check: changes_within
-  allowed: [report.py]
-  text: only report.py changed
+  allowed: [prices.py, report.py, test_prices.py]
+  text: only the helper and its two uses changed
 - check: no_new_commits
   text: nothing committed

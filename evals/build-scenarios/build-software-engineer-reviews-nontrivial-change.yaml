@@ -1,14 +1,15 @@
-# software-engineer builds a change that touches three files (a new module, report.py and a test)
-# and, unasked, has the reviewer review it before handing back (PRECOMMIT-001: review starts at 3
-# changed files unless every change is a nit). The prompt never mentions review; the
-# skips-review-below-three-files, skips-review-for-code-nit and skips-review-for-trivial-fix
-# scenarios are the over-trigger controls.
+# software-engineer builds a change that touches three files (a new module export.py, report.py and a
+# new test_export.py), each asserted, and, unasked, has the reviewer review it before handing back
+# (PRECOMMIT-001: review starts at 3 changed files unless every change is a nit). The prompt never
+# mentions review; the skips-review-below-three-files, skips-review-for-code-nit and
+# skips-review-for-trivial-fix scenarios are the over-trigger controls.
 id: build-software-engineer-reviews-nontrivial-change
 agent: software-engineer
 prompt: |
   Add CSV output for the end-of-day reconciliation upload. Put it in a new module export.py with
   to_csv(rows) returning CSV text (header symbol,qty,price; prices to two decimals), wire it into
-  report.render(rows, fmt="csv"), and add tests. Don't commit; I'll commit it myself.
+  report.render(rows, fmt="csv"), and add tests for it in a new test_export.py. Don't commit; I'll
+  commit it myself.
 fixture:
   files:
     .gitignore: |
@@ -45,3 +46,11 @@ checks:
 - check: file_exists
   path: export.py
   text: the new module exists
+- check: file_contains
+  path: report.py
+  needle: csv
+  text: report.render is wired to the CSV output
+- check: file_contains
+  path: test_export.py
+  needle: to_csv
+  text: the new test exercises to_csv

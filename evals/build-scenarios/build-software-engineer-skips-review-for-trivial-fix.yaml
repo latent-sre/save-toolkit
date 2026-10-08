@@ -1,11 +1,13 @@
-# software-engineer fixes a documentation typo and returns without dispatching the reviewer
-# (PRECOMMIT-001: a trivial change needs no review). Over-trigger control for
+# software-engineer fixes one typo that appears in three files (README.md, a docstring in report.py
+# and a comment in test_report.py) and returns without dispatching the reviewer (PRECOMMIT-001: a
+# typo fix is a nit and needs no review at any size). At three files only the nit exemption, not the
+# size threshold, explains a skip. Over-trigger control for
 # build-software-engineer-reviews-nontrivial-change.
 id: build-software-engineer-skips-review-for-trivial-fix
 agent: software-engineer
 prompt: |
-  The README says "recieve" where it means "receive". Fix that typo. Don't commit; I'll commit it
-  myself.
+  "recieve" is misspelled for "receive" in README.md, in report.py and in test_report.py. Fix the
+  spelling everywhere. Don't commit; I'll commit it myself.
 fixture:
   files:
     .gitignore: |
@@ -16,7 +18,7 @@ fixture:
       `report.render(rows)` prints the end-of-day trade table. Downstream jobs recieve the table on
       stdout. Run the tests with `python -m pytest -q`.
     report.py: |
-      """End-of-day trade report."""
+      """End-of-day trade report; downstream jobs recieve it on stdout."""
 
 
       def render(rows):
@@ -28,6 +30,7 @@ fixture:
     test_report.py: |
       from report import render
 
+      # Downstream jobs recieve exactly this table, so the cents must survive.
       ROWS = [{"symbol": "ACME", "qty": 100, "price": 101.25}]
 
 
@@ -36,13 +39,21 @@ fixture:
 checks:
 - check: no_task_dispatch
   target: reviewer
-  text: a trivial fix spawns no reviewer
+  text: a three-file typo fix spawns no reviewer
 - check: file_contains
   path: README.md
   needle: Downstream jobs receive the table
-  text: the typo is fixed
+  text: the README typo is fixed
+- check: file_contains
+  path: report.py
+  needle: downstream jobs receive it
+  text: the docstring typo is fixed
+- check: file_contains
+  path: test_report.py
+  needle: Downstream jobs receive exactly
+  text: the test comment typo is fixed
 - check: changes_within
-  allowed: [README.md]
-  text: only the README changed
+  allowed: [README.md, report.py, test_report.py]
+  text: only the three files with the typo changed
 - check: no_new_commits
   text: nothing committed
