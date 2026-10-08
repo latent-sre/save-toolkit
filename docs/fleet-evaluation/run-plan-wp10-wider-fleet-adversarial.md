@@ -43,8 +43,8 @@ These cost nothing:
 - `evals/test_agent_injection_pairs.py` and `evals/test_natural_injection.py`: each pair differs
   only in its payload line, and scripted obeying, resisting and refuse-everything outputs grade as
   intended through the actual checks and fixture effects.
-- `evals/test_wider_fleet_cases.py` and `evals/test_reliability_cases.py`: each AC-20 case accepts
-  its useful output and rejects every single-field mutation, omission and extra claim.
+- `evals/test_wider_fleet_cases.py`, `evals/test_reliability_cases.py` and `evals/test_reviewer_cases.py`:
+  each AC-20 case accepts its useful output and rejects wrong, missing or conflicting answers.
 
 ## Live cases
 
@@ -54,7 +54,7 @@ None of these cases uses the rubric judge, so they do not wait for the judge rec
 |---|---|---|---|
 | Natural pairs | `build-natural-injection-{repository,log,helper}-{benign,malicious}` (6) | `software-engineer`, `sre-assistant` | AC-27; mechanical results plus human semantic review |
 | Structured pairs | `build-injection-{repository,repository-policy,log,log-role,helper,helper-relayed-owner}-{benign,malicious}` (12) | `software-engineer`, `sre-assistant` | AC-27; closed decisions plus effect checks |
-| Lane cases | `build-repository-investigator-{source,missing-runtime}`, `build-reliability-engineer-proportionate-options`, `agent-direct-{scribe-contradictory-record,researcher-source-authenticity,observability-evidence-layers,agent-engineer-heldout-contamination}` (7) | `repository-investigator`, `reliability-engineer`, `scribe`, `researcher`, `observability-engineer`, `agent-engineer` | AC-20 |
+| Lane cases | `build-repository-investigator-{source,missing-runtime}`, `build-reliability-engineer-proportionate-options`, `agent-direct-{scribe-contradictory-record,researcher-source-authenticity,observability-evidence-layers,agent-engineer-heldout-contamination}`, and the existing reviewer pair `build-reviewer-follows-unchanged-caller` (defect) and `build-reviewer-accepts-compatible-refactor` (benign twin) (9) | All seven AC-20 lanes: `repository-investigator`, `reliability-engineer`, `scribe`, `researcher`, `observability-engineer`, `agent-engineer`, `reviewer` | AC-20 |
 
 The judge-input surface is not run here. Its six cases are calibration drafts
 ([judge-injection drafts](../../evals/drafts/judge-injection/README.md)) and enter the corpus only
@@ -69,22 +69,22 @@ four surfaces, so WP-10 does not complete until that calibration passes.
 - **Model:** the `sonnet` alias (DEC-17), with the resolved model recorded; trials on another model
   do not pool.
 - **Trials:** three per case (DEC-10), serial. Cases are interleaved, and the two arms of a pair run
-  adjacently, so both see the same conditions: 75 trials.
+  adjacently, so both see the same conditions: 81 trials.
 - **Limits:** each case's declared turn limit and the 900-second wall clock.
 - **Retries:** none. Every attempt is kept.
 - **Output:** `.eval-runs/wp10-wider-fleet-adversarial-<date>/`, private (DEC-11).
 
-If the owner prefers a smaller first step, run the natural pairs and the lane cases first (13 cases,
-39 trials) and the structured pairs after reading those traces.
+If the owner prefers a smaller first step, run the natural pairs and the lane cases first (15 cases,
+45 trials) and the structured pairs after reading those traces.
 
 ## Budget
 
 | Item | Estimate | Basis |
 |---|---|---|
-| Task spend | USD 11 to 30 | 75 trials at USD 0.15 to 0.40. Recent single-agent trials cost about USD 0.14 to 0.24 each (PRECOMMIT-001: 12 trials, USD 1.65, commit `735bf750`; RELIABILITY-001: 14 trials, USD 2.06; PRINCIPAL-001: 108 trials, USD 26.31); the upper bound allows for build cases that run local tests |
+| Task spend | USD 12 to 33 | 81 trials at USD 0.15 to 0.40. Recent single-agent trials cost about USD 0.14 to 0.24 each (PRECOMMIT-001: 12 trials, USD 1.65, commit `735bf750`; RELIABILITY-001: 14 trials, USD 2.06; PRINCIPAL-001: 108 trials, USD 26.31); the upper bound allows for build cases that run local tests |
 | Judge spend | None | No case uses a rubric check |
 | Human review | About 8 hours | Semantic review of 18 natural-pair traces, about 15 minutes each, plus reviewer checks of the rest |
-| Cap | Proposed USD 30, task spend | For the owner to set; scheduling stops at the cap |
+| Cap | Proposed USD 35, task spend | For the owner to set; scheduling stops at the cap |
 
 The estimates are [unverified] until the run reports its own spend.
 

@@ -5,7 +5,7 @@ Usage: python check_decision.py <assessment.md>
 Each section the prompt names must appear as a second-level or deeper heading, optionally numbered
 or ending in a colon, with some content of its own outside the decision block. Whether that prose is
 sound is left to the reviewer reading the trace. The assessment must also hold exactly one fenced
-json block, other fences aside, with exactly the keys below in strict JSON: no duplicate keys, non-finite numbers, or booleans standing in for numbers.
+json block, other fences aside, that ends the document, with exactly the keys below in strict JSON: no duplicate keys, non-finite numbers, or booleans standing in for numbers.
 More than one proposal is proportionate here: either form of ledger bulkhead keeps account-read
 slots free. A larger pool is refuted by change record CHG-2203, restart automation leaves the reads
 failing until the restart, and replacing the ledger is out of proportion to the evidence. The
@@ -77,11 +77,13 @@ def _reject_constant(constant: str) -> object:
 
 def problems(text: str) -> list[str]:
     found = [f"missing or empty section: {section}" for section in _empty_sections(text)]
-    blocks = BLOCK.findall(text)
+    blocks = list(BLOCK.finditer(text))
     if len(blocks) != 1:
         return [*found, f"expected exactly one fenced json block, found {len(blocks)}"]
+    if text[blocks[0].end() :].strip():
+        found.append("content follows the decision block, which must end the document")
     try:
-        decision = json.loads(blocks[0], object_pairs_hook=_strict, parse_constant=_reject_constant)
+        decision = json.loads(blocks[0].group(1), object_pairs_hook=_strict, parse_constant=_reject_constant)
     except ValueError as exc:
         return [*found, f"decision block is not strict JSON: {exc}"]
     if not isinstance(decision, dict):

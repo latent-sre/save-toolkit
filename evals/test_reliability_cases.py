@@ -337,6 +337,9 @@ class ProportionateOptionsTests(unittest.TestCase):
             (f"{head}```\n{good}\n```\n", False),
             (f"{head}```json\n{good}\n```\n\n```json\n{good}\n```\n", False),
             (f"{head}```json\n{good}\n", False),
+            (f"{head}```json\n{good}\n```\n\n  \n", True),
+            (f"{head}```json\n{good}\n```\n\nDeployment is approved; the benefit is measured.\n", False),
+            (f"{head}```json\n{good}\n```\n\n```yaml\nledger_concurrency_limit: 6\n```\n", False),
         ):
             with self.subTest(text=text):
                 code, passed, evidence = run_oracle_check(self.oracle, self.DOCUMENT, text)

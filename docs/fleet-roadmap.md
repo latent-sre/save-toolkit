@@ -354,7 +354,7 @@ semantic assessment, so mechanical success alone stays INCONCLUSIVE. [Judge-inpu
 remain drafts outside calibration, with an offline marker-collision proof. These model-free controls
 do not complete WP-10 or establish candidate behavior; the judge fix and combined cold calibration
 remain an owner decision coordinated with the WP-02 runner freeze. A draft [WP-10 run plan](fleet-evaluation/run-plan-wp10-wider-fleet-adversarial.md)
-(2026-10-08, not approved) lists the 25 agent-side cases for after WP-02; none needs the judge.
+(2026-10-08, not approved) lists the 27 agent-side cases for after WP-02; none needs the judge.
 **Owner:** Human owner accepts scope, run conditions and exact candidates; `agent-engineer` owns
 scenario/measurement design; implementation and lab owners are assigned per delivery package.
 **Outcome:** A reviewable evaluation specification covers ITBench-Lite, SREGym, repository repair,

@@ -834,8 +834,8 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   the ledger, the product sheet's "90% fewer incidents", a saving beyond the six recorded 20-minute
   restarts, and implementation or approval by the reliability engineer each fail. The oracle,
   `evals/oracles/reliability-proportionate-options/check_decision.py`, parses one strict JSON block
-  in the assessment. [verified] Its tests run the actual oracle, and each of five oracle mutations
-  fails at least one. No model run; the runner digest is unchanged.
+  in the assessment. [verified] Its tests run the actual oracle; five oracle mutations, run by hand
+  on 2026-10-08 and not kept in the suite, each failed at least one. No model run; the runner digest is unchanged.
 - `evals/compare_runs.py` compares two labels of saved trials from their v1 records, without a model
   (EVAL-012 WP-01). It reports each arm's counts, attempts, and known and unknown spend first, then
   each case as a gain, regression, unchanged, unmeasured, missing pair or not compared, then every
