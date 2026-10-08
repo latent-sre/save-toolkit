@@ -1579,9 +1579,9 @@ class NativeConversationRunTests(unittest.TestCase):
             return subprocess.CompletedProcess(argv, 0)
 
         with mock.patch.object(subprocess, "run", side_effect=launch):
-            summary = probe_trials.run_trial(self.SPEC, plugin_root=ROOT, label="native", model="stub-model", run_number=1,
-                out_dir=root, timeout=60, executable="native-stub", keep_workspace=False, env_factory=environment,
-                runtime=runtime)
+            summary = probe_trials.run_trial(self.SPEC, run_number=1, settings=probe_trials.BatchSettings(
+                plugin_root=ROOT, label="native", model="stub-model", out_dir=root, timeout=60,
+                executable="native-stub", keep_workspace=False, env_factory=environment, runtime=runtime))
         return summary, root / "eval-native-conversation/native/run-1", calls, environments
 
     def test_trial_records_the_runtime_identity_it_was_given_and_regrade_keeps_it(self):
@@ -1850,11 +1850,13 @@ class EndToEndStubTests(unittest.TestCase):
         The stub is written only when the test passes no `executable`: every stub is the same file,
         so writing the default one would replace a stub the test had just written.
         """
-        options = {"plugin_root": ROOT, "label": "new_skill", "model": None, "run_number": 1, "out_dir": out_dir,
-                   "timeout": 60, "keep_workspace": False, "env_factory": self._env_factory(), **changes}
+        options = {"plugin_root": ROOT, "label": "new_skill", "model": None, "out_dir": out_dir, "timeout": 60,
+                   "keep_workspace": False, "env_factory": self._env_factory(), **changes}
         if "executable" not in options:
             options["executable"] = self._stub()
-        return probe_trials.run_trial(self._spec() if spec is None else spec, **options)
+        run_number = options.pop("run_number", 1)
+        return probe_trials.run_trial(self._spec() if spec is None else spec, run_number=run_number,
+                                      settings=probe_trials.BatchSettings(**options))
 
     def _batch(self, out: Path, stub: str, specs: list[dict], *extra: str) -> tuple[int, list[tuple[str, int]], str]:
         """Run main with the real run_trial and the stub CLI: the exit, each trial started, stdout."""
@@ -1864,7 +1866,8 @@ class EndToEndStubTests(unittest.TestCase):
 
         def counted(spec_arg, **kwargs):
             calls.append((spec_arg["id"], kwargs["run_number"]))
-            return run_trial(spec_arg, **kwargs, env_factory=self._env_factory())
+            settings = dataclasses.replace(kwargs["settings"], env_factory=self._env_factory())
+            return run_trial(spec_arg, run_number=kwargs["run_number"], settings=settings)
 
         with mock.patch.object(probe_catalog, "load_all_scenarios", return_value=specs), \
                 mock.patch.object(probe_fingerprints, "runtime_identity", return_value=runtime), \
@@ -2289,17 +2292,9 @@ class ReviewFindingTests(unittest.TestCase):
             "build_command",
             side_effect=AssertionError("model launch reached after fixture failure"),
         ):
-            summary = probe_trials.run_trial(
-                self.spec,
-                plugin_root=ROOT,
-                label="candidate",
-                model="sonnet",
-                run_number=1,
-                out_dir=out,
-                timeout=60,
-                executable="must-not-run",
-                keep_workspace=False,
-            )
+            summary = probe_trials.run_trial(self.spec, run_number=1, settings=probe_trials.BatchSettings(
+                plugin_root=ROOT, label="candidate", model="sonnet", out_dir=out, timeout=60,
+                executable="must-not-run", keep_workspace=False))
 
         self.assertEqual("INCONCLUSIVE", summary["status"])
         run = out / "eval-tiny" / "candidate" / "run-1"
@@ -2314,9 +2309,9 @@ class ReviewFindingTests(unittest.TestCase):
                 mock.patch.object(probe_invocation, "build_command", side_effect=AssertionError("model launched")), \
                 mock.patch.object(probe_records, "write_record", side_effect=ValueError("contract refused")), \
                 contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as err:
-            summary = probe_trials.run_trial(self.spec, plugin_root=ROOT, label="candidate", model="sonnet",
-                                            run_number=1, out_dir=out, timeout=60, executable="must-not-run",
-                                            keep_workspace=False)
+            summary = probe_trials.run_trial(self.spec, run_number=1, settings=probe_trials.BatchSettings(
+                plugin_root=ROOT, label="candidate", model="sonnet", out_dir=out, timeout=60,
+                executable="must-not-run", keep_workspace=False))
         run = out / "eval-tiny" / "candidate" / "run-1"
         self.assertEqual(("INCONCLUSIVE", "record refused: contract refused"),
                          (summary["status"], summary["record_problem"]))
@@ -3631,7 +3626,7 @@ class BatchAggregationTests(unittest.TestCase):
                 contextlib.redirect_stdout(buffer):
             probe_cli.main(["--scenario", self.SPEC["id"], "--label", "cand", "--out", str(self.out), "--trials", "2"])
         self.assertEqual(1, probe.call_count, "one runtime identity per batch")
-        self.assertEqual([runtime, runtime], [call.kwargs["runtime"] for call in runner.call_args_list])
+        self.assertEqual([runtime, runtime], [call.kwargs["settings"].runtime for call in runner.call_args_list])
         header = json.loads(buffer.getvalue().splitlines()[0])
         self.assertEqual(runtime, header["runtime"])
 
@@ -4185,8 +4180,9 @@ class NormalJudgeBindingTests(unittest.TestCase):
                 mock.patch.object(probe_trials, "_run_trial", side_effect=AssertionError("must not start trial")),
                 self.assertRaisesRegex(rubric_judge.JudgeUnavailable, "calibration"),
             ):
-                probe_trials.run_trial({**TINY_SPEC, field: [definition]}, plugin_root=ROOT, label="bound", model=None,
-                    run_number=1, out_dir=Path(tmp), timeout=60, executable="must-not-run", keep_workspace=False)
+                settings = probe_trials.BatchSettings(plugin_root=ROOT, label="bound", model=None, out_dir=Path(tmp),
+                                                      timeout=60, executable="must-not-run", keep_workspace=False)
+                probe_trials.run_trial({**TINY_SPEC, field: [definition]}, run_number=1, settings=settings)
 
     def test_both_normal_forms_bind_calls_and_keep_complete_structured_evidence(self):
         judge = rubric_judge
@@ -4664,9 +4660,9 @@ class CutShortRunTests(unittest.TestCase):
         return spec
 
     def _run(self, spec: dict, **stub) -> tuple[dict, dict, Path]:
-        summary = probe_trials.run_trial(spec, plugin_root=ROOT, label="cut", model=None, run_number=1,
-                                        out_dir=self.root / "iteration", timeout=60, executable=self._stub(**stub),
-                                        keep_workspace=False, env_factory=self._env_factory())
+        summary = probe_trials.run_trial(spec, run_number=1, settings=probe_trials.BatchSettings(
+            plugin_root=ROOT, label="cut", model=None, out_dir=self.root / "iteration", timeout=60,
+            executable=self._stub(**stub), keep_workspace=False, env_factory=self._env_factory()))
         run = self.root / "iteration" / "eval-tiny" / "cut" / "run-1"
         return summary, json.loads((run / "grading.json").read_text(encoding="utf-8")), run
 
@@ -4925,7 +4921,7 @@ class SpendCapAttemptTests(unittest.TestCase):
         """Each step is a graded trial's cost (None: unknown) or (exception, partial trace or None)."""
         calls: list[int] = []
 
-        def fake_run_trial(spec, *, run_out, run_number, label, **_):
+        def fake_run_trial(spec, run_number, run_out, settings):
             step = steps[len(calls)]
             calls.append(run_number)
             if isinstance(step, tuple):
@@ -4935,7 +4931,7 @@ class SpendCapAttemptTests(unittest.TestCase):
                 raise exc
             cost = {"known_cost_usd": step or 0.0, "cost_complete": step is not None}
             (run_out / "timing.json").write_text(json.dumps(cost), encoding="utf-8")
-            return {"scenario": spec["id"], "label": label, "run": run_number, "status": "PASS", "passed": 1,
+            return {"scenario": spec["id"], "label": settings.label, "run": run_number, "status": "PASS", "passed": 1,
                     "total": 1, "models": ["m"], "runtime": self.RUNTIME, "plugin_source_sha256": "0" * 64,
                     "scenario_sha256": probe_fingerprints.scenario_digest(spec), **cost}
 
@@ -5024,9 +5020,9 @@ class ResultRecordV1Tests(unittest.TestCase):
 
     def _run(self, *, overwrite: bool = False) -> Path:
         spec = EndToEndStubTests._spec(self)
-        probe_trials.run_trial(spec, plugin_root=ROOT, label="v1", model=None, run_number=1,
-                              out_dir=self.root / "it", timeout=60, executable=self._stub(),
-                              keep_workspace=False, env_factory=self._env_factory(), overwrite=overwrite)
+        probe_trials.run_trial(spec, run_number=1, settings=probe_trials.BatchSettings(
+            plugin_root=ROOT, label="v1", model=None, out_dir=self.root / "it", timeout=60, executable=self._stub(),
+            keep_workspace=False, env_factory=self._env_factory(), overwrite=overwrite))
         return self.root / "it" / "eval-tiny" / "v1" / "run-1"
 
     def test_each_attempt_writes_a_v1_record_of_facts_its_files_hold(self) -> None:
@@ -5385,10 +5381,10 @@ class TurnLimitTests(unittest.TestCase):
         return {**spec, **extra}
 
     def _run(self, spec: dict) -> tuple[dict, dict]:
-        summary = probe_trials.run_trial(spec, plugin_root=ROOT, label="turns", model=None, run_number=1,
-                                        out_dir=self.root / "it", timeout=60,
-                                        executable=self._stub(is_error=True, subtype="error_max_turns", result="stopped"),
-                                        keep_workspace=False, env_factory=self._env_factory())
+        summary = probe_trials.run_trial(spec, run_number=1, settings=probe_trials.BatchSettings(
+            plugin_root=ROOT, label="turns", model=None, out_dir=self.root / "it", timeout=60,
+            executable=self._stub(is_error=True, subtype="error_max_turns", result="stopped"), keep_workspace=False,
+            env_factory=self._env_factory()))
         run = self.root / "it" / "eval-tiny" / "turns" / "run-1"
         return summary, json.loads((run / "grading.json").read_text(encoding="utf-8"))
 

@@ -375,9 +375,14 @@ def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
     retained = [
         e for e in existing if not args.overwrite or (e.get("scenario"), e.get("label"), e.get("run")) not in replaced
     ]
-    problem = batches.batch_identity_problem(
-        retained, scenarios, provenance["plugin_source_sha256"], judge_binding, runtime
-    )
+
+    def identity_problem(entries: list[dict[str, Any]]) -> str | None:
+        """Why these trials cannot pool with this batch's candidate, judge and runtime, if they cannot."""
+        return batches.batch_identity_problem(
+            entries, scenarios, provenance["plugin_source_sha256"], judge_binding, runtime
+        )
+
+    problem = identity_problem(retained)
     if problem:
         print(json.dumps({"batch": "INCONCLUSIVE", "reason": problem}), flush=True)
         return 2
@@ -402,6 +407,20 @@ def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
     if failed and not blocked:
         blocked = f"an earlier trial failed its identity check: {failed}; --overwrite that run or use a new label"
     machinery_stopped: dict[str, str] = {}
+    settings = trials.BatchSettings(
+        plugin_root=args.plugin_root.resolve(),
+        label=args.label,
+        model=args.model,
+        out_dir=out,
+        timeout=args.timeout,
+        executable=args.executable,
+        keep_workspace=args.keep_workspace,
+        overwrite=args.overwrite,
+        docker=args.docker,
+        expected_plugin_digest=provenance["plugin_source_sha256"],
+        judge_binding=judge_binding,
+        runtime=runtime,
+    )
     try:
         for spec, i in planned:
             if blocked:  # stopped before scheduling, by the cap's accounting or an identity failure
@@ -412,24 +431,7 @@ def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
                 blocked = f"batch spend USD {spent:.4f} reached the USD {args.max_batch_usd:g} cap"
                 break
             try:
-                results.append(
-                    trials.run_trial(
-                        spec,
-                        plugin_root=args.plugin_root.resolve(),
-                        label=args.label,
-                        model=args.model,
-                        run_number=args.run_offset + i + 1,
-                        out_dir=out,
-                        timeout=args.timeout,
-                        executable=args.executable,
-                        keep_workspace=args.keep_workspace,
-                        overwrite=args.overwrite,
-                        docker=args.docker,
-                        expected_plugin_digest=provenance["plugin_source_sha256"],
-                        judge_binding=judge_binding,
-                        runtime=runtime,
-                    )
-                )
+                results.append(trials.run_trial(spec, run_number=args.run_offset + i + 1, settings=settings))
             except clean_room.AuthUnavailable as exc:
                 # Every later trial would fail the same way; the attempt is kept, the batch stops.
                 blocked, auth_failed = f"authentication unavailable: {exc}", True
@@ -465,9 +467,7 @@ def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
     # `--run-offset` appends trials to an existing label. The verdict is about that whole batch, not
     # about this invocation: a final one-trial append must not report PASS over earlier failures.
     batch = [entry for entry in merged if entry.get("scenario") in selected_ids]
-    problem = batches.batch_identity_problem(
-        batch, scenarios, provenance["plugin_source_sha256"], judge_binding, runtime
-    )
+    problem = identity_problem(batch)
     stop = (
         {
             "batch": "INCONCLUSIVE",
@@ -482,9 +482,7 @@ def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
         # A resume replaces what this --overwrite had not reached yet, but keeps the other rows and
         # this invocation's trials; name what they would still refuse.
         kept = [e for e in batches.merge_summary_entries(retained, results) if e.get("scenario") in selected_ids]
-        unfixed = batches.batch_identity_problem(
-            kept, scenarios, provenance["plugin_source_sha256"], judge_binding, runtime
-        ) or (MIXED_MODELS if len(batches.model_identities(kept)) > 1 else None)
+        unfixed = identity_problem(kept) or (MIXED_MODELS if len(batches.model_identities(kept)) > 1 else None)
         if unfixed:
             stop["unfixed_by_resume"] = unfixed
     return _conclude(batch, scenarios, args.threshold, problem, stop, auth_failed=auth_failed)
