@@ -4,12 +4,12 @@
     "version": 1
   },
   "case": {
-    "id": "synthetic-conditions",
-    "case_sha256": "3294d7295337f71e02eb3451a1ee9db39d7e38875b6c37c0d99aeca20ed4837b",
+    "id": "synthetic-identity-gap",
+    "case_sha256": "534d0ed7b510045f5cc6279afed307ad6a92b3462143eced6726e5328196053d",
     "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
   },
   "candidate": {
-    "plugin_root": "/synthetic/candidate",
+    "plugin_root": "/synthetic/candidate-nocli",
     "plugin_commit": "2222222222222222222222222222222222222222",
     "plugin_inputs_dirty": false,
     "plugin_source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
@@ -25,7 +25,7 @@
       "claude-synthetic"
     ],
     "runtime": {
-      "cli_version": "0.0.1 (synthetic)",
+      "cli_version": null,
       "host_platform": {
         "system": "Linux",
         "release": "synthetic",
@@ -36,7 +36,7 @@
     "wall_clock_seconds": 600
   },
   "attempt": {
-    "label": "candidate",
+    "label": "candidate-nocli",
     "slot": 1,
     "number": 1,
     "state": "final",

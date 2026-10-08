@@ -55,6 +55,8 @@ MATCHED = (
 )
 # What one arm's trials of a case must share to pool, as a batch refuses to pool anything else.
 POOLED = (*MATCHED, "plugin_source_sha256")
+# What every case of one label must share: one candidate, measured on one model, CLI and host.
+LABEL_IDENTITY = ("plugin_source_sha256", "requested_model", "observed_models", "runtime")
 DECIDED = (State.PASS, State.FAIL)
 
 
@@ -126,9 +128,13 @@ def _candidates(held: Label) -> list[str]:
 
 
 def _mixed_candidates(held: Label) -> str | None:
-    """Why a label is not one candidate: its outcome counts would add up several candidates' results."""
-    digests = _candidates(held)
-    return f"the label holds {len(digests)} candidates across its cases" if len(digests) > 1 else None
+    """Why a label is not one measurement: its outcome counts would add up results of several candidates,
+    models, CLIs or hosts, which DEC-10 never pools. The runner checks a new batch only against the same
+    scenarios' earlier trials, so a label run case by case can drift across a CLI upgrade unnoticed."""
+    finals = [slot.final for case in held.cases.values() for slot in case.values() if slot.final]
+    each = [_conditions(t.record) for t in finals]
+    varied = [key for key in LABEL_IDENTITY if len({json.dumps(c[key], sort_keys=True) for c in each}) > 1]
+    return f"the label is not one measurement across its cases: they differ in {', '.join(varied)}" if varied else None
 
 
 def read_label(bundle: Path, label: str) -> Label:

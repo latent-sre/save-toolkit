@@ -22,7 +22,7 @@
   "conditions": {
     "requested_model": "sonnet",
     "observed_models": [
-      "claude-synthetic-opus"
+      "claude-synthetic"
     ],
     "runtime": {
       "cli_version": "0.0.0 (synthetic)",
@@ -33,7 +33,7 @@
       }
     },
     "turn_limit": null,
-    "wall_clock_seconds": 600
+    "wall_clock_seconds": 300
   },
   "attempt": {
     "label": "candidate",

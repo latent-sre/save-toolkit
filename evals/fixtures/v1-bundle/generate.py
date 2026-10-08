@@ -25,6 +25,10 @@ SCENARIO_SHA = "d" * 64
 ARMS = {
     "incumbent": {"plugin_source_sha256": "a" * 64, "plugin_commit": "1" * 40},
     "candidate": {"plugin_source_sha256": "b" * 64, "plugin_commit": "2" * 40},
+    # One label is one measurement, so a candidate measured on another CLI or model is its own label.
+    "candidate-cli": {"plugin_source_sha256": "b" * 64, "plugin_commit": "2" * 40},
+    "candidate-nocli": {"plugin_source_sha256": "b" * 64, "plugin_commit": "2" * 40},
+    "candidate-opus": {"plugin_source_sha256": "b" * 64, "plugin_commit": "2" * 40},
 }
 RUNTIME = {"cli_version": "0.0.0 (synthetic)", "host_platform": {"system": "Linux", "release": "synthetic", "machine": "x86_64"}}
 
@@ -189,7 +193,7 @@ def main() -> None:
     run("synthetic-case-changed", "incumbent", 1, "PASS")
     run("synthetic-case-changed", "candidate", 1, "PASS", case_sha="e" * 64)
     run("synthetic-conditions", "incumbent", 1, "PASS")
-    run("synthetic-conditions", "candidate", 1, "PASS", runtime={**RUNTIME, "cli_version": "0.0.1 (synthetic)"})
+    run("synthetic-conditions", "candidate-cli", 1, "PASS", runtime={**RUNTIME, "cli_version": "0.0.1 (synthetic)"})
     # AC-02: a cut-off record, a record of an unsupported major version, and a superseded attempt whose
     # record still says final because its update failed.
     for slot in (1, 2):
@@ -223,14 +227,14 @@ def main() -> None:
     run("synthetic-unpublished-slot", "incumbent", 1, "PASS")
     run("synthetic-unpublished-slot", "candidate", 1, "PASS")
     recordless(RUNS / "eval-synthetic-unpublished-slot" / "candidate" / ".run-2-attempt-1a2b3c4d5e6f7a8b")
-    # Identity a batch would refuse to pool on: an unknown CLI, and two models in one arm's case.
+    # Identity a batch would refuse to pool on: an unknown CLI, and two wall-clock limits in one case.
     run("synthetic-identity-gap", "incumbent", 1, "PASS")
-    run("synthetic-identity-gap", "candidate", 1, "PASS", runtime={**RUNTIME, "cli_version": None})
+    run("synthetic-identity-gap", "candidate-nocli", 1, "PASS", runtime={**RUNTIME, "cli_version": None})
     for slot in (1, 2):
         run("synthetic-mixed-trials", "incumbent", slot, "PASS")
     run("synthetic-mixed-trials", "candidate", 1, "PASS")
     run("synthetic-mixed-trials", "candidate", 2, "PASS",
-        tweak=lambda r: r["conditions"].update(observed_models=["claude-synthetic-opus"]))
+        tweak=lambda r: r["conditions"].update(wall_clock_seconds=300))
     # A later regrade sits beside the original verdict; the comparison keeps revision 0.
     run("synthetic-regraded", "incumbent", 1, "PASS")
     run("synthetic-regraded", "candidate", 1, "PASS", tweak=lambda r: r.update(assessments=[
@@ -240,7 +244,7 @@ def main() -> None:
          "runner_source_sha256": "f" * 64, "assessed_at": "2026-10-03T00:00:00+00:00"}]))
     # Arms measured on another model, or graded by another runner, are not one comparison.
     run("synthetic-model", "incumbent", 1, "PASS")
-    run("synthetic-model", "candidate", 1, "PASS", tweak=lambda r: r["conditions"].update(
+    run("synthetic-model", "candidate-opus", 1, "PASS", tweak=lambda r: r["conditions"].update(
         requested_model="opus", observed_models=["claude-synthetic-opus"]))
     run("synthetic-runner", "incumbent", 1, "PASS")
     run("synthetic-runner", "candidate", 1, "PASS", tweak=lambda r: r["case"].update(scenario_sha256="f" * 64))

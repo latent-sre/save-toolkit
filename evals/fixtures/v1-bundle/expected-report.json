@@ -2,7 +2,7 @@
   "arms": {
     "candidate": {
       "attempts": {
-        "final": 24,
+        "final": 21,
         "incomplete": 1,
         "superseded": 1,
         "unpublished": 2,
@@ -11,12 +11,12 @@
       "candidates": [
         "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
       ],
-      "cases": 23,
+      "cases": 20,
       "cost": {
         "judge_cached_calls": 1,
         "judge_calls_unknown_attempts": 12,
         "judge_live_calls": 1,
-        "known_usd": 2.91,
+        "known_usd": 2.61,
         "unknown_cost_attempts": 12
       },
       "later_assessments": 2,
@@ -25,9 +25,9 @@
       "published_trials": {
         "FAIL": 2,
         "INCONCLUSIVE": 1,
-        "PASS": 21
+        "PASS": 18
       },
-      "slots": 33,
+      "slots": 30,
       "slots_without_trial": 9,
       "truncated_checks": 1
     },
@@ -405,66 +405,7 @@
       "reason": "the arms differ in case_sha256"
     },
     {
-      "candidate": {
-        "conditions": {
-          "case_sha256": "3294d7295337f71e02eb3451a1ee9db39d7e38875b6c37c0d99aeca20ed4837b",
-          "observed_models": [
-            "claude-synthetic"
-          ],
-          "plugin_commit": "2222222222222222222222222222222222222222",
-          "plugin_source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-          "requested_model": "sonnet",
-          "runtime": {
-            "cli_version": "0.0.1 (synthetic)",
-            "host_platform": {
-              "machine": "x86_64",
-              "release": "synthetic",
-              "system": "Linux"
-            }
-          },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
-          "turn_limit": null,
-          "wall_clock_seconds": 600
-        },
-        "passed": 1,
-        "reason": null,
-        "slots": 1,
-        "threshold": 1.0,
-        "trials": [
-          {
-            "attempts": {
-              "final": 1,
-              "incomplete": 0,
-              "superseded": 0,
-              "unpublished": 0,
-              "unusable": 0
-            },
-            "checks": {
-              "FAIL": 0,
-              "INCONCLUSIVE": 0,
-              "PASS": 1
-            },
-            "cost": {
-              "complete": true,
-              "judge_usd": 0.0,
-              "known_usd": 0.1,
-              "trial_usd": 0.1
-            },
-            "evidence": [
-              "eval-synthetic-conditions/candidate/run-1/outputs/response.md"
-            ],
-            "folder": "eval-synthetic-conditions/candidate/run-1",
-            "kept": [],
-            "missing_evidence": [],
-            "run_end": "completed",
-            "slot": 1,
-            "status": "PASS",
-            "truncated_checks": 0,
-            "unpublished": []
-          }
-        ],
-        "verdict": "PASS"
-      },
+      "candidate": null,
       "case": "synthetic-conditions",
       "incumbent": {
         "conditions": {
@@ -526,8 +467,8 @@
         ],
         "verdict": "PASS"
       },
-      "outcome": "not_compared",
-      "reason": "the arms differ in runtime"
+      "outcome": "missing_pair",
+      "reason": "the candidate has no trial with a v1 record"
     },
     {
       "candidate": {
@@ -655,66 +596,7 @@
       "reason": null
     },
     {
-      "candidate": {
-        "conditions": {
-          "case_sha256": "534d0ed7b510045f5cc6279afed307ad6a92b3462143eced6726e5328196053d",
-          "observed_models": [
-            "claude-synthetic"
-          ],
-          "plugin_commit": "2222222222222222222222222222222222222222",
-          "plugin_source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-          "requested_model": "sonnet",
-          "runtime": {
-            "cli_version": null,
-            "host_platform": {
-              "machine": "x86_64",
-              "release": "synthetic",
-              "system": "Linux"
-            }
-          },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
-          "turn_limit": null,
-          "wall_clock_seconds": 600
-        },
-        "passed": 1,
-        "reason": "the CLI version or host is unknown",
-        "slots": 1,
-        "threshold": null,
-        "trials": [
-          {
-            "attempts": {
-              "final": 1,
-              "incomplete": 0,
-              "superseded": 0,
-              "unpublished": 0,
-              "unusable": 0
-            },
-            "checks": {
-              "FAIL": 0,
-              "INCONCLUSIVE": 0,
-              "PASS": 1
-            },
-            "cost": {
-              "complete": true,
-              "judge_usd": 0.0,
-              "known_usd": 0.1,
-              "trial_usd": 0.1
-            },
-            "evidence": [
-              "eval-synthetic-identity-gap/candidate/run-1/outputs/response.md"
-            ],
-            "folder": "eval-synthetic-identity-gap/candidate/run-1",
-            "kept": [],
-            "missing_evidence": [],
-            "run_end": "completed",
-            "slot": 1,
-            "status": "PASS",
-            "truncated_checks": 0,
-            "unpublished": []
-          }
-        ],
-        "verdict": "INCONCLUSIVE"
-      },
+      "candidate": null,
       "case": "synthetic-identity-gap",
       "incumbent": {
         "conditions": {
@@ -776,8 +658,8 @@
         ],
         "verdict": "PASS"
       },
-      "outcome": "not_compared",
-      "reason": "the arms differ in runtime"
+      "outcome": "missing_pair",
+      "reason": "the candidate has no trial with a v1 record"
     },
     {
       "candidate": {
@@ -1205,7 +1087,7 @@
       "candidate": {
         "conditions": null,
         "passed": 2,
-        "reason": "the trials are not one measurement: they differ in observed_models",
+        "reason": "the trials are not one measurement: they differ in wall_clock_seconds",
         "slots": 2,
         "threshold": null,
         "trials": [
@@ -1370,66 +1252,7 @@
       "reason": "no PASS or FAIL verdict for the candidate"
     },
     {
-      "candidate": {
-        "conditions": {
-          "case_sha256": "25df34c1cbbb032ab3814c918d7b7f252b25c5da6a8b6906d9e747c64b7cf424",
-          "observed_models": [
-            "claude-synthetic-opus"
-          ],
-          "plugin_commit": "2222222222222222222222222222222222222222",
-          "plugin_source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-          "requested_model": "opus",
-          "runtime": {
-            "cli_version": "0.0.0 (synthetic)",
-            "host_platform": {
-              "machine": "x86_64",
-              "release": "synthetic",
-              "system": "Linux"
-            }
-          },
-          "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
-          "turn_limit": null,
-          "wall_clock_seconds": 600
-        },
-        "passed": 1,
-        "reason": null,
-        "slots": 1,
-        "threshold": 1.0,
-        "trials": [
-          {
-            "attempts": {
-              "final": 1,
-              "incomplete": 0,
-              "superseded": 0,
-              "unpublished": 0,
-              "unusable": 0
-            },
-            "checks": {
-              "FAIL": 0,
-              "INCONCLUSIVE": 0,
-              "PASS": 1
-            },
-            "cost": {
-              "complete": true,
-              "judge_usd": 0.0,
-              "known_usd": 0.1,
-              "trial_usd": 0.1
-            },
-            "evidence": [
-              "eval-synthetic-model/candidate/run-1/outputs/response.md"
-            ],
-            "folder": "eval-synthetic-model/candidate/run-1",
-            "kept": [],
-            "missing_evidence": [],
-            "run_end": "completed",
-            "slot": 1,
-            "status": "PASS",
-            "truncated_checks": 0,
-            "unpublished": []
-          }
-        ],
-        "verdict": "PASS"
-      },
+      "candidate": null,
       "case": "synthetic-model",
       "incumbent": {
         "conditions": {
@@ -1491,8 +1314,8 @@
         ],
         "verdict": "PASS"
       },
-      "outcome": "not_compared",
-      "reason": "the arms differ in requested_model, observed_models"
+      "outcome": "missing_pair",
+      "reason": "the candidate has no trial with a v1 record"
     },
     {
       "candidate": {
@@ -3549,8 +3372,8 @@
   ],
   "outcomes": {
     "gain": 2,
-    "missing_pair": 2,
-    "not_compared": 9,
+    "missing_pair": 5,
+    "not_compared": 6,
     "regression": 1,
     "unchanged": 3,
     "unmeasured": 7
