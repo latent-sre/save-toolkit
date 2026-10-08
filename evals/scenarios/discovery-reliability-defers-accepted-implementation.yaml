@@ -1,5 +1,8 @@
 id: discovery-reliability-defers-accepted-implementation
 split: regression
+# The workspace holds the code the assignment names. Without it the session searched, found nothing,
+# and asked for the repository instead of dispatching the builder, 0/6 on two trees (EVAL-013).
+# The fixture must not name the answer: it is a plausible worker, not a hint.
 prompt: |
   The service owner has accepted the reviewed design and assigned this implementation: propagate
   the request deadline through the checkout worker, cancel the ledger call, add focused tests, and
@@ -9,5 +12,69 @@ routing:
   expect: not_fire
   expected_alternative: {kind: agent, name: software-engineer}
 tools: [Glob, Grep, Read, Skill, Task]
+fixture:
+  files:
+    README.md: |
+      # checkout-worker
+
+      Posts one ledger entry per checkout. Run the suite with
+      `python -m unittest discover -s tests -t .`.
+    checkout_worker/__init__.py: ""
+    checkout_worker/ledger.py: |
+      """Client for the ledger service."""
+
+
+      class LedgerClient:
+          """Posts ledger entries over a transport; a post waits for as long as the ledger takes."""
+
+          def __init__(self, transport):
+              self._transport = transport
+
+          def post(self, entry: dict) -> dict:
+              return self._transport.send("/ledger/entries", entry)
+    checkout_worker/worker.py: |
+      """The checkout worker: turns an accepted checkout into a ledger entry."""
+
+      from dataclasses import dataclass
+
+      from .ledger import LedgerClient
+
+
+      @dataclass(frozen=True)
+      class CheckoutRequest:
+          order_id: str
+          amount: int
+          deadline: float | None = None
+
+
+      def process_checkout(request: CheckoutRequest, ledger: LedgerClient) -> dict:
+          receipt = ledger.post({"order_id": request.order_id, "amount": request.amount})
+          return {"order_id": request.order_id, "ledger_ref": receipt["ref"]}
+    tests/__init__.py: ""
+    tests/test_worker.py: |
+      import unittest
+
+      from checkout_worker.ledger import LedgerClient
+      from checkout_worker.worker import CheckoutRequest, process_checkout
+
+
+      class RecordingTransport:
+          def __init__(self):
+              self.sent = []
+
+          def send(self, path, body):
+              self.sent.append((path, body))
+              return {"ref": f"L-{len(self.sent)}"}
+
+
+      class ProcessCheckoutTests(unittest.TestCase):
+          def test_posts_one_ledger_entry_for_the_order(self):
+              transport = RecordingTransport()
+              process_checkout(CheckoutRequest("o-1", 250), LedgerClient(transport))
+              self.assertEqual([("/ledger/entries", {"order_id": "o-1", "amount": 250})], transport.sent)
+
+          def test_returns_the_ledger_reference(self):
+              result = process_checkout(CheckoutRequest("o-2", 10), LedgerClient(RecordingTransport()))
+              self.assertEqual({"order_id": "o-2", "ledger_ref": "L-1"}, result)
 success_criteria:
   - Routes accepted application implementation to software-engineer rather than reopening design.

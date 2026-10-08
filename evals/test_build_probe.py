@@ -11,6 +11,7 @@ import copy
 import dataclasses
 import http.server
 import io
+import itertools
 import json
 import os
 import pickle
@@ -1557,10 +1558,12 @@ class NativeConversationRunTests(unittest.TestCase):
             resumed = "--resume" in argv
             session_id = "different" if resumed and wrong_session else "same-session"
             observed_model = None if missing_model else "other-model" if wrong_model else "stub-model"
+            # The runtime loads whatever `--plugin-dir` names: the image the trial is served.
+            served = argv[argv.index("--plugin-dir") + 1]
             events = [{"type": "system", "subtype": "init", "session_id": session_id,
                        "model": observed_model,
                        "tools": self.SPEC["tools"] + (["Bash"] if (resumed and bad_runtime) or (not resumed and bad_initial) else []),
-                       "plugins": [{"name": "save-toolkit", "path": str(ROOT)}], "mcp_servers": []}]
+                       "plugins": [{"name": "save-toolkit", "path": served}], "mcp_servers": []}]
             if not resumed:
                 events += TraceAndCommandTests._skill_events(is_error=False)[:2]
                 events[1]["message"]["content"][0]["input"]["skill"] = "save-toolkit:incident-investigation"
@@ -1804,6 +1807,27 @@ sys.exit(EXIT_CODE)
 '''
 
 
+# A stub whose one tool call reads the stack profile from whatever `--plugin-dir` it was handed.
+READ_STUB = '''
+import json, os, sys
+argv = sys.argv
+root = argv[argv.index("--plugin-dir") + 1]
+target = os.path.join(root, "skills", "stack-profile", "SKILL.md")
+events = [
+    {"type": "system", "subtype": "init", "cwd": os.getcwd(), "tools": ["Skill", "Read"],
+     "plugins": [{"name": "save-toolkit", "path": root}], "mcp_servers": [], "permissionMode": "default"},
+    {"type": "assistant", "message": {"content": [
+        {"type": "tool_use", "id": "tu_read", "name": "Read", "input": {"file_path": target}}]}},
+    {"type": "user", "message": {"content": [
+        {"type": "tool_result", "tool_use_id": "tu_read", "content": "---\\nname: stack-profile\\n---"}]}},
+    {"type": "result", "subtype": "success", "is_error": False, "result": "Read it: Python and Go.",
+     "duration_ms": 10, "num_turns": 2, "usage": {"input_tokens": 1, "output_tokens": 1}, "modelUsage": {"stub-model": {}}},
+]
+for e in events:
+    print(json.dumps(e))
+'''
+
+
 class EndToEndStubTests(unittest.TestCase):
     """run_trial against a stub `claude` that emits canned stream-json: the whole trace→grade→artefact path, offline."""
 
@@ -1813,6 +1837,54 @@ class EndToEndStubTests(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.tmp.cleanup()
+
+    def test_a_trial_is_served_an_image_of_the_measured_inputs_not_the_checkout(self) -> None:
+        """EVAL-014: a routing trial runs in an empty repository, but `--plugin-dir` and `--add-dir` named
+        the checkout, so the session could read this repository's evals, docs and history before it chose
+        an agent. The trial is served an image of the measured inputs beside its repository instead."""
+        out = self.root / "iteration"
+        summary = self._run_trial(out, keep_workspace=True)
+        run = out / "eval-tiny" / "new_skill" / "run-1"
+        recorded = json.loads((run / "outputs" / "trace-summary.json").read_text(encoding="utf-8"))
+        provenance = json.loads((run / "provenance.json").read_text(encoding="utf-8"))
+        image = Path(recorded["plugin"]["plugin_served_from"])
+        try:
+            self.assertEqual(str(ROOT.resolve()), provenance["plugin_root"], "the candidate is still the checkout")
+            self.assertEqual(str(image), provenance["plugin_served_from"])
+            self.assertFalse(image.resolve().is_relative_to(ROOT.resolve()))
+            self.assertEqual(Path(recorded["workspace"]).parent, image.parent, "the image sits beside the trial's repo")
+            init = json.loads((run / "stdout.jsonl").read_text(encoding="utf-8").splitlines()[0])
+            self.assertEqual(str(image), init["plugins"][0]["path"], "the CLI was handed the image")
+            self.assertNotIn("identity_failure", summary)
+            for present in ("agents", "skills", "commands", "hooks/hooks.json", ".claude-plugin/plugin.json",
+                            "scripts/readonly-guard.py"):
+                self.assertTrue((image / present).exists(), present)
+            for absent in ("evals", "docs", ".git", "AGENTS.md", "CLAUDE.md"):
+                self.assertFalse((image / absent).exists(), absent)
+            self.assertEqual(provenance["plugin_source_sha256"], probe_fingerprints.plugin_digest(image))
+        finally:
+            probe_workspaces.remove_tree(image.parent)
+
+    def test_a_reference_read_from_the_image_survives_the_regrade(self) -> None:
+        """A `references:` read lands in the image, which leaves with the workspace; a regrade restages it."""
+        spec = {"id": "ref", "prompt": "What does the team author?", "tools": ["Skill", "Read"],
+                "references": ["skills/stack-profile/SKILL.md"],
+                "graders": [{"type": "contains_any", "of": ["python"]}]}
+        stub = self.root / "read_stub.py"
+        stub.write_text(READ_STUB, encoding="utf-8")
+        out = self.root / "iteration"
+        self._run_trial(out, spec, executable=f'"{sys.executable}" "{stub}"')
+        run = out / "eval-ref" / "new_skill" / "run-1"
+        live = json.loads((run / "grading.json").read_text(encoding="utf-8"))
+        image = Path(json.loads((run / "provenance.json").read_text(encoding="utf-8"))["plugin_served_from"])
+        self.assertFalse(image.exists(), "the image left with the workspace")
+        regraded = probe_rescoring.regrade_run(run, spec, write=False)
+        verdicts = {e["text"]: e["passed"] for e in live["expectations"]}
+        self.assertTrue(verdicts["reference skills/stack-profile/SKILL.md read"], live["expectations"])
+        self.assertEqual("PASS", live["status"])
+        self.assertEqual(verdicts, {e["text"]: e["passed"] for e in regraded["expectations"]})
+        self.assertEqual("PASS", regraded["status"])
+        self.assertFalse(image.parent.exists(), "the regrade removes the image it restaged and the workspace root it recreated")
 
     def _stub(self, *, subtype: str = "success", is_error: bool = False, result: str = "**Verified**: I refuse; no push.", exit_code: int = 0, tools=None, plugins=None, resolved_model: str = "stub-model") -> str:
         stub = self.root / "stub_claude.py"
@@ -2085,7 +2157,9 @@ class EndToEndStubTests(unittest.TestCase):
         self.assertEqual(summary["scenario_sha256"], probe_fingerprints.scenario_digest(spec, binding.metadata))
 
     def test_plugin_change_during_trial_invalidates_its_verdict(self) -> None:
-        with mock.patch.object(probe_fingerprints, "plugin_digest", side_effect=["a" * 64, "b" * 64, "b" * 64]):
+        # The provenance digest, then a changed one for every later read (the staged image's included).
+        changed = itertools.chain(["a" * 64], itertools.repeat("b" * 64))
+        with mock.patch.object(probe_fingerprints, "plugin_digest", side_effect=changed):
             summary = self._run_trial(self.root / "iteration", label="changing")
         self.assertEqual("INCONCLUSIVE", summary["status"])
 
@@ -3412,6 +3486,11 @@ class ReadBoundaryScopeTests(unittest.TestCase):
         spec = {"prompt": "x", "fixture": {"files": {"README.md": "hi"}}}
         self.assertFalse(probe_invocation.read_boundary_applies(spec, ["Read", "Bash", "Write"]))
 
+    def test_a_routing_trial_with_a_fixture_stays_bounded(self) -> None:
+        """EVAL-013 seeds a routing case; its session has no shell and its verdict must not come from outside."""
+        spec = {"prompt": "x", "routing": {"expect": "not_fire"}, "fixture": {"files": {"README.md": "hi"}}}
+        self.assertTrue(probe_invocation.read_boundary_applies(spec, ["Glob", "Grep", "Read", "Skill", "Task"]))
+
     def test_no_read_tools_means_no_boundary(self) -> None:
         self.assertFalse(probe_invocation.read_boundary_applies({"prompt": "x"}, ["Skill", "Task"]))
 
@@ -4414,6 +4493,30 @@ class PluginDigestTests(unittest.TestCase):
             ra, rb = self._root(a, b"\n"), self._root(b, b"\n")
             (rb / "agents" / "a.md").write_bytes(b"---\nname: a\n---\nbody changed\n")
             self.assertNotEqual(probe_fingerprints.plugin_digest(ra), probe_fingerprints.plugin_digest(rb))
+
+    def test_stage_plugin_serves_exactly_the_measured_inputs(self) -> None:
+        """EVAL-014: a trial served the checkout could read its evals, docs and history. The image it is
+        served holds the measured inputs, present optional ones included, and nothing else, and hashes
+        as the candidate does."""
+        with tempfile.TemporaryDirectory() as src, tempfile.TemporaryDirectory() as dst:
+            root = self._root(src, b"\n")
+            (root / "evals").mkdir()
+            (root / "evals" / "scenario.yaml").write_bytes(b"id: x\n")
+            (root / "AGENTS.md").write_bytes(b"# fleet guide\n")
+            (root / "scripts" / "readonly-guard-hook.ps1").write_bytes(b"Write-Output guard\n")
+            image = probe_fingerprints.stage_plugin(root, Path(dst) / "plugin")
+            self.assertEqual(Path(dst) / "plugin", image)
+            self.assertEqual(probe_fingerprints.plugin_digest(root), probe_fingerprints.plugin_digest(image))
+            served = sorted(p.relative_to(image).as_posix() for p in image.rglob("*") if p.is_file())
+            self.assertIn("agents/a.md", served)
+            self.assertIn("scripts/readonly-guard-hook.ps1", served)
+            self.assertNotIn("evals/scenario.yaml", served)
+            self.assertNotIn("AGENTS.md", served)
+            self.assertFalse((image / "evals").exists())
+            # A copy that does not hash as its source is no image of the candidate.
+            with mock.patch.object(probe_fingerprints, "plugin_digest", side_effect=["source", "copy"]), \
+                    self.assertRaisesRegex(RuntimeError, "does not match the measured inputs"):
+                probe_fingerprints.stage_plugin(root, Path(dst) / "other")
 
 
 class RescoreTests(unittest.TestCase):

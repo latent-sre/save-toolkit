@@ -11,6 +11,7 @@ import json
 import os
 import platform
 import shlex
+import shutil
 import stat
 import subprocess
 import sys
@@ -205,6 +206,29 @@ def plugin_digest(root: Path = ROOT) -> str:
         digest.update(path.read_bytes().replace(b"\r\n", b"\n"))
         digest.update(b"\0")
     return digest.hexdigest()
+
+
+def stage_plugin(source: Path, target: Path) -> Path:
+    """Copy the measured plugin inputs, and only those, to *target*: the image a trial is served.
+
+    A trial served the checkout as its plugin root could read the rest of it, this repository's
+    evals, docs and history, which teach a routing answer (EVAL-014). The image holds nothing else,
+    so nothing else is granted. A copy that does not hash as its source is refused.
+    """
+    inputs = [
+        *PLUGIN_INPUT_PATHS,
+        *(relative for relative in OPTIONAL_PLUGIN_INPUT_PATHS if os.path.lexists(source / relative)),
+    ]
+    for relative in inputs:
+        if (source / relative).is_dir():  # a directory input with no files is still a measured input
+            (target / relative).mkdir(parents=True, exist_ok=True)
+    for path in _files_under(*inputs, root=source):
+        destination = target / path.relative_to(source)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(path, destination)
+    if plugin_digest(target) != plugin_digest(source):
+        raise MeasuredInputRefused(f"plugin image at {target} does not match the measured inputs of {source}")
+    return target
 
 
 def _git_text(cwd: Path, *args: str) -> str | None:

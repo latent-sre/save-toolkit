@@ -10,10 +10,12 @@ rewrites the run (threat-model ADR result rule 8). Grading itself is the same
 
 from __future__ import annotations
 
+import contextlib
 import json
 import re
+import shutil
 import tempfile
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -113,6 +115,54 @@ def regrade_run(run_dir: Path, spec: Spec, *, write: bool = True, relax_identity
     is marked `identity_relaxed` so it serves only to compare runners on the same trace.
     """
     summary = json.loads((run_dir / "outputs" / "trace-summary.json").read_text(encoding="utf-8"))
+    with _served_plugin_root(summary) as (plugin_root, has_plugin_root):
+        return _regrade_run(
+            run_dir, spec, summary, plugin_root, has_plugin_root, write=write, relax_identity=relax_identity
+        )
+
+
+@contextlib.contextmanager
+def _served_plugin_root(summary: Mapping[str, Any]) -> Iterator[tuple[Path, bool]]:
+    """The plugin root a regrade measures the run against, and whether the run recorded one.
+
+    A run served an image of the measured inputs is measured against that path, restaged from the
+    saved plugin root while the regrade runs when it left with the workspace; a run served the
+    checkout itself is measured against the saved root. A saved root the regrade cannot read is
+    reported where the root is read, as it is for a run served the checkout.
+    """
+    plugin = summary.get("plugin") or {}
+    saved = plugin.get("plugin_root")
+    has_plugin_root = isinstance(saved, str) and tracing.is_rooted(saved)
+    root = Path(saved) if has_plugin_root and isinstance(saved, str) else ROOT
+    served = plugin.get("plugin_served_from")
+    if not (isinstance(served, str) and tracing.is_rooted(served)):
+        yield root, has_plugin_root
+        return
+    image = Path(served)
+    if image.exists():
+        yield image, has_plugin_root
+        return
+    created = image  # the topmost directory restaging creates: the trial's workspace root is gone too
+    while not created.parent.exists() and created.parent != created:
+        created = created.parent
+    with contextlib.suppress(OSError, RuntimeError):
+        fingerprints.stage_plugin(root, image)
+    try:
+        yield image, has_plugin_root
+    finally:
+        shutil.rmtree(created, ignore_errors=True)
+
+
+def _regrade_run(
+    run_dir: Path,
+    spec: Spec,
+    summary: Mapping[str, Any],
+    plugin_root: Path,
+    has_plugin_root: bool,
+    *,
+    write: bool,
+    relax_identity: bool,
+) -> dict[str, Any]:
     old = json.loads((run_dir / "grading.json").read_text(encoding="utf-8"))
     original = run_dir / "grading.original.json"
     live_grade = json.loads(original.read_text(encoding="utf-8")) if original.exists() else old
@@ -123,9 +173,6 @@ def regrade_run(run_dir: Path, spec: Spec, *, write: bool = True, relax_identity
     relaxed = relax_identity and not identity_matches
     kept_prefix = live_grade.get("scenario_sha256") if relaxed else identity
     text = (run_dir / "outputs" / "response.md").read_text(encoding="utf-8")
-    saved_plugin_root = (summary.get("plugin") or {}).get("plugin_root")
-    has_plugin_root = isinstance(saved_plugin_root, str) and tracing.is_rooted(saved_plugin_root)
-    plugin_root = Path(saved_plugin_root) if has_plugin_root and isinstance(saved_plugin_root, str) else ROOT
     native_problem = native_regrade_problem(run_dir, spec, plugin_root) if spec.get("followups") else None
     native_cut = native_problem if isinstance(native_problem, CutShort) else None
     saved_workspace = summary.get("workspace")
