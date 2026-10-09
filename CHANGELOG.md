@@ -6,6 +6,8 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ## [Unreleased]
 
+## [0.51.0] - 2026-10-09
+
 ### Fixed
 
 - The two routing negatives whose alternative is `reviewer` asked about material their empty
@@ -935,8 +937,10 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 - The Grafana read helper takes its credentials from `~/.config/save-toolkit/grafana.env` when the
   environment sets no Grafana value, so `sre-assistant` can authenticate in VS Code or any host without
-  a launcher placing the token in the session environment. Environment and file never mix, and a
-  malformed file fails with a static error that never echoes it. The fleet credential rule denies every
+  a launcher placing the token in the session environment. Environment and file never mix (an empty
+  `GRAFANA_*` variable still selects the environment), values are used verbatim, a relative home
+  never selects a workspace file, macOS and Linux require an owner-only file, and a malformed file
+  fails with a static error that never echoes it. The fleet credential rule denies every
   roster lane's Bash and PowerShell commands that name the file; Read, Grep and Glob are not hooked,
   so those tools can still open it.
 
