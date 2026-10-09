@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+import importlib.util
 from pathlib import Path
 import os
 import subprocess
@@ -15,13 +16,13 @@ ROOT = Path(__file__).resolve().parents[1]
 CALCULATOR = ROOT / "skills" / "obs-alerting" / "scripts" / "error_budget.py"
 
 
-def run_calculator(*args: str) -> subprocess.CompletedProcess[str]:
+def run_calculator(*args: str, **env: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, str(CALCULATOR), *args],
         capture_output=True,
         text=True,
         encoding="utf-8",
-        env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+        env={**os.environ, "PYTHONIOENCODING": "utf-8", **env},
         timeout=30,
     )
 
@@ -129,6 +130,11 @@ class ErrorBudgetCliTests(unittest.TestCase):
                 self.assertIn("remaining: " + remaining, proc.stdout)
                 self.assertIn("PAGE (fast burn) -- both windows >= 14.4x", proc.stdout)
 
+    def test_help_keeps_its_description_whole_on_a_narrow_terminal(self) -> None:
+        proc = run_calculator("--help", COLUMNS="40")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("\nSLO error-budget and burn-rate calculator\n", proc.stdout)
+
     def test_mismatched_window_pair_fails(self) -> None:
         proc = run_calculator(
             "--slo", "99.9", "--sli-long", "99", "--sli-short", "99",
@@ -157,8 +163,17 @@ class StructuredResultTests(unittest.TestCase):
     def test_invalid_inputs_raise_with_the_flag_named(self) -> None:
         fields = dict(slo=Decimal("99.9"), window_days=28.0, bad_minutes=1.0, bad_events=2.0, total_events=10.0,
                       sli_long=None, sli_short=None, long_window="1h", short_window="5m")
-        with self.assertRaisesRegex(ValueError, "cannot be combined"):
+        with self.assertRaisesRegex(ValueError, "^--bad-minutes .*cannot be combined"):
             self.calculator.Inputs(**fields)
+
+    def test_a_plain_file_path_import_needs_no_module_registration(self) -> None:
+        # The bare spec_from_file_location recipe an adapter might copy; nothing enters sys.modules.
+        spec = importlib.util.spec_from_file_location("error_budget_unregistered", CALCULATOR)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.assertNotIn("error_budget_unregistered", sys.modules)
+        verdict = module.burn_verdict(Decimal("99.99"), Decimal("99.856"), Decimal("99.856"), "1h", "5m")
+        self.assertEqual("both", verdict.outcome)
 
     def test_time_status_reports_an_exhausted_budget_as_exactly_zero(self) -> None:
         status = self.calculator.time_status(Decimal("99.9"), 28.0, 40.32)
