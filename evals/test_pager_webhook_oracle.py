@@ -179,6 +179,34 @@ MUTANTS = {
 }
 
 
+# The mutant files split MUTANTS by check, so `--dist loadfile` runs the slow durability and
+# redelivery mutants beside the others instead of after them on one worker (about 140 s in one file).
+MUTANT_FILE_CHECKS = {
+    "test_pager_webhook_mutants.py": {"signature", "fast_ack", "accepted", "completes"},
+    "test_pager_webhook_mutants_redelivery.py": {"redelivery"},
+    "test_pager_webhook_mutants_durable.py": {"durable"},
+}
+
+
+def mutants_checked_by(test_file: str) -> list[str]:
+    checks = MUTANT_FILE_CHECKS[test_file]
+    return sorted(name for name, (check, _, _) in MUTANTS.items() if check in checks)
+
+
+def assert_mutant_fails(tmp_path: Path, name: str) -> None:
+    # Each mutant must fail for the rule it breaks, not because the app crashed.
+    check, overrides, reason = MUTANTS[name]
+    result = run(materialize(tmp_path, overrides), check)
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert reason in result.stdout, result.stdout + result.stderr
+
+
+def test_every_mutant_runs_in_exactly_one_mutant_file():
+    assigned = [name for test_file in MUTANT_FILE_CHECKS for name in mutants_checked_by(test_file)]
+    assert sorted(assigned) == sorted(MUTANTS)
+    assert all((Path(__file__).parent / test_file).is_file() for test_file in MUTANT_FILE_CHECKS)
+
+
 def materialize(tmp_path: Path, overrides: dict[str, str]) -> Path:
     return materialize_reference(tmp_path, SCENARIO, REFERENCE, {**HOUSE, **overrides}, ORACLE)
 
