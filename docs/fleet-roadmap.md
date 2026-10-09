@@ -156,6 +156,13 @@ Record consistency alone does not meet the owner's bar. Automated semantic scori
 reviewed labels and a new calibration after other judge/corpus changes settle. Complete the picker
 assessment separately. Exact-candidate acceptance remains the owner's decision.
 
+Retain the independent reports while this decision is open: familiar-case
+[first pass](reviews/2026-10-08-principal-independent-first-pass.md) and
+[trace pass](reviews/2026-10-08-principal-independent-second-pass.md); held-out
+[first pass](reviews/2026-10-08-principal-heldout-independent-first-pass.md),
+[prompted addendum](reviews/2026-10-08-principal-heldout-independent-addendum.md) and
+[trace pass](reviews/2026-10-08-principal-heldout-independent-second-pass.md).
+
 Open choices:
 - disposition of the independently reviewed fence/abort, replay and truthful-execution-reporting
   findings; no acceptance or implementation-readiness claim follows from reviewer severity labels;

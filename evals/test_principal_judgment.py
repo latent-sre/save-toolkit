@@ -1,5 +1,6 @@
 """Offline contract checks for PRINCIPAL-001's semantic comparison; never call a model."""
 
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -57,12 +58,19 @@ class PrincipalJudgmentTests(unittest.TestCase):
                                "text": "obs-alerting loaded before the 14-day paging rule was designed"}, spec["checks"])
 
     def test_rubric_renders_the_supplied_facts_and_substantive_failure_modes(self):
-        rubrics = judge.load_rubrics()
         for case in PAIRS:
             with self.subTest(case=case):
-                _, fail_if, pass_if = judge.prepare(RUBRIC, {"case": case}, "complete design record", "sonnet", rubrics)
-                prompt = judge._PROMPT_TEMPLATE.format(name=RUBRIC, fail_if=fail_if, pass_if=pass_if,
-                                                       response="complete design record")
+                with (
+                    tempfile.TemporaryDirectory() as directory,
+                    mock.patch.object(judge, "claude_executable", return_value="/offline/claude"),
+                    mock.patch.object(judge, "_run_judge_process",
+                                      side_effect=AssertionError("prompt captured")) as spawn,
+                    self.assertRaisesRegex(AssertionError, "prompt captured"),
+                ):
+                    judge.judge("complete design record", RUBRIC, {"case": case},
+                                model="sonnet", cache_dir=Path(directory))
+                spawn.assert_called_once()
+                prompt = str(spawn.call_args.args[0])
                 self.assertIn("complete design record", prompt)
                 self.assertIn("request logs", prompt)
                 self.assertIn("90 days", prompt)

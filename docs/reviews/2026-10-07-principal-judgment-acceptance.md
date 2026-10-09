@@ -87,8 +87,9 @@ new measurements, not replacement trials or pooled results.
 
 If reusable automated semantic scoring is wanted, first review the proposed gold labels and settle
 other EVAL-010 corpus/judge changes. Freeze the candidate and scoring inputs, then obtain a new
-receipt under the everyday account. The proposed cold corpus now has 181 calls, plus any separately
-selected identity probe. That calibration is a future campaign, not part of this approval.
+receipt under the everyday account. The proposed cold corpus had 181 calls at preparation; the
+publication integration with main brings it to 197 cases, plus any separately selected identity
+probe. That calibration is a future campaign, not part of this approval.
 
 EVAL-014 still gates affected routing comparisons. Picker usability, final-byte coverage of the
 other cases, helper return/resume, other hosts/models and installed Copilot behavior remain outside
@@ -466,3 +467,34 @@ The owner authorized this evidence update and PR, not acceptance or another camp
 PRINCIPAL-001 active and the ADR proposed. No prompt repair or new model run follows from this
 publication step. Follow-up scope covers the measured adherence/reporting gaps, shared cutover
 reasoning, misleading method-check labels, and a more discriminating future judgment case.
+
+## Publication verification (2026-10-08)
+
+Main `cfeec10c` was integrated normally. Its newer builder guidance and judge code do not inherit
+the historical native receipts above. The measured canonical principal/method/alerting sources
+and both held-out scenarios remain byte-identical to their pre-publication copies; all five
+preserved independent reports match their supplied SHA256 values.
+
+Two integration checks first failed and were corrected before the final offline run:
+the rubric-rendering test bypassed main's new response-frame tag, and the retention gate required
+live roadmap citations for the five raw reports. The test now captures the actual judge prompt
+with the process mocked out and stopped before execution or spend; the roadmap directly records
+why each report remains retained. No judge implementation or measured scenario was changed.
+
+Fresh checks with the verified Python 3.14.7 environment:
+
+| Check | Result |
+|---|---|
+| Principal and link/retention tests | 62 passed, 1 skipped, 174 subtests passed |
+| Full offline suite, `pytest -q -n 4 --dist loadfile`, bytecode disabled | 2,002 passed, 49 skipped, 4 warnings, 4,370 subtests passed in 303.72 seconds |
+| Ruff lint and format check | PASS; 21 source files already formatted |
+| Strict mypy | PASS; 21 source files |
+| Build-scenario validation | PASS; 243 specifications, 1,050 graded expectations |
+| Adapter regeneration | PASS; 174 outputs, no additional changes |
+| PR whitespace check against refreshed main | PASS |
+
+The suite's four warnings are the dependency's deprecated AnyIO BlockingPortal alias, repeated
+across workers. Skipped checks are not passes. The push-boundary Gate A result is recorded in the
+PR. The now-197-case live judge calibration is deliberately not run without its own approval;
+there are no new native/model receipts. These checks verify publication integrity and offline
+contracts, not design superiority, successful operation of a proposed system or human acceptance.
