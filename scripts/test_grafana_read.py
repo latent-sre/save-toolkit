@@ -21,7 +21,9 @@ from testkit import load_path, require_shell
 PATH = Path(__file__).resolve().parents[1] / "skills/grafana/scripts/grafana_read.py"
 reader = load_path(PATH, "grafana_read")
 
-ENV = {"GRAFANA_URL": "https://monitor.example/grafana", "GRAFANA_ORG_ID": "7", "GRAFANA_SA_TOKEN": "test-secret-token"}
+UNAUTHENTICATED = {"GRAFANA_URL": "https://monitor.example/grafana", "GRAFANA_ORG_ID": "7"}
+ENV = {**UNAUTHENTICATED, "GRAFANA_SA_TOKEN": "test-secret-token"}
+DASHBOARD = ["dashboard", "--uid", "board"]
 QUERY = ["query", "--datasource", "metrics-1", "--kind", "prometheus", "--from", "1000", "--to", "61000", "--expr", "up"]
 
 
@@ -53,12 +55,12 @@ def test_organization_must_be_explicit_positive_canonical_int64(org):
     else:
         env["GRAFANA_ORG_ID"] = org
     transport = Transport()
-    code, result, _ = invoke(["dashboard", "--uid", "board"], transport, env)
+    code, result, _ = invoke(DASHBOARD, transport, env)
     assert code == 2 and result["error"] == "invalid_organization_configuration"
     assert not transport.requests
 
 
-@pytest.mark.parametrize("args", [["dashboard", "--uid", "board"], QUERY])
+@pytest.mark.parametrize("args", [DASHBOARD, QUERY])
 @pytest.mark.parametrize("actual", [2, "7", True, None])
 def test_organization_mismatch_stops_before_selected_operation(args, actual):
     transport = Transport(org_response=(200, {"id": actual}))
@@ -79,13 +81,13 @@ def test_same_datasource_uid_from_other_organization_never_queries(datasource_or
 @pytest.mark.parametrize("credentials", [{"GRAFANA_SA_TOKEN": "synthetic-token"}, {"GRAFANA_USERNAME": "synthetic-user", "GRAFANA_PASSWORD": "synthetic-pass"}])
 @pytest.mark.parametrize("command", ["dashboard", "query"])
 def test_all_requests_bind_verified_organization_and_report_it(credentials, command):
-    env = {"GRAFANA_URL": ENV["GRAFANA_URL"], "GRAFANA_ORG_ID": "7", **credentials}
+    env = {**UNAUTHENTICATED, **credentials}
     responses = [(200, {"dashboard": {"uid": "board"}, "meta": {}})] if command == "dashboard" else [
         (200, {"uid": "metrics-1", "type": "prometheus", "orgId": 7}),
         (200, {"results": {"A": {"frames": []}}}),
     ]
     transport = Transport(*responses)
-    code, result, _ = invoke(["dashboard", "--uid", "board"] if command == "dashboard" else QUERY, transport, env)
+    code, result, _ = invoke(DASHBOARD if command == "dashboard" else QUERY, transport, env)
     assert code == 0 and result["organization_id"] == 7
     assert transport.requests[0].full_url.endswith("/api/org")
     assert all(request.get_header("X-grafana-org-id") == "7" for request in transport.requests)
@@ -108,19 +110,19 @@ def test_dashboard_uses_fixed_get_and_masks_authentication():
 def test_basic_auth_values_and_encodings_masked_in_keys_and_nested_values():
     user, password = "test-person", "private-pass"
     encoded = base64.b64encode(f"{user}:{password}".encode()).decode()
-    env = {"GRAFANA_URL": ENV["GRAFANA_URL"], "GRAFANA_ORG_ID": "7", "GRAFANA_USERNAME": user, "GRAFANA_PASSWORD": password}
+    env = {**UNAUTHENTICATED, "GRAFANA_USERNAME": user, "GRAFANA_PASSWORD": password}
     transport = Transport((200, {"dashboard": {"uid": "board", user: [password, encoded]}, "meta": {}}))
-    code, _, text = invoke(["dashboard", "--uid", "board"], transport, env)
+    code, _, text = invoke(DASHBOARD, transport, env)
     assert code == 0
     assert all(value not in text for value in (user, password, encoded))
     assert transport.requests[0].get_header("Authorization") == "Basic " + encoded
 
 
 def test_numeric_authentication_values_are_masked_when_echoed_as_json_numbers():
-    env = {"GRAFANA_URL": ENV["GRAFANA_URL"], "GRAFANA_ORG_ID": "7", "GRAFANA_USERNAME": "741829", "GRAFANA_PASSWORD": "928413"}
+    env = {**UNAUTHENTICATED, "GRAFANA_USERNAME": "741829", "GRAFANA_PASSWORD": "928413"}
     transport = Transport((200, {"dashboard": {"uid": "board", "numeric_username": 741829,
                              "numeric_password": 928413.0}, "meta": {}}))
-    code, result, text = invoke(["dashboard", "--uid", "board"], transport, env)
+    code, result, text = invoke(DASHBOARD, transport, env)
     assert code == 0 and "741829" not in text and "928413" not in text
     assert result["dashboard"]["numeric_username"] == "[REDACTED]"
 
@@ -129,7 +131,7 @@ def test_numeric_authentication_values_are_masked_when_echoed_as_json_numbers():
 def test_authentication_matching_json_primitives_is_masked_even_in_metadata(credential, value):
     env = {**ENV, "GRAFANA_SA_TOKEN": credential}
     transport = Transport((200, {"dashboard": {"uid": "board", "echo": value}, "meta": {"echo": value}}))
-    code, result, _ = invoke(["dashboard", "--uid", "board"], transport, env)
+    code, result, _ = invoke(DASHBOARD, transport, env)
     assert code == 0
     assert result["dashboard"]["echo"] == "[REDACTED]"
     assert result["meta"]["echo"] == "[REDACTED]"
@@ -178,7 +180,7 @@ def test_query_result_errors_cannot_be_reported_successfully(result):
 
 @pytest.mark.parametrize("response", [(302, b"secret redirect"), (401, b"test-secret-token"), (200, b"not JSON"), (200, b"x" * (2 * 1024 * 1024 + 1))])
 def test_http_json_and_size_failures_return_safe_errors(response):
-    code, result, text = invoke(["dashboard", "--uid", "board"], Transport(response))
+    code, result, text = invoke(DASHBOARD, Transport(response))
     assert code == 2 and not result["ok"]
     assert "test-secret-token" not in text and "Traceback" not in text
 
@@ -186,13 +188,13 @@ def test_http_json_and_size_failures_return_safe_errors(response):
 @pytest.mark.parametrize("url", ["http://monitor.example", "https://user:password@monitor.example", "https://monitor.example?token=private", "https://monitor.example/#secret", "https://monitor.example/../else", "https://monitor.example/%2e%2e", "https://monitor.example\\bad", "https://monitor.example/\nfoo"])
 def test_invalid_origins_make_no_requests(url):
     transport = Transport()
-    code, result, text = invoke(["dashboard", "--uid", "board"], transport, {**ENV, "GRAFANA_URL": url})
+    code, result, text = invoke(DASHBOARD, transport, {**ENV, "GRAFANA_URL": url})
     assert code == 2 and not result["ok"] and not transport.requests
     assert url not in text
 
 
 def test_raw_transport_error_is_never_exposed():
-    code, result, text = invoke(["dashboard", "--uid", "board"], Transport(URLError("user:private-password@secret-host")))
+    code, result, text = invoke(DASHBOARD, Transport(URLError("user:private-password@secret-host")))
     assert code == 2 and result["error"] == "request_failed"
     assert "private-password" not in text and "secret-host" not in text
 
@@ -200,7 +202,7 @@ def test_raw_transport_error_is_never_exposed():
 def test_url_userinfo_and_auth_headers_are_not_returned():
     transport = Transport((200, {"dashboard": {"uid": "board", "link": "https://another:unknown@host.example/path",
                              "Authorization": "arbitrary-header-value"}, "meta": {}}))
-    code, _, text = invoke(["dashboard", "--uid", "board"], transport)
+    code, _, text = invoke(DASHBOARD, transport)
     assert code == 0
     assert "another" not in text and "unknown" not in text and "arbitrary-header-value" not in text
 
@@ -211,7 +213,7 @@ def test_url_userinfo_and_auth_headers_are_not_returned():
     b'[' * 1500 + b']' * 1500,
 ])
 def test_nonfinite_and_deep_json_return_safe_failure(payload):
-    code, result, _ = invoke(["dashboard", "--uid", "board"], Transport((200, payload)))
+    code, result, _ = invoke(DASHBOARD, Transport((200, payload)))
     assert code == 2 and not result["ok"]
 
 
@@ -224,7 +226,7 @@ def test_incomplete_or_unexpected_query_results_fail(results):
 def test_token_preferred_and_all_configured_auth_values_masked():
     env = {**ENV, "GRAFANA_USERNAME": "test-person", "GRAFANA_PASSWORD": "basic-password"}
     transport = Transport((200, {"dashboard": {"uid": "board", "text": "test-person basic-password"}, "meta": {}}))
-    code, _, text = invoke(["dashboard", "--uid", "board"], transport, env)
+    code, _, text = invoke(DASHBOARD, transport, env)
     assert code == 0 and "test-person" not in text and "basic-password" not in text
     assert transport.requests[0].get_header("Authorization") == "Bearer test-secret-token"
 
@@ -232,7 +234,7 @@ def test_token_preferred_and_all_configured_auth_values_masked():
 @pytest.mark.parametrize("field,value", [("GRAFANA_SA_TOKEN", "token\r\nInjected: header"), ("GRAFANA_USERNAME", "name\n"), ("GRAFANA_PASSWORD", "pass\r")])
 def test_authentication_control_characters_rejected(field, value):
     transport = Transport()
-    assert invoke(["dashboard", "--uid", "board"], transport, {**ENV, field: value})[0] == 2
+    assert invoke(DASHBOARD, transport, {**ENV, field: value})[0] == 2
     assert not transport.requests
 
 
@@ -269,10 +271,10 @@ def test_real_transport_configures_tls_no_proxy_no_redirect_and_response_bound(m
     assert captured["timeout"] == 20 and captured["read_bound"] == 2 * 1024 * 1024 + 1
 
 
-@pytest.mark.parametrize("env", [{"GRAFANA_URL": ENV["GRAFANA_URL"], "GRAFANA_ORG_ID": "7"}, {"GRAFANA_URL": ENV["GRAFANA_URL"], "GRAFANA_ORG_ID": "7", "GRAFANA_USERNAME": "test-person"}])
+@pytest.mark.parametrize("env", [UNAUTHENTICATED, {**UNAUTHENTICATED, "GRAFANA_USERNAME": "test-person"}])
 def test_missing_or_incomplete_auth_never_calls_network(env):
     transport = Transport()
-    code, result, _ = invoke(["dashboard", "--uid", "board"], transport, env)
+    code, result, _ = invoke(DASHBOARD, transport, env)
     assert code == 2 and result["error"] == "authentication_unavailable"
     assert not transport.requests
 
