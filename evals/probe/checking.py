@@ -231,7 +231,7 @@ def _tool_calls_on_cut(params: Params, trace: TraceSummary, cut: str) -> Outcome
 
 def grading_env(ctx: Context) -> dict[str, str]:
     """The env the probe uses to execute model-written code: the clean room's allowlist, not the operator's shell."""
-    keys = set(getattr(clean_room, "SAFE_ENV_KEYS", ())) | {
+    keys = set(clean_room.SAFE_ENV_KEYS) | {
         "PATH",
         "PATHEXT",
         "SYSTEMROOT",
@@ -1068,7 +1068,7 @@ def check_ran_outside_checkout(ctx: Context, p: Params) -> Outcome:
 def _shell_commands(ctx: Context, p: Params, *, powershell: bool = False) -> list[str]:
     """Every shell command, or with `scope: subagent` only those a dispatched subagent issued."""
     if p.get("scope") == "subagent":
-        return list(getattr(ctx.trace, "subagent_bash_commands", []))
+        return list(ctx.trace.subagent_bash_commands)
     return ctx.trace.bash_commands + (ctx.trace.powershell_commands if powershell else [])
 
 
@@ -1354,7 +1354,8 @@ def describe(check: Params) -> str:
 
 
 def registered(check: object) -> CheckType | None:
-    name = backing.json_pointer(check, "check")
+    """The declared check a scenario entry names, or None for an unknown name or a malformed entry."""
+    name = check.get("check") if isinstance(check, dict) else None
     return CHECKS.get(name) if isinstance(name, str) else None
 
 

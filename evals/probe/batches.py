@@ -29,14 +29,14 @@ def batch_identity_problem(
     entries: list[dict[str, Any]],
     scenarios: list[dict[str, Any]],
     plugin_sha: str,
-    judge_binding: rubric_judge.JudgeBinding | None = None,
-    runtime: dict[str, Any] | None = None,
+    judge_binding: rubric_judge.JudgeBinding | None,
+    runtime: dict[str, Any],
 ) -> str | None:
     """Refuse to pool trials of another candidate, scenario, CLI version or host into one verdict.
 
     A trial recorded before the CLI and host were recorded never pools with one that has them.
     """
-    if runtime is not None and not runtime.get("cli_version"):
+    if not runtime.get("cli_version"):
         return "the CLI did not report its version, so no result would identify it; fix --executable first"
     expected = {
         spec["id"]: fingerprints.scenario_digest(spec, judge_binding.metadata if judge_binding else None)
@@ -48,7 +48,7 @@ def batch_identity_problem(
             continue
         if entry.get("plugin_source_sha256") != plugin_sha:
             return "candidate digest is missing or differs; use a new label or overwrite every affected run"
-        if runtime is not None and entry.get("runtime") != runtime:
+        if entry.get("runtime") != runtime:
             return "CLI version or host is missing or differs; use a new label or overwrite every affected run"
         if entry.get("scenario_sha256") != expected[scenario]:
             return f"{scenario}: scenario identity is missing or changed; use a new label or rerun the batch"
