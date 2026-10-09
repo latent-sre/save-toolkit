@@ -213,6 +213,11 @@ class VerificationEvidenceTests(unittest.TestCase):
         return {"type": "user", "tool_use_result": f"Error: {text}", "message": {"content": [
             {"type": "tool_result", "tool_use_id": use_id, "is_error": True, "content": text}]}}
 
+    @staticmethod
+    def _ordered_spec():
+        """The tiny scenario graded only by the ordered unittest verification check."""
+        return tiny_spec(checks=[{"check": "verification_completed", "runner": "unittest", "text": "ordered test"}])
+
     def _verdict(self, events, scenario="build-software-engineer-cli-with-tests"):
         spec = scenario_file(probe_constants.SCENARIO_DIR / f"{scenario}.yaml")
         check = next(c for c in spec["checks"] if c["check"] in {"bash_ran", "verification_completed"})
@@ -288,8 +293,7 @@ class VerificationEvidenceTests(unittest.TestCase):
         self.assertTrue(probe_constants.WRITING_TOOLS & {"PowerShell"})
 
     def test_later_shell_inspection_or_missing_receipt_is_inconclusive_not_a_model_failure(self):
-        check = {"check": "verification_completed", "runner": "unittest", "text": "ordered test"}
-        spec = tiny_spec(checks=[check])
+        spec = self._ordered_spec()
         for events in (
             [self._call(), self._result(), self._call(command="git diff", use_id="inspect"), self._result("inspect")],
             [self._call()],
@@ -301,8 +305,7 @@ class VerificationEvidenceTests(unittest.TestCase):
                 self.assertFalse(grading["expectations"][0]["passed"])
 
     def test_zero_test_or_all_skipped_verification_is_fail_not_inconclusive(self):
-        check = {"check": "verification_completed", "runner": "unittest", "text": "ordered test"}
-        spec = tiny_spec(checks=[check])
+        spec = self._ordered_spec()
         cases = (
             ("Ran 0 tests in 0.000s\n\nOK\n", "matched shell result ran zero tests"),
             ("Ran 2 tests in 0.001s\n\nOK (skipped=2)\n", "matched shell result skipped every discovered test"),
@@ -317,8 +320,7 @@ class VerificationEvidenceTests(unittest.TestCase):
 
     def test_an_earlier_failed_command_completed_but_other_failures_stay_unknown(self):
         """54 of 61 saved completion-evidence INCONCLUSIVE trials had only an earlier `Error: Exit code N` receipt."""
-        check = {"check": "verification_completed", "runner": "unittest", "text": "ordered test"}
-        spec = tiny_spec(checks=[check])
+        spec = self._ordered_spec()
         probe = self._call(command="git log --oneline HEAD~1", use_id="probe")
         cases = (
             ([probe, self._failed_result("probe"), self._call(), self._result()], "PASS"),
@@ -346,15 +348,13 @@ class VerificationEvidenceTests(unittest.TestCase):
         for prefix in (f'cd "{self.REPO}" && ', "cd /f/iso-tmp/run/ws-abc/repo && ", "cd F:/iso-tmp/run/ws-abc/repo/ && "):
             with self.subTest(prefix=prefix):
                 self.assertTrue(probe_checking._verification_command(prefix + self.SUITE, "unittest", "Bash", self.REPO))
-        check = {"check": "verification_completed", "runner": "unittest", "text": "ordered test"}
-        spec = tiny_spec(checks=[check])
+        spec = self._ordered_spec()
         events = [self._call(command=f'cd "{self.REPO}" && {self.SUITE}'), self._result()]
         ctx = context(spec, parse_events(events), ws=self._ws())
         self.assertEqual(probe_assessment.grade(ctx)["status"], "PASS")
 
     def test_positioned_suite_followed_by_inspection_is_inconclusive_not_a_failure(self):
-        check = {"check": "verification_completed", "runner": "unittest", "text": "ordered test"}
-        spec = tiny_spec(checks=[check])
+        spec = self._ordered_spec()
         events = [self._call(command=f'cd "{self.REPO}" && {self.SUITE}'), self._result(),
                   self._call(command=f'cd "{self.REPO}" && git status --porcelain', use_id="inspect"), self._result("inspect")]
         ctx = context(spec, parse_events(events), ws=self._ws())
@@ -384,8 +384,7 @@ class VerificationEvidenceTests(unittest.TestCase):
                 self.assertFalse(probe_checking._verification_command(command, "unittest", "Bash", workdir))
 
     def test_ordered_verification_regrade_needs_the_raw_trace(self):
-        check = {"check": "verification_completed", "runner": "unittest", "text": "ordered test"}
-        spec = tiny_spec(checks=[check])
+        spec = self._ordered_spec()
         for present, later_shell, expected in ((False, False, "INCONCLUSIVE"), (True, False, "PASS"), (True, True, "INCONCLUSIVE")):
             with self.subTest(present=present, later_shell=later_shell), tempfile.TemporaryDirectory() as tmp:
                 events = None
@@ -403,8 +402,7 @@ class VerificationEvidenceTests(unittest.TestCase):
 
     def test_regrade_matches_a_positioned_suite_against_the_recorded_repository(self):
         """A regrade's checkout is gone, so `cd "<repo>" && <suite>` must match the path the run recorded."""
-        check = {"check": "verification_completed", "runner": "unittest", "text": "ordered test"}
-        spec = tiny_spec(checks=[check])
+        spec = self._ordered_spec()
         with tempfile.TemporaryDirectory() as tmp:
             repo = str(Path(tmp) / "ws" / "repo")
             run = write_saved_run(
