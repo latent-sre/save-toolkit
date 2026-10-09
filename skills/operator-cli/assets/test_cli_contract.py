@@ -146,8 +146,15 @@ runpy.run_path("command.py", run_name="__main__")
         return subprocess.run(command, cwd=self.work, env=self.environment(**extra), input=stdin or "",
                               capture_output=True, text=True, timeout=30)
 
+    def state(self) -> dict:
+        """The fake client's store: orders, effect calls, status reads and selection-time lock checks."""
+        return json.loads((self.work / "store.json").read_text(encoding="utf-8"))
+
     def calls(self) -> list[str]:
-        return json.loads((self.work / "store.json").read_text(encoding="utf-8"))["calls"]
+        return self.state()["calls"]
+
+    def lock_text(self) -> str:
+        return (self.work / LOCK).read_text(encoding="utf-8")
 
     def outcomes(self, result: subprocess.CompletedProcess) -> dict[str, str]:
         return {item["id"]: item["status"] for item in json.loads(result.stdout)["items"]}
@@ -177,7 +184,7 @@ runpy.run_path("command.py", run_name="__main__")
         self.assertEqual(1, result.returncode)
         self.assertEqual({"o1": "succeeded", "o2": "failed", "o3": "skipped"}, self.outcomes(result))
         self.assertEqual(["o1", "o2"], self.calls())
-        state = json.loads((self.work / "store.json").read_text(encoding="utf-8"))
+        state = self.state()
         self.assertEqual("open", state["orders"]["o2"]["state"])
         self.assertEqual([], state.get("status_calls", []))
 
@@ -189,7 +196,7 @@ runpy.run_path("command.py", run_name="__main__")
                     result = self.run_command(flag, value, "--yes", "--json")
                     self.assertEqual(2, result.returncode, result.stderr)
                     self.assertEqual([], self.calls())
-                    self.assertNotIn("selection_locks", json.loads((self.work / "store.json").read_text()))
+                    self.assertNotIn("selection_locks", self.state())
 
     def test_default_cap_refuses_the_whole_plan_before_effects(self) -> None:
         self.store(count=101)
@@ -222,7 +229,7 @@ runpy.run_path("command.py", run_name="__main__")
         result = self.run_command("--yes", "--json")
         self.assertEqual(1, result.returncode, result.stderr)
         self.assertEqual([], self.calls())
-        self.assertEqual("another owner", (self.work / LOCK).read_text())
+        self.assertEqual("another owner", self.lock_text())
 
     def test_replaced_lock_is_not_deleted_by_cleanup(self) -> None:
         for fault in ("replace-lock", "overwrite-lock"):
@@ -232,7 +239,7 @@ runpy.run_path("command.py", run_name="__main__")
                     self.store({item: fault})
                     result = self.run_command("--yes", "--json")
                     self.assertEqual(1, result.returncode, result.stderr)
-                    self.assertEqual("another owner", (self.work / LOCK).read_text())
+                    self.assertEqual("another owner", self.lock_text())
                     self.assertEqual(["o1"] if item == "o1" else ["o1", "o2", "o3"], self.calls())
 
     def test_interactive_json_has_no_prompt_on_stdout(self) -> None:
@@ -241,7 +248,7 @@ runpy.run_path("command.py", run_name="__main__")
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual({"o1": "succeeded", "o2": "succeeded", "o3": "succeeded"}, self.outcomes(result))
         self.assertIn("Cancel these 3 orders?", result.stderr)
-        self.assertEqual([False, True], json.loads((self.work / "store.json").read_text())["selection_locks"])
+        self.assertEqual([False, True], self.state()["selection_locks"])
 
     def test_interactive_no_and_eof_decline_without_effects_or_traceback(self) -> None:
         for answer in ("n\n", ""):
@@ -259,7 +266,7 @@ runpy.run_path("command.py", run_name="__main__")
         result = self.run_command("--yes", "--json")
         self.assertEqual(130, result.returncode, result.stderr)
         self.assertEqual(["o1"], self.calls())
-        self.assertEqual("another owner", (self.work / LOCK).read_text())
+        self.assertEqual("another owner", self.lock_text())
         self.assertEqual({"o1": "unknown", "o2": "skipped", "o3": "skipped"}, self.outcomes(result))
         self.assertIn("ownership changed", result.stderr)
 
@@ -272,7 +279,7 @@ runpy.run_path("command.py", run_name="__main__")
                 self.assertEqual(1, result.returncode, result.stderr)
                 self.assertEqual([], self.calls())
                 self.assertIn("changed", result.stderr)
-                self.assertEqual([False, True], json.loads((self.work / "store.json").read_text())["selection_locks"])
+                self.assertEqual([False, True], self.state()["selection_locks"])
                 self.assertFalse((self.work / LOCK).exists())
 
     def test_same_targets_in_another_order_are_accepted(self) -> None:
@@ -291,11 +298,11 @@ runpy.run_path("command.py", run_name="__main__")
                 while not (self.work / "ready").exists() and first.poll() is None and time.monotonic() < deadline:
                     time.sleep(0.01)
                 self.assertTrue((self.work / "ready").exists(), "first command never reached its effect")
-                owner = (self.work / LOCK).read_text()
+                owner = self.lock_text()
                 second = self.run_command("--yes", "--json")
                 self.assertEqual(1, second.returncode, second.stderr)
                 self.assertEqual(["o1"], self.calls())
-                self.assertEqual(owner, (self.work / LOCK).read_text())
+                self.assertEqual(owner, self.lock_text())
             finally:
                 (self.work / "release").touch()
                 stdout, stderr = first.communicate(timeout=30)
@@ -322,7 +329,7 @@ runpy.run_path("command.py", run_name="__main__")
                     self.assertEqual({"o1": "succeeded", "o2": expected,
                                       "o3": "succeeded" if code == 0 else "skipped"}, self.outcomes(result))
                     self.assertEqual(["o1", "o2", "o3"] if code == 0 else ["o1", "o2"], self.calls())
-                    state = json.loads((self.work / "store.json").read_text(encoding="utf-8"))
+                    state = self.state()
                     self.assertEqual("open" if fault == "reject" else "cancelled", state["orders"]["o2"]["state"])
                     self.assertEqual([] if fault == "reject" else ["o2"], state.get("status_calls", []))
                     self.assertFalse((self.work / LOCK).exists())
