@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import subprocess
 from dataclasses import dataclass
+from functools import cached_property
 from pathlib import Path
 
 from fleet_atlas_v2_model import Span, canonical_bytes, digest, validate_path
@@ -46,16 +47,23 @@ class Source:
         if type(self.content) is not bytes:
             raise TypeError("source content must be immutable bytes")
 
-    @property
+    # Decoded views of the immutable content are computed once per Source. A frozen,
+    # unslotted dataclass keeps them in the instance dictionary; equality, hashing and
+    # ordering still compare only path and content.
+    @cached_property
     def text(self) -> str:
         return self.content.decode("utf-8")
 
-    @property
+    @cached_property
     def lines(self) -> tuple[str, ...]:
         return tuple(self.text.splitlines())
 
+    @cached_property
+    def blob_hash(self) -> str:
+        return digest(self.content)
+
     def span(self, start: int, end: int) -> Span:
-        return Span.from_bytes(self.path, self.content, start, end)
+        return Span.from_lines(self.path, self.blob_hash, self.lines, start, end)
 
     def locate(self, needle: str) -> tuple[Span, ...]:
         """All exact occurrences; an absent needle is never assigned fabricated line 1."""
@@ -79,18 +87,23 @@ class Snapshot:
         if paths != sorted(set(paths)):
             raise ValueError("snapshot requires unique, sorted source paths")
 
-    @property
+    @cached_property
     def tree_digest(self) -> str:
-        return digest(canonical_bytes([(s.path, digest(s.content)) for s in self.sources]))
+        return digest(canonical_bytes([(s.path, s.blob_hash) for s in self.sources]))
+
+    @cached_property
+    def _by_path(self) -> dict[str, Source]:
+        return {source.path: source for source in self.sources}
 
     def source(self, path: str) -> Source:
-        for source in self.sources:
-            if source.path == path:
-                return source
-        raise ValueError(f"source outside closed corpus: {path}")
+        try:
+            return self._by_path[path]
+        except KeyError:
+            raise ValueError(f"source outside closed corpus: {path}") from None
 
     def verify_span(self, span: Span) -> None:
-        span.verify(self.source(span.path).content)
+        source = self.source(span.path)
+        span.verify_lines(source.blob_hash, source.lines)
 
 
 def read_revision(root: Path, revision: str) -> Snapshot:

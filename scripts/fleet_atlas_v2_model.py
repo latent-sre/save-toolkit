@@ -12,7 +12,7 @@ import unicodedata
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import PurePosixPath
-from typing import TypeAlias
+from typing import Sequence, TypeAlias
 
 
 Scalar: TypeAlias = str | int | float | bool | None
@@ -95,14 +95,21 @@ class Span:
 
     @classmethod
     def from_bytes(cls, path: str, blob: bytes, start: int, end: int) -> Span:
-        lines = blob.decode("utf-8").splitlines()
+        return cls.from_lines(path, digest(blob), blob.decode("utf-8").splitlines(), start, end)
+
+    @classmethod
+    def from_lines(cls, path: str, blob_hash: str, lines: Sequence[str], start: int, end: int) -> Span:
+        """The span of an already decoded blob: `lines` must be its UTF-8 text's splitlines()."""
         if not 1 <= start <= end <= len(lines):
             raise ValueError(f"span outside {path}: {start}-{end}")
         excerpt = "\n".join(lines[start - 1:end]).encode("utf-8")
-        return cls(path, digest(blob), start, end, digest(excerpt))
+        return cls(path, blob_hash, start, end, digest(excerpt))
 
     def verify(self, blob: bytes) -> None:
-        if self != Span.from_bytes(self.path, blob, self.start_line, self.end_line):
+        self.verify_lines(digest(blob), blob.decode("utf-8").splitlines())
+
+    def verify_lines(self, blob_hash: str, lines: Sequence[str]) -> None:
+        if self != Span.from_lines(self.path, blob_hash, lines, self.start_line, self.end_line):
             raise ValueError(f"source span differs: {self.path}:{self.start_line}")
 
 

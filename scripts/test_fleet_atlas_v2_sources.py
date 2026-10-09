@@ -41,6 +41,16 @@ class SourceTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             Snapshot("revision", (Source("z.md", b"z"), source))
 
+    def test_cached_decoded_views_never_enter_source_identity(self):
+        warm, cold = Source("README.md", b"one\ntwo\n"), Source("README.md", b"one\ntwo\n")
+        self.assertEqual(("one", "two"), warm.lines)
+        self.assertEqual(Span.from_bytes("README.md", b"one\ntwo\n", 2, 2), warm.span(2, 2))
+        self.assertEqual((warm, hash(warm)), (cold, hash(cold)))
+        self.assertEqual(Snapshot("revision", (warm,)), Snapshot("revision", (cold,)))
+        self.assertEqual(Snapshot("revision", (warm,)).tree_digest, Snapshot("revision", (cold,)).tree_digest)
+        with self.assertRaisesRegex(ValueError, "outside closed corpus"):
+            Snapshot("revision", (warm,)).source("missing.md")
+
     def test_changed_blob_outside_excerpt_is_rejected(self):
         span = Span.from_bytes("README.md", b"title\nfact\n", 2, 2)
         snapshot = Snapshot("revision", (Source("README.md", b"changed title\nfact\n"),))
