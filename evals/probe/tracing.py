@@ -105,6 +105,10 @@ class TraceSummary:
     subagent_tool_ids: list[str] = field(default_factory=list)
     saw_init: bool = False
     advertised_tools: list[str] = field(default_factory=list)
+    # Every skill or command name the runtime advertised, at init or in a later `commands_changed`, and
+    # those whose namespace is no loaded plugin's: account skills such as `anthropic-skills:*`.
+    advertised_skills: list[str] = field(default_factory=list)
+    foreign_skills: list[str] = field(default_factory=list)
     mcp_servers: list[Any] = field(default_factory=list)
     permission_mode: str = ""
     session_id: str = ""
@@ -167,6 +171,8 @@ class _Reader:
     skill_uses: list[tuple[str, str, object, int]] = field(default_factory=list)
     agent_uses: list[tuple[str, str, object, int]] = field(default_factory=list)
     asynchronous: set[str] = field(default_factory=set)
+    skill_names: set[str] = field(default_factory=set)
+    plugin_namespaces: set[str] = field(default_factory=set)
     tasks: dict[str, tuple[str, int]] = field(default_factory=dict)
     completed: dict[str, int] = field(default_factory=dict)
     parent_texts: list[tuple[object, int]] = field(default_factory=list)
@@ -176,6 +182,11 @@ class _Reader:
         match event:
             case {"type": "system", "subtype": "init"}:
                 self._init(event)
+                return
+            case {"type": "system", "subtype": "commands_changed"}:
+                self.skill_names.update(
+                    str(c.get("name")) for c in event.get("commands") or [] if isinstance(c, dict) and c.get("name")
+                )
                 return
             case {"type": "result"}:
                 self._result(event)
@@ -200,6 +211,10 @@ class _Reader:
         s = self.summary
         s.saw_init = True
         s.advertised_tools = [str(t) for t in event.get("tools") or []]
+        self.skill_names.update(str(name) for name in event.get("skills") or [])
+        self.plugin_namespaces.update(
+            str(p.get("name")) for p in event.get("plugins") or [] if isinstance(p, dict) and p.get("name")
+        )
         # A CLI-bundled plugin (source "<name>@builtin") is part of the host, not a candidate.
         s.runtime_plugins = [
             p
@@ -333,6 +348,10 @@ class _Reader:
 
     def finish(self) -> TraceSummary:
         s = self.summary
+        s.advertised_skills = sorted(self.skill_names)
+        s.foreign_skills = sorted(
+            name for name in self.skill_names if ":" in name and name.split(":", 1)[0] not in self.plugin_namespaces
+        )
         clean = self.clean_result_ids
         first_dispatch = min((issued for _, _, parent, issued in self.agent_uses if not parent), default=math.inf)
         first_effect = min((call["issued"] for call in s.effect_calls), default=math.inf)
@@ -505,7 +524,7 @@ MERGED_IN_ORDER = (
     "agent_returns",
     "init_session_ids",
 )
-MERGED_AS_SET = ("models", "main_models", "usage_models")
+MERGED_AS_SET = ("models", "main_models", "usage_models", "advertised_skills", "foreign_skills")
 MERGED_AS_SUM = ("duration_ms", "total_tokens", "output_tokens", "num_turns", "total_cost_usd")  # unknown if any is
 # The conversation's final result and session, and the runtime profile each invocation is checked on
 # before grading, come from the last invocation; so do the ordered effect calls, whose trace line
@@ -565,6 +584,8 @@ SUMMARY_FIELDS: Final = {
     "skills": "skills",
     "skills_failed": "skills_failed",
     "advertised_tools": "advertised_tools",
+    "advertised_skills": "advertised_skills",
+    "foreign_skills": "foreign_skills",
     "mcp_servers": "mcp_servers",
     "permission_mode": "permission_mode",
     "dispatches": "dispatches",

@@ -2,6 +2,7 @@ id: discovery-principal-engineer-platform-selection
 split: regression
 # The lane's second depth: a multi-year tool or platform selection, not a change inside a settled
 # direction. Read the trace for which agent fired before attributing a red.
+max_turns: 13
 prompt: |
   We need to decide how all our services run scheduled jobs for the next three years. The options
   on the table: keep each app's own timer loop, move everything onto the platform team's job

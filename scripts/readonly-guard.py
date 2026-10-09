@@ -338,7 +338,7 @@ def grafana_helper_allowed(command: str, powershell: bool = False) -> bool:
             # Windows PowerShell 5.1 strips embedded quotes at native argv transfer.
             # The fixed wrapper or already-encoded expression is portable across hosts.
             return False
-        if not arguments or arguments[0] not in {"dashboard", "query"}:
+        if not arguments or arguments[0] not in {"dashboard", "query", "search", "alerts", "annotations", "silences"}:
             return False
         helper = runpy.run_path(str(canonical), run_name="_grafana_read_guard")
         helper["parse_args"](arguments)
@@ -1088,6 +1088,10 @@ _CF_CREDENTIAL_SUBCOMMANDS = {
     "service-key": "`cf service-key` prints a service instance's live credentials",
     "sk": "`cf sk` is `cf service-key`, which prints live service credentials",
 }
+# The Grafana helper's per-user settings file holds its token. Matched on the raw line, because
+# POSIX lexing drops PowerShell's backslash separators; a search naming the path is the accepted
+# over-reach, and Read/Grep/Glob never reach this hook.
+_GRAFANA_SETTINGS = re.compile(r"\.config[\\/]+save-toolkit|save-toolkit[\\/]+grafana\.env", re.IGNORECASE)
 
 
 def _strip_substitution(token: str) -> str:
@@ -1180,6 +1184,8 @@ def credential_reason(command: str) -> "str | None":
     """The rule denying a credential-printing command, or None when nothing matched."""
     if not command.strip():
         return None
+    if _GRAFANA_SETTINGS.search(command):
+        return "the Grafana helper's settings file holds its token; only the helper reads it"
     # Bash joins a backslash-continued line before running it, so the scanner must too: `cf \`
     # newline `env checkout` reached the API while the first physical line failed to lex and the
     # second carried no `cf` (Codex review, PR #216). Collapsing can only widen what is seen; a

@@ -423,6 +423,17 @@ def _check_problems(spec: Spec, where: str, kind: str) -> list[str]:
                     "inconclusive_exit_code needs command_exit_zero and an integer from 1 to 255",
                 ),
                 (
+                    "failure_exit_code" in check
+                    and (
+                        check["check"] != "command_exit_zero"
+                        or type(check["failure_exit_code"]) is not int
+                        or not 1 <= check["failure_exit_code"] <= 255
+                        or check["failure_exit_code"] == check.get("inconclusive_exit_code")
+                    ),
+                    "failure_exit_code needs command_exit_zero, an integer from 1 to 255, "
+                    "and a value other than inconclusive_exit_code",
+                ),
+                (
                     check["check"] == "skill_loaded"
                     and "before_effects" in check
                     and not isinstance(check["before_effects"], bool),

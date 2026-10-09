@@ -14,7 +14,7 @@ with one narrow exception: an invoked `observability-engineer` may apply scoped 
 folder, and alert-rule writes and temporary silences under its
 [change-authority rule](agents/observability-engineer.md#change-authority).
 
-> **Pre-release (0.50.0).** Installs track `main` and may change without notice. The repository has
+> **Pre-release (0.51.0).** Installs track `main` and may change without notice. The repository has
 > no supported immutable release channel.
 
 ## Install (Claude Code)

@@ -257,6 +257,34 @@ class WorkspaceAndCheckTests(TempRootTestCase):
                 if expected == "INCONCLUSIVE":
                     self.assertIn("exit 3", result["inconclusive"])
 
+    def test_a_declared_failure_code_separates_a_failed_contract_from_a_crash(self) -> None:
+        """AC-24 (WP-02 gap 3): with `failure_exit_code` declared, only that code fails the candidate; any
+        other nonzero exit, such as 1 from the oracle's own uncaught exception, is an instrument failure."""
+        cases = ((0, "PASS", False), (10, "FAIL", False), (1, "INCONCLUSIVE", True), (3, "INCONCLUSIVE", False))
+        for exit_code, expected, machinery in cases:
+            with self.subTest(exit_code=exit_code):
+                check = {"check": "command_exit_zero", "text": "oracle verdict", "failure_exit_code": 10,
+                         "inconclusive_exit_code": 3,
+                         "command": f'"{sys.executable}" -c "raise SystemExit({exit_code})"'}
+                result = probe_assessment.grade(ws_context(tiny_spec(checks=[check]), self.ws))
+                self.assertEqual(expected, result["status"], result)
+                evidence = result["expectations"][0]["evidence"]
+                self.assertEqual(machinery, evidence.startswith("instrument:"), evidence)
+
+    def test_failure_exit_declaration_is_validated(self) -> None:
+        for extra in ({"failure_exit_code": 0}, {"failure_exit_code": 256}, {"failure_exit_code": True},
+                      {"failure_exit_code": 3, "inconclusive_exit_code": 3}):
+            with self.subTest(extra=extra):
+                check = {"check": "command_exit_zero", "command": "python probe.py", **extra}
+                problems = probe_catalog.validate_scenario(tiny_spec(checks=[check]))
+                self.assertTrue(any("failure_exit_code" in p for p in problems), problems)
+        wrong_check = {"check": "no_new_commits", "failure_exit_code": 10}
+        self.assertTrue(any("failure_exit_code" in p for p in
+                            probe_catalog.validate_scenario(tiny_spec(checks=[wrong_check]))))
+        fine = {"check": "command_exit_zero", "command": "python probe.py", "failure_exit_code": 10}
+        self.assertFalse([p for p in probe_catalog.validate_scenario(tiny_spec(checks=[fine]))
+                          if "exit_code" in p])
+
     def test_measurement_exit_declaration_is_validated(self) -> None:
         for value in (0, -1, 256, True, "3", [3]):
             with self.subTest(value=value):

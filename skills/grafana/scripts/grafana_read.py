@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Bounded Grafana reads with process-local authentication and safe JSON output.
 
-Python 3.11+, stdlib only. Trusted launcher supplies GRAFANA_URL, GRAFANA_ORG_ID and either
-GRAFANA_SA_TOKEN or GRAFANA_USERNAME/GRAFANA_PASSWORD; credential files are not read.
+Python 3.11+, stdlib only. The environment supplies GRAFANA_URL, GRAFANA_ORG_ID and either
+GRAFANA_SA_TOKEN or GRAFANA_USERNAME/GRAFANA_PASSWORD. When it sets none of them, the one
+per-user file ~/.config/save-toolkit/grafana.env (KEY=VALUE lines) supplies them; sources never mix.
 This masks known authentication values, not arbitrary sensitive telemetry, and does
 not isolate the surrounding agent's independent tools from the operating system.
 Masking can replace any returned value/type, including metadata; exit status is authoritative.
@@ -16,10 +17,12 @@ import math
 import os
 import re
 import ssl
+import stat
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 from urllib.error import HTTPError
 from urllib.parse import quote, quote_plus, urlsplit
 from urllib.request import HTTPRedirectHandler, HTTPSHandler, ProxyHandler, Request, build_opener
@@ -33,7 +36,12 @@ MAX_EXPRESSION = 16000
 MAX_EXPRESSION_BASE64 = 4 * math.ceil(4 * MAX_EXPRESSION / 3)
 MAX_DATA_POINTS = 1000
 MAX_LOG_LINES = 500
+LIST_LIMIT = 100
+ALERTS_PER_RULE = 20
 UID = re.compile(r"[A-Za-z0-9_-]{1,40}\Z")
+SEARCH_TEXT = re.compile(r"[A-Za-z0-9 _.:-]{1,100}\Z")
+SETTINGS = ("GRAFANA_URL", "GRAFANA_ORG_ID", "GRAFANA_SA_TOKEN", "GRAFANA_USERNAME", "GRAFANA_PASSWORD")
+MAX_SETTINGS_FILE = 4096
 TEMPLATE = re.compile(r"\$(?:[A-Za-z_]|\{)|\[\[[A-Za-z_][^\]]*\]\]")
 
 
@@ -60,16 +68,34 @@ def parse_args(argv):
     expression = query.add_mutually_exclusive_group(required=True)
     expression.add_argument("--expr")
     expression.add_argument("--expr-base64")
+    search = commands.add_parser("search", add_help=False, allow_abbrev=False)
+    search.add_argument("--query", required=True)
+    alerts = commands.add_parser("alerts", add_help=False, allow_abbrev=False)
+    alerts.add_argument("--folder-uid")
+    annotations = commands.add_parser("annotations", add_help=False, allow_abbrev=False)
+    annotations.add_argument("--from", dest="from_ms", type=int, required=True)
+    annotations.add_argument("--to", dest="to_ms", type=int, required=True)
+    annotations.add_argument("--dashboard-uid")
+    commands.add_parser("silences", add_help=False, allow_abbrev=False)
     args = parser.parse_args(argv)
-    expected = {"--uid"} if args.command == "dashboard" else {"--datasource", "--kind", "--from", "--to", "--expr"}
+    expected = {"dashboard": {"--uid"}, "query": {"--datasource", "--kind", "--from", "--to", "--expr"},
+                "search": {"--query"}, "alerts": set(), "annotations": {"--from", "--to"}, "silences": set()}[args.command]
     if args.command == "query" and args.expr_base64 is not None:
         expected.remove("--expr")
         expected.add("--expr-base64")
+    for flag, value in (("--folder-uid", getattr(args, "folder_uid", None)), ("--dashboard-uid", getattr(args, "dashboard_uid", None))):
+        if value is not None:
+            expected.add(flag)
     # Require separate, single-use named flags; no positional or --flag=value variants.
     if len(argv) != 1 + 2 * len(expected) or set(argv[1::2]) != expected:
         raise SafeError("invalid_arguments")
-    uid = args.uid if args.command == "dashboard" else args.datasource
-    if not UID.fullmatch(uid):
+    uids = [getattr(args, name, None) for name in ("uid", "datasource", "folder_uid", "dashboard_uid")]
+    if any(uid is not None and not UID.fullmatch(uid) for uid in uids):
+        raise SafeError("invalid_arguments")
+    if args.command == "search" and (not SEARCH_TEXT.fullmatch(args.query) or not args.query.strip()):
+        raise SafeError("invalid_arguments")
+    if args.command in ("query", "annotations") and (
+            not 0 <= args.from_ms < args.to_ms <= 253402300799999 or args.to_ms - args.from_ms > MAX_RANGE_MS):
         raise SafeError("invalid_arguments")
     if args.command == "query":
         if args.expr_base64 is not None:
@@ -83,13 +109,61 @@ def parse_args(argv):
                 args.expr = raw.decode("utf-8", errors="strict")
             except (ValueError, UnicodeError):
                 raise SafeError("invalid_arguments") from None
-        if not 0 <= args.from_ms < args.to_ms <= 253402300799999 or args.to_ms - args.from_ms > MAX_RANGE_MS:
-            raise SafeError("invalid_arguments")
         if not args.expr.strip() or len(args.expr) > MAX_EXPRESSION or TEMPLATE.search(args.expr):
             raise SafeError("unresolved_or_invalid_expression")
         if any(ord(char) < 32 for char in args.expr):
             raise SafeError("invalid_arguments")
     return args
+
+
+def _settings_file():
+    """The per-user file in the home directory, never a path relative to the workspace."""
+    try:
+        path = Path.home() / ".config" / "save-toolkit" / "grafana.env"
+    except RuntimeError:
+        return None
+    # A relative home would resolve the file inside whatever workspace the helper runs from.
+    return path if path.is_absolute() else None
+
+
+def _private(info, uid):
+    """POSIX: owned by this user, with no group or other permission bits."""
+    return info.st_uid == uid and not info.st_mode & 0o077
+
+
+def _settings(environ, path):
+    """The environment when it names any Grafana setting, even empty; otherwise the per-user file."""
+    if path is None or any(name in environ for name in SETTINGS):
+        return environ
+    try:
+        if os.name == "posix":
+            info = path.stat()
+            if not stat.S_ISREG(info.st_mode):
+                raise SafeError("invalid_settings_file")
+            if not _private(info, os.getuid()):
+                raise SafeError("insecure_settings_file")
+        raw = path.read_bytes()
+    except FileNotFoundError:
+        return environ
+    except OSError:
+        raise SafeError("invalid_settings_file") from None
+    try:
+        if len(raw) > MAX_SETTINGS_FILE:
+            raise ValueError()
+        settings = {}
+        for line in raw.decode("utf-8-sig").splitlines():
+            if not line.strip() or line.lstrip().startswith("#"):
+                continue
+            name, separator, value = line.partition("=")
+            name = name.strip()
+            if not separator or name not in SETTINGS or name in settings:
+                raise ValueError()
+            # Verbatim, as the environment would pass it: there is no quoting to restore stripped bytes.
+            settings[name] = value
+    except (ValueError, UnicodeError):
+        # Static error only: a malformed line can hold the token itself.
+        raise SafeError("invalid_settings_file") from None
+    return settings
 
 
 def _reject_constant(name):
@@ -106,8 +180,8 @@ class _Connection:
     authorization: str
     organization: int
 
-    def read(self, path, body=None):
-        """GET a fixed API path, or POST a JSON body to it; return its JSON object or raise SafeError."""
+    def read(self, path, body=None, expect=dict):
+        """GET a fixed API path, or POST a JSON body to it; return its JSON `expect` or raise SafeError."""
         headers = {"Accept": "application/json", "Authorization": self.authorization,
                    "X-Grafana-Org-Id": str(self.organization)}
         if body is not None:
@@ -130,9 +204,22 @@ class _Connection:
             result = json.loads(raw, parse_constant=_reject_constant)
         except (ValueError, UnicodeError, RecursionError):
             raise SafeError("invalid_response") from None
-        if not isinstance(result, dict):
+        if not isinstance(result, expect):
             raise SafeError("invalid_response")
         return result
+
+    def items(self, path):
+        """A list endpoint: every item is an object, and none names another organization."""
+        return _items(self.read(path, expect=list), self.organization)
+
+
+def _items(response, organization):
+    """List endpoints: every item is an object, and none names another organization."""
+    if not all(isinstance(item, dict) for item in response):
+        raise SafeError("invalid_response")
+    if any("orgId" in item and (type(item["orgId"]) is not int or item["orgId"] != organization) for item in response):
+        raise SafeError("organization_mismatch")
+    return response
 
 
 def _connect(environ, transport):
@@ -220,10 +307,10 @@ def http_transport(request):
         return status, b""
 
 
-def _dashboard(grafana, uid):
-    response = grafana.read("/api/dashboards/uid/" + uid)
+def _dashboard(grafana, args):
+    response = grafana.read("/api/dashboards/uid/" + args.uid)
     dashboard = response.get("dashboard")
-    if not isinstance(dashboard, dict) or dashboard.get("uid") != uid or not isinstance(response.get("meta"), dict):
+    if not isinstance(dashboard, dict) or dashboard.get("uid") != args.uid or not isinstance(response.get("meta"), dict):
         raise SafeError("invalid_dashboard_response")
     return {"ok": True, "operation": "dashboard", "dashboard": dashboard, "meta": response["meta"],
             "coverage": "configuration_only"}
@@ -261,12 +348,50 @@ def _query(grafana, args):
             "coverage": "not_established", "limits": limits}
 
 
+def _search(grafana, args):
+    items = grafana.items("/api/search?type=dash-db&limit=" + str(LIST_LIMIT) + "&query=" + quote(args.query, safe=""))
+    return {"ok": True, "operation": "search", "query": args.query, "items": items,
+            "truncated": len(items) >= LIST_LIMIT, "coverage": "permission_scoped", "limits": {"limit": LIST_LIMIT}}
+
+
+def _alerts(grafana, args):
+    path = "/api/prometheus/grafana/api/v1/rules?group_limit=" + str(LIST_LIMIT) + "&limit_alerts=" + str(ALERTS_PER_RULE)
+    response = grafana.read(path + ("&folder_uid=" + args.folder_uid if args.folder_uid else ""))
+    data = response.get("data")
+    if response.get("status") != "success" or not isinstance(data, dict) or not isinstance(data.get("groups"), list):
+        raise SafeError("query_failed")
+    groups = _items(data["groups"], grafana.organization)
+    # Grafana answers an inaccessible or unknown folder_uid with every visible folder.
+    if args.folder_uid and any(group.get("folderUid") != args.folder_uid for group in groups):
+        raise SafeError("folder_mismatch")
+    return {"ok": True, "operation": "alerts", "folder_uid": args.folder_uid, "groups": groups,
+            "totals": data.get("totals"), "truncated": bool(data.get("groupNextToken")),
+            "coverage": "permission_scoped", "limits": {"group_limit": LIST_LIMIT, "limit_alerts": ALERTS_PER_RULE}}
+
+
+def _annotations(grafana, args):
+    path = "/api/annotations?from=" + str(args.from_ms) + "&to=" + str(args.to_ms) + "&limit=" + str(LIST_LIMIT)
+    items = grafana.items(path + ("&dashboardUID=" + args.dashboard_uid if args.dashboard_uid else ""))
+    return {"ok": True, "operation": "annotations", "from": str(args.from_ms), "to": str(args.to_ms),
+            "dashboard_uid": args.dashboard_uid, "items": items, "truncated": len(items) >= LIST_LIMIT,
+            "coverage": "permission_scoped", "limits": {"limit": LIST_LIMIT}}
+
+
+def _silences(grafana, args):
+    return {"ok": True, "operation": "silences", "silences": grafana.items("/api/alertmanager/grafana/api/v2/silences"),
+            "coverage": "permission_scoped"}
+
+
+_OPERATIONS = {"dashboard": _dashboard, "query": _query, "search": _search, "alerts": _alerts,
+               "annotations": _annotations, "silences": _silences}
+
+
 def run(args, environ, transport):
-    grafana, secrets = _connect(environ, transport)
+    grafana, secrets = _connect(_settings(environ, _settings_file()), transport)
     current_org = grafana.read("/api/org")
     if type(current_org.get("id")) is not int or current_org["id"] != grafana.organization:
         raise SafeError("organization_mismatch")
-    result = _dashboard(grafana, args.uid) if args.command == "dashboard" else _query(grafana, args)
+    result = _OPERATIONS[args.command](grafana, args)
     result.update({"grafana_url": grafana.base, "organization_id": grafana.organization,
                    "retrieved_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")})
     return _mask(result, secrets)

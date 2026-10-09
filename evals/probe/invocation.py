@@ -24,6 +24,9 @@ from .tracing import TraceSummary
 # A native conversation's spend guard, per invocation: the CLI stops there, and a trace that reports
 # more allows no follow-up.
 NATIVE_SPEND_CAP_USD = 0.75
+# Account skills synced from claude.ai download in the background at session start and reached 7 of 8
+# unisolated probe sessions; this setting kept them out of 16 of 16 (WP-02 gap 1).
+ISOLATION_SETTINGS = json.dumps({"syncClaudeAiSkills": False})
 
 
 def build_command(
@@ -56,6 +59,8 @@ def build_command(
         "--mcp-config",
         '{"mcpServers":{}}',
         "--strict-mcp-config",
+        "--settings",
+        ISOLATION_SETTINGS,
         "--tools",
         ",".join(tools),
         "--disallowedTools",
@@ -271,6 +276,18 @@ def reached_turn_limit(trace: TraceSummary, spec: Mapping[str, Any]) -> bool:
     return trace.result_subtype == "error_max_turns" and bool(spec.get("max_turns"))
 
 
+def turns_left(spec: Mapping[str, Any], traces: Sequence[TraceSummary]) -> int | None:
+    """What remains of the scenario's turn limit after `traces`, a conversation's earlier invocations:
+    `--max-turns` bounds one invocation, so a resumed one gets only the rest. None without a declared
+    limit; zero or less once the conversation has spent it."""
+    limit: int | None = spec.get("max_turns")
+    if not limit:
+        return None
+    if any(reached_turn_limit(trace, spec) for trace in traces):
+        return 0
+    return limit - sum(trace.num_turns or 0 for trace in traces)
+
+
 def turn_reason(
     current: TraceSummary,
     returncode: int | None,
@@ -316,6 +333,8 @@ def identity_problem(trace: TraceSummary, spec: Mapping[str, Any], plugin_root: 
     requested = catalog.scenario_tools(spec)
     expected = expected_runtime_tools(plugin_root, spec["agent"], requested) if spec.get("agent") else requested
     problem = runtime_boundary_problem(trace, expected) or plugin_identity_problem(trace, plugin_root)
+    if not problem and trace.foreign_skills:  # outside the measured plugin: the profile is not the one declared
+        problem = f"skills advertised outside the measured plugin: {trace.foreign_skills[:5]}"
     if not problem and not any(trace.models):  # a result whose model is unknown is never pooled
         problem = "resolved model identity missing"
     return problem
@@ -378,6 +397,8 @@ def invocation_problem(
         if cost > NATIVE_SPEND_CAP_USD:
             # The spend guard is an instrument limit: reaching it cuts the conversation short.
             return CutShort(f"native cost exceeds ${NATIVE_SPEND_CAP_USD}; no further invocation", Stop.SPEND_GUARD)
+        if spec.get("max_turns") and type(trace.num_turns) is not int:
+            return "native turn count missing; the turn limit cannot carry to a further invocation"
     return None
 
 

@@ -125,6 +125,18 @@ class OperatorCliOracleTests(unittest.TestCase):
     def test_seed_fails_at_the_dry_run(self):
         self.assert_rejected(seed(), "dry run: exit 2")
 
+    def test_a_contract_failure_has_its_own_exit_code_and_a_crash_does_not(self):
+        """AC-24 (WP-02 gap 3): a failed contract exits with the scenario's declared failure code, while the
+        oracle's own crash exits 1 as any uncaught exception does, so the two cannot be confused."""
+        declared = next(c for c in scenario_file(SCENARIO)["checks"]
+                        if c.get("writes_from", {}).get("_operator_oracle.py"))["failure_exit_code"]
+        failed = self.run_oracle(seed())
+        self.assertEqual(declared, failed.returncode, failed.stderr)
+        self.assertIn("contract failed", failed.stderr)
+        with tempfile.TemporaryDirectory() as tmp:
+            crashed = run_python(["-B", str(ORACLE), str(Path(tmp) / "missing" / "x.py")], isolated=True, timeout=180)
+        self.assertNotIn(crashed.returncode, (0, declared), crashed.stderr)
+
     def test_single_rule_breaks_fail_with_their_own_diagnostic(self):
         mutants = [
             ("no SIGTERM handler", CORRECT.replace("    signal.signal(signal.SIGTERM, _stop)\n", ""),

@@ -105,6 +105,26 @@ class TraceAndCommandTests(unittest.TestCase):
         s = parse_events([{"type": "system", "subtype": "init", "plugins": [candidate, builtin, other]}])
         self.assertIn("exactly one", probe_invocation.plugin_identity_problem(s, ROOT))
 
+    def test_the_trace_records_every_advertised_skill_and_flags_foreign_namespaces(self) -> None:
+        """WP-02 gap 1: account skills (`anthropic-skills:*`) reached 5 of 18 trials, at init or in a later
+        `commands_changed`, and nothing recorded them. Names outside every loaded plugin's namespace are
+        foreign; unprefixed names are the CLI's own."""
+        plugins = [{"name": "save-toolkit", "source": "save-toolkit@inline"},
+                   {"name": "telemetry", "source": "telemetry@builtin"}]
+        trace = parse_events([
+            {"type": "system", "subtype": "init", "plugins": plugins,
+             "skills": ["deep-research", "save-toolkit:adr", "telemetry:report"]},
+            {"type": "system", "subtype": "commands_changed", "commands": [
+                {"name": "save-toolkit:adr", "builtin": False},
+                {"name": "anthropic-skills:docx", "builtin": False}, {"name": "help", "builtin": True}]},
+        ])
+        self.assertEqual(["anthropic-skills:docx", "deep-research", "help", "save-toolkit:adr", "telemetry:report"],
+                         trace.advertised_skills)
+        self.assertEqual(["anthropic-skills:docx"], trace.foreign_skills)
+        clean = parse_events([{"type": "system", "subtype": "init", "plugins": plugins,
+                               "skills": ["deep-research", "save-toolkit:adr"]}])
+        self.assertEqual([], clean.foreign_skills)
+
     def _skill_check(self, summary, name: str, params: dict, fn):
         with tempfile.TemporaryDirectory() as tmp:
             ws = probe_workspaces.seed_workspace(tiny_spec(), Path(tmp) / name)
@@ -545,6 +565,29 @@ class MainSessionCommandTests(unittest.TestCase):
         denied = command[command.index("--disallowedTools") + 1].split(",")
         self.assertIn("Bash", denied)
         self.assertIn("Write", denied)
+
+    def test_every_trial_turns_off_account_skill_sync(self) -> None:
+        """WP-02 gap 1: account skills download in the background and reached 7 of 8 unisolated probe
+        sessions; `syncClaudeAiSkills: false` kept them out of 16 of 16."""
+        for kwargs in ({}, {"persistent": True}, {"pre_approve": True}):
+            for agent in (None, "save-toolkit:software-engineer"):
+                with self.subTest(agent=agent, **kwargs):
+                    command = probe_invocation.build_command("claude", ROOT, agent, "p", "sonnet",
+                                                             probe_constants.BUILD_TOOLS, **kwargs)
+                    self.assertEqual(1, command.count("--settings"))
+                    self.assertEqual({"syncClaudeAiSkills": False},
+                                     json.loads(command[command.index("--settings") + 1]))
+
+    def test_a_foreign_skill_fails_the_identity_check(self) -> None:
+        spec = {"id": "r", "prompt": "p", "target": {"kind": "skill", "name": "x"}, "routing": {"expect": "fire"}}
+        plugin = {"name": "save-toolkit", "path": str(ROOT.resolve()), "source": "save-toolkit@inline"}
+        def trace(skills):
+            return parse_events([{
+                "type": "system", "subtype": "init", "tools": ["Skill", "Task"], "plugins": [plugin],
+                "model": "m", "skills": skills}, {"type": "assistant", "message": {"model": "m", "content": []}}])
+        self.assertIsNone(probe_invocation.identity_problem(trace(["save-toolkit:adr", "deep-research"]), spec, ROOT))
+        problem = probe_invocation.identity_problem(trace(["save-toolkit:adr", "anthropic-skills:docx"]), spec, ROOT)
+        self.assertIn("anthropic-skills:docx", problem or "")
 
     def test_a_scenario_may_widen_its_own_tool_grant(self) -> None:
         spec = {"id": "r", "prompt": "p", "tools": ["Skill", "Task", "Read"]}

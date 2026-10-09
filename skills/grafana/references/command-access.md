@@ -40,14 +40,20 @@ The generated Copilot copy is accepted only while its bytes match the canonical 
 An interpreter outside these forms is not implicitly granted. PATH and installation integrity remain
 host responsibilities; this is not general permission to run Python.
 
-The human-controlled launcher supplies `GRAFANA_URL` (trusted HTTPS origin plus optional subpath),
+The human supplies `GRAFANA_URL` (trusted HTTPS origin plus optional subpath),
 `GRAFANA_ORG_ID` (the expected positive organization ID), and either `GRAFANA_SA_TOKEN` or both
-`GRAFANA_USERNAME` and `GRAFANA_PASSWORD`. The helper prefers
+`GRAFANA_USERNAME` and `GRAFANA_PASSWORD`, through the process environment or the per-user file
+`~/.config/save-toolkit/grafana.env` (one `NAME=value` per line, `#` comments). The helper reads that
+file only when the environment names none of these settings, even as an empty value, so the sources
+never mix. Values are used verbatim: no quotes, and no spaces around `=`. On macOS and Linux the file
+must be a regular file you own with mode 600 (`chmod 600 ~/.config/save-toolkit/grafana.env`), or
+the helper fails as `insecure_settings_file`; a malformed file fails as `invalid_settings_file`
+without echoing it. The helper prefers
 the token if both methods are present. Basic authentication works only where the instance supports
 it; browser SSO does not populate API credentials. Use existing SSO through the browser when
 available; do not extract its cookies. No values belong in prompts, argv, tracked files, or logs.
-Credentials may come from the human's secret manager/launcher; this helper does not read arbitrary
-credential files or install a credential store. Do not ask the model to configure secret values.
+The helper reads no other credential file and installs no credential store. Never read, print, or
+edit the settings file, and do not ask the model to configure secret values; the human writes it.
 
 Use a read-only identity scoped to the intended organization, dashboards and datasources. The
 helper cannot grant access. It sends `X-Grafana-Org-Id` on every request and verifies `/api/org`
@@ -58,7 +64,8 @@ returns static errors instead of server error bodies, headers or exception trace
 its result boundary, not all host processes, files or other tools; retain the host's credential
 protections and do not claim OS isolation. Private telemetry remains private evidence.
 
-Substitute the actual installed path and discovered UIDs. The dashboard form works in both shells.
+Substitute the actual installed path and discovered UIDs. Every form except a raw `--expr` query
+works in both shells.
 The raw `--expr` query examples below are for **Claude Code's Bash tool**. PowerShell uses the
 wrapper below; Copilot's command preview uses the encoded form in its dedicated section.
 
@@ -66,6 +73,10 @@ wrapper below; Copilot's command preview uses the encoded form in its dedicated 
 python -I -S "<absolute-installed-path>/grafana_read.py" dashboard --uid dashboard-uid
 python -I -S "<absolute-installed-path>/grafana_read.py" query --datasource metrics-uid --kind prometheus --from 1758400000000 --to 1758403600000 --expr 'up'
 python -I -S "<absolute-installed-path>/grafana_read.py" query --datasource logs-uid --kind loki --from 1758400000000 --to 1758403600000 --expr '{service="example"} |= "error"'
+python -I -S "<absolute-installed-path>/grafana_read.py" search --query 'checkout latency'
+python -I -S "<absolute-installed-path>/grafana_read.py" alerts --folder-uid folder-uid
+python -I -S "<absolute-installed-path>/grafana_read.py" annotations --from 1758400000000 --to 1758403600000 --dashboard-uid dashboard-uid
+python -I -S "<absolute-installed-path>/grafana_read.py" silences
 ```
 
 For **Windows PowerShell 5.1 or PowerShell 7**, call the installed wrapper as a script. It accepts
@@ -88,6 +99,15 @@ for Prometheus or Loki. Query POST is a read operation here, not a general HTTP-
 There are no deployment, dashboard/alert write, arbitrary proxy or SQL operations. Redirects,
 ambient proxies and TLS bypass are disabled. Limits: 24-hour window, 1,000 requested points,
 500 Loki lines, 2 MiB response and a 20-second network timeout. Retain the host tool's wall timeout.
+
+`search` lists up to 100 dashboards matching a title text of letters, digits, spaces and `_.:-`.
+`alerts` returns Grafana-managed rule groups with each rule's state, health and last error, up to
+100 groups and 20 instances per rule; `--folder-uid` fails with `folder_mismatch` rather than accept
+Grafana's all-folders answer for a folder the identity cannot see. `annotations` returns up to 100
+annotations in a window of at most 24 hours, optionally for one dashboard. `silences` returns the
+Grafana Alertmanager's silences with their state. These report `coverage: permission_scoped` and,
+where bounded, `truncated`: an absent result means this identity saw none within the limits, not
+that none exists.
 
 Resolve variables and macros from actual dashboard selections before querying; the helper rejects
 unresolved variables rather than guessing substitutions. It does not execute Grafana expressions,
@@ -142,7 +162,8 @@ credentials from file/shell access, process arguments, or returned errors. For `
 execute an authenticated read only when the host/helper keeps authentication identity and secrets
 out of model-visible inputs/results and enforces the selected operation. Otherwise return the
 missing protected path and work from available supplied evidence. Personal credentials may be used
-internally by a protected helper; do not retrieve them from gitignored files or ask for them in chat.
+internally by a protected helper; do not retrieve them from the helper's settings file or other
+credential files, or ask for them in chat.
 
 The human establishes `GRAFANA_URL` (trusted HTTPS origin/base path, no query or fragment) and
 `GRAFANA_SA_TOKEN` in the process environment. Never print either credential value, embed a literal
