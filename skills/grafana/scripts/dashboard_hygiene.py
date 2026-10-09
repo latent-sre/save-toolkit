@@ -288,12 +288,12 @@ def main(argv: list[str] | None = None) -> int:
             print("no `panels` key: this does not look like a Classic/V1 dashboard model", file=sys.stderr)
             return 2
         validate_shape(spec, root_path)
-    except InputShapeError as exc:
+        violations = check(spec)
+        panel_count = sum(1 for _ in iter_panels(spec))
+    except (InputShapeError, RecursionError) as exc:  # rows nested past the recursion limit overflow the walk
         print(f"cannot check {args.path}: {exc}", file=sys.stderr)
         return 2
 
-    violations = check(spec)
-    panel_count = sum(1 for _ in iter_panels(spec))
     if not args.quiet:
         for rule, where, detail in violations:
             print(f"{rule}: {where}\n    {detail}")

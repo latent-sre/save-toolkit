@@ -371,6 +371,19 @@ class ExitCodeTest(unittest.TestCase):
         self.assertIn("cannot check", result.stderr)
         self.assertNotIn("Traceback", result.stderr)
 
+    def test_rows_nested_too_deep_to_walk_exit_two_not_one(self) -> None:
+        # A decoder that accepts deep JSON leaves the row walk to overflow instead; same contract.
+        rows = 5_000
+        text = ('{"tags":["t"],"panels":[' + '{"type":"row","panels":[' * rows
+                + '{"type":"timeseries","title":"t"}' + "]}" * rows + "]}")
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "d.json"
+            path.write_text(text, encoding="utf-8")
+            result = self._process(path)
+        self.assertEqual(2, result.returncode, result.stderr)
+        self.assertIn("cannot check", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+
     def test_a_title_the_output_encoding_cannot_represent_still_reports(self) -> None:
         # Captured output may default to a legacy code page; `-I` would ignore PYTHONIOENCODING.
         model = clean_model()
