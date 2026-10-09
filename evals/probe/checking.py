@@ -1216,7 +1216,8 @@ def check_verification_completed(ctx: Context, p: Params) -> Outcome:
         return verdict(False, "no final standalone foreground test invocation")
     if call["reported_error"]:
         return verdict(False, "the matched test tool result reported an error")
-    if not call["success"]:
+    completed = call["completed"]  # the line of its matched result: never None once `success` holds
+    if not call["success"] or completed is None:
         return unmeasured("test completion metadata is missing, interrupted, backgrounded, or unsupported")
     if any(prior["completed"] is None or prior["completed"] >= call["issued"] for prior in calls[:-1]):
         return unmeasured("an earlier potentially mutating action has missing or overlapping completion evidence")
@@ -1226,9 +1227,7 @@ def check_verification_completed(ctx: Context, p: Params) -> Outcome:
         if failure:
             return verdict(False, failure)
         return unmeasured("matched shell result has no supported nonzero passing test summary")
-    return verdict(
-        True, f"{call['tool']} {call['id']} at trace lines {call['issued'] + 1}/{call['completed'] + 1}: {summary}"
-    )
+    return verdict(True, f"{call['tool']} {call['id']} at trace lines {call['issued'] + 1}/{completed + 1}: {summary}")
 
 
 @declare("bash_did_not_run", Polarity.FORBIDS, needs={Need.TRACE}, required=("pattern",))

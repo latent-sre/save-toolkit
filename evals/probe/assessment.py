@@ -154,7 +154,9 @@ def _trace_expectations(
             )
         )
     reference_trace = (
-        replace(trace, read_attempts=trace.parent_reads_before_dispatch) if spec.get("followups") else trace
+        replace(trace, read_attempts=list[tracing.ReadAttempt](trace.parent_reads_before_dispatch))
+        if spec.get("followups")
+        else trace
     )
     for reference in spec.get("references") or []:
         scope = " by initial parent before helper dispatch" if spec.get("followups") else ""

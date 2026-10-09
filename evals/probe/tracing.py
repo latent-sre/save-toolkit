@@ -14,9 +14,55 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any, Final
+from typing import Any, Final, NotRequired, TypedDict
 
 from .constants import DISPATCH_TOOLS, READ_TOOLS, SHELL_TOOLS, WRITING_TOOLS
+
+
+class EffectCall(TypedDict):
+    """One potentially mutating call (an edit, a shell command or a dispatch), in trace order; `_complete`
+    adds its completion evidence once the whole trace is read."""
+
+    id: str
+    tool: str
+    command: str
+    issued: int  # the trace line, counted from 0
+    parent: Any  # the dispatch it ran inside, or None on the main thread
+    background: bool
+    completed: NotRequired[int | None]  # the line of its matched result, or None when unknown
+    reported_error: NotRequired[bool]
+    success: NotRequired[bool]
+    test_summaries: NotRequired[dict[str, str]]  # a shell call's passing summary per test runner
+    test_failures: NotRequired[dict[str, str]]
+
+
+class ReadAttempt(TypedDict):
+    tool: str
+    path: str | None
+    outcome: str  # "allowed" or "denied"
+
+
+class ParentRead(ReadAttempt):
+    """A read the parent completed before its first dispatch, with where it sat in the trace."""
+
+    caller: str
+    tool_use_id: str
+    issued_line: int
+    completed_line: int
+
+
+class DenialDetail(TypedDict):
+    tool: str
+    id: str
+    command: str
+    reason: str  # the matching error tool result
+
+
+class AgentReturn(TypedDict):
+    agent: str
+    tool_use_id: str
+    completed: bool
+    continued: bool  # the dispatching thread spoke again after the return
 
 
 @dataclass
@@ -30,7 +76,7 @@ class TraceSummary:
     # The subset of bash_commands issued inside a dispatched subagent; `scope: subagent` grades only these.
     subagent_bash_commands: list[str] = field(default_factory=list)
     # Ordered potentially mutating calls, with matched completion evidence. Not filesystem attestation.
-    effect_calls: list[dict[str, Any]] = field(default_factory=list)
+    effect_calls: list[EffectCall] = field(default_factory=list)
     dispatches: list[str] = field(default_factory=list)
     # Task/Agent calls that returned a non-error tool_result. `dispatches` records every attempt
     # (the no-dispatch checks grade attempts); routing credits only a completed invocation.
@@ -38,7 +84,7 @@ class TraceSummary:
     agents_failed: list[str] = field(default_factory=list)
     runtime_plugins: list[Any] = field(default_factory=list)
     # {tool, path, outcome} per Read/Grep/Glob call, for the read-path boundary check.
-    read_attempts: list[dict[str, Any]] = field(default_factory=list)
+    read_attempts: list[ReadAttempt] = field(default_factory=list)
     tool_counts: dict[str, int] = field(default_factory=dict)
     denials: list[str] = field(default_factory=list)
     duration_ms: int = 0
@@ -54,9 +100,7 @@ class TraceSummary:
     result_is_error: bool = False
     result_subtype: str = ""
     tool_errors: list[str] = field(default_factory=list)  # is_error tool results, e.g. guard denials
-    denial_details: list[dict[str, Any]] = field(
-        default_factory=list
-    )  # {tool, id, command, reason} per permission denial
+    denial_details: list[DenialDetail] = field(default_factory=list)  # one per permission denial
     # tool_use ids issued inside a dispatched subagent (the event carried parent_tool_use_id).
     subagent_tool_ids: list[str] = field(default_factory=list)
     saw_init: bool = False
@@ -67,9 +111,9 @@ class TraceSummary:
     init_session_ids: list[str] = field(default_factory=list)
     main_skills: list[str] = field(default_factory=list)
     main_skills_before_effects: list[str] = field(default_factory=list)
-    agent_returns: list[dict[str, Any]] = field(default_factory=list)
+    agent_returns: list[AgentReturn] = field(default_factory=list)
     conversation_sessions: list[str] = field(default_factory=list)
-    parent_reads_before_dispatch: list[dict[str, Any]] = field(default_factory=list)
+    parent_reads_before_dispatch: list[ParentRead] = field(default_factory=list)
     parent_skills_before_dispatch: list[str] = field(default_factory=list)
     main_models: list[str] = field(default_factory=list)
 
@@ -345,7 +389,7 @@ class _Reader:
             s.models = resolved
         return s
 
-    def _complete(self, call: dict[str, Any]) -> None:
+    def _complete(self, call: EffectCall) -> None:
         """Attach completion evidence to one potentially mutating call."""
         use_id = call["id"]
         returned = self.result_positions.get(use_id)
