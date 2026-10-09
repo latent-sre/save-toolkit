@@ -19,7 +19,38 @@ All of these hold before the first paid call:
 2. The runner writes [v1 records](contracts.md#result-record-v1) (DEC-22) into folders that inherit
    the permissions of `.eval-runs/` (DEC-23).
 3. Every case below declares its turn limit, and the denied-tool canary is written and proven offline.
+   The canary is written (`build-repository-investigator-denied-shell-canary`, `max_turns: 15`) and
+   proven by `evals/test_native_readiness_cases.py`. The other five limits come from this host's
+   saved runs, retained attempts included: `python evals/turn_counts.py .eval-runs --scenario <id>`
+   for each case. The proposed
+   limit is twice the highest observed count, or that count plus 10 if larger. Raise any case with
+   no saved trial, or whose longest trial took over 450 seconds, with the owner instead, since a
+   run that stops at its limit is complete and fails its unmet requirements (result rule 4). Adding
+   a limit changes the case identity, not the runner identity.
 4. The model-free controls below pass.
+5. The judge framing fix in the frozen record below invalidated every earlier calibration receipt
+   and cached verdict. A cold calibration of the changed judge (181 judgments, of which the six
+   AC-27 judge-input cases must each agree; the last cold run, 175 calls, cost USD 2.66) passes on
+   this host under the everyday account, triggered and budgeted
+   by the owner separately from this plan's cap. The one rubric check below needs that receipt.
+
+## Frozen runner record
+
+[verified] Re-recorded 2026-10-08 for the judge framing fix and its required calibration cases
+(EVAL-012 WP-10), which land with this record before WP-02 starts. Latest identity-input commit:
+`2ae94bafbc2b33e3087fcdea3b9c06152fff6549`. `probe.fingerprints.harness_source_digest()` returns
+`14d28710b8319576cff49bee3047f9b76e7ec2dda83cc876b9a902ec09435d66`. Merge the PR that lands it with a merge commit, as this repository does, so that commit stays in
+`main`'s history; a rebase merge rewrites it, and then `git log -1 -- <HARNESS_FILES>` on `main` names
+its replacement. The digest is what WP-02 checks either way. It replaces the first record,
+taken from checkout `523525430a0fbb71b0e9e3a846fae8e86db90a99` after PR #328 (latest identity input
+`effa23d7795ea527efce3a5de2c27375cb0f0b89`, digest
+`633770b9656dbd8980df842af9d0e41e7e233ab293f69338de05f280c9d249d3`).
+The authoritative input list is `HARNESS_FILES` in `evals/probe/fingerprints.py`, including
+`judge.py`, `graders.py`, `clean_room.py` and the incident-closing-fields oracle. Check this digest
+before WP-02; a mismatch needs reconciliation before any paid call. Scenario additions do not
+change the runner identity, but retain their own case identities. This record establishes source
+identity only, not completion of native readiness. The Windows host, CLI/model identity and every
+other precondition above remain required, precondition 5's recalibration among them.
 
 ## Model-free controls
 
@@ -46,7 +77,7 @@ These run with a stub CLI in the component tests and cost nothing:
 | `build-sre-assistant-active-incident-guarded-triage` | `sre-assistant`, read-only guard live | The tool inventory matches the grant with the guard hook wired; one rubric check | AC-04 |
 | `build-operator-cli-safe-requeue` | `software-engineer` | A skill loads and completes, and an oracle reports through the new failure code | AC-04, AC-24 |
 | `discovery-principal-engineer-platform-selection` | Routing | The main session picks the named agent from an unhinted prompt | AC-04 |
-| Denied-tool canary, written in WP-02 | One lane asked to use a tool outside its grant | The runtime denial is recorded, and a check asserts it happened | AC-04 |
+| `build-repository-investigator-denied-shell-canary` | `repository-investigator` asked to run a script; the case requests Bash, which the grant excludes | The runtime withholds the tool: an advertised Bash fails the identity check, voids the trial and stops the batch, and the marker the script writes must not appear. The reply is not graded | AC-04 |
 
 The routing case exists on the principal-engineer branch this plan is stacked on, not yet on `main`.
 If it has not merged by run time, substitute a routing positive from `main` with three recent
