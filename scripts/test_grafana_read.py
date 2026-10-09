@@ -60,7 +60,9 @@ def no_settings_file(monkeypatch, tmp_path):
 def use_settings(monkeypatch, tmp_path, content):
     path = tmp_path / "grafana.env"
     path.write_bytes(content if isinstance(content, bytes) else content.encode())
+    path.chmod(0o600)
     monkeypatch.setattr(reader, "_settings_file", lambda: path)
+    return path
 
 
 @pytest.mark.parametrize("org", [None, "", "0", "-1", "+7", "07", "7.0", "7 ", " 7", "７", "9223372036854775808", "7\r\nInjected: bad"])
@@ -302,11 +304,42 @@ def test_settings_file_supplies_credentials_when_environment_has_none(monkeypatc
     assert transport.requests[0].get_header("Authorization") == "Bearer file-secret-token"
 
 
-def test_any_environment_value_disables_the_settings_file(monkeypatch, tmp_path):
+@pytest.mark.parametrize("env", [{"GRAFANA_URL": ENV["GRAFANA_URL"], "GRAFANA_ORG_ID": "7"}, {"GRAFANA_SA_TOKEN": ""}],
+                         ids=["partial", "empty_override"])
+def test_any_environment_setting_even_empty_disables_the_settings_file(monkeypatch, tmp_path, env):
     use_settings(monkeypatch, tmp_path, SETTINGS_TEXT)
     transport = Transport()
-    code, result, _ = invoke(["dashboard", "--uid", "board"], transport, {"GRAFANA_URL": ENV["GRAFANA_URL"], "GRAFANA_ORG_ID": "7"})
-    assert code == 2 and result["error"] == "authentication_unavailable" and not transport.requests
+    code, result, _ = invoke(["dashboard", "--uid", "board"], transport, env)
+    assert code == 2 and not result["ok"] and not transport.requests
+
+
+def test_relative_home_never_selects_a_workspace_settings_file(monkeypatch):
+    monkeypatch.setenv("HOME", "relative-home")
+    monkeypatch.setenv("USERPROFILE", "relative-home")
+    assert REAL_SETTINGS_FILE() is None
+
+
+@pytest.mark.parametrize("mode,owner,private", [(0o100600, 1000, True), (0o100400, 1000, True), (0o100644, 1000, False),
+                                                (0o100640, 1000, False), (0o100606, 1000, False), (0o100600, 0, False)])
+def test_posix_settings_file_must_be_owner_only(mode, owner, private):
+    info = os.stat_result((mode, 0, 0, 1, owner, 0, 0, 0, 0, 0))
+    assert reader._private(info, 1000) is private
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX permission bits")
+def test_group_or_world_readable_settings_file_is_refused(monkeypatch, tmp_path):
+    use_settings(monkeypatch, tmp_path, SETTINGS_TEXT).chmod(0o644)
+    transport = Transport()
+    code, result, _ = invoke(["dashboard", "--uid", "board"], transport, {})
+    assert code == 2 and result["error"] == "insecure_settings_file" and not transport.requests
+
+
+def test_settings_values_are_used_verbatim(monkeypatch, tmp_path):
+    use_settings(monkeypatch, tmp_path, "GRAFANA_URL=https://monitor.example/grafana\nGRAFANA_ORG_ID=7\n"
+                 "GRAFANA_USERNAME=person\nGRAFANA_PASSWORD= spaced pass \n")
+    transport = Transport((200, {"dashboard": {"uid": "board"}, "meta": {}}))
+    assert invoke(["dashboard", "--uid", "board"], transport, {})[0] == 0
+    assert transport.requests[0].get_header("Authorization") == "Basic " + base64.b64encode(b"person: spaced pass ").decode()
 
 
 @pytest.mark.parametrize("content", [

@@ -44,8 +44,11 @@ The human supplies `GRAFANA_URL` (trusted HTTPS origin plus optional subpath),
 `GRAFANA_ORG_ID` (the expected positive organization ID), and either `GRAFANA_SA_TOKEN` or both
 `GRAFANA_USERNAME` and `GRAFANA_PASSWORD`, through the process environment or the per-user file
 `~/.config/save-toolkit/grafana.env` (one `NAME=value` per line, `#` comments). The helper reads that
-file only when the environment sets none of these names, so the sources never mix; a malformed file
-fails as `invalid_settings_file` without echoing it. The helper prefers
+file only when the environment names none of these settings, even as an empty value, so the sources
+never mix. Values are used verbatim: no quotes, and no spaces around `=`. On macOS and Linux the file
+must be a regular file you own with mode 600 (`chmod 600 ~/.config/save-toolkit/grafana.env`), or
+the helper fails as `insecure_settings_file`; a malformed file fails as `invalid_settings_file`
+without echoing it. The helper prefers
 the token if both methods are present. Basic authentication works only where the instance supports
 it; browser SSO does not populate API credentials. Use existing SSO through the browser when
 available; do not extract its cookies. No values belong in prompts, argv, tracked files, or logs.

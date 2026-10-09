@@ -20,6 +20,7 @@ import os
 from pathlib import Path
 import re
 import ssl
+import stat
 import sys
 from urllib.error import HTTPError
 from urllib.parse import quote, quote_plus, urlsplit
@@ -111,16 +112,29 @@ def parse_args(argv):
 def _settings_file():
     """The per-user file in the home directory, never a path relative to the workspace."""
     try:
-        return Path.home() / ".config" / "save-toolkit" / "grafana.env"
+        path = Path.home() / ".config" / "save-toolkit" / "grafana.env"
     except RuntimeError:
         return None
+    # A relative home would resolve the file inside whatever workspace the helper runs from.
+    return path if path.is_absolute() else None
+
+
+def _private(info, uid):
+    """POSIX: owned by this user, with no group or other permission bits."""
+    return info.st_uid == uid and not info.st_mode & 0o077
 
 
 def _settings(environ, path):
-    """The environment when it sets any Grafana value, otherwise the per-user file; never a mix."""
-    if path is None or any(environ.get(name) for name in SETTINGS):
+    """The environment when it names any Grafana setting, even empty; otherwise the per-user file."""
+    if path is None or any(name in environ for name in SETTINGS):
         return environ
     try:
+        if os.name == "posix":
+            info = path.stat()
+            if not stat.S_ISREG(info.st_mode):
+                raise SafeError("invalid_settings_file")
+            if not _private(info, os.getuid()):
+                raise SafeError("insecure_settings_file")
         raw = path.read_bytes()
     except FileNotFoundError:
         return environ
@@ -131,14 +145,14 @@ def _settings(environ, path):
             raise ValueError()
         settings = {}
         for line in raw.decode("utf-8-sig").splitlines():
-            line = line.strip()
-            if not line or line.startswith("#"):
+            if not line.strip() or line.lstrip().startswith("#"):
                 continue
             name, separator, value = line.partition("=")
             name = name.strip()
             if not separator or name not in SETTINGS or name in settings:
                 raise ValueError()
-            settings[name] = value.strip()
+            # Verbatim, as the environment would pass it: there is no quoting to restore stripped bytes.
+            settings[name] = value
     except (ValueError, UnicodeError):
         # Static error only: a malformed line can hold the token itself.
         raise SafeError("invalid_settings_file") from None
