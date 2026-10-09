@@ -15,7 +15,7 @@ from types import SimpleNamespace
 
 from fleet_atlas_v2_artifacts import OUTPUT, runtime_modules
 from fleet_atlas_v2_model import (
-    EDGE_TYPES, Bucket, EvidenceClass, Fact, Node, Predicate, Proof, ProofKind, assemble, canonical_bytes,
+    EDGE_TYPES, Bucket, EvidenceClass, Fact, Node, Predicate, Proof, ProofKind, assemble,
 )
 from fleet_atlas_v2_proofs import Derivation, VerifiedFacts, verify_facts
 from fleet_atlas_v2_sources import Snapshot
@@ -81,8 +81,11 @@ def fixture_extract(snapshot):
 
 
 def fact_rows(rows) -> bytes:
-    """One JSON row per line: [id, subject, predicate, value] or [..., {qualifier: value}]."""
-    return b"".join(canonical_bytes(list(row)) for row in rows)
+    """One JSON row per line: [id, subject, predicate, value] or [..., {qualifier: value}].
+
+    ASCII escaping keeps U+2028, U+0085 and other str.splitlines() separators inside a row.
+    """
+    return b"".join((json.dumps(list(row), ensure_ascii=True, sort_keys=True) + "\n").encode("ascii") for row in rows)
 
 
 def row_extraction(snapshot, path: str, evaluator: str = "row-fixture/v1"):

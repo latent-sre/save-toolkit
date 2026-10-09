@@ -106,8 +106,12 @@ class FormatTests(unittest.TestCase):
         node = Node("skill:demo", "skill", source.path, "skill:demo")
         fact = Fact("name:demo", node.id, "name", "demo", EvidenceClass.EXTRACTED, proof)
         predicates = (Predicate("name", frozenset({"skill"}), None, ("skills/*/SKILL.md",)),)
+
+        def never_replayed(candidate, snapshot, premises):
+            raise AssertionError("an unauthorised citation must be refused before replay")
+
         with self.assertRaisesRegex(ValueError, "no authority"):
-            verified((source, hostile), (node,), (fact,), predicates)
+            verified((source, hostile), (node,), (fact,), predicates, {"demo/v1": never_replayed})
 
 if __name__ == "__main__":
     unittest.main()

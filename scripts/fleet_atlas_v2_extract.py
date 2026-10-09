@@ -71,8 +71,8 @@ class RoadmapEntry(NamedTuple):
     item: str
     start: int
     end: int
-    fields: dict[str, str]
-    positions: dict[str, tuple[Span, ...]]
+    fields: Mapping[str, str]
+    positions: Mapping[str, tuple[Span, ...]]
 
 
 class GeneratedMapping(NamedTuple):
@@ -108,6 +108,8 @@ class Corpus:
     _derive builds a new Corpus for every derivation, so proof replay re-parses and
     re-derives each declaration rather than reusing the primary extraction's work.
     Views are lazy: a malformed input fails at its first use, as a direct parse would.
+    Every stage of a derivation sees the same objects, so stages must never mutate them;
+    parsed JSON stays plain dicts and lists because declarations are type-checked as dict.
     """
 
     def __init__(self, snapshot: Snapshot):
@@ -406,16 +408,17 @@ def records_for_roadmap(source: Source) -> tuple[RoadmapEntry, ...]:
             elif current and line:
                 fields[current] += ' ' + line
                 positions[current].append(i + 1)
-        result.append(RoadmapEntry(item_id, start + 1, end, fields,
-                                   {k: (source.span(min(v), max(v)),) for k, v in positions.items()}))
+        result.append(RoadmapEntry(item_id, start + 1, end, MappingProxyType(fields), MappingProxyType(
+            {k: (source.span(min(v), max(v)),) for k, v in positions.items()})))
     # The modern parked register is still live backlog, with its own row selector.
     for i, line in enumerate(source.lines, 1):
         cells = table_cells(line)
         if len(cells) >= 2 and re.fullmatch(r'[A-Z][A-Z0-9]*-\d{3}', plain(cells[0])):
             item_id = plain(cells[0])
             if item_id not in {entry.item for entry in result}:
-                result.append(RoadmapEntry(item_id, i, i, {'Status': 'deferred', 'Next action': cells[1].strip()},
-                                           {'Status': (source.span(i, i),), 'Next action': (source.span(i, i),)}))
+                result.append(RoadmapEntry(item_id, i, i,
+                                           MappingProxyType({'Status': 'deferred', 'Next action': cells[1].strip()}),
+                                           MappingProxyType({'Status': (source.span(i, i),), 'Next action': (source.span(i, i),)})))
     return tuple(result)
 
 
