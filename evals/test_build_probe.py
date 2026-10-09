@@ -4419,10 +4419,6 @@ class NormalJudgeBindingTests(unittest.TestCase):
                 self.assertEqual("INCONCLUSIVE", probe_rescoring.regrade_run(run, spec)["status"])
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class SubagentDenialTests(unittest.TestCase):
     """A routing verdict is the main session's dispatch; a refusal inside the dispatched subagent lands after it."""
 
@@ -6026,3 +6022,7 @@ class RegradeEvidenceTests(unittest.TestCase):
                 grading = probe_rescoring.regrade_run(self._run(tmp, spec, saved, events=raw, grade=grade), spec,
                                                   write=False)
             self.assertEqual(("PASS", "turn_limit"), (grading["status"], grading.get("run_end")))
+
+
+if __name__ == "__main__":
+    unittest.main()
