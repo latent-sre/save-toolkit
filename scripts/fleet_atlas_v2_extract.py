@@ -13,7 +13,7 @@ import posixpath
 import re
 from dataclasses import dataclass, replace
 from functools import cached_property, lru_cache
-from pathlib import PurePosixPath as Path
+from pathlib import PurePosixPath
 from types import MappingProxyType
 from typing import Callable, Literal, Mapping, NamedTuple
 from urllib.parse import unquote, urlsplit
@@ -209,7 +209,7 @@ def human_owner(owner: str) -> str:
 
 def live_guide(path: str) -> bool:
     """Current guidance whose text is a live contract rather than historical evidence."""
-    return path in LIVE_DOCS or (Path(path).name in ('README.md', 'CHANGELOG.md')
+    return path in LIVE_DOCS or (PurePosixPath(path).name in ('README.md', 'CHANGELOG.md')
                                  and not path.startswith('docs/reviews/'))
 
 
@@ -477,7 +477,7 @@ def _new_records(records, inputs):
 def _component_records(corpus, inputs):
     records, add = _record_builder(inputs)
     for source in corpus.sources:
-        path, p = source.path, Path(source.path)
+        path, p = source.path, PurePosixPath(source.path)
         if path.startswith(('agents/', 'commands/')) and len(p.parts) == 2 and p.suffix == '.md':
             kind = 'agent' if path.startswith('agents/') else 'command'
             data, proof = frontmatter_fields(source)
@@ -615,7 +615,7 @@ def _schema_records(corpus, inputs):
         declaration = corpus.parsed(source)
         if not isinstance(declaration, dict):
             continue
-        name = Path(source.path).name.removesuffix('.schema.json')
+        name = PurePosixPath(source.path).name.removesuffix('.schema.json')
         attrs = {target: declaration[key] for key, target in
                  (('$id', 'schema_uri'), ('$schema', 'dialect'), ('title', 'title'), ('type', 'type'))
                  if key in declaration}
@@ -734,7 +734,7 @@ def _path_expression(node, environment):
     if isinstance(node, ast.Attribute):
         value = _path_expression(node.value, environment)
         if isinstance(value, str) and node.attr in ('stem', 'name', 'suffix'):
-            return str(getattr(Path(value), node.attr))
+            return str(getattr(PurePosixPath(value), node.attr))
     if isinstance(node, ast.Call):
         if isinstance(node.func, ast.Name) and node.func.id == 'Path' and len(node.args) == 1:
             return _path_expression(node.args[0], environment)
@@ -742,7 +742,7 @@ def _path_expression(node, environment):
             value, base = _path_expression(node.func.value, environment), _path_expression(node.args[0], environment)
             if isinstance(value, str) and isinstance(base, str):
                 try:
-                    return Path(value).relative_to(base).as_posix()
+                    return PurePosixPath(value).relative_to(base).as_posix()
                 except ValueError:
                     return None
     return None
@@ -941,12 +941,12 @@ def standalone_projections(corpus):
             continue
         for projection in declaration.get('x-fleet-generated-projections', []):
             if projection in {posixpath.join(output, filename) for filename in writes}:
-                result.append(WriterProjection('schema:' + Path(source.path).name.removesuffix('.schema.json'), projection,
+                result.append(WriterProjection('schema:' + PurePosixPath(source.path).name.removesuffix('.schema.json'), projection,
                                                spans(whole(source), mapping_proof, whole(sources[validator]))))
     return tuple(result)
 
 
-def test_file_reads(source: Source) -> tuple[tuple[str, tuple[Span, ...]], ...]:
+def rooted_reads(source: Source) -> tuple[tuple[str, tuple[Span, ...]], ...]:
     """Rooted read dependencies only, with binding and helper-body provenance.
 
     A literal, fixture write, temporary-root read or shadowed ROOT is not verification
@@ -1263,7 +1263,7 @@ def _relations(corpus, records):
             for item in sorted(set(ITEM.findall(source.text))):
                 edge('cites', node.id, f'roadmap-item:{item}', source.locate(item), attrs={'via': 'comment'}, cls=EC.INFERRED)
         if node.type == 'test':
-            for path, proof in test_file_reads(source):
+            for path, proof in rooted_reads(source):
                 if path not in sources:
                     continue
                 dest = resolve(source, '../' + path)
@@ -1367,7 +1367,7 @@ def _relations(corpus, records):
         declaration = corpus.parsed(source)
         if not isinstance(declaration, dict):
             continue
-        subject = 'schema:' + Path(source.path).name.removesuffix('.schema.json')
+        subject = 'schema:' + PurePosixPath(source.path).name.removesuffix('.schema.json')
         if subject not in by_id:
             continue
         validator = declaration.get('x-fleet-validator')
@@ -1432,7 +1432,7 @@ def _relations(corpus, records):
                 newest = max(d for _, d in dated)
                 unknown(record.node.id, 'stale.evidence-predates-status', f'{record.name} status is dated {date.group()} but its newest cited evidence is {newest}', spans(record.spans, *(r.spans for r, _ in dated)), 'Cite the evidence behind the current status or revise the status')
     for source in corpus.sources:
-        if source.path in LIVE_DOCS or Path(source.path).name in ('README.md', 'CHANGELOG.md') or source.path == 'docs/roadmap-closed.md':
+        if source.path in LIVE_DOCS or PurePosixPath(source.path).name in ('README.md', 'CHANGELOG.md') or source.path == 'docs/roadmap-closed.md':
             for _, raw in link_targets(source.text):
                 target = resolve(source, raw, types={'review'})
                 if target and target.node.type == 'review':
@@ -1446,7 +1446,7 @@ def _relations(corpus, records):
     retired, retired_proof = assignment(stale_source, 'STALE') if stale_source else (None, ())
     if isinstance(retired, tuple):
         scanned = ('agents/', 'skills/', 'commands/', 'evals/scenarios/')
-        exempt = {Path(s.path).stem for s in corpus.sources if s.path.startswith(scanned)} & set(retired)
+        exempt = {PurePosixPath(s.path).stem for s in corpus.sources if s.path.startswith(scanned)} & set(retired)
         siblings, _ = assignment(stale_source, 'SIBLING_REPOSITORIES')
         if isinstance(siblings, (set, frozenset, tuple)):
             exempt.update(siblings)

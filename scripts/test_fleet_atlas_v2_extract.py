@@ -4,7 +4,7 @@ import random
 import unittest
 from pathlib import Path
 
-from fleet_atlas_v2_extract import extract, test_file_reads as _file_reads, scenario_fields, EDGE_TYPES, NODE_TYPES
+from fleet_atlas_v2_extract import extract, rooted_reads, scenario_fields, EDGE_TYPES, NODE_TYPES
 from fleet_atlas_v2_model import (assemble, EvidenceClass, ProofKind, Proof)
 from fleet_atlas_v2_sources import Snapshot, Source
 from fleet_atlas_v2_proofs import verify_facts
@@ -306,7 +306,7 @@ def expected_outputs(root):
     def test_ast_verification_rejects_literals_and_fixture_reads(self):
         prefix = 'from pathlib import Path\nROOT = Path(__file__).resolve().parents[1]\n'
         positive = prefix + 'def test_contract():\n    text = (ROOT / "agents/sre-assistant.md").read_text()\n    assert "tools:" in text\n'
-        reads = _file_reads(Source('scripts/test_contract.py', positive.encode()))
+        reads = rooted_reads(Source('scripts/test_contract.py', positive.encode()))
         self.assertEqual(['agents/sre-assistant.md'], [p for p, _ in reads])
         self.assertTrue(any(p.start_line == 2 for p in reads[0][1]))
         for body in (
@@ -318,7 +318,7 @@ def expected_outputs(root):
         ):
             with self.subTest(body=body):
                 text = prefix + 'def test_fixture(tmp):\n    ' + body
-                self.assertEqual((), _file_reads(Source('scripts/test_fixture.py', text.encode())))
+                self.assertEqual((), rooted_reads(Source('scripts/test_fixture.py', text.encode())))
 
     def test_ast_read_helper_binds_callsite_and_body(self):
         text = '''from pathlib import Path
@@ -328,7 +328,7 @@ def read_contract(relative):
 def test_contract():
     assert read_contract("skills/a/SKILL.md")
 '''
-        reads = _file_reads(Source('scripts/test_contract.py', text.encode()))
+        reads = rooted_reads(Source('scripts/test_contract.py', text.encode()))
         self.assertEqual(['skills/a/SKILL.md'], [p for p, _ in reads])
         self.assertTrue(any(p.start_line <= 4 <= p.end_line for p in reads[0][1]))
         self.assertTrue(any(p.start_line <= 6 <= p.end_line for p in reads[0][1]))
@@ -339,11 +339,11 @@ def test_schema():
     root = Path(__file__).resolve().parents[1]
     assert (root / "schemas/example.schema.json").read_text()
 '''
-        reads = _file_reads(Source('scripts/test_schema.py', text.encode()))
+        reads = rooted_reads(Source('scripts/test_schema.py', text.encode()))
         self.assertEqual(['schemas/example.schema.json'], [path for path, _ in reads])
         self.assertTrue(any(p.start_line == 3 for p in reads[0][1]))
         changed = text.replace('    assert ', '    root = Path("fixture")\n    assert ')
-        self.assertEqual((), _file_reads(Source('scripts/test_schema.py', changed.encode())))
+        self.assertEqual((), rooted_reads(Source('scripts/test_schema.py', changed.encode())))
 
     def test_rooted_fixture_write_cannot_create_verification_evidence(self):
         text = '''from pathlib import Path
@@ -352,7 +352,7 @@ def test_fixture():
     (ROOT / "agents/example.md").write_text("synthetic fixture")
     assert (ROOT / "agents/example.md").read_text()
 '''
-        self.assertEqual((), _file_reads(Source('scripts/test_fixture.py', text.encode())))
+        self.assertEqual((), rooted_reads(Source('scripts/test_fixture.py', text.encode())))
 
     def test_fixture_helper_writes_cannot_create_verification_evidence(self):
         for functions, invocation in (
@@ -364,7 +364,7 @@ def test_fixture():
                     + 'def test_fixture():\n    ' + invocation
                     + '\n    assert (ROOT / "agents/example.md").read_text()\n')
             with self.subTest(invocation=invocation):
-                self.assertEqual((), _file_reads(Source('scripts/test_fixture.py', text.encode())))
+                self.assertEqual((), rooted_reads(Source('scripts/test_fixture.py', text.encode())))
 
     def test_shuffled_extractor_registration_is_byte_identical(self):
         from fleet_atlas_v2_extract import EXTRACTION_STAGES
