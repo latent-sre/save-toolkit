@@ -216,6 +216,7 @@ def _regrade_run(
         if summary.get("agents_dir"):
             (ws.repo / ".agents").mkdir(parents=True)
         ctx = Context(dict(spec), ws, trace, git, plugin_root=plugin_root)
+        judge_problem = _saved_judge_problem(spec, saved_binding)
         inconclusive = _run_level_reason(
             spec,
             live_grade,
@@ -223,6 +224,7 @@ def _regrade_run(
             trace,
             native_problem,
             saved_binding,
+            judge_problem,
             has_raw_trace=reparsed is not None,
             has_plugin_root=has_plugin_root,
         )
@@ -236,7 +238,12 @@ def _regrade_run(
         items = assessment.plan(
             spec, trace, ctx, ctx.plugin_root, workspace=recorded_workspace, keep=True, raw_trace=reparsed is not None
         )
-        kept = _saved_verdicts(old_by_id, kept_prefix, stale_judge=_stale_judge(spec, saved_binding))
+        stale_judge = (
+            f"{judge_problem}; the kept judgment needs a re-run under the current judge"
+            if isinstance(judge_problem, rubric_judge.JudgeExecutionChanged)
+            else None
+        )
+        kept = _saved_verdicts(old_by_id, kept_prefix, stale_judge=stale_judge)
         graded, unmeasured = assessment.assess(items, inconclusive, kept=kept)
     if fingerprints.scenario_digest(spec, saved_binding) != identity:
         inconclusive = "scenario inputs changed during regrade; re-run the trial"
@@ -280,6 +287,7 @@ def _run_level_reason(
     trace: TraceSummary,
     native_problem: str | None,
     saved_binding: Any,
+    judge_problem: rubric_judge.JudgeUnavailable | None,
     *,
     has_raw_trace: bool,
     has_plugin_root: bool,
@@ -298,16 +306,12 @@ def _run_level_reason(
         inconclusive = _saved_void(live_grade, summary) or native_problem
     if spec.get("references") and not has_plugin_root:
         inconclusive = "reference plugin root evidence missing or invalid; re-run the trial"
-    required = fingerprints.required_rubrics(spec)
-    if required and (not saved_binding or live_grade.get("response_sha256") != rubric_judge._digest(trace.result_text)):
+    if fingerprints.required_rubrics(spec) and (
+        not saved_binding or live_grade.get("response_sha256") != rubric_judge._digest(trace.result_text)
+    ):
         inconclusive = "saved judge binding or judged response identity is missing or changed; re-run the trial"
-    elif required:
-        try:
-            rubric_judge.validate_binding(rubric_judge.JudgeBinding(json.dumps(saved_binding)), required, current=False)
-        except rubric_judge.JudgeExecutionChanged:
-            pass  # the run's evidence is intact; only its kept judgments fall (`_stale_judge`)
-        except rubric_judge.JudgeUnavailable as exc:
-            inconclusive = str(exc)
+    elif judge_problem is not None and not isinstance(judge_problem, rubric_judge.JudgeExecutionChanged):
+        inconclusive = str(judge_problem)
     if has_raw_trace and str(inconclusive or "").startswith(invocation.BLOCKED_TOOLS):
         # The denial rule is re-derived from the raw trace so a regrade applies the live rule
         # (a subagent's refusal no longer voids a routing verdict), not the one saved that day.
@@ -336,23 +340,21 @@ def _saved_void(live_grade: Mapping[str, Any], summary: Mapping[str, Any]) -> st
     return str(reason) if all(str(e.get("evidence") or "") == marked for e in expectations) else None
 
 
-def _stale_judge(spec: Spec, saved_binding: Any) -> str | None:
-    """Why the run's kept judgments cannot stand when only the judge has changed since the run.
+def _saved_judge_problem(spec: Spec, saved_binding: Any) -> rubric_judge.JudgeUnavailable | None:
+    """Why the judge binding a run saved no longer validates, or None, as for a run that has none.
 
-    A judge whose code or configuration differs from the one the saved binding certified leaves
-    each kept judgment INCONCLUSIVE; the checks the saved trace re-measures keep their verdicts,
-    so a supported FAIL beside them still fails (result rule 3). Any other binding problem voids
-    the whole run in `_run_level_reason`.
+    `JudgeExecutionChanged`, a judge whose code or configuration differs from the one the binding
+    certified, leaves only each kept judgment INCONCLUSIVE: the checks the saved trace re-measures
+    keep their verdicts, so a supported FAIL beside them still fails (result rule 3). Any other
+    binding problem voids the whole run in `_run_level_reason`.
     """
     required = fingerprints.required_rubrics(spec)
     if not required or not saved_binding:
         return None
     try:
         rubric_judge.validate_binding(rubric_judge.JudgeBinding(json.dumps(saved_binding)), required, current=False)
-    except rubric_judge.JudgeExecutionChanged as exc:
-        return f"{exc}; the kept judgment needs a re-run under the current judge"
-    except rubric_judge.JudgeUnavailable:
-        return None
+    except rubric_judge.JudgeUnavailable as exc:
+        return exc
     return None
 
 
