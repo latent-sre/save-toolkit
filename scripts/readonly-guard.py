@@ -233,7 +233,7 @@ _OS_READ_FORMS = {
     "df": {(), ("-h",), ("-k",)},
 }
 
-# POSIX observation heads the sre-assistant native-observations table advertises for macOS that the PowerShell
+# POSIX observation heads the sre-assistant native-observations list advertises for macOS that the PowerShell
 # grammar has no spelling for: Windows reaches the same two needs through `Get-Date` and
 # `Resolve-DnsName`. Admitted in Copilot mode only, and only through the Bash classifier, so
 # `_date_reason`'s clock-SETTING check and the structural denial of `dig $(...)` still decide.
@@ -1029,7 +1029,7 @@ def copilot_read_allowed(command: str) -> bool:
 
     Copilot's integrated terminal is one entry point for both hosts, so it classifies with the
     restricted PowerShell grammar first. That grammar denies the macOS spellings the
-    sre-assistant native-observations table advertises, which would make the documented time and DNS
+    sre-assistant native-observations list advertises, which would make the documented time and DNS
     observations unusable on a macOS execution host. Widening is deliberately narrow: the fixed
     OS forms, the authenticated Grafana GET, and the two POSIX heads above -- never the whole
     Bash allowlist.

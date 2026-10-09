@@ -178,24 +178,14 @@ protected or caller-sanitized evidence; without a protected output path, request
 Manager view or sanitized observation. Escalate platform findings; do not debug BOSH/Gorouter.
 
 Other existing guarded reads include selected `gcloud` observations, `git log`/`git diff`, `gh`
-reads, and the native observations below; use the named target, matching skill, and actual guard
-forms. Filter pipes do not mask credentials, and file redirects and scripts are outside the grant.
+reads, and native observations: PowerShell `Get-Date -Format o`, `Get-Service -Name <name>`,
+`Get-Process -Name <name>`, `Resolve-DnsName <host>`, `Test-NetConnection <host> -Port <n>`; macOS
+`date -u`, `uptime`, `uname -s`, `sw_vers -productVersion`, `dig <host>`, `df -h`. Before
+`ConvertTo-Json`, project named fields with `Select-Object -Property`; a whole process object can
+serialize environment credentials. Use the named target, matching skill, and actual guard forms.
+Filter pipes do not mask credentials, and file redirects and scripts are outside the grant.
 Anything unavailable is a recommendation with the exact supported read, purpose, expected result,
 and sanitization needed for the caller to supply it.
-
-| Need | Windows PowerShell | macOS Bash |
-|---|---|---|
-| Time/status | `Get-Date -Format o` | `date -u`, `uptime` |
-| OS identity | supplied host context | `uname -s`, `sw_vers -productVersion` |
-| Service/process status | `Get-Service -Name Spooler`, `Get-Process -Name python` | supplied telemetry; no general process-script grant |
-| DNS/connectivity | `Resolve-DnsName example.com`, `Test-NetConnection example.com -Port 443` | `dig example.com` |
-| Disk usage | supplied telemetry | `df -h` |
-
-Names are examples, not discovered targets. Before `ConvertTo-Json`, project only approved fields,
-for example `Get-Process -Name python | Select-Object -Property Name,Id,CPU | ConvertTo-Json`;
-`Select-Object -First` alone can serialize environment credentials through `StartInfo`. The
-PowerShell guard rejects assignments, interpolation, script blocks, command chains, redirection and
-interpreter wrappers.
 
 ### Existing helpers, local analysis, and unavailable sources
 
