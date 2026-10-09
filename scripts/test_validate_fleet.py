@@ -7,6 +7,7 @@ import re
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import fleet_frontmatter
 import generate_platform_adapters
@@ -134,6 +135,26 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertEqual(1, len(failures), failures)
         self.assertIn("agents/: roster mismatch;", failures[0])
         self.assertTrue(failures[0].endswith("; found extra-agent"), failures)
+
+    def test_roster_tables_that_disagree_are_reported_instead_of_crashing(self) -> None:
+        """EXPECTED_DELEGATION is the roster; EXPECTED_AUTHORITY must cover exactly its agents."""
+        for table, edit, expected in (
+            ("EXPECTED_DELEGATION", lambda table: table.pop("scribe"),
+             "only in EXPECTED_DELEGATION: none; only in EXPECTED_AUTHORITY: scribe"),
+            ("EXPECTED_AUTHORITY", lambda table: table.pop("scribe"),
+             "only in EXPECTED_DELEGATION: scribe; only in EXPECTED_AUTHORITY: none"),
+            ("EXPECTED_AUTHORITY", lambda table: table.__setitem__("ghost-agent", table["scribe"]),
+             "only in EXPECTED_DELEGATION: none; only in EXPECTED_AUTHORITY: ghost-agent"),
+        ):
+            with self.subTest(table=table, expected=expected):
+                with mock.patch.dict(getattr(validate_fleet, table)):
+                    edit(getattr(validate_fleet, table))
+                    _, failures = validate_fleet.validate_agents(ROOT)
+                self.assertIn(
+                    "scripts/validate_fleet.py: EXPECTED_AUTHORITY and EXPECTED_DELEGATION must name "
+                    f"the same agents; {expected}",
+                    failures,
+                )
 
     def test_field_tool_and_authority_diagnostics_keep_their_order(self) -> None:
         failures = _agent_failures_after_edit(

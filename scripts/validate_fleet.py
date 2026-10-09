@@ -106,6 +106,8 @@ BROWSER_OBSERVATION_AGENTS = {"sre-assistant"}
 EXTERNAL_EVIDENCE_TOOLS = {"ToolSearch", *WEB_TOOLS, *EVIDENCE_MCP_TOOLS}
 SCRIBE_TOOLS = {"Read", "Grep", "Glob", "Edit", "Write", "Skill"}
 RELIABILITY_TOOLS = {*SCRIBE_TOOLS, "Agent"}
+# Each roster agent's required and forbidden tools. Keyed by exactly EXPECTED_DELEGATION's agents;
+# validate_agents reports any disagreement between the two tables.
 EXPECTED_AUTHORITY = {
     "reliability-engineer": {
         "required": RELIABILITY_TOOLS,
@@ -151,6 +153,8 @@ EXPECTED_AUTHORITY = {
         "forbidden": EXTERNAL_EVIDENCE_TOOLS,
     },
 }
+# The roster and its enforced delegation graph. Kept a plain literal: the fleet atlas reads this
+# assignment with ast.literal_eval, and validate_roster_graph binds AGENTS.md's roster table to it.
 EXPECTED_DELEGATION = {
     "reliability-engineer": {"repository-investigator", "sre-assistant", "researcher"},
     "principal-engineer": {"repository-investigator", "sre-assistant", "researcher"},
@@ -271,7 +275,7 @@ def _authority_failures(
             f"{', '.join(sorted(delegates)) or 'none'}"
         )
     for target in sorted(delegates):
-        if target not in EXPECTED_AUTHORITY:
+        if target not in EXPECTED_DELEGATION:
             failures.append(f"{path}: Agent target {target!r} does not exist")
     if name in adapters.GUARDED_AGENTS and "Bash" not in bases:
         failures.append(f"{path}: guard roster claims an agent without Bash")
@@ -283,6 +287,18 @@ def _authority_failures(
             f"read-only posture is unenforced"
         )
     return failures
+
+
+def _roster_table_failures() -> list[str]:
+    only_delegation = sorted(set(EXPECTED_DELEGATION) - set(EXPECTED_AUTHORITY))
+    only_authority = sorted(set(EXPECTED_AUTHORITY) - set(EXPECTED_DELEGATION))
+    if not (only_delegation or only_authority):
+        return []
+    return [
+        "scripts/validate_fleet.py: EXPECTED_AUTHORITY and EXPECTED_DELEGATION must name the same "
+        f"agents; only in EXPECTED_DELEGATION: {', '.join(only_delegation) or 'none'}; "
+        f"only in EXPECTED_AUTHORITY: {', '.join(only_authority) or 'none'}"
+    ]
 
 
 def validate_agents(root: Path) -> tuple[list[str], list[str]]:
@@ -310,10 +326,12 @@ def validate_agents(root: Path) -> tuple[list[str], list[str]]:
         bases = {grant.base for grant in grants}
         failures.extend(_tool_grant_failures(path, grants))
         failures.extend(_body_failures(path, body, bases))
-        if name in EXPECTED_AUTHORITY:
+        # An agent missing from either table is reported by _roster_table_failures below.
+        if name in EXPECTED_DELEGATION and name in EXPECTED_AUTHORITY:
             authority_inputs[name] = (path, grants, bases)
 
-    expected_names = set(EXPECTED_AUTHORITY)
+    failures.extend(_roster_table_failures())
+    expected_names = set(EXPECTED_DELEGATION)
     if set(names) != expected_names:
         failures.append(
             "agents/: roster mismatch; expected " + ", ".join(sorted(expected_names))
