@@ -87,30 +87,26 @@ def child_env() -> dict[str, str]:
     return {**os.environ, "PYTHONIOENCODING": "utf-8"}
 
 
-def run_converter(html: str, *args: str) -> tuple[subprocess.CompletedProcess, str]:
-    """Run the converter on `html`, returning (proc, draft_text)."""
+def run_converter(content: str | None, *args: str, name: str = "page.html", output: str = "draft.md",
+                  env: dict[str, str] | None = None,
+                  existing: str | None = None) -> tuple[subprocess.CompletedProcess, str | None]:
+    """Run the converter on a source file called `name`, whose suffix selects page JSON or HTML.
+
+    `content=None` leaves the source uncreated. Returns (proc, draft), the draft None when no output
+    file exists.
+    """
     with tempfile.TemporaryDirectory() as tmp:
-        src = Path(tmp) / "page.html"
-        out = Path(tmp) / "draft.md"
-        src.write_text(html, encoding="utf-8")
+        src = Path(tmp) / name
+        out = Path(tmp) / output
+        if content is not None:
+            src.write_text(content, encoding="utf-8")
+        if existing is not None:
+            out.write_text(existing, encoding="utf-8")
         proc = subprocess.run(
-            [
-                sys.executable,
-                str(CONVERTER),
-                str(src),
-                "-o",
-                str(out),
-                "--service-id",
-                "checkout-worker",
-                *args,
-            ],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            env=child_env(),
-            timeout=30,
+            [sys.executable, str(CONVERTER), str(src), "-o", str(out), "--service-id", "checkout-worker", *args],
+            capture_output=True, text=True, encoding="utf-8", env=env or child_env(), timeout=30,
         )
-        draft = out.read_text(encoding="utf-8") if out.exists() else ""
+        draft = out.read_text(encoding="utf-8") if out.exists() else None
     return proc, draft
 
 
@@ -129,7 +125,20 @@ def frontmatter_fields(draft: str) -> dict[str, str]:
     raise AssertionError("frontmatter fence never closes")
 
 
-class ConfluenceImportTest(unittest.TestCase):
+def slot_text(draft: str, slot: str) -> str:
+    return draft.split(f"## {slot}\n\n", 1)[1].split("\n## ", 1)[0]
+
+
+class ConverterTest(unittest.TestCase):
+    def convert(self, content: str, *args: str, **options) -> tuple[subprocess.CompletedProcess, str]:
+        """run_converter that requires success: exit 0 and a written draft."""
+        proc, draft = run_converter(content, *args, **options)
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        self.assertIsNotNone(draft)
+        return proc, draft
+
+
+class ConfluenceImportTest(ConverterTest):
     def test_draft_revision_slot_accepts_short_commit_ids(self) -> None:
         self.assertEqual(
             frontmatter_fields(self.draft)["source_revision"],
@@ -137,13 +146,7 @@ class ConfluenceImportTest(unittest.TestCase):
         )
 
     def setUp(self) -> None:
-        self.proc, self.draft = run_converter(
-            VIEW_HTML, "--source-url", "https://example.atlassian.net/wiki/pages/123"
-        )
-        self.assertEqual(
-            self.proc.returncode, 0,
-            f"converter failed: stderr={self.proc.stderr[:500]!r}",
-        )
+        self.proc, self.draft = self.convert(VIEW_HTML, "--source-url", "https://example.atlassian.net/wiki/pages/123")
 
     def test_frontmatter_matches_the_template_key_set(self) -> None:
         fields = frontmatter_fields(self.draft)
@@ -162,13 +165,9 @@ class ConfluenceImportTest(unittest.TestCase):
         self.assertEqual(json.loads(fields["service_id"]), "checkout-worker")
 
     def test_invalid_service_id_fails_without_writing_a_draft(self) -> None:
-        proc, draft = run_converter(
-            VIEW_HTML,
-            "--service-id",
-            "checkout\ninjected: true",
-        )
+        proc, draft = run_converter(VIEW_HTML, "--service-id", "checkout\ninjected: true")
         self.assertNotEqual(proc.returncode, 0)
-        self.assertEqual(draft, "")
+        self.assertIsNone(draft)
         self.assertIn("service-id", proc.stderr)
 
     def test_empty_owner_fails_without_writing_a_draft(self) -> None:
@@ -176,12 +175,11 @@ class ConfluenceImportTest(unittest.TestCase):
             with self.subTest(owner=owner):
                 proc, draft = run_converter(VIEW_HTML, "--owner", owner)
                 self.assertNotEqual(proc.returncode, 0)
-                self.assertEqual(draft, "")
+                self.assertIsNone(draft)
                 self.assertIn("owner", proc.stderr)
 
     def test_owner_is_serialized_as_one_yaml_scalar(self) -> None:
-        proc, draft = run_converter(VIEW_HTML, "--owner", "ops\ninjected: true")
-        self.assertEqual(proc.returncode, 0, proc.stderr)
+        _, draft = self.convert(VIEW_HTML, "--owner", "ops\ninjected: true")
         fields = frontmatter_fields(draft)
         self.assertEqual(sorted(fields), sorted(template_frontmatter_keys()))
         self.assertNotIn("injected", fields)
@@ -191,29 +189,24 @@ class ConfluenceImportTest(unittest.TestCase):
         # "When to use this" → Trigger; "Before you start" → Prerequisites; "Steps" → Procedure;
         # Rollback and Escalation map by name. Each mapped section must carry its source content.
         for slot, content in [
-            ("## Trigger", "checkout-worker-stalled"),
-            ("## Prerequisites", "VPN connected"),
-            ("## Procedure", "Check the worker state"),
-            ("## Rollback / cleanup", "the restart is the reset"),
-            ("## Escalation", "payments team"),
+            ("Trigger", "checkout-worker-stalled"),
+            ("Prerequisites", "VPN connected"),
+            ("Procedure", "Check the worker state"),
+            ("Rollback / cleanup", "the restart is the reset"),
+            ("Escalation", "payments team"),
         ]:
             with self.subTest(slot=slot):
-                section = self.draft.split(slot, 1)
-                self.assertEqual(len(section), 2, f"missing slot {slot!r}")
-                self.assertIn(content, section[1].split("\n## ", 1)[0])
+                self.assertIn(content, slot_text(self.draft, slot))
 
     def test_explicit_recovery_headings_win_over_generic_step_words(self) -> None:
-        proc, draft = run_converter(
+        _, draft = self.convert(
             "<h1>Recovery</h1>"
             "<h2>Rollback steps</h2><p>Restore the previous artifact.</p>"
             "<h2>Verification steps</h2><p>Confirm healthy traffic.</p>"
         )
-        self.assertEqual(0, proc.returncode, proc.stderr)
-        rollback = draft.split("## Rollback / cleanup\n\n", 1)[1].split("\n## Escalation", 1)[0]
-        verification = draft.split("## Verification\n\n", 1)[1].split("\n## Rollback", 1)[0]
-        procedure = draft.split("## Procedure\n\n", 1)[1].split("\n## Verification", 1)[0]
-        self.assertIn("Restore the previous artifact.", rollback)
-        self.assertIn("Confirm healthy traffic.", verification)
+        procedure = slot_text(draft, "Procedure")
+        self.assertIn("Restore the previous artifact.", slot_text(draft, "Rollback / cleanup"))
+        self.assertIn("Confirm healthy traffic.", slot_text(draft, "Verification"))
         self.assertNotIn("Restore the previous artifact.", procedure)
         self.assertNotIn("Confirm healthy traffic.", procedure)
 
@@ -229,47 +222,41 @@ class ConfluenceImportTest(unittest.TestCase):
 
     def test_code_fence_is_longer_than_backticks_inside_the_command(self) -> None:
         command = "cat <<'EOF'\n```\nliteral document sample\n```\nEOF"
-        proc, draft = run_converter(
-            "<h1>Recovery</h1><h2>Procedure</h2><pre>" + command + "</pre>"
-        )
-        self.assertEqual(0, proc.returncode, proc.stderr)
-        procedure = draft.split("## Procedure\n\n", 1)[1].split("\n## Verification", 1)[0]
+        _, draft = self.convert("<h1>Recovery</h1><h2>Procedure</h2><pre>" + command + "</pre>")
+        procedure = slot_text(draft, "Procedure")
         self.assertIn("````\n" + command + "\n````", procedure)
         self.assertEqual(1, procedure.count("*Imported command — [unverified] until rehearsed on the target.*"))
 
     def test_ordered_list_numbers_survive_and_flattened_tables_are_reported(self) -> None:
-        proc, draft = run_converter(
+        proc, draft = self.convert(
             '<h1>Recovery</h1><h2>Procedure</h2><ol start="3">'
             '<li>Inspect.</li><li>If unsafe, return to step 3.</li></ol>'
             '<table><tr><th>State</th><th>Action</th></tr>'
             '<tr><td>Running</td><td>Wait</td></tr></table>'
         )
-        self.assertEqual(0, proc.returncode, proc.stderr)
-        procedure = draft.split("## Procedure\n\n", 1)[1].split("\n## Verification", 1)[0]
+        procedure = slot_text(draft, "Procedure")
         self.assertIn("3. Inspect.", procedure)
         self.assertIn("4. If unsafe, return to step 3.", procedure)
         for output in (draft, proc.stdout):
             self.assertIn("HTML tables flattened: 1", output)
 
     def test_ordered_numbers_attach_to_paragraph_wrapped_items_with_a_nested_list(self) -> None:
-        proc, draft = run_converter(
+        _, draft = self.convert(
             '<h1>Recovery</h1><h2>Procedure</h2><ol start="3">'
             '<li><p>Inspect.</p><ul><li>Check the dependency.</li></ul></li>'
             '<li><p>Continue.</p></li></ol>'
         )
-        self.assertEqual(0, proc.returncode, proc.stderr)
-        procedure = draft.split("## Procedure\n\n", 1)[1].split("\n## Verification", 1)[0]
+        procedure = slot_text(draft, "Procedure")
         self.assertIn("3. Inspect.", procedure)
         self.assertIn("\n   - Check the dependency.\n", procedure)
         self.assertIn("4. Continue.", procedure)
 
     def test_list_continuations_and_nested_commands_stay_with_their_step(self) -> None:
-        proc, draft = run_converter(
+        _, draft = self.convert(
             '<h1>Recovery</h1><h2>Procedure</h2><ol start="10">'
             '<li><p>Inspect.</p><ul><li><p>Check.</p><pre>cf app worker</pre></li></ul>'
             '<p>Only then continue.</p></li><li>Finish.</li></ol><p>Outside.</p>'
         )
-        self.assertEqual(0, proc.returncode, proc.stderr)
         self.assertIn("10. Inspect.\n\n    - Check.", draft)
         self.assertIn("\n      ```\n      cf app worker\n      ```", draft)
         self.assertIn("\n    Only then continue.\n\n11. Finish.\n\nOutside.", draft)
@@ -287,34 +274,11 @@ class ConfluenceImportTest(unittest.TestCase):
         ]
         for html, expected in cases:
             with self.subTest(html=html):
-                proc, draft = run_converter('<h1>Recovery</h1><h2>Procedure</h2>' + html)
-                self.assertEqual(0, proc.returncode, proc.stderr)
+                _, draft = self.convert('<h1>Recovery</h1><h2>Procedure</h2>' + html)
                 self.assertIn(expected, draft)
 
     def test_missing_output_parent_is_created_for_first_import(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            source = root / "page.html"
-            output = root / "docs" / "runbooks" / "draft.md"
-            source.write_text(VIEW_HTML, encoding="utf-8")
-            proc = subprocess.run(
-                [
-                    sys.executable,
-                    str(CONVERTER),
-                    str(source),
-                    "-o",
-                    str(output),
-                    "--service-id",
-                    "checkout-worker",
-                ],
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                env=child_env(),
-                timeout=30,
-            )
-            self.assertEqual(0, proc.returncode, proc.stderr)
-            self.assertTrue(output.is_file())
+        self.convert(VIEW_HTML, output="docs/runbooks/draft.md")
 
     def test_macro_loss_is_reported_in_provenance_and_stdout(self) -> None:
         # The <ac:structured-macro> cannot convert; it must be COUNTED, in the draft's provenance
@@ -341,15 +305,8 @@ class ConfluenceImportTest(unittest.TestCase):
         # only on one with a non-UTF-8 locale. Honest limit: this kills the child-env pin on any
         # host, but the parent's explicit decoder is unobservable where the locale is already
         # UTF-8 -- identical behavior -- so the Windows CI leg remains its only coverage.
-        previous = os.environ.get("PYTHONIOENCODING")
-        os.environ["PYTHONIOENCODING"] = "cp1252"
-        try:
+        with patch.dict(os.environ, {"PYTHONIOENCODING": "cp1252"}):
             proc, draft = run_converter(VIEW_HTML)
-        finally:
-            if previous is None:
-                os.environ.pop("PYTHONIOENCODING", None)
-            else:
-                os.environ["PYTHONIOENCODING"] = previous
         self.assertIsNotNone(proc.stdout, "a decode failure silently nulls stdout")
         self.assertEqual(proc.returncode, 0, proc.stderr)
         # The exact non-ASCII the locale mismatch chokes on must round-trip, not be replaced.
@@ -360,31 +317,13 @@ class ConfluenceImportTest(unittest.TestCase):
     def test_unreadable_input_fails_loudly(self) -> None:
         # Both paths live in a real temp dir so the case stays cross-platform (Gate A runs on
         # Windows too); the source path simply never gets created.
-        with tempfile.TemporaryDirectory() as tmp:
-            missing = Path(tmp) / "nonexistent" / "page.html"
-            out = Path(tmp) / "draft.md"
-            proc = subprocess.run(
-                [
-                    sys.executable,
-                    str(CONVERTER),
-                    str(missing),
-                    "-o",
-                    str(out),
-                    "--service-id",
-                    "checkout-worker",
-                ],
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                env=child_env(),
-                timeout=30,
-            )
-            self.assertEqual(proc.returncode, 1)
-            self.assertIn("cannot read", proc.stderr)
-            self.assertFalse(out.exists(), "no draft may be written on failure")
+        proc, draft = run_converter(None, name="nonexistent/page.html")
+        self.assertEqual(proc.returncode, 1)
+        self.assertIn("cannot read", proc.stderr)
+        self.assertIsNone(draft, "no draft may be written on failure")
 
 
-class ConfluenceContentTest(unittest.TestCase):
+class ConfluenceContentTest(ConverterTest):
     def test_code_line_breaks_preserve_exact_command_lines(self) -> None:
         commands = ("cf app demo", "  cf events demo", "", "cf logs demo --recent")
         expected = "\n".join(commands)
@@ -394,10 +333,9 @@ class ConfluenceContentTest(unittest.TestCase):
                     content = line_break.join(commands)
                     if nested_code:
                         content = f"<code>{content}</code>"
-                    proc, draft = run_converter(
+                    _, draft = self.convert(
                         "<h1>Recovery</h1><h2>Procedure</h2><pre>" + content + "</pre>"
                     )
-                    self.assertEqual(0, proc.returncode, proc.stderr)
                     procedure = slot_text(draft, "Procedure")
                     self.assertEqual([expected], re.findall(r"(?ms)^```\n(.*?)\n```$", procedure))
                     self.assertEqual(1, procedure.count(
@@ -405,13 +343,12 @@ class ConfluenceContentTest(unittest.TestCase):
                     ))
 
     def test_suppressed_code_content_does_not_add_line_breaks(self) -> None:
-        proc, draft = run_converter(
+        proc, draft = self.convert(
             "<h1>Recovery</h1><h2>Procedure</h2><pre>cf app demo"
             "<svg>hidden<br/></svg>"
             "<ac:structured-macro>hidden<br></ac:structured-macro>"
             "\ncf events demo</pre>"
         )
-        self.assertEqual(0, proc.returncode, proc.stderr)
         self.assertEqual(
             ["cf app demo\ncf events demo"],
             re.findall(r"(?ms)^```\n(.*?)\n```$", slot_text(draft, "Procedure")),
@@ -432,8 +369,7 @@ class ConfluenceContentTest(unittest.TestCase):
         for tag in ("h1", "title"):
             for encoded, semantic, rendered, runbook_id in cases:
                 with self.subTest(tag=tag, encoded=encoded):
-                    proc, draft = run_converter(f'<{tag}>{encoded}</{tag}><p>Ordinary body.</p>')
-                    self.assertEqual(0, proc.returncode, proc.stderr)
+                    proc, draft = self.convert(f'<{tag}>{encoded}</{tag}><p>Ordinary body.</p>')
                     prefix, warning, remainder = draft.partition("> **Imported draft.**")
                     self.assertTrue(warning)
                     self.assertEqual(
@@ -456,25 +392,22 @@ class ConfluenceContentTest(unittest.TestCase):
              r"diagram \~\~\~sh danger\-command \~\~\~"),
         ):
             with self.subTest(attribute=attribute):
-                proc, draft = run_converter(
+                proc, draft = self.convert(
                     '<p>Before.</p><img src="diagram.png" alt="' + attribute + '">'
                     '<p>Ordinary following content.</p>'
                 )
-                self.assertEqual(0, proc.returncode, proc.stderr)
-                body = draft.split("## Purpose & scope\n\n", 1)[1].split("\n## Trigger", 1)[0]
                 self.assertEqual(
                     f"Before.\n\nImage: [{label}](<diagram.png>)\n\nOrdinary following content.\n",
-                    body,
+                    slot_text(draft, "Purpose & scope"),
                 )
                 self.assertIn("Image attachments not copied: 1", proc.stdout)
 
     def test_reference_labels_preserve_text_and_destinations_as_literal_markdown(self) -> None:
-        proc, draft = run_converter(
+        proc, draft = self.convert(
             '<p><a href="https://example.com/console?q=1&amp;b=2">'
             'Ops [primary] *console* _status_ `check` &lt;b&gt;</a> ordinary following text.</p>'
             '<img src="../diagram v1.png" alt="  plain&#9;diagram&#13;&#10;label  ">'
         )
-        self.assertEqual(0, proc.returncode, proc.stderr)
         self.assertIn(
             r'[Ops \[primary\] \*console\* \_status\_ \`check\` \<b\>](<https://example.com/console?q=1&b=2>)'
             ' ordinary following text.',
@@ -490,14 +423,13 @@ class ConfluenceContentTest(unittest.TestCase):
             ("iframe", "div", 1), ("object", "object", 2),
         ):
             with self.subTest(tag=tag):
-                proc, draft = run_converter(
+                proc, draft = self.convert(
                     f'<p>Visible before.</p><{tag}><{child}>nested-hidden</{child}>'
                     '<div><br><img src="hidden.png">fallback-hidden '
                     '<a href="https://example.com/hidden">link-hidden</a></div>'
                     '<ac:structured-macro><ac:parameter>macro-hidden</ac:parameter>'
                     f'</ac:structured-macro></{tag}><p>Visible after.</p>'
                 )
-                self.assertEqual(0, proc.returncode, proc.stderr)
                 self.assertIn("Visible before.", draft)
                 self.assertIn("Visible after.", draft)
                 self.assertNotIn("hidden", draft)
@@ -511,41 +443,37 @@ class ConfluenceContentTest(unittest.TestCase):
             ("<video><embed><svg/><source>hidden</video>", 3),
         ):
             with self.subTest(media=media):
-                proc, draft = run_converter(media + '<p>Retained afterward.</p>')
-                self.assertEqual(0, proc.returncode, proc.stderr)
+                proc, draft = self.convert(media + '<p>Retained afterward.</p>')
                 self.assertIn("Retained afterward.", draft)
                 self.assertNotIn("hidden", draft)
                 self.assertIn(f"Unsupported media dropped: {count}", proc.stdout)
 
     def test_anchor_line_breaks_preserve_one_destination_without_link_bleed(self) -> None:
-        proc, draft = run_converter(
+        _, draft = self.convert(
             '<p>Open <a href="https://example.com/recovery">recovery<br>'
             '<em>console</em><br/>guide</a> outside-first. '
             '<a href="#next">next<br>step</a> outside-second.</p><p>Following paragraph.</p>'
         )
-        self.assertEqual(0, proc.returncode, proc.stderr)
         self.assertIn('[recovery console guide](<https://example.com/recovery>) outside-first.', draft)
         self.assertIn('[next step](<#next>) outside-second.', draft)
         self.assertIn("Following paragraph.", draft)
         self.assertEqual(1, draft.count("https://example.com/recovery"))
 
     def test_line_breaks_do_not_activate_an_unsafe_anchor_destination(self) -> None:
-        proc, draft = run_converter(
+        proc, draft = self.convert(
             '<p><a href="javascript:alert(1)">unsafe<br>label</a> ordinary text.</p>'
         )
-        self.assertEqual(0, proc.returncode, proc.stderr)
         self.assertIn("unsafe label ordinary text.", draft)
         self.assertNotIn("javascript:", draft)
         self.assertIn("Unusable link or image destinations: 1", proc.stdout)
 
     def test_rendered_links_and_image_references_survive_with_loss_accounting(self) -> None:
-        proc, draft = run_converter(
+        proc, draft = self.convert(
             '<title>Recovery</title><h2>Procedure</h2><p>Open '
             '<a href="https://example.com/recovery">recovery <em>console</em></a>.</p>'
             '<img src="diagram.png" alt="failure isolation diagram">'
             '<iframe src="https://example.com/embed"></iframe>'
         )
-        self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertIn('[recovery console](<https://example.com/recovery>)', draft)
         self.assertIn('[failure isolation diagram](<diagram.png>)', draft)
         for output in (draft, proc.stdout):
@@ -553,11 +481,10 @@ class ConfluenceContentTest(unittest.TestCase):
             self.assertIn('Unsupported media dropped: 1', output)
 
     def test_unsafe_link_destinations_are_reported_without_becoming_active_links(self) -> None:
-        proc, draft = run_converter(
+        proc, draft = self.convert(
             '<title>Recovery</title><p><a href="javascript:alert(1)">console</a></p>'
             '<img src="data:text/html,unsafe" alt="diagram">'
         )
-        self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertIn('console', draft)
         self.assertIn('diagram', draft)
         self.assertNotIn('javascript:', draft)
@@ -566,8 +493,7 @@ class ConfluenceContentTest(unittest.TestCase):
             self.assertIn('Unusable link or image destinations: 2', output)
 
     def test_h1_supplies_the_title_when_the_export_has_no_title_element(self) -> None:
-        proc, draft = run_converter('<h1>Restart payments</h1><p>Read the runbook.</p>')
-        self.assertEqual(proc.returncode, 0, proc.stderr)
+        _, draft = self.convert('<h1>Restart payments</h1><p>Read the runbook.</p>')
         self.assertIn('# Runbook: Restart payments', draft)
         self.assertEqual(frontmatter_fields(draft)['runbook_id'], 'restart-payments')
 
@@ -578,28 +504,7 @@ def load_converter(name: str):
         return load_path(CONVERTER, name)
 
 
-def run_on(name: str, content: str, *args: str, env: dict[str, str] | None = None,
-           existing: str | None = None) -> tuple[subprocess.CompletedProcess, str]:
-    """Run the converter on a source file called `name`; its suffix selects page JSON or HTML."""
-    with tempfile.TemporaryDirectory() as tmp:
-        src = Path(tmp) / name
-        out = Path(tmp) / "draft.md"
-        src.write_text(content, encoding="utf-8")
-        if existing is not None:
-            out.write_text(existing, encoding="utf-8")
-        proc = subprocess.run(
-            [sys.executable, str(CONVERTER), str(src), "-o", str(out), "--service-id", "order-router", *args],
-            capture_output=True, text=True, encoding="utf-8", env=env or child_env(), timeout=30,
-        )
-        draft = out.read_text(encoding="utf-8") if out.exists() else ""
-    return proc, draft
-
-
-def slot_text(draft: str, slot: str) -> str:
-    return draft.split(f"## {slot}\n\n", 1)[1].split("\n## ", 1)[0]
-
-
-class ConfluenceImportPathTest(unittest.TestCase):
+class ConfluenceImportPathTest(ConverterTest):
     """The documented import path: page JSON in, provenance kept, nothing silently lost or replaced."""
 
     PAGE_JSON = json.dumps({
@@ -611,8 +516,7 @@ class ConfluenceImportPathTest(unittest.TestCase):
     })
 
     def test_page_json_supplies_title_version_and_keeps_every_h1_section(self) -> None:
-        proc, draft = run_on("page.json", self.PAGE_JSON)
-        self.assertEqual(0, proc.returncode, proc.stderr)
+        proc, draft = self.convert(self.PAGE_JSON, name="page.json")
         self.assertEqual("restart-the-order-router", frontmatter_fields(draft)["runbook_id"])
         self.assertIn("Order queue depth keeps growing.", slot_text(draft, "Trigger"))
         self.assertIn("Check the router state.", slot_text(draft, "Procedure"))
@@ -623,45 +527,40 @@ class ConfluenceImportPathTest(unittest.TestCase):
     def test_data_center_page_json_supplies_its_modified_date(self) -> None:
         page = json.loads(self.PAGE_JSON)
         page["version"] = {"number": 3, "when": "2025-11-02T08:30:00.000Z"}
-        proc, draft = run_on("page.json", json.dumps(page))
-        self.assertEqual(0, proc.returncode, proc.stderr)
+        _, draft = self.convert(json.dumps(page), name="page.json")
         self.assertIn("- Source page version: 3", draft)
         self.assertIn("- Source page last modified: 2025-11-02T08:30:00.000Z", draft)
 
     def test_page_json_without_a_view_body_fails_without_a_draft(self) -> None:
         storage_only = json.dumps({"title": "Restart", "body": {"storage": {"value": "<p>x</p>"}}})
-        proc, draft = run_on("page.json", storage_only)
+        proc, draft = run_converter(storage_only, name="page.json")
         self.assertEqual(1, proc.returncode)
         self.assertIn("body-format=view", proc.stderr)
-        self.assertEqual("", draft)
+        self.assertIsNone(draft)
 
     def test_html_without_version_leaves_visible_fill_in_lines(self) -> None:
-        proc, draft = run_on("page.html", VIEW_HTML)
-        self.assertEqual(0, proc.returncode, proc.stderr)
+        _, draft = self.convert(VIEW_HTML)
         self.assertIn("- Source page version: <fill in — page history>", draft)
         self.assertIn("- Source page last modified: <fill in — page history>", draft)
 
     def test_title_flag_keeps_a_bare_fragments_first_h1_as_a_section(self) -> None:
         fragment = "<h1>Symptoms</h1><p>Order queue depth keeps growing.</p>"
-        proc, draft = run_on("page.html", fragment, "--title", "Restart the order router")
-        self.assertEqual(0, proc.returncode, proc.stderr)
+        _, draft = self.convert(fragment, "--title", "Restart the order router")
         self.assertEqual("restart-the-order-router", frontmatter_fields(draft)["runbook_id"])
         self.assertIn("Order queue depth keeps growing.", slot_text(draft, "Trigger"))
 
     def test_an_untitled_fragment_warns_instead_of_silently_naming_it_after_the_file(self) -> None:
-        proc, _ = run_on("page.html", "<h2>Steps</h2><p>Check the router state.</p>")
-        self.assertEqual(0, proc.returncode, proc.stderr)
+        proc, _ = self.convert("<h2>Steps</h2><p>Check the router state.</p>")
         self.assertIn("no page title found", proc.stdout)
         self.assertIn("--title", proc.stdout)
 
     def test_existing_output_is_refused_unless_forced(self) -> None:
         history = "| 2026-02-18 | INC-8841 | 3 | steps 1-2 | — | PR #412 |\n"
-        proc, draft = run_on("page.json", self.PAGE_JSON, existing=history)
+        proc, draft = run_converter(self.PAGE_JSON, name="page.json", existing=history)
         self.assertEqual(1, proc.returncode)
         self.assertIn("--force", proc.stderr)
         self.assertEqual(history, draft, "an existing runbook and its history must survive")
-        proc, draft = run_on("page.json", self.PAGE_JSON, "--force", existing=history)
-        self.assertEqual(0, proc.returncode, proc.stderr)
+        _, draft = self.convert(self.PAGE_JSON, "--force", name="page.json", existing=history)
         self.assertIn("restart-the-order-router", draft)
 
     def test_output_created_during_conversion_is_preserved(self) -> None:
@@ -706,19 +605,16 @@ class ConfluenceImportPathTest(unittest.TestCase):
         # is written before the report prints, so an encode error there left a draft and exit 1.
         env = {**os.environ, "PYTHONIOENCODING": "ascii"}
         html = "<h1>Recovery</h1><h2>⚠️ Rollback → safe path</h2><p>Undo the change.</p>"
-        proc, _ = run_on("page.html", html, env=env)
-        self.assertEqual(0, proc.returncode, proc.stderr)
+        proc, _ = self.convert(html, env=env)
         self.assertIn("⚠️ Rollback → safe path", proc.stdout)
 
     def test_headings_match_word_starts_and_contacts_outrank_alerts(self) -> None:
-        proc, draft = run_on(
-            "page.html",
+        _, draft = self.convert(
             "<h1>Recovery</h1>"
             "<h2>Escalation process</h2><p>Page the trading lead.</p>"
             "<h2>Alert contacts</h2><p>Trading on-call rota.</p>"
             "<h2>Prefix conventions</h2><p>Queue names use the desk prefix.</p>",
         )
-        self.assertEqual(0, proc.returncode, proc.stderr)
         escalation = slot_text(draft, "Escalation")
         self.assertIn("Page the trading lead.", escalation)
         self.assertIn("Trading on-call rota.", escalation)
