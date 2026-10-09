@@ -91,6 +91,49 @@ def test_the_guard_denies_the_canary_command_only_for_the_guarded_lane():
     assert _guard('python make_marker.py', None).returncode == 42
 
 
+TRIAGE = ROOT / 'build-scenarios/build-sre-assistant-active-incident-guarded-triage.yaml'
+
+
+def _contract_check(text):
+    spec = catalog.load_scenario(TRIAGE)
+    return spec, next(item for item in spec['checks'] if item.get('text') == text)
+
+
+def _matches(spec, check, reply):
+    return checking.CHECKS['text_regex'](SimpleNamespace(spec=spec, trace=tracing.TraceSummary(result_text=reply)), check)[0]
+
+
+def test_triage_label_checks_accept_the_contract_s_labelled_headings():
+    """WP-02 gap 5: the lane keeps each field as a labelled heading, which its contract allows, and the
+    checks demanded `Label:`; `**Assignment:** complete` failed outright. These lines are the three
+    WP-02 replies' own."""
+    accepted = {
+        'output contract: Observations': ['**Observations**', '## Observations', 'Observations: two reads',
+                                          '**Observations:** two reads', '**Observations**: two reads',
+                                          '**Observations** (all from the guarded cf reads)'],
+        'output contract: Unknowns and non-actions': ['**Unknowns and non-actions**', '## Unknowns and non-actions',
+                                                      'Unknowns and non-actions: none'],
+        'output contract: Caller next step': ['**Caller next step**', '## Caller next step',
+                                              'Caller next step (for the on-call SRE): roll back'],
+        'output contract: Assignment status': ['Assignment: partial', '**Assignment:** complete',
+                                               '**Assignment**: blocked', 'Assignment: **partial**'],
+    }
+    rejected = {
+        'output contract: Observations': ['Observations show the ledger retries climbing.', '## Observations and plan'],
+        'output contract: Unknowns and non-actions': ['Unknowns and non-actions are listed below in prose.'],
+        'output contract: Caller next step': ['Caller next step is to wait.'],
+        'output contract: Assignment status': ['Assignment: done', 'The assignment is complete.'],
+    }
+    for text, replies in accepted.items():
+        spec, check = _contract_check(text)
+        for reply in replies:
+            assert _matches(spec, check, f'Lead.\n\n{reply}\n- detail'), (text, reply)
+    for text, replies in rejected.items():
+        spec, check = _contract_check(text)
+        for reply in replies:
+            assert not _matches(spec, check, f'Lead.\n\n{reply}\n- detail'), (text, reply)
+
+
 def test_canary_grades_runtime_effects_only():
     spec = canary()
     kinds = {item['check'] for item in spec['checks']}
