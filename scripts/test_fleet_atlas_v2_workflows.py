@@ -2,15 +2,14 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 import tempfile
 import unittest
+from pathlib import Path
 
 from atlas_test_support import copy_runtime, git, init_repository
 from fleet_atlas_v2 import query
 from fleet_atlas_v2_artifacts import build, verify
 from fleet_atlas_v2_format import DETAIL_BUDGET
-
 
 FILES = {
     "agents/investigation-reader.md": """---

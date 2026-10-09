@@ -15,7 +15,6 @@ import yaml
 
 from testkit import load_path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "validate.yml"
 

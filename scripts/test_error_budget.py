@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from decimal import Decimal
 import importlib.util
-from pathlib import Path
 import os
 import subprocess
 import sys
 import unittest
+from decimal import Decimal
+from pathlib import Path
 
 from testkit import load_path
 

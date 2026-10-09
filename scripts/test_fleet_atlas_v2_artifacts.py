@@ -1,12 +1,19 @@
 """Real Git fixture checks through the shared build/check artifact boundary."""
 
 import json
-from pathlib import Path
 import unittest
+from pathlib import Path
 
 from atlas_test_support import ReadmeRepository, fact_rows, fixture_extract, row_extraction, verified
 from fleet_atlas_v2_artifacts import (
-    OUTPUT, VerifiedDocument, build, checked_facts, mermaid_label, render_files, verify, verify_runtime_sources,
+    OUTPUT,
+    VerifiedDocument,
+    build,
+    checked_facts,
+    mermaid_label,
+    render_files,
+    verify,
+    verify_runtime_sources,
 )
 from fleet_atlas_v2_model import EvidenceClass, Fact, Node, Predicate, Proof, ProofKind, canonical_bytes, digest
 from fleet_atlas_v2_proofs import Derivation

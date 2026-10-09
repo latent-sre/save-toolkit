@@ -22,7 +22,6 @@ from typing import Any
 
 import fleet_frontmatter
 
-
 PLUGIN_NAME = "save-toolkit"
 # Workspace customizations: opening this repository in VS Code discovers these directly.
 COPILOT_AGENTS = Path(".github/agents")

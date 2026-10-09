@@ -4,10 +4,10 @@ import random
 import unittest
 from pathlib import Path
 
-from fleet_atlas_v2_extract import extract, rooted_reads, scenario_fields, EDGE_TYPES, NODE_TYPES
-from fleet_atlas_v2_model import (assemble, EvidenceClass, ProofKind, Proof)
-from fleet_atlas_v2_sources import Snapshot, Source
+from fleet_atlas_v2_extract import EDGE_TYPES, NODE_TYPES, extract, rooted_reads, scenario_fields
+from fleet_atlas_v2_model import EvidenceClass, Proof, ProofKind, assemble
 from fleet_atlas_v2_proofs import verify_facts
+from fleet_atlas_v2_sources import Snapshot, Source
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -367,8 +367,8 @@ def test_fixture():
                 self.assertEqual((), rooted_reads(Source('scripts/test_fixture.py', text.encode())))
 
     def test_shuffled_extractor_registration_is_byte_identical(self):
-        from fleet_atlas_v2_extract import EXTRACTION_STAGES
         from fleet_atlas_v2_artifacts import render_files
+        from fleet_atlas_v2_extract import EXTRACTION_STAGES
         from fleet_atlas_v2_format import graph_dict
         from fleet_atlas_v2_model import canonical_bytes
 

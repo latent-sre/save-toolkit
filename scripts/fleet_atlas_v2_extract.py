@@ -11,16 +11,32 @@ import hashlib
 import json
 import posixpath
 import re
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 from functools import cached_property, lru_cache
 from pathlib import PurePosixPath
 from types import MappingProxyType
-from typing import Callable, Literal, Mapping, NamedTuple
+from typing import Literal, NamedTuple
 from urllib.parse import unquote, urlsplit
 
 import fleet_frontmatter
-from fleet_atlas_v2_model import (Bucket, EDGE_ENDPOINTS, EDGE_TYPES, EvidenceClass as EC, Fact,
-    Node, NodeIndex, NodeRef, NODE_TYPES, Predicate, Proof, ProofKind as PK, Span, Value, WHOLE_DOCUMENT)
+from fleet_atlas_v2_model import (
+    EDGE_ENDPOINTS,
+    EDGE_TYPES,
+    NODE_TYPES,
+    WHOLE_DOCUMENT,
+    Bucket,
+    Fact,
+    Node,
+    NodeIndex,
+    NodeRef,
+    Predicate,
+    Proof,
+    Span,
+    Value,
+)
+from fleet_atlas_v2_model import EvidenceClass as EC
+from fleet_atlas_v2_model import ProofKind as PK
 from fleet_atlas_v2_proofs import Derivation, Evaluator
 from fleet_atlas_v2_sources import Snapshot, Source
 

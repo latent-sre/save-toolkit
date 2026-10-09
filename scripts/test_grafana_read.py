@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import base64
-from datetime import datetime, timezone
 import io
 import json
 import os
@@ -11,6 +10,7 @@ import shutil
 import ssl
 import subprocess
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.error import URLError
 
@@ -96,7 +96,7 @@ def test_dashboard_uses_fixed_get_and_masks_authentication():
     code, result, text = invoke(["dashboard", "--uid", "board-1"], transport)
     assert code == 0 and result["ok"]
     assert result["grafana_url"] == ENV["GRAFANA_URL"]
-    assert datetime.fromisoformat(result["retrieved_at_utc"]).utcoffset() == timezone.utc.utcoffset(None)
+    assert datetime.fromisoformat(result["retrieved_at_utc"]).utcoffset() == UTC.utcoffset(None)
     assert "test-secret-token" not in text
     org_request, request = transport.requests
     assert org_request.full_url.endswith("/api/org")

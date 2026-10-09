@@ -671,7 +671,7 @@ class ConfluenceImportPathTest(unittest.TestCase):
             source = Path(tmp) / "page.json"
             output = Path(tmp) / "draft.md"
             source.write_text(self.PAGE_JSON, encoding="utf-8")
-            history = "Another writer's café runbook\r\n| INC-8841 | preserve history |\r\n".encode("utf-8")
+            history = "Another writer's café runbook\r\n| INC-8841 | preserve history |\r\n".encode()
             real_convert = converter.convert
 
             def convert_with_competing_output(*args, **kwargs):

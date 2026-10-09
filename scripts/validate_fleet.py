@@ -4,16 +4,15 @@
 from __future__ import annotations
 
 import argparse
-from collections import Counter
-from collections.abc import Mapping
 import importlib.util
 import re
+from collections import Counter
+from collections.abc import Mapping
 from pathlib import Path
 from types import ModuleType
 
 import fleet_frontmatter
 import generate_platform_adapters as adapters
-
 
 ROOT = Path(__file__).resolve().parents[1]
 KNOWN_AGENT_FIELDS = {"name", "description", "tools", "model"}

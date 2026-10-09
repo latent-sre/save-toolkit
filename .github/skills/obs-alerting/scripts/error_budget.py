@@ -17,10 +17,11 @@ return records; ``main`` validates the flags into ``Inputs`` and only renders th
 """
 
 import argparse
-from dataclasses import dataclass
-from decimal import Decimal, InvalidOperation, localcontext
 import math
 import sys
+from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation, localcontext
+
 # Evaluated annotations that Python 3.8 understands: string annotations (`from __future__`) would
 # make the dataclasses below require their module to be registered when loaded from a file path.
 from typing import Optional, Tuple

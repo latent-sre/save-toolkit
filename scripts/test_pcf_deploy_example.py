@@ -2,21 +2,21 @@
 
 from __future__ import annotations
 
-from contextlib import contextmanager
 import hashlib
-from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
 import os
-from pathlib import Path
 import re
 import subprocess
 import sys
+from contextlib import contextmanager
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
 from threading import Thread
 
 import pytest
 import yaml
-from testkit import require_shell
 
+from testkit import require_shell
 
 ROOT = Path(__file__).resolve().parents[1]
 REFERENCE = ROOT / "skills/ci-actions/references/pcf-deploy-job.md"

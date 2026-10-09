@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 import json
 import re
 import tempfile
 import unittest
+from collections.abc import Callable
 from pathlib import Path
 from unittest import mock
 
@@ -14,7 +14,6 @@ import fleet_frontmatter
 import generate_platform_adapters
 import validate_fleet
 from testkit import markdown_section, must_replace, normalized
-
 
 ROOT = Path(__file__).resolve().parents[1]
 

@@ -1,13 +1,21 @@
 """Adversarial proof replay tests: containment is not claim support."""
 
-from dataclasses import replace
 import unittest
+from dataclasses import replace
 
 from fleet_atlas_v2_model import (
-    Bucket, EvidenceClass, Fact, FactRef, Node, Predicate, Proof, ProofKind, assemble,
+    Bucket,
+    EvidenceClass,
+    Fact,
+    FactRef,
+    Node,
+    Predicate,
+    Proof,
+    ProofKind,
+    assemble,
 )
-from fleet_atlas_v2_sources import Snapshot, Source
 from fleet_atlas_v2_proofs import Derivation, VerifiedFacts, verify_facts
+from fleet_atlas_v2_sources import Snapshot, Source
 
 
 class ProofTests(unittest.TestCase):

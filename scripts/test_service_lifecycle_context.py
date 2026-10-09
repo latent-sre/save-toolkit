@@ -9,17 +9,16 @@ from __future__ import annotations
 
 import json
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 
 import yaml
 
 from testkit import must_replace
-
 
 ROOT = Path(__file__).resolve().parents[1]
 SKILL = ROOT / "skills/service-lifecycle"

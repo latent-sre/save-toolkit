@@ -9,13 +9,13 @@ from __future__ import annotations
 
 import json
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import sys
 import tempfile
 import time
 import unittest
+from pathlib import Path
 
 COMMAND = Path(__file__).with_name("cli_contract.py")
 LOCK = "cancel_stale_orders.lock"

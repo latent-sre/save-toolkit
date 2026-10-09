@@ -2,16 +2,24 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict
 import json
-from typing import Callable, Iterable
+from collections.abc import Callable, Iterable
+from dataclasses import asdict
 
 from fleet_atlas_v2_model import (
-    EvidenceClass, Fact, FactRef, Graph, Node, Proof, ProofKind, Span, Value,
-    canonical_bytes, unsafe_identifier,
+    EvidenceClass,
+    Fact,
+    FactRef,
+    Graph,
+    Node,
+    Proof,
+    ProofKind,
+    Span,
+    Value,
+    canonical_bytes,
+    unsafe_identifier,
 )
 from fleet_atlas_v2_proofs import VerifiedFacts
-
 
 DETAIL_BUDGET = 20_000
 INDEX_BUDGET = 4_000

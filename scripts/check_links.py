@@ -18,7 +18,6 @@ from urllib.parse import unquote
 
 import fleet_frontmatter
 
-
 ROOT = Path(os.environ.get("FLEET_ROOT") or Path(__file__).resolve().parents[1]).resolve()
 SKILL_DESCRIPTION_MAX_CHARS = 1024
 LINK_RE = re.compile(r"\[([^\]]*)\]\(([^)]+)\)")

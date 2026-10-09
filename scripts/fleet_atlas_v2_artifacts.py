@@ -6,18 +6,24 @@ import json
 import os
 import re
 import tempfile
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable
 
 from fleet_atlas_v2_format import (
-    API_VERSION, DETAIL_BUDGET, INDEX_BUDGET, PIPELINE, bounded_text, fact_line,
-    graph_dict, parse_graph, self_sized,
+    API_VERSION,
+    DETAIL_BUDGET,
+    INDEX_BUDGET,
+    PIPELINE,
+    bounded_text,
+    fact_line,
+    graph_dict,
+    parse_graph,
+    self_sized,
 )
 from fleet_atlas_v2_model import assemble, canonical_bytes, digest
 from fleet_atlas_v2_proofs import VerifiedFacts, verify_facts
 from fleet_atlas_v2_sources import Snapshot, current_snapshot, verify_revision
-
 
 OUTPUT = Path("docs/fleet-atlas/v2")
 _SEAL = object()

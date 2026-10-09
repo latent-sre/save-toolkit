@@ -13,7 +13,6 @@ from pathlib import Path
 
 from fleet_atlas_v2_model import Span, canonical_bytes, digest, validate_path
 
-
 OUTPUT_ROOTS = ("docs/fleet-atlas/generated/", "docs/fleet-atlas/v2/")
 SOURCE_ROOTS = ("agents/", "skills/", "commands/", "docs/", "schemas/", "hooks/",
                 "scripts/", "evals/", ".github/", "platforms/", "com.github.copilot/")

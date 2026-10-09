@@ -8,12 +8,12 @@ effects, confirmation only from a terminal or --yes, one outcome per item, exit 
 from __future__ import annotations
 
 import argparse
-from contextlib import contextmanager
 import json
 import os
 import signal
 import stat
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 from uuid import uuid4
 
@@ -81,13 +81,12 @@ def owned_lock():
             raise OSError(f"{LOCK}: ownership changed; stop and inspect the lock before re-running")
 
     try:
-        with defer_stop():
-            with LOCK.open("x", encoding="utf-8") as stream:
-                info = os.fstat(stream.fileno())
-                identity = (info.st_dev, info.st_ino)
-                stream.write(owner)
-                stream.flush()
-                written = True
+        with defer_stop(), LOCK.open("x", encoding="utf-8") as stream:
+            info = os.fstat(stream.fileno())
+            identity = (info.st_dev, info.st_ino)
+            stream.write(owner)
+            stream.flush()
+            written = True
         yield check_owner
     finally:
         if identity is not None:

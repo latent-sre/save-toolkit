@@ -1,13 +1,28 @@
 """Regressions for the GRAPH-006 selector and deterministic assembly boundary."""
 
+import unittest
 from dataclasses import FrozenInstanceError, replace
 from itertools import permutations
-import unittest
 
 from fleet_atlas_v2_model import (
-    AmbiguousReference, Bucket, EvidenceClass, Fact, FactRef, Graph, Node, NodeIndex,
-    NodeRef, Predicate, Proof, ProofKind, Span, UnresolvedReference, WHOLE_DOCUMENT,
-    assemble, assert_debt_subset, digest,
+    WHOLE_DOCUMENT,
+    AmbiguousReference,
+    Bucket,
+    EvidenceClass,
+    Fact,
+    FactRef,
+    Graph,
+    Node,
+    NodeIndex,
+    NodeRef,
+    Predicate,
+    Proof,
+    ProofKind,
+    Span,
+    UnresolvedReference,
+    assemble,
+    assert_debt_subset,
+    digest,
 )
 
 

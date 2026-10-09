@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 import pytest
+
 from testkit import SRE_ASSISTANT, guard_decision, guard_payload, run_guard
 
 ROOT = Path(__file__).resolve().parents[1]

@@ -5,7 +5,14 @@ import unittest
 
 from atlas_test_support import verified
 from fleet_atlas_v2_format import (
-    DETAIL_BUDGET, INDEX_BUDGET, bounded_envelope, bounded_text, fact_line, fact_record, graph_dict, parse_graph,
+    DETAIL_BUDGET,
+    INDEX_BUDGET,
+    bounded_envelope,
+    bounded_text,
+    fact_line,
+    fact_record,
+    graph_dict,
+    parse_graph,
 )
 from fleet_atlas_v2_model import EvidenceClass, Fact, Node, Predicate, Proof, ProofKind
 from fleet_atlas_v2_sources import Source

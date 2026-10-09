@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 
 import yaml
+
 from testkit import assert_guard_decisions, frontmatter_block
 
 ROOT = Path(__file__).resolve().parents[1]

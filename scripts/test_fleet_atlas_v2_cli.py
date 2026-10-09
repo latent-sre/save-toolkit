@@ -1,18 +1,24 @@
 """CLI outcomes and source-bound navigation through the real artifact verifier."""
 
-from contextlib import redirect_stdout
 import io
 import json
-import unittest
-from types import SimpleNamespace
-from pathlib import Path
 import subprocess
-import tempfile
 import sys
+import tempfile
+import unittest
+from contextlib import redirect_stdout
+from pathlib import Path
+from types import SimpleNamespace
 
 import fleet_atlas_v2 as cli
 from atlas_test_support import (
-    ReadmeRepository, copy_runtime, fact_rows, fixture_extract, git, init_repository, row_extraction,
+    ReadmeRepository,
+    copy_runtime,
+    fact_rows,
+    fixture_extract,
+    git,
+    init_repository,
+    row_extraction,
 )
 from fleet_atlas_v2_format import DETAIL_BUDGET
 from fleet_atlas_v2_model import Bucket, EvidenceClass, Fact, Node, Predicate, Proof, ProofKind

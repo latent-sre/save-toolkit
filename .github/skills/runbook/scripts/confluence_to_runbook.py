@@ -250,9 +250,7 @@ class _Extractor(HTMLParser):
         elif tag in {"ul", "ol"} and self._lists:
             self._flush_text()
             self._append_block("text", self._lists.pop().render())
-        elif tag == "li":
-            self._flush_text()
-        elif tag in {"p", "tr"}:
+        elif tag in {"li", "p", "tr"}:
             self._flush_text()
 
     def handle_data(self, data: str) -> None:

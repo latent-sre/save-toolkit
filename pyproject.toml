@@ -11,6 +11,10 @@
 [tool.ruff]
 target-version = "py312"  # the runner's compatibility floor (evals/README.md)
 line-length = 120
+# scripts/ is its suites' import root (`import validate_fleet`, `from testkit import ...`), so those
+# modules sort as first-party. evals/ is deliberately absent: reclassifying its modules would reorder
+# imports in evals/probe/, whose bytes are the eval runner's identity.
+src = [".", "scripts"]
 include = [
     "evals/build_probe.py",
     "evals/compare_runs.py",
@@ -19,10 +23,22 @@ include = [
     "evals/graders.py",
     "evals/inspect_pilot.py",
     "evals/test_*.py",
+    "scripts/*.py",
+    "skills/**/*.py",
 ]
 
+# Floors below the runner's 3.12, so upgrade rules never propose syntax a supported interpreter
+# rejects: the read-only guard, the Gate A path and the fleet atlas run on 3.11
+# (gate_a.MINIMUM_PYTHON). Bundled skill code runs on users' interpreters; most of it states no floor
+# and still parses as 3.8, and a lower lint target only withholds suggestions, never raises a floor.
+[tool.ruff.per-file-target-version]
+"scripts/*.py" = "py311"
+"skills/**/*.py" = "py38"
+
 [tool.ruff.format]
-exclude = ["evals/test_*.py"]  # the tests keep their compact hand layout; the lint rules still apply
+# Hand layouts stay: the tests' compact tables, and the fleet tooling and bundled helpers, which
+# predate the formatter. The lint rules still apply to all of them.
+exclude = ["evals/test_*.py", "scripts/*.py", "skills/**/*.py"]
 
 [tool.ruff.lint]
 # The stack profile's bugbear (B) beside errors, imports, upgrades and simplifications. Local imports

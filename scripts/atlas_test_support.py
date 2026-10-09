@@ -15,7 +15,15 @@ from types import SimpleNamespace
 
 from fleet_atlas_v2_artifacts import OUTPUT, runtime_modules
 from fleet_atlas_v2_model import (
-    EDGE_TYPES, Bucket, EvidenceClass, Fact, Node, Predicate, Proof, ProofKind, assemble,
+    EDGE_TYPES,
+    Bucket,
+    EvidenceClass,
+    Fact,
+    Node,
+    Predicate,
+    Proof,
+    ProofKind,
+    assemble,
 )
 from fleet_atlas_v2_proofs import Derivation, VerifiedFacts, verify_facts
 from fleet_atlas_v2_sources import Snapshot

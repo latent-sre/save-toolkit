@@ -11,18 +11,18 @@ Exit 0: requested API operation succeeded (coverage unproven); 2: safe failure.
 
 import argparse
 import base64
-from collections.abc import Callable
-from dataclasses import dataclass
-from datetime import datetime, timezone
 import json
 import math
 import os
 import re
 import ssl
 import sys
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import datetime, timezone
 from urllib.error import HTTPError
 from urllib.parse import quote, quote_plus, urlsplit
-from urllib.request import HTTPSHandler, HTTPRedirectHandler, ProxyHandler, Request, build_opener
+from urllib.request import HTTPRedirectHandler, HTTPSHandler, ProxyHandler, Request, build_opener
 
 MAX_RESPONSE = 2 * 1024 * 1024
 TIMEOUT = 20

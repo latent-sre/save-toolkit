@@ -3,19 +3,18 @@ from __future__ import annotations
 
 import argparse
 import base64
-from datetime import datetime, timezone
 import hashlib
 import json
-from pathlib import Path
 import re
 import sys
+from datetime import UTC, datetime
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from fleet_atlas_v2_artifacts import OUTPUT, VerifiedDocument, extraction, verify
 from fleet_atlas_v2_format import fact_record
 from fleet_atlas_v2_sources import is_source
-
 
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE = Path(__file__).with_suffix(".html")
@@ -30,7 +29,7 @@ def payload(document: VerifiedDocument) -> dict:
     return {
         "revision": document.revision,
         "treeDigest": snapshot.tree_digest,
-        "exportedAt": datetime.now(timezone.utc).isoformat(),
+        "exportedAt": datetime.now(UTC).isoformat(),
         "nodes": [{"id": node.id, "path": node.path, "selector": node.selector, "type": node.type}
                   for node in document.facts.graph.nodes],
         "facts": records,

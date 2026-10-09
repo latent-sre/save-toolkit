@@ -2,23 +2,22 @@
 
 from __future__ import annotations
 
+import io
+import json
 import os
 import re
-import json
-import io
-from contextlib import redirect_stderr, redirect_stdout
 import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest import mock
 
 import fleet_frontmatter
 import generate_platform_adapters as adapters
 from testkit import find_shell, frontmatter_block
-
 
 ROOT = Path(__file__).resolve().parents[1]
 

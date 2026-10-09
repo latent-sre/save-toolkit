@@ -12,7 +12,6 @@ import re
 from pathlib import Path
 from typing import Literal, NamedTuple, TypeAlias
 
-
 Mode: TypeAlias = Literal["strict", "lenient"]
 FrontmatterValue: TypeAlias = str | list[str]
 

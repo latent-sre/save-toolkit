@@ -1,5 +1,6 @@
 """Exercise configuration-read policy without running gcloud or reading credentials."""
 import pytest
+
 from testkit import guard_decision, guard_payload, run_guard
 
 CONTEXTS = [

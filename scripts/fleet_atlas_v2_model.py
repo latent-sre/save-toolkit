@@ -9,11 +9,11 @@ from __future__ import annotations
 import hashlib
 import json
 import unicodedata
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import PurePosixPath
-from typing import Sequence, TypeAlias
-
+from typing import TypeAlias
 
 Scalar: TypeAlias = str | int | float | bool | None
 Value: TypeAlias = Scalar | tuple["Value", ...]

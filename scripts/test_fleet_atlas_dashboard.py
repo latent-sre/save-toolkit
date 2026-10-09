@@ -1,9 +1,9 @@
 """Dashboard export exercises the real artifact boundary and HTML trust boundary."""
 import json
-from pathlib import Path
 import re
 import tempfile
 import unittest
+from pathlib import Path
 
 from atlas_test_support import fixture_extract, git, init_repository
 from fleet_atlas_dashboard import export, payload, render

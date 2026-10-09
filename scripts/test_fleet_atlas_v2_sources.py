@@ -1,13 +1,18 @@
 """Source-corpus and source-location regressions independent of atlas extraction."""
 
-from pathlib import Path
 import tempfile
 import unittest
+from pathlib import Path
 
 from atlas_test_support import git, init_repository
 from fleet_atlas_v2_model import Span
 from fleet_atlas_v2_sources import (
-    Snapshot, Source, current_snapshot, is_source, read_revision, verify_revision,
+    Snapshot,
+    Source,
+    current_snapshot,
+    is_source,
+    read_revision,
+    verify_revision,
 )
 
 

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import argparse
 import json
-from pathlib import Path
 import sys
-from typing import Callable
+from collections.abc import Callable
+from pathlib import Path
 
 # Isolated Python (-I -S) deliberately omits the script directory. Only this
 # explicitly selected, source-bound implementation directory is added back.
@@ -15,7 +15,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fleet_atlas_v2_artifacts import ArtifactDrift, VerifiedDocument, build, extraction, verify
 from fleet_atlas_v2_format import bounded_envelope, fact_record, graph_dict
 from fleet_atlas_v2_model import Fact, canonical_bytes
-
 
 ROOT = Path(__file__).resolve().parents[1]
 VERBS = ("governs", "owner-of", "loads-for", "supersedes", "depends-on", "blocks",

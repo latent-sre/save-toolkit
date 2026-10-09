@@ -1,28 +1,27 @@
 """Exercise the shipped HTTP starters through their public request/fixture contracts."""
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
 import asyncio
 import logging
-from pathlib import Path
 import sys
-from types import ModuleType
+from contextlib import asynccontextmanager
+from pathlib import Path
 from textwrap import dedent
+from types import ModuleType
 from urllib.parse import urlsplit
 
+import pytest
+import yaml
 from fastapi import APIRouter, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 from httpx import Response
 from jsonschema import Draft202012Validator
 from pydantic import BaseModel
-import pytest
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.middleware.cors import CORSMiddleware
-import yaml
 
 from testkit import load_path
-
 
 ASSETS = Path(__file__).resolve().parents[1] / "skills/backend-craft/assets"
 
@@ -809,11 +808,10 @@ def test_populated_collection_starter_rejects_broken_traversal(defect, reason):
             page["next_cursor"] = ""
         return page
 
-    with TestClient(collection_app(records, mutate)) as client:
-        with pytest.raises(AssertionError, match=reason):
-            contract.test_populated_collection_limit_and_traversal(
-                client, {}, [item["id"] for item in records],
-            )
+    with TestClient(collection_app(records, mutate)) as client, pytest.raises(AssertionError, match=reason):
+        contract.test_populated_collection_limit_and_traversal(
+            client, {}, [item["id"] for item in records],
+        )
 
 
 @pytest.mark.parametrize("expected", [[], ["inc-0"], ["inc-0", "inc-0"]])

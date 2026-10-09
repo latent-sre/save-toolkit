@@ -83,9 +83,8 @@ class RunStepsTests(unittest.TestCase):
 class PreflightInterpreterFloorTests(unittest.TestCase):
     def test_an_old_interpreter_is_refused_by_name(self) -> None:
         stderr = io.StringIO()
-        with mock.patch.object(gate_a.sys, "version_info", (3, 10, 15)):
-            with contextlib.redirect_stderr(stderr):
-                allowed = gate_a.preflight()
+        with mock.patch.object(gate_a.sys, "version_info", (3, 10, 15)), contextlib.redirect_stderr(stderr):
+            allowed = gate_a.preflight()
         message = stderr.getvalue()
         self.assertFalse(allowed)
         self.assertIn("3.11", message)
@@ -98,9 +97,8 @@ class PreflightInterpreterFloorTests(unittest.TestCase):
             self.assertTrue(gate_a.preflight())
 
     def test_structural_gate_does_not_require_the_eval_yaml_dependency(self) -> None:
-        with mock.patch.dict(sys.modules, {"yaml": None}):
-            with contextlib.redirect_stderr(io.StringIO()):
-                self.assertTrue(gate_a.preflight())
+        with mock.patch.dict(sys.modules, {"yaml": None}), contextlib.redirect_stderr(io.StringIO()):
+            self.assertTrue(gate_a.preflight())
 
 
 class MainTests(unittest.TestCase):
