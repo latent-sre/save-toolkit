@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import base64
 from datetime import datetime, timezone
-import importlib.util
 import io
 import json
 import os
@@ -17,11 +16,10 @@ from urllib.error import URLError
 
 import pytest
 
+from testkit import load_path
+
 PATH = Path(__file__).resolve().parents[1] / "skills/grafana/scripts/grafana_read.py"
-SPEC = importlib.util.spec_from_file_location("grafana_read", PATH)
-assert SPEC and SPEC.loader
-reader = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(reader)
+reader = load_path(PATH, "grafana_read")
 
 ENV = {"GRAFANA_URL": "https://monitor.example/grafana", "GRAFANA_ORG_ID": "7", "GRAFANA_SA_TOKEN": "test-secret-token"}
 QUERY = ["query", "--datasource", "metrics-1", "--kind", "prometheus", "--from", "1000", "--to", "61000", "--expr", "up"]

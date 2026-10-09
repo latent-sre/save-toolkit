@@ -10,7 +10,6 @@ field changed (must fire, and fire that rule specifically).
 from __future__ import annotations
 
 import copy
-import importlib.util
 import json
 import os
 import subprocess
@@ -19,12 +18,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from testkit import load_path
+
 ROOT = Path(__file__).resolve().parents[1]
 MODULE = ROOT / "skills" / "grafana" / "scripts" / "dashboard_hygiene.py"
 
-_spec = importlib.util.spec_from_file_location("dashboard_hygiene", MODULE)
-hygiene = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(hygiene)
+hygiene = load_path(MODULE, "dashboard_hygiene")
 
 
 def clean_model() -> dict:

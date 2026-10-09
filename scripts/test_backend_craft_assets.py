@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 import asyncio
-import importlib.util
 import logging
 from pathlib import Path
 import sys
@@ -22,14 +21,16 @@ from starlette.datastructures import Headers, MutableHeaders
 from starlette.middleware.cors import CORSMiddleware
 import yaml
 
+from testkit import load_path
+
 
 ASSETS = Path(__file__).resolve().parents[1] / "skills/backend-craft/assets"
 
 
 def load_asset(name):
-    spec = importlib.util.spec_from_file_location(name, ASSETS / f"{name}.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    """A fresh copy of an asset, left unregistered: a test that imports it by name registers it itself."""
+    module = load_path(ASSETS / f"{name}.py", name)
+    del sys.modules[name]
     return module
 
 
@@ -258,8 +259,8 @@ def test_unhandled_log_names_grouped_and_context_exceptions(caplog):
     def grouped():
         try:
             raise KeyError("SYNTHETIC_CONTEXT_TOKEN")
-        except KeyError:
-            raise ExceptionGroup("SYNTHETIC_GROUP_TOKEN", [
+        except KeyError:  # implicit __context__ is the chain under test; `from` would make it a __cause__
+            raise ExceptionGroup("SYNTHETIC_GROUP_TOKEN", [  # noqa: B904
                 OSError("SYNTHETIC_MEMBER_TOKEN"), LookupError("SYNTHETIC_MEMBER_TOKEN"),
             ])
 
@@ -549,8 +550,8 @@ def test_request_id_context_is_restored_in_same_task(raises):
         token = problems.request_id_var.set("outer-context")
         try:
             for request_id in ("request-1", "request-2"):
-                async def app(scope, receive, send):
-                    assert scope["state"]["request_id"] == problems.request_id_var.get() == request_id
+                async def app(scope, receive, send):  # awaited within this iteration, so the loop variable is current
+                    assert scope["state"]["request_id"] == problems.request_id_var.get() == request_id  # noqa: B023
                     if raises:
                         raise RuntimeError("probe")
                     await send({"type": "http.response.start", "status": 200, "headers": []})
@@ -558,7 +559,7 @@ def test_request_id_context_is_restored_in_same_task(raises):
                 messages = []
 
                 async def send(message):
-                    messages.append(message)
+                    messages.append(message)  # noqa: B023 -- awaited within this iteration
 
                 scope = {"type": "http", "headers": [(b"x-request-id", request_id.encode())]}
                 middleware = problems.RequestIdMiddleware(app, trusted_request_id_header="X-Request-ID")
