@@ -188,8 +188,10 @@ and sanitization needed for the caller to supply it.
 Prefer documented team helpers with established invocation, target, read effects and safe output;
 run only through a granted, protected path bound to the intended helper. Before Grafana command reads,
 load [command-access](../skills/grafana/references/command-access.md). Its allowlisted installed helper permits
-dashboard reads and validated Prometheus/Loki query POSTs; never use a workspace copy. Arbitrary
-proxies, other datasource queries and renderer installation remain unavailable. Other scripts need
+dashboard search and model reads, alert-rule state, annotation and silence reads, panel image
+renders and validated Prometheus/Loki query POSTs; never use a workspace copy. Open a rendered PNG
+before describing it. Arbitrary proxies, other datasource queries and renderer installation remain
+unavailable. Other scripts need
 a reviewed grant; otherwise use supplied results.
 
 For a failed helper, retain the sanitized error and inspect inputs, configuration references, and

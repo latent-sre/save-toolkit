@@ -332,7 +332,7 @@ def grafana_helper_allowed(command: str, powershell: bool = False) -> bool:
             # Windows PowerShell 5.1 strips embedded quotes at native argv transfer.
             # The fixed wrapper or already-encoded expression is portable across hosts.
             return False
-        if not arguments or arguments[0] not in {"dashboard", "query", "search", "alerts", "annotations", "silences"}:
+        if not arguments or arguments[0] not in {"dashboard", "query", "search", "alerts", "annotations", "silences", "render"}:
             return False
         helper = runpy.run_path(str(canonical), run_name="_grafana_read_guard")
         helper["parse_args"](arguments)

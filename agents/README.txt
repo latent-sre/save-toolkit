@@ -95,8 +95,8 @@ Current source and remaining work
   permissions, protected results and installed-host acceptance remain required.
   Existing SSO comes first; an unshared or separately opened tab is not access.
 - APIs/helpers: skills/grafana/scripts/grafana_read.py now provides dashboard search
-  and model reads, alert-rule state, annotation and silence reads, and bounded
-  Prometheus/Loki queries, with internal token/basic
+  and model reads, alert-rule state, annotation and silence reads, panel image
+  renders and bounded Prometheus/Loki queries, with internal token/basic
   authentication and masked results/errors. The guard binds its installed path and
   arguments; it grants no arbitrary Python. Credentials come from the environment
   or the human-written ~/.config/save-toolkit/grafana.env; the operations-repo path

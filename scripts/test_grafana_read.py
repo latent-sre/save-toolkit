@@ -25,15 +25,22 @@ SPEC.loader.exec_module(reader)
 
 ENV = {"GRAFANA_URL": "https://monitor.example/grafana", "GRAFANA_ORG_ID": "7", "GRAFANA_SA_TOKEN": "test-secret-token"}
 QUERY = ["query", "--datasource", "metrics-1", "--kind", "prometheus", "--from", "1000", "--to", "61000", "--expr", "up"]
+RENDER = ["render", "--uid", "board", "--panel", "7", "--from", "1000", "--to", "61000"]
+PNG = bytes((137, 80, 78, 71, 13, 10, 26, 10)) + (13).to_bytes(4, "big") + b"IHDR" + (1200).to_bytes(4, "big") + (600).to_bytes(4, "big") + bytes(5)
+BOARD = {"dashboard": {"uid": "board", "version": 3, "panels": [
+    {"id": 1, "type": "row", "collapsed": True, "panels": [{"id": 7, "type": "timeseries", "title": "B70 temperatures"}]}]},
+    "meta": {"slug": "cylon-ai"}}
 
 
 class Transport:
     def __init__(self, *responses, org_response=None):
         self.responses = [(200, {"id": 7}) if org_response is None else org_response, *responses]
         self.requests = []
+        self.bounds = []
 
-    def __call__(self, request):
+    def __call__(self, request, **bounds):
         self.requests.append(request)
+        self.bounds.append(bounds)
         response = self.responses.pop(0)
         if isinstance(response, Exception):
             raise response
@@ -291,6 +298,44 @@ def test_list_truncation_and_masking_are_reported():
     assert invoke(["alerts"], Transport((200, paged)))[1]["truncated"] is True
 
 
+@pytest.fixture
+def capture_dir(monkeypatch, tmp_path):
+    captures = tmp_path / "captures"
+    captures.mkdir()
+    monkeypatch.setattr(reader.tempfile, "tempdir", str(captures))
+    return captures
+
+
+def test_render_checks_the_panel_then_saves_one_bounded_png(capture_dir):
+    transport = Transport((200, BOARD), (200, PNG))
+    code, result, _ = invoke(RENDER + ["--var", "host=adama", "--var", "host=cally"], transport)
+    assert code == 0 and result["operation"] == "render" and result["coverage"] == "image_uninspected"
+    assert [r.full_url for r in transport.requests[1:]] == [
+        ENV["GRAFANA_URL"] + "/api/dashboards/uid/board",
+        ENV["GRAFANA_URL"] + "/render/d-solo/board/cylon-ai?orgId=7&panelId=7&from=1000&to=61000&width=1200"
+        "&height=600&scale=1&tz=UTC&timeout=40&var-host=adama&var-host=cally"]
+    assert transport.requests[2].method == "GET" and transport.bounds[2] == {"limit": 8 * 1024 * 1024, "timeout": 45}
+    saved = Path(result["image_path"])
+    assert saved.parent == capture_dir and saved.read_bytes() == PNG
+    assert (result["width"], result["height"], result["panel_title"]) == (1200, 600, "B70 temperatures")
+
+
+@pytest.mark.parametrize("panel", ["1", "99"], ids=["row", "absent"])
+def test_render_refuses_rows_and_unknown_panels_before_rendering(capture_dir, panel):
+    transport = Transport((200, BOARD))
+    code, result, _ = invoke(RENDER[:4] + [panel] + RENDER[5:], transport)
+    assert code == 2 and result["error"] == "panel_not_found" and len(transport.requests) == 2
+    assert not list(capture_dir.iterdir())
+
+
+@pytest.mark.parametrize("response,error", [((200, b"<html>login</html>"), "invalid_image"), ((429, b""), "renderer_busy"),
+                                            ((302, b""), "redirect_rejected"), ((200, PNG + bytes(8 * 1024 * 1024)), "response_too_large")])
+def test_render_failures_save_nothing(capture_dir, response, error):
+    code, result, _ = invoke(RENDER, Transport((200, BOARD), response))
+    assert code == 2 and result["error"] == error
+    assert not list(capture_dir.iterdir())
+
+
 def test_settings_file_is_per_user_not_workspace_relative():
     assert REAL_SETTINGS_FILE() == Path.home() / ".config" / "save-toolkit" / "grafana.env"
     assert REAL_SETTINGS_FILE().is_absolute()
@@ -437,6 +482,8 @@ def test_real_transport_configures_tls_no_proxy_no_redirect_and_response_bound(m
     with pytest.raises(reader.SafeError, match="redirect_rejected"):
         redirect.redirect_request(None, None, 302, "secret-location", {}, "https://monitor.example/another")
     assert captured["timeout"] == 20 and captured["read_bound"] == 2 * 1024 * 1024 + 1
+    reader.http_transport(reader.Request("https://monitor.example"), limit=8 * 1024 * 1024, timeout=45)
+    assert captured["timeout"] == 45 and captured["read_bound"] == 8 * 1024 * 1024 + 1
 
 
 @pytest.mark.parametrize("env", [{"GRAFANA_URL": ENV["GRAFANA_URL"], "GRAFANA_ORG_ID": "7"}, {"GRAFANA_URL": ENV["GRAFANA_URL"], "GRAFANA_ORG_ID": "7", "GRAFANA_USERNAME": "test-person"}])
@@ -456,6 +503,9 @@ def test_missing_or_incomplete_auth_never_calls_network(env):
     ["search", "--query", "edge", "--query", "other"], ["alerts", "--folder-uid", "../other"], ["alerts", "--folder-uid", ""],
     ["alerts", "extra"], ["annotations", "--from", "0", "--to", "86400001"], ["annotations", "--from", "5", "--to", "5"],
     ["annotations", "--from", "0", "--to", "1000", "--dashboard-uid", "a/b"], ["silences", "--uid", "board"],
+    RENDER[:-2] + ["--to", str(1000 + 7 * 86400000 + 1)], RENDER[:4] + ["0"] + RENDER[5:], RENDER[:4] + ["x"] + RENDER[5:],
+    RENDER + ["--var", "bad name=1"], RENDER + ["--var", "host=a b"], RENDER + ["--var", "host=$(id)"],
+    RENDER + ["--var", "host"], RENDER + ["--var", "host=a"] * 6, RENDER + ["--uid", "other"],
 ])
 def test_parser_rejects_unsafe_input_without_echo(args, capsys):
     with pytest.raises(reader.SafeError):

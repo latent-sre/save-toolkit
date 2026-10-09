@@ -77,6 +77,7 @@ python -I -S "<absolute-installed-path>/grafana_read.py" search --query 'checkou
 python -I -S "<absolute-installed-path>/grafana_read.py" alerts --folder-uid folder-uid
 python -I -S "<absolute-installed-path>/grafana_read.py" annotations --from 1758400000000 --to 1758403600000 --dashboard-uid dashboard-uid
 python -I -S "<absolute-installed-path>/grafana_read.py" silences
+python -I -S "<absolute-installed-path>/grafana_read.py" render --uid dashboard-uid --panel 5 --from 1758400000000 --to 1758403600000 --var host=example
 ```
 
 For **Windows PowerShell 5.1 or PowerShell 7**, call the installed wrapper as a script. It accepts
@@ -108,6 +109,16 @@ annotations in a window of at most 24 hours, optionally for one dashboard. `sile
 Grafana Alertmanager's silences with their state. These report `coverage: permission_scoped` and,
 where bounded, `truncated`: an absent result means this identity saw none within the limits, not
 that none exists.
+
+`render` reads the dashboard model, confirms the Classic panel ID is a non-row panel, then requests
+one PNG through Grafana's `/render/d-solo/` route: 1200×600, scale 1, UTC, an absolute window of at
+most 7 days, and up to five `--var name=value` selections (repeat a name for multi-value). It saves
+the image to a private temporary file and prints its path, size, SHA-256 and dimensions; it never
+returns image bytes or a URL carrying credentials. `coverage: image_uninspected` stays true until you
+open and inspect the PNG with an image-capable read. Without `--var`, the dashboard's saved variable
+defaults apply. Limits: 8 MiB and a 45-second timeout; a busy renderer fails as `renderer_busy`, and
+a non-PNG answer such as a login page fails as `invalid_image`. Follow
+[visual verification](./visual-verification.md) to bind the image to a query over the same window.
 
 Resolve variables and macros from actual dashboard selections before querying; the helper rejects
 unresolved variables rather than guessing substitutions. It does not execute Grafana expressions,

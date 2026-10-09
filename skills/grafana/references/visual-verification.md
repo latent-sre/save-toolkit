@@ -117,11 +117,14 @@ checked 2026-09-21.
 2. Read all relevant targets and transformations. Query the panel's real datasource using its
    supported read contract; retain instant/range mode, step, macro substitutions, and per-query
    status. An error-free empty frame means no data, not a healthy zero. A selected target sample
-   does not verify every series in the panel. The SRE command path permits query POSTs only through
-   its bundled helper's validated Prometheus/Loki operation, not arbitrary HTTP or render URLs.
-3. Console: use the panel's Share/Export image action where available. Agent: use the instance's
-   generated image link or derive the same-origin `/render/d-solo/<uid>/<slug>` route from the
-   resolved dashboard path. Preserve a deployment subpath. Carry `orgId`, `panelId`, absolute
+   does not verify every series in the panel. The SRE command path permits query POSTs and panel
+   images only through its bundled helper's validated `query` and `render` operations, never
+   arbitrary HTTP or render URLs.
+3. Console: use the panel's Share/Export image action where available. SRE agent: run the helper's
+   [`render`](./command-access.md#bundled-read-helper), which derives the route below and saves the
+   PNG to a private temporary file; then open that file with an image-capable read. Other agents:
+   use the instance's generated image link or derive the same-origin
+   `/render/d-solo/<uid>/<slug>` route from the resolved dashboard path. Preserve a deployment subpath. Carry `orgId`, `panelId`, absolute
    `from`/`to`, `tz`, and URL-encoded `var-<name>` selections; repeat parameters for multi-values.
    Use the actual panel ID/scene key rather than guessing or converting it to another format.
 4. Start with one panel at 1200×600, one render at a time, a 45-second client timeout, and an 8 MiB
