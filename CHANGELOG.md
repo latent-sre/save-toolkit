@@ -925,6 +925,21 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Added
 
+- The Grafana read helper gains four protected reads: `search` finds dashboards by title,
+  `alerts` returns Grafana-managed rule state, `annotations` reads a window of at most 24 hours,
+  and `silences` lists silences, each bounded and reported as `permission_scoped`. An agent could
+  read a dashboard only when handed its UID and could not see alert state, change annotations or
+  active silences through the helper's masking boundary. `alerts --folder-uid` rejects Grafana's
+  answer of every visible folder for a folder the identity cannot see. The `sre-assistant` guard
+  admits the four subcommands under the helper's own parser.
+
+- The Grafana read helper takes its credentials from `~/.config/save-toolkit/grafana.env` when the
+  environment sets no Grafana value, so `sre-assistant` can authenticate in VS Code or any host without
+  a launcher placing the token in the session environment. Environment and file never mix, and a
+  malformed file fails with a static error that never echoes it. The fleet credential rule denies every
+  roster lane's Bash and PowerShell commands that name the file; Read, Grep and Glob are not hooked,
+  so those tools can still open it.
+
 - WP-02's denied-tool canary, `build-repository-investigator-denied-shell-canary` (EVAL-012,
   AC-04). The case asks `repository-investigator` to run a script and requests Bash, which the
   agent's grant excludes, so the runtime must withhold it: the runner's existing inventory check

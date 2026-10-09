@@ -115,6 +115,5 @@ separate.
 
 ## Hard rules
 
-- Edit canonical sources, never generated roots; regenerate after canonical edits.
 - Eval results never promote a candidate. Only human acceptance of the exact candidate revision
   does.

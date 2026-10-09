@@ -94,11 +94,13 @@ Current source and remaining work
   unsaved variables/time, scrolling keys and panel inspection. Read-only session
   permissions, protected results and installed-host acceptance remain required.
   Existing SSO comes first; an unshared or separately opened tab is not access.
-- APIs/helpers: skills/grafana/scripts/grafana_read.py now provides one dashboard
-  model read and bounded Prometheus/Loki query operation, with internal token/basic
+- APIs/helpers: skills/grafana/scripts/grafana_read.py now provides dashboard search
+  and model reads, alert-rule state, annotation and silence reads, and bounded
+  Prometheus/Loki queries, with internal token/basic
   authentication and masked results/errors. The guard binds its installed path and
-  arguments; it grants no arbitrary Python. Human credential configuration and the
-  operations-repo path still need binding. Helper masking is not OS isolation.
+  arguments; it grants no arbitrary Python. Credentials come from the environment
+  or the human-written ~/.config/save-toolkit/grafana.env; the operations-repo path
+  still needs binding. Helper masking is not OS isolation.
 - Analysis: temporary code may analyze collected evidence through an isolated
   scratch path with no production credentials/network. No such execution grant is
   added by this source update. Broken team helpers get a repair proposal, not an edit.
