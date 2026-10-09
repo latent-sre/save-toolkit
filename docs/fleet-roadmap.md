@@ -1,6 +1,6 @@
 # Fleet roadmap
 
-> **Status: live; working update 2026-09-30, integrated with `65daa521`.** This is the only backlog.
+> **Status: live; working update 2026-10-09, integrated with `34634c25`.** This is the only backlog.
 > Historical records supply evidence, not new work or authorization. Cleanup does not close an
 > unresolved item, approve a model budget, or establish behavioral acceptance.
 
@@ -272,38 +272,6 @@ handoff before claiming usability. Do not replay the old consumer patch as proof
   producer. Compatibility, producer merge, service onboarding, and live usability are distinct claims.
 
 **SRE task:** State team, service, environment, and deployment once instead of repeating context.
-
-### SKILL-001 — make confirmed oversized skills conditional routers
-
-**Status:** `active` (2026-09-07); one skill per slice, probe before routing changes.
-**Owner:** Maintainers approve each slice; `agent-engineer` executes.
-**Outcome:** Skills load only needed guidance. A component contract outranks the byte screen or
-probe; reducing bytes alone does not prove better behavior.
-**Next action:** Review the owner-approved incident-investigation repairs and conditional-detail
-candidate in [PR #248](https://github.com/latent-sre/save-toolkit/pull/248), recorded in the
-[quality round](reviews/2026-09-08-quality-round.md#approved-incident-skill-repairs--2026-09-09).
-The core is 7.4% smaller after restoring and clarifying the five opening questions; reference-read
-scenarios and example checks are repaired, but fresh judge calibration and paired native behavior
-are unverified.
-Select their budget before behavioral acceptance. `agent-authoring` remains queued; this slice does
-not authorize another skill's cut.
-The owner-approved Terra prompt comparison now records supplied source and same-session updates;
-opening coverage improved in its single paired sample, while direction-change checkpoint selection
-still failed and the candidate inferred a database destination. See the quality round's
-[Terra follow-up](reviews/2026-09-08-quality-round.md#terra-source-input-follow-up--2026-09-09).
-**Evidence:** [verified] UTF-8/LF entrypoint sizes at `ed321035`, measured 2026-09-07. Six exceed
-the existing 7,800-byte screen (the old list of three is obsolete):
-
-| Skill | Bytes |
-|---|---:|
-| [incident-investigation](../skills/incident-investigation/SKILL.md) | 16,904 |
-| [agent-authoring](../skills/agent-authoring/SKILL.md) | 9,392 |
-| [service-lifecycle](../skills/service-lifecycle/SKILL.md) | 8,639 |
-| [pcf-deploy](../skills/pcf-deploy/SKILL.md) | 8,635 |
-| [gcp-ops](../skills/gcp-ops/SKILL.md) | 8,187 |
-| [runbook](../skills/runbook/SKILL.md) | 7,845 |
-
-**SRE task:** Get the needed guidance with less irrelevant context and response delay.
 
 ### LIFECYCLE-001 — a service record stays true for the whole service life
 

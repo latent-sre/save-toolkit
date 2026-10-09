@@ -19,6 +19,12 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   `reviewer`, never to `principal-engineer` (the owner's resolution of Codex's P1 on PR #341).
   The owner accepted that P1's other half as a known gap: a review the main session keeps passes on
   any nonempty reply without a dispatch, so no grader yet shows the review itself was done.
+- `SKILL-001` closes with the owner's 2026-10-09 disposition, without further slices. Its last
+  slice, the incident-investigation repairs in PR #248, merged on 2026-09-09; their fresh judge
+  calibration and paired native behavior were never measured, and the queued `agent-authoring` slice
+  was not started. [verified] At `34634c25`, 9 of 30 skill entrypoints exceed the advisory
+  7,800-byte screen (6 at `ed321035`), and `incident-investigation` has grown from 16,904 to 21,691
+  bytes. Closing the item accepts those sizes; it does not reduce them.
 - `RELIABILITY-001` is deferred: the owner kept the reliability lane unaccepted. [sourced:
   independent blind trace review] In its two-trial comparison both arms failed the timing criterion
   the same way. It reopens when a source repair for retry-count ambiguity and timeout sums is
