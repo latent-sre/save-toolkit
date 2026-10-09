@@ -16,7 +16,7 @@ from typing import Any
 import clean_room
 import yaml
 
-from . import catalog, fingerprints, records, tracing
+from . import catalog, constants, fingerprints, records, tracing
 from .constants import BUILD_TOOLS, READ_TOOLS, SHELL_TOOLS, WRITING_TOOLS
 from .outcomes import CutShort, Stop
 from .tracing import TraceSummary
@@ -134,7 +134,7 @@ def declared_agent_tools(plugin_root: Path, agent: str) -> tuple[str, ...] | Non
     for name in names:
         base = str(name).strip().split("(")[0].strip()
         if base:
-            resolved.append("Task" if base == "Agent" else base)
+            resolved.append(constants.requested_tool_name(base))
     return tuple(dict.fromkeys(resolved))
 
 
@@ -380,7 +380,7 @@ def native_identity_problem(
     """A native conversation's model, grants, session and helper identity, on a finished or partial
     trace. A partial trace has no result event, so its session is read from the init events alone."""
     requested = catalog.scenario_tools(spec)
-    used = {"Task" if tool == "Agent" else tool for tool in trace.tool_counts}
+    used = {constants.requested_tool_name(tool) for tool in trace.tool_counts}
     if used - set(requested):
         return f"native ungranted tool use: {sorted(used - set(requested))}"
     model = native_model_problem(trace, spec)

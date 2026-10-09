@@ -31,3 +31,11 @@ BUILD_TOOLS = ("Read", "Edit", "Write", "Grep", "Glob", "Bash", "Skill", "Task")
 SHELL_TOOLS = frozenset({"Bash", "PowerShell"})
 WRITING_TOOLS = frozenset({"Edit", "Write", "NotebookEdit"}) | SHELL_TOOLS
 READ_TOOLS = ("Glob", "Grep", "Read")
+# The dispatch tool goes by two names: `Agent` in agent frontmatter and in the calls a trace records,
+# `Task` in the inventory a trial requests and the runtime advertises.
+DISPATCH_TOOLS = frozenset({"Task", "Agent"})
+
+
+def requested_tool_name(name: str) -> str:
+    """A tool as a trial's inventory names it: either name of the dispatch tool is `Task`."""
+    return "Task" if name in DISPATCH_TOOLS else name

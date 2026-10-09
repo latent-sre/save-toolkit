@@ -15,7 +15,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
-from .constants import READ_TOOLS, SHELL_TOOLS, WRITING_TOOLS
+from .constants import DISPATCH_TOOLS, READ_TOOLS, SHELL_TOOLS, WRITING_TOOLS
 
 
 @dataclass
@@ -249,7 +249,7 @@ class _Reader:
         s.tool_counts[name] = s.tool_counts.get(name, 0) + 1
         if parent:
             s.subagent_tool_ids.append(use_id)
-        if name in WRITING_TOOLS | {"Task", "Agent"}:
+        if name in WRITING_TOOLS | DISPATCH_TOOLS:
             s.effect_calls.append(
                 {
                     "id": use_id,
@@ -276,7 +276,7 @@ class _Reader:
                 (s.bash_commands if name == "Bash" else s.powershell_commands).append(command)
                 if name == "Bash" and parent:
                     s.subagent_bash_commands.append(command)
-            case "Task" | "Agent":
+            case _ if name in DISPATCH_TOOLS:
                 agent_name = str(inp.get("subagent_type") or "") or "<unnamed-agent>"
                 s.dispatches.append(agent_name)
                 self.agent_uses.append((use_id, agent_name, parent, position))
@@ -348,7 +348,7 @@ class _Reader:
         """Attach completion evidence to one potentially mutating call."""
         use_id = call["id"]
         returned = self.result_positions.get(use_id)
-        if call["tool"] in {"Task", "Agent"} and use_id in self.asynchronous:
+        if call["tool"] in DISPATCH_TOOLS and use_id in self.asynchronous:
             returned = self.completed.get(use_id)
         receipt = self.shell_receipts.get(use_id, {})
         if call["tool"] in SHELL_TOOLS:
