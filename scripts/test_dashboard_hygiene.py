@@ -299,8 +299,9 @@ class StructureTest(unittest.TestCase):
         self.assertNotIn("panel-description", fired)
 
     def test_check_refuses_panels_it_cannot_traverse(self) -> None:
-        # check() walks panels the way the shape validation does, so a caller that skips validation
-        # gets the same located refusal, not a crash or findings computed over an unreadable panel.
+        # check() descends through the walk validation uses, so a caller that skips validation gets
+        # the same located refusal for a panel container, panel or type it cannot traverse, not a
+        # crash or findings computed over that panel. Fields inside a panel remain validation's job.
         for panels, message in (
             ([None], r"\$\.panels\[0\] must be an object"),
             ([{"type": 5, "title": "x"}], r"\$\.panels\[0\]\.type must be a string"),
@@ -372,7 +373,8 @@ class ExitCodeTest(unittest.TestCase):
 
     def test_rows_nested_too_deep_to_walk_exit_two_not_one(self) -> None:
         # A decoder that accepts deep JSON leaves the row walk to overflow instead; same contract.
-        rows = 5_000
+        # 1,500 rows decode on Python 3.13 and 3.14 and overflow the walk at the default limit.
+        rows = 1_500
         text = ('{"tags":["t"],"panels":[' + '{"type":"row","panels":[' * rows
                 + '{"type":"timeseries","title":"t"}' + "]}" * rows + "]}")
         with tempfile.TemporaryDirectory() as tmp:
@@ -382,6 +384,9 @@ class ExitCodeTest(unittest.TestCase):
         self.assertEqual(2, result.returncode, result.stderr)
         self.assertIn("cannot check", result.stderr)
         self.assertNotIn("Traceback", result.stderr)
+        if "while decoding" in result.stderr:
+            self.skipTest("this interpreter's JSON decoder overflows before the row walk (Python 3.11)")
+        self.assertIn("maximum recursion depth exceeded", result.stderr)
 
     def test_a_title_the_output_encoding_cannot_represent_still_reports(self) -> None:
         # Captured output may default to a legacy code page; `-I` would ignore PYTHONIOENCODING.

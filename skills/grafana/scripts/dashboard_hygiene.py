@@ -161,7 +161,10 @@ def unwrap(model: dict) -> dict:
 
 
 def iter_panels(spec: dict):
-    """Yield every non-row panel, descending into collapsed rows; untraversable shapes raise."""
+    """Yield every non-row panel, descending into collapsed rows.
+
+    A panel container, panel or type that the walk cannot traverse raises InputShapeError.
+    """
     for _location, panel in walk_panels(spec.get("panels"), "$.panels"):
         yield panel
 
@@ -248,7 +251,11 @@ def tag_findings(spec: dict):
 
 
 def check(spec: dict) -> list[Finding]:
-    """Return a Finding (rule, where, detail) for every violation, panel by panel, then dashboard-wide."""
+    """Return a Finding (rule, where, detail) for every violation, panel by panel, then dashboard-wide.
+
+    Run validate_shape() first: the shared walk checks only the shapes it traverses, not the fields
+    inside a panel (title, fieldConfig, targets) or the templating list.
+    """
     findings: list[Finding] = []
     for panel in iter_panels(spec):
         where = (panel.get("title") or "").strip() or f"panel id={panel.get('id')}"
