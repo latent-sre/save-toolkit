@@ -126,7 +126,7 @@ paths. Verify opt-outs and destinations for the selected release.
 
 ## DeepEval and Pydantic Evals
 
-**Role:** semantic judge candidates in EVAL-010's proposed expanded experiment. [sourced] DeepEval
+**Role:** semantic judge candidates in EVAL-015's deferred comparison. [sourced] DeepEval
 G-Eval accepts custom evaluation steps and thresholds. Pydantic Evals offers rubric judgments and
 configurable input visibility. Neither default demonstrates the existing evidence-quote/calibration
 contract.

@@ -1,0 +1,6 @@
+id: synthetic-identity-gap
+prompt: |
+  Synthetic case for the WP-01 comparison bundle; no trial ever runs it.
+target: {kind: agent, name: reviewer}
+routing:
+  expect: fire

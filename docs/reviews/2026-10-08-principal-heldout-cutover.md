@@ -294,6 +294,8 @@ The next proposal is bounded to the measured gaps, not authorized implementation
    and consequential trade-offs. Another forced-mechanism case or green method score will not
    settle superiority. Obtain a separate scope and budget before any generation or judge calls.
 
-This update preserves the measured lane sources and does not implement those follow-ups. It
-authorizes neither merge nor human acceptance. Any integration with newer main/runner bytes is
-publication preparation, not a new measurement of that integrated candidate.
+This update preserves the private campaign's measured snapshots and does not implement those
+follow-ups. It authorizes neither PR merge nor human acceptance. Publication integrates main
+`cfeec10c`, which already changes software-engineer guidance and judge code as well as other
+fleet assets. The historical plugin/runner digests therefore do not certify this integrated
+branch. Its fresh offline checks are publication verification, not a new model measurement.

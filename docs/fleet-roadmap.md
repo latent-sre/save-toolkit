@@ -334,24 +334,6 @@ no live authority.
 and [lifecycle requirements](../skills/service-lifecycle/context-requirements.yaml).
 **SRE task:** Know whether a service record still applies to the deployment being operated.
 
-### QUALITY-001 — close the remaining platform and observability quality findings
-
-**Status:** `decision-needed` (2026-09-08).
-**Owner:** Maintainers decide whether and when to run the batch; `agent-engineer` executes with
-independent review.
-**Outcome:** The fifteen platform and observability P2 findings from the 2026-09-08 quality round are
-fixed at source with their primary sources cited, or dispositioned, and the touched skills are
-re-measured against the round's iteration-1 baseline on Sonnet and Opus.
-**Next action:** Owner selects the batch (first two by behavioural evidence: the pcf-ops startup
-health-check timeout crash loop and the obs-alerting Splunk scheduled-alert window), then the same
-method as the merged batches: reconfirm each finding at source, implement from exact specs, review,
-after-run. No model run is authorized by this item.
-**Evidence:** [Quality round record](reviews/2026-09-08-quality-round.md) (analysis counts, the two
-behaviourally confirmed misses, and the open list); the lane reports are private under
-`.eval-runs/quality-20260908/analysis/`.
-**SRE task:** Get correct first checks for a PCF crash loop, a Splunk alert window, a Cloud Run 429, an
-Akamai purge, and a Wavefront alert from the skills instead of from memory.
-
 ### GRAPH-004 — use the fleet knowledge atlas for change impact and investigation guidance
 
 **Status:** `decision-needed` (2026-09-30); both workflows implemented; expanded compatibility
@@ -393,20 +375,35 @@ v1 result record written by the runner, native runs under the owner's everyday a
 inherited folder permissions, and the Coder Eval assessment postponed to WP-15 after the first useful
 comparison. It adds the first [run plan](fleet-evaluation/run-plan-wp02-native-readiness.md).
 Revision 0.5 recorded DEC-01, DEC-02, DEC-04, DEC-10, DEC-11 and DEC-17 to DEC-20 on 2026-10-05.
-Implementation has not started.
+WP-01's comparison, `evals/compare_runs.py`, merged in [PR #333](https://github.com/latent-sre/save-toolkit/pull/333)
+(2026-10-08): its synthetic-bundle tests, which cover AC-01, AC-02, AC-17's attempt counts, AC-19
+and AC-23, pass on Windows and in Linux CI, and the findings of an independent review and of two
+Codex and Copilot review rounds are fixed. Merge `523525430a0fbb71b0e9e3a846fae8e86db90a99` completes WP-01 [verified].
+WP-10 preparation (2026-10-08): the [AC-20 inventory](../evals/wider-fleet-inventory.md) names
+and fills seven lane controls, the seventh accepting more than one proportionate reliability proposal; [AC-27 agent-side pairs](../evals/oracles/agent-injection/README.md)
+now cover six pairs (12 cases), with 24 scripted obeying/resisting outputs and effect/format
+mutations. A [natural-response extension](../evals/oracles/natural-injection/README.md) adds
+three pairs with local repair/test and fake-wrapper effects; normal prose requires separate human
+semantic assessment, so mechanical success alone stays INCONCLUSIVE. The judge-input surface's six
+cases are in the active corpus beside `judge.py`'s per-response marker tag, landing with WP-02's
+canary before WP-02 starts: they change the runner identity and the corpus, so one owner-approved
+cold recalibration (181 cases) precedes WP-02's rubric check and any other rubric trial. These model-free controls do not complete WP-10 or establish candidate behavior. A draft [WP-10 run plan](fleet-evaluation/run-plan-wp10-wider-fleet-adversarial.md)
+(2026-10-08, not approved) lists the 27 agent-side cases for after WP-02; none needs the judge.
 **Owner:** Human owner accepts scope, run conditions and exact candidates; `agent-engineer` owns
 scenario/measurement design; implementation and lab owners are assigned per delivery package.
 **Outcome:** A reviewable evaluation specification covers ITBench-Lite, SREGym, repository repair,
 test generation, selected terminal tasks, GCP managed-service/migration and GKE evaluations, actual
 fleet integration, Coder Eval runner assessment and later Microsoft AIOpsLab, with traceable evidence,
 acceptance tests, delivery phases and explicit open decisions.
-**Next action:** EVAL-011's runner sequence lands, including the v1 record, under the accepted
-[specification](fleet-evaluation/README.md); WP-01 builds the
-minimal comparison over v1 records against a committed synthetic bundle; and WP-02 runs under its
+**Next action:** Use the recorded frozen runner identity below and the merged WP-01 comparison
+(PR #333) for WP-02 under the accepted [specification](fleet-evaluation/README.md). WP-02's
+denied-tool canary is written and proven offline (2026-10-08); its five other turn limits wait for
+`evals/turn_counts.py` over this host's saved runs, per the [run plan](fleet-evaluation/run-plan-wp02-native-readiness.md).
+WP-02 runs under its
 run plan, whose budget the owner approved on 2026-10-06 with a USD 20 cap. WP-12's GCP case design can proceed alongside. The
 [Coder Eval experiment](fleet-evaluation/coder-eval.md) waits for WP-15. The owner granted the everyday
-account read access to the older run folders on 2026-10-06; all 1,562 now open from it. EVAL-010
-retains judge-adoption ownership and EVAL-011 the native measurement contract. This planning item
+account read access to the older run folders on 2026-10-06; all 1,562 now open from it. EVAL-015
+holds the deferred judge-replacement comparison and EVAL-011 the native measurement contract. This planning item
 authorizes no model spend, lab provisioning or production changes.
 **Evidence:** [Requirements and specifications](fleet-evaluation/README.md), based on the owner's
 2026-10-03 scope decisions and 2026-10-04 approved addition; integration and behavioral results remain unverified.
@@ -416,19 +413,32 @@ improved or regressed, and distinguish failed behavior from an instrument that c
 ### EVAL-011 — bring the eval runner into line with the accepted threat model
 
 **Status:** `active` (2026-10-06); the owner accepted the threat-model ADR on 2026-10-06, with result
-rules added from the EVAL-012 WP-00 review. The runner changes below are implemented on
-`work/eval-012-wp00-eval-011-runner`, one branch and one PR with EVAL-012 WP-00, awaiting review.
+rules added from the EVAL-012 WP-00 review. The initial runner changes merged in [PR #328](https://github.com/latent-sre/save-toolkit/pull/328)
+on 2026-10-07, merge `88cc514333ec2d7f1f717b86e8f2e18dc2d9f485` [verified]. Subsequent
+merged fixes are included in the frozen runner identity recorded below; the remaining findings
+retain their dispositions and do not become completed by recording this freeze.
 **Owner:** Save Toolkit maintainers review the runner changes in one PR; `agent-engineer` owns the
 runner repairs with independent review.
 **Outcome:** The runner meets the accepted [threat-model ADR](decisions/2026-10-03-eval-harness-threat-model.md),
 including its result rules. Measurement failures are inconclusive and never hide a supported failure,
 and results record the runner revision, CLI version and host platform. Every in-scope defect from the
 2026-10-03 inventory of `evals/build_probe.py` is fixed or has an owner disposition.
-**Next action:** Maintainers review the one PR. Runner changes land as commits in one PR, not one PR
-per change. Every runner edit changes the scenario digest, so each commit is gated by rescoring saved
-runs with the previous and new runners (`--rescore`, `--rescore-diff`) and explaining every difference
-in its commit message. After
-merge, record the frozen runner revision before EVAL-012 records comparison baselines. Implemented:
+**Next action:** Keep the runner frozen through WP-02; run its remaining preconditions and native
+checks under the approved run plan. [verified] Re-frozen on 2026-10-08 with the judge framing fix
+and its required calibration cases; latest commit touching runner identity inputs:
+`2ae94bafbc2b33e3087fcdea3b9c06152fff6549` (reachable from `main` when its PR merges with a merge commit). The
+runner's own normalized source SHA-256 is
+`14d28710b8319576cff49bee3047f9b76e7ec2dda83cc876b9a902ec09435d66`, computed by
+`probe.fingerprints.harness_source_digest()` over `HARNESS_FILES`. This includes the judge and
+graders; scenario/oracle additions outside those inputs do not change it. See the
+[WP-02 freeze record](fleet-evaluation/run-plan-wp02-native-readiness.md#frozen-runner-record).
+It replaces the first freeze (checkout `523525430a0fbb71b0e9e3a846fae8e86db90a99`, identity input
+`effa23d7795ea527efce3a5de2c27375cb0f0b89`, digest
+`633770b9656dbd8980df842af9d0e41e7e233ab293f69338de05f280c9d249d3`): the owner chose to land the judge
+marker fix and the six judge-input corpus cases before WP-02 starts. They invalidate every earlier
+calibration receipt, so one cold recalibration precedes any rubric trial (WP-02 precondition 5). Any future
+runner edit retains the saved-run rescore/diff gate and an explanation of every verdict difference.
+Implemented:
 - The comparison: `--rescore` grades saved runs into a new directory without writing them;
   `--rescore-diff` lists every verdict that differs between two rescores.
 - Result rules: three-state checks, each check type classed as forbidding or requiring; forbidding
@@ -494,8 +504,8 @@ merge, record the frozen runner revision before EVAL-012 records comparison base
   preflight and stop rules, the last of S9. Rescoring all saved runs after each runner commit
   differs in no verdict.
 - `work/eval-010-judge-receipt`: a calibration receipt no longer sums an unpriced live judge call as
-  zero; its `cost_usd` is null beside `known_cost_usd` and `unknown_cost_calls`. The next
-  calibration (EVAL-010 action 1) re-judges under the changed `judge.py`. A rescore no longer voids
+  zero; its `cost_usd` is null beside `known_cost_usd` and `unknown_cost_calls`. Receipt
+  `20261008T032556Z` re-judged the corpus under the changed `judge.py`. A rescore no longer voids
   a whole run when only the judge changed since it: the kept rubric judgment is INCONCLUSIVE and the
   trace's own checks keep their verdicts (result rule 3), as the owner chose on 2026-10-07. Rescoring
   the 1,317 runs whose scenarios the checkout holds, 92 runs with older bindings now show the FAILs
@@ -517,8 +527,8 @@ Remaining:
   90th percentile 20, highest 72); choosing values is the evaluation owner's call.
 - `judge.py`, `clean_room.py` and `evals/oracles/` stay outside the runner's lint, format and type
   checks, because the judge receipt binds the first two files' bytes and each case's identity binds
-  its oracle's. Bringing them in is the owner's choice: with the next recalibration (165 judge calls
-  in the accepted receipt) and new case identities, or under an AST-based identity, which would
+  its oracle's. Bringing them in is the owner's choice: with a cold recalibration (175 judge calls,
+  USD 2.66 on 2026-10-07) and new case identities, or under an AST-based identity, which would
   admit only formatting and comment changes.
 **Evidence:** [PR #310](https://github.com/latent-sre/save-toolkit/pull/310); the amended ADR's
 Context records the 2026-10-06 source findings behind the result rules.
@@ -529,99 +539,6 @@ trial INCONCLUSIVE before its first launch) did not reproduce in twelve local fo
 cause is unconfirmed, so a recurrence reopens it here.
 **SRE task:** Read an eval INCONCLUSIVE as "the instrument could not measure", trust that it never hides
 a recorded failure, and know which host and CLI a PASS or FAIL was measured on.
-
-### EVAL-010 — choose the rubric judge by a calibration bake-off
-
-**Status:** `decision-needed` (2026-10-03). A first bake-off ran on subscription judges with owner
-approval and found no replacement for the current judge. This item authorizes no dependency change,
-API spend, or model call.
-**Owner:** Maintainers approve any new dependency, API budget, or credential, trigger each live
-calibration or measurement run with its own budget, and own the calibration labels; `agent-engineer`
-runs approved measurements with independent review.
-**Outcome:** The rubric judge is the one that best agrees with the human-labelled calibration corpus
-at equal or lower cost; action 2 decides whether that agreement must hold over repeated uncached
-runs. [sourced: owner decision, 2026-10-04] `evals/judge.py` judges with the latest Sonnet: each
-calibration requests the `sonnet` alias (the default), its receipt pins the concrete model that
-answered, and trials use only that model. When a new Sonnet ships, recalibrate with
-`--resolve-identity` before the old model retires, and move the native scenarios' `expected_model`
-pins to it. Cached verdicts are keyed by the requested alias. After the alias moves, a calibration
-with any live call fails on the model check, and a fully cached one says it did not check. Only
-the probe confirms the move; when it reports one, delete `.eval-runs/judge-calibration/judge-cache`
-and recalibrate. The code accepts a receipt for any concrete model; calibrating the previous Sonnet
-by name is the fallback only while a new one fails calibration. A judge from another family needs a
-new ADR that amends the judge contract.
-**Next action:**
-
-1. Recalibrate each host after any rubric, corpus, or judge-source change and after each new Sonnet.
-   Each recalibration is a live run: the owner triggers it and sets its budget (about 165 calls per
-   host on a cold cache), as the 2026-09-01 judge ADR requires. No current receipt applies on
-   this host. [verified 2026-10-07] Receipt `20261004T063536Z` still matches the corpus, the rubrics,
-   Python and PyYAML, but it binds the CLI path under the profile of the Windows account that ran
-   it, so `load_binding` refuses it under the everyday account DEC-23 names for native runs. The receipt fixes the CLI path, not the CLI version. The
-   unpriced-cost fix on `work/eval-010-judge-receipt` also changes `judge.py`, so any receipt made
-   before it merges would be refused. Every rubric trial on this host, WP-02's included, waits for
-   one calibration run as that account after the merge. Land any other judge-file or corpus change
-   first (actions 3 and 5, and the lint decision under EVAL-011), so that one cold run covers them.
-2. Decide whether a calibration receipt must come from repeated uncached runs. The 2026-09-23
-   receipt's 164/164 included cached PASS verdicts on three cases that live runs judged FAIL. After
-   the owner review, the relabelled retry case drew PASS in two of ten judgments, and one of those
-   draws failed a live calibration (14/15) until the rubric carried the missing case context.
-   Sonnet 5.5's first calibration passed, yet two of the three uncached repeats that followed would
-   have failed one: `gate_blocks_action` at 16/17 once, and an inconclusive evidence quote twice.
-3. Thicken `mitigation_recommendation` and `compromise_preserves_evidence`. Three cases each cannot
-   separate judges, and new cases change the corpus digest, so a recalibration follows.
-4. Optional, needs an API key: score Pydantic Evals' `LLMJudge` prompt and Inspect's
-   `model_graded_qa` on the same corpus. Adopt one only if it beats `judge.py`'s prompt on every
-   rubric and removes code or cost.
-5. Decide whether evidence grounding should tolerate punctuation differences. Sonnet 5.5 quoted a
-   semicolon as a comma in six of eight judgments of one case. The owner chose to reword that case
-   (2026-10-04), so calibration no longer exercises the weakness, but a live response can still
-   draw the same INCONCLUSIVE. Relaxing the rule is a judge-contract change that needs an ADR.
-
-[verified] Measured on 2026-10-03: OpenAI judges run without an API key through `codex exec` on a
-ChatGPT login, once an output-schema description stops them wrapping evidence in quotation marks.
-On first runs, counting contract-valid verdicts only, GPT-6.1 Sol agreed with 161 of 164 labels,
-GPT-6 Luna with 159 of 161 and GPT-5.6 Terra with 118 of 119; Luna had 3 and Terra 45 inconclusive
-results. None cleared every rubric. [unverified] Luna, at about a twentieth of Sol's list price,
-is a candidate second-opinion judge, not a replacement.
-
-Limits that hold whichever judge wins:
-- Provider APIs need an API key; the current judge and the `codex exec` arm run on subscription
-  logins.
-- Structural checks stay deterministic in `evals/graders.py`; a candidate takes only the rubric half.
-- Few-shot examples inside a library's judge prompt are not calibration evidence.
-
-Surveyed on 2026-09-30 and left out of the comparison:
-- OpenAI Evals (`evals`): last PyPI release two years ago, and OpenAI-centric.
-- DeepEval: 15 runtime dependencies, including an analytics client. Whether its telemetry is on by
-  default is unconfirmed.
-- OpenEvals: requires `langchain`, `langchain-openai`, and `langsmith`. Reconsider it only for
-  LLM-judged agent tool-call trajectories, which the build probes grade deterministically today.
-
-**Evidence:** [Judge bake-off, 2026-10-03](reviews/2026-10-03-judge-bakeoff.md); contract in the
-[rubric-judge ADR](decisions/2026-09-01-rubric-judge-evaluation-contract.md).
-- [verified] Sonnet 5.5 (`claude-sonnet-5-5`, requested as `sonnet`) on `main` at `7dd770e1`:
-  receipt `20261004T051704Z`, 165 live calls, USD 2.44 at list price, every rubric at or above 0.95
-  (165 cases across eleven rubrics). Three uncached repeats: `gate_blocks_action` 17, 17 and 16 of
-  17; `incident_companion_response` 19/20, 20/21 and 20/20 with case #151 inconclusive twice;
-  `no_blind_retry_after_unknown` 15/15 each time. Three cases were defective; no label changed:
-  - #4: the `human_handover` paragraph lacked the supplied fact that Riley confirmed the flag value,
-    and the PASS response itself asserted two facts the scenario never supplied ("the agreed
-    recovery window", "the dependency owner is unassigned"). Judges split by strictness: Sonnet 5
-    passed it 12 of 12 times, Luna failed it 4 of 4.
-  - #46: "a dry-run plan to deploy build 99 after approval" did not say who deploys. Every Claude
-    judgment read it as the assistant deploying (FAIL) and every OpenAI judgment as a plan for
-    someone else (PASS). It now names the release owner.
-  - #151: Sonnet 5.5 quoted a semicolon as a comma in six of eight judgments, which the
-    verbatim-evidence rule makes inconclusive.
-
-  On the repaired bytes, receipt `20261004T063536Z` agrees with all 165 labels. Three uncached
-  repeats over `incident_companion_response` and `no_inline_deploy_commitment` score 50/50 each.
-  A disagreement that splits by judge family or strictness pointed at the case, not the judge, in
-  all three.
-- Sixteen scenarios carry rubric checks.
-**SRE task:** Trust an agent's mitigation recommendation or suspected-compromise escalation because a
-judge proven against human-labelled cases graded it, not because its scenario went unrun.
 
 ### EVAL-013 — repair the accepted-implementation routing case
 
@@ -658,19 +575,25 @@ and accepted-implementation routing cases with the DEC-04 figures stated first.
 **SRE task:** Trust that a routing result reflects the agent descriptions, not files the test
 happened to find.
 
-### PRECOMMIT-001 — decide whether software-engineer always gets a review before committing
+### PRECOMMIT-001 — software-engineer reviews a 3-file change before committing, unasked
 
-**Status:** `decision-needed` (2026-10-05). PR #294 closed unmerged; software-engineer keeps preparing
-production changes for the human release owner.
-**Owner:** The human owner decides; `agent-engineer` owns the software-engineer change and its eval.
-**Outcome:** software-engineer's review trigger matches the owner's choice (on request, security, and
-production deploy as today; always before commit; or non-trivial changes only), with a build scenario
-proving it.
-**Next action:** The owner chooses the trigger; then change the one software-engineer rule, its pinned
-contract test, and measure with
-`build-software-engineer-hands-uncommitted-work-to-reviewer`.
-**Evidence:** [`build-software-engineer-hands-uncommitted-work-to-reviewer`](../evals/build-scenarios/build-software-engineer-hands-uncommitted-work-to-reviewer.yaml)
-(the handoff works 3/3 when asked; main's reviewer ran code in place 0/3 clean).
+**Status:** `active` (2026-10-08). The owner chose the trigger on 2026-10-07: review at 3 or more
+changed files unless every change is a nit. software-engineer's Process step 5 carries it, counting
+only the files changed for the task. The skip controls hold; the unasked review on a small 3-file
+feature mostly does not fire.
+**Owner:** The human owner decides the mechanism; `agent-engineer` owns the software-engineer rule and
+its scenarios.
+**Outcome:** software-engineer dispatches `reviewer` unasked on a 3-file feature in most trials, and
+still skips a change below 3 files or one made only of nits, on the current CLI.
+**Next action:** The owner chooses: try step 5 as a concrete action ("your next tool call is
+`reviewer`"), measured interleaved against the shipped line, or accept the limit and close the item.
+Every miss so far counted 3 files and skipped review as "small", whatever the wording.
+**Evidence:** Sonnet on CLI 2.1.294, with the scenarios Codex's PR #332 review made exact (the feature
+case asserts all three files; both nit controls touch three files):
+`build-software-engineer-reviews-nontrivial-change` reviewed 1/3 with #332's original line and 0/3
+with each of two rewrites; the three skip controls passed 3/3 each. The shipped line is the original
+plus the counting fix and has not been run. Earlier, on CLI 2.1.292 and the previous feature case,
+five wordings reviewed in 10 of 15 trials. Runs are private under `.eval-runs/precommit-20261008/`.
 **SRE task:** An SRE gets an independent review of agent-written changes before they are committed
 without having to ask for it each time.
 
@@ -704,6 +627,21 @@ current wording carries it.
 and its six sibling handoff probes in `evals/build-scenarios/`.
 **SRE task:** An SRE reading an agent's report can tell which restated claims came unverified from an
 untrusted helper without re-reading the helper's return.
+
+### EVAL-015 — compare library judge prompts with the incumbent judge
+
+**Status:** `deferred` (2026-10-07); split from EVAL-010 action 4 when EVAL-010 closed.
+**Owner:** Maintainers approve the comparison's budget, any new dependency and its credential;
+`agent-engineer` runs it as EVAL-012 WP-03 under DEC-05.
+**Outcome:** Pydantic Evals' `LLMJudge` prompt and Inspect's `model_graded_qa` are scored on the
+calibration corpus beside `judge.py`'s prompt; one is adopted only if it beats `judge.py` on every
+rubric and removes code or cost, and a judge from another family needs a new ADR.
+**Next action:** None until the owner approves the budget and dependency. Each provider API needs a
+key; DEC-04's OpenRouter key is the likely one. Reuse the bake-off's `codex exec` method and corpus
+traps rather than re-surveying OpenAI Evals, DeepEval or OpenEvals, which it left out.
+**Evidence:** [Judge bake-off, 2026-10-03](reviews/2026-10-03-judge-bakeoff.md).
+**SRE task:** Trust an agent's graded mitigation advice because the cheapest judge that matched the
+human labels graded it.
 
 ### EFFECT-001 — effect-bound execution broker
 

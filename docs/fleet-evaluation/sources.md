@@ -76,7 +76,7 @@ project documentation and GitHits source supplied the evidence. The inspected so
 
 The owner approved including the adoption experiment, product boundaries and earlier useful
 comparison on 2026-10-04. No installation, model trial, Workbench integration or replacement decision
-is established. Refresh EVAL-010's accepted judge and EVAL-011's native behavior independently of this
+is established. Refresh the judge's calibration receipt and EVAL-011's native behavior independently of this
 frozen runtime baseline before the pilot; framework selection does not reopen those decisions.
 
 ## GCP track evidence
@@ -103,7 +103,7 @@ The 64 cases are proposed local designs, not an imported or executed public GCP 
 
 ## Refresh before implementation
 
-- Fetch current repository state and reconcile EVAL-010/011 repairs before changing harness code.
+- Fetch current repository state and reconcile EVAL-011 repairs and the judge's calibration receipt before changing harness code.
 - Resolve package versions and actual transitive compatibility in an isolated environment; prior
   direct dependency counts are not a dependency lock or an accurate installed-size comparison.
 - Pin benchmark dataset/task revisions, licenses, image versions and evaluator versions.
