@@ -159,6 +159,14 @@ Folder HTTP API](https://grafana.com/docs/grafana/latest/developers/http_api/fol
 3. Follow [visual verification](./visual-verification.md): inspect a server-rendered panel or use an
    authorized browser. `rendererAvailable: false` rules out neither browser inspection nor supplied
    screenshot evidence. If no visual path is available, label presentation `[unverified]`.
+   For a server render, use the instance's generated image link or derive the same-origin
+   `GET /render/d-solo/<uid>/<slug>` route, preserving a deployment subpath. Carry `orgId`,
+   `panelId`, absolute `from`/`to`, `tz` and URL-encoded `var-<name>` selections, repeating a
+   parameter for multi-values; use the actual panel ID or scene key. Start from one panel at
+   1200×600 with `scale=1`, a 45-second client timeout and an 8 MiB bound, one render at a time.
+   Authenticate through the existing credential path, never in the URL, follow no redirects, and
+   never call the renderer service directly with the service-account token. Grafana answers its
+   render limit or a missing renderer with a stock PNG under HTTP 200, so check the dimensions.
 4. Confirm the save message on the new version. App-platform history is served only at an
    enabled stable version such as `v1`, never at the alpha or beta version a row may be stored
    at (a legacy-created `v0alpha1` row answers a history query at `$APIVER` with nothing): list
