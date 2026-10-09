@@ -11,12 +11,26 @@ Two SLI units are supported and never mixed:
 
 Burn-rate severity requires two measurements and one of three bound long/short window pairs. A
 single window can show arithmetic but cannot emit PAGE or TICKET.
+
+The calculations (``time_status``, ``request_status``, ``burn_verdict``) are pure functions that
+return records; ``main`` validates the flags into ``Inputs`` and only renders those records.
 """
 
+from __future__ import annotations
+
 import argparse
+from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation, localcontext
 import math
 import sys
+
+# Google SRE Workbook: each long/short pair selects its own threshold and action. No pair lends its
+# window or threshold to another.
+WINDOW_PAIRS = {
+    ("1h", "5m"): (14.4, "PAGE (fast burn)"),
+    ("6h", "30m"): (6.0, "PAGE (slow burn)"),
+    ("3d", "6h"): (1.0, "TICKET (slow leak)"),
+}
 
 
 def _decimal_percentage(text: str) -> Decimal:
@@ -53,43 +67,160 @@ def fmt_count(count: float) -> str:
     return f"{count:,.0f}"
 
 
-def _budget_state(remaining: float, budget: float) -> str:
-    """Classify remaining budget with tolerance for percentage floating-point arithmetic."""
-    tolerance = max(abs(budget) * 1e-12, 1e-12)
-    if abs(remaining) <= tolerance:
-        return "EXHAUSTED"
-    if remaining < 0:
-        return "OVER BUDGET"
-    return "ok"
-
-
-def _display_remaining(remaining: float, budget: float) -> float:
-    """Clamp floating-point zero so exhausted budgets never print as ``-0.0``."""
-    tolerance = max(abs(budget) * 1e-12, 1e-12)
-    return 0.0 if abs(remaining) <= tolerance else remaining
-
-
-def _finite(parser, name, value, *, minimum=None, exclusive_min=None, maximum=None):
-    """Reject NaN/inf and enforce a numeric argument's range."""
+def _finite(name, value, *, minimum=None, exclusive_min=None, maximum=None):
+    """Reject NaN/inf and enforce a numeric argument's range on its float value, which is returned."""
     if value is None:
         return None
+    value = float(value)
     if not math.isfinite(value):
-        parser.error(f"{name} must be a finite number (got {value!r})")
+        raise ValueError(f"{name} must be a finite number (got {value!r})")
     if minimum is not None and value < minimum:
-        parser.error(f"{name} must be >= {minimum} (got {value:g})")
+        raise ValueError(f"{name} must be >= {minimum} (got {value:g})")
     if exclusive_min is not None and value <= exclusive_min:
-        parser.error(f"{name} must be > {exclusive_min} (got {value:g})")
+        raise ValueError(f"{name} must be > {exclusive_min} (got {value:g})")
     if maximum is not None and value > maximum:
-        parser.error(f"{name} must be <= {maximum} (got {value:g})")
+        raise ValueError(f"{name} must be <= {maximum} (got {value:g})")
     return value
 
 
-def main(argv=None) -> int:
-    """Run the calculator and return a process exit code."""
-    parser = argparse.ArgumentParser(
-        description="SLO error-budget and burn-rate calculator",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
+@dataclass(frozen=True)
+class Inputs:
+    """Validated calculator inputs; construction raises ValueError naming the first unusable flag.
+
+    Percentages stay exact Decimals so the alert boundary is inclusive without rounding. Range
+    checks, budget arithmetic and display use their float values.
+    """
+
+    slo: Decimal
+    window_days: float
+    bad_minutes: float | None
+    bad_events: float | None
+    total_events: float | None
+    sli_long: Decimal | None
+    sli_short: Decimal | None
+    long_window: str
+    short_window: str
+
+    @property
+    def request_mode(self) -> bool:
+        return self.bad_events is not None or self.total_events is not None
+
+    def __post_init__(self) -> None:
+        if (self.long_window, self.short_window) not in WINDOW_PAIRS:
+            raise ValueError("--long-window/--short-window must be one of: "
+                             + ", ".join(f"{long}/{short}" for long, short in WINDOW_PAIRS))
+        if _finite("--slo", self.slo, exclusive_min=0, maximum=100) >= 100:
+            raise ValueError("--slo must be < 100 (a 100% SLO has a zero error budget)")
+        _finite("--window-days", self.window_days, exclusive_min=0)
+        _finite("--bad-minutes", self.bad_minutes, minimum=0)
+        _finite("--bad-events", self.bad_events, minimum=0)
+        _finite("--total-events", self.total_events, exclusive_min=0)
+        _finite("--sli-long", self.sli_long, minimum=0, maximum=100)
+        _finite("--sli-short", self.sli_short, minimum=0, maximum=100)
+
+        if self.request_mode and self.bad_minutes is not None:
+            raise ValueError("--bad-minutes (time-based SLI) cannot be combined with "
+                             "--bad-events/--total-events (request-based SLI); pick one unit")
+        if self.request_mode and (self.bad_events is None or self.total_events is None):
+            raise ValueError("request-based status needs BOTH --bad-events and --total-events")
+        if self.request_mode and self.bad_events > self.total_events:
+            raise ValueError("--bad-events cannot exceed --total-events")
+        if self.sli_short is not None and self.sli_long is None:
+            raise ValueError("--sli-short requires --sli-long")
+
+
+@dataclass(frozen=True)
+class BudgetStatus:
+    """Budget consumption in the SLI's own unit: minutes, or failed requests."""
+
+    budget: float
+    consumed: float
+    remaining: float  # exactly 0.0 within floating-point residue of zero, so never "-0.0"
+    percent: float  # of the budget consumed
+    state: str  # "ok", "EXHAUSTED" or "OVER BUDGET"
+    observed_availability: float | None = None  # request-based status only
+
+
+@dataclass(frozen=True)
+class BurnVerdict:
+    """One window pair's severity decision.
+
+    ``outcome`` names the burn-rate.md verdict boundary that applied: "both", "long only",
+    "short only" or "neither" window met the pair's threshold. ``severity`` is what to tell the reader.
+    """
+
+    action: str
+    threshold: float
+    burn_long: float
+    burn_short: float
+    outcome: str
+    severity: str
+
+
+def budget_fraction(slo: Decimal) -> float:
+    """The share of the SLI that the SLO leaves as error budget: 0.001 for 99.9%."""
+    return 1.0 - float(slo) / 100.0
+
+
+def burn_rate(slo: Decimal, sli: Decimal) -> float:
+    """How many times faster than the SLO allows a window measuring ``sli`` spends budget."""
+    return (1.0 - float(sli) / 100.0) / budget_fraction(slo)
+
+
+def _remaining(budget: float, consumed: float) -> tuple[float, str]:
+    """Remaining budget and its state, with tolerance for percentage floating-point arithmetic."""
+    remaining = budget - consumed
+    if abs(remaining) <= max(abs(budget) * 1e-12, 1e-12):
+        return 0.0, "EXHAUSTED"
+    return remaining, "OVER BUDGET" if remaining < 0 else "ok"
+
+
+def time_status(slo: Decimal, window_days: float, bad_minutes: float) -> BudgetStatus:
+    """A time-based SLI's budget: minutes of the status window."""
+    budget = window_days * 24 * 60 * budget_fraction(slo)
+    remaining, state = _remaining(budget, bad_minutes)
+    return BudgetStatus(budget, bad_minutes, remaining, bad_minutes / budget * 100, state)
+
+
+def request_status(slo: Decimal, total_events: float, bad_events: float) -> BudgetStatus:
+    """A request-based SLI's budget: a count of failed requests."""
+    budget = total_events * budget_fraction(slo)
+    remaining, state = _remaining(budget, bad_events)
+    percent = bad_events / budget * 100 if budget else float("inf")
+    observed = (1 - bad_events / total_events) * 100
+    return BudgetStatus(budget, bad_events, remaining, percent, state, observed)
+
+
+def burn_verdict(slo: Decimal, sli_long: Decimal, sli_short: Decimal,
+                 long_window: str, short_window: str) -> BurnVerdict:
+    """Apply the pair's threshold to both windows: a page or ticket needs both (>=; AND, never OR)."""
+    threshold, action = WINDOW_PAIRS[(long_window, short_window)]
+    burn_long, burn_short = burn_rate(slo, sli_long), burn_rate(slo, sli_short)
+    long_crossed = _meets_burn_threshold(slo, sli_long, threshold)
+    short_crossed = _meets_burn_threshold(slo, sli_short, threshold)
+    if long_crossed and short_crossed:
+        outcome, severity = "both", f"{action} -- both windows >= {threshold}x"
+    elif long_crossed:
+        outcome, severity = "long only", (
+            f"no page -- long window at {burn_long:.2f}x but the short window ({burn_short:.2f}x) has "
+            "recovered. NOT an all-clear: budget status is unknown; some budget may already have been "
+            "consumed. Run the budget-status mode."
+        )
+    elif short_crossed:
+        outcome, severity = "short only", (
+            f"no page -- short-window spike ({burn_short:.2f}x) the long window ({burn_long:.2f}x) hasn't "
+            "confirmed. Re-check in minutes; a real burn trips both."
+        )
+    else:
+        outcome, severity = "neither", (
+            f"below the {threshold}x threshold for the {long_window}/{short_window} pair. This says nothing "
+            "about the budget already consumed -- that is the budget-status mode's job."
+        )
+    return BurnVerdict(action, threshold, burn_long, burn_short, outcome, severity)
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="SLO error-budget and burn-rate calculator")
     parser.add_argument("--slo", type=_decimal_percentage, required=True, help="SLO target percent, e.g. 99.9")
     parser.add_argument(
         "--window-days", type=float, default=28.0,
@@ -120,149 +251,82 @@ def main(argv=None) -> int:
         help="availability percent measured over the selected short window",
     )
     burn.add_argument(
-        "--long-window", default="1h", choices=["1h", "6h", "3d"],
+        "--long-window", default="1h", choices=[long for long, _ in WINDOW_PAIRS],
         help="long window of the pair; selects the alert threshold (1h/5m=14.4x page, "
              "6h/30m=6x page, 3d/6h=1x ticket)",
     )
     burn.add_argument(
-        "--short-window", default="5m", choices=["5m", "30m", "6h"],
+        "--short-window", default="5m", choices=[short for _, short in WINDOW_PAIRS],
         help="short window of the pair; must match the long window's pair",
     )
+    return parser
 
-    args = parser.parse_args(argv)
-    # Preserve exact input for the inclusive alert decision. Existing status arithmetic,
-    # display formatting and supported float-range validation retain their behavior.
-    percentages = {name: getattr(args, name) for name in ("slo", "sli_long", "sli_short")}
-    for name, value in percentages.items():
-        if value is not None:
-            setattr(args, name, float(value))
 
-    _WINDOW_PAIRS = {  # Google SRE Workbook: threshold and action selected by the pair.
-        ("1h", "5m"): (14.4, "PAGE (fast burn)"),
-        ("6h", "30m"): (6.0, "PAGE (slow burn)"),
-        ("3d", "6h"): (1.0, "TICKET (slow leak)"),
-    }
-    pair = (args.long_window, args.short_window)
-    if pair not in _WINDOW_PAIRS:
-        parser.error(
-            "--long-window/--short-window must be one of: "
-            + ", ".join("%s/%s" % key for key in _WINDOW_PAIRS)
-        )
+def main(argv=None) -> int:
+    """Run the calculator and return a process exit code."""
+    parser = _parser()
+    try:
+        inputs = Inputs(**vars(parser.parse_args(argv)))
+    except ValueError as exc:
+        parser.error(str(exc))
 
-    _finite(parser, "--slo", args.slo, exclusive_min=0, maximum=100)
-    if args.slo >= 100:
-        parser.error("--slo must be < 100 (a 100% SLO has a zero error budget)")
-    _finite(parser, "--window-days", args.window_days, exclusive_min=0)
-    _finite(parser, "--bad-minutes", args.bad_minutes, minimum=0)
-    _finite(parser, "--bad-events", args.bad_events, minimum=0)
-    _finite(parser, "--total-events", args.total_events, exclusive_min=0)
-    _finite(parser, "--sli-long", args.sli_long, minimum=0, maximum=100)
-    _finite(parser, "--sli-short", args.sli_short, minimum=0, maximum=100)
-
-    request_mode = args.bad_events is not None or args.total_events is not None
-    if request_mode and args.bad_minutes is not None:
-        parser.error(
-            "--bad-minutes (time-based SLI) cannot be combined with "
-            "--bad-events/--total-events (request-based SLI); pick one unit"
-        )
-    if request_mode and (args.bad_events is None or args.total_events is None):
-        parser.error("request-based status needs BOTH --bad-events and --total-events")
-    if request_mode and args.bad_events > args.total_events:
-        parser.error("--bad-events cannot exceed --total-events")
-    if args.sli_short is not None and args.sli_long is None:
-        parser.error("--sli-short requires --sli-long")
-
-    budget_fraction = 1.0 - args.slo / 100.0
-    print(f"SLO {args.slo}%  ->  error budget = {budget_fraction * 100:.4g}% of the SLI")
+    print(f"SLO {float(inputs.slo)}%  ->  error budget = {budget_fraction(inputs.slo) * 100:.4g}% of the SLI")
 
     # Budget status: the unit follows the SLI.
-    if args.bad_minutes is not None:
-        window_minutes = args.window_days * 24 * 60
-        budget_minutes = window_minutes * budget_fraction
-        remaining = budget_minutes - args.bad_minutes
-        percent = args.bad_minutes / budget_minutes * 100
-        state = _budget_state(remaining, budget_minutes)
-        remaining = _display_remaining(remaining, budget_minutes)
+    if inputs.bad_minutes is not None:
+        status = time_status(inputs.slo, inputs.window_days, inputs.bad_minutes)
         print(
-            f"  [time-based SLI] over {args.window_days:g}d the budget is "
-            f"{fmt_minutes(budget_minutes)}"
+            f"  [time-based SLI] over {inputs.window_days:g}d the budget is "
+            f"{fmt_minutes(status.budget)}"
         )
         print(
-            f"  consumed:  {fmt_minutes(args.bad_minutes)}  "
-            f"({percent:.1f}% of budget)  [{state}]"
+            f"  consumed:  {fmt_minutes(status.consumed)}  "
+            f"({status.percent:.1f}% of budget)  [{status.state}]"
         )
-        print(f"  remaining: {fmt_minutes(remaining)}")
+        print(f"  remaining: {fmt_minutes(status.remaining)}")
 
-    if request_mode:
-        budget_events = args.total_events * budget_fraction
-        remaining = budget_events - args.bad_events
-        percent = args.bad_events / budget_events * 100 if budget_events else float("inf")
-        state = _budget_state(remaining, budget_events)
-        remaining = _display_remaining(remaining, budget_events)
-        observed = (1 - args.bad_events / args.total_events) * 100
+    if inputs.request_mode:
+        status = request_status(inputs.slo, inputs.total_events, inputs.bad_events)
         print(
-            f"  [request-based SLI] {fmt_count(args.total_events)} requests  ->  "
-            f"budget = {fmt_count(budget_events)} failed requests"
+            f"  [request-based SLI] {fmt_count(inputs.total_events)} requests  ->  "
+            f"budget = {fmt_count(status.budget)} failed requests"
         )
         print(
-            f"  consumed:  {fmt_count(args.bad_events)} bad  "
-            f"({percent:.1f}% of budget)  [{state}]"
+            f"  consumed:  {fmt_count(status.consumed)} bad  "
+            f"({status.percent:.1f}% of budget)  [{status.state}]"
         )
-        print(f"  remaining: {fmt_count(remaining)} bad requests")
-        print(f"  observed availability: {observed:.4f}%")
+        print(f"  remaining: {fmt_count(status.remaining)} bad requests")
+        print(f"  observed availability: {status.observed_availability:.4f}%")
 
     # Burn rate: a pair selects one threshold, and both windows must cross it.
-    if args.sli_long is not None:
+    if inputs.sli_long is not None:
         print("  alert policy: fixed 30-day example thresholds; --window-days does not rescale them")
-        burn_long = (1.0 - args.sli_long / 100.0) / budget_fraction
-        print(f"  burn ({args.long_window}):  SLI {args.sli_long}%  ->  {burn_long:.2f}x")
+        burn_long = burn_rate(inputs.slo, inputs.sli_long)
+        print(f"  burn ({inputs.long_window}):  SLI {float(inputs.sli_long)}%  ->  {burn_long:.2f}x")
 
-        if args.sli_short is None:
+        if inputs.sli_short is None:
             print(
                 "  severity: NOT EVALUATED -- pass --sli-short; one window cannot emit "
                 "PAGE or TICKET"
             )
         else:
-            burn_short = (1.0 - args.sli_short / 100.0) / budget_fraction
+            verdict = burn_verdict(inputs.slo, inputs.sli_long, inputs.sli_short,
+                                   inputs.long_window, inputs.short_window)
             print(
-                f"  burn ({args.short_window}): SLI {args.sli_short}%  ->  "
-                f"{burn_short:.2f}x"
+                f"  burn ({inputs.short_window}): SLI {float(inputs.sli_short)}%  ->  "
+                f"{verdict.burn_short:.2f}x"
             )
-            threshold, verdict = _WINDOW_PAIRS[pair]
-            long_crossed = _meets_burn_threshold(percentages["slo"], percentages["sli_long"], threshold)
-            short_crossed = _meets_burn_threshold(percentages["slo"], percentages["sli_short"], threshold)
-            if long_crossed and short_crossed:
-                severity = "%s -- both windows >= %sx" % (verdict, threshold)
-            elif long_crossed:
-                severity = (
-                    "no page -- long window at %.2fx but the short window (%.2fx) has recovered. "
-                    "NOT an all-clear: budget status is unknown; some budget may already have been "
-                    "consumed. Run the budget-status mode."
-                    % (burn_long, burn_short)
-                )
-            elif short_crossed:
-                severity = (
-                    "no page -- short-window spike (%.2fx) the long window (%.2fx) hasn't "
-                    "confirmed. Re-check in minutes; a real burn trips both."
-                    % (burn_short, burn_long)
-                )
-            else:
-                severity = (
-                    "below the %sx threshold for the %s/%s pair. This says nothing about the "
-                    "budget already consumed -- that is the budget-status mode's job."
-                    % (threshold, args.long_window, args.short_window)
-                )
-            print(f"  severity: {severity}")
+            print(f"  severity: {verdict.severity}")
 
             if burn_long > 0:
-                exhaustion_days = args.window_days / burn_long
+                exhaustion_days = inputs.window_days / burn_long
                 print(
-                    f"  at the {args.long_window} rate, the full {args.window_days:g}d budget "
+                    f"  at the {inputs.long_window} rate, the full {inputs.window_days:g}d budget "
                     f"is gone in {fmt_minutes(exhaustion_days * 24 * 60)} "
                     "(projection assumes steady eligible volume; not remaining budget)"
                 )
 
-    if args.bad_minutes is None and not request_mode and args.sli_long is None:
+    if inputs.bad_minutes is None and not inputs.request_mode and inputs.sli_long is None:
         print(
             "  (pass --bad-minutes OR --bad-events/--total-events for status; "
             "--sli-long + --sli-short for burn rate)"

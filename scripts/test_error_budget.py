@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
 from pathlib import Path
 import os
 import subprocess
 import sys
 import unittest
 
+from testkit import load_path
 
 ROOT = Path(__file__).resolve().parents[1]
 CALCULATOR = ROOT / "skills" / "obs-alerting" / "scripts" / "error_budget.py"
@@ -134,6 +136,33 @@ class ErrorBudgetCliTests(unittest.TestCase):
         )
         self.assertNotEqual(proc.returncode, 0)
         self.assertIn("must be one of", proc.stderr)
+
+
+class StructuredResultTests(unittest.TestCase):
+    """The records main renders are the seam a product adapter reads instead of scraping text."""
+
+    calculator = load_path(CALCULATOR, "error_budget")
+
+    def test_burn_verdict_names_each_boundary_of_the_pair(self) -> None:
+        # For a 99.99% SLO the 1h/5m pair's 14.4x boundary is an SLI of exactly 99.856.
+        for sli_long, sli_short, outcome in (("99.856", "99.856", "both"), ("99.856", "99.8561", "long only"),
+                                             ("99.8561", "99.856", "short only"),
+                                             ("99.8561", "99.8561", "neither")):
+            with self.subTest(long=sli_long, short=sli_short):
+                verdict = self.calculator.burn_verdict(Decimal("99.99"), Decimal(sli_long), Decimal(sli_short),
+                                                       "1h", "5m")
+                self.assertEqual(outcome, verdict.outcome)
+                self.assertEqual("PAGE (fast burn)", verdict.action)
+
+    def test_invalid_inputs_raise_with_the_flag_named(self) -> None:
+        fields = dict(slo=Decimal("99.9"), window_days=28.0, bad_minutes=1.0, bad_events=2.0, total_events=10.0,
+                      sli_long=None, sli_short=None, long_window="1h", short_window="5m")
+        with self.assertRaisesRegex(ValueError, "cannot be combined"):
+            self.calculator.Inputs(**fields)
+
+    def test_time_status_reports_an_exhausted_budget_as_exactly_zero(self) -> None:
+        status = self.calculator.time_status(Decimal("99.9"), 28.0, 40.32)
+        self.assertEqual(("EXHAUSTED", 0.0), (status.state, status.remaining))
 
 
 if __name__ == "__main__":
