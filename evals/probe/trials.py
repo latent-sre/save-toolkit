@@ -9,6 +9,7 @@ the measurement: seed, invoke, check each invocation's boundary, grade, and reco
 from __future__ import annotations
 
 import contextlib
+import functools
 import json
 import secrets
 import stat
@@ -120,18 +121,20 @@ def run_trial(spec: Mapping[str, Any], *, run_number: int, settings: BatchSettin
     except BaseException as exc:
         if not published and attempt.exists():
             reason = f"{type(exc).__name__}: {exc}"[:500]
-            try:
-                _record_raised_cost(attempt)
-            except Exception as cost_error:  # no timing.json leaves the cost unknown, which the cap refuses
-                print(f"warning: no cost recorded for the incomplete attempt {attempt}: {cost_error}", file=sys.stderr)
-            try:
-                record(incomplete=reason)
-            except Exception as record_error:
-                print(f"warning: no record for the incomplete attempt {attempt}: {record_error}", file=sys.stderr)
-            try:
-                _keep_attempt(attempt, history, number, AttemptState.INCOMPLETE, reason)
-            except Exception as keep_error:
-                print(f"warning: could not keep the incomplete attempt {attempt}: {keep_error}", file=sys.stderr)
+            # Each step is best effort and its failure is only warned of; no timing.json leaves the
+            # cost unknown, which the cap refuses.
+            for failure, step in (
+                ("no cost recorded for", functools.partial(_record_raised_cost, attempt)),
+                ("no record for", functools.partial(record, incomplete=reason)),
+                (
+                    "could not keep",
+                    functools.partial(_keep_attempt, attempt, history, number, AttemptState.INCOMPLETE, reason),
+                ),
+            ):
+                try:
+                    step()
+                except Exception as step_error:
+                    print(f"warning: {failure} the incomplete attempt {attempt}: {step_error}", file=sys.stderr)
         raise
 
 
