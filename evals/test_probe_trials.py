@@ -747,6 +747,16 @@ class EndToEndStubTests(TempRootTestCase):
         broken = self._run_trial(out, spec, run_number=2, executable=stub_cli(self.root, tools=[*expected, "Write"]))
         self.assertEqual("INCONCLUSIVE", broken["status"])
 
+    def test_an_agent_grant_with_several_targets_declares_one_tool(self) -> None:
+        """`Agent(a, b, c)` is one grant of the dispatch tool. Splitting the line at every comma read its
+        second and later targets as tools of their own (`save-toolkit:scribe`, `save-toolkit:researcher)`)."""
+        grants = "Read, Grep, Agent(save-toolkit:reviewer, save-toolkit:scribe, save-toolkit:researcher), Skill"
+        for tools in (grants, "[Read, Grep, 'Agent(save-toolkit:reviewer, save-toolkit:scribe)', Skill]"):
+            with self.subTest(tools=tools):
+                (self.root / "agents").mkdir(exist_ok=True)
+                (self.root / "agents" / "lane.md").write_text(f"---\nname: lane\ntools: {tools}\n---\nbody\n", encoding="utf-8")
+                self.assertEqual(("Read", "Grep", "Task", "Skill"), probe_invocation.declared_agent_tools(self.root, "lane"))
+
     def test_provenance_and_isolation_are_recorded_per_run(self) -> None:
         """Review P1: the label is operator-chosen; the digest, commit, and dirty state bind the bytes."""
         out = self.root / "iteration"

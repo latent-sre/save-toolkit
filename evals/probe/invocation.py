@@ -129,13 +129,30 @@ def declared_agent_tools(plugin_root: Path, agent: str) -> tuple[str, ...] | Non
     raw = (yaml.safe_load(match.group(1)) or {}).get("tools")
     if raw is None:
         return None
-    names = raw if isinstance(raw, list) else str(raw).split(",")
     resolved = []
-    for name in names:
-        base = str(name).strip().split("(")[0].strip()
+    for grant in raw if isinstance(raw, list) else tool_grants(str(raw)):
+        base = str(grant).strip().split("(")[0].strip()
         if base:
             resolved.append(constants.requested_tool_name(base))
     return tuple(dict.fromkeys(resolved))
+
+
+def tool_grants(line: str) -> list[str]:
+    """A `tools:` line's grants, split at the commas between them and never inside a grant's
+    `Tool(...)` arguments, so `Agent(a, b)` stays one grant. The fleet's own reader,
+    scripts/fleet_frontmatter.split_tool_specs, applies this grammar; it is restated here because a
+    module outside evals/ would grade trials without being bound into the runner's identity."""
+    grants: list[str] = []
+    start = depth = 0
+    for index, char in enumerate(line):
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            depth = max(0, depth - 1)
+        elif char == "," and depth == 0:
+            grants.append(line[start:index])
+            start = index + 1
+    return [*grants, line[start:]]
 
 
 def expected_runtime_tools(plugin_root: Path, agent: str, requested: Sequence[str] = BUILD_TOOLS) -> tuple[str, ...]:
