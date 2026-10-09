@@ -433,15 +433,17 @@ def roll_up(outcomes: Sequence[Outcome], unmeasured_reason: str | None) -> tuple
 
 def records(graded: Sequence[Graded]) -> list[dict[str, Any]]:
     """Each graded expectation as the grade records it."""
-    entries = []
-    for g in graded:
-        entry: dict[str, Any] = {"text": g.expectation.text, "passed": g.outcome.passed, "evidence": g.outcome.evidence}
-        if g.truncated:
-            entry["evidence_truncated"] = True
-        entry["state"] = g.outcome.state
-        entry["kind"] = g.expectation.polarity
-        entries.append(entry)
-    return entries
+    return [
+        {
+            "text": g.expectation.text,
+            "passed": g.outcome.passed,
+            "evidence": g.outcome.evidence,
+            **({"evidence_truncated": True} if g.truncated else {}),
+            "state": g.outcome.state,
+            "kind": g.expectation.polarity,
+        }
+        for g in graded
+    ]
 
 
 def run_fields(
