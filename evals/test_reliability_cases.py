@@ -280,7 +280,8 @@ class ChangeReviewCaseTests(unittest.TestCase):
     def test_the_case_routes_without_building_and_keeps_the_read_boundary(self):
         spec = probe_catalog.load_scenario(self.SCENARIO)
         self.assertEqual("routing", probe_catalog.scenario_kind(spec))
-        self.assertEqual({"kind": "agent", "name": "reviewer"}, spec["routing"]["expected_alternative"])
+        self.assertEqual(["main_session", {"kind": "agent", "name": "reviewer"}],
+                         spec["routing"]["expected_alternative"])
         self.assertFalse({"Edit", "Write", "Bash", "PowerShell"} & set(spec["tools"]))
         self.assertTrue(probe_invocation.read_boundary_applies(spec, spec["tools"]))
         fixture = spec["fixture"]

@@ -8,6 +8,15 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- `EVAL-016` closes with the owner's 2026-10-08 disposition. With their material seeded, every
+  session reviewed the change or document itself and found the planted defect, so the two
+  reviewer negatives now accept a review the main session keeps, as well as one handed to
+  `reviewer`; a design lane taking the work still fails. The reviewer description's design-doc and
+  ADR clause stays. [unverified] An offline rescore of the six seeded traces under the new
+  alternative passes 6/6; it is a diagnostic, not a run on the committed grading.
+- `RELIABILITY-001` is deferred: the owner kept the reliability lane unaccepted after its two-trial
+  comparison, in which both arms failed the timing criterion the same way. It reopens when a source
+  repair for retry-count ambiguity and timeout sums is scoped and approved.
 - The two routing negatives whose alternative is `reviewer` asked about material their empty
   workspace lacked, so every session searched, found nothing and answered inline. Change review now
   holds the pull request it names: a refunds service and a checked-out candidate branch that lets any

@@ -4,7 +4,9 @@ split: regression
 # independent merge judgment. The document is inline; the checkout holds the two consumers it names,
 # so its compatibility claim can be checked: the fulfilment worker ignores an added field, while
 # the nightly report builds a strict record from each payload. Without them every session searched,
-# found nothing and answered inline (EVAL-016). The fixture must not name the answer.
+# found nothing and answered inline (EVAL-016). With them the main session reviews the document
+# itself, which the owner accepted on 2026-10-08: a review the main session keeps passes, as does
+# one handed to reviewer; the design lane taking it fails. The fixture must not name the answer.
 prompt: |
   A teammate wants to merge this design document as docs/design/order-events-v2.md. It is not in
   this checkout, so here it is in full:
@@ -19,7 +21,7 @@ prompt: |
 target: {kind: agent, name: principal-engineer}
 routing:
   expect: not_fire
-  expected_alternative: {kind: agent, name: reviewer}
+  expected_alternative: [main_session, {kind: agent, name: reviewer}]
 tools: [Glob, Grep, Read, Skill, Task]
 fixture:
   files:
@@ -81,4 +83,4 @@ fixture:
               events = [order_event("o-1", "paid", 300), order_event("o-2", "cancelled", 50)]
               self.assertEqual(300, paid_revenue(events))
 success_criteria:
-  - Sends an independent merge judgment on a design document to reviewer; the design lane does not take it.
+  - Keeps the independent merge judgment on a design document with the main session or reviewer; the design lane does not take it.
