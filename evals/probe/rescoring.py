@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import re
 import shutil
 import tempfile
 from collections.abc import Iterator, Mapping
@@ -33,6 +34,12 @@ Spec = Mapping[str, Any]
 
 
 _INVALID_NATIVE_EVIDENCE = "native invocation boundary evidence missing or invalid; re-run the trial"
+# The wall-clock reason every runner has written; one saved before `run_end` voided the whole run.
+_SAVED_TIMEOUT = re.compile(r"timed out after \d+s")
+
+
+def _unreadable_root(plugin_root: Path, exc: Exception) -> str:
+    return f"plugin root {plugin_root} could not be read ({type(exc).__name__}); restore it to regrade the run"
 
 
 def native_regrade_problem(run_dir: Path, spec: Spec, plugin_root: Path) -> str | None:
@@ -89,7 +96,7 @@ def native_regrade_problem(run_dir: Path, spec: Spec, plugin_root: Path) -> str 
                 trace, metadata["exit_code"], spec, plugin_root, recorded_workspace, resume
             )
         except (OSError, json.JSONDecodeError) as exc:
-            return f"plugin root {plugin_root} could not be read ({type(exc).__name__}); restore it to regrade the run"
+            return _unreadable_root(plugin_root, exc)
         except clean_room.AuthUnavailable:
             return "native invocation reported an authentication failure; re-run the trial"
         if problem and not (saved_cut and isinstance(problem, CutShort)):
@@ -237,6 +244,8 @@ def _regrade_run(
             judge_problem=judge_problem,
             has_raw_trace=reparsed is not None,
             has_plugin_root=has_plugin_root,
+            plugin_root=plugin_root,
+            workspace=recorded_workspace,
         )
         if not identity_matches and not relaxed:
             inconclusive = "saved scenario identity is missing or changed; re-run the trial"
@@ -301,6 +310,8 @@ def _run_level_reason(
     judge_problem: rubric_judge.JudgeUnavailable | None,
     has_raw_trace: bool,
     has_plugin_root: bool,
+    plugin_root: Path,
+    workspace: Path | None,
 ) -> str | None:
     """Why the regrade cannot measure the run at all, or how it was cut short, from saved evidence."""
     inconclusive: str | None
@@ -314,6 +325,20 @@ def _run_level_reason(
         )
     else:
         inconclusive = _saved_void(live_grade, summary) or native_problem
+        older_timeout = (
+            not native_problem
+            and not {"run_end", "void"} & live_grade.keys()
+            and _SAVED_TIMEOUT.fullmatch(str(inconclusive or ""))
+        )
+        if older_timeout and has_raw_trace and has_plugin_root and workspace is not None:
+            # A grade saved before `run_end` voided a timeout. As the live path now does, the partial
+            # trace must show the declared profile; then the run is cut short, so a forbidden action
+            # before the timeout still fails (result rules 2 and 4). Without that evidence it stays void.
+            try:
+                problem = invocation.profile_problem(trace, spec, plugin_root, workspace)
+            except (OSError, json.JSONDecodeError) as exc:
+                problem = _unreadable_root(plugin_root, exc)
+            inconclusive = problem or CutShort(str(inconclusive), Stop.WALL_CLOCK)
     if spec.get("references") and not has_plugin_root:
         inconclusive = "reference plugin root evidence missing or invalid; re-run the trial"
     if fingerprints.required_rubrics(spec) and (

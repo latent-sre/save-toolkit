@@ -19,6 +19,12 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   `reviewer`, never to `principal-engineer` (the owner's resolution of Codex's P1 on PR #341).
   The owner accepted that P1's other half as a known gap: a review the main session keeps passes on
   any nonempty reply without a dispatch, so no grader yet shows the review itself was done.
+- Eval runner (`EVAL-011`, the 2026-10-07 review's T2 and D6): a regrade of a grade saved before
+  `run_end` existed no longer voids a wall-clock timeout when the raw trace, plugin root and
+  workspace survive. The partial trace must pass the profile check the live path applies, and then
+  the run is cut short, so a forbidden action before the timeout fails. A new test runs a batch
+  through the `run` subcommand; the old tests passed with `run` removed. [verified] Each new test
+  fails on its mutant; rescoring all 1,401 saved runs with and without the change differs in none.
 - `SKILL-001` closes with the owner's 2026-10-09 disposition, without further slices. Its last
   slice, the incident-investigation repairs in PR #248, merged on 2026-09-09; their fresh judge
   calibration and paired native behavior were never measured, and the queued `agent-authoring` slice
