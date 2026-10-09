@@ -30,10 +30,8 @@ argument-hint: "[the probe]"
 class Fixture(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory(prefix="phase2-checkers-")
+        self.addCleanup(self._tmp.cleanup)
         self.root = Path(self._tmp.name)
-
-    def tearDown(self):
-        self._tmp.cleanup()
 
     def write(self, relative: str, text: str) -> Path:
         path = self.root / relative
@@ -43,6 +41,11 @@ class Fixture(unittest.TestCase):
 
     def skill(self, body: str = "# Probe\n") -> Path:
         return self.write("skills/probe-skill/SKILL.md", CLEAN_FRONTMATTER + "\n" + body)
+
+    def check_frontmatter(self, frontmatter: str, name: str = "probe-skill") -> list[str]:
+        """check() after writing skill `name` with `frontmatter` over a one-line body."""
+        self.write(f"skills/{name}/SKILL.md", frontmatter + "\n# Probe\n")
+        return check_links.check(self.root)
 
 
 class LinkCheckerTests(Fixture):
@@ -147,32 +150,25 @@ class LinkCheckerTests(Fixture):
         )
 
     def test_top_level_frontmatter_comment_is_allowed(self):
-        frontmatter = must_replace(
+        self.assertEqual([], self.check_frontmatter(must_replace(
             CLEAN_FRONTMATTER, 'argument-hint: "[the probe]"',
             '# Human-invoked skill; this comment is model-visible context.\n'
             'argument-hint: "[the probe]"',
-        )
-        self.write("skills/probe-skill/SKILL.md", frontmatter + "\n# Probe\n")
-        self.assertEqual([], check_links.check(self.root))
+        )))
 
     def test_list_value_uses_shared_syntax_then_fails_skill_field_policy(self):
-        frontmatter = must_replace(
+        failures = self.check_frontmatter(must_replace(
             CLEAN_FRONTMATTER, 'argument-hint: "[the probe]"',
             "argument-hint:\n  - one\n  - two",
-        )
-        self.write("skills/probe-skill/SKILL.md", frontmatter + "\n# Probe\n")
-        failures = check_links.check(self.root)
+        ))
         self.assertTrue(any("value must be one nonblank YAML string" in item for item in failures))
         self.assertFalse(any("malformed top-level frontmatter" in item for item in failures))
 
     def test_quoted_implicit_scalars_and_collection_text_remain_strings(self):
         for value in ('"false"', '"123"', '"null"', '"[the probe]"'):
             with self.subTest(value=value):
-                root = Path(self._tmp.name) / value.strip('"').replace(" ", "-")
-                self.root = root
-                frontmatter = must_replace(CLEAN_FRONTMATTER, '"[the probe]"', value)
-                self.write("skills/probe-skill/SKILL.md", frontmatter + "\n# Probe\n")
-                self.assertEqual([], check_links.check(self.root))
+                self.root = Path(self._tmp.name) / value.strip('"').replace(" ", "-")
+                self.assertEqual([], self.check_frontmatter(must_replace(CLEAN_FRONTMATTER, '"[the probe]"', value)))
 
     def test_frontmatter_contract_rejects_each_silent_load_failure(self):
         cases = {
@@ -209,11 +205,7 @@ class LinkCheckerTests(Fixture):
         for label, frontmatter in cases.items():
             with self.subTest(label=label):
                 self.root = Path(self._tmp.name) / label
-                self.write(
-                    "skills/probe-skill/SKILL.md", frontmatter + "\n# Probe\n"
-                )
-                failures = check_links.check(self.root)
-                self.assertTrue(failures, label)
+                self.assertTrue(self.check_frontmatter(frontmatter), label)
 
     def test_skill_description_limit_counts_characters_not_utf8_bytes(self):
         suffix = ' Triggers: "check this probe", "inspect this probe".'
@@ -222,18 +214,13 @@ class LinkCheckerTests(Fixture):
             CLEAN_FRONTMATTER, 'A clean probe skill. Triggers: "check this probe", "inspect this probe".',
             description,
         )
-        self.write("skills/probe-skill/SKILL.md", frontmatter + "\n# Probe\n")
-        failures = check_links.check(self.root)
+        failures = self.check_frontmatter(frontmatter)
         self.assertFalse(
             any("description exceeds" in failure for failure in failures),
             failures,
         )
 
-        self.write(
-            "skills/probe-skill/SKILL.md",
-            must_replace(frontmatter, description, "é" + description) + "\n# Probe\n",
-        )
-        failures = check_links.check(self.root)
+        failures = self.check_frontmatter(must_replace(frontmatter, description, "é" + description))
         self.assertTrue(
             any("description exceeds 1024 characters" in failure for failure in failures),
             failures,
@@ -241,35 +228,29 @@ class LinkCheckerTests(Fixture):
 
     def test_skill_name_over_64_characters_is_rejected(self):
         name = "a" * 65
-        frontmatter = must_replace(CLEAN_FRONTMATTER, "probe-skill", name)
-        self.write(f"skills/{name}/SKILL.md", frontmatter + "\n# Probe\n")
-        failures = check_links.check(self.root)
+        failures = self.check_frontmatter(must_replace(CLEAN_FRONTMATTER, "probe-skill", name), name)
         self.assertTrue(
             any("name exceeds 64 characters" in item for item in failures),
             failures,
         )
 
     def test_skill_compatibility_over_500_characters_is_rejected(self):
-        frontmatter = must_replace(
+        failures = self.check_frontmatter(must_replace(
             CLEAN_FRONTMATTER, 'argument-hint: "[the probe]"',
             'argument-hint: "[the probe]"\ncompatibility: "' + "x" * 501 + '"',
-        )
-        self.write("skills/probe-skill/SKILL.md", frontmatter + "\n# Probe\n")
-        failures = check_links.check(self.root)
+        ))
         self.assertTrue(
             any("compatibility exceeds 500 characters" in item for item in failures),
             failures,
         )
 
     def test_skill_compatibility_block_scalar_cannot_bypass_length_gate(self):
-        frontmatter = must_replace(
+        failures = self.check_frontmatter(must_replace(
             CLEAN_FRONTMATTER, 'argument-hint: "[the probe]"',
             'argument-hint: "[the probe]"\ncompatibility: |-\n  x\n'
             + "  \n" * 501
             + "  y",
-        )
-        self.write("skills/probe-skill/SKILL.md", frontmatter + "\n# Probe\n")
-        failures = check_links.check(self.root)
+        ))
         self.assertTrue(
             any("compatibility must use a single-line scalar" in item for item in failures),
             failures,
@@ -281,56 +262,25 @@ class LinkCheckerTests(Fixture):
             'argument-hint: "[the probe]"',
             'argument-hint: "[the probe]"\ndisable-model-invocation: true',
         )
-        self.write(
-            "skills/pcf-deploy/SKILL.md",
-            manual_frontmatter + "\n# Manual probe\n",
-        )
-        self.assertEqual([], check_links.check(self.root))
+        self.assertEqual([], self.check_frontmatter(manual_frontmatter, "pcf-deploy"))
 
-        fixture_root = Path(self._tmp.name)
-        missing = fixture_root / "missing"
-        self.root = missing
-        self.write(
-            "skills/pcf-deploy/SKILL.md",
-            must_replace(manual_frontmatter, "disable-model-invocation: true\n", "")
-            + "\n# Manual probe\n",
-        )
-        self.assertTrue(
-            any("manual-only skill must contain frontmatter" in item for item in check_links.check(self.root))
-        )
+        without_control = must_replace(manual_frontmatter, "disable-model-invocation: true\n", "")
+        for case, frontmatter in (("missing", without_control),
+                                  ("moved", without_control + "\ndisable-model-invocation: true")):
+            with self.subTest(case=case):
+                self.root = Path(self._tmp.name) / case
+                self.assertTrue(any("manual-only skill must contain frontmatter" in item
+                                    for item in self.check_frontmatter(frontmatter, "pcf-deploy")))
 
-        moved = fixture_root / "moved"
-        self.root = moved
-        self.write(
-            "skills/pcf-deploy/SKILL.md",
-            must_replace(manual_frontmatter, "disable-model-invocation: true\n", "")
-            + "\ndisable-model-invocation: true\n# Manual probe\n",
-        )
-        self.assertTrue(
-            any("manual-only skill must contain frontmatter" in item for item in check_links.check(self.root))
-        )
-
-        widened = fixture_root / "widened"
-        self.root = widened
-        self.write(
-            "skills/probe-skill/SKILL.md",
-            must_replace(
-                CLEAN_FRONTMATTER, 'argument-hint: "[the probe]"',
-                'argument-hint: "[the probe]"\ndisable-model-invocation: true',
-            )
-            + "\n# Probe\n",
-        )
-        self.assertTrue(
-            any("may disable model invocation" in item for item in check_links.check(self.root))
-        )
+        self.root = Path(self._tmp.name) / "widened"
+        failures = self.check_frontmatter(must_replace(
+            CLEAN_FRONTMATTER, 'argument-hint: "[the probe]"',
+            'argument-hint: "[the probe]"\ndisable-model-invocation: true',
+        ))
+        self.assertTrue(any("may disable model invocation" in item for item in failures))
         # The message must name the current roster, not a stale pair: a reader who trips this needs
         # to know which skills the exception actually covers.
-        self.assertTrue(
-            any(
-                all(name in item for name in check_links.MANUAL_ONLY)
-                for item in check_links.check(self.root)
-            )
-        )
+        self.assertTrue(any(all(name in item for name in check_links.MANUAL_ONLY) for item in failures))
 
     def test_code_span_pointer_is_rejected(self):
         self.skill("# Probe\n\nRead `references/notes.md`.\n")
@@ -460,39 +410,27 @@ class GuideLinkTests(Fixture):
         self.assertEqual([], check_links._check_guide(self.root))
 
 
-class LiveDocLinkTests(unittest.TestCase):
+class LiveDocLinkTests(Fixture):
     """Live authority docs must not carry dead relative links."""
 
     def test_live_tree_is_clean(self) -> None:
         self.assertEqual([], check_links._check_live_doc_links(ROOT))
 
     def test_a_dead_link_in_a_live_doc_is_flagged(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            (root / "docs").mkdir()
-            (root / "README.md").write_text(
-                "See [gone](docs/no-such-file.md).\n", encoding="utf-8"
-            )
-            failures = check_links._check_live_doc_links(root)
+        (self.root / "docs").mkdir()
+        self.write("README.md", "See [gone](docs/no-such-file.md).\n")
+        failures = check_links._check_live_doc_links(self.root)
         self.assertTrue(any("dead link" in f for f in failures), failures)
 
     def test_a_live_link_is_not_flagged(self) -> None:
         """The complement: without this, a checker that flags everything would pass the test above."""
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            (root / "docs").mkdir()
-            (root / "docs/real.md").write_text("# real\n", encoding="utf-8")
-            (root / "README.md").write_text("See [real](docs/real.md).\n", encoding="utf-8")
-            self.assertEqual([], check_links._check_live_doc_links(root))
+        self.write("docs/real.md", "# real\n")
+        self.write("README.md", "See [real](docs/real.md).\n")
+        self.assertEqual([], check_links._check_live_doc_links(self.root))
 
     def test_a_dead_link_in_evals_readme_is_flagged(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            (root / "evals").mkdir()
-            (root / "evals/README.md").write_text(
-                "See [gone](../docs/no-such-file.md).\n", encoding="utf-8"
-            )
-            failures = check_links._check_live_doc_links(root)
+        self.write("evals/README.md", "See [gone](../docs/no-such-file.md).\n")
+        failures = check_links._check_live_doc_links(self.root)
         self.assertTrue(
             any("evals/README.md" in item and "dead link" in item for item in failures),
             failures,
@@ -595,7 +533,7 @@ class UncitedEvidencePacketTests(Fixture):
         self.assertEqual([], failures, failures)
 
 
-class EscapingLinkTests(unittest.TestCase):
+class EscapingLinkTests(Fixture):
     """A link that resolves outside the repository is a defect, not a pass.
 
     `.exists()` on an escaped path answers a question about the HOST: a root README link to
@@ -604,13 +542,11 @@ class EscapingLinkTests(unittest.TestCase):
     """
 
     def test_a_link_escaping_the_root_is_flagged_even_when_the_host_has_it(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary).resolve()
-            (root / "docs").mkdir()
-            depth = len(root.parts) + 2
-            escape = "/".join([".."] * depth) + "/etc/passwd"
-            (root / "README.md").write_text(f"See [x]({escape}).\n", encoding="utf-8")
-            failures = check_links._check_live_doc_links(root)
+        root = self.root.resolve()
+        (root / "docs").mkdir()
+        escape = "/".join([".."] * (len(root.parts) + 2)) + "/etc/passwd"
+        self.write("README.md", f"See [x]({escape}).\n")
+        failures = check_links._check_live_doc_links(root)
         self.assertTrue(any("escapes the repository" in f for f in failures), failures)
 
 
