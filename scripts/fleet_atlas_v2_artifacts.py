@@ -12,7 +12,7 @@ from typing import Callable
 
 from fleet_atlas_v2_format import (
     API_VERSION, DETAIL_BUDGET, INDEX_BUDGET, PIPELINE, bounded_text, fact_line,
-    graph_dict, parse_graph,
+    graph_dict, parse_graph, self_sized,
 )
 from fleet_atlas_v2_model import assemble, canonical_bytes, digest
 from fleet_atlas_v2_proofs import VerifiedFacts, verify_facts
@@ -126,17 +126,12 @@ def render_files(checked: VerifiedFacts) -> dict[str, bytes]:
                          f'{target}["{mermaid_label(str(fact.object))}"]\n  %% {fact_line(fact, checked)}')
         # Mermaid has a distinct comment syntax, but shares byte budgeting and facts.
         encoded = bounded_text("flowchart LR\n%% " + header.replace("\n", "\n%% "), lines, DETAIL_BUDGET)
-        files[filename] = encoded.replace(b"<!-- {", b"%% {").replace(b"} -->\n", b"}\n")
+        diagram = encoded.replace(b"<!-- {", b"%% {").replace(b"} -->\n", b"}\n")
         # Comment conversion only shortens output, so recompute self-reported size.
-        marker_at = files[filename].rfind(b"\n%% {")
-        prefix = files[filename][:marker_at + 4]
-        info = json.loads(files[filename][marker_at + 4:])
-        for _ in range(12):
-            info["encodedBytes"] = len(prefix + canonical_bytes(info))
-            content = prefix + canonical_bytes(info)
-            if info["encodedBytes"] == len(content):
-                break
-        files[filename] = content
+        marker_end = diagram.rfind(b"\n%% {") + 4
+        prefix = diagram[:marker_end]
+        files[filename] = self_sized(json.loads(diagram[marker_end:]),
+                                     lambda info, prefix=prefix: prefix + canonical_bytes(info), "diagram")
     document = {"apiVersion": API_VERSION, "kind": "FleetAtlas",
                 "metadata": {"revision": snapshot.revision, "treeDigest": snapshot.tree_digest,
                              "dirty": False, "pipeline": PIPELINE},

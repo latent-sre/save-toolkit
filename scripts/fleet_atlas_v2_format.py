@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict
 import json
-from typing import Iterable
+from typing import Callable, Iterable
 
 from fleet_atlas_v2_model import (
     EvidenceClass, Fact, FactRef, Graph, Node, Proof, ProofKind, Span, Value,
@@ -157,6 +157,30 @@ def fact_line(fact: Fact, checked: VerifiedFacts) -> str:
             f"{record['class']} [{record['label']}] | {where}")
 
 
+def self_sized(info: dict, render: Callable[[dict], bytes], what: str) -> bytes:
+    """Re-render until `info["encodedBytes"]` reports the rendered output's own length."""
+    for _ in range(12):
+        encoded = render(info)
+        if info["encodedBytes"] == len(encoded):
+            return encoded
+        info["encodedBytes"] = len(encoded)
+    raise ValueError(f"cannot stabilize {what} size")
+
+
+def _largest_fitting(encode: Callable[[int], bytes], available: int, budget: int, overflow: str) -> bytes:
+    """The encoding of the most leading records whose complete output fits the budget."""
+    if len(encode(0)) > budget:
+        raise ValueError(overflow)
+    low, high = 0, available
+    while low < high:
+        mid = (low + high + 1) // 2
+        if len(encode(mid)) <= budget:
+            low = mid
+        else:
+            high = mid - 1
+    return encode(low)
+
+
 def bounded_envelope(base: dict, records: Iterable[dict], budget: int = DETAIL_BUDGET) -> bytes:
     """Budget the complete JSON envelope, reserving its own truncation metadata."""
     values = tuple(records)
@@ -165,23 +189,9 @@ def bounded_envelope(base: dict, records: Iterable[dict], budget: int = DETAIL_B
         output = {**base, "results": values[:count], "count": count,
                   "truncated": count < len(values), "omittedResults": len(values) - count,
                   "budgetBytes": budget, "encodedBytes": 0}
-        for _ in range(12):
-            encoded = canonical_bytes(output)
-            if output["encodedBytes"] == len(encoded):
-                return encoded
-            output["encodedBytes"] = len(encoded)
-        raise ValueError("cannot stabilize envelope size")
+        return self_sized(output, canonical_bytes, "envelope")
 
-    if len(encode(0)) > budget:
-        raise ValueError("query metadata alone exceeds output budget")
-    low, high = 0, len(values)
-    while low < high:
-        mid = (low + high + 1) // 2
-        if len(encode(mid)) <= budget:
-            low = mid
-        else:
-            high = mid - 1
-    return encode(low)
+    return _largest_fitting(encode, len(values), budget, "query metadata alone exceeds output budget")
 
 
 def bounded_text(header: str, lines: Iterable[str], budget: int) -> bytes:
@@ -191,20 +201,7 @@ def bounded_text(header: str, lines: Iterable[str], budget: int) -> bytes:
         prefix = (header.rstrip() + "\n\n" + "\n".join(values[:count]) + "\n").encode("utf-8")
         info = {"truncated": count < len(values), "omittedResults": len(values) - count,
                 "budgetBytes": budget, "encodedBytes": 0}
-        for _ in range(12):
-            encoded = prefix + b"<!-- " + canonical_bytes(info).rstrip(b"\n") + b" -->\n"
-            if info["encodedBytes"] == len(encoded):
-                return encoded
-            info["encodedBytes"] = len(encoded)
-        raise ValueError("cannot stabilize view size")
+        return self_sized(info, lambda current: prefix + b"<!-- " + canonical_bytes(current).rstrip(b"\n") + b" -->\n",
+                          "view")
 
-    if len(encode(0)) > budget:
-        raise ValueError("view header alone exceeds output budget")
-    low, high = 0, len(values)
-    while low < high:
-        mid = (low + high + 1) // 2
-        if len(encode(mid)) <= budget:
-            low = mid
-        else:
-            high = mid - 1
-    return encode(low)
+    return _largest_fitting(encode, len(values), budget, "view header alone exceeds output budget")
