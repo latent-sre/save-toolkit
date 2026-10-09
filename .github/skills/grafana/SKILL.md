@@ -30,7 +30,7 @@ instance, organization, permissions, resource identity, and ownership before rel
 | Review existing dashboards or assess an upgrade without writes | [Read-only review](./references/read-only-review.md) |
 | Dashboard/folder API discovery, concurrency, history, or rollback | [HTTP API](./references/http-api.md) |
 | Classic/V1/V2 models, panel JSON, variables, or portability | [Dashboard JSON](./references/json-model.md) |
-| Check an exported Classic/V1 dashboard offline | [dashboard_hygiene.py](./scripts/dashboard_hygiene.py); resolve this installed resource, never a workspace-relative lookalike |
+| Check an exported Classic/V1 dashboard offline | [dashboard_hygiene.py](./scripts/dashboard_hygiene.py); resolve this installed resource, never a workspace-relative lookalike. The `sre-assistant` guard does not run it |
 | Grafana provisioning, evaluation settings, rule groups, contact points, or policies | [Alerting configuration](./references/grafana-alerting.md) |
 | Installed Grafana CLI, MCP, vendor skills, or Foundation SDK | [Agent tooling](./references/agent-tooling.md) |
 | Viewer/Editor workflows, sharing, annotations, or ownership-aware restore | [Viewer/editor workflows](./references/viewer-editor-workflows.md) |

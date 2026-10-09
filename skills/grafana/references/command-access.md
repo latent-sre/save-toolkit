@@ -32,13 +32,14 @@ authority. The host must load the matching command guard; a skill cannot install
 ## Bundled read helper
 
 The installed `grafana` skill includes [grafana_read.py](../scripts/grafana_read.py), a stdlib-only Python 3.11+
-client. Resolve its **absolute installed path**, not a workspace file with the same relative name.
-The SRE shell guard permits only this helper's validated argument grammar under `python -I -S`
-(also `python3` or `python.exe`) or its installed [PowerShell wrapper](../scripts/grafana_read.ps1),
-with no pipes, redirection, custom URL, method or credential flags.
-The generated Copilot copy is accepted only while its bytes match the canonical installed helper.
-An interpreter outside these forms is not implicitly granted. PATH and installation integrity remain
-host responsibilities; this is not general permission to run Python.
+client. Run it as `python -I -S` (or `python3`, `python.exe`) with its **absolute installed path** in
+drive-letter form, such as `"C:/Users/<you>/.claude/plugins/cache/.../grafana_read.py"`, never a
+workspace copy, or call its installed [PowerShell wrapper](../scripts/grafana_read.ps1). The SRE
+guard admits only the helper's own argument grammar. It denies the Git Bash `/c/...` path form, the
+`py` launcher, double-quoted arguments (single-quote literals instead), `--flag=value`, pipes,
+redirection including `2>&1`, `timeout` and other wrappers, and custom URL, method or credential
+flags; rely on the host tool's own timeout. The generated Copilot copy is accepted only while its
+bytes match the canonical installed helper.
 
 The human supplies `GRAFANA_URL` (trusted HTTPS origin plus optional subpath),
 `GRAFANA_ORG_ID` (the expected positive organization ID), and either `GRAFANA_SA_TOKEN` or both
@@ -46,23 +47,20 @@ The human supplies `GRAFANA_URL` (trusted HTTPS origin plus optional subpath),
 `~/.config/save-toolkit/grafana.env` (one `NAME=value` per line, `#` comments). The helper reads that
 file only when the environment names none of these settings, even as an empty value, so the sources
 never mix. Values are used verbatim: no quotes, and no spaces around `=`. On macOS and Linux the file
-must be a regular file you own with mode 600 (`chmod 600 ~/.config/save-toolkit/grafana.env`), or
-the helper fails as `insecure_settings_file`; a malformed file fails as `invalid_settings_file`
-without echoing it. The helper prefers
-the token if both methods are present. Basic authentication works only where the instance supports
-it; browser SSO does not populate API credentials. Use existing SSO through the browser when
-available; do not extract its cookies. No values belong in prompts, argv, tracked files, or logs.
-The helper reads no other credential file and installs no credential store. Never read, print, or
-edit the settings file, and do not ask the model to configure secret values; the human writes it.
+must be a regular file you own that no group or other account can read (`chmod 600`), or the helper
+fails as `insecure_settings_file`; a malformed file fails as `invalid_settings_file` without echoing
+it. The helper prefers the token if both methods are present; Basic authentication works only where
+the instance supports it. No values belong in prompts, argv, tracked files, or logs. The helper
+reads no other credential file and installs no credential store. Never read, print, or edit the
+settings file, and do not ask the model to configure secret values; the human writes it.
 
 Use a read-only identity scoped to the intended organization, dashboards and datasources. The
 helper cannot grant access. It sends `X-Grafana-Org-Id` on every request and verifies `/api/org`
 matches before the requested read. A missing or mismatched organization fails closed; the helper
 does not switch the user's active organization. Successful results include the verified organization.
-It masks the configured authentication values in returned JSON and
-returns static errors instead of server error bodies, headers or exception traces. This protects
-its result boundary, not all host processes, files or other tools; retain the host's credential
-protections and do not claim OS isolation. Private telemetry remains private evidence.
+It masks the configured authentication values in returned JSON and returns static errors instead of
+server error bodies, headers or exception traces. Masking covers only the helper's own output.
+Private telemetry remains private evidence.
 
 Substitute the actual installed path and discovered UIDs. Every form except a raw `--expr` query
 works in both shells.
@@ -81,8 +79,10 @@ python -I -S "<absolute-installed-path>/grafana_read.py" render --uid dashboard-
 ```
 
 For **Windows PowerShell 5.1 or PowerShell 7**, call the installed wrapper as a script. It accepts
-the expression intact and encodes it internally before invoking Python; this avoids native-program
-argument handling removing the quotes in PromQL/LogQL selectors. The agent need not encode it:
+the expression intact and encodes it internally before invoking Python. Windows PowerShell 5.1
+strips the quotes in PromQL/LogQL selectors when it passes arguments to a native program; PowerShell
+7.3+ does not, but the guard cannot tell the two apart and requires the wrapper (or `--expr-base64`)
+on either. The agent need not encode the expression:
 
 ```powershell
 & '<absolute-installed-path>/grafana_read.ps1' -Datasource logs-uid -Kind loki -From 1758400000000 -To 1758403600000 -Expr '{service="example"} |= "error"'
@@ -91,8 +91,8 @@ argument handling removing the quotes in PromQL/LogQL selectors. The agent need 
 Use literal single-quoted expressions and observed values; no shell expansion or unresolved
 dashboard macros. Direct Python `--expr-base64` is available for a trusted caller that already has
 the UTF-8 encoding. Encoding preserves query bytes; it is not encryption or permission to run code.
-The helper decodes and validates the same expression rules. The guard rejects raw Python `--expr`
-on PowerShell, general script paths and `powershell -Command` wrappers.
+The helper decodes and validates the same expression rules. The guard also rejects general script
+paths and `powershell -Command` wrappers.
 
 Times above are examples, not the current incident window. `dashboard` reads one UID's stored model.
 `query` first verifies the datasource UID/type, then sends only a bounded `/api/ds/query` request

@@ -27,8 +27,10 @@ path rather than installing infrastructure as part of a read-only task.
 
 ## SRE browser investigation
 
-The SRE agent grants the following exact viewing tools. Tools from another server or an absent
-native tool are not implicitly available; use the actual installed schemas and observed UI targets.
+The SRE agent grants these exact viewing tools: the Claude Code agent grants the Playwright MCP
+column and the generated Copilot agent the native VS Code column. Tools from another server or an
+absent native tool are not implicitly available; use the actual installed schemas and observed UI
+targets.
 
 | Capability | Playwright MCP | Native VS Code |
 |---|---|---|
@@ -47,7 +49,6 @@ the permitted read path. Before the first call, establish effective read-only pe
 target identity/org, the trusted origin, and protected results. Keep the session limited to the
 requested Grafana context. A personal account is acceptable; broader account rights require an
 independently enforced diagnostic-only path. The grants themselves do not provide that boundary.
-The browser credential is separate from an API token; browser sign-in does not establish API access.
 
 Keep authentication usernames, passwords, cookies and tokens out of results before they reach the
 model. Screenshots, accessible profile labels, console output and login errors can expose identity
@@ -90,15 +91,13 @@ no captures.
    assigned panels. Hover for values and inspect panel query/data through read-only menus where
    available. Do not enter dashboard editing to obtain a missing inspector.
 4. Compare those observations with the stored model and query results at matching selections.
-   The bundled [read helper](./command-access.md#bundled-read-helper) supports dashboard models and
-   bounded Prometheus/Loki queries. Other datasource types remain a named gap.
+   The bundled [read helper](./command-access.md#bundled-read-helper) supports dashboard models,
+   bounded Prometheus/Loki queries and single-panel renders. Other datasource types remain a named gap.
 5. Report what was actually inspected. Never save dashboards, add annotations, create snapshots,
    change alerts/silences or invoke deployment controls. Stop at unavailable protections or tools,
    preserving independent evidence; do not replace a denied tool with another execution channel.
 
-These interaction rules are cooperative. Service permissions, origin restrictions and protected
-tool results remain load-bearing; a click grant is not a read-only sandbox. Native VS Code and
-Playwright MCP are separate paths and do not share sessions automatically.
+Native VS Code and Playwright MCP are separate paths and do not share sessions automatically.
 
 For native VS Code, reuse a page the human has shared with the agent through **Share with Agent**.
 An agent-opened page uses separate ephemeral storage and does not inherit other tabs' sign-in state.
@@ -124,26 +123,30 @@ checked 2026-09-21.
    [`render`](./command-access.md#bundled-read-helper), which derives the route below and saves the
    PNG to a private temporary file; then open that file with an image-capable read. Other agents:
    use the instance's generated image link or derive the same-origin
-   `/render/d-solo/<uid>/<slug>` route from the resolved dashboard path. Preserve a deployment subpath. Carry `orgId`, `panelId`, absolute
-   `from`/`to`, `tz`, and URL-encoded `var-<name>` selections; repeat parameters for multi-values.
-   Use the actual panel ID/scene key rather than guessing or converting it to another format.
-4. Start with one panel at 1200×600, one render at a time, a 45-second client timeout, and an 8 MiB
-   response bound. These are test defaults, not Grafana limits; adjust for the requested content
-   and resource budget. Authenticate to the trusted Grafana origin through the existing credential
-   path; never put tokens in URLs, images, logs, or evidence. Do not follow authenticated redirects
-   or call the renderer service directly with the Grafana service-account token.
+   `/render/d-solo/<uid>/<slug>` route from the resolved dashboard path. Preserve a deployment
+   subpath. Carry `orgId`, `panelId`, absolute `from`/`to`, `tz`, and URL-encoded `var-<name>`
+   selections; repeat parameters for multi-values. Use the actual panel ID/scene key rather than
+   guessing or converting it to another format.
+4. Render one panel at a time. The helper's `render` fixes 1200×600, a 45-second timeout and an
+   8 MiB bound, and accepts only Classic integer panel IDs and up to five simple `--var` values;
+   use the browser for anything else. Other agents start from those values and adjust for the
+   content and resource budget. Authenticate to the trusted Grafana origin through the existing
+   credential path; never put tokens in URLs, images, logs, or evidence. Do not follow authenticated
+   redirects or call the renderer service directly with the Grafana service-account token.
 5. Check HTTP status, content type, and image decoding. HTTP 200 or a PNG signature alone is not
    visual success: inspect the image with an image/browser tool. Check the expected title, axes,
    units, legends, time window, displayed values, clipping, and missing-data/error presentation.
-   Reject a login page, loading/error state, wrong panel, or stale window as a successful check.
+   Reject a login page, loading/error state, wrong panel, stale window, or Grafana's stock
+   "rendering limit" or "renderer not installed" image as a successful check.
 6. Compare visible values with the matching query results after transformations/reductions. For
    near-real-time data, account for late samples and distinct evaluation times; do not invent exact
    equality. Explain any mismatch before calling the panel correct. A temperature limit or threshold
    drawn on a graph is not a measured temperature, and a graph's color is not an alert verdict.
 
 For a full-dashboard layout check, inspect the layout through a browser or a supported full-page
-render, including lower rows and variable controls. A solo panel verifies neither the full layout
-nor interactions such as variable selection and drill-down navigation.
+render, including lower rows and variable controls; the helper renders single panels only. A solo
+panel verifies neither the full layout nor interactions such as variable selection and drill-down
+navigation.
 
 ## Record and diagnose
 
@@ -156,6 +159,18 @@ On failure, distinguish permission/authentication, missing server renderer, call
 timeout/resource pressure, and query/plugin errors using available evidence. A 403 is not proof of
 a missing renderer. A timeout does not justify increasing concurrency or disabling TLS checks.
 Prepare a deployment diagnosis for the owner if server configuration is involved.
+
+The helper's `render` errors narrow this down:
+
+| Error | Usual cause |
+|---|---|
+| `http_error` | Permission denied, or the render itself failed (a missing or broken renderer answers HTTP 500); read `rendererAvailable` through the [curl fallback](./command-access.md#grafana-resource-reads) or the browser to tell them apart |
+| `renderer_busy` | HTTP 429 from the renderer; do not retry in a loop |
+| `renderer_placeholder` | Grafana's own render limit or an unavailable renderer, served as a stock image |
+| `panel_not_found` | No non-row Classic panel with that ID; re-read the model |
+| `invalid_image` | A login page or other non-PNG answer |
+| `redirect_rejected` | Usually a login redirect |
+| `request_failed` | Network failure or the 45-second timeout |
 
 For Grafana 13+, the old Image Renderer plugin no longer works. The standalone rendering service
 is the supported server path; an Editor token cannot install/configure that service. Do not
