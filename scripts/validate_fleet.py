@@ -8,10 +8,7 @@ from collections import Counter
 import re
 from pathlib import Path
 
-try:
-    from scripts import generate_platform_adapters as adapters
-except ModuleNotFoundError:
-    import generate_platform_adapters as adapters  # type: ignore[no-redef]
+import generate_platform_adapters as adapters
 
 
 ROOT = Path(__file__).resolve().parents[1]

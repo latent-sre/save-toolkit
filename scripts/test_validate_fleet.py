@@ -8,6 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import generate_platform_adapters
 import validate_fleet
 
 
@@ -52,6 +53,12 @@ def _agent_failures_after_edit(filename: str, edit: Callable[[str], str]) -> lis
 
 
 class FleetValidatorTests(unittest.TestCase):
+    def test_validator_reads_the_one_generator_module(self) -> None:
+        """A second copy of the generator (`scripts.generate_platform_adapters`) would carry its own
+        GUARDED_AGENTS and functions, so a patch applied to the generator would not reach the
+        validator's view of it."""
+        self.assertIs(generate_platform_adapters, validate_fleet.adapters)
+
     def test_current_agents_pass(self) -> None:
         names, failures = validate_fleet.validate_agents(ROOT)
         self.assertEqual(sorted(validate_fleet.EXPECTED_AUTHORITY), sorted(names))
