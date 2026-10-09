@@ -450,10 +450,14 @@ runner repairs with independent review.
 including its result rules. Measurement failures are inconclusive and never hide a supported failure,
 and results record the runner revision, CLI version and host platform. Every in-scope defect from the
 2026-10-03 inventory of `evals/build_probe.py` is fixed or has an owner disposition.
-**Next action:** WP-02 is complete (2026-10-09), so the freeze below is lifted. Repair the WP-02
-gaps the owner selected, in order: record and isolate account skills, add a guard-denial check to
-guarded triage, align its label checks with the lane's contract, and give the operator-CLI oracle a
-distinct failure code. Each runner edit keeps the rescore/diff gate. [verified] Re-frozen on 2026-10-08 with the EVAL-013 and
+**Next action:** WP-02 is complete (2026-10-09), so the freeze below is lifted. The four repairs the
+owner selected from its record are implemented. [verified] Trials isolate and record account skills,
+a canary proves the read-only guard refuses a command outside its allowlist, guarded triage accepts
+the lane's labelled headings, and the operator-CLI oracle fails with exit 10, which a crash cannot
+produce. The rescore/diff gate over 1,424 saved runs differs only in guarded-triage label checks.
+The remaining WP-02 gaps (two-turn turn limits, the rubric case, ignored files in the digest, the
+batch cap, argv and host identity, residue) and three oracles still exiting 1 wait for the owner's
+selection. Each runner edit keeps the rescore/diff gate. [verified] Re-frozen on 2026-10-08 with the EVAL-013 and
 EVAL-014 runner changes, which the owner approved landing during the freeze, on top of the judge
 framing fix; latest commit touching runner identity inputs:
 `164eccb14f75d65648f160e23a4e04c197b3a803` (reachable from `main` when its PR merges with a merge commit). The
