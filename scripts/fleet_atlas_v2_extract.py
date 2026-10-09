@@ -17,7 +17,7 @@ from dataclasses import dataclass, replace
 from functools import cached_property, lru_cache
 from pathlib import PurePosixPath
 from types import MappingProxyType
-from typing import Any, Literal, NamedTuple, TypeAlias, cast, overload
+from typing import Any, Literal, NamedTuple, TypeAlias, cast
 from urllib.parse import unquote, urlsplit
 
 import fleet_frontmatter
@@ -129,7 +129,6 @@ class Corpus:
         self.schema_sources = tuple(s for s in snapshot.sources
                                     if s.path.startswith('schemas/') and s.path.endswith('.schema.json'))
         self._json: dict[str, Any] = {}
-        self._roadmaps: dict[str, tuple[RoadmapEntry, ...]] = {}
         self._headings: dict[str, Mapping[str, int]] = {}
 
     def get(self, path: str) -> Source | None:
@@ -146,10 +145,11 @@ class Corpus:
         entries: list[dict[str, Any]] = self.parsed(catalog).get('schemas', []) if catalog else []
         return entries
 
-    def roadmap_entries(self, source: Source) -> tuple[RoadmapEntry, ...]:
-        if source.path not in self._roadmaps:
-            self._roadmaps[source.path] = records_for_roadmap(source)
-        return self._roadmaps[source.path]
+    @cached_property
+    def roadmap_entries(self) -> tuple[RoadmapEntry, ...]:
+        """The live roadmap's items; the closed register is the only other roadmap-item source."""
+        roadmap = self.get('docs/fleet-roadmap.md')
+        return records_for_roadmap(roadmap) if roadmap else ()
 
     def headings(self, source: Source) -> Mapping[str, int]:
         """Markdown section anchors, numbered on repeats, to their heading line."""
@@ -188,13 +188,14 @@ def stable_id(prefix: str, *parts: str) -> str:
     return prefix + ':' + hashlib.sha256('\x1f'.join(parts).encode()).hexdigest()[:16]
 
 
-@overload
-def freeze(value: dict[Any, Any]) -> tuple[tuple[str, Value], ...]: ...
-@overload
-def freeze(value: object) -> Value: ...
+def pairs(mapping: Mapping[Any, object]) -> tuple[tuple[str, Value], ...]:
+    """A mapping as the sorted (name, frozen value) pairs that record attributes and fact qualifiers hold."""
+    return tuple((str(k), freeze(v)) for k, v in sorted(mapping.items()))
+
+
 def freeze(value: object) -> Value:
     if isinstance(value, dict):
-        return tuple((str(k), freeze(v)) for k, v in sorted(value.items()))
+        return pairs(value)
     if isinstance(value, (list, tuple, set, frozenset)):
         return tuple(freeze(v) for v in (sorted(value) if isinstance(value, (set, frozenset)) else value))
     if value is None or type(value) in (str, int, float, bool):
@@ -206,10 +207,10 @@ def plain(text: str) -> str:
     return ' '.join(LINK.sub(r'\1', text).replace('`', '').replace('**', '').split())
 
 
-def link_targets(text: str) -> tuple[tuple[str, str], ...]:
+def link_targets(text: str) -> tuple[str, ...]:
     # The destination remains parseable on the closing line of a wrapped or
     # nested-label link. Labels do not determine a repository target identity.
-    return tuple(('', target) for target in TARGET_LINK.findall(text))
+    return tuple(TARGET_LINK.findall(text))
 
 
 def table_cells(line: str) -> list[str]:
@@ -487,7 +488,7 @@ def _record(node_id: str, node_type: str, name: str, path: str, evidence: tuple[
             family: str = 'documents', selector: str = WHOLE_DOCUMENT, kind: PK = PK.EXTRACTED,
             cls: EC = EC.EXTRACTED) -> Record:
     return Record(Node(node_id, node_type, path, selector), name, authority, state,
-                  freeze(attrs or {}), evidence, family, kind, cls)
+                  pairs(attrs or {}), evidence, family, kind, cls)
 
 
 def _record_builder(inputs: Mapping[str, StageOutput]) -> tuple[dict[str, Record], Callable[[Record], None]]:
@@ -571,7 +572,7 @@ def _component_records(corpus: Corpus, inputs: Mapping[str, StageOutput]) -> Sta
         elif path.startswith('docs/probes/') and len(p.parts) == 3:
             roadmap = corpus.get('docs/fleet-roadmap.md')
             links = tuple(roadmap.span(i, i) for i, line in enumerate(roadmap.lines, 1) if any(
-                (resolved_link(roadmap, raw, corpus.by_path) or (None,))[0] == path for _, raw in link_targets(line))) if roadmap else ()
+                (resolved_link(roadmap, raw, corpus.by_path) or (None,))[0] == path for raw in link_targets(line))) if roadmap else ()
             add(_record(f'probe:{p.stem}', 'probe', p.stem, path, spans(whole(source), links or (whole(roadmap) if roadmap else ())),
                 authority='live-contract' if links else 'historical-evidence', state='live' if links else 'historical',
                 attrs={'linked_from_roadmap': bool(links)}, family='probes', kind=PK.JOINED))
@@ -582,7 +583,7 @@ def _roadmap_records(corpus: Corpus, inputs: Mapping[str, StageOutput]) -> Stage
     records, add = _record_builder(inputs)
     roadmap = corpus.get('docs/fleet-roadmap.md')
     if roadmap:
-        for item, start, _, fields, positions in corpus.roadmap_entries(roadmap):
+        for item, start, _, fields, positions in corpus.roadmap_entries:
             proof = spans((roadmap.span(start, start),), *(positions.values()))
             add(_record(f'roadmap-item:{item}', 'roadmap-item', item, roadmap.path, proof,
                 authority='live-contract', attrs={'status': status_marker(fields.get('Status', '')), 'status_text': fields.get('Status', '')[:200], 'owner': fields.get('Owner', '')[:200], 'fields': sorted(fields)}, family='roadmap', selector=item, kind=PK.NORMALIZED, cls=EC.CONTRACT))
@@ -715,7 +716,7 @@ def _resolve_catalog(corpus: Corpus, inputs: Mapping[str, StageOutput]) -> Stage
         needed.add('scripts/fleet_atlas_v2_extract.py')
     for source in corpus.sources:
         if source.path.endswith('.md'):
-            needed.update(hit[0] for _, raw in link_targets(source.text) if (hit := resolved_link(source, raw, sources)))
+            needed.update(hit[0] for raw in link_targets(source.text) if (hit := resolved_link(source, raw, sources)))
     if catalog:
         needed.update(e['validator'] for e in corpus.catalog_entries() if e.get('validator') in sources)
     for source in corpus.schema_sources:
@@ -1014,15 +1015,13 @@ def rooted_reads(source: Source) -> tuple[tuple[str, tuple[Span, ...]], ...]:
         inner = node if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) else enclosing[node]
         for child in ast.iter_child_nodes(node):
             enclosing[child] = inner
-    def scope(node: ast.AST) -> ast.AST:
-        return enclosing.get(node, tree)
     scope_roots: dict[ast.AST, Mapping[str, ast.Assign]] = {}
     def roots_in(call_scope: ast.AST) -> Mapping[str, ast.Assign]:
         """Repository-root bindings visible in one scope; a pure function of that scope."""
         if call_scope in scope_roots:
             return scope_roots[call_scope]
         stores = [n for n in ast.walk(call_scope) if isinstance(n, ast.Name)
-                  and isinstance(n.ctx, ast.Store) and scope(n) is call_scope] if call_scope is not tree else []
+                  and isinstance(n.ctx, ast.Store) and enclosing[n] is call_scope] if call_scope is not tree else []
         shadowed = {n.id for n in stores}
         parameters: set[str] = set()
         if isinstance(call_scope, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -1031,7 +1030,7 @@ def rooted_reads(source: Source) -> tuple[tuple[str, tuple[Span, ...]], ...]:
         bindings_here = {name: declaration for name, declaration in root_bindings.items() if name not in shadowed}
         if call_scope is not tree and pathlib_path and 'Path' not in shadowed:
             for declaration in ast.walk(call_scope):
-                if not isinstance(declaration, ast.Assign) or scope(declaration) is not call_scope:
+                if not isinstance(declaration, ast.Assign) or enclosing[declaration] is not call_scope:
                     continue
                 if not REPOSITORY_ROOT.fullmatch(ast.unparse(declaration.value)):
                     continue
@@ -1107,19 +1106,20 @@ def rooted_reads(source: Source) -> tuple[tuple[str, tuple[Span, ...]], ...]:
                 effects.update(helper_writes(callee, parameters(callee, call, function, substitutions), visiting | {function.name}))
         return effects
 
-    for call in (n for n in ast.walk(tree) if isinstance(n, ast.Call)):
+    calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call)]
+    for call in calls:
         expression = write_expression(call)
-        if expression is not None and (hit := rooted(expression, scope(call))):
+        if expression is not None and (hit := rooted(expression, enclosing[call])):
             written.add(hit[0])
         if isinstance(call.func, ast.Name) and call.func.id in functions:
             function = functions[call.func.id]
-            written.update(helper_writes(function, parameters(function, call, scope(call), {}), set()))
+            written.update(helper_writes(function, parameters(function, call, enclosing[call], {}), set()))
     found: dict[str, tuple[Span, ...]] = {}
-    for call in (n for n in ast.walk(tree) if isinstance(n, ast.Call)):
+    for call in calls:
         expression = read_expression(call)
-        candidates: list[tuple[str, tuple[Span, ...]]] = []
+        candidates = []
         if expression is not None:
-            hit = rooted(expression, scope(call))
+            hit = rooted(expression, enclosing[call])
             if hit:
                 candidates.append((hit[0], spans(hit[1], (_node_span(source, call),))))
         elif isinstance(call.func, ast.Name) and call.func.id in functions and call.args:
@@ -1128,7 +1128,7 @@ def rooted_reads(source: Source) -> tuple[tuple[str, tuple[Span, ...]], ...]:
                 continue
             parameter = function.args.args[0].arg
             arg = _path_expression(call.args[0], {})
-            rooted_arg = rooted(call.args[0], scope(call))
+            rooted_arg = rooted(call.args[0], enclosing[call])
             for helper_call in (n for n in ast.walk(function) if isinstance(n, ast.Call)):
                 expr = read_expression(helper_call)
                 if expr is None:
@@ -1150,8 +1150,8 @@ def rooted_reads(source: Source) -> tuple[tuple[str, tuple[Span, ...]], ...]:
 class _Relations:
     """The relationship pass's shared state over one derivation's records.
 
-    Emitters add facts only through edge() and unknown(): repeated claims merge their
-    witnesses, and a conflicting claim under the same identity fails the derivation.
+    Emitters add facts only through edge(), link() and unknown(): repeated claims merge
+    their witnesses, and a conflicting claim under the same identity fails the derivation.
     """
 
     def __init__(self, corpus: Corpus, records: tuple[Record, ...]) -> None:
@@ -1170,29 +1170,39 @@ class _Relations:
         if previous and previous != fact:
             if (previous.subject, previous.predicate, previous.object, previous.qualifiers, previous.evidence_class, previous.proof.kind) != (fact.subject, fact.predicate, fact.object, fact.qualifiers, fact.evidence_class, fact.proof.kind):
                 raise ValueError(f'conflicting extracted relationship: {fact.id}')
-            fact = Fact(fact.id, fact.subject, fact.predicate, fact.object, fact.evidence_class,
-                        # edge() and unknown() cite spans only, so neither proof holds a FactRef.
-                        Proof(fact.proof.kind, spans(cast('tuple[Span, ...]', previous.proof.inputs), cast('tuple[Span, ...]', fact.proof.inputs)),
-                              EVALUATOR, fact.proof.scope_digest), fact.qualifiers)
+            # Facts added here cite spans only, so neither proof holds a FactRef.
+            inputs = cast('tuple[Span, ...]', previous.proof.inputs + fact.proof.inputs)
+            fact = replace(fact, proof=replace(fact.proof, inputs=spans(inputs)))
         self.facts[fact.id] = fact
 
     def edge(self, kind: str, subject: str, target: str, proof: tuple[Span, ...], *, attrs: dict[str, Any] | None = None,
              key: str = '', cls: EC = EC.EXTRACTED, proof_kind: PK | None = None) -> None:
         if subject not in self.by_id or target not in self.by_id:
             return
-        if attrs and 'anchor' in attrs:
-            # A section-scoped claim and a bare file claim are different facts;
-            # repeated links to the same section still merge all their witnesses.
-            key += '#anchor=' + attrs['anchor']
         proof_kind = proof_kind or (PK.INFERRED if cls == EC.INFERRED else PK.JOINED if len({p.path for p in proof}) > 1 else PK.EXTRACTED)
         self.add(Fact(stable_id('edge', kind, subject, target, key), subject, kind, target, cls,
-                      Proof(proof_kind, spans(proof), EVALUATOR), freeze(attrs or {})))
+                      Proof(proof_kind, spans(proof), EVALUATOR), pairs(attrs or {})))
+
+    def link(self, kind: str, subject: str, dest: Record, raw: str, witness: tuple[Span, ...], *, key: str = '') -> None:
+        """An edge along a resolved link; a section link also cites the section it selects."""
+        if '#' not in raw:
+            self.edge(kind, subject, dest.node.id, witness, key=key)
+            return
+        # A section-scoped claim and a bare file claim are different facts;
+        # repeated links to the same section still merge all their witnesses.
+        section = raw.split('#', 1)[1]
+        self.edge(kind, subject, dest.node.id, spans(witness, dest.spans), key=key + '#anchor=' + section,
+                  attrs={'anchor': section})
+
+    def owner(self, name: str) -> str:
+        """The node an Owner field's `name` denotes: the agent of that name, else its owner node."""
+        return f'agent:{name}' if f'agent:{name}' in self.by_id else f'owner:{name}'
 
     def unknown(self, subject: str, code: str, message: str, proof: tuple[Span, ...], needed: str, *,
                 absence: bool = False) -> None:
         self.add(Fact(stable_id('unknown', code, subject, message), subject, 'unknown', message, EC.UNKNOWN,
                       Proof(PK.ABSENCE if absence else PK.COMPUTED, spans(proof), EVALUATOR,
-                            self.corpus.snapshot.tree_digest if absence else None), freeze({'code': code, 'neededEvidence': needed, 'path': self.by_id[subject].node.path})))
+                            self.corpus.snapshot.tree_digest if absence else None), pairs({'code': code, 'neededEvidence': needed, 'path': self.by_id[subject].node.path})))
 
     def resolve(self, source: Source, raw: str, *, types: set[str] | None = None) -> Record | None:
         hit = resolved_link(source, raw, self.sources)
@@ -1223,9 +1233,6 @@ class _Relations:
             return self.by_id[self.index.resolve(NodeRef(path, None, WHOLE_DOCUMENT)).id]
         except ValueError:
             return None
-
-    def result(self) -> tuple[Fact, ...]:
-        return tuple(self.facts[key] for key in sorted(self.facts))
 
 
 def _agent_method_edges(rel: _Relations, record: Record, source: Source) -> None:
@@ -1271,7 +1278,7 @@ def _skill_reference_edges(rel: _Relations, record: Record, source: Source) -> N
     """Each linked reference, with the routing-table condition that loads it."""
     references, routing = defaultdict(list), defaultdict(list)
     for i, line in enumerate(source.lines, 1):
-        targets = [raw for _, raw in link_targets(line) if raw.startswith(('references/', './references/'))]
+        targets = [raw for raw in link_targets(line) if raw.startswith(('references/', './references/'))]
         if targets and _table_data(source.lines, i):
             predicate = plain(line.strip('|').split('|')[0])
             for target in targets:
@@ -1294,10 +1301,10 @@ def _rule_source_edges(rel: _Relations, record: Record, source: Source) -> None:
         links = link_targets(source.lines[row.start_line - 1])
         if not links:
             rel.unknown(node.id, 'extract.rule-source-unlinked', f'{source.path}:{row.start_line} names its source in prose only: {cast("str", record.attributes["source_text"])[:80]}', (row,), 'Link the primary source')
-        for _, raw in links:
+        for raw in links:
             dest = rel.resolve(source, raw)
             if dest:
-                rel.edge('governed_by', node.id, dest.node.id, spans((row,), dest.spans) if '#' in raw else (row,), attrs={'anchor': raw.split('#', 1)[1]} if '#' in raw else None)
+                rel.link('governed_by', node.id, dest, raw, (row,))
             else:
                 rel.unknown(node.id, 'extract.rule-source-missing', f'{source.path}:{row.start_line} links {raw}, which does not resolve', (row,), 'Fix the link or supply its target', absence=True)
 
@@ -1305,11 +1312,10 @@ def _rule_source_edges(rel: _Relations, record: Record, source: Source) -> None:
 def _review_citations(rel: _Relations, record: Record, source: Source) -> None:
     node = record.node
     for i, line in enumerate(source.lines, 1):
-        for _, raw in link_targets(line):
+        for raw in link_targets(line):
             dest = rel.resolve(source, raw)
             if dest and dest.node.id != node.id:
-                proof = spans((source.span(i, i),), dest.spans) if '#' in raw else (source.span(i, i),)
-                rel.edge('cites', node.id, dest.node.id, proof, key=str(i), attrs={'anchor': raw.split('#', 1)[1]} if '#' in raw else None)
+                rel.link('cites', node.id, dest, raw, (source.span(i, i),), key=str(i))
             elif resolved_link(source, raw, rel.sources) and '#' in raw:
                 rel.unknown(node.id, 'extract.link-selector-unresolved', f'{source.path}:{i} selector does not resolve: {raw}', (source.span(i, i),), 'Correct the section selector or restore its exact target', absence=True)
 
@@ -1352,7 +1358,7 @@ def _decision_supersessions(rel: _Relations, record: Record, source: Source) -> 
         match = re.search(r'\*\*Supersedes:?\*\*:?\s*(.+)|^-?\s*Supersedes:\s*(.+)', line, re.I)
         if match:
             text = (match.group(1) or match.group(2)).strip()
-            resolved = [dest for _, raw in link_targets(line) if (dest := rel.resolve(source, raw))]
+            resolved = [dest for raw in link_targets(line) if (dest := rel.resolve(source, raw))]
             if not resolved:
                 rel.unknown(node.id, 'extract.supersedes-unresolved', f'{source.path}:{i} supersedes {text[:120]!r} but names no linked target', (source.span(i, i),), 'Link the superseded decision, rule row, or document')
             for dest in resolved:
@@ -1364,13 +1370,13 @@ def _decision_supersessions(rel: _Relations, record: Record, source: Source) -> 
 
 def _component_owner_edges(rel: _Relations, record: Record, source: Source) -> None:
     """An Owner line in a skill or command body naming the agent or owner that owns it."""
-    node, by_id = record.node, rel.by_id
     for i, line in enumerate(source.lines, 1):
         if not re.match(r'^\*\*Owner:\*\*', line):
             continue
-        for owner in re.findall(r'`([a-z][a-z0-9-]+)`\s+owns?\b', line):
-            subject = f'agent:{owner}' if f'agent:{owner}' in by_id else f'owner:{owner}'
-            rel.edge('owns', subject, node.id, spans((source.span(i, i),), by_id[subject].spans if subject in by_id else ()), attrs={'field': 'Owner'}, proof_kind=PK.JOINED)
+        for name in re.findall(r'`([a-z][a-z0-9-]+)`\s+owns?\b', line):
+            owner = rel.owner(name)
+            rel.edge('owns', owner, record.node.id, spans((source.span(i, i),), rel.by_id[owner].spans if owner in rel.by_id else ()),
+                     attrs={'field': 'Owner'}, proof_kind=PK.JOINED)
 
 
 # Per-record emitters, in the order each record's relationships are derived.
@@ -1390,10 +1396,7 @@ RECORD_EMITTERS = {
 def _roadmap_edges(rel: _Relations) -> None:
     """Roadmap items' mentioned dependencies and Owner-field ownership."""
     by_id = rel.by_id
-    roadmap = rel.corpus.get('docs/fleet-roadmap.md')
-    if not roadmap:
-        return
-    for item, _, _, fields, positions in rel.corpus.roadmap_entries(roadmap):
+    for item, _, _, fields, positions in rel.corpus.roadmap_entries:
         subject = f'roadmap-item:{item}'
         for field, value in fields.items():
             for other in set(ITEM.findall(value)) - {item}:
@@ -1403,8 +1406,8 @@ def _roadmap_edges(rel: _Relations) -> None:
         owner = fields.get('Owner', '')
         proof = positions.get('Owner', ())
         if proof:
-            mentioned = {m: suffix for m, suffix in re.findall(r'`([a-z][a-z0-9-]+)`([^`]*)', owner)}
-            for name in mentioned:
+            # A repeated mention re-adds an identical fact, which add() keeps once.
+            for name, _ in re.findall(r'`([a-z][a-z0-9-]+)`([^`]*)', owner):
                 if f'owner:{name}' in by_id:
                     rel.edge('owns', f'owner:{name}', subject, proof, attrs={'field': 'Owner'})
             human = human_owner(owner)
@@ -1415,8 +1418,7 @@ def _roadmap_edges(rel: _Relations) -> None:
                     for typ in ('skill', 'command'):
                         target = f'{typ}:{name}'
                         if target in by_id:
-                            owner_id = f'agent:{match.group(1)}' if f'agent:{match.group(1)}' in by_id else f'owner:{match.group(1)}'
-                            rel.edge('owns', owner_id, target, spans(proof, by_id[target].spans), attrs={'field': 'Owner'}, proof_kind=PK.JOINED)
+                            rel.edge('owns', rel.owner(match.group(1)), target, spans(proof, by_id[target].spans), attrs={'field': 'Owner'}, proof_kind=PK.JOINED)
 
 
 def _evidence_edges(rel: _Relations) -> set[str]:
@@ -1435,16 +1437,15 @@ def _evidence_edges(rel: _Relations) -> set[str]:
             if source.path == 'docs/roadmap-closed.md':
                 ranges = [(p.start_line, p.end_line) for p in record.spans]
             else:
-                ranges = [(entry.start, entry.end) for entry in rel.corpus.roadmap_entries(source) if entry.item == record.name]
+                ranges = [(entry.start, entry.end) for entry in rel.corpus.roadmap_entries if entry.item == record.name]
         else:
             ranges = [(1, len(source.lines))]
         for i in sorted({i for start, end in ranges for i in range(start, end + 1)}):
             line = source.lines[i - 1]
-            for _, raw in link_targets(line):
+            for raw in link_targets(line):
                 dest = rel.resolve(source, raw, types={'review', 'decision'})
                 if dest and dest.node.type in ('review', 'decision') and dest.node.id != record.node.id:
-                    proof = spans((source.span(i, i),), dest.spans) if '#' in raw else (source.span(i, i),)
-                    rel.edge('evidenced_by', record.node.id, dest.node.id, proof, attrs={'anchor': raw.split('#', 1)[1]} if '#' in raw else None)
+                    rel.link('evidenced_by', record.node.id, dest, raw, (source.span(i, i),))
                     incoming_reviews.add(dest.node.id)
             for batch in set(BATCH.findall(line)):
                 targets = [r for r in records if r.node.type == 'review'
@@ -1521,7 +1522,7 @@ def _roster_edges(rel: _Relations) -> None:
     validator = corpus.get('scripts/validate_fleet.py')
     expected, expected_proof = assignment(validator, 'EXPECTED_DELEGATION') if validator else (None, ())
     roster = corpus.get('AGENTS.md')
-    rows = {plain(cells[0]): (i, cells) for i, cells in roster_rows(roster)} if roster else {}
+    rows = {plain(cells[0]): (roster.span(i, i), cells) for i, cells in roster_rows(roster)} if roster else {}
     if isinstance(expected, dict):
         for agent, targets in sorted(expected.items()):
             subject = f'agent:{agent}'
@@ -1534,22 +1535,19 @@ def _roster_edges(rel: _Relations) -> None:
                 for target in sorted(targets):
                     rel.edge('delegates_to', subject, f'agent:{target}', spans(expected_proof, by_id[subject].spans), cls=EC.CONTRACT, proof_kind=PK.JOINED)
             if agent in rows:
-                i, cells = rows[agent]
-                assert roster is not None  # rows is empty without a roster.
+                row, cells = rows[agent]
                 stated = set(re.findall(r'`([a-z0-9-]+)`', cells[-1]))
                 if stated != set(targets):
-                    rel.edge('contradicts', subject, 'document:AGENTS.md', spans(expected_proof, (roster.span(i, i),)), key='delegation_mismatch',
+                    rel.edge('contradicts', subject, 'document:AGENTS.md', spans(expected_proof, (row,)), key='delegation_mismatch',
                              attrs={'detector': 'delegation_mismatch', 'message': f'roster says {agent} delegates to {sorted(stated)}; validate_fleet enforces {sorted(targets)}'}, cls=EC.INFERRED)
-    for agent, (i, cells) in rows.items():
-        assert roster is not None  # rows is empty without a roster.
-        rel.edge('owns', f'agent:{agent}', 'capability:' + slug(plain(cells[1]))[:60], (roster.span(i, i),), attrs={'via': 'roster-lane'}, cls=EC.INFERRED)
+    for agent, (row, cells) in rows.items():
+        rel.edge('owns', f'agent:{agent}', 'capability:' + slug(plain(cells[1]))[:60], (row,), attrs={'via': 'roster-lane'}, cls=EC.INFERRED)
     generator = corpus.get('scripts/generate_platform_adapters.py')
     guarded, guarded_proof = assignment(generator, 'GUARDED_AGENTS') if generator else (None, ())
     hook = corpus.get('hooks/hooks.json')
     if hook and 'hook:readonly-guard' in by_id and isinstance(guarded, (set, tuple, list)):
         for agent in sorted(guarded):
-            # rows is empty without a roster.
-            roster_proof = (cast('Source', roster).span(rows[agent][0], rows[agent][0]),) if agent in rows else ()
+            roster_proof = (rows[agent][0],) if agent in rows else ()
             rel.edge('constrained_by', f'agent:{agent}', 'hook:readonly-guard', spans(guarded_proof, whole(hook), roster_proof),
                      attrs={'via': 'generate_platform_adapters.GUARDED_AGENTS'}, cls=EC.CONTRACT, proof_kind=PK.JOINED)
 
@@ -1560,17 +1558,17 @@ def _stale_evidence(rel: _Relations) -> None:
         if record.node.type == 'roadmap-item' and record.state == 'live':
             date = DATE.search(str(record.attributes.get('status_text', '')))
             evidence = [rel.by_id[cast('str', f.object)] for f in rel.facts.values() if f.subject == record.node.id and f.predicate == 'evidenced_by']
-            dated = [(r, cast('str', r.attributes.get('date'))) for r in evidence if r.attributes.get('date')]
-            if date and dated and max(d for _, d in dated) < date.group():
-                newest = max(d for _, d in dated)
-                rel.unknown(record.node.id, 'stale.evidence-predates-status', f'{record.name} status is dated {date.group()} but its newest cited evidence is {newest}', spans(record.spans, *(r.spans for r, _ in dated)), 'Cite the evidence behind the current status or revise the status')
+            dated = [r for r in evidence if r.attributes.get('date')]
+            newest = max((cast('str', r.attributes['date']) for r in dated), default='')
+            if date and newest and newest < date.group():
+                rel.unknown(record.node.id, 'stale.evidence-predates-status', f'{record.name} status is dated {date.group()} but its newest cited evidence is {newest}', spans(record.spans, *(r.spans for r in dated)), 'Cite the evidence behind the current status or revise the status')
 
 
 def _uncited_reviews(rel: _Relations, incoming_reviews: set[str]) -> None:
     """Reviews no roadmap item, decision, review, live guide or closed entry cites."""
     for source in rel.corpus.sources:
         if source.path in LIVE_DOCS or PurePosixPath(source.path).name in ('README.md', 'CHANGELOG.md') or source.path == 'docs/roadmap-closed.md':
-            for _, raw in link_targets(source.text):
+            for raw in link_targets(source.text):
                 target = rel.resolve(source, raw, types={'review'})
                 if target and target.node.type == 'review':
                     incoming_reviews.add(target.node.id)
@@ -1585,10 +1583,11 @@ def _retired_names(rel: _Relations) -> None:
     """The first line of each scanned component that names a retired fleet unit."""
     corpus = rel.corpus
     stale_source = corpus.get('scripts/check_stale_names.py')
-    retired, retired_proof = assignment(stale_source, 'STALE') if stale_source else (None, ())
+    if stale_source is None:
+        return
+    retired, retired_proof = assignment(stale_source, 'STALE')
     if not isinstance(retired, tuple):
         return
-    assert stale_source is not None  # retired is None without the checker source.
     scanned = ('agents/', 'skills/', 'commands/', 'evals/scenarios/')
     exempt = {PurePosixPath(s.path).stem for s in corpus.sources if s.path.startswith(scanned)} & set(retired)
     siblings, _ = assignment(stale_source, 'SIBLING_REPOSITORIES')
@@ -1651,7 +1650,7 @@ def _relations(corpus: Corpus, records: tuple[Record, ...]) -> tuple[Fact, ...]:
     _uncited_reviews(rel, incoming_reviews)
     _retired_names(rel)
     _blocks_emission(rel)
-    return rel.result()
+    return tuple(rel.facts[key] for key in sorted(rel.facts))
 
 
 def _guidance(corpus: Corpus, records: tuple[Record, ...]) -> tuple[Fact, ...]:
@@ -1677,7 +1676,7 @@ def _guidance(corpus: Corpus, records: tuple[Record, ...]) -> tuple[Fact, ...]:
                 end = offset + len(chunk)
                 output.append(Fact(stable_id('guidance', record.node.id, str(paragraph[0][0]), str(offset)),
                     record.node.id, 'guidance', chunk, EC.EXTRACTED, Proof(PK.EXTRACTED, proof, EVALUATOR),
-                    freeze({'heading': heading, 'start_offset': offset, 'end_offset': end})))
+                    pairs({'heading': heading, 'start_offset': offset, 'end_offset': end})))
                 offset = end
     return tuple(output)
 
