@@ -1,10 +1,8 @@
 """Source-corpus and source-location regressions independent of atlas extraction."""
 
-import tempfile
 import unittest
-from pathlib import Path
 
-from atlas_test_support import git, init_repository
+from atlas_test_support import ReadmeRepository
 from fleet_atlas_v2_model import Span
 from fleet_atlas_v2_sources import (
     Snapshot,
@@ -63,27 +61,16 @@ class SourceTests(unittest.TestCase):
             snapshot.verify_span(span)
 
 
-class GitSourceTests(unittest.TestCase):
-    def setUp(self):
-        self.temp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
-        init_repository(self.root, "Atlas fixture")
-        self.write("README.md", "# Fixture\n")
-        self.commit("initial")
-
-    def run_git(self, *args):
-        return git(self.root, *args)
-
+class GitSourceTests(ReadmeRepository, unittest.TestCase):
     def write(self, path, text):
         target = self.root / path
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(text.encode("utf-8"))
 
     def commit(self, message):
-        self.run_git("add", ".")
-        self.run_git("commit", "-qm", message)
-        return self.run_git("rev-parse", "HEAD").decode().strip()
+        self.git("add", ".")
+        self.git("commit", "-qm", message)
+        return self.git("rev-parse", "HEAD").decode().strip()
 
     def test_tracked_only_and_no_generated_feedback(self):
         snapshot = current_snapshot(self.root)
@@ -92,8 +79,8 @@ class GitSourceTests(unittest.TestCase):
         self.write("docs/fleet-atlas/v2/atlas.json", "{}\n")
         self.assertEqual(snapshot, current_snapshot(self.root),
                          "generated atlas output stays outside the corpus even untracked")
-        self.run_git("add", "docs/fleet-atlas/v2/atlas.json")
-        self.run_git("commit", "-qm", "generated only")
+        self.git("add", "docs/fleet-atlas/v2/atlas.json")
+        self.git("commit", "-qm", "generated only")
         current = current_snapshot(self.root)
         self.assertEqual(snapshot.tree_digest, current.tree_digest)
         verify_revision(self.root, snapshot.revision, current)
@@ -102,7 +89,7 @@ class GitSourceTests(unittest.TestCase):
         self.write("skills/untracked/SKILL.md", "untracked must not verify\n")
         with self.assertRaisesRegex(ValueError, "dirty canonical"):
             current_snapshot(self.root)
-        self.run_git("add", "skills/untracked/SKILL.md")
+        self.git("add", "skills/untracked/SKILL.md")
         with self.assertRaisesRegex(ValueError, "dirty canonical"):
             current_snapshot(self.root)
         self.commit("add skill")
@@ -112,24 +99,24 @@ class GitSourceTests(unittest.TestCase):
         self.write("README.md", "changed\n")
         with self.assertRaisesRegex(ValueError, "dirty canonical"):
             current_snapshot(self.root)
-        self.run_git("add", "README.md")
+        self.git("add", "README.md")
         with self.assertRaisesRegex(ValueError, "dirty canonical"):
             current_snapshot(self.root)
-        self.run_git("reset", "--hard", "-q", "HEAD")
+        self.git("reset", "--hard", "-q", "HEAD")
         (self.root / "README.md").unlink()
         with self.assertRaisesRegex(ValueError, "dirty canonical"):
             current_snapshot(self.root)
-        self.run_git("reset", "--hard", "-q", "HEAD")
-        self.run_git("mv", "README.md", "outside-corpus.txt")
+        self.git("reset", "--hard", "-q", "HEAD")
+        self.git("mv", "README.md", "outside-corpus.txt")
         with self.assertRaisesRegex(ValueError, "dirty canonical"):
             current_snapshot(self.root)
 
     def test_reachable_non_ancestor_revision_with_differing_inputs_is_rejected(self):
         initial = current_snapshot(self.root).revision
-        self.run_git("checkout", "-qb", "other")
+        self.git("checkout", "-qb", "other")
         self.write("README.md", "other content\n")
         other = self.commit("other")
-        self.run_git("checkout", "--detach", "-q", initial)
+        self.git("checkout", "--detach", "-q", initial)
         self.write("README.md", "main content\n")
         self.commit("main")
         with self.assertRaisesRegex(ValueError, "different canonical"):
@@ -137,35 +124,35 @@ class GitSourceTests(unittest.TestCase):
 
     def test_git_object_bytes_do_not_depend_on_checkout_newlines(self):
         original = current_snapshot(self.root)
-        self.run_git("config", "core.autocrlf", "true")
-        self.write("README.md", "# Fixture\r\n")
+        self.git("config", "core.autocrlf", "true")
+        self.write("README.md", "live\r\n")
         self.assertEqual(original, current_snapshot(self.root))
-        self.assertEqual(b"# Fixture\n", read_revision(self.root, "HEAD").source("README.md").content)
+        self.assertEqual(b"live\n", read_revision(self.root, "HEAD").source("README.md").content)
 
     def test_same_corpus_accepts_divergent_rebased_and_merged_history(self):
         initial = current_snapshot(self.root)
-        self.run_git("checkout", "-qb", "topic")
+        self.git("checkout", "-qb", "topic")
         self.write("history-not-in-corpus/topic.txt", "topic\n")
         topic = self.commit("topic outside atlas corpus")
-        self.run_git("checkout", "-qb", "integration", initial.revision)
+        self.git("checkout", "-qb", "integration", initial.revision)
         self.write("history-not-in-corpus/integration.txt", "integration\n")
         integration = self.commit("integration outside atlas corpus")
         current = current_snapshot(self.root)
         self.assertEqual(initial.tree_digest, current.tree_digest)
         verify_revision(self.root, topic, current)
-        self.run_git("checkout", "-q", "topic")
-        self.run_git("rebase", "integration")
+        self.git("checkout", "-q", "topic")
+        self.git("rebase", "integration")
         rebased = current_snapshot(self.root)
         self.assertNotEqual(topic, rebased.revision)
         self.assertEqual(initial.tree_digest, rebased.tree_digest)
         verify_revision(self.root, topic, rebased)
-        self.run_git("checkout", "-qb", "merge-side", initial.revision)
+        self.git("checkout", "-qb", "merge-side", initial.revision)
         self.write("history-not-in-corpus/side.txt", "side\n")
         self.commit("merge side outside atlas corpus")
-        self.run_git("checkout", "-q", "topic")
-        self.run_git("merge", "--no-ff", "--no-edit", "merge-side")
+        self.git("checkout", "-q", "topic")
+        self.git("merge", "--no-ff", "--no-edit", "merge-side")
         merged = current_snapshot(self.root)
-        self.assertEqual(3, len(self.run_git("rev-list", "--parents", "-n", "1", "HEAD").split()))
+        self.assertEqual(3, len(self.git("rev-list", "--parents", "-n", "1", "HEAD").split()))
         self.assertEqual(initial.tree_digest, merged.tree_digest)
         for recorded in (initial.revision, topic, integration, rebased.revision):
             with self.subTest(recorded=recorded):

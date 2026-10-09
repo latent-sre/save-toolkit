@@ -9,40 +9,38 @@ from unittest import mock
 import check_fleet_atlas_v2
 from check_fleet_atlas_v2 import CASES, check_response
 
+FACT = {"label": "verified", "class": "STATIC_EXTRACTED", "citations": [{"path": "README.md"}]}
+
+
+def response(body):
+    return json.dumps(body, ensure_ascii=False).encode("utf-8")
+
 
 class RealTreeContractTests(unittest.TestCase):
-    def response(self, body):
-        return json.dumps(body, ensure_ascii=False).encode("utf-8")
-
     def test_ci_contract_run_fails_on_empty_flagship_queries(self):
         for body in ({"outcome": "empty", "results": []},
                      {"outcome": "results", "results": []},
                      {"outcome": "unverified", "results": []}):
             with self.subTest(body=body), self.assertRaises(ValueError):
-                check_response(self.response(body), "results")
+                check_response(response(body), "results")
 
     def test_cited_answer_and_verified_empty_have_distinct_contracts(self):
-        fact = {"label": "verified", "class": "STATIC_EXTRACTED", "citations": [{"path": "README.md"}]}
-        check_response(self.response({"outcome": "results", "results": [fact]}), "results")
-        check_response(self.response({"outcome": "empty", "results": []}), "empty")
-        for key in fact:
+        check_response(response({"outcome": "results", "results": [FACT]}), "results")
+        check_response(response({"outcome": "empty", "results": []}), "empty")
+        for key in FACT:
             with self.subTest(key=key), self.assertRaises(ValueError):
-                check_response(self.response({"outcome": "results", "results": [{k: v for k, v in fact.items() if k != key}]}), "results")
+                check_response(response({"outcome": "results", "results": [{k: v for k, v in FACT.items() if k != key}]}), "results")
 
     def test_limit_is_encoded_bytes_not_character_count(self):
-        response = self.response({"outcome": "verified", "message": "\u2603" * 8000})
         with self.assertRaisesRegex(ValueError, "byte budget"):
-            check_response(response, "verified")
+            check_response(response({"outcome": "verified", "message": "\u2603" * 8000}), "verified")
 
 
 class VerifyOnceTests(unittest.TestCase):
     """Each CLI call re-verifies the whole tree, so the contract run verifies once."""
 
-    FACT = {"label": "verified", "class": "STATIC_EXTRACTED", "citations": [{"path": "README.md"}]}
-
     def answer(self, expected):
-        body = {"outcome": expected, "results": [self.FACT] if expected == "results" else []}
-        return json.dumps(body).encode("utf-8")
+        return response({"outcome": expected, "results": [FACT] if expected == "results" else []})
 
     def run_main(self, *, build=None, in_process=None, cli_status=0):
         document = object()

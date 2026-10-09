@@ -36,6 +36,10 @@ def build(files):
     return source, result, graph
 
 
+def graph_of(files):
+    return build(files)[2]
+
+
 class ExtractTests(unittest.TestCase):
     def assertMatchesYaml(self, text, keys=('id', 'target', 'routing', 'threshold')):
         """The scenario metadata subset reads `keys` exactly as a real YAML parser does."""
@@ -47,7 +51,7 @@ class ExtractTests(unittest.TestCase):
         return expected, parsed
 
     def test_evidence_link_resolves_by_selector_not_path(self):
-        _, _, graph = build({
+        graph = graph_of({
             'docs/fleet-roadmap.md': '# Roadmap\n### EVAL-003 test\n**Status:** `active`\n**Evidence:** [decision](decisions/choice.md)\n',
             'docs/decisions/choice.md': '# Decision\n**Status:** accepted\n',
             'schemas/catalog-v1.json': '{"schemas":[{"id":"same-path","canonical_path":"docs/decisions/choice.md","status":"active","version":1}]}',
@@ -58,7 +62,7 @@ class ExtractTests(unittest.TestCase):
         self.assertIn('decision:choice', {n.id for n in graph.nodes})
 
     def test_owner_field_naming_a_component_emits_owner_to_component_edge(self):
-        _, _, graph = build({'agents/agent-engineer.md': agent('agent-engineer'),
+        graph = graph_of({'agents/agent-engineer.md': agent('agent-engineer'),
             'skills/fleet-atlas/SKILL.md': skill('fleet-atlas'),
             'docs/fleet-roadmap.md': '# Roadmap\n### GRAPH-004 test\n**Owner:** `agent-engineer` owns the `fleet-atlas` skill text.\n'})
         found = [f for f in graph.facts if f.predicate == 'owns' and f.object == 'skill:fleet-atlas']
@@ -70,10 +74,10 @@ class ExtractTests(unittest.TestCase):
     def test_explicit_skill_owner_body_is_distinct_from_incidental_mention(self):
         files = {'agents/agent-engineer.md': agent('agent-engineer'),
             'skills/fleet-atlas/SKILL.md': skill('fleet-atlas') + '**Owner:** `agent-engineer` owns the fleet-atlas capability.\n'}
-        _, _, graph = build(files)
+        graph = graph_of(files)
         self.assertTrue(any(f.predicate == 'owns' and f.object == 'skill:fleet-atlas' for f in graph.facts))
         files['skills/fleet-atlas/SKILL.md'] = skill('fleet-atlas') + 'Related agent: `agent-engineer`.\n'
-        self.assertFalse(any(f.predicate == 'owns' and f.object == 'skill:fleet-atlas' for f in build(files)[2].facts))
+        self.assertFalse(any(f.predicate == 'owns' and f.object == 'skill:fleet-atlas' for f in graph_of(files).facts))
 
     def test_explicit_agent_method_table_preserves_skill_and_condition(self):
         body = agent('reliability-engineer') + '''## Choose the method
@@ -83,8 +87,8 @@ class ExtractTests(unittest.TestCase):
 
 The service-lifecycle lane was discussed in a review.
 '''
-        _, _, graph = build({'agents/reliability-engineer.md': body,
-                            'skills/service-lifecycle/SKILL.md': skill('service-lifecycle')})
+        graph = graph_of({'agents/reliability-engineer.md': body,
+                          'skills/service-lifecycle/SKILL.md': skill('service-lifecycle')})
         references = [f for f in graph.facts if f.subject == 'agent:reliability-engineer' and f.predicate == 'loads_when']
         self.assertEqual(1, len(references))
         self.assertEqual('skill:service-lifecycle', references[0].object)
@@ -92,8 +96,8 @@ The service-lifecycle lane was discussed in a review.
         self.assertEqual('agent-method', dict(references[0].qualifiers)['via'])
         self.assertEqual(EvidenceClass.EXTRACTED, references[0].evidence_class)
         no_table = body.split('## Choose the method')[0] + 'Mention `service-lifecycle` only.\n'
-        _, _, changed = build({'agents/reliability-engineer.md': no_table,
-                              'skills/service-lifecycle/SKILL.md': skill('service-lifecycle')})
+        changed = graph_of({'agents/reliability-engineer.md': no_table,
+                            'skills/service-lifecycle/SKILL.md': skill('service-lifecycle')})
         self.assertFalse(any(f.predicate == 'loads_when' and f.subject == 'agent:reliability-engineer' for f in changed.facts))
 
     def test_catalog_node_proof_is_extracted_over_every_contributing_field(self):
@@ -105,7 +109,7 @@ The service-lifecycle lane was discussed in a review.
  "validator": "scripts/check.py",
  "generated_projections": []
 }]}'''
-        _, _, graph = build({'schemas/catalog-v1.json': text, 'schemas/test.json': '{}\n', 'scripts/check.py': 'pass\n'})
+        graph = graph_of({'schemas/catalog-v1.json': text, 'schemas/test.json': '{}\n', 'scripts/check.py': 'pass\n'})
         claims = [f for f in graph.facts if f.subject == 'schema:test-v1']
         self.assertTrue(claims)
         for claim in claims:
@@ -113,7 +117,7 @@ The service-lifecycle lane was discussed in a review.
         self.assertEqual(ProofKind.EXTRACTED, next(f for f in claims if f.predicate == 'attr.version').proof.kind)
 
     def test_batch_edge_proof_is_joined_and_cites_both_sides(self):
-        _, _, graph = build({
+        graph = graph_of({
             'docs/fleet-roadmap.md': '# Roadmap\n### EVAL-003 test\n**Evidence:** batch 20260930T010101Z-abcd1234\n',
             'docs/reviews/result.md': '# Result\nMeasured batch: 20260930T010101Z-abcd1234\n'})
         fact = next(f for f in graph.facts if f.predicate == 'evidenced_by')
@@ -122,13 +126,13 @@ The service-lifecycle lane was discussed in a review.
         self.assertTrue(any(p.path.endswith('result.md') and p.start_line == 2 for p in fact.proof.inputs))
 
     def test_wrapped_and_nested_label_evidence_links_are_preserved(self):
-        _, _, graph = build({
+        graph = graph_of({
             'docs/fleet-roadmap.md': '# Roadmap\n### EVAL-003 test\n**Evidence:** [fixed Windows\npacket](reviews/result.md), and [`[verified]` report](reviews/second.md).\n',
             'docs/reviews/result.md': '# Result\n', 'docs/reviews/second.md': '# Other\n'})
         self.assertEqual({'review:result', 'review:second'}, {f.object for f in graph.facts if f.predicate == 'evidenced_by'})
 
     def test_review_packets_with_the_same_filename_keep_distinct_evidence(self):
-        _, _, graph = build({
+        graph = graph_of({
             'docs/fleet-roadmap.md': '# Roadmap\n### AUDIT-001 test\n**Evidence:** '
                 '[first](reviews/first/README.md#first-packet), '
                 '[second](reviews/second/README.md#second-packet), '
@@ -154,19 +158,19 @@ The service-lifecycle lane was discussed in a review.
     def test_valid_section_anchor_keeps_file_identity_and_exact_target_witness(self):
         files = {'docs/reviews/source.md': '# Source\n[section](target.md#measured-result)\n',
                  'docs/reviews/target.md': '# Target\n\n## Measured result\nThe record.\n'}
-        _, _, graph = build(files)
+        graph = graph_of(files)
         fact = next(f for f in graph.facts if f.predicate == 'cites')
         self.assertEqual('review:target', fact.object)
         self.assertEqual('measured-result', dict(fact.qualifiers)['anchor'])
         self.assertTrue(any(p.path.endswith('target.md') and p.start_line == p.end_line == 3 for p in fact.proof.inputs))
         files['docs/reviews/source.md'] = '# Source\n[section](target.md#missing)\n'
-        _, _, changed = build(files)
+        changed = graph_of(files)
         self.assertFalse(any(f.predicate == 'cites' for f in changed.facts))
         self.assertTrue(any(f.predicate == 'unknown' and dict(f.qualifiers)['code'] == 'extract.link-selector-unresolved' for f in changed.facts))
 
     def test_linked_review_inventory_keeps_source_bound_csv_identity(self):
         path = 'docs/reviews/packet/inventory.csv'
-        _, _, graph = build({
+        graph = graph_of({
             'docs/reviews/packet/README.md': '# Packet\n[Inventory](inventory.csv)\n',
             path: 'path,bytes\nskills/example/SKILL.md,123\n',
         })
@@ -182,8 +186,8 @@ The service-lifecycle lane was discussed in a review.
                             for fact in graph.facts))
 
     def test_multiple_selectors_of_one_evidence_file_are_distinct_claims(self):
-        _, _, graph = build({'docs/fleet-roadmap.md': '# Roadmap\n### SKILL-001 title\n**Evidence:** [first](reviews/result.md#first)\n[second](reviews/result.md#second)\n[whole](reviews/result.md)\n',
-                             'docs/reviews/result.md': '# Result\n## First\nOne.\n## Second\nTwo.\n'})
+        graph = graph_of({'docs/fleet-roadmap.md': '# Roadmap\n### SKILL-001 title\n**Evidence:** [first](reviews/result.md#first)\n[second](reviews/result.md#second)\n[whole](reviews/result.md)\n',
+                           'docs/reviews/result.md': '# Result\n## First\nOne.\n## Second\nTwo.\n'})
         facts = [f for f in graph.facts if f.predicate == 'evidenced_by']
         self.assertEqual(3, len(facts))
         self.assertEqual(3, len({f.id for f in facts}))
@@ -198,7 +202,7 @@ The service-lifecycle lane was discussed in a review.
  "type": "object",
  "additionalProperties": false
 }'''
-        _, _, graph = build({'schemas/fleet-atlas-v2.schema.json': text})
+        graph = graph_of({'schemas/fleet-atlas-v2.schema.json': text})
         schema = next(n for n in graph.nodes if n.type == 'schema')
         self.assertEqual('schema:fleet-atlas-v2', schema.id)
         facts = {f.predicate: f for f in graph.facts if f.subject == schema.id}
@@ -235,7 +239,7 @@ def build(root):
         files = {'schemas/fleet-atlas-v2.schema.json': schema,
                  'scripts/fleet_atlas_v2.py': '# Declared validation entrypoint\n',
                  'scripts/fleet_atlas_v2_artifacts.py': implementation}
-        _, _, graph = build(files)
+        graph = graph_of(files)
         subject = 'schema-projection:docs/fleet-atlas/v2/atlas.json'
         fact = next(f for f in graph.facts if f.subject == subject and f.predicate == 'constrained_by')
         self.assertEqual('schema:fleet-atlas-v2', fact.object)
@@ -251,11 +255,11 @@ def build(root):
                         implementation.replace('handle.write(files[name])', 'handle.write(b"unrelated")'),
                         implementation.replace('for name in files:', 'for name in []:')):
             with self.subTest(changed=changed):
-                _, _, failed = build({**files, 'scripts/fleet_atlas_v2_artifacts.py': changed})
+                failed = graph_of({**files, 'scripts/fleet_atlas_v2_artifacts.py': changed})
                 self.assertNotIn(subject, {n.id for n in failed.nodes})
                 self.assertTrue(any(f.predicate == 'unknown' and dict(f.qualifiers)['code'] == 'extract.schema-projection-unproved' for f in failed.facts))
         del files['scripts/fleet_atlas_v2.py']
-        _, _, failed = build(files)
+        failed = graph_of(files)
         self.assertNotIn(subject, {n.id for n in failed.nodes})
 
     def test_real_artifact_writer_still_proves_its_schema_projection(self):
@@ -267,7 +271,7 @@ def build(root):
             'scripts/fleet_atlas_v2.py': (ROOT / 'scripts/fleet_atlas_v2.py').read_text(encoding='utf-8'),
             'scripts/fleet_atlas_v2_artifacts.py': (ROOT / 'scripts/fleet_atlas_v2_artifacts.py').read_text(encoding='utf-8'),
         }
-        _, _, graph = build(files)
+        graph = graph_of(files)
         subject = 'schema-projection:docs/fleet-atlas/v2/atlas.json'
         self.assertIn(subject, {n.id for n in graph.nodes})
         fact = next(f for f in graph.facts if f.subject == subject and f.predicate == 'constrained_by')
@@ -277,7 +281,7 @@ def build(root):
                              for f in graph.facts))
 
     def test_guard_edge_proof_is_joined_over_roster_and_hook_wiring(self):
-        _, _, graph = build({'agents/sre-assistant.md': agent('sre-assistant'),
+        graph = graph_of({'agents/sre-assistant.md': agent('sre-assistant'),
             'AGENTS.md': '# Roster\n| Agent | Lane | Tools | Delegates to |\n|---|---|---|---|\n| `sre-assistant` | observe | read | — |\n',
             'scripts/generate_platform_adapters.py': 'GUARDED_AGENTS = {"sre-assistant"}\n',
             'hooks/hooks.json': '{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"command":"python readonly-guard.py"}]}]}}\n'})
@@ -298,13 +302,13 @@ def expected_outputs(root):
         files = {'agents/sre-assistant.md': agent('sre-assistant'),
             '.github/agents/sre-assistant.agent.md': '# Projected agent\n',
             'scripts/generate_platform_adapters.py': generator}
-        _, _, graph = build(files)
+        graph = graph_of(files)
         fact = next(f for f in graph.facts if f.predicate == 'generated_from')
         self.assertEqual('agent:sre-assistant', fact.object)
         self.assertTrue(any(p.path.endswith('generate_platform_adapters.py') and p.start_line <= 7 <= p.end_line for p in fact.proof.inputs))
         self.assertFalse(all(p.start_line == p.end_line == 3 for p in fact.proof.inputs))
         files['scripts/generate_platform_adapters.py'] = generator.replace('outputs[COPILOT_AGENTS / f"{source.stem}.agent.md"] = b"rendered"', 'pass # outputs are no longer generated')
-        self.assertFalse(any(f.predicate == 'generated_from' for f in build(files)[2].facts))
+        self.assertFalse(any(f.predicate == 'generated_from' for f in graph_of(files).facts))
 
     def test_ast_verification_rejects_literals_and_fixture_reads(self):
         prefix = 'from pathlib import Path\nROOT = Path(__file__).resolve().parents[1]\n'
@@ -348,17 +352,9 @@ def test_schema():
         changed = text.replace('    assert ', '    root = Path("fixture")\n    assert ')
         self.assertEqual((), rooted_reads(Source('scripts/test_schema.py', changed.encode())))
 
-    def test_rooted_fixture_write_cannot_create_verification_evidence(self):
-        text = '''from pathlib import Path
-ROOT = Path(__file__).resolve().parents[1]
-def test_fixture():
-    (ROOT / "agents/example.md").write_text("synthetic fixture")
-    assert (ROOT / "agents/example.md").read_text()
-'''
-        self.assertEqual((), rooted_reads(Source('scripts/test_fixture.py', text.encode())))
-
-    def test_fixture_helper_writes_cannot_create_verification_evidence(self):
+    def test_rooted_fixture_writes_direct_or_through_helpers_cannot_create_verification_evidence(self):
         for functions, invocation in (
+            ('', '(ROOT / "agents/example.md").write_text("synthetic fixture")'),
             ('def seed(path):\n    path.write_text("fixture")\n', 'seed(ROOT / "agents/example.md")'),
             ('def seed(text, path):\n    path.write_text(text)\n', 'seed("fixture", path=ROOT / "agents/example.md")'),
             ('def seed(path):\n    mutate(path)\ndef mutate(path):\n    path.write_bytes(b"fixture")\n', 'seed(ROOT / "agents/example.md")'),
@@ -442,7 +438,7 @@ def test_fixture():
     def test_staleness_applies_to_every_dated_live_status_as_unknown(self):
         for state in ('active', 'ready', 'blocked', 'decision-needed', 'deferred'):
             with self.subTest(state=state):
-                _, _, graph = build({'docs/fleet-roadmap.md': f'# Roadmap\n### EVAL-003 test\n**Status:** `{state}` (2026-09-30)\n**Evidence:** [old](reviews/2026-01-01-old.md)\n',
+                graph = graph_of({'docs/fleet-roadmap.md': f'# Roadmap\n### EVAL-003 test\n**Status:** `{state}` (2026-09-30)\n**Evidence:** [old](reviews/2026-01-01-old.md)\n',
                     'docs/reviews/2026-01-01-old.md': '# Old evidence\n'})
                 self.assertTrue(any(f.predicate == 'unknown' and dict(f.qualifiers)['code'] == 'stale.evidence-predates-status' for f in graph.facts))
 
@@ -452,7 +448,7 @@ def test_fixture():
         self.assertIn('blocks', {p.name for p in extract(snapshot({})).predicates})
 
     def test_actual_field_proof_kinds_distinguish_computation_and_normalization(self):
-        _, _, graph = build({'skills/a/SKILL.md': skill('a'),
+        graph = graph_of({'skills/a/SKILL.md': skill('a'),
             'docs/fleet-roadmap.md': '# Roadmap\n### GRAPH-004 title\n**Status:** `active` (2026-09-30)\n'})
         facts = {(f.subject, f.predicate): f for f in graph.facts}
         self.assertEqual(ProofKind.COMPUTED, facts['skill:a', 'attr.bytes'].proof.kind)
@@ -606,7 +602,7 @@ fixture:
 
     def test_body_only_symptom_guidance_preserves_every_chunk_with_exact_spans(self):
         body = skill('a') + '## Ledger delays\n\nDependency timeouts can hold the shared pool.\n\n' + ('A longer evidence paragraph. ' * 500) + '\n'
-        _, _, graph = build({'skills/a/SKILL.md': body})
+        graph = graph_of({'skills/a/SKILL.md': body})
         guidance = [f for f in graph.facts if f.predicate == 'guidance']
         self.assertTrue(any('Dependency timeouts' in f.object for f in guidance))
         self.assertTrue(all(len(f.object.encode()) <= 3000 for f in guidance))

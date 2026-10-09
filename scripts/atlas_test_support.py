@@ -67,6 +67,7 @@ class ReadmeRepository(_TestCase):
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
         init_repository(self.root)
+        # Exact bytes: with autocrlf off, a Windows text write would commit "live\r\n".
         (self.root / "README.md").write_bytes(b"live\n")
         self.git("add", "README.md")
         self.git("commit", "-qm", "fixture")
@@ -92,6 +93,13 @@ def fixture_extract(snapshot: Snapshot) -> Extraction:
                           Proof(ProofKind.EXTRACTED, (current.span(1, 1),), "fixture-title/v1"))
 
     return Extraction((Bucket("fixture", (node,), (fact,)),), (rule,), {"fixture-title/v1": evaluate})
+
+
+def extended(snapshot: Snapshot, bucket: Bucket, predicates: Iterable[Predicate],
+             evaluators: Mapping[str, Evaluator]) -> Extraction:
+    """fixture_extract() plus one more bucket, the predicates its facts use and their evaluators."""
+    base = fixture_extract(snapshot)
+    return Extraction((*base.buckets, bucket), (*base.predicates, *predicates), {**base.evaluators, **evaluators})
 
 
 def fact_rows(rows: Iterable[Iterable[object]]) -> bytes:

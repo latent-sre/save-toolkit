@@ -14,6 +14,7 @@ import fleet_atlas_v2 as cli
 from atlas_test_support import (
     ReadmeRepository,
     copy_runtime,
+    extended,
     fact_rows,
     fixture_extract,
     git,
@@ -111,7 +112,6 @@ class CliTests(ReadmeRepository, unittest.TestCase):
 
     def test_recorded_unknown_is_not_reported_as_verified_empty(self):
         def loader(snapshot):
-            base = fixture_extract(snapshot)
             proof = Proof(ProofKind.ABSENCE, (snapshot.source("README.md").span(1, 1),),
                           "missing-owner/v1", snapshot.tree_digest)
             fact = Fact("unknown:owner", "document:README.md", "unknown", "Owner is not recorded",
@@ -124,10 +124,9 @@ class CliTests(ReadmeRepository, unittest.TestCase):
                                   Proof(ProofKind.ABSENCE, (source.span(1, 1),),
                                         "missing-owner/v1", sources.tree_digest))
 
-            return SimpleNamespace(
-                buckets=(*base.buckets, Bucket("unknown", (), (fact,))),
-                predicates=(*base.predicates, Predicate("unknown", frozenset({"document"}), None, ("README.md",))),
-                evaluators={**base.evaluators, "missing-owner/v1": evaluate})
+            return extended(snapshot, Bucket("unknown", (), (fact,)),
+                            [Predicate("unknown", frozenset({"document"}), None, ("README.md",))],
+                            {"missing-owner/v1": evaluate})
 
         self.assertEqual(0, self.call("build", loader=loader)[0])
         code, data, _ = self.call("query", "owner-of", "README.md", loader=loader)
@@ -143,7 +142,6 @@ class CliTests(ReadmeRepository, unittest.TestCase):
         self.git("commit", "-qm", "guidance and crowded metadata")
 
         def loader(snapshot):
-            base = fixture_extract(snapshot)
             source = snapshot.source("README.md")
             claims = (("a-description", "attr.description", 3), ("z-guidance", "guidance", 2))
             facts = tuple(Fact(identity, "document:README.md", predicate, source.lines[line - 1],
@@ -157,11 +155,9 @@ class CliTests(ReadmeRepository, unittest.TestCase):
                 return Derivation(current.lines[line - 1], EvidenceClass.EXTRACTED,
                                   Proof(ProofKind.EXTRACTED, (current.span(line, line),), "guidance-fixture/v1"))
 
-            return SimpleNamespace(
-                buckets=(*base.buckets, Bucket("guidance", (), facts)),
-                predicates=(*base.predicates, *(Predicate(predicate, frozenset({"document"}), None,
-                             ("README.md",)) for _, predicate, _ in claims)),
-                evaluators={**base.evaluators, "guidance-fixture/v1": evaluate})
+            return extended(snapshot, Bucket("guidance", (), facts),
+                            [Predicate(predicate, frozenset({"document"}), None, ("README.md",)) for _, predicate, _ in claims],
+                            {"guidance-fixture/v1": evaluate})
 
         self.assertEqual(0, self.call("build", loader=loader)[0])
         code, data, content = self.call("query", "guidance", "dependency", "timeouts", loader=loader)
@@ -173,17 +169,13 @@ class CliTests(ReadmeRepository, unittest.TestCase):
 
     def test_supersedes_query_matches_both_old_and_new_decisions(self):
         def loader(snapshot):
-            base = fixture_extract(snapshot)
             nodes = (Node("decision:new", "decision", "README.md", "new"),
                      Node("decision:old", "decision", "README.md", "old"))
             proof = Proof(ProofKind.EXTRACTED, (snapshot.source("README.md").span(1, 1),), "supersedes-fixture/v1")
             fact = Fact("edge:new:old", "decision:new", "supersedes", "decision:old", EvidenceClass.EXTRACTED, proof)
-            return SimpleNamespace(
-                buckets=(*base.buckets, Bucket("decisions", nodes, (fact,))),
-                predicates=(*base.predicates, Predicate("supersedes", frozenset({"decision"}),
-                             frozenset({"decision"}), ("README.md",))),
-                evaluators={**base.evaluators, "supersedes-fixture/v1": lambda f, s, p:
-                            Derivation("decision:old", EvidenceClass.EXTRACTED, proof)})
+            return extended(snapshot, Bucket("decisions", nodes, (fact,)),
+                            [Predicate("supersedes", frozenset({"decision"}), frozenset({"decision"}), ("README.md",))],
+                            {"supersedes-fixture/v1": lambda f, s, p: Derivation("decision:old", EvidenceClass.EXTRACTED, proof)})
 
         self.assertEqual(0, self.call("build", loader=loader)[0])
         for name in ("new", "old"):

@@ -1,34 +1,22 @@
 """Dashboard export exercises the real artifact boundary and HTML trust boundary."""
 import json
 import re
-import tempfile
 import unittest
-from pathlib import Path
 
-from atlas_test_support import fixture_extract, git, init_repository
+from atlas_test_support import ReadmeRepository, fixture_extract
 from fleet_atlas_dashboard import export, payload, render
-from fleet_atlas_v2_artifacts import OUTPUT, build
+from fleet_atlas_v2_artifacts import build
 
 
-class DashboardTests(unittest.TestCase):
+class DashboardTests(ReadmeRepository, unittest.TestCase):
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
-        init_repository(self.root)
-        # Exact bytes: with autocrlf off, a Windows text write would commit "live\r\n".
-        (self.root / "README.md").write_bytes(b"live\n")
-        self.git("add", "README.md")
-        self.git("commit", "-qm", "fixture")
-        self.output = self.root / ".eval-runs/dashboard.html"
-
-    def git(self, *args):
-        return git(self.root, *args)
+        super().setUp()
+        self.page = self.root / ".eval-runs/dashboard.html"
 
     def test_real_verified_export_preserves_complete_citations_and_sources(self):
         doc = build(self.root, fixture_extract)
-        export(self.root, self.output, loader=fixture_extract)
-        html = self.output.read_text(encoding="utf-8")
+        export(self.root, self.page, loader=fixture_extract)
+        html = self.page.read_text(encoding="utf-8")
         encoded = re.search(r'<script id="atlas-data" type="application/json">(.*?)</script>', html, re.S)[1]
         data = json.loads(encoded)
         self.assertEqual(doc.revision, data["revision"])
@@ -40,20 +28,20 @@ class DashboardTests(unittest.TestCase):
 
     def test_missing_stale_and_tampered_artifacts_never_emit_dashboard(self):
         with self.assertRaises(ValueError):
-            export(self.root, self.output, loader=fixture_extract)
+            export(self.root, self.page, loader=fixture_extract)
         build(self.root, fixture_extract)
-        (self.root / OUTPUT / "INDEX.md").write_text("tampered", encoding="utf-8")
+        self.output("INDEX.md").write_text("tampered", encoding="utf-8")
         with self.assertRaises(ValueError):
-            export(self.root, self.output, loader=fixture_extract)
+            export(self.root, self.page, loader=fixture_extract)
         build(self.root, fixture_extract)
         (self.root / "README.md").write_text("changed\n", encoding="utf-8")
         with self.assertRaises(ValueError):
-            export(self.root, self.output, loader=fixture_extract)
+            export(self.root, self.page, loader=fixture_extract)
         self.git("add", "README.md")
         self.git("commit", "-qm", "changed canonical source without rebuilding")
         with self.assertRaises(ValueError):
-            export(self.root, self.output, loader=fixture_extract)
-        self.assertFalse(self.output.exists())
+            export(self.root, self.page, loader=fixture_extract)
+        self.assertFalse(self.page.exists())
 
     def test_script_breakout_is_data_and_csp_does_not_allow_injected_script(self):
         value = '</script><script>globalThis.pwned=1</script><!--&>\u2028\u2029__ATLAS_CSP____ATLAS_DATA__'
@@ -67,14 +55,14 @@ class DashboardTests(unittest.TestCase):
 
     def test_cannot_overwrite_sources_or_existing_output(self):
         build(self.root, fixture_extract)
-        for path in (self.root / "docs/dashboard.html", self.root / OUTPUT / "dashboard.html"):
+        for path in (self.root / "docs/dashboard.html", self.output("dashboard.html")):
             with self.assertRaises(ValueError):
                 export(self.root, path, loader=fixture_extract)
-        self.output.parent.mkdir()
-        self.output.write_text("keep", encoding="utf-8")
+        self.page.parent.mkdir()
+        self.page.write_text("keep", encoding="utf-8")
         with self.assertRaises(ValueError):
-            export(self.root, self.output, loader=fixture_extract)
-        self.assertEqual("keep", self.output.read_text())
+            export(self.root, self.page, loader=fixture_extract)
+        self.assertEqual("keep", self.page.read_text())
 
     def test_plain_data_cannot_claim_verification(self):
         with self.assertRaises(TypeError):

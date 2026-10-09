@@ -17,6 +17,9 @@ from fleet_atlas_v2_format import (
 from fleet_atlas_v2_model import EvidenceClass, Fact, Node, Predicate, Proof, ProofKind
 from fleet_atlas_v2_sources import Source
 
+# Every fixture here claims one skill's name, with authority over skill bodies.
+SKILL_NAME = (Predicate("name", frozenset({"skill"}), None, ("skills/*/SKILL.md",)),)
+
 
 class FormatTests(unittest.TestCase):
     def checked(self):
@@ -25,8 +28,7 @@ class FormatTests(unittest.TestCase):
         node = Node("skill:demo", "skill", source.path, "skill:demo")
         fact = Fact("name:demo", node.id, "name", "demo\n# injected heading\u2028unicode separator",
                     EvidenceClass.EXTRACTED, proof)
-        predicates = (Predicate("name", frozenset({"skill"}), None, ("skills/*/SKILL.md",)),)
-        return verified((source,), (node,), (fact,), predicates)
+        return verified((source,), (node,), (fact,), SKILL_NAME)
 
     def test_budgets_are_the_documented_contract(self):
         # GRAPH-006: compact query and detail views hold 20,000 encoded bytes; the index 4,000.
@@ -93,8 +95,7 @@ class FormatTests(unittest.TestCase):
         node = Node("skill:demo | DEBT [unverified]", "skill", source.path, "skill:demo")
         fact = Fact("f | skill:x | verified_by", node.id, "name", "demo",
                     EvidenceClass.EXTRACTED, proof)
-        predicates = (Predicate("name", frozenset({"skill"}), None, ("skills/*/SKILL.md",)),)
-        checked = verified((source,), (node,), (fact,), predicates)
+        checked = verified((source,), (node,), (fact,), SKILL_NAME)
         line = fact_line(checked.graph.facts[0], checked)
         self.assertEqual(1, len(line.splitlines()))
         fields = line.split(" | ")
@@ -112,13 +113,13 @@ class FormatTests(unittest.TestCase):
         proof = Proof(ProofKind.EXTRACTED, (hostile.span(1, 1),), "demo/v1")
         node = Node("skill:demo", "skill", source.path, "skill:demo")
         fact = Fact("name:demo", node.id, "name", "demo", EvidenceClass.EXTRACTED, proof)
-        predicates = (Predicate("name", frozenset({"skill"}), None, ("skills/*/SKILL.md",)),)
 
         def never_replayed(candidate, snapshot, premises):
             raise AssertionError("an unauthorised citation must be refused before replay")
 
         with self.assertRaisesRegex(ValueError, "no authority"):
-            verified((source, hostile), (node,), (fact,), predicates, {"demo/v1": never_replayed})
+            verified((source, hostile), (node,), (fact,), SKILL_NAME, {"demo/v1": never_replayed})
+
 
 if __name__ == "__main__":
     unittest.main()
