@@ -1,13 +1,15 @@
 # Lint, format and type-check configuration only: this file does not make the repository a package,
 # and every dependency stays pinned in requirements-dev.txt. Ruff lints the eval runner
 # (evals/build_probe.py and evals/probe/), the run comparison (evals/compare_runs.py), the turn-count
-# summary (evals/turn_counts.py), the graders,
-# the Inspect pilot, the evals tests and their shared helpers (evals/probe_testkit.py), and formats
-# all of them but the tests; strict mypy covers
-# the same code without the tests or their helpers. CI runs
-# them in the component-tests job. evals/judge.py, evals/clean_room.py and evals/oracles/ stay outside
-# all three: the judge calibration receipt binds the first two byte for byte and each case's identity
-# binds the oracles, so even a formatting change would reject the receipt or orphan the saved runs.
+# summary (evals/turn_counts.py), the graders, the Inspect pilot, the evals tests and their shared
+# helpers (evals/probe_testkit.py), the fleet tooling and its suites (scripts/), and the Python bundled
+# in skills/. It formats the eval code but its tests; scripts/ and skills/ keep their hand layouts.
+# Strict mypy covers the eval code without the tests or their helpers, plus the scripts/ modules that
+# are fully typed: the read-only guard and its session preflight, the Gate A path, the atlas's typed
+# core and the scripts/ test helpers. CI runs all three in the component-tests job.
+# evals/judge.py, evals/clean_room.py and evals/oracles/ stay outside all three: the judge
+# calibration receipt binds the first two byte for byte and each case's identity binds the oracles,
+# so even a formatting change would reject the receipt or orphan the saved runs.
 
 [tool.ruff]
 target-version = "py312"  # the runner's compatibility floor (evals/README.md)
@@ -56,8 +58,16 @@ ignore = ["E501"]  # the formatter owns line length; long messages and patterns 
 
 [tool.mypy]
 python_version = "3.12"
-files = ["evals/probe", "evals/build_probe.py", "evals/compare_runs.py", "evals/turn_counts.py", "evals/graders.py", "evals/inspect_pilot.py"]
-mypy_path = "evals"
+files = [
+    "evals/probe", "evals/build_probe.py", "evals/compare_runs.py", "evals/turn_counts.py", "evals/graders.py",
+    "evals/inspect_pilot.py",
+    # A file joins once it is clean; the rest of the atlas is the next to type.
+    "scripts/readonly-guard.py", "scripts/guard-session-preflight.py", "scripts/gate_a.py", "scripts/check_links.py",
+    "scripts/validate_fleet.py", "scripts/generate_platform_adapters.py", "scripts/fleet_frontmatter.py",
+    "scripts/fleet_atlas_v2_model.py", "scripts/fleet_atlas_v2_sources.py", "scripts/fleet_atlas_v2_proofs.py",
+    "scripts/testkit.py",
+]
+mypy_path = "evals,scripts"
 strict = true
 plugins = ["pydantic.mypy"]
 
