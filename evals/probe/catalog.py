@@ -158,7 +158,10 @@ def _identity_problems(spec: Spec, where: str) -> list[str]:
 
 
 def _broken(prefix: str, rules: Iterable[tuple[object, str]]) -> list[str]:
-    """The message of each rule whose condition holds, in the rules' order, after `prefix`."""
+    """The message of each rule whose condition holds, in the rules' order, after `prefix`.
+
+    Every message is built before its condition is read, so a rule here needs a message that can be
+    formed from any input; one whose message reads what its condition guards keeps the `if` form."""
     return [prefix + message for broken, message in rules if broken]
 
 

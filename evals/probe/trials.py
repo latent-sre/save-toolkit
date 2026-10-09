@@ -123,18 +123,18 @@ def run_trial(spec: Mapping[str, Any], *, run_number: int, settings: BatchSettin
             reason = f"{type(exc).__name__}: {exc}"[:500]
             # Each step is best effort and its failure is only warned of; no timing.json leaves the
             # cost unknown, which the cap refuses.
-            for failure, step in (
-                ("no cost recorded for", functools.partial(_record_raised_cost, attempt)),
-                ("no record for", functools.partial(record, incomplete=reason)),
+            for warning, step in (
+                ("no cost recorded for the incomplete attempt", functools.partial(_record_raised_cost, attempt)),
+                ("no record for the incomplete attempt", functools.partial(record, incomplete=reason)),
                 (
-                    "could not keep",
+                    "could not keep the incomplete attempt",
                     functools.partial(_keep_attempt, attempt, history, number, AttemptState.INCOMPLETE, reason),
                 ),
             ):
                 try:
                     step()
                 except Exception as step_error:
-                    print(f"warning: {failure} the incomplete attempt {attempt}: {step_error}", file=sys.stderr)
+                    print(f"warning: {warning} {attempt}: {step_error}", file=sys.stderr)
         raise
 
 

@@ -224,7 +224,7 @@ def _regrade_run(
             trace,
             native_problem,
             saved_binding,
-            judge_problem,
+            judge_problem=judge_problem,
             has_raw_trace=reparsed is not None,
             has_plugin_root=has_plugin_root,
         )
@@ -287,8 +287,8 @@ def _run_level_reason(
     trace: TraceSummary,
     native_problem: str | None,
     saved_binding: Any,
-    judge_problem: rubric_judge.JudgeUnavailable | None,
     *,
+    judge_problem: rubric_judge.JudgeUnavailable | None,
     has_raw_trace: bool,
     has_plugin_root: bool,
 ) -> str | None:
