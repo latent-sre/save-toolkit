@@ -92,6 +92,22 @@ class GuardRunnerTests(unittest.TestCase):
         self.assertEqual([sys.executable, "-I", "-S", str(testkit.GUARD), "--copilot"], run.call_args.args[0])
         self.assertEqual("deny", testkit.guard_decision(testkit.run_guard(testkit.guard_payload("git push"))))
 
+    def test_decisions_cover_every_tool_agent_and_command(self) -> None:
+        sent: list[str] = []
+
+        def fake_batch(payloads: list[str], *, copilot: bool = False) -> list[subprocess.CompletedProcess[bytes]]:
+            sent.extend(payloads)
+            return [self.completed(42) for _ in payloads]
+
+        tools, agents, commands = ("Bash", "PowerShell"), ("save-toolkit:software-engineer", None), ("a", "b")
+        with mock.patch.object(testkit, "run_guard_batch", side_effect=fake_batch):
+            testkit.assert_guard_decisions(self, "allow", commands, tool_names=tools, agent_types=agents)
+        self.assertCountEqual(
+            [testkit.guard_payload(command, tool_name=tool, agent_type=agent)
+             for tool in tools for agent in agents for command in commands],
+            sent,
+        )
+
     def test_batch_requires_overlapping_invocations(self) -> None:
         barrier = threading.Barrier(2)
 
