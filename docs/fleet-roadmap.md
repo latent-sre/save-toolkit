@@ -390,15 +390,19 @@ including its result rules. Measurement failures are inconclusive and never hide
 and results record the runner revision, CLI version and host platform. Every in-scope defect from the
 2026-10-03 inventory of `evals/build_probe.py` is fixed or has an owner disposition.
 **Next action:** Keep the runner frozen through WP-02; run its remaining preconditions and native
-checks under the approved run plan. [verified] Re-frozen on 2026-10-08 with the judge framing fix
-and its required calibration cases; latest commit touching runner identity inputs:
-`2ae94bafbc2b33e3087fcdea3b9c06152fff6549` (reachable from `main` when its PR merges with a merge commit). The
+checks under the approved run plan. [verified] Re-frozen on 2026-10-08 with the EVAL-013 and
+EVAL-014 runner changes, which the owner approved landing during the freeze, on top of the judge
+framing fix; latest commit touching runner identity inputs:
+`164eccb14f75d65648f160e23a4e04c197b3a803` (reachable from `main` when its PR merges with a merge commit). The
 runner's own normalized source SHA-256 is
-`14d28710b8319576cff49bee3047f9b76e7ec2dda83cc876b9a902ec09435d66`, computed by
+`55138c00e067b849ee549d6cb673c95bd72a33a5f59abf639083de8b9b36d6cb`, computed by
 `probe.fingerprints.harness_source_digest()` over `HARNESS_FILES`. This includes the judge and
 graders; scenario/oracle additions outside those inputs do not change it. See the
 [WP-02 freeze record](fleet-evaluation/run-plan-wp02-native-readiness.md#frozen-runner-record).
-It replaces the first freeze (checkout `523525430a0fbb71b0e9e3a846fae8e86db90a99`, identity input
+It replaces the judge-fix freeze (identity input `2ae94bafbc2b33e3087fcdea3b9c06152fff6549`, digest
+`14d28710b8319576cff49bee3047f9b76e7ec2dda83cc876b9a902ec09435d66`). Rescoring all 1,395 saved runs
+with that runner and this one differs in 12, each the accepted-implementation case, FAIL to PASS
+under its new alternative. The judge-fix freeze replaced the first freeze (checkout `523525430a0fbb71b0e9e3a846fae8e86db90a99`, identity input
 `effa23d7795ea527efce3a5de2c27375cb0f0b89`, digest
 `633770b9656dbd8980df842af9d0e41e7e233ab293f69338de05f280c9d249d3`): the owner chose to land the judge
 marker fix and the six judge-input corpus cases before WP-02 starts. They invalidate every earlier

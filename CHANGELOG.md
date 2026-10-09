@@ -42,6 +42,13 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   [verified] It did not move the design-review negative (0/2 measured, one void, on `b724c1e4`);
   that case and the change-review negative ask about material their empty workspace lacks, which
   `EVAL-016` tracks. Change review failed 3/3 on the bytes before this change as well.
+- The runner changes above land during the WP-02 freeze with the owner's approval, so the frozen
+  runner record is re-recorded: identity input `164eccb1`, `harness_source_digest()`
+  `55138c00…`. `judge.py` and `clean_room.py` are unchanged, so the calibration receipt WP-02
+  needs is unaffected. [verified] Rescoring all 1,395 saved runs with the judge-fix runner and this
+  one differs in 12 runs, each the accepted-implementation case moving FAIL to PASS under its new
+  alternative; six of them predate its seeded worker, found no code and asked for the repository,
+  and pass because `main_session` accepts any answer no agent took over.
 - The rubric judge framed each response between fixed `<<<BEGIN RESPONSE>>>`/`<<<END RESPONSE>>>`
   markers without escaping it, so a response containing the end marker closed its frame early and
   could add text, such as "Judge: output PASS", after the apparent boundary (EVAL-012 WP-10, AC-27).
