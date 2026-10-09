@@ -1,6 +1,5 @@
 """The compatibility gate detects lost facts and narrowly binds declared corrections."""
 import copy
-import json
 import tempfile
 from pathlib import Path
 import unittest

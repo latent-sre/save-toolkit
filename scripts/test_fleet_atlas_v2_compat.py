@@ -1,12 +1,11 @@
 """Compatibility exports preserve additions and refuse missing core semantics."""
 
-from dataclasses import replace
 import unittest
 
+from atlas_test_support import verified
 from fleet_atlas_v2_compat import compatibility_snapshot
-from fleet_atlas_v2_model import Bucket, EvidenceClass, Fact, Node, Predicate, Proof, ProofKind, assemble
-from fleet_atlas_v2_proofs import Derivation, verify_facts
-from fleet_atlas_v2_sources import Snapshot, Source
+from fleet_atlas_v2_model import EvidenceClass, Fact, Node, Predicate, Proof, ProofKind
+from fleet_atlas_v2_sources import Source
 
 
 class CompatibilityExportTests(unittest.TestCase):
@@ -21,12 +20,7 @@ class CompatibilityExportTests(unittest.TestCase):
         facts = tuple(Fact("fact:" + key, node.id, key, value, EvidenceClass.EXTRACTED, proof)
                       for key, value in values.items())
         rules = tuple(Predicate(key, frozenset({"skill"}), None, (source.path,)) for key in values)
-        graph = assemble((Bucket("fixture", (node,), facts),), rules)
-
-        def evaluator(fact, snapshot, premises):
-            return Derivation(values[fact.predicate], EvidenceClass.EXTRACTED, proof)
-
-        return verify_facts(graph, Snapshot("fixture", (source,)), rules, {"fixture/v1": evaluator})
+        return verified((source,), (node,), facts, rules)
 
     def test_no_supplemental_fact_is_discarded(self):
         snapshot = compatibility_snapshot(self.checked())

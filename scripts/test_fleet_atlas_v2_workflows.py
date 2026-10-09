@@ -3,14 +3,13 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-import shutil
-import subprocess
-import sys
 import tempfile
 import unittest
 
+from atlas_test_support import copy_runtime, git, init_repository
 from fleet_atlas_v2 import query
 from fleet_atlas_v2_artifacts import build, verify
+from fleet_atlas_v2_format import DETAIL_BUDGET
 
 
 FILES = {
@@ -110,33 +109,20 @@ class WorkflowTests(unittest.TestCase):
         cls.temporary = tempfile.TemporaryDirectory()
         cls.addClassCleanup(cls.temporary.cleanup)
         cls.root = Path(cls.temporary.name)
-        runtime = Path(__file__).resolve().parent
-        for source in [*runtime.glob("fleet_atlas_v2*.py"), runtime / "fleet_frontmatter.py"]:
-            destination = cls.root / "scripts" / source.name
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(source, destination)
+        copy_runtime(cls.root)
         for path, content in FILES.items():
             destination = cls.root / path
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_text(content, encoding="utf-8", newline="\n")
-        def git(*args):
-            subprocess.run(["git", *args], cwd=cls.root, check=True, capture_output=True)
-        git("init", "-q")
-        git("config", "user.name", "Atlas fixture")
-        git("config", "user.email", "atlas@example.invalid")
-        git("config", "core.autocrlf", "false")
-        git("add", ".")
-        git("commit", "-qm", "synthetic operator workflow")
+        init_repository(cls.root, "Atlas fixture")
+        git(cls.root, "add", ".")
+        git(cls.root, "commit", "-qm", "synthetic operator workflow")
         cls.document = build(cls.root)
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.temporary.cleanup()
 
     def result(self, verb, *terms):
         encoded = query(verify(self.root), verb, list(terms))
         result = json.loads(encoded)
-        self.assertLessEqual(len(encoded), 20_000)
+        self.assertLessEqual(len(encoded), DETAIL_BUDGET)
         self.assertEqual(len(encoded), result["encodedBytes"])
         return result
 

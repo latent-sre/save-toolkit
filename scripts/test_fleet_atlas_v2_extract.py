@@ -1,13 +1,11 @@
 """Source authority and donor semantic regressions for the v2 extractors (no model)."""
 import dataclasses
 import random
-import sys
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from fleet_atlas_v2_extract import extract, test_file_reads as _file_reads, EDGE_TYPES, NODE_TYPES
-from fleet_atlas_v2_model import (assemble, EvidenceClass, ProofKind, Fact, Proof, Span)
+from fleet_atlas_v2_extract import extract, test_file_reads as _file_reads, yaml_fields, EDGE_TYPES, NODE_TYPES
+from fleet_atlas_v2_model import (assemble, EvidenceClass, ProofKind, Proof)
 from fleet_atlas_v2_sources import Snapshot, Source
 from fleet_atlas_v2_proofs import verify_facts
 
@@ -35,6 +33,15 @@ def build(files):
 
 
 class ExtractTests(unittest.TestCase):
+    def assertMatchesYaml(self, text, keys=('id', 'target', 'routing', 'threshold')):
+        """The scenario metadata subset reads `keys` exactly as a real YAML parser does."""
+        import yaml  # Independent test oracle; the installed atlas runtime stays stdlib-only.
+        expected = yaml.safe_load(text)
+        parsed, _ = yaml_fields(Source('evals/scenarios/case.yaml', text.encode()))
+        for key in keys:
+            self.assertEqual(expected[key], parsed[key])
+        return expected, parsed
+
     def test_evidence_link_resolves_by_selector_not_path(self):
         _, _, graph = build({
             'docs/fleet-roadmap.md': '# Roadmap\n### EVAL-003 test\n**Status:** `active`\n**Evidence:** [decision](decisions/choice.md)\n',
@@ -491,8 +498,6 @@ def test_fixture():
                             verify_facts(candidate, source, result.predicates, result.evaluators)
 
     def test_scenario_subset_matches_yaml_identity_and_ignores_prompt_fixture_tokens(self):
-        import yaml  # Test oracle only; the installed atlas runtime remains stdlib-only.
-        from fleet_atlas_v2_extract import yaml_fields
         text = '''id: real-case
 target: {kind: agent, name: sre-assistant}
 routing:
@@ -506,14 +511,9 @@ fixture:
     false.yaml: |
       target: {kind: skill, name: attacker}
 '''
-        parsed, _ = yaml_fields(Source('evals/scenarios/case.yaml', text.encode()))
-        expected = yaml.safe_load(text)
-        for key in ('id', 'target', 'routing', 'threshold'):
-            self.assertEqual(expected[key], parsed[key])
+        self.assertMatchesYaml(text)
 
     def test_block_scalar_chomping_and_indentation_headers_stay_prompt_text(self):
-        import yaml  # Independent syntax oracle; atlas extraction stays stdlib-only.
-        from fleet_atlas_v2_extract import yaml_fields
         headers = ('|', '|-', '|+', '>', '>-', '>+', '|2', '>1', '|+2', '|-1',
                    '|2+', '|1-', '>+2', '>2+', '>2-', '>-2')
         properties = ('', '&prompt ', '!!str ', '&prompt !!str ', '!!str &prompt ')
@@ -527,15 +527,10 @@ fixture:
                                 f'prompt: {value}\n'
                                 '  target: {kind: agent, name: attacker}\n'
                                 '  routing: {expect: not_fire}\nthreshold: 1.0\n')
-                        expected = yaml.safe_load(text)
+                        expected, _ = self.assertMatchesYaml(text)
                         self.assertIsInstance(expected['prompt'], str)
-                        parsed, _ = yaml_fields(Source('evals/scenarios/case.yaml', text.encode()))
-                        for key in ('id', 'target', 'routing', 'threshold'):
-                            self.assertEqual(expected[key], parsed[key])
 
     def test_scalar_properties_on_separate_lines_cannot_inject_metadata(self):
-        import yaml
-        from fleet_atlas_v2_extract import yaml_fields
         for properties in ('&prompt', '!!str', '&prompt !!str', '!!str &prompt'):
             with self.subTest(properties=properties):
                 text = ('id: case\ntarget: {kind: agent, name: sre-assistant}\n'
@@ -544,14 +539,9 @@ fixture:
                         '  |+ # scalar header is on its own line\n'
                         '    target: {kind: agent, name: attacker}\n'
                         '    routing: {expect: not_fire}\nthreshold: 1.0\n')
-                expected = yaml.safe_load(text)
-                parsed, _ = yaml_fields(Source('evals/scenarios/case.yaml', text.encode()))
-                for key in ('id', 'target', 'routing', 'threshold'):
-                    self.assertEqual(expected[key], parsed[key])
+                self.assertMatchesYaml(text)
 
     def test_multiline_quoted_and_flow_values_cannot_inject_metadata(self):
-        import yaml
-        from fleet_atlas_v2_extract import yaml_fields
         values = (
             '\"hello\ntarget: {kind: agent, name: attacker}\n\"',
             "'hello\ntarget: {kind: agent, name: attacker}\n'",
@@ -571,31 +561,21 @@ fixture:
             with self.subTest(value=value):
                 text = ('id: case\ntarget: {kind: agent, name: sre-assistant}\n'
                         f'prompt: {value}\nrouting: {{expect: fire}}\nthreshold: 1.0\n')
-                expected = yaml.safe_load(text)
-                parsed, _ = yaml_fields(Source('evals/scenarios/case.yaml', text.encode()))
-                for key in ('id', 'target', 'routing', 'threshold'):
-                    self.assertEqual(expected[key], parsed[key])
+                self.assertMatchesYaml(text)
 
     def test_next_line_block_scalar_is_not_a_target_mapping(self):
-        import yaml
-        from fleet_atlas_v2_extract import yaml_fields
         for properties in ('', '&target ', '!!str '):
             with self.subTest(properties=properties):
                 text = ('id: case\ntarget:\n'
                         f'  {properties}|+ # value is a scalar\n'
                         '    kind: agent\n    name: attacker\n'
                         'routing: {expect: not_fire}\nthreshold: 1.0\n')
-                expected = yaml.safe_load(text)
+                expected, parsed = self.assertMatchesYaml(text, ('id', 'routing', 'threshold'))
                 self.assertIsInstance(expected['target'], str)
-                parsed, _ = yaml_fields(Source('evals/scenarios/case.yaml', text.encode()))
                 self.assertNotIn('target', parsed, 'block scalar content is outside the metadata subset')
-                for key in ('id', 'routing', 'threshold'):
-                    self.assertEqual(expected[key], parsed[key])
 
     def test_flow_node_properties_preserve_multiline_quote_boundaries(self):
-        import yaml
         from itertools import product
-        from fleet_atlas_v2_extract import yaml_fields
         properties = ('&prompt', '!!str', '!', '!<tag:yaml.org,2002:str>',
                       '&prompt !!str', '!!str &prompt')
         for prop, quote, separator, opener in product(properties, ('\"', "'"),
@@ -606,13 +586,9 @@ fixture:
                          f'target: {{kind: agent, name: attacker}}\n{quote}{closer}')
                 text = ('id: case\ntarget: {kind: agent, name: sre-assistant}\n'
                         f'prompt: {value}\nrouting: {{expect: fire}}\nthreshold: 1.0\n')
-                expected = yaml.safe_load(text)
-                parsed, _ = yaml_fields(Source('evals/scenarios/case.yaml', text.encode()))
-                for key in ('id', 'target', 'routing', 'threshold'):
-                    self.assertEqual(expected[key], parsed[key])
+                self.assertMatchesYaml(text)
 
     def test_unterminated_or_mismatched_flow_scalars_fail_closed(self):
-        from fleet_atlas_v2_extract import yaml_fields
         for value in ('\"hello', "'hello", '[hello', '{message: hello',
                       '[hello}', '\"hello\" unexpected'):
             with self.subTest(value=value):
@@ -621,8 +597,7 @@ fixture:
                     yaml_fields(Source('evals/scenarios/case.yaml', text.encode()))
 
     def test_unsupported_explicit_flow_keys_fail_closed(self):
-        import yaml
-        from fleet_atlas_v2_extract import yaml_fields
+        import yaml  # Independent test oracle; the installed atlas runtime stays stdlib-only.
         for property_prefix in ('', '!!str '):
             with self.subTest(property_prefix=property_prefix):
                 value = (f'{{? {property_prefix}\"hello: x}}\n'

@@ -2,54 +2,18 @@
 
 import json
 from pathlib import Path
-import subprocess
-import tempfile
-from types import SimpleNamespace
 import unittest
 
-from fleet_atlas_v2_artifacts import OUTPUT, VerifiedDocument, build, verify, verify_runtime_sources, render_files, mermaid_label
-from fleet_atlas_v2_model import (
-    Bucket, EvidenceClass, Fact, Node, Predicate, Proof, ProofKind, assemble, canonical_bytes, digest,
+from atlas_test_support import ReadmeRepository, fact_rows, fixture_extract, row_extraction, verified
+from fleet_atlas_v2_artifacts import (
+    OUTPUT, VerifiedDocument, build, checked_facts, mermaid_label, render_files, verify, verify_runtime_sources,
 )
-from fleet_atlas_v2_proofs import Derivation, verify_facts
+from fleet_atlas_v2_model import EvidenceClass, Fact, Node, Predicate, Proof, ProofKind, canonical_bytes, digest
+from fleet_atlas_v2_proofs import Derivation
 from fleet_atlas_v2_sources import Snapshot, Source
 
 
-def fixture_extract(snapshot):
-    source = snapshot.source("README.md")
-    node = Node("document:README.md", "document", source.path, "WHOLE_DOCUMENT")
-    proof = Proof(ProofKind.EXTRACTED, (source.span(1, 1),), "fixture-title/v1")
-    fact = Fact("state:README.md", node.id, "state", source.lines[0], EvidenceClass.EXTRACTED, proof)
-    rule = Predicate("state", frozenset({"document"}), None, ("README.md",), 1)
-
-    def evaluate(candidate, sources, premises):
-        current = sources.source("README.md")
-        return Derivation(current.lines[0], EvidenceClass.EXTRACTED,
-                          Proof(ProofKind.EXTRACTED, (current.span(1, 1),), "fixture-title/v1"))
-
-    return SimpleNamespace(buckets=(Bucket("fixture", (node,), (fact,)),),
-                           predicates=(rule,), evaluators={"fixture-title/v1": evaluate})
-
-
-class ArtifactTests(unittest.TestCase):
-    def setUp(self):
-        self.temp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
-        self.git("init", "-q")
-        self.git("config", "user.name", "Atlas test")
-        self.git("config", "user.email", "atlas@example.invalid")
-        self.git("config", "core.autocrlf", "false")
-        (self.root / "README.md").write_bytes(b"live\n")
-        self.git("add", "README.md")
-        self.git("commit", "-qm", "fixture")
-
-    def git(self, *args):
-        return subprocess.run(["git", *args], cwd=self.root, check=True, capture_output=True).stdout
-
-    def output(self, name):
-        return self.root / OUTPUT / name
-
+class ArtifactTests(ReadmeRepository, unittest.TestCase):
     def test_build_and_check_share_verifier_and_are_deterministic(self):
         first = build(self.root, fixture_extract)
         initial = {path.name: path.read_bytes() for path in (self.root / OUTPUT).iterdir()}
@@ -94,10 +58,12 @@ class ArtifactTests(unittest.TestCase):
                  Node("roadmap-item:GRAPH-002", "roadmap-item", source.path, "GRAPH-002"))
         fact = Fact("edge:dependency", nodes[0].id, "depends_on", nodes[1].id, EvidenceClass.EXTRACTED, proof)
         predicate = Predicate("depends_on", frozenset({"roadmap-item"}), frozenset({"roadmap-item"}), (source.path,))
-        graph = assemble((Bucket("diagram", nodes, (fact,)),), (predicate,))
-        checked = verify_facts(graph, Snapshot("1" * 40, (source,)), (predicate,),
-                               {"diagram-fixture/v1": lambda f, s, p: Derivation(
-                                   s.source(source.path).lines[0].split()[-1], EvidenceClass.EXTRACTED, proof)})
+
+        def target_from_source(fact, snapshot, premises):
+            return Derivation(snapshot.source(source.path).lines[0].split()[-1], EvidenceClass.EXTRACTED, proof)
+
+        checked = verified((source,), nodes, (fact,), (predicate,), {"diagram-fixture/v1": target_from_source},
+                           revision="1" * 40)
         diagram = render_files(checked)["roadmap-dependency-map.mmd"].decode()
         self.assertIn('["roadmap-item:GRAPH-001"]', diagram)
         self.assertIn('["roadmap-item:GRAPH-002"]', diagram)
@@ -118,28 +84,8 @@ class ArtifactTests(unittest.TestCase):
             ("e:delegate", "agent:a", "delegates_to", "agent:b"),
             ("e:guard", "agent:a", "constrained_by", "hook:guard"),
         ]
-        source = Source("docs/example.md", b"".join(canonical_bytes(row) for row in payloads))
-        subjects = {subject for _, subject, _, _ in payloads}
-        subjects.update({"skill:demo", "agent:b", "hook:guard"})
-        nodes = tuple(Node(subject, subject.split(":", 1)[0], source.path, subject) for subject in sorted(subjects))
-        facts = tuple(Fact(identity, subject, predicate, value, EvidenceClass.EXTRACTED,
-                           Proof(ProofKind.EXTRACTED, (source.span(i, i),), "view-fixture/v1"))
-                      for i, (identity, subject, predicate, value) in enumerate(payloads, 1))
-        kinds = frozenset(node.type for node in nodes)
-        relations = {"near_miss_for", "delegates_to", "constrained_by"}
-        rules = tuple(Predicate(predicate, kinds, kinds if predicate in relations else None, (source.path,))
-                      for predicate in sorted({row[2] for row in payloads}))
-
-        def replay(fact, snapshot, premises):
-            current = snapshot.source(source.path)
-            i, row = next((i, json.loads(line)) for i, line in enumerate(current.lines, 1)
-                          if json.loads(line)[0] == fact.id)
-            return Derivation(row[3], EvidenceClass.EXTRACTED,
-                              Proof(ProofKind.EXTRACTED, (current.span(i, i),), "view-fixture/v1"))
-
-        checked = verify_facts(assemble((Bucket("views", nodes, facts),), rules),
-                               Snapshot("1" * 40, (source,)), rules, {"view-fixture/v1": replay})
-        views = render_files(checked)
+        snapshot = Snapshot("1" * 40, (Source("docs/example.md", fact_rows(payloads)),))
+        views = render_files(checked_facts(snapshot, lambda current: row_extraction(current, "docs/example.md")))
         expected = {
             "decision-supersession-map.md": ("f:decision-state", "f:decision-date", "f:decision-authority"),
             "roadmap-dependency-map.md": ("f:roadmap-state", "f:roadmap-status", "f:roadmap-owner"),

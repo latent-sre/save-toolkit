@@ -1,15 +1,14 @@
 """UTF-8, provenance projection, and strict graph serialization contracts."""
 
-import dataclasses
 import json
 import unittest
 
+from atlas_test_support import verified
 from fleet_atlas_v2_format import (
-    bounded_envelope, bounded_text, fact_line, fact_record, graph_dict, parse_graph,
+    DETAIL_BUDGET, INDEX_BUDGET, bounded_envelope, bounded_text, fact_line, fact_record, graph_dict, parse_graph,
 )
-from fleet_atlas_v2_model import Bucket, EvidenceClass, Fact, Node, Predicate, Proof, ProofKind, assemble
-from fleet_atlas_v2_proofs import Derivation, verify_facts
-from fleet_atlas_v2_sources import Snapshot, Source
+from fleet_atlas_v2_model import EvidenceClass, Fact, Node, Predicate, Proof, ProofKind
+from fleet_atlas_v2_sources import Source
 
 
 class FormatTests(unittest.TestCase):
@@ -20,9 +19,11 @@ class FormatTests(unittest.TestCase):
         fact = Fact("name:demo", node.id, "name", "demo\n# injected heading\u2028unicode separator",
                     EvidenceClass.EXTRACTED, proof)
         predicates = (Predicate("name", frozenset({"skill"}), None, ("skills/*/SKILL.md",)),)
-        graph = assemble((Bucket("demo", (node,), (fact,)),), predicates)
-        evaluator = lambda f, s, p: Derivation("demo\n# injected heading\u2028unicode separator", EvidenceClass.EXTRACTED, proof)
-        return verify_facts(graph, Snapshot("fixture", (source,)), predicates, {"demo/v1": evaluator})
+        return verified((source,), (node,), (fact,), predicates)
+
+    def test_budgets_are_the_documented_contract(self):
+        # GRAPH-006: compact query and detail views hold 20,000 encoded bytes; the index 4,000.
+        self.assertEqual((20_000, 4_000), (DETAIL_BUDGET, INDEX_BUDGET))
 
     def test_every_projected_fact_carries_class_label_and_all_citations(self):
         checked = self.checked()
@@ -86,10 +87,7 @@ class FormatTests(unittest.TestCase):
         fact = Fact("f | skill:x | verified_by", node.id, "name", "demo",
                     EvidenceClass.EXTRACTED, proof)
         predicates = (Predicate("name", frozenset({"skill"}), None, ("skills/*/SKILL.md",)),)
-        graph = assemble((Bucket("demo", (node,), (fact,)),), predicates)
-        evaluator = lambda f, s, p: Derivation("demo", EvidenceClass.EXTRACTED, proof)
-        checked = verify_facts(graph, Snapshot("fixture", (source,)), predicates,
-                               {"demo/v1": evaluator})
+        checked = verified((source,), (node,), (fact,), predicates)
         line = fact_line(checked.graph.facts[0], checked)
         self.assertEqual(1, len(line.splitlines()))
         fields = line.split(" | ")
@@ -108,11 +106,8 @@ class FormatTests(unittest.TestCase):
         node = Node("skill:demo", "skill", source.path, "skill:demo")
         fact = Fact("name:demo", node.id, "name", "demo", EvidenceClass.EXTRACTED, proof)
         predicates = (Predicate("name", frozenset({"skill"}), None, ("skills/*/SKILL.md",)),)
-        graph = assemble((Bucket("demo", (node,), (fact,)),), predicates)
-        evaluator = lambda f, s, p: Derivation("demo", EvidenceClass.EXTRACTED, proof)
         with self.assertRaisesRegex(ValueError, "no authority"):
-            verify_facts(graph, Snapshot("fixture", (source, hostile)), predicates,
-                         {"demo/v1": evaluator})
+            verified((source, hostile), (node,), (fact,), predicates)
 
 if __name__ == "__main__":
     unittest.main()

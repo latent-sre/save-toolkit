@@ -1,10 +1,10 @@
 """Source-corpus and source-location regressions independent of atlas extraction."""
 
 from pathlib import Path
-import subprocess
 import tempfile
 import unittest
 
+from atlas_test_support import git, init_repository
 from fleet_atlas_v2_model import Span
 from fleet_atlas_v2_sources import (
     Snapshot, Source, current_snapshot, is_source, read_revision, verify_revision,
@@ -63,15 +63,12 @@ class GitSourceTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        self.run_git("init", "-q")
-        self.run_git("config", "user.name", "Atlas fixture")
-        self.run_git("config", "user.email", "atlas@example.invalid")
-        self.run_git("config", "core.autocrlf", "false")
+        init_repository(self.root, "Atlas fixture")
         self.write("README.md", "# Fixture\n")
         self.commit("initial")
 
     def run_git(self, *args):
-        return subprocess.run(["git", *args], cwd=self.root, check=True, capture_output=True).stdout
+        return git(self.root, *args)
 
     def write(self, path, text):
         target = self.root / path

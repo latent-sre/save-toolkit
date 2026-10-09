@@ -2,13 +2,12 @@
 import json
 from pathlib import Path
 import re
-import subprocess
 import tempfile
 import unittest
 
+from atlas_test_support import fixture_extract, git, init_repository
 from fleet_atlas_dashboard import export, payload, render
 from fleet_atlas_v2_artifacts import OUTPUT, build
-from test_fleet_atlas_v2_artifacts import fixture_extract
 
 
 class DashboardTests(unittest.TestCase):
@@ -16,16 +15,15 @@ class DashboardTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        for args in (("init", "-q"), ("config", "user.name", "Atlas test"),
-                     ("config", "user.email", "atlas@example.invalid")):
-            self.git(*args)
-        (self.root / "README.md").write_text("live\n", encoding="utf-8")
+        init_repository(self.root)
+        # Exact bytes: with autocrlf off, a Windows text write would commit "live\r\n".
+        (self.root / "README.md").write_bytes(b"live\n")
         self.git("add", "README.md")
         self.git("commit", "-qm", "fixture")
         self.output = self.root / ".eval-runs/dashboard.html"
 
     def git(self, *args):
-        return subprocess.run(["git", *args], cwd=self.root, check=True, capture_output=True).stdout
+        return git(self.root, *args)
 
     def test_real_verified_export_preserves_complete_citations_and_sources(self):
         doc = build(self.root, fixture_extract)
