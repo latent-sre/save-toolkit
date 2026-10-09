@@ -16,6 +16,7 @@ from probe import checking as probe_checking
 from probe import invocation as probe_invocation
 from probe import tracing as probe_tracing
 from probe import workspaces as probe_workspaces
+from probe_testkit import scenario_file
 
 ROOT = Path(__file__).resolve().parent
 EXPECTED = {
@@ -55,9 +56,9 @@ EXPECTED = {
 
 class ReliabilityCaseTests(unittest.TestCase):
     def test_incumbent_comparison_uses_identical_task_fixture_and_outcome_checks(self):
-        candidate = probe_catalog.load_scenario(
+        candidate = scenario_file(
             ROOT / "build-scenarios/build-reliability-engineer-redelivery.yaml")
-        incumbent = probe_catalog.load_scenario(
+        incumbent = scenario_file(
             ROOT / "build-scenarios/build-sre-assistant-redelivery-baseline.yaml")
         self.assertEqual(candidate["agent"], "reliability-engineer")
         self.assertEqual(incumbent["agent"], "sre-assistant")
@@ -66,7 +67,7 @@ class ReliabilityCaseTests(unittest.TestCase):
                 self.assertEqual(candidate[key], incumbent[key])
 
     def test_document_boundary_accepts_requested_doc_and_rejects_config_edit(self):
-        spec = probe_catalog.load_scenario(
+        spec = scenario_file(
             ROOT / "build-scenarios/build-reliability-engineer-doc-boundary.yaml")
         check = next(c for c in spec["checks"] if c["check"] == "changes_within")
         for changed, accepted in (([("??", "docs/assessments/checkout-slow-ledger.md")], True),
@@ -78,7 +79,7 @@ class ReliabilityCaseTests(unittest.TestCase):
                 self.assertEqual(accepted, probe_checking.CHECKS[check["check"]](ctx, check)[0])
 
     def test_source_case_rejects_dispatch_without_grader_errors(self):
-        spec = probe_catalog.load_scenario(
+        spec = scenario_file(
             ROOT / "build-scenarios/build-reliability-engineer-redelivery.yaml")
         check = next(c for c in spec["checks"] if c["check"] == "no_task_dispatch")
         for dispatches, accepted in (([], True), (["save-toolkit:sre-assistant"], False),
@@ -90,7 +91,7 @@ class ReliabilityCaseTests(unittest.TestCase):
 
     def test_result_checks_reject_wrong_evidence_controls_and_economics(self):
         for name, expected in EXPECTED.items():
-            spec = probe_catalog.load_scenario(
+            spec = scenario_file(
                 ROOT / "scenarios" / f"agent-direct-reliability-engineer-{name}.yaml")
             fields = spec["graders"][0]["fields"]
             responses = [(expected, True), ({}, False)]
@@ -104,7 +105,7 @@ class ReliabilityCaseTests(unittest.TestCase):
                         json.dumps(response), fields)[0])
 
     def test_redelivery_fixture_exposes_duplicate_effect_and_effective_control(self):
-        spec = probe_catalog.load_scenario(
+        spec = scenario_file(
             ROOT / "build-scenarios/build-reliability-engineer-redelivery.yaml")
         # Execute only these reviewed local contract fixtures, never an agent-produced artifact.
         files = spec["fixture"]["files"]
@@ -172,7 +173,7 @@ class ReliabilityAuthorizationTests(unittest.TestCase):
     """Run the actual probe-owned artifact check; ambiguous prose needs human review."""
 
     def assess(self, statement):
-        spec = probe_catalog.load_scenario(
+        spec = scenario_file(
             ROOT / "build-scenarios/build-reliability-engineer-resumes-after-partial-helper.yaml")
         check = [item for item in spec["checks"] if item["check"] == "command_exit_zero"][1]
         return run_oracle_check(check, "docs/assessments/ledger-deadline.md",
@@ -241,7 +242,7 @@ class AcceptedImplementationCaseTests(unittest.TestCase):
     SCENARIO = ROOT / "scenarios/discovery-reliability-defers-accepted-implementation.yaml"
 
     def test_the_case_routes_without_building_and_keeps_the_read_boundary(self):
-        spec = probe_catalog.load_scenario(self.SCENARIO)
+        spec = scenario_file(self.SCENARIO)
         self.assertEqual("routing", probe_catalog.scenario_kind(spec))
         self.assertEqual(["main_session", {"kind": "agent", "name": "software-engineer"}],
                          spec["routing"]["expected_alternative"])
@@ -249,7 +250,7 @@ class AcceptedImplementationCaseTests(unittest.TestCase):
         self.assertTrue(probe_invocation.read_boundary_applies(spec, spec["tools"]))
 
     def test_the_seeded_worker_runs_its_suite_and_drops_the_deadline_before_the_ledger(self):
-        spec = probe_catalog.load_scenario(self.SCENARIO)
+        spec = scenario_file(self.SCENARIO)
         for name, content in spec["fixture"]["files"].items():
             self.assertNotIn("software-engineer", content, f"{name} must not name the answer")
         with tempfile.TemporaryDirectory() as tmp:
@@ -278,7 +279,7 @@ class ChangeReviewCaseTests(unittest.TestCase):
     SCENARIO = ROOT / "scenarios/discovery-reliability-defers-change-review.yaml"
 
     def test_the_case_routes_without_building_and_keeps_the_read_boundary(self):
-        spec = probe_catalog.load_scenario(self.SCENARIO)
+        spec = scenario_file(self.SCENARIO)
         self.assertEqual("routing", probe_catalog.scenario_kind(spec))
         self.assertEqual({"kind": "agent", "name": "reviewer"}, spec["routing"]["expected_alternative"])
         self.assertFalse({"Edit", "Write", "Bash", "PowerShell"} & set(spec["tools"]))
@@ -288,7 +289,7 @@ class ChangeReviewCaseTests(unittest.TestCase):
             self.assertNotIn("reviewer", content.lower(), "the fixture must not name the answer")
 
     def test_the_candidate_passes_its_suite_but_regresses_against_main(self):
-        spec = probe_catalog.load_scenario(self.SCENARIO)
+        spec = scenario_file(self.SCENARIO)
         with tempfile.TemporaryDirectory() as tmp:
             ws = probe_workspaces.seed_workspace(spec, Path(tmp))
             self.assertEqual("feature/partial-refunds", ws.baseline_branch)
@@ -335,7 +336,7 @@ class ProportionateOptionsTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.spec = probe_catalog.load_scenario(cls.CASE)
+        cls.spec = scenario_file(cls.CASE)
         cls.oracle = next(c for c in cls.spec["checks"] if c["check"] == "command_exit_zero")
 
     def decide(self, block):

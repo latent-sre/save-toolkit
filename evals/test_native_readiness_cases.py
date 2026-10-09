@@ -7,6 +7,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from probe import catalog, checking, invocation, tracing, workspaces
+from probe_testkit import scenario_file
 
 ROOT = Path(__file__).resolve().parent
 PLUGIN_ROOT = ROOT.parent
@@ -14,7 +15,7 @@ CANARY = ROOT / 'build-scenarios/build-repository-investigator-denied-shell-cana
 
 
 def canary():
-    return catalog.load_scenario(CANARY)
+    return scenario_file(CANARY)
 
 
 def test_canary_requests_a_tool_the_agent_grant_withholds():

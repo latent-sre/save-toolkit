@@ -9,6 +9,7 @@ from unittest import mock
 import graders
 import judge
 from probe import catalog
+from probe_testkit import all_scenarios, scenario_file
 
 ROOT = Path(__file__).resolve().parent
 PROPOSAL = ROOT / "proposals" / "principal-judgment"
@@ -35,7 +36,7 @@ class PrincipalJudgmentTests(unittest.TestCase):
         self.assertNotIn(RUBRIC, judge.load_rubrics())
         self.assertFalse(any(case["rubric"] == RUBRIC
                              for case in judge._load_calibration(judge.DEFAULT_CALIBRATION_PATH)))
-        active_ids = {spec["id"] for spec in catalog.load_all_scenarios()}
+        active_ids = {spec["id"] for spec in all_scenarios()}
         for agent in ("principal-engineer", "software-engineer"):
             for suffix in PAIRS.values():
                 self.assertNotIn(f"build-{agent}-{suffix}", active_ids)
@@ -67,7 +68,7 @@ class PrincipalJudgmentTests(unittest.TestCase):
             with self.subTest(case=case):
                 principal = proposed_scenario("principal-engineer", suffix)
                 builder = proposed_scenario("software-engineer", suffix)
-                original = catalog.load_scenario(ROOT / f"build-scenarios/{originals[case]}.yaml")
+                original = scenario_file(ROOT / f"build-scenarios/{originals[case]}.yaml")
                 self.assertEqual("principal-engineer", principal["agent"])
                 self.assertEqual("software-engineer", builder["agent"])
                 for field in ("prompt", "fixture", "checks", "success_criteria"):
@@ -85,7 +86,7 @@ class PrincipalJudgmentTests(unittest.TestCase):
         for agent, suffix in (("principal-engineer", "new-system"),
                               ("software-engineer", "new-system-baseline")):
             with self.subTest(agent=agent):
-                spec = catalog.load_scenario(ROOT / f"build-scenarios/build-{agent}-{suffix}.yaml")
+                spec = scenario_file(ROOT / f"build-scenarios/build-{agent}-{suffix}.yaml")
                 self.assertIn({"check": "skill_loaded", "skill": "obs-alerting", "before_effects": True,
                                "text": "obs-alerting loaded before the 14-day paging rule was designed"}, spec["checks"])
 

@@ -10,6 +10,7 @@ import pytest
 from probe import catalog as probe_catalog
 from probe import checking as probe_checking
 from probe import tracing as probe_tracing
+from probe_testkit import scenario
 
 ROOT = Path(__file__).resolve().parent
 RUNBOOK = runpy.run_path(str(ROOT / "oracles/scribe-runbook/probe_runbook_slots.py"))
@@ -45,10 +46,6 @@ def test_runbook_fixture_accepts_supported_nonverified_labels(label):
 ])
 def test_runbook_fixture_rejects_verified_claims_outside_numbered_steps(artifact):
     assert RUNBOOK["rule_evidence_labels"](artifact, "CheckoutWorkerStuck") is not None
-
-
-def scenario(name, directory="build-scenarios"):
-    return probe_catalog.load_scenario(ROOT / directory / f"{name}.yaml")
 
 
 def test_external_call_count_uses_attempted_trace_events_including_failures(tmp_path):

@@ -9,10 +9,10 @@ from pathlib import Path
 from probe import catalog as probe_catalog
 from probe import checking as probe_checking
 from probe import tracing as probe_tracing
-from probe_testkit import context, parse_events
+from probe_testkit import context, parse_events, scenario_file
 
 ROOT = Path(__file__).resolve().parent
-SPEC = probe_catalog.load_scenario(ROOT / "build-scenarios/build-software-engineer-root-cause-reassessment.yaml")
+SPEC = scenario_file(ROOT / "build-scenarios/build-software-engineer-root-cause-reassessment.yaml")
 
 
 def use(name, use_id, **inputs):

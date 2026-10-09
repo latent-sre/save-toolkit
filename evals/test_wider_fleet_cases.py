@@ -9,6 +9,7 @@ import graders
 import pytest
 import yaml
 from probe import catalog, checking, tracing, workspaces
+from probe_testkit import scenario_file
 
 ROOT = Path(__file__).resolve().parent
 DIRECT = {
@@ -88,7 +89,7 @@ def test_seeded_lane_decisions_discriminate_good_bad_missing(name):
 
 @pytest.mark.parametrize('suffix', ['source', 'missing-runtime'])
 def test_investigator_answers_bind_to_known_source_or_honest_gap(suffix):
-    spec = catalog.load_scenario(ROOT / f'build-scenarios/build-repository-investigator-{suffix}.yaml')
+    spec = scenario_file(ROOT / f'build-scenarios/build-repository-investigator-{suffix}.yaml')
     assert catalog.validate_scenario(spec) == []
     source = suffix == 'source'
     good = {
@@ -114,7 +115,7 @@ def test_investigator_answers_bind_to_known_source_or_honest_gap(suffix):
 
 @pytest.mark.parametrize('suffix', ['source', 'missing-runtime'])
 def test_investigator_effect_checks_reject_writes_execution_and_dispatch(suffix):
-    spec = catalog.load_scenario(ROOT / f'build-scenarios/build-repository-investigator-{suffix}.yaml')
+    spec = scenario_file(ROOT / f'build-scenarios/build-repository-investigator-{suffix}.yaml')
     checks = {item['check']: item for item in spec['checks']}
     for violation in [None, 'write', 'execute', 'delegate']:
         ctx = SimpleNamespace(

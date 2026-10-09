@@ -56,6 +56,7 @@ from probe_testkit import (
     INTENDED_POLARITY,
     ROOT,
     TempRootTestCase,
+    all_scenarios,
     calibration_receipt,
     context,
     contract_spec,
@@ -68,6 +69,7 @@ from probe_testkit import (
     parse_events,
     saved_grade,
     saved_summary,
+    scenario_file,
     skill_events,
     tiny_fixture,
     tiny_spec,
@@ -104,7 +106,7 @@ def _grafana_metric_frame(value: object = 0.2, ref_id: str = "A") -> dict:
 
 class ScenarioSpecTests(unittest.TestCase):
     def test_committed_scenarios_validate_and_carry_the_trap_inline_only(self) -> None:
-        scenarios = probe_catalog.load_all_scenarios(probe_constants.SCENARIO_DIR)
+        scenarios = all_scenarios(probe_constants.SCENARIO_DIR)
         self.assertGreaterEqual(len(scenarios), 3)
         ids = {s["id"] for s in scenarios}
         self.assertIn("build-software-engineer-refuses-untrusted-suite-run", ids)
@@ -156,7 +158,7 @@ class ScenarioSpecTests(unittest.TestCase):
     def test_runbook_probe_oracle_rejects_every_template_placeholder(self) -> None:
         # The scribe runbook probe ships its oracle through `writes_from:`; its literal list must be
         # the runbook template's placeholder set, or a copied slot left unfilled earns the point.
-        spec = probe_catalog.load_scenario(probe_constants.SCENARIO_DIR / "build-scribe-writes-only-docs.yaml")
+        spec = scenario_file(probe_constants.SCENARIO_DIR / "build-scribe-writes-only-docs.yaml")
         source = next(
             c["writes_from"]["probe_runbook_slots.py"] for c in spec["checks"] if c.get("writes_from")
         )
@@ -381,7 +383,7 @@ class WorkspaceAndCheckTests(TempRootTestCase):
                             probe_catalog.validate_scenario(tiny_spec(checks=[check]))))
 
     def test_indexed_candidate_exit_is_failure_not_measurement_unavailability(self) -> None:
-        scenario = probe_catalog.load_scenario(
+        scenario = scenario_file(
             probe_constants.SCENARIO_DIR / "build-python-indexed-membership.yaml")
         outcome = next(c for c in scenario["checks"] if c["check"] == "command_exit_zero")
         check = {**outcome, "command": f'"{sys.executable}" -I -B _python_index_oracle.py'}
@@ -461,7 +463,7 @@ class WorkspaceAndCheckTests(TempRootTestCase):
         self.assertTrue(probe_checking.is_regradable(check))
 
     def test_return_resume_link_check_requires_link_and_existing_target(self) -> None:
-        spec = probe_catalog.load_scenario(probe_constants.SCENARIO_DIR / "build-software-engineer-resumes-after-scribe.yaml")
+        spec = scenario_file(probe_constants.SCENARIO_DIR / "build-software-engineer-resumes-after-scribe.yaml")
         check = next(c for c in spec["checks"] if c["check"] == "command_exit_zero")
         ctx = ws_context(spec, self.ws)
         index = self.ws.repo / "README.md"
@@ -843,7 +845,7 @@ class VerificationEvidenceTests(unittest.TestCase):
             {"type": "tool_result", "tool_use_id": use_id, "is_error": True, "content": text}]}}
 
     def _verdict(self, events, scenario="build-software-engineer-cli-with-tests"):
-        spec = probe_catalog.load_scenario(probe_constants.SCENARIO_DIR / f"{scenario}.yaml")
+        spec = scenario_file(probe_constants.SCENARIO_DIR / f"{scenario}.yaml")
         check = next(c for c in spec["checks"] if c["check"] in {"bash_ran", "verification_completed"})
         trace = parse_events(events)
         return probe_checking.CHECKS[check["check"]](context(spec, trace), check)
@@ -1055,7 +1057,7 @@ class VerificationEvidenceTests(unittest.TestCase):
 
     def test_coding_scenarios_select_supported_complete_verification_checks(self):
         for name, runner in (("cli-with-tests", "unittest"), ("incidents-api", "pytest"), ("incidents-page", "vitest")):
-            spec = probe_catalog.load_scenario(probe_constants.SCENARIO_DIR / f"build-software-engineer-{name}.yaml")
+            spec = scenario_file(probe_constants.SCENARIO_DIR / f"build-software-engineer-{name}.yaml")
             checks = [c for c in spec["checks"] if c["check"] == "verification_completed"]
             self.assertEqual([c["runner"] for c in checks], [runner])
             self.assertFalse(any(c["check"] == "bash_ran" for c in spec["checks"]))
@@ -1067,7 +1069,7 @@ class PositiveControlTests(TempRootTestCase):
     """The instruments must be shown to fire: the fork traps write the lock, the cf shim logs."""
 
     def _untrusted_spec(self) -> dict:
-        return next(s for s in probe_catalog.load_all_scenarios() if s["id"].endswith("refuses-untrusted-suite-run"))
+        return next(s for s in all_scenarios() if s["id"].endswith("refuses-untrusted-suite-run"))
 
     def test_every_fork_file_writes_the_lock_when_executed(self) -> None:
         spec = self._untrusted_spec()
@@ -1097,7 +1099,7 @@ class PositiveControlTests(TempRootTestCase):
         bash = _posix_bash()
         if bash is None:
             self.skipTest("no POSIX bash available (Git Bash on Windows)")
-        shipped = [s for s in probe_catalog.load_all_scenarios(probe_constants.SCENARIO_DIR)
+        shipped = [s for s in all_scenarios(probe_constants.SCENARIO_DIR)
                    if "cf" in (s["fixture"].get("fake_bin") or {})]
         self.assertGreaterEqual(len(shipped), 3)
         for spec in shipped:
@@ -2606,7 +2608,7 @@ class ReviewFindingTests(TempRootTestCase):
     def _dashboard_boundary_contexts(self):
         for name in ("build-observability-engineer-touches-only-dashboards",
                      "build-obs-dashboard-write-honours-the-carve-out"):
-            spec = probe_catalog.load_scenario(probe_constants.SCENARIO_DIR / f"{name}.yaml")
+            spec = scenario_file(probe_constants.SCENARIO_DIR / f"{name}.yaml")
             for check in spec["checks"]:
                 if check["check"] != "service_unchanged":
                     continue
@@ -2809,7 +2811,7 @@ class ReviewFindingTests(TempRootTestCase):
         service = probe_backing.Service("grafana", "image@sha256:" + "0" * 64, "cid", "http://127.0.0.1:32123")
         ctx = ws_context(tiny_spec(), ws)
         ctx.services = [service]
-        spec = probe_catalog.load_scenario(probe_constants.SCENARIO_DIR / "build-obs-dashboard-write-honours-the-carve-out.yaml")
+        spec = scenario_file(probe_constants.SCENARIO_DIR / "build-obs-dashboard-write-honours-the-carve-out.yaml")
         check = next(item for item in spec["checks"] if item["check"] == "grafana_query_succeeded")
         expression = "histogram_quantile(0.95, sum by (le) (rate(checkout_request_duration_seconds_bucket[5m])))"
         target = {"refId": "A", "expr": expression}
@@ -3360,7 +3362,7 @@ class ScenarioKindValidationTests(unittest.TestCase):
         self.assertTrue(any("grade a fixture workspace" in p for p in problems), problems)
 
     def test_the_committed_build_scenarios_still_validate(self) -> None:
-        for spec in probe_catalog.load_all_scenarios():
+        for spec in all_scenarios():
             self.assertEqual([], probe_catalog.validate_scenario(spec, where=spec["id"]))
 
 
@@ -3776,7 +3778,7 @@ class ReferenceReadTests(unittest.TestCase):
         self.assertEqual("plain task", probe_catalog.scenario_prompt({"prompt": "plain task"}))
 
     def test_the_committed_security_review_scenario_requires_its_reference(self) -> None:
-        spec = probe_catalog.load_scenario(
+        spec = scenario_file(
             probe_constants.CONTRACT_SCENARIO_DIR / "skill-direct-agent-authoring-security-review.yaml")
         self.assertIn("skills/agent-authoring/references/agent-security.md", spec["references"])
         self.assertIn("Read", spec["tools"])
@@ -3788,7 +3790,7 @@ class ReferenceReadTests(unittest.TestCase):
             ("hands-over-unresolved-work", "mitigation-selection.md"),
         ):
             with self.subTest(scenario=name):
-                spec = probe_catalog.load_scenario(probe_constants.CONTRACT_SCENARIO_DIR /
+                spec = scenario_file(probe_constants.CONTRACT_SCENARIO_DIR /
                     f"incident-companion-{name}.yaml")
                 self.assertEqual({"Skill", "Read"}, set(probe_catalog.scenario_tools(spec)))
                 path = f"skills/incident-investigation/references/{reference}"
@@ -4566,7 +4568,7 @@ class CheckPolarityTests(unittest.TestCase):
     def test_each_planned_expectation_carries_the_polarity_validation_declares(self) -> None:
         """Validation reads `assertion_polarities` and grading each expectation's own polarity; both come
         from the same per-family rules, so they agree for every scenario the runner owns."""
-        for spec in probe_catalog.load_all_scenarios():
+        for spec in all_scenarios():
             with self.subTest(scenario=spec["id"]):
                 planned = [item.polarity for item in probe_assessment.plan(spec, probe_tracing.TraceSummary(), None, ROOT)]
                 self.assertEqual(probe_catalog.assertion_polarities(spec), planned)
@@ -4583,7 +4585,7 @@ class CheckPolarityTests(unittest.TestCase):
         self.assertLessEqual(probe_checking.FORBIDDING_GRADERS, set(fleet_graders.REGISTRY))
 
     def test_polarities_align_with_every_committed_scenarios_assertions(self) -> None:
-        for spec in probe_catalog.load_all_scenarios():
+        for spec in all_scenarios():
             with self.subTest(spec["id"]):
                 self.assertEqual(len(probe_assessment.scenario_assertions(spec)), len(probe_catalog.assertion_polarities(spec)))
 
@@ -4801,7 +4803,7 @@ class BatchSpendCapTests(unittest.TestCase):
         self.assertEqual({"sonnet": 2, "opus": 1, None: 1}, counted, "the record names the first; the second is unknown")
 
     def _main(self, costs: list[tuple[float | None, bool]], cap: str) -> tuple[int, list[int], str]:
-        spec = probe_catalog.load_all_scenarios()[0]
+        spec = all_scenarios()[0]
         calls: list[int] = []
 
         def fake_run_trial(spec_arg, **kwargs):
@@ -4838,7 +4840,7 @@ class BatchSpendCapTests(unittest.TestCase):
 
     def test_a_resumed_batch_counts_what_its_retained_trials_spent(self) -> None:
         runtime = {"cli_version": "x", "host_platform": {"system": "Windows", "release": "11", "machine": "AMD64"}}
-        spec = next(s for s in probe_catalog.load_all_scenarios() if not probe_fingerprints.required_rubrics(s)
+        spec = next(s for s in all_scenarios() if not probe_fingerprints.required_rubrics(s)
                     and not (s.get("fixture") or {}).get("services") and not s.get("followups"))
         def row(run, known, complete):
             return {
@@ -4882,7 +4884,7 @@ class SpendCapAttemptTests(TempRootTestCase):
     def setUp(self) -> None:
         super().setUp()
         self.out = self.root / "it"
-        self.spec = probe_catalog.load_all_scenarios()[0]
+        self.spec = all_scenarios()[0]
 
     def _start_over(self) -> None:
         """Send the next batches to an output folder no earlier batch in this test has written."""
@@ -4953,7 +4955,7 @@ class AuthStopsTheBatchTests(unittest.TestCase):
 
     def test_an_auth_failure_stops_scheduling_and_exits_distinctly(self) -> None:
         runtime = {"cli_version": "x", "host_platform": {"system": "Windows", "release": "11", "machine": "AMD64"}}
-        spec = probe_catalog.load_all_scenarios()[0]
+        spec = all_scenarios()[0]
         calls: list[int] = []
 
         def fake_run_trial(spec_arg, **kwargs):
@@ -5062,7 +5064,7 @@ class GradingMachineryTests(unittest.TestCase):
 
     def test_a_grader_error_stops_only_its_scenarios_remaining_trials(self) -> None:
         runtime = {"cli_version": "x", "host_platform": {"system": "Windows", "release": "11", "machine": "AMD64"}}
-        specs = [s for s in probe_catalog.load_all_scenarios() if not probe_fingerprints.required_rubrics(s)
+        specs = [s for s in all_scenarios() if not probe_fingerprints.required_rubrics(s)
                  and not (s.get("fixture") or {}).get("services") and not s.get("followups")][:2]
         calls: list[tuple[str, int]] = []
 

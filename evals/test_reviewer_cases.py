@@ -10,10 +10,10 @@ from types import ModuleType, SimpleNamespace
 from unittest import mock
 
 import graders as fleet_graders
-from probe import catalog as probe_catalog
 from probe import checking as probe_checking
 from probe import tracing as probe_tracing
 from probe import workspaces as probe_workspaces
+from probe_testkit import scenario_file
 
 ROOT = Path(__file__).resolve().parent
 CASES = {
@@ -34,7 +34,7 @@ CASES = {
 
 
 def scenario(name):
-    return probe_catalog.load_scenario(ROOT / f"build-scenarios/build-reviewer-{name}.yaml")
+    return scenario_file(ROOT / f"build-scenarios/build-reviewer-{name}.yaml")
 
 
 def load_batch(files):
@@ -49,7 +49,7 @@ def load_batch(files):
 
 class ReviewerCaseTests(unittest.TestCase):
     def test_established_verification_is_permitted_without_claiming_a_real_run(self):
-        spec = probe_catalog.load_scenario(
+        spec = scenario_file(
             ROOT / "scenarios/agent-direct-reviewer-permits-established-verification.yaml")
         expected = {
             "next_step": "run_reproduction_in_established_environment",
@@ -68,7 +68,7 @@ class ReviewerCaseTests(unittest.TestCase):
                     response, spec["graders"][0]["fields"])[0])
 
     def test_builder_packet_keeps_safe_context_gate_with_independent_git_access(self):
-        spec = probe_catalog.load_scenario(
+        spec = scenario_file(
             ROOT / "scenarios/agent-direct-software-engineer-prepares-review-packet.yaml")
         expected = {
             "packet_source": "reviewer_gathers_git_after_safe_dispatch",
@@ -343,7 +343,7 @@ class ReviewerCaseTests(unittest.TestCase):
 
 class HandoffScenarioTests(unittest.TestCase):
     def test_reviewer_scoped_checks_separate_scratch_runs_from_in_place_runs(self):
-        spec = probe_catalog.load_scenario(
+        spec = scenario_file(
             ROOT / "build-scenarios/build-software-engineer-hands-uncommitted-work-to-reviewer.yaml")
         checks = {c["text"]: c for c in spec["checks"]}
         outside = checks["the reviewer runs candidate code only from outside the working tree"]

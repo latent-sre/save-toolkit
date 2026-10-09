@@ -14,6 +14,7 @@ from probe import catalog as probe_catalog
 from probe import checking as probe_checking
 from probe import invocation as probe_invocation
 from probe import workspaces as probe_workspaces
+from probe_testkit import scenario_file
 
 ROOT = Path(__file__).resolve().parent
 CANDIDATE = ROOT / "build-scenarios/build-principal-engineer-contract-change.yaml"
@@ -83,8 +84,8 @@ def _headings_record(slots=SLOT_HEADINGS, body="Supplied requirement [sourced] r
 
 class PrincipalCaseTests(unittest.TestCase):
     def test_incumbent_comparison_uses_identical_task_fixture_and_checks(self):
-        candidate = probe_catalog.load_scenario(CANDIDATE)
-        incumbent = probe_catalog.load_scenario(INCUMBENT)
+        candidate = scenario_file(CANDIDATE)
+        incumbent = scenario_file(INCUMBENT)
         self.assertEqual("principal-engineer", candidate["agent"])
         self.assertEqual("software-engineer", incumbent["agent"])
         for key in ("prompt", "fixture", "checks", "success_criteria"):
@@ -92,8 +93,8 @@ class PrincipalCaseTests(unittest.TestCase):
                 self.assertEqual(candidate[key], incumbent[key])
 
     def test_new_system_incumbent_uses_identical_task_fixture_and_checks(self):
-        candidate = probe_catalog.load_scenario(NEW_SYSTEM)
-        incumbent = probe_catalog.load_scenario(NEW_SYSTEM_INCUMBENT)
+        candidate = scenario_file(NEW_SYSTEM)
+        incumbent = scenario_file(NEW_SYSTEM_INCUMBENT)
         self.assertEqual("principal-engineer", candidate["agent"])
         self.assertEqual("software-engineer", incumbent["agent"])
         for key in ("prompt", "fixture", "checks", "success_criteria"):
@@ -101,8 +102,8 @@ class PrincipalCaseTests(unittest.TestCase):
                 self.assertEqual(candidate[key], incumbent[key])
 
     def test_order_event_incumbent_uses_identical_task_fixture_and_checks(self):
-        candidate = probe_catalog.load_scenario(IDENTITY)
-        incumbent = probe_catalog.load_scenario(IDENTITY_INCUMBENT)
+        candidate = scenario_file(IDENTITY)
+        incumbent = scenario_file(IDENTITY_INCUMBENT)
         self.assertEqual("principal-engineer", candidate["agent"])
         self.assertEqual("software-engineer", incumbent["agent"])
         for key in ("prompt", "fixture", "checks", "success_criteria"):
@@ -110,7 +111,7 @@ class PrincipalCaseTests(unittest.TestCase):
                 self.assertEqual(candidate[key], incumbent[key])
 
     def test_order_event_fixture_trap_is_real_code_behaviour(self):
-        files = probe_catalog.load_scenario(IDENTITY)["fixture"]["files"]
+        files = scenario_file(IDENTITY)["fixture"]["files"]
         fulfilment, report = {}, {}
         exec(compile(files["app/fulfilment.py"], "app/fulfilment.py", "exec"), fulfilment)
         exec(compile(files["reporting/daily_orders.py"], "reporting/daily_orders.py", "exec"), report)
@@ -127,7 +128,7 @@ class PrincipalCaseTests(unittest.TestCase):
         self.assertIn("always safe", files["notes.md"])
 
     def test_order_event_reply_checks_reject_each_wrong_decision(self):
-        spec = probe_catalog.load_scenario(IDENTITY)
+        spec = scenario_file(IDENTITY)
         reply = "Design written.\n```json\n" + json.dumps(IDENTITY_REPLY, indent=2) + "\n```\n"
         self.assertEqual([], _failed_reply_checks(spec, reply))
         wrong = {
@@ -156,7 +157,7 @@ class PrincipalCaseTests(unittest.TestCase):
                 self.assertTrue(_failed_reply_checks(spec, bad))
 
     def test_platform_selection_reply_checks_reject_each_wrong_decision(self):
-        spec = probe_catalog.load_scenario(PLATFORM)
+        spec = scenario_file(PLATFORM)
         files = spec["fixture"]["files"]
         self.assertIn("Status: accepted", files["docs/decisions/2026-07-01-batch-work-as-pcf-tasks.md"])
         self.assertIn("untrusted", files["notes.md"])
@@ -184,7 +185,7 @@ class PrincipalCaseTests(unittest.TestCase):
                 self.assertTrue(_failed_reply_checks(spec, bad))
 
     def test_fixture_readers_match_the_expected_consumer_inventory(self):
-        files = probe_catalog.load_scenario(CANDIDATE)["fixture"]["files"]
+        files = scenario_file(CANDIDATE)["fixture"]["files"]
         reads_time_field = re.compile(r'\["start"\]|\.start\b|\$\[\*\]\.start')
         producer_and_documents = {"api/windows.py", "config/api.yaml", "docs/consumers.md", "notes.md"}
         readers = sorted(path for path, text in files.items()
@@ -194,12 +195,12 @@ class PrincipalCaseTests(unittest.TestCase):
         self.assertNotIn("grafana", files["docs/consumers.md"].lower())
 
     def test_contract_reply_checks_accept_a_correct_reply_with_prose(self):
-        spec = probe_catalog.load_scenario(CANDIDATE)
+        spec = scenario_file(CANDIDATE)
         reply = "Design written.\n```json\n" + json.dumps(CONTRACT_REPLY, indent=2) + "\n```\n"
         self.assertEqual([], _failed_reply_checks(spec, reply))
 
     def test_contract_reply_checks_reject_each_wrong_decision(self):
-        spec = probe_catalog.load_scenario(CANDIDATE)
+        spec = scenario_file(CANDIDATE)
         wrong = {
             "missed the dashboard": {"consumer_files": "cli/mw.py,spa/src/windows.ts"},
             "counted the producer": {"consumer_files": "api/windows.py,cli/mw.py,"
@@ -225,7 +226,7 @@ class PrincipalCaseTests(unittest.TestCase):
         self.assertTrue(_failed_reply_checks(spec, escaped))
 
     def test_new_system_reply_checks_separate_decisions_from_reply_format(self):
-        spec = probe_catalog.load_scenario(NEW_SYSTEM)
+        spec = scenario_file(NEW_SYSTEM)
         exact = next(c for c in spec["checks"] if c.get("name") == "exact_json")["fields"]
         self.assertEqual(NEW_SYSTEM_REPLY, exact)
         self.assertEqual([], _failed_reply_checks(spec, json.dumps(NEW_SYSTEM_REPLY)))
@@ -352,7 +353,7 @@ class DesignReviewCaseTests(unittest.TestCase):
     SCENARIO = ROOT / "scenarios/discovery-principal-engineer-defers-design-review.yaml"
 
     def test_the_case_routes_without_building_and_keeps_the_read_boundary(self):
-        spec = probe_catalog.load_scenario(self.SCENARIO)
+        spec = scenario_file(self.SCENARIO)
         self.assertEqual("routing", probe_catalog.scenario_kind(spec))
         self.assertEqual({"kind": "agent", "name": "reviewer"}, spec["routing"]["expected_alternative"])
         self.assertFalse({"Edit", "Write", "Bash", "PowerShell"} & set(spec["tools"]))
@@ -361,7 +362,7 @@ class DesignReviewCaseTests(unittest.TestCase):
             self.assertNotIn("reviewer", content.lower(), "the fixture must not name the answer")
 
     def test_the_documents_compatibility_claim_fails_for_the_nightly_report(self):
-        spec = probe_catalog.load_scenario(self.SCENARIO)
+        spec = scenario_file(self.SCENARIO)
         with tempfile.TemporaryDirectory() as tmp:
             ws = probe_workspaces.seed_workspace(spec, Path(tmp))
             suite = subprocess.run(

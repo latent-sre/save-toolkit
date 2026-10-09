@@ -3,7 +3,7 @@
 A test module imports what it shares from here, never from another test module, so moving or
 splitting a test file cannot break its neighbours. Plain functions and one base class rather than
 pytest fixtures, because most suites are unittest.TestCase classes that also run directly
-(`python evals/test_probe_tracing.py`), where fixtures do not exist. Nothing here runs at import
+(`python evals/test_judge.py`), where fixtures do not exist. Nothing here runs at import
 time beyond defining names.
 
 This module lives beside the tests and outside evals/probe/ on purpose: every module in that
@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import contextlib
 import copy
+import functools
 import io
 import json
 import subprocess
@@ -25,9 +26,10 @@ from typing import Any
 from unittest import mock
 
 import judge
-from probe import assessment, checking, fingerprints, tracing, workspaces
+from probe import assessment, catalog, checking, fingerprints, tracing, workspaces
 
 ROOT = Path(__file__).resolve().parent.parent
+EVALS = ROOT / "evals"
 
 # The smallest build scenario the runner accepts: a seeded repository with a passing unittest
 # suite, one fork branch, a `cf` shim that logs where `cf_log_has_no` reads, and one environment
@@ -91,6 +93,36 @@ def tiny_fixture(**changes: Any) -> dict[str, Any]:
 def contract_spec(**changes: Any) -> dict[str, Any]:
     """A fresh copy of the fixtureless contract scenario with the given top-level keys replaced."""
     return {**copy.deepcopy(_CONTRACT_SPEC), **changes}
+
+
+# Committed scenarios are parsed and validated once per process (a full load_all_scenarios takes a
+# quarter of a second) and every caller gets its own deep copy, so no test sees another's edits.
+@functools.cache
+def _parsed_scenario(path: Path) -> dict[str, Any]:
+    return catalog.load_scenario(path)
+
+
+@functools.cache
+def _parsed_scenarios(directories: tuple[Path, ...]) -> list[dict[str, Any]]:
+    return catalog.load_all_scenarios(directories[0] if len(directories) == 1 else None)
+
+
+def scenario_file(path: Path) -> dict[str, Any]:
+    """A fresh copy of the committed scenario at `path`, validated as the runner loads it."""
+    return copy.deepcopy(_parsed_scenario(Path(path).resolve()))
+
+
+def scenario(name: str, directory: str = "build-scenarios") -> dict[str, Any]:
+    """A fresh copy of the committed scenario evals/<directory>/<name>.yaml."""
+    return scenario_file(EVALS / directory / f"{name}.yaml")
+
+
+def all_scenarios(directory: Path | None = None) -> list[dict[str, Any]]:
+    """Fresh copies of every scenario the runner owns, or of those in `directory`."""
+    # The key names the directories the runner would read now, so a test that patched them is
+    # never served another directory's scenarios.
+    key = (directory,) if directory is not None else (catalog.SCENARIO_DIR, catalog.CONTRACT_SCENARIO_DIR)
+    return copy.deepcopy(_parsed_scenarios(key))
 
 
 class TempRootTestCase(unittest.TestCase):

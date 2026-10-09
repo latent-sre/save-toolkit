@@ -22,7 +22,7 @@ from pathlib import Path
 from unittest import mock
 
 import compare_runs as comparison
-from probe import catalog
+from probe_testkit import all_scenarios
 
 BUNDLE = Path(__file__).resolve().parent / "fixtures" / "v1-bundle"
 RUNS = BUNDLE / "runs"
@@ -31,7 +31,7 @@ COST_FIELDS = ("trial_usd", "judge_usd", "known_usd", "complete")
 
 def report_for(runs: Path, scenarios: list[dict] | None = None) -> dict:
     if scenarios is None:
-        scenarios = catalog.load_all_scenarios(BUNDLE / "scenarios")
+        scenarios = all_scenarios(BUNDLE / "scenarios")
     # Through JSON, as a reader of the printed report sees it.
     return json.loads(json.dumps(comparison.compare_bundle(runs, "incumbent", "candidate", scenarios)))
 
@@ -299,7 +299,7 @@ class ComparisonTests(unittest.TestCase):
             ("candidate-opus", "synthetic-model", "the arms differ in requested_model, observed_models", None),
         ):
             with self.subTest(label=label):
-                scenarios = catalog.load_all_scenarios(BUNDLE / "scenarios")
+                scenarios = all_scenarios(BUNDLE / "scenarios")
                 report = json.loads(json.dumps(comparison.compare_bundle(RUNS, "incumbent", label, scenarios)))
                 pair = case(report, case_id)
                 self.assertEqual(("not_compared", reason), (pair["outcome"], pair["reason"]))
