@@ -12,6 +12,8 @@ from types import SimpleNamespace
 import graders as fleet_graders
 from probe import catalog as probe_catalog
 from probe import checking as probe_checking
+from probe import invocation as probe_invocation
+from probe import workspaces as probe_workspaces
 
 ROOT = Path(__file__).resolve().parent
 CANDIDATE = ROOT / "build-scenarios/build-principal-engineer-contract-change.yaml"
@@ -340,6 +342,45 @@ class PrincipalCaseTests(unittest.TestCase):
                                           for slot in SLOT_HEADINGS)
                 with self.subTest(shape=shape, empty=empty):
                     self.assertEqual(1, _oracle(record))
+
+
+class DesignReviewCaseTests(unittest.TestCase):
+    """EVAL-016: the design-review routing case seeds the two consumers its inline document names, so
+    the document's "additive fields are backward compatible" claim can be checked: the fulfilment
+    worker ignores an added field, while the nightly report rejects it."""
+
+    SCENARIO = ROOT / "scenarios/discovery-principal-engineer-defers-design-review.yaml"
+
+    def test_the_case_routes_without_building_and_keeps_the_read_boundary(self):
+        spec = probe_catalog.load_scenario(self.SCENARIO)
+        self.assertEqual("routing", probe_catalog.scenario_kind(spec))
+        self.assertEqual({"kind": "agent", "name": "reviewer"}, spec["routing"]["expected_alternative"])
+        self.assertFalse({"Edit", "Write", "Bash", "PowerShell"} & set(spec["tools"]))
+        self.assertTrue(probe_invocation.read_boundary_applies(spec, spec["tools"]))
+        for content in spec["fixture"]["files"].values():
+            self.assertNotIn("reviewer", content.lower(), "the fixture must not name the answer")
+
+    def test_the_documents_compatibility_claim_fails_for_the_nightly_report(self):
+        spec = probe_catalog.load_scenario(self.SCENARIO)
+        with tempfile.TemporaryDirectory() as tmp:
+            ws = probe_workspaces.seed_workspace(spec, Path(tmp))
+            suite = subprocess.run(
+                [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-t", ".", "-q"],
+                cwd=ws.repo, capture_output=True, text=True, encoding="utf-8")
+            self.assertEqual(0, suite.returncode, suite.stderr)
+            probe = ("from events.producer import order_event\n"
+                     "from fulfilment.worker import handle\n"
+                     "from reports import nightly\n"
+                     "payload = {**order_event('o-1', 'paid', 300), 'account_id': 'a-1'}\n"
+                     "print(handle(payload))\n"
+                     "try:\n"
+                     "    nightly.paid_revenue([payload])\n"
+                     "    print('report ok')\n"
+                     "except TypeError:\n"
+                     "    print('report TypeError')\n")
+            run = subprocess.run([sys.executable, "-c", probe], cwd=ws.repo, capture_output=True,
+                                 text=True, encoding="utf-8")
+            self.assertEqual(["ship o-1", "report TypeError"], run.stdout.strip().splitlines(), run.stderr)
 
 
 if __name__ == "__main__":

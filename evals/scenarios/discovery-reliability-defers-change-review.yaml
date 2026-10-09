@@ -1,5 +1,9 @@
 id: discovery-reliability-defers-change-review
 split: regression
+# The checkout holds the pull request the prompt names: a refunds service on main and a candidate
+# branch that widens who may refund and loosens the amount check, with the tests that would catch
+# either removed. Without it every session searched, found no candidate and declined (EVAL-016).
+# The fixture must not name the answer.
 prompt: |
   Independently review this pull request against its base. Find correctness and security regressions
   and return a merge verdict with evidence. The candidate and base are available in the checkout.
@@ -8,5 +12,128 @@ routing:
   expect: not_fire
   expected_alternative: {kind: agent, name: reviewer}
 tools: [Glob, Grep, Read, Skill, Task]
+fixture:
+  files:
+    README.md: |
+      # orders-service
+
+      Refunds for placed orders. Base branch: `main`. Run the suite with
+      `python -m unittest discover -s tests -t .`.
+    orders/__init__.py: ""
+    orders/refunds.py: |
+      """Refund requests for the orders service."""
+
+      from dataclasses import dataclass
+
+
+      class Forbidden(Exception):
+          """The caller may not refund this order."""
+
+
+      @dataclass(frozen=True)
+      class User:
+          id: str
+          role: str = "customer"
+
+
+      @dataclass(frozen=True)
+      class Order:
+          id: str
+          owner_id: str
+          total: int
+
+
+      def can_refund(user: User, order: Order) -> bool:
+          return user.role == "support" or user.id == order.owner_id
+
+
+      def refund(user: User, order: Order, amount: int) -> dict:
+          if not can_refund(user, order):
+              raise Forbidden(order.id)
+          if amount <= 0 or amount > order.total:
+              raise ValueError("refund amount must be positive and at most the order total")
+          return {"order_id": order.id, "refunded": amount}
+    tests/__init__.py: ""
+    tests/test_refunds.py: |
+      import unittest
+
+      from orders.refunds import Forbidden, Order, User, refund
+
+      ORDER = Order(id="o-1", owner_id="u-1", total=500)
+
+
+      class RefundTests(unittest.TestCase):
+          def test_owner_can_refund(self):
+              self.assertEqual({"order_id": "o-1", "refunded": 200}, refund(User("u-1"), ORDER, 200))
+
+          def test_support_can_refund(self):
+              self.assertEqual(500, refund(User("s-1", role="support"), ORDER, 500)["refunded"])
+
+          def test_another_customer_cannot_refund(self):
+              with self.assertRaises(Forbidden):
+                  refund(User("u-2"), ORDER, 100)
+
+          def test_refund_cannot_exceed_the_total(self):
+              with self.assertRaises(ValueError):
+                  refund(User("u-1"), ORDER, 501)
+
+          def test_refund_must_be_positive(self):
+              with self.assertRaises(ValueError):
+                  refund(User("u-1"), ORDER, 0)
+  branches:
+    feature/partial-refunds:
+      message: Allow partial refunds and simplify the permission check
+      files:
+        orders/refunds.py: |
+          """Refund requests for the orders service."""
+
+          from dataclasses import dataclass
+
+
+          class Forbidden(Exception):
+              """The caller may not refund this order."""
+
+
+          @dataclass(frozen=True)
+          class User:
+              id: str
+              role: str = "customer"
+
+
+          @dataclass(frozen=True)
+          class Order:
+              id: str
+              owner_id: str
+              total: int
+
+
+          def can_refund(user: User, order: Order) -> bool:
+              return user.role in ("support", "customer")
+
+
+          def refund(user: User, order: Order, amount: int) -> dict:
+              if not can_refund(user, order):
+                  raise Forbidden(order.id)
+              if amount < 0:
+                  raise ValueError("refund amount must not be negative")
+              return {"order_id": order.id, "refunded": amount}
+        tests/test_refunds.py: |
+          import unittest
+
+          from orders.refunds import Order, User, refund
+
+          ORDER = Order(id="o-1", owner_id="u-1", total=500)
+
+
+          class RefundTests(unittest.TestCase):
+              def test_owner_can_refund(self):
+                  self.assertEqual({"order_id": "o-1", "refunded": 200}, refund(User("u-1"), ORDER, 200))
+
+              def test_support_can_refund(self):
+                  self.assertEqual(500, refund(User("s-1", role="support"), ORDER, 500)["refunded"])
+
+              def test_partial_refund(self):
+                  self.assertEqual(1, refund(User("u-1"), ORDER, 1)["refunded"])
+  checkout: feature/partial-refunds
 success_criteria:
   - Routes independent change judgment and merge verdict ownership to reviewer.
