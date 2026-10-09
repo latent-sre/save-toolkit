@@ -6,6 +6,29 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ## [Unreleased]
 
+### Fixed
+
+- `EVAL-016` closes with the owner's 2026-10-08 disposition. [verified] With their material
+  seeded, every session reviewed the change or document itself and found the planted defect (six
+  replies, each naming the defect with a do-not-merge verdict; `.eval-runs/eval-016-20261008/`).
+  So the two reviewer negatives now accept a review the main session keeps, as well as one handed
+  to `reviewer`; a design lane taking the work still fails. The reviewer description's design-doc
+  and ADR clause stays. [unverified] An offline rescore of the six seeded traces under the new
+  alternative passes 6/6; it is a diagnostic, not a run on the committed grading. AGENTS.md's
+  routing table now matches: a review of a design doc or ADR stays with the main session or goes to
+  `reviewer`, never to `principal-engineer` (the owner's resolution of Codex's P1 on PR #341).
+  The owner accepted that P1's other half as a known gap: a review the main session keeps passes on
+  any nonempty reply without a dispatch, so no grader yet shows the review itself was done.
+- `RELIABILITY-001` is deferred: the owner kept the reliability lane unaccepted. [sourced:
+  independent blind trace review] In its two-trial comparison both arms failed the timing criterion
+  the same way. It reopens when a source repair for retry-count ambiguity and timeout sums is
+  scoped and approved.
+- The fleet atlas recorded a list `expected_alternative` as one raw string and dropped its routes,
+  so `discovery-reliability-defers-accepted-implementation`, already on `main`, and both reviewer
+  negatives lost their `routes_to` edges. The extractor now splits the list and keeps one route per
+  component, recording the alternatives as `main_session|agent:reviewer`. [verified] The new
+  extractor test fails on the previous extractor and passes after it.
+
 ## [0.51.1] - 2026-10-09
 
 ### Added
@@ -82,26 +105,6 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
-- `EVAL-016` closes with the owner's 2026-10-08 disposition. [verified] With their material
-  seeded, every session reviewed the change or document itself and found the planted defect (six
-  replies, each naming the defect with a do-not-merge verdict; `.eval-runs/eval-016-20261008/`).
-  So the two reviewer negatives now accept a review the main session keeps, as well as one handed
-  to `reviewer`; a design lane taking the work still fails. The reviewer description's design-doc
-  and ADR clause stays. [unverified] An offline rescore of the six seeded traces under the new
-  alternative passes 6/6; it is a diagnostic, not a run on the committed grading. AGENTS.md's
-  routing table now matches: a review of a design doc or ADR stays with the main session or goes to
-  `reviewer`, never to `principal-engineer` (the owner's resolution of Codex's P1 on PR #341).
-  The owner accepted that P1's other half as a known gap: a review the main session keeps passes on
-  any nonempty reply without a dispatch, so no grader yet shows the review itself was done.
-- `RELIABILITY-001` is deferred: the owner kept the reliability lane unaccepted. [sourced:
-  independent blind trace review] In its two-trial comparison both arms failed the timing criterion
-  the same way. It reopens when a source repair for retry-count ambiguity and timeout sums is
-  scoped and approved.
-- The fleet atlas recorded a list `expected_alternative` as one raw string and dropped its routes,
-  so `discovery-reliability-defers-accepted-implementation`, already on `main`, and both reviewer
-  negatives lost their `routes_to` edges. The extractor now splits the list and keeps one route per
-  component, recording the alternatives as `main_session|agent:reviewer`. [verified] The new
-  extractor test fails on the previous extractor and passes after it.
 - The two routing negatives whose alternative is `reviewer` asked about material their empty
   workspace lacked, so every session searched, found nothing and answered inline. Change review now
   holds the pull request it names: a refunds service and a checked-out candidate branch that lets any
