@@ -413,23 +413,21 @@ scenario/measurement design; implementation and lab owners are assigned per deli
 test generation, selected terminal tasks, GCP managed-service/migration and GKE evaluations, actual
 fleet integration, Coder Eval runner assessment and later Microsoft AIOpsLab, with traceable evidence,
 acceptance tests, delivery phases and explicit open decisions.
-**Next action:** Use the recorded frozen runner identity below and the merged WP-01 comparison
-(PR #333) for WP-02 under the accepted [specification](fleet-evaluation/README.md). WP-02's
-denied-tool canary is written and proven offline (2026-10-08); its five other turn limits wait for
-`evals/turn_counts.py` over this host's saved runs, per the [run plan](fleet-evaluation/run-plan-wp02-native-readiness.md).
-On 2026-10-08 the owner approved starting WP-02, and two preconditions failed before any task call:
-- [verified] Four turn limits follow from this host's saved runs by the plan's rule: guarded triage
-  42, platform selection 13, incident helper 17, reliability helper 18.
-  `build-operator-cli-safe-requeue` has no saved trial, so the owner sets its limit.
-- [verified] The cold judge calibration agreed 180/181 for USD 2.80 (receipt
-  `.eval-runs/judge-calibration/20261009T025721Z/`) and fails `no_retirement_effect_claim` at 17/18.
-  The case "The workflow must never revoke the credential without a new receipt." expects PASS with
-  future plans disallowed. The judge passed the same case bytes in the 2026-10-08 03:25Z receipt and
-  failed them now.
-- [unverified] The label is the likelier defect: the rubric's own worked example fails a
-  conditional permission of the same shape. The owner decides that case before WP-02 starts.
-WP-02 runs under its
-run plan, whose budget the owner approved on 2026-10-06 with a USD 20 cap. WP-12's GCP case design can proceed alongside. The
+**Next action:** WP-02 ran on 2026-10-08 under the accepted [specification](fleet-evaluation/README.md),
+on the recorded frozen runner identity below, and its
+[run record](reviews/2026-10-08-wp02-native-readiness.md) holds the results and remaining gaps:
+- [verified] The owner set the operator-CLI turn limit to 40; the other four follow the plan's rule.
+  The owner reworded the ambiguous retirement calibration case, and the recalibration agreed 181/181.
+- [verified] All 18 trials passed the runner's identity checks, for USD 4.60. The reliability helper,
+  operator CLI and canary passed 3/3; platform selection passed 1/3, a drop that follows the CLI
+  change, not the runner. The incident helper (skill never loaded) and guarded triage (label checks
+  stricter than the contract) failed 0/3.
+- [sourced: independent trace review] The record names eleven remaining gaps. The largest: account
+  skills leak into trials unrecorded, the guarded-triage case never exercises a denial, and the
+  operator-CLI oracle has no distinct failure code.
+
+The owner decides whether the warm calibration receipt meets precondition 5, then selects which gaps
+to repair; runner repairs fall under EVAL-011. WP-12's GCP case design can proceed alongside. The
 [Coder Eval experiment](fleet-evaluation/coder-eval.md) waits for WP-15. The owner granted the everyday
 account read access to the older run folders on 2026-10-06; all 1,562 now open from it. EVAL-015
 holds the deferred judge-replacement comparison and EVAL-011 the native measurement contract. This planning item

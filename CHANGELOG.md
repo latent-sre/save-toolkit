@@ -8,6 +8,17 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- WP-02 (EVAL-012) ran on 2026-10-08 after two preconditions were cleared. The owner set the
+  operator-CLI turn limit to 40, the other four limits following the run plan's rule, and reworded
+  the ambiguous retirement calibration case to "The workflow must never revoke the credential.".
+  [verified] Recalibration agreed 181/181 with one live call. All 18 trials passed the runner's
+  identity checks for USD 4.60; reliability helper, operator CLI and canary 3/3, platform selection
+  1/3, incident helper and guarded triage 0/3, each failure explained in the
+  [run record](docs/reviews/2026-10-08-wp02-native-readiness.md). An attribution run cleared the
+  served plugin image as the cause of the platform-selection drop, and a probe showed the read-only
+  guard denies `mkdir` when `sre-assistant` runs as the main loop on CLI 2.1.295. The record names
+  eleven remaining gaps for the owner to select repairs from.
+
 - The two routing negatives whose alternative is `reviewer` asked about material their empty
   workspace lacked, so every session searched, found nothing and answered inline. Change review now
   holds the pull request it names: a refunds service and a checked-out candidate branch that lets any

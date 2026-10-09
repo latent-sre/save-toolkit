@@ -2,7 +2,9 @@
 
 - **Status:** Written 2026-10-06 as WP-00's run plan. The owner approved its budget on 2026-10-06
   with a USD 20 cap (DEC-04). The run starts only when every precondition below holds; a change to
-  the cases, trial count or cap needs a new approval.
+  the cases, trial count or cap needs a new approval. Ran 2026-10-08: 18 trials, USD 4.60, every
+  trace reviewed; the [run record](../reviews/2026-10-08-wp02-native-readiness.md) holds the results
+  and the remaining native gaps.
 - **Run owner:** the human owner starts the run; `agent-engineer` prepares it; `reviewer` checks the
   traces.
 - **Purpose:** show that the frozen native runner measures what the accepted
@@ -23,7 +25,9 @@ All of these hold before the first paid call:
    proven by `evals/test_native_readiness_cases.py`. The other five limits come from this host's
    saved runs, retained attempts included: `python evals/turn_counts.py .eval-runs --scenario <id>`
    for each case. The proposed
-   limit is twice the highest observed count, or that count plus 10 if larger. Raise any case with
+   limit is twice the highest observed count, or that count plus 10 if larger. For a two-turn case
+   the CLI applies the declared limit to each invocation, while the counts tool sums both turns, so
+   the effective total can be twice the declared value. Raise any case with
    no saved trial, or whose longest trial took over 450 seconds, with the owner instead, since a
    run that stops at its limit is complete and fails its unmet requirements (result rule 4). Adding
    a limit changes the case identity, not the runner identity.
