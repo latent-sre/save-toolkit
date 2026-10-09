@@ -180,8 +180,8 @@ Open choices:
 - a re-run that swaps the "design document" and "design record" wording;
 - whether the 3/3 alert-guidance loads on repaired digest `fb2fba9ac780` suffice for that prerequisite;
   the previous digest's 3/3 and earlier 0/3 remain separate evidence; the written-record check stays;
-- re-measuring the design-review boundary once `EVAL-014` keeps routing trials out of the
-  measured checkout;
+- the design-review boundary: re-measured twice on the isolated runner, it waits on `EVAL-016`,
+  which seeds the consumers its prompt names;
 - the combined versus principal-only and architect-only comparison, which the picker sheet decides.
 
 Each further campaign states trial count, estimated cost, review hours and cost cap under DEC-04
@@ -562,52 +562,31 @@ a recorded failure, and know which host and CLI a PASS or FAIL was measured on.
 
 ### EVAL-016 — seed the reviewer routing cases with what their prompts name
 
-**Status:** `ready` (2026-10-08). Both negatives whose alternative is `reviewer` ask for review of
-material their empty workspace lacks, so every session searches first, finds nothing and answers
-inline.
-- `discovery-reliability-defers-change-review` says the base and candidate are in the checkout:
-  0/3 before and 0/3 after the reviewer description change, each session reporting no candidate.
-- `discovery-principal-engineer-defers-design-review` asks whether claims hold for consumers the
-  workspace lacks: 0/4 measured with 2 void across both descriptions on the isolated runner, all
-  searching first; it reached `reviewer` first-call in 2 of 7 earlier trials.
-- Naming design docs and ADRs in the reviewer description (`b724c1e4`) did not move design review.
+**Status:** `decision-needed` (2026-10-08). Both cases now hold what their prompts name: change
+review a refunds service and a candidate branch that widens who may refund, design review the two
+consumers its document lists. They still fail 0/3 each on `2671a684`, for a new reason. Every
+session read the seeded code, found the planted defect and returned its own do-not-merge verdict:
+- change review named the authorization regression in 3/3;
+- design review found the nightly report rejects `account_id` in 3/3.
+
+No session dispatched `reviewer`, and neither design lane fired. As with accepted implementation,
+the main session keeps review of material it can read. Earlier, unseeded, design review reached
+`reviewer` first-call in 2 of 7 trials on the old runner; the change-review case failed 0/3 before
+and 0/3 after the description clause. The clause naming design docs and ADRs (`b724c1e4`) shows no
+measured effect in 9 trials.
 
 **Owner:** `agent-engineer` owns the scenarios; maintainers approve any paid re-run.
 **Outcome:** Each case's workspace holds what its prompt names, so its verdict measures whether a
 review request reaches `reviewer`, not whether the session found the material.
-**Next action:** Seed change review with a base and a candidate branch and design review with its
-two consumers, as the accepted-implementation case was seeded; prove each offline, then re-run three
-Sonnet trials of each with the DEC-04 figures stated first. Keep or revert the description clause
-on that result.
-**Evidence:** Labels `rev-sonnet` and `base-sonnet` under `.eval-runs/eval-013-014-20261008/`,
-USD 1.61 with the accepted-implementation trials.
+**Next action:** The owner chooses, as for the accepted-implementation case: accept a review the
+main session keeps, with `expected_alternative: [main_session, reviewer]`, so each case guards only
+against a design lane taking it; keep both red as evidence that review requests do not reach
+`reviewer` unasked; or ask for a product change that makes them. Then keep or revert the
+description clause. No further paid run is authorized.
+**Evidence:** Label `seeded-sonnet` under `.eval-runs/eval-016-20261008/`, USD 0.72; labels
+`rev-sonnet` and `base-sonnet` under `.eval-runs/eval-013-014-20261008/`.
 **SRE task:** Ask for an independent review and know the routing check shows whether it reaches the
 reviewer.
-
-### EVAL-014 — keep routing trials out of the measured checkout
-
-**Status:** `decision-needed` (2026-10-08). `--plugin-dir` and `--add-dir` named the checkout; since
-`f3335ec3` the runner serves each trial an image of the measured plugin inputs beside its git root,
-and the checkout is no longer readable from a trial.
-- One Haiku trial each way on CLI 2.1.295: a Glob of the checkout's `evals/*.py` returned 65
-  matches before and was denied after, with the plugin loaded from the image.
-- Six re-run Sonnet trials: none read outside its workspace and image. The design-review case
-  failed 2/3 with one trial void: the session searched the trial root, the parent of its repo and
-  the image, the CLI denied it, and the runtime-denial rule voided the trial. Each session
-  answered inline instead of dispatching `reviewer`.
-
-**Owner:** `agent-engineer` owns the runner; maintainers approve any paid re-run.
-**Outcome:** A trial can read the plugin's shipped skills but not the rest of the checkout, so a
-routing verdict cannot be shaped by the repository's own evals, docs or history.
-**Next action:** The owner chooses whether a denied read outside the workspace and image is the
-boundary holding, so the trial keeps its verdict, or stays a runtime denial that voids it under
-the threat-model result rules; the first needs a rule change in `runtime_blocked_tools` with its
-regrade. No further paid run is authorized.
-**Evidence:** The Haiku pair under `.eval-runs/eval-014-20261008/` and the six trials, label
-`image-sonnet`, USD 0.81 in all, under `.eval-runs/eval-013-014-20261008/`; the checkout reads are in
-the [principal-engineer evaluation](reviews/2026-10-05-principal-engineer-evals.md#routing-trials-can-read-the-measured-checkout).
-**SRE task:** Trust that a routing result reflects the agent descriptions, not files the test
-happened to find.
 
 ### PRECOMMIT-001 — software-engineer reviews a 3-file change before committing, unasked
 

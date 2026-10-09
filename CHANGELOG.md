@@ -8,6 +8,20 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- The two routing negatives whose alternative is `reviewer` asked about material their empty
+  workspace lacked, so every session searched, found nothing and answered inline. Change review now
+  holds the pull request it names: a refunds service and a checked-out candidate branch that lets any
+  customer refund any order and drops the amount bound, with the tests that would catch either
+  removed. Design review now holds the two consumers its document lists: the fulfilment worker
+  ignores an added field, while the nightly report rejects `account_id` (`EVAL-016`). [verified]
+  Calibration tests seed each fixture, run its suite and show the defect is real; all four fail
+  against the unseeded scenarios. On `2671a684` both cases still fail 0/3 (USD 0.72): every session
+  read the seeded code, found the planted defect and returned its own do-not-merge verdict, without
+  dispatching `reviewer` and without either design lane firing. The disposition is the owner's.
+- `EVAL-014` closes with the owner's disposition: a refused read outside a trial's workspace and
+  plugin image keeps voiding the trial under the runtime-denial rule, so no rule change follows. Its
+  outcome, trials that read the shipped skills but not the rest of the checkout, landed in PR #337.
+  PRINCIPAL-001's open choice on the design-review boundary now points at `EVAL-016`.
 - PRINCIPAL-001's alerting prerequisite now follows the service requirements and makes relevant
   guidance a design-readiness condition. Two matched principal/software-engineer semantic cases
   return complete design records for the existing rubric judge, with twelve proposed calibration
