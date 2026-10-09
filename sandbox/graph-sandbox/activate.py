@@ -2948,7 +2948,7 @@ def execute_validated_compose(
         shutil.rmtree(temporary_root, ignore_errors=True)
 
 
-def _prepare_evidence_directory(mode: str, evidence_root: Path, run_id: str) -> Path:
+def _prepare_evidence_directory(evidence_root: Path, run_id: str) -> Path:
     if not evidence_root.is_absolute():
         raise ActivationError("evidence-root: absolute canonical path required")
     _reject_path_indirection(evidence_root)
@@ -3159,7 +3159,7 @@ def activate_runtime(
                 if claim.phase != "PUBLISHED":
                     claim.transition("PUBLISHED")
             else:
-                _prepare_evidence_directory(args.operation, args.evidence_root, args.run_id)
+                _prepare_evidence_directory(args.evidence_root, args.run_id)
             resource_validation = validate_resource_mode(
                 args.operation,
                 docker.resource_state(args.run_id, args.source_revision),

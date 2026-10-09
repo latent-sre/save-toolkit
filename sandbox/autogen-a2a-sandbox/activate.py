@@ -18,7 +18,7 @@ import tempfile
 from datetime import datetime
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any, Mapping, NoReturn, Sequence
 
 
 EXIT_USAGE = 64
@@ -470,7 +470,7 @@ def _validate_command(
             _model_error("command", "orchestrator command drifted")
 
 
-def _model_error(label: str, message: str) -> None:
+def _model_error(label: str, message: str) -> NoReturn:
     raise ActivationError("unsafe_compose_model", f"{label}: {message}", EXIT_PRECONDITION)
 
 
@@ -647,7 +647,7 @@ def _require_safe_directory(path: Path, *, private: bool = False) -> None:
 
 def _is_link_or_reparse(details: os.stat_result) -> bool:
     return stat.S_ISLNK(details.st_mode) or bool(
-        getattr(details, "st_file_attributes", 0) & 0x400
+        getattr(details, "st_file_attributes", 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT
     )
 
 
@@ -838,7 +838,7 @@ def _fresh(root: Path, context: str, revision: str, run_id: str, case_id: str, e
     finally:
         _compose_down(root, context, compose_env, remove_volumes=not authentic_pending)
     if authentic_pending:
-        _verify_pending_cleanup(context, identity)
+        _require_pending_resources(context, identity)
         print(json.dumps({"event": "AWAITING_APPROVAL", "handoff": str(_handoff_path(evidence_root, run_id)), "run_id": run_id}, sort_keys=True, separators=(",", ":")))
         return EXIT_PENDING
     _verify_full_cleanup(context, identity)
@@ -939,10 +939,10 @@ def _resume(root: Path, context: str, revision: str, run_id: str, evidence_root:
     finally:
         _compose_down(root, context, compose_env, remove_volumes=staged is not None)
     if failure is not None:
-        _verify_pending_cleanup(context, identity)
+        _require_pending_resources(context, identity)
         raise failure
     if staged is None:
-        _verify_pending_cleanup(context, identity)
+        _require_pending_resources(context, identity)
         raise ActivationError("resume_incomplete", "resume did not stage final evidence; pending volumes were preserved", EXIT_RUNTIME)
     try:
         _verify_full_cleanup(context, identity)
@@ -1997,10 +1997,6 @@ def _require_pending_resources(context: str, identity: RunIdentity) -> None:
         raise ActivationError("resource_conflict", "pending run has leftover containers or network", EXIT_PRECONDITION)
     if not _resource_exists(context, "volume", identity.state_volume) or not _resource_exists(context, "volume", identity.evidence_volume):
         raise ActivationError("resource_missing", "pending run volumes are missing", EXIT_PRECONDITION)
-
-
-def _verify_pending_cleanup(context: str, identity: RunIdentity) -> None:
-    _require_pending_resources(context, identity)
 
 
 def _verify_full_cleanup(context: str, identity: RunIdentity) -> None:
