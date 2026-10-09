@@ -151,7 +151,9 @@ success_criteria:
 
 A routing prompt is byte-for-byte unhinted — `--validate` rejects one that names its own target.
 For `expect: not_fire`, set `expected_alternative: inline` or name the component expected instead:
-a negative does not pass merely because the forbidden target stayed absent. Negatives are
+a negative does not pass merely because the forbidden target stayed absent. `main_session` passes
+when no agent takes the work and the session answers, with skills allowed, as when the main session
+implements a change itself; a list of alternatives passes on any one of them. Negatives are
 zero-tolerance, so their threshold is always clamped to 1.0 and `--validate` rejects a declared
 threshold below it; `threshold` on a positive is the fraction of trials that must pass. The same
 holds for any scenario with a forbidding check: every check type either forbids an action (such as
@@ -497,7 +499,8 @@ not truncate those records. These are trusted local evidence records, not signed
 
 Every run records the plugin root's commit, plugin-input dirty state, and a path-bound source digest
 over `agents/`, `skills/`, `commands/`, `hooks/`, the manifest, and the guard scripts
-(`provenance.json`, the trace summary, the summary line), plus the requested and resolved model,
+(`provenance.json`, the trace summary, the summary line), the path of the image of those inputs the
+trial was served (`plugin_served_from`), plus the requested and resolved model,
 trials, timeout, per-trial duration, cost, and the exact argv. Each run also records `runtime`: the
 CLI's own `--version` line (`null` when it cannot report one) and the host's system, release, and
 machine, measured once per batch; `--regrade` keeps the recorded value. Identity hashes say two runs
@@ -615,16 +618,19 @@ Every trial points `CLAUDE_CONFIG_DIR` at a temporary directory holding only the
 credential, rebuilds the child environment from an allowlist so unrelated host tokens cannot reach
 model-invoked tools, and runs from a temporary git root outside this repository so the repo's own
 `AGENTS.md`, `CLAUDE.md`, and local settings cannot teach a routing trial the answer. `--plugin-dir`
-loads the supplied checkout directly. The runner checks its digest before execution, after the
-model returns, and after plugin-dependent grading;
+and `--add-dir` name an image of the measured plugin inputs, staged beside that git root and
+recorded as `plugin_served_from`, never the checkout itself: a session can read the shipped skills
+but not this repository's evals, docs or history (`EVAL-014`); a regrade restages the image at the
+recorded path while it runs. The runner checks the checkout's digest before execution, after the
+model returns, and after plugin-dependent grading, and the image's beside it;
 a change makes the trial INCONCLUSIVE, and a mismatch with the batch digest prevents the model call.
 These checks detect persistent changes, not a transient edit restored between checks; keep the
 candidate checkout stable for the batch. Strict MCP mode supplies an explicit empty server set.
-Runtime init must report exactly one plugin with that checkout's identity and
+Runtime init must report exactly one plugin with that image's identity and
 exactly the requested tool inventory, and the trace must name the model it ran on; a missing or
 foreign tool, an MCP server, a trace that names no model, an error result, a
 nonzero exit, or — where reads were granted — a successful read outside the workspace and plugin
-snapshot makes the trial **INCONCLUSIVE**, never a verdict. An auth failure aborts the batch.
+image makes the trial **INCONCLUSIVE**, never a verdict. An auth failure aborts the batch.
 
 Those run-level failures mark every check INCONCLUSIVE, so nothing observed under the wrong plugin,
 model or tools counts. A trial whose identity is wrong — its tool inventory, plugin or model, or
@@ -712,8 +718,9 @@ own. The new-system pair also requires `obs-alerting` before its paging rule. Th
 positives cover a new-service design assignment, a builder's returned fork, and a multi-year
 platform selection; four negatives require
 reliability assessments, small tool builds, an independent review of a design document, and the
-fleet's own workflow-graph design to reach their own lanes. The design-review negative cannot pass
-reliably until `EVAL-014` stops routing trials from reading the measured checkout. `python -m pytest
+fleet's own workflow-graph design to reach their own lanes. The design-review negative asks about
+consumers its empty workspace lacks, so sessions search first and answer inline instead of
+dispatching `reviewer` (`EVAL-016`). `python -m pytest
 evals/test_principal_cases.py` calibrates them offline; design quality needs document review, and
 native acceptance stays open under `PRINCIPAL-001`.
 

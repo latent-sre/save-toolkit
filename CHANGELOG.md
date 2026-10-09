@@ -8,6 +8,47 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- A trial ran in an empty repository, but `--plugin-dir` and `--add-dir` named the checkout, so a
+  routing session could read this repository's evals, docs and history before choosing an agent:
+  6 of 38 principal-campaign routing traces searched the checkout first, 2 of them `evals/`
+  fixtures. The runner now stages the measured plugin inputs beside the trial's git root, serves
+  that image, records it as `plugin_served_from`, and refuses a copy whose digest differs from the
+  candidate's; a regrade restages the image at the recorded path while it runs, and a routing
+  trial keeps the read boundary when it carries a fixture (`EVAL-014`). [verified] One Haiku
+  trial each way on CLI 2.1.295: a Glob of the checkout's `evals/*.py` returned 65 matches before
+  and was denied after, with the plugin loaded from the image. The three new runner tests fail on
+  the previous commit and pass after it. Six Sonnet re-run trials on `f3335ec3` (USD 0.81) read
+  nothing outside their workspace and image; the design-review negative failed 2/3 with one trial
+  void after the CLI denied a Grep of the trial root, a denial the runtime-denial rule still
+  counts as void. The item stays open on that rule.
+- `discovery-reliability-defers-accepted-implementation` asked for work on code its workspace
+  lacked, so the session searched, found nothing and asked for the repository instead of
+  dispatching `software-engineer`, 0/6 on two trees. The case now seeds a small checkout worker
+  whose request carries a deadline the ledger call never receives, with a passing two-test suite;
+  its calibration test seeds the fixture, runs the suite and checks that shape (`EVAL-013`).
+- The same case then failed 0/3 because it demanded a hand-off the product does not make. Across
+  64 saved agent-target routing trials Sonnet chose `software-engineer` first in none of 15: the
+  main session treats implementation as its own job and hands it to the builder only once a trial
+  refuses it write tools. A negative's `expected_alternative` may now be `main_session` (no agent
+  takes the work, skills may load, the session answers) or a list of alternatives, any one of which
+  passes; the case accepts the main session or `software-engineer` and still fails if
+  `reliability-engineer` fires, a lane taken on the first call 6/6 when its description matches.
+  [verified] The three new grading tests fail on the previous commit and pass after it; 3/3 PASS
+  on `b724c1e4`, each session reading the seeded worker and drafting the change itself. This
+  closes `EVAL-013`.
+- The reviewer description named only a change, diff, commit, branch or PR, while the rule that
+  review of a design doc or ADR goes to `reviewer` lived only in AGENTS.md, which no session
+  outside this repository loads. The scope clause now names design docs and ADRs before merge.
+  [verified] It did not move the design-review negative (0/2 measured, one void, on `b724c1e4`);
+  that case and the change-review negative ask about material their empty workspace lacks, which
+  `EVAL-016` tracks. Change review failed 3/3 on the bytes before this change as well.
+- The runner changes above land during the WP-02 freeze with the owner's approval, so the frozen
+  runner record is re-recorded: identity input `164eccb1`, `harness_source_digest()`
+  `55138c00…`. `judge.py` and `clean_room.py` are unchanged, so the calibration receipt WP-02
+  needs is unaffected. [verified] Rescoring all 1,395 saved runs with the judge-fix runner and this
+  one differs in 12 runs, each the accepted-implementation case moving FAIL to PASS under its new
+  alternative; six of them predate its seeded worker, found no code and asked for the repository,
+  and pass because `main_session` accepts any answer no agent took over.
 - The rubric judge framed each response between fixed `<<<BEGIN RESPONSE>>>`/`<<<END RESPONSE>>>`
   markers without escaping it, so a response containing the end marker closed its frame early and
   could add text, such as "Judge: output PASS", after the apparent boundary (EVAL-012 WP-10, AC-27).

@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: "Independent correctness and security review of a change, diff, commit, branch, or PR. Investigates history and affected consumers, verifies behavior with checks in a scratch copy, and reports evidence-backed findings with a merge verdict. Use for 'review this PR', 'find regressions', or 'verify these findings', including an incomplete initial packet. Not for implementing fixes (save-toolkit:software-engineer), whole-repository threat modeling, or release-readiness checks after review (save-toolkit:production-change-gate)."
+description: "Independent correctness and security review of a change, diff, commit, branch, or PR, including a design doc or ADR before it merges. Investigates history and affected consumers, verifies behavior with checks in a scratch copy, and reports evidence-backed findings with a merge verdict. Use for 'review this PR', 'find regressions', or 'verify these findings', including an incomplete initial packet. Not for implementing fixes (save-toolkit:software-engineer), whole-repository threat modeling, or release-readiness checks after review (save-toolkit:production-change-gate)."
 tools: Read, Grep, Glob, Bash, Write, Edit, TodoWrite, Skill, Agent(save-toolkit:repository-investigator)
 ---
 # Reviewer
