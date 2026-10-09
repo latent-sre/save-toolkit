@@ -13,17 +13,19 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
-import tempfile
 from pathlib import Path
+from unittest import mock
 
 import clean_room
+import pytest
 
-_results: list[tuple[bool, str]] = []
+AUTH_SELECTORS = (*clean_room.API_KEY_ENV_VARS, *clean_room.CLOUD_AUTH_SELECTORS)
 
 
-def check(cond: bool, label: str) -> None:
-    _results.append((bool(cond), label))
-    print(f"  [{'PASS' if cond else 'FAIL'}] {label}")
+def claude_env(**values: str):
+    """The caller's environment without Claude auth selectors, plus `values`; restored on exit."""
+    kept = {name: value for name, value in os.environ.items() if name not in AUTH_SELECTORS}
+    return mock.patch.dict(os.environ, {**kept, **values}, clear=True)
 
 
 def _fake_home(tmp: Path) -> Path:
@@ -37,117 +39,68 @@ def _fake_home(tmp: Path) -> Path:
     return cfg
 
 
-def test_clean_env_copies_only_the_credentials() -> None:
-    with tempfile.TemporaryDirectory() as td:
-        cfg = _fake_home(Path(td))
-        os.environ["CLAUDE_CONFIG_DIR"] = str(cfg)
-        try:
-            with clean_room.clean_env() as env:
-                room = Path(env["CLAUDE_CONFIG_DIR"])
-                names = sorted(p.name for p in room.iterdir())
-                check(names == [clean_room.CREDENTIALS],
-                      f"clean room holds ONLY the credentials (got {names})")
-                check((room / clean_room.CREDENTIALS).read_text(encoding="utf-8") == '{"token": "secret"}',
-                      "credentials were copied, not fabricated")
-                check(not (room / "skills").exists(), "personal skills are NOT visible")
-                check(not (room / "agents").exists(), "personal agents are NOT visible")
-                check(not (room / "plugins").exists(), "installed plugins are NOT visible")
-                check(not (room / "CLAUDE.md").exists(), "personal CLAUDE.md is NOT visible")
-        finally:
-            del os.environ["CLAUDE_CONFIG_DIR"]
+def test_clean_env_copies_only_the_credentials(tmp_path) -> None:
+    with claude_env(CLAUDE_CONFIG_DIR=str(_fake_home(tmp_path))), clean_room.clean_env() as env:
+        room = Path(env["CLAUDE_CONFIG_DIR"])
+        names = sorted(p.name for p in room.iterdir())
+        # Personal skills, agents, plugins and CLAUDE.md are therefore NOT visible.
+        assert names == [clean_room.CREDENTIALS], f"clean room holds ONLY the credentials (got {names})"
+        assert (room / clean_room.CREDENTIALS).read_text(encoding="utf-8") == '{"token": "secret"}', \
+            "credentials were copied, not fabricated"
 
 
-def test_clean_env_is_removed_even_when_the_body_raises() -> None:
-    with tempfile.TemporaryDirectory() as td:
-        cfg = _fake_home(Path(td))
-        os.environ["CLAUDE_CONFIG_DIR"] = str(cfg)
-        room = None
-        try:
-            with clean_room.clean_env() as env:
-                room = Path(env["CLAUDE_CONFIG_DIR"])
-                raise RuntimeError("boom")
-        except RuntimeError:
-            pass
-        finally:
-            del os.environ["CLAUDE_CONFIG_DIR"]
-        check(room is not None and not room.exists(),
-              "the temp dir (which held an auth secret) is removed on exception")
+def test_clean_env_is_removed_even_when_the_body_raises(tmp_path) -> None:
+    with claude_env(CLAUDE_CONFIG_DIR=str(_fake_home(tmp_path))), pytest.raises(RuntimeError), \
+            clean_room.clean_env() as env:
+        room = Path(env["CLAUDE_CONFIG_DIR"])
+        raise RuntimeError("boom")
+    assert not room.exists(), "the temp dir (which held an auth secret) is removed on exception"
 
 
-def test_missing_credentials_raises_instead_of_running() -> None:
-    with tempfile.TemporaryDirectory() as td:
-        cfg = Path(td) / "cfg"
-        cfg.mkdir()  # exists, but no credentials
-        os.environ["CLAUDE_CONFIG_DIR"] = str(cfg)
-        try:
-            try:
-                with clean_room.clean_env():
-                    check(False, "clean_env must NOT yield without credentials")
-            except clean_room.AuthUnavailable as e:
-                check("no Claude credentials" in str(e), "AuthUnavailable names the problem")
-                check("no-route" in str(e),
-                      "the error explains WHY this is fatal (else it reads as a fake finding)")
-        finally:
-            del os.environ["CLAUDE_CONFIG_DIR"]
+def test_missing_credentials_raises_instead_of_running(tmp_path) -> None:
+    # tmp_path exists, but holds no credentials.
+    with claude_env(CLAUDE_CONFIG_DIR=str(tmp_path)), pytest.raises(clean_room.AuthUnavailable) as refused, \
+            clean_room.clean_env():
+        pytest.fail("clean_env must NOT yield without credentials")
+    assert "no Claude credentials" in str(refused.value), "AuthUnavailable names the problem"
+    assert "no-route" in str(refused.value), "the error explains WHY this is fatal (else it reads as a fake finding)"
 
 
-def test_api_key_auth_bypasses_the_credentials_file_requirement() -> None:
+def test_api_key_auth_bypasses_the_credentials_file_requirement(tmp_path) -> None:
     """[P2] ANTHROPIC_API_KEY (or Bedrock/Vertex) operators have NO ~/.claude/.credentials.json --
     not a missing one, a nonexistent concept -- yet `claude -p` works for them. clean_env() must not
     refuse them; it should skip the credential copy and still yield full isolation (empty temp dir)."""
-    with tempfile.TemporaryDirectory() as td:
-        cfg = Path(td) / "cfg"
-        cfg.mkdir()  # exists, but no credentials -- would normally raise AuthUnavailable
-        os.environ["CLAUDE_CONFIG_DIR"] = str(cfg)
-        os.environ["ANTHROPIC_API_KEY"] = "sk-test-not-a-real-key"
-        os.environ["GITHUB_TOKEN"] = "must-not-reach-model-tools"
-        try:
-            with clean_room.clean_env() as env:
-                room = Path(env["CLAUDE_CONFIG_DIR"])
-                check(room.is_dir(), "clean_env yields a temp dir even with no credentials file")
-                check(list(room.iterdir()) == [], "the temp dir is empty -- no credentials to copy")
-                check(env.get("ANTHROPIC_API_KEY") == "sk-test-not-a-real-key",
-                      "the selected Claude authentication variable is retained")
-                check("GITHUB_TOKEN" not in env, "unrelated host secrets are scrubbed from the child env")
-                check(bool(env.get("PATH")), "the executable PATH is retained")
-        except clean_room.AuthUnavailable:
-            check(False, "an API-key operator must NOT be refused for lacking a credentials file")
-        finally:
-            del os.environ["CLAUDE_CONFIG_DIR"]
-            del os.environ["ANTHROPIC_API_KEY"]
-            del os.environ["GITHUB_TOKEN"]
+    # tmp_path holds no credentials, which would normally raise AuthUnavailable.
+    with claude_env(CLAUDE_CONFIG_DIR=str(tmp_path), ANTHROPIC_API_KEY="sk-test-not-a-real-key",
+                    GITHUB_TOKEN="must-not-reach-model-tools"), clean_room.clean_env() as env:
+        room = Path(env["CLAUDE_CONFIG_DIR"])
+        assert room.is_dir(), "clean_env yields a temp dir even with no credentials file"
+        assert list(room.iterdir()) == [], "the temp dir is empty -- no credentials to copy"
+        assert env.get("ANTHROPIC_API_KEY") == "sk-test-not-a-real-key", \
+            "the selected Claude authentication variable is retained"
+        assert "GITHUB_TOKEN" not in env, "unrelated host secrets are scrubbed from the child env"
+        assert env.get("PATH"), "the executable PATH is retained"
 
 
-def test_subscriber_only_clean_env_rejects_api_key_auth() -> None:
-    with tempfile.TemporaryDirectory() as td:
-        cfg = _fake_home(Path(td))
-        os.environ["CLAUDE_CONFIG_DIR"] = str(cfg)
-        os.environ["ANTHROPIC_API_KEY"] = "must-not-be-used"
-        try:
-            try:
-                with clean_room.clean_env(subscriber_only=True):
-                    check(False, "subscriber-only clean_env must reject API key auth")
-            except clean_room.AuthUnavailable as exc:
-                check("subscriber" in str(exc), "subscriber-only rejection names the required auth mode")
-        finally:
-            del os.environ["CLAUDE_CONFIG_DIR"]
-            del os.environ["ANTHROPIC_API_KEY"]
+def test_subscriber_only_clean_env_rejects_api_key_auth(tmp_path) -> None:
+    with claude_env(CLAUDE_CONFIG_DIR=str(_fake_home(tmp_path)), ANTHROPIC_API_KEY="must-not-be-used"), \
+            pytest.raises(clean_room.AuthUnavailable, match="subscriber"), \
+            clean_room.clean_env(subscriber_only=True):
+        pytest.fail("subscriber-only clean_env must reject API key auth")
 
 
 def test_neutral_workspace_is_empty_outside_the_repository_and_removed() -> None:
-    room = None
     with clean_room.neutral_workspace() as workspace:
-        room = workspace
-        check(workspace.is_dir(), "neutral workspace exists during the trial")
-        check(sorted(path.name for path in workspace.iterdir()) == [".git"],
-              "neutral workspace contains only its git-root boundary")
-        check(not workspace.is_relative_to(Path.cwd()), "neutral workspace is outside the plugin repository")
+        assert workspace.is_dir(), "neutral workspace exists during the trial"
+        assert sorted(path.name for path in workspace.iterdir()) == [".git"], \
+            "neutral workspace contains only its git-root boundary"
+        assert not workspace.is_relative_to(Path.cwd()), "neutral workspace is outside the plugin repository"
         top = subprocess.run(
             ["git", "-C", str(workspace), "rev-parse", "--show-toplevel"],
             capture_output=True, text=True, check=True, encoding="utf-8", timeout=60,
         ).stdout.strip()
-        check(Path(top).resolve() == workspace.resolve(), "neutral workspace is its own git root")
-    check(room is not None and not room.exists(), "neutral workspace is removed after the trial")
+        assert Path(top).resolve() == workspace.resolve(), "neutral workspace is its own git root"
+    assert not workspace.exists(), "neutral workspace is removed after the trial"
 
 
 def test_instruction_bearing_ancestor_finds_the_nearest_file_above_a_workspace() -> None:
@@ -161,19 +114,18 @@ def test_instruction_bearing_ancestor_finds_the_nearest_file_above_a_workspace()
     try:
         deep = tmp / "a" / "b" / "c"
         deep.mkdir(parents=True)
-        assert clean_room.instruction_bearing_ancestor(deep) is None, "the guaranteed-clean root must read clean"
-        check(True, "a clean chain under workspace_root() reports no instruction ancestor")
+        assert clean_room.instruction_bearing_ancestor(deep) is None, \
+            "a clean chain under workspace_root() reports no instruction ancestor"
 
         far = tmp / "a" / "CLAUDE.md"
         far.write_text("personal rules\n", encoding="utf-8")
-        assert clean_room.instruction_bearing_ancestor(deep) == far, "must find a grandparent's CLAUDE.md"
-        check(True, "an ancestor CLAUDE.md two levels up is found")
+        assert clean_room.instruction_bearing_ancestor(deep) == far, "an ancestor CLAUDE.md two levels up is found"
 
         near = tmp / "a" / "b" / ".claude"
         near.mkdir()
         (near / "CLAUDE.md").write_text("nearer rules\n", encoding="utf-8")
-        assert clean_room.instruction_bearing_ancestor(deep) == near / "CLAUDE.md", "must prefer the nearest"
-        check(True, "the NEAREST instruction file wins, including the .claude/CLAUDE.md form")
+        assert clean_room.instruction_bearing_ancestor(deep) == near / "CLAUDE.md", \
+            "the NEAREST instruction file wins, including the .claude/CLAUDE.md form"
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
@@ -188,8 +140,8 @@ def test_instruction_bearing_ancestor_finds_hidden_agents_md_and_rules() -> None
             planted = tmp / "a" / relative
             planted.parent.mkdir(parents=True)
             planted.write_text("inherited instructions\n", encoding="utf-8")
-            assert clean_room.instruction_bearing_ancestor(deep) == planted, f"must find an ancestor {relative}"
-            check(True, f"an ancestor {relative.as_posix()} is found when it is the only instruction source")
+            assert clean_room.instruction_bearing_ancestor(deep) == planted, \
+                f"an ancestor {relative.as_posix()} is found when it is the only instruction source"
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 
@@ -202,35 +154,24 @@ def test_instruction_bearing_ancestor_finds_an_ancestor_claude_local_md() -> Non
         deep.mkdir(parents=True)
         local = tmp / "a" / "CLAUDE.local.md"
         local.write_text("personal project notes\n", encoding="utf-8")
-        assert clean_room.instruction_bearing_ancestor(deep) == local, "must find an ancestor CLAUDE.local.md"
-        check(True, "an ancestor CLAUDE.local.md is found when it is the only instruction file")
+        assert clean_room.instruction_bearing_ancestor(deep) == local, \
+            "an ancestor CLAUDE.local.md is found when it is the only instruction file"
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
 
-def test_workspace_root_refuses_a_contaminated_override() -> None:
+def test_workspace_root_refuses_a_contaminated_override(tmp_path) -> None:
     """A refusal, not a silent measurement: the harness's rule applied to its own workspace."""
-    with tempfile.TemporaryDirectory() as raw:
-        tmp = Path(raw).resolve()
-        (tmp / "CLAUDE.md").write_text("personal rules\n", encoding="utf-8")
-        target = tmp / "workspaces"
-        target.mkdir()
-        previous = os.environ.get(clean_room.WORKSPACE_ROOT_ENV)
-        os.environ[clean_room.WORKSPACE_ROOT_ENV] = str(target)
-        try:
-            clean_room.workspace_root()
-        except clean_room.RunnerFailed as exc:
-            message = str(exc)
-            assert "CLAUDE.md" in message, message
-            assert clean_room.WORKSPACE_ROOT_ENV in message, message
-            check(True, "a contaminated workspace root is refused, naming the file and the override")
-        else:
-            raise AssertionError("workspace_root() accepted a root with an ancestor CLAUDE.md")
-        finally:
-            if previous is None:
-                os.environ.pop(clean_room.WORKSPACE_ROOT_ENV, None)
-            else:
-                os.environ[clean_room.WORKSPACE_ROOT_ENV] = previous
+    tmp = tmp_path.resolve()
+    (tmp / "CLAUDE.md").write_text("personal rules\n", encoding="utf-8")
+    target = tmp / "workspaces"
+    target.mkdir()
+    with mock.patch.dict(os.environ, {clean_room.WORKSPACE_ROOT_ENV: str(target)}), \
+            pytest.raises(clean_room.RunnerFailed) as refused:
+        clean_room.workspace_root()
+    # A contaminated workspace root is refused, naming the file and the override.
+    assert "CLAUDE.md" in str(refused.value)
+    assert clean_room.WORKSPACE_ROOT_ENV in str(refused.value)
 
 
 def test_make_workspace_has_no_instruction_bearing_ancestor() -> None:
@@ -244,7 +185,6 @@ def test_make_workspace_has_no_instruction_bearing_ancestor() -> None:
     try:
         offender = clean_room.instruction_bearing_ancestor(workspace)
         assert offender is None, f"{workspace} would inherit {offender}"
-        check(True, "make_workspace() yields a path with no instruction file at or above it")
     finally:
         workspace.rmdir()
 
@@ -256,9 +196,9 @@ def test_is_auth_failure_recognises_a_real_not_logged_in_trace() -> None:
     # doesn't mask it.
     assistant = '{"type":"assistant","error":"authentication_failed"}'
     result = '{"type":"result","subtype":"success","is_error":true,"result":"Not logged in \\u00b7 Please run /login"}'
-    check(clean_room.is_auth_failure(assistant, returncode=1), "detects error=authentication_failed")
-    check(clean_room.is_auth_failure(result, returncode=1), "detects the 'Not logged in' result text")
-    check(clean_room.is_auth_failure(assistant + "\n" + result, returncode=1), "detects it in a full trace")
+    assert clean_room.is_auth_failure(assistant, returncode=1), "detects error=authentication_failed"
+    assert clean_room.is_auth_failure(result, returncode=1), "detects the 'Not logged in' result text"
+    assert clean_room.is_auth_failure(assistant + "\n" + result, returncode=1), "detects it in a full trace"
 
 
 def test_is_auth_failure_does_not_fire_on_a_healthy_trace() -> None:
@@ -268,7 +208,7 @@ def test_is_auth_failure_does_not_fire_on_a_healthy_trace() -> None:
         '"input":{"skill":"sde-ladder"}}]}}\n'
         '{"type":"result","subtype":"success","is_error":false,"result":"done"}'
     )
-    check(not clean_room.is_auth_failure(healthy, returncode=0), "no false positive on a healthy trace")
+    assert not clean_room.is_auth_failure(healthy, returncode=0), "no false positive on a healthy trace"
 
 
 def test_is_auth_failure_is_gated_on_exit_code_not_just_text() -> None:
@@ -284,40 +224,9 @@ def test_is_auth_failure_is_gated_on_exit_code_not_just_text() -> None:
         '{"type":"result","subtype":"success","is_error":false,'
         '"result":"the log shows: Not logged in \\u00b7 Please run /login"}'
     )
-    check(
-        not clean_room.is_auth_failure(healthy_but_mentions_the_marker, returncode=0),
-        "a healthy (rc=0) trace that quotes 'Not logged in' in its own text is NOT flagged",
-    )
-
-
-def main() -> int:
-    tests = [
-        test_clean_env_copies_only_the_credentials,
-        test_clean_env_is_removed_even_when_the_body_raises,
-        test_missing_credentials_raises_instead_of_running,
-        test_api_key_auth_bypasses_the_credentials_file_requirement,
-        test_subscriber_only_clean_env_rejects_api_key_auth,
-        test_neutral_workspace_is_empty_outside_the_repository_and_removed,
-        test_instruction_bearing_ancestor_finds_the_nearest_file_above_a_workspace,
-        test_instruction_bearing_ancestor_finds_an_ancestor_claude_local_md,
-        test_instruction_bearing_ancestor_finds_hidden_agents_md_and_rules,
-        test_workspace_root_refuses_a_contaminated_override,
-        test_make_workspace_has_no_instruction_bearing_ancestor,
-        test_is_auth_failure_recognises_a_real_not_logged_in_trace,
-        test_is_auth_failure_does_not_fire_on_a_healthy_trace,
-        test_is_auth_failure_is_gated_on_exit_code_not_just_text,
-    ]
-    for t in tests:
-        t()
-    passed = sum(1 for ok, _ in _results if ok)
-    total = len(_results)
-    print(f"\ntest_clean_room: {passed}/{total} checks passed.")
-    if passed != total:
-        print("FAILED")
-        return 1
-    print("OK")
-    return 0
+    assert not clean_room.is_auth_failure(healthy_but_mentions_the_marker, returncode=0), \
+        "a healthy (rc=0) trace that quotes 'Not logged in' in its own text is NOT flagged"
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(pytest.main([__file__, "-q", "-p", "no:cacheprovider"]))
