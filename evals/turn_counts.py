@@ -11,13 +11,13 @@ were retained attempts, and the longest trial in seconds. A native conversation'
 invocations and its stream's last count is not an exact provider-turn count, so read it as an upper
 estimate. A named scenario with no saved trial is listed with zero trials rather than left out.
 
-Exit 0 once the report is printed and 3 when RUNS_ROOT is not a directory. It reads and grades
-nothing else, so, like the run comparison, it sits outside the runner's identity.
+Exit 0 once the report is printed and 3 when RUNS_ROOT is not a directory or the command line is
+wrong. It reads and grades nothing else, so, like the run comparison, it sits outside the runner's
+identity.
 """
 
 from __future__ import annotations
 
-import argparse
 import json
 import statistics
 import sys
@@ -25,6 +25,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from probe import layout
+from probe.exits import ExitCode, UsageParser
 
 
 @dataclass
@@ -102,15 +103,15 @@ def report(observed: dict[str, Observed]) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Summarize saved trials' turn counts per scenario.")
+    parser = UsageParser(description="Summarize saved trials' turn counts per scenario.")
     parser.add_argument("runs_root", type=Path, help="a run folder or the whole .eval-runs tree")
     parser.add_argument("--scenario", action="append", default=[], help="limit to this scenario id (repeatable)")
     args = parser.parse_args(argv)
     if not args.runs_root.is_dir():
         print(f"{args.runs_root}: not a directory", file=sys.stderr)
-        return 3
+        return ExitCode.REFUSED
     print(report(collect(args.runs_root, set(args.scenario))))
-    return 0
+    return ExitCode.OK
 
 
 if __name__ == "__main__":
