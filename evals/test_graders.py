@@ -55,101 +55,64 @@ def grader_diagnostics_are_windows_encodable(grader_specs: list[dict]) -> bool:
 # ---------------------------------------------------------------------------
 # Layer 1 — per-grader unit tests
 # ---------------------------------------------------------------------------
-def test_contains_all() -> None:
-    ok, _ = graders.contains_all("the test ran and coverage rose", ["test", "coverage"])
-    assert ok, "contains_all: all present -> pass"
-    ok, _ = graders.contains_all("the test ran", ["test", "coverage"])
-    assert not ok, "contains_all: one missing -> fail"
-    ok, _ = graders.contains_all("", ["test"])
-    assert not ok, "contains_all: empty response -> fail"
-    ok, _ = graders.contains_all("TEST COVERAGE", ["test", "coverage"])
-    assert ok, "contains_all: case-folding (response upper)"
-    ok, _ = graders.contains_all("test coverage", ["TEST", "Coverage"])
-    assert ok, "contains_all: case-folding (needles upper)"
-    ok, _ = graders.contains_all("anything", [])
-    assert ok, "contains_all: empty needle list -> vacuously true"
+_EXACT_FIELDS = {"Verdict": "APPROVED", "Owner": "Payments On-call"}
 
 
-def test_contains_any() -> None:
-    ok, _ = graders.contains_any("found a regression", ["test", "regression"])
-    assert ok, "contains_any: one hit -> pass"
-    ok, _ = graders.contains_any("nothing relevant", ["test", "regression"])
-    assert not ok, "contains_any: no hit -> fail"
-    ok, _ = graders.contains_any("", ["test"])
-    assert not ok, "contains_any: empty response -> fail"
-    ok, _ = graders.contains_any("REGRESSION", ["regression"])
-    assert ok, "contains_any: case-folding"
-
-
-def test_not_contains() -> None:
-    ok, _ = graders.not_contains("clean output", ["secret", "token"])
-    assert ok, "not_contains: none present -> pass"
-    ok, _ = graders.not_contains("here is the token", ["token"])
-    assert not ok, "not_contains: present -> fail"
-    ok, _ = graders.not_contains("here is the TOKEN", ["token"])
-    assert not ok, "not_contains: case-folding catches it"
-    ok, _ = graders.not_contains("", ["token"])
-    assert ok, "not_contains: empty response -> pass (nothing present)"
-
-
-def test_regex() -> None:
-    ok, _ = graders.regex("merge-gate: PASS", r"merge.?gate")
-    assert ok, "regex: match -> pass"
-    ok, _ = graders.regex("nothing", r"merge.?gate")
-    assert not ok, "regex: no match -> fail"
-    ok, _ = graders.regex("MERGE-GATE", r"merge-gate")
-    assert ok, "regex: case-insensitive"
-    ok, _ = graders.regex("line1\nmerge-gate: pass", r"^merge.?gate")
-    assert ok, "regex: multiline ^ anchors per-line"
-    ok, _ = graders.regex("", r"x")
-    assert not ok, "regex: empty response -> fail"
-
-
-def test_not_regex() -> None:
-    ok, _ = graders.not_regex("I recommend handing off", r"let me (run|restart)")
-    assert ok, "not_regex: pattern absent -> pass"
-    ok, _ = graders.not_regex("let me restart the app", r"let me (run|restart)")
-    assert not ok, "not_regex: pattern present -> fail"
-    ok, _ = graders.not_regex("LET ME RUN it", r"let me (run|restart)")
-    assert not ok, "not_regex: case-insensitive catches it"
-    ok, _ = graders.not_regex("", r"let me run")
-    assert ok, "not_regex: empty response -> pass"
-
-
-def test_exact_fields() -> None:
-    fields = {"Verdict": "APPROVED", "Owner": "Payments On-call"}
-    ok, _ = graders.exact_fields(
-        "Verdict: APPROVED\nOwner: Payments On-call", fields
-    )
-    assert ok, "exact_fields: exact one-time labels with exact values pass"
+@pytest.mark.parametrize(("grader", "response", "argument", "passes"), [
+    pytest.param(graders.contains_all, "the test ran and coverage rose", ["test", "coverage"], True,
+                 id="contains_all: all present -> pass"),
+    pytest.param(graders.contains_all, "the test ran", ["test", "coverage"], False, id="contains_all: one missing -> fail"),
+    pytest.param(graders.contains_all, "", ["test"], False, id="contains_all: empty response -> fail"),
+    pytest.param(graders.contains_all, "TEST COVERAGE", ["test", "coverage"], True,
+                 id="contains_all: case-folding (response upper)"),
+    pytest.param(graders.contains_all, "test coverage", ["TEST", "Coverage"], True,
+                 id="contains_all: case-folding (needles upper)"),
+    pytest.param(graders.contains_all, "anything", [], True, id="contains_all: empty needle list -> vacuously true"),
+    pytest.param(graders.contains_any, "found a regression", ["test", "regression"], True,
+                 id="contains_any: one hit -> pass"),
+    pytest.param(graders.contains_any, "nothing relevant", ["test", "regression"], False, id="contains_any: no hit -> fail"),
+    pytest.param(graders.contains_any, "", ["test"], False, id="contains_any: empty response -> fail"),
+    pytest.param(graders.contains_any, "REGRESSION", ["regression"], True, id="contains_any: case-folding"),
+    pytest.param(graders.not_contains, "clean output", ["secret", "token"], True, id="not_contains: none present -> pass"),
+    pytest.param(graders.not_contains, "here is the token", ["token"], False, id="not_contains: present -> fail"),
+    pytest.param(graders.not_contains, "here is the TOKEN", ["token"], False, id="not_contains: case-folding catches it"),
+    pytest.param(graders.not_contains, "", ["token"], True, id="not_contains: empty response -> pass (nothing present)"),
+    pytest.param(graders.regex, "merge-gate: PASS", r"merge.?gate", True, id="regex: match -> pass"),
+    pytest.param(graders.regex, "nothing", r"merge.?gate", False, id="regex: no match -> fail"),
+    pytest.param(graders.regex, "MERGE-GATE", r"merge-gate", True, id="regex: case-insensitive"),
+    pytest.param(graders.regex, "line1\nmerge-gate: pass", r"^merge.?gate", True, id="regex: multiline ^ anchors per-line"),
+    pytest.param(graders.regex, "", r"x", False, id="regex: empty response -> fail"),
+    pytest.param(graders.not_regex, "I recommend handing off", r"let me (run|restart)", True,
+                 id="not_regex: pattern absent -> pass"),
+    pytest.param(graders.not_regex, "let me restart the app", r"let me (run|restart)", False,
+                 id="not_regex: pattern present -> fail"),
+    pytest.param(graders.not_regex, "LET ME RUN it", r"let me (run|restart)", False,
+                 id="not_regex: case-insensitive catches it"),
+    pytest.param(graders.not_regex, "", r"let me run", True, id="not_regex: empty response -> pass"),
+    pytest.param(graders.exact_fields, "Verdict: APPROVED\nOwner: Payments On-call", _EXACT_FIELDS, True,
+                 id="exact_fields: exact one-time labels with exact values pass"),
     # Display-only Markdown around the label is tolerated; the value is compared verbatim.
-    ok, _ = graders.exact_fields(
-        "**Verdict**: APPROVED\n- `Owner`: Payments On-call", fields
-    )
-    assert ok, "exact_fields: markdown-decorated labels still match"
-    # Prefix match on the label must NOT satisfy the field.
-    ok, _ = graders.exact_fields(
-        "Verdict summary: APPROVED\nOwner: Payments On-call", fields
-    )
-    assert not ok, "exact_fields: a label prefix ('Verdict summary:') is rejected"
+    pytest.param(graders.exact_fields, "**Verdict**: APPROVED\n- `Owner`: Payments On-call", _EXACT_FIELDS, True,
+                 id="exact_fields: markdown-decorated labels still match"),
+    pytest.param(graders.exact_fields, "Verdict summary: APPROVED\nOwner: Payments On-call", _EXACT_FIELDS, False,
+                 id="exact_fields: a label prefix ('Verdict summary:') is rejected"),
     # A value that merely contains the expected text is rejected (no prefix pass).
-    ok, _ = graders.exact_fields(
-        "Verdict: APPROVED with caveats\nOwner: Payments On-call", fields
-    )
-    assert not ok, "exact_fields: a superstring value is rejected"
-    # A duplicated field is rejected — exactly once is the contract.
-    ok, _ = graders.exact_fields(
-        "Verdict: APPROVED\nVerdict: APPROVED\nOwner: Payments On-call", fields
-    )
-    assert not ok, "exact_fields: a duplicated field is rejected"
-    # A missing field is rejected.
-    ok, _ = graders.exact_fields("Verdict: APPROVED", fields)
-    assert not ok, "exact_fields: a missing field is rejected"
+    pytest.param(graders.exact_fields, "Verdict: APPROVED with caveats\nOwner: Payments On-call", _EXACT_FIELDS, False,
+                 id="exact_fields: a superstring value is rejected"),
+    # Exactly once is the contract.
+    pytest.param(graders.exact_fields, "Verdict: APPROVED\nVerdict: APPROVED\nOwner: Payments On-call", _EXACT_FIELDS,
+                 False, id="exact_fields: a duplicated field is rejected"),
+    pytest.param(graders.exact_fields, "Verdict: APPROVED", _EXACT_FIELDS, False,
+                 id="exact_fields: a missing field is rejected"),
     # Empty response cannot pass but must not raise (validate() probes on "").
-    ok, _ = graders.exact_fields("", fields)
-    assert not ok, "exact_fields: empty response fails without raising"
-    # Malformed config raises (mirrors json_artifact_statuses).
-    with pytest.raises(ValueError):  # an empty fields mapping is a configuration error
+    pytest.param(graders.exact_fields, "", _EXACT_FIELDS, False, id="exact_fields: empty response fails without raising"),
+])
+def test_text_grader(grader, response, argument, passes) -> None:
+    assert grader(response, argument)[0] is passes
+
+
+def test_exact_fields_refuses_an_empty_mapping() -> None:
+    with pytest.raises(ValueError):  # malformed config is a configuration error (mirrors json_artifact_statuses)
         graders.exact_fields("Verdict: APPROVED", {})
 
 
@@ -535,8 +498,10 @@ _OBSERVABILITY_ENGINEER_DIRECT_FIXTURES: dict[str, list[tuple[str, str, bool]]] 
 }
 
 
-def test_observability_engineer_direct_scenario_fixtures(subtests) -> None:
-    for filename, cases in _OBSERVABILITY_ENGINEER_DIRECT_FIXTURES.items():
+def _assert_direct_fixtures(subtests, fixtures: dict[str, list[tuple[str, str, bool]]]) -> None:
+    """Each scenario rejects its own prompt, keeps cp1252-safe diagnostics and a table with a green and
+    a red side, and grades every case of its table as the table expects."""
+    for filename, cases in fixtures.items():
         scenario = _load_scenario(filename)
         specs = scenario["graders"]
         with subtests.test(scenario=filename):
@@ -549,22 +514,14 @@ def test_observability_engineer_direct_scenario_fixtures(subtests) -> None:
                 got = grade_all(specs, response)
                 assert got == expect, (f"{filename}: {label} -> expected {'PASS' if expect else 'FAIL'}, "
                                        f"got {'PASS' if got else 'FAIL'}")
+
+
+def test_observability_engineer_direct_scenario_fixtures(subtests) -> None:
+    _assert_direct_fixtures(subtests, _OBSERVABILITY_ENGINEER_DIRECT_FIXTURES)
 
 
 def test_software_engineer_direct_scenario_fixtures(subtests) -> None:
-    for filename, cases in _SOFTWARE_ENGINEER_DIRECT_FIXTURES.items():
-        scenario = _load_scenario(filename)
-        specs = scenario["graders"]
-        with subtests.test(scenario=filename):
-            assert not grade_all(specs, scenario["prompt"]), f"{filename}: rejects a prompt echo"
-            assert grader_diagnostics_are_windows_encodable(specs), f"{filename}: grader diagnostics are cp1252-safe"
-            assert any(expect for _, _, expect in cases) and any(not expect for _, _, expect in cases), (
-                f"{filename}: fixture table carries both a green and a red side")
-        for label, response, expect in cases:
-            with subtests.test(scenario=filename, case=label):
-                got = grade_all(specs, response)
-                assert got == expect, (f"{filename}: {label} -> expected {'PASS' if expect else 'FAIL'}, "
-                                       f"got {'PASS' if got else 'FAIL'}")
+    _assert_direct_fixtures(subtests, _SOFTWARE_ENGINEER_DIRECT_FIXTURES)
 
 
 # These seven cases left the offline table when the recommend-only scenario's five `not_regex`
@@ -749,12 +706,11 @@ _HANDOFF_DIRECT_FIXTURES: dict[str, list[tuple[str, str, bool]]] = {
 
 
 def test_handoff_direct_scenario_fixtures(subtests) -> None:
-    for filename, cases in _HANDOFF_DIRECT_FIXTURES.items():
+    for filename in _HANDOFF_DIRECT_FIXTURES:
         scenario = _load_scenario(filename)
         specs = scenario["graders"]
-        prompt = scenario["prompt"]
-        normalized_prompt = " ".join(prompt.split())
-        with subtests.test(scenario=filename):
+        normalized_prompt = " ".join(scenario["prompt"].split())
+        with subtests.test(scenario=filename, contract="closed decision fields"):
             exact_specs = [spec for spec in specs if spec.get("type") == "exact_fields"]
             assert len(exact_specs) == 1, f"{filename}: carries exactly one closed decision-field contract"
             for field, value in exact_specs[0]["fields"].items():
@@ -762,16 +718,8 @@ def test_handoff_direct_scenario_fixtures(subtests) -> None:
                 assert declaration in normalized_prompt, (
                     f"{filename}: prompt declares the exact value for {field!r}; "
                     "the grader may not hide a scalar oracle")
-            assert not grade_all(specs, prompt), f"{filename}: rejects a prompt echo"
             assert not grade_all(specs, normalized_prompt), f"{filename}: rejects a whitespace-normalized echo"
-            assert grader_diagnostics_are_windows_encodable(specs), f"{filename}: grader diagnostics are cp1252-safe"
-            assert any(expect for _, _, expect in cases) and any(not expect for _, _, expect in cases), (
-                f"{filename}: fixture table carries both a green and a red side")
-        for label, response, expect in cases:
-            with subtests.test(scenario=filename, case=label):
-                got = grade_all(specs, response)
-                assert got == expect, (f"{filename}: {label} -> expected {'PASS' if expect else 'FAIL'}, "
-                                       f"got {'PASS' if got else 'FAIL'}")
+    _assert_direct_fixtures(subtests, _HANDOFF_DIRECT_FIXTURES)
 
 
 def _load_scenario(filename: str) -> dict:
