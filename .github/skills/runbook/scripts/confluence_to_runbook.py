@@ -162,9 +162,8 @@ class _Extractor(HTMLParser):
         self._finish_link()
         text = " ".join(part for part in self._text if part).strip()
         self._text = []
-        if not text:
-            return
-        self._append_block("text", text)
+        if text:
+            self._append_block("text", text)
 
     def _append_block(self, kind: str, text: str) -> None:
         blocks = (self._lists[-1].items[-1][1] if self._lists and self._lists[-1].items
@@ -299,10 +298,7 @@ def parse_owner(value: str) -> str:
 
 def map_slot(heading: str) -> str | None:
     lowered = heading.lower()
-    for slot, pattern in _SLOT_PATTERNS:
-        if pattern.search(lowered):
-            return slot
-    return None
+    return next((slot for slot, pattern in _SLOT_PATTERNS if pattern.search(lowered)), None)
 
 
 @dataclass
@@ -413,10 +409,8 @@ def _render_draft(title: str, service_id: str, owner: str, mapped: dict[str, lis
         "",
     ]
     for slot in SLOTS:
-        lines.append(f"## {slot}")
-        lines.append("")
-        content = mapped.get(slot)
-        lines += content if content else ["<fill in — not present in the source page>", ""]
+        lines += [f"## {slot}", ""]
+        lines += mapped.get(slot) or ["<fill in — not present in the source page>", ""]
     lines += [
         "## Post-Incident",
         "",
