@@ -1111,42 +1111,55 @@ def rooted_reads(source: Source) -> tuple[tuple[str, tuple[Span, ...]], ...]:
     return tuple(sorted(found.items()))
 
 
-def _relations(corpus, records):
-    sources = corpus.by_path
-    by_id = {r.node.id: r for r in records}
-    by_path = {}
-    for r in records:
-        by_path.setdefault(r.node.path, []).append(r)
-    index = NodeIndex(tuple(r.node for r in records))
-    facts = {}
-    def add(fact):
-        previous = facts.get(fact.id)
+class _Relations:
+    """The relationship pass's shared state over one derivation's records.
+
+    Emitters add facts only through edge() and unknown(): repeated claims merge their
+    witnesses, and a conflicting claim under the same identity fails the derivation.
+    """
+
+    def __init__(self, corpus, records):
+        self.corpus = corpus
+        self.sources = corpus.by_path
+        self.records = records
+        self.by_id = {r.node.id: r for r in records}
+        self.by_path = {}
+        for r in records:
+            self.by_path.setdefault(r.node.path, []).append(r)
+        self.index = NodeIndex(tuple(r.node for r in records))
+        self.facts = {}
+
+    def add(self, fact):
+        previous = self.facts.get(fact.id)
         if previous and previous != fact:
             if (previous.subject, previous.predicate, previous.object, previous.qualifiers, previous.evidence_class, previous.proof.kind) != (fact.subject, fact.predicate, fact.object, fact.qualifiers, fact.evidence_class, fact.proof.kind):
                 raise ValueError(f'conflicting extracted relationship: {fact.id}')
             fact = Fact(fact.id, fact.subject, fact.predicate, fact.object, fact.evidence_class,
                         Proof(fact.proof.kind, spans(previous.proof.inputs, fact.proof.inputs), EVALUATOR, fact.proof.scope_digest), fact.qualifiers)
-        facts[fact.id] = fact
-    def edge(kind, subject, target, proof, *, attrs=None, key='', cls=EC.EXTRACTED, proof_kind=None):
-        if subject not in by_id or target not in by_id:
+        self.facts[fact.id] = fact
+
+    def edge(self, kind, subject, target, proof, *, attrs=None, key='', cls=EC.EXTRACTED, proof_kind=None):
+        if subject not in self.by_id or target not in self.by_id:
             return
         if attrs and 'anchor' in attrs:
             # A section-scoped claim and a bare file claim are different facts;
             # repeated links to the same section still merge all their witnesses.
             key += '#anchor=' + attrs['anchor']
         proof_kind = proof_kind or (PK.INFERRED if cls == EC.INFERRED else PK.JOINED if len({p.path for p in proof}) > 1 else PK.EXTRACTED)
-        add(Fact(stable_id('edge', kind, subject, target, key), subject, kind, target, cls,
-                 Proof(proof_kind, spans(proof), EVALUATOR), freeze(attrs or {})))
-    def unknown(subject, code, message, proof, needed, *, absence=False):
-        add(Fact(stable_id('unknown', code, subject, message), subject, 'unknown', message, EC.UNKNOWN,
-                 Proof(PK.ABSENCE if absence else PK.COMPUTED, spans(proof), EVALUATOR,
-                       corpus.snapshot.tree_digest if absence else None), freeze({'code': code, 'neededEvidence': needed, 'path': by_id[subject].node.path})))
-    def resolve(source, raw, *, types=None):
-        hit = resolved_link(source, raw, sources)
+        self.add(Fact(stable_id('edge', kind, subject, target, key), subject, kind, target, cls,
+                      Proof(proof_kind, spans(proof), EVALUATOR), freeze(attrs or {})))
+
+    def unknown(self, subject, code, message, proof, needed, *, absence=False):
+        self.add(Fact(stable_id('unknown', code, subject, message), subject, 'unknown', message, EC.UNKNOWN,
+                      Proof(PK.ABSENCE if absence else PK.COMPUTED, spans(proof), EVALUATOR,
+                            self.corpus.snapshot.tree_digest if absence else None), freeze({'code': code, 'neededEvidence': needed, 'path': self.by_id[subject].node.path})))
+
+    def resolve(self, source, raw, *, types=None):
+        hit = resolved_link(source, raw, self.sources)
         if not hit:
             return None
         path, fragment = hit
-        candidates = [r for r in by_path.get(path, ()) if not types or r.node.type in types]
+        candidates = [r for r in self.by_path.get(path, ()) if not types or r.node.type in types]
         if fragment:
             matches = [r for r in candidates if fragment in (r.node.selector, r.node.id, anchor(r.name))
                        or (r.node.type == 'roadmap-item' and fragment.startswith(r.name.lower() + '-'))]
@@ -1156,8 +1169,8 @@ def _relations(corpus, records):
                 return matches[0]
             # A real section of an otherwise whole-document entity remains that
             # entity, with the exact selector witness retained in its edge proof.
-            target_source = sources[path]
-            headings = corpus.headings(target_source)
+            target_source = self.sources[path]
+            headings = self.corpus.headings(target_source)
             whole_candidates = [r for r in candidates if r.node.selector == WHOLE_DOCUMENT]
             if fragment in headings and len(whole_candidates) == 1:
                 target = whole_candidates[0]
@@ -1167,157 +1180,211 @@ def _relations(corpus, records):
         if types and len(candidates) == 1:
             return candidates[0]
         try:
-            return by_id[index.resolve(NodeRef(path, None, WHOLE_DOCUMENT)).id]
+            return self.by_id[self.index.resolve(NodeRef(path, None, WHOLE_DOCUMENT)).id]
         except ValueError:
             return None
-    roadmap = sources.get('docs/fleet-roadmap.md')
-    for record in records:
-        node = record.node
-        source = sources.get(node.path)
-        if source is None:
+
+    def result(self):
+        return tuple(self.facts[key] for key in sorted(self.facts))
+
+
+def _agent_method_edges(rel, record, source):
+    """A method table or Load line selecting a skill for a stated condition."""
+    node, by_id = record.node, rel.by_id
+    load_columns, header_line, inferred_method = (), None, False
+    for i, line in enumerate(source.lines, 1):
+        stripped = line.strip()
+        if stripped.startswith('|') and i < len(source.lines) and SEPARATOR.match(source.lines[i].strip()):
+            headers = [plain(cell) for cell in table_cells(line)]
+            load_columns = tuple(j for j, header in enumerate(headers) if re.search(r'\b(?:load|skill|method)\b', header, re.I))
+            inferred_method = not any(re.search(r'\b(?:load|skill)\b', headers[j], re.I) for j in load_columns)
+            header_line = i
             continue
-        if node.type == 'agent':
-            load_columns, header_line, inferred_method = (), None, False
-            for i, line in enumerate(source.lines, 1):
-                stripped = line.strip()
-                if stripped.startswith('|') and i < len(source.lines) and SEPARATOR.match(source.lines[i].strip()):
-                    headers = [plain(cell) for cell in table_cells(line)]
-                    load_columns = tuple(j for j, header in enumerate(headers) if re.search(r'\b(?:load|skill|method)\b', header, re.I))
-                    inferred_method = not any(re.search(r'\b(?:load|skill)\b', headers[j], re.I) for j in load_columns)
-                    header_line = i
-                    continue
-                if not stripped.startswith('|'):
-                    load_columns, header_line = (), None
-                if load_columns and _table_data(source.lines, i):
-                    cells = table_cells(line)
-                    selected = ' '.join(cells[j] for j in load_columns if j < len(cells))
-                    condition = plain(cells[0])
-                    proof = (source.span(header_line, header_line), source.span(i, i))
-                elif re.match(r'^Load\s+`', stripped):
-                    selected, condition, proof = stripped, plain(stripped), (source.span(i, i),)
-                    inferred_method = False
-                else:
-                    continue
-                for name in re.findall(r'`([a-z][a-z0-9-]+)`', selected):
-                    target = f'skill:{name}'
-                    if target in by_id:
-                        edge('loads_when', node.id, target, spans(proof, by_id[target].spans),
-                             key=condition, attrs={'predicate': condition, 'via': 'agent-method'},
-                             cls=EC.INFERRED if inferred_method else EC.EXTRACTED,
-                             proof_kind=PK.INFERRED if inferred_method else PK.JOINED)
-        if node.type == 'bundle-file':
-            skill = record.attributes['skill']
-            edge('cites', f'skill:{skill}', node.id, record.spans)
-        if node.type == 'skill':
-            references, routing = {}, {}
-            for i, line in enumerate(source.lines, 1):
-                targets = [raw for _, raw in link_targets(line) if raw.startswith(('references/', './references/'))]
-                if targets and _table_data(source.lines, i):
-                    predicate = plain(line.strip('|').split('|')[0])
-                    for target in targets:
-                        routing.setdefault(target, []).append((predicate, i))
-                for target in targets:
-                    references.setdefault(target, []).append(i)
-            for target, positions in references.items():
-                dest = resolve(source, target, types={'reference'})
-                if not dest:
-                    unknown(node.id, 'extract.skill-link-unresolved', f'{source.path}:{positions[0]} links {target}, which does not exist', (source.span(positions[0], positions[0]),), 'Restore the file or remove the link', absence=True)
-                    continue
-                for predicate, line in routing.get(target, [('UNKNOWN', positions[0])]):
-                    edge('loads_when', node.id, dest.node.id, (source.span(line, line),), attrs={'predicate': predicate}, key=predicate)
-        if node.type == 'rule':
-            row = next((p for p in record.spans if p.start_line == p.end_line and source.lines[p.start_line - 1].startswith('|')), None)
-            if row:
-                links = link_targets(source.lines[row.start_line - 1])
-                if not links:
-                    unknown(node.id, 'extract.rule-source-unlinked', f'{source.path}:{row.start_line} names its source in prose only: {record.attributes["source_text"][:80]}', (row,), 'Link the primary source')
-                for _, raw in links:
-                    dest = resolve(source, raw)
-                    if dest:
-                        edge('governed_by', node.id, dest.node.id, spans((row,), dest.spans) if '#' in raw else (row,), attrs={'anchor': raw.split('#', 1)[1]} if '#' in raw else None)
-                    else:
-                        unknown(node.id, 'extract.rule-source-missing', f'{source.path}:{row.start_line} links {raw}, which does not resolve', (row,), 'Fix the link or supply its target', absence=True)
-        if node.type == 'review':
-            for i, line in enumerate(source.lines, 1):
-                for _, raw in link_targets(line):
-                    dest = resolve(source, raw)
-                    if dest and dest.node.id != node.id:
-                        proof = spans((source.span(i, i),), dest.spans) if '#' in raw else (source.span(i, i),)
-                        edge('cites', node.id, dest.node.id, proof, key=str(i), attrs={'anchor': raw.split('#', 1)[1]} if '#' in raw else None)
-                    elif resolved_link(source, raw, sources) and '#' in raw:
-                        unknown(node.id, 'extract.link-selector-unresolved', f'{source.path}:{i} selector does not resolve: {raw}', (source.span(i, i),), 'Correct the section selector or restore its exact target', absence=True)
-        if node.type == 'scenario':
-            data, _ = scenario_fields(source); routing = data.get('routing') or {}
-            target = data.get('target') or ({'kind': 'agent', 'name': data['agent']} if data.get('agent') else {'kind': 'skill', 'name': data['skill']} if data.get('skill') else {})
-            target_id = f'{target.get("kind")}:{target.get("name")}'
-            proof = yaml_key_spans(source, ('target', 'agent', 'skill', 'routing', 'mode'))
-            if target_id not in by_id:
-                unknown(node.id, 'extract.scenario-target-missing', f'{source.path} targets {target_id}, which has no node', proof, 'Retarget the scenario or restore the component', absence=True)
-            elif routing.get('expect') == 'not_fire':
-                alt = routing.get('expected_alternative')
-                edge('near_miss_for', node.id, target_id, proof, attrs={'expected_alternative': record.attributes['expected_alternative']})
-                if isinstance(alt, dict):
-                    edge('routes_to', node.id, f'{alt.get("kind")}:{alt.get("name")}', proof, attrs={'via': 'expected_alternative'})
+        if not stripped.startswith('|'):
+            load_columns, header_line = (), None
+        if load_columns and _table_data(source.lines, i):
+            cells = table_cells(line)
+            selected = ' '.join(cells[j] for j in load_columns if j < len(cells))
+            condition = plain(cells[0])
+            proof = (source.span(header_line, header_line), source.span(i, i))
+        elif re.match(r'^Load\s+`', stripped):
+            selected, condition, proof = stripped, plain(stripped), (source.span(i, i),)
+            inferred_method = False
+        else:
+            continue
+        for name in re.findall(r'`([a-z][a-z0-9-]+)`', selected):
+            target = f'skill:{name}'
+            if target in by_id:
+                rel.edge('loads_when', node.id, target, spans(proof, by_id[target].spans),
+                         key=condition, attrs={'predicate': condition, 'via': 'agent-method'},
+                         cls=EC.INFERRED if inferred_method else EC.EXTRACTED,
+                         proof_kind=PK.INFERRED if inferred_method else PK.JOINED)
+
+
+def _bundle_citation(rel, record, source):
+    skill = record.attributes['skill']
+    rel.edge('cites', f'skill:{skill}', record.node.id, record.spans)
+
+
+def _skill_reference_edges(rel, record, source):
+    """Each linked reference, with the routing-table condition that loads it."""
+    node = record.node
+    references, routing = {}, {}
+    for i, line in enumerate(source.lines, 1):
+        targets = [raw for _, raw in link_targets(line) if raw.startswith(('references/', './references/'))]
+        if targets and _table_data(source.lines, i):
+            predicate = plain(line.strip('|').split('|')[0])
+            for target in targets:
+                routing.setdefault(target, []).append((predicate, i))
+        for target in targets:
+            references.setdefault(target, []).append(i)
+    for target, positions in references.items():
+        dest = rel.resolve(source, target, types={'reference'})
+        if not dest:
+            rel.unknown(node.id, 'extract.skill-link-unresolved', f'{source.path}:{positions[0]} links {target}, which does not exist', (source.span(positions[0], positions[0]),), 'Restore the file or remove the link', absence=True)
+            continue
+        for predicate, line in routing.get(target, [('UNKNOWN', positions[0])]):
+            rel.edge('loads_when', node.id, dest.node.id, (source.span(line, line),), attrs={'predicate': predicate}, key=predicate)
+
+
+def _rule_source_edges(rel, record, source):
+    node = record.node
+    row = next((p for p in record.spans if p.start_line == p.end_line and source.lines[p.start_line - 1].startswith('|')), None)
+    if row:
+        links = link_targets(source.lines[row.start_line - 1])
+        if not links:
+            rel.unknown(node.id, 'extract.rule-source-unlinked', f'{source.path}:{row.start_line} names its source in prose only: {record.attributes["source_text"][:80]}', (row,), 'Link the primary source')
+        for _, raw in links:
+            dest = rel.resolve(source, raw)
+            if dest:
+                rel.edge('governed_by', node.id, dest.node.id, spans((row,), dest.spans) if '#' in raw else (row,), attrs={'anchor': raw.split('#', 1)[1]} if '#' in raw else None)
             else:
-                edge('verified_by', target_id, node.id, proof, attrs={'mode': data.get('mode', '')})
-            for item in sorted(set(ITEM.findall(source.text))):
-                edge('cites', node.id, f'roadmap-item:{item}', source.locate(item), attrs={'via': 'comment'}, cls=EC.INFERRED)
-        if node.type == 'test':
-            for path, proof in rooted_reads(source):
-                if path not in sources:
-                    continue
-                dest = resolve(source, '../' + path)
-                if dest:
-                    edge('verified_by', dest.node.id, node.id, proof, attrs={'via': 'file-read'})
-        if node.type == 'decision':
-            for i, line in enumerate(source.lines[:14], 1):
-                for item in re.findall(r'disposes\s+`([A-Z][A-Z0-9]*-\d{3})`', line):
-                    edge('supersedes', node.id, f'roadmap-item:{item}', (source.span(i, i),), key='disposes', attrs={'relation': 'disposes'})
-                match = re.search(r'\*\*Supersedes:?\*\*:?\s*(.+)|^-?\s*Supersedes:\s*(.+)', line, re.I)
-                if match:
-                    text = (match.group(1) or match.group(2)).strip()
-                    resolved = [dest for _, raw in link_targets(line) if (dest := resolve(source, raw))]
-                    if not resolved:
-                        unknown(node.id, 'extract.supersedes-unresolved', f'{source.path}:{i} supersedes {text[:120]!r} but names no linked target', (source.span(i, i),), 'Link the superseded decision, rule row, or document')
-                    for dest in resolved:
-                        edge('supersedes', node.id, dest.node.id, (source.span(i, i),), attrs={'relation': 'supersedes', 'text': text[:200]})
-                        needle = text[:40]
-                        if needle and dest.node.path in sources and needle in sources[dest.node.path].text:
-                            edge('contradicts', node.id, dest.node.id, spans((source.span(i, i),), sources[dest.node.path].locate(needle)), key='superseded_text_present', attrs={'detector': 'superseded_text_present', 'message': f'{dest.node.path} still contains superseded text: {needle!r}'}, cls=EC.INFERRED)
-        if node.type in ('skill', 'command'):
-            for i, line in enumerate(source.lines, 1):
-                if not re.match(r'^\*\*Owner:\*\*', line):
-                    continue
-                for owner in re.findall(r'`([a-z][a-z0-9-]+)`\s+owns?\b', line):
-                    subject = f'agent:{owner}' if f'agent:{owner}' in by_id else f'owner:{owner}'
-                    edge('owns', subject, node.id, spans((source.span(i, i),), by_id[subject].spans if subject in by_id else ()), attrs={'field': 'Owner'}, proof_kind=PK.JOINED)
-    if roadmap:
-        for item, _, _, fields, positions in corpus.roadmap_entries(roadmap):
-            subject = f'roadmap-item:{item}'
-            for field, value in fields.items():
-                for other in set(ITEM.findall(value)) - {item}:
-                    edge('depends_on', subject, f'roadmap-item:{other}', positions[field], key=field,
+                rel.unknown(node.id, 'extract.rule-source-missing', f'{source.path}:{row.start_line} links {raw}, which does not resolve', (row,), 'Fix the link or supply its target', absence=True)
+
+
+def _review_citations(rel, record, source):
+    node = record.node
+    for i, line in enumerate(source.lines, 1):
+        for _, raw in link_targets(line):
+            dest = rel.resolve(source, raw)
+            if dest and dest.node.id != node.id:
+                proof = spans((source.span(i, i),), dest.spans) if '#' in raw else (source.span(i, i),)
+                rel.edge('cites', node.id, dest.node.id, proof, key=str(i), attrs={'anchor': raw.split('#', 1)[1]} if '#' in raw else None)
+            elif resolved_link(source, raw, rel.sources) and '#' in raw:
+                rel.unknown(node.id, 'extract.link-selector-unresolved', f'{source.path}:{i} selector does not resolve: {raw}', (source.span(i, i),), 'Correct the section selector or restore its exact target', absence=True)
+
+
+def _scenario_edges(rel, record, source):
+    """A scenario verifies its target, or records a routing near miss and its alternative."""
+    node = record.node
+    data, _ = scenario_fields(source); routing = data.get('routing') or {}
+    target = data.get('target') or ({'kind': 'agent', 'name': data['agent']} if data.get('agent') else {'kind': 'skill', 'name': data['skill']} if data.get('skill') else {})
+    target_id = f'{target.get("kind")}:{target.get("name")}'
+    proof = yaml_key_spans(source, ('target', 'agent', 'skill', 'routing', 'mode'))
+    if target_id not in rel.by_id:
+        rel.unknown(node.id, 'extract.scenario-target-missing', f'{source.path} targets {target_id}, which has no node', proof, 'Retarget the scenario or restore the component', absence=True)
+    elif routing.get('expect') == 'not_fire':
+        alt = routing.get('expected_alternative')
+        rel.edge('near_miss_for', node.id, target_id, proof, attrs={'expected_alternative': record.attributes['expected_alternative']})
+        if isinstance(alt, dict):
+            rel.edge('routes_to', node.id, f'{alt.get("kind")}:{alt.get("name")}', proof, attrs={'via': 'expected_alternative'})
+    else:
+        rel.edge('verified_by', target_id, node.id, proof, attrs={'mode': data.get('mode', '')})
+    for item in sorted(set(ITEM.findall(source.text))):
+        rel.edge('cites', node.id, f'roadmap-item:{item}', source.locate(item), attrs={'via': 'comment'}, cls=EC.INFERRED)
+
+
+def _test_verifications(rel, record, source):
+    for path, proof in rooted_reads(source):
+        if path not in rel.sources:
+            continue
+        dest = rel.resolve(source, '../' + path)
+        if dest:
+            rel.edge('verified_by', dest.node.id, record.node.id, proof, attrs={'via': 'file-read'})
+
+
+def _decision_supersessions(rel, record, source):
+    node, sources = record.node, rel.sources
+    for i, line in enumerate(source.lines[:14], 1):
+        for item in re.findall(r'disposes\s+`([A-Z][A-Z0-9]*-\d{3})`', line):
+            rel.edge('supersedes', node.id, f'roadmap-item:{item}', (source.span(i, i),), key='disposes', attrs={'relation': 'disposes'})
+        match = re.search(r'\*\*Supersedes:?\*\*:?\s*(.+)|^-?\s*Supersedes:\s*(.+)', line, re.I)
+        if match:
+            text = (match.group(1) or match.group(2)).strip()
+            resolved = [dest for _, raw in link_targets(line) if (dest := rel.resolve(source, raw))]
+            if not resolved:
+                rel.unknown(node.id, 'extract.supersedes-unresolved', f'{source.path}:{i} supersedes {text[:120]!r} but names no linked target', (source.span(i, i),), 'Link the superseded decision, rule row, or document')
+            for dest in resolved:
+                rel.edge('supersedes', node.id, dest.node.id, (source.span(i, i),), attrs={'relation': 'supersedes', 'text': text[:200]})
+                needle = text[:40]
+                if needle and dest.node.path in sources and needle in sources[dest.node.path].text:
+                    rel.edge('contradicts', node.id, dest.node.id, spans((source.span(i, i),), sources[dest.node.path].locate(needle)), key='superseded_text_present', attrs={'detector': 'superseded_text_present', 'message': f'{dest.node.path} still contains superseded text: {needle!r}'}, cls=EC.INFERRED)
+
+
+def _component_owner_edges(rel, record, source):
+    """An Owner line in a skill or command body naming the agent or owner that owns it."""
+    node, by_id = record.node, rel.by_id
+    for i, line in enumerate(source.lines, 1):
+        if not re.match(r'^\*\*Owner:\*\*', line):
+            continue
+        for owner in re.findall(r'`([a-z][a-z0-9-]+)`\s+owns?\b', line):
+            subject = f'agent:{owner}' if f'agent:{owner}' in by_id else f'owner:{owner}'
+            rel.edge('owns', subject, node.id, spans((source.span(i, i),), by_id[subject].spans if subject in by_id else ()), attrs={'field': 'Owner'}, proof_kind=PK.JOINED)
+
+
+# Per-record emitters, in the order each record's relationships are derived.
+RECORD_EMITTERS = {
+    'agent': (_agent_method_edges,),
+    'bundle-file': (_bundle_citation,),
+    'skill': (_skill_reference_edges, _component_owner_edges),
+    'rule': (_rule_source_edges,),
+    'review': (_review_citations,),
+    'scenario': (_scenario_edges,),
+    'test': (_test_verifications,),
+    'decision': (_decision_supersessions,),
+    'command': (_component_owner_edges,),
+}
+
+
+def _roadmap_edges(rel):
+    """Roadmap items' mentioned dependencies and Owner-field ownership."""
+    by_id = rel.by_id
+    roadmap = rel.corpus.get('docs/fleet-roadmap.md')
+    if not roadmap:
+        return
+    for item, _, _, fields, positions in rel.corpus.roadmap_entries(roadmap):
+        subject = f'roadmap-item:{item}'
+        for field, value in fields.items():
+            for other in set(ITEM.findall(value)) - {item}:
+                rel.edge('depends_on', subject, f'roadmap-item:{other}', positions[field], key=field,
                          attrs={'field': field, 'detector': 'check_plan_status.prerequisites' if field == 'Prerequisites' else 'extract.roadmap-mention'},
                          cls=EC.CONTRACT if field == 'Prerequisites' else EC.INFERRED)
-            owner = fields.get('Owner', '')
-            proof = positions.get('Owner', ())
-            if proof:
-                mentioned = {m: suffix for m, suffix in re.findall(r'`([a-z][a-z0-9-]+)`([^`]*)', owner)}
-                for name in mentioned:
-                    if f'owner:{name}' in by_id:
-                        edge('owns', f'owner:{name}', subject, proof, attrs={'field': 'Owner'})
-                human = human_owner(owner)
-                if human:
-                    edge('owns', f'owner:{slug(human)}', subject, proof, attrs={'field': 'Owner'})
-                for match in re.finditer(r'`([a-z][a-z0-9-]+)`\s+owns?\b([^.;]+)', owner):
-                    for name in re.findall(r'`([a-z][a-z0-9-]+)`', match.group(2)):
-                        for typ in ('skill', 'command'):
-                            target = f'{typ}:{name}'
-                            if target in by_id:
-                                subject = f'agent:{match.group(1)}' if f'agent:{match.group(1)}' in by_id else f'owner:{match.group(1)}'
-                                edge('owns', subject, target, spans(proof, by_id[target].spans), attrs={'field': 'Owner'}, proof_kind=PK.JOINED)
-    # Evidence links resolve the selected decision/review, never whichever node sharing
-    # its path happened to be created first. Batch joins cite BOTH determining records.
+        owner = fields.get('Owner', '')
+        proof = positions.get('Owner', ())
+        if proof:
+            mentioned = {m: suffix for m, suffix in re.findall(r'`([a-z][a-z0-9-]+)`([^`]*)', owner)}
+            for name in mentioned:
+                if f'owner:{name}' in by_id:
+                    rel.edge('owns', f'owner:{name}', subject, proof, attrs={'field': 'Owner'})
+            human = human_owner(owner)
+            if human:
+                rel.edge('owns', f'owner:{slug(human)}', subject, proof, attrs={'field': 'Owner'})
+            for match in re.finditer(r'`([a-z][a-z0-9-]+)`\s+owns?\b([^.;]+)', owner):
+                for name in re.findall(r'`([a-z][a-z0-9-]+)`', match.group(2)):
+                    for typ in ('skill', 'command'):
+                        target = f'{typ}:{name}'
+                        if target in by_id:
+                            owner_id = f'agent:{match.group(1)}' if f'agent:{match.group(1)}' in by_id else f'owner:{match.group(1)}'
+                            rel.edge('owns', owner_id, target, spans(proof, by_id[target].spans), attrs={'field': 'Owner'}, proof_kind=PK.JOINED)
+
+
+def _evidence_edges(rel):
+    """Roadmap items' and decisions' evidence links and batch joins; returns the reviews they cite.
+
+    Evidence links resolve the selected decision/review, never whichever node sharing
+    its path happened to be created first. Batch joins cite BOTH determining records.
+    """
+    records, sources = rel.records, rel.sources
     incoming_reviews = set()
     for record in records:
         if record.node.type not in ('roadmap-item', 'decision'):
@@ -1327,70 +1394,87 @@ def _relations(corpus, records):
             if source.path == 'docs/roadmap-closed.md':
                 ranges = [(p.start_line, p.end_line) for p in record.spans]
             else:
-                ranges = [(entry.start, entry.end) for entry in corpus.roadmap_entries(source) if entry.item == record.name]
+                ranges = [(entry.start, entry.end) for entry in rel.corpus.roadmap_entries(source) if entry.item == record.name]
         else:
             ranges = [(1, len(source.lines))]
         for i in sorted({i for start, end in ranges for i in range(start, end + 1)}):
             line = source.lines[i - 1]
             for _, raw in link_targets(line):
-                dest = resolve(source, raw, types={'review', 'decision'})
+                dest = rel.resolve(source, raw, types={'review', 'decision'})
                 if dest and dest.node.type in ('review', 'decision') and dest.node.id != record.node.id:
                     proof = spans((source.span(i, i),), dest.spans) if '#' in raw else (source.span(i, i),)
-                    edge('evidenced_by', record.node.id, dest.node.id, proof, attrs={'anchor': raw.split('#', 1)[1]} if '#' in raw else None)
+                    rel.edge('evidenced_by', record.node.id, dest.node.id, proof, attrs={'anchor': raw.split('#', 1)[1]} if '#' in raw else None)
                     incoming_reviews.add(dest.node.id)
             for batch in set(BATCH.findall(line)):
                 targets = [r for r in records if r.node.type == 'review' and batch in r.attributes.get('batches', ())]
                 if not targets and record.node.type == 'roadmap-item':
-                    unknown(record.node.id, 'extract.batch-unresolved', f'{source.path}:{i} cites batch {batch} with no review', (source.span(i, i),), 'Retain the durable review behind the batch', absence=True)
+                    rel.unknown(record.node.id, 'extract.batch-unresolved', f'{source.path}:{i} cites batch {batch} with no review', (source.span(i, i),), 'Retain the durable review behind the batch', absence=True)
                 for target in targets:
-                    edge('evidenced_by', record.node.id, target.node.id,
-                         spans((source.span(i, i),), sources[target.node.path].locate(batch)), key=batch,
-                         attrs={'batch': batch}, proof_kind=PK.JOINED)
+                    rel.edge('evidenced_by', record.node.id, target.node.id,
+                             spans((source.span(i, i),), sources[target.node.path].locate(batch)), key=batch,
+                             attrs={'batch': batch}, proof_kind=PK.JOINED)
                     incoming_reviews.add(target.node.id)
-    catalog = corpus.get('schemas/catalog-v1.json')
-    if catalog:
-        for entry in corpus.catalog_entries():
-            subject = f'schema:{entry["id"]}'
-            validator = entry.get('validator')
-            if validator in sources:
-                dest = resolve(catalog, '../' + validator)
-                if dest:
-                    edge('constrained_by', subject, dest.node.id, whole(catalog), attrs={'via': 'catalog-v1.json'}, cls=EC.CONTRACT)
-            for projection in entry.get('generated_projections', []):
-                targets = [r for r in by_path.get(projection, ()) if r.node.type in ('generated-projection', 'schema-projection')]
-                for target in targets:
-                    edge('constrained_by', target.node.id, subject, whole(catalog), attrs={'via': 'catalog-v1.json'}, cls=EC.CONTRACT)
-                if not targets:
-                    unknown(subject, 'extract.schema-projection-unresolved', f'{entry["id"]} declares generated_projections {projection}, which has no node yet', whole(catalog), 'Build the declared projection or correct its catalog entry', absence=True)
-    declared = {(schema_id, projection): proof for schema_id, projection, proof in corpus.projections}
-    for source in corpus.schema_sources:
-        declaration = corpus.parsed(source)
+    return incoming_reviews
+
+
+def _catalog_edges(rel):
+    catalog = rel.corpus.get('schemas/catalog-v1.json')
+    if not catalog:
+        return
+    for entry in rel.corpus.catalog_entries():
+        subject = f'schema:{entry["id"]}'
+        validator = entry.get('validator')
+        if validator in rel.sources:
+            dest = rel.resolve(catalog, '../' + validator)
+            if dest:
+                rel.edge('constrained_by', subject, dest.node.id, whole(catalog), attrs={'via': 'catalog-v1.json'}, cls=EC.CONTRACT)
+        for projection in entry.get('generated_projections', []):
+            targets = [r for r in rel.by_path.get(projection, ()) if r.node.type in ('generated-projection', 'schema-projection')]
+            for target in targets:
+                rel.edge('constrained_by', target.node.id, subject, whole(catalog), attrs={'via': 'catalog-v1.json'}, cls=EC.CONTRACT)
+            if not targets:
+                rel.unknown(subject, 'extract.schema-projection-unresolved', f'{entry["id"]} declares generated_projections {projection}, which has no node yet', whole(catalog), 'Build the declared projection or correct its catalog entry', absence=True)
+
+
+def _declared_schema_edges(rel):
+    """A standalone schema's declared validator and writer-proved projections."""
+    declared = {(schema_id, projection): proof for schema_id, projection, proof in rel.corpus.projections}
+    for source in rel.corpus.schema_sources:
+        declaration = rel.corpus.parsed(source)
         if not isinstance(declaration, dict):
             continue
         subject = 'schema:' + PurePosixPath(source.path).name.removesuffix('.schema.json')
-        if subject not in by_id:
+        if subject not in rel.by_id:
             continue
         validator = declaration.get('x-fleet-validator')
         if validator:
-            if validator in sources:
-                target = index.resolve(NodeRef(validator, None, WHOLE_DOCUMENT))
-                edge('constrained_by', subject, target.id, whole(source), attrs={'via': 'schema-declaration'})
+            if validator in rel.sources:
+                target = rel.index.resolve(NodeRef(validator, None, WHOLE_DOCUMENT))
+                rel.edge('constrained_by', subject, target.id, whole(source), attrs={'via': 'schema-declaration'})
             else:
-                unknown(subject, 'extract.schema-validator-unresolved', f'{source.path} declares missing validator {validator}', whole(source), 'Restore the declared validator or correct the schema declaration', absence=True)
+                rel.unknown(subject, 'extract.schema-validator-unresolved', f'{source.path} declares missing validator {validator}', whole(source), 'Restore the declared validator or correct the schema declaration', absence=True)
         for projection in declaration.get('x-fleet-generated-projections', []):
             if (subject, projection) in declared:
-                edge('constrained_by', 'schema-projection:' + projection, subject, declared[subject, projection],
-                     attrs={'via': 'schema-declaration-and-writer'}, cls=EC.CONTRACT, proof_kind=PK.JOINED)
+                rel.edge('constrained_by', 'schema-projection:' + projection, subject, declared[subject, projection],
+                         attrs={'via': 'schema-declaration-and-writer'}, cls=EC.CONTRACT, proof_kind=PK.JOINED)
             else:
-                unknown(subject, 'extract.schema-projection-unproved', f'{source.path} declares {projection} without a resolved writer mapping', whole(source), 'Bind the declared output to the actual writer mapping', absence=True)
-    for projection, canonical, proof in corpus.generated:
+                rel.unknown(subject, 'extract.schema-projection-unproved', f'{source.path} declares {projection} without a resolved writer mapping', whole(source), 'Bind the declared output to the actual writer mapping', absence=True)
+
+
+def _generated_edges(rel):
+    for projection, canonical, proof in rel.corpus.generated:
         generated = 'generated-projection:' + projection
-        if generated not in by_id:
+        if generated not in rel.by_id:
             continue
-        source = sources[canonical]
-        target = index.resolve(NodeRef(canonical, None, WHOLE_DOCUMENT))
-        edge('generated_from', generated, target.id, spans(proof, whole(source)),
-             attrs={'via': 'generate_platform_adapters.expected_outputs'}, cls=EC.CONTRACT, proof_kind=PK.JOINED)
+        source = rel.sources[canonical]
+        target = rel.index.resolve(NodeRef(canonical, None, WHOLE_DOCUMENT))
+        rel.edge('generated_from', generated, target.id, spans(proof, whole(source)),
+                 attrs={'via': 'generate_platform_adapters.expected_outputs'}, cls=EC.CONTRACT, proof_kind=PK.JOINED)
+
+
+def _roster_edges(rel):
+    """Validated delegation, the roster's lanes and delegation claims, and guard wiring."""
+    corpus, by_id = rel.corpus, rel.by_id
     validator = corpus.get('scripts/validate_fleet.py')
     expected, expected_proof = assignment(validator, 'EXPECTED_DELEGATION') if validator else (None, ())
     roster = corpus.get('AGENTS.md')
@@ -1402,87 +1486,125 @@ def _relations(corpus, records):
                 continue
             granted = set(by_id[subject].attributes['grants'])
             if granted != set(targets):
-                unknown(subject, 'cite.delegation-mismatch', f'agents/{agent}.md grants {sorted(granted)} but EXPECTED_DELEGATION says {sorted(targets)}', spans(expected_proof, by_id[subject].spans), 'Reconcile the agent frontmatter and validated delegation contract')
+                rel.unknown(subject, 'cite.delegation-mismatch', f'agents/{agent}.md grants {sorted(granted)} but EXPECTED_DELEGATION says {sorted(targets)}', spans(expected_proof, by_id[subject].spans), 'Reconcile the agent frontmatter and validated delegation contract')
             else:
                 for target in sorted(targets):
-                    edge('delegates_to', subject, f'agent:{target}', spans(expected_proof, by_id[subject].spans), cls=EC.CONTRACT, proof_kind=PK.JOINED)
+                    rel.edge('delegates_to', subject, f'agent:{target}', spans(expected_proof, by_id[subject].spans), cls=EC.CONTRACT, proof_kind=PK.JOINED)
             if agent in rows:
                 i, cells = rows[agent]
                 stated = set(re.findall(r'`([a-z0-9-]+)`', cells[-1]))
                 if stated != set(targets):
-                    edge('contradicts', subject, 'document:AGENTS.md', spans(expected_proof, (roster.span(i, i),)), key='delegation_mismatch',
-                        attrs={'detector': 'delegation_mismatch', 'message': f'roster says {agent} delegates to {sorted(stated)}; validate_fleet enforces {sorted(targets)}'}, cls=EC.INFERRED)
+                    rel.edge('contradicts', subject, 'document:AGENTS.md', spans(expected_proof, (roster.span(i, i),)), key='delegation_mismatch',
+                             attrs={'detector': 'delegation_mismatch', 'message': f'roster says {agent} delegates to {sorted(stated)}; validate_fleet enforces {sorted(targets)}'}, cls=EC.INFERRED)
     for agent, (i, cells) in rows.items():
-        edge('owns', f'agent:{agent}', 'capability:' + slug(plain(cells[1]))[:60], (roster.span(i, i),), attrs={'via': 'roster-lane'}, cls=EC.INFERRED)
+        rel.edge('owns', f'agent:{agent}', 'capability:' + slug(plain(cells[1]))[:60], (roster.span(i, i),), attrs={'via': 'roster-lane'}, cls=EC.INFERRED)
     generator = corpus.get('scripts/generate_platform_adapters.py')
     guarded, guarded_proof = assignment(generator, 'GUARDED_AGENTS') if generator else (None, ())
     hook = corpus.get('hooks/hooks.json')
     if hook and 'hook:readonly-guard' in by_id and isinstance(guarded, (set, tuple, list)):
         for agent in sorted(guarded):
             roster_proof = (roster.span(rows[agent][0], rows[agent][0]),) if agent in rows else ()
-            edge('constrained_by', f'agent:{agent}', 'hook:readonly-guard', spans(guarded_proof, whole(hook), roster_proof),
-                attrs={'via': 'generate_platform_adapters.GUARDED_AGENTS'}, cls=EC.CONTRACT, proof_kind=PK.JOINED)
-    # Staleness is advisory for every dated live status, never an artifact-check failure.
-    for record in records:
+            rel.edge('constrained_by', f'agent:{agent}', 'hook:readonly-guard', spans(guarded_proof, whole(hook), roster_proof),
+                     attrs={'via': 'generate_platform_adapters.GUARDED_AGENTS'}, cls=EC.CONTRACT, proof_kind=PK.JOINED)
+
+
+def _stale_evidence(rel):
+    """Staleness is advisory for every dated live status, never an artifact-check failure."""
+    for record in rel.records:
         if record.node.type == 'roadmap-item' and record.state == 'live':
             date = DATE.search(str(record.attributes.get('status_text', '')))
-            evidence = [by_id[f.object] for f in facts.values() if f.subject == record.node.id and f.predicate == 'evidenced_by']
+            evidence = [rel.by_id[f.object] for f in rel.facts.values() if f.subject == record.node.id and f.predicate == 'evidenced_by']
             dated = [(r, r.attributes.get('date')) for r in evidence if r.attributes.get('date')]
             if date and dated and max(d for _, d in dated) < date.group():
                 newest = max(d for _, d in dated)
-                unknown(record.node.id, 'stale.evidence-predates-status', f'{record.name} status is dated {date.group()} but its newest cited evidence is {newest}', spans(record.spans, *(r.spans for r, _ in dated)), 'Cite the evidence behind the current status or revise the status')
-    for source in corpus.sources:
+                rel.unknown(record.node.id, 'stale.evidence-predates-status', f'{record.name} status is dated {date.group()} but its newest cited evidence is {newest}', spans(record.spans, *(r.spans for r, _ in dated)), 'Cite the evidence behind the current status or revise the status')
+
+
+def _uncited_reviews(rel, incoming_reviews):
+    """Reviews no roadmap item, decision, review, live guide or closed entry cites."""
+    for source in rel.corpus.sources:
         if source.path in LIVE_DOCS or PurePosixPath(source.path).name in ('README.md', 'CHANGELOG.md') or source.path == 'docs/roadmap-closed.md':
             for _, raw in link_targets(source.text):
-                target = resolve(source, raw, types={'review'})
+                target = rel.resolve(source, raw, types={'review'})
                 if target and target.node.type == 'review':
                     incoming_reviews.add(target.node.id)
-    incoming_reviews.update(f.object for f in facts.values() if f.predicate in ('cites', 'evidenced_by'))
-    for record in records:
+    incoming_reviews.update(f.object for f in rel.facts.values() if f.predicate in ('cites', 'evidenced_by'))
+    for record in rel.records:
         if record.node.type == 'review' and record.node.id not in incoming_reviews:
-            unknown(record.node.id, 'stale.review-uncited', f'{record.node.path} is cited by no roadmap item, decision, review, or live guide', record.spans,
-                    'Remove unneeded review evidence or restore its authoritative citation', absence=True)
+            rel.unknown(record.node.id, 'stale.review-uncited', f'{record.node.path} is cited by no roadmap item, decision, review, or live guide', record.spans,
+                        'Remove unneeded review evidence or restore its authoritative citation', absence=True)
+
+
+def _retired_names(rel):
+    """The first line of each scanned component that names a retired fleet unit."""
+    corpus = rel.corpus
     stale_source = corpus.get('scripts/check_stale_names.py')
     retired, retired_proof = assignment(stale_source, 'STALE') if stale_source else (None, ())
-    if isinstance(retired, tuple):
-        scanned = ('agents/', 'skills/', 'commands/', 'evals/scenarios/')
-        exempt = {PurePosixPath(s.path).stem for s in corpus.sources if s.path.startswith(scanned)} & set(retired)
-        siblings, _ = assignment(stale_source, 'SIBLING_REPOSITORIES')
-        if isinstance(siblings, (set, frozenset, tuple)):
-            exempt.update(siblings)
-        # Older declarations wrap the literal in frozenset; recover that closed
-        # literal constructor without importing the inspected checker.
-        for declaration in _ast(stale_source).body:
-            if (isinstance(declaration, ast.Assign) and any(isinstance(t, ast.Name) and t.id == 'SIBLING_REPOSITORIES' for t in declaration.targets)
-                    and isinstance(declaration.value, ast.Call) and isinstance(declaration.value.func, ast.Name)
-                    and declaration.value.func.id == 'frozenset' and len(declaration.value.args) == 1):
-                exempt.update(ast.literal_eval(declaration.value.args[0]))
-        retired_name = None  # Compiled at first use, where the declaration was always read.
-        for record in records:
-            if not record.node.path.startswith(scanned):
-                continue
-            source = sources[record.node.path]
-            for i, line in enumerate(source.lines, 1):
-                found = None
-                retired_name = retired_name or re.compile(
-                    r'(?<![a-z0-9-])(' + '|'.join(re.escape(name) for name in retired) + r')(?![a-z0-9-])')
-                for match in retired_name.finditer(line):
-                    before = line[match.start() - 1] if match.start() else ''
-                    after = line[match.end():]
-                    if match.group(1) in exempt and (before == '/' or after.startswith(('/', '.md'))):
-                        continue
-                    found = match.group(1)
-                    break
-                if found:
-                    unknown(record.node.id, 'stale.retired-name', f'{source.path}:{i}: stale fleet-unit name {found!r}', spans((source.span(i, i),), retired_proof), 'Resolve the stale fleet name or document its valid path exemption')
-                    break
-    implementation = corpus.get('scripts/fleet_atlas_v2_extract.py')
+    if not isinstance(retired, tuple):
+        return
+    scanned = ('agents/', 'skills/', 'commands/', 'evals/scenarios/')
+    exempt = {PurePosixPath(s.path).stem for s in corpus.sources if s.path.startswith(scanned)} & set(retired)
+    siblings, _ = assignment(stale_source, 'SIBLING_REPOSITORIES')
+    if isinstance(siblings, (set, frozenset, tuple)):
+        exempt.update(siblings)
+    # Older declarations wrap the literal in frozenset; recover that closed
+    # literal constructor without importing the inspected checker.
+    for declaration in _ast(stale_source).body:
+        if (isinstance(declaration, ast.Assign) and any(isinstance(t, ast.Name) and t.id == 'SIBLING_REPOSITORIES' for t in declaration.targets)
+                and isinstance(declaration.value, ast.Call) and isinstance(declaration.value.func, ast.Name)
+                and declaration.value.func.id == 'frozenset' and len(declaration.value.args) == 1):
+            exempt.update(ast.literal_eval(declaration.value.args[0]))
+    retired_name = None  # Compiled at first use, where the declaration was always read.
+    for record in rel.records:
+        if not record.node.path.startswith(scanned):
+            continue
+        source = rel.sources[record.node.path]
+        for i, line in enumerate(source.lines, 1):
+            found = None
+            retired_name = retired_name or re.compile(
+                r'(?<![a-z0-9-])(' + '|'.join(re.escape(name) for name in retired) + r')(?![a-z0-9-])')
+            for match in retired_name.finditer(line):
+                before = line[match.start() - 1] if match.start() else ''
+                after = line[match.end():]
+                if match.group(1) in exempt and (before == '/' or after.startswith(('/', '.md'))):
+                    continue
+                found = match.group(1)
+                break
+            if found:
+                rel.unknown(record.node.id, 'stale.retired-name', f'{source.path}:{i}: stale fleet-unit name {found!r}', spans((source.span(i, i),), retired_proof), 'Resolve the stale fleet name or document its valid path exemption')
+                break
+
+
+def _blocks_emission(rel):
+    """The extractor emits no blocks edge; queries derive blocks by reversing depends_on."""
+    implementation = rel.corpus.get('scripts/fleet_atlas_v2_extract.py')
     implementation_id = 'validator:scripts/fleet_atlas_v2_extract.py'
-    if implementation and implementation_id in by_id:
-        add(Fact(stable_id('fact', implementation_id, 'attr.blocks_emission'), implementation_id, 'attr.blocks_emission',
-                 'no direct blocks edge; query reverses depends_on', EC.EXTRACTED,
-                 Proof(PK.ABSENCE, whole(implementation), EVALUATOR, corpus.snapshot.tree_digest)))
-    return tuple(facts[key] for key in sorted(facts))
+    if implementation and implementation_id in rel.by_id:
+        rel.add(Fact(stable_id('fact', implementation_id, 'attr.blocks_emission'), implementation_id, 'attr.blocks_emission',
+                     'no direct blocks edge; query reverses depends_on', EC.EXTRACTED,
+                     Proof(PK.ABSENCE, whole(implementation), EVALUATOR, rel.corpus.snapshot.tree_digest)))
+
+
+def _relations(corpus, records):
+    rel = _Relations(corpus, records)
+    for record in records:
+        source = rel.sources.get(record.node.path)
+        if source is None:
+            continue
+        for emit in RECORD_EMITTERS.get(record.node.type, ()):
+            emit(rel, record, source)
+    _roadmap_edges(rel)
+    incoming_reviews = _evidence_edges(rel)
+    _catalog_edges(rel)
+    _declared_schema_edges(rel)
+    _generated_edges(rel)
+    _roster_edges(rel)
+    # Both advisory passes read the relationships emitted above, so they run after them.
+    _stale_evidence(rel)
+    _uncited_reviews(rel, incoming_reviews)
+    _retired_names(rel)
+    _blocks_emission(rel)
+    return rel.result()
 
 
 def _guidance(corpus, records):
