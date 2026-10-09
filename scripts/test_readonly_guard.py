@@ -1,98 +1,38 @@
 """Offline tests for scripts/readonly-guard.py.
 
-Runs the guard exactly as the hook does: as a subprocess with the pending tool call piped as
-JSON on stdin. A deny is a permissionDecision JSON on stdout with exit EXIT_DENY; an allow is
-empty stdout with exit EXIT_ALLOW. No network, no model, stdlib only.
+Runs the guard exactly as the hook does, through testkit's guard runner: an isolated subprocess
+(`-I -S`) with the pending tool call piped as JSON on stdin. A deny is a permissionDecision JSON on
+stdout with exit EXIT_DENY; an allow is empty stdout with exit EXIT_ALLOW. No network, no model,
+stdlib only.
 
 In this repo one plugin-level hook receives all Bash events; the guard scopes itself on the
 payload's exact agent identity. Two consequences shape every test here:
 
   * The guard no-ops unless the payload's `agent_type` names a guarded agent. A payload WITHOUT
-    `agent_type` therefore exercises nothing at all — so `bash_call` supplies the sre-assistant agent by
-    default, or the entire denylist below would pass while testing the short-circuit.
+    `agent_type` therefore exercises nothing at all — so `guard_payload` supplies the sre-assistant
+    agent by default, or the entire denylist below would pass while testing the short-circuit.
   * The verdict is carried by the EXIT CODE as well as stdout, so the hook can tell the real
-    guard apart from a stand-in interpreter that merely exits 0. `decision()` asserts the two
-    agree on every single call.
+    guard apart from a stand-in interpreter that merely exits 0. `guard_decision()` asserts the
+    two agree on every single call.
 """
 
 from __future__ import annotations
 
 import json
-import subprocess
-import sys
-import threading
-from concurrent.futures import ThreadPoolExecutor
 import unittest
-from pathlib import Path
-from unittest import mock
 
-GUARD = Path(__file__).resolve().parents[1] / "scripts" / "readonly-guard.py"
+from testkit import (
+    GUARD_INDETERMINATE,
+    SRE_ASSISTANT,
+    assert_guard_decisions,
+    guard_decision,
+    guard_payload,
+    run_guard,
+    run_guard_batch,
+)
 
-# Must match scripts/readonly-guard.py.
-EXIT_ALLOW = 42
-EXIT_DENY = 43
-EXIT_INDETERMINATE = 44
-
-SRE = "save-toolkit:sre-assistant"
+SRE = SRE_ASSISTANT
 OBS_ENGINEER = "save-toolkit:observability-engineer"
-# Backwards-compatible alias used throughout: the default guarded agent for the corpus runs.
-REVIEWER = SRE
-
-
-def run_guard(stdin_text: str) -> subprocess.CompletedProcess:
-    return subprocess.run(
-        [sys.executable, str(GUARD)],
-        input=stdin_text.encode("utf-8"),
-        capture_output=True,
-        timeout=30,
-    )
-
-
-def run_guard_batch(stdin_texts: list) -> list:
-    """Run many guard invocations concurrently, each identical to a run_guard call.
-
-    The guard is a stateless stdin->verdict filter, so concurrency changes nothing about any
-    single invocation; it only stops the corpus's several hundred interpreter launches from
-    queuing behind each other, which dominated this file's wall-clock.
-    """
-    with ThreadPoolExecutor(max_workers=8) as pool:
-        return list(pool.map(run_guard, stdin_texts))
-
-
-def decision(proc: subprocess.CompletedProcess) -> str:
-    """Return 'deny' or 'allow', asserting the exit code and stdout agree.
-
-    The exit code is not decoration: the hook uses it to authenticate that this guard — rather
-    than some PATH-planted stand-in that merely exits 0 with empty stdout — produced the answer.
-    If stdout and the exit code ever disagreed, the hook's contract would be broken, so both are
-    checked on every call rather than in one lonely test.
-    """
-    out = proc.stdout.decode("utf-8").strip()
-    if proc.returncode == EXIT_ALLOW:
-        if out:
-            raise AssertionError(f"EXIT_ALLOW but stdout was not empty: {out!r}")
-        return "allow"
-    if proc.returncode == EXIT_DENY:
-        verdict = json.loads(out)["hookSpecificOutput"]["permissionDecision"]
-        if verdict != "deny":
-            raise AssertionError(f"EXIT_DENY but stdout said {verdict!r}")
-        return verdict
-    raise AssertionError(
-        f"guard exited {proc.returncode}, expected {EXIT_ALLOW} (allow) or {EXIT_DENY} (deny); "
-        f"stdout={out!r} stderr={proc.stderr.decode('utf-8', 'replace')[:300]!r}"
-    )
-
-
-def bash_call(command: str, agent_type: str | None = REVIEWER) -> str:
-    """A PreToolUse payload from the guarded agent unless told otherwise.
-
-    `agent_type=None` omits the key entirely, which is what the MAIN LOOP actually sends — the
-    key is absent, not null (probed on CLI 2.1.200).
-    """
-    data: dict = {"tool_name": "Bash", "tool_input": {"command": command}}
-    if agent_type is not None:
-        data["agent_type"] = agent_type
-    return json.dumps(data)
 
 
 ALLOWED = [
@@ -566,39 +506,16 @@ DENIED = [
 
 
 class ReadonlyGuardTest(unittest.TestCase):
-    def test_run_guard_batch_requires_overlapping_invocations(self) -> None:
-        barrier = threading.Barrier(2)
-
-        def fake_run_guard(stdin_text: str) -> subprocess.CompletedProcess:
-            try:
-                barrier.wait(timeout=1)
-            except threading.BrokenBarrierError as exc:
-                raise AssertionError("run_guard_batch stopped overlapping guard invocations") from exc
-            return subprocess.CompletedProcess(args=[stdin_text], returncode=EXIT_ALLOW, stdout=b"", stderr=b"")
-
-        with mock.patch(__name__ + ".run_guard", side_effect=fake_run_guard):
-            procs = run_guard_batch([bash_call("git status --short"), bash_call("git diff --stat")])
-
-        self.assertEqual([EXIT_ALLOW, EXIT_ALLOW], [proc.returncode for proc in procs])
-
     def test_allows_read_only_commands(self) -> None:
-        procs = run_guard_batch([bash_call(command) for command in ALLOWED])
-        for command, proc in zip(ALLOWED, procs):
-            with self.subTest(command=command):
-                self.assertEqual(proc.returncode, EXIT_ALLOW)
-                self.assertEqual(decision(proc), "allow", f"falsely denied: {command!r}")
+        assert_guard_decisions(self, "allow", ALLOWED)
 
     def test_denies_state_changing_commands(self) -> None:
-        procs = run_guard_batch([bash_call(command) for command in DENIED])
-        for command, proc in zip(DENIED, procs):
-            with self.subTest(command=command):
-                self.assertEqual(proc.returncode, EXIT_DENY)
-                self.assertEqual(decision(proc), "deny", f"falsely allowed: {command!r}")
+        assert_guard_decisions(self, "deny", DENIED)
 
     def test_deny_reason_tells_agent_what_to_do(self) -> None:
-        proc = run_guard(bash_call("git push origin main"))
-        payload = json.loads(proc.stdout.decode("utf-8"))
-        output = payload["hookSpecificOutput"]
+        proc = run_guard(guard_payload("git push origin main"))
+        self.assertEqual("deny", guard_decision(proc))
+        output = json.loads(proc.stdout.decode("utf-8"))["hookSpecificOutput"]
         self.assertEqual(output["hookEventName"], "PreToolUse")
         self.assertIn("read-only agent", output["permissionDecisionReason"])
 
@@ -617,9 +534,10 @@ class ReadonlyGuardTest(unittest.TestCase):
             "timeout -k 5 30 cat x": "flagless form",
             "rm -rf build/": "not on the read-only allowlist",
         }
-        procs = run_guard_batch([bash_call(command) for command in cases])
-        for (command, expected), proc in zip(cases.items(), procs):
+        procs = run_guard_batch([guard_payload(command) for command in cases])
+        for (command, expected), proc in zip(cases.items(), procs, strict=True):
             with self.subTest(command=command):
+                self.assertEqual("deny", guard_decision(proc))
                 payload = json.loads(proc.stdout.decode("utf-8"))
                 reason = payload["hookSpecificOutput"]["permissionDecisionReason"]
                 self.assertIn(expected, reason, f"reason for {command!r} does not name its rule")
@@ -627,20 +545,17 @@ class ReadonlyGuardTest(unittest.TestCase):
     def test_non_bash_tools_pass_through(self) -> None:
         proc = run_guard(
             json.dumps(
-                {"tool_name": "Read", "agent_type": REVIEWER, "tool_input": {"file_path": "/x"}}
+                {"tool_name": "Read", "agent_type": SRE, "tool_input": {"file_path": "/x"}}
             )
         )
-        self.assertEqual(proc.returncode, EXIT_ALLOW)
-        self.assertEqual(decision(proc), "allow")
+        self.assertEqual(guard_decision(proc), "allow")
 
     def test_empty_input_passes_through(self) -> None:
         # Truly empty (and BOM-only) stdin is a no-op main-loop shape, not a corrupted payload:
         # there is nothing to vouch for, so it allows and stays out of the permission flow.
         for stdin_text in ("", "﻿"):
             with self.subTest(stdin=stdin_text):
-                proc = run_guard(stdin_text)
-                self.assertEqual(proc.returncode, EXIT_ALLOW)
-                self.assertEqual(decision(proc), "allow")
+                self.assertEqual(guard_decision(run_guard(stdin_text)), "allow")
 
     def test_unparseable_input_exits_indeterminate(self) -> None:
         # GOV-001: the guard must NOT positively allow input it could not parse — a truncated
@@ -652,17 +567,17 @@ class ReadonlyGuardTest(unittest.TestCase):
             with self.subTest(stdin=stdin_text):
                 proc = run_guard(stdin_text)
                 self.assertEqual(
-                    proc.returncode, EXIT_INDETERMINATE,
+                    proc.returncode, GUARD_INDETERMINATE,
                     f"expected EXIT_INDETERMINATE for {stdin_text!r}, got {proc.returncode}",
                 )
 
     def test_bom_prefixed_payload_is_still_parsed(self) -> None:
-        proc = run_guard("﻿" + bash_call("git push origin main"))
-        self.assertEqual(decision(proc), "deny")
+        proc = run_guard("﻿" + guard_payload("git push origin main"))
+        self.assertEqual(guard_decision(proc), "deny")
 
     def test_missing_command_field_passes_through(self) -> None:
-        proc = run_guard(json.dumps({"tool_name": "Bash", "agent_type": REVIEWER, "tool_input": {}}))
-        self.assertEqual(decision(proc), "allow")
+        proc = run_guard(json.dumps({"tool_name": "Bash", "agent_type": SRE, "tool_input": {}}))
+        self.assertEqual(guard_decision(proc), "allow")
 
 
 class NonStringCommandTest(unittest.TestCase):
@@ -673,48 +588,34 @@ class NonStringCommandTest(unittest.TestCase):
     one (`0`, `[]`) read as an empty command, which the guarded lane then allowed.
     """
 
+    TOOLS = ("Bash", "PowerShell")
     INSPECTED = ("save-toolkit:sre-assistant", "sre-assistant", "save-toolkit:software-engineer")
     NON_STRINGS = (5, True, 0, False, [], ["git", "push"], {}, {"command": "git push"})
 
-    @staticmethod
-    def payload(tool: str, agent: str | None, command: object) -> str:
-        data: dict = {"tool_name": tool, "tool_input": {"command": command}}
-        if agent is not None:
-            data["agent_type"] = agent
-        return json.dumps(data)
-
-    def test_inspected_lanes_answer_indeterminate_without_crashing(self) -> None:
-        cases = [(tool, agent, command) for tool in ("Bash", "PowerShell")
-                 for agent in self.INSPECTED for command in self.NON_STRINGS]
-        procs = run_guard_batch([self.payload(*case) for case in cases])
-        for case, proc in zip(cases, procs, strict=True):
+    def assert_indeterminate(self, cases: list[tuple[str, str | None, object]], *, copilot: bool = False) -> None:
+        payloads = [guard_payload(command, tool_name=tool, agent_type=agent) for tool, agent, command in cases]
+        for case, proc in zip(cases, run_guard_batch(payloads, copilot=copilot), strict=True):
             with self.subTest(tool=case[0], agent=case[1], command=case[2]):
                 self.assertEqual(
-                    (EXIT_INDETERMINATE, b"", b""), (proc.returncode, proc.stdout, proc.stderr)
+                    (GUARD_INDETERMINATE, b"", b""), (proc.returncode, proc.stdout, proc.stderr)
                 )
+
+    def test_inspected_lanes_answer_indeterminate_without_crashing(self) -> None:
+        self.assert_indeterminate([(tool, agent, command) for tool in self.TOOLS
+                                   for agent in self.INSPECTED for command in self.NON_STRINGS])
 
     def test_a_null_command_is_still_nothing_to_run(self) -> None:
-        for tool in ("Bash", "PowerShell"):
-            for agent in self.INSPECTED:
-                with self.subTest(tool=tool, agent=agent):
-                    self.assertEqual(decision(run_guard(self.payload(tool, agent, None))), "allow")
+        assert_guard_decisions(self, "allow", [None], tool_names=self.TOOLS, agent_types=self.INSPECTED)
 
     def test_the_main_loop_command_is_still_never_inspected(self) -> None:
-        for command in self.NON_STRINGS:
-            with self.subTest(command=command):
-                self.assertEqual(decision(run_guard(self.payload("Bash", None, command))), "allow")
+        assert_guard_decisions(self, "allow", self.NON_STRINGS, agent_types=(None,))
 
     def test_the_copilot_entry_point_answers_indeterminate_too(self) -> None:
-        for command in (*self.NON_STRINGS, None):
-            with self.subTest(command=command):
-                proc = subprocess.run(
-                    [sys.executable, str(GUARD), "--copilot"],
-                    input=self.payload("run_in_terminal", None, command).encode("utf-8"),
-                    capture_output=True, timeout=30,
-                )
-                self.assertEqual(
-                    (EXIT_INDETERMINATE, b"", b""), (proc.returncode, proc.stdout, proc.stderr)
-                )
+        self.assert_indeterminate([("run_in_terminal", None, command) for command in (*self.NON_STRINGS, None)],
+                                  copilot=True)
+
+
+PUSH = {"command": "git push origin main"}
 
 
 class MalformedEnvelopeTest(unittest.TestCase):
@@ -726,7 +627,6 @@ class MalformedEnvelopeTest(unittest.TestCase):
     falsy non-object `tool_input` read as absent and was allowed too.
     """
 
-    PUSH = {"command": "git push origin main"}
     MALFORMED = (
         ({"tool_name": ["Bash"], "agent_type": SRE, "tool_input": PUSH}, False),
         ({"tool_name": {"name": "Bash"}, "tool_input": PUSH}, False),
@@ -745,38 +645,28 @@ class MalformedEnvelopeTest(unittest.TestCase):
     def test_wrong_typed_fields_answer_indeterminate_without_crashing(self) -> None:
         for payload, copilot in self.MALFORMED:
             with self.subTest(payload=payload, copilot=copilot):
-                proc = subprocess.run(
-                    [sys.executable, str(GUARD), *(["--copilot"] if copilot else [])],
-                    input=json.dumps(payload).encode("utf-8"), capture_output=True, timeout=30,
-                )
+                proc = run_guard(json.dumps(payload), copilot=copilot)
                 self.assertEqual(
-                    (EXIT_INDETERMINATE, b"", b""), (proc.returncode, proc.stdout, proc.stderr)
+                    (GUARD_INDETERMINATE, b"", b""), (proc.returncode, proc.stdout, proc.stderr)
                 )
 
     def test_null_fields_still_read_as_absent(self) -> None:
         for payload in (
-            {"tool_name": None, "agent_type": SRE, "tool_input": self.PUSH},
-            {"tool_name": "Bash", "agent_type": None, "tool_input": self.PUSH},
+            {"tool_name": None, "agent_type": SRE, "tool_input": PUSH},
+            {"tool_name": "Bash", "agent_type": None, "tool_input": PUSH},
             {"tool_name": "Bash", "agent_type": SRE, "tool_input": None},
         ):
             with self.subTest(payload=payload):
-                self.assertEqual(decision(run_guard(json.dumps(payload))), "allow")
+                self.assertEqual(guard_decision(run_guard(json.dumps(payload))), "allow")
 
 
 class ScopedCfReadTest(unittest.TestCase):
     """The SRE policy grants five CF forms, not every flag on a read-named verb."""
 
-    def assert_commands(self, commands: tuple[str, ...], expected: str) -> None:
-        for tool_name in ("Bash", "PowerShell"):
-            payloads = [json.dumps({"tool_name": tool_name, "agent_type": SRE,
-                                    "tool_input": {"command": command}})
-                        for command in commands]
-            for command, proc in zip(commands, run_guard_batch(payloads)):
-                with self.subTest(tool=tool_name, command=command):
-                    self.assertEqual(decision(proc), expected)
+    TOOLS = ("Bash", "PowerShell")
 
     def test_selected_forms_allow_literal_targets(self) -> None:
-        self.assert_commands((
+        assert_guard_decisions(self, "allow", (
             "cf target",
             "cf app ledger",
             "cf app ledger-blue.2",
@@ -785,10 +675,10 @@ class ScopedCfReadTest(unittest.TestCase):
             "cf logs ledger --recent",
             "cf logs --recent ledger",
             "cf revisions ledger",
-        ), "allow")
+        ), tool_names=self.TOOLS)
 
     def test_inventory_streams_flags_and_extra_targets_are_denied(self) -> None:
-        self.assert_commands((
+        assert_guard_decisions(self, "deny", (
             "cf apps", "cf routes", "cf services", "cf spaces", "cf orgs",
             "cf app", "cf app ledger accounts", "cf app ledger --guid",
             "cf app --guid ledger", "cf app ledger --help", "cf --help app ledger",
@@ -800,126 +690,94 @@ class ScopedCfReadTest(unittest.TestCase):
             "cf target other", "cf target -o org", "cf target -s space",
             "cf restart ledger", "cf rollback ledger --version 1", "cf env ledger",
             "cf app ''", "cf app --recent", "cf app ledger*", "cf app $APP",
-        ), "deny")
+        ), tool_names=self.TOOLS)
 
     def test_bash_filters_and_safe_redirects_keep_exact_cf_arguments(self) -> None:
-        commands = (
+        assert_guard_decisions(self, "allow", (
             "cf app ledger | head -n 5",
             "cf target 2>&1",
             "cf logs ledger --recent 2>&1 | tail -n 20",
             "cf events ledger 2>/dev/null",
             "cf app '2' 2>&1",
             "timeout 30 cf logs ledger --recent",
-        )
-        for command, proc in zip(commands, run_guard_batch([bash_call(c) for c in commands])):
-            with self.subTest(command=command):
-                self.assertEqual(decision(proc), "allow")
+        ))
 
     def test_bash_redirects_do_not_hide_real_extra_operands(self) -> None:
-        commands = (
+        assert_guard_decisions(self, "deny", (
             "cf app ledger 2 >&1", "cf app ledger '2'>&1",
             'cf app ledger "2">&1', "cf logs ledger --recent 2 2>&1",
             r"cf app ledger \2>&1", "cf app 2>/dev/null",
-        )
-        for command, proc in zip(commands, run_guard_batch([bash_call(c) for c in commands])):
-            with self.subTest(command=command):
-                self.assertEqual(decision(proc), "deny")
+        ))
 
     def test_quoted_and_escaped_operators_are_not_removed_as_redirects(self) -> None:
-        commands = (
+        assert_guard_decisions(self, "deny", (
             "cf app ledger '>&' 1", "cf target '>&' '1'",
             "cf app ledger '>' /dev/null", r"cf app ledger \> /dev/null",
             r"cf target 2>\&1", "cf target 2>&'1'",
-        )
-        for command, proc in zip(commands, run_guard_batch([bash_call(c) for c in commands])):
-            with self.subTest(command=command):
-                self.assertEqual(decision(proc), "deny")
+        ))
 
 
 class UniqFilterTest(unittest.TestCase):
     def test_stdout_only_filter_forms_remain_allowed(self) -> None:
-        commands = ("uniq", "uniq -c", "uniq -di", "uniq --count --ignore-case",
-                    "cat events.txt | uniq -c")
-        for command, proc in zip(commands, run_guard_batch([bash_call(c) for c in commands])):
-            with self.subTest(command=command):
-                self.assertEqual(decision(proc), "allow")
+        assert_guard_decisions(self, "allow", ("uniq", "uniq -c", "uniq -di", "uniq --count --ignore-case",
+                                               "cat events.txt | uniq -c"))
 
     def test_file_operands_and_unreviewed_flags_are_denied(self) -> None:
         # GNU uniq takes an optional OUTPUT positional: no shell redirect is needed to overwrite it.
         # Keep the supported interface stdin-only so expansion cannot introduce that positional.
-        commands = ("uniq input.txt output.txt", "uniq - output.txt", "uniq -c input.txt output.txt",
-                    "uniq -- input.txt output.txt", "uniq input.txt", "uniq $FILES", "uniq *",
-                    "uniq --unknown", "uniq --count=output.txt")
-        for command, proc in zip(commands, run_guard_batch([bash_call(c) for c in commands])):
-            with self.subTest(command=command):
-                self.assertEqual(decision(proc), "deny")
+        assert_guard_decisions(self, "deny", (
+            "uniq input.txt output.txt", "uniq - output.txt", "uniq -c input.txt output.txt",
+            "uniq -- input.txt output.txt", "uniq input.txt", "uniq $FILES", "uniq *",
+            "uniq --unknown", "uniq --count=output.txt",
+        ))
 
     def test_quoted_redirect_tokens_cannot_hide_an_output_file(self) -> None:
-        commands = ("uniq '>&' 1", "uniq '>&' '1'", 'uniq -c ">&" 2', r"uniq \> /dev/null")
-        for command, proc in zip(commands, run_guard_batch([bash_call(c) for c in commands])):
-            with self.subTest(command=command):
-                self.assertEqual(decision(proc), "deny")
+        assert_guard_decisions(self, "deny", ("uniq '>&' 1", "uniq '>&' '1'", 'uniq -c ">&" 2', r"uniq \> /dev/null"))
 
 
 class ShellCommentBoundaryTest(unittest.TestCase):
     def test_embedded_hash_does_not_hide_a_later_command_or_flag(self) -> None:
-        commands = (
+        assert_guard_decisions(self, "deny", (
             "cf app ledger#; cf restart ledger",
             "cf app ledger# && cf restart ledger",
             "cf app ledger#\ncf restart ledger",
             "cf app ledger# --guid", "uniq -c#; cf restart ledger",
             r"cf app ledger\#; cf restart ledger",
-        )
-        for command, proc in zip(commands, run_guard_batch([bash_call(c) for c in commands])):
-            with self.subTest(command=command):
-                self.assertEqual(decision(proc), "deny")
+        ))
 
     def test_hash_in_a_literal_target_remains_an_argument(self) -> None:
-        for command in ("cf app ledger#", "cf app 'ledger#'", r"cf app ledger\#"):
-            with self.subTest(command=command):
-                self.assertEqual(decision(run_guard(bash_call(command))), "allow")
+        assert_guard_decisions(self, "allow", ("cf app ledger#", "cf app 'ledger#'", r"cf app ledger\#"))
         # A standalone shell comment is conservatively rejected by the exact CF argument grammar.
-        self.assertEqual(decision(run_guard(bash_call("cf app ledger # comment"))), "deny")
+        self.assertEqual(guard_decision(run_guard(guard_payload("cf app ledger # comment"))), "deny")
 
 
 class ShellWhitespaceBoundaryTest(unittest.TestCase):
     def test_unicode_whitespace_cannot_turn_a_file_redirect_into_a_stream_duplicate(self) -> None:
-        commands = tuple(command for space in ("\u00a0", "\u2003", "\u3000") for command in (
+        assert_guard_decisions(self, "deny", [command for space in ("\u00a0", "\u2003", "\u3000") for command in (
             f"cf target >&{space}1", f"cf target >{space}/dev/null",
             f"cf target 2>{space}/dev/null",
-        ))
-        for command, proc in zip(commands, run_guard_batch([bash_call(c) for c in commands])):
-            with self.subTest(command=command):
-                self.assertEqual(decision(proc), "deny")
+        )])
 
     def test_non_shell_line_separators_cannot_hide_uniq_file_operands(self) -> None:
         # Bash treats CR and these Unicode separators as literal word characters, not new commands.
-        commands = tuple(f"uniq {separator} {separator}" for separator in (
-            "\r", "\v", "\f", "\x85", "\u2028", "\u2029",
-        )) + ("cf target >&\r1", "cf app ledger\r", "cf app ledger\x00")
-        for command, proc in zip(commands, run_guard_batch([bash_call(c) for c in commands])):
-            with self.subTest(command=command):
-                self.assertEqual(decision(proc), "deny")
+        assert_guard_decisions(self, "deny", [
+            *(f"uniq {separator} {separator}" for separator in ("\r", "\v", "\f", "\x85", "\u2028", "\u2029")),
+            "cf target >&\r1", "cf app ledger\r", "cf app ledger\x00",
+        ])
 
 
 class ShellOperatorLiteralTest(unittest.TestCase):
     def test_operator_shaped_argv_cannot_hide_file_operands_or_cf_arguments(self) -> None:
-        commands = (
+        assert_guard_decisions(self, "deny", (
             "uniq ';' uniq", "uniq '|' pwd", "uniq '&&' uniq", "uniq '||' uniq",
             "uniq ';'\"\" uniq", r"uniq \; uniq", r"uniq \|\| uniq",
             "cf app ledger ';' cf target", "cf app ledger '|' pwd",
             r"cf app ledger \; cf target",
-        )
-        for command, proc in zip(commands, run_guard_batch([bash_call(c) for c in commands])):
-            with self.subTest(command=command):
-                self.assertEqual(decision(proc), "deny")
+        ))
 
     def test_operators_inside_larger_patterns_remain_data(self) -> None:
-        commands = ("grep 'a;b' events.txt", "rg 'foo|bar' .",
-                    '''grep "warning ';' message" events.txt''', "cf app 'ledger;blue'")
-        for command, proc in zip(commands, run_guard_batch([bash_call(c) for c in commands])):
-            with self.subTest(command=command):
-                self.assertEqual(decision(proc), "allow")
+        assert_guard_decisions(self, "allow", ("grep 'a;b' events.txt", "rg 'foo|bar' .",
+                                               '''grep "warning ';' message" events.txt''', "cf app 'ledger;blue'"))
 
 
 class ObservabilityUnguardedTest(unittest.TestCase):
@@ -931,7 +789,7 @@ class ObservabilityUnguardedTest(unittest.TestCase):
     looser in WHAT it allows.
     """
 
-    UNGUARDED_SAMPLE = [
+    UNGUARDED_SAMPLE = (
         "promtool check rules rules.yml",
         "promtool test rules tests/burn_test.yml",
         "yamllint alerts.yml",
@@ -939,21 +797,14 @@ class ObservabilityUnguardedTest(unittest.TestCase):
         "python skills/obs-alerting/scripts/error_budget.py --slo 99.9",
         'curl -sS -X POST -H "Authorization: Bearer $GRAFANA_SA_TOKEN" -d @dashboard.json "$GRAFANA_URL/api/dashboards/db"',
         "git push origin feature/dashboards",
-    ]
+    )
 
     def test_observability_engineer_is_never_guarded(self) -> None:
-        for agent in (OBS_ENGINEER, "observability-engineer"):
-            for command in self.UNGUARDED_SAMPLE:
-                with self.subTest(agent=agent, command=command):
-                    proc = run_guard(bash_call(command, agent_type=agent))
-                    self.assertEqual(decision(proc), "allow", f"guarded an unguarded lane: {command!r}")
+        assert_guard_decisions(self, "allow", self.UNGUARDED_SAMPLE,
+                               agent_types=(OBS_ENGINEER, "observability-engineer"))
 
     def test_the_same_commands_stay_denied_for_sre(self) -> None:
-        for agent in (SRE, "sre-assistant"):
-            for command in self.UNGUARDED_SAMPLE:
-                with self.subTest(agent=agent, command=command):
-                    proc = run_guard(bash_call(command, agent_type=agent))
-                    self.assertEqual(decision(proc), "deny", f"falsely allowed for sre-assistant: {command!r}")
+        assert_guard_decisions(self, "deny", self.UNGUARDED_SAMPLE, agent_types=(SRE, "sre-assistant"))
 
 
 class GuardScopingTest(unittest.TestCase):
@@ -967,37 +818,31 @@ class GuardScopingTest(unittest.TestCase):
     def test_main_loop_is_never_guarded(self) -> None:
         # The main loop carries no `agent_type` key at all (probed on CLI 2.1.200). This is the
         # property that makes a session-wide read-only guard safe to ship.
-        proc = run_guard(bash_call("git push --force origin main", agent_type=None))
-        self.assertEqual(decision(proc), "allow")
+        proc = run_guard(guard_payload("git push --force origin main", agent_type=None))
+        self.assertEqual(guard_decision(proc), "allow")
 
     def test_other_subagents_are_never_guarded(self) -> None:
         # software-engineer is deliberately unguarded (builds and tests are its job) — and so is any agent
         # outside GUARDED_AGENTS.
         # observability-engineer left the roster on 2026-08-21 so it can apply dashboards itself.
-        for agent in (
+        assert_guard_decisions(self, "allow", ["git push origin main"], agent_types=(
             "save-toolkit:software-engineer", "software-engineer", "reviewer", "researcher",
             "save-toolkit:observability-engineer", "observability-engineer",
-        ):
-            with self.subTest(agent=agent):
-                proc = run_guard(bash_call("git push origin main", agent_type=agent))
-                self.assertEqual(decision(proc), "allow")
+        ))
 
     def test_bare_agent_name_is_guarded(self) -> None:
         # Project/user-scope installs report a bare agent_type (probed on CLI 2.1.200; the
         # --plugin-dir dev loop reports the NAMESPACED form). The guard must not be sidestepped by
         # installing the agent at a different scope.
-        for agent in ("sre-assistant",):
-            with self.subTest(agent=agent):
-                proc = run_guard(bash_call("git push origin main", agent_type=agent))
-                self.assertEqual(decision(proc), "deny")
+        assert_guard_decisions(self, "deny", ["git push origin main"], agent_types=("sre-assistant",))
 
     def test_main_loop_command_that_merely_names_the_reviewer_is_allowed(self) -> None:
         # `tool_input.command` is user-controlled text. A guard that scanned it for the agent name
         # would deny this exact commit — the one someone editing this guard is about to make.
         proc = run_guard(
-            bash_call('git commit -m "fix save-toolkit:sre-assistant"', agent_type=None)
+            guard_payload('git commit -m "fix save-toolkit:sre-assistant"', agent_type=None)
         )
-        self.assertEqual(decision(proc), "allow")
+        self.assertEqual(guard_decision(proc), "allow")
 
     def test_renamed_plugin_namespace_fails_closed(self) -> None:
         # The other silent-disarm axis: the PLUGIN is renamed but PLUGIN_NAME here is not. The
@@ -1011,24 +856,21 @@ class GuardScopingTest(unittest.TestCase):
         # check: a caller still addressing the old namespace must not slip past the guard. Keep
         # every namespace here different from the live PLUGIN_NAME — the live one is guarded
         # through the normal allowlist path, so listing it here would test nothing.
-        for namespace in ("sre-agents", "renamed-plugin", "save-toolkit-v2"):
-            for bare in ("sre-assistant",):
-                with self.subTest(agent_type=f"{namespace}:{bare}"):
-                    proc = run_guard(bash_call("rm -rf /tmp/x", agent_type=f"{namespace}:{bare}"))
-                    self.assertEqual(decision(proc), "deny")
-                    self.assertIn("unrecognized plugin namespace", proc.stdout.decode("utf-8"))
+        assert_guard_decisions(
+            self, "deny", ["rm -rf /tmp/x"],
+            agent_types=[f"{namespace}:{bare}" for namespace in ("sre-agents", "renamed-plugin", "save-toolkit-v2")
+                         for bare in ("sre-assistant",)],
+            reason="unrecognized plugin namespace",
+        )
 
     def test_renamed_plugin_namespace_does_not_capture_unguarded_or_foreign_agents(self) -> None:
         # The fail-closed above must not become a session-wide denylist. `software-engineer` is deliberately
         # unguarded under ANY namespace, and an unrelated plugin's agents are not ours to police
         # unless their bare name collides with a guarded one.
-        for agent in (
+        assert_guard_decisions(self, "allow", ["rm -rf /tmp/x"], agent_types=(
             "save-toolkit:software-engineer", "renamed-plugin:software-engineer", "othervendor:reviewer",
             "renamed-plugin:observability-engineer",  # unguarded bare name under a moved namespace
-        ):
-            with self.subTest(agent_type=agent):
-                proc = run_guard(bash_call("rm -rf /tmp/x", agent_type=agent))
-                self.assertEqual(decision(proc), "allow")
+        ))
 
     def test_renamed_agent_type_field_fails_closed(self) -> None:
         # The contract canary. `agent_type` is undocumented; if it is ever renamed upstream, every
@@ -1051,7 +893,7 @@ class GuardScopingTest(unittest.TestCase):
                         }
                     )
                 )
-                self.assertEqual(decision(proc), "deny")
+                self.assertEqual(guard_decision(proc), "deny")
                 self.assertIn("contract has changed", proc.stdout.decode("utf-8"))
 
     def test_agent_name_in_a_non_agent_envelope_key_is_not_a_canary_trip(self) -> None:
@@ -1062,12 +904,12 @@ class GuardScopingTest(unittest.TestCase):
             json.dumps(
                 {
                     "tool_name": "Bash",
-                    "cwd": f"/home/user/{REVIEWER}/work",
+                    "cwd": f"/home/user/{SRE}/work",
                     "tool_input": {"command": "git push origin main"},
                 }
             )
         )
-        self.assertEqual(decision(proc), "allow")
+        self.assertEqual(guard_decision(proc), "allow")
 
 
 class FleetCredentialDenyTest(unittest.TestCase):
@@ -1086,7 +928,7 @@ class FleetCredentialDenyTest(unittest.TestCase):
         "save-toolkit:agent-engineer",
         "software-engineer",
     )
-    CREDENTIAL_COMMANDS = [
+    CREDENTIAL_COMMANDS = (
         "cf env checkout",
         "cf e checkout",
         "cf service-key checkout-db my-key",
@@ -1113,28 +955,18 @@ class FleetCredentialDenyTest(unittest.TestCase):
         "cf " + chr(92) + chr(10) + " env checkout",
         "gcloud auth " + chr(92) + chr(10) + " print-access-token",
         "cf " + chr(92) + chr(13) + chr(10) + " env checkout",
-    ]
+    )
 
     def test_every_credential_path_is_denied_in_a_previously_unguarded_lane(self) -> None:
-        for agent in self.UNGUARDED_LANES:
-            for command in self.CREDENTIAL_COMMANDS:
-                with self.subTest(agent=agent, command=command):
-                    proc = run_guard(bash_call(command, agent_type=agent))
-                    self.assertEqual(decision(proc), "deny", f"allowed: {command!r}")
-                    self.assertIn("fleet credential rule", proc.stdout.decode("utf-8"))
+        assert_guard_decisions(self, "deny", self.CREDENTIAL_COMMANDS, agent_types=self.UNGUARDED_LANES,
+                               reason="fleet credential rule")
 
     def test_the_same_paths_stay_denied_for_the_guarded_lane(self) -> None:
-        for command in self.CREDENTIAL_COMMANDS:
-            with self.subTest(command=command):
-                proc = run_guard(bash_call(command, agent_type=SRE))
-                self.assertEqual(decision(proc), "deny", f"allowed for sre-assistant: {command!r}")
+        assert_guard_decisions(self, "deny", self.CREDENTIAL_COMMANDS, agent_types=(SRE,))
 
     def test_the_main_loop_keeps_its_own_credential_commands(self) -> None:
         """The rule is addressed to the fleet's agents. A human's own terminal is not ours to gate."""
-        for command in self.CREDENTIAL_COMMANDS:
-            with self.subTest(command=command):
-                proc = run_guard(bash_call(command, agent_type=None))
-                self.assertEqual(decision(proc), "allow", f"gated the main loop: {command!r}")
+        assert_guard_decisions(self, "allow", self.CREDENTIAL_COMMANDS, agent_types=(None,))
 
     def test_ordinary_unguarded_work_is_untouched(self) -> None:
         """Prove the detector discriminates: these must stay allowed in the build lanes."""
@@ -1163,11 +995,7 @@ class FleetCredentialDenyTest(unittest.TestCase):
             "rg cf docs/env",
             "git log " + chr(92) + chr(10) + " --oneline",
         ]
-        for agent in self.UNGUARDED_LANES:
-            for command in benign:
-                with self.subTest(agent=agent, command=command):
-                    proc = run_guard(bash_call(command, agent_type=agent))
-                    self.assertEqual(decision(proc), "allow", f"false positive: {command!r}")
+        assert_guard_decisions(self, "allow", benign, agent_types=self.UNGUARDED_LANES)
 
     def test_an_unlexable_line_is_not_a_credential_denial(self) -> None:
         """Documented limit: the credential rule needs a positive match, so it never guesses.
@@ -1177,10 +1005,10 @@ class FleetCredentialDenyTest(unittest.TestCase):
         parse, which this asserts in the same test so the two contracts cannot drift apart.
         """
         unlexable = "git commit -m \"unbalanced"
-        proc = run_guard(bash_call(unlexable, agent_type="save-toolkit:software-engineer"))
-        self.assertEqual(decision(proc), "allow")
-        proc = run_guard(bash_call(unlexable, agent_type=SRE))
-        self.assertEqual(decision(proc), "deny")
+        proc = run_guard(guard_payload(unlexable, agent_type="save-toolkit:software-engineer"))
+        self.assertEqual(guard_decision(proc), "allow")
+        proc = run_guard(guard_payload(unlexable, agent_type=SRE))
+        self.assertEqual(guard_decision(proc), "deny")
 
 
 class CopilotTerminalTest(unittest.TestCase):
@@ -1192,16 +1020,9 @@ class CopilotTerminalTest(unittest.TestCase):
     admission -- without one the documented time and DNS observations are dead on a macOS host.
     """
 
-    @staticmethod
-    def copilot_call(command: str) -> subprocess.CompletedProcess:
-        return subprocess.run(
-            [sys.executable, str(GUARD), "--copilot"],
-            input=json.dumps(
-                {"tool_name": "run_in_terminal", "tool_input": {"command": command}}
-            ).encode("utf-8"),
-            capture_output=True,
-            timeout=30,
-        )
+    def assert_copilot(self, expected: str, commands: tuple[str, ...]) -> None:
+        assert_guard_decisions(self, expected, commands, tool_names=("run_in_terminal",),
+                               agent_types=(None,), copilot=True)
 
     def test_documented_macos_observations_are_admitted(self) -> None:
         """Every macOS cell of the command-access table, including the two that regressed.
@@ -1210,7 +1031,7 @@ class CopilotTerminalTest(unittest.TestCase):
         `dig` lives in _SIMPLE_READERS, so neither appears in _OS_READ_FORMS and both were denied
         while their table neighbours passed.
         """
-        for command in (
+        self.assert_copilot("allow", (
             "date -u",
             "date -u +%H:%M",
             "dig example.com",
@@ -1218,9 +1039,7 @@ class CopilotTerminalTest(unittest.TestCase):
             "uname -s",
             "sw_vers -productVersion",
             "df -h",
-        ):
-            with self.subTest(command=command):
-                self.assertEqual(decision(self.copilot_call(command)), "allow")
+        ))
 
     def test_the_admission_does_not_widen_past_the_documented_shapes(self) -> None:
         """The POSIX heads open a door for two commands, not for the whole Bash allowlist.
@@ -1230,7 +1049,7 @@ class CopilotTerminalTest(unittest.TestCase):
         a file into a stream of DNS queries; the Bash path accepts it today, this entry point does
         not have to.
         """
-        for command in (
+        self.assert_copilot("deny", (
             "date 010112002026",
             "date -u; rm -rf /",
             "dig -f /etc/passwd",
@@ -1239,30 +1058,22 @@ class CopilotTerminalTest(unittest.TestCase):
             "cat /etc/passwd",
             "rm -rf /",
             "git push origin main",
-        ):
-            with self.subTest(command=command):
-                self.assertEqual(decision(self.copilot_call(command)), "deny")
+        ))
 
     def test_existing_read_forms_still_pass(self) -> None:
         """Guards the refactor: the fixed OS forms and the app-evidence reads are unchanged."""
-        for command in (
+        self.assert_copilot("allow", (
             "git status --short",
             "gh pr view 280",
             "cf logs ledger --recent",
             "gcloud run services list",
-        ):
-            with self.subTest(command=command):
-                self.assertEqual(decision(self.copilot_call(command)), "allow")
+        ))
 
     def test_cf_uses_the_same_selected_operation_grammar(self) -> None:
-        for command in ("cf target", "cf app ledger", "cf events ledger",
-                        "cf logs --recent ledger", "cf revisions ledger"):
-            with self.subTest(command=command):
-                self.assertEqual(decision(self.copilot_call(command)), "allow")
-        for command in ("cf apps", "cf app ledger --guid", "cf logs ledger",
-                        "cf logs ledger --recent=false", "cf target -s another-space"):
-            with self.subTest(command=command):
-                self.assertEqual(decision(self.copilot_call(command)), "deny")
+        self.assert_copilot("allow", ("cf target", "cf app ledger", "cf events ledger",
+                                      "cf logs --recent ledger", "cf revisions ledger"))
+        self.assert_copilot("deny", ("cf apps", "cf app ledger --guid", "cf logs ledger",
+                                     "cf logs ledger --recent=false", "cf target -s another-space"))
 
 
 if __name__ == "__main__":

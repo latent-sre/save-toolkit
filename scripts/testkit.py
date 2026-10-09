@@ -11,11 +11,16 @@ parsers: checking a tool's output with that tool's parser would make the asserti
 from __future__ import annotations
 
 import importlib.util
+import itertools
+import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 import unittest
+from collections.abc import Iterable
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from types import ModuleType
 
@@ -103,3 +108,93 @@ def frontmatter_block(text: str) -> str:
     if found is None:
         raise AssertionError("document does not open with a closed `---` frontmatter block")
     return found.group(1)
+
+
+# --- Guard ------------------------------------------------------------------------------------
+# Every suite that classifies commands with scripts/readonly-guard.py runs it through these, the way
+# the hook launches it: `python -I -S`, the PreToolUse payload on stdin. The exit codes are literals
+# on purpose, never read from the guard: codes taken from the module under test would agree with
+# whatever value it chose, and the hook launchers hard-code these three.
+
+GUARD = ROOT / "scripts" / "readonly-guard.py"
+GUARD_ALLOW = 42
+GUARD_DENY = 43
+GUARD_INDETERMINATE = 44
+SRE_ASSISTANT = "save-toolkit:sre-assistant"
+
+
+def guard_payload(command: object, *, tool_name: str = "Bash", agent_type: str | None = SRE_ASSISTANT) -> str:
+    """A PreToolUse payload from the guarded agent unless told otherwise.
+
+    The guard no-ops unless `agent_type` names a lane it inspects, so a default without one would let
+    a deny corpus pass while testing only the short-circuit. `agent_type=None` omits the key, which
+    is what the main loop sends (absent, not null; probed on CLI 2.1.200) and what --copilot reads.
+    """
+    data: dict[str, object] = {"tool_name": tool_name, "tool_input": {"command": command}}
+    if agent_type is not None:
+        data["agent_type"] = agent_type
+    return json.dumps(data)
+
+
+def run_guard(payload: str, *, copilot: bool = False) -> subprocess.CompletedProcess[bytes]:
+    """One guard run with `payload` on stdin, isolated as the hook runs it."""
+    return subprocess.run(
+        [sys.executable, "-I", "-S", str(GUARD), *(["--copilot"] if copilot else [])],
+        input=payload.encode("utf-8"), capture_output=True, timeout=30, check=False,
+    )
+
+
+def run_guard_batch(payloads: Iterable[str], *, copilot: bool = False) -> list[subprocess.CompletedProcess[bytes]]:
+    """run_guard for each payload, overlapped, in payload order.
+
+    The guard is a stateless stdin-to-verdict filter, so overlap changes nothing about any one run;
+    it stops hundreds of interpreter launches queuing behind each other.
+    """
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        return list(pool.map(lambda payload: run_guard(payload, copilot=copilot), payloads))
+
+
+def guard_decision(proc: subprocess.CompletedProcess[bytes]) -> str:
+    """'allow' or 'deny', failing unless the exit code and stdout agree.
+
+    The hook takes the exit code as proof that this guard answered, not a stand-in that exits 0, so
+    stdout and code must match on every call. Any other exit, 44 included, is not a decision and
+    fails here; a test expecting indeterminate asserts the code itself.
+    """
+    out = proc.stdout.decode("utf-8").strip()
+    if proc.returncode == GUARD_ALLOW:
+        if out:
+            raise AssertionError(f"exit {GUARD_ALLOW} (allow) but stdout was not empty: {out!r}")
+        return "allow"
+    if proc.returncode == GUARD_DENY:
+        verdict = json.loads(out)["hookSpecificOutput"]["permissionDecision"]
+        if verdict != "deny":
+            raise AssertionError(f"exit {GUARD_DENY} (deny) but stdout said {verdict!r}")
+        return "deny"
+    raise AssertionError(
+        f"guard exited {proc.returncode}, expected {GUARD_ALLOW} (allow) or {GUARD_DENY} (deny); "
+        f"stdout={out!r} stderr={proc.stderr.decode('utf-8', 'replace')[:300]!r}"
+    )
+
+
+def assert_guard_decisions(
+    test: unittest.TestCase,
+    expected: str,
+    commands: Iterable[object],
+    *,
+    tool_names: Iterable[str] = ("Bash",),
+    agent_types: Iterable[str | None] = (SRE_ASSISTANT,),
+    copilot: bool = False,
+    reason: str | None = None,
+) -> None:
+    """Assert `expected` for every command in every tool and agent context, run as one batch.
+
+    Each case is its own subTest. `reason`, when given, must appear in every answer's stdout.
+    """
+    cases = list(itertools.product(tool_names, agent_types, commands))
+    payloads = [guard_payload(command, tool_name=tool, agent_type=agent) for tool, agent, command in cases]
+    for (tool, agent, command), proc in zip(cases, run_guard_batch(payloads, copilot=copilot), strict=True):
+        with test.subTest(tool_name=tool, agent_type=agent, command=command):
+            test.assertEqual(expected, guard_decision(proc))
+            if reason is not None:
+                test.assertIn(reason, proc.stdout.decode("utf-8"))

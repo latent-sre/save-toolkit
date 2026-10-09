@@ -2,19 +2,12 @@
 
 from __future__ import annotations
 
-from itertools import product
-import json
-from pathlib import Path
 import re
 import shlex
-import subprocess
-import sys
 import unittest
 
 import yaml
-
-
-ROOT = Path(__file__).resolve().parents[1]
+from testkit import ROOT, assert_guard_decisions
 
 
 class SkillAssetTests(unittest.TestCase):
@@ -186,21 +179,10 @@ class SkillAssetTests(unittest.TestCase):
         self.assertTrue(commands, "no executable command examples found")
         targets = {"service": "orders", "revision": "orders-00002", "project": "project-a",
                    "region": "us-central1", "previous-revision": "orders-00001"}
-        for command, tool in product(commands, ("Bash", "PowerShell")):
-            concrete = re.sub(r"<([^>]+)>", lambda match: targets[match[1]], command)
-            with self.subTest(command=concrete, tool=tool):
-                result = subprocess.run(
-                    [sys.executable, str(ROOT / "scripts/readonly-guard.py")],
-                    input=json.dumps({"agent_type": "save-toolkit:sre-assistant",
-                                      "tool_name": tool, "tool_input": {"command": concrete}}),
-                    text=True, capture_output=True, timeout=30,
-                )
-                denied = " update-traffic " in concrete
-                self.assertEqual(result.returncode, 43 if denied else 42, result.stderr)
-                if denied:
-                    self.assertEqual(json.loads(result.stdout)["hookSpecificOutput"]["permissionDecision"], "deny")
-                else:
-                    self.assertEqual(result.stdout, "")
+        concrete = [re.sub(r"<([^>]+)>", lambda match: targets[match[1]], command) for command in commands]
+        for expected, selected in (("allow", [c for c in concrete if " update-traffic " not in c]),
+                                   ("deny", [c for c in concrete if " update-traffic " in c])):
+            assert_guard_decisions(self, expected, selected, tool_names=("Bash", "PowerShell"))
 
     def test_service_lifecycle_context_requirements_declare_no_authority_paths(self) -> None:
         sidecar_path = ROOT / "skills/service-lifecycle/context-requirements.yaml"

@@ -1,12 +1,7 @@
 """Exercise configuration-read policy without running gcloud or reading credentials."""
-import json
-from pathlib import Path
-import subprocess
-import sys
-
 import pytest
+from testkit import guard_decision, guard_payload, run_guard
 
-GUARD = Path(__file__).resolve().with_name("readonly-guard.py")
 CONTEXTS = [
     ("Bash", "save-toolkit:sre-assistant", False),
     ("PowerShell", "save-toolkit:sre-assistant", False),
@@ -18,19 +13,7 @@ CONTEXTS = [
 
 def decision(command, context):
     tool, agent, copilot = context
-    payload = {"tool_name": tool, "tool_input": {"command": command}}
-    if agent is not None:
-        payload["agent_type"] = agent
-    result = subprocess.run(
-        [sys.executable, "-I", "-S", str(GUARD), *(["--copilot"] if copilot else [])],
-        input=json.dumps(payload), text=True, capture_output=True, timeout=10,
-    )
-    assert result.returncode in (42, 43), result.stderr
-    if result.returncode == 43:
-        assert json.loads(result.stdout)["hookSpecificOutput"]["permissionDecision"] == "deny"
-    else:
-        assert not result.stdout
-    return result.returncode
+    return guard_decision(run_guard(guard_payload(command, tool_name=tool, agent_type=agent), copilot=copilot))
 
 
 @pytest.mark.parametrize("context", CONTEXTS)
@@ -50,7 +33,7 @@ def decision(command, context):
     "gcloud config list project proxy/password",
 ])
 def test_credential_or_unrestricted_configuration_reads_denied(command, context):
-    assert decision(command, context) == 43
+    assert decision(command, context) == "deny"
 
 
 @pytest.mark.parametrize("context", CONTEXTS)
@@ -62,13 +45,13 @@ def test_credential_or_unrestricted_configuration_reads_denied(command, context)
     "gcloud config get-value compute/zone",
 ])
 def test_required_noncredential_target_reads_remain_available(command, context):
-    assert decision(command, context) == 42
+    assert decision(command, context) == "allow"
 
 
 @pytest.mark.parametrize("context", CONTEXTS[:3])
 @pytest.mark.parametrize("suffix", ["--all", "--configuration other", "--format=json", "--log-http"])
 def test_sre_config_reads_do_not_accept_extra_flags(suffix, context):
-    assert decision("gcloud config list project " + suffix, context) == 43
+    assert decision("gcloud config list project " + suffix, context) == "deny"
 
 
 @pytest.mark.parametrize("command", [
@@ -77,4 +60,4 @@ def test_sre_config_reads_do_not_accept_extra_flags(suffix, context):
     "gcloud config unset proxy/password",
 ])
 def test_build_lane_data_and_configuration_changes_are_not_read_tripwires(command):
-    assert decision(command, CONTEXTS[3]) == 42
+    assert decision(command, CONTEXTS[3]) == "allow"

@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import json
+import subprocess
 import sys
 import tempfile
+import threading
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import testkit
 
@@ -55,6 +59,55 @@ class MutationAndLoadingTests(unittest.TestCase):
                 self.assertNotIn("testkit_probe_bad", sys.modules)
             finally:
                 sys.modules.pop("testkit_probe_good", None)
+
+
+class GuardRunnerTests(unittest.TestCase):
+    DENY = b'{"hookSpecificOutput": {"permissionDecision": "deny"}}'
+
+    @staticmethod
+    def completed(returncode: int, stdout: bytes = b"") -> subprocess.CompletedProcess[bytes]:
+        return subprocess.CompletedProcess(args=[], returncode=returncode, stdout=stdout, stderr=b"")
+
+    def test_decision_requires_the_exit_code_and_stdout_to_agree(self) -> None:
+        self.assertEqual("allow", testkit.guard_decision(self.completed(42)))
+        self.assertEqual("deny", testkit.guard_decision(self.completed(43, self.DENY)))
+        for proc in (
+            self.completed(42, self.DENY),
+            self.completed(43, self.DENY.replace(b"deny", b"allow")),
+            self.completed(44), self.completed(1), self.completed(0),
+        ):
+            with self.subTest(returncode=proc.returncode, stdout=proc.stdout), self.assertRaises(AssertionError):
+                testkit.guard_decision(proc)
+
+    def test_payload_names_the_guarded_agent_unless_told_otherwise(self) -> None:
+        self.assertEqual(
+            {"tool_name": "Bash", "tool_input": {"command": "x"}, "agent_type": "save-toolkit:sre-assistant"},
+            json.loads(testkit.guard_payload("x")),
+        )
+        self.assertNotIn("agent_type", json.loads(testkit.guard_payload("x", agent_type=None)))
+
+    def test_the_guard_runs_isolated_as_the_hook_launches_it(self) -> None:
+        with mock.patch.object(testkit.subprocess, "run", return_value=self.completed(42)) as run:
+            testkit.run_guard("{}", copilot=True)
+        self.assertEqual([sys.executable, "-I", "-S", str(testkit.GUARD), "--copilot"], run.call_args.args[0])
+        self.assertEqual("deny", testkit.guard_decision(testkit.run_guard(testkit.guard_payload("git push"))))
+
+    def test_batch_requires_overlapping_invocations(self) -> None:
+        barrier = threading.Barrier(2)
+
+        def fake_run_guard(payload: str, *, copilot: bool = False) -> subprocess.CompletedProcess[bytes]:
+            try:
+                barrier.wait(timeout=1)
+            except threading.BrokenBarrierError as exc:
+                raise AssertionError("run_guard_batch stopped overlapping guard invocations") from exc
+            return self.completed(42)
+
+        # run_guard_batch looks run_guard up in testkit on every call; patching any other module's
+        # name for it would leave the real guard running and this test passing without a barrier.
+        with mock.patch.object(testkit, "run_guard", side_effect=fake_run_guard) as fake:
+            procs = testkit.run_guard_batch(["{}", "{}"])
+        self.assertEqual(2, fake.call_count)
+        self.assertEqual([42, 42], [proc.returncode for proc in procs])
 
 
 if __name__ == "__main__":
