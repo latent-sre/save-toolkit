@@ -129,10 +129,6 @@ def delegation_targets(grants: list[ToolGrant], source: str | Path, *, plugin: s
     return targets
 
 
-def _source_name(source: str | Path) -> str:
-    return source.as_posix() if isinstance(source, Path) else str(source)
-
-
 def _problem(
     problems: list[str], mode: Mode, source: str, line_number: int | None, message: str
 ) -> None:
@@ -173,7 +169,7 @@ def parse(text: str, source: str | Path, *, mode: Mode = "strict") -> ParsedFron
     if mode not in {"strict", "lenient"}:
         raise ValueError(f"unsupported frontmatter parse mode: {mode!r}")
 
-    source_name = _source_name(source)
+    source_name = source.as_posix() if isinstance(source, Path) else str(source)
     problems: list[str] = []
     lines = text.splitlines()
     if not lines or lines[0].strip() != "---":

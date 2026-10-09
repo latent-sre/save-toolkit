@@ -263,8 +263,11 @@ def _strip_fences(text: str) -> str:
 
 
 def _yaml_string(
-    value: object, style: str | None, where: str, failures: list[str]
+    parsed: fleet_frontmatter.ParsedFrontmatter, key: str, where: str, failures: list[str]
 ) -> str | None:
+    """The field `key` when it is one nonblank YAML string; otherwise record why and return None."""
+    value, style = parsed.fields.get(key, ""), parsed.styles.get(key)
+    where = f"{where}: {key}"
     if not isinstance(value, str) or not value.strip():
         failures.append(f"{where}: value must be one nonblank YAML string")
         return None
@@ -284,17 +287,13 @@ def _yaml_string(
 def _check_skill_frontmatter(path: Path, text: str) -> tuple[str, list[str]]:
     parsed = fleet_frontmatter.parse(text, path, mode="lenient")
     values = parsed.fields
-    styles = parsed.styles
-    body = parsed.body
     failures = list(parsed.problems)
     where = path.as_posix()
     expected_name = path.parent.name
     unknown = sorted(set(values) - ALLOWED_KEYS)
     if unknown:
         failures.append(f"{where}: unknown frontmatter key(s): {', '.join(unknown)}")
-    name = _yaml_string(
-        values.get("name", ""), styles.get("name"), f"{where}: name", failures
-    )
+    name = _yaml_string(parsed, "name", where, failures)
     if name:
         if len(name) > 64:
             failures.append(f"{where}: name exceeds 64 characters")
@@ -302,12 +301,7 @@ def _check_skill_frontmatter(path: Path, text: str) -> tuple[str, list[str]]:
             failures.append(
                 f"{where}: name must be kebab-case and equal directory '{expected_name}'"
             )
-    description = _yaml_string(
-        values.get("description", ""),
-        styles.get("description"),
-        f"{where}: description",
-        failures,
-    )
+    description = _yaml_string(parsed, "description", where, failures)
     if description:
         if len(description) > SKILL_DESCRIPTION_MAX_CHARS:
             failures.append(
@@ -321,21 +315,10 @@ def _check_skill_frontmatter(path: Path, text: str) -> tuple[str, list[str]]:
             if not 2 <= len(triggers) <= 4:
                 failures.append(f"{where}: Triggers must contain 2-4 quoted user phrasings")
     if "argument-hint" in values:
-        _yaml_string(
-            values["argument-hint"],
-            styles.get("argument-hint"),
-            f"{where}: argument-hint",
-            failures,
-        )
+        _yaml_string(parsed, "argument-hint", where, failures)
     if "compatibility" in values:
-        compatibility_style = styles.get("compatibility")
-        compatibility = _yaml_string(
-            values["compatibility"],
-            compatibility_style,
-            f"{where}: compatibility",
-            failures,
-        )
-        if compatibility_style == "block":
+        compatibility = _yaml_string(parsed, "compatibility", where, failures)
+        if parsed.styles.get("compatibility") == "block":
             failures.append(
                 f"{where}: compatibility must use a single-line scalar so its "
                 "500-character limit is measured exactly"
@@ -355,7 +338,7 @@ def _check_skill_frontmatter(path: Path, text: str) -> tuple[str, list[str]]:
         failures.append(
             f"{where}: only {', '.join(sorted(MANUAL_ONLY))} may disable model invocation"
         )
-    return body, failures
+    return parsed.body, failures
 
 
 def _links(text: str) -> list[tuple[str, str]]:
