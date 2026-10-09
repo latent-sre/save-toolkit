@@ -8,10 +8,11 @@ not isolate the surrounding agent's independent tools from the operating system.
 Masking can replace any returned value/type, including metadata; exit status is authoritative.
 Exit 0: requested API operation succeeded (coverage unproven); 2: safe failure.
 """
-from __future__ import annotations
 
 import argparse
 import base64
+from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
 import math
@@ -26,6 +27,12 @@ from urllib.request import HTTPSHandler, HTTPRedirectHandler, ProxyHandler, Requ
 MAX_RESPONSE = 2 * 1024 * 1024
 TIMEOUT = 20
 MAX_RANGE_MS = 24 * 60 * 60 * 1000
+MAX_EXPRESSION = 16000
+# The canonical base64 of a MAX_EXPRESSION-character expression whose every character takes the
+# longest UTF-8 encoding, four bytes; anything longer cannot decode to an acceptable expression.
+MAX_EXPRESSION_BASE64 = 4 * math.ceil(4 * MAX_EXPRESSION / 3)
+MAX_DATA_POINTS = 1000
+MAX_LOG_LINES = 500
 UID = re.compile(r"[A-Za-z0-9_-]{1,40}\Z")
 TEMPLATE = re.compile(r"\$(?:[A-Za-z_]|\{)|\[\[[A-Za-z_][^\]]*\]\]")
 
@@ -68,7 +75,7 @@ def parse_args(argv):
         if args.expr_base64 is not None:
             # Encoding is argument transport, not encryption or secret handling.
             try:
-                if len(args.expr_base64) > 85336:
+                if len(args.expr_base64) > MAX_EXPRESSION_BASE64:
                     raise ValueError()
                 raw = base64.b64decode(args.expr_base64, validate=True)
                 if base64.b64encode(raw).decode("ascii") != args.expr_base64:
@@ -78,14 +85,58 @@ def parse_args(argv):
                 raise SafeError("invalid_arguments") from None
         if not 0 <= args.from_ms < args.to_ms <= 253402300799999 or args.to_ms - args.from_ms > MAX_RANGE_MS:
             raise SafeError("invalid_arguments")
-        if not args.expr.strip() or len(args.expr) > 16000 or TEMPLATE.search(args.expr):
+        if not args.expr.strip() or len(args.expr) > MAX_EXPRESSION or TEMPLATE.search(args.expr):
             raise SafeError("unresolved_or_invalid_expression")
         if any(ord(char) < 32 for char in args.expr):
             raise SafeError("invalid_arguments")
     return args
 
 
-def _configuration(environ):
+def _reject_constant(name):
+    """json.loads hook: NaN and Infinity are not JSON numbers; refuse them rather than return floats."""
+    raise ValueError("non-standard JSON constant")
+
+
+@dataclass(frozen=True)
+class _Connection:
+    """One verified origin, credential and organization; every request carries all three."""
+
+    transport: Callable[[Request], tuple[int, bytes]]
+    base: str
+    authorization: str
+    organization: int
+
+    def read(self, path, body=None):
+        """GET a fixed API path, or POST a JSON body to it; return its JSON object or raise SafeError."""
+        headers = {"Accept": "application/json", "Authorization": self.authorization,
+                   "X-Grafana-Org-Id": str(self.organization)}
+        if body is not None:
+            headers["Content-Type"] = "application/json"
+        request = Request(self.base + path, data=None if body is None else json.dumps(body).encode("utf-8"),
+                          headers=headers, method="GET" if body is None else "POST")
+        try:
+            status, raw = self.transport(request)
+        except SafeError:
+            raise
+        except Exception:
+            raise SafeError("request_failed") from None
+        if 300 <= status < 400:
+            raise SafeError("redirect_rejected")
+        if status < 200 or status >= 300:
+            raise SafeError("http_error")
+        if len(raw) > MAX_RESPONSE:
+            raise SafeError("response_too_large")
+        try:
+            result = json.loads(raw, parse_constant=_reject_constant)
+        except (ValueError, UnicodeError, RecursionError):
+            raise SafeError("invalid_response") from None
+        if not isinstance(result, dict):
+            raise SafeError("invalid_response")
+        return result
+
+
+def _connect(environ, transport):
+    """Validate the launcher's settings; return the connection and every credential form to mask."""
     organization = environ.get("GRAFANA_ORG_ID", "")
     if not re.fullmatch(r"[1-9][0-9]{0,18}", organization) or int(organization) > 9223372036854775807:
         raise SafeError("invalid_organization_configuration")
@@ -119,7 +170,7 @@ def _configuration(environ):
     else:
         raise SafeError("authentication_unavailable")
     secrets.append(authorization)
-    return base.rstrip("/"), authorization, secrets, int(organization)
+    return _Connection(transport, base.rstrip("/"), authorization, int(organization)), secrets
 
 
 def _mask(value, secrets):
@@ -142,7 +193,8 @@ def _mask(value, secrets):
         if item is None or isinstance(item, bool):
             text = json.dumps(item)
             return "[REDACTED]" if pattern and pattern.search(text) else item
-        if isinstance(item, (int, float)) and not isinstance(item, bool):
+        # Numbers as Python spells them: a decoded 1e999 is inf, which json.dumps would spell Infinity.
+        if isinstance(item, (int, float)):
             text = str(item)
             return "[REDACTED]" if pattern and pattern.search(text) else item
         return item
@@ -168,75 +220,54 @@ def http_transport(request):
         return status, b""
 
 
-def _read(transport, base, authorization, organization, path, body=None):
-    headers = {"Accept": "application/json", "Authorization": authorization, "X-Grafana-Org-Id": str(organization)}
-    if body is not None:
-        headers["Content-Type"] = "application/json"
-    request = Request(base + path, data=None if body is None else json.dumps(body).encode("utf-8"),
-                      headers=headers, method="GET" if body is None else "POST")
+def _dashboard(grafana, uid):
+    response = grafana.read("/api/dashboards/uid/" + uid)
+    dashboard = response.get("dashboard")
+    if not isinstance(dashboard, dict) or dashboard.get("uid") != uid or not isinstance(response.get("meta"), dict):
+        raise SafeError("invalid_dashboard_response")
+    return {"ok": True, "operation": "dashboard", "dashboard": dashboard, "meta": response["meta"],
+            "coverage": "configuration_only"}
+
+
+def _query(grafana, args):
+    datasource = grafana.read("/api/datasources/uid/" + args.datasource + "?ds_type=" + args.kind)
+    if "orgId" in datasource and (type(datasource["orgId"]) is not int or datasource["orgId"] != grafana.organization):
+        raise SafeError("organization_mismatch")
+    if datasource.get("uid") != args.datasource or datasource.get("type") != args.kind:
+        raise SafeError("datasource_mismatch")
+    interval = max(1000, math.ceil((args.to_ms - args.from_ms) / 1000))
+    # The limits sent are the limits reported beside the evidence.
+    limits = {"maxDataPoints": MAX_DATA_POINTS, "intervalMs": interval,
+              "maxLines": MAX_LOG_LINES if args.kind == "loki" else None}
+    query = {"refId": "A", "datasource": {"uid": args.datasource, "type": args.kind},
+             "expr": args.expr, "maxDataPoints": limits["maxDataPoints"], "intervalMs": limits["intervalMs"]}
+    if args.kind == "prometheus":
+        query.update({"range": True, "instant": False, "format": "time_series"})
+    else:
+        query.update({"queryType": "range", "maxLines": limits["maxLines"]})
+    response = grafana.read("/api/ds/query", {"from": str(args.from_ms), "to": str(args.to_ms), "queries": [query]})
+    results = response.get("results")
+    if response.get("error") or not isinstance(results, dict) or set(results) != {"A"} or not isinstance(results["A"], dict):
+        raise SafeError("query_failed")
+    result_a = results["A"]
     try:
-        status, raw = transport(request)
-    except SafeError:
-        raise
-    except Exception:
-        raise SafeError("request_failed") from None
-    if 300 <= status < 400:
-        raise SafeError("redirect_rejected")
-    if status < 200 or status >= 300:
-        raise SafeError("http_error")
-    if len(raw) > MAX_RESPONSE:
-        raise SafeError("response_too_large")
-    try:
-        result = json.loads(raw, parse_constant=lambda _: (_ for _ in ()).throw(ValueError()))
-    except (ValueError, UnicodeError, RecursionError):
-        raise SafeError("invalid_response") from None
-    if not isinstance(result, dict):
-        raise SafeError("invalid_response")
-    return result
+        failed = bool(result_a.get("error")) or int(result_a.get("status", 200)) >= 400
+    except (ValueError, TypeError):
+        failed = True
+    if failed or not isinstance(result_a.get("frames"), list):
+        raise SafeError("query_failed")
+    return {"ok": True, "operation": "query", "datasource": args.datasource, "kind": args.kind,
+            "from": str(args.from_ms), "to": str(args.to_ms), "results": results,
+            "coverage": "not_established", "limits": limits}
 
 
 def run(args, environ, transport):
-    base, authorization, secrets, organization = _configuration(environ)
-    current_org = _read(transport, base, authorization, organization, "/api/org")
-    if type(current_org.get("id")) is not int or current_org["id"] != organization:
+    grafana, secrets = _connect(environ, transport)
+    current_org = grafana.read("/api/org")
+    if type(current_org.get("id")) is not int or current_org["id"] != grafana.organization:
         raise SafeError("organization_mismatch")
-    if args.command == "dashboard":
-        response = _read(transport, base, authorization, organization, "/api/dashboards/uid/" + args.uid)
-        dashboard = response.get("dashboard")
-        if not isinstance(dashboard, dict) or dashboard.get("uid") != args.uid or not isinstance(response.get("meta"), dict):
-            raise SafeError("invalid_dashboard_response")
-        result = {"ok": True, "operation": "dashboard", "dashboard": dashboard, "meta": response["meta"],
-                  "coverage": "configuration_only"}
-    else:
-        datasource = _read(transport, base, authorization, organization, "/api/datasources/uid/" + args.datasource + "?ds_type=" + args.kind)
-        if "orgId" in datasource and (type(datasource["orgId"]) is not int or datasource["orgId"] != organization):
-            raise SafeError("organization_mismatch")
-        if datasource.get("uid") != args.datasource or datasource.get("type") != args.kind:
-            raise SafeError("datasource_mismatch")
-        interval = max(1000, math.ceil((args.to_ms - args.from_ms) / 1000))
-        query = {"refId": "A", "datasource": {"uid": args.datasource, "type": args.kind},
-                 "expr": args.expr, "maxDataPoints": 1000, "intervalMs": interval}
-        if args.kind == "prometheus":
-            query.update({"range": True, "instant": False, "format": "time_series"})
-        else:
-            query.update({"queryType": "range", "maxLines": 500})
-        response = _read(transport, base, authorization, organization, "/api/ds/query",
-                         {"from": str(args.from_ms), "to": str(args.to_ms), "queries": [query]})
-        results = response.get("results")
-        if response.get("error") or not isinstance(results, dict) or set(results) != {"A"} or not isinstance(results["A"], dict):
-            raise SafeError("query_failed")
-        result_a = results["A"]
-        try:
-            failed = bool(result_a.get("error")) or int(result_a.get("status", 200)) >= 400
-        except (ValueError, TypeError):
-            failed = True
-        if failed or not isinstance(result_a.get("frames"), list):
-            raise SafeError("query_failed")
-        result = {"ok": True, "operation": "query", "datasource": args.datasource, "kind": args.kind,
-                  "from": str(args.from_ms), "to": str(args.to_ms), "results": results,
-                  "coverage": "not_established", "limits": {"maxDataPoints": 1000, "intervalMs": interval,
-                  "maxLines": 500 if args.kind == "loki" else None}}
-    result.update({"grafana_url": base, "organization_id": organization,
+    result = _dashboard(grafana, args.uid) if args.command == "dashboard" else _query(grafana, args)
+    result.update({"grafana_url": grafana.base, "organization_id": grafana.organization,
                    "retrieved_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")})
     return _mask(result, secrets)
 
