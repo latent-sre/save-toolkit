@@ -43,8 +43,13 @@ class ReviewFindingTests(ReviewFindingTestCase):
     """The 2026-08-28 review findings on the probe, each pinned by the behaviour it asked for."""
 
     def test_trials_must_be_positive(self) -> None:
-        with self.assertRaises(SystemExit):
-            probe_cli.main(["--trials", "0", "--label", "x", "--out", str(self.root / "out")])
+        for trials, message in (("0", "--trials must be at least 1"), ("two", "--trials must be a whole number")):
+            with self.subTest(trials=trials), contextlib.redirect_stderr(io.StringIO()) as err, \
+                    self.assertRaises(SystemExit) as refused:
+                probe_cli.main(["--trials", trials, "--label", "x", "--out", str(self.root / "out")])
+            self.assertEqual(3, refused.exception.code)
+            self.assertIn(f"error: argument --trials: {message}", err.getvalue())
+            self.assertFalse((self.root / "out").exists())
 
     def test_regrade_exit_code_separates_fail_inconclusive_and_nothing_regraded(self) -> None:
         """A run exits 1 on FAIL and 2 on INCONCLUSIVE; a regrade that graded nothing measured nothing."""
@@ -326,7 +331,7 @@ class BatchAggregationTests(TempRootTestCase):
                     self.assertRaises(SystemExit, msg=command) as refused:
                 self._main([self._trial(0, "PASS")], "--run-offset", "-1", command=command)
             self.assertEqual(3, refused.exception.code, command)  # refused: bad input, not INCONCLUSIVE
-            self.assertIn("error: --run-offset must be at least 0", err.getvalue())
+            self.assertIn("error: argument --run-offset: --run-offset must be at least 0", err.getvalue())
             self.assertFalse(self.out.exists(), "refused before any trial ran or a summary was written")
         code, _ = self._main([self._trial(1, "PASS")], "--run-offset", "0", expected_calls=1)
         self.assertEqual(0, code)

@@ -69,6 +69,26 @@ def _budget(value: str) -> float:
     return number
 
 
+def _trials(value: str) -> int:
+    """At least one trial: an empty batch is not a green batch."""
+    return _whole_number(value, "--trials", 1, "an empty batch is not a green batch")
+
+
+def _run_offset(value: str) -> int:
+    """At least zero: run numbers start at 1, and the v1 record refuses a `run-0`."""
+    return _whole_number(value, "--run-offset", 0, "run numbers start at 1")
+
+
+def _whole_number(value: str, flag: str, minimum: int, why: str) -> int:
+    try:
+        number = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"{flag} must be a whole number, got {value!r}") from None
+    if number < minimum:
+        raise argparse.ArgumentTypeError(f"{flag} must be at least {minimum} ({why})")
+    return number
+
+
 def _scenario_option(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--scenario", default="all", help="scenario id under evals/build-scenarios, or 'all'")
 
@@ -100,10 +120,13 @@ def _run_options(parser: argparse.ArgumentParser, *, required: bool) -> None:
         type=Path,
         help="completed canonical calibration identity.json required by rubric-backed trials",
     )
-    parser.add_argument("--trials", type=int, default=1)
+    parser.add_argument("--trials", type=_trials, default=1)
     _threshold_option(parser)
     parser.add_argument(
-        "--run-offset", type=int, default=0, help="first run number minus one, to append trials to an existing label"
+        "--run-offset",
+        type=_run_offset,
+        default=0,
+        help="first run number minus one, to append trials to an existing label",
     )
     parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT)
     parser.add_argument(
@@ -217,10 +240,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser = _legacy_parser()
         args = parser.parse_args(arguments)
         command = _legacy_command(args)
-    if getattr(args, "trials", 1) < 1:
-        parser.error("--trials must be at least 1 (an empty batch is not a green batch)")
-    if getattr(args, "run_offset", 0) < 0:
-        parser.error("--run-offset must be at least 0 (run numbers start at 1)")
     if command == "diff":
         return diff(args.diff_paths)
     if command == "schema":
