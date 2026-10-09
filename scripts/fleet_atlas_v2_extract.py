@@ -11,12 +11,12 @@ import hashlib
 import json
 import posixpath
 import re
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Container, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, replace
 from functools import cached_property, lru_cache
 from pathlib import PurePosixPath
 from types import MappingProxyType
-from typing import Literal, NamedTuple
+from typing import Any, Literal, NamedTuple, TypeAlias, cast, overload
 from urllib.parse import unquote, urlsplit
 
 import fleet_frontmatter
@@ -111,7 +111,7 @@ class StageOutput:
     records: tuple[Record, ...] = ()
     buckets: tuple[Bucket, ...] = ()
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not isinstance(self.records, tuple) or not all(isinstance(r, Record) for r in self.records):
             raise TypeError('stage records must be a tuple of Record values')
         if not isinstance(self.buckets, tuple) or not all(isinstance(b, Bucket) for b in self.buckets):
@@ -128,28 +128,29 @@ class Corpus:
     parsed JSON stays plain dicts and lists because declarations are type-checked as dict.
     """
 
-    def __init__(self, snapshot: Snapshot):
+    def __init__(self, snapshot: Snapshot) -> None:
         self.snapshot = snapshot
         self.sources = snapshot.sources
         self.by_path: Mapping[str, Source] = MappingProxyType({s.path: s for s in snapshot.sources})
         self.schema_sources = tuple(s for s in snapshot.sources
                                     if s.path.startswith('schemas/') and s.path.endswith('.schema.json'))
-        self._json: dict[str, object] = {}
+        self._json: dict[str, Any] = {}
         self._roadmaps: dict[str, tuple[RoadmapEntry, ...]] = {}
         self._headings: dict[str, Mapping[str, int]] = {}
 
     def get(self, path: str) -> Source | None:
         return self.by_path.get(path)
 
-    def parsed(self, source: Source):
+    def parsed(self, source: Source) -> Any:
         """The source's JSON document."""
         if source.path not in self._json:
             self._json[source.path] = json.loads(source.text)
         return self._json[source.path]
 
-    def catalog_entries(self) -> list:
+    def catalog_entries(self) -> list[dict[str, Any]]:
         catalog = self.get('schemas/catalog-v1.json')
-        return self.parsed(catalog).get('schemas', []) if catalog else []
+        entries: list[dict[str, Any]] = self.parsed(catalog).get('schemas', []) if catalog else []
+        return entries
 
     def roadmap_entries(self, source: Source) -> tuple[RoadmapEntry, ...]:
         if source.path not in self._roadmaps:
@@ -159,6 +160,8 @@ class Corpus:
     def headings(self, source: Source) -> Mapping[str, int]:
         """Markdown section anchors, numbered on repeats, to their heading line."""
         if source.path not in self._headings:
+            headings: dict[str, int]
+            counts: dict[str, int]
             headings, counts = {}, {}
             for i, line in enumerate(source.lines, 1):
                 if re.match(r'^#{1,6}\s', line):
@@ -184,7 +187,7 @@ class ExtractionStage:
     requires: tuple[str, ...]
     produce: Callable[[Corpus, Mapping[str, StageOutput]], StageOutput]
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if (not isinstance(self.requires, tuple) or len(set(self.requires)) != len(self.requires)
                 or not all(isinstance(name, str) for name in self.requires)):
             raise TypeError('stage prerequisites must be unique immutable names')
@@ -194,13 +197,17 @@ def stable_id(prefix: str, *parts: str) -> str:
     return prefix + ':' + hashlib.sha256('\x1f'.join(parts).encode()).hexdigest()[:16]
 
 
-def freeze(value) -> Value:
+@overload
+def freeze(value: dict[Any, Any]) -> tuple[tuple[str, Value], ...]: ...
+@overload
+def freeze(value: object) -> Value: ...
+def freeze(value: object) -> Value:
     if isinstance(value, dict):
         return tuple((str(k), freeze(v)) for k, v in sorted(value.items()))
     if isinstance(value, (list, tuple, set, frozenset)):
         return tuple(freeze(v) for v in (sorted(value) if isinstance(value, (set, frozenset)) else value))
     if value is None or type(value) in (str, int, float, bool):
-        return value
+        return cast('Value', value)  # mypy cannot narrow on exact-type membership
     return str(value)  # YAML dates retain their textual value, never a mutable object.
 
 
@@ -208,7 +215,7 @@ def plain(text: str) -> str:
     return ' '.join(LINK.sub(r'\1', text).replace('`', '').replace('**', '').split())
 
 
-def link_targets(text):
+def link_targets(text: str) -> tuple[tuple[str, str], ...]:
     # The destination remains parseable on the closing line of a wrapped or
     # nested-label link. Labels do not determine a repository target identity.
     return tuple(('', target) for target in TARGET_LINK.findall(text))
@@ -239,7 +246,7 @@ def anchor(text: str) -> str:
     return re.sub(r'[^\w\- ]', '', plain(text).lower()).replace(' ', '-')
 
 
-def spans(*values) -> tuple[Span, ...]:
+def spans(*values: Iterable[Span]) -> tuple[Span, ...]:
     return tuple(sorted(set(item for group in values for item in group)))
 
 
@@ -247,6 +254,12 @@ def whole(source: Source) -> tuple[Span, ...]:
     if not source.lines:
         raise ValueError(f'cannot invent a line citation for empty source: {source.path}')
     return (source.span(1, len(source.lines)),)
+
+
+def _node_span(source: Source, node: ast.stmt | ast.expr) -> Span:
+    """The lines a parsed statement or expression occupies; ast.parse sets every end_lineno."""
+    assert node.end_lineno is not None
+    return source.span(node.lineno, node.end_lineno)
 
 
 # Block scalars may have tag/anchor properties and trailing header comments.
@@ -259,11 +272,13 @@ BLOCK_SCALAR = re.compile(r'^' + YAML_PROPERTIES +
                           r'[|>](?:[1-9][+-]?|[+-][1-9]?)?(?:[ \t]+#.*)?$')
 
 
-def _scalar_start(lines, index, indent, value):
+def _scalar_start(lines: Sequence[str], index: int, indent: int, value: str) -> tuple[int, str]:
     """An empty value or properties can precede a scalar on a later line."""
     while True:
         text = value + ' '
-        value = text[PROPERTY_PREFIX.match(text).end():].strip()
+        properties = PROPERTY_PREFIX.match(text)
+        assert properties is not None  # A repeated group matches, if only the empty prefix.
+        value = text[properties.end():].strip()
         if value and not value.startswith('#'):
             return index, value
         following = index + 1
@@ -281,8 +296,11 @@ def _scalar_start(lines, index, indent, value):
         index, value = following, candidate
 
 
-def _flow_scalar(lines, index, value):
+def _flow_scalar(lines: Sequence[str], index: int, value: str) -> tuple[int, str]:
     """Consume a quoted/flow value through its terminator, never as mapping keys."""
+    quote: str | None
+    closers: list[str]
+    parts: list[str]
     quote, escaped, closers, token_start, parts = None, False, [], True, []
     for current in range(index, len(lines)):
         text = value if current == index else lines[current]
@@ -338,16 +356,19 @@ def _flow_scalar(lines, index, value):
     raise ValueError('unterminated YAML quoted or flow scalar')
 
 
-def frontmatter_fields(source: Source):
+def frontmatter_fields(source: Source) -> tuple[dict[str, fleet_frontmatter.FrontmatterValue], tuple[Span, ...]]:
     """Component frontmatter through the fleet's shared parser, cited from the opening fence."""
     parsed = fleet_frontmatter.parse(source.text, source.path, mode='lenient')
     return parsed.fields, (source.span(1, len(parsed.raw_lines) + 2),)
 
 
-def scenario_fields(source: Source):
+def scenario_fields(source: Source) -> tuple[dict[str, Any], tuple[Span, ...]]:
     """Top-level scenario metadata, cited as the whole file."""
     # Deliberately the donor's scalar identity/routing subset, not executable YAML.
     # Prompt block scalars and fixtures cannot contribute top-level target identity.
+    result: dict[str, Any]
+    stack: list[tuple[int, dict[str, Any]]]
+    block_indent: int | None
     result, stack, block_indent = {}, [], None
     stack.append((-1, result))
     lines, index = source.lines, 0
@@ -387,7 +408,11 @@ def scenario_fields(source: Source):
     return result, whole(source)
 
 
-def _scenario_scalar(value):
+# Quoted or plain text, a number, a YAML keyword, or a one-line flow mapping of them.
+ScenarioValue: TypeAlias = 'str | int | float | bool | dict[str, ScenarioValue] | None'
+
+
+def _scenario_scalar(value: str) -> ScenarioValue:
     if value.startswith('{') and value.endswith('}'):
         return {key.strip(): _scenario_scalar(item.strip())
                 for part in value[1:-1].split(',') for key, item in [part.split(':', 1)]}
@@ -412,6 +437,9 @@ def records_for_roadmap(source: Source) -> tuple[RoadmapEntry, ...]:
     result = []
     for n, (start, item_id) in enumerate(starts):
         end = starts[n + 1][0] if n + 1 < len(starts) else len(source.lines)
+        fields: dict[str, str]
+        positions: dict[str, list[int]]
+        current: str | None
         fields, positions, current = {}, {}, None
         for i in range(start + 1, end):
             line = source.lines[i].strip()
@@ -447,18 +475,21 @@ def _ast(source: Source) -> ast.Module:
     return ast.parse(source.text, filename=source.path)
 
 
-def assignment(source: Source, name: str):
+def assignment(source: Source, name: str) -> tuple[Any, tuple[Span, ...]]:
     for node in _ast(source).body:
         targets = node.targets if isinstance(node, ast.Assign) else [node.target] if isinstance(node, ast.AnnAssign) else []
         if any(isinstance(t, ast.Name) and t.id == name for t in targets):
+            assert isinstance(node, (ast.Assign, ast.AnnAssign))  # Only these have targets.
             try:
-                return ast.literal_eval(node.value), (source.span(node.lineno, node.end_lineno),)
+                # A bare annotation's None value raises ValueError, as any non-literal does.
+                value = ast.literal_eval(node.value)  # type: ignore[arg-type]
+                return value, (_node_span(source, node),)
             except (ValueError, TypeError):
                 return None, ()
     return None, ()
 
 
-def resolved_link(source: Source, raw: str, paths: set[str]):
+def resolved_link(source: Source, raw: str, paths: Container[str]) -> tuple[str, str] | None:
     split = urlsplit(raw.strip().strip('<>'))
     if split.scheme or split.netloc:
         return None
@@ -469,16 +500,18 @@ def resolved_link(source: Source, raw: str, paths: set[str]):
     return target, unquote(split.fragment)
 
 
-def _record(node_id, node_type, name, path, evidence, *, authority='canonical', state='live',
-            attrs=None, family='documents', selector=WHOLE_DOCUMENT, kind=PK.EXTRACTED, cls=EC.EXTRACTED):
+def _record(node_id: str, node_type: str, name: str, path: str, evidence: tuple[Span, ...], *,
+            authority: Authority = 'canonical', state: State = 'live', attrs: dict[str, Any] | None = None,
+            family: str = 'documents', selector: str = WHOLE_DOCUMENT, kind: PK = PK.EXTRACTED,
+            cls: EC = EC.EXTRACTED) -> Record:
     return Record(Node(node_id, node_type, path, selector), name, authority, state,
                   freeze(attrs or {}), evidence, family, kind, cls)
 
 
-def _record_builder(inputs):
+def _record_builder(inputs: Mapping[str, StageOutput]) -> tuple[dict[str, Record], Callable[[Record], None]]:
     """Private construction state; only frozen records cross a stage boundary."""
-    records = {}
-    def add(record):
+    records: dict[str, Record] = {}
+    def add(record: Record) -> None:
         if record.node.id in records and records[record.node.id] != record:
             raise ValueError(f'conflicting source declarations: {record.node.id}')
         records[record.node.id] = record
@@ -488,19 +521,20 @@ def _record_builder(inputs):
     return records, add
 
 
-def _new_records(records, inputs):
+def _new_records(records: Mapping[str, Record], inputs: Mapping[str, StageOutput]) -> StageOutput:
     inherited = {record.node.id for output in inputs.values() for record in output.records}
     return StageOutput(tuple(records[key] for key in sorted(records) if key not in inherited))
 
 
-def _component_records(corpus, inputs):
+def _component_records(corpus: Corpus, inputs: Mapping[str, StageOutput]) -> StageOutput:
     records, add = _record_builder(inputs)
+    data: dict[str, Any]  # Frontmatter fields or scenario metadata, by source family.
     for source in corpus.sources:
         path, p = source.path, PurePosixPath(source.path)
         if path.startswith(('agents/', 'commands/')) and len(p.parts) == 2 and p.suffix == '.md':
             kind = 'agent' if path.startswith('agents/') else 'command'
             data, proof = frontmatter_fields(source)
-            attrs = {'description': str(data.get('description', '')).strip()}
+            attrs: dict[str, Any] = {'description': str(data.get('description', '')).strip()}
             if kind == 'agent':
                 tools = data.get('tools', [])
                 tools = tools if isinstance(tools, list) else [str(tools)]
@@ -527,7 +561,8 @@ def _component_records(corpus, inputs):
                           if re.match(r'(?i)^status\s*:', re.sub(r'^[>*+\- ]*', '', line).replace('**', ''))), None)
             text = status[1].split(':', 1)[1].strip() if status else ''
             word = status_marker(text).split(' ', 1)[0]
-            state = {'accepted': 'live', 'proposed': 'proposed', 'superseded': 'historical', 'rejected': 'rejected', 'deprecated': 'deprecated'}.get(word, 'historical')
+            states: dict[str, State] = {'accepted': 'live', 'proposed': 'proposed', 'superseded': 'historical', 'rejected': 'rejected', 'deprecated': 'deprecated'}
+            state = states.get(word, 'historical')
             date = DATE.search('\n'.join(header))
             add(_record(f'decision:{p.stem}', 'decision', p.stem, path, (source.span(1, min(14, len(source.lines))),),
                 attrs={'date': date.group() if date else '', 'status_text': text[:200]}, authority='live-contract' if state == 'live' else 'historical-evidence', state=state, family='decisions'))
@@ -562,7 +597,7 @@ def _component_records(corpus, inputs):
     return _new_records(records, inputs)
 
 
-def _roadmap_records(corpus, inputs):
+def _roadmap_records(corpus: Corpus, inputs: Mapping[str, StageOutput]) -> StageOutput:
     records, add = _record_builder(inputs)
     roadmap = corpus.get('docs/fleet-roadmap.md')
     if roadmap:
@@ -596,10 +631,11 @@ def _roadmap_records(corpus, inputs):
     return _new_records(records, inputs)
 
 
-def _rule_records(corpus, inputs):
+def _rule_records(corpus: Corpus, inputs: Mapping[str, StageOutput]) -> StageOutput:
     records, add = _record_builder(inputs)
     rules = corpus.get('docs/rules.md')
     if rules:
+        section_line: int | None
         section, section_line = '', None
         for i, line in enumerate(rules.lines, 1):
             if line.startswith('## '):
@@ -616,7 +652,7 @@ def _rule_records(corpus, inputs):
     return _new_records(records, inputs)
 
 
-def _schema_records(corpus, inputs):
+def _schema_records(corpus: Corpus, inputs: Mapping[str, StageOutput]) -> StageOutput:
     records, add = _record_builder(inputs)
     catalog = corpus.get('schemas/catalog-v1.json')
     if catalog:
@@ -648,7 +684,7 @@ def _schema_records(corpus, inputs):
     return _new_records(records, inputs)
 
 
-def _roster_records(corpus, inputs):
+def _roster_records(corpus: Corpus, inputs: Mapping[str, StageOutput]) -> StageOutput:
     records, add = _record_builder(inputs)
     roster = corpus.get('AGENTS.md')
     if roster:
@@ -664,7 +700,7 @@ def _roster_records(corpus, inputs):
     return _new_records(records, inputs)
 
 
-def _contract_records(corpus, inputs):
+def _contract_records(corpus: Corpus, inputs: Mapping[str, StageOutput]) -> StageOutput:
     sources = corpus.by_path
     records, add = _record_builder(inputs)
     hook = corpus.get('hooks/hooks.json')
@@ -678,7 +714,7 @@ def _contract_records(corpus, inputs):
     return _new_records(records, inputs)
 
 
-def _resolve_catalog(corpus, inputs):
+def _resolve_catalog(corpus: Corpus, inputs: Mapping[str, StageOutput]) -> StageOutput:
     sources = corpus.by_path
     records, add = _record_builder(inputs)
     catalog = corpus.get('schemas/catalog-v1.json')
@@ -712,17 +748,17 @@ def _resolve_catalog(corpus, inputs):
         whole_records = [r for r in records.values() if r.node.path == path and r.node.selector == WHOLE_DOCUMENT]
         if not whole_records:
             typ = 'validator' if path.startswith('scripts/') and path.endswith('.py') else 'document'
-            authority = 'live-contract' if live_guide(path) else 'historical-evidence' if path.startswith('docs/') else 'canonical'
+            authority: Authority = 'live-contract' if live_guide(path) else 'historical-evidence' if path.startswith('docs/') else 'canonical'
             add(_record(f'{typ}:{path}', typ, path, path, whole(sources[path]), authority=authority))
     return StageOutput(tuple(records[k] for k in sorted(records)))
 
 
-def _table_data(lines, i):
+def _table_data(lines: Sequence[str], i: int) -> bool:
     line = lines[i - 1].strip()
     return line.startswith('|') and not SEPARATOR.match(line) and not (i < len(lines) and SEPARATOR.match(lines[i].strip()))
 
 
-def roster_rows(source):
+def roster_rows(source: Source) -> Iterator[tuple[int, tuple[str, ...]]]:
     active = False
     for i, line in enumerate(source.lines, 1):
         if not active:
@@ -735,7 +771,7 @@ def roster_rows(source):
             yield i, cells
 
 
-def _path_expression(node, environment):
+def _path_expression(node: ast.AST, environment: Mapping[str, str]) -> str | None:
     """Interpret only path construction syntax; never eval a source expression."""
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
         return node.value
@@ -744,6 +780,7 @@ def _path_expression(node, environment):
     if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
         left, right = _path_expression(node.left, environment), _path_expression(node.right, environment)
         return posixpath.join(left, right) if isinstance(left, str) and isinstance(right, str) else None
+    value: ast.expr | str | None  # A JoinedStr piece, or an evaluated operand below.
     if isinstance(node, ast.JoinedStr):
         pieces = []
         for value in node.values:
@@ -769,30 +806,35 @@ def _path_expression(node, environment):
     return None
 
 
-def generated_mappings(corpus):
+def generated_mappings(corpus: Corpus) -> tuple[GeneratedMapping, ...]:
     source = corpus.get('scripts/generate_platform_adapters.py')
     if source is None:
         return ()
     tree = _ast(source)
+    constant_spans: dict[str, Span]
     constants, constant_spans = {'root': ''}, {}
     for statement in tree.body:
         targets = statement.targets if isinstance(statement, ast.Assign) else []
         for target in targets:
+            assert isinstance(statement, ast.Assign)  # Only an assignment has targets here.
             if isinstance(target, ast.Name) and (value := _path_expression(statement.value, constants)) is not None:
                 constants[target.id] = value
-                constant_spans[target.id] = source.span(statement.lineno, statement.end_lineno)
+                constant_spans[target.id] = _node_span(source, statement)
     function = next((n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == 'expected_outputs'), None)
     if function is None:
         return ()
+    assert function.end_lineno is not None  # ast.parse sets every end_lineno.
     bound_constants = sorted({n.id for n in ast.walk(function) if isinstance(n, ast.Name)} & constant_spans.keys())
     parent = {child: node for node in ast.walk(function) for child in ast.iter_child_nodes(node)}
-    result = {}
+    result: dict[tuple[str, str], tuple[Span, ...]] = {}
     for node in ast.walk(function):
         if not isinstance(node, ast.Assign):
             continue
         for target in node.targets:
             if not (isinstance(target, ast.Subscript) and isinstance(target.value, ast.Name) and target.value.id == 'outputs'):
                 continue
+            loops: list[ast.For]
+            cursor: ast.AST
             loops, cursor = [], node
             while cursor in parent:
                 cursor = parent[cursor]
@@ -801,6 +843,7 @@ def generated_mappings(corpus):
             loop = next((loop for loop in loops if isinstance(loop.target, ast.Name) and loop.target.id == 'source'
                          and isinstance(loop.iter, ast.Name) and loop.iter.id in ('agents', 'commands', 'skill_files')), None)
             if loop:
+                assert isinstance(loop.iter, ast.Name)  # The loop was selected by its Name iterator.
                 family = loop.iter.id
                 inputs = [s.path for s in corpus.sources if
                           (family == 'agents' and re.fullmatch(r'agents/[^/]+\.md', s.path)) or
@@ -823,22 +866,22 @@ def generated_mappings(corpus):
     return tuple(GeneratedMapping(projection, canonical, proof) for (projection, canonical), proof in sorted(result.items()))
 
 
-def _writer_filenames(render, safe, build):
+def _writer_filenames(render: ast.FunctionDef, safe: ast.FunctionDef, build: ast.FunctionDef) -> set[str]:
     """Recognize the closed mapping->return->iteration->payload->publish chain.
 
     This intentionally abstains on other writer shapes. Occurrences of familiar
     names, discarded calls and assignments in unrelated branches are not lineage.
     """
-    def assigned(function, name):
+    def assigned(function: ast.FunctionDef, name: str) -> list[ast.Assign]:
         return [node for node in ast.walk(function) if isinstance(node, ast.Assign)
                 and any(isinstance(t, ast.Name) and t.id == name for t in node.targets)]
 
-    def returns_variable(function, name):
+    def returns_variable(function: ast.FunctionDef, name: str) -> bool:
         returns = [node for node in ast.walk(function) if isinstance(node, ast.Return)]
         return (len(returns) == 1 and function.body[-1] is returns[0]
                 and isinstance(returns[0].value, ast.Name) and returns[0].value.id == name)
 
-    def direct_call_assignment(function, name, callable_name):
+    def direct_call_assignment(function: ast.FunctionDef, name: str, callable_name: str) -> bool:
         bound = assigned(function, name)
         return (len(bound) == 1 and bound[0] in function.body
                 and isinstance(bound[0].value, ast.Call)
@@ -895,7 +938,8 @@ def _writer_filenames(render, safe, build):
             continue
         if max(assigned(build, 'files')[0].lineno, assigned(build, 'output')[0].lineno) >= loop.lineno:
             continue
-        temporary_writes = []
+        temporary_writes: list[ast.With] = []
+        block: ast.stmt
         for block in (n for n in loop.body if isinstance(n, ast.With)):
             for item in block.items:
                 call = item.context_expr
@@ -914,7 +958,8 @@ def _writer_filenames(render, safe, build):
                     temporary_writes.append(block)
         if len(temporary_writes) != 1 or len(assigned(build, 'temporary')) != 1:
             continue
-        publications = []
+        assert temporary_writes[0].end_lineno is not None  # ast.parse sets every end_lineno.
+        publications: list[ast.Expr] = []
         for block in loop.body:
             body = block.body if isinstance(block, ast.Try) else [block]
             for statement in body:
@@ -928,7 +973,7 @@ def _writer_filenames(render, safe, build):
     return set()
 
 
-def standalone_projections(corpus):
+def standalone_projections(corpus: Corpus) -> tuple[WriterProjection, ...]:
     """Bind the v2 schema's explicit output declaration to its actual writer mapping.
 
     Merely declaring an output, mentioning its path, or having a function with the
@@ -951,7 +996,7 @@ def standalone_projections(corpus):
     writes = _writer_filenames(render, safe, build)
     if not writes:
         return ()
-    mapping_proof = tuple(implementation.span(n.lineno, n.end_lineno) for n in (assignments[0], render, safe, build))
+    mapping_proof = tuple(_node_span(implementation, n) for n in (assignments[0], render, safe, build))
     result = []
     for source in corpus.schema_sources:
         declaration = corpus.parsed(source)
@@ -960,6 +1005,7 @@ def standalone_projections(corpus):
         validator = declaration.get('x-fleet-validator')
         if validator not in sources:
             continue
+        assert validator is not None  # sources holds only str paths.
         for projection in declaration.get('x-fleet-generated-projections', []):
             if projection in {posixpath.join(output, filename) for filename in writes}:
                 result.append(WriterProjection('schema:' + PurePosixPath(source.path).name.removesuffix('.schema.json'), projection,
@@ -975,16 +1021,18 @@ def rooted_reads(source: Source) -> tuple[tuple[str, tuple[Span, ...]], ...]:
     Python dataflow. Unresolved dynamic paths yield no verified_by claim.
     """
     tree = _ast(source)
-    path_imports = tuple(source.span(node.lineno, node.end_lineno) for node in tree.body
+    node: ast.AST
+    expression: str | ast.expr | None  # A binding's source text, then each call's path argument.
+    path_imports = tuple(_node_span(source, node) for node in tree.body
                          if isinstance(node, ast.ImportFrom) and node.module == 'pathlib'
                          and any(alias.name == 'Path' and alias.asname in (None, 'Path') for alias in node.names))
-    bindings = {}
+    bindings: dict[str, list[ast.Assign]] = {}
     for node in tree.body:
         if isinstance(node, ast.Assign):
             for target in node.targets:
                 if isinstance(target, ast.Name):
                     bindings.setdefault(target.id, []).append(node)
-    root_bindings = {}
+    root_bindings: dict[str, ast.Assign] = {}
     for name, declarations in bindings.items():
         if len(declarations) != 1:
             continue
@@ -995,22 +1043,22 @@ def rooted_reads(source: Source) -> tuple[tuple[str, tuple[Span, ...]], ...]:
             root_bindings[name] = node
     # Nearest enclosing function of every node (the module for top-level code), computed
     # in one breadth-first pass: a parent is always visited before its children.
-    enclosing = {tree: tree}
+    enclosing: dict[ast.AST, ast.AST] = {tree: tree}
     for node in ast.walk(tree):
         inner = node if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) else enclosing[node]
         for child in ast.iter_child_nodes(node):
             enclosing[child] = inner
-    def scope(node):
+    def scope(node: ast.AST) -> ast.AST:
         return enclosing.get(node, tree)
-    scope_roots = {}
-    def roots_in(call_scope):
+    scope_roots: dict[ast.AST, Mapping[str, ast.Assign]] = {}
+    def roots_in(call_scope: ast.AST) -> Mapping[str, ast.Assign]:
         """Repository-root bindings visible in one scope; a pure function of that scope."""
         if call_scope in scope_roots:
             return scope_roots[call_scope]
         stores = [n for n in ast.walk(call_scope) if isinstance(n, ast.Name)
                   and isinstance(n.ctx, ast.Store) and scope(n) is call_scope] if call_scope is not tree else []
         shadowed = {n.id for n in stores}
-        parameters = set()
+        parameters: set[str] = set()
         if isinstance(call_scope, (ast.FunctionDef, ast.AsyncFunctionDef)):
             parameters = {a.arg for a in (*call_scope.args.posonlyargs, *call_scope.args.args, *call_scope.args.kwonlyargs)}
             shadowed.update(parameters)
@@ -1027,7 +1075,8 @@ def rooted_reads(source: Source) -> tuple[tuple[str, tuple[Span, ...]], ...]:
                         bindings_here[target.id] = declaration
         scope_roots[call_scope] = MappingProxyType(bindings_here)
         return scope_roots[call_scope]
-    def rooted(expression, call_scope, substitutions=None):
+    def rooted(expression: ast.expr, call_scope: ast.AST,
+               substitutions: Mapping[str, str] | None = None) -> tuple[str, tuple[Span, ...]] | None:
         substituted = substitutions or {}
         bindings_here = roots_in(call_scope)
         environment = {name: '' for name in bindings_here}
@@ -1036,10 +1085,10 @@ def rooted_reads(source: Source) -> tuple[tuple[str, tuple[Span, ...]], ...]:
         names = {n.id for n in ast.walk(expression) if isinstance(n, ast.Name)}
         bound_roots = (names & bindings_here.keys()) - substituted.keys()
         if value and (bound_roots or names & substituted.keys()) and not value.startswith(('/', '../')):
-            proof = tuple(source.span(bindings_here[n].lineno, bindings_here[n].end_lineno) for n in sorted(bound_roots))
+            proof = tuple(_node_span(source, bindings_here[n]) for n in sorted(bound_roots))
             return value, spans(proof, path_imports) if bound_roots else proof
         return None
-    def read_expression(call):
+    def read_expression(call: ast.Call) -> ast.expr | None:
         if isinstance(call.func, ast.Attribute) and call.func.attr in ('read_text', 'read_bytes'):
             return call.func.value
         if isinstance(call.func, ast.Name) and call.func.id == 'open' and call.args:
@@ -1053,9 +1102,9 @@ def rooted_reads(source: Source) -> tuple[tuple[str, tuple[Span, ...]], ...]:
             return None
         return expression
     functions = {n.name: n for n in tree.body if isinstance(n, ast.FunctionDef)}
-    written = set()
-    def write_expression(call):
-        expression = None
+    written: set[str] = set()
+    def write_expression(call: ast.Call) -> ast.expr | None:
+        expression: ast.expr | None = None
         if isinstance(call.func, ast.Attribute) and call.func.attr in ('write_text', 'write_bytes'):
             expression = call.func.value
         elif isinstance(call.func, ast.Name) and call.func.id == 'open' and call.args and read_expression(call) is None:
@@ -1064,11 +1113,12 @@ def rooted_reads(source: Source) -> tuple[tuple[str, tuple[Span, ...]], ...]:
             expression = call.func.value
         return expression
 
-    def parameters(function, call, caller_scope, substitutions):
+    def parameters(function: ast.FunctionDef, call: ast.Call, caller_scope: ast.AST,
+                   substitutions: Mapping[str, str]) -> dict[str, str]:
         positional = (*function.args.posonlyargs, *function.args.args)
         arguments = {parameter.arg: value for parameter, value in zip(positional, call.args, strict=False)}  # a call may omit defaulted parameters
         arguments.update({keyword.arg: keyword.value for keyword in call.keywords if keyword.arg})
-        values = {}
+        values: dict[str, str] = {}
         for name, value in arguments.items():
             hit = rooted(value, caller_scope, substitutions)
             if hit:
@@ -1077,11 +1127,11 @@ def rooted_reads(source: Source) -> tuple[tuple[str, tuple[Span, ...]], ...]:
                 values[name] = value.value
         return values
 
-    def helper_writes(function, substitutions, visiting):
+    def helper_writes(function: ast.FunctionDef, substitutions: Mapping[str, str], visiting: set[str]) -> set[str]:
         if function.name in visiting:
             # Recursive/mutually recursive helper effects are not proved read-only.
             return set(substitutions.values())
-        effects = set()
+        effects: set[str] = set()
         for call in (n for n in ast.walk(function) if isinstance(n, ast.Call)):
             expression = write_expression(call)
             if expression is not None:
@@ -1099,14 +1149,14 @@ def rooted_reads(source: Source) -> tuple[tuple[str, tuple[Span, ...]], ...]:
         if isinstance(call.func, ast.Name) and call.func.id in functions:
             function = functions[call.func.id]
             written.update(helper_writes(function, parameters(function, call, scope(call), {}), set()))
-    found = {}
+    found: dict[str, tuple[Span, ...]] = {}
     for call in (n for n in ast.walk(tree) if isinstance(n, ast.Call)):
         expression = read_expression(call)
-        candidates = []
+        candidates: list[tuple[str, tuple[Span, ...]]] = []
         if expression is not None:
             hit = rooted(expression, scope(call))
             if hit:
-                candidates.append((hit[0], spans(hit[1], (source.span(call.lineno, call.end_lineno),))))
+                candidates.append((hit[0], spans(hit[1], (_node_span(source, call),))))
         elif isinstance(call.func, ast.Name) and call.func.id in functions and call.args:
             function = functions[call.func.id]
             if not function.args.args:
@@ -1119,13 +1169,13 @@ def rooted_reads(source: Source) -> tuple[tuple[str, tuple[Span, ...]], ...]:
                 if expr is None:
                     continue
                 if rooted_arg and isinstance(expr, ast.Name) and expr.id == parameter:
-                    candidates.append((rooted_arg[0], spans(rooted_arg[1], (source.span(function.lineno, function.end_lineno), source.span(call.lineno, call.end_lineno)))))
+                    candidates.append((rooted_arg[0], spans(rooted_arg[1], (_node_span(source, function), _node_span(source, call)))))
                 elif isinstance(arg, str):
                     hit = rooted(expr, function, {parameter: arg})
                     # A helper parameter alone is not rooted; an actual repository ROOT must
                     # also appear in its read expression.
                     if hit and hit[1]:
-                        candidates.append((hit[0], spans(hit[1], (source.span(function.lineno, function.end_lineno), source.span(call.lineno, call.end_lineno)))))
+                        candidates.append((hit[0], spans(hit[1], (_node_span(source, function), _node_span(source, call)))))
         for path, proof in candidates:
             if path not in written:
                 found[path] = spans(found.get(path, ()), proof)
@@ -1139,27 +1189,30 @@ class _Relations:
     witnesses, and a conflicting claim under the same identity fails the derivation.
     """
 
-    def __init__(self, corpus, records):
+    def __init__(self, corpus: Corpus, records: tuple[Record, ...]) -> None:
         self.corpus = corpus
         self.sources = corpus.by_path
         self.records = records
         self.by_id = {r.node.id: r for r in records}
-        self.by_path = {}
+        self.by_path: dict[str, list[Record]] = {}
         for r in records:
             self.by_path.setdefault(r.node.path, []).append(r)
         self.index = NodeIndex(tuple(r.node for r in records))
-        self.facts = {}
+        self.facts: dict[str, Fact] = {}
 
-    def add(self, fact):
+    def add(self, fact: Fact) -> None:
         previous = self.facts.get(fact.id)
         if previous and previous != fact:
             if (previous.subject, previous.predicate, previous.object, previous.qualifiers, previous.evidence_class, previous.proof.kind) != (fact.subject, fact.predicate, fact.object, fact.qualifiers, fact.evidence_class, fact.proof.kind):
                 raise ValueError(f'conflicting extracted relationship: {fact.id}')
             fact = Fact(fact.id, fact.subject, fact.predicate, fact.object, fact.evidence_class,
-                        Proof(fact.proof.kind, spans(previous.proof.inputs, fact.proof.inputs), EVALUATOR, fact.proof.scope_digest), fact.qualifiers)
+                        # edge() and unknown() cite spans only, so neither proof holds a FactRef.
+                        Proof(fact.proof.kind, spans(cast('tuple[Span, ...]', previous.proof.inputs), cast('tuple[Span, ...]', fact.proof.inputs)),
+                              EVALUATOR, fact.proof.scope_digest), fact.qualifiers)
         self.facts[fact.id] = fact
 
-    def edge(self, kind, subject, target, proof, *, attrs=None, key='', cls=EC.EXTRACTED, proof_kind=None):
+    def edge(self, kind: str, subject: str, target: str, proof: tuple[Span, ...], *, attrs: dict[str, Any] | None = None,
+             key: str = '', cls: EC = EC.EXTRACTED, proof_kind: PK | None = None) -> None:
         if subject not in self.by_id or target not in self.by_id:
             return
         if attrs and 'anchor' in attrs:
@@ -1170,12 +1223,13 @@ class _Relations:
         self.add(Fact(stable_id('edge', kind, subject, target, key), subject, kind, target, cls,
                       Proof(proof_kind, spans(proof), EVALUATOR), freeze(attrs or {})))
 
-    def unknown(self, subject, code, message, proof, needed, *, absence=False):
+    def unknown(self, subject: str, code: str, message: str, proof: tuple[Span, ...], needed: str, *,
+                absence: bool = False) -> None:
         self.add(Fact(stable_id('unknown', code, subject, message), subject, 'unknown', message, EC.UNKNOWN,
                       Proof(PK.ABSENCE if absence else PK.COMPUTED, spans(proof), EVALUATOR,
                             self.corpus.snapshot.tree_digest if absence else None), freeze({'code': code, 'neededEvidence': needed, 'path': self.by_id[subject].node.path})))
 
-    def resolve(self, source, raw, *, types=None):
+    def resolve(self, source: Source, raw: str, *, types: set[str] | None = None) -> Record | None:
         hit = resolved_link(source, raw, self.sources)
         if not hit:
             return None
@@ -1205,13 +1259,16 @@ class _Relations:
         except ValueError:
             return None
 
-    def result(self):
+    def result(self) -> tuple[Fact, ...]:
         return tuple(self.facts[key] for key in sorted(self.facts))
 
 
-def _agent_method_edges(rel, record, source):
+def _agent_method_edges(rel: _Relations, record: Record, source: Source) -> None:
     """A method table or Load line selecting a skill for a stated condition."""
     node, by_id = record.node, rel.by_id
+    load_columns: tuple[int, ...]
+    header_line: int | None
+    proof: tuple[Span, ...]
     load_columns, header_line, inferred_method = (), None, False
     for i, line in enumerate(source.lines, 1):
         stripped = line.strip()
@@ -1227,6 +1284,7 @@ def _agent_method_edges(rel, record, source):
             cells = table_cells(line)
             selected = ' '.join(cells[j] for j in load_columns if j < len(cells))
             condition = plain(cells[0])
+            assert header_line is not None  # Set with every nonempty load_columns.
             proof = (source.span(header_line, header_line), source.span(i, i))
         elif re.match(r'^Load\s+`', stripped):
             selected, condition, proof = stripped, plain(stripped), (source.span(i, i),)
@@ -1242,14 +1300,17 @@ def _agent_method_edges(rel, record, source):
                          proof_kind=PK.INFERRED if inferred_method else PK.JOINED)
 
 
-def _bundle_citation(rel, record, source):
+def _bundle_citation(rel: _Relations, record: Record, source: Source) -> None:
     skill = record.attributes['skill']
     rel.edge('cites', f'skill:{skill}', record.node.id, record.spans)
 
 
-def _skill_reference_edges(rel, record, source):
+def _skill_reference_edges(rel: _Relations, record: Record, source: Source) -> None:
     """Each linked reference, with the routing-table condition that loads it."""
     node = record.node
+    references: dict[str, list[int]]
+    routing: dict[str, list[tuple[str, int]]]
+    line: str | int  # A source line's text, then a routing row's line number.
     references, routing = {}, {}
     for i, line in enumerate(source.lines, 1):
         targets = [raw for _, raw in link_targets(line) if raw.startswith(('references/', './references/'))]
@@ -1268,13 +1329,13 @@ def _skill_reference_edges(rel, record, source):
             rel.edge('loads_when', node.id, dest.node.id, (source.span(line, line),), attrs={'predicate': predicate}, key=predicate)
 
 
-def _rule_source_edges(rel, record, source):
+def _rule_source_edges(rel: _Relations, record: Record, source: Source) -> None:
     node = record.node
     row = next((p for p in record.spans if p.start_line == p.end_line and source.lines[p.start_line - 1].startswith('|')), None)
     if row:
         links = link_targets(source.lines[row.start_line - 1])
         if not links:
-            rel.unknown(node.id, 'extract.rule-source-unlinked', f'{source.path}:{row.start_line} names its source in prose only: {record.attributes["source_text"][:80]}', (row,), 'Link the primary source')
+            rel.unknown(node.id, 'extract.rule-source-unlinked', f'{source.path}:{row.start_line} names its source in prose only: {cast("str", record.attributes["source_text"])[:80]}', (row,), 'Link the primary source')
         for _, raw in links:
             dest = rel.resolve(source, raw)
             if dest:
@@ -1283,7 +1344,7 @@ def _rule_source_edges(rel, record, source):
                 rel.unknown(node.id, 'extract.rule-source-missing', f'{source.path}:{row.start_line} links {raw}, which does not resolve', (row,), 'Fix the link or supply its target', absence=True)
 
 
-def _review_citations(rel, record, source):
+def _review_citations(rel: _Relations, record: Record, source: Source) -> None:
     node = record.node
     for i, line in enumerate(source.lines, 1):
         for _, raw in link_targets(line):
@@ -1295,7 +1356,7 @@ def _review_citations(rel, record, source):
                 rel.unknown(node.id, 'extract.link-selector-unresolved', f'{source.path}:{i} selector does not resolve: {raw}', (source.span(i, i),), 'Correct the section selector or restore its exact target', absence=True)
 
 
-def _scenario_edges(rel, record, source):
+def _scenario_edges(rel: _Relations, record: Record, source: Source) -> None:
     """A scenario verifies its target, or records a routing near miss and its alternative."""
     node = record.node
     data, _ = scenario_fields(source)
@@ -1316,7 +1377,7 @@ def _scenario_edges(rel, record, source):
         rel.edge('cites', node.id, f'roadmap-item:{item}', source.locate(item), attrs={'via': 'comment'}, cls=EC.INFERRED)
 
 
-def _test_verifications(rel, record, source):
+def _test_verifications(rel: _Relations, record: Record, source: Source) -> None:
     for path, proof in rooted_reads(source):
         if path not in rel.sources:
             continue
@@ -1325,7 +1386,7 @@ def _test_verifications(rel, record, source):
             rel.edge('verified_by', dest.node.id, record.node.id, proof, attrs={'via': 'file-read'})
 
 
-def _decision_supersessions(rel, record, source):
+def _decision_supersessions(rel: _Relations, record: Record, source: Source) -> None:
     node, sources = record.node, rel.sources
     for i, line in enumerate(source.lines[:14], 1):
         for item in re.findall(r'disposes\s+`([A-Z][A-Z0-9]*-\d{3})`', line):
@@ -1343,7 +1404,7 @@ def _decision_supersessions(rel, record, source):
                     rel.edge('contradicts', node.id, dest.node.id, spans((source.span(i, i),), sources[dest.node.path].locate(needle)), key='superseded_text_present', attrs={'detector': 'superseded_text_present', 'message': f'{dest.node.path} still contains superseded text: {needle!r}'}, cls=EC.INFERRED)
 
 
-def _component_owner_edges(rel, record, source):
+def _component_owner_edges(rel: _Relations, record: Record, source: Source) -> None:
     """An Owner line in a skill or command body naming the agent or owner that owns it."""
     node, by_id = record.node, rel.by_id
     for i, line in enumerate(source.lines, 1):
@@ -1368,7 +1429,7 @@ RECORD_EMITTERS = {
 }
 
 
-def _roadmap_edges(rel):
+def _roadmap_edges(rel: _Relations) -> None:
     """Roadmap items' mentioned dependencies and Owner-field ownership."""
     by_id = rel.by_id
     roadmap = rel.corpus.get('docs/fleet-roadmap.md')
@@ -1400,14 +1461,14 @@ def _roadmap_edges(rel):
                             rel.edge('owns', owner_id, target, spans(proof, by_id[target].spans), attrs={'field': 'Owner'}, proof_kind=PK.JOINED)
 
 
-def _evidence_edges(rel):
+def _evidence_edges(rel: _Relations) -> set[str]:
     """Roadmap items' and decisions' evidence links and batch joins; returns the reviews they cite.
 
     Evidence links resolve the selected decision/review, never whichever node sharing
     its path happened to be created first. Batch joins cite BOTH determining records.
     """
     records, sources = rel.records, rel.sources
-    incoming_reviews = set()
+    incoming_reviews: set[str] = set()
     for record in records:
         if record.node.type not in ('roadmap-item', 'decision'):
             continue
@@ -1428,7 +1489,8 @@ def _evidence_edges(rel):
                     rel.edge('evidenced_by', record.node.id, dest.node.id, proof, attrs={'anchor': raw.split('#', 1)[1]} if '#' in raw else None)
                     incoming_reviews.add(dest.node.id)
             for batch in set(BATCH.findall(line)):
-                targets = [r for r in records if r.node.type == 'review' and batch in r.attributes.get('batches', ())]
+                targets = [r for r in records if r.node.type == 'review'
+                           and batch in cast('tuple[str, ...]', r.attributes.get('batches', ()))]
                 if not targets and record.node.type == 'roadmap-item':
                     rel.unknown(record.node.id, 'extract.batch-unresolved', f'{source.path}:{i} cites batch {batch} with no review', (source.span(i, i),), 'Retain the durable review behind the batch', absence=True)
                 for target in targets:
@@ -1439,7 +1501,7 @@ def _evidence_edges(rel):
     return incoming_reviews
 
 
-def _catalog_edges(rel):
+def _catalog_edges(rel: _Relations) -> None:
     catalog = rel.corpus.get('schemas/catalog-v1.json')
     if not catalog:
         return
@@ -1447,6 +1509,7 @@ def _catalog_edges(rel):
         subject = f'schema:{entry["id"]}'
         validator = entry.get('validator')
         if validator in rel.sources:
+            assert validator is not None  # sources holds only str paths.
             dest = rel.resolve(catalog, '../' + validator)
             if dest:
                 rel.edge('constrained_by', subject, dest.node.id, whole(catalog), attrs={'via': 'catalog-v1.json'}, cls=EC.CONTRACT)
@@ -1458,7 +1521,7 @@ def _catalog_edges(rel):
                 rel.unknown(subject, 'extract.schema-projection-unresolved', f'{entry["id"]} declares generated_projections {projection}, which has no node yet', whole(catalog), 'Build the declared projection or correct its catalog entry', absence=True)
 
 
-def _declared_schema_edges(rel):
+def _declared_schema_edges(rel: _Relations) -> None:
     """A standalone schema's declared validator and writer-proved projections."""
     declared = {(schema_id, projection): proof for schema_id, projection, proof in rel.corpus.projections}
     for source in rel.corpus.schema_sources:
@@ -1483,7 +1546,7 @@ def _declared_schema_edges(rel):
                 rel.unknown(subject, 'extract.schema-projection-unproved', f'{source.path} declares {projection} without a resolved writer mapping', whole(source), 'Bind the declared output to the actual writer mapping', absence=True)
 
 
-def _generated_edges(rel):
+def _generated_edges(rel: _Relations) -> None:
     for projection, canonical, proof in rel.corpus.generated:
         generated = 'generated-projection:' + projection
         if generated not in rel.by_id:
@@ -1494,7 +1557,7 @@ def _generated_edges(rel):
                  attrs={'via': 'generate_platform_adapters.expected_outputs'}, cls=EC.CONTRACT, proof_kind=PK.JOINED)
 
 
-def _roster_edges(rel):
+def _roster_edges(rel: _Relations) -> None:
     """Validated delegation, the roster's lanes and delegation claims, and guard wiring."""
     corpus, by_id = rel.corpus, rel.by_id
     validator = corpus.get('scripts/validate_fleet.py')
@@ -1506,7 +1569,7 @@ def _roster_edges(rel):
             subject = f'agent:{agent}'
             if subject not in by_id:
                 continue
-            granted = set(by_id[subject].attributes['grants'])
+            granted = set(cast('tuple[str, ...]', by_id[subject].attributes['grants']))
             if granted != set(targets):
                 rel.unknown(subject, 'cite.delegation-mismatch', f'agents/{agent}.md grants {sorted(granted)} but EXPECTED_DELEGATION says {sorted(targets)}', spans(expected_proof, by_id[subject].spans), 'Reconcile the agent frontmatter and validated delegation contract')
             else:
@@ -1514,35 +1577,38 @@ def _roster_edges(rel):
                     rel.edge('delegates_to', subject, f'agent:{target}', spans(expected_proof, by_id[subject].spans), cls=EC.CONTRACT, proof_kind=PK.JOINED)
             if agent in rows:
                 i, cells = rows[agent]
+                assert roster is not None  # rows is empty without a roster.
                 stated = set(re.findall(r'`([a-z0-9-]+)`', cells[-1]))
                 if stated != set(targets):
                     rel.edge('contradicts', subject, 'document:AGENTS.md', spans(expected_proof, (roster.span(i, i),)), key='delegation_mismatch',
                              attrs={'detector': 'delegation_mismatch', 'message': f'roster says {agent} delegates to {sorted(stated)}; validate_fleet enforces {sorted(targets)}'}, cls=EC.INFERRED)
     for agent, (i, cells) in rows.items():
+        assert roster is not None  # rows is empty without a roster.
         rel.edge('owns', f'agent:{agent}', 'capability:' + slug(plain(cells[1]))[:60], (roster.span(i, i),), attrs={'via': 'roster-lane'}, cls=EC.INFERRED)
     generator = corpus.get('scripts/generate_platform_adapters.py')
     guarded, guarded_proof = assignment(generator, 'GUARDED_AGENTS') if generator else (None, ())
     hook = corpus.get('hooks/hooks.json')
     if hook and 'hook:readonly-guard' in by_id and isinstance(guarded, (set, tuple, list)):
         for agent in sorted(guarded):
-            roster_proof = (roster.span(rows[agent][0], rows[agent][0]),) if agent in rows else ()
+            # rows is empty without a roster.
+            roster_proof = (cast('Source', roster).span(rows[agent][0], rows[agent][0]),) if agent in rows else ()
             rel.edge('constrained_by', f'agent:{agent}', 'hook:readonly-guard', spans(guarded_proof, whole(hook), roster_proof),
                      attrs={'via': 'generate_platform_adapters.GUARDED_AGENTS'}, cls=EC.CONTRACT, proof_kind=PK.JOINED)
 
 
-def _stale_evidence(rel):
+def _stale_evidence(rel: _Relations) -> None:
     """Staleness is advisory for every dated live status, never an artifact-check failure."""
     for record in rel.records:
         if record.node.type == 'roadmap-item' and record.state == 'live':
             date = DATE.search(str(record.attributes.get('status_text', '')))
-            evidence = [rel.by_id[f.object] for f in rel.facts.values() if f.subject == record.node.id and f.predicate == 'evidenced_by']
-            dated = [(r, r.attributes.get('date')) for r in evidence if r.attributes.get('date')]
+            evidence = [rel.by_id[cast('str', f.object)] for f in rel.facts.values() if f.subject == record.node.id and f.predicate == 'evidenced_by']
+            dated = [(r, cast('str', r.attributes.get('date'))) for r in evidence if r.attributes.get('date')]
             if date and dated and max(d for _, d in dated) < date.group():
                 newest = max(d for _, d in dated)
                 rel.unknown(record.node.id, 'stale.evidence-predates-status', f'{record.name} status is dated {date.group()} but its newest cited evidence is {newest}', spans(record.spans, *(r.spans for r, _ in dated)), 'Cite the evidence behind the current status or revise the status')
 
 
-def _uncited_reviews(rel, incoming_reviews):
+def _uncited_reviews(rel: _Relations, incoming_reviews: set[str]) -> None:
     """Reviews no roadmap item, decision, review, live guide or closed entry cites."""
     for source in rel.corpus.sources:
         if source.path in LIVE_DOCS or PurePosixPath(source.path).name in ('README.md', 'CHANGELOG.md') or source.path == 'docs/roadmap-closed.md':
@@ -1550,20 +1616,21 @@ def _uncited_reviews(rel, incoming_reviews):
                 target = rel.resolve(source, raw, types={'review'})
                 if target and target.node.type == 'review':
                     incoming_reviews.add(target.node.id)
-    incoming_reviews.update(f.object for f in rel.facts.values() if f.predicate in ('cites', 'evidenced_by'))
+    incoming_reviews.update(cast('str', f.object) for f in rel.facts.values() if f.predicate in ('cites', 'evidenced_by'))
     for record in rel.records:
         if record.node.type == 'review' and record.node.id not in incoming_reviews:
             rel.unknown(record.node.id, 'stale.review-uncited', f'{record.node.path} is cited by no roadmap item, decision, review, or live guide', record.spans,
                         'Remove unneeded review evidence or restore its authoritative citation', absence=True)
 
 
-def _retired_names(rel):
+def _retired_names(rel: _Relations) -> None:
     """The first line of each scanned component that names a retired fleet unit."""
     corpus = rel.corpus
     stale_source = corpus.get('scripts/check_stale_names.py')
     retired, retired_proof = assignment(stale_source, 'STALE') if stale_source else (None, ())
     if not isinstance(retired, tuple):
         return
+    assert stale_source is not None  # retired is None without the checker source.
     scanned = ('agents/', 'skills/', 'commands/', 'evals/scenarios/')
     exempt = {PurePosixPath(s.path).stem for s in corpus.sources if s.path.startswith(scanned)} & set(retired)
     siblings, _ = assignment(stale_source, 'SIBLING_REPOSITORIES')
@@ -1576,13 +1643,13 @@ def _retired_names(rel):
                 and isinstance(declaration.value, ast.Call) and isinstance(declaration.value.func, ast.Name)
                 and declaration.value.func.id == 'frozenset' and len(declaration.value.args) == 1):
             exempt.update(ast.literal_eval(declaration.value.args[0]))
-    retired_name = None  # Compiled at first use, where the declaration was always read.
+    retired_name: re.Pattern[str] | None = None  # Compiled at first use, where the declaration was always read.
     for record in rel.records:
         if not record.node.path.startswith(scanned):
             continue
         source = rel.sources[record.node.path]
         for i, line in enumerate(source.lines, 1):
-            found = None
+            found: str | None = None
             retired_name = retired_name or re.compile(
                 r'(?<![a-z0-9-])(' + '|'.join(re.escape(name) for name in retired) + r')(?![a-z0-9-])')
             for match in retired_name.finditer(line):
@@ -1597,7 +1664,7 @@ def _retired_names(rel):
                 break
 
 
-def _blocks_emission(rel):
+def _blocks_emission(rel: _Relations) -> None:
     """The extractor emits no blocks edge; queries derive blocks by reversing depends_on."""
     implementation = rel.corpus.get('scripts/fleet_atlas_v2_extract.py')
     implementation_id = 'validator:scripts/fleet_atlas_v2_extract.py'
@@ -1607,7 +1674,7 @@ def _blocks_emission(rel):
                      Proof(PK.ABSENCE, whole(implementation), EVALUATOR, rel.corpus.snapshot.tree_digest)))
 
 
-def _relations(corpus, records):
+def _relations(corpus: Corpus, records: tuple[Record, ...]) -> tuple[Fact, ...]:
     rel = _Relations(corpus, records)
     for record in records:
         source = rel.sources.get(record.node.path)
@@ -1629,9 +1696,9 @@ def _relations(corpus, records):
     return rel.result()
 
 
-def _guidance(corpus, records):
+def _guidance(corpus: Corpus, records: tuple[Record, ...]) -> tuple[Fact, ...]:
     """Complete body paragraphs, split by encoded size without dropping long lines."""
-    output = []
+    output: list[Fact] = []
     for record in records:
         if (record.node.selector != WHOLE_DOCUMENT or record.authority not in ('canonical', 'live-contract')
                 or record.state != 'live' or not record.node.path.endswith('.md')
@@ -1643,7 +1710,7 @@ def _guidance(corpus, records):
             start = next((i + 1 for i, line in enumerate(source.lines[1:], 1) if line == '---'), 0)
         for paragraph, heading, heading_line in _paragraphs(source.lines[start:], start + 1):
             text = '\n'.join(line for _, line in paragraph)
-            proof = (source.span(paragraph[0][0], paragraph[-1][0]),)
+            proof: tuple[Span, ...] = (source.span(paragraph[0][0], paragraph[-1][0]),)
             if heading_line:
                 proof = spans(proof, (source.span(heading_line, heading_line),))
             offset = 0
@@ -1657,12 +1724,14 @@ def _guidance(corpus, records):
     return tuple(output)
 
 
-def _paragraphs(lines, first_line):
+def _paragraphs(lines: Sequence[str], first_line: int) -> Iterator[tuple[list[tuple[int, str]], str, int | None]]:
     """Yield (numbered lines, heading, heading line) for each run of non-blank lines.
 
     A heading line closes the paragraph before it, which keeps the earlier heading, and opens
     its own paragraph under the new one.
     """
+    paragraph: list[tuple[int, str]]
+    heading_line: int | None
     paragraph, heading, heading_line = [], '', None
     for i, line in enumerate(lines, first_line):
         if line.startswith('#'):
@@ -1698,9 +1767,9 @@ def _field_proof_kind(record: Record, predicate: str) -> PK:
     return record.proof_kind
 
 
-def _record_facts(corpus, inputs):
+def _record_facts(corpus: Corpus, inputs: Mapping[str, StageOutput]) -> StageOutput:
     records = inputs['catalog'].records
-    buckets = {}
+    buckets: dict[str, tuple[list[Node], list[Fact]]] = {}
     for record in records:
         nodes, facts = buckets.setdefault(record.family, ([], []))
         nodes.append(record.node)
@@ -1712,11 +1781,11 @@ def _record_facts(corpus, inputs):
                  for name, (nodes, facts) in sorted(buckets.items())))
 
 
-def _relationship_facts(corpus, inputs):
+def _relationship_facts(corpus: Corpus, inputs: Mapping[str, StageOutput]) -> StageOutput:
     return StageOutput(buckets=(Bucket('relationships', (), _relations(corpus, inputs['catalog'].records)),))
 
 
-def _guidance_facts(corpus, inputs):
+def _guidance_facts(corpus: Corpus, inputs: Mapping[str, StageOutput]) -> StageOutput:
     facts = _guidance(corpus, inputs['catalog'].records)
     return StageOutput(buckets=(Bucket('guidance', (), tuple(sorted(facts, key=lambda fact: fact.id))),))
 
@@ -1738,8 +1807,8 @@ EXTRACTION_STAGES = (
 )
 
 
-def _derive(snapshot, stages=EXTRACTION_STAGES):
-    registered = {}
+def _derive(snapshot: Snapshot, stages: Iterable[ExtractionStage] = EXTRACTION_STAGES) -> tuple[Bucket, ...]:
+    registered: dict[str, ExtractionStage] = {}
     for stage in stages:
         if stage.name in registered:
             raise ValueError(f'duplicate extraction stage: {stage.name}')
@@ -1749,6 +1818,8 @@ def _derive(snapshot, stages=EXTRACTION_STAGES):
         if missing:
             raise ValueError(f'missing extraction prerequisites for {stage.name}: {sorted(missing)}')
     # Validate the complete dependency plan before invoking any producer.
+    plan: list[ExtractionStage]
+    available: set[str]
     pending, plan, available = dict(registered), [], set()
     while pending:
         ready = sorted(name for name, stage in pending.items() if set(stage.requires) <= available)
@@ -1758,6 +1829,7 @@ def _derive(snapshot, stages=EXTRACTION_STAGES):
             plan.append(pending.pop(name))
             available.add(name)
     # A fresh corpus per derivation: replay never sees the primary extraction's views.
+    completed: dict[str, StageOutput]
     corpus, completed = Corpus(snapshot), {}
     for stage in plan:
         inputs = MappingProxyType({name: completed[name] for name in stage.requires})
@@ -1770,19 +1842,19 @@ def _derive(snapshot, stages=EXTRACTION_STAGES):
 
 
 @lru_cache(maxsize=2)
-def _replayed(snapshot):
+def _replayed(snapshot: Snapshot) -> Mapping[str, Fact]:
     # Separate source reconstruction, not a cache populated by submitted candidate facts.
     return MappingProxyType({f.id: f for bucket in _derive(snapshot) for f in bucket.facts})
 
 
-def replay(fact, snapshot, _verified_premises):
+def replay(fact: Fact, snapshot: Snapshot, _verified_premises: Mapping[str, Fact]) -> Derivation:
     expected = _replayed(snapshot).get(fact.id)
     if expected is None or (expected.subject, expected.predicate) != (fact.subject, fact.predicate):
         raise ValueError(f'claim not produced by its source authority: {fact.id}')
     return Derivation(expected.object, expected.evidence_class, expected.proof, expected.qualifiers)
 
 
-def extract(snapshot: Snapshot, *, stages=EXTRACTION_STAGES) -> Extraction:
+def extract(snapshot: Snapshot, *, stages: Iterable[ExtractionStage] = EXTRACTION_STAGES) -> Extraction:
     buckets = _derive(snapshot, stages)
     fields = {f.predicate for b in buckets for f in b.facts} - EDGE_TYPES
     # All source spans are replayed; joined proofs may include canonical targets and
