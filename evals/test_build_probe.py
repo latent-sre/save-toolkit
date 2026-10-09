@@ -771,10 +771,7 @@ class TraceAndCommandTests(unittest.TestCase):
             {"type": "result", "result": "done", "duration_ms": 10, "usage": {},
              "permission_denials": [{"tool_name": "Bash", "tool_use_id": "tu_1", "tool_input": {"command": "pwd && whoami; cf target"}}]},
         ]
-        with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / "t.jsonl"
-            path.write_text("\n".join(json.dumps(e) for e in events), encoding="utf-8")
-            s = probe_tracing.parse_trace(path)
+        s = parse_events(events)
         self.assertEqual(1, len(s.denial_details))
         self.assertIn("allowlist guard", s.denial_details[0]["reason"])
         self.assertTrue(probe_tracing.is_guard_denial(s.denial_details[0]["reason"]))
@@ -4263,10 +4260,7 @@ class SubagentDenialTests(unittest.TestCase):
             {"type": "result", "result": "done", "duration_ms": 10, "usage": {},
              "permission_denials": [{"tool_name": "Read", "tool_use_id": "tu_read", "tool_input": {}}]},
         ]
-        with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / "t.jsonl"
-            path.write_text("\n".join(json.dumps(e) for e in events), encoding="utf-8")
-            return probe_tracing.parse_trace(path)
+        return parse_events(events)
 
     def test_parser_records_which_tool_uses_ran_inside_a_subagent(self) -> None:
         self.assertEqual(["tu_read"], self._trace(inside=True).subagent_tool_ids)
