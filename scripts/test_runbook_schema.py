@@ -34,6 +34,7 @@ ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE_PATH = ROOT / "skills" / "runbook" / "assets" / "runbook-template.md"
 EXAMPLE_PATH = ROOT / "skills" / "runbook" / "assets" / "runbook-example.md"
 
+
 def frontmatter_keys(path: Path) -> list[str]:
     """Top-level keys between a runbook's first two `---` fences.
 
