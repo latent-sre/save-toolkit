@@ -28,12 +28,17 @@ def run_calculator(*args: str, **env: str) -> subprocess.CompletedProcess[str]:
 
 
 class ErrorBudgetCliTests(unittest.TestCase):
-    def test_exactly_exhausted_budget_displays_positive_zero(self) -> None:
-        proc = run_calculator("--slo", "99.9", "--bad-minutes", "40.32")
+    def report(self, *args: str, **env: str) -> str:
+        """The calculator's stdout from a run that must exit 0."""
+        proc = run_calculator(*args, **env)
         self.assertEqual(proc.returncode, 0, proc.stderr)
-        self.assertIn("[EXHAUSTED]", proc.stdout)
-        self.assertIn("remaining: 0.0 min", proc.stdout)
-        self.assertNotIn("-0.0", proc.stdout)
+        return proc.stdout
+
+    def test_exactly_exhausted_budget_displays_positive_zero(self) -> None:
+        report = self.report("--slo", "99.9", "--bad-minutes", "40.32")
+        self.assertIn("[EXHAUSTED]", report)
+        self.assertIn("remaining: 0.0 min", report)
+        self.assertNotIn("-0.0", report)
 
     def test_time_and_request_units_cannot_be_mixed(self) -> None:
         proc = run_calculator(
@@ -44,19 +49,17 @@ class ErrorBudgetCliTests(unittest.TestCase):
         self.assertIn("cannot be combined", proc.stderr)
 
     def test_both_windows_must_cross_the_bound_threshold_to_page(self) -> None:
-        proc = run_calculator(
+        report = self.report(
             "--slo", "99.9", "--sli-long", "98.5", "--sli-short", "98.5",
             "--long-window", "1h", "--short-window", "5m",
         )
-        self.assertEqual(proc.returncode, 0, proc.stderr)
-        self.assertIn("PAGE (fast burn) -- both windows >= 14.4x", proc.stdout)
+        self.assertIn("PAGE (fast burn) -- both windows >= 14.4x", report)
 
     def test_one_window_never_emits_a_page_or_ticket(self) -> None:
-        proc = run_calculator("--slo", "99.9", "--sli-long", "98.5")
-        self.assertEqual(proc.returncode, 0, proc.stderr)
-        self.assertIn("severity: NOT EVALUATED", proc.stdout)
-        self.assertNotIn("severity: PAGE", proc.stdout)
-        self.assertNotIn("severity: TICKET", proc.stdout)
+        report = self.report("--slo", "99.9", "--sli-long", "98.5")
+        self.assertIn("severity: NOT EVALUATED", report)
+        self.assertNotIn("severity: PAGE", report)
+        self.assertNotIn("severity: TICKET", report)
 
     def test_decimal_thresholds_are_inclusive_without_rounding_lower_burns_up(self) -> None:
         # For a 99.99% SLO, these are the independent 14.4x, 6x and 1x SLI boundaries.
@@ -73,11 +76,10 @@ class ErrorBudgetCliTests(unittest.TestCase):
             )
             for name, sli, expected in cases:
                 with self.subTest(pair=(long_window, short_window), case=name):
-                    proc = run_calculator("--slo", "99.99", "--sli-long", sli,
-                                          "--sli-short", sli, "--long-window", long_window,
-                                          "--short-window", short_window)
-                    self.assertEqual(proc.returncode, 0, proc.stderr)
-                    self.assertIn("severity: " + expected, proc.stdout)
+                    report = self.report("--slo", "99.99", "--sli-long", sli,
+                                         "--sli-short", sli, "--long-window", long_window,
+                                         "--short-window", short_window)
+                    self.assertIn("severity: " + expected, report)
 
     def test_decimal_boundary_still_requires_both_windows(self) -> None:
         for long_window, short_window, boundary, lower_burn in (
@@ -90,13 +92,12 @@ class ErrorBudgetCliTests(unittest.TestCase):
                 (lower_burn, boundary, "short-window spike"),
             ):
                 with self.subTest(pair=(long_window, short_window), long=long_sli, short=short_sli):
-                    proc = run_calculator("--slo", "99.99", "--sli-long", long_sli,
-                                          "--sli-short", short_sli, "--long-window", long_window,
-                                          "--short-window", short_window)
-                    self.assertEqual(proc.returncode, 0, proc.stderr)
-                    self.assertIn(expected, proc.stdout)
-                    self.assertNotIn("severity: PAGE", proc.stdout)
-                    self.assertNotIn("severity: TICKET", proc.stdout)
+                    report = self.report("--slo", "99.99", "--sli-long", long_sli,
+                                         "--sli-short", short_sli, "--long-window", long_window,
+                                         "--short-window", short_window)
+                    self.assertIn(expected, report)
+                    self.assertNotIn("severity: PAGE", report)
+                    self.assertNotIn("severity: TICKET", report)
 
     def test_long_decimal_slo_and_scientific_spelling_keep_the_exact_boundary(self) -> None:
         for slo, sli, expected in (
@@ -105,9 +106,8 @@ class ErrorBudgetCliTests(unittest.TestCase):
             ("99.990000000000000000000000001", "99.8560000000000000000000000145", "below the"),
         ):
             with self.subTest(slo=slo, sli=sli):
-                proc = run_calculator("--slo", slo, "--sli-long", sli, "--sli-short", sli)
-                self.assertEqual(proc.returncode, 0, proc.stderr)
-                self.assertIn("severity: " + expected, proc.stdout)
+                report = self.report("--slo", slo, "--sli-long", sli, "--sli-short", sli)
+                self.assertIn("severity: " + expected, report)
 
     def test_invalid_percentages_remain_usage_errors_without_tracebacks(self) -> None:
         for options in (("--slo", "bad"), ("--slo", "nan"), ("--slo", "inf"),
@@ -122,18 +122,16 @@ class ErrorBudgetCliTests(unittest.TestCase):
     def test_status_horizon_does_not_rescale_fixed_alert_policy(self) -> None:
         for horizon, remaining in (("7", "10.1 min"), ("28", "40.3 min")):
             with self.subTest(horizon=horizon):
-                proc = run_calculator(
+                report = self.report(
                     "--slo", "99.9", "--window-days", horizon, "--bad-minutes", "0",
                     "--sli-long", "98.5", "--sli-short", "98.5",
                 )
-                self.assertEqual(proc.returncode, 0, proc.stderr)
-                self.assertIn("remaining: " + remaining, proc.stdout)
-                self.assertIn("PAGE (fast burn) -- both windows >= 14.4x", proc.stdout)
+                self.assertIn("remaining: " + remaining, report)
+                self.assertIn("PAGE (fast burn) -- both windows >= 14.4x", report)
 
     def test_help_keeps_its_description_whole_on_a_narrow_terminal(self) -> None:
-        proc = run_calculator("--help", COLUMNS="40")
-        self.assertEqual(proc.returncode, 0, proc.stderr)
-        self.assertIn("\nSLO error-budget and burn-rate calculator\n", proc.stdout)
+        report = self.report("--help", COLUMNS="40")
+        self.assertIn("\nSLO error-budget and burn-rate calculator\n", report)
 
     def test_mismatched_window_pair_fails(self) -> None:
         proc = run_calculator(
