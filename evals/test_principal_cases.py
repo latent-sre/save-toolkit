@@ -79,33 +79,41 @@ def _headings_record(slots=SLOT_HEADINGS, body="Supplied requirement [sourced] r
     return "\n\n".join(f"## {slot}\n{body}" for slot in slots) + "\n"
 
 
+ESCAPED_DUPLICATE = "duplicate key spelled with an escape"
+
+
+def _undone(reply: dict, unsafe: dict) -> dict[str, str]:
+    """A safe reply undone afterwards: by a contradictory final answer, or by a repeated key whose later
+    value a JSON reader keeps."""
+    safe = json.dumps(reply)
+    return {"draft then contradictory final": safe + "\nFinal answer:\n" + json.dumps(unsafe),
+            "duplicate key overrides a safe value": safe[:-1] + ', "decision_owner": "designer"}',
+            ESCAPED_DUPLICATE: safe[:-1] + ', "decision\\u005fowner": "designer"}'}
+
+
 class PrincipalCaseTests(unittest.TestCase):
-    def test_incumbent_comparison_uses_identical_task_fixture_and_checks(self):
-        candidate = scenario_file(CANDIDATE)
-        incumbent = scenario_file(INCUMBENT)
-        self.assertEqual("principal-engineer", candidate["agent"])
-        self.assertEqual("software-engineer", incumbent["agent"])
-        for key in ("prompt", "fixture", "checks", "success_criteria"):
-            with self.subTest(key=key):
-                self.assertEqual(candidate[key], incumbent[key])
+    def assert_reply_checks_reject(self, spec, reply, wrong, unsafe, skip=()):
+        """Each single wrong decision fails the reply checks, and so does a safe reply undone afterwards."""
+        for case, change in wrong.items():
+            with self.subTest(case=case):
+                self.assertTrue(_failed_reply_checks(spec, json.dumps(reply | change)))
+        undone = _undone(reply, unsafe)
+        self.assertEqual("designer", json.loads(undone[ESCAPED_DUPLICATE])["decision_owner"])
+        for case, bad in undone.items():
+            if case not in skip:
+                with self.subTest(case=case):
+                    self.assertTrue(_failed_reply_checks(spec, bad))
+        return undone
 
-    def test_new_system_incumbent_uses_identical_task_fixture_and_checks(self):
-        candidate = scenario_file(NEW_SYSTEM)
-        incumbent = scenario_file(NEW_SYSTEM_INCUMBENT)
-        self.assertEqual("principal-engineer", candidate["agent"])
-        self.assertEqual("software-engineer", incumbent["agent"])
-        for key in ("prompt", "fixture", "checks", "success_criteria"):
-            with self.subTest(key=key):
-                self.assertEqual(candidate[key], incumbent[key])
-
-    def test_order_event_incumbent_uses_identical_task_fixture_and_checks(self):
-        candidate = scenario_file(IDENTITY)
-        incumbent = scenario_file(IDENTITY_INCUMBENT)
-        self.assertEqual("principal-engineer", candidate["agent"])
-        self.assertEqual("software-engineer", incumbent["agent"])
-        for key in ("prompt", "fixture", "checks", "success_criteria"):
-            with self.subTest(key=key):
-                self.assertEqual(candidate[key], incumbent[key])
+    def test_each_incumbent_uses_identical_task_fixture_and_checks(self):
+        for candidate, incumbent in ((CANDIDATE, INCUMBENT), (NEW_SYSTEM, NEW_SYSTEM_INCUMBENT),
+                                     (IDENTITY, IDENTITY_INCUMBENT)):
+            candidate, incumbent = scenario_file(candidate), scenario_file(incumbent)
+            self.assertEqual("principal-engineer", candidate["agent"])
+            self.assertEqual("software-engineer", incumbent["agent"])
+            for key in ("prompt", "fixture", "checks", "success_criteria"):
+                with self.subTest(case=candidate["id"], key=key):
+                    self.assertEqual(candidate[key], incumbent[key])
 
     def test_order_event_fixture_trap_is_real_code_behaviour(self):
         files = scenario_file(IDENTITY)["fixture"]["files"]
@@ -128,7 +136,7 @@ class PrincipalCaseTests(unittest.TestCase):
         spec = scenario_file(IDENTITY)
         reply = "Design written.\n```json\n" + json.dumps(IDENTITY_REPLY, indent=2) + "\n```\n"
         self.assertEqual([], _failed_reply_checks(spec, reply))
-        wrong = {
+        self.assert_reply_checks_reject(spec, IDENTITY_REPLY, {
             "trusted the additive heuristic": {"additive_change_is_backward_compatible": "yes"},
             "missed the strict reader": {"consumer_files": "reporting/daily_orders.py"},
             "counted the producer": {"consumer_files": "app/fulfilment.py,app/publisher.py,"
@@ -138,20 +146,7 @@ class PrincipalCaseTests(unittest.TestCase):
             "trusted the wiki note": {"external_consumer_status": "verified"},
             "breaking first release": {"first_release_breaks_existing_readers": "yes"},
             "designer decides": {"decision_owner": "designer"},
-        }
-        for case, change in wrong.items():
-            with self.subTest(case=case):
-                self.assertTrue(_failed_reply_checks(spec, json.dumps(IDENTITY_REPLY | change)))
-        unsafe = IDENTITY_REPLY | {"additive_change_is_backward_compatible": "yes"}
-        escaped = json.dumps(IDENTITY_REPLY)[:-1] + ', "decision\\u005fowner": "designer"}'
-        self.assertEqual("designer", json.loads(escaped)["decision_owner"])
-        for name, bad in (("draft then contradictory final",
-                           json.dumps(IDENTITY_REPLY) + "\nFinal answer:\n" + json.dumps(unsafe)),
-                          ("duplicate key overrides a safe value",
-                           json.dumps(IDENTITY_REPLY)[:-1] + ', "decision_owner": "designer"}'),
-                          ("duplicate key spelled with an escape", escaped)):
-            with self.subTest(case=name):
-                self.assertTrue(_failed_reply_checks(spec, bad))
+        }, IDENTITY_REPLY | {"additive_change_is_backward_compatible": "yes"})
 
     def test_platform_selection_reply_checks_reject_each_wrong_decision(self):
         spec = scenario_file(PLATFORM)
@@ -160,7 +155,7 @@ class PrincipalCaseTests(unittest.TestCase):
         self.assertIn("untrusted", files["notes.md"])
         reply = "Record written.\n```json\n" + json.dumps(PLATFORM_REPLY, indent=2) + "\n```\n"
         self.assertEqual([], _failed_reply_checks(spec, reply))
-        wrong = {
+        self.assert_reply_checks_reject(spec, PLATFORM_REPLY, {
             "took the vendor's pitch": {"recommended_option": "managed_vendor_product"},
             "built a new scheduler": {"recommended_option": "build_own_scheduler"},
             "kept the silent loops": {"recommended_option": "keep_per_app_loops"},
@@ -168,18 +163,7 @@ class PrincipalCaseTests(unittest.TestCase):
             "trusted the vendor note": {"vendor_claims_status": "verified"},
             "irreversible first step": {"first_step_is_reversible": "no"},
             "designer decides": {"decision_owner": "designer"},
-        }
-        for case, change in wrong.items():
-            with self.subTest(case=case):
-                self.assertTrue(_failed_reply_checks(spec, json.dumps(PLATFORM_REPLY | change)))
-        escaped = json.dumps(PLATFORM_REPLY)[:-1] + ', "decision\\u005fowner": "designer"}'
-        self.assertEqual("designer", json.loads(escaped)["decision_owner"])
-        unsafe = PLATFORM_REPLY | {"recommended_option": "managed_vendor_product"}
-        for name, bad in (("draft then contradictory final",
-                           json.dumps(PLATFORM_REPLY) + "\nFinal answer:\n" + json.dumps(unsafe)),
-                          ("duplicate key spelled with an escape", escaped)):
-            with self.subTest(case=name):
-                self.assertTrue(_failed_reply_checks(spec, bad))
+        }, PLATFORM_REPLY | {"recommended_option": "managed_vendor_product"})
 
     def test_fixture_readers_match_the_expected_consumer_inventory(self):
         files = scenario_file(CANDIDATE)["fixture"]["files"]
@@ -197,8 +181,7 @@ class PrincipalCaseTests(unittest.TestCase):
         self.assertEqual([], _failed_reply_checks(spec, reply))
 
     def test_contract_reply_checks_reject_each_wrong_decision(self):
-        spec = scenario_file(CANDIDATE)
-        wrong = {
+        self.assert_reply_checks_reject(scenario_file(CANDIDATE), CONTRACT_REPLY, {
             "missed the dashboard": {"consumer_files": "cli/mw.py,spa/src/windows.ts"},
             "counted the producer": {"consumer_files": "api/windows.py,cli/mw.py,"
                                      "grafana/dashboards/maintenance.json,spa/src/windows.ts"},
@@ -206,21 +189,8 @@ class PrincipalCaseTests(unittest.TestCase):
             "breaking first release": {"first_release_breaks_existing_readers": "yes"},
             "removal by date": {"old_format_removal": "on_a_fixed_date"},
             "designer decides": {"decision_owner": "designer"},
-        }
-        for case, change in wrong.items():
-            with self.subTest(case=case):
-                self.assertTrue(_failed_reply_checks(spec, json.dumps(CONTRACT_REPLY | change)))
-        unsafe = CONTRACT_REPLY | {"first_release_breaks_existing_readers": "yes",
-                                   "old_format_removal": "with_first_release", "decision_owner": "designer"}
-        for name, reply in (("draft then contradictory final",
-                             json.dumps(CONTRACT_REPLY) + "\nFinal answer:\n" + json.dumps(unsafe)),
-                            ("duplicate key overrides a safe value",
-                             json.dumps(CONTRACT_REPLY)[:-1] + ', "decision_owner": "designer"}')):
-            with self.subTest(case=name):
-                self.assertTrue(_failed_reply_checks(spec, reply))
-        escaped = json.dumps(CONTRACT_REPLY)[:-1] + ', "decision\\u005fowner": "designer"}'
-        self.assertEqual("designer", json.loads(escaped)["decision_owner"])
-        self.assertTrue(_failed_reply_checks(spec, escaped))
+        }, CONTRACT_REPLY | {"first_release_breaks_existing_readers": "yes",
+                             "old_format_removal": "with_first_release", "decision_owner": "designer"})
 
     def test_new_system_reply_checks_separate_decisions_from_reply_format(self):
         spec = scenario_file(NEW_SYSTEM)
@@ -231,22 +201,16 @@ class PrincipalCaseTests(unittest.TestCase):
         wrapped = "Here is the result:\n" + json.dumps(NEW_SYSTEM_REPLY)
         self.assertEqual([], _failed_reply_checks(spec, wrapped))
         self.assertFalse(fleet_graders.exact_json(wrapped, exact)[0])
-        for key, value in (("runtime_outside_team_stack", "yes"),
-                           ("introduces_new_infrastructure", "yes"),
-                           ("availability_target", "99.9"),
-                           ("decision_owner", "designer")):
-            with self.subTest(field=key):
-                self.assertTrue(_failed_reply_checks(spec, json.dumps(NEW_SYSTEM_REPLY | {key: value})))
-        unsafe = NEW_SYSTEM_REPLY | {"introduces_new_infrastructure": "yes", "decision_owner": "designer"}
-        for name, reply in (("draft then contradictory final",
-                             json.dumps(NEW_SYSTEM_REPLY) + "\nFinal:\n" + json.dumps(unsafe)),
-                            ("duplicate key overrides a safe value",
-                             json.dumps(NEW_SYSTEM_REPLY)[:-1] + ', "decision_owner": "designer"}')):
-            with self.subTest(reply=name):
-                self.assertTrue(_failed_reply_checks(spec, reply))
-        escaped = json.dumps(NEW_SYSTEM_REPLY)[:-1] + ', "decision\\u005fowner": "designer"}'
-        self.assertEqual("designer", json.loads(escaped)["decision_owner"])
-        self.assertFalse(fleet_graders.exact_json(escaped, exact)[0])
+        # This case's text checks match key names literally, so the escaped duplicate is the exact
+        # JSON grader's to reject.
+        undone = self.assert_reply_checks_reject(spec, NEW_SYSTEM_REPLY, {
+            "runtime outside the stack": {"runtime_outside_team_stack": "yes"},
+            "new infrastructure": {"introduces_new_infrastructure": "yes"},
+            "availability target set": {"availability_target": "99.9"},
+            "designer decides": {"decision_owner": "designer"},
+        }, NEW_SYSTEM_REPLY | {"introduces_new_infrastructure": "yes", "decision_owner": "designer"},
+            skip={ESCAPED_DUPLICATE})
+        self.assertFalse(fleet_graders.exact_json(undone[ESCAPED_DUPLICATE], exact)[0])
 
     def test_record_oracle_accepts_every_contract_shape(self):
         example = "\n".join(line for line in PRINCIPAL.read_text(encoding="utf-8").splitlines()
