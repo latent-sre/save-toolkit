@@ -455,7 +455,9 @@ owner selected from its record are implemented. [verified] Trials isolate and re
 a canary proves the read-only guard refuses a command outside its allowlist, guarded triage accepts
 the lane's labelled headings, and the operator-CLI oracle fails with exit 10, which a crash cannot
 produce. The rescore/diff gate over 1,424 saved runs differs only in guarded-triage label checks.
-The remaining WP-02 gaps (two-turn turn limits, the rubric case, ignored files in the digest, the
+The owner then selected gap 4: a two-turn conversation's turn limit now covers both invocations,
+and rescoring the 19 saved two-turn runs with and without it differs in none.
+The remaining WP-02 gaps (the rubric case, ignored files in the digest, the
 batch cap, argv and host identity, residue) and three oracles still exiting 1 wait for the owner's
 selection. Each runner edit keeps the rescore/diff gate. [verified] Re-frozen on 2026-10-08 with the EVAL-013 and
 EVAL-014 runner changes, which the owner approved landing during the freeze, on top of the judge

@@ -1590,7 +1590,8 @@ class NativeConversationRunTests(unittest.TestCase):
                 self.assertTrue(probe_catalog.validate_scenario({**self.SPEC, **change}))
 
     def run_native(self, root, *, wrong_session=False, bad_runtime=False, bad_initial=False, credential=False,
-                   wrong_model=False, missing_model=False, hidden_tool=None, cost=0.05, runtime=None):
+                   wrong_model=False, missing_model=False, hidden_tool=None, cost=0.05, runtime=None,
+                   turns=(None, None), initial_subtype="success"):
         calls, environments = [], []
         real_run = subprocess.run
 
@@ -1622,9 +1623,11 @@ class NativeConversationRunTests(unittest.TestCase):
             for event in events:
                 if event.get("type") == "assistant":
                     event["message"]["model"] = observed_model
-            result = {"type": "result", "subtype": "success", "session_id": session_id,
+            result = {"type": "result", "subtype": "success" if resumed else initial_subtype, "session_id": session_id,
                       "result": "Synthetic .credentials.json marker" if credential else "Owner correction assessed.",
                       "duration_ms": 50, "usage": {"input_tokens": 10}, "modelUsage": {"stub-model": {}}, "total_cost_usd": cost}
+            if turns[resumed] is not None:
+                result["num_turns"] = turns[resumed]
             events += [result, result]  # repeated terminal envelopes must not double-charge a turn
             kwargs["stdout"].write("\n".join(json.dumps(event) for event in events) + "\n")
             return subprocess.CompletedProcess(argv, 0)
@@ -1685,6 +1688,51 @@ class NativeConversationRunTests(unittest.TestCase):
             self.assertEqual("INCONCLUSIVE", summary["status"])
             self.assertEqual(1, len(calls))
             self.assertFalse((run / "followup").exists())
+
+    def test_the_turn_limit_covers_the_whole_conversation(self):
+        """Codex on PR #340: `--max-turns` bounds one invocation, so the resumed one gets only the rest."""
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(self, "SPEC", {**self.SPEC, "max_turns": 17}):
+            summary, run, calls, _ = self.run_native(Path(tmp), turns=(5, 4))
+            self.assertEqual(["17", "12"], [argv[argv.index("--max-turns") + 1] for argv, *_ in calls])
+            self.assertEqual("PASS", summary["status"])
+            self.assertEqual("PASS", probe_rescoring.regrade_run(run, self.SPEC)["status"])
+
+    def test_a_conversation_that_spends_its_limit_ends_without_a_followup(self):
+        for subtype in ("error_max_turns", "success"):
+            with self.subTest(subtype=subtype), tempfile.TemporaryDirectory() as tmp, \
+                    mock.patch.object(self, "SPEC", {**self.SPEC, "max_turns": 17}):
+                summary, run, calls, _ = self.run_native(Path(tmp), turns=(17, None), initial_subtype=subtype)
+                self.assertEqual(1, len(calls))
+                self.assertFalse((run / "followup").exists())
+                self.assertNotEqual("INCONCLUSIVE", summary["status"])
+                grading = json.loads((run / "grading.json").read_text(encoding="utf-8"))
+                self.assertEqual(subtype == "error_max_turns", grading.get("run_end") == "turn_limit")
+                self.assertEqual(summary["status"], probe_rescoring.regrade_run(run, self.SPEC)["status"])
+
+    def test_a_missing_turn_count_stops_a_limited_conversation(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(self, "SPEC", {**self.SPEC, "max_turns": 17}):
+            summary, run, calls, _ = self.run_native(Path(tmp))
+            self.assertEqual("INCONCLUSIVE", summary["status"])
+            self.assertEqual(1, len(calls))
+            self.assertIn("turn count missing", json.loads((run / "grading.json").read_text(encoding="utf-8"))["inconclusive"])
+
+    def test_regrade_refuses_a_conversation_that_ran_past_its_limit(self):
+        def recount(path, turns):
+            events = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+            for event in events:
+                if event.get("type") == "result":
+                    event["num_turns"] = turns
+            path.write_text("\n".join(json.dumps(event) for event in events) + "\n", encoding="utf-8")
+
+        for first, followup, reason in ((17, 4, "follow-up ran past"), (10, 8, "ran past its turn limit")):
+            with self.subTest(first=first, followup=followup), tempfile.TemporaryDirectory() as tmp, \
+                    mock.patch.object(self, "SPEC", {**self.SPEC, "max_turns": 17}):
+                _, run, _, _ = self.run_native(Path(tmp), turns=(5, 4))
+                recount(run / "stdout.jsonl", first)
+                recount(run / "followup" / "stdout.jsonl", followup)
+                regraded = probe_rescoring.regrade_run(run, self.SPEC)
+                self.assertEqual("INCONCLUSIVE", regraded["status"])
+                self.assertIn(reason, regraded["inconclusive"])
 
     def test_completed_explore_before_correct_helper_stops_before_resume(self):
         events = [

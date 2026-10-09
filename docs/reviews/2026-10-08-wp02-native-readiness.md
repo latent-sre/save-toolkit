@@ -110,5 +110,11 @@ implemented, under `EVAL-011`:
 - [verified] Gap 3: the operator-CLI oracle exits 10 on a failed contract, which its scenario
   declares as `failure_exit_code`; any other nonzero exit is an instrument failure.
 
+The owner then selected gap 4, answering Codex's P1 on PR #340, and it is implemented:
+- [verified] Gap 4: a resumed invocation gets only the turns the first left, a conversation that
+  spends its limit ends without its follow-up as a completed run, and a regrade refuses a saved
+  conversation that ran past its limit. Rescoring the 19 saved two-turn runs with and without the
+  change differs in none; the highest saved count is 7 + 1 of 18, so none came near its limit.
+
 Raw records stay private under `.eval-runs/wp02-native-readiness-20261008/` and
 `.eval-runs/wp02-attribution-20261008/`; the reviewer's scratch is under `F:/iso-tmp/wp02-review/`.

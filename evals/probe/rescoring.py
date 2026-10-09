@@ -44,7 +44,11 @@ def native_regrade_problem(run_dir: Path, spec: Spec, plugin_root: Path) -> str 
     reported as the saved run's fault.
     """
     resume, workspace = None, None
+    done: list[TraceSummary] = []
     for folder in (run_dir, run_dir / "followup"):
+        left = invocation.turns_left(spec, done)
+        if left is not None and left <= 0:  # the conversation spent its limit, so no follow-up started
+            return "native follow-up ran past the conversation's turn limit; re-run the trial" if folder.exists() else None
         trace_path, metadata_path = folder / "stdout.jsonl", folder / "invocation.json"
         if not trace_path.is_file():
             return "native conversation trace missing; re-run the trial"
@@ -103,6 +107,10 @@ def native_regrade_problem(run_dir: Path, spec: Spec, plugin_root: Path) -> str 
             except ValueError:  # a saved stop this runner does not know
                 return _INVALID_NATIVE_EVIDENCE
         resume, workspace = trace.session_id, recorded_workspace
+        done.append(trace)
+    left = invocation.turns_left(spec, done)
+    if left is not None and left < 0:
+        return "native conversation ran past its turn limit; re-run the trial"
     return None
 
 
