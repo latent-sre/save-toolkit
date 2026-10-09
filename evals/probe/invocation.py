@@ -141,13 +141,16 @@ def expected_runtime_tools(plugin_root: Path, agent: str, requested: Sequence[st
 
 
 def read_boundary_applies(spec: Mapping[str, Any], requested: Sequence[str]) -> bool:
-    """Fixture-less trials and native read-only conversations stay inside harness-owned trees.
+    """Fixture-less trials, routing trials and native read-only conversations stay inside harness-owned trees.
 
     A build lane runs with its real tools on the host and legitimately reads outside the workspace
     (the CLI's own bundled-skill cache, the npm cache); it is graded on what it produced. Applying
-    the read boundary to it turned every frontend build trial INCONCLUSIVE on 2026-09-03.
+    the read boundary to it turned every frontend build trial INCONCLUSIVE on 2026-09-03. A routing
+    trial keeps the boundary when it carries a fixture: it has no shell, and its verdict must not be
+    shaped by what it found outside the harness (EVAL-013, EVAL-014).
     """
-    return bool(spec.get("followups") or not spec.get("fixture")) and bool(set(requested) & set(READ_TOOLS))
+    bounded = spec.get("followups") or spec.get("routing") or not spec.get("fixture")
+    return bool(bounded) and bool(set(requested) & set(READ_TOOLS))
 
 
 def read_boundary_problem(trace: TraceSummary, allowed_roots: Sequence[Path]) -> str | None:

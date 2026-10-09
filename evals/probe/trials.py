@@ -255,6 +255,12 @@ def _keep_attempt(run_dir: Path, history: Path, number: int | None, state: str, 
     return destination
 
 
+def _plugin_drift(candidate: Path, served: Path, expected: str) -> str | None:
+    """Drift in the candidate's inputs, or in the image the trial was served, which a session with a
+    shell could edit."""
+    return fingerprints.plugin_drift_problem(candidate, expected) or fingerprints.plugin_drift_problem(served, expected)
+
+
 def _invoke_turns(
     spec: Mapping[str, Any],
     settings: BatchSettings,
@@ -264,14 +270,15 @@ def _invoke_turns(
     plugin_sha: str,
     binding: dict[str, Any] | None,
     scenario_identity: str,
+    served: Path,
 ) -> tuple[str | None, str | None]:
     """Invoke the CLI for the prompt and then each follow-up, resuming the session the turn before
     opened, until a turn ends the trial: why it ended, if one did, and any identity failure."""
     inconclusive: str | None = None
     identity_failure: str | None = None
     resume = None
-    for turn, prompt in enumerate([catalog.scenario_prompt(spec, settings.plugin_root), *spec.get("followups", [])]):
-        inconclusive = fingerprints.plugin_drift_problem(settings.plugin_root, plugin_sha)
+    for turn, prompt in enumerate([catalog.scenario_prompt(spec, served), *spec.get("followups", [])]):
+        inconclusive = _plugin_drift(settings.plugin_root, served, plugin_sha)
         if fingerprints.scenario_digest(spec, binding) != scenario_identity:
             inconclusive = "scenario inputs changed before invocation; re-run the trial"
         if inconclusive:
@@ -281,7 +288,7 @@ def _invoke_turns(
         turn_out.mkdir(exist_ok=True)
         command = invocation.build_command(
             settings.executable,
-            settings.plugin_root,
+            served,
             f"save-toolkit:{spec['agent']}" if spec.get("agent") else None,
             prompt,
             settings.model,
@@ -308,7 +315,7 @@ def _invoke_turns(
             returncode,
             timed_out,
             spec,
-            settings.plugin_root,
+            served,
             plugin_sha,
             ws.repo,
             resume,
@@ -375,6 +382,11 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
         if root.resolve().is_relative_to(ROOT.resolve()):
             raise RuntimeError(f"temp workspace {root} is inside the repository")
         provenance = fingerprints.plugin_provenance(settings.plugin_root)
+        # The trial is served an image of the measured inputs beside its repository, never the
+        # checkout: with `--plugin-dir` and `--add-dir` naming the checkout, a routing session could
+        # read this repository's evals, docs and history before choosing an agent (EVAL-014).
+        served = fingerprints.stage_plugin(settings.plugin_root, root / "plugin")
+        provenance["plugin_served_from"] = str(served.resolve())
         binding = (
             settings.judge_binding.metadata if settings.judge_binding and fingerprints.required_rubrics(spec) else None
         )
@@ -412,7 +424,15 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
             with make_env() as base_env:
                 env = workspaces.child_env(base_env, ws, spec, services)
                 inconclusive, failed = _invoke_turns(
-                    spec, settings, run_out, ws, env, provenance["plugin_source_sha256"], binding, scenario_identity
+                    spec,
+                    settings,
+                    run_out,
+                    ws,
+                    env,
+                    provenance["plugin_source_sha256"],
+                    binding,
+                    scenario_identity,
+                    served,
                 )
                 identity_failure = identity_failure or failed
         else:
@@ -423,7 +443,7 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
             (run_out / "stderr.txt").write_text("", encoding="utf-8")
         elapsed = time.monotonic() - started
         if not inconclusive or isinstance(inconclusive, CutShort):  # drift voids even a cut-short run
-            drift = fingerprints.plugin_drift_problem(settings.plugin_root, provenance["plugin_source_sha256"])
+            drift = _plugin_drift(settings.plugin_root, served, provenance["plugin_source_sha256"])
             identity_failure = identity_failure or drift
             inconclusive = void_over_cut(inconclusive, drift)
         trace = tracing.parse_trial_trace(run_out) if trace_path.exists() else TraceSummary()
@@ -434,7 +454,7 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
             trace,
             git,
             services=services,
-            plugin_root=settings.plugin_root,
+            plugin_root=served,
             judge_binding=settings.judge_binding,
         )
         grading = assessment.grade(ctx, inconclusive=inconclusive, expected_scenario_digest=scenario_identity)
@@ -447,7 +467,7 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
                 after_assessment = f"backing service cleanup failed: {exc}"
             finally:
                 services = []
-        drift = fingerprints.plugin_drift_problem(settings.plugin_root, provenance["plugin_source_sha256"])
+        drift = _plugin_drift(settings.plugin_root, served, provenance["plugin_source_sha256"])
         if drift:
             identity_failure = identity_failure or drift
             grading = assessment.grade(ctx, inconclusive=drift, expected_scenario_digest=scenario_identity)

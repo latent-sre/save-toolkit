@@ -431,15 +431,19 @@ including its result rules. Measurement failures are inconclusive and never hide
 and results record the runner revision, CLI version and host platform. Every in-scope defect from the
 2026-10-03 inventory of `evals/build_probe.py` is fixed or has an owner disposition.
 **Next action:** Keep the runner frozen through WP-02; run its remaining preconditions and native
-checks under the approved run plan. [verified] Re-frozen on 2026-10-08 with the judge framing fix
-and its required calibration cases; latest commit touching runner identity inputs:
-`2ae94bafbc2b33e3087fcdea3b9c06152fff6549` (reachable from `main` when its PR merges with a merge commit). The
+checks under the approved run plan. [verified] Re-frozen on 2026-10-08 with the EVAL-013 and
+EVAL-014 runner changes, which the owner approved landing during the freeze, on top of the judge
+framing fix; latest commit touching runner identity inputs:
+`164eccb14f75d65648f160e23a4e04c197b3a803` (reachable from `main` when its PR merges with a merge commit). The
 runner's own normalized source SHA-256 is
-`14d28710b8319576cff49bee3047f9b76e7ec2dda83cc876b9a902ec09435d66`, computed by
+`55138c00e067b849ee549d6cb673c95bd72a33a5f59abf639083de8b9b36d6cb`, computed by
 `probe.fingerprints.harness_source_digest()` over `HARNESS_FILES`. This includes the judge and
 graders; scenario/oracle additions outside those inputs do not change it. See the
 [WP-02 freeze record](fleet-evaluation/run-plan-wp02-native-readiness.md#frozen-runner-record).
-It replaces the first freeze (checkout `523525430a0fbb71b0e9e3a846fae8e86db90a99`, identity input
+It replaces the judge-fix freeze (identity input `2ae94bafbc2b33e3087fcdea3b9c06152fff6549`, digest
+`14d28710b8319576cff49bee3047f9b76e7ec2dda83cc876b9a902ec09435d66`). Rescoring all 1,395 saved runs
+with that runner and this one differs in 12, each the accepted-implementation case, FAIL to PASS
+under its new alternative. The judge-fix freeze replaced the first freeze (checkout `523525430a0fbb71b0e9e3a846fae8e86db90a99`, identity input
 `effa23d7795ea527efce3a5de2c27375cb0f0b89`, digest
 `633770b9656dbd8980df842af9d0e41e7e233ab293f69338de05f280c9d249d3`): the owner chose to land the judge
 marker fix and the six judge-input corpus cases before WP-02 starts. They invalidate every earlier
@@ -547,38 +551,52 @@ cause is unconfirmed, so a recurrence reopens it here.
 **SRE task:** Read an eval INCONCLUSIVE as "the instrument could not measure", trust that it never hides
 a recorded failure, and know which host and CLI a PASS or FAIL was measured on.
 
-### EVAL-013 — repair the accepted-implementation routing case
+### EVAL-016 — seed the reviewer routing cases with what their prompts name
 
-**Status:** `ready` (2026-10-05); `discovery-reliability-defers-accepted-implementation` fails 0/3
-on main `8d7ecda1` and 0/3 on the principal candidate, with nothing dispatched on either tree. In
-two of the candidate trials the session searched the measured checkout before deciding (`EVAL-014`).
-**Owner:** `agent-engineer` owns the scenario; maintainers approve any paid re-run.
-**Outcome:** The case measures whether accepted implementation work reaches `software-engineer` and
-passes on main, or carries an owner disposition.
-**Next action:** `agent-engineer` checks whether a routing scenario can seed a fixture. If it can,
-seed a minimal checkout worker and its tests so dispatch is the reasonable action; if not, reword the
-prompt so it does not depend on code the workspace lacks. Prove the case offline, then re-run three
-Sonnet trials on main with the DEC-04 figures stated first.
-**Evidence:** [Principal-engineer evaluation, base-state section](reviews/2026-10-05-principal-engineer-evals.md#the-neighbour-red-is-the-base-state).
-**SRE task:** Hand over an accepted change and know the routing check truthfully shows whether it
-reaches the implementation lane.
+**Status:** `ready` (2026-10-08). Both negatives whose alternative is `reviewer` ask for review of
+material their empty workspace lacks, so every session searches first, finds nothing and answers
+inline.
+- `discovery-reliability-defers-change-review` says the base and candidate are in the checkout:
+  0/3 before and 0/3 after the reviewer description change, each session reporting no candidate.
+- `discovery-principal-engineer-defers-design-review` asks whether claims hold for consumers the
+  workspace lacks: 0/4 measured with 2 void across both descriptions on the isolated runner, all
+  searching first; it reached `reviewer` first-call in 2 of 7 earlier trials.
+- Naming design docs and ADRs in the reviewer description (`b724c1e4`) did not move design review.
+
+**Owner:** `agent-engineer` owns the scenarios; maintainers approve any paid re-run.
+**Outcome:** Each case's workspace holds what its prompt names, so its verdict measures whether a
+review request reaches `reviewer`, not whether the session found the material.
+**Next action:** Seed change review with a base and a candidate branch and design review with its
+two consumers, as the accepted-implementation case was seeded; prove each offline, then re-run three
+Sonnet trials of each with the DEC-04 figures stated first. Keep or revert the description clause
+on that result.
+**Evidence:** Labels `rev-sonnet` and `base-sonnet` under `.eval-runs/eval-013-014-20261008/`,
+USD 1.61 with the accepted-implementation trials.
+**SRE task:** Ask for an independent review and know the routing check shows whether it reaches the
+reviewer.
 
 ### EVAL-014 — keep routing trials out of the measured checkout
 
-**Status:** `ready` (2026-10-06). Routing trials run in an empty repository, yet the plugin root,
-the measured checkout, is readable from them.
-- Of 38 principal-campaign routing traces, the main session searched the checkout before choosing
-  an agent in 6. In 2 of those it read this repository's `evals/` fixtures.
-- None of 54 build traces reached the checkout outside `skills/`.
+**Status:** `decision-needed` (2026-10-08). `--plugin-dir` and `--add-dir` named the checkout; since
+`f3335ec3` the runner serves each trial an image of the measured plugin inputs beside its git root,
+and the checkout is no longer readable from a trial.
+- One Haiku trial each way on CLI 2.1.295: a Glob of the checkout's `evals/*.py` returned 65
+  matches before and was denied after, with the plugin loaded from the image.
+- Six re-run Sonnet trials: none read outside its workspace and image. The design-review case
+  failed 2/3 with one trial void: the session searched the trial root, the parent of its repo and
+  the image, the CLI denied it, and the runtime-denial rule voided the trial. Each session
+  answered inline instead of dispatching `reviewer`.
 
 **Owner:** `agent-engineer` owns the runner; maintainers approve any paid re-run.
 **Outcome:** A trial can read the plugin's shipped skills but not the rest of the checkout, so a
 routing verdict cannot be shaped by the repository's own evals, docs or history.
-**Next action:** Find how the plugin root becomes readable to the trial. Then test serving the run
-from a staged copy of only the shipped plugin inputs: agents, skills, commands, hooks and
-manifests. Prove offline that a trial can no longer list `evals/`. Then re-run the design-review
-and accepted-implementation routing cases with the DEC-04 figures stated first.
-**Evidence:** [Principal-engineer evaluation, checkout-read section](reviews/2026-10-05-principal-engineer-evals.md#routing-trials-can-read-the-measured-checkout).
+**Next action:** The owner chooses whether a denied read outside the workspace and image is the
+boundary holding, so the trial keeps its verdict, or stays a runtime denial that voids it under
+the threat-model result rules; the first needs a rule change in `runtime_blocked_tools` with its
+regrade. No further paid run is authorized.
+**Evidence:** The Haiku pair under `.eval-runs/eval-014-20261008/` and the six trials, label
+`image-sonnet`, USD 0.81 in all, under `.eval-runs/eval-013-014-20261008/`; the checkout reads are in
+the [principal-engineer evaluation](reviews/2026-10-05-principal-engineer-evals.md#routing-trials-can-read-the-measured-checkout).
 **SRE task:** Trust that a routing result reflects the agent descriptions, not files the test
 happened to find.
 

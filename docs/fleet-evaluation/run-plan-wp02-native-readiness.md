@@ -36,12 +36,18 @@ All of these hold before the first paid call:
 
 ## Frozen runner record
 
-[verified] Re-recorded 2026-10-08 for the judge framing fix and its required calibration cases
-(EVAL-012 WP-10), which land with this record before WP-02 starts. Latest identity-input commit:
-`2ae94bafbc2b33e3087fcdea3b9c06152fff6549`. `probe.fingerprints.harness_source_digest()` returns
-`14d28710b8319576cff49bee3047f9b76e7ec2dda83cc876b9a902ec09435d66`. Merge the PR that lands it with a merge commit, as this repository does, so that commit stays in
+[verified] Re-recorded 2026-10-08 for the EVAL-013 and EVAL-014 runner changes (each trial is
+served an image of the plugin inputs; a negative routing case may accept `main_session`), which the owner
+approved landing during the freeze. Latest identity-input commit:
+`164eccb14f75d65648f160e23a4e04c197b3a803`, the merge that brings them onto this record's
+predecessor. `probe.fingerprints.harness_source_digest()` returns
+`55138c00e067b849ee549d6cb673c95bd72a33a5f59abf639083de8b9b36d6cb`. Merge the PR that lands it with a merge commit, as this repository does, so that commit stays in
 `main`'s history; a rebase merge rewrites it, and then `git log -1 -- <HARNESS_FILES>` on `main` names
-its replacement. The digest is what WP-02 checks either way. It replaces the first record,
+its replacement. The digest is what WP-02 checks either way. `judge.py` and `clean_room.py` are
+unchanged, so precondition 5's calibration is unaffected. It replaces the record for the judge
+framing fix and its required calibration cases (EVAL-012 WP-10; latest identity input
+`2ae94bafbc2b33e3087fcdea3b9c06152fff6549`, digest
+`14d28710b8319576cff49bee3047f9b76e7ec2dda83cc876b9a902ec09435d66`), which replaced the first record,
 taken from checkout `523525430a0fbb71b0e9e3a846fae8e86db90a99` after PR #328 (latest identity input
 `effa23d7795ea527efce3a5de2c27375cb0f0b89`, digest
 `633770b9656dbd8980df842af9d0e41e7e233ab293f69338de05f280c9d249d3`).

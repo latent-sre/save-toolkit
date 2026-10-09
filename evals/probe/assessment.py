@@ -65,24 +65,23 @@ def grade_routing(spec: Spec, trace: TraceSummary, plugin_root: Path) -> Outcome
         return verdict(fired, f"routing matched {target_name}" if fired else f"routing saw {sorted(actual)}")
     if target_name in actual:
         return violation(f"routing unexpectedly fired {target_name}")
-    alternative = routing["expected_alternative"]
-    if alternative == "inline":
-        no_components = not trace.skills and not trace.agents
-        answered = bool(trace.result_text.strip())
-        return verdict(
-            bool(no_components and answered),
-            (
-                "routing stayed inline"
-                if no_components and answered
-                else f"routing expected inline; saw skills={trace.skills}, agents={trace.agents}"
-            ),
-        )
-    alternate_actual = tracing.completed_components(trace, alternative["kind"])
-    alternate_name = runtime_target(alternative)
-    return verdict(
-        alternate_name in alternate_actual,
-        f"routing expected alternative {alternate_name}; saw {sorted(alternate_actual)}",
-    )
+    declared = routing["expected_alternative"]
+    alternatives = declared if isinstance(declared, list) else [declared]
+    answered = bool(trace.result_text.strip())
+    seen = f"skills={trace.skills}, agents={trace.agents}"
+    for alternative in alternatives:
+        if alternative == "inline" and not trace.skills and not trace.agents and answered:
+            return verdict(True, "routing stayed inline")
+        if alternative == "main_session" and not trace.agents and answered:
+            # The main session keeps the work: craft skills may load, but no agent takes it.
+            return verdict(True, f"routing stayed in the main session; skills={trace.skills}")
+        if isinstance(alternative, Mapping):
+            alternate_name = runtime_target(alternative)
+            if alternate_name in tracing.completed_components(trace, alternative["kind"]):
+                return verdict(True, f"routing reached alternative {alternate_name}")
+    names = [a if isinstance(a, str) else runtime_target(a) for a in alternatives]
+    expected = names[0] if len(names) == 1 else f"one of {names}"
+    return verdict(False, f"routing expected alternative {expected}; saw {seen}")
 
 
 def grade_skill_fired(spec: Spec, trace: TraceSummary, plugin_root: Path) -> Outcome:

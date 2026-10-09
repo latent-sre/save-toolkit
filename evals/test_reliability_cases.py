@@ -13,6 +13,7 @@ from unittest.mock import patch
 import graders as fleet_graders
 from probe import catalog as probe_catalog
 from probe import checking as probe_checking
+from probe import invocation as probe_invocation
 from probe import tracing as probe_tracing
 from probe import workspaces as probe_workspaces
 
@@ -231,6 +232,42 @@ class ReliabilityAuthorizationTests(unittest.TestCase):
                 self.assertEqual(code, 2, evidence)
                 self.assertFalse(passed, evidence)
                 self.assertIn("INCONCLUSIVE:", evidence)
+
+
+class AcceptedImplementationCaseTests(unittest.TestCase):
+    """EVAL-013: the routing case seeds the code its assignment names. Accepted implementation stays
+    with the main session or reaches the builder; a design lane taking it fails the case."""
+
+    SCENARIO = ROOT / "scenarios/discovery-reliability-defers-accepted-implementation.yaml"
+
+    def test_the_case_routes_without_building_and_keeps_the_read_boundary(self):
+        spec = probe_catalog.load_scenario(self.SCENARIO)
+        self.assertEqual("routing", probe_catalog.scenario_kind(spec))
+        self.assertEqual(["main_session", {"kind": "agent", "name": "software-engineer"}],
+                         spec["routing"]["expected_alternative"])
+        self.assertFalse({"Edit", "Write", "Bash", "PowerShell"} & set(spec["tools"]))
+        self.assertTrue(probe_invocation.read_boundary_applies(spec, spec["tools"]))
+
+    def test_the_seeded_worker_runs_its_suite_and_drops_the_deadline_before_the_ledger(self):
+        spec = probe_catalog.load_scenario(self.SCENARIO)
+        for name, content in spec["fixture"]["files"].items():
+            self.assertNotIn("software-engineer", content, f"{name} must not name the answer")
+        with tempfile.TemporaryDirectory() as tmp:
+            ws = probe_workspaces.seed_workspace(spec, Path(tmp))
+            suite = subprocess.run(
+                [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-t", ".", "-q"],
+                cwd=ws.repo, capture_output=True, text=True, encoding="utf-8")
+            self.assertEqual(0, suite.returncode, suite.stderr)
+            self.assertIn("Ran 2 tests", suite.stderr)
+            # The assignment is real code: the request carries a deadline the ledger call never receives.
+            shape = subprocess.run(
+                [sys.executable, "-c",
+                 "import inspect; from checkout_worker.ledger import LedgerClient; "
+                 "from checkout_worker.worker import CheckoutRequest; "
+                 "print(sorted(inspect.signature(LedgerClient.post).parameters), "
+                 "'deadline' in CheckoutRequest.__dataclass_fields__)"],
+                cwd=ws.repo, capture_output=True, text=True, encoding="utf-8")
+            self.assertEqual("['entry', 'self'] True", shape.stdout.strip(), shape.stderr)
 
 
 class ProportionateOptionsTests(unittest.TestCase):
