@@ -481,27 +481,29 @@ cause is unconfirmed, so a recurrence reopens it here.
 **SRE task:** Read an eval INCONCLUSIVE as "the instrument could not measure", trust that it never hides
 a recorded failure, and know which host and CLI a PASS or FAIL was measured on.
 
-### EVAL-013 — repair the accepted-implementation routing case
+### EVAL-016 — seed the reviewer routing cases with what their prompts name
 
-**Status:** `decision-needed` (2026-10-08); the case now seeds the checkout worker its assignment
-names, and still fails 0/3 on main `f3335ec3`, for a new reason: the session reads the worker,
-tries to edit it itself, is refused Write and Edit by the clean room, and reports the change it
-would have made. `reliability-engineer` never fired and nothing was dispatched in any trial. The
-earlier 0/6 on an empty workspace, where the session searched and asked for the repository, is
-superseded.
-**Owner:** `agent-engineer` owns the scenario; maintainers approve any paid re-run.
-**Outcome:** The case measures whether accepted implementation work reaches `software-engineer` and
-passes on main, or carries an owner disposition.
-**Next action:** The owner chooses: keep the case red as base-state evidence that the main session
-implements rather than dispatches once the code is present (the small-tool-build negative that
-passes 3/3 loaded `python-craft` before dispatching; this session loads no skill), or set its
-`expected_alternative` to `inline` so it guards only against the design lane taking accepted
-implementation work. No further paid run is authorized.
-**Evidence:** Three Sonnet trials, label `image-sonnet`, USD 0.42, under
-`.eval-runs/eval-013-014-20261008/`; the earlier base state is in the
-[principal-engineer evaluation](reviews/2026-10-05-principal-engineer-evals.md#the-neighbour-red-is-the-base-state).
-**SRE task:** Hand over an accepted change and know the routing check truthfully shows whether it
-reaches the implementation lane.
+**Status:** `ready` (2026-10-08). Both negatives whose alternative is `reviewer` ask for review of
+material their empty workspace lacks, so every session searches first, finds nothing and answers
+inline.
+- `discovery-reliability-defers-change-review` says the base and candidate are in the checkout:
+  0/3 before and 0/3 after the reviewer description change, each session reporting no candidate.
+- `discovery-principal-engineer-defers-design-review` asks whether claims hold for consumers the
+  workspace lacks: 0/4 measured with 2 void across both descriptions on the isolated runner, all
+  searching first; it reached `reviewer` first-call in 2 of 7 earlier trials.
+- Naming design docs and ADRs in the reviewer description (`b724c1e4`) did not move design review.
+
+**Owner:** `agent-engineer` owns the scenarios; maintainers approve any paid re-run.
+**Outcome:** Each case's workspace holds what its prompt names, so its verdict measures whether a
+review request reaches `reviewer`, not whether the session found the material.
+**Next action:** Seed change review with a base and a candidate branch and design review with its
+two consumers, as the accepted-implementation case was seeded; prove each offline, then re-run three
+Sonnet trials of each with the DEC-04 figures stated first. Keep or revert the description clause
+on that result.
+**Evidence:** Labels `rev-sonnet` and `base-sonnet` under `.eval-runs/eval-013-014-20261008/`,
+USD 1.61 with the accepted-implementation trials.
+**SRE task:** Ask for an independent review and know the routing check shows whether it reaches the
+reviewer.
 
 ### EVAL-014 — keep routing trials out of the measured checkout
 

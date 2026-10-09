@@ -26,9 +26,22 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   dispatching `software-engineer`, 0/6 on two trees. The case now seeds a small checkout worker
   whose request carries a deadline the ledger call never receives, with a passing two-test suite;
   its calibration test seeds the fixture, runs the suite and checks that shape (`EVAL-013`).
-  [verified] Still 0/3 on `f3335ec3`, for a new reason: the session reads the worker, tries to
-  edit it itself, is refused by the clean room and reports its plan; nothing is dispatched and
-  `reliability-engineer` never fires. The item stays open for the owner's disposition.
+- The same case then failed 0/3 because it demanded a hand-off the product does not make. Across
+  64 saved agent-target routing trials Sonnet chose `software-engineer` first in none of 15: the
+  main session treats implementation as its own job and hands it to the builder only once a trial
+  refuses it write tools. A negative's `expected_alternative` may now be `main_session` (no agent
+  takes the work, skills may load, the session answers) or a list of alternatives, any one of which
+  passes; the case accepts the main session or `software-engineer` and still fails if
+  `reliability-engineer` fires, a lane taken on the first call 6/6 when its description matches.
+  [verified] The three new grading tests fail on the previous commit and pass after it; 3/3 PASS
+  on `b724c1e4`, each session reading the seeded worker and drafting the change itself. This
+  closes `EVAL-013`.
+- The reviewer description named only a change, diff, commit, branch or PR, while the rule that
+  review of a design doc or ADR goes to `reviewer` lived only in AGENTS.md, which no session
+  outside this repository loads. The scope clause now names design docs and ADRs before merge.
+  [verified] It did not move the design-review negative (0/2 measured, one void, on `b724c1e4`);
+  that case and the change-review negative ask about material their empty workspace lacks, which
+  `EVAL-016` tracks. Change review failed 3/3 on the bytes before this change as well.
 - `pcf-ops`'s crash reference had no case for a crash loop from a start that overruns the
   health-check `timeout`: in the 2026-09-08 quality round, the two crash-loop assertions that need
   it (rule out `$PORT`, memory and platform; tie the slow start to the droplet) stayed 0/4 after

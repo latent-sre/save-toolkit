@@ -716,9 +716,9 @@ own. The new-system pair also requires `obs-alerting` before its paging rule. Th
 positives cover a new-service design assignment, a builder's returned fork, and a multi-year
 platform selection; four negatives require
 reliability assessments, small tool builds, an independent review of a design document, and the
-fleet's own workflow-graph design to reach their own lanes. On the isolated runner the design-review
-negative failed 2/3 with one trial void (`EVAL-014`): the session answers inline instead of
-dispatching `reviewer`. `python -m pytest
+fleet's own workflow-graph design to reach their own lanes. The design-review negative asks about
+consumers its empty workspace lacks, so sessions search first and answer inline instead of
+dispatching `reviewer` (`EVAL-016`). `python -m pytest
 evals/test_principal_cases.py` calibrates them offline; design quality needs document review, and
 native acceptance stays open under `PRINCIPAL-001`.
 
