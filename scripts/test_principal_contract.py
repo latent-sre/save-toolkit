@@ -27,7 +27,7 @@ class PrincipalContractTests(DesignLaneAuthorityContract, unittest.TestCase):
             self.assertIn(required, slots)
         for label in validate_fleet.EVIDENCE_TRIAD:
             self.assertIn(label, "\n".join(example))
-        by_slot = dict(zip(shown, example))
+        by_slot = dict(zip(shown, example, strict=True))
         # The contract labels each option's costs and constraints, not only the example as a whole.
         options = re.split(r"\(\d\)", by_slot["Options"])[1:]
         self.assertGreater(len(options), 1)

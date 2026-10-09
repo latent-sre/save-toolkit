@@ -9,6 +9,7 @@ from pathlib import Path
 from textwrap import dedent
 from types import ModuleType
 from urllib.parse import urlsplit
+from uuid import UUID
 
 import pytest
 import yaml
@@ -325,8 +326,6 @@ def test_trusted_header_requires_the_request_id_middleware():
 
 
 def test_request_id_defaults_to_generated_without_a_trusted_ingress():
-    from uuid import UUID
-
     problems = load_asset("problem_fastapi")
     app = FastAPI()
     problems.install_problem_handlers(app)
@@ -343,8 +342,6 @@ def test_request_id_defaults_to_generated_without_a_trusted_ingress():
 @pytest.mark.parametrize("trusted_header", ["X-Request-ID", "X-Vcap-Request-Id"])
 @pytest.mark.parametrize("trusted_id", ["ingress-id", "bad id", None])
 def test_only_the_configured_ingress_header_can_supply_an_id(trusted_header, trusted_id):
-    from uuid import UUID
-
     problems = load_asset("problem_fastapi")
     app = FastAPI()
     problems.install_problem_handlers(app, trusted_request_id_header=trusted_header)
@@ -751,9 +748,11 @@ def test_collection_starter_rejects_invalid_cursor(cursor, request_kind):
             page["next_cursor"] = cursor
         return page
 
-    with TestClient(collection_app([{"id": "inc-1"}], mutate)) as client:
-        with pytest.raises(AssertionError, match="next_cursor"):
-            contract.test_collection_is_a_cursor_page(client, {})
+    with (
+        TestClient(collection_app([{"id": "inc-1"}], mutate)) as client,
+        pytest.raises(AssertionError, match="next_cursor"),
+    ):
+        contract.test_collection_is_a_cursor_page(client, {})
 
 
 def test_collection_starter_rejects_empty_limited_populated_page():
@@ -762,9 +761,11 @@ def test_collection_starter_rejects_empty_limited_populated_page():
     def mutate(page, limit, offset):
         return {"data": [], "next_cursor": None} if limit == 1 else page
 
-    with TestClient(collection_app([{"id": "inc-1"}, {"id": "inc-2"}], mutate)) as client:
-        with pytest.raises(AssertionError, match="populated"):
-            contract.test_collection_is_a_cursor_page(client, {})
+    with (
+        TestClient(collection_app([{"id": "inc-1"}, {"id": "inc-2"}], mutate)) as client,
+        pytest.raises(AssertionError, match="populated"),
+    ):
+        contract.test_collection_is_a_cursor_page(client, {})
 
 
 @pytest.mark.parametrize("count", [2, 3, 60])
@@ -817,6 +818,8 @@ def test_populated_collection_starter_rejects_broken_traversal(defect, reason):
 @pytest.mark.parametrize("expected", [[], ["inc-0"], ["inc-0", "inc-0"]])
 def test_populated_collection_starter_requires_independent_multiple_seed_ids(expected):
     contract = load_asset("test_http_contract")
-    with TestClient(collection_app([{"id": "inc-0"}])) as client:
-        with pytest.raises(AssertionError, match="seed at least two|unique IDs"):
-            contract.test_populated_collection_limit_and_traversal(client, {}, expected)
+    with (
+        TestClient(collection_app([{"id": "inc-0"}])) as client,
+        pytest.raises(AssertionError, match=r"seed at least two|unique IDs"),
+    ):
+        contract.test_populated_collection_limit_and_traversal(client, {}, expected)

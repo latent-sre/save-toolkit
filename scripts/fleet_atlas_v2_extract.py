@@ -440,7 +440,7 @@ def records_for_roadmap(source: Source) -> tuple[RoadmapEntry, ...]:
 
 def status_marker(text: str) -> str:
     normalized = text.strip().strip('`*_ .').lower()
-    return re.split(r'\s*(?:,|;|\(|—|–|\s-\s)\s*', normalized, maxsplit=1)[0].strip().strip('`*_ .')
+    return re.split(r'\s*(?:,|;|\(|\u2014|\u2013|\s-\s)\s*', normalized, maxsplit=1)[0].strip().strip('`*_ .')
 
 
 def _ast(source: Source) -> ast.Module:
@@ -609,7 +609,8 @@ def _rule_records(corpus, inputs):
             cells = table_cells(line)
             if len(cells) < 2:
                 continue
-            statement = plain(cells[0]); key = stable_id('rule', rules.path, statement)
+            statement = plain(cells[0])
+            key = stable_id('rule', rules.path, statement)
             proof = (rules.span(i, i),) + ((rules.span(section_line, section_line),) if section_line else ())
             add(_record(key, 'rule', statement[:80], rules.path, spans(proof), authority='live-contract', attrs={'section': section, 'statement': statement, 'source_text': plain(cells[1])}, family='rules', selector=key))
     return _new_records(records, inputs)
@@ -655,7 +656,8 @@ def _roster_records(corpus, inputs):
             name = plain(cells[0])
             if f'agent:{name}' not in records:
                 continue
-            lane = plain(cells[1]); key = 'capability:' + slug(lane)[:60]
+            lane = plain(cells[1])
+            key = 'capability:' + slug(lane)[:60]
             if key not in records:
                 add(_record(key, 'capability', lane, roster.path, (roster.span(i, i),), attrs={'lane': lane},
                     selector=key, family='owners', kind=PK.INFERRED, cls=EC.INFERRED))
@@ -860,9 +862,9 @@ def _writer_filenames(render, safe, build):
                 if (isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name)
                         and node.func.value.id == 'files' and node.func.attr not in ('items', 'keys', 'values', 'get')):
                     return set()
-                if any(isinstance(arg, ast.Name) and arg.id == 'files' for arg in (*node.args, *(k.value for k in node.keywords))):
-                    if not (isinstance(node.func, ast.Name) and node.func.id == 'sorted'):
-                        return set()
+                if (any(isinstance(arg, ast.Name) and arg.id == 'files' for arg in (*node.args, *(k.value for k in node.keywords)))
+                        and not (isinstance(node.func, ast.Name) and node.func.id == 'sorted')):
+                    return set()
     writes = {target.slice.value for node in render.body if isinstance(node, ast.Assign)
               for target in node.targets if isinstance(target, ast.Subscript)
               and isinstance(target.value, ast.Name) and target.value.id == 'files'
@@ -1064,7 +1066,7 @@ def rooted_reads(source: Source) -> tuple[tuple[str, tuple[Span, ...]], ...]:
 
     def parameters(function, call, caller_scope, substitutions):
         positional = (*function.args.posonlyargs, *function.args.args)
-        arguments = {parameter.arg: value for parameter, value in zip(positional, call.args)}
+        arguments = {parameter.arg: value for parameter, value in zip(positional, call.args, strict=False)}  # a call may omit defaulted parameters
         arguments.update({keyword.arg: keyword.value for keyword in call.keywords if keyword.arg})
         values = {}
         for name, value in arguments.items():
@@ -1296,7 +1298,8 @@ def _review_citations(rel, record, source):
 def _scenario_edges(rel, record, source):
     """A scenario verifies its target, or records a routing near miss and its alternative."""
     node = record.node
-    data, _ = scenario_fields(source); routing = data.get('routing') or {}
+    data, _ = scenario_fields(source)
+    routing = data.get('routing') or {}
     target = data.get('target') or ({'kind': 'agent', 'name': data['agent']} if data.get('agent') else {'kind': 'skill', 'name': data['skill']} if data.get('skill') else {})
     target_id = f'{target.get("kind")}:{target.get("name")}'
     proof = yaml_key_spans(source, ('target', 'agent', 'skill', 'routing', 'mode'))
@@ -1638,35 +1641,42 @@ def _guidance(corpus, records):
         start = 0
         if source.lines and source.lines[0] == '---':
             start = next((i + 1 for i, line in enumerate(source.lines[1:], 1) if line == '---'), 0)
-        paragraph, heading, heading_line = [], '', None
-
-        def emit():
-            if not paragraph:
-                return
+        for paragraph, heading, heading_line in _paragraphs(source.lines[start:], start + 1):
             text = '\n'.join(line for _, line in paragraph)
+            proof = (source.span(paragraph[0][0], paragraph[-1][0]),)
+            if heading_line:
+                proof = spans(proof, (source.span(heading_line, heading_line),))
             offset = 0
             while offset < len(text):
                 chunk = text[offset:].encode('utf-8')[:2400].decode('utf-8', errors='ignore')
                 end = offset + len(chunk)
-                proof = (source.span(paragraph[0][0], paragraph[-1][0]),)
-                if heading_line:
-                    proof = spans(proof, (source.span(heading_line, heading_line),))
                 output.append(Fact(stable_id('guidance', record.node.id, str(paragraph[0][0]), str(offset)),
                     record.node.id, 'guidance', chunk, EC.EXTRACTED, Proof(PK.EXTRACTED, proof, EVALUATOR),
                     freeze({'heading': heading, 'start_offset': offset, 'end_offset': end})))
                 offset = end
-            paragraph.clear()
-
-        for i, line in enumerate(source.lines[start:], start + 1):
-            if line.startswith('#'):
-                emit()
-                heading, heading_line = line.lstrip('#').strip(), i
-            if line.strip():
-                paragraph.append((i, line))
-            else:
-                emit()
-        emit()
     return tuple(output)
+
+
+def _paragraphs(lines, first_line):
+    """Yield (numbered lines, heading, heading line) for each run of non-blank lines.
+
+    A heading line closes the paragraph before it, which keeps the earlier heading, and opens
+    its own paragraph under the new one.
+    """
+    paragraph, heading, heading_line = [], '', None
+    for i, line in enumerate(lines, first_line):
+        if line.startswith('#'):
+            if paragraph:
+                yield paragraph, heading, heading_line
+                paragraph = []
+            heading, heading_line = line.lstrip('#').strip(), i
+        if line.strip():
+            paragraph.append((i, line))
+        elif paragraph:
+            yield paragraph, heading, heading_line
+            paragraph = []
+    if paragraph:
+        yield paragraph, heading, heading_line
 
 
 # Record fields whose value the extractor derives rather than quotes: a count, list,
@@ -1694,7 +1704,7 @@ def _record_facts(corpus, inputs):
     for record in records:
         nodes, facts = buckets.setdefault(record.family, ([], []))
         nodes.append(record.node)
-        fields = (('name', record.name), ('authority', record.authority), ('state', record.state)) + tuple(('attr.' + key, value) for key, value in record.attrs)
+        fields = (('name', record.name), ('authority', record.authority), ('state', record.state), *(('attr.' + key, value) for key, value in record.attrs))
         for predicate, value in fields:
             facts.append(Fact(stable_id('fact', record.node.id, predicate), record.node.id, predicate, value,
                 record.evidence_class, Proof(_field_proof_kind(record, predicate), record.spans, EVALUATOR)))

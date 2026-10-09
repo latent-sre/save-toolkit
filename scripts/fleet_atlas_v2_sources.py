@@ -29,7 +29,7 @@ def is_source(path: str) -> bool:
 
 def git(root: Path, *args: str, input_bytes: bytes | None = None) -> bytes:
     result = subprocess.run(["git", *args], cwd=root, input=input_bytes,
-                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+                            capture_output=True, check=False)
     if result.returncode:
         raise ValueError(f"git {' '.join(args[:2])} failed: "
                          + result.stderr.decode("utf-8", errors="replace").strip())

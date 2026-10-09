@@ -48,6 +48,9 @@ ignore = ["E501"]  # the formatter owns line length; long messages and patterns 
 
 [tool.ruff.lint.per-file-ignores]
 "evals/test_*.py" = ["RUF012"]  # test classes hold read-only fixtures as class constants
+"scripts/test_*.py" = ["RUF012"]
+# The guard's allow and deny gates keep one condition per decision: each is the policy, read alone.
+"scripts/readonly-guard.py" = ["SIM102", "SIM103"]
 
 [tool.mypy]
 python_version = "3.12"

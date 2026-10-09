@@ -41,8 +41,8 @@ def main(argv=None) -> int:
     parser.add_argument("--build", action="store_true", help="build outputs before checking; maintenance/CI only")
     args = parser.parse_args(argv)
     # Deferred so that importing check_response does not load the extractor.
-    import fleet_atlas_v2 as atlas
-    import fleet_atlas_v2_artifacts as artifacts
+    import fleet_atlas_v2 as atlas  # noqa: PLC0415
+    import fleet_atlas_v2_artifacts as artifacts  # noqa: PLC0415
 
     command = [sys.executable, "-B", str(ROOT / "scripts/fleet_atlas_v2.py"), "--root", str(args.root)]
     (verb, terms, expected), *in_process = CASES
@@ -51,7 +51,7 @@ def main(argv=None) -> int:
         # Verify once here; one real CLI query keeps the command-line path under test.
         document = artifacts.build(args.root) if args.build else artifacts.verify(args.root)
         print(f"PASS {'build' if args.build else 'check'} -> verified")
-        result = subprocess.run(command + ["query", verb, *terms], capture_output=True, timeout=180)
+        result = subprocess.run([*command, "query", verb, *terms], capture_output=True, timeout=180)
         if result.returncode != 0:
             raise ValueError(f"atlas command failed ({result.returncode}): {result.stdout[:1500]!r}")
         check_response(result.stdout, expected)

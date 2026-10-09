@@ -81,7 +81,7 @@ class DesignLaneAuthorityContract:
         for grant in ("Bash", "PowerShell", "WebFetch", "EnterWorktree", "NotebookEdit"):
             with self.subTest(grant=grant):
                 failures = _agent_failures_after_edit(filename, lambda text: re.sub(
-                    r"(?m)^(tools: .+)$", lambda match: match.group(1) + ", " + grant, text, count=1))
+                    r"(?m)^(tools: .+)$", lambda match: match.group(1) + ", " + grant, text, count=1))  # noqa: B023 -- called within this iteration
                 self.assertTrue(
                     any(failure.endswith(f"{filename}: forbidden tool(s): {grant}") for failure in failures),
                     failures,
@@ -125,8 +125,8 @@ class FleetValidatorTests(unittest.TestCase):
                 grant = "mcp__microsoft_playwright_mcp__" + tool
                 def add_grant(text: str) -> str:
                     if "tools:\n" in text:
-                        return text.replace("tools:\n", f"tools:\n  - {grant}\n", 1)
-                    return re.sub(r"(?m)^(tools: .+)$", lambda m: m.group(1) + ", " + grant, text, count=1)
+                        return text.replace("tools:\n", f"tools:\n  - {grant}\n", 1)  # noqa: B023 -- called within this iteration
+                    return re.sub(r"(?m)^(tools: .+)$", lambda m: m.group(1) + ", " + grant, text, count=1)  # noqa: B023
                 with self.subTest(agent=name, tool=tool):
                     failures = _agent_failures_after_edit(name + ".md", add_grant)
                     self.assertTrue(any("forbidden tool" in item and grant in item for item in failures), failures)
@@ -138,7 +138,7 @@ class FleetValidatorTests(unittest.TestCase):
             with self.subTest(tool=tool):
                 failures = _agent_failures_after_edit(
                     "sre-assistant.md",
-                    lambda text: re.sub(r"(?m)^(tools: .+)$", lambda m: m.group(1) + ", " + grant, text, count=1),
+                    lambda text: re.sub(r"(?m)^(tools: .+)$", lambda m: m.group(1) + ", " + grant, text, count=1),  # noqa: B023
                 )
                 self.assertTrue(any("not exact-approved" in item and grant in item for item in failures), failures)
 
@@ -205,7 +205,7 @@ class FleetValidatorTests(unittest.TestCase):
             ("missing-agent.md", "name:", "not found in agents/"),
         ):
             with self.subTest(filename=filename), self.assertRaisesRegex(AssertionError, message):
-                _agent_failures_after_edit(filename, lambda text: text.replace(before, "replacement"))
+                _agent_failures_after_edit(filename, lambda text: text.replace(before, "replacement"))  # noqa: B023
 
     def test_agent_return_templates_keep_recipient_status_and_parent_separate(self) -> None:
         """Catch removal of return slots, not just loss of prose mentioning them."""
@@ -232,7 +232,7 @@ class FleetValidatorTests(unittest.TestCase):
         for shell in ("Bash", "PowerShell"):
             with self.subTest(removed=shell):
                 failures = _agent_failures_after_edit(
-                    "software-engineer.md", lambda text: must_replace(text, f", {shell},", ",", 1),
+                    "software-engineer.md", lambda text: must_replace(text, f", {shell},", ",", 1),  # noqa: B023
                 )
                 self.assertTrue(any("missing required tool(s)" in item and shell in item
                                     for item in failures), failures)

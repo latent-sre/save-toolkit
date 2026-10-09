@@ -8,6 +8,7 @@ host adapters are consequences and are checked separately by the adapter generat
 from __future__ import annotations
 
 import argparse
+import contextlib
 import os
 import re
 import subprocess
@@ -457,10 +458,8 @@ def _check_direct_bundle_links(skill_path: Path, body: str) -> list[str]:
     for _label, raw_target in links:
         relative = _relative_target(raw_target)
         if relative is not None:
-            try:
+            with contextlib.suppress(ValueError):
                 resolved.add((skill_path.parent / relative).resolve().relative_to(skill_root.resolve()).as_posix())
-            except ValueError:
-                pass
     for bundle in _bundle_files(skill_root):
         relative = bundle.relative_to(skill_root).as_posix()
         if relative in resolved:

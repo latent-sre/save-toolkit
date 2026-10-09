@@ -152,9 +152,9 @@ def select(document: VerifiedDocument, verb: str, terms: list[str]) -> tuple[Fac
             matches = isinstance(endpoint, str) and endpoint in selected
         if not matches:
             continue
-        if verb == "loads-for" and len(terms) >= 2:
-            if " ".join(terms[1:]).casefold() not in str(dict(fact.qualifiers).get("predicate", "")).casefold():
-                continue
+        if (verb == "loads-for" and len(terms) >= 2
+                and " ".join(terms[1:]).casefold() not in str(dict(fact.qualifiers).get("predicate", "")).casefold()):
+            continue
         result.append(fact)
     # A recorded unresolved relationship is not a verified negative. Preserve the
     # advisory alongside positive relations or return an explicitly unknown answer.

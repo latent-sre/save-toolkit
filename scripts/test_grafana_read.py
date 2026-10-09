@@ -45,7 +45,7 @@ def invoke(args, transport, env=None):
     return code, json.loads(output.getvalue()), output.getvalue()
 
 
-@pytest.mark.parametrize("org", [None, "", "0", "-1", "+7", "07", "7.0", "7 ", " 7", "７", "9223372036854775808", "7\r\nInjected: bad"])
+@pytest.mark.parametrize("org", [None, "", "0", "-1", "+7", "07", "7.0", "7 ", " 7", "\uff17", "9223372036854775808", "7\r\nInjected: bad"])
 def test_organization_must_be_explicit_positive_canonical_int64(org):
     env = dict(ENV)
     if org is None:
@@ -280,7 +280,7 @@ def test_missing_or_incomplete_auth_never_calls_network(env):
 @pytest.mark.parametrize("args", [
     ["dashboard", "--uid", "../other"], ["dashboard", "--uid", "ok", "--uid", "other"],
     ["dashboard", "--uid", "ok", "--url", "https://secret"],
-    QUERY[:-1] + ["$__interval"], QUERY[:-1] + ["[[service]]"], QUERY[:-1] + [""],
+    [*QUERY[:-1], "$__interval"], [*QUERY[:-1], "[[service]]"], [*QUERY[:-1], ""],
     ["query", "--datasource", "metrics-1", "--kind", "prometheus", "--from", "0", "--to", "86400001", "--expr", "up"],
 ])
 def test_parser_rejects_unsafe_input_without_echo(args, capsys):
@@ -291,7 +291,7 @@ def test_parser_rejects_unsafe_input_without_echo(args, capsys):
 
 def test_literal_regex_anchor_is_not_an_unresolved_grafana_variable():
     expression = 'up{job=~"checkout$"}'
-    assert reader.parse_args(QUERY[:-1] + [expression]).expr == expression
+    assert reader.parse_args([*QUERY[:-1], expression]).expr == expression
 
 
 def _request_probe(tmp_path):
@@ -365,7 +365,7 @@ def test_powershell_wrapper_returns_static_launch_failure_or_helper_exit(tmp_pat
 @pytest.mark.parametrize("expression", ['{service="edge"} |= "error"', 'up{job=~"checkout$"}', 'up{job="caf\u00e9"}'])
 def test_base64_preserves_exact_utf8_expression(expression):
     encoded = base64.b64encode(expression.encode()).decode()
-    assert reader.parse_args(QUERY[:-2] + ["--expr-base64", encoded]).expr == expression
+    assert reader.parse_args([*QUERY[:-2], "--expr-base64", encoded]).expr == expression
 
 
 @pytest.mark.parametrize("encoded", ["!", "dXA", "dXA=\n", "dXB=", "/w==", "", "QQ==" * 22000,
@@ -373,5 +373,5 @@ def test_base64_preserves_exact_utf8_expression(expression):
                          ids=["alphabet", "padding", "whitespace", "noncanonical", "invalid_utf8", "empty", "oversized", "template", "control"])
 def test_encoded_expression_keeps_validation_and_static_errors(encoded):
     transport = Transport()
-    code, result, _ = invoke(QUERY[:-2] + ["--expr-base64", encoded], transport)
+    code, result, _ = invoke([*QUERY[:-2], "--expr-base64", encoded], transport)
     assert code == 2 and not result["ok"] and not transport.requests

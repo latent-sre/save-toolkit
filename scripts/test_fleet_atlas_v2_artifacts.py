@@ -35,7 +35,7 @@ class ArtifactTests(ReadmeRepository, unittest.TestCase):
             self.assertEqual(len(content), marker["encodedBytes"])
 
     def test_atlas_validates_against_real_draft_2020_12_schema(self):
-        from jsonschema import Draft202012Validator
+        from jsonschema import Draft202012Validator  # noqa: PLC0415 -- the atlas runtime stays stdlib-only
 
         build(self.root, fixture_extract)
         schema_path = Path(__file__).resolve().parents[1] / "schemas/fleet-atlas-v2.schema.json"

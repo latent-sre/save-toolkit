@@ -46,7 +46,7 @@ VIEWS = {
 
 def extraction(snapshot: Snapshot):
     # Fixed trusted implementation import, never a module path from atlas content.
-    from fleet_atlas_v2_extract import extract
+    from fleet_atlas_v2_extract import extract  # noqa: PLC0415 -- loaded only when a derivation runs
 
     return extract(snapshot)
 

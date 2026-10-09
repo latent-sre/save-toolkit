@@ -8,6 +8,7 @@ import os
 import re
 import subprocess
 import sys
+import venv
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
@@ -203,8 +204,6 @@ def test_inconsistent_manifest_stops_before_credentials(tmp_path, shell, example
 
 
 def test_missing_pyyaml_stops_with_a_named_requirement(tmp_path, shell, example_steps):
-    import venv
-
     bare = tmp_path / "python-without-pyyaml"
     venv.create(bare, with_pip=False)
     python = bare / ("Scripts/python.exe" if os.name == "nt" else "bin/python")

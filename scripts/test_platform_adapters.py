@@ -529,11 +529,13 @@ class PlatformAdapterTests(unittest.TestCase):
                 real_check = adapters._is_link_or_reparse
 
                 def mark_as_indirection(path: Path) -> bool:
-                    return path == root / relative or real_check(path)
+                    return path == root / relative or real_check(path)  # noqa: B023 -- called within this iteration
 
-                with mock.patch.object(adapters, "_is_link_or_reparse", side_effect=mark_as_indirection):
-                    with self.assertRaisesRegex(ValueError, "link/reparse point"):
-                        adapters.write_generated_outputs(root)
+                with (
+                    mock.patch.object(adapters, "_is_link_or_reparse", side_effect=mark_as_indirection),
+                    self.assertRaisesRegex(ValueError, "link/reparse point"),
+                ):
+                    adapters.write_generated_outputs(root)
                 self.assertEqual("unchanged", sentinel.read_text(encoding="utf-8"))
 
     def test_installed_skill_names_remain_namespaced_and_workspace_names_are_bare(self) -> None:
@@ -794,9 +796,11 @@ class PlatformAdapterTests(unittest.TestCase):
                     raise OSError("injected stage swap failure")
                 real_replace(source, destination)
 
-            with mock.patch.object(adapters.os, "replace", side_effect=fail_second_stage):
-                with self.assertRaisesRegex(OSError, "injected"):
-                    adapters.write_generated_outputs(root)
+            with (
+                mock.patch.object(adapters.os, "replace", side_effect=fail_second_stage),
+                self.assertRaisesRegex(OSError, "injected"),
+            ):
+                adapters.write_generated_outputs(root)
 
             for relative in adapters.GENERATED_ROOTS:
                 sentinel = root / relative / "sentinel.txt"
@@ -812,9 +816,11 @@ class PlatformAdapterTests(unittest.TestCase):
             def mark_github_as_indirection(path: Path) -> bool:
                 return path == root / ".github" or real_check(path)
 
-            with mock.patch.object(adapters, "_is_link_or_reparse", side_effect=mark_github_as_indirection):
-                with self.assertRaisesRegex(ValueError, "must not traverse"):
-                    adapters.write_generated_outputs(root)
+            with (
+                mock.patch.object(adapters, "_is_link_or_reparse", side_effect=mark_github_as_indirection),
+                self.assertRaisesRegex(ValueError, "must not traverse"),
+            ):
+                adapters.write_generated_outputs(root)
 
 
     def test_a_real_symlinked_directory_in_canonical_sources_is_refused(self) -> None:
@@ -947,9 +953,8 @@ class PlatformAdapterTests(unittest.TestCase):
             'python ${CLAUDE_PLUGIN_ROOT}/skills/runbook/scripts/y.py input.html',
             'py -3 "$env:CLAUDE_PLUGIN_ROOT/skills/runbook/scripts/y.py" input.html',
         ):
-            with self.subTest(command=command):
-                with self.assertRaisesRegex(ValueError, "relative Markdown link"):
-                    adapters.adapt_text(command)
+            with self.subTest(command=command), self.assertRaisesRegex(ValueError, "relative Markdown link"):
+                adapters.adapt_text(command)
 
     def test_installed_dashboard_helper_runs_outside_the_plugin_checkout(self) -> None:
         outputs = adapters.expected_outputs(ROOT)

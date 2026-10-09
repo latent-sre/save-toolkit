@@ -1,11 +1,15 @@
 """Source authority and donor semantic regressions for the v2 extractors (no model)."""
 import dataclasses
+import json
 import random
 import unittest
+from itertools import product
 from pathlib import Path
 
-from fleet_atlas_v2_extract import EDGE_TYPES, NODE_TYPES, extract, rooted_reads, scenario_fields
-from fleet_atlas_v2_model import EvidenceClass, Proof, ProofKind, assemble
+from fleet_atlas_v2_artifacts import render_files
+from fleet_atlas_v2_extract import EDGE_TYPES, EXTRACTION_STAGES, NODE_TYPES, extract, rooted_reads, scenario_fields
+from fleet_atlas_v2_format import graph_dict
+from fleet_atlas_v2_model import EvidenceClass, Proof, ProofKind, assemble, canonical_bytes
 from fleet_atlas_v2_proofs import verify_facts
 from fleet_atlas_v2_sources import Snapshot, Source
 
@@ -35,7 +39,7 @@ def build(files):
 class ExtractTests(unittest.TestCase):
     def assertMatchesYaml(self, text, keys=('id', 'target', 'routing', 'threshold')):
         """The scenario metadata subset reads `keys` exactly as a real YAML parser does."""
-        import yaml  # Independent test oracle; the installed atlas runtime stays stdlib-only.
+        import yaml  # noqa: PLC0415 -- independent test oracle; the installed atlas runtime stays stdlib-only
         expected = yaml.safe_load(text)
         parsed, _ = scenario_fields(Source('evals/scenarios/case.yaml', text.encode()))
         for key in keys:
@@ -203,7 +207,6 @@ The service-lifecycle lane was discussed in a review.
         self.assertTrue(all(any(p.start_line == 1 and p.end_line == 7 for p in f.proof.inputs) for f in facts.values()))
 
     def test_standalone_projection_requires_schema_and_actual_writer_mapping(self):
-        import json
         schema = json.dumps({'$id': 'https://example.invalid/fleet-atlas-v2.schema.json',
             'type': 'object', 'x-fleet-validator': 'scripts/fleet_atlas_v2.py',
             'x-fleet-generated-projections': ['docs/fleet-atlas/v2/atlas.json']})
@@ -367,11 +370,6 @@ def test_fixture():
                 self.assertEqual((), rooted_reads(Source('scripts/test_fixture.py', text.encode())))
 
     def test_shuffled_extractor_registration_is_byte_identical(self):
-        from fleet_atlas_v2_artifacts import render_files
-        from fleet_atlas_v2_extract import EXTRACTION_STAGES
-        from fleet_atlas_v2_format import graph_dict
-        from fleet_atlas_v2_model import canonical_bytes
-
         source = snapshot({
             'agents/sre-assistant.md': agent('sre-assistant'),
             'skills/alpha/SKILL.md': skill('alpha') + '\nBody-only dependency symptoms.\n',
@@ -421,7 +419,6 @@ def test_fixture():
                 self.assertEqual(expected, materialize(registration))
 
     def test_extraction_stage_dependencies_reject_missing_cycles_and_duplicates(self):
-        from fleet_atlas_v2_extract import EXTRACTION_STAGES
         first = EXTRACTION_STAGES[0]
         for registration, message in (
             ((*EXTRACTION_STAGES, first), 'duplicate'),
@@ -575,7 +572,6 @@ fixture:
                 self.assertNotIn('target', parsed, 'block scalar content is outside the metadata subset')
 
     def test_flow_node_properties_preserve_multiline_quote_boundaries(self):
-        from itertools import product
         properties = ('&prompt', '!!str', '!', '!<tag:yaml.org,2002:str>',
                       '&prompt !!str', '!!str &prompt')
         for prop, quote, separator, opener in product(properties, ('\"', "'"),
@@ -597,7 +593,7 @@ fixture:
                     scenario_fields(Source('evals/scenarios/case.yaml', text.encode()))
 
     def test_unsupported_explicit_flow_keys_fail_closed(self):
-        import yaml  # Independent test oracle; the installed atlas runtime stays stdlib-only.
+        import yaml  # noqa: PLC0415 -- independent test oracle; the installed atlas runtime stays stdlib-only
         for property_prefix in ('', '!!str '):
             with self.subTest(property_prefix=property_prefix):
                 value = (f'{{? {property_prefix}\"hello: x}}\n'

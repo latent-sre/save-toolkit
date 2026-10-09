@@ -104,10 +104,13 @@ class PreflightInterpreterFloorTests(unittest.TestCase):
 class MainTests(unittest.TestCase):
     def _main(self, run_steps, argv=None):
         out, err = io.StringIO(), io.StringIO()
-        with mock.patch.object(gate_a, "preflight", return_value=True):
-            with mock.patch.object(gate_a, "run_steps", side_effect=run_steps):
-                with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-                    code = gate_a.main([] if argv is None else argv)
+        with (
+            mock.patch.object(gate_a, "preflight", return_value=True),
+            mock.patch.object(gate_a, "run_steps", side_effect=run_steps),
+            contextlib.redirect_stdout(out),
+            contextlib.redirect_stderr(err),
+        ):
+            code = gate_a.main([] if argv is None else argv)
         return code, out.getvalue(), err.getvalue()
 
     def test_verbose_flag_is_forwarded_to_the_step_runner(self) -> None:
@@ -127,9 +130,8 @@ class MainTests(unittest.TestCase):
         self.assertEqual("", err)
         self.assertEqual(
             [
-                "Gate A: PASS -- %d/%d structural steps green "
+                f"Gate A: PASS -- {len(gate_a.STEPS)}/{len(gate_a.STEPS)} structural steps green "
                 "(well-formed only; correctness review remains separate)."
-                % (len(gate_a.STEPS), len(gate_a.STEPS))
             ],
             out.strip().splitlines(),
         )
@@ -140,7 +142,7 @@ class MainTests(unittest.TestCase):
         )
         self.assertEqual(1, code)
         self.assertEqual("", err)
-        self.assertIn("2 of %d step(s) failed" % len(gate_a.STEPS), out)
+        self.assertIn(f"2 of {len(gate_a.STEPS)} step(s) failed", out)
         self.assertIn("- broken links", out)
         self.assertIn("- stale adapter", out)
 

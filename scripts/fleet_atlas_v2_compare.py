@@ -34,7 +34,7 @@ def _equal(left, right) -> bool:
     return type(left) is type(right) and (
         left.keys() == right.keys() and all(_equal(left[k], right[k]) for k in left)
         if isinstance(left, dict) and isinstance(right, dict) else
-        len(left) == len(right) and all(_equal(a, b) for a, b in zip(left, right))
+        len(left) == len(right) and all(_equal(a, b) for a, b in zip(left, right, strict=True))
         if isinstance(left, list) and isinstance(right, list) else left == right)
 
 

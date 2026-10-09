@@ -305,7 +305,7 @@ runpy.run_path("command.py", run_name="__main__")
                 self.assertEqual(owner, self.lock_text())
             finally:
                 (self.work / "release").touch()
-                stdout, stderr = first.communicate(timeout=30)
+                _stdout, stderr = first.communicate(timeout=30)
         self.assertEqual(0, first.returncode, stderr)
         self.assertEqual(["o1", "o2", "o3"], self.calls())
         self.assertFalse((self.work / LOCK).exists())
