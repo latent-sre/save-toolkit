@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 import pytest
-import yaml
+from probe_testkit import scenario_file
 
 ROOT = Path(__file__).resolve().parents[1]
 SCENARIO = ROOT / "evals/build-scenarios/build-software-engineer-incident-writes.yaml"
@@ -130,7 +130,7 @@ MUTANTS = {
 
 
 def materialize(tmp_path: Path, overrides: dict[str, str], defer_commit: bool = True, status: str = "open") -> Path:
-    spec = yaml.safe_load(SCENARIO.read_text(encoding="utf-8"))
+    spec = scenario_file(SCENARIO)
     for rel, text in spec["fixture"]["files"].items():
         path = tmp_path / rel
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -184,7 +184,7 @@ def test_mutant_fails_its_check(tmp_path, name):
 
 
 def test_fixture_suite_passes_unchanged(tmp_path):
-    spec = yaml.safe_load(SCENARIO.read_text(encoding="utf-8"))
+    spec = scenario_file(SCENARIO)
     for rel, text in spec["fixture"]["files"].items():
         path = tmp_path / rel
         path.parent.mkdir(parents=True, exist_ok=True)

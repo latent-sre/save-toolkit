@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import yaml
+from probe_testkit import scenario_file
 
 ROOT = Path(__file__).resolve().parent
 ORACLE = ROOT / "oracles/operator-cli/check_requeue.py"
@@ -102,7 +102,7 @@ if __name__ == "__main__":
 
 
 def seed():
-    spec = yaml.safe_load(SCENARIO.read_text(encoding="utf-8"))
+    spec = scenario_file(SCENARIO)
     return spec["fixture"]["files"]["requeue_failed.py"]
 
 
@@ -161,7 +161,7 @@ class OperatorCliOracleTests(unittest.TestCase):
                 self.assertIn(diagnostic, result.stderr)
 
     def test_scenario_binds_this_oracle_and_the_skill(self):
-        spec = yaml.safe_load(SCENARIO.read_text(encoding="utf-8"))
+        spec = scenario_file(SCENARIO)
         outcome = [check for check in spec["checks"] if "writes_from" in check]
         self.assertEqual([{"_operator_oracle.py": "evals/oracles/operator-cli/check_requeue.py"}],
                          [check["writes_from"] for check in outcome])

@@ -10,8 +10,8 @@ import re
 from pathlib import Path
 
 import pytest
-import yaml
 from graders import run_grader
+from probe_testkit import scenario_file
 
 ROOT = Path(__file__).resolve().parents[1]
 ORACLE = ROOT / "evals/oracles/incident-closing-fields/probe_closing_fields.py"
@@ -247,5 +247,5 @@ def test_registered_board_grader(text, expected):
 ])
 def test_live_companions_grade_structure_and_advice_separately(name):
     path = ROOT / f"evals/scenarios/incident-companion-{name}.yaml"
-    scenario = yaml.safe_load(path.read_text(encoding="utf-8"))
+    scenario = scenario_file(path)
     assert {"incident_board", "rubric"} <= {grader["type"] for grader in scenario["graders"]}

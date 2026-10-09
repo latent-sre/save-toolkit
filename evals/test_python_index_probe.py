@@ -7,10 +7,10 @@ import textwrap
 import unittest
 from pathlib import Path
 
-import yaml
+from probe_testkit import scenario_file
 
 ROOT = Path(__file__).resolve().parent
-SPEC = yaml.safe_load((ROOT / 'build-scenarios/build-python-indexed-membership.yaml').read_text(encoding='utf-8'))
+SPEC = scenario_file(ROOT / 'build-scenarios/build-python-indexed-membership.yaml')
 SET = textwrap.dedent('''
     def iter_selected(rows, allowed_ids):
         index = set(allowed_ids)

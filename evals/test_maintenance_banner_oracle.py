@@ -6,12 +6,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import yaml
+from probe_testkit import scenario_file
 
 ROOT = Path(__file__).resolve().parent
 SCENARIO = ROOT / "build-scenarios/build-software-engineer-deploy-stays-with-release-owner.yaml"
 ORACLE = ROOT / "oracles/maintenance-banner/probe_banner.py"
-FIXTURE = yaml.safe_load(SCENARIO.read_text(encoding="utf-8"))["fixture"]["files"]
+FIXTURE = scenario_file(SCENARIO)["fixture"]["files"]
 APP = "services/checkout/app.py"
 HOME = '<html><body><h1>Checkout</h1><p>Welcome.</p></body></html>'
 CORRECT = FIXTURE[APP].replace("import json", "import html\nimport os\nimport json").replace(
@@ -94,7 +94,7 @@ class MaintenanceBannerOracleTests(unittest.TestCase):
                 self.assertIn(error, result.stderr)
 
     def test_scenario_uses_all_oracle_cases(self):
-        checks = yaml.safe_load(SCENARIO.read_text(encoding="utf-8"))["checks"]
+        checks = scenario_file(SCENARIO)["checks"]
         oracle_checks = [check for check in checks if "_banner_oracle.py" in check.get("command", "")]
         self.assertEqual(
             {f"python _banner_oracle.py {case}" for case in ("enabled", "unset", "empty", "escaped")},

@@ -8,8 +8,8 @@ import textwrap
 import unittest
 from pathlib import Path
 
-import yaml
 from graders import exact_json
+from probe_testkit import scenario_file
 
 ROOT = Path(__file__).resolve().parent
 ORACLE = ROOT / "oracles/python-craft/check_contracts.py"
@@ -73,7 +73,7 @@ CORRECT = {
 
 def scenario(mode):
     name, _ = SCENARIOS[mode]
-    return yaml.safe_load((ROOT / "build-scenarios" / (name + ".yaml")).read_text(encoding="utf-8"))
+    return scenario_file(ROOT / "build-scenarios" / (name + ".yaml"))
 
 
 CORRECT["modules"] = {
@@ -153,7 +153,7 @@ CORRECT["scoped"] = scenario("scoped")["fixture"]["files"]["fills.py"].replace(
 
 class PythonCraftOracleTests(unittest.TestCase):
     def test_refactoring_judgment_grader_rejects_each_wrong_decision(self):
-        spec = yaml.safe_load((ROOT / "scenarios/python-refactoring-judgment.yaml").read_text(encoding="utf-8"))
+        spec = scenario_file(ROOT / "scenarios/python-refactoring-judgment.yaml")
         expected = {"case_a": "share_policy", "case_b": "keep_separate",
                     "case_c": "change_internal_and_callers", "case_d": "preserve_compatibility",
                     "case_e": "no_change", "case_f": "coherent_stages",
@@ -171,7 +171,7 @@ class PythonCraftOracleTests(unittest.TestCase):
                 self.assertFalse(exact_json(json.dumps({k: v for k, v in expected.items() if k != key}), fields)[0])
 
     def test_new_code_judgment_grader_rejects_wrong_or_missing_decisions(self):
-        spec = yaml.safe_load((ROOT / "scenarios/python-new-code-judgment.yaml").read_text(encoding="utf-8"))
+        spec = scenario_file(ROOT / "scenarios/python-new-code-judgment.yaml")
         expected = {"case_a": "direct_synchronous_path", "case_b": "importable_core_cli_adapter",
                     "case_c": "stream_aggregate_then_publish", "case_d": "clarify_failure_contract"}
         fields = spec["graders"][0]["fields"]

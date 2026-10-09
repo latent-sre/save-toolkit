@@ -5,10 +5,10 @@ import importlib.util
 from pathlib import Path
 
 import pytest
-import yaml
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
+from probe_testkit import scenario_file
 
 ROOT = Path(__file__).resolve().parents[1]
 SCENARIO = ROOT / "evals/build-scenarios/build-software-engineer-incidents-api.yaml"
@@ -17,7 +17,7 @@ ORACLE = ROOT / "evals/oracles/incidents-api/probe_checks.py"
 
 @pytest.fixture
 def rows():
-    scenario = yaml.safe_load(SCENARIO.read_text(encoding="utf-8"))
+    scenario = scenario_file(SCENARIO)
     namespace = {"__name__": "fixture_store"}
     source = scenario["fixture"]["files"]["app/store.py"]
     exec(compile(source, "fixture_store.py", "exec"), namespace)

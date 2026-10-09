@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import yaml
+from probe_testkit import scenario_file
 
 ROOT = Path(__file__).resolve().parent
 ORACLE = ROOT / "oracles/python-craft/check_new_code.py"
@@ -94,7 +94,7 @@ class CountTests(unittest.TestCase):
 
 class NewCodeProbeTests(unittest.TestCase):
     def run_artifact(self, source, tests=SELF_TEST):
-        spec = yaml.safe_load(SPEC.read_text(encoding="utf-8"))
+        spec = scenario_file(SPEC)
         with tempfile.TemporaryDirectory() as tmp:
             work = Path(tmp)
             for name, text in spec["fixture"]["files"].items():
@@ -289,7 +289,7 @@ def parsed_inner(source):
                 self.assertIn(diagnostic, result.stderr)
 
     def test_scenario_binds_scope_oracle_and_trace_verification(self):
-        spec = yaml.safe_load(SPEC.read_text(encoding="utf-8"))
+        spec = scenario_file(SPEC)
         self.assertEqual(spec["fixture"]["files"], {".gitignore": "__pycache__/\n"})
         checks = spec["checks"]
         outcome = [c for c in checks if "writes_from" in c]

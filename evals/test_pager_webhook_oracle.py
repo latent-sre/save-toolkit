@@ -9,7 +9,9 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-import yaml
+from probe import checking as probe_checking
+from probe import tracing as probe_tracing
+from probe_testkit import scenario_file
 
 ROOT = Path(__file__).resolve().parents[1]
 SCENARIO = ROOT / "evals/build-scenarios/build-software-engineer-pager-webhook.yaml"
@@ -179,7 +181,7 @@ MUTANTS = {
 
 
 def materialize(tmp_path: Path, overrides: dict[str, str]) -> Path:
-    spec = yaml.safe_load(SCENARIO.read_text(encoding="utf-8"))
+    spec = scenario_file(SCENARIO)
     for rel, text in spec["fixture"]["files"].items():
         path = tmp_path / rel
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -224,7 +226,7 @@ def test_enrich_later_design_completes(tmp_path):
 
 
 def test_fixture_suite_passes_unchanged(tmp_path):
-    spec = yaml.safe_load(SCENARIO.read_text(encoding="utf-8"))
+    spec = scenario_file(SCENARIO)
     for rel, text in spec["fixture"]["files"].items():
         path = tmp_path / rel
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -238,11 +240,8 @@ def test_fixture_suite_passes_unchanged(tmp_path):
     ("pager-webhook", True), ("cli-with-tests", True), ("skips-review-for-trivial-fix", False),
 ])
 def test_review_dispatch_policy_matches_security_scope(tmp_path, scenario_name, permits_review):
-    from probe import checking as probe_checking  # noqa: PLC0415 -- only this test needs the runner
-    from probe import tracing as probe_tracing  # noqa: PLC0415
-
     scenario = SCENARIO.with_name(f"build-software-engineer-{scenario_name}.yaml")
-    spec = yaml.safe_load(scenario.read_text(encoding="utf-8"))
+    spec = scenario_file(scenario)
     events = [
         {"type": "assistant", "message": {"content": [{
             "type": "tool_use", "id": "review-1", "name": "Task", "input": {
@@ -267,7 +266,7 @@ def test_review_dispatch_policy_matches_security_scope(tmp_path, scenario_name, 
 
 
 def test_webhook_scenario_preserves_scope_and_commit_guards():
-    checks = yaml.safe_load(SCENARIO.read_text(encoding="utf-8"))["checks"]
+    checks = scenario_file(SCENARIO)["checks"]
     kinds = {check["check"] for check in checks}
     assert {"changes_within", "no_new_commits", "no_agents_dir"} <= kinds
     scope = next(check for check in checks if check["check"] == "changes_within")

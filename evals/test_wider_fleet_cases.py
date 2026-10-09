@@ -7,7 +7,6 @@ from types import SimpleNamespace
 
 import graders
 import pytest
-import yaml
 from probe import catalog, checking, tracing, workspaces
 from probe_testkit import scenario_file
 
@@ -55,7 +54,7 @@ def test_prompt_lists_every_expected_value_beside_its_field(path):
     Appearing anywhere is not enough: "[UNTRUSTED][sourced]" in a record label would otherwise
     vouch for a source_trust field that never lists its values.
     """
-    spec = yaml.safe_load(path.read_text())
+    spec = scenario_file(path)
     graders = spec.get('graders') or [item for item in spec['checks'] if item['check'] == 'fleet_grader']
     (fields,) = [item['fields'] for item in graders if 'exact_json' in (item.get('type'), item.get('name'))]
     prompt = ' '.join(spec['prompt'].split())
@@ -81,7 +80,7 @@ def controls(good):
 
 @pytest.mark.parametrize('name', DIRECT)
 def test_seeded_lane_decisions_discriminate_good_bad_missing(name):
-    spec = yaml.safe_load((ROOT / f'scenarios/agent-direct-{name}.yaml').read_text())
+    spec = scenario_file(ROOT / f'scenarios/agent-direct-{name}.yaml')
     for response, expected in controls(DIRECT[name]):
         passed, evidence = graders.run_grader(spec['graders'][0], json.dumps(response))
         assert passed is expected, (response, evidence)
