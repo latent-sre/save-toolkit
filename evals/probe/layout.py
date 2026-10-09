@@ -1,4 +1,4 @@
-"""Where an iteration keeps its saved runs, and how a folder's number reads back.
+"""Where an iteration keeps its saved runs, how a folder's number reads back, and how a saved file does.
 
     <iteration>/eval-<scenario>/<label>/run-N/                  slot N's published attempt
     <iteration>/eval-<scenario>/<label>/attempts/run-N/<k>/     attempt k of slot N, superseded or incomplete
@@ -14,9 +14,11 @@ turn-count summary and the spend cap all find runs through this module, so they 
 
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Iterator, Mapping
 from pathlib import Path
+from typing import Any
 
 CASE_PREFIX = "eval-"
 SLOT_PREFIX = "run-"
@@ -108,6 +110,21 @@ def taken(parent: Path) -> set[int]:
 def next_number(parent: Path) -> int:
     """The number the next kept attempt or assessment under `parent` takes."""
     return max(taken(parent), default=0) + 1
+
+
+def read_object(path: Path) -> dict[str, Any] | None:
+    """The JSON object a saved file holds, or None when it is missing, unreadable, not JSON or not an
+    object: an unknown, never a partial reading."""
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return value if isinstance(value, dict) else None
+
+
+def write_json(path: Path, value: object, *, ascii_only: bool = False) -> None:
+    """Save a JSON file as the runner writes every one: indented, UTF-8."""
+    path.write_text(json.dumps(value, indent=2, ensure_ascii=ascii_only), encoding="utf-8")
 
 
 def live_grade(run: Path) -> Path:

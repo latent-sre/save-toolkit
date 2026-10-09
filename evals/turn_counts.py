@@ -18,7 +18,6 @@ identity.
 
 from __future__ import annotations
 
-import json
 import statistics
 import sys
 from dataclasses import dataclass, field
@@ -34,10 +33,6 @@ class Observed:
     unknown: int = 0
     retained: int = 0
     longest_seconds: float | None = None
-
-
-def _number(value: object) -> float | None:
-    return float(value) if isinstance(value, int | float) and not isinstance(value, bool) else None
 
 
 def _timings(root: Path) -> list[tuple[str, bool, Path]]:
@@ -64,19 +59,15 @@ def collect(root: Path, wanted: set[str]) -> dict[str, Observed]:
             continue
         entry = observed.setdefault(scenario, Observed())
         entry.retained += retained
-        try:
-            data = json.loads(timing.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            data = None
-        record = data if isinstance(data, dict) else {}
+        record = layout.read_object(timing) or {}
         turns = record.get("num_turns")
         if type(turns) is int and turns >= 0:
             entry.turns.append(turns)
         else:
             entry.unknown += 1
-        seconds = _number(record.get("trial_duration_seconds"))
-        if seconds is not None:
-            entry.longest_seconds = max(seconds, entry.longest_seconds or 0.0)
+        seconds = record.get("trial_duration_seconds")
+        if isinstance(seconds, int | float) and not isinstance(seconds, bool):
+            entry.longest_seconds = max(float(seconds), entry.longest_seconds or 0.0)
     return observed
 
 

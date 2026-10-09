@@ -443,7 +443,7 @@ def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
     finally:
         # Written even when a trial raised: every trial that finished was paid for and stays counted.
         merged = batches.merge_summary_entries(existing, results)
-        summary_path.write_text(json.dumps(merged, indent=2), encoding="utf-8")
+        layout.write_json(summary_path, merged, ascii_only=True)
     # `--run-offset` appends trials to an existing label. The verdict is about that whole batch, not
     # about this invocation: a final one-trial append must not report PASS over earlier failures.
     batch = [entry for entry in merged if entry.get("scenario") in selected_ids]

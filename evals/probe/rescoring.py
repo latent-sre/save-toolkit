@@ -389,7 +389,7 @@ def _add_assessment(
         "assessed_at": records.utc_now(),
         "runner_source_sha256": HARNESS_SOURCE_SHA256,
     }
-    (target / "grading.json").write_text(json.dumps(grading, indent=2, ensure_ascii=False), encoding="utf-8")
+    layout.write_json(target / "grading.json", grading)
     # This assessment's own trace summary: its verdict, and every trace fact the run saved as this
     # runner reads it when the raw trace survives; the live run's summary beside it stays as recorded.
     refreshed = {
@@ -400,7 +400,7 @@ def _add_assessment(
         "regraded": True,
         **(tracing.to_saved(trace) if trace is not None else {}),
     }
-    (target / "trace-summary.json").write_text(json.dumps(refreshed, indent=2, ensure_ascii=False), encoding="utf-8")
+    layout.write_json(target / "trace-summary.json", refreshed)
     entry = {
         "revision": revision,
         "status": grading["status"],
@@ -462,9 +462,9 @@ def regrade(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> list[dict[s
         )
     # Saved summaries keep the verdicts their batch recorded; the regrade's rows go beside them.
     if results:
-        (iteration_dir / f"regrade-{records.utc_now().replace(':', '')}.json").write_text(
-            json.dumps({"runner": HARNESS_IDENTITY, "runs": results, "skipped": skipped}, indent=2, ensure_ascii=False),
-            encoding="utf-8",
+        layout.write_json(
+            iteration_dir / f"regrade-{records.utc_now().replace(':', '')}.json",
+            {"runner": HARNESS_IDENTITY, "runs": results, "skipped": skipped},
         )
     return results
 
@@ -501,7 +501,7 @@ def rescore(iteration_dir: Path, scenarios: list[dict[str, Any]], out_dir: Path)
         target = out_dir / run_dir.relative_to(iteration_dir)
         try:
             target.mkdir(parents=True)
-            (target / "grading.json").write_text(json.dumps(grading, indent=2, ensure_ascii=False), encoding="utf-8")
+            layout.write_json(target / "grading.json", grading)
         except OSError as exc:  # e.g. a path past Windows' 260-character limit: report it, keep going
             rows.append({**row, "error": f"cannot write the rescored grade: {type(exc).__name__}: {exc}"[:300]})
             continue
@@ -514,7 +514,7 @@ def rescore(iteration_dir: Path, scenarios: list[dict[str, Any]], out_dir: Path)
             }
         )
     record = {"runner": HARNESS_IDENTITY, "iteration": str(iteration_dir), "runs": rows, "skipped": skipped}
-    (out_dir / "rescore.json").write_text(json.dumps(record, indent=2, ensure_ascii=False), encoding="utf-8")
+    layout.write_json(out_dir / "rescore.json", record)
     return record
 
 

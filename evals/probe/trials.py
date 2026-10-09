@@ -149,25 +149,15 @@ def _new_attempt_dir(target: Path) -> Path:
 
 
 def _attempt_number(run_dir: Path) -> int | None:
-    try:
-        number = json.loads((run_dir / "attempt.json").read_text(encoding="utf-8")).get("attempt")
-    except (OSError, ValueError, AttributeError):
-        return None
+    number = (layout.read_object(run_dir / "attempt.json") or {}).get("attempt")
     return number if type(number) is int and number > 0 else None
 
 
 def _write_attempt(run_dir: Path, number: int, state: AttemptState, reason: str | None = None) -> None:
-    (run_dir / "attempt.json").write_text(
-        json.dumps(
-            {
-                "attempt": number,
-                "state": state,
-                **({"reason": reason} if reason else {}),
-                "recorded_at": records.utc_now(),
-            },
-            indent=2,
-        ),
-        encoding="utf-8",
+    layout.write_json(
+        run_dir / "attempt.json",
+        {"attempt": number, "state": state, **({"reason": reason} if reason else {}), "recorded_at": records.utc_now()},
+        ascii_only=True,
     )
     records.update_record(
         run_dir,
@@ -185,31 +175,24 @@ def kept_attempt_costs(
     costs: list[dict[str, Any]] = []
     for scenario_id in sorted(scenario_ids):
         for attempt, _, _ in layout.kept_attempts(layout.case_dir(out_dir, scenario_id) / label):
-            timing = _read_json(attempt / "timing.json")
-            requested = _requested_model(timing, _read_json(attempt / "record.json"))
+            timing = layout.read_object(attempt / "timing.json")
+            requested = _requested_model(timing, layout.read_object(attempt / "record.json"))
             if requested is not _UNKNOWN and requested != model:
                 continue
-            costs.append(timing if isinstance(timing, dict) else {"cost_complete": False})
+            costs.append(timing if timing is not None else {"cost_complete": False})
     return costs
 
 
 _UNKNOWN = object()
 
 
-def _read_json(path: Path) -> object:
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-
-
-def _requested_model(timing: object, record: object) -> object:
+def _requested_model(timing: dict[str, Any] | None, record: dict[str, Any] | None) -> object:
     """The model an attempt was run for: a graded attempt's timing names it, a raised one's record does.
 
     Only a string or null names a model; anything else is malformed and falls through, so a paid
     attempt is never attributed to a model no batch runs.
     """
-    conditions = record.get("conditions") if isinstance(record, dict) else None
+    conditions = (record or {}).get("conditions")
     for source in (timing, conditions):
         if isinstance(source, dict) and isinstance(source.get("requested_model", _UNKNOWN), str | None):
             return source["requested_model"]
@@ -227,7 +210,7 @@ def _record_raised_cost(attempt: Path) -> None:
     judge = records.judge_spend()
     cost = records.trial_cost(trial_usd, judge)
     # The parts as well as the total: the v1 record calls a cost complete only beside known parts.
-    _write_json(
+    layout.write_json(
         attempt / "timing.json",
         {
             "trial_cost_usd": records.known_usd(trial_usd),
@@ -236,6 +219,7 @@ def _record_raised_cost(attempt: Path) -> None:
             "cost_complete": cost["cost_complete"],
             "judge": judge,
         },
+        ascii_only=True,
     )
 
 
@@ -319,34 +303,28 @@ def _invoke_turns(
         identity_failure = identity_failure or failed
         inconclusive = inconclusive or reason
         if spec.get("followups"):
-            (turn_out / "invocation.json").write_text(
-                json.dumps(
-                    {
-                        "argv": command,
-                        "session_id": current.session_id,
-                        "workspace": str(ws.repo.resolve()),
-                        "exit_code": returncode,
-                        "expected_model": spec.get("expected_model"),
-                        "main_models": current.main_models,
-                        "init_session_ids": current.init_session_ids,
-                        "resume": resume,
-                        "inconclusive": inconclusive,
-                        "cut_short": isinstance(inconclusive, CutShort),
-                        "run_stop": inconclusive.kind if isinstance(inconclusive, CutShort) else None,
-                    },
-                    indent=2,
-                ),
-                encoding="utf-8",
+            layout.write_json(
+                turn_out / "invocation.json",
+                {
+                    "argv": command,
+                    "session_id": current.session_id,
+                    "workspace": str(ws.repo.resolve()),
+                    "exit_code": returncode,
+                    "expected_model": spec.get("expected_model"),
+                    "main_models": current.main_models,
+                    "init_session_ids": current.init_session_ids,
+                    "resume": resume,
+                    "inconclusive": inconclusive,
+                    "cut_short": isinstance(inconclusive, CutShort),
+                    "run_stop": inconclusive.kind if isinstance(inconclusive, CutShort) else None,
+                },
+                ascii_only=True,
             )
             (turn_out / "response.md").write_text(current.result_text, encoding="utf-8")
         if inconclusive:
             break
         resume = current.session_id
     return inconclusive, identity_failure
-
-
-def _write_json(path: Path, value: object, *, ascii_only: bool = True) -> None:
-    path.write_text(json.dumps(value, indent=2, ensure_ascii=ascii_only), encoding="utf-8")
 
 
 def _warn_on_credentials(run_out: Path, trace: TraceSummary) -> None:
@@ -435,8 +413,8 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
         "prompt": spec["prompt"],
         "assertions": assessment.scenario_assertions(spec),
     }
-    _write_json(run_out.parent.parent / "eval_metadata.json", metadata)
-    _write_json(run_out / "eval_metadata.json", metadata)
+    for folder in (run_out.parent.parent, run_out):
+        layout.write_json(folder / "eval_metadata.json", metadata, ascii_only=True)
 
     # Neutral prefix: the cwd is in the agent's context. The root is chosen by clean_room so no
     # CLAUDE.md/AGENTS.md sits above it -- on Windows the default temp dir is under the operator's
@@ -462,9 +440,10 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
         if settings.expected_plugin_digest and provenance["plugin_source_sha256"] != settings.expected_plugin_digest:
             inconclusive = identity_failure = "plugin inputs changed before the trial; re-run with one candidate"
         runner = fingerprints.runner_provenance()
-        _write_json(
+        layout.write_json(
             run_out / "provenance.json",
             {**provenance, **runner, "runtime": settings.runtime, **({"judge_binding": binding} if binding else {})},
+            ascii_only=True,
         )
         # A routing or contract scenario has no fixture: it runs in an empty git root outside the
         # checkout, so the repo's own AGENTS.md/CLAUDE.md cannot teach it the routing answer.
@@ -537,16 +516,15 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
         (run_out / "outputs" / "response.md").write_text(trace.result_text or "(no result)", encoding="utf-8")
         (run_out / "outputs" / "workspace.patch").write_text(git.patch or "(no changes)\n", encoding="utf-8")
         _warn_on_credentials(run_out, trace)
-        _write_json(
+        layout.write_json(
             run_out / "outputs" / "trace-summary.json",
             _saved_summary(ctx, grading, provenance, settings, binding, after_assessment),
-            ascii_only=False,
         )
-        _write_json(run_out / "grading.json", grading, ascii_only=False)
+        layout.write_json(run_out / "grading.json", grading)
         # Drained after grading: a rubric grader's judge call is spend this trial caused.
         judge = records.judge_spend()
         cost = records.trial_cost(trace.total_cost_usd, judge)
-        _write_json(run_out / "timing.json", _timing(trace, elapsed, judge, cost, settings))
+        layout.write_json(run_out / "timing.json", _timing(trace, elapsed, judge, cost, settings), ascii_only=True)
         return {
             "scenario": spec["id"],
             "label": settings.label,

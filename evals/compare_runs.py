@@ -270,11 +270,7 @@ def _folder_problem(record: RecordV1, case_id: str, label: str, slot: int, numbe
 def _legacy_gaps(folder: Path) -> list[str]:
     """What a run folder without a v1 record cannot supply. A gap is cleared only by content that fills
     it: an unreadable or partial provenance.json leaves the identity gaps named."""
-    try:
-        loaded = json.loads((folder / "provenance.json").read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        loaded = None
-    provenance = loaded if isinstance(loaded, dict) else {}
+    provenance = layout.read_object(folder / "provenance.json") or {}
     gaps = ["no v1 record"]
     if not (folder / "grading.json").is_file():
         gaps.append("verdict and checks")

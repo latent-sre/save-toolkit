@@ -20,7 +20,7 @@ from typing import Annotated, Any, Literal, cast, get_args
 
 from pydantic import BaseModel, ConfigDict, Field, NonNegativeFloat, NonNegativeInt, PositiveInt, model_validator
 
-from . import fingerprints
+from . import fingerprints, layout
 from .outcomes import EVIDENCE_LIMIT, UNMEASURED, Ending, Polarity, State, Stop
 
 
@@ -259,15 +259,10 @@ def write_record(
     that raised before it was graded ended; such an attempt has no verdict.
     """
 
-    def read(name: str) -> dict[str, Any]:
-        try:
-            value = json.loads((run_dir / name).read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            return {}
-        return value if isinstance(value, dict) else {}
-
-    grading, timing, provenance = read("grading.json"), read("timing.json"), read("provenance.json")
-    summary = read("outputs/trace-summary.json")
+    grading, timing, provenance, summary = (
+        layout.read_object(run_dir / name) or {}
+        for name in ("grading.json", "timing.json", "provenance.json", "outputs/trace-summary.json")
+    )
     judge = timing.get("judge") or {}
     raised = incomplete is not None
     ended = (
@@ -373,5 +368,5 @@ def update_record(run_dir: Path, change: Callable[[dict[str, Any]], object]) -> 
 def _store(path: Path, fields: Mapping[str, Any]) -> dict[str, Any]:
     """Write a record only once it validates, as the JSON its readers parse."""
     record = RecordV1.model_validate_json(json.dumps(fields)).model_dump(mode="json", exclude_unset=True)
-    path.write_text(json.dumps(record, indent=2, ensure_ascii=False), encoding="utf-8")
+    layout.write_json(path, record)
     return record
