@@ -4,7 +4,7 @@
 # summary (evals/turn_counts.py), the graders,
 # the Inspect pilot, the evals tests and their shared helpers (evals/probe_testkit.py), and formats
 # all of them but the tests; strict mypy covers
-# the same code without the tests. CI runs
+# the same code without the tests or their helpers. CI runs
 # them in the component-tests job. evals/judge.py, evals/clean_room.py and evals/oracles/ stay outside
 # all three: the judge calibration receipt binds the first two byte for byte and each case's identity
 # binds the oracles, so even a formatting change would reject the receipt or orphan the saved runs.

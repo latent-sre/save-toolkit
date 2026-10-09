@@ -79,16 +79,16 @@ class TraceAndCommandTests(unittest.TestCase):
             return {"type": "assistant", "message": {"model": model, "content": [{"type": "text", "text": "ok"}]}}
 
         steady = parse_events([{"type": "system", "subtype": "init", "model": "claude-sonnet-5"},
-                                     turn("claude-sonnet-5"), turn("claude-sonnet-5"), result])
+                               turn("claude-sonnet-5"), turn("claude-sonnet-5"), result])
         self.assertEqual(["claude-sonnet-5"], steady.models)
         changed = parse_events([{"type": "system", "subtype": "init", "model": "claude-sonnet-5"},
-                                      turn("claude-sonnet-5"), turn("claude-opus-4-1"), result])
+                                turn("claude-sonnet-5"), turn("claude-opus-4-1"), result])
         self.assertEqual(["claude-opus-4-1", "claude-sonnet-5"], changed.models)
         # A subagent's model is the dispatch's identity, not the parent's.
         child = {"type": "assistant", "parent_tool_use_id": "tu_1",
                  "message": {"model": "claude-opus-4-1", "content": [{"type": "text", "text": "child"}]}}
         dispatched = parse_events([{"type": "system", "subtype": "init", "model": "claude-sonnet-5"},
-                                         turn("claude-sonnet-5"), child, result])
+                                   turn("claude-sonnet-5"), child, result])
         self.assertEqual(["claude-sonnet-5"], dispatched.models)
         # No main-thread turn recorded (an early abort): the usage table is the only evidence.
         bare = parse_events([result])

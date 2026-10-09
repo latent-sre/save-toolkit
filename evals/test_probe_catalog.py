@@ -241,7 +241,7 @@ class CheckPolarityTests(unittest.TestCase):
 
     def test_each_graded_check_records_its_kind(self) -> None:
         spec = tiny_spec(checks=[{"check": "text_not_contains", "needle": "x", "text": "never says x"},
-                                  {"check": "text_contains_any", "of": ["ok"], "text": "says ok"}])
+                                 {"check": "text_contains_any", "of": ["ok"], "text": "says ok"}])
         ctx = context(spec, probe_tracing.TraceSummary(result_text="ok"))
         grading = probe_assessment.grade(ctx)
         self.assertEqual(["forbids", "requires"], [e["kind"] for e in grading["expectations"]])

@@ -349,7 +349,7 @@ class GradingMachineryTests(unittest.TestCase):
 
     def test_a_grader_crash_is_inconclusive_and_named(self) -> None:
         spec = tiny_spec(checks=[{"check": "text_contains_any", "of": ["ok"], "text": "says ok"},
-                                  {"check": "fleet_grader", "name": "no-such-grader", "text": "broken"}])
+                                 {"check": "fleet_grader", "name": "no-such-grader", "text": "broken"}])
         ctx = context(spec, probe_tracing.TraceSummary(result_text="ok"))
         grading = probe_assessment.grade(ctx)
         self.assertEqual(["PASS", "INCONCLUSIVE"], [e["state"] for e in grading["expectations"]])
@@ -358,7 +358,7 @@ class GradingMachineryTests(unittest.TestCase):
 
     def test_a_grader_crash_beside_a_supported_failure_still_fails(self) -> None:
         spec = tiny_spec(checks=[{"check": "text_contains_any", "of": ["absent"], "text": "says absent"},
-                                  {"check": "fleet_grader", "name": "no-such-grader", "text": "broken"}])
+                                 {"check": "fleet_grader", "name": "no-such-grader", "text": "broken"}])
         ctx = context(spec, probe_tracing.TraceSummary(result_text="ok"))
         self.assertEqual("FAIL", probe_assessment.grade(ctx)["status"])
 

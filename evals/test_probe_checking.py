@@ -304,8 +304,8 @@ class WorkspaceAndCheckTests(TempRootTestCase):
 
     def test_command_file_and_text_checks(self) -> None:
         ctx = ws_context(tiny_spec(), self.ws, text="**Verified**: `python -m unittest` -> OK. I did not deploy; rollback = revert.",
-                   skills=["save-toolkit:backend-craft"], bash=["python -m unittest discover -s tests -t . -v"],
-                   dispatches=["save-toolkit:reviewer"])
+                         skills=["save-toolkit:backend-craft"], bash=["python -m unittest discover -s tests -t . -v"],
+                         dispatches=["save-toolkit:reviewer"])
         self.assertTrue(probe_checking.check_command_exit_zero(ctx, {"command": "python -m unittest discover -s tests -t ."})[0])
         ok, evidence = probe_checking.check_command_exit_zero(ctx, {"command": "python -c \"raise SystemExit(3)\""})
         self.assertFalse(ok)

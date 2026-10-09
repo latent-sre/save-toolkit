@@ -130,7 +130,7 @@ class PackageStructureTests(unittest.TestCase):
 
     def test_a_regrade_measures_what_the_run_kept_and_carries_the_rest(self) -> None:
         spec = tiny_spec(checks=[{"check": "text_contains_any", "of": ["ok"], "text": "says ok"},
-                                  {"check": "file_exists", "path": "README.md", "text": "readme"}])
+                                 {"check": "file_exists", "path": "README.md", "text": "readme"}])
         trace = probe_tracing.TraceSummary(result_text="ok")
         ctx = context(spec, trace)
         items = probe_assessment.plan(spec, trace, ctx, ROOT, keep=True)
