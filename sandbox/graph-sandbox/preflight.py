@@ -1341,32 +1341,6 @@ def _validate_service_data_mount(service_name: str, value: Any) -> None:
         )
 
 
-def _validate_evidence_path(evidence_root: Path, evidence_source: Path) -> None:
-    root_absolute = Path(os.path.abspath(evidence_root))
-    source_absolute = Path(os.path.abspath(evidence_source))
-    try:
-        root_resolved = root_absolute.resolve(strict=True)
-        source_resolved = source_absolute.resolve(strict=True)
-    except (FileNotFoundError, OSError) as exc:
-        raise PreflightError("evidence path: root and run directory must already exist") from exc
-    if not root_resolved.is_dir() or not source_resolved.is_dir():
-        raise PreflightError("evidence path: root and run directory must be directories")
-    if _is_link_or_junction(root_absolute):
-        raise PreflightError("evidence path: root symlink or junction rejected")
-    try:
-        lexical_relative = source_absolute.relative_to(root_absolute)
-        resolved_relative = source_resolved.relative_to(root_resolved)
-    except ValueError as exc:
-        raise PreflightError("evidence path: source is outside evidence root") from exc
-    if not lexical_relative.parts or not resolved_relative.parts:
-        raise PreflightError("evidence path: source must be a strict descendant of evidence root")
-    current = root_absolute
-    for part in lexical_relative.parts:
-        current = current / part
-        if _is_link_or_junction(current):
-            raise PreflightError("evidence path: symlink or junction rejected")
-
-
 def _validate_networks(value: Any, *, run_id: str, source_revision: str) -> None:
     networks = _mapping(value, "networks")
     if set(networks) != {"sandbox"}:
@@ -1429,10 +1403,7 @@ def _mapping(value: Any, path: str) -> Mapping[str, Any]:
 
 
 def _is_link_or_junction(path: Path) -> bool:
-    if path.is_symlink():
-        return True
-    is_junction = getattr(os.path, "isjunction", None)
-    if is_junction and is_junction(path):
+    if path.is_symlink() or os.path.isjunction(path):
         return True
     try:
         attributes = os.lstat(path).st_file_attributes

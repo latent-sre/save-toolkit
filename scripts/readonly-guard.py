@@ -82,6 +82,12 @@ import sys
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
+# Type checkers treat a name spelled TYPE_CHECKING as true; at runtime this skips importing
+# `typing`, which measured ~1.5 ms of every hook call's ~17 ms on Python 3.11.
+TYPE_CHECKING = False
+if TYPE_CHECKING:
+    from typing import NoReturn
+
 # The namespace Claude Code would prepend if this repo were ever installed as a plugin; guarding
 # both forms means the guard cannot be sidestepped by installing the agents a different way.
 PLUGIN_NAME = "save-toolkit"
@@ -226,25 +232,26 @@ _UNIQ_FILTER_FLAGS = frozenset({
 })
 
 # Fixed observation forms: do not grant arbitrary flags or a general-purpose HTTP client.
-_OS_READ_FORMS = {
+_OS_READ_FORMS: dict[str, set[tuple[str, ...]]] = {
     "uname": {(), ("-s",), ("-a",), ("-m",), ("-r",)},
     "sw_vers": {(), ("-productVersion",), ("-productName",), ("-buildVersion",)},
     "uptime": {()},
     "df": {(), ("-h",), ("-k",)},
 }
 
-# POSIX observation heads the command-access reference advertises for macOS that the PowerShell
+# POSIX observation heads the sre-assistant native-observations list advertises for macOS that the PowerShell
 # grammar has no spelling for: Windows reaches the same two needs through `Get-Date` and
 # `Resolve-DnsName`. Admitted in Copilot mode only, and only through the Bash classifier, so
 # `_date_reason`'s clock-SETTING check and the structural denial of `dig $(...)` still decide.
 _COPILOT_POSIX_READERS = frozenset({"date", "dig"})
+# curl output is unmasked, so only reads that return no credentials, logins or unbounded lists stay:
+# frontend/settings carries decrypted basic auth for direct-access datasources, datasources carries
+# connection users, and the rule, search and dashboard reads belong to the masking helper.
 _GRAFANA_READ_PATH = re.compile(
-    r"/(?:api/(?:health|org|plugins|frontend/settings|access-control/user/permissions|"
-    r"datasources(?:/uid/[A-Za-z0-9_-]+/health)?|search|folders|"
-    r"dashboards/uid/[A-Za-z0-9_-]+(?:/versions(?:/[0-9]+)?)?|"
-    r"v1/provisioning/alert-rules|prometheus/grafana/api/v1/rules)|"
-    r"apis/dashboard\.grafana\.app/(?:v[012](?:(?:alpha|beta)1)?/namespaces/"
-    r"[A-Za-z0-9_-]+/dashboards(?:/[A-Za-z0-9_-]+)?|))"
+    r"/(?:api/(?:health|plugins|access-control/user/permissions|"
+    r"datasources/uid/[A-Za-z0-9_-]+/health|folders)|"
+    r"apis/dashboard\.grafana\.app/v[012](?:(?:alpha|beta)1)?/namespaces/"
+    r"[A-Za-z0-9_-]+/dashboards/[A-Za-z0-9_-]+)"
 )
 
 
@@ -269,7 +276,7 @@ def grafana_curl_allowed(command: str, powershell: bool = False) -> bool:
     if not _GRAFANA_READ_PATH.fullmatch(resource.path):
         return False
     params = parse_qs(resource.query, keep_blank_values=True)
-    if set(params) - {"type", "limit", "page", "query", "labelSelector", "fieldSelector"}:
+    if set(params) - {"limit", "page"}:
         return False
     if any(len(values) != 1 for values in params.values()):
         return False
@@ -327,12 +334,12 @@ def grafana_helper_allowed(command: str, powershell: bool = False) -> bool:
             flags = {"-Datasource": "--datasource", "-Kind": "--kind", "-From": "--from", "-To": "--to", "-Expr": "--expr"}
             if len(arguments) != 10 or set(arguments[::2]) != set(flags):
                 return False
-            arguments = ["query"] + [value for flag, value in zip(arguments[::2], arguments[1::2]) for value in (flags[flag], value)]
+            arguments = ["query"] + [value for flag, value in zip(arguments[::2], arguments[1::2], strict=True) for value in (flags[flag], value)]
         elif powershell and "--expr" in arguments:
             # Windows PowerShell 5.1 strips embedded quotes at native argv transfer.
             # The fixed wrapper or already-encoded expression is portable across hosts.
             return False
-        if not arguments or arguments[0] not in {"dashboard", "query"}:
+        if not arguments or arguments[0] not in {"dashboard", "query", "search", "alerts", "annotations", "silences", "render"}:
             return False
         helper = runpy.run_path(str(canonical), run_name="_grafana_read_guard")
         helper["parse_args"](arguments)
@@ -389,7 +396,7 @@ def explain_powershell(command: str) -> "str | None":
             binary = binary[:-4]
         if binary not in {"git", "gh", "cf", "gcloud"}:
             return "this PowerShell command is not an approved observation"
-        reason = _segment_reason([binary, *words[1:]], "sre-assistant")
+        reason = _segment_reason([binary, *words[1:]])
         if reason:
             return reason
     return None
@@ -605,12 +612,12 @@ _CODE_RUNNERS = frozenset({
 })
 
 
-def _allow() -> None:
+def _allow() -> "NoReturn":
     """Positively assert ALLOW (no stdout, distinctive exit code) and stop."""
     sys.exit(EXIT_ALLOW)
 
 
-def _deny(reason: str) -> None:
+def _deny(reason: str) -> "NoReturn":
     """Emit the deny decision on stdout and assert DENY via the exit code."""
     print(json.dumps({
         "hookSpecificOutput": {
@@ -825,7 +832,7 @@ def _gcloud_allowed(args: list[str]) -> bool:
     )
 
 
-def _segment_reason(segment: list[str], agent: str) -> "str | None":
+def _segment_reason(segment: list[str]) -> "str | None":
     """None if this segment is an allowed read; otherwise the specific rule that denies it.
 
     The reasons name the rule so the agent's next move is obvious: rephrase into an allowed shape,
@@ -850,7 +857,7 @@ def _segment_reason(segment: list[str], agent: str) -> "str | None":
             )
         if len(args) < 2:
             return "`timeout` needs a command to bound: `timeout <duration> <allowed command>`"
-        return _segment_reason(args[1:], agent)
+        return _segment_reason(args[1:])
     if command == "date":
         return _date_reason(args)
     if command == "git":
@@ -955,7 +962,7 @@ def _tokenize(line: str, *, comments: bool = True) -> list[str]:
     return list(lexer)
 
 
-def _line_reason(line: str, agent: str) -> "str | None":
+def _line_reason(line: str) -> "str | None":
     """None if every segment of one line is an allowed read; otherwise the first denial reason."""
     try:
         for match in _SHELL_WORD.finditer(line):
@@ -984,17 +991,17 @@ def _line_reason(line: str, agent: str) -> "str | None":
     if not segments:
         return "no recognizable command"
     for segment in segments:
-        reason = _segment_reason(segment, agent)
+        reason = _segment_reason(segment)
         if reason is not None:
             return reason
     return None
 
 
-def explain(command: str, agent: str = "") -> "str | None":
+def explain(command: str) -> "str | None":
     """None if `command` is entirely allowed reads; otherwise the specific rule that denies it.
 
-    `agent` is the BARE agent name (namespace already stripped). No rule is agent-specific since
-    `observability-engineer` left the roster; the seam stays for a future per-agent extra.
+    No rule is agent-specific since `observability-engineer` left the roster, so no agent is
+    passed; a future per-agent extra would add that parameter back with its first rule.
     """
     if re.search(r"[\x00-\x08\x0b-\x1f\x7f]", command):
         return "Bash commands may not contain control characters other than tab and newline"
@@ -1017,7 +1024,7 @@ def explain(command: str, agent: str = "") -> "str | None":
     for line in normalized.split("\n"):
         if not line.strip(" \t"):
             continue
-        reason = _line_reason(line, agent)
+        reason = _line_reason(line)
         if reason is not None:
             return reason
     return None
@@ -1028,7 +1035,7 @@ def copilot_read_allowed(command: str) -> bool:
 
     Copilot's integrated terminal is one entry point for both hosts, so it classifies with the
     restricted PowerShell grammar first. That grammar denies the macOS spellings the
-    command-access reference advertises, which would make the documented time and DNS
+    sre-assistant native-observations list advertises, which would make the documented time and DNS
     observations unusable on a macOS execution host. Widening is deliberately narrow: the fixed
     OS forms, the authenticated Grafana GET, and the two POSIX heads above -- never the whole
     Bash allowlist.
@@ -1082,6 +1089,10 @@ _CF_CREDENTIAL_SUBCOMMANDS = {
     "service-key": "`cf service-key` prints a service instance's live credentials",
     "sk": "`cf sk` is `cf service-key`, which prints live service credentials",
 }
+# The Grafana helper's per-user settings file holds its token. Matched on the raw line, because
+# POSIX lexing drops PowerShell's backslash separators; a search naming the path is the accepted
+# over-reach, and Read/Grep/Glob never reach this hook.
+_GRAFANA_SETTINGS = re.compile(r"\.config[\\/]+save-toolkit|save-toolkit[\\/]+grafana\.env", re.IGNORECASE)
 
 
 def _strip_substitution(token: str) -> str:
@@ -1139,13 +1150,13 @@ def _gcloud_credential_reason(words: list[str]) -> "str | None":
 
 def _credential_reason_for_tokens(tokens: list[str]) -> "str | None":
     for token in _assignment_prefix(tokens):
-        if _ASSIGNMENT.match(token).group(1) == "CF_TRACE":
-            value = token.partition("=")[2].strip().strip("\"'").lower()
-            if value not in _TRACE_OFF:
-                return (
-                    "`CF_TRACE` dumps the whole CF API exchange, bearer token included, into the "
-                    "transcript"
-                )
+        # Each prefix token matched `NAME=`, and a name holds no `=`, so this split is that match.
+        name, _, value = token.partition("=")
+        if name == "CF_TRACE" and value.strip().strip("\"'").lower() not in _TRACE_OFF:
+            return (
+                "`CF_TRACE` dumps the whole CF API exchange, bearer token included, into the "
+                "transcript"
+            )
     words = [_strip_substitution(token) for token in tokens]
     for index, word in enumerate(words):
         following = [item for item in words[index + 1:] if item and not item.startswith("-")]
@@ -1174,6 +1185,8 @@ def credential_reason(command: str) -> "str | None":
     """The rule denying a credential-printing command, or None when nothing matched."""
     if not command.strip():
         return None
+    if _GRAFANA_SETTINGS.search(command):
+        return "the Grafana helper's settings file holds its token; only the helper reads it"
     # Bash joins a backslash-continued line before running it, so the scanner must too: `cf \`
     # newline `env checkout` reached the API while the first physical line failed to lex and the
     # second carried no `cf` (Codex review, PR #216). Collapsing can only widen what is seen; a
@@ -1214,8 +1227,16 @@ def main() -> None:
     if sys.argv[1:] and not copilot:
         sys.exit(EXIT_INDETERMINATE)
     tool_name = data.get("tool_name")
-    tool_input = data.get("tool_input") or {}
-    if not isinstance(tool_input, dict):
+    agent = data.get("agent_type")
+    tool_input = data.get("tool_input")
+    if tool_input is None:
+        tool_input = {}
+    # A field present with the wrong type is unreadable in the same way; null still means absent.
+    # tool_name and agent_type decide scoping: an unhashable one crashed the membership tests with
+    # exit 1, and an agent_type of another type (a numeric id, an object) read as "some other
+    # agent" and was allowed — a silent disarm if the undocumented field ever changes shape.
+    if not (isinstance(tool_input, dict) and isinstance(tool_name, str | None)
+            and isinstance(agent, str | None)):
         sys.exit(EXIT_INDETERMINATE)
     if copilot:
         # This entry point is attached to sre-assistant's own VS Code agent hook. It must not
@@ -1239,15 +1260,20 @@ def main() -> None:
     # The plugin hook is session-wide, so scope here before inspecting the command. The main loop
     # carries NO `agent_type`
     # key, so the user's own Bash exits here and is never inspected.
-    agent = data.get("agent_type")
+    command = tool_input.get("command")
+    if command is None:
+        command = ""  # an absent command is nothing to run
+    elif agent in FLEET_AGENTS and not isinstance(command, str):
+        # Every lane inspected below reads the command as text, the guarded one included (it is a
+        # fleet lane). A number, list or object is not a command the guard can vouch for: a truthy
+        # one used to crash with exit 1, and a falsy one read as empty and was allowed.
+        sys.exit(EXIT_INDETERMINATE)
 
     # Fleet-wide first: every roster lane, not only the guarded one. The main loop is still
     # exempt — this rule is addressed to the fleet's agents, and denying a human's own
     # `cf env` in their own terminal is over-reach the fleet has no standing to impose.
     if agent in FLEET_AGENTS:
-        credential = credential_reason(
-            (data.get("tool_input") or {}).get("command", "") or ""
-        )
+        credential = credential_reason(command)
         if credential is not None:
             _deny(
                 f"Blocked by the fleet credential rule: {credential}. Ask the human owner to "
@@ -1309,11 +1335,7 @@ def main() -> None:
             )
         _allow()
 
-    command = (data.get("tool_input") or {}).get("command", "") or ""
-    bare_agent = agent.split(":", 1)[-1] if isinstance(agent, str) else ""
-    if not isinstance(command, str):
-        sys.exit(EXIT_INDETERMINATE)
-    reason = explain_powershell(command) if tool_name == "PowerShell" else explain(command, bare_agent)
+    reason = explain_powershell(command) if tool_name == "PowerShell" else explain(command)
     if reason is not None:
         _deny(f"Blocked by the read-only agent allowlist guard: {reason}. {_GUIDANCE}")
     _allow()

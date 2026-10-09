@@ -2,8 +2,6 @@
 from __future__ import annotations
 
 import base64
-from datetime import datetime, timezone
-import importlib.util
 import io
 import json
 import os
@@ -12,28 +10,39 @@ import shutil
 import ssl
 import subprocess
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.error import URLError
 
 import pytest
 
-PATH = Path(__file__).resolve().parents[1] / "skills/grafana/scripts/grafana_read.py"
-SPEC = importlib.util.spec_from_file_location("grafana_read", PATH)
-assert SPEC and SPEC.loader
-reader = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(reader)
+from testkit import load_path, require_shell
 
-ENV = {"GRAFANA_URL": "https://monitor.example/grafana", "GRAFANA_ORG_ID": "7", "GRAFANA_SA_TOKEN": "test-secret-token"}
+PATH = Path(__file__).resolve().parents[1] / "skills/grafana/scripts/grafana_read.py"
+reader = load_path(PATH, "grafana_read")
+
+UNAUTHENTICATED = {"GRAFANA_URL": "https://monitor.example/grafana", "GRAFANA_ORG_ID": "7"}
+ENV = {**UNAUTHENTICATED, "GRAFANA_SA_TOKEN": "test-secret-token"}
+DASHBOARD = ["dashboard", "--uid", "board"]
 QUERY = ["query", "--datasource", "metrics-1", "--kind", "prometheus", "--from", "1000", "--to", "61000", "--expr", "up"]
+RENDER = ["render", "--uid", "board", "--panel", "7", "--from", "1000", "--to", "61000"]
+PNG = bytes((137, 80, 78, 71, 13, 10, 26, 10)) + (13).to_bytes(4, "big") + b"IHDR" + (1200).to_bytes(4, "big") + (600).to_bytes(4, "big") + bytes(5)
+# Grafana v13.2.2 public/img/rendering_limit_dark.png is 526x202, served with HTTP 200 at its concurrency limit.
+PLACEHOLDER = PNG[:16] + (526).to_bytes(4, "big") + (202).to_bytes(4, "big") + bytes(5)
+BOARD = {"dashboard": {"uid": "board", "version": 3, "panels": [
+    {"id": 1, "type": "row", "collapsed": True, "panels": [{"id": 7, "type": "timeseries", "title": "B70 temperatures"}]}]},
+    "meta": {"slug": "cylon-ai"}}
 
 
 class Transport:
     def __init__(self, *responses, org_response=None):
         self.responses = [(200, {"id": 7}) if org_response is None else org_response, *responses]
         self.requests = []
+        self.bounds = []
 
-    def __call__(self, request):
+    def __call__(self, request, **bounds):
         self.requests.append(request)
+        self.bounds.append(bounds)
         response = self.responses.pop(0)
         if isinstance(response, Exception):
             raise response
@@ -47,7 +56,25 @@ def invoke(args, transport, env=None):
     return code, json.loads(output.getvalue()), output.getvalue()
 
 
-@pytest.mark.parametrize("org", [None, "", "0", "-1", "+7", "07", "7.0", "7 ", " 7", "７", "9223372036854775808", "7\r\nInjected: bad"])
+REAL_SETTINGS_FILE = reader._settings_file
+SETTINGS_TEXT = "# comment\r\nGRAFANA_URL=https://monitor.example/grafana\r\nGRAFANA_ORG_ID=7\r\nGRAFANA_SA_TOKEN=file-secret-token\r\n"
+
+
+@pytest.fixture(autouse=True)
+def no_settings_file(monkeypatch, tmp_path):
+    """Never read the developer's real per-user settings file."""
+    monkeypatch.setattr(reader, "_settings_file", lambda: tmp_path / "absent.env")
+
+
+def use_settings(monkeypatch, tmp_path, content):
+    path = tmp_path / "grafana.env"
+    path.write_bytes(content if isinstance(content, bytes) else content.encode())
+    path.chmod(0o600)
+    monkeypatch.setattr(reader, "_settings_file", lambda: path)
+    return path
+
+
+@pytest.mark.parametrize("org", [None, "", "0", "-1", "+7", "07", "7.0", "7 ", " 7", "\uff17", "9223372036854775808", "7\r\nInjected: bad"])
 def test_organization_must_be_explicit_positive_canonical_int64(org):
     env = dict(ENV)
     if org is None:
@@ -55,12 +82,12 @@ def test_organization_must_be_explicit_positive_canonical_int64(org):
     else:
         env["GRAFANA_ORG_ID"] = org
     transport = Transport()
-    code, result, _ = invoke(["dashboard", "--uid", "board"], transport, env)
+    code, result, _ = invoke(DASHBOARD, transport, env)
     assert code == 2 and result["error"] == "invalid_organization_configuration"
     assert not transport.requests
 
 
-@pytest.mark.parametrize("args", [["dashboard", "--uid", "board"], QUERY])
+@pytest.mark.parametrize("args", [DASHBOARD, QUERY, ["search", "--query", "edge"], ["silences"]])
 @pytest.mark.parametrize("actual", [2, "7", True, None])
 def test_organization_mismatch_stops_before_selected_operation(args, actual):
     transport = Transport(org_response=(200, {"id": actual}))
@@ -81,13 +108,13 @@ def test_same_datasource_uid_from_other_organization_never_queries(datasource_or
 @pytest.mark.parametrize("credentials", [{"GRAFANA_SA_TOKEN": "synthetic-token"}, {"GRAFANA_USERNAME": "synthetic-user", "GRAFANA_PASSWORD": "synthetic-pass"}])
 @pytest.mark.parametrize("command", ["dashboard", "query"])
 def test_all_requests_bind_verified_organization_and_report_it(credentials, command):
-    env = {"GRAFANA_URL": ENV["GRAFANA_URL"], "GRAFANA_ORG_ID": "7", **credentials}
+    env = {**UNAUTHENTICATED, **credentials}
     responses = [(200, {"dashboard": {"uid": "board"}, "meta": {}})] if command == "dashboard" else [
         (200, {"uid": "metrics-1", "type": "prometheus", "orgId": 7}),
         (200, {"results": {"A": {"frames": []}}}),
     ]
     transport = Transport(*responses)
-    code, result, _ = invoke(["dashboard", "--uid", "board"] if command == "dashboard" else QUERY, transport, env)
+    code, result, _ = invoke(DASHBOARD if command == "dashboard" else QUERY, transport, env)
     assert code == 0 and result["organization_id"] == 7
     assert transport.requests[0].full_url.endswith("/api/org")
     assert all(request.get_header("X-grafana-org-id") == "7" for request in transport.requests)
@@ -98,7 +125,7 @@ def test_dashboard_uses_fixed_get_and_masks_authentication():
     code, result, text = invoke(["dashboard", "--uid", "board-1"], transport)
     assert code == 0 and result["ok"]
     assert result["grafana_url"] == ENV["GRAFANA_URL"]
-    assert datetime.fromisoformat(result["retrieved_at_utc"]).utcoffset() == timezone.utc.utcoffset(None)
+    assert datetime.fromisoformat(result["retrieved_at_utc"]).utcoffset() == UTC.utcoffset(None)
     assert "test-secret-token" not in text
     org_request, request = transport.requests
     assert org_request.full_url.endswith("/api/org")
@@ -110,19 +137,19 @@ def test_dashboard_uses_fixed_get_and_masks_authentication():
 def test_basic_auth_values_and_encodings_masked_in_keys_and_nested_values():
     user, password = "test-person", "private-pass"
     encoded = base64.b64encode(f"{user}:{password}".encode()).decode()
-    env = {"GRAFANA_URL": ENV["GRAFANA_URL"], "GRAFANA_ORG_ID": "7", "GRAFANA_USERNAME": user, "GRAFANA_PASSWORD": password}
+    env = {**UNAUTHENTICATED, "GRAFANA_USERNAME": user, "GRAFANA_PASSWORD": password}
     transport = Transport((200, {"dashboard": {"uid": "board", user: [password, encoded]}, "meta": {}}))
-    code, _, text = invoke(["dashboard", "--uid", "board"], transport, env)
+    code, _, text = invoke(DASHBOARD, transport, env)
     assert code == 0
     assert all(value not in text for value in (user, password, encoded))
     assert transport.requests[0].get_header("Authorization") == "Basic " + encoded
 
 
 def test_numeric_authentication_values_are_masked_when_echoed_as_json_numbers():
-    env = {"GRAFANA_URL": ENV["GRAFANA_URL"], "GRAFANA_ORG_ID": "7", "GRAFANA_USERNAME": "741829", "GRAFANA_PASSWORD": "928413"}
+    env = {**UNAUTHENTICATED, "GRAFANA_USERNAME": "741829", "GRAFANA_PASSWORD": "928413"}
     transport = Transport((200, {"dashboard": {"uid": "board", "numeric_username": 741829,
                              "numeric_password": 928413.0}, "meta": {}}))
-    code, result, text = invoke(["dashboard", "--uid", "board"], transport, env)
+    code, result, text = invoke(DASHBOARD, transport, env)
     assert code == 0 and "741829" not in text and "928413" not in text
     assert result["dashboard"]["numeric_username"] == "[REDACTED]"
 
@@ -131,7 +158,7 @@ def test_numeric_authentication_values_are_masked_when_echoed_as_json_numbers():
 def test_authentication_matching_json_primitives_is_masked_even_in_metadata(credential, value):
     env = {**ENV, "GRAFANA_SA_TOKEN": credential}
     transport = Transport((200, {"dashboard": {"uid": "board", "echo": value}, "meta": {"echo": value}}))
-    code, result, _ = invoke(["dashboard", "--uid", "board"], transport, env)
+    code, result, _ = invoke(DASHBOARD, transport, env)
     assert code == 0
     assert result["dashboard"]["echo"] == "[REDACTED]"
     assert result["meta"]["echo"] == "[REDACTED]"
@@ -180,7 +207,7 @@ def test_query_result_errors_cannot_be_reported_successfully(result):
 
 @pytest.mark.parametrize("response", [(302, b"secret redirect"), (401, b"test-secret-token"), (200, b"not JSON"), (200, b"x" * (2 * 1024 * 1024 + 1))])
 def test_http_json_and_size_failures_return_safe_errors(response):
-    code, result, text = invoke(["dashboard", "--uid", "board"], Transport(response))
+    code, result, text = invoke(DASHBOARD, Transport(response))
     assert code == 2 and not result["ok"]
     assert "test-secret-token" not in text and "Traceback" not in text
 
@@ -188,13 +215,13 @@ def test_http_json_and_size_failures_return_safe_errors(response):
 @pytest.mark.parametrize("url", ["http://monitor.example", "https://user:password@monitor.example", "https://monitor.example?token=private", "https://monitor.example/#secret", "https://monitor.example/../else", "https://monitor.example/%2e%2e", "https://monitor.example\\bad", "https://monitor.example/\nfoo"])
 def test_invalid_origins_make_no_requests(url):
     transport = Transport()
-    code, result, text = invoke(["dashboard", "--uid", "board"], transport, {**ENV, "GRAFANA_URL": url})
+    code, result, text = invoke(DASHBOARD, transport, {**ENV, "GRAFANA_URL": url})
     assert code == 2 and not result["ok"] and not transport.requests
     assert url not in text
 
 
 def test_raw_transport_error_is_never_exposed():
-    code, result, text = invoke(["dashboard", "--uid", "board"], Transport(URLError("user:private-password@secret-host")))
+    code, result, text = invoke(DASHBOARD, Transport(URLError("user:private-password@secret-host")))
     assert code == 2 and result["error"] == "request_failed"
     assert "private-password" not in text and "secret-host" not in text
 
@@ -202,7 +229,7 @@ def test_raw_transport_error_is_never_exposed():
 def test_url_userinfo_and_auth_headers_are_not_returned():
     transport = Transport((200, {"dashboard": {"uid": "board", "link": "https://another:unknown@host.example/path",
                              "Authorization": "arbitrary-header-value"}, "meta": {}}))
-    code, _, text = invoke(["dashboard", "--uid", "board"], transport)
+    code, _, text = invoke(DASHBOARD, transport)
     assert code == 0
     assert "another" not in text and "unknown" not in text and "arbitrary-header-value" not in text
 
@@ -213,7 +240,7 @@ def test_url_userinfo_and_auth_headers_are_not_returned():
     b'[' * 1500 + b']' * 1500,
 ])
 def test_nonfinite_and_deep_json_return_safe_failure(payload):
-    code, result, _ = invoke(["dashboard", "--uid", "board"], Transport((200, payload)))
+    code, result, _ = invoke(DASHBOARD, Transport((200, payload)))
     assert code == 2 and not result["ok"]
 
 
@@ -223,10 +250,232 @@ def test_incomplete_or_unexpected_query_results_fail(results):
     assert invoke(QUERY, transport)[0] == 2
 
 
+RULES = {"status": "success", "data": {"groups": [{"name": "checkout", "folderUid": "payments", "rules": []}]}}
+
+
+@pytest.mark.parametrize("args,payload,path", [
+    (["search", "--query", "checkout latency"], [{"uid": "board", "orgId": 7}], "/api/search?type=dash-db&limit=100&query=checkout%20latency"),
+    (["alerts"], RULES, "/api/prometheus/grafana/api/v1/rules?group_limit=100&limit_alerts=20"),
+    (["alerts", "--folder-uid", "payments"], RULES, "/api/prometheus/grafana/api/v1/rules?group_limit=100&limit_alerts=20&folder_uid=payments"),
+    (["annotations", "--from", "1000", "--to", "61000"], [{"id": 1}], "/api/annotations?from=1000&to=61000&limit=100"),
+    (["annotations", "--from", "1000", "--to", "61000", "--dashboard-uid", "board"], [], "/api/annotations?from=1000&to=61000&limit=100&dashboardUID=board"),
+    (["silences"], [{"id": "s1", "status": {"state": "active"}}], "/api/alertmanager/grafana/api/v2/silences"),
+])
+def test_list_reads_use_one_fixed_get_and_report_permission_scope(args, payload, path):
+    transport = Transport((200, payload))
+    code, result, _ = invoke(args, transport)
+    assert code == 0 and result["operation"] == args[0] and result["coverage"] == "permission_scoped"
+    assert [(r.method, r.full_url, r.data) for r in transport.requests[1:]] == [("GET", ENV["GRAFANA_URL"] + path, None)]
+    assert all(request.get_header("X-grafana-org-id") == "7" for request in transport.requests)
+
+
+def test_alerts_reject_grafana_fallback_from_unknown_folder_to_all_folders():
+    other = {"status": "success", "data": {"groups": [{"name": "edge", "folderUid": "other", "rules": []}]}}
+    code, result, _ = invoke(["alerts", "--folder-uid", "payments"], Transport((200, other)))
+    assert code == 2 and result["error"] == "folder_mismatch"
+
+
+@pytest.mark.parametrize("payload", [{"status": "error", "error": "test-secret-token"}, {"status": "success", "data": {}},
+                                     {"status": "success", "data": {"groups": ["text"]}}])
+def test_alerts_rule_api_errors_cannot_be_reported_successfully(payload):
+    code, result, text = invoke(["alerts"], Transport((200, payload)))
+    assert code == 2 and not result["ok"] and "test-secret-token" not in text
+
+
+@pytest.mark.parametrize("args,payload", [
+    (["search", "--query", "edge"], [{"uid": "board", "orgId": 2}]),
+    (["annotations", "--from", "1000", "--to", "61000"], [{"id": 1, "orgId": "7"}]),
+    (["silences"], ["not-an-object"]),
+    (["silences"], {"silences": []}),
+])
+def test_list_items_must_be_objects_from_the_verified_organization(args, payload):
+    code, result, _ = invoke(args, Transport((200, payload)))
+    assert code == 2 and result["error"] in {"organization_mismatch", "invalid_response"}
+
+
+def test_list_truncation_and_masking_are_reported():
+    code, result, text = invoke(["search", "--query", "edge"], Transport((200, [{"uid": f"b{n}", "title": "test-secret-token"} for n in range(100)])))
+    assert code == 0 and result["truncated"] is True and "test-secret-token" not in text
+    paged = {"status": "success", "data": {"groups": [], "groupNextToken": "next"}}
+    assert invoke(["alerts"], Transport((200, paged)))[1]["truncated"] is True
+
+
+@pytest.fixture
+def capture_dir(monkeypatch, tmp_path):
+    captures = tmp_path / "captures"
+    captures.mkdir()
+    monkeypatch.setattr(reader, "_render_dir", lambda: captures)
+    return captures
+
+
+REAL_RENDER_DIR = reader._render_dir
+
+
+def test_renders_go_to_a_per_user_directory_that_drops_day_old_images(monkeypatch, tmp_path):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    monkeypatch.setenv("TMPDIR", str(tmp_path / "workspace"))
+    monkeypatch.setenv("TEMP", str(tmp_path / "workspace"))
+    target = tmp_path / ".cache" / "save-toolkit" / "grafana-renders"
+    target.mkdir(parents=True)
+    old, fresh, other = target / "grafana-render-old.png", target / "grafana-render-new.png", target / "notes.txt"
+    for path in (old, fresh, other):
+        path.write_bytes(b"x")
+    os.utime(old, (1, 1))
+    assert REAL_RENDER_DIR() == target and not (tmp_path / "workspace").exists()
+    assert not old.exists() and fresh.exists() and other.exists()
+
+
+def test_relative_home_never_selects_a_workspace_render_directory(monkeypatch):
+    monkeypatch.setenv("HOME", "relative-home")
+    monkeypatch.setenv("USERPROFILE", "relative-home")
+    with pytest.raises(reader.SafeError, match="capture_directory_unavailable"):
+        REAL_RENDER_DIR()
+
+
+def test_render_fails_rather_than_report_a_masked_image_path(capture_dir):
+    env = {"GRAFANA_URL": ENV["GRAFANA_URL"], "GRAFANA_ORG_ID": "7", "GRAFANA_USERNAME": "captures",
+           "GRAFANA_PASSWORD": "private-pass"}
+    code, result, _ = invoke(RENDER, Transport((200, BOARD), (200, PNG)), env)
+    assert code == 2 and result["error"] == "image_path_masked"
+    assert not list(capture_dir.iterdir())
+
+
+def test_render_checks_the_panel_then_saves_one_bounded_png(capture_dir):
+    transport = Transport((200, BOARD), (200, PNG))
+    code, result, _ = invoke([*RENDER, "--var", "host=adama", "--var", "host=cally"], transport)
+    assert code == 0 and result["operation"] == "render" and result["coverage"] == "image_uninspected"
+    assert [r.full_url for r in transport.requests[1:]] == [
+        ENV["GRAFANA_URL"] + "/api/dashboards/uid/board",
+        ENV["GRAFANA_URL"] + "/render/d-solo/board/cylon-ai?orgId=7&panelId=7&from=1000&to=61000&width=1200"
+        "&height=600&scale=1&tz=UTC&timeout=40&var-host=adama&var-host=cally"]
+    assert transport.requests[2].method == "GET" and transport.bounds[2] == {"limit": 8 * 1024 * 1024, "timeout": 45}
+    saved = Path(result["image_path"])
+    assert saved.parent == capture_dir and saved.read_bytes() == PNG
+    assert (result["width"], result["height"], result["panel_title"]) == (1200, 600, "B70 temperatures")
+
+
+@pytest.mark.parametrize("panel", ["1", "99"], ids=["row", "absent"])
+def test_render_refuses_rows_and_unknown_panels_before_rendering(capture_dir, panel):
+    transport = Transport((200, BOARD))
+    code, result, _ = invoke([*RENDER[:4], panel, *RENDER[5:]], transport)
+    assert code == 2 and result["error"] == "panel_not_found" and len(transport.requests) == 2
+    assert not list(capture_dir.iterdir())
+
+
+@pytest.mark.parametrize("response,error", [((200, b"<html>login</html>"), "invalid_image"), ((429, b""), "renderer_busy"),
+                                            ((200, PLACEHOLDER), "renderer_placeholder"),
+                                            ((302, b""), "redirect_rejected"), ((200, PNG + bytes(8 * 1024 * 1024)), "response_too_large")])
+def test_render_failures_save_nothing(capture_dir, response, error):
+    code, result, _ = invoke(RENDER, Transport((200, BOARD), response))
+    assert code == 2 and result["error"] == error
+    assert not list(capture_dir.iterdir())
+
+
+def test_settings_file_is_per_user_not_workspace_relative():
+    assert REAL_SETTINGS_FILE() == Path.home() / ".config" / "save-toolkit" / "grafana.env"
+    assert REAL_SETTINGS_FILE().is_absolute()
+
+
+def test_settings_file_supplies_credentials_when_environment_has_none(monkeypatch, tmp_path):
+    use_settings(monkeypatch, tmp_path, b"\xef\xbb\xbf" + SETTINGS_TEXT.encode())
+    transport = Transport((200, {"dashboard": {"uid": "board", "title": "file-secret-token"}, "meta": {}}))
+    code, result, text = invoke(["dashboard", "--uid", "board"], transport, {"PATH": "unrelated"})
+    assert code == 0 and result["organization_id"] == 7 and "file-secret-token" not in text
+    assert transport.requests[0].get_header("Authorization") == "Bearer file-secret-token"
+
+
+@pytest.mark.parametrize("env", [{"GRAFANA_URL": ENV["GRAFANA_URL"], "GRAFANA_ORG_ID": "7"}, {"GRAFANA_SA_TOKEN": ""}],
+                         ids=["partial", "empty_override"])
+def test_any_environment_setting_even_empty_disables_the_settings_file(monkeypatch, tmp_path, env):
+    use_settings(monkeypatch, tmp_path, SETTINGS_TEXT)
+    transport = Transport()
+    code, result, _ = invoke(["dashboard", "--uid", "board"], transport, env)
+    assert code == 2 and not result["ok"] and not transport.requests
+
+
+def test_relative_home_never_selects_a_workspace_settings_file(monkeypatch):
+    monkeypatch.setenv("HOME", "relative-home")
+    monkeypatch.setenv("USERPROFILE", "relative-home")
+    assert REAL_SETTINGS_FILE() is None
+
+
+@pytest.mark.parametrize("mode,owner,private", [(0o100600, 1000, True), (0o100400, 1000, True), (0o100644, 1000, False),
+                                                (0o100640, 1000, False), (0o100606, 1000, False), (0o100600, 0, False)])
+def test_posix_settings_file_must_be_owner_only(mode, owner, private):
+    info = os.stat_result((mode, 0, 0, 1, owner, 0, 0, 0, 0, 0))
+    assert reader._private(info, 1000) is private
+
+
+def test_settings_file_is_checked_and_read_through_one_open(monkeypatch, tmp_path):
+    use_settings(monkeypatch, tmp_path, SETTINGS_TEXT)
+    def resolved_again(*args, **kwargs):
+        raise AssertionError("path resolved again after it was opened")
+    monkeypatch.setattr(Path, "stat", resolved_again)
+    monkeypatch.setattr(Path, "read_bytes", resolved_again)
+    transport = Transport((200, {"dashboard": {"uid": "board"}, "meta": {}}))
+    assert invoke(["dashboard", "--uid", "board"], transport, {})[0] == 0
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX symlinks and O_NOFOLLOW")
+def test_symlinked_settings_file_is_refused(monkeypatch, tmp_path):
+    target = tmp_path / "elsewhere.env"
+    target.write_text(SETTINGS_TEXT)
+    target.chmod(0o600)
+    link = tmp_path / "grafana.env"
+    link.symlink_to(target)
+    monkeypatch.setattr(reader, "_settings_file", lambda: link)
+    transport = Transport()
+    code, result, _ = invoke(["dashboard", "--uid", "board"], transport, {})
+    assert code == 2 and result["error"] == "invalid_settings_file" and not transport.requests
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX permission bits")
+def test_group_or_world_readable_settings_file_is_refused(monkeypatch, tmp_path):
+    use_settings(monkeypatch, tmp_path, SETTINGS_TEXT).chmod(0o644)
+    transport = Transport()
+    code, result, _ = invoke(["dashboard", "--uid", "board"], transport, {})
+    assert code == 2 and result["error"] == "insecure_settings_file" and not transport.requests
+
+
+def test_settings_values_are_used_verbatim(monkeypatch, tmp_path):
+    use_settings(monkeypatch, tmp_path, "GRAFANA_URL=https://monitor.example/grafana\nGRAFANA_ORG_ID=7\n"
+                 "GRAFANA_USERNAME=person\nGRAFANA_PASSWORD= spaced pass \n")
+    transport = Transport((200, {"dashboard": {"uid": "board"}, "meta": {}}))
+    assert invoke(["dashboard", "--uid", "board"], transport, {})[0] == 0
+    assert transport.requests[0].get_header("Authorization") == "Basic " + base64.b64encode(b"person: spaced pass ").decode()
+
+
+@pytest.mark.parametrize("content", [
+    "GRAFANA_SA_TOKEN file-secret-token\n",
+    "GRAFANA_TOKEN=file-secret-token\n",
+    "GRAFANA_SA_TOKEN=a\nGRAFANA_SA_TOKEN=file-secret-token\n",
+    "GRAFANA_SA_TOKEN=file-secret-token\n" + "#" * 4096,
+    b"GRAFANA_SA_TOKEN=\xff file-secret-token\n",
+], ids=["no_separator", "unknown_name", "duplicate", "oversized", "not_utf8"])
+def test_malformed_settings_file_fails_without_echo_or_requests(monkeypatch, tmp_path, content):
+    use_settings(monkeypatch, tmp_path, content)
+    transport = Transport()
+    code, result, text = invoke(["dashboard", "--uid", "board"], transport, {})
+    assert code == 2 and result["error"] == "invalid_settings_file"
+    assert "file-secret-token" not in text and not transport.requests
+
+
+def test_unreadable_settings_path_fails_closed(monkeypatch, tmp_path):
+    monkeypatch.setattr(reader, "_settings_file", lambda: tmp_path)
+    code, result, _ = invoke(["dashboard", "--uid", "board"], Transport(), {})
+    assert code == 2 and result["error"] == "invalid_settings_file"
+
+
+def test_missing_settings_file_keeps_environment_errors():
+    code, result, _ = invoke(["dashboard", "--uid", "board"], Transport(), {})
+    assert code == 2 and result["error"] == "invalid_organization_configuration"
+
+
 def test_token_preferred_and_all_configured_auth_values_masked():
     env = {**ENV, "GRAFANA_USERNAME": "test-person", "GRAFANA_PASSWORD": "basic-password"}
     transport = Transport((200, {"dashboard": {"uid": "board", "text": "test-person basic-password"}, "meta": {}}))
-    code, _, text = invoke(["dashboard", "--uid", "board"], transport, env)
+    code, _, text = invoke(DASHBOARD, transport, env)
     assert code == 0 and "test-person" not in text and "basic-password" not in text
     assert transport.requests[0].get_header("Authorization") == "Bearer test-secret-token"
 
@@ -234,7 +483,7 @@ def test_token_preferred_and_all_configured_auth_values_masked():
 @pytest.mark.parametrize("field,value", [("GRAFANA_SA_TOKEN", "token\r\nInjected: header"), ("GRAFANA_USERNAME", "name\n"), ("GRAFANA_PASSWORD", "pass\r")])
 def test_authentication_control_characters_rejected(field, value):
     transport = Transport()
-    assert invoke(["dashboard", "--uid", "board"], transport, {**ENV, field: value})[0] == 2
+    assert invoke(DASHBOARD, transport, {**ENV, field: value})[0] == 2
     assert not transport.requests
 
 
@@ -269,12 +518,14 @@ def test_real_transport_configures_tls_no_proxy_no_redirect_and_response_bound(m
     with pytest.raises(reader.SafeError, match="redirect_rejected"):
         redirect.redirect_request(None, None, 302, "secret-location", {}, "https://monitor.example/another")
     assert captured["timeout"] == 20 and captured["read_bound"] == 2 * 1024 * 1024 + 1
+    reader.http_transport(reader.Request("https://monitor.example"), limit=8 * 1024 * 1024, timeout=45)
+    assert captured["timeout"] == 45 and captured["read_bound"] == 8 * 1024 * 1024 + 1
 
 
-@pytest.mark.parametrize("env", [{"GRAFANA_URL": ENV["GRAFANA_URL"], "GRAFANA_ORG_ID": "7"}, {"GRAFANA_URL": ENV["GRAFANA_URL"], "GRAFANA_ORG_ID": "7", "GRAFANA_USERNAME": "test-person"}])
+@pytest.mark.parametrize("env", [UNAUTHENTICATED, {**UNAUTHENTICATED, "GRAFANA_USERNAME": "test-person"}])
 def test_missing_or_incomplete_auth_never_calls_network(env):
     transport = Transport()
-    code, result, _ = invoke(["dashboard", "--uid", "board"], transport, env)
+    code, result, _ = invoke(DASHBOARD, transport, env)
     assert code == 2 and result["error"] == "authentication_unavailable"
     assert not transport.requests
 
@@ -282,8 +533,15 @@ def test_missing_or_incomplete_auth_never_calls_network(env):
 @pytest.mark.parametrize("args", [
     ["dashboard", "--uid", "../other"], ["dashboard", "--uid", "ok", "--uid", "other"],
     ["dashboard", "--uid", "ok", "--url", "https://secret"],
-    QUERY[:-1] + ["$__interval"], QUERY[:-1] + ["[[service]]"], QUERY[:-1] + [""],
+    [*QUERY[:-1], "$__interval"], [*QUERY[:-1], "[[service]]"], [*QUERY[:-1], ""],
     ["query", "--datasource", "metrics-1", "--kind", "prometheus", "--from", "0", "--to", "86400001", "--expr", "up"],
+    ["search"], ["search", "--query", 'edge"; x'], ["search", "--query", "   "], ["search", "--query", "x" * 101],
+    ["search", "--query", "edge", "--query", "other"], ["alerts", "--folder-uid", "../other"], ["alerts", "--folder-uid", ""],
+    ["alerts", "extra"], ["annotations", "--from", "0", "--to", "86400001"], ["annotations", "--from", "5", "--to", "5"],
+    ["annotations", "--from", "0", "--to", "1000", "--dashboard-uid", "a/b"], ["silences", "--uid", "board"],
+    [*RENDER[:-2], "--to", str(1000 + 7 * 86400000 + 1)], [*RENDER[:4], "0", *RENDER[5:]], [*RENDER[:4], "x", *RENDER[5:]],
+    [*RENDER, "--var", "bad name=1"], [*RENDER, "--var", "host=a b"], [*RENDER, "--var", "host=$(id)"],
+    [*RENDER, "--var", "host"], [*RENDER, *["--var", "host=a"] * 6], [*RENDER, "--uid", "other"],
 ])
 def test_parser_rejects_unsafe_input_without_echo(args, capsys):
     with pytest.raises(reader.SafeError):
@@ -293,7 +551,7 @@ def test_parser_rejects_unsafe_input_without_echo(args, capsys):
 
 def test_literal_regex_anchor_is_not_an_unresolved_grafana_variable():
     expression = 'up{job=~"checkout$"}'
-    assert reader.parse_args(QUERY[:-1] + [expression]).expr == expression
+    assert reader.parse_args([*QUERY[:-1], expression]).expr == expression
 
 
 def _request_probe(tmp_path):
@@ -335,10 +593,7 @@ def test_native_powershell_preserves_expression_into_request_body(tmp_path, shel
 
 @pytest.mark.parametrize("expression", ['{service="edge"} |= "error"', 'up{job=~"checkout$"}'])
 def test_native_bash_preserves_expression_into_request_body(tmp_path, expression):
-    # Windows' System32 bash.exe is a WSL launcher, not the Git Bash used here.
-    executable = str(Path(os.environ.get("ProgramFiles", "C:/Program Files")) / "Git/bin/bash.exe") if sys.platform == "win32" else shutil.which("bash")
-    if not executable or not Path(executable).is_file():
-        pytest.skip("native Bash unavailable")
+    executable = require_shell("bash")  # Git Bash on Windows, never System32's WSL launcher
     probe = _request_probe(tmp_path)
     command = " ".join(shlex.quote(value) for value in [Path(sys.executable).as_posix(), "-I", "-S", probe.as_posix(), *QUERY[:-1], expression])
     result = subprocess.run([executable, "--noprofile", "--norc", "-c", command],
@@ -370,7 +625,7 @@ def test_powershell_wrapper_returns_static_launch_failure_or_helper_exit(tmp_pat
 @pytest.mark.parametrize("expression", ['{service="edge"} |= "error"', 'up{job=~"checkout$"}', 'up{job="caf\u00e9"}'])
 def test_base64_preserves_exact_utf8_expression(expression):
     encoded = base64.b64encode(expression.encode()).decode()
-    assert reader.parse_args(QUERY[:-2] + ["--expr-base64", encoded]).expr == expression
+    assert reader.parse_args([*QUERY[:-2], "--expr-base64", encoded]).expr == expression
 
 
 @pytest.mark.parametrize("encoded", ["!", "dXA", "dXA=\n", "dXB=", "/w==", "", "QQ==" * 22000,
@@ -378,5 +633,5 @@ def test_base64_preserves_exact_utf8_expression(expression):
                          ids=["alphabet", "padding", "whitespace", "noncanonical", "invalid_utf8", "empty", "oversized", "template", "control"])
 def test_encoded_expression_keeps_validation_and_static_errors(encoded):
     transport = Transport()
-    code, result, _ = invoke(QUERY[:-2] + ["--expr-base64", encoded], transport)
+    code, result, _ = invoke([*QUERY[:-2], "--expr-base64", encoded], transport)
     assert code == 2 and not result["ok"] and not transport.requests

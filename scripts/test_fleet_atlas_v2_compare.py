@@ -1,9 +1,8 @@
 """The compatibility gate detects lost facts and narrowly binds declared corrections."""
 import copy
-import json
 import tempfile
-from pathlib import Path
 import unittest
+from pathlib import Path
 
 from fleet_atlas_v2_compare import compare, differences, read_json
 

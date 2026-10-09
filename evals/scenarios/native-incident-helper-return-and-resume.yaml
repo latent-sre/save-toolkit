@@ -8,6 +8,7 @@ expected_model: claude-sonnet-5-5
 # Assertion only: the initial prompt does not disclose the expected skill or reference.
 references:
   - skills/incident-investigation/references/symptom-investigation.md
+max_turns: 17
 prompt: |
   Help me work through an incident: today's daily statement email hasn't reached its recipient.
   It is 11:20 UTC on July 14. The schedule detail says 07:00 America/New_York. Morgan is the human

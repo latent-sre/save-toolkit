@@ -11,11 +11,9 @@ the grants on this instance.
 - Prefer a user/team grant on the one dashboard or folder over an organization-wide role increase.
   Dashboards inherit folder permissions. Where licensed, an Explore-specific RBAC grant can allow
   ad-hoc querying without dashboard-edit authority.
-- Permission and role changes are live configuration outside the dashboard write rule. Prepare the
-  exact requested grant for the Grafana administrator; the agent does not apply it.
-
-*[sourced: Grafana basic roles, RBAC fixed roles, and dashboard permissions documentation; target
-behavior remains `[unverified]` until checked]*
+- Permission and role changes use `production-change-gate` under the parent skill's
+  [Access and authority](../SKILL.md#access-and-authority). Prepare the exact requested grant; the
+  agent does not apply it.
 
 ## Viewer evidence
 
@@ -28,12 +26,11 @@ behavior remains `[unverified]` until checked]*
   outside the dashboard's normal access path: scrub it, set an expiry, and treat sharing it as data
   egress.
 
-*[sourced: Grafana URL variables, panel inspection, and sharing documentation]*
-
 ## Editor changes
 
 - Library panels propagate an edit to every consumer; inventory those consumers before changing one.
 - Annotations should mark deploys, incidents, and configuration changes with consistent tags.
+  Annotation writes are not part of the Grafana write exception: prepare them for the human owner.
 - Version history names who changed a dashboard and supports comparison/restore. A restore is durable
   only for an unmanaged dashboard. Provisioned or tool-managed resources must be changed through
   their owner or the next reconciliation will replace the UI/API edit.

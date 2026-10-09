@@ -3,33 +3,30 @@
 
 from __future__ import annotations
 
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-
 import fleet_frontmatter as frontmatter
+
+PROBE = Path("probe.md")
 
 
 class FrontmatterParserTests(unittest.TestCase):
-    def test_missing_fences_raise_strictly_and_collect_leniently(self) -> None:
-        missing_open = "name: probe\n"
-        with self.assertRaisesRegex(frontmatter.FrontmatterError, "missing opening"):
-            frontmatter.parse(missing_open, Path("probe.md"), mode="strict")
-        collected = frontmatter.parse(missing_open, Path("probe.md"), mode="lenient")
-        self.assertEqual({}, collected.fields)
-        self.assertEqual(missing_open, collected.body)
-        self.assertTrue(any("missing opening" in problem for problem in collected.problems))
+    def raises_or_collects(self, text: str, problem: str) -> frontmatter.ParsedFrontmatter:
+        """Strict mode raises `problem`; lenient mode returns its parse with `problem` collected."""
+        with self.assertRaisesRegex(frontmatter.FrontmatterError, problem):
+            frontmatter.parse(text, PROBE, mode="strict")
+        parsed = frontmatter.parse(text, PROBE, mode="lenient")
+        self.assertTrue(any(problem in item for item in parsed.problems), parsed.problems)
+        return parsed
 
-        missing_close = "---\nname: probe\n"
-        with self.assertRaisesRegex(frontmatter.FrontmatterError, "missing closing"):
-            frontmatter.parse(missing_close, Path("probe.md"), mode="strict")
-        collected = frontmatter.parse(missing_close, Path("probe.md"), mode="lenient")
-        self.assertEqual({}, collected.fields)
-        self.assertEqual(missing_close, collected.body)
-        self.assertTrue(any("missing closing" in problem for problem in collected.problems))
+    def test_missing_fences_raise_strictly_and_collect_leniently(self) -> None:
+        for text, problem in (("name: probe\n", "missing opening"), ("---\nname: probe\n", "missing closing")):
+            with self.subTest(problem=problem):
+                collected = self.raises_or_collects(text, problem)
+                self.assertEqual({}, collected.fields)
+                self.assertEqual(text, collected.body)
 
     def test_keys_comments_and_plain_scalars_use_the_small_shared_grammar(self) -> None:
         parsed = frontmatter.parse(
@@ -40,7 +37,7 @@ class FrontmatterParserTests(unittest.TestCase):
             "nullish: null\n"
             "flow: [Read, Grep]\n"
             "---\n",
-            Path("probe.md"),
+            PROBE,
             mode="strict",
         )
         self.assertEqual(
@@ -58,7 +55,7 @@ class FrontmatterParserTests(unittest.TestCase):
             "empty:\n"
             "next: value\n"
             "---\n",
-            Path("probe.md"),
+            PROBE,
             mode="strict",
         )
         self.assertEqual(
@@ -72,7 +69,7 @@ class FrontmatterParserTests(unittest.TestCase):
             with self.subTest(marker=marker):
                 parsed = frontmatter.parse(
                     f"---\ndescription: {marker}\n  first line\n\n  second line\n---\n",
-                    Path("probe.md"),
+                    PROBE,
                     mode="strict",
                 )
                 self.assertEqual("first line second line", parsed.fields["description"])
@@ -90,40 +87,81 @@ class FrontmatterParserTests(unittest.TestCase):
             ["Read", "Agent(reviewer, researcher)", "Grep"],
             frontmatter.split_tool_specs("Read, Agent(reviewer, researcher), Grep"),
         )
+        self.assertEqual(["Read", "Grep"], frontmatter.split_tool_specs("Read, Grep"))
         self.assertEqual(
             ["Read", "Grep"], frontmatter.split_tool_specs(["Read", "", "Grep"])
         )
+        # A missing or empty field grants nothing; it must not become a tool named "None".
         self.assertEqual([], frontmatter.split_tool_specs(None))
+        self.assertEqual([], frontmatter.split_tool_specs(""))
+
+    def test_tool_grants_keep_the_base_of_a_malformed_entry(self) -> None:
+        """Authority checks reason over every grant's base; only the syntax verdict differs."""
+        cases = {
+            "Read": ("Read", None, True),
+            "Bash(git diff:*)": ("Bash", "git diff:*", True),
+            "Bash()": ("Bash", "", True),
+            "Agent(a(b))": ("Agent", "a(b)", True),
+            "mcp__server__tool": ("mcp__server__tool", None, True),
+            "Agent (save-toolkit:reviewer)": ("Agent", None, False),
+            "Read)": ("Read)", None, False),
+            "Bash(unclosed": ("Bash", None, False),
+        }
+        for spec, (base, arguments, well_formed) in cases.items():
+            with self.subTest(spec=spec):
+                self.assertEqual(
+                    frontmatter.ToolGrant(spec, base, arguments, well_formed),
+                    frontmatter.parse_tool_grant(spec),
+                )
+        self.assertEqual(
+            ["Read", "Agent"],
+            [grant.base for grant in frontmatter.tool_grants("Read, Agent(x, y)")],
+        )
+
+    def test_delegation_requires_an_exact_plugin_qualified_allowlist(self) -> None:
+        def targets(*specs: str) -> list[str]:
+            grants = [frontmatter.parse_tool_grant(spec) for spec in specs]
+            return frontmatter.delegation_targets(grants, PROBE, plugin="save-toolkit")
+
+        for spec, message in (
+            ("Agent", "Agent tool must declare an explicit target allowlist"),
+            ("Agent (save-toolkit:reviewer)", "Agent tool must declare an explicit target allowlist"),
+            ("Agent(save-toolkit:reviewer(x))", "Agent tool must declare an explicit target allowlist"),
+            ("Agent(reviewer)", "invalid Agent target 'reviewer'"),
+            ("Agent(other:reviewer)", "invalid Agent target"),
+            ("Agent(save-toolkit:*)", "invalid Agent target"),
+            ("Agent(save-toolkit:reviewer,)", "invalid Agent target ''"),
+            ("Agent(save-toolkit:reviewer:extra)", "invalid Agent target"),
+            ("Agent(save-toolkit:reviewer, save-toolkit:reviewer)", "duplicate Agent target 'reviewer'"),
+        ):
+            with self.subTest(spec=spec), self.assertRaisesRegex(ValueError, f"^probe.md: {message}"):
+                targets(spec)
+        self.assertEqual(
+            ["reviewer", "scribe", "researcher"],
+            targets("Read", "Agent(save-toolkit:reviewer, save-toolkit:scribe, save-toolkit:researcher)"),
+        )
+        self.assertEqual([], targets("Read", "Grep"))
 
     def test_invalid_double_quote_raises_or_is_collected(self) -> None:
-        text = '---\nname: "unterminated\nnext: kept\n---\n'
-        with self.assertRaisesRegex(frontmatter.FrontmatterError, "invalid quoted scalar"):
-            frontmatter.parse(text, Path("probe.md"), mode="strict")
-        parsed = frontmatter.parse(text, Path("probe.md"), mode="lenient")
+        parsed = self.raises_or_collects('---\nname: "unterminated\nnext: kept\n---\n', "invalid quoted scalar")
         self.assertEqual('"unterminated', parsed.fields["name"])
         self.assertEqual("kept", parsed.fields["next"])
-        self.assertTrue(any("invalid quoted scalar" in problem for problem in parsed.problems))
 
     def test_duplicate_keys_fail_and_lenient_mode_keeps_the_first_value(self) -> None:
-        text = "---\nname: first\nname: second\nafter: kept\n---\n"
-        with self.assertRaisesRegex(frontmatter.FrontmatterError, "duplicate frontmatter key"):
-            frontmatter.parse(text, Path("probe.md"), mode="strict")
-        parsed = frontmatter.parse(text, Path("probe.md"), mode="lenient")
+        parsed = self.raises_or_collects("---\nname: first\nname: second\nafter: kept\n---\n",
+                                         "duplicate frontmatter key")
         self.assertEqual("first", parsed.fields["name"])
         self.assertEqual("kept", parsed.fields["after"])
-        self.assertTrue(any("duplicate frontmatter key" in problem for problem in parsed.problems))
 
     def test_malformed_lines_fail_or_collect_without_stopping_later_diagnostics(self) -> None:
-        text = "---\nname: probe\n  malformed\nafter: kept\n---\n"
-        with self.assertRaisesRegex(frontmatter.FrontmatterError, "unsupported frontmatter syntax"):
-            frontmatter.parse(text, Path("probe.md"), mode="strict")
-        parsed = frontmatter.parse(text, Path("probe.md"), mode="lenient")
+        parsed = self.raises_or_collects("---\nname: probe\n  malformed\nafter: kept\n---\n",
+                                         "unsupported frontmatter syntax")
         self.assertEqual({"name": "probe", "after": "kept"}, parsed.fields)
         self.assertEqual(1, len(parsed.problems))
 
     def test_body_raw_lines_and_terminal_newline_are_preserved(self) -> None:
         text = "---\nname: probe\n---\n\n# Body\n"
-        parsed = frontmatter.parse(text, Path("probe.md"), mode="strict")
+        parsed = frontmatter.parse(text, PROBE, mode="strict")
         self.assertEqual(("name: probe",), parsed.raw_lines)
         self.assertEqual("# Body\n", parsed.body)
 

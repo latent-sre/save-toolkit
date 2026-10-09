@@ -6,21 +6,19 @@ does not establish either property in an application. Projects supply the real a
 """
 from __future__ import annotations
 
-from copy import deepcopy
-import importlib.util
-from pathlib import Path
 import subprocess
 import sys
+from copy import deepcopy
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 from httpx import Response
 
+from testkit import load_path
 
 ASSET = Path(__file__).resolve().parents[1] / 'skills/backend-craft/assets/test_api_write_contract.py'
-spec = importlib.util.spec_from_file_location('api_write_acceptance_asset', ASSET)
-contract = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(contract)
+contract = load_path(ASSET, 'api_write_acceptance_asset')
 
 
 def controlled_case(fault=None):

@@ -19,10 +19,8 @@ relocated bundle reports the same.
 
 from __future__ import annotations
 
-import argparse
 import json
 import math
-import re
 import sys
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -30,9 +28,10 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from probe import batches, catalog, fingerprints
+from probe import batches, catalog, fingerprints, layout
+from probe.exits import ExitCode, UsageParser
 from probe.outcomes import State
-from probe.records import RECORD_FORMAT, RecordV1
+from probe.records import RECORD_FORMAT, AttemptState, RecordV1
 from pydantic import ValidationError
 
 REPORT_FORMAT = {"name": "save-toolkit.eval-comparison", "version": 1}
@@ -40,8 +39,6 @@ OUTCOMES = ("gain", "regression", "unchanged", "unmeasured", "missing_pair", "no
 
 # The provenance fields that identify a legacy run's candidate and runner.
 IDENTITY_FIELDS = ("plugin_commit", "plugin_source_sha256", "runner_source_sha256")
-# An unpublished attempt folder: `.run-N-attempt-<token>` or `.run-N-previous-<token>`.
-HIDDEN_SLOT = re.compile(r"^\.run-([1-9][0-9]*)-")
 
 # What both arms must share for a pair to be compared; the candidate's plugin is what may differ.
 MATCHED = (
@@ -91,7 +88,7 @@ class Label:
 
 
 def label_present(bundle: Path, label: str) -> bool:
-    return any((case_dir / label).is_dir() for case_dir in bundle.glob("eval-*"))
+    return any((case_dir / label).is_dir() for case_dir in layout.case_dirs(bundle))
 
 
 def compare_bundle(
@@ -139,11 +136,11 @@ def _mixed_candidates(held: Label) -> str | None:
 
 def read_label(bundle: Path, label: str) -> Label:
     held = Label()
-    for case_dir in sorted(bundle.glob("eval-*")):
+    for case_dir in layout.case_dirs(bundle):
         label_dir = case_dir / label
         if not label_dir.is_dir():
             continue
-        case_id = case_dir.name.removeprefix("eval-")
+        case_id = layout.case_id(case_dir)
         hidden = []
         for folder in sorted(label_dir.glob(".run-*")):
             read = _read_record(folder / "record.json")
@@ -158,9 +155,9 @@ def read_label(bundle: Path, label: str) -> Label:
                     f"not compared; {cost}",
                 }
             )
-            match = HIDDEN_SLOT.match(folder.name)
-            if match:
-                hidden.append((int(match.group(1)), {"folder": where, "cost": _cost(saved) if saved else None}))
+            slot = layout.hidden_slot(folder.name)
+            if slot is not None:
+                hidden.append((slot, {"folder": where, "cost": _cost(saved) if saved else None}))
         folders = list(_attempt_folders(label_dir))
         # A case the label ran before v1 records existed is legacy throughout. The runner that writes
         # records writes attempt.json as each attempt starts, so once any folder of the case holds
@@ -196,23 +193,9 @@ def read_label(bundle: Path, label: str) -> Label:
 def _attempt_folders(label_dir: Path) -> Iterator[tuple[Path, int, int | None]]:
     """Each attempt folder as (folder, slot, kept number): run-N is the slot's published attempt and
     attempts/run-N/<k> a kept one, superseded or incomplete."""
-    for run, slot in _numbered(label_dir, "run-"):
+    for run, slot in layout.numbered(label_dir, layout.SLOT_PREFIX):
         yield run, slot, None
-    for history, slot in _numbered(label_dir / "attempts", "run-"):
-        for kept, number in _numbered(history, ""):
-            yield kept, slot, number
-
-
-def _numbered(parent: Path, prefix: str) -> list[tuple[Path, int]]:
-    """The folders named `<prefix><positive number>` as the runner writes it (`run-1`, never `run-01`, so
-    two folders cannot claim one slot), in numeric order on every host."""
-    found = []
-    if parent.is_dir():
-        for child in parent.iterdir():
-            digits = child.name.removeprefix(prefix) if child.name.startswith(prefix) else ""
-            if child.is_dir() and digits.isascii() and digits.isdigit() and digits == str(int(digits)) != "0":
-                found.append((child, int(digits)))
-    return sorted(found, key=lambda item: item[1])
+    yield from layout.kept_attempts(label_dir)
 
 
 def _unavailable(folder: Path, where: str, record: RecordV1) -> tuple[str, ...]:
@@ -270,38 +253,31 @@ def _folder_problem(record: RecordV1, case_id: str, label: str, slot: int, numbe
     """How a record disagrees with the folder the runner filed it in. A copied record, or a superseded
     one whose state update failed, would otherwise count as a second published trial."""
     attempt = record.attempt
-    found = []
-    if record.case.id != case_id:
-        found.append(f"case {record.case.id!r} filed under {case_id!r}")
-    if attempt.label != label:
-        found.append(f"label {attempt.label!r} filed under {label!r}")
-    if attempt.slot != slot:
-        found.append(f"slot {attempt.slot} filed under run-{slot}")
-    if (attempt.state == "final") != (number is None):
-        found.append(f"state {attempt.state} filed as {'the published run' if number is None else 'a kept attempt'}")
-    if number is not None and attempt.number != number:
-        found.append(f"attempt {attempt.number} filed as {number}")
+    rules = (
+        (record.case.id != case_id, f"case {record.case.id!r} filed under {case_id!r}"),
+        (attempt.label != label, f"label {attempt.label!r} filed under {label!r}"),
+        (attempt.slot != slot, f"slot {attempt.slot} filed under run-{slot}"),
+        (
+            (attempt.state is AttemptState.FINAL) != (number is None),
+            f"state {attempt.state} filed as {'the published run' if number is None else 'a kept attempt'}",
+        ),
+        (number is not None and attempt.number != number, f"attempt {attempt.number} filed as {number}"),
+    )
+    found = [message for disagrees, message in rules if disagrees]
     return "record disagrees with its folder: " + "; ".join(found) if found else None
 
 
 def _legacy_gaps(folder: Path) -> list[str]:
     """What a run folder without a v1 record cannot supply. A gap is cleared only by content that fills
     it: an unreadable or partial provenance.json leaves the identity gaps named."""
-    try:
-        loaded = json.loads((folder / "provenance.json").read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        loaded = None
-    provenance = loaded if isinstance(loaded, dict) else {}
-    gaps = ["no v1 record"]
-    if not (folder / "grading.json").is_file():
-        gaps.append("verdict and checks")
-    if not all(provenance.get(field) for field in IDENTITY_FIELDS):
-        gaps.append("candidate and runner identity")
-    if not (folder / "timing.json").is_file():
-        gaps.append("cost")
-    if not provenance.get("runtime"):
-        gaps.append("CLI version and host")
-    return gaps
+    provenance = layout.read_object(folder / "provenance.json") or {}
+    missing = (
+        (not (folder / "grading.json").is_file(), "verdict and checks"),
+        (not all(provenance.get(field) for field in IDENTITY_FIELDS), "candidate and runner identity"),
+        (not (folder / "timing.json").is_file(), "cost"),
+        (not provenance.get("runtime"), "CLI version and host"),
+    )
+    return ["no v1 record", *(gap for lacking, gap in missing if lacking)]
 
 
 def _conditions(record: RecordV1) -> dict[str, Any]:
@@ -405,8 +381,8 @@ def _trial_row(number: int, slot: Slot) -> dict[str, Any]:
         "unpublished": slot.unpublished,
         "attempts": {
             "final": int(final is not None),
-            "superseded": sum(t.record.attempt.state == "superseded" for t in slot.kept),
-            "incomplete": sum(t.record.attempt.state == "incomplete" for t in slot.kept),
+            "superseded": sum(t.record.attempt.state is AttemptState.SUPERSEDED for t in slot.kept),
+            "incomplete": sum(t.record.attempt.state is AttemptState.INCOMPLETE for t in slot.kept),
             "unusable": slot.unusable,
             "unpublished": len(slot.unpublished),
         },
@@ -462,8 +438,8 @@ def _arm_summary(held: Label) -> dict[str, Any]:
         "slots_without_trial": sum(slot.final is None for slot in slots),
         "attempts": {
             "final": len(published),
-            "superseded": sum(t.record.attempt.state == "superseded" for t in trials),
-            "incomplete": sum(t.record.attempt.state == "incomplete" for t in trials),
+            "superseded": sum(t.record.attempt.state is AttemptState.SUPERSEDED for t in trials),
+            "incomplete": sum(t.record.attempt.state is AttemptState.INCOMPLETE for t in trials),
             "unusable": sum(slot.unusable for slot in slots),
             "unpublished": len(held.unpublished),
         },
@@ -557,7 +533,7 @@ def _side(arm: Mapping[str, Any] | None) -> str:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="compare_runs.py", description=(__doc__ or "").split("\n\n")[0])
+    parser = UsageParser(prog="compare_runs.py", description=(__doc__ or "").split("\n\n")[0])
     parser.add_argument("bundle", type=Path, metavar="ITERATION_DIR")
     parser.add_argument("--incumbent", required=True, metavar="LABEL")
     parser.add_argument("--candidate", required=True, metavar="LABEL")
@@ -565,27 +541,27 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--json", action="store_true", help="print the logical report as JSON")
     try:
         args = parser.parse_args(argv)
-    except SystemExit as exc:  # argparse exits 2 on a usage error; this tool refuses with 3
-        return 0 if exc.code == 0 else 3
+    except SystemExit as exc:  # `main` returns its exit code, a refused command line's or --help's
+        return int(exc.code or ExitCode.OK)
     refusal = _refusal(args.bundle, args.incumbent, args.candidate, args.scenarios)
     if refusal:
         print(refusal, file=sys.stderr)
-        return 3
+        return ExitCode.REFUSED
     try:
         scenarios = catalog.load_all_scenarios(args.scenarios)
     except (ValueError, OSError, yaml.YAMLError) as exc:
         print(f"invalid scenario: {exc}", file=sys.stderr)
-        return 3
+        return ExitCode.REFUSED
     try:
         report = compare_bundle(args.bundle, args.incumbent, args.candidate, scenarios)
     except OSError as exc:  # a folder the walk cannot list: no partial report stands in for the whole
         print(f"cannot read the saved runs: {exc}", file=sys.stderr)
-        return 3
+        return ExitCode.REFUSED
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True, ensure_ascii=False))
     else:
         print(render_text(report, args.bundle))
-    return 0
+    return ExitCode.OK
 
 
 def _refusal(bundle: Path, incumbent: str, candidate: str, scenario_dir: Path | None) -> str | None:

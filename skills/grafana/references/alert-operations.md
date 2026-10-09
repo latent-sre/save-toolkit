@@ -26,10 +26,15 @@ Do not expose contact-point credentials or claim delivery/acknowledgement from c
 ## Bind the rule and owner
 
 Read the exact instance/org, folder UID, rule UID, group and interval, datasource UIDs, effective
-grants, and provisioning owner. Grafana-managed and datasource-managed rules have different
-evaluators. File/Terraform/Git-managed rules require a change to their owning source and its apply
-path; do not clear provenance or use `X-Disable-Provenance` to take ownership. An API-owned rule is
-editable only when this task's operator owns that provisioning workflow.
+grants, and stored provenance. Grafana-managed and datasource-managed rules have different
+evaluators. File/Terraform/Git-managed rules change only through their owning source and its apply
+path. An API-owned rule is editable only when this task's operator owns that provisioning workflow.
+
+A provisioning-API write with `X-Disable-Provenance: true` stores the rule unmanaged; without the
+header it is recorded as API-provisioned. Grafana rejects an update only when a stored owner is set
+and differs, so a header-less write silently converts a UI-created rule to API-managed, which the
+console then treats as read-only. Send the header for an unmanaged rule, omit it for an API-owned
+rule, and never change provenance as a side effect.
 
 For an agent, discover the target's served API/schema. Grafana 13 still serves the legacy rule
 provisioning API below; do not invent App Platform paths or transplant dashboard concurrency fields
@@ -53,8 +58,9 @@ it can replace the group's rules and change every member's provenance.
    auto-expire. For temporary notification suppression use the silence procedure instead. Resume
    can immediately generate notifications. Do not pause merely to hide an error or failed check.
 2. Capture the existing rule and relevant group/route state. For creation prove UID absence with
-   sufficient read grants, discover an appropriate existing group, and name recovery ownership.
-   Creating a new group or changing a shared interval is a separately scoped group change.
+   sufficient read grants, read the intended existing group to prove it exists, and name recovery
+   ownership. A POST with a mistyped `ruleGroup` silently creates a new group with the default
+   interval. Creating a new group or changing a shared interval is a separately scoped group change.
 3. Use `obs-alerting` for alert intent and SLO design, and [alerting configuration](./grafana-alerting.md)
    for Grafana condition/evaluation fields, no-data/error states, and provisioning formats.
    Establish owner, severity, and runbook. Preserve unrelated fields, labels, group membership, and notification
@@ -70,7 +76,8 @@ it can replace the group's rules and change every member's provenance.
    coordinated single-writer window with the resource owner; re-read immediately before dispatch
    and stop on drift. A fresh GET alone does not close the race. If neither control is available,
    return the prepared change for the owning executor.
-6. Write the one rule once. Retain the response and UID; read it back into a fresh result and compare
+6. Write the one rule once. A 409 is a provenance mismatch or an optimistic-lock conflict: stop and
+   re-read; do not retry. Retain the response and UID; read it back into a fresh result and compare
    intended fields, UID, folder/group, provenance, and pause state. Check evaluation after its next
    scheduled run with a bounded wait. For a pause, confirm it is paused; for a create/update/resume,
    report query errors, no-data, pending, firing, or normal as observed. Saved configuration is not
@@ -88,12 +95,7 @@ write will never land. Stop with a named reconciliation owner while evidence is 
 
 ## Evidence and scope
 
-Read-only requests never exercise firing conditions or send notifications. Rule deletion,
-whole-group replacement, backend rule applies, recording rules, shared routing, and contact-point
-changes stay with `production-change-gate`. Direct rule changes are only for the invoked
-`observability-engineer` under its complete Grafana write rule.
+Read-only requests never exercise firing conditions or send notifications. Who may make which
+rule change is set in the parent skill's [Access and authority](../SKILL.md#access-and-authority).
 
-[sourced] [Grafana rule provisioning API](https://grafana.com/docs/grafana/latest/developer-resources/api-reference/http-api/api-legacy/alerting_provisioning/)
-and [evaluation behavior](https://grafana.com/docs/grafana/latest/alerting/alerting-rules/create-grafana-managed-rule/),
-checked 2026-09-19. API shapes are sourced; no live alert write, concurrency, or delivery acceptance
-is established here. Refresh for the exact installed version before relying on changed APIs.
+Live alert write, concurrency, and delivery behavior on the target is unconfirmed until observed.

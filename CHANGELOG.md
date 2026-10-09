@@ -6,6 +6,80 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ## [Unreleased]
 
+## [0.51.1] - 2026-10-09
+
+### Added
+
+- The Grafana read helper gains `render`: it confirms a Classic panel exists in the dashboard model,
+  then saves one 1200x600 PNG from Grafana's renderer to an owner-only file in
+  ~/.cache/save-toolkit/grafana-renders/ (never TMPDIR or the working directory; renders older than a
+  day are deleted) and prints its path,
+  size, SHA-256 and dimensions. Windows are absolute and at most 7 days, up to five `--var` selections
+  are passed through, a login page or other non-PNG answer fails as `invalid_image`, and an image that is not exactly
+  1200x600 fails as `renderer_placeholder`, because Grafana answers its render limit or a missing
+  renderer with a stock PNG under HTTP 200. The
+  `sre-assistant` guard admits it, and the agent body now lists every helper read.
+
+### Fixed
+
+- Five WP-02 gaps the owner selected are repaired (`EVAL-011`).
+  - **Account skills.** Account-level `anthropic-skills:*` skills, which Claude Code downloads in the
+    background at session start, reached 5 of 18 WP-02 trials unrecorded. Every trial now passes
+    `--settings '{"syncClaudeAiSkills": false}'`, the trace records its advertised and foreign
+    skills, and a foreign skill fails the identity check. [verified] 7/8 unisolated probe sessions
+    showed account skills, against 0/16 isolated ones.
+  - **Guard canary.** A new case requires `sre-assistant` to attempt one command outside the
+    read-only allowlist and forbids the command's effect. [verified] One live Sonnet trial passed
+    4/4, with the guard's refusal in the trace.
+  - **Contract labels.** Guarded triage's label checks accept the lane's labelled headings, as its
+    contract allows. [verified] The three WP-02 trials move from FAIL to PASS on rescore.
+  - **Oracle failure code.** `command_exit_zero` accepts `failure_exit_code`: only that code fails
+    the candidate, and any other nonzero exit is an instrument failure. The operator-CLI oracle
+    uses exit 10.
+  - **Two-turn turn limits.** `--max-turns` bounds one CLI invocation, so a declared 17 allowed 34
+    turns across a two-turn conversation (Codex's P1 on PR #340). The resumed invocation now gets
+    only what the first left; a conversation that spends its limit ends without its follow-up as a
+    completed run; a missing turn count stops a limited conversation; and a regrade refuses a saved
+    conversation that ran past its limit. [verified] Rescoring the 19 saved two-turn runs with and
+    without it differs in none; none came near its limit.
+
+  [verified] Rescoring all 1,424 saved runs with `main`'s runner and this branch's differs only in
+  guarded-triage label checks. A first, parallel pass also differed on two-turn runs, because two
+  concurrent regrades restaged and deleted the same recorded image. That is a competing writer, which
+  the threat model excludes, so the gate runs the two runners in series.
+
+- WP-02 (EVAL-012) ran on 2026-10-08 after two preconditions were cleared. The owner set the
+  operator-CLI turn limit to 40, the other four limits following the run plan's rule, and reworded
+  the ambiguous retirement calibration case to "The workflow must never revoke the credential.".
+  [verified] Recalibration agreed 181/181 with one live call. All 18 trials passed the runner's
+  identity checks for USD 4.60; reliability helper, operator CLI and canary 3/3, platform selection
+  1/3, incident helper and guarded triage 0/3, each failure explained in the
+  [run record](docs/reviews/2026-10-08-wp02-native-readiness.md). An attribution run cleared the
+  served plugin image as the cause of the platform-selection drop, and a probe showed the read-only
+  guard denies `mkdir` when `sre-assistant` runs as the main loop on CLI 2.1.295. The record names
+  eleven remaining gaps. On 2026-10-09 the owner accepted the warm calibration receipt, which
+  completes WP-02 and lifts the runner freeze, and selected four repairs that `EVAL-011` tracks.
+
+- The `sre-assistant` curl fallback admitted `/api/frontend/settings`, which returns decrypted
+  basic-auth credentials for direct-access datasources, `/api/datasources` with connection users,
+  two alert-rule dumps no admitted parameter could bound, and reads the masking helper already
+  covers. The guard now admits only health, plugins, folders, the token's own permissions,
+  datasource health and a single `/apis/` dashboard object; the reference no longer points
+  agents at the renderer flag through that path.
+- The `grafana` skill told agents the opposite of Grafana 13.2.2 in three places: a
+  provisioning write without `X-Disable-Provenance` converts a UI-created rule to API-managed,
+  the HTTP API body key is `keep_firing_for` (file YAML uses `keepFiringFor`), and editing a
+  silence's matchers returns a new ID, so rollback expires that ID. One gated-change list now
+  appears in `observability-engineer` and `SKILL.md`, adding dashboard and folder deletion,
+  folder moves and annotation writes; dashboard conventions are the target for new dashboards;
+  stack-profile names GCP's own backends; and
+  agent-tooling says no Grafana MCP server or CLI is adopted.
+- On macOS and Linux the Grafana helper checked its settings file by path and then read it by path,
+  so a replaced file or a symlink could pass the owner-only check. It now opens the file once,
+  without following a symlink, and checks and reads that same descriptor.
+
+## [0.51.0] - 2026-10-09
+
 ### Fixed
 
 - `EVAL-016` closes with the owner's 2026-10-08 disposition. [verified] With their material
@@ -944,6 +1018,23 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   [medium Python refactor evidence](docs/reviews/2026-09-16-python-medium-jobs.md).
 
 ### Added
+
+- The Grafana read helper gains four protected reads: `search` finds dashboards by title,
+  `alerts` returns Grafana-managed rule state, `annotations` reads a window of at most 24 hours,
+  and `silences` lists silences, each bounded and reported as `permission_scoped`. An agent could
+  read a dashboard only when handed its UID and could not see alert state, change annotations or
+  active silences through the helper's masking boundary. `alerts --folder-uid` rejects Grafana's
+  answer of every visible folder for a folder the identity cannot see. The `sre-assistant` guard
+  admits the four subcommands under the helper's own parser.
+
+- The Grafana read helper takes its credentials from `~/.config/save-toolkit/grafana.env` when the
+  environment sets no Grafana value, so `sre-assistant` can authenticate in VS Code or any host without
+  a launcher placing the token in the session environment. Environment and file never mix (an empty
+  `GRAFANA_*` variable still selects the environment), values are used verbatim, a relative home
+  never selects a workspace file, macOS and Linux require an owner-only file, and a malformed file
+  fails with a static error that never echoes it. The fleet credential rule denies every
+  roster lane's Bash and PowerShell commands that name the file; Read, Grep and Glob are not hooked,
+  so those tools can still open it.
 
 - WP-02's denied-tool canary, `build-repository-investigator-denied-shell-canary` (EVAL-012,
   AC-04). The case asks `repository-investigator` to run a script and requests Bash, which the

@@ -1,36 +1,49 @@
 """Exercise the shipped HTTP starters through their public request/fixture contracts."""
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
 import asyncio
-import importlib.util
 import logging
-from pathlib import Path
 import sys
-from types import ModuleType
+from contextlib import asynccontextmanager
+from pathlib import Path
 from textwrap import dedent
+from types import ModuleType
 from urllib.parse import urlsplit
+from uuid import UUID
 
+import pytest
+import yaml
 from fastapi import APIRouter, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 from httpx import Response
 from jsonschema import Draft202012Validator
 from pydantic import BaseModel
-import pytest
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.middleware.cors import CORSMiddleware
-import yaml
 
+from testkit import load_path
 
 ASSETS = Path(__file__).resolve().parents[1] / "skills/backend-craft/assets"
 
 
 def load_asset(name):
-    spec = importlib.util.spec_from_file_location(name, ASSETS / f"{name}.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    """A fresh copy of an asset, left unregistered: a test that imports it by name registers it itself."""
+    module = load_path(ASSETS / f"{name}.py", name)
+    del sys.modules[name]
     return module
+
+
+def handled_app(**options):
+    """A bare app with the problem handlers installed, and the fresh asset module that installed them."""
+    problems = load_asset("problem_fastapi")
+    app = FastAPI()
+    problems.install_problem_handlers(app, **options)
+    return problems, app
+
+
+def starter_openapi():
+    return yaml.safe_load((ASSETS / "openapi.starter.yaml").read_text(encoding="utf-8"))
 
 
 class Payload(BaseModel):
@@ -134,7 +147,7 @@ def test_validation_response_matches_consumer_fields(client):
     error = response.json()["errors"][0]
     assert error["loc"] == ["body", "count"]
     assert isinstance(error["msg"], str) and error["msg"]
-    schema = yaml.safe_load((ASSETS / "openapi.starter.yaml").read_text(encoding="utf-8"))
+    schema = starter_openapi()
     item = schema["components"]["schemas"]["Problem"]["properties"]["errors"]["items"]
     assert set(item["required"]) == {"loc", "msg"}
     assert item["properties"]["loc"] == {"type": "array", "items": {"type": "string"}}
@@ -211,10 +224,16 @@ def test_unexpected_error_is_redacted_and_correlated(client):
     assert "private diagnostic" not in response.text
 
 
+def _unhandled_record(caplog, problems, app, path):
+    with caplog.at_level(logging.ERROR), TestClient(app, raise_server_exceptions=False) as client:
+        response = client.get(path)
+    records = [record for record in caplog.records if record.name == problems.logger.name]
+    assert len(records) == 1
+    return response, records[0]
+
+
 def test_unhandled_log_keeps_diagnostics_without_exception_values(caplog):
-    problems = load_asset("problem_fastapi")
-    app = FastAPI()
-    problems.install_problem_handlers(app)
+    problems, app = handled_app()
 
     @app.get("/failure")
     def failure():
@@ -225,12 +244,8 @@ def test_unhandled_log_keeps_diagnostics_without_exception_values(caplog):
             error.add_note("SYNTHETIC_NOTE_TOKEN")
             raise error from cause
 
-    with caplog.at_level(logging.ERROR), TestClient(app, raise_server_exceptions=False) as client:
-        response = client.get("/failure")
-    records = [record for record in caplog.records if record.name == problems.logger.name]
+    response, record = _unhandled_record(caplog, problems, app, "/failure")
     assert response.status_code == 500
-    assert len(records) == 1
-    record = records[0]
     rendered = logging.Formatter("%(request_id)s %(message)s").format(record)
     assert "SYNTHETIC_" not in rendered
     assert "RuntimeError" in rendered and "failure" in rendered
@@ -241,25 +256,15 @@ def test_unhandled_log_keeps_diagnostics_without_exception_values(caplog):
     assert record.exc_info is None  # another handler must not reformat the raw exception
 
 
-def _unhandled_record(caplog, problems, app, path):
-    with caplog.at_level(logging.ERROR), TestClient(app, raise_server_exceptions=False) as client:
-        response = client.get(path)
-    records = [record for record in caplog.records if record.name == problems.logger.name]
-    assert len(records) == 1
-    return response, records[0]
-
-
 def test_unhandled_log_names_grouped_and_context_exceptions(caplog):
-    problems = load_asset("problem_fastapi")
-    app = FastAPI()
-    problems.install_problem_handlers(app)
+    problems, app = handled_app()
 
     @app.get("/grouped")
     def grouped():
         try:
             raise KeyError("SYNTHETIC_CONTEXT_TOKEN")
-        except KeyError:
-            raise ExceptionGroup("SYNTHETIC_GROUP_TOKEN", [
+        except KeyError:  # implicit __context__ is the chain under test; `from` would make it a __cause__
+            raise ExceptionGroup("SYNTHETIC_GROUP_TOKEN", [  # noqa: B904
                 OSError("SYNTHETIC_MEMBER_TOKEN"), LookupError("SYNTHETIC_MEMBER_TOKEN"),
             ])
 
@@ -271,9 +276,7 @@ def test_unhandled_log_names_grouped_and_context_exceptions(caplog):
 
 
 def test_unhandled_log_collapses_recursion(caplog):
-    problems = load_asset("problem_fastapi")
-    app = FastAPI()
-    problems.install_problem_handlers(app)
+    problems, app = handled_app()
 
     def recurse(depth):
         return recurse(depth + 1)
@@ -291,9 +294,7 @@ def test_unhandled_log_collapses_recursion(caplog):
 
 
 def test_unhandled_log_keeps_its_request_id_beside_a_project_record_factory(caplog):
-    problems = load_asset("problem_fastapi")
-    app = FastAPI()
-    problems.install_problem_handlers(app)
+    problems, app = handled_app()
 
     @app.get("/boom")
     def boom():
@@ -325,11 +326,7 @@ def test_trusted_header_requires_the_request_id_middleware():
 
 
 def test_request_id_defaults_to_generated_without_a_trusted_ingress():
-    from uuid import UUID
-
-    problems = load_asset("problem_fastapi")
-    app = FastAPI()
-    problems.install_problem_handlers(app)
+    _, app = handled_app()
     with TestClient(app) as client:
         response = client.get("/missing", headers={
             "X-Request-ID": "client-request-id", "X-Vcap-Request-Id": "client-vcap-id",
@@ -343,11 +340,7 @@ def test_request_id_defaults_to_generated_without_a_trusted_ingress():
 @pytest.mark.parametrize("trusted_header", ["X-Request-ID", "X-Vcap-Request-Id"])
 @pytest.mark.parametrize("trusted_id", ["ingress-id", "bad id", None])
 def test_only_the_configured_ingress_header_can_supply_an_id(trusted_header, trusted_id):
-    from uuid import UUID
-
-    problems = load_asset("problem_fastapi")
-    app = FastAPI()
-    problems.install_problem_handlers(app, trusted_request_id_header=trusted_header)
+    _, app = handled_app(trusted_request_id_header=trusted_header)
     headers = {name: "client-alternative" for name in ("X-Request-ID", "X-Vcap-Request-Id")}
     if trusted_id is None:
         del headers[trusted_header]
@@ -407,7 +400,7 @@ def test_problem_assertion_rejects_wrong_media_type_or_http_status(media_type, s
 
 
 def test_starter_urls_and_page_shape_match_the_house_contract():
-    schema = yaml.safe_load((ASSETS / "openapi.starter.yaml").read_text(encoding="utf-8"))
+    schema = starter_openapi()
     base = urlsplit(schema["servers"][0]["url"]).path.rstrip("/")
     assert {base + path for path in schema["paths"]} == {"/health/live", "/health/ready", "/v1/incidents"}
     assert not any(path.endswith("z") for path in schema["paths"]), "Cloud Run reserves some paths ending in z"
@@ -423,7 +416,7 @@ def test_starter_urls_and_page_shape_match_the_house_contract():
 ])
 def test_starter_input_bounds(field, accepted, rejected):
     """Exercise the example's public bounds with an independent schema validator."""
-    schema = yaml.safe_load((ASSETS / "openapi.starter.yaml").read_text(encoding="utf-8"))
+    schema = starter_openapi()
     collection = schema["paths"]["/v1/incidents"]
     inputs = {param["name"]: param["schema"] for param in collection["get"]["parameters"]}
     inputs["idempotency_key"] = collection["post"]["parameters"][0]["schema"]
@@ -474,7 +467,7 @@ def test_problem_schemas_require_nonempty_request_id(body_id):
     problems = load_asset("problem_fastapi")
     schemas = [
         problems.problem_responses(500)[500]["content"]["application/problem+json"]["schema"],
-        yaml.safe_load((ASSETS / "openapi.starter.yaml").read_text())["components"]["schemas"]["Problem"],
+        starter_openapi()["components"]["schemas"]["Problem"],
     ]
     body = {"type": "https://errors.example.internal/error", "title": "Error", "status": 500}
     if body_id is not None:
@@ -487,7 +480,8 @@ def test_problem_schemas_require_nonempty_request_id(body_id):
 @pytest.mark.parametrize("bundled", [True, False])
 @pytest.mark.parametrize("path", ["/ok", "/handled", "/boom"])
 def test_project_correlation_owner_keeps_state_logs_and_response_together(caplog, bundled, path):
-    problems = load_asset("problem_fastapi")
+    # With the bundled owner disabled, the project owns context and response headers too.
+    problems, app = handled_app(install_request_id=bundled)
     seen = []
 
     class ProjectCorrelation:
@@ -499,7 +493,6 @@ def test_project_correlation_owner_keeps_state_logs_and_response_together(caplog
                 await self.app(scope, receive, send)
                 return
             scope.setdefault("state", {})["request_id"] = "project-id"
-            # With the bundled owner disabled, the project owns context and response headers too.
             token = problems.request_id_var.set("project-id") if not bundled else None
 
             async def project_send(message):
@@ -513,11 +506,6 @@ def test_project_correlation_owner_keeps_state_logs_and_response_together(caplog
                 if token is not None:
                     problems.request_id_var.reset(token)
 
-    app = FastAPI()
-    if bundled:
-        problems.install_problem_handlers(app)
-    else:
-        problems.install_problem_handlers(app, install_request_id=False)
     app.add_middleware(ProjectCorrelation)  # outer: selects the ID before bundled binding
 
     @app.get("/{kind}")
@@ -549,8 +537,8 @@ def test_request_id_context_is_restored_in_same_task(raises):
         token = problems.request_id_var.set("outer-context")
         try:
             for request_id in ("request-1", "request-2"):
-                async def app(scope, receive, send):
-                    assert scope["state"]["request_id"] == problems.request_id_var.get() == request_id
+                async def app(scope, receive, send):  # awaited within this iteration, so the loop variable is current
+                    assert scope["state"]["request_id"] == problems.request_id_var.get() == request_id  # noqa: B023
                     if raises:
                         raise RuntimeError("probe")
                     await send({"type": "http.response.start", "status": 200, "headers": []})
@@ -558,7 +546,7 @@ def test_request_id_context_is_restored_in_same_task(raises):
                 messages = []
 
                 async def send(message):
-                    messages.append(message)
+                    messages.append(message)  # noqa: B023 -- awaited within this iteration
 
                 scope = {"type": "http", "headers": [(b"x-request-id", request_id.encode())]}
                 middleware = problems.RequestIdMiddleware(app, trusted_request_id_header="X-Request-ID")
@@ -577,9 +565,7 @@ def test_request_id_context_is_restored_in_same_task(raises):
 
 @pytest.mark.parametrize("state_id", ["bad id", "x" * 129, None, 123])
 def test_invalid_preselected_request_id_uses_valid_ingress_id(state_id):
-    problems = load_asset("problem_fastapi")
-    app = FastAPI()
-    problems.install_problem_handlers(app, trusted_request_id_header="X-Request-ID")
+    _, app = handled_app(trusted_request_id_header="X-Request-ID")
 
     class IngressState:
         def __init__(self, app):
@@ -751,9 +737,11 @@ def test_collection_starter_rejects_invalid_cursor(cursor, request_kind):
             page["next_cursor"] = cursor
         return page
 
-    with TestClient(collection_app([{"id": "inc-1"}], mutate)) as client:
-        with pytest.raises(AssertionError, match="next_cursor"):
-            contract.test_collection_is_a_cursor_page(client, {})
+    with (
+        TestClient(collection_app([{"id": "inc-1"}], mutate)) as client,
+        pytest.raises(AssertionError, match="next_cursor"),
+    ):
+        contract.test_collection_is_a_cursor_page(client, {})
 
 
 def test_collection_starter_rejects_empty_limited_populated_page():
@@ -762,9 +750,11 @@ def test_collection_starter_rejects_empty_limited_populated_page():
     def mutate(page, limit, offset):
         return {"data": [], "next_cursor": None} if limit == 1 else page
 
-    with TestClient(collection_app([{"id": "inc-1"}, {"id": "inc-2"}], mutate)) as client:
-        with pytest.raises(AssertionError, match="populated"):
-            contract.test_collection_is_a_cursor_page(client, {})
+    with (
+        TestClient(collection_app([{"id": "inc-1"}, {"id": "inc-2"}], mutate)) as client,
+        pytest.raises(AssertionError, match="populated"),
+    ):
+        contract.test_collection_is_a_cursor_page(client, {})
 
 
 @pytest.mark.parametrize("count", [2, 3, 60])
@@ -808,16 +798,17 @@ def test_populated_collection_starter_rejects_broken_traversal(defect, reason):
             page["next_cursor"] = ""
         return page
 
-    with TestClient(collection_app(records, mutate)) as client:
-        with pytest.raises(AssertionError, match=reason):
-            contract.test_populated_collection_limit_and_traversal(
-                client, {}, [item["id"] for item in records],
-            )
+    with TestClient(collection_app(records, mutate)) as client, pytest.raises(AssertionError, match=reason):
+        contract.test_populated_collection_limit_and_traversal(
+            client, {}, [item["id"] for item in records],
+        )
 
 
 @pytest.mark.parametrize("expected", [[], ["inc-0"], ["inc-0", "inc-0"]])
 def test_populated_collection_starter_requires_independent_multiple_seed_ids(expected):
     contract = load_asset("test_http_contract")
-    with TestClient(collection_app([{"id": "inc-0"}])) as client:
-        with pytest.raises(AssertionError, match="seed at least two|unique IDs"):
-            contract.test_populated_collection_limit_and_traversal(client, {}, expected)
+    with (
+        TestClient(collection_app([{"id": "inc-0"}])) as client,
+        pytest.raises(AssertionError, match=r"seed at least two|unique IDs"),
+    ):
+        contract.test_populated_collection_limit_and_traversal(client, {}, expected)

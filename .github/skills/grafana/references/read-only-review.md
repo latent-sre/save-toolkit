@@ -1,14 +1,15 @@
 # Read-only Grafana review
 
-Use this for an existing instance, a post-upgrade check, or testing the obs skills against real
-dashboards. Bind the instance, organization, exact patch, selected dashboards, and UTC window.
-Repository recovery copies do not change the requested read-only scope.
+Use this for a read-only review of an existing instance or a post-upgrade check. Bind the instance,
+organization, exact patch, selected dashboards, and UTC window. Repository copies of dashboards do
+not change the read-only scope.
 
 ## Run the review
 
 1. **Discover with reads.** Use the preflight GETs in [http-api](./http-api.md). Inspect effective
    permission actions, including plugin actions; a Viewer role name alone does not describe every
-   grant. Keep credentials in memory and do not follow redirects carrying authorization.
+   grant. Use the existing credential path without handling credential values, and follow no
+   redirects.
 2. **Inventory and sample.** Paginate dashboard search with a stated cap. Count what the token can
    see, then select dashboard models by relevant datasource, schema, variables, and layout. Record
    the sample; an inventory is not a query or visual test of every panel.
@@ -16,7 +17,8 @@ Repository recovery copies do not change the requested read-only scope.
    model. `provisioned: true` or `canSave: false` permits review but excludes an API edit. A recovery
    copy alone does not establish provisioning ownership. Preserve Classic/V1/V2 shapes; a converted
    read is not evidence that storage migrated.
-4. **Check offline.** Run the bundled hygiene helper on a local export. Its fixed-UID findings are
+4. **Check offline.** Run the bundled hygiene helper on a local export; `sre-assistant`'s guard
+   denies it, so that lane records the check as not run. Its fixed-UID findings are
    portability checks: on a provisioned target, resolve the UIDs before calling them broken. Its
    `_total` check is a name heuristic, not metric metadata; counts, presence checks, resets, and
    lifetime totals can be intentional. V2 is explicitly unsupported by this helper. Use a
@@ -46,13 +48,7 @@ without blocking working queries. Report counts by category rather than calling 
 
 | Check | What to establish |
 |---|---|
-| Dashboard APIs | Discover served/preferred versions, then read the stored version. A 13.2.2 target served all six versions with preferred `v2` while sampled dashboards remained `v0alpha1`. `[verified: read-only target, 2026-09-19]` |
-| History access | A 13.2.2 target returned 403 for legacy history but 200 with entries for the stable app-platform history query in `http-api`. Do not interpret 403 as no history or seek write grants just to finish a review. `[verified: same target/date]` |
-| View panel sidebar | Public preview; inspect availability before relying on it. Viewers can explore visualization options without an edit grant. `[sourced: release notes, checked 2026-09-19]` |
-| Plugins and saved queries | Record installed plugin versions separately from Grafana's version. Saved queries are GA for Enterprise/Cloud; discover entitlement and grants before recommending them. `[sourced: release notes, checked 2026-09-19]` |
-
-Sources: [13.2 release notes](https://grafana.com/docs/grafana/latest/whatsnew/whats-new-in-v13-2/),
-[panel inspection](https://grafana.com/docs/grafana/latest/panels-visualizations/panel-inspector/),
-[Prometheus interval variables](https://grafana.com/docs/grafana/latest/datasources/prometheus/template-variables/).
-Refresh after a Grafana/plugin upgrade, permission change, or conflicting target observation.
-These target observations establish reads only; historical write probes are not 13.2 acceptance.
+| Dashboard APIs | Discover served/preferred versions, then read the stored version. A 13.2.2 target served all six versions with preferred `v2` while sampled dashboards remained `v0alpha1`. |
+| History access | A 13.2.2 target returned 403 for legacy history but 200 with entries for the stable app-platform history query in `http-api`. Do not interpret 403 as no history or seek write grants just to finish a review. |
+| View panel sidebar | Public preview; inspect availability before relying on it. Viewers can explore visualization options without an edit grant. |
+| Plugins and saved queries | Record installed plugin versions separately from Grafana's version. Saved queries are GA for Enterprise/Cloud; discover entitlement and grants before recommending them. |

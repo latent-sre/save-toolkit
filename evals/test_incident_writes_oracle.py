@@ -2,11 +2,10 @@
 from __future__ import annotations
 
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
-import yaml
+from probe_testkit import materialize_reference, run_fixture_suite, run_oracle_check
 
 ROOT = Path(__file__).resolve().parents[1]
 SCENARIO = ROOT / "evals/build-scenarios/build-software-engineer-incident-writes.yaml"
@@ -130,28 +129,18 @@ MUTANTS = {
 
 
 def materialize(tmp_path: Path, overrides: dict[str, str], defer_commit: bool = True, status: str = "open") -> Path:
-    spec = yaml.safe_load(SCENARIO.read_text(encoding="utf-8"))
-    for rel, text in spec["fixture"]["files"].items():
-        path = tmp_path / rel
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text, encoding="utf-8")
-    code = REFERENCE
-    for marker, value in {**HOUSE, **overrides}.items():
-        code = code.replace(marker, value)
-    (tmp_path / "app/main.py").write_text(code, encoding="utf-8")
+    materialize_reference(tmp_path, SCENARIO, REFERENCE, {**HOUSE, **overrides}, ORACLE)
     store = tmp_path / "app/store.py"
     text = store.read_text(encoding="utf-8")
     assert STORE_COMMIT[0] in text and STORE_OPEN in text, "fixture store changed; update the reference"
     if defer_commit:
         text = text.replace(*STORE_COMMIT)
     store.write_text(text.replace(STORE_OPEN, f'"status": "{status}"'), encoding="utf-8")
-    (tmp_path / "probe_checks.py").write_text(ORACLE.read_text(encoding="utf-8"), encoding="utf-8")
     return tmp_path
 
 
 def run(workspace: Path, check: str) -> subprocess.CompletedProcess:
-    return subprocess.run([sys.executable, "-B", "probe_checks.py", check], cwd=workspace,
-                          capture_output=True, text=True, timeout=120)
+    return run_oracle_check(workspace, check, timeout=120)
 
 
 @pytest.mark.parametrize("check", CHECKS)
@@ -160,19 +149,16 @@ def test_house_reference_passes(tmp_path, check):
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-def test_concurrency_overlap_is_observed_server_side(tmp_path):
-    """The oracle sends the second request only once the first is inside the write path."""
-    result = run(materialize(tmp_path, {}), "concurrent")
-    assert result.returncode == 0, result.stdout + result.stderr
-    assert "second request sent while the first was held inside store.create_incident" in result.stdout
-
-
-def test_own_sql_locked_design_passes_through_the_fallback(tmp_path):
-    """A correct app that bypasses store.create_incident is raced from a barrier, not failed."""
-    overrides = {"CREATE_CALL": "_own_insert(conn, payload.title, payload.service)"}
+@pytest.mark.parametrize("overrides,route", [
+    # The oracle sends the second request only once the first is inside the write path.
+    ({}, "second request sent while the first was held inside store.create_incident"),
+    # A correct app that bypasses store.create_incident is raced from a barrier, not failed.
+    ({"CREATE_CALL": "_own_insert(conn, payload.title, payload.service)"}, "client-side barrier fallback"),
+], ids=["overlap observed server-side", "own SQL raced through the fallback"])
+def test_correct_designs_pass_the_concurrency_check_by_their_own_route(tmp_path, overrides, route):
     result = run(materialize(tmp_path, overrides), "concurrent")
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "client-side barrier fallback" in result.stdout
+    assert route in result.stdout
 
 
 @pytest.mark.parametrize("name", sorted(MUTANTS))
@@ -184,11 +170,5 @@ def test_mutant_fails_its_check(tmp_path, name):
 
 
 def test_fixture_suite_passes_unchanged(tmp_path):
-    spec = yaml.safe_load(SCENARIO.read_text(encoding="utf-8"))
-    for rel, text in spec["fixture"]["files"].items():
-        path = tmp_path / rel
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text, encoding="utf-8")
-    result = subprocess.run([sys.executable, "-B", "-m", "pytest", "-q", "-p", "no:cacheprovider"],
-                            cwd=tmp_path, capture_output=True, text=True, timeout=120)
+    result = run_fixture_suite(SCENARIO, tmp_path)
     assert result.returncode == 0, result.stdout + result.stderr

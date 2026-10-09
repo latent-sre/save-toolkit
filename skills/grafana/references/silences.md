@@ -23,21 +23,25 @@ whose labels match will also be suppressed during the window.
 3. For an update/early expiry, read the exact silence ID and preserve its prior body. Confirm the
    request covers that silence; do not modify another owner's silence merely because it overlaps.
    Check that an identical active/pending silence does not already satisfy a create request.
-4. Show the exact target, matchers, UTC window, affected scope, and recovery action. The invoked
-   observability agent may execute within the existing human request once these are established.
+4. Show the exact target, matchers, UTC window, affected scope, and recovery action. Who may
+   execute is set in the parent skill's [Access and authority](../SKILL.md#access-and-authority).
    Re-read an existing silence immediately before mutation and stop on drift. These endpoints do
    not promise compare-and-swap: coordinate a single-writer window for changes to a shared silence
    or return the prepared change to its owner. A re-read alone is not mutual exclusion.
 5. Write once, retain the returned silence ID, then fetch that ID from the same Alertmanager.
-   Verify matchers, timestamps, owner/comment, and active/pending/expired state as appropriate.
+   An update keeps its ID only when the matchers, and for an active silence the start time, are
+   unchanged; otherwise Alertmanager expires the original and returns a new ID, so also read the
+   original ID's state. Verify matchers, timestamps, owner/comment, and active/pending/expired
+   state as appropriate.
    For suppression, check matching instances' silence association when available; for early expiry,
    verify expired state and inspect overlapping silences before claiming notifications can resume.
    Neither result proves delivery or service recovery.
-6. Return the ID/link, intended effect, observed state, expiry, and recovery owner. To undo a new
-   silence, expire that exact ID. After an edit, restore the captured body only within its original
-   still-valid window and the authorized scope. An expired silence cannot be unexpired: any
-   replacement is a new silence with a new ID and needs scope covering the remaining window.
-   Lost notifications cannot be recovered by rollback.
+6. Return the ID/link, intended effect, observed state, expiry, and recovery owner. To undo a
+   create, expire the returned ID. To undo an edit that returned a new ID, expire that ID, verify
+   the original ID's state, and recreate the prior scope as a new silence only while its window is
+   still valid and authorized. To undo an in-place edit, re-apply the captured body under the same
+   ID within its still-valid window. An expired silence cannot be unexpired. Lost notifications
+   cannot be recovered by rollback.
 
 ## Agent API mapping
 
@@ -52,10 +56,10 @@ Use the actual target's supported route and permissions. The Grafana 13.2 client
 
 `<am>` is `grafana` for the built-in Alertmanager or the discovered datasource UID for the external
 one; never substitute its display name. The POST body carries `matchers` (name, value, regex/equality
-flags supported by that server), `startsAt`, `endsAt`, `createdBy`, and `comment`. Update includes
-the existing `id`; create omits it. A rule-specific silence can use `__alert_rule_uid__=<uid>`;
-verify the label applies to this Alertmanager's alerts rather than assuming external alerts carry it.
-Discover response ID spelling from the API/tool response and verify it through readback.
+flags supported by that server), `startsAt`, `endsAt`, `createdBy`, and `comment`. Create omits
+`id`; an update sends the existing `id` and can return a different one (step 5). A rule-specific
+silence can use `__alert_rule_uid__=<uid>`; verify the label applies to this Alertmanager's alerts
+rather than assuming external alerts carry it. Discover response ID spelling from the API/tool response and verify it through readback.
 
 A timeout after POST has UNKNOWN outcome. Do not create another silence. Read the returned ID if
 known; otherwise list the same Alertmanager's silences and reconcile the full matcher/time/owner/
@@ -63,8 +67,4 @@ comment payload and available audit evidence. Check for duplicates and late arri
 on one read is not proof of no write. For uncertain expiry, read the exact ID and its status.
 Incomplete evidence blocks redispatch and names the human reconciliation owner.
 
-[sourced] [Grafana silence documentation](https://grafana.com/docs/grafana/latest/alerting/configure-notifications/create-silence/)
-defines scope and notification semantics; the
-[13.2 client routes](https://github.com/grafana/grafana/blob/v13.2.0/public/app/features/alerting/unified/api/alertSilencesApi.ts)
-provide the endpoint mapping. Checked 2026-09-19; target writes and HA reconciliation remain
-[unverified] until exercised. Refresh after a Grafana/Alertmanager upgrade or conflicting behavior.
+Target writes and HA reconciliation are unconfirmed until exercised.

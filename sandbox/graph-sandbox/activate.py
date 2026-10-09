@@ -24,7 +24,6 @@ from preflight import (
     DockerCLI,
     PreflightError,
     REVISION_RE,
-    SandboxCase,
     _load_json,
     _is_link_or_junction,
     _reject_path_indirection,
@@ -2694,7 +2693,6 @@ def execute_validated_compose(
         "--exit-code-from", "graph-runner", "--no-build", "--pull", "never",
     ]
     launch_environment = scrub_environment(environment)
-    launched = False
     journal = list(commands or ())
 
     def assert_exact_compose() -> None:
@@ -2768,7 +2766,6 @@ def execute_validated_compose(
         try:
             if on_launch is not None:
                 on_launch()
-            launched = True
             result = runner(
                 command,
                 environment=launch_environment,
@@ -2899,7 +2896,7 @@ def execute_validated_compose(
                 )
                 final = root / run_id
             else:
-                root, staging, run_dir, manifest = _validated_staged_run(
+                final = verify_and_publish_evidence(
                     staging,
                     evidence_root=root,
                     run_id=run_id,
@@ -2907,20 +2904,10 @@ def execute_validated_compose(
                     case_digest=case_digest,
                     source_revision=source_revision,
                     exit_code=result.returncode,
-                    runner_state=runner_state,
-                )
-                final = _publish_staged_run(
-                    root,
-                    staging,
-                    run_dir,
-                    manifest=manifest,
                     validated_compose=validated_bytes,
                     verification=final_verification,
-                    exit_code=result.returncode,
-                    source_revision=source_revision,
-                    run_id=run_id,
                     commands=journal,
-                    max_bytes=MAX_EVIDENCE_BYTES,
+                    runner_state=runner_state,
                 )
                 published_dirs = (final,)
             if on_publish is not None:
@@ -2948,7 +2935,7 @@ def execute_validated_compose(
         shutil.rmtree(temporary_root, ignore_errors=True)
 
 
-def _prepare_evidence_directory(mode: str, evidence_root: Path, run_id: str) -> Path:
+def _prepare_evidence_directory(evidence_root: Path, run_id: str) -> Path:
     if not evidence_root.is_absolute():
         raise ActivationError("evidence-root: absolute canonical path required")
     _reject_path_indirection(evidence_root)
@@ -3159,7 +3146,7 @@ def activate_runtime(
                 if claim.phase != "PUBLISHED":
                     claim.transition("PUBLISHED")
             else:
-                _prepare_evidence_directory(args.operation, args.evidence_root, args.run_id)
+                _prepare_evidence_directory(args.evidence_root, args.run_id)
             resource_validation = validate_resource_mode(
                 args.operation,
                 docker.resource_state(args.run_id, args.source_revision),

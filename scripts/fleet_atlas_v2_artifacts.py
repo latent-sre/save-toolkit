@@ -6,18 +6,25 @@ import json
 import os
 import re
 import tempfile
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable
+from typing import TypeAlias, cast
 
 from fleet_atlas_v2_format import (
-    API_VERSION, DETAIL_BUDGET, INDEX_BUDGET, PIPELINE, bounded_text, fact_line,
-    graph_dict, parse_graph,
+    API_VERSION,
+    DETAIL_BUDGET,
+    INDEX_BUDGET,
+    PIPELINE,
+    bounded_text,
+    fact_line,
+    graph_dict,
+    parse_graph,
+    self_sized,
 )
 from fleet_atlas_v2_model import assemble, canonical_bytes, digest
-from fleet_atlas_v2_proofs import VerifiedFacts, verify_facts
+from fleet_atlas_v2_proofs import Extraction, VerifiedFacts, verify_facts
 from fleet_atlas_v2_sources import Snapshot, current_snapshot, verify_revision
-
 
 OUTPUT = Path("docs/fleet-atlas/v2")
 _SEAL = object()
@@ -38,18 +45,24 @@ VIEWS = {
 }
 
 
-def extraction(snapshot: Snapshot):
+Loader: TypeAlias = Callable[[Snapshot], Extraction]
+
+
+def extraction(snapshot: Snapshot) -> Extraction:
     # Fixed trusted implementation import, never a module path from atlas content.
-    from fleet_atlas_v2_extract import extract
+    from fleet_atlas_v2_extract import extract  # noqa: PLC0415 -- loaded only when a derivation runs
 
     return extract(snapshot)
 
 
+def runtime_modules(directory: Path) -> list[Path]:
+    """The atlas implementation files in `directory`: its own modules and the frontmatter parser."""
+    return sorted([*directory.glob("fleet_atlas_v2*.py"), directory / "fleet_frontmatter.py"])
+
+
 def verify_runtime_sources(snapshot: Snapshot) -> None:
     """The recorded source tree must contain the implementation actually in use."""
-    directory = Path(__file__).resolve().parent
-    modules = [*directory.glob("fleet_atlas_v2*.py"), directory / "fleet_frontmatter.py"]
-    for path in sorted(modules):
+    for path in runtime_modules(Path(__file__).resolve().parent):
         relative = "scripts/" + path.name
         expected = snapshot.source(relative).content.replace(b"\r\n", b"\n")
         actual = path.read_bytes().replace(b"\r\n", b"\n")
@@ -68,7 +81,7 @@ class VerifiedDocument:
             raise ValueError("VerifiedDocument requires complete artifact verification")
 
 
-def checked_facts(snapshot: Snapshot, loader: Callable = extraction) -> VerifiedFacts:
+def checked_facts(snapshot: Snapshot, loader: Loader = extraction) -> VerifiedFacts:
     result = loader(snapshot)
     graph = assemble(result.buckets, result.predicates)
     return verify_facts(graph, snapshot, result.predicates, result.evaluators)
@@ -126,17 +139,14 @@ def render_files(checked: VerifiedFacts) -> dict[str, bytes]:
                          f'{target}["{mermaid_label(str(fact.object))}"]\n  %% {fact_line(fact, checked)}')
         # Mermaid has a distinct comment syntax, but shares byte budgeting and facts.
         encoded = bounded_text("flowchart LR\n%% " + header.replace("\n", "\n%% "), lines, DETAIL_BUDGET)
-        files[filename] = encoded.replace(b"<!-- {", b"%% {").replace(b"} -->\n", b"}\n")
+        diagram = encoded.replace(b"<!-- {", b"%% {").replace(b"} -->\n", b"}\n")
         # Comment conversion only shortens output, so recompute self-reported size.
-        marker_at = files[filename].rfind(b"\n%% {")
-        prefix = files[filename][:marker_at + 4]
-        info = json.loads(files[filename][marker_at + 4:])
-        for _ in range(12):
-            info["encodedBytes"] = len(prefix + canonical_bytes(info))
-            content = prefix + canonical_bytes(info)
-            if info["encodedBytes"] == len(content):
-                break
-        files[filename] = content
+        marker_end = diagram.rfind(b"\n%% {") + 4
+        prefix = diagram[:marker_end]
+        # mypy cannot infer a lambda whose defaulted parameter binds this iteration's prefix.
+        files[filename] = self_sized(json.loads(diagram[marker_end:]),
+                                     cast("Callable[[dict[str, object]], bytes]",
+                                          lambda info, prefix=prefix: prefix + canonical_bytes(info)), "diagram")
     document = {"apiVersion": API_VERSION, "kind": "FleetAtlas",
                 "metadata": {"revision": snapshot.revision, "treeDigest": snapshot.tree_digest,
                              "dirty": False, "pipeline": PIPELINE},
@@ -178,7 +188,7 @@ def _read_files(directory: Path, names: set[str]) -> dict[str, bytes]:
 
 
 def _json(content: bytes) -> object:
-    def unique(pairs):
+    def unique(pairs: list[tuple[str, object]]) -> dict[str, object]:
         result = {}
         for key, value in pairs:
             if key in result:
@@ -190,7 +200,7 @@ def _json(content: bytes) -> object:
                       parse_constant=lambda value: (_ for _ in ()).throw(ValueError(f"invalid number: {value}")))
 
 
-def verify(root: Path, loader: Callable = extraction) -> VerifiedDocument:
+def verify(root: Path, loader: Loader = extraction) -> VerifiedDocument:
     """The one entry point used after build and by both check and query."""
     current = current_snapshot(root)
     if loader is extraction:
@@ -230,7 +240,7 @@ def verify(root: Path, loader: Callable = extraction) -> VerifiedDocument:
     return VerifiedDocument(checked, snapshot.revision, _SEAL)
 
 
-def build(root: Path, loader: Callable = extraction) -> VerifiedDocument:
+def build(root: Path, loader: Loader = extraction) -> VerifiedDocument:
     snapshot = current_snapshot(root)
     if loader is extraction:
         verify_runtime_sources(snapshot)

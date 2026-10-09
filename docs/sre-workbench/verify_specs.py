@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+from functools import partial
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
@@ -15,6 +16,16 @@ PACKAGE = Path(__file__).resolve().parent
 ROOT = PACKAGE.parents[1]
 LINK = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
 FENCE = re.compile(r"(?ms)^([\x60~]{3})[^\n]*\n.*?^\1[^\n]*$")
+# Planning-ID prefix -> (the package document that defines the IDs, how many it defines).
+ID_OWNERS = {
+    "CAP": ("capabilities.md", 25),
+    "REQ": ("product.md", 17),
+    "NFR": ("product.md", 12),
+    "AC": ("verification.md", 36),
+    "WP": ("delivery.md", 16),
+    "DEC": ("decisions-and-risks.md", 15),
+    "RISK": ("decisions-and-risks.md", 16),
+}
 
 
 def read_json(path: Path):
@@ -40,47 +51,53 @@ def anchors(text: str) -> set[str]:
     return found
 
 
-def main() -> int:
-    failures: list[str] = []
-    schema_paths = sorted((PACKAGE / "schemas").glob("*.schema.json"))
-    schemas = {path.name.removesuffix(".schema.json"): read_json(path) for path in schema_paths}
-    resources = []
-    for name, schema in schemas.items():
+def load_schemas() -> dict[str, dict]:
+    """The package schemas by name, each checked against its metaschema."""
+    paths = sorted((PACKAGE / "schemas").glob("*.schema.json"))
+    schemas = {path.name.removesuffix(".schema.json"): read_json(path) for path in paths}
+    for schema in schemas.values():
         Draft202012Validator.check_schema(schema)
-        resources.append((schema["$id"], Resource.from_contents(schema)))
-    registry = Registry().with_resources(resources)
-    checker = FormatChecker()
+    return schemas
 
-    cases = read_json(PACKAGE / "examples/cases.json")
+
+def check_fixtures(schemas: dict[str, dict], cases: list[dict]) -> list[str]:
+    """Each example is accepted or rejected as the manifest says; valid ones' inputs pass their schema."""
+    failures: list[str] = []
+    registry = Registry().with_resources([(schema["$id"], Resource.from_contents(schema)) for schema in schemas.values()])
+    validator = partial(Draft202012Validator, registry=registry, format_checker=FormatChecker())
+    examples = PACKAGE / "examples"
+
     instance_names = {case["file"] for case in cases}
-    actual_names = {p.name for p in (PACKAGE / "examples").glob("*.json")} - {"cases.json"}
+    actual_names = {p.name for p in examples.glob("*.json")} - {"cases.json"}
     if actual_names != instance_names or len(instance_names) != len(cases):
         failures.append("Example manifest must cover every JSON fixture exactly once")
     for case in cases:
-        instance = read_json(contained(PACKAGE / "examples" / case["file"], PACKAGE / "examples"))
-        validator = Draft202012Validator(schemas[case["schema"]], registry=registry, format_checker=checker)
-        errors = list(validator.iter_errors(instance))
+        instance = read_json(contained(examples / case["file"], examples))
+        errors = list(validator(schemas[case["schema"]]).iter_errors(instance))
         if bool(errors) == case["valid"]:
             detail = errors[0].message if errors else "unexpectedly accepted"
             failures.append(f"{case['file']}: {detail}")
-        if case["valid"] and "input_schema" in case:
-            input_validator = Draft202012Validator(
-                schemas[case["input_schema"]], registry=registry, format_checker=checker
-            )
-            for error in input_validator.iter_errors(instance["inputs"]):
-                failures.append(f"{case['file']} operation inputs: {error.message}")
-        if case["valid"] and "input_manifest" in case:
-            manifest = read_json(contained(PACKAGE / "examples" / case["input_manifest"], PACKAGE / "examples"))
-            input_validator = Draft202012Validator(manifest["input_schema"], registry=registry, format_checker=checker)
-            for error in input_validator.iter_errors(instance["inputs"]):
-                failures.append(f"{case['file']} operation inputs: {error.message}")
-        if case["valid"] and isinstance(instance, dict):
+        if not case["valid"]:
+            continue
+        input_schemas = []
+        if "input_schema" in case:
+            input_schemas.append(schemas[case["input_schema"]])
+        if "input_manifest" in case:
+            input_schemas.append(read_json(contained(examples / case["input_manifest"], examples))["input_schema"])
+        for input_schema in input_schemas:
+            failures += [f"{case['file']} operation inputs: {error.message}"
+                         for error in validator(input_schema).iter_errors(instance["inputs"])]
+        if isinstance(instance, dict):
             for key in ("input_schema", "output_schema"):
                 if key in instance:
                     Draft202012Validator.check_schema(instance[key])
+    return failures
 
-    markdown = sorted(PACKAGE.rglob("*.md"))
-    for document in [*markdown, ROOT / "docs/fleet-roadmap.md"]:
+
+def check_links(documents: list[Path]) -> list[str]:
+    """Each local link resolves inside the repository, and each Markdown anchor it names exists."""
+    failures: list[str] = []
+    for document in documents:
         text = FENCE.sub("", document.read_text(encoding="utf-8"))
         for raw in LINK.findall(text):
             target = urlsplit(raw.strip("<>"))
@@ -93,28 +110,35 @@ def main() -> int:
                 continue
             if not resolved.exists():
                 failures.append(f"{document.relative_to(ROOT)}: missing link {raw}")
-            elif target.fragment and resolved.suffix == ".md":
-                if unquote(target.fragment) not in anchors(resolved.read_text(encoding="utf-8")):
-                    failures.append(f"{document.relative_to(ROOT)}: missing anchor {raw}")
+            elif (target.fragment and resolved.suffix == ".md"
+                  and unquote(target.fragment) not in anchors(resolved.read_text(encoding="utf-8"))):
+                failures.append(f"{document.relative_to(ROOT)}: missing anchor {raw}")
+    return failures
 
-    owners = {
-        "CAP": ("capabilities.md", 25),
-        "REQ": ("product.md", 17),
-        "NFR": ("product.md", 12),
-        "AC": ("verification.md", 36),
-        "WP": ("delivery.md", 16),
-        "DEC": ("decisions-and-risks.md", 15),
-        "RISK": ("decisions-and-risks.md", 16),
-    }
+
+def check_ids(markdown: list[Path]) -> list[str]:
+    """Each owner defines exactly its numbered IDs, and the package cites no others."""
+    failures: list[str] = []
     package_text = "\n".join(path.read_text(encoding="utf-8") for path in markdown)
-    for prefix, (owner, count) in owners.items():
+    for prefix, (owner, count) in ID_OWNERS.items():
         expected = {f"{prefix}-{number:02}" for number in range(1, count + 1)}
         pattern = rf"\b{prefix}-\d{{2}}\b"
         owned = set(re.findall(pattern, (PACKAGE / owner).read_text(encoding="utf-8")))
         referenced = set(re.findall(pattern, package_text))
         if owned != expected or not referenced.issubset(expected):
             failures.append(f"{prefix} coverage: missing={sorted(expected-owned)}, unknown={sorted(referenced-expected)}")
+    return failures
 
+
+def main() -> int:
+    schemas = load_schemas()
+    cases = read_json(PACKAGE / "examples/cases.json")
+    markdown = sorted(PACKAGE.rglob("*.md"))
+    failures = [
+        *check_fixtures(schemas, cases),
+        *check_links([*markdown, ROOT / "docs/fleet-roadmap.md"]),
+        *check_ids(markdown),
+    ]
     if failures:
         print("\n".join(failures))
         return 1

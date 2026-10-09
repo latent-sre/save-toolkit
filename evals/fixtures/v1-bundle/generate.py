@@ -60,6 +60,21 @@ CASES = {
 }
 
 
+def cost_block(trial_usd: float, judge_usd: float = 0.0, *, judge_live_calls: int = 0,
+               judge_cached_calls: int = 0) -> dict:
+    """A complete cost, totalled as the runner records one: known_usd rounds trial plus judge spend
+    (probe.records.trial_cost) and judge_calls counts live and cached calls (judge_spend)."""
+    return {"trial_usd": trial_usd, "judge_usd": judge_usd, "known_usd": round(trial_usd + judge_usd, 6),
+            "complete": True, "judge_calls": judge_live_calls + judge_cached_calls,
+            "judge_live_calls": judge_live_calls, "judge_cached_calls": judge_cached_calls,
+            "judge_unknown_cost_calls": 0}
+
+
+def unknown_cost() -> dict:
+    """An attempt that ended before reporting any part of its cost."""
+    return dict.fromkeys(cost_block(0.0), None)
+
+
 def write(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(text.encode("utf-8"))
@@ -114,8 +129,7 @@ def record(case_id: str, case_sha: str, label: str, slot: int, number: int, stat
         }],
         "verdict": {"status": status, "reason": None if status != "INCONCLUSIVE" else "a check could not measure",
                     "assessment_revision": 0, "after_assessment": None},
-        "cost": cost or {"trial_usd": 0.1, "judge_usd": 0.0, "known_usd": 0.1, "complete": True,
-                         "judge_calls": 0, "judge_live_calls": 0, "judge_cached_calls": 0, "judge_unknown_cost_calls": 0},
+        "cost": cost or cost_block(0.1),
         "evidence": {path: path for path in evidence},
     }
 
@@ -138,17 +152,21 @@ def main() -> None:
             shutil.rmtree(generated)
     digests = {case_id: fingerprints.case_digest(scenario(case_id, extra)) for case_id, extra in CASES.items()}
 
+    def filed(folder: Path, case_id: str, label: str, slot: int, status: str | None, *, number: int = 1,
+              case_sha: str | None = None, files: tuple[str, ...] = ("outputs/response.md",), tweak=None,
+              **fields) -> str:
+        """Write one attempt's record (fields go to record()) and files into `folder`."""
+        return attempt(folder, record(case_id, case_sha or digests[case_id], label, slot, number, status, **fields),
+                       files=files, tweak=tweak)
+
     def run(case_id: str, label: str, slot: int, status: str | None, **kw) -> str:
-        folder = RUNS / f"eval-{case_id}" / label / f"run-{slot}"
-        files, tweak = kw.pop("files", ("outputs/response.md",)), kw.pop("tweak", None)
-        return attempt(folder, record(case_id, kw.pop("case_sha", digests[case_id]), label, slot,
-                                      kw.pop("number", 1), status, **kw), files=files, tweak=tweak)
+        """The attempt published in a slot."""
+        return filed(RUNS / f"eval-{case_id}" / label / f"run-{slot}", case_id, label, slot, status, **kw)
 
     def kept(case_id: str, label: str, slot: int, number: int, status: str | None, **kw) -> str:
+        """An earlier attempt the runner kept under attempts/ when a later one replaced it."""
         folder = RUNS / f"eval-{case_id}" / label / "attempts" / f"run-{slot}" / str(number)
-        files, tweak = kw.pop("files", ("outputs/response.md",)), kw.pop("tweak", None)
-        return attempt(folder, record(case_id, digests[case_id], label, slot, number, status, **kw), files=files,
-                       tweak=tweak)
+        return filed(folder, case_id, label, slot, status, number=number, **kw)
 
     def recordless(folder: Path, state: str = "final") -> None:
         """An attempt the runner kept or published without record.json: the attempt.json it writes as
@@ -159,9 +177,8 @@ def main() -> None:
         write(folder / "outputs" / "response.md", "Synthetic response with no record.\n")
 
     run("synthetic-gain", "incumbent", 1, "FAIL")
-    run("synthetic-gain", "candidate", 1, "PASS", cost={
-        "trial_usd": 0.1, "judge_usd": 0.01, "known_usd": 0.11, "complete": True,
-        "judge_calls": 2, "judge_live_calls": 1, "judge_cached_calls": 1, "judge_unknown_cost_calls": 0})
+    run("synthetic-gain", "candidate", 1, "PASS",
+        cost=cost_block(0.1, 0.01, judge_live_calls=1, judge_cached_calls=1))
     run("synthetic-regression", "incumbent", 1, "PASS")
     run("synthetic-regression", "candidate", 1, "FAIL")
     run("synthetic-unchanged", "incumbent", 1, "PASS")
@@ -176,15 +193,12 @@ def main() -> None:
     # AC-17: a replaced attempt and its replacement fill one slot; an attempt that raised fills none.
     for slot in (1, 2):
         run("synthetic-attempts", "incumbent", slot, "PASS")
-    kept("synthetic-attempts", "candidate", 1, 1, "FAIL", state="superseded", reason="replaced by attempt 2", cost={
-        "trial_usd": 0.2, "judge_usd": 0.0, "known_usd": 0.2, "complete": True,
-        "judge_calls": 0, "judge_live_calls": 0, "judge_cached_calls": 0, "judge_unknown_cost_calls": 0})
+    kept("synthetic-attempts", "candidate", 1, 1, "FAIL", state="superseded", reason="replaced by attempt 2",
+         cost=cost_block(0.2))
     run("synthetic-attempts", "candidate", 1, "PASS", number=2)
     kept("synthetic-attempts", "candidate", 2, 1, None, state="incomplete",
          run_end={"kind": "incomplete", "stop": None, "reason": "AuthenticationFailed: synthetic login expired"},
-         cost={"trial_usd": None, "judge_usd": None, "known_usd": None, "complete": None, "judge_calls": None,
-               "judge_live_calls": None, "judge_cached_calls": None, "judge_unknown_cost_calls": None},
-         files=(), evidence=())
+         cost=unknown_cost(), files=(), evidence=())
     run("synthetic-missing", "incumbent", 1, "PASS")
     legacy = RUNS / "eval-synthetic-legacy" / "incumbent" / "run-1"
     write(legacy / "grading.json", json.dumps({"status": "PASS", "expectations": []}, indent=2) + "\n")
@@ -219,10 +233,8 @@ def main() -> None:
     # record that gives its cost.
     run("synthetic-unpublished", "incumbent", 1, "PASS")
     run("synthetic-unpublished", "candidate", 1, "PASS", number=2)
-    attempt(RUNS / "eval-synthetic-unpublished" / "candidate" / ".run-1-previous-0a1b2c3d4e5f6a7b",
-            record("synthetic-unpublished", digests["synthetic-unpublished"], "candidate", 1, 1, "FAIL", cost={
-                "trial_usd": 0.3, "judge_usd": 0.0, "known_usd": 0.3, "complete": True, "judge_calls": 0,
-                "judge_live_calls": 0, "judge_cached_calls": 0, "judge_unknown_cost_calls": 0}))
+    filed(RUNS / "eval-synthetic-unpublished" / "candidate" / ".run-1-previous-0a1b2c3d4e5f6a7b",
+          "synthetic-unpublished", "candidate", 1, "FAIL", cost=cost_block(0.3))
     # An attempt that never published started a slot of its own: the arms then ran different slots.
     run("synthetic-unpublished-slot", "incumbent", 1, "PASS")
     run("synthetic-unpublished-slot", "candidate", 1, "PASS")

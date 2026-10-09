@@ -11,18 +11,14 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from testkit import find_shell, frontmatter_block, require_shell
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def available_shell() -> str | None:
-    discovered = shutil.which("sh")
-    if discovered:
-        return discovered
-    for candidate in (r"C:\Program Files\Git\bin\sh.exe", r"C:\Program Files\Git\usr\bin\sh.exe"):
-        if Path(candidate).is_file():
-            return candidate
-    return None
+def hook_entries(event: str) -> list[dict]:
+    """The Claude plugin's registered hook entries for one event, in order."""
+    return json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))["hooks"][event]
 
 
 def available_powershell() -> str | None:
@@ -56,6 +52,13 @@ def rebuild_inline_command(script_lines: list[str]) -> str:
     return rebuilt[0]
 
 
+def launcher_command(relative: str) -> str:
+    """A standalone launcher's code lines, without comments or blanks, rejoined as one hook command."""
+    lines = (ROOT / relative).read_text(encoding="utf-8").splitlines()
+    return rebuild_inline_command([line.strip() for line in lines
+                                   if line.strip() and not line.lstrip().startswith("#")])
+
+
 class RebuildInlineCommandTests(unittest.TestCase):
     def test_an_empty_launcher_is_reported_not_indexed(self) -> None:
         """A launcher that strips to nothing must name the problem, not raise IndexError.
@@ -69,8 +72,7 @@ class RebuildInlineCommandTests(unittest.TestCase):
 
 class HookWiringTests(unittest.TestCase):
     def test_powershell_has_a_separate_guard_handler(self) -> None:
-        document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
-        entry = next(e for e in document["hooks"]["PreToolUse"] if e["matcher"] == "PowerShell")
+        entry = next(e for e in hook_entries("PreToolUse") if e["matcher"] == "PowerShell")
         handler = entry["hooks"][0]
         self.assertEqual("powershell", handler["shell"])
         self.assertIn("readonly-guard-hook.ps1", handler["command"])
@@ -91,8 +93,7 @@ class HookWiringTests(unittest.TestCase):
         NOT evidence for this hook command; only a local Windows run is, which is why the skip is
         platform-gated rather than made a CI failure the way the POSIX hook's is.
         """
-        document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
-        entry = next(e for e in document["hooks"]["PreToolUse"] if e["matcher"] == "PowerShell")
+        entry = next(e for e in hook_entries("PreToolUse") if e["matcher"] == "PowerShell")
         command = entry["hooks"][0]["command"].replace("${CLAUDE_PLUGIN_ROOT}", str(ROOT))
         self.assertNotIn("${", command, "a path placeholder went unsubstituted in this test")
 
@@ -133,8 +134,7 @@ class HookWiringTests(unittest.TestCase):
         )
 
     def test_hook_is_session_wide_and_fail_closed_for_guarded_agents(self) -> None:
-        document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
-        entry = document["hooks"]["PreToolUse"][0]
+        entry = hook_entries("PreToolUse")[0]
         self.assertEqual("Bash", entry["matcher"])
         command = entry["hooks"][0]["command"]
         for token in (
@@ -148,8 +148,7 @@ class HookWiringTests(unittest.TestCase):
         self.assertIn("exit-${RC}", command)
 
     def test_session_start_preflights_the_guard_interpreter_protocol(self) -> None:
-        document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
-        entry = document["hooks"]["SessionStart"][0]
+        entry = hook_entries("SessionStart")[0]
         self.assertEqual("startup|resume|clear|compact", entry["matcher"])
         command = entry["hooks"][0]["command"]
         for token in (
@@ -158,15 +157,7 @@ class HookWiringTests(unittest.TestCase):
             "candidate failures",
         ):
             self.assertIn(token, command)
-
-        script_lines = [
-            line.strip()
-            for line in (ROOT / "scripts/guard-session-preflight-hook.sh")
-            .read_text(encoding="utf-8")
-            .splitlines()
-            if line.strip() and not line.lstrip().startswith("#")
-        ]
-        self.assertEqual(rebuild_inline_command(script_lines), command)
+        self.assertEqual(launcher_command("scripts/guard-session-preflight-hook.sh"), command)
 
     def test_session_preflight_accepts_the_current_interpreter(self) -> None:
         result = subprocess.run(
@@ -180,12 +171,11 @@ class HookWiringTests(unittest.TestCase):
         self.assertEqual(42, result.returncode, result.stderr)
         self.assertEqual("", result.stdout)
 
-    @unittest.skipUnless(available_shell(), "POSIX shell not available")
     def test_exact_session_start_command_accepts_the_lane_path(self) -> None:
-        document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
-        command = document["hooks"]["SessionStart"][0]["hooks"][0]["command"]
+        shell = require_shell()
+        command = hook_entries("SessionStart")[0]["hooks"][0]["command"]
         result = subprocess.run(
-            [available_shell(), "-c", command],
+            [shell, "-c", command],
             input='{"hook_event_name":"SessionStart","source":"startup"}',
             text=True,
             capture_output=True,
@@ -203,50 +193,42 @@ class HookWiringTests(unittest.TestCase):
         shell file (a hash input for eval provenance). Without this check the two copies can
         drift silently — and the drifting copy would be the enforced one.
         """
-        document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
-        inlined = document["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
-        script_lines = [
-            line.strip()
-            for line in (ROOT / "scripts/readonly-guard-hook.sh")
-            .read_text(encoding="utf-8")
-            .splitlines()
-            if line.strip() and not line.lstrip().startswith("#")
-        ]
         self.assertEqual(
-            rebuild_inline_command(script_lines),
-            inlined,
+            launcher_command("scripts/readonly-guard-hook.sh"),
+            hook_entries("PreToolUse")[0]["hooks"][0]["command"],
             "hooks.json inline command and scripts/readonly-guard-hook.sh have drifted; "
             "edit both together (strip comments, join with '; ', keep loop bodies on ' ')",
         )
 
     def test_plugin_agents_do_not_claim_inert_hooks(self) -> None:
         for path in sorted((ROOT / "agents").glob("*.md")):
-            frontmatter = path.read_text(encoding="utf-8").split("---", 2)[1]
+            # The block starts at its first key, so a leading newline lets that key match too.
+            frontmatter = "\n" + frontmatter_block(path.read_text(encoding="utf-8"))
             self.assertNotIn("\nhooks:", frontmatter, path.name)
 
     def test_copilot_hook_is_explicitly_empty(self) -> None:
         document = json.loads((ROOT / "hooks/copilot-hooks.json").read_text(encoding="utf-8"))
         self.assertEqual({}, document.get("hooks"))
 
-    @unittest.skipUnless(available_shell(), "POSIX shell not available")
     def test_exact_hook_command_allows_safe_denies_write_and_ignores_main(self) -> None:
         """The ONLY test that runs the real inlined hooks.json command string.
 
-        Every other guard test invokes `[sys.executable, GUARD]` directly, which is a different
-        invocation: it never exercises `"$C" -I -S "$G"` (isolated mode, no site) or the
-        `python3 python py` interpreter walk that the live hook depends on.
+        Every other guard test runs `sys.executable -I -S GUARD` directly through testkit, the same
+        isolated invocation but a different program: it never exercises the hook's `$(cat)` stdin
+        capture, the `python3 python py` interpreter walk, the translation of 42/43 into the exit-0
+        contract, or the fail-closed deny when no interpreter answers.
 
-        The skip below is a local-developer convenience. A focused run that reports this test
-        skipped did not exercise the real hook command and is incomplete evidence; rerun it on a
-        machine with `sh`. Gate A does not run this component suite.
+        A local run without `sh` skips this test; on CI a missing shell fails it. A focused run
+        that reports it skipped did not exercise the real hook command and is incomplete evidence;
+        rerun it on a machine with `sh`. Gate A does not run this component suite.
         """
-        document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
-        command = document["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
+        shell = require_shell()
+        command = hook_entries("PreToolUse")[0]["hooks"][0]["command"]
         environment = dict(os.environ, CLAUDE_PLUGIN_ROOT=str(ROOT))
 
         def invoke_raw(payload: str, *, env: dict[str, str] = environment) -> subprocess.CompletedProcess[str]:
             return subprocess.run(
-                [available_shell(), "-c", command],
+                [shell, "-c", command],
                 input=payload,
                 text=True,
                 capture_output=True,
@@ -276,7 +258,6 @@ class HookWiringTests(unittest.TestCase):
         self.assertEqual("deny", json.loads(renamed.stdout)["hookSpecificOutput"]["permissionDecision"])
         self.assertEqual("deny", json.loads(unavailable.stdout)["hookSpecificOutput"]["permissionDecision"])
 
-    @unittest.skipUnless(available_shell(), "POSIX shell not available")
     def test_a_stub_interpreter_first_on_path_does_not_disarm_the_guard(self) -> None:
         """The incident validate.yml cites, reproduced: a non-interpreter named `python3` answers first.
 
@@ -287,8 +268,8 @@ class HookWiringTests(unittest.TestCase):
         stubs must fail closed. The marker file proves the stub was actually consulted -- without it
         this test could pass while `command -v` never found the stub at all.
         """
-        document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
-        command = document["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
+        shell = require_shell()
+        command = hook_entries("PreToolUse")[0]["hooks"][0]["command"]
         cat = shutil.which("cat")
         if cat is None:
             self.skipTest("`cat` not on PATH; the hook reads stdin through it")
@@ -297,7 +278,7 @@ class HookWiringTests(unittest.TestCase):
 
         def run(path: str, payload: str) -> subprocess.CompletedProcess[str]:
             env = dict(os.environ, CLAUDE_PLUGIN_ROOT=str(ROOT), PATH=path)
-            return subprocess.run([available_shell(), "-c", command], input=payload, text=True,
+            return subprocess.run([shell, "-c", command], input=payload, text=True,
                                   capture_output=True, cwd=ROOT, env=env, timeout=30, check=False)
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -345,15 +326,16 @@ class HookWiringTests(unittest.TestCase):
 
         The structural workflow does not invoke component suites. This assertion applies whenever
         a caller explicitly adds this focused suite to a CI job: the job must not turn a missing
-        shell into green evidence for the hook boundary.
+        shell into green evidence for the hook boundary. The shell tests above fail on CI too
+        (testkit.require_shell); this one names the remedy once.
         """
         if not os.environ.get("CI"):
             self.skipTest("local run; the shell requirement is enforced on CI")
         self.assertIsNotNone(
-            available_shell(),
-            "CI has no POSIX shell, so the only test of the real hooks.json command string would "
-            "be skipped and this job would report green over an unexercised guard. Install a "
-            "shell on this runner (Git for Windows provides one) rather than accepting the skip.",
+            find_shell(),
+            "CI has no POSIX shell, so the only test of the real hooks.json command string cannot "
+            "run and this job would otherwise report over an unexercised guard. Install a shell on "
+            "this runner (Git for Windows provides one) rather than accepting a skip.",
         )
 
 

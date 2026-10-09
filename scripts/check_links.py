@@ -7,18 +7,19 @@ host adapters are consequences and are checked separately by the adapter generat
 
 from __future__ import annotations
 
+import argparse
+import contextlib
 import os
 import re
 import subprocess
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 from urllib.parse import unquote
 
 import fleet_frontmatter
 
-
 ROOT = Path(os.environ.get("FLEET_ROOT") or Path(__file__).resolve().parents[1]).resolve()
-NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 SKILL_DESCRIPTION_MAX_CHARS = 1024
 LINK_RE = re.compile(r"\[([^\]]*)\]\(([^)]+)\)")
 CODE_PATH_RE = re.compile(
@@ -38,7 +39,7 @@ CODE_PATH_RE = re.compile(
 # These Claude-only spellings pass this local link check; the adapter generator separately
 # rejects them for portable helper commands and requires installed-resource resolution.
 SELF_SKILL_PATH_RE = re.compile(
-    r"(?<![A-Za-z0-9._/-])(?P<root>\$(?:\{CLAUDE_PLUGIN_ROOT\}|env:CLAUDE_PLUGIN_ROOT)/)?"
+    rf"(?<![A-Za-z0-9._/-])(?P<root>{fleet_frontmatter.PLUGIN_ROOT}/)?"
     r"skills/(?P<name>[a-z0-9-]+)/"
     r"(?:SKILL\.md|(?:scripts|references|assets)/[A-Za-z0-9._/-]+)"
 )
@@ -117,7 +118,7 @@ def _check_live_doc_links(root: Path) -> list[str]:
             target = _relative_target(raw)
             if target is None:
                 continue
-            resolved = (path.parent / target.split("#", 1)[0]).resolve()
+            resolved = (path.parent / target).resolve()
             # Containment before existence. With enough `..` components a link resolves outside the
             # repository, where `.exists()` answers a question about the HOST rather than the repo:
             # a root README link to `../../etc/passwd` passes on Unix and fails on Windows, and
@@ -168,9 +169,6 @@ def _citing_candidates(root: Path) -> list[Path]:
     scripts_dir = root / "scripts"
     if scripts_dir.is_dir():
         files.extend(sorted(scripts_dir.glob("*.py")))
-    roadmap = root / "docs" / "fleet-roadmap.md"
-    if roadmap.is_file() and roadmap not in files:
-        files.append(roadmap)
     return files
 
 
@@ -265,8 +263,11 @@ def _strip_fences(text: str) -> str:
 
 
 def _yaml_string(
-    value: object, style: str | None, where: str, failures: list[str]
+    parsed: fleet_frontmatter.ParsedFrontmatter, key: str, where: str, failures: list[str]
 ) -> str | None:
+    """The field `key` when it is one nonblank YAML string; otherwise record why and return None."""
+    value, style = parsed.fields.get(key, ""), parsed.styles.get(key)
+    where = f"{where}: {key}"
     if not isinstance(value, str) or not value.strip():
         failures.append(f"{where}: value must be one nonblank YAML string")
         return None
@@ -286,30 +287,21 @@ def _yaml_string(
 def _check_skill_frontmatter(path: Path, text: str) -> tuple[str, list[str]]:
     parsed = fleet_frontmatter.parse(text, path, mode="lenient")
     values = parsed.fields
-    styles = parsed.styles
-    body = parsed.body
     failures = list(parsed.problems)
     where = path.as_posix()
     expected_name = path.parent.name
     unknown = sorted(set(values) - ALLOWED_KEYS)
     if unknown:
         failures.append(f"{where}: unknown frontmatter key(s): {', '.join(unknown)}")
-    name = _yaml_string(
-        values.get("name", ""), styles.get("name"), f"{where}: name", failures
-    )
+    name = _yaml_string(parsed, "name", where, failures)
     if name:
         if len(name) > 64:
             failures.append(f"{where}: name exceeds 64 characters")
-        if not NAME_RE.fullmatch(name) or name != expected_name:
+        if not fleet_frontmatter.NAME_RE.fullmatch(name) or name != expected_name:
             failures.append(
                 f"{where}: name must be kebab-case and equal directory '{expected_name}'"
             )
-    description = _yaml_string(
-        values.get("description", ""),
-        styles.get("description"),
-        f"{where}: description",
-        failures,
-    )
+    description = _yaml_string(parsed, "description", where, failures)
     if description:
         if len(description) > SKILL_DESCRIPTION_MAX_CHARS:
             failures.append(
@@ -323,21 +315,10 @@ def _check_skill_frontmatter(path: Path, text: str) -> tuple[str, list[str]]:
             if not 2 <= len(triggers) <= 4:
                 failures.append(f"{where}: Triggers must contain 2-4 quoted user phrasings")
     if "argument-hint" in values:
-        _yaml_string(
-            values["argument-hint"],
-            styles.get("argument-hint"),
-            f"{where}: argument-hint",
-            failures,
-        )
+        _yaml_string(parsed, "argument-hint", where, failures)
     if "compatibility" in values:
-        compatibility_style = styles.get("compatibility")
-        compatibility = _yaml_string(
-            values["compatibility"],
-            compatibility_style,
-            f"{where}: compatibility",
-            failures,
-        )
-        if compatibility_style == "block":
+        compatibility = _yaml_string(parsed, "compatibility", where, failures)
+        if parsed.styles.get("compatibility") == "block":
             failures.append(
                 f"{where}: compatibility must use a single-line scalar so its "
                 "500-character limit is measured exactly"
@@ -357,7 +338,7 @@ def _check_skill_frontmatter(path: Path, text: str) -> tuple[str, list[str]]:
         failures.append(
             f"{where}: only {', '.join(sorted(MANUAL_ONLY))} may disable model invocation"
         )
-    return body, failures
+    return parsed.body, failures
 
 
 def _links(text: str) -> list[tuple[str, str]]:
@@ -422,7 +403,7 @@ def _check_markdown(path: Path, text: str, owned_root: Path) -> list[str]:
         relative = _relative_target(raw_target)
         if relative is None:
             continue
-        destination = path.parent / Path(relative.replace("/", os.sep))
+        destination = path.parent / relative
         lexical_destination = Path(os.path.abspath(destination))
         try:
             lexical_destination.relative_to(owned_root.absolute())
@@ -438,7 +419,7 @@ def _check_markdown(path: Path, text: str, owned_root: Path) -> list[str]:
     return failures
 
 
-def _bundle_files(skill_root: Path):
+def _bundle_files(skill_root: Path) -> Iterator[Path]:
     for path in sorted(skill_root.iterdir()):
         if path.is_file() and path.name != "SKILL.md":
             yield path
@@ -460,10 +441,8 @@ def _check_direct_bundle_links(skill_path: Path, body: str) -> list[str]:
     for _label, raw_target in links:
         relative = _relative_target(raw_target)
         if relative is not None:
-            try:
+            with contextlib.suppress(ValueError):
                 resolved.add((skill_path.parent / relative).resolve().relative_to(skill_root.resolve()).as_posix())
-            except ValueError:
-                pass
     for bundle in _bundle_files(skill_root):
         relative = bundle.relative_to(skill_root).as_posix()
         if relative in resolved:
@@ -477,13 +456,14 @@ def _check_direct_bundle_links(skill_path: Path, body: str) -> list[str]:
 def _check_guide(root: Path) -> list[str]:
     """Tie the AGENTS.md fleet guide to the tree it describes.
 
-    Three silent-failure classes, none of which any other check sees:
+    Two silent-failure classes, neither of which any other check sees:
       * CLAUDE.md loads AGENTS.md via an `@AGENTS.md` import; drop that line and the guide silently
         loads empty for every Claude session while both files still exist.
-      * A renamed script or doc leaves the guide pointing at nothing — a dead Markdown link that
-        fails nowhere at runtime.
       * An inline-code path token (`scripts/gate_a.py`, `docs/fleet-roadmap.md`) that stops
         resolving after a rename reads as live guidance and isn't.
+
+    The guide's Markdown links are checked with every other live document in
+    `_check_live_doc_links` (AGENTS.md is in LIVE_DOC_ROOTS), containment included.
 
     Inline-code tokens are checked only when their FIRST segment is a real top-level repo entry.
     That is what keeps this from false-positiving on generic mentions (`references/`, `assets/`) and
@@ -505,12 +485,6 @@ def _check_guide(root: Path) -> list[str]:
     if not guide.is_file():
         return failures  # self-gate: a synthetic root without the guide has nothing to check
     visible = _strip_fences(guide.read_text(encoding="utf-8"))
-    for _label, raw_target in _links(visible):
-        relative = _relative_target(raw_target)
-        if relative is None:
-            continue
-        if not (root / Path(relative.replace("/", os.sep))).exists():
-            failures.append(f"AGENTS.md: dead link '{relative}'")
     for match in re.finditer(r"`([^`]+)`", visible):
         token = match.group(1).strip()
         if "/" not in token or any(ch in token for ch in " :*") or token.startswith(("/", "#", "~")):
@@ -519,7 +493,7 @@ def _check_guide(root: Path) -> list[str]:
         first = clean.split("/", 1)[0]
         if first in (".", "..") or not (root / first).exists():
             continue  # first segment is not a repo-root entry: a generic or skill-relative mention
-        if not (root / Path(clean.replace("/", os.sep))).exists():
+        if not (root / clean).exists():
             failures.append(f"AGENTS.md: inline-code path does not resolve: '{token}'")
     return failures
 
@@ -591,7 +565,13 @@ def check(root: Path = ROOT) -> list[str]:
     return failures
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="Exit status: 0 when every check passes, 1 when any fails, 2 on a usage error.",
+    )
+    parser.parse_args(argv)
     failures = check(ROOT)
     if failures:
         print("check_links: FAIL")

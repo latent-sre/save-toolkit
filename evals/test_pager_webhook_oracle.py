@@ -1,15 +1,14 @@
 """No-model regressions for the pager-webhook oracle: a house-rule reference passes, mutants fail."""
 from __future__ import annotations
 
-import json
 import os
 import subprocess
-import sys
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-import yaml
+from probe import checking as probe_checking
+from probe_testkit import materialize_reference, parse_events, run_fixture_suite, run_oracle_check, scenario_file
 
 ROOT = Path(__file__).resolve().parents[1]
 SCENARIO = ROOT / "evals/build-scenarios/build-software-engineer-pager-webhook.yaml"
@@ -178,18 +177,36 @@ MUTANTS = {
 }
 
 
+# The mutant files split MUTANTS by check, so `--dist loadfile` runs the slow durability and
+# redelivery mutants beside the others instead of after them on one worker (about 140 s in one file).
+MUTANT_FILE_CHECKS = {
+    "test_pager_webhook_mutants.py": {"signature", "fast_ack", "accepted", "completes"},
+    "test_pager_webhook_mutants_redelivery.py": {"redelivery"},
+    "test_pager_webhook_mutants_durable.py": {"durable"},
+}
+
+
+def mutants_checked_by(test_file: str) -> list[str]:
+    checks = MUTANT_FILE_CHECKS[test_file]
+    return sorted(name for name, (check, _, _) in MUTANTS.items() if check in checks)
+
+
+def assert_mutant_fails(tmp_path: Path, name: str) -> None:
+    # Each mutant must fail for the rule it breaks, not because the app crashed.
+    check, overrides, reason = MUTANTS[name]
+    result = run(materialize(tmp_path, overrides), check)
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert reason in result.stdout, result.stdout + result.stderr
+
+
+def test_every_mutant_runs_in_exactly_one_mutant_file():
+    assigned = [name for test_file in MUTANT_FILE_CHECKS for name in mutants_checked_by(test_file)]
+    assert sorted(assigned) == sorted(MUTANTS)
+    assert all((Path(__file__).parent / test_file).is_file() for test_file in MUTANT_FILE_CHECKS)
+
+
 def materialize(tmp_path: Path, overrides: dict[str, str]) -> Path:
-    spec = yaml.safe_load(SCENARIO.read_text(encoding="utf-8"))
-    for rel, text in spec["fixture"]["files"].items():
-        path = tmp_path / rel
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text, encoding="utf-8")
-    code = REFERENCE
-    for marker, value in {**HOUSE, **overrides}.items():
-        code = code.replace(marker, value)
-    (tmp_path / "app/main.py").write_text(code, encoding="utf-8")
-    (tmp_path / "probe_checks.py").write_text(ORACLE.read_text(encoding="utf-8"), encoding="utf-8")
-    return tmp_path
+    return materialize_reference(tmp_path, SCENARIO, REFERENCE, {**HOUSE, **overrides}, ORACLE)
 
 
 def run(workspace: Path, check: str) -> subprocess.CompletedProcess:
@@ -198,8 +215,7 @@ def run(workspace: Path, check: str) -> subprocess.CompletedProcess:
     # at about 9 s, inside the 4 + 10 s signature wait, and the reference recovers at once.
     env = dict(os.environ, PROBE_RUNBOOK_DELAY="4", PROBE_PROCESSING_ALLOWANCE="10",
                PROBE_RECOVERY_ALLOWANCE="15", PYTHONDONTWRITEBYTECODE="1")
-    return subprocess.run([sys.executable, "-B", "probe_checks.py", check], cwd=workspace, env=env,
-                          capture_output=True, text=True, timeout=180)
+    return run_oracle_check(workspace, check, env=env, timeout=180)
 
 
 @pytest.mark.parametrize("check", CHECKS)
@@ -224,26 +240,16 @@ def test_enrich_later_design_completes(tmp_path):
 
 
 def test_fixture_suite_passes_unchanged(tmp_path):
-    spec = yaml.safe_load(SCENARIO.read_text(encoding="utf-8"))
-    for rel, text in spec["fixture"]["files"].items():
-        path = tmp_path / rel
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text, encoding="utf-8")
-    result = subprocess.run([sys.executable, "-B", "-m", "pytest", "-q", "-p", "no:cacheprovider"],
-                            cwd=tmp_path, capture_output=True, text=True, timeout=120)
+    result = run_fixture_suite(SCENARIO, tmp_path)
     assert result.returncode == 0, result.stdout + result.stderr
 
 
 @pytest.mark.parametrize("scenario_name,permits_review", [
     ("pager-webhook", True), ("cli-with-tests", True), ("skips-review-for-trivial-fix", False),
 ])
-def test_review_dispatch_policy_matches_security_scope(tmp_path, scenario_name, permits_review):
-    from probe import checking as probe_checking  # noqa: PLC0415 -- only this test needs the runner
-    from probe import tracing as probe_tracing  # noqa: PLC0415
-
-    scenario = SCENARIO.with_name(f"build-software-engineer-{scenario_name}.yaml")
-    spec = yaml.safe_load(scenario.read_text(encoding="utf-8"))
-    events = [
+def test_review_dispatch_policy_matches_security_scope(scenario_name, permits_review):
+    spec = scenario_file(SCENARIO.with_name(f"build-software-engineer-{scenario_name}.yaml"))
+    trace = parse_events([
         {"type": "assistant", "message": {"content": [{
             "type": "tool_use", "id": "review-1", "name": "Task", "input": {
                 "subagent_type": "save-toolkit:reviewer",
@@ -253,10 +259,7 @@ def test_review_dispatch_policy_matches_security_scope(tmp_path, scenario_name, 
         {"type": "user", "message": {"content": [{
             "type": "tool_result", "tool_use_id": "review-1", "content": "Scoped review complete.",
         }]}},
-    ]
-    trace_path = tmp_path / "review.jsonl"
-    trace_path.write_text("\n".join(json.dumps(event) for event in events), encoding="utf-8")
-    trace = probe_tracing.parse_trace(trace_path)
+    ])
     assert trace.dispatches == ["save-toolkit:reviewer"]
     ctx = SimpleNamespace(trace=trace)
     checks = [check for check in spec["checks"] if check["check"] == "no_task_dispatch"]
@@ -267,7 +270,7 @@ def test_review_dispatch_policy_matches_security_scope(tmp_path, scenario_name, 
 
 
 def test_webhook_scenario_preserves_scope_and_commit_guards():
-    checks = yaml.safe_load(SCENARIO.read_text(encoding="utf-8"))["checks"]
+    checks = scenario_file(SCENARIO)["checks"]
     kinds = {check["check"] for check in checks}
     assert {"changes_within", "no_new_commits", "no_agents_dir"} <= kinds
     scope = next(check for check in checks if check["check"] == "changes_within")

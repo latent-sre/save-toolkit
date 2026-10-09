@@ -12,8 +12,9 @@ argument-hint: "[Grafana instance, dashboard, alert rule, silence, or requested 
 # Grafana operations
 
 Help the human use the console and the agent use available APIs or tools for the same bounded job.
-Load `stack-profile` for the team's target version and recovery-copy facts. Discover the actual
-instance, organization, permissions, resource identity, and ownership before relying on them.
+Before a change, an upgrade, or a version-dependent API choice, load `stack-profile` for the team's
+Grafana version and recovery-copy facts. Discover the actual instance, organization,
+permissions, resource identity, and ownership before relying on them.
 
 ## Choose the work
 
@@ -23,16 +24,14 @@ instance, organization, permissions, resource identity, and ownership before rel
 | Inspect actual appearance, render a panel, or diagnose unavailable screenshots | [Visual verification](./references/visual-verification.md) |
 | Inspect, create, update, pause, or resume an alert rule; explain missing notifications | [Alert operations](./references/alert-operations.md); load `obs-alerting` for design decisions |
 | Create, inspect, update, or end a temporary silence | [Silence operations](./references/silences.md) |
-| Read resources without MCP from Windows or macOS | [Command access](./references/command-access.md) |
-| Read dashboard models or bounded Prometheus/Loki data with internal authentication | [grafana_read.py](./scripts/grafana_read.py); setup and invocation in [Command access](./references/command-access.md) |
-| Preserve query expressions through native PowerShell argument handling | [grafana_read.ps1](./scripts/grafana_read.ps1); the installed wrapper for the same bounded read helper |
+| Read Grafana from a terminal: search dashboards, read models, alert-rule state, annotations, silences, bounded Prometheus/Loki data, or a rendered panel image | [Command access](./references/command-access.md): the bundled [grafana_read.py](./scripts/grafana_read.py) and its [PowerShell wrapper](./scripts/grafana_read.ps1) |
 | Create/edit/import a dashboard or folder | [Dashboard operation loop](./references/dashboard-operations.md); use `obs-dashboards` when design decisions are needed |
 | Review existing dashboards or assess an upgrade without writes | [Read-only review](./references/read-only-review.md) |
 | Dashboard/folder API discovery, concurrency, history, or rollback | [HTTP API](./references/http-api.md) |
 | Classic/V1/V2 models, panel JSON, variables, or portability | [Dashboard JSON](./references/json-model.md) |
-| Check an exported Classic/V1 dashboard offline | [dashboard_hygiene.py](./scripts/dashboard_hygiene.py); resolve this installed resource, never a workspace-relative lookalike |
+| Check an exported Classic/V1 dashboard offline | [dashboard_hygiene.py](./scripts/dashboard_hygiene.py), the installed copy; the `sre-assistant` guard does not run it |
 | Grafana provisioning, evaluation settings, rule groups, contact points, or policies | [Alerting configuration](./references/grafana-alerting.md) |
-| Installed Grafana CLI, MCP, vendor skills, or Foundation SDK | [Agent tooling](./references/agent-tooling.md) |
+| A Grafana CLI, MCP server, vendor skill, or SDK is installed or proposed | [Agent tooling](./references/agent-tooling.md); none is adopted |
 | Viewer/Editor workflows, sharing, annotations, or ownership-aware restore | [Viewer/editor workflows](./references/viewer-editor-workflows.md) |
 | Wavefront/Splunk plugins or entitlement | [Wavefront and Splunk data sources](./references/wavefront-legacy.md) |
 | Team dashboard conventions: folders, names, uids, tags, time, variables | [Dashboard conventions](./references/dashboard-conventions.md) |
@@ -46,15 +45,16 @@ Missing access means an unapplied procedure, never a fabricated observation.
 
 This skill supplies methods, not execution permission. The invoked `observability-engineer` owns
 the fleet's Grafana write exception in its agent-body Change authority section. It may perform a
-human-requested, target-bound dashboard/folder change, Grafana-managed alert-rule create/update or
+human-requested, target-bound dashboard/folder create/update, Grafana-managed alert-rule create/update or
 pause/resume, and silence create/update/expire after the applicable procedure is complete, including
 in production. Existing authorization covering the action is sufficient; do not ask again merely
 because a tool will write. Missing target, intended effect, or silence expiry needs clarification.
 
-Rule deletion, whole-group replacement, recording rules, shared notification policies, contact
-points, recurring mute timings, templates, datasource/permission changes, and backend-managed rule
-applies use `production-change-gate` with a human or protected executor. Read and prepare them as
-needed. A live incident stays with the responder; the observability agent can take an explicitly
+Rule deletion, recording rules, whole-group replacement, dashboard or folder deletion, moving a
+dashboard or folder to another folder (it changes inherited permissions), annotation writes, shared
+notification policies, contact points, recurring mute timings, templates, datasource/permission
+changes, and file/Terraform/Git- or backend-managed resources use `production-change-gate` with a
+human or protected executor. Read and prepare them as needed. A live incident stays with the responder; the observability agent can take an explicitly
 dispatched Grafana change without taking diagnosis, incident command, or recovery ownership.
 `sre-assistant` remains read-only, including when loading this skill.
 
@@ -62,8 +62,8 @@ Use trusted instance configuration and existing authenticated access first, incl
 available through the invoked tools. Protected personal or service credentials are valid alternatives;
 an authenticated browser does not automatically authenticate an API client. Inspect effective grants;
 do not print tokens, expose contact-point secrets, follow authenticated redirects, or install tools
-as a side effect. An installed MCP/CLI must expose the required target and operation semantics;
-otherwise use the documented HTTP API within the caller's authority. Server permissions and host
+as a side effect. Write only through the documented HTTP API unless `stack-profile` records an
+adopted MCP server or CLI for that operation. Server permissions and host
 controls enforce access; these instructions and unguarded Bash are not a sandbox.
 For `sre-assistant`, the command/visual references retain the current grant limits and require
 authentication identity and secrets to be excluded before tool results reach the model.

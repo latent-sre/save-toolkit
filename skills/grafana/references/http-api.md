@@ -1,15 +1,14 @@
 # Grafana dashboard HTTP API — safe live edits
 
-Read this when the invoked `observability-engineer` talks to a live Grafana. The dashboard write
-rule is dashboards and folders only; Grafana's version history plus the save message records the live
-edit. `stack-profile` owns the repository recovery-copy facts; a backup is not automatically a
-provisioning source or a tested rollback. For review-only work use [read-only checks](./read-only-review.md).
-The 13.2 baseline below separates current read evidence from write procedures. Create, update,
-conflict, import, and rollback behavior is `[unverified]` on the current target; historical QA
-write results remain in Git history and do not transfer to an upgraded instance. Grafana 13
-deprecates `/api` in favour of `/apis` but still serves both; 13.2 disables scripted dashboards
-(410) by default. *[sourced: Grafana API and dashboard docs, 13.2.0 feature registry; reviewed
-2026-09-01]*
+Read this when talking to a live Grafana dashboard or folder API. Who may write, delete, or change
+permissions is set in the parent skill's [Access and authority](../SKILL.md#access-and-authority).
+Grafana's version history plus the save message records the live edit. `stack-profile` owns the
+repository recovery-copy facts; a backup is not automatically a provisioning source or a tested
+rollback. For review-only work use [read-only checks](./read-only-review.md).
+Create, update, conflict, import, and rollback behavior on the current target is unconfirmed until
+observed.
+Grafana 13 deprecates `/api` in favour of `/apis` but still serves both; 13.2 disables scripted
+dashboards (410) by default.
 
 ## Contents
 
@@ -46,10 +45,10 @@ the current scope is a prerequisite to interpreting either operation:
 The namespace is `default` for org 1, `org-<id>` otherwise, `stacks-<id>` on Grafana Cloud.
 App-platform identity is `metadata.name` (the dashboard uid), not the server-minted `metadata.uid`.
 
-The read URL selects the returned shape, not the stored schema. The 13.2.2 read-only target served
-all six versions with preferred `v2`; the sampled stored Classic dashboard returned `elements`
-through V2 and `panels` through V1. `[verified: target reads, 2026-09-19]` An unpinned Classic
-transform can therefore see no panels. This does not verify a converted write or its fidelity.
+The read URL selects the returned shape, not the stored schema. A 13.2.2 target served all six
+versions with preferred `v2`, and a stored Classic dashboard returned `elements` through V2 and
+`panels` through V1, so an unpinned Classic transform can see no
+panels.
 
 1. Read at `v0alpha1` (unstructured, no migration). Take `status.conversion.storedVersion`,
    falling back to the returned `apiVersion`.
@@ -65,7 +64,10 @@ transform can therefore see no panels. This does not verify a converted write or
 `GET /apis/dashboard.grafana.app/` (served and preferred versions), `GET /api/datasources` (names,
 types, uids), `GET /api/frontend/settings` (renderer availability and feature toggles), and
 `GET /api/search?type=dash-db&limit=100` cross-checked against the permissions read. Identifiers come
-from these responses, never from another instance or from memory.
+from these responses, never from another instance or from memory. Never print `/api/datasources` or
+`/api/frontend/settings` raw: datasource entries carry connection users and databases, and frontend
+settings carries decrypted basic-auth credentials for direct-access datasources. Project the named
+fields (uid, name, type; `rendererAvailable`, `buildInfo`) before output.
 
 ## Read and export
 
@@ -94,11 +96,13 @@ dashboard version to restore, and this lane has no deletion authority.
 **Import** is the only path that binds `__inputs` and `${DS_*}` placeholders to this instance's data
 sources (`POST /api/dashboards/import` with `overwrite: false`, `folderUid`, and an `inputs[]`
 binding). Raw `POST /api/dashboards/db` stores the literal placeholder and produces a
-missing-data-source panel. After import, replace the bound concrete uid with `${datasource}` where
-portability is wanted, and save the corrected model.
+missing-data-source panel. After import, apply the data-source rule in the
+[team dashboard conventions](./dashboard-conventions.md) and save the corrected model.
 
 **Update** shows a stable diff (`jq -S` both specs), then writes once with the family's fresh
-concurrency token and a save message, which cannot be added later:
+concurrency token and a save message, which cannot be added later. Changing a dashboard's folder
+(`folderUid` or `grafana.app/folder`) changes its inherited permissions like a folder move: flag it
+in the diff and treat it as that separately authorized change.
 
 | Family | Token | Stale response | Then |
 |---|---|---|---|
@@ -117,9 +121,7 @@ The app-platform folder API has a separate lifecycle from dashboards. Before a f
 the target's folder permissions and namespace. A create needs `folders:create` and `folders:write`;
 an update needs `folders:write`; both need enough `folders:read` scope to check the target and read
 it back. For a nested folder, confirm that nested folders are enabled and that the parent-specific
-grant applies. These current API contracts are [sourced: Grafana's
-Folder HTTP API](https://grafana.com/docs/grafana/latest/developers/http_api/folder/), reviewed
-2026-09-19; their behavior on the target is `[unverified]` until observed.
+grant applies. Folder API behavior on the target is unconfirmed until observed.
 
 - **Create:** list or read the proposed uid and inspect the intended parent for a title collision.
   `POST /apis/folder.grafana.app/v1/namespaces/<ns>/folders` takes a chosen stable `metadata.name`,
@@ -131,8 +133,9 @@ Folder HTTP API](https://grafana.com/docs/grafana/latest/developers/http_api/fol
 - **Update:** `GET …/folders/<uid>` first; `PUT …/folders/<uid>` uses that same `metadata.name`,
   current `metadata.resourceVersion`, the existing parent annotation, and `spec.title`. Moving a
   folder can change inherited access, so it needs a separately authorized path. `404` is an absent
-  target; `412 version-mismatch` is a concurrent update. Keep the pre-change fields as rollback
-  content; a restore reads the current folder and applies those saved fields with its fresh token.
+  target; `409` or `412 version-mismatch` is a concurrent update. Keep the pre-change fields as
+  rollback content; a restore reads the current folder and applies those saved fields with its
+  fresh token.
   In either case stop, fresh-read, and re-diff; do not force.
 - **Outcome:** folder writes have no dashboard version-history or dashboard save-message record.
   Preserve the successful write receipt, then fresh-read the uid: it must match the intended uid,
@@ -154,11 +157,17 @@ Folder HTTP API](https://grafana.com/docs/grafana/latest/developers/http_api/fol
    and the panel's empty-state presentation. Use a known populated window when available; otherwise
    report positive-data behavior `[unverified]`. Do not widen filters just to obtain frames, or
    mistake missing telemetry for an expected empty result.
-   [sourced: Grafana's [no-data distinction](https://grafana.com/docs/grafana/latest/alerting/guides/missing-data/),
-   checked 2026-09-20; target query behavior remains unverified until exercised.]
 3. Follow [visual verification](./visual-verification.md): inspect a server-rendered panel or use an
    authorized browser. `rendererAvailable: false` rules out neither browser inspection nor supplied
    screenshot evidence. If no visual path is available, label presentation `[unverified]`.
+   For a server render, use the instance's generated image link or derive the same-origin
+   `GET /render/d-solo/<uid>/<slug>` route, preserving a deployment subpath. Carry `orgId`,
+   `panelId`, absolute `from`/`to`, `tz` and URL-encoded `var-<name>` selections, repeating a
+   parameter for multi-values; use the actual panel ID or scene key. Start from one panel at
+   1200×600 with `scale=1`, a 45-second client timeout and an 8 MiB bound, one render at a time.
+   Authenticate through the existing credential path, never in the URL, follow no redirects, and
+   never call the renderer service directly with the service-account token. Grafana answers its
+   render limit or a missing renderer with a stock PNG under HTTP 200, so check the dimensions.
 4. Confirm the save message on the new version. App-platform history is served only at an
    enabled stable version such as `v1`, never at the alpha or beta version a row may be stored
    at (a legacy-created `v0alpha1` row answers a history query at `$APIVER` with nothing): list
@@ -167,7 +176,7 @@ Folder HTTP API](https://grafana.com/docs/grafana/latest/developers/http_api/fol
    for a full prior model.
 
    For a read-only review, legacy history can return 403 while stable app-platform history remains
-   readable `[verified: 13.2.2 target, 2026-09-19]`. Preserve the endpoint-specific result; it is
+   readable. Preserve the endpoint-specific result; it is
    not evidence that the dashboard has no versions. A history read cannot verify a new save.
 
 ## Rollback
@@ -187,6 +196,3 @@ tool-managed rollback belongs to that owner. Grafana keeps 20 versions by defaul
 | provisioned, plugin, or managed owner | stop and hand the change to that source |
 | zero query frames | distinguish expected emptiness from query failure or missing telemetry; report any untested positive-data behavior |
 | a 404 on the app platform | verify uid, version, and served APIs before falling back to legacy |
-
-Deleting dashboards and changing permissions, data sources, alerts, contact points, or platform
-configuration are outside the dashboard write rule.

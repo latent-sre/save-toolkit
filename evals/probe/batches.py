@@ -14,32 +14,31 @@ from typing import Any
 
 import judge as rubric_judge
 
-from . import catalog, fingerprints
+from . import catalog, fingerprints, layout
 from .outcomes import State
 
 
 def merge_summary_entries(existing: list[dict[str, Any]], updates: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Replace the entry for each (scenario, label, run) the updates name; append the rest."""
-    keys = {(u["scenario"], u["label"], u["run"]) for u in updates}
-    kept = [e for e in existing if (e.get("scenario"), e.get("label"), e.get("run")) not in keys]
-    return kept + updates
+    keys = {layout.run_key(u) for u in updates}
+    return [e for e in existing if layout.run_key(e) not in keys] + updates
 
 
 def batch_identity_problem(
     entries: list[dict[str, Any]],
     scenarios: list[dict[str, Any]],
     plugin_sha: str,
-    judge_binding: rubric_judge.JudgeBinding | None = None,
-    runtime: dict[str, Any] | None = None,
+    judge_binding: rubric_judge.JudgeBinding | None,
+    runtime: dict[str, Any],
 ) -> str | None:
     """Refuse to pool trials of another candidate, scenario, CLI version or host into one verdict.
 
     A trial recorded before the CLI and host were recorded never pools with one that has them.
     """
-    if runtime is not None and not runtime.get("cli_version"):
+    if not runtime.get("cli_version"):
         return "the CLI did not report its version, so no result would identify it; fix --executable first"
     expected = {
-        spec["id"]: fingerprints.scenario_digest(spec, judge_binding.metadata if judge_binding else None)
+        spec["id"]: fingerprints.scenario_digest(spec, fingerprints.binding_for(spec, judge_binding))
         for spec in scenarios
     }
     for entry in entries:
@@ -48,7 +47,7 @@ def batch_identity_problem(
             continue
         if entry.get("plugin_source_sha256") != plugin_sha:
             return "candidate digest is missing or differs; use a new label or overwrite every affected run"
-        if runtime is not None and entry.get("runtime") != runtime:
+        if entry.get("runtime") != runtime:
             return "CLI version or host is missing or differs; use a new label or overwrite every affected run"
         if entry.get("scenario_sha256") != expected[scenario]:
             return f"{scenario}: scenario identity is missing or changed; use a new label or rerun the batch"

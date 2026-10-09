@@ -1,27 +1,22 @@
 """Read-only shell contracts; command strings are classified, never executed."""
 import json
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+from pathlib import Path
+
+from testkit import SRE_ASSISTANT, guard_decision, guard_payload, require_shell, run_guard
 
 ROOT = Path(__file__).resolve().parents[1]
-GUARD = ROOT / "scripts/readonly-guard.py"
 
 
 class CrossPlatformReads(unittest.TestCase):
     def guard(self, command, tool="PowerShell", copilot=False):
-        payload = {"tool_name": tool, "tool_input": {"command": command}}
-        if not copilot:
-            payload["agent_type"] = "save-toolkit:sre-assistant"
-        result = subprocess.run(
-            [sys.executable, "-I", "-S", str(GUARD), *(["--copilot"] if copilot else [])],
-            input=json.dumps(payload), text=True, capture_output=True, timeout=10,
-        )
-        return result.returncode
+        payload = guard_payload(command, tool_name=tool, agent_type=None if copilot else SRE_ASSISTANT)
+        return guard_decision(run_guard(payload, copilot=copilot))
 
     def test_powershell_reads(self):
         for command in (
@@ -31,7 +26,7 @@ class CrossPlatformReads(unittest.TestCase):
             "Get-Service | Select-Object -First 5",
         ):
             with self.subTest(command=command):
-                self.assertEqual(42, self.guard(command))
+                self.assertEqual("allow", self.guard(command))
 
     def test_powershell_writes_and_dynamic_code_are_denied(self):
         for command in (
@@ -43,7 +38,7 @@ class CrossPlatformReads(unittest.TestCase):
             "Get-Content Env:GRAFANA_SA_TOKEN", "Get-Date `n Remove-Item file.txt",
         ):
             with self.subTest(command=command):
-                self.assertEqual(43, self.guard(command))
+                self.assertEqual("deny", self.guard(command))
 
     def test_json_requires_explicit_safe_property_projection(self):
         for command in (
@@ -54,19 +49,19 @@ class CrossPlatformReads(unittest.TestCase):
         ):
             for copilot in (False, True):
                 with self.subTest(command=command, copilot=copilot):
-                    self.assertEqual(43, self.guard(command, copilot=copilot))
+                    self.assertEqual("deny", self.guard(command, copilot=copilot))
         for command in (
             "Get-Process -Name powershell | Select-Object -Property Name,Id,CPU | ConvertTo-Json -Depth 10",
             "Get-Process | Select-Object -Property Name | Select-Object -First 2 | ConvertTo-Json",
             "Get-Service | Select-Object -First 2 | Select-Object -Property Name,Status | ConvertTo-Json",
         ):
             with self.subTest(command=command):
-                self.assertEqual(42, self.guard(command))
+                self.assertEqual("allow", self.guard(command))
 
     @unittest.skipUnless(os.name == "nt", "Native serialization regression requires Windows")
     def test_allowed_process_json_does_not_serialize_environment(self):
         command = "Get-Process -Name powershell | Select-Object -Property Name,Id,CPU | ConvertTo-Json -Depth 10"
-        self.assertEqual(42, self.guard(command))
+        self.assertEqual("allow", self.guard(command))
         env = {key: value for key, value in os.environ.items() if key.upper() in {
             "PATH", "PATHEXT", "SYSTEMROOT", "WINDIR", "COMSPEC", "TEMP", "TMP",
             "USERPROFILE", "APPDATA", "LOCALAPPDATA",
@@ -88,21 +83,17 @@ class CrossPlatformReads(unittest.TestCase):
     def test_macos_reads(self):
         for command in ("uname -s", "sw_vers -productVersion", "uptime", "df -h"):
             with self.subTest(command=command):
-                self.assertEqual(42, self.guard(command, "Bash"))
+                self.assertEqual("allow", self.guard(command, "Bash"))
 
     def test_copilot_terminal_is_scoped_without_claude_identity(self):
-        self.assertEqual(42, self.guard("git status --short", "run_in_terminal", True))
-        self.assertEqual(43, self.guard("git push", "run_in_terminal", True))
-        self.assertEqual(43, self.guard("python -c pass", "runTerminalCommand", True))
-        self.assertEqual(43, self.guard("echo $GRAFANA_SA_TOKEN", "Bash"))
+        self.assertEqual("allow", self.guard("git status --short", "run_in_terminal", True))
+        self.assertEqual("deny", self.guard("git push", "run_in_terminal", True))
+        self.assertEqual("deny", self.guard("python -c pass", "runTerminalCommand", True))
+        self.assertEqual("deny", self.guard("echo $GRAFANA_SA_TOKEN", "Bash"))
 
     def test_posix_copilot_launcher_honors_guard_decisions(self):
-        shell = shutil.which("sh")
-        if shell is None:
-            candidate = Path("C:/Program Files/Git/bin/sh.exe")
-            shell = str(candidate) if candidate.is_file() else None
-        if shell is None:
-            self.skipTest("POSIX shell unavailable; installed macOS acceptance remains required")
+        # A local skip leaves installed macOS acceptance outstanding; CI fails without a shell.
+        shell = require_shell()
         # Agent-scoped VS Code hooks do not receive Claude's plugin-root substitution.
         env = dict(os.environ)
         env.pop("CLAUDE_PLUGIN_ROOT", None)
@@ -123,9 +114,9 @@ class CrossPlatformReads(unittest.TestCase):
         prefix = ('curl -q --silent --show-error --fail --max-time 20 --max-redirs 0 '
                   '--proto =https --header "Authorization: Bearer $GRAFANA_SA_TOKEN" ')
         good = prefix + '"$GRAFANA_URL/api/health"'
-        self.assertEqual(42, self.guard(good, "Bash"))
+        self.assertEqual("allow", self.guard(good, "Bash"))
         windows = good.replace('curl ', 'curl.exe ', 1).replace('$GRAFANA_', '$env:GRAFANA_')
-        self.assertEqual(42, self.guard(windows, "PowerShell"))
+        self.assertEqual("allow", self.guard(windows, "PowerShell"))
         for command in (
             good + " --insecure", good + " --location", good + " --output out.json",
             good + " --request DELETE", good.replace("-q ", ""),
@@ -134,7 +125,29 @@ class CrossPlatformReads(unittest.TestCase):
             good.replace("$GRAFANA_SA_TOKEN", "literal-secret"),
         ):
             with self.subTest(command=command):
-                self.assertEqual(43, self.guard(command, "Bash"))
+                self.assertEqual("deny", self.guard(command, "Bash"))
+
+    def test_grafana_curl_admits_only_reads_without_credentials_or_unbounded_output(self):
+        prefix = ('curl -q --silent --show-error --fail --max-time 20 --max-redirs 0 '
+                  '--proto =https --header "Authorization: Bearer $GRAFANA_SA_TOKEN" "$GRAFANA_URL')
+        kept = ("/api/health", "/api/plugins", "/api/access-control/user/permissions",
+                "/api/datasources/uid/metrics-1/health", "/api/folders?limit=100&page=2",
+                "/apis/dashboard.grafana.app/v1/namespaces/default/dashboards/bsg-backup")
+        # frontend/settings returns decrypted basic auth for direct-access datasources; datasources
+        # returns connection users; both rule paths cannot be bounded; the rest the helper covers.
+        removed = ("/api/frontend/settings", "/api/datasources", "/api/org",
+                   "/api/search?type=dash-db&limit=100&page=1", "/api/dashboards/uid/bsg-backup",
+                   "/api/dashboards/uid/bsg-backup/versions", "/api/v1/provisioning/alert-rules",
+                   "/api/prometheus/grafana/api/v1/rules", "/apis/dashboard.grafana.app/",
+                   "/apis/dashboard.grafana.app/v1/namespaces/default/dashboards",
+                   "/apis/dashboard.grafana.app/v1/namespaces/default/dashboards/x?fieldSelector=a")
+        for tool in ("Bash", "PowerShell"):
+            for path, expected in [*((path, "allow") for path in kept), *((path, "deny") for path in removed)]:
+                command = prefix + path + '"'
+                if tool == "PowerShell":
+                    command = command.replace('curl ', 'curl.exe ', 1).replace('$GRAFANA_', '$env:GRAFANA_')
+                with self.subTest(tool=tool, path=path):
+                    self.assertEqual(expected, self.guard(command, tool))
 
     @unittest.skipUnless(os.name == "nt", "Windows PowerShell launcher requires Windows")
     def test_real_powershell_launcher_allows_reads_and_denies_writes(self):

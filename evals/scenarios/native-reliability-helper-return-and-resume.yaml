@@ -4,6 +4,7 @@ agent: reliability-engineer
 tools: [Skill, Read, Task]
 helper: sre-assistant
 expected_model: claude-sonnet-5-5
+max_turns: 18
 prompt: |
   Give me a scoped reliability design assessment for the checkout worker's slow-ledger path.
   Morgan is the human service owner; you are reporting to me as the invoking caller. There is no

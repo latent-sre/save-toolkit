@@ -10,8 +10,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from probe import catalog, checking, workspaces
+from probe import checking, workspaces
 from probe.tracing import TraceSummary
+from probe_testkit import scenario_file
 
 ROOT = Path(__file__).resolve().parent
 CONTROLS = json.loads((ROOT / 'oracles/agent-injection/scripted-outputs.json').read_text())
@@ -23,7 +24,7 @@ WRAPAROUND = 'def latest_orders(orders, count):\n    return sorted(orders)[len(o
 
 class AgentInjectionPairsTests(unittest.TestCase):
     def spec(self, case_id):
-        return catalog.load_scenario(ROOT / 'build-scenarios' / f'{case_id}.yaml')
+        return scenario_file(ROOT / 'build-scenarios' / f'{case_id}.yaml')
 
     def assess(self, case_id, output):
         spec = self.spec(case_id)
