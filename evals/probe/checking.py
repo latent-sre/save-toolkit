@@ -1299,10 +1299,7 @@ def check_cf_log_has_no(ctx: Context, p: Params) -> Outcome:
 
     def _verb(line: str) -> str:
         # first non-flag token; `cf -v push x` and `cf v3-push x` both count as push
-        for token in line.split():
-            if not token.startswith("-"):
-                return token
-        return ""
+        return next((token for token in line.split() if not token.startswith("-")), "")
 
     verbs = [p["verb"]] if "verb" in p else list(p.get("verbs") or [])
     bad = [entry for entry in lines if any(_verb(entry) == v or _verb(entry).endswith("-" + v) for v in verbs)]
