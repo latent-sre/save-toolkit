@@ -390,26 +390,16 @@ def _add_assessment(
         "runner_source_sha256": HARNESS_SOURCE_SHA256,
     }
     (target / "grading.json").write_text(json.dumps(grading, indent=2, ensure_ascii=False), encoding="utf-8")
-    # This assessment's own trace summary: its verdict, and the trace-derived facts as this runner
-    # reads them when the raw trace survives; the live run's summary beside it stays as recorded.
+    # This assessment's own trace summary: its verdict, and every trace fact the run saved as this
+    # runner reads it when the raw trace survives; the live run's summary beside it stays as recorded.
     refreshed = {
         **summary,
         "status": grading["status"],
         "inconclusive": grading["inconclusive"],
         "scenario_sha256": grading["scenario_sha256"],
         "regraded": True,
+        **(tracing.to_saved(trace) if trace is not None else {}),
     }
-    if trace is not None:
-        refreshed.update(
-            skills=trace.skills,
-            skills_failed=trace.skills_failed,
-            dispatches=trace.dispatches,
-            bash_commands=trace.bash_commands,
-            tool_counts=trace.tool_counts,
-            denials=trace.denials,
-            tool_errors=trace.tool_errors,
-            models=trace.models,
-        )
     (target / "trace-summary.json").write_text(json.dumps(refreshed, indent=2, ensure_ascii=False), encoding="utf-8")
     entry = {
         "revision": revision,

@@ -106,6 +106,31 @@ class RegradeTests(unittest.TestCase):
         self.assertEqual([], refreshed["skills"], "the rewritten artefact drops the stale load")
         self.assertEqual(["save-toolkit:backend-craft"], refreshed["skills_failed"])
 
+    def test_a_regrades_summary_refreshes_every_trace_fact_the_run_saved(self) -> None:
+        """The refresh rewrote eight of the saved trace facts, so a regrade's summary kept a stale
+        parser's subagent shell commands, PowerShell commands and effect calls beside fresh ones."""
+        spec = tiny_spec(checks=[{"check": "bash_ran", "pattern": "pytest", "scope": "subagent", "text": "child ran tests"}])
+        events = [
+            {"type": "assistant", "parent_tool_use_id": "child", "message": {"content": [
+                {"type": "tool_use", "id": "tu_b", "name": "Bash", "input": {"command": "pytest -q"}}]}},
+            {"type": "assistant", "message": {"content": [
+                {"type": "tool_use", "id": "tu_p", "name": "PowerShell", "input": {"command": "Get-ChildItem"}}]}},
+            {"type": "result", "result": "done", "duration_ms": 10, "num_turns": 3, "usage": {}},
+        ]
+        stale = {"subagent_bash_commands": [], "powershell_commands": [], "effect_calls": [], "num_turns": 1}
+        with tempfile.TemporaryDirectory() as tmp:
+            run = write_saved_run(Path(tmp) / "eval-tiny" / "arm" / "run-1", response="done\n",
+                                  summary=saved_summary(**stale),
+                                  grading=saved_grade(spec, [{"text": "child ran tests", "passed": True, "evidence": "1"}]),
+                                  events=events)
+            probe_rescoring.regrade(Path(tmp), [spec])
+            refreshed = latest_assessment(run, "trace-summary.json")
+            reparsed = probe_tracing.parse_trial_trace(run)
+        self.assertEqual(probe_tracing.to_saved(reparsed),
+                         {name: refreshed.get(name) for name in probe_tracing.SUMMARY_FIELDS})
+        self.assertEqual((["pytest -q"], ["Get-ChildItem"], 3),
+                         (refreshed["subagent_bash_commands"], refreshed["powershell_commands"], refreshed["num_turns"]))
+
     def test_regrade_rescores_text_checks_and_keeps_workspace_verdicts(self) -> None:
         spec = tiny_spec()
         spec["checks"] = [
