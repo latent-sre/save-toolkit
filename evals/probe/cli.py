@@ -37,6 +37,11 @@ def _verdict_exit(states: Sequence[str], *, unfinished: bool) -> ExitCode:
     return ExitCode.INCONCLUSIVE if unfinished or State.INCONCLUSIVE in states else ExitCode.OK
 
 
+def _emit(event: dict[str, Any]) -> None:
+    """Print one batch event as a JSON line, flushed so a reader following the batch sees it at once."""
+    print(json.dumps(event), flush=True)
+
+
 DEFAULT_TIMEOUT = 900
 COMMANDS = ("run", "validate", "regrade", "rescore", "diff", "schema")
 MIXED_MODELS = "mixed resolved model identities"
@@ -373,7 +378,7 @@ def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
 
     problem = identity_problem(retained)
     if problem:
-        print(json.dumps({"batch": "INCONCLUSIVE", "reason": problem}), flush=True)
+        _emit({"batch": "INCONCLUSIVE", "reason": problem})
         return ExitCode.INCONCLUSIVE
     results: list[dict[str, Any]] = []
     blocked: str | None = None
@@ -432,10 +437,7 @@ def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
             machinery = results[-1].get("grader_error") or results[-1].get("service_error")
             if machinery:
                 machinery_stopped[spec["id"]] = machinery
-                print(
-                    json.dumps({"scenario": spec["id"], "stopped": f"grading machinery failed: {machinery}"}),
-                    flush=True,
-                )
+                _emit({"scenario": spec["id"], "stopped": f"grading machinery failed: {machinery}"})
             spent += float(results[-1].get("known_cost_usd") or 0.0)
             blocked = _stop_after(results[-1], args.max_batch_usd)
             if blocked:
@@ -489,15 +491,12 @@ def _preflight(
         print(f"refusing to run: {exc}", file=sys.stderr)
         return ExitCode.REFUSED
     runtime = fingerprints.runtime_identity(args.executable)
-    print(
-        json.dumps(
-            {
-                "plugin": provenance,
-                "runtime": runtime,
-                "judge_binding": judge_binding.metadata if judge_binding else None,
-            }
-        ),
-        flush=True,
+    _emit(
+        {
+            "plugin": provenance,
+            "runtime": runtime,
+            "judge_binding": judge_binding.metadata if judge_binding else None,
+        }
     )
     if args.expect_plugin_digest and not provenance["plugin_source_sha256"].startswith(args.expect_plugin_digest):
         print(
@@ -539,41 +538,35 @@ def _conclude(
     if auth_failed and stop:
         # Exit 4, distinct from FAIL (1) and INCONCLUSIVE (2): re-authenticate, then resume. Until
         # then no verdict covers the batch, and nothing a later check refuses changes why it stopped.
-        print(json.dumps(stop), flush=True)
+        _emit(stop)
         return ExitCode.AUTH_LOST
     identities = batches.model_identities(batch)
     if problem or len(identities) > 1:
         if problem:
-            print(json.dumps({"batch": "INCONCLUSIVE", "reason": problem}), flush=True)
+            _emit({"batch": "INCONCLUSIVE", "reason": problem})
         else:
             # Routing and behaviour are model-dependent, so trials under two resolved models are two
             # measurements. Aggregating them would emit one verdict for neither.
-            print(
-                json.dumps({"batch": "INCONCLUSIVE", "reason": MIXED_MODELS, "models": identities}),
-                flush=True,
-            )
+            _emit({"batch": "INCONCLUSIVE", "reason": MIXED_MODELS, "models": identities})
             print(f"{len(batch)} trial(s) under {len(identities)} resolved models: not aggregated, not publishable")
         if stop:  # why scheduling also ended early, which the refusal must not hide
-            print(json.dumps(stop), flush=True)
+            _emit(stop)
         return ExitCode.INCONCLUSIVE
     verdicts = batches.aggregate_by_scenario(scenarios, batch, threshold)
     for scenario_id, verdict in sorted(verdicts.items()):
-        print(
-            json.dumps(
-                {
-                    "scenario": scenario_id,
-                    "verdict": verdict["verdict"],
-                    **assessment.native_assessment(next(spec for spec in scenarios if spec["id"] == scenario_id)),
-                    "passed": verdict["passed"],
-                    "trials": verdict["trials"],
-                    "threshold": verdict["threshold"],
-                }
-            ),
-            flush=True,
+        _emit(
+            {
+                "scenario": scenario_id,
+                "verdict": verdict["verdict"],
+                **assessment.native_assessment(next(spec for spec in scenarios if spec["id"] == scenario_id)),
+                "passed": verdict["passed"],
+                "trials": verdict["trials"],
+                "threshold": verdict["threshold"],
+            }
         )
     passed = sum(r["status"] == "PASS" for r in batch)
     print(f"{passed}/{len(batch)} trials PASS ({sum(r['status'] == 'INCONCLUSIVE' for r in batch)} inconclusive)")
     states = [v["verdict"] for v in verdicts.values()]
     if stop:
-        print(json.dumps(stop), flush=True)
+        _emit(stop)
     return _verdict_exit(states, unfinished=bool(stop))
